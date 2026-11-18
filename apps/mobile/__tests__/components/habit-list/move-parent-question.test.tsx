@@ -24,6 +24,7 @@ function renderDialog(overrides: Partial<Parameters<typeof MoveParentDialog>[0]>
 }
 const sheetTitle = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node) => String(node.type) === 'Sheet')[0]!.props.title as string
 const questionLabels = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node) => String(node.type) === 'Text' && node.props.importantForAccessibility === 'no-hide-descendants' && node.props.children === 'habits.moveParent.destinations')
+const descriptions = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'habits.moveParent.description')
 const radios = (tree: ReturnType<typeof TestRenderer.create>): ReactTestInstance[] => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
 
 describe('Android move-parent dialog as one question', () => {
@@ -32,6 +33,7 @@ describe('Android move-parent dialog as one question', () => {
     const { tree, props } = renderDialog()
     expect(sheetTitle(tree)).toBe('habits.moveParent.destinations')
     expect(questionLabels(tree)).toHaveLength(0)
+    expect(descriptions(tree)).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'habits.moveParent.destinations').length).toBeGreaterThan(0)
     expect(radios(tree)).toHaveLength(3)
     void TestRenderer.act(() => { (radios(tree)[2]!.props.onPress as () => void)() })
@@ -62,6 +64,7 @@ describe('Android move-parent dialog as one question', () => {
   it('renders the current dialog with the flag off', () => {
     const { tree } = renderDialog()
     expect(sheetTitle(tree)).toBe('habits.moveParent.title')
+    expect(descriptions(tree)).toHaveLength(1)
     expect(questionLabels(tree).length).toBeGreaterThan(0)
   })
 })

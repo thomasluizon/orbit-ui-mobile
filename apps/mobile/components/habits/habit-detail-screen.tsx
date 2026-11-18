@@ -364,7 +364,7 @@ function RescueWait({ query, tokens }: Readonly<{ query: Pick<ReturnType<typeof 
   const { t } = useTranslation()
   const lineHoldsOrbit = useFlag('orbit_guided_flows')
   if (query.error) return <Text style={[styles.muted, { color: tokens.fg3 }]}>{t('habits.detail.rescheduleError')}</Text>
-  if (query.isPaused) return <CapacityNotice message={t('shell.composer.offline.reason')} mascotState="descansando" />
+  if (query.isPaused) return <CapacityNotice message={t('shell.composer.offline.reason')} mascotState={lineHoldsOrbit ? undefined : 'descansando'} />
   if (!query.isFetching) return null
   return <View testID="rescue-loading-skeleton" style={styles.rescueWait}>
     {lineHoldsOrbit ? null : <View style={styles.rescueWaitMascot}><OrbitMascot size={48} state="pensando" /></View>}
@@ -455,7 +455,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmAction>(null)
-  const resultHost = useHabitDetailResult()
+  const resultHost = useHabitDetailResult(() => router.replace({ pathname: '/(tabs)', params: { date: dateStr } }))
   const [pendingDateLog, setPendingDateLog] = useState<{ habitId: string; intent: 'log' | 'unlog'; date: string; name: string; permanent: boolean } | null>(null)
   const [invalidLogDate, setInvalidLogDate] = useState<{ date: string; habitId: string } | null>(null)
   const [childToDelete, setChildToDelete] = useState<string | null>(null)
@@ -557,16 +557,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const confirmDelete = async () => {
     if (!await runWrite(() => deleteHabit.mutateAsync(habitId), t('habits.detail.deleteError'))) return
     setConfirm(null)
-    if (resultHost.guided) resultHost.setResult({ kind: 'deleted' })
-    else router.replace({ pathname: '/(tabs)', params: { date: dateStr } })
-  }
-  const seeTodayFromResult = () => {
-    resultHost.setResult(null)
-    router.replace({ pathname: '/(tabs)', params: { date: dateStr } })
-  }
-  const closeResult = () => {
-    if (resultHost.result?.kind === 'deleted') seeTodayFromResult()
-    else resultHost.setResult(null)
+    resultHost.deleted()
   }
   const confirmChildDelete = async () => {
     if (!childToDelete) return
@@ -628,7 +619,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         {subHabitCreation}
       </Surface> : subHabitCreation}
         {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text ref={stripLabelRef} style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} tokens={tokens} /></View> : null}
-      <FocusedRescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasPro={hasPro} locale={language} today={today} tokens={tokens} scheduleEditing={editOpen} returnFocus={focusStrip} onAccepted={(date) => { if (resultHost.guided) resultHost.setResult({ kind: 'rescheduled', date }) }} />
+      <FocusedRescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasPro={hasPro} locale={language} today={today} tokens={tokens} scheduleEditing={editOpen} returnFocus={focusStrip} onAccepted={resultHost.rescheduled} />
       <HabitDetailReviewRow habit={habit} />
       <View style={{ gap: 12 }}><ListRow placement="column" icon={disclosureIcon(detailsOpen)} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><View nativeID="habit-detail-fields" style={{ gap: 24, display: detailsOpen ? 'flex' : 'none' }}>
       <Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} error={metricsQuery.isError} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} />
@@ -648,7 +639,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       }} />
       <ConfirmSheet open={confirm === 'delete'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void confirmDelete() }} />
       <ConfirmSheet open={confirm === 'delete-child'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => { setConfirm(null); setChildToDelete(null) }} onConfirm={() => { void confirmChildDelete() }} />
-      <HabitDetailResultDialog result={resultHost.result} onSeeToday={seeTodayFromResult} onClose={closeResult} />
+      <HabitDetailResultDialog result={resultHost.result} onSeeToday={resultHost.seeToday} onClose={resultHost.close} />
     </View>
     </FlowShell>
   )

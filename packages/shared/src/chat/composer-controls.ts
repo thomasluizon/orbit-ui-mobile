@@ -69,9 +69,17 @@ export function promptDisabledReason(state: {
   return state.isSending ? translate('shell.composer.busy.reason') : undefined
 }
 
-/** Orbit rests on the conversation while the AI is unavailable: offline, or at the message or daily limit. */
-export function conversationMascotState(state: { isOnline: boolean; dailyBudgetReached?: boolean; atMessageLimit: boolean }): 'parado' | 'descansando' {
-  return !state.isOnline || state.dailyBudgetReached === true || state.atMessageLimit ? 'descansando' : 'parado'
+type ConversationAvailability = { isOnline: boolean; dailyBudgetReached?: boolean; atMessageLimit: boolean }
+
+/** The reason the AI is unavailable, as the key of its first-person sentence: offline, or at the message or daily limit. */
+export function conversationRestReason(state: ConversationAvailability): 'todayAstra.offline' | 'todayAstra.limit' | null {
+  if (!state.isOnline) return 'todayAstra.offline'
+  return state.dailyBudgetReached === true || state.atMessageLimit ? 'todayAstra.limit' : null
+}
+
+/** Orbit rests on the conversation while the AI is unavailable. */
+export function conversationMascotState(state: ConversationAvailability): 'parado' | 'descansando' {
+  return conversationRestReason(state) ? 'descansando' : 'parado'
 }
 
 export function findPromptSlot(prompt: string): { start: number; end: number } | null {

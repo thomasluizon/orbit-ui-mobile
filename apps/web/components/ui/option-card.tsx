@@ -1,6 +1,7 @@
 'use client'
 
 import type { OptionCardProps } from '@orbit/shared/contracts/flow'
+import { SkeletonFace } from '@/components/ui/skeleton'
 
 const ARROW_KEYS = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp']
 
@@ -16,8 +17,8 @@ export function moveFocusBetweenOptions(event: React.KeyboardEvent<HTMLButtonEle
   options[(current + step + options.length) % options.length]?.focus()
 }
 
-/** A quick option. A press answers. Selection takes the `--primary` ring and focus takes the `--fg-1` ring. A wide option holds one line and ends a long label with an ellipsis; its accessible name keeps the full label. */
-export function OptionCard({ label, selected = false, disabled = false, disabledReason, wide = false, onSelect, onHighlight }: Readonly<OptionCardProps>) {
+/** A quick option. A press answers. Selection takes the `--primary` ring and focus takes the `--fg-1` ring. A wide option holds one line and ends a long label with an ellipsis; its accessible name keeps the full label. An option that waits for its own request keeps its label over the skeleton face. */
+export function OptionCard({ label, selected = false, disabled = false, disabledReason, loading = false, wide = false, onSelect, onHighlight }: Readonly<OptionCardProps>) {
   return (
     <div data-option-wide={wide || undefined} className={`flex min-w-0 flex-col gap-1${wide ? ' col-span-full' : ''}`}>
       <button
@@ -25,15 +26,17 @@ export function OptionCard({ label, selected = false, disabled = false, disabled
         data-option-card=""
         data-selected={selected || undefined}
         aria-pressed={selected}
-        disabled={disabled}
+        aria-busy={loading || undefined}
+        disabled={disabled || loading}
         onClick={onSelect}
         onKeyDown={moveFocusBetweenOptions}
         onFocus={() => onHighlight?.(true)}
         onBlur={() => onHighlight?.(false)}
         onPointerEnter={(event) => { if (event.pointerType === 'mouse') onHighlight?.(true) }}
         onPointerLeave={(event) => { if (event.pointerType === 'mouse') onHighlight?.(false) }}
-        className="orbit-option-card press-hit-layer"
+        className="orbit-option-card press-hit-layer isolate"
       >
+        {loading ? <SkeletonFace /> : null}
         {wide ? <span className="min-w-0 truncate">{label}</span> : label}
       </button>
       {disabled && disabledReason ? <span className="text-center text-xs text-[var(--fg-3)]">{disabledReason}</span> : null}

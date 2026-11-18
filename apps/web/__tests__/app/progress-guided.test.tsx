@@ -116,6 +116,7 @@ describe('Progresso root with orbit_guided_flows on', () => {
     expect(mascots[0]).toHaveAttribute('data-orbit-state', 'parado')
     const copy = catalogs[locale].progressScreen
     expect(orbitLine(container)).toHaveTextContent(locale === 'en' ? 'You showed up on 12 of the last 30 days.' : 'Você apareceu em 12 dos últimos 30 dias.')
+    expect(orbitLine(container)).toHaveClass('text-base', 'leading-[1.4]')
     expect(screen.getByRole('heading', { level: 2, name: copy.sections.windowQuestion })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: copy.sectionsQuestion })).toBeInTheDocument()
   })
@@ -287,6 +288,7 @@ describe('Sequência with orbit_guided_flows on', () => {
     expect(mascots).toHaveLength(1)
     expect(mascots[0]).toHaveAttribute('width', '48')
     expect(container.querySelector('[data-streak-orbit-line]')).toHaveTextContent(locale === 'en' ? '4 days in a row. 3 more days for the next freeze.' : '4 dias seguidos. Faltam 3 dias para o próximo congelamento.')
+    expect(container.querySelector('[data-streak-orbit-line]')).toHaveClass('text-base', 'leading-[1.4]')
     expect(screen.getByTestId('progress-streak-figure')).toBeInTheDocument()
   })
 

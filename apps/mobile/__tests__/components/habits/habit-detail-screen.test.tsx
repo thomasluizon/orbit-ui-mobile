@@ -955,6 +955,19 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
+  it('gives the offline reason with no second Orbit while the rescue request waits offline in the guided surface', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    mocks.reschedulePaused = true
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const status = tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' })
+    expect(textsOf(status)).toContain('shell.composer.offline.reason')
+    expect(status.findAllByType('OrbitMascot')).toHaveLength(0)
+    expect(tree.root.findAllByType('OrbitMascot').map((mascot: TestNode) => mascot.props.size)).toEqual([48])
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('keeps Pensando on the Orbit line alone while the reschedule suggestion loads in the guided surface', () => {
     enableTestFlags('orbit_guided_flows')
     openRescueGate()

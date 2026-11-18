@@ -12,7 +12,7 @@ interface TodayAstraState {
   returning: ReturningInterval | null
 }
 
-type TodayAstraTranslate = (key: 'todayAstra.openConversation' | 'todayAstra.viewProgress' | 'todayAstra.returningElapsed' | 'todayAstra.returningBounded', values?: { days: number }) => string
+type TodayAstraTranslate = (key: 'todayAstra.openConversation' | 'todayAstra.viewProgress' | 'todayAstra.returningElapsed' | 'todayAstra.returningBounded') => string
 
 export function getTodayAstraSlot(state: TodayAstraState, translate: TodayAstraTranslate): TodayAstraLine | 'summary' | null {
   return getTodayAstraLine(state, translate) ?? (shouldShowTodayAstraSurface(state) ? 'summary' : null)
@@ -24,7 +24,7 @@ export function getTodayAstraLine(state: TodayAstraState, translate: TodayAstraT
   if (!state.returning) return null
   return {
     text: state.returning.kind === 'elapsed'
-      ? translate('todayAstra.returningElapsed', { days: state.returning.days })
+      ? translate('todayAstra.returningElapsed')
       : translate('todayAstra.returningBounded'),
     destination: translate('todayAstra.viewProgress'),
     item: null,

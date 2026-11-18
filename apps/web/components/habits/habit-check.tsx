@@ -68,7 +68,7 @@ export function HabitCheck({ status, label, unavailable = false, progress }: Rea
       className="habit-check-motion relative inline-flex shrink-0 items-center justify-center rounded-[12px]"
       style={{ width: 28, height: 28, background: done ? 'var(--fg-1)' : 'var(--habit-check-feedback, transparent)', boxShadow: done ? 'none' : `inset 0 0 0 1px ${color}` }}>
       {done ? <span data-habit-check-feedback="" aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[inherit]" /> : null}
-      {done ? <Check aria-hidden="true" className="relative" size={16} strokeWidth={3} color="var(--bg)" /> : null}
+      {done ? <Check aria-hidden="true" className="relative" size={16} strokeWidth={2.5} color="var(--bg)" /> : null}
       {!done && ratio > 0 ? <CheckProgressStroke ratio={ratio} bad={status === 'bad'} /> : null}
     </span>
   )

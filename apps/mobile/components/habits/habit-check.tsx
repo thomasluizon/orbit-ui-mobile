@@ -80,6 +80,6 @@ function CompletedCheck({ feedback, fill, color }: Readonly<{ feedback: boolean;
   return <>
     {feedback ? <View testID="habit-check-feedback" pointerEvents="none" accessible={false}
       style={[StyleSheet.absoluteFill, { borderRadius: 12, backgroundColor: fill }]} /> : null}
-    <Check size={16} strokeWidth={3} color={color} />
+    <Check size={16} strokeWidth={2.5} color={color} />
   </>
 }

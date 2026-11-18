@@ -13,7 +13,7 @@ import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFlowAnnouncement } from '@/components/ui/question-flow'
+import { useFlowAnnouncement, useLineAfterArrival } from '@/components/ui/question-flow'
 import { useOrbitLook } from '@/hooks/use-orbit-look'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
@@ -177,7 +177,7 @@ export function GuidedPricingSection({
   const lineId = useId()
   const { mascotRef, lookAt, lookTowards, lookAway } = useOrbitLook()
   const line = orbitLineText(resolveUpgradeOrbitLine({ isOnline, isLoadingPlans, isPlansError: isPlansError && !plans, usage }), t)
-  const announcement = useFlowAnnouncement(line, 'plan')
+  const announcement = useFlowAnnouncement(useLineAfterArrival(line, focusOnMount), 'plan')
   const checkoutPending = checkoutLoading !== null
   const selectedName = t(`upgrade.plans.${selectedInterval}.name`)
   useEffect(() => {
@@ -211,7 +211,7 @@ export function GuidedPricingSection({
         className="mx-auto flex w-full max-w-[592px] flex-col items-center gap-6 text-center"
       >
         <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={wide ? 128 : 96} state="parado" lookAt={lookAt} /></span>
-        {line ? <p id={lineId} data-upgrade-orbit-line="" className="text-base leading-6 text-[var(--fg-2)]">{line}</p> : null}
+        {line ? <p id={lineId} data-upgrade-orbit-line="" className="text-base leading-[1.4] text-[var(--fg-2)]">{line}</p> : null}
         <h1 id={headingId} ref={headingRef} tabIndex={-1} aria-describedby={line ? lineId : undefined} className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{t('upgrade.question')}</h1>
         <div className="flex w-full flex-col items-center gap-3">
           <div className="w-full sm:max-w-[320px]">

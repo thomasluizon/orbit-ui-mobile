@@ -63,7 +63,8 @@ describe('the guided Wrapped cover on web', () => {
     const copy = locale.messages.wrapped
 
     expect(container.querySelector('[data-wrapped-orbit-line]')).toHaveTextContent(copy.orbitLine.empty)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleDescription(copy.orbitLine.empty)
+    expect(container.querySelector('[data-wrapped-orbit-line]')).toHaveClass('text-base', 'leading-[1.4]')
+    expect(screen.getByRole('heading', { level: 1 })).not.toHaveAttribute('aria-describedby')
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'parado')
     expect(container.querySelector('[data-orbit-state="feliz"]')).toBeNull()
     expect(screen.queryByRole('button', { name: copy.start })).not.toBeInTheDocument()
@@ -89,6 +90,7 @@ describe('the guided Wrapped cover on web', () => {
       const view = render(cover(from))
       act(() => { vi.advanceTimersByTime(1000) })
       expect(screen.getByRole('status')).toHaveTextContent(from === 'empty' ? en.wrapped.orbitLine.empty : '')
+      expect(screen.getByRole('heading', { level: 1 })).not.toHaveAttribute('aria-describedby')
       expect(screen.getByRole('status')).not.toHaveTextContent(en.wrapped.error)
       view.rerender(cover('loading'))
       expect(screen.getByRole('status')).toHaveTextContent(en.wrapped.loading)

@@ -21,7 +21,7 @@ describe('today Astra line', () => {
 
   it('falls back to each returning interval or no line', () => {
     expect(getTodayAstraLine({ ...available, returning: { kind: 'elapsed', days: 5 } }, translate))
-      .toEqual({ text: 'todayAstra.returningElapsed:5', destination: 'todayAstra.viewProgress', item: null })
+      .toEqual({ text: 'todayAstra.returningElapsed', destination: 'todayAstra.viewProgress', item: null })
     expect(getTodayAstraLine({ ...available, returning: { kind: 'bounded' } }, translate))
       .toEqual({ text: 'todayAstra.returningBounded', destination: 'todayAstra.viewProgress', item: null })
     expect(getTodayAstraLine(available, translate)).toBeNull()
@@ -31,7 +31,7 @@ describe('today Astra line', () => {
     expect(getTodayAstraSlot({ ...available, item, returning: { kind: 'elapsed', days: 5 } }, translate))
       .toEqual({ text: item.text, destination: 'todayAstra.openConversation', item })
     expect(getTodayAstraSlot({ ...available, returning: { kind: 'elapsed', days: 5 } }, translate))
-      .toEqual({ text: 'todayAstra.returningElapsed:5', destination: 'todayAstra.viewProgress', item: null })
+      .toEqual({ text: 'todayAstra.returningElapsed', destination: 'todayAstra.viewProgress', item: null })
     expect(getTodayAstraSlot({ ...available, returning: { kind: 'bounded' } }, translate))
       .toEqual({ text: 'todayAstra.returningBounded', destination: 'todayAstra.viewProgress', item: null })
     expect(getTodayAstraSlot(available, translate)).toBe('summary')

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
@@ -8,6 +8,8 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+const DESKTOP_WIDTH = 768
 
 interface ConfirmSheetProps {
   open: boolean
@@ -44,6 +46,7 @@ export function ConfirmSheet({
   cancelLabel,
   minimumActionHeight,
   destructive = false,
+  inlineActions = false,
   quickOptions = false,
   freePathLabel,
   confirmImmediately = false,
@@ -58,6 +61,7 @@ export function ConfirmSheet({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { sheetRef, closeSheet } = useSheetHost()
+  const { width } = useWindowDimensions()
   const cancelRef = useRef<View>(null)
   const onCloseCompleteRef = useRef(onCloseComplete)
   useEffect(() => { onCloseCompleteRef.current = onCloseComplete }, [onCloseComplete])
@@ -109,7 +113,7 @@ export function ConfirmSheet({
   )
   const confirmButton = (
     <PillButton
-      variant={destructive ? 'destructive' : 'primary'}
+      variant={destructive ? 'destructive' : inlineActions && width >= DESKTOP_WIDTH ? 'secondary' : 'primary'}
       size="sm"
       minimumHeight={minimumActionHeight}
       disabled={actionsDisabled || confirmDisabled}
@@ -144,7 +148,7 @@ export function ConfirmSheet({
       )}
     >
       {quickOptions ? (
-        <QuestionBody title={title} message={message} messageColor={tokens.fg2} confirmLabel={confirmLabel} cancelLabel={cancelLabel ?? t('common.notNow')} freePathLabel={freePathLabel} answersDisabled={actionsDisabled} confirmDisabled={actionsDisabled || confirmDisabled} onConfirm={confirm} onCancel={cancel}>{children}</QuestionBody>
+        <QuestionBody title={title} message={message} messageColor={tokens.fg2} confirmLabel={confirmLabel} cancelLabel={cancelLabel ?? t('common.notNow')} freePathLabel={freePathLabel} answersDisabled={actionsDisabled} confirmDisabled={actionsDisabled || confirmDisabled} confirmLoading={loading} onConfirm={confirm} onCancel={cancel}>{children}</QuestionBody>
       ) : (
         <>
           {message ? <Text style={[styles.message, { color: tokens.fg2 }]}>{message}</Text> : null}
@@ -164,17 +168,18 @@ interface QuestionBodyProps {
   freePathLabel?: string
   answersDisabled: boolean
   confirmDisabled: boolean
+  confirmLoading: boolean
   onConfirm: () => void
   onCancel: () => void
   children?: ReactNode
 }
 
-function QuestionBody({ title, message, messageColor, confirmLabel, cancelLabel, freePathLabel, answersDisabled, confirmDisabled, onConfirm, onCancel, children }: Readonly<QuestionBodyProps>) {
+function QuestionBody({ title, message, messageColor, confirmLabel, cancelLabel, freePathLabel, answersDisabled, confirmDisabled, confirmLoading, onConfirm, onCancel, children }: Readonly<QuestionBodyProps>) {
   return (
     <View style={styles.question}>
       {message ? <Text style={[styles.message, { color: messageColor }]}>{message}</Text> : null}
       <View role="group" accessibilityLabel={title} testID="question-options" style={styles.options}>
-        <OptionCard label={confirmLabel} disabled={confirmDisabled} onSelect={onConfirm} />
+        <OptionCard label={confirmLabel} disabled={confirmDisabled} loading={confirmLoading} onSelect={onConfirm} />
         <OptionCard label={cancelLabel} disabled={answersDisabled} onSelect={onCancel} />
       </View>
       {children}

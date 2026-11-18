@@ -23,7 +23,6 @@ function render(locale: keyof typeof catalogs, line: ProgressOrbitLine | StreakO
   return String(new IntlMessageFormat(source as string, locale).format(line.values ?? {}))
 }
 
-/** A daily 30-day window whose last point is `WINDOW_END`, with the completions given per date. */
 function dailySeries(completedOn: Record<string, number>, days = 30): CompletionSeries {
   const end = Date.parse(`${WINDOW_END}T00:00:00Z`)
   return {

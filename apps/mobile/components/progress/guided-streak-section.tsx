@@ -117,6 +117,6 @@ const styles = StyleSheet.create({
   section: { width: '100%', gap: 16 },
   orbitRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12 },
   orbitSlot: { width: 48, alignItems: 'center' },
-  line: { flex: 1, minWidth: 0, fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
+  line: { flex: 1, minWidth: 0, fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4 },
   gapWell: { borderRadius: 12, gap: 12, padding: PADDING.recordInset },
 })

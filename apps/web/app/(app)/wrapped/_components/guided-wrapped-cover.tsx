@@ -53,6 +53,7 @@ function StartAction({ wide, loading, onStart }: Readonly<{ wide: boolean; loadi
 
 /**
  * The Wrapped cover under `orbit_guided_flows`: Orbit, the title of the period, the Orbit line and the period question in one centred block.
+ * The title takes no focus, so the line is not its description: the polite region reads the empty line once and the alert reads the error once.
  * Wide, the block holds the middle row of a three row grid, so it sits in the centre of the column and the start action hangs 24 under it.
  */
 export function GuidedWrappedCover({ period, onSelectPeriod, state, onStart, onRetry }: Readonly<WrappedCoverProps>) {
@@ -60,7 +61,6 @@ export function GuidedWrappedCover({ period, onSelectPeriod, state, onStart, onR
   const wide = useViewportMatch('(min-width: 1024px)')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const questionId = useId()
-  const lineId = useId()
   const { mascotRef, lookAt, lookTowards, lookAway } = useOrbitLook()
   const groupRef = usePeriodFade(period, reducedMotion)
   const line = state === 'empty' || state === 'failed' ? t(COVER_LINE_KEYS[state]) : null
@@ -82,8 +82,8 @@ export function GuidedWrappedCover({ period, onSelectPeriod, state, onStart, onR
             <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={wide ? 128 : 96} state="parado" lookAt={lookAt} turnKey={period} /></span>
             <div ref={groupRef} data-period-fade={reducedMotion ? motionDurations.instant : motionDurations.micro} className="flex flex-col items-center gap-3">
               <p style={coverEyebrowStyle}>{t('wrapped.title')}</p>
-              <h1 aria-describedby={line ? lineId : undefined} className="t-display-heading text-balance">{t(`wrapped.coverTitles.${period}`)}</h1>
-              {line ? <p id={lineId} data-wrapped-orbit-line="" role={state === 'failed' ? 'alert' : undefined} className="max-w-[40ch] text-pretty text-base leading-6 text-[var(--fg-2)]">{line}</p> : null}
+              <h1 className="t-display-heading text-balance">{t(`wrapped.coverTitles.${period}`)}</h1>
+              {line ? <p data-wrapped-orbit-line="" role={state === 'failed' ? 'alert' : undefined} className="max-w-[40ch] text-pretty text-base leading-[1.4] text-[var(--fg-2)]">{line}</p> : null}
               {state === 'failed' ? <IconButton label={t('wrapped.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
             </div>
             <div className="flex w-full flex-col gap-3">

@@ -74,7 +74,7 @@ function MoveTargetRow({
       meta={option.childCount > 0 ? String(option.childCount) : undefined}
       tag={isCurrentParent ? currentLabel : undefined}
       leading={option.id === null
-        ? <Home size={20} strokeWidth={1.8} color={tokens.fg2} />
+        ? <Home size={20} strokeWidth={1.5} color={tokens.fg2} />
         : <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.wellEmoji}>{option.emoji ?? '·'}</Text>}
       onSelect={() => onSelect(option.id)}
     />
@@ -181,7 +181,7 @@ export function MoveParentDialog({
 
         <MoveDialogDescription
           t={t}
-          name={selectionOnly ? null : movingHabitTitle}
+          name={selectionOnly || asksOneQuestion ? null : movingHabitTitle}
           count={movingHabitCount}
           styles={styles}
         />
@@ -198,7 +198,7 @@ export function MoveParentDialog({
                 scrollRef.current?.scrollTo({ y: 0, animated: false })
               }}
               placeholder={t('habits.moveParent.searchPlaceholder')}
-              trailing={<Search size={20} strokeWidth={1.8} color={tokens.fg3} />}
+              trailing={<Search size={20} strokeWidth={1.5} color={tokens.fg3} />}
             />
           </View>
         ) : null}

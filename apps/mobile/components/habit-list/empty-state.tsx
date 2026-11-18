@@ -1,5 +1,6 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
+import { OrbitHop } from '@/components/ui/orbit-hop'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
 import { SPACING, TOUCH_TARGET_MIN, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
@@ -110,14 +111,17 @@ export function HabitListEmptyState({
   )
 }
 
+/** The completed day: Orbit in Feliz at the state size. Orbit hops once while the celebration of the completed day is the active one, and never on a later visit. */
 export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: () => void }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { t } = useTranslation()
+  const mascotSize = useStateMascotSize()
+  const celebrating = useUIStore((state) => state.activeCelebration?.kind === 'all-done')
   return (
     <View testID="habit-list-all-done" style={styles.allDone}>
-      <View testID="completed-day-mark" style={styles.allDoneMark} importantForAccessibility="no-hide-descendants">
-        <OrbitMascot size={96} state="feliz" />
+      <View testID="completed-day-mark" style={[styles.allDoneMark, { width: mascotSize, height: orbitMascotHeight(mascotSize) }]} importantForAccessibility="no-hide-descendants">
+        <OrbitHop testID="completed-day-hop" active={celebrating}><OrbitMascot size={mascotSize} state="feliz" /></OrbitHop>
       </View>
       <View style={styles.allDoneText}>
         <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>
@@ -157,8 +161,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.s24,
   },
   allDoneMark: {
-    width: 96,
-    height: orbitMascotHeight(96),
     alignItems: 'center',
     justifyContent: 'center',
   },

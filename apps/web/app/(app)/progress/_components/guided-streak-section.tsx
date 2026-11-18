@@ -44,7 +44,7 @@ function StreakOrbitRow({ line }: Readonly<{ line: string | null }>) {
   return (
     <div data-streak-orbit="" className="flex min-h-12 items-center gap-3">
       <span aria-hidden="true" className="flex w-12 shrink-0 justify-center"><OrbitMascot size={48} state="parado" /></span>
-      {line ? <p data-streak-orbit-line="" className="min-w-0 flex-1 text-base leading-6 text-[var(--fg-2)]">{line}</p> : null}
+      {line ? <p data-streak-orbit-line="" className="min-w-0 flex-1 text-base leading-[1.4] text-[var(--fg-2)]">{line}</p> : null}
     </div>
   )
 }

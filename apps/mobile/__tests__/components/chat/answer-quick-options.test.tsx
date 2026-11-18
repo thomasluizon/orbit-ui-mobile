@@ -14,7 +14,9 @@ afterEach(async () => { await renderer.act(() => tree?.unmount()); tree = undefi
 
 type Kind = 'choice' | 'multi' | 'pick'
 const plainChoice = { ...choiceBlockFixture, options: choiceBlockFixture.options.map(option => ({ ...option, description: null })) }
-const plainPickList = { ...pickListBlockFixture, items: pickListBlockFixture.items.slice(0, 3).map(item => ({ ...item, detail: null })) }
+const SHORT_LABELS = ['Caminhar cedo', 'Beber água', 'Ler na pausa']
+const longPickList = { ...pickListBlockFixture, items: pickListBlockFixture.items.slice(0, 3).map(item => ({ ...item, detail: null })) }
+const plainPickList = { ...longPickList, items: longPickList.items.map((item, index) => ({ ...item, label: SHORT_LABELS[index]! })) }
 const interaction = (): BlockAnswerInteraction => ({ isOnline: true, isSending: false, atMessageLimit: false, allowance: 5, send: vi.fn(() => Promise.resolve({ ok: true as const })) })
 const cards = () => tree!.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'option-card') as (ReactTestInstance & { props: { accessibilityLabel: string; accessibilityState: { selected: boolean }; onPress: () => void } })[]
 const labelsOf = (kind: Kind) => kind === 'pick' ? plainPickList.items.map(item => item.label) : plainChoice.options.map(option => option.label)
@@ -64,6 +66,12 @@ describe('the quick options of the Android conversation blocks', () => {
     await renderer.act(() => tree!.unmount())
     resetTestFlags()
     await mount('choice')
+    expect(cards()).toHaveLength(0)
+  })
+
+  it('keeps the list for a pick list whose labels hold more than 4 words', async () => {
+    enableTestFlags('orbit_guided_flows')
+    await renderer.act(() => { tree = renderer.create(<PickListBlock block={longPickList} interaction={interaction()} />) })
     expect(cards()).toHaveLength(0)
   })
 

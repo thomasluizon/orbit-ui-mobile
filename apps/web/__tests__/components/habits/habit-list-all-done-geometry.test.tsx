@@ -23,13 +23,15 @@ describe('Hoje completion text and action geometry', () => {
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
-  afterEach(cleanup)
+  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-  it.each([320, 360, 384, 412, 740, 1440].flatMap(width => ['en', 'pt-BR'].flatMap(locale =>
+  it.each([320, 360, 384, 412, 740, 1024, 1440].flatMap(width => ['en', 'pt-BR'].flatMap(locale =>
     (['reduce', 'no-preference'] as const).map(reducedMotion => ({ width, locale, reducedMotion })))))(
     'centres the finish state at $width in $locale with $reducedMotion motion', async ({ width, locale, reducedMotion }) => {
       const messages = locale === 'en' ? en : pt
+      const size = width >= 1024 ? 128 : 96
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(min-width: 1024px)' && width >= 1024, media: query, addEventListener: () => {}, removeEventListener: () => {} }))
       const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
         <HabitListAllDone onSeeUpcoming={vi.fn()} />
       </NextIntlClientProvider>)
@@ -69,9 +71,9 @@ describe('Hoje completion text and action geometry', () => {
         expect(geometry.mascotState).toBe('feliz')
         expect(geometry.circlesOutsideMascot).toBe(0)
         expect(geometry.markGap).toBe(24)
-        expect(geometry.mark!.width).toBe(96)
-        expect(geometry.mark!.height).toBeCloseTo((96 * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH, 1)
-        expect(geometry.carrier!.width).toBe(96)
+        expect(geometry.mark!.width).toBe(size)
+        expect(geometry.mark!.height).toBeCloseTo((size * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH, 1)
+        expect(geometry.carrier!.width).toBe(size)
         expect(geometry.carrier!.height).toBeCloseTo(geometry.mark!.height, 2)
         expect(geometry.mark!.centre).toBeCloseTo(geometry.carrier!.centre, 2)
         expect(geometry.markCentreY!).toBeCloseTo(geometry.carrierCentreY!, 2)

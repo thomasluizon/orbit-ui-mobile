@@ -93,7 +93,7 @@ export function GuidedWrappedCover({ tokens, period, onSelectPeriod, state, onSt
             </View>
             <Animated.View testID="wrapped-cover-period-group" style={[styles.group, { opacity }]}>
               <Text style={[wrappedStyles.coverEyebrow, { color: tokens.fg3 }]}>{t('wrapped.title')}</Text>
-              <Text accessibilityRole="header" accessibilityHint={line ?? undefined} textBreakStrategy="balanced" style={[styles.title, wide ? styles.titleWide : null, { color: tokens.fg1 }]}>
+              <Text accessibilityRole="header" textBreakStrategy="balanced" style={[styles.title, wide ? styles.titleWide : null, { color: tokens.fg1 }]}>
                 {t(`wrapped.coverTitles.${period}`)}
               </Text>
               {line ? <Text testID="wrapped-orbit-line" accessibilityRole={state === 'failed' ? 'alert' : undefined} style={[styles.line, { color: tokens.fg2 }]}>{line}</Text> : null}
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   group: { alignItems: 'center', gap: SPACING.s12 },
   title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, letterSpacing: -0.56, textAlign: 'center' },
   titleWide: { fontSize: 34, lineHeight: 39, letterSpacing: -0.68 },
-  line: { maxWidth: 360, fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
+  line: { maxWidth: 360, fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, textAlign: 'center' },
   questionGroup: { width: '100%', gap: SPACING.s12 },
   question: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24, textAlign: 'center' },
   options: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: SPACING.s12 },

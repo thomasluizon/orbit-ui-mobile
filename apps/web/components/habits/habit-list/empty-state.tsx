@@ -2,6 +2,7 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
+import { OrbitHop } from '@/components/ui/orbit-hop'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
 
@@ -139,12 +140,15 @@ export function HabitListEmptyState({
   )
 }
 
+/** The completed day: Orbit in Feliz at the state size. Orbit hops once while the celebration of the completed day is the active one, and never on a later visit. */
 export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: () => void }>) {
   const t = useTranslations()
+  const mascotSize = useStateMascotSize()
+  const celebrating = useUIStore((state) => state.activeCelebration?.kind === 'all-done')
   return (
     <div data-testid="habit-list-all-done" className="flex min-w-0 flex-col items-center text-center" style={{ gap: 24, padding: 'var(--orbit-space-48) var(--orbit-space-24)' }}>
-      <div data-testid="completed-day-mark" className="relative flex shrink-0 items-center justify-center" style={{ width: 96, height: orbitMascotHeight(96) }} aria-hidden="true">
-        <OrbitMascot size={96} state="feliz" />
+      <div data-testid="completed-day-mark" className="relative flex shrink-0 items-center justify-center" style={{ width: mascotSize, height: orbitMascotHeight(mascotSize) }} aria-hidden="true">
+        <OrbitHop active={celebrating} className="flex"><OrbitMascot size={mascotSize} state="feliz" /></OrbitHop>
       </div>
       <div className="flex min-w-0 flex-col items-center" style={{ gap: 8 }}>
         <p style={{ fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.2, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--fg-1)', textWrap: 'balance' }}>

@@ -8,7 +8,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { ArrowUp, Check, Lock } from '@/components/ui/icons'
 import { blockDesktopWebReload } from '@/lib/web-reload-state'
 import { QuestionControls } from './question-controls'
-import { QuestionInViewNav, useQuestionInView } from './question-in-view'
+import { QuestionCounters, QuestionInViewNav, useQuestionInView } from './question-in-view'
 
 export function QuestionBlock(props: QuestionBlockProps) {
   const t = useTranslations()
@@ -36,14 +36,11 @@ export function QuestionBlock(props: QuestionBlockProps) {
   const controlWords = { yes: words.yes, no: words.no, recommended: t('chat.placement.recommended'), freeText: t('chat.choice.freeText'), required: t('common.required') }
   return <div ref={root} className="min-w-0" data-answer-block="question">
     {view.closed ? <p ref={focusClosed} tabIndex={-1} className="flex min-w-0 items-start gap-2 text-sm text-[var(--fg-3)]" style={{ outlineWidth: 0 }}>
-      <Glyph size={20} aria-hidden="true" className="shrink-0" /><span className="min-w-0 break-words">{view.closed}</span>
+      <Glyph size={20} strokeWidth={1.5} aria-hidden="true" className="shrink-0" /><span className="min-w-0 break-words">{view.closed}</span>
     </p> : <BlockFrame state={state.acting ? 'acting' : 'resting'} title={props.block.title || props.block.questions[0]!.prompt} wrapTitle items={[]}
       body={<div className="flex min-w-0 flex-col gap-6">
         {props.block.intro ? <p className="break-words text-base text-[var(--fg-2)]">{props.block.intro}</p> : null}
-        <div className="flex min-w-0 flex-col gap-1 text-sm text-[var(--fg-3)]">
-          {props.block.progress ? <p>{t('chat.choice.position', { position: props.block.progress.current, total: props.block.progress.total })}</p> : null}
-          <p>{t('chat.question.progress', { answered: view.completed, total: props.block.questions.length })}</p>
-        </div>
+        <QuestionCounters progress={props.block.progress} answered={inView.enabled ? null : view.completed} total={props.block.questions.length} />
         {inView.enabled ? <QuestionInViewNav index={inView.index} total={questions.length} onMove={inView.move} /> : null}
         {inView.shown.map((question) => {
           const index = questions.indexOf(question)

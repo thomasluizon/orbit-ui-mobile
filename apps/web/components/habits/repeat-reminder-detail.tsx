@@ -43,6 +43,7 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
   const [exactInstant, setExactInstant] = useState<string | null>(() => new Date(initial).toISOString())
   const [error, setError] = useState('')
   const saving = useRef(false)
+  const [answering, setAnswering] = useState(false)
   const mutation = useCorrectHabitDose(habitId)
   const { sheetRef, closeSheet } = useSheetHost()
   const guided = useFlag('orbit_guided_flows')
@@ -51,6 +52,7 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
     const takenAtUtc = answer ?? exactInstant ?? repeatReminderInstant(date, clock, timeZone)
     if (!takenAtUtc) { setError(t('habits.form.invalidTime')); return }
     saving.current = true
+    setAnswering(answer !== undefined)
     setError('')
     try {
       await mutation.mutateAsync({ logId: log.id, takenAtUtc })
@@ -60,12 +62,12 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
   }
   return <Sheet ref={sheetRef} open title={t(guided ? 'habits.takenAtQuestion' : 'habits.changeTakenAt')} onClose={mutation.isPending ? undefined : onClose} actions={<ActionRow>
     <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
-    <PillButton size="sm" loading={mutation.isPending} disabled={mutation.isPending} onClick={() => void save()}>{t('common.save')}</PillButton>
+    <PillButton size="sm" loading={mutation.isPending && !answering} disabled={mutation.isPending} onClick={() => void save()}>{t('common.save')}</PillButton>
   </ActionRow>}>
     <div className="flex min-w-0 flex-col gap-3">
       {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
       {guided && log.reminderAtUtc ? <div role="group" aria-label={t('habits.takenAtQuestion')} data-option-group="" className="grid w-full pb-3">
-        <OptionCard label={t('habits.useReminderTime')} disabled={mutation.isPending} onSelect={() => void save(new Date(log.reminderAtUtc!).toISOString())} />
+        <OptionCard label={t('habits.useReminderTime')} disabled={mutation.isPending} loading={mutation.isPending && answering} onSelect={() => void save(new Date(log.reminderAtUtc!).toISOString())} />
       </div> : null}
       <fieldset disabled={mutation.isPending}><DateField label={t('habits.doseDate')} value={date} onChange={(value) => { setExactInstant(null); setDate(value) }} /></fieldset>
       <TimeField label={t('habits.doseTime')} value={toTime24(clock)} onChange={(value) => { setExactInstant(null); setClock(value) }} disabled={mutation.isPending} />

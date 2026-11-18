@@ -661,6 +661,18 @@ describe('HabitDetailScreen', () => {
     expect(status).toHaveTextContent('shell.composer.offline.reason')
   })
 
+  it('gives the offline reason with no second Orbit while the rescue request waits offline in the guided surface', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    mocks.reschedulePaused = true
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')
+    expect(status).toHaveTextContent('shell.composer.offline.reason')
+    expect(within(status).queryByTestId('orbit-mascot')).not.toBeInTheDocument()
+    const line = document.querySelector<HTMLElement>('[data-today-astra-slot]')!
+    expect(screen.getAllByTestId('orbit-mascot')).toEqual([within(line).getByTestId('orbit-mascot')])
+  })
+
   it('keeps Pensando on the Orbit line alone while the reschedule suggestion loads in the guided surface', () => {
     enableTestFlags('orbit_guided_flows')
     openRescueGate()

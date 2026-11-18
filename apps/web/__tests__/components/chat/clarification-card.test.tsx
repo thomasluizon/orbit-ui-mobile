@@ -77,6 +77,14 @@ describe('ClarificationCard quick options', () => {
     expect(document.querySelector('[data-option-card]')).toBeNull()
     view.unmount()
   })
+
+  it('keeps the button row when one answer holds more than four words', () => {
+    enableTestFlags('orbit_guided_flows')
+    const long = { ...baseClarification, quickActions: [baseClarification.quickActions[0]!, { label: 'Three times every single week', value: 'long', description: null }] }
+    render(<ClarificationCard clarificationRequest={long} />, { wrapper: createWrapper() })
+    expect(document.querySelector('[data-option-card]')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Three times every single week' })).toBeInTheDocument()
+  })
 })
 
 describe('ClarificationCard', () => {

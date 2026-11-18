@@ -6,6 +6,7 @@ import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 /** A single-action invitation for an empty region. */
 export function EmptyState({
   title,
+  line,
   action,
   disclosure,
   mascotState = 'parado',
@@ -16,6 +17,7 @@ export function EmptyState({
       <span className="text-[var(--fg-1)]" data-empty-state-mark>
         <OrbitMascot size={mascotSize} state={mascotState} />
       </span>
+      {line ? <p data-empty-state-line className="max-w-[40ch] text-pretty text-base leading-[1.4] text-[var(--fg-2)]">{line}</p> : null}
       <p
         className="text-xl font-medium text-balance text-[var(--fg-1)]"
         style={{ fontFamily: 'var(--font-sans)' }}

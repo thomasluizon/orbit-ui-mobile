@@ -46,7 +46,7 @@ function MoveTargetRow({
       meta={option.childCount > 0 ? String(option.childCount) : undefined}
       tag={isCurrentParent ? currentLabel : undefined}
       leading={option.id === null
-        ? <Home size={20} strokeWidth={1.8} color="var(--fg-2)" />
+        ? <Home size={20} strokeWidth={1.5} color="var(--fg-2)" />
         : <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>{option.emoji ?? '·'}</span>}
       onSelect={() => onSelect(option.id)}
     />
@@ -153,7 +153,7 @@ export function MoveParentOverlay({
         <MoveInventoryStatus selectionOnly={selectionOnly} state={inventoryState} onRetry={onRetryInventory} t={t} />
         {inventoryState !== 'loading' && inventoryState !== 'error' ? <>
 
-        {!selectionOnly && movingHabitCount === undefined && movingHabitTitle ? (
+        {!selectionOnly && !asksOneQuestion && movingHabitCount === undefined && movingHabitTitle ? (
           <p className="text-sm text-[var(--fg-3)]">
             {t('habits.moveParent.description', { name: movingHabitTitle })}
           </p>
@@ -168,7 +168,7 @@ export function MoveParentOverlay({
               if (scrollRef.current) scrollRef.current.scrollTop = 0
             }}
             placeholder={t('habits.moveParent.searchPlaceholder')}
-            trailing={<Search size={20} strokeWidth={1.8} color="var(--fg-3)" />}
+            trailing={<Search size={20} strokeWidth={1.5} color="var(--fg-3)" />}
           />
         )}
 

@@ -3,21 +3,25 @@ import { ScrollView, View, Text } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { EmptyStateProps } from "@orbit/shared/contracts/feedback";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useFlag } from "@/hooks/use-flag";
 import type { ChatStyles } from "@/components/chat/conversation.styles";
 
 interface ChatEmptyStateProps {
   styles: ChatStyles;
   browseAction?: ReactElement;
   mascotState?: EmptyStateProps["mascotState"];
+  restReason?: "todayAstra.offline" | "todayAstra.limit" | null;
 }
 
+/** The empty thread. With the guided flows on, a thread that rests (offline or at the message limit) gives the reason in one Orbit line under Orbit. */
 export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
-  function ChatEmptyState({ styles, browseAction, mascotState }, ref) {
+  function ChatEmptyState({ styles, browseAction, mascotState, restReason }, ref) {
     const { t } = useTranslation();
+    const guided = useFlag("orbit_guided_flows");
     return (
       <View ref={ref} style={styles.emptyState}>
         <ScrollView contentContainerStyle={styles.emptyContent} keyboardShouldPersistTaps="handled">
-          <EmptyState title={t("chat.empty.title")} action={browseAction} mascotState={mascotState} disclosure={
+          <EmptyState title={t("chat.empty.title")} line={guided && restReason ? t(restReason) : undefined} action={browseAction} mascotState={mascotState} disclosure={
             <Text style={styles.aiDisclaimer}>
               {t("aiDisclosure.notMedicalAdvice")}
             </Text>

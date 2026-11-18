@@ -176,5 +176,5 @@ export function GuidedProgressOverview() {
 
 const styles = StyleSheet.create({
   orbitGroup: { alignItems: 'center', gap: SPACING.s12 },
-  line: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center', maxWidth: 592 },
+  line: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, textAlign: 'center', maxWidth: 592 },
 })

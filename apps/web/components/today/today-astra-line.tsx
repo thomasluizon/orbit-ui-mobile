@@ -49,9 +49,10 @@ export function TodayAstraLine({ text, destination, href, onPress, disabled = fa
     </span>
   </>
   const waitingSurface = loading ? { background: 'transparent' } : undefined
+  const orbitLine = guided ? '' : undefined
   return <div className={gutter ? 'px-screen-gutter' : undefined} data-today-astra-slot aria-busy={busy}>
-    {href ? <Link className="today-astra-line" style={waitingSurface} href={href} aria-describedby={destinationId}>{content}</Link>
-      : <button type="button" className="today-astra-line" style={waitingSurface} aria-describedby={destinationId} disabled={disabled} onClick={onPress}>{content}</button>}
+    {href ? <Link className="today-astra-line" data-orbit-line={orbitLine} style={waitingSurface} href={href} aria-describedby={destinationId}>{content}</Link>
+      : <button type="button" className="today-astra-line" data-orbit-line={orbitLine} style={waitingSurface} aria-describedby={destinationId} disabled={disabled} onClick={onPress}>{content}</button>}
     <span id={destinationId} className="sr-only">{destination}</span>
   </div>
 }

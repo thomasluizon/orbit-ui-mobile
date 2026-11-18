@@ -14,7 +14,7 @@ export function ChecklistCompletePrompt({ open, name, onCancel, onConfirm }: Rea
       open={open}
       quickOptions={guided}
       title={t(guided ? 'habits.checklistCompleteQuestion' : 'habits.checklistCompleteTitle')}
-      message={t(guided ? 'habits.checklistCompleteLine' : 'habits.checklistCompleteMessage', { name })}
+      message={guided ? '' : t('habits.checklistCompleteMessage', { name })}
       confirmLabel={t('habits.checklistCompleteConfirm')}
       onCancel={onCancel}
       onConfirm={onConfirm}

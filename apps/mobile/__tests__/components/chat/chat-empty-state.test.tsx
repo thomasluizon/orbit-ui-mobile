@@ -7,6 +7,7 @@ import { habitListQueryFilters } from '@orbit/shared/utils'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { createStyles } from '@/components/chat/conversation.styles'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -48,6 +49,7 @@ function makeTopLevelItem(overrides: Partial<HabitScheduleItem>): HabitScheduleI
 function renderEmptyState(
   items: HabitScheduleItem[] | null,
   mascotState?: 'parado' | 'descansando',
+  restReason?: 'todayAstra.offline' | 'todayAstra.limit',
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   if (items !== null) {
@@ -60,7 +62,7 @@ function renderEmptyState(
   TestRenderer.act(() => {
     tree = TestRenderer.create(
       <QueryClientProvider client={queryClient}>
-        <ChatEmptyState styles={styles} mascotState={mascotState} />
+        <ChatEmptyState styles={styles} mascotState={mascotState} restReason={restReason} />
       </QueryClientProvider>,
     )
   })
@@ -78,6 +80,21 @@ describe('ChatEmptyState (mobile)', () => {
     const { tree } = renderEmptyState(null, mascotState)
     const mascot = tree.root.findAll((node: any) => typeof node.type === 'string' && node.props?.testID === 'orbit-mascot')[0]
     expect(mascot.props['data-orbit-state']).toBe(expected)
+  })
+
+  const orbitLines = (tree: any) => tree.root.findAll((node: any) => typeof node.type === 'string' && node.props?.testID === 'empty-state-line')
+
+  it.each(['todayAstra.offline', 'todayAstra.limit'] as const)('shows the title and one Orbit line with the reason %s while Orbit rests', (reason) => {
+    enableTestFlags('orbit_guided_flows')
+    const { tree } = renderEmptyState(null, 'descansando', reason)
+    expect(orbitLines(tree).map((node: any) => node.props.children)).toEqual([reason])
+    expect(JSON.stringify(tree.toJSON())).toContain('chat.empty.title')
+  })
+
+  it('shows no Orbit line with no reason, and none with the guided flows off', () => {
+    expect(orbitLines(renderEmptyState(null, 'descansando', 'todayAstra.offline').tree)).toHaveLength(0)
+    enableTestFlags('orbit_guided_flows')
+    expect(orbitLines(renderEmptyState(null).tree)).toHaveLength(0)
   })
 
   beforeEach(() => {

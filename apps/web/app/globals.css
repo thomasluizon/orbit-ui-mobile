@@ -951,7 +951,8 @@ select[aria-hidden="true"] {
   }
 }
 
-.orbit-option-card:disabled {
+/* A card that waits for its own request keeps its full face under the skeleton, as every waiting control does. */
+.orbit-option-card:disabled:not([aria-busy='true']) {
   opacity: 0.5;
 }
 
@@ -1807,6 +1808,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+.today-astra-line[data-orbit-line] {
+  font-size: 16px;
+  line-height: 1.4;
 }
 
 .today-astra-line:disabled {

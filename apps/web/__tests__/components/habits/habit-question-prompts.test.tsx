@@ -120,7 +120,7 @@ describe('web habit prompts as one question', () => {
     const onConfirm = vi.fn()
     render(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={onConfirm} />)
     expect(screen.getByRole('dialog', { name: 'habits.checklistCompleteQuestion' })).toBeInTheDocument()
-    expect(screen.getByText('habits.checklistCompleteLine')).toBeInTheDocument()
+    expect(screen.getByRole('dialog').querySelector('p')).toBeNull()
     expect(options().map((option) => option.textContent)).toEqual(['habits.checklistCompleteConfirm', 'common.notNow'])
     fireEvent.click(options()[0]!)
     await settle()
@@ -130,6 +130,7 @@ describe('web habit prompts as one question', () => {
   it('keeps the checklist confirm sheet with the flag off', () => {
     render(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={vi.fn()} />)
     expect(screen.getByRole('dialog', { name: 'habits.checklistCompleteTitle' })).toBeInTheDocument()
+    expect(screen.getByText('habits.checklistCompleteMessage')).toBeInTheDocument()
     expect(options()).toHaveLength(0)
   })
 

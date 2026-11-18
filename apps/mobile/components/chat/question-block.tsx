@@ -8,7 +8,7 @@ import { ArrowUp, Check, Lock } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { QuestionControls } from './question-controls'
-import { QuestionInViewNav, useQuestionInView } from './question-in-view'
+import { QuestionCounters, QuestionInViewNav, useQuestionInView } from './question-in-view'
 
 function QuestionPanel({ invalid, firstInvalid, validationAttempt, showPrompt, ...props }: QuestionControlProps & { invalid: boolean; firstInvalid: boolean; validationAttempt: number; showPrompt: boolean }) {
   const { t } = useTranslation()
@@ -54,14 +54,11 @@ export function QuestionBlock(props: QuestionBlockProps) {
   const controlWords = { yes: words.yes, no: words.no, recommended: t('chat.placement.recommended'), freeText: t('chat.choice.freeText'), required: t('common.required') }
   return <View style={{ minWidth: 0 }} testID="answer-block-question">
     {view.closed ? <View accessible accessibilityLabel={view.closed} tabIndex={-1} ref={focusClosed} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-      <Glyph size={20} accessible={false} color={tokens.fg3} /><Text accessible={false} style={{ flex: 1, minWidth: 0, fontSize: 14, lineHeight: 20, color: tokens.fg3 }}>{view.closed}</Text>
+      <Glyph size={20} strokeWidth={1.5} accessible={false} color={tokens.fg3} /><Text accessible={false} style={{ flex: 1, minWidth: 0, fontSize: 14, lineHeight: 20, color: tokens.fg3 }}>{view.closed}</Text>
     </View> : <BlockFrame state={state.acting ? 'acting' : 'resting'} title={props.block.title || props.block.questions[0]!.prompt} wrapTitle items={[]}
       body={<View style={{ minWidth: 0, gap: 24 }}>
         {props.block.intro ? <Text style={{ fontSize: 16, lineHeight: 24, color: tokens.fg2 }}>{props.block.intro}</Text> : null}
-        <View style={{ minWidth: 0, gap: 4 }}>
-          {props.block.progress ? <Text style={{ fontSize: 14, lineHeight: 20, color: tokens.fg3 }}>{t('chat.choice.position', { position: props.block.progress.current, total: props.block.progress.total })}</Text> : null}
-          <Text style={{ fontSize: 14, lineHeight: 20, color: tokens.fg3 }}>{t('chat.question.progress', { answered: view.completed, total: props.block.questions.length })}</Text>
-        </View>
+        <QuestionCounters progress={props.block.progress} answered={inView.enabled ? null : view.completed} total={props.block.questions.length} color={tokens.fg3} />
         {inView.enabled ? <QuestionInViewNav index={inView.index} total={questions.length} onMove={inView.move} /> : null}
         {inView.shown.map((question) => <QuestionPanel key={question.id} question={question} answer={state.answers[question.id]} disabled={view.disabled} controller={controller} words={controlWords}
           invalid={state.invalidIds.includes(question.id)} firstInvalid={state.invalidIds[0] === question.id} validationAttempt={state.validationAttempt} showPrompt={Boolean(props.block.title) || questions.indexOf(question) > 0} />)}

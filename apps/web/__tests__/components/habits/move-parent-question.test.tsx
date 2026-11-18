@@ -26,7 +26,7 @@ describe('web move-parent overlay as one question', () => {
     expect(screen.getByRole('dialog')).toHaveAccessibleName('habits.moveParent.destinations')
     expect(document.querySelector('[data-field-question]')).toBeNull()
     expect(screen.getAllByText('habits.moveParent.destinations')).toHaveLength(1)
-    expect(screen.getByText('habits.moveParent.description')).toBeInTheDocument()
+    expect(screen.queryByText('habits.moveParent.description')).not.toBeInTheDocument()
     const group = screen.getByRole('radiogroup', { name: 'habits.moveParent.destinations' })
     expect(group.querySelectorAll('[role="radio"]')).toHaveLength(3)
     fireEvent.click(screen.getByRole('radio', { name: /Other/ }))
@@ -67,6 +67,7 @@ describe('web move-parent overlay as one question', () => {
   it('renders the current overlay with the flag off', () => {
     renderOverlay()
     expect(screen.getByRole('dialog')).toHaveAccessibleName('habits.moveParent.title')
+    expect(screen.getByText('habits.moveParent.description')).toBeInTheDocument()
     expect(document.querySelector('[data-field-question]')).toHaveTextContent('habits.moveParent.destinations')
   })
 })

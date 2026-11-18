@@ -34,3 +34,13 @@ export function QuestionInViewNav({ index, total, onMove }: Readonly<{ index: nu
     <IconButton label={t('chat.question.next')} disabled={index === total - 1} onClick={() => onMove(1)}><ChevronRight size={20} accessible={false} /></IconButton>
   </View>
 }
+
+/** The counters above the questions: the position of the block in its sequence, then the answered count. While the in-view navigation shows, `answered` is null, because the position of the navigation says it. */
+export function QuestionCounters({ progress, answered, total, color }: Readonly<{ progress?: { current: number; total: number }; answered: number | null; total: number; color: string }>) {
+  const { t } = useTranslation()
+  if (!progress && answered === null) return null
+  return <View style={{ minWidth: 0, gap: 4 }}>
+    {progress ? <Text style={{ fontSize: 14, lineHeight: 20, color }}>{t('chat.choice.position', { position: progress.current, total: progress.total })}</Text> : null}
+    {answered === null ? null : <Text style={{ fontSize: 14, lineHeight: 20, color }}>{t('chat.question.progress', { answered, total })}</Text>}
+  </View>
+}

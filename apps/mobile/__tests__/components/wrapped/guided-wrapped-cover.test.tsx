@@ -88,6 +88,8 @@ describe('the guided Wrapped cover on Android', () => {
     const { root } = await renderCover(locale, { state: 'empty' })
 
     expect(renderedText(byTestId(root, 'wrapped-orbit-line')[0]!.props.children)).toBe(copy.orbitLine.empty)
+    expect(StyleSheet.flatten(byTestId(root, 'wrapped-orbit-line')[0]!.props.style as StyleProp<ViewStyle>)).toMatchObject({ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4 })
+    expect(hosts(root).filter((node) => node.props.accessibilityHint !== undefined)).toHaveLength(0)
     expect(mascots(root)[0]!.props['data-orbit-state']).toBe('parado')
     expect(pressables(root).map(nameOf)).toEqual(RECAP_SHARE_PERIODS.map((period) => copy.periods[period]))
   })

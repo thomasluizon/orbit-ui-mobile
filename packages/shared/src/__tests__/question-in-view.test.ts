@@ -50,13 +50,31 @@ describe('the one question a block shows', () => {
   })
 })
 
-describe('the quick options of an answer block', () => {
+describe('the one rule of the quick options', () => {
+  const option = (id: string, label: string = id, description?: string) => ({ id, label, description, selected: false, personal: false, expanded: false, proposed: false, position: '' })
+
   it('answers 2 to 4 options with no detail line with quick options', async () => {
     const { answerUsesQuickOptions } = await import('../chat')
-    const option = (id: string, description?: string) => ({ id, label: id, description, selected: false, personal: false, expanded: false, proposed: false, position: '' })
     expect(answerUsesQuickOptions({ options: [option('a'), option('b')] })).toBe(true)
     expect(answerUsesQuickOptions({ options: [option('a')] })).toBe(false)
     expect(answerUsesQuickOptions({ options: ['a', 'b', 'c', 'd', 'e'].map((id) => option(id)) })).toBe(false)
-    expect(answerUsesQuickOptions({ options: [option('a', 'detail'), option('b')] })).toBe(false)
+    expect(answerUsesQuickOptions({ options: [option('a', 'a', 'detail'), option('b')] })).toBe(false)
+  })
+
+  it('keeps the row layout when one label holds more than 4 words', async () => {
+    const { answerUsesQuickOptions, fitsQuickOptions, usesQuickOptions } = await import('../chat')
+    expect(fitsQuickOptions([{ label: 'Depois do café da manhã' }, { label: 'À noite' }])).toBe(false)
+    expect(fitsQuickOptions([{ label: 'Antes do almoço hoje' }, { label: '  À   noite  ' }])).toBe(true)
+    expect(answerUsesQuickOptions({ options: [option('a', 'One two three four five'), option('b')] })).toBe(false)
+    const choice = { id: 'time', prompt: 'When?', allowFreeText: false, type: 'singleChoice' as const }
+    expect(usesQuickOptions({ ...choice, options: [{ id: 'a', label: 'Right after I wake up' }, { id: 'b', label: 'Later' }] })).toBe(false)
+    expect(usesQuickOptions({ ...choice, options: [{ id: 'a', label: 'After I wake up' }, { id: 'b', label: 'Later' }] })).toBe(true)
+    expect(usesQuickOptions({ id: 'reminder', prompt: 'Remind you?', allowFreeText: false, type: 'yesNo' })).toBe(true)
+  })
+
+  it('does not move to the next question after a single choice that keeps the row layout', () => {
+    const long = [{ id: 'long', prompt: 'When?', allowFreeText: false, type: 'singleChoice' as const, options: [{ id: 'a', label: 'Right after I wake up' }, { id: 'b', label: 'Later' }] }, ...questions]
+    const start = startQuestionInView(long, state())
+    expect(followQuestionInView(start, long, state({ answers: { long: { questionId: 'long', selectedIds: ['a'] } } })).index).toBe(0)
   })
 })

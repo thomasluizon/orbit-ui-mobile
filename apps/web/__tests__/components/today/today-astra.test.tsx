@@ -63,7 +63,7 @@ function renderTodayAstra() {
 describe('web Today Astra', () => {
   it.each([
     ['proactive', 'Check in', 'todayAstra.openConversation'],
-    ['elapsed', 'todayAstra.returningElapsed:3', 'todayAstra.viewProgress'],
+    ['elapsed', 'todayAstra.returningElapsed', 'todayAstra.viewProgress'],
     ['bounded', 'todayAstra.returningBounded', 'todayAstra.viewProgress'],
   ])('makes the %s sentence the whole row target with a destination description', (variant, sentence, destination) => {
     mocks.profile.lastCompletionDate = variant === 'bounded' ? '2026-07-29' : '2026-08-26'
@@ -135,9 +135,9 @@ describe('web Today Astra', () => {
   })
 
   it.each([
-    ['three-day completion', '2026-08-26', 'todayAstra.returningElapsed:3'],
-    ['four-day completion', '2026-08-25', 'todayAstra.returningElapsed:4'],
-    ['window boundary', '2026-07-30', 'todayAstra.returningElapsed:30'],
+    ['three-day completion', '2026-08-26', 'todayAstra.returningElapsed'],
+    ['four-day completion', '2026-08-25', 'todayAstra.returningElapsed'],
+    ['window boundary', '2026-07-30', 'todayAstra.returningElapsed'],
     ['gap beyond the window', '2026-07-29', 'todayAstra.returningBounded'],
   ])('shows the profile interval for %s', (_scenario, lastCompletionDate, expected) => {
     mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate }
@@ -159,7 +159,7 @@ describe('web Today Astra', () => {
     mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
 
     renderTodayAstra()
-    expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed:3' })).toHaveAttribute('href', '/progress')
+    expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed' })).toHaveAttribute('href', '/progress')
 
     expect(mocks.markRead).not.toHaveBeenCalled()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
@@ -178,7 +178,7 @@ describe('web Today Astra', () => {
       </RouterContext.Provider>,
     )
 
-    const action = screen.getByRole('link', { name: 'todayAstra.returningElapsed:3' })
+    const action = screen.getByRole('link', { name: 'todayAstra.returningElapsed' })
     expect(action).toHaveAttribute('href', '/progress')
     const click = fireEvent.click(action)
 
@@ -197,8 +197,8 @@ describe('web Today Astra', () => {
 
     renderTodayAstra()
 
-    expect(screen.getByText('todayAstra.returningElapsed:3', { exact: false })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed:3' })).toHaveAttribute('href', '/progress')
+    expect(screen.getByText('todayAstra.returningElapsed', { exact: false })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed' })).toHaveAttribute('href', '/progress')
   })
 
   it('renders a proactive check-in and opens its conversation', () => {

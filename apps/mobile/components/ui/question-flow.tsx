@@ -20,9 +20,9 @@ const WIDE_WIDTH = 1024
 const SM_WIDTH = 640
 const KEYBOARD_LOOK = { x: 0, y: 1 } as const
 const useStepChange = createUseStepChange({ useEffect, useRef })
-const { useFlowAnnouncement, useGuidedFlowTracking } = createQuestionFlowHooks({ useState, useEffect, useRef, capture: (event) => captureGuidedFlowEvent(event) })
+const { useFlowAnnouncement, useLineAfterArrival, useGuidedFlowTracking } = createQuestionFlowHooks({ useState, useEffect, useRef, capture: (event) => captureGuidedFlowEvent(event) })
 
-export { useFlowAnnouncement }
+export { useFlowAnnouncement, useLineAfterArrival }
 
 function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
   const { position, total, progressLabel, backLabel, closeLabel, onBack, onClose } = props

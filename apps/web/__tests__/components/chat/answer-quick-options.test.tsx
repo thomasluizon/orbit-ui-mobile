@@ -13,7 +13,9 @@ afterEach(() => { cleanup(); resetTestFlags() })
 
 type Locale = 'en' | 'pt-BR'
 const plainChoice = { ...choiceBlockFixture, options: choiceBlockFixture.options.map(option => ({ ...option, description: null })) }
-const plainPickList = { ...pickListBlockFixture, items: pickListBlockFixture.items.slice(0, 3).map(item => ({ ...item, detail: null })) }
+const SHORT_LABELS = ['Caminhar cedo', 'Beber água', 'Ler na pausa']
+const longPickList = { ...pickListBlockFixture, items: pickListBlockFixture.items.slice(0, 3).map(item => ({ ...item, detail: null })) }
+const plainPickList = { ...longPickList, items: longPickList.items.map((item, index) => ({ ...item, label: SHORT_LABELS[index]! })) }
 const interaction = (): BlockAnswerInteraction => ({ isOnline: true, isSending: false, atMessageLimit: false, allowance: 5, send: vi.fn(async () => ({ ok: true as const })) })
 const cards = () => [...document.querySelectorAll<HTMLButtonElement>('[data-option-card]')]
 const submitLabel = (locale: Locale, kind: 'choice' | 'multi' | 'pick') => (locale === 'en' ? en : pt).chat.choice[kind === 'pick' ? 'review' : 'submit']
@@ -65,6 +67,13 @@ describe('the list presentation the conversation blocks keep', () => {
     resetTestFlags()
     mount('choice', 'pt-BR')
     expect(cards()).toHaveLength(0)
+  })
+
+  it('keeps the check list for a pick list whose labels hold more than 4 words', () => {
+    enableTestFlags('orbit_guided_flows')
+    render(<NextIntlClientProvider locale="pt-BR" messages={pt}><PickListBlock block={longPickList} interaction={interaction()} /></NextIntlClientProvider>)
+    expect(cards()).toHaveLength(0)
+    expect(screen.getAllByRole('checkbox')).toHaveLength(longPickList.items.length)
   })
 
   it('marks one pressed option of a single choice and toggles several of a multiple choice', () => {

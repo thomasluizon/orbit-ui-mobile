@@ -14,6 +14,7 @@ import { ProgressContent } from '@/components/progress/progress-content'
 import { useUIPreferencesReadiness, useUIStore } from '@/stores/ui-store'
 import { reanimatedTestState } from '../../../test-mocks/react-native-reanimated'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
@@ -146,6 +147,7 @@ describe('Progresso root with orbit_guided_flows on (Android)', () => {
     expect(mascots(root)[0]!.props.width).toBe(96)
     expect(mascots(root)[0]!.props['data-orbit-state']).toBe('parado')
     expect(lineOf(root)).toBe(locale === 'en' ? 'You showed up on 12 of the last 30 days.' : 'Você apareceu em 12 dos últimos 30 dias.')
+    expect(StyleSheet.flatten(byTestId(root, 'progress-orbit-line')[0]!.props.style as StyleProp<TextStyle>)).toMatchObject({ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4 })
     expect(texts(root)).toEqual(expect.arrayContaining([catalogs[locale].progressScreen.sections.windowQuestion, catalogs[locale].progressScreen.sectionsQuestion]))
   })
 
@@ -293,6 +295,7 @@ describe('Sequência with orbit_guided_flows on (Android)', () => {
     expect(mascots(root)).toHaveLength(1)
     expect(mascots(root)[0]!.props.width).toBe(48)
     expect(renderedText(byTestId(root, 'streak-orbit-line')[0]!.props.children)).toBe(locale === 'en' ? '4 days in a row. 3 more days for the next freeze.' : '4 dias seguidos. Faltam 3 dias para o próximo congelamento.')
+    expect(StyleSheet.flatten(byTestId(root, 'streak-orbit-line')[0]!.props.style as StyleProp<TextStyle>)).toMatchObject({ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4 })
   })
 
   it.each(['en', 'pt-BR'] as const)('opens the freeze details on one sentence about what a freeze does, in %s', async (locale) => {

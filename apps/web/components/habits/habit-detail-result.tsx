@@ -8,11 +8,25 @@ import { useFlag } from '@/hooks/use-flag'
 /** What habit detail closes with: a reschedule that was accepted, or a delete that succeeded. */
 export type HabitDetailResult = { kind: 'rescheduled'; date: string } | { kind: 'deleted' }
 
-/** The result state of habit detail. It is on only with the guided flows flag; with the flag off each action ends as before. */
-export function useHabitDetailResult() {
+/**
+ * The result state of habit detail and the endings of its two flows. `seeToday` goes to Hoje on the day of the habit.
+ * With the guided flows on, an accepted reschedule and a delete close with the result dialog, and the delete dialog leaves to Hoje however it closes.
+ * With the flag off, each action ends as before: a delete goes to Hoje at once and a reschedule shows nothing.
+ */
+export function useHabitDetailResult(seeToday: () => void) {
   const guided = useFlag('orbit_guided_flows')
   const [result, setResult] = useState<HabitDetailResult | null>(null)
-  return { guided, result, setResult }
+  const leave = () => {
+    setResult(null)
+    seeToday()
+  }
+  return {
+    result,
+    deleted: () => { if (guided) setResult({ kind: 'deleted' }); else seeToday() },
+    rescheduled: (date: string) => { if (guided) setResult({ kind: 'rescheduled', date }) },
+    seeToday: leave,
+    close: () => { if (result?.kind === 'deleted') leave(); else setResult(null) },
+  }
 }
 
 /** The centred result dialog of habit detail. After a delete Orbit is Parado and does not hop, because nothing was created or finished. */

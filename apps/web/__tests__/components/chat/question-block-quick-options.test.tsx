@@ -63,6 +63,7 @@ it('shows one question in view with its position, in pt-BR too', () => {
   render(element(interaction(), 'pt-BR'))
   expect(document.querySelectorAll('[data-question-invalid]')).toHaveLength(1)
   expect(screen.getByText(`1 de ${block.questions.length}`)).toBeInTheDocument()
+  expect(screen.queryByText(/perguntas respondidas/)).toBeNull()
   expect(screen.getByRole('button', { name: pt.chat.question.previous })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: pt.chat.question.next }))
   expect(screen.getByText(`2 de ${block.questions.length}`)).toBeInTheDocument()
@@ -97,4 +98,5 @@ it('keeps the radio list and every question in view while the flag is off', () =
   expect(document.querySelector('[data-option-group]')).toBeNull()
   expect(document.querySelectorAll('[data-question-invalid]')).toHaveLength(block.questions.length)
   expect(screen.queryByRole('button', { name: en.chat.question.next })).toBeNull()
+  expect(screen.getByText(`0 of ${block.questions.length} questions answered`)).toBeInTheDocument()
 })

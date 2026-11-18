@@ -32,7 +32,7 @@ function CheckboxBox({ checked, error, loading }: Readonly<Pick<CheckboxProps, '
           <Rect x={1} y={1} width={22} height={22} rx={7} fill="none" stroke={error ? tokens.statusBad : tokens.fg3} strokeWidth={2} />
         </Svg>
       ) : null}
-      {checked ? <Check size={16} strokeWidth={3} color={loading ? tokens.fg1 : tokens.bg} /> : null}
+      {checked ? <Check size={16} strokeWidth={2.5} color={loading ? tokens.fg1 : tokens.bg} /> : null}
     </AnimatedBox>
   )
 }

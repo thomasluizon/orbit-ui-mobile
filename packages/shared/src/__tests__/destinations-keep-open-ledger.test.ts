@@ -3,11 +3,6 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { repositoryRoot } from '../test-support/repository-root'
 
-/**
- * Each row is a field or an action of Hoje, habit detail or the conversation, with one test per platform.
- * A fragment is a literal test title, or an assertion line, that reaches the control.
- * Android saves a new habit offline (row 20) and has no sidebar (row 36), so those rows keep the nearest Android test.
- */
 const ledger: readonly {
   row: string
   web: { file: string; fragment: string }

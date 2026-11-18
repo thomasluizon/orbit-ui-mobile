@@ -13,7 +13,7 @@ import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFlowAnnouncement } from '@/components/ui/question-flow'
+import { useFlowAnnouncement, useLineAfterArrival } from '@/components/ui/question-flow'
 import type { StoreOffer } from '@/hooks/use-play-billing'
 import { buildTiers, type Tier } from './plan-selection'
 import { PurchaseNotes, RestoreAction, StayFreeLink } from './pricing-section'
@@ -228,7 +228,7 @@ export function GuidedPricingSection(props: Readonly<GuidedPricingSectionProps>)
   const { lookAt, mascotRef, lookAtControl, lookAway } = useFlowLookState()
   const planState = resolvePlanState(props)
   const line = orbitLineText(resolveUpgradeOrbitLine({ isOnline, isLoadingPlans: planState === 'loading', isPlansError: planState === 'error', usage }), t)
-  const announcement = useFlowAnnouncement(line, 'plan')
+  const announcement = useFlowAnnouncement(useLineAfterArrival(line, focusOnMount), 'plan')
   const checkoutPending = checkoutLoading !== null
   const showNotes = Boolean(plans) || Platform.OS === 'ios'
   useEffect(() => {
@@ -278,7 +278,7 @@ export function GuidedPricingSection(props: Readonly<GuidedPricingSectionProps>)
 
 const localStyles = StyleSheet.create({
   block: { width: '100%', maxWidth: 592, alignSelf: 'center', alignItems: 'center', gap: 24 },
-  line: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
+  line: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, textAlign: 'center' },
   question: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },
   questionWide: { fontSize: 34, lineHeight: 39 },
   choice: { width: '100%', gap: 12 },

@@ -63,7 +63,7 @@ function ProgressOrbitGroup({ line, mascotRef, lookAt, action }: Readonly<{
     <div data-progress-orbit="" className="flex flex-col items-center gap-3 text-center">
       <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={size} state="parado" lookAt={lookAt} /></span>
       {line ? <p ref={lineRef} data-progress-orbit-line="" data-line-motion={reducedMotion ? 'still' : 'fade'}
-        className="max-w-[592px] text-balance text-base leading-6 text-[var(--fg-2)]">{line}</p> : null}
+        className="max-w-[592px] text-balance text-base leading-[1.4] text-[var(--fg-2)]">{line}</p> : null}
       {action ? <div data-empty-state-action="">{action}</div> : null}
     </div>
   )

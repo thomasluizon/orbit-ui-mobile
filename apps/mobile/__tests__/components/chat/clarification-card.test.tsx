@@ -151,6 +151,17 @@ describe('ClarificationCard quick options (mobile)', () => {
     expect(tree.root.findAll((node) => node.props.testID === 'option-card')).toHaveLength(0)
     expect(findPressables(tree.root)).toHaveLength(5)
   })
+
+  it('keeps the button row when one answer holds more than four words', async () => {
+    enableTestFlags('orbit_guided_flows')
+    const long = { ...baseClarification, quickActions: [baseClarification.quickActions[0]!, { label: 'Three times every single week', value: 'long', description: null }] }
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<ClarificationCard clarificationRequest={long} />)
+    })
+    expect(tree.root.findAll((node) => node.props.testID === 'option-card')).toHaveLength(0)
+    expect(findPressables(tree.root)).toHaveLength(2)
+  })
 })
 
 describe('ClarificationCard (mobile)', () => {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { conversationMascotState } from '../chat/composer-controls'
+import { conversationMascotState, conversationRestReason } from '../chat/composer-controls'
 import {
   claimOrbitLiveSlot,
   getOrbitLoopVersion,
@@ -167,5 +167,14 @@ describe('conversationMascotState', () => {
     [{ isOnline: true, atMessageLimit: false, dailyBudgetReached: true }, 'descansando'],
   ] as const)('rests Orbit only while the AI is unavailable: %o', (state, expected) => {
     expect(conversationMascotState(state)).toBe(expected)
+  })
+
+  it.each([
+    [{ isOnline: true, atMessageLimit: false }, null],
+    [{ isOnline: false, atMessageLimit: true }, 'todayAstra.offline'],
+    [{ isOnline: true, atMessageLimit: true }, 'todayAstra.limit'],
+    [{ isOnline: true, atMessageLimit: false, dailyBudgetReached: true }, 'todayAstra.limit'],
+  ] as const)('gives the reason of the rest in the first person: %o', (state, expected) => {
+    expect(conversationRestReason(state)).toBe(expected)
   })
 })

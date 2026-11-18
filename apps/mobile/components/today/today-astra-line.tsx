@@ -49,6 +49,7 @@ export function TodayAstraLine({ text, destination, role = 'button', onPress, di
   const sentenceStyle = useSentenceFade(text, !guided || reducedMotion)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const type = guided ? styles.orbitLineText : styles.text
   const [pressed, setPressed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
@@ -73,11 +74,11 @@ export function TodayAstraLine({ text, destination, role = 'button', onPress, di
         <View ref={mascotRef} accessible={false} style={{ width: 48, flexShrink: 0, alignItems: 'center' }}>
           {guided ? <OrbitMascot size={48} state={mascotState} lookAt={lookAt} turnKey={turnKey} /> : <OrbitMascot size={48} still />}
         </View>
-        {loading ? <View testID="summary-skeleton" accessible={false} importantForAccessibility="no-hide-descendants" style={styles.skeleton}>
+        {loading ? <View testID="summary-skeleton" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.skeleton, { minHeight: type.lineHeight * 2 }]}>
           <View style={styles.placeholder}><Skeleton variant="fill" grouped /></View>
           <View style={[styles.placeholder, styles.placeholderShort]}><Skeleton variant="fill" grouped /></View>
         </View> : <Animated.View testID="today-astra-sentence" style={[styles.sentence, sentenceStyle]}>
-          <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.text, { color: tokens.fg2 }]}>
+          <Text numberOfLines={2} ellipsizeMode="tail" style={[type, { color: tokens.fg2 }]}>
             {text}
           </Text>
         </Animated.View>}
@@ -89,9 +90,10 @@ export function TodayAstraLine({ text, destination, role = 'button', onPress, di
 const styles = StyleSheet.create({
   line: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: SPACING.s8, paddingRight: SPACING.s16, paddingVertical: SPACING.s8, borderRadius: 12 },
   feedback: { borderRadius: 12 },
-  skeleton: { flex: 1, minWidth: 0, minHeight: 14 * 1.55 * 2, justifyContent: 'center', gap: 8 },
+  skeleton: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 8 },
   placeholder: { height: 14, width: '100%' },
   placeholderShort: { width: '66.67%' },
   sentence: { minWidth: 0, flex: 1 },
   text: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 },
+  orbitLineText: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 16 * 1.4 },
 })

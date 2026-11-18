@@ -36,6 +36,7 @@ const hosts = (tree: ReturnType<typeof TestRenderer.create>, testID: string): Re
 const options = (tree: ReturnType<typeof TestRenderer.create>) => hosts(tree, 'option-card')
 const labels = (tree: ReturnType<typeof TestRenderer.create>) => options(tree).map((node) => node.props.accessibilityLabel)
 const sheetTitle = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node: ReactTestInstance) => String(node.type) === 'Sheet').map((node: ReactTestInstance) => node.props.title)
+const sentences = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node: ReactTestInstance) => String(node.type) === 'Text' && ['habits.checklistCompleteMessage', 'habits.checklistCompleteLine'].includes(node.props.children as string)).map((node: ReactTestInstance) => node.props.children as string)
 const press = (node: ReactTestInstance) => TestRenderer.act(() => { (node.props.onPress as () => void)() })
 const mascots = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node: ReactTestInstance) => node.props.testID === 'orbit-mascot')
 
@@ -103,11 +104,13 @@ describe('Android habit prompts as one question', () => {
   it('asks the checklist question after the last item, and keeps the confirm sheet with the flag off', () => {
     const off = mount(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={vi.fn()} />)
     expect(sheetTitle(off)).toEqual(['habits.checklistCompleteTitle'])
+    expect(sentences(off)).toEqual(['habits.checklistCompleteMessage'])
     expect(options(off)).toHaveLength(0)
     enableTestFlags('orbit_guided_flows')
     const onConfirm = vi.fn()
     const tree = mount(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={onConfirm} />)
     expect(sheetTitle(tree)).toEqual(['habits.checklistCompleteQuestion'])
+    expect(sentences(tree)).toEqual([])
     expect(labels(tree)).toEqual(['habits.checklistCompleteConfirm', 'common.notNow'])
     press(options(tree)[0]!)
     expect(onConfirm).toHaveBeenCalledOnce()

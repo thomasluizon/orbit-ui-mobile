@@ -176,7 +176,7 @@ describe('OptionCard on Android', () => {
     const onSelect = vi.fn()
     const tree = renderNavigation(<OptionCard label="Hoje" selected onSelect={onSelect} />)
     const option = tree.hosts().find((node) => node.props.testID === 'option-card')!
-    expect(option.props.accessibilityState).toEqual({ selected: true, disabled: false })
+    expect(option.props.accessibilityState).toEqual({ selected: true, disabled: false, busy: false })
     press(option)
     expect(onSelect).toHaveBeenCalledTimes(1)
     tree.unmount()
