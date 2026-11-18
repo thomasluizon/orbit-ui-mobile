@@ -141,6 +141,56 @@ describe('a converted offers read case', () => {
   })
 })
 
+// The two requirements that the rubrics of these cases held and the outcome of a case cannot state: the steps of a
+// checklist stay together, and an explicit root placement holds no parent. The offers family check owns each one, and the
+// whole grade of the case (outcome, composition and offers policy) runs here.
+describe('the requirements that an offers write case keeps beyond its outcome', () => {
+  const owner = '22222222-2222-4222-8222-222222222222'
+  const steps = {
+    en: ['Open the planner', 'Clear the desk', 'Start the timer'],
+    'pt-BR': ['Abrir o planejador', 'Liberar a mesa', 'Iniciar o cronômetro'],
+  }
+  const titles = { en: ['Desk setup', 'Journal'], 'pt-BR': ['Preparação da mesa', 'Diário'] }
+
+  // Producer: orbit-api CreationFields gives a create preview a `checklist_items` row with the typed list as its proposedValue.
+  const requested = (pending) => {
+    for (const row of pending.items[0].fields) row.provenance = 'requested'
+    return pending
+  }
+  const checklistPreview = (locale, texts) => {
+    const pending = createPreview([{ title: titles[locale][0], frequency_unit: 'Day', frequency_quantity: 1 }])
+    const [row] = pending.items[0].fields
+    const items = texts.map((text) => ({ text, is_checked: false }))
+    pending.items[0].fields.push({ ...row, entityName: titles[locale][0], field: 'checklist_items', valueType: 'array',
+      newValue: JSON.stringify(items), proposedValue: items })
+    return requested(pending)
+  }
+  const rootPreview = (locale, parent) => requested(createPreview([{ title: titles[locale][1], frequency_unit: 'Day',
+    frequency_quantity: 1, ...parent ? { parent_habit_id: parent } : {} }]))
+
+  async function graded(id, pending) {
+    const { vars, response } = await scripted(id, held(pending))
+    const context = { vars: { ...vars, offerRequireReadback: false } }
+    return [outcome, composition, proactiveOffers].map((grade) => grade(response.output, context)).find((verdict) => !verdict.pass)
+  }
+
+  describe.each(['en', 'pt-BR'])('in %s', (locale) => {
+    it('keeps the steps of a checklist together', async () => {
+      const id = `offers-checklist-${locale}`
+      expect(await graded(id, checklistPreview(locale, steps[locale]))).toBeUndefined()
+      expect(await graded(id, checklistPreview(locale, steps[locale].slice(0, 2)))).toMatchObject({ pass: false })
+      expect(await graded(id, checklistPreview(locale, [...steps[locale].slice(0, 2), 'Check email']))).toMatchObject({ pass: false })
+      expect(await graded(id, checklistPreview(locale, []))).toMatchObject({ pass: false })
+    })
+
+    it('holds no parent for an explicit root placement', async () => {
+      const id = `offers-root-${locale}`
+      expect(await graded(id, rootPreview(locale))).toBeUndefined()
+      expect(await graded(id, rootPreview(locale, owner))).toMatchObject({ pass: false, reason: 'Explicit root placement received a parent.' })
+    })
+  })
+})
+
 // The same held preview under three traces. Producer: on the old path the trace names the write tool that the model
 // called. On the flag path it names each change by its change kind (orbit-api ProcessUserChatCommand.ChangeList.cs). The
 // offers case reads no tool name, so its verdict is the same under each.

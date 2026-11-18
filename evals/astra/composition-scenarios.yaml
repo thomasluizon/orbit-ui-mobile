@@ -3314,6 +3314,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_en, conversationId: "d6825e35-b06c-5f31-85ec-e463b729505f"}
     input: "Create my daily desk setup: open the planner, clear the desk, start the timer; these are steps I do together."
+    checklistSteps: [["planner"],["desk"],["timer"]]
     composition: {"mode": "preview", "previews": 1}
     outcome: {"changes":[{"kind":"create","fields":{"title":{"contains":["desk"]},"frequency_unit":"Day"}}]}
 - description: "proactive checklist in pt-BR"
@@ -3322,6 +3323,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_pt, conversationId: "5b7111c6-94af-56b1-983a-913826bcda99"}
     input: "Crie minha preparação diária da mesa: abrir o planejador, liberar a mesa e iniciar o cronômetro; faço essas etapas juntas."
+    checklistSteps: [["planejador"],["mesa"],["cronômetro"]]
     composition: {"mode": "preview", "previews": 1}
     outcome: {"changes":[{"kind":"create","fields":{"title":{"contains":["mesa"]},"frequency_unit":"Day"}}]}
 - description: "proactive children in en"

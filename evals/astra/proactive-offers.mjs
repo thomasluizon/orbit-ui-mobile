@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { hasCrisisSurfaces } from './crisis-surfaces.mjs'
 import { groundedMissedAction } from './missed-offers.mjs'
 import { guid } from './fixtures/api.mjs'
+import { matchesField } from './core/outcome.mjs'
 
 export const offerResult = (pass, reason, metadata) => ({ pass, score: pass ? 1 : 0, reason, ...(metadata ? { metadata } : {}) })
 const text = (value) => typeof value === 'string' && value.trim().length > 0
@@ -121,6 +122,19 @@ function completedGoalFailure(response, vars) {
   }
 }
 
+// The request lists the steps together, so the checklist that the preview writes holds each step and no other: the
+// `checklistSteps` of the case name each step by the words that its checklist item may use. Producer: orbit-api
+// CreationFields gives a create preview its `checklist_items` row with the typed list as its proposedValue.
+function checklistFailure(fields, vars) {
+  const steps = vars.checklistSteps
+  if (!Array.isArray(steps) || !steps.length) return 'Missing the steps of the checklist case.'
+  const items = fields.filter((field) => field.field === 'checklist_items' && field.provenance !== 'suggested')
+    .flatMap((field) => Array.isArray(field.proposedValue) ? field.proposedValue : [])
+  const listed = items.map((item) => item?.text)
+  if (steps.some((words) => !listed.some((entry) => matchesField({ contains: words }, entry)))) return 'A requested checklist step is missing.'
+  return listed.length === steps.length ? null : 'The checklist holds a step outside the request.'
+}
+
 function familyFailure(response, vars, actions) {
   const families = actions.map(({ action }) => action.offerKey.split(':')[0])
   const fields = (response.pendingOperations ?? []).flatMap((pending) => pending.items ?? []).flatMap((item) => item.fields)
@@ -146,7 +160,8 @@ function familyFailure(response, vars, actions) {
   }
   if (vars.offerFamily === 'bounded' && (!fields.some((field) => field.field === 'end_date' && field.proposedValue === vars.offerEndDate && (field.provenance == null || field.provenance === 'requested'))
     || !fields.some((field) => ['due_date', 'start_date'].includes(field.field) && field.proposedValue === vars.offerStartDate))) return 'Requested inclusive boundary changed.'
-  if (vars.offerFamily === 'root' && suggested.some((field) => field.field === 'parent_habit_id')) return 'Explicit root placement received a suggested parent.'
+  if (vars.offerFamily === 'root' && fields.some((field) => field.field === 'parent_habit_id' && field.proposedValue != null)) return 'Explicit root placement received a parent.'
+  if (vars.offerFamily === 'checklist') return checklistFailure(fields, vars)
   if (vars.offerFamily === 'parent' && !suggested.some((field) => field.field === 'parent_habit_id'
     && vars.fixtureEvidence?.habits?.some((habit) => habit.id === field.proposedValue))) return 'Suggested parent is missing or unowned.'
   if (vars.offerFamily === 'goal-link' && !suggested.some((field) => field.field === 'goal_ids'
