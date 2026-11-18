@@ -176,7 +176,7 @@ const unattendedRules = cloud ? "" : `
 - Never comment on GitHub, resolve a review thread, or close a pull request or an issue unless this order says so in words.
 - Copy every GitHub identifier (pull request number, SHA, thread id) from command output of this run, never from memory.
 - Commit with a plain conventional message: no attribution line and no co-author line.
-- Your final message is at most 12 lines: the verdict, the commit SHAs, each test command with its pass count, and the pull request URL when you opened one. The pull request body carries the full report.`
+- ${reviewBatch ? "Your final report is the batch's handoff: the commit SHA, then the complete `## Test evidence`, `## Assumptions` and `## Manual steps` sections of the finishing contract." : "Your final message is at most 12 lines: the verdict, the commit SHAs, each test command with its pass count, and the pull request URL when you opened one. The pull request body carries the full report."}`
 
 /**
  * The approval hook loads only in a checkout that holds it. A worker in another repository gets the same rule

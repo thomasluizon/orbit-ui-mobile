@@ -257,6 +257,13 @@ export const cases = () => {
     reviewPrompt,
   )
   T(
+    `${TOOL}: a review batch order names one final report shape, and the default order keeps the 12 line message`,
+    !reviewPrompt.includes("at most 12 lines") && !reviewPrompt.includes("The pull request body carries the full report") &&
+      reviewPrompt.includes("Your final report is the batch's handoff: the commit SHA, then the complete `## Test evidence`, `## Assumptions` and `## Manual steps` sections") &&
+      prompt.includes("Your final message is at most 12 lines") && !prompt.includes("Your final report is the batch's handoff"),
+    reviewPrompt,
+  )
+  T(
     `${TOOL}: only the review batch order carries the marker that makes launch-worker.mjs spend a fix round`,
     reviewPrompt.includes(REVIEW_BATCH_ORDER_MARKER) && !prompt.includes(REVIEW_BATCH_ORDER_MARKER),
     reviewPrompt.slice(0, 400),
