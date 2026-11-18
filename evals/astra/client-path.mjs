@@ -1,0 +1,67 @@
+import { runCase } from './core/conversation.mjs'
+import { openConversation, sendTurn } from './core/client-turn.mjs'
+import { gradePreview } from './core/outcome.mjs'
+
+const decode = (output) => typeof output === 'string' ? JSON.parse(output) : output
+
+// A case names a record by its fixture name, never by its id. A field that names a record holds its id, or its stored
+// title: a preview shows the parent of a new record by title (orbit-api PendingOperationChangePreviewer).
+function namedRecords(value, vars) {
+  if (Array.isArray(value)) return value.map((entry) => namedRecords(entry, vars))
+  if (!value || typeof value !== 'object') return value
+  if (typeof value.record === 'string' && Object.keys(value).length === 1) {
+    const id = vars.records[value.record]
+    return { oneOf: [id, vars.fixtureEvidence.habits.find((habit) => habit.id === id)?.title].filter(Boolean) }
+  }
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, namedRecords(child, vars)]))
+}
+
+// The vars of one launch corpus case in the form that the core set runs and grades: its expected outcome, the answer of
+// the person, and the records of its fixture by name. The expected fields are resolved here; the targets stay names.
+export function coreVars(vars) {
+  const expected = vars.outcome.changes
+    ? { ...vars.outcome, changes: vars.outcome.changes.map((change) => ({ ...change, ...(change.fields ? { fields: namedRecords(change.fields, vars) } : {}) })) }
+    : vars.outcome
+  return { ...vars, core: { expected, answer: vars.answer ?? null, prefix: [], lead: [], image: null, resend: false,
+    records: vars.records, nestedCreates: true } }
+}
+
+// The conversation of one case on a shipped client: the client context that the case states, and its recorded history
+// as the messages that the client already holds.
+export const openCaseConversation = (vars) => openConversation({ platform: vars.clientContext.platform, locale: vars.clientContext.locale,
+  credentialKey: vars.credentialKey, timeZone: vars.accountTimeZone, uses24HourClock: vars.uses24HourClock,
+  messages: vars.history ?? [], context: vars.clientContext })
+
+// The answer of a refused turn, in the shape that the composition and the rubric of a refusal case read.
+const refusal = ({ error: _error, unavailable: _unavailable, ...output }, turn) => ({ ...output,
+  refused: { status: turn.status, code: turn.code }, httpStatus: turn.status,
+  httpError: { status: turn.status, errorCode: turn.code, error: turn.error },
+  answer: turn.error, composition: { aiMessage: turn.error },
+  trace: { state: 'refused', responseRequestId: turn.responseRequestId, refusalCode: turn.code } })
+
+// Sends the turns of one case on the client path (POST /api/chat/stream, in one conversation) and holds its preview:
+// nothing is approved. A turn that the server refuses is the answer of a case that expects a refusal.
+export async function holdCase(vars, { send = sendTurn, conversation = vars.conversation ?? openCaseConversation(vars) } = {}) {
+  let last
+  const output = await runCase(coreVars(vars), { conversation, approve: false, send: async (...turn) => (last = await send(...turn)) })
+  return vars.outcome.refusal && last.kind === 'failed' && last.status && !output.unavailable ? refusal(output, last) : output
+}
+
+// The provider path of a case with an outcome. An attempt without a gradable answer returns its reason as the provider
+// error, so no grader call is spent on it.
+export async function runOutcomeCase(vars, dependencies) {
+  if (vars.preconditionFailure) {
+    return { error: `Precondition unavailable: ${vars.preconditionFailure}`,
+      metadata: { astraPreconditionFailure: true, astraPreconditionReason: vars.preconditionFailure } }
+  }
+  const output = await holdCase(vars, dependencies)
+  return output.error ? { error: output.error, output } : { output }
+}
+
+// promptfoo assertion: the outcome of one attempt of a launch corpus case, before any approval. A preview that the
+// grader cannot classify is missing evidence of the grader, so the case stays incomplete and does not fail the build.
+export function outcome(output, context) {
+  const { pass, score, reason, metadata } = gradePreview(decode(output), coreVars(context.vars))
+  const { matched: _matched, ...kept } = metadata
+  return { pass, score, reason, metadata: kept.graderLimit ? { ...kept, unavailable: true } : kept }
+}

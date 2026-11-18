@@ -15,6 +15,8 @@ import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 import { requireCatalogCommit } from './trace-policy.mjs'
 import { requireGrader } from './grader-preflight.mjs'
+import { gradedByOutcome } from './grade-method.mjs'
+import { fixtureRecords } from './core/hooks.mjs'
 
 const { buildChatClientContext } = await tsImport('../../packages/shared/src/chat/client-context.ts', import.meta.url)
 
@@ -152,6 +154,7 @@ async function prepareAttempt(test) {
   test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
   test.vars.historyJson = JSON.stringify(test.vars.history ?? [])
   test.vars.evalRequestId = randomUUID()
+  if (gradedByOutcome(test.vars)) test.vars.records = fixtureRecords(test.vars, account)
   return test.vars.setup ? prepareCorrection(test) : { test }
 }
 

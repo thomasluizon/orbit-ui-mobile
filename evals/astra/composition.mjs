@@ -1,5 +1,6 @@
 import { suggestionComposition, refineResult } from './suggestions.mjs'
-import { startingStepComposition } from './one-small-step.mjs'
+import { startingStepComposition, validStartingBlock } from './one-small-step.mjs'
+import { gradedByOutcome } from './grade-method.mjs'
 import { toolWrites } from './trace-policy.mjs'
 import { brainDumpPreview } from './brain-dumps.mjs'
 import { isDeepStrictEqual } from 'node:util'
@@ -124,12 +125,25 @@ function coachingStartingStep(parsed, vars) {
     { ...vars, composition: { mode: 'one-small-step' } })
 }
 
-function achievementNamesMatch(parsed, blocks, client) {
+// A case with an outcome names no tool, so its starting step is read from the reply alone: one block with the server
+// actions, no prose and no other surface.
+function startingStepBlock(response, client) {
+  const parts = response.parts
+  const surfaces = ['actions', 'pendingOperations', 'policyDenials', 'relatedSurfaces', 'followUps', 'followUpContext'].some((key) => response[key]?.length)
+  return !surfaces && client?.supportsParts === true && client.partKinds?.includes('oneSmallStep') && parts.length === 1
+    && (response.aiMessage == null || response.aiMessage === '') && validStartingBlock(parts[0].block, client.locale)
+    ? result(true, 'One starting step with its server actions and no prose.')
+    : result(false, 'Missing one starting-step block with server actions and no prose.')
+}
+
+// The names that a successful read gave the achievements. A case with an outcome names no tool, so each successful call
+// that returns achievements counts for it.
+function achievementNamesMatch(parsed, blocks, client, anyTool) {
   const locale = client?.locale ?? 'en'
   const cards = blocks.filter((part) => part.kind === 'gamification' && part.block.state.achievements != null)
   if (!cards.length) return true
   const names = new Set((parsed.trace?.calls ?? [])
-    .filter((call) => call.name === 'get_gamification_overview' && call.resultStatus === 'Succeeded'
+    .filter((call) => (anyTool || call.name === 'get_gamification_overview') && call.resultStatus === 'Succeeded'
       && call.result?.success === true && call.result.error === null)
     .flatMap((call) => {
       const achievements = call.result.payload?.achievements?.achievements
@@ -152,10 +166,13 @@ export function composition(output, context) {
   const response = parsed?.composition
   const expected = context.vars.composition
   if (!expected || !response) return result(false, 'Missing composition evidence or scenario policy.', { unavailable: true })
-  const coachingStep = expected.allowStartingStep === true
-    && parsed.trace?.calls?.some((call) => call.name === 'suggest_breakdown')
+  const byOutcome = gradedByOutcome(context.vars)
+  const coachingStep = expected.allowStartingStep === true && (byOutcome
+    ? (response.parts ?? []).some((part) => part?.type === 'block' && part.kind === 'oneSmallStep')
+    : parsed.trace?.calls?.some((call) => call.name === 'suggest_breakdown'))
   if (coachingStep || ['one-small-step', 'one-small-step-legacy'].includes(expected.mode)) {
     if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
+    if (byOutcome) return startingStepBlock(response, context.vars.clientContext)
     return coachingStep ? coachingStartingStep(parsed, context.vars) : startingStepComposition(parsed, context.vars)
   }
   if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome', 'step-up', 'crisis'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
@@ -201,7 +218,7 @@ function partsComposition(parsed, expected, vars) {
   const expectedKinds = expected.blocks?.map((block) => block.kind) ?? expected.kinds
   const unexpected = [...new Set(blocks.filter((part) => expectedKinds && !expectedKinds.includes(part.kind)).map((part) => part.kind))]
   if (unexpected.length) return result(false, `Block kind outside the expected set: ${unexpected.join(', ')}.`)
-  if (!achievementNamesMatch(parsed, blocks, client)) return result(false, 'Achievement name differs from the successful tool result.')
+  if (!achievementNamesMatch(parsed, blocks, client, gradedByOutcome(vars))) return result(false, 'Achievement name differs from the successful tool result.')
   const external = (parts ?? []).filter((part) => part.type === 'text').map((part) => part.text).join('\n\n')
   if (client?.supportsParts === true && (response.aiMessage ?? '').trim() !== external.trim()) {
     return result(false, 'Final prose differs from the ordered text parts.')

@@ -10,6 +10,7 @@ const kindByActionKey = {
   deleteHabit: 'delete', deleteHabits: 'delete',
   logHabit: 'log', logHabits: 'log',
   skipHabit: 'skip', skipHabits: 'skip',
+  viewApiKeys: 'view',
 }
 // Producer: AccountChangeSet.PreviewAsync joins the items of its member previews under this key and keeps no member key.
 const combinedActionKey = 'applyAccountChanges'
@@ -93,19 +94,42 @@ function offeredDrafts(offers) {
   return rows.filter((row) => !rows.some((outer) => row.field.startsWith(`${outer.field}/`))).flatMap((row) => draftTitles(row.proposedValue))
 }
 
+// Producer: PendingAgentOperationStore.Map holds a read behind a step-up as a preview without items and without changes.
+// PendingOperationActionKeys names the API key read viewApiKeys: the approval shows the keys and changes no record.
+const heldRead = (operation, items) => !items.length && kindByActionKey[operation.actionKey] === 'view'
+
+// Producer: AgentArgumentPreview.FormatValue shows a value of a held write as its JSON text: a number as its digits and
+// a boolean as True or False.
+const shownValue = (value) => typeof value === 'boolean' ? (value ? 'True' : 'False') : typeof value === 'number' ? String(value) : value
+// The records that the child drafts of a create add (CreationFields, above): each draft that names no stored habit is
+// one create with the values of its draft, and the drafts below it follow it. The change list holds them only with
+// `nestedCreates`. The launch corpus sets it. The core set does not, so each core verdict stays as it is while no pull
+// request changes an input of the core gate (#2129, rule B1).
+const childCreates = (drafts, preview) => Array.isArray(drafts) ? drafts.flatMap((draft) => [
+  ...recordId(draft?.habit_id) ? [] : [{ kind: 'create', target: null, preview, offered: {}, derived: {}, undetermined: {}, drafts: [],
+    fields: Object.fromEntries(Object.entries(draft ?? {}).map(([field, value]) => [field, shownValue(value)])
+      .filter(([, value]) => typeof value === 'string' && value !== '')) }],
+  ...childCreates(draft?.sub_habits, preview)]) : []
+
 // The change list of the held previews: one entry for each record a preview changes, with the kind of the change, the
 // record, the fields that the model writes, the fields that the preview offers, the fields that the server derives, and
 // the titles of the records that the offered drafts add. A stored row is written when the held writes name its field
 // (`written`, from writtenFields), and derived otherwise; without the trace (`written` null) it is undetermined. A row
 // of a create preview that only names a habit the create reuses is no change.
-export function changeList(pendingOperations, written = null) {
+export function changeList(pendingOperations, written = null, { nestedCreates = false } = {}) {
   const changes = []
   const unclassified = []
   for (const operation of pendingOperations ?? []) {
-    for (const item of previewItems(operation)) {
+    const items = previewItems(operation)
+    if (heldRead(operation, items)) {
+      changes.push({ kind: 'view', target: null, preview: operation.id, fields: {}, offered: {}, derived: {}, undetermined: {}, drafts: [] })
+    }
+    for (const item of items) {
       const kind = itemKind(item, operation.actionKey)
       if (!kind) { unclassified.push(operation.actionKey ?? 'a preview without an action key'); continue }
-      if (kind === 'create' && item.fields.some(marksExistingHabit)) continue
+      const children = nestedCreates && kind === 'create'
+        ? item.fields.filter((field) => field.field === 'sub_habits' && !isOffer(field)).flatMap((field) => childCreates(field.proposedValue, operation.id)) : []
+      if (kind === 'create' && item.fields.some(marksExistingHabit)) { changes.push(...children); continue }
       const offers = item.fields.filter(isOffer)
       const stored = item.fields.filter((field) => field.provenance === 'stored')
       const derived = written ? stored.filter((field) => !written.includes(field.field)) : []
@@ -113,7 +137,7 @@ export function changeList(pendingOperations, written = null) {
       const requested = item.fields.filter((field) => !isOffer(field) && !derived.includes(field) && !undetermined.includes(field))
       changes.push({ kind, target: recordId(item.entityId), preview: operation.id, fields: changedFields(requested, kind),
         offered: changedFields(offers, kind), derived: changedFields(derived, kind), undetermined: changedFields(undetermined, kind),
-        drafts: offeredDrafts(offers) })
+        drafts: offeredDrafts(offers) }, ...children)
     }
   }
   return { changes, unclassified: [...new Set(unclassified)] }

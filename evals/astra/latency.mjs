@@ -13,7 +13,7 @@ const median = (values) => {
 
 export function describeCase(test) {
   const readLatency = ['data', 'step-up'].includes(test.vars?.composition?.mode)
-    || (test.vars?.composition?.mode === 'fallback' && test.vars?.expectations?.allowed?.length > 0)
+    || (test.vars?.composition?.mode === 'fallback' && (test.vars?.expectations?.allowed?.length > 0 || test.vars?.outcome?.read === true))
   return { ...test.metadata, readLatency: Boolean(readLatency) }
 }
 

@@ -11,6 +11,8 @@ import { approveBrainDump, brainDumpBaseline } from './brain-dump-approval.mjs'
 import { approveStartingStep } from './step-persistence.mjs'
 import { safeFailureMessage } from './credentials.mjs'
 import { restoreOfferTimeZone } from './fixtures/offer-timezone.mjs'
+import { gradedByOutcome } from './grade-method.mjs'
+import { runOutcomeCase } from './client-path.mjs'
 
 export default class AstraHttpProvider {
   constructor(options) {
@@ -58,6 +60,7 @@ export default class AstraHttpProvider {
   }
 
   async attempt(prompt, context, options) {
+    if (gradedByOutcome(context.vars)) return runOutcomeCase(context.vars)
     if (context.vars.offerFamily) {
       const response = await this.chat(prompt, context, options)
       if (response.output?.composition && !response.error) {

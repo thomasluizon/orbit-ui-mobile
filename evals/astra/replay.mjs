@@ -9,6 +9,7 @@ import { configureOffers } from './offer-context.mjs'
 import { toolBehavior } from './assertions.mjs'
 import { historicalReadExpectations } from './offer-lifecycle.mjs'
 import parseResponse from './response.mjs'
+import { gradedByOutcome } from './grade-method.mjs'
 import { tsImport } from 'tsx/esm/api'
 
 const { buildChatClientContext } = await tsImport('../../packages/shared/src/chat/client-context.ts', import.meta.url)
@@ -73,7 +74,9 @@ export async function replayAttempt(attempt, descriptor, recorded) {
   const assertions = structuredClone(attempt.assertions)
   const notes = []
   const validate = (call) => validateToolArguments(call, declarations(test.vars), { test, vars: test.vars })
-  const schemas = await Promise.all(attempt.toolCalls.map((call) => schemaVerdict(call, validate)))
+  // A case with an outcome has no tool-name grade, so its recorded calls are not graded again by name.
+  const byOutcome = gradedByOutcome(test.vars)
+  const schemas = byOutcome ? [] : await Promise.all(attempt.toolCalls.map((call) => schemaVerdict(call, validate)))
   if (schemas.some((verdict) => verdict.redacted)) notes.push('A recorded argument holds a redacted value, so its schema cannot be replayed.')
   const structure = assertions.find((assertion) => assertion.metric === 'toolStructure')
   if (structure?.pass === false && /Call to "ask" does not match schema/u.test(structure.reason)
@@ -104,14 +107,14 @@ export async function replayAttempt(attempt, descriptor, recorded) {
       headers: { 'x-orbit-request-id': attempt.httpError.responseRequestId } } })
     if (parsed.output?.unavailable) { after = 'incomplete'; notes.push('AI_UNAVAILABLE is unavailable evidence, not a refusal.') }
   }
-  if (attempt.setup?.toolCalls?.length) {
+  if (attempt.setup?.toolCalls?.length && !byOutcome) {
     const verdict = toolBehavior(attempt.setup.toolCalls, test.vars.setup.expectations)
     notes.push(`Setup outcome scope: ${verdict.reason} Preview evidence remains unavailable.`)
   }
   if (attempt.offerReadback?.reason?.includes('HTTP 409')) notes.push('The saved conflict keeps only its route and typed reason, when the API sent one; no retry or success can be inferred.')
   if (attempt.offerReadback?.reason?.startsWith('ask requires')) notes.push('The failing continuation trace was not recorded; its grade cannot be replayed.')
   return { caseId: attempt.caseId, repeat: attempt.repeat, recordedAttemptPassed: attempt.pass,
-    before, after, assertions, schemas, notes,
+    before, after, assertions, schemas, gradedByOutcome: byOutcome, notes,
     retained: 'Identity, prerequisites, composition, lifecycle readbacks and semantic rubric verdicts retain their recorded grades.' }
 }
 
@@ -150,7 +153,7 @@ export async function replayWindow(source, destination) {
     'All other assertion verdicts are retained, not re-executed. This audit cannot approve a launch or supply missing evidence.', '',
     '| Case | Before | After | Argument schemas | Change or evidence limit |',
     '|---|---|---|---|---|',
-    ...results.map((entry) => `| ${entry.caseId} | ${entry.before} | ${entry.after} | ${entry.schemas.every((verdict) => verdict.pass) ? 'pass' : 'unreplayable projection'} | ${entry.notes.join(' ').replaceAll('|', '\\|')} |`), '',
+    ...results.map((entry) => `| ${entry.caseId} | ${entry.before} | ${entry.after} | ${entry.gradedByOutcome ? 'not graded (outcome)' : entry.schemas.every((verdict) => verdict.pass) ? 'pass' : 'unreplayable projection'} | ${entry.notes.join(' ').replaceAll('|', '\\|')} |`), '',
   ].join('\n')
   mkdirSync(output, { recursive: true, mode: 0o700 })
   writeFileSync(`${output}/replay.json`, `${JSON.stringify({ results, regressions, before: counts('before'), after: counts('after') }, null, 2)}\n`, { mode: 0o600 })
