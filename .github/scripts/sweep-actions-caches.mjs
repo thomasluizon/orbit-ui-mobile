@@ -34,13 +34,11 @@ export const LARGE_ENTRY_BYTES = 5_000_000
 // WHY 24 hours: Desktop Build, the least frequent reader of a large main family that a push or a pull request reads,
 // went at most 22.8 hours between two of its last 60 runs (Mobile Android Build and Mobile iOS Build 6.4 hours), so
 // such a family that nobody read for 24 hours is one main stopped restoring. This tier acts only over the cap.
-export const ORPHAN_AFTER_MS = 24 * 60 * 60 * 1000
+const ORPHAN_AFTER_MS = 24 * 60 * 60 * 1000
 
 // WHY: a release writes these families and restores them at its next run, and a release is a dispatch with no bound
 // on its gap (iOS Release went 62.7 hours between two of its last 9 runs), so a read older than 24 hours does not show
-// that main stopped restoring one. The full key, not the restore prefix: the Mobile Android Build -compile and
-// -compile-partial- entries also start with ccache-android-release-, and a prefix would keep the newest partial entry
-// forever. cache-save-rules.test.mjs derives these patterns from the key of every release save step.
+// that main stopped restoring one. cache-save-rules.test.mjs derives these patterns from the key of every release save step.
 export const RELEASE_FAMILY_KEYS = [
   /^ccache-android-release-[0-9a-f]{64}-\d+$/,
   /^macos-26-[A-Z0-9]+-xcode-26\.6-ios-device-ccache-v1-[0-9a-f]{64}$/,

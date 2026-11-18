@@ -677,6 +677,8 @@ function checkCompilerCaches(currentTree) {
     .filter(({ step }) => savesACache(step) && COMPILER_CACHE_PATHS.has(step.with?.path))
     .map(({ step, where }) => ({ step, list, where })))
   assert.deepEqual(saves.map(({ list }) => list.place).sort(), Object.keys(COMPILER_CACHE_SAVERS).sort(), "the compiler cache savers")
+  const restorePrefixes = []
+  const savedKeys = []
   for (const { step: save, list, where } of saves) {
     const saver = COMPILER_CACHE_SAVERS[list.place]
     const { compile: compileStep, evictWhen, path, partial, key, continueOnError } = saver
@@ -712,11 +714,38 @@ function checkCompilerCaches(currentTree) {
     // A status function such as always() runs the save after a failed step, so only the outcome of the evict step can stop it.
     assert.match(save.if ?? "", SAVES_AFTER_A_PASSING_EVICT, `${where}: the save runs only after a passing evict step, so no entry skips the clean`)
     assert.equal(save.with.key, key, `${where}: the save writes the reviewed key`)
+    const restoreKey = steps[restore].with.key
+    restorePrefixes.push({ where, prefixes: [restoreKey, ...steps[restore].with["restore-keys"].split("\n").map((line) => line.trim()).filter(Boolean)] })
+    savedKeys.push({ where, keys: partial ? [restoreKey, `${restoreKey}-partial-`] : [restoreKey] })
+  }
+  // The restore takes the newest entry whose key starts with its key or a restore-keys line ("If there are multiple
+  // partial matches for a restore key, the action returns the most recently created cache":
+  // https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching). Two compiles hit only the
+  // objects of their own compile, so a prefix that matches the key of another saver restores an entry with no hits.
+  for (const { where, prefixes } of restorePrefixes) {
+    for (const other of savedKeys.filter((saver) => saver.where !== where)) {
+      const shared = prefixes.filter((prefix) => other.keys.some((key) => key.startsWith(prefix)))
+      assert.deepEqual(shared, [], `${where}: a restore prefix also matches a key that ${other.where} saves, whose objects this compile does not hit`)
+    }
   }
 }
 
 test("each compiler cache entry holds only the objects that its own compile used, so a key change does not grow it", () => {
   checkCompilerCaches(tree)
+})
+
+// CLAUDE.md rule 2: no export for a reader that does not exist. Another tracked file names each export of the cache scripts.
+test("another file reads each name that the cache scripts export", () => {
+  const scripts = [".github/scripts/cache-inventory.mjs", ".github/scripts/sweep-actions-caches.mjs"]
+  const unread = scripts.flatMap((script) => [...readFileSync(join(root, script), "utf8").matchAll(/^export (?:async )?(?:const|function|class|let) ([\w$]+)/gm)]
+    .map(([, name]) => name)
+    .filter((name) => {
+      const search = spawnSync("git", ["grep", "--quiet", "--word-regexp", "--fixed-strings", name, "--", ".", `:!${script}`], { cwd: root })
+      assert.ok(search.status === 0 || search.status === 1, `git grep ${name}: ${search.stderr}`)
+      return search.status === 1
+    })
+    .map((name) => `${script}: ${name}`))
+  assert.deepEqual(unread, [])
 })
 
 const saveOf = (currentTree, where) => cacheSteps(currentTree, REMOTE_INVENTORY).find((save) => save.where === where)
@@ -1336,6 +1365,12 @@ const MUTATIONS = [
   ["CE4 the mobile-build evict step gets continue-on-error, so a failed clean on main turns no job red", changeText(".github/workflows/mobile-build.yml",
     [MOBILE_EVICT_IF, `${MOBILE_EVICT_IF}${RELEASE_EVICT_KEEPS_GOING}`]),
   /mobile-build\.yml: build: Save the ccache directory: the evict step differs from its reviewed form/, WRITE],
+  ["CK1 the mobile-build restore falls back to the android-release prefix, so after a lockfile change it restores a release entry with no hits", changeText(".github/workflows/mobile-build.yml",
+    ["            ccache-android-apk-\n", "            ccache-android-release-\n"]),
+  /mobile-build\.yml: build: Save the ccache directory: a restore prefix also matches a key that android-release\.yml: release-android: Save the ccache directory saves/, WRITE],
+  ["CK2 the android-release restore falls back to the mobile-build prefix, so after a lockfile change it restores a compile entry with no hits", changeText(".github/workflows/android-release.yml",
+    ["            ccache-android-release-\n", "            ccache-android-apk-\n"]),
+  /android-release\.yml: release-android: Save the ccache directory: a restore prefix also matches a key that mobile-build\.yml: build: Save the ccache directory saves/, WRITE],
   ["C8 the android-release job saves through the post step of a combined cache step, whose line names the evict step", ANDROID_RELEASE_COMBINED,
     /Restore the ccache directory: the rule "the evict step" does not cover actions\/cache$/m,
     withRule("android-release.yml: release-android: Restore the ccache directory", "the evict step")],

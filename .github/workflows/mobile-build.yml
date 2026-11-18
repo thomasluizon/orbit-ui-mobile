@@ -155,7 +155,7 @@ jobs:
           echo "Verified Android NDK $NDK_VERSION before Gradle."
 
       # The Gradle build cache does not cover the CMake tasks of the native modules. CMake reads the compiler
-      # launcher from these variables, and the Android release uses the same compiler cache prefix.
+      # launcher from these variables.
       - name: Set up ccache for the native C++ builds
         shell: bash
         run: |
@@ -175,17 +175,18 @@ jobs:
           fi
 
       # Keyed on the lockfile, which pins the native modules whose C and C++ sources this compile reads: main saves one
-      # entry per lockfile and a pull request only reads. The android-release.yml restore keys match this key by prefix.
+      # entry per lockfile and a pull request only reads. The prefix is not the android-release.yml prefix: this compile
+      # and the release compile do not hit the objects of each other, and a restore takes the newest entry of its prefix.
       - name: Restore the ccache directory
         id: compiler-cache
         if: env.CCACHE_AVAILABLE == 'true'
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ccache
-          key: ccache-android-release-${{ hashFiles('package-lock.json') }}-compile
+          key: ccache-android-apk-${{ hashFiles('package-lock.json') }}-compile
           restore-keys: |
-            ccache-android-release-${{ hashFiles('package-lock.json') }}-
-            ccache-android-release-
+            ccache-android-apk-${{ hashFiles('package-lock.json') }}-
+            ccache-android-apk-
 
       # The stamp follows the restore, so every restored object is older than it.
       - name: Record the start of the compiler cache use

@@ -621,8 +621,10 @@ function checkAndroidCompileCache() {
   T("the android compile saves the directory it restores", save.with.path === path)
   const release = read("android-release.yml").jobs["release-android"].steps.find((step) => step.name === "Restore the ccache directory")
   const releaseKeys = release ? restoreKeysOf(release) : []
-  T("the android release restores the compile entry of its lockfile by prefix", release?.with.path === path &&
-    releaseKeys.includes(restoreKeys[0]) && key.startsWith(releaseKeys[0]), releaseKeys.join())
+  // A restore takes the newest entry of its prefix, and neither compile hits the objects of the other.
+  T("the android release and the android compile restore no entry of each other", release?.with.path === path &&
+    releaseKeys.length > 0 && ![release.with.key, ...releaseKeys].some((prefix) => key.startsWith(prefix)) &&
+    ![key, ...restoreKeys].some((prefix) => release.with.key.startsWith(prefix)), [release?.with.key, ...releaseKeys].join())
 }
 
 export async function cases() {

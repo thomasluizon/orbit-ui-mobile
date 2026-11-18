@@ -125,8 +125,8 @@ test("over the cap, the newest main entry of a release family stays however long
   const iosDevice = entry(9001, `macos-26-ARM64-xcode-26.6-ios-device-ccache-v1-${simulator.key.slice(-64)}`, "2026-11-17T21:00:00.000000Z", new Date(now - 62.7 * 3_600_000).toISOString())
   const androidRelease = entry(9002, `ccache-android-release-${lockfileHash}-43744653594`, "2026-11-13T10:00:00.000000Z", "2026-11-13T10:30:00.000000Z")
   const olderAndroidRelease = entry(9003, `ccache-android-release-${lockfileHash}-43521100417`, "2026-11-10T10:00:00.000000Z", "2026-11-13T10:00:00.000000Z")
-  // A failed Mobile Android Build compile on main: the same key prefix, another family.
-  const partialCompile = entry(9004, `ccache-android-release-${lockfileHash}-compile-partial-43744653594-1`, "2026-11-13T09:00:00.000000Z", "2026-11-13T09:00:00.000000Z")
+  // A failed Mobile Android Build compile on main, another family.
+  const partialCompile = entry(9004, `ccache-android-apk-${lockfileHash}-compile-partial-43744653594-1`, "2026-11-13T09:00:00.000000Z", "2026-11-13T09:00:00.000000Z")
   const readRecently = caches.map((cache) => ({ ...cache, last_accessed_at: "2026-11-20T11:00:00.000000Z" }))
   const live = [...readRecently, iosDevice, androidRelease, olderAndroidRelease, partialCompile]
   for (const capBytes of [CAP_BYTES, 0]) {

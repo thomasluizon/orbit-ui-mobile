@@ -11,7 +11,7 @@ import yaml from "js-yaml"
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 export const STEP_INVENTORY_FILE = ".github/scripts/cache-save-inventory.jsonl"
 export const REMOTE_INVENTORY_FILE = ".github/scripts/remote-action-inventory.jsonl"
-export const UNREVIEWED = "unreviewed"
+const UNREVIEWED = "unreviewed"
 // The key of a case change whose text a workflow edit removed.
 export const MISSING_TEXT = Symbol("missing text")
 
@@ -21,7 +21,7 @@ const ACTION_PATHS = readdirSync(join(root, ".github/actions")).map((directory) 
 export const readInventory = (path) => readFileSync(join(root, path), "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line))
 
 // The workflow `on` key holds one event name, a list of names or a map of names.
-export const eventsOf = (on) => (typeof on === "string" ? [on] : Array.isArray(on) ? on : Object.keys(on ?? {}))
+const eventsOf = (on) => (typeof on === "string" ? [on] : Array.isArray(on) ? on : Object.keys(on ?? {}))
 
 // The workflows, the local actions and the Turbo configuration, with the text of some files changed or added, for a test
 // that breaks the guard.
