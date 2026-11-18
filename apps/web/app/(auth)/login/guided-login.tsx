@@ -1,7 +1,7 @@
 'use client'
 
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
-import { deriveLoginEmailErrors, formatLoginCountdown, getAuthCallbackErrorKey, getPendingAuthProvider } from '@orbit/shared/utils'
+import { deriveLoginEmailErrors, getAuthCallbackErrorKey, getPendingAuthProvider, loginCodeLine, loginRefusalHint } from '@orbit/shared/utils'
 import { useLayoutEffect, type ReactNode } from 'react'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ErrorState } from '@/components/ui/error-state'
@@ -28,11 +28,6 @@ interface GuidedLoginProps {
   onDismissCallback: () => void
   canSubmitTurnstile: boolean
   turnstileWidget: ReactNode
-}
-
-function refusalHint(flow: LoginFlow, canSubmitTurnstile: boolean) {
-  if (!flow.isOnline) return flow.t('auth.errors.offline')
-  return canSubmitTurnstile ? undefined : flow.t('auth.turnstileLabel')
 }
 
 function emailStep({ flow, callback, onDismissCallback, canSubmitTurnstile, turnstileWidget }: GuidedLoginProps): FlowStepView & { footer: ReactNode } {
@@ -69,16 +64,10 @@ function emailStep({ flow, callback, onDismissCallback, canSubmitTurnstile, turn
     ),
     primary: {
       label: flow.fromOnboarding ? t('auth.onboarding.continue') : t('auth.sendCode'),
-      onPress: submit, loading: flow.isSubmitting, hint: refusalHint(flow, canSubmitTurnstile),
+      onPress: submit, loading: flow.isSubmitting, hint: loginRefusalHint(t, flow.isOnline, canSubmitTurnstile),
     },
     footer: <LoginLegalConsent t={t} />,
   }
-}
-
-function codeLine(flow: LoginFlow, waiting: boolean) {
-  if (waiting) return flow.t('auth.line.codeLocked', { time: formatLoginCountdown(flow.lockCountdown) })
-  if (flow.codeFailure === 'expired') return flow.t('auth.line.codeExpired')
-  return flow.t('auth.line.codeSent', { email: flow.email })
 }
 
 function codeStep({ flow, canSubmitTurnstile, turnstileWidget }: GuidedLoginProps): FlowStepView & { footer: ReactNode } {
@@ -90,7 +79,7 @@ function codeStep({ flow, canSubmitTurnstile, turnstileWidget }: GuidedLoginProp
   const code = flow.codeDigits.join('')
   return {
     question: t('auth.verificationCode'),
-    line: codeLine(flow, waiting),
+    line: loginCodeLine(t, { waiting, codeFailure: flow.codeFailure, lockCountdown: flow.lockCountdown, email: flow.email }),
     lineKey: waiting ? 'locked' : expired ? 'expired' : 'sent',
     free: (
       <div className="flex flex-col items-center gap-3 text-center">
@@ -109,7 +98,7 @@ function codeStep({ flow, canSubmitTurnstile, turnstileWidget }: GuidedLoginProp
     ),
     primary: waiting || expired ? undefined : {
       label: t('auth.verify'), onPress: () => void flow.verifyCode(),
-      loading: flow.isSubmitting && !flow.isResending, hint: refusalHint(flow, canSubmitTurnstile),
+      loading: flow.isSubmitting && !flow.isResending, hint: loginRefusalHint(t, flow.isOnline, canSubmitTurnstile),
     },
     footer: null,
   }

@@ -1,5 +1,6 @@
 import type { FrequencyUnit } from '../types/habit'
-import { describeHabitResult, type HabitResultSentence } from './habit-flow'
+import { describeHabitResult, type FlowValueFormat, type HabitResultSentence } from './habit-flow'
+import { formatWeekdaySchedule } from './weekday-schedule'
 import { getOnboardingScheduleMode, ONBOARDING_REMIND_STEP, ONBOARDING_WHAT_STEP, ONBOARDING_WHEN_STEP, type OnboardingSchedule, type OnboardingScheduleMode } from './onboarding'
 
 /** The three intro screens, in order: who Orbit is, what it does with the words, and the restart after a miss. */
@@ -204,4 +205,21 @@ export function onboardingRunningStatusKey(state: { suggestionPending: boolean; 
   if (state.suggestionPending) return 'habits.flow.what.reading'
   if (state.creating) return 'onboarding.flow.guided.creating'
   return state.reminderDecision !== 'idle' || state.completionPending ? 'onboarding.flow.guided.remind.pending' : null
+}
+
+/** The cadence of the onboarding schedule as one sentence, with the time when `timed` and the schedule has one. */
+export function formatOnboardingCadence(schedule: OnboardingSchedule, timed: boolean, { translate, locale, displayTime }: FlowValueFormat): string {
+  const cadence = describeOnboardingCadence(schedule, timed && Boolean(schedule.dueTime))
+  const days = formatWeekdaySchedule(schedule.days, locale, translate, schedule.days.length > 1 || schedule.intervalWeeks > 1)
+  return translate(cadence.key, { count: cadence.count, days, time: displayTime(schedule.dueTime) })
+}
+
+/** The value of a summary row of the guided onboarding: the habit, the repeat mode, the unit, the time, or the cadence of the other steps. */
+export function onboardingSummaryValue(step: OnboardingQuestionStep, schedule: OnboardingSchedule, habitTitle: string, format: FlowValueFormat): string {
+  const { translate, displayTime } = format
+  if (step === 'what') return habitTitle
+  if (step === 'mode') return translate(onboardingModeKey(schedule))
+  if (step === 'unit') return translate(`onboarding.flow.when.units.${(schedule.frequencyUnit ?? 'Week').toLowerCase()}`)
+  if (step === 'time') return schedule.dueTime ? displayTime(schedule.dueTime) : translate('onboarding.flow.when.anyTime')
+  return formatOnboardingCadence(schedule, false, format)
 }

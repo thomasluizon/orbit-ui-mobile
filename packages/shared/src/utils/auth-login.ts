@@ -180,6 +180,21 @@ export function formatLoginCountdown(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
 
+type LoginTranslate = (key: string, values?: Record<string, string>) => string
+
+/** The reason a sign-in step cannot send yet: no connection, then the human check that has not passed. Absent when the step can send. */
+export function loginRefusalHint(translate: LoginTranslate, isOnline: boolean, canSubmitTurnstile: boolean): string | undefined {
+  if (!isOnline) return translate('auth.errors.offline')
+  return canSubmitTurnstile ? undefined : translate('auth.turnstileLabel')
+}
+
+/** The line of the code step: the wait of a locked code, an expired code, or the address the code went to. */
+export function loginCodeLine(translate: LoginTranslate, { waiting, codeFailure, lockCountdown, email }: { waiting: boolean; codeFailure: LoginCodeFailure; lockCountdown: number; email: string }): string {
+  if (waiting) return translate('auth.line.codeLocked', { time: formatLoginCountdown(lockCountdown) })
+  if (codeFailure === 'expired') return translate('auth.line.codeExpired')
+  return translate('auth.line.codeSent', { email })
+}
+
 export function isValidVerificationCode(value: string | null | undefined): value is string {
   return typeof value === 'string' && /^\d{6}$/.test(value)
 }

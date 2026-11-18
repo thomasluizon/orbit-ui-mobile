@@ -8,8 +8,6 @@ import {
   buildOnboardingScheduleFromPhrase,
   canRepeatOnboardingScheduleWeeks,
   createAstraAllowanceTranslator,
-  describeOnboardingCadence,
-  formatWeekdaySchedule,
   getHabitPhraseTitle,
   getOnboardingRemindCopy,
   getOnboardingReminderPreviewTime,
@@ -23,12 +21,14 @@ import {
   ONBOARDING_STARTERS,
   onboardingGuidedPosition,
   onboardingModeDetailSteps,
-  onboardingModeKey,
   onboardingNeedsCadence,
   onboardingStepAfterAnswer,
+  onboardingSummaryValue,
   ONBOARDING_UNIT_OPTIONS,
+  formatOnboardingCadence,
   phraseLineKey,
   toTime24,
+  type FlowValueFormat,
   type OnboardingIntroScreen,
   type OnboardingQuestionStep,
   type OnboardingSchedule,
@@ -88,14 +88,15 @@ function useTokens(): Tokens {
   return useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
 }
 
-function useCadenceText(schedule: OnboardingSchedule) {
+function useValueFormat(): FlowValueFormat {
   const { t, i18n } = useTranslation()
   const { displayTime } = useTimeFormat()
-  return (timed: boolean) => {
-    const cadence = describeOnboardingCadence(schedule, timed && Boolean(schedule.dueTime))
-    const days = formatWeekdaySchedule(schedule.days, i18n.language, t, schedule.days.length > 1 || schedule.intervalWeeks > 1)
-    return t(cadence.key, { count: cadence.count, days, time: displayTime(schedule.dueTime) })
-  }
+  return { translate: (key, values) => t(key, values), locale: i18n.language, displayTime }
+}
+
+function useCadenceText(schedule: OnboardingSchedule) {
+  const format = useValueFormat()
+  return (timed: boolean) => formatOnboardingCadence(schedule, timed, format)
 }
 
 function IntroSentence({ children }: Readonly<{ children: string }>) {
@@ -227,16 +228,9 @@ function useTimeView(props: GuidedOnboardingProps, onDone: () => void): StepView
   }
 }
 
-function useSummaryValue(props: GuidedOnboardingProps, habitTitle: string, cadenceText: (timed: boolean) => string) {
-  const { t } = useTranslation()
-  const { displayTime } = useTimeFormat()
-  return (step: OnboardingQuestionStep): string => {
-    if (step === 'what') return habitTitle
-    if (step === 'mode') return t(onboardingModeKey(props.schedule))
-    if (step === 'unit') return t(`onboarding.flow.when.units.${(props.schedule.frequencyUnit ?? 'Week').toLowerCase()}`)
-    if (step === 'time') return props.schedule.dueTime ? displayTime(props.schedule.dueTime) : t('onboarding.flow.when.anyTime')
-    return cadenceText(false)
-  }
+function useSummaryValue(props: GuidedOnboardingProps, habitTitle: string) {
+  const format = useValueFormat()
+  return (step: OnboardingQuestionStep): string => onboardingSummaryValue(step, props.schedule, habitTitle, format)
 }
 
 function useSummaryView(props: GuidedOnboardingProps, habitTitle: string, cadenceText: (timed: boolean) => string, open: (step: OnboardingQuestionStep) => void): StepView {
@@ -244,7 +238,7 @@ function useSummaryView(props: GuidedOnboardingProps, habitTitle: string, cadenc
   const tokens = useTokens()
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const translate = createAstraAllowanceTranslator(t, { aiMessagesPeriod: props.allowancePeriod }, i18n.language)
-  const value = useSummaryValue(props, habitTitle, cadenceText)
+  const value = useSummaryValue(props, habitTitle)
   const row = (step: OnboardingQuestionStep) => {
     const label = t(`onboarding.flow.guided.summary.${step}`)
     return (

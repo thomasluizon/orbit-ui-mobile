@@ -1,3 +1,4 @@
+import type { FlowStepFrame } from '../contracts/flow/QuestionFlow'
 export interface SupportProfileFields {
   name: string
   email: string
@@ -110,4 +111,33 @@ export function buildSupportRequestBody(
     subject: fields.subject.trim(),
     message: fields.message.trim(),
   }
+}
+
+type FlowTranslate = (key: string, values?: Record<string, string>) => string
+
+/** The state of the support flow that its frame reads. */
+export interface SupportFlowStepState {
+  step: 'subject' | 'message'
+  error: string | null
+  isSending: boolean
+  isOnline: boolean
+  disabledReason: string | null
+  onBack: () => void
+  onClose: () => void
+  onSend: () => void
+}
+
+/**
+ * The frame of a support flow step: the place in the two steps, the question and line, the way back and the send.
+ * The subject step has no way back and no send: a subject answers it. A send in progress removes the way back, so the
+ * close of the frame closes the flow. The reason the send waits shows only online: offline has its own notice.
+ */
+export function describeSupportFlowStep(state: SupportFlowStepState, translate: FlowTranslate): FlowStepFrame {
+  if (state.step === 'subject') {
+    return { position: 1, direction: -1 as const, question: translate('profile.support.subject'), line: null, onBack: undefined, onDismiss: state.onClose, primary: undefined }
+  }
+  const onBack = state.isSending ? undefined : state.onBack
+  const hint = state.isOnline ? state.disabledReason ?? undefined : undefined
+  const primary = { label: translate(state.error ? 'profile.support.retry' : 'profile.support.send'), onPress: state.onSend, loading: state.isSending, hint }
+  return { position: 2, direction: 1 as const, question: translate('profile.support.message'), line: translate('profile.support.description'), onBack, onDismiss: onBack ?? state.onClose, primary }
 }

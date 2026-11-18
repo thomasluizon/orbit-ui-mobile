@@ -4,6 +4,17 @@ export { getSegmentedControlLayout } from './segmented-control'
 export { achievementEmoji } from './achievement-emoji'
 export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'
 export { submitApiKeyCreation, openApiKeyScopeOrStartStepUp, type ApiKeyCreationAdapter } from './api-key-creation'
+export {
+  API_KEY_CREATE_QUESTION_KEYS,
+  apiKeyCreatePosition,
+  apiKeyCreatePrimary,
+  apiKeyTextStepIssue,
+  readApiKeyCreateSubmission,
+  type ApiKeyCreatePosition,
+  type ApiKeyCreateStep,
+  type ApiKeyCreateSubmission,
+  type ApiKeyQuestionStep,
+} from './api-key-create-flow'
 export { habitInitial } from './habit-initial'
 export { mapCompletionSeries } from './completion-series'
 export { createClientId } from './client-id'
@@ -102,6 +113,8 @@ export {
   recordLoginFailure,
   deriveLoginEmailSubmission,
   formatLoginCountdown,
+  loginCodeLine,
+  loginRefusalHint,
   type LoginAttempts,
   type LoginCodeFailure,
 } from './auth-login'
@@ -430,6 +443,7 @@ export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingProposa
 export {
   describeOnboardingCadence,
   describeOnboardingResult,
+  formatOnboardingCadence,
   isOnboardingIntroScreen,
   ONBOARDING_INTRO_SCREENS,
   ONBOARDING_MODE_OPTIONS,
@@ -443,6 +457,7 @@ export {
   describeSavedOnboardingResult,
   type OnboardingSavedHabit,
   onboardingStepAfterAnswer,
+  onboardingSummaryValue,
   ONBOARDING_UNIT_OPTIONS,
   onboardingModeKey,
   onboardingNeedsCadence,
@@ -501,16 +516,22 @@ export {
 export type { GoalDraftFieldError, GoalDraftFieldErrorKeys } from './goal-form'
 export {
   advanceGoalFlow,
+  createGoalEditPort,
   getGoalFlowStepError,
+  GOAL_RESULT_DATE_FORMAT,
   goalFlowPosition,
+  goalFlowStepOfField,
+  goalResultSentenceKey,
+  goalStepHintFor,
   goalFlowSteps,
   openGoalFlowStep,
   retreatGoalFlow,
   startGoalFlow,
 } from './goal-flow'
-export type { GoalFlowNavigation, GoalFlowOptions, GoalFlowStep, GoalFlowStepDraft, GoalFlowStepError } from './goal-flow'
-export { resolveGoalDeadlineChoice, resolveMonthEndDeadline, resolveYearEndDeadline, type GoalDeadlineChoice } from './goal-deadline-options'
+export type { GoalDraftPort, GoalFlowNavigation, GoalFlowOptions, GoalFlowStep, GoalFlowStepDraft, GoalFlowStepError, GoalStepHint } from './goal-flow'
+export { GOAL_DEADLINE_CHOICES, resolveGoalDeadlineChoice, resolveMonthEndDeadline, resolveYearEndDeadline, type GoalDeadlineChoice } from './goal-deadline-options'
 export { buildTagLineItems, joinNamedItems, type TagLineHabit, type TagLineItems } from './tag-flow-line'
+export { leadingQuickOptions, searchByTitle } from './quick-options'
 export {
   createEmptyNotificationsResponse,
   deleteNotificationFromList,
@@ -761,6 +782,8 @@ export {
   buildFreshStartPreservedItems,
   FRESH_START_DELETED_ITEM_KEYS,
   FRESH_START_PRESERVED_ITEM_KEYS,
+  freshStartSubmitAction,
+  isFreshStartConfirmed,
 } from './fresh-start'
 export {
   buildSupportRequestBody,
@@ -770,10 +793,12 @@ export {
   buildSupportVersionSuffix,
   getSupportMessageMaxLength,
   getSupportMessageFit,
+  describeSupportFlowStep,
   getSupportSendReasonKey,
   SUPPORT_SUBJECT_OPTIONS,
 } from './support'
 export type {
+  SupportFlowStepState,
   SupportFormFields,
   SupportProfileFields,
   SupportRequestBody,
@@ -914,12 +939,14 @@ export {
   readPhraseCoverage,
   resetCoveredAnswers,
   phraseLeavesWordsUnread,
+  describeHabitFlowSummary,
   describeHabitResult,
   formatHabitCadence,
   optimisticHabitResult,
   resolveResultDestination,
 } from './habit-flow'
 export type {
+  FlowValueFormat,
   HabitFlowStepId,
   HabitFlowAnswers,
   PhraseCoverage,

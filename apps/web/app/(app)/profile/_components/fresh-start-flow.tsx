@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { freshStartSubmitAction } from '@orbit/shared/utils'
 import { FlowScreen } from '@/components/ui/flow-screen'
 import { Input } from '@/components/ui/input'
 import { QuestionFlow } from '@/components/ui/question-flow'
@@ -49,14 +50,10 @@ export function FreshStartFlow(props: Readonly<FreshStartFlowProps>) {
   const t = useTranslations()
   const [focusRequest, setFocusRequest] = useState(0)
   const confirming = props.step === 'confirm'
-  const confirmed = props.confirmText.trim().toUpperCase() === 'ORBIT'
   const submit = () => {
-    if (props.offline || props.loading) return
-    if (!confirmed) {
-      setFocusRequest((request) => request + 1)
-      return
-    }
-    props.onReset()
+    const action = freshStartSubmitAction({ confirmText: props.confirmText, blocked: props.offline || props.loading })
+    if (action === 'refocus') setFocusRequest((request) => request + 1)
+    else if (action === 'reset') props.onReset()
   }
   return (
     <FlowScreen label={t('profile.settingsRows.startOver')} onDismiss={confirming && !props.loading ? props.onBack : props.onClose}>

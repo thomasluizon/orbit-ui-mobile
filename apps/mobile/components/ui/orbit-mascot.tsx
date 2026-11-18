@@ -7,6 +7,7 @@ import {
   isOrbitMascotSmallSize,
   orbitBlinkMatrix,
   orbitMascotFrame,
+  orbitPausedFrame,
   orbitMascotHeight,
   orbitMascotSizeFor,
   orbitOutlineCutout,
@@ -123,10 +124,6 @@ function useRingTurn(turnKey: string | number | undefined, enabled: boolean): nu
   return progress
 }
 
-function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
-  return running ? frame : { ...frame, blinkScale: 1 }
-}
-
 interface Palette {
   readonly eye: string
   readonly moon: string
@@ -219,7 +216,7 @@ function OrbitMascotDrawing({ size, state = 'parado', still = false, color, lead
   const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
   const reducedMotion = usePrefersReducedMotion()
   const turn = useRingTurn(turnKey, !small && !still && !reducedMotion)
-  const frame = pausedFrame(orbitMascotFrame(clock, mascotMotion, turn), running)
+  const frame = orbitPausedFrame(orbitMascotFrame(clock, mascotMotion, turn), running)
   const palette = paletteFrom(tokens)
   const eyeOffset = orbitEyeOffset(lookAt, reducedMotion || still)
 

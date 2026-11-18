@@ -3,32 +3,21 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
-import { buildGoalUpdateRequest, createGoalEditDraft, getGoalEditError, isGoalEditDirty, type GoalEditDraft, type GoalEditSource } from '@orbit/shared/hooks'
-import { getFriendlyErrorMessage, type GoalFlowStep } from '@orbit/shared/utils'
-import { isStreakGoal } from '@orbit/shared/utils/goal-form'
+import { buildGoalUpdateRequest, createGoalEditDraft, getGoalEditError, isGoalEditDirty, type GoalEditSource } from '@orbit/shared/hooks'
+import { createGoalEditPort, getFriendlyErrorMessage, goalFlowStepOfField, type GoalFlowStep } from '@orbit/shared/utils'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
 import { useSubmitHold } from '@/hooks/use-submit-hold'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
-import { GoalSummary, useAmountView, useDeadlineView, useWhatView, type GoalDraftPort } from './goal-flow-steps'
+import { GoalSummary, useAmountView, useDeadlineView, useWhatView } from './goal-flow-steps'
 import { GoalResultDialog } from './goal-result-dialog'
-import { GoalFlowFrame, stepOfField, useStepHints, type SavedGoal } from './guided-goal-flow'
+import { GoalFlowFrame, useStepHints, type SavedGoal } from './guided-goal-flow'
 import { useGuidedGoalFlow } from './use-guided-goal-flow'
 
 interface GuidedGoalEditFlowProps {
   goal: GoalEditSource & { id: string }
   onClose: () => void
-}
-
-function editPort(goal: GoalEditSource, draft: GoalEditDraft, update: (change: Partial<GoalEditDraft>) => void): GoalDraftPort {
-  return {
-    goalType: isStreakGoal(goal.type) ? 'Streak' : 'Standard', ...draft,
-    setDescription: (description) => update({ description }),
-    setTargetValue: (targetValue) => update({ targetValue }),
-    setUnit: (unit) => update({ unit }),
-    setDeadline: (deadline) => update({ deadline }),
-  }
 }
 
 function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProps & { onSaved: (goal: SavedGoal) => void }>) {
@@ -41,12 +30,12 @@ function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProp
   const [draft, setDraft] = useState(() => createGoalEditDraft(goal))
   const hints = useStepHints(draft, flow, 'edit')
   const backendErrors = useBackendFieldErrors({ description: draft.description, targetValue: draft.targetValue, unit: draft.unit }, { description: 'Title', targetValue: 'TargetValue', unit: 'Unit' })
-  const port = editPort(goal, draft, (change) => { hints.clear(); setDraft((current) => ({ ...current, ...change })) })
+  const port = createGoalEditPort(goal, draft, (change) => { hints.clear(); setDraft((current) => ({ ...current, ...change })) })
   const discard = useDismissGuard({ isDirty: isGoalEditDirty(draft, goal), onDismiss: onClose })
   const save = () => submission.run(async (startRequest) => {
     const error = getGoalEditError(draft)
     const request = buildGoalUpdateRequest(draft)
-    if (error || !request) { if (error) { hints.show(error); flow.open(stepOfField(error.field)) } return 'stay' }
+    if (error || !request) { if (error) { hints.show(error); flow.open(goalFlowStepOfField(error.field)) } return 'stay' }
     setFormError('')
     startRequest()
     try {

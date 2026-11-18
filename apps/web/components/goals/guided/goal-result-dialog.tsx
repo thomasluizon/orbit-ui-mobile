@@ -1,20 +1,13 @@
 'use client'
 
 import { useLocale, useTranslations } from 'next-intl'
-import { formatLocaleDate } from '@orbit/shared/utils'
+import { formatLocaleDate, GOAL_RESULT_DATE_FORMAT, goalResultSentenceKey } from '@orbit/shared/utils'
 import { ResultDialog } from '@/components/ui/result-dialog'
-
-const DATE_FORMAT: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' }
-
-const SENTENCES = {
-  created: { dated: 'result.goal.created', undated: 'result.goal.createdNoDeadline' },
-  updated: { dated: 'result.goal.updated', undated: 'result.goal.updatedNoDeadline' },
-} as const
 
 interface GoalResultDialogProps {
   title: string
   deadline: string
-  change: keyof typeof SENTENCES
+  change: 'created' | 'updated'
   opensGoal: boolean
   onPrimary: () => void
   onCreateAnother?: () => void
@@ -25,7 +18,7 @@ interface GoalResultDialogProps {
 export function GoalResultDialog({ title, deadline, change, opensGoal, onPrimary, onCreateAnother, onClose }: Readonly<GoalResultDialogProps>) {
   const t = useTranslations()
   const locale = useLocale()
-  const sentence = t(SENTENCES[change][deadline ? 'dated' : 'undated'], { title, date: deadline ? formatLocaleDate(deadline, locale, DATE_FORMAT) : '' })
+  const sentence = t(goalResultSentenceKey(change, deadline), { title, date: deadline ? formatLocaleDate(deadline, locale, GOAL_RESULT_DATE_FORMAT) : '' })
   return (
     <ResultDialog
       title={t('result.title')}

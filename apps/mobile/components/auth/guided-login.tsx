@@ -1,6 +1,6 @@
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
-import { deriveLoginEmailErrors, formatLoginCountdown, getAuthCallbackErrorKey, getPendingAuthProvider } from '@orbit/shared/utils'
+import { deriveLoginEmailErrors, getAuthCallbackErrorKey, getPendingAuthProvider, loginCodeLine, loginRefusalHint } from '@orbit/shared/utils'
 import { useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -37,11 +37,6 @@ interface GuidedLoginProps {
   styles: LoginStyles
 }
 
-function refusalHint(flow: LoginFlow, canSubmitTurnstile: boolean) {
-  if (!flow.isOnline) return flow.t('auth.errors.offline')
-  return canSubmitTurnstile ? undefined : flow.t('auth.turnstileLabel')
-}
-
 function emailStep({ flow, callback, onDismissCallback, canSubmitTurnstile, turnstileWidget, tokens, styles }: GuidedLoginProps): FlowStepView & { footer: ReactNode } {
   const { t } = flow
   const pendingProvider = getPendingAuthProvider(callback)
@@ -75,7 +70,7 @@ function emailStep({ flow, callback, onDismissCallback, canSubmitTurnstile, turn
     ),
     primary: {
       label: flow.fromOnboarding ? t('auth.onboarding.continue') : t('auth.sendCode'),
-      onPress: submit, loading: flow.isSubmitting, hint: refusalHint(flow, canSubmitTurnstile),
+      onPress: submit, loading: flow.isSubmitting, hint: loginRefusalHint(t, flow.isOnline, canSubmitTurnstile),
     },
     footer: <LoginLegalConsent styles={styles} onOpenTerms={flow.openTerms} onOpenPrivacy={flow.openPrivacyPolicy} />,
   }
@@ -86,12 +81,6 @@ function ProviderOptions({ children }: Readonly<{ children: ReactNode }>) {
   return <View testID="login-providers" style={[local.providers, width >= WIDE_DESKTOP_BREAKPOINT ? local.providersWide : null]}>{children}</View>
 }
 
-function codeLine(flow: LoginFlow, waiting: boolean) {
-  if (waiting) return flow.t('auth.line.codeLocked', { time: formatLoginCountdown(flow.lockCountdown) })
-  if (flow.codeFailure === 'expired') return flow.t('auth.line.codeExpired')
-  return flow.t('auth.line.codeSent', { email: flow.email })
-}
-
 function codeStep({ flow, canSubmitTurnstile, turnstileWidget, tokens, styles }: GuidedLoginProps): FlowStepView & { footer: ReactNode } {
   const { t } = flow
   const locked = flow.codeFailure === 'locked'
@@ -100,7 +89,7 @@ function codeStep({ flow, canSubmitTurnstile, turnstileWidget, tokens, styles }:
   const fieldError = flow.isOnline && !locked && !expired ? flow.codeFieldError ?? flow.errorMessage ?? undefined : undefined
   return {
     question: t('auth.verificationCode'),
-    line: codeLine(flow, waiting),
+    line: loginCodeLine(t, { waiting, codeFailure: flow.codeFailure, lockCountdown: flow.lockCountdown, email: flow.email }),
     lineKey: waiting ? 'locked' : expired ? 'expired' : 'sent',
     free: (
       <View style={local.codePath}>
@@ -117,7 +106,7 @@ function codeStep({ flow, canSubmitTurnstile, turnstileWidget, tokens, styles }:
     ),
     primary: waiting || expired ? undefined : {
       label: t('auth.verify'), onPress: () => void flow.verifyCode(),
-      loading: flow.isSubmitting && !flow.isResending, hint: refusalHint(flow, canSubmitTurnstile),
+      loading: flow.isSubmitting && !flow.isResending, hint: loginRefusalHint(t, flow.isOnline, canSubmitTurnstile),
     },
     footer: null,
   }

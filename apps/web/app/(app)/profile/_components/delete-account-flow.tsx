@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { DELETE_ACCOUNT_FLOW_STEP_COUNT } from '@orbit/shared/utils'
+import { describeDeleteAccountFlowStep } from '@orbit/shared/utils/delete-account'
 import { ErrorState } from '@/components/ui/error-state'
 import { FlowScreen } from '@/components/ui/flow-screen'
 import { QuestionFlow } from '@/components/ui/question-flow'
@@ -31,18 +32,6 @@ function Warnings({ warnings }: Readonly<{ warnings: DeleteAccountFlowProps['war
   )
 }
 
-function describeStep(props: DeleteAccountFlowProps, t: ReturnType<typeof useTranslations>) {
-  const send = () => { if (props.canSend && !props.loading) props.onSend() }
-  if (props.step === 'warning') {
-    const primary = props.offline ? undefined : { label: t('common.continue'), onPress: props.onContinue }
-    return { position: 1, direction: -1 as const, question: t('profile.deleteAccount.headingAreYouSure'), line: null, onBack: undefined, onDismiss: props.onClose, primary }
-  }
-  const primary = props.offline ? undefined : { label: t('profile.deleteAccount.sendCode'), onPress: send, loading: props.loading, variant: 'destructive' as const }
-  const line = props.email ? t('profile.deleteAccount.sendLine', { email: props.email }) : null
-  const onBack = props.loading ? undefined : props.onBack
-  return { position: 2, direction: 1 as const, question: t('profile.deleteAccount.sendQuestion'), line, onBack, onDismiss: onBack ?? props.onClose, primary }
-}
-
 function StepBody({ props }: Readonly<{ props: DeleteAccountFlowProps }>) {
   const t = useTranslations()
   if (props.offline) return <ErrorState message={t('profile.deleteAccount.offlineDescription')} />
@@ -53,7 +42,7 @@ function StepBody({ props }: Readonly<{ props: DeleteAccountFlowProps }>) {
 /** Delete account as a one-question flow: the warning for the person's plan, then the code request. The code entry is the step-up screen, the last step of the same progress. No mascot in any step. */
 export function DeleteAccountFlow(props: Readonly<DeleteAccountFlowProps>) {
   const t = useTranslations()
-  const step = describeStep(props, t)
+  const step = describeDeleteAccountFlowStep(props, (key, values) => t(key, values))
   return (
     <FlowScreen label={t('profile.settingsRows.deleteAccount')} onDismiss={step.onDismiss}>
       <QuestionFlow

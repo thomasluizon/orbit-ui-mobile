@@ -57,3 +57,10 @@ export type FlowStepView = Pick<QuestionFlowProps, 'question' | 'line' | 'option
   /** Back inside the step. When present, the host calls it instead of its own back. */
   onBack?: () => void
 }
+
+/** The frame of one step of a short Perfil flow: its place, its question and line, its way back, the close of its screen and its main action. */
+export type FlowStepFrame = Pick<QuestionFlowProps, 'position' | 'direction' | 'question' | 'onBack' | 'primary'> & {
+  line: string | null
+  /** The close of the screen: the way back when there is one, else the close of the flow. */
+  onDismiss: () => void
+}

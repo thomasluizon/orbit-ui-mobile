@@ -15,6 +15,8 @@ import {
   normalizeVerificationCodeInput,
   resolveAuthLoginErrorKey,
   showsAuthCallbackLine,
+  loginCodeLine,
+  loginRefusalHint,
 } from '../utils/auth-login'
 import { createApiClientError, extractBackendErrorCode } from '../utils/error-utils'
 
@@ -225,5 +227,23 @@ describe('the provider callback on the sign-in surface', () => {
     expect(getAuthCallbackErrorKey('apple')).toBe('auth.errors.appleError')
     expect(getAuthCallbackErrorKey('google')).toBe('auth.errors.googleError')
     expect(getAuthCallbackErrorKey(undefined)).toBe('auth.errors.googleError')
+  })
+})
+
+describe('sign-in step lines', () => {
+  const translate = (key: string, values?: Record<string, string>) => (values ? `${key} ${JSON.stringify(values)}` : key)
+
+  it('names the missing connection first, then the human check, and nothing when the step can send', () => {
+    expect(loginRefusalHint(translate, false, false)).toBe('auth.errors.offline')
+    expect(loginRefusalHint(translate, true, false)).toBe('auth.turnstileLabel')
+    expect(loginRefusalHint(translate, true, true)).toBeUndefined()
+  })
+
+  it('states the wait of a locked code, an expired code, or the address the code went to', () => {
+    const base = { codeFailure: null, lockCountdown: 0, email: 'ana@example.com' } as const
+    expect(loginCodeLine(translate, { ...base, waiting: true, codeFailure: 'locked', lockCountdown: 125 })).toBe('auth.line.codeLocked {"time":"2:05"}')
+    expect(loginCodeLine(translate, { ...base, waiting: false, codeFailure: 'expired' })).toBe('auth.line.codeExpired')
+    expect(loginCodeLine(translate, { ...base, waiting: false, codeFailure: 'locked' }), 'a lock with no wait left sends the person back to the code').toBe('auth.line.codeSent {"email":"ana@example.com"}')
+    expect(loginCodeLine(translate, { ...base, waiting: false, codeFailure: 'wrong' })).toBe('auth.line.codeSent {"email":"ana@example.com"}')
   })
 })

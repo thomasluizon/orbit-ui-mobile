@@ -1,5 +1,6 @@
 import { buildHabitUnderstandingSentence } from './habit-form-helpers'
 import { habitPhraseRepeats, type HabitPhraseRead } from './habit-phrase-parser'
+import { formatLocaleDate } from './locale-format'
 
 /** The steps of the guided habit flow, in the order a person meets them. */
 export type HabitFlowStepId = 'what' | 'when' | 'time' | 'reminder' | 'summary'
@@ -204,4 +205,61 @@ export function resolveResultDestination(item: Pick<HabitResultItem, 'dueDate' |
   if (item.isGeneral) return 'today'
   if (item.dueDate === null) return 'today'
   return item.dueDate <= today ? 'today' : 'calendar'
+}
+
+/** The words a flow summary needs from the platform: the translator, the locale and the clock of the person. */
+export interface FlowValueFormat {
+  translate: CadenceTranslator
+  locale: string
+  displayTime: (time: string | null | undefined) => string
+}
+
+/** The form values the summary of the guided habit flow reads. */
+export interface HabitFlowSummaryInput {
+  itemType?: 'task' | 'habit' | null
+  frequencyUnit?: HabitResultItem['frequencyUnit']
+  frequencyQuantity?: number | null
+  isFlexible?: boolean
+  days?: readonly string[] | null
+  monthDays?: readonly number[] | null
+  intervalWeeks?: number | null
+  dueDate?: string | null
+  dueTime?: string | null
+  dueEndTime?: string | null
+  reminderEnabled?: boolean
+  isGeneral: boolean
+}
+
+/** The value of each summary row, and whether the item has a time, which shows the length row. */
+export interface HabitFlowSummaryValues {
+  type: string
+  when: string
+  time: string
+  duration: string
+  reminder: string
+  timed: boolean
+}
+
+/**
+ * The value of each summary row of the guided habit flow. The When row states the repeat, else the date of a dated
+ * item, else that the item has no date. An undated item states no date even when the form still holds one.
+ */
+export function describeHabitFlowSummary(values: HabitFlowSummaryInput, { translate, locale, displayTime }: FlowValueFormat): HabitFlowSummaryValues {
+  const dueDate = values.dueDate ?? ''
+  const dueTime = values.dueTime ?? ''
+  const dueEndTime = values.dueEndTime ?? ''
+  const dated = !values.isGeneral && dueDate !== ''
+  const schedule = describeHabitResult(optimisticHabitResult({
+    itemType: values.itemType, frequencyUnit: values.frequencyUnit, frequencyQuantity: values.frequencyQuantity,
+    isFlexible: values.isFlexible, days: values.days, monthDays: values.monthDays, intervalWeeks: values.intervalWeeks,
+  }), 'created').cadence
+  const cadence = schedule ? formatHabitCadence(schedule, locale, translate) : null
+  return {
+    type: values.itemType === 'task' ? translate('habits.form.typeTask') : translate('habits.form.typeHabit'),
+    when: cadence ?? (dated ? formatLocaleDate(dueDate, locale) : translate('habits.flow.summary.noDate')),
+    time: dueTime ? displayTime(dueTime) : translate('habits.flow.summary.noTime'),
+    duration: dueEndTime ? translate('habits.flow.summary.until', { time: displayTime(dueEndTime) }) : translate('habits.flow.summary.noDuration'),
+    reminder: values.reminderEnabled ? translate('habits.flow.summary.withReminder') : translate('habits.flow.summary.noReminder'),
+    timed: dueTime !== '',
+  }
 }

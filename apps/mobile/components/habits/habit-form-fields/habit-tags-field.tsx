@@ -1,9 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { hasTagDraftChanges } from '@orbit/shared/hooks'
-import { extractBackendStatus, getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { validateTagForm } from '@orbit/shared/validation'
+import { createTagRequests, hasTagDraftChanges } from '@orbit/shared/hooks'
 import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
@@ -60,45 +58,25 @@ export function useHabitTagEditor({ tags, title, description }: HabitTagEditorOp
     tags.cancelEditTag()
   }
 
-  function createNewTag() {
-    if (isDisabled()) return
-    return tagSubmission.run(async (startRequest) => {
-      const validationError = validateTagForm(tags.newTagName, tags.newTagColor)
-      if (validationError) {
-        showError(translate(validationError))
-        return 'stay'
-      }
-      startRequest()
-      try {
-        await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
-      } catch (error: unknown) {
-        if (!newTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-      }
-      return 'stay'
-    })
-  }
-
-  async function deleteExistingTag(id: string) {
-    try {
-      await tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })
-    } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'toast.errors.unknown', 'tag'))
-      if (extractBackendStatus(error) !== 409) captureError(error)
-    }
-  }
-
-  function saveEditedTag() {
-    if (isDisabled()) return
-    return tagSubmission.run(async (startRequest) => {
-      startRequest()
-      try {
-        await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
-      } catch (error: unknown) {
-        if (!editTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-      }
-      return 'stay'
-    })
-  }
+  const showHint = (message: string | null | undefined) => { if (message) showError(message) }
+  const requests = createTagRequests({
+    tags,
+    translate,
+    createTag: async (name, color) => (await createTag.mutateAsync({ name, color })).id,
+    updateTag: async (tagId, name, color) => { await updateTag.mutateAsync({ tagId, name, color }) },
+    deleteTag: async (tagId) => { await deleteTag.mutateAsync(tagId) },
+    createHold: tagSubmission,
+    renameHold: tagSubmission,
+    newTagErrors,
+    editTagErrors,
+    setNewTagHint: showHint,
+    setEditTagHint: showHint,
+    setDeleteError: showHint,
+    reportError: (error) => { captureError(error) },
+  })
+  const createNewTag = () => (isDisabled() ? undefined : requests.createNewTag())
+  const saveEditedTag = () => (isDisabled() ? undefined : requests.saveEditedTag())
+  const { deleteExistingTag } = requests
 
   return {
     availableTags,

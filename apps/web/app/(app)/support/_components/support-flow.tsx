@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { SUPPORT_SUBJECT_OPTIONS, type SupportSubjectId } from '@orbit/shared/utils'
+import { describeSupportFlowStep, SUPPORT_SUBJECT_OPTIONS, type SupportSubjectId } from '@orbit/shared/utils'
 import { FlowScreen } from '@/components/ui/flow-screen'
 import { Input } from '@/components/ui/input'
 import { OptionCard } from '@/components/ui/option-card'
@@ -83,16 +83,6 @@ function MessageStep({ props }: Readonly<{ props: SupportFlowProps }>) {
   )
 }
 
-function describeStep(props: SupportFlowProps, t: ReturnType<typeof useTranslations>) {
-  if (props.step === 'subject') {
-    return { position: 1, direction: -1 as const, question: t('profile.support.subject'), line: null, onBack: undefined, onDismiss: props.onClose, primary: undefined }
-  }
-  const onBack = props.isSending ? undefined : props.onBack
-  const hint = props.isOnline ? props.disabledReason ?? undefined : undefined
-  const primary = { label: t(props.error ? 'profile.support.retry' : 'profile.support.send'), onPress: props.onSend, loading: props.isSending, hint }
-  return { position: 2, direction: 1 as const, question: t('profile.support.message'), line: t('profile.support.description'), onBack, onDismiss: onBack ?? props.onClose, primary }
-}
-
 function SubjectError({ error }: Readonly<{ error: string | null }>) {
   return error ? <p role="alert" className="text-center text-sm text-[var(--status-bad-text)]">{error}</p> : null
 }
@@ -100,7 +90,7 @@ function SubjectError({ error }: Readonly<{ error: string | null }>) {
 /** The support request as a one-question flow: the subject, then the message. No mascot. A failure stays on the message step with the failure text and retry. */
 export function SupportFlow(props: Readonly<SupportFlowProps>) {
   const t = useTranslations()
-  const step = describeStep(props, t)
+  const step = describeSupportFlowStep(props, (key, values) => t(key, values))
   const messaging = props.step === 'message'
   return (
     <FlowScreen label={t('profile.support.title')} onDismiss={step.onDismiss}>

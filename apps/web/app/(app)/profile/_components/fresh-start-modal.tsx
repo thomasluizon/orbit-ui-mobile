@@ -13,6 +13,7 @@ import {
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
   getFriendlyErrorMessage,
+  isFreshStartConfirmed,
 } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
@@ -91,7 +92,7 @@ export function FreshStartModal({ open, onOpenChange, guided = false }: Readonly
     }
   }
 
-  const isConfirmed = confirmText.trim().toUpperCase() === 'ORBIT'
+  const isConfirmed = isFreshStartConfirmed(confirmText)
   const { sheetRef, closeSheet } = useSheetHost()
 
   const handleOpenChange = useCallback(

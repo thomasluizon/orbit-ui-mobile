@@ -7,13 +7,15 @@ import type { GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_TITLE_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
 import {
   formatLocaleDate,
+  GOAL_DEADLINE_CHOICES,
   getAccountDay,
   isGoalDeadlinePast,
   parseDatePhrase,
   resolveGoalDeadlineChoice,
-  type GoalDeadlineChoice,
+  goalStepHintFor,
+  type GoalDraftPort,
   type GoalFlowStep,
-  type GoalFlowStepError,
+  type GoalStepHint,
 } from '@orbit/shared/utils'
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
@@ -22,28 +24,6 @@ import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
 import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { useProfile } from '@/hooks/use-profile'
-
-/** The draft a goal flow answers. Create and edit each hold their own owner and pass this view of it. */
-export interface GoalDraftPort {
-  goalType: GoalType
-  description: string
-  targetValue: string
-  unit: string
-  deadline: string
-  setDescription: (value: string) => void
-  setTargetValue: (value: string) => void
-  setUnit: (value: string) => void
-  setDeadline: (value: string) => void
-  /** Absent on edit: the type of a stored goal is shown, not changed. */
-  chooseType?: (type: GoalType) => void
-}
-
-/** The hint of an empty or invalid continue. `request` moves focus to the field each time it changes. */
-export interface GoalStepHint {
-  field: GoalFlowStepError['field']
-  message: string
-  request: number
-}
 
 export interface GoalStepContext {
   draft: GoalDraftPort
@@ -55,10 +35,6 @@ export interface GoalStepContext {
   deadlineAnswered?: boolean
 }
 
-function hintFor(hint: GoalStepHint | null, field: GoalStepHint['field']) {
-  return hint?.field === field ? { error: hint.message, focusRequest: hint.request } : {}
-}
-
 export function useWhatView({ draft, hint, submit }: GoalStepContext): FlowStepView {
   const t = useTranslations()
   const question = t('goals.form.title')
@@ -67,7 +43,7 @@ export function useWhatView({ draft, hint, submit }: GoalStepContext): FlowStepV
     line: t('goals.flow.what.line'),
     free: <Input autoFocus label={question} hideLabel name="goal-title" value={draft.description} maxLength={MAX_GOAL_TITLE_LENGTH}
       placeholder={draft.goalType === 'Streak' ? t('goals.form.streakDescriptionPlaceholder') : t('goals.form.descriptionPlaceholder')}
-      {...hintFor(hint, 'description')} onChange={draft.setDescription} onSubmit={() => submit('what')} />,
+      {...goalStepHintFor(hint, 'description')} onChange={draft.setDescription} onSubmit={() => submit('what')} />,
     primary: { label: t('habits.flow.continue'), onPress: () => submit('what') },
   }
 }
@@ -94,20 +70,14 @@ export function useAmountView({ draft, hint, submit }: GoalStepContext): FlowSte
     line: t(streak ? 'goals.flow.amount.streakLine' : 'goals.flow.amount.line'),
     free: <>
       <Input autoFocus label={question} hideLabel name="goal-target" kind="number" inputMode="decimal" value={draft.targetValue}
-        placeholder={streak ? t('goals.form.streakTargetPlaceholder') : undefined} {...hintFor(hint, 'targetValue')}
+        placeholder={streak ? t('goals.form.streakTargetPlaceholder') : undefined} {...goalStepHintFor(hint, 'targetValue')}
         onChange={draft.setTargetValue} onSubmit={() => submit('amount')} />
       {streak ? null : <Input label={t('goals.form.unitQuestion')} name="goal-unit" value={draft.unit} maxLength={MAX_GOAL_UNIT_LENGTH}
-        placeholder={t('goals.form.unitPlaceholder')} {...hintFor(hint, 'unit')} onChange={draft.setUnit} onSubmit={() => submit('amount')} />}
+        placeholder={t('goals.form.unitPlaceholder')} {...goalStepHintFor(hint, 'unit')} onChange={draft.setUnit} onSubmit={() => submit('amount')} />}
     </>,
     primary: { label: t('habits.flow.continue'), onPress: () => submit('amount') },
   }
 }
-
-const DEADLINE_CHOICES: readonly { choice: GoalDeadlineChoice; label: string }[] = [
-  { choice: 'none', label: 'goals.flow.deadline.none' },
-  { choice: 'monthEnd', label: 'goals.flow.deadline.monthEnd' },
-  { choice: 'yearEnd', label: 'goals.flow.deadline.yearEnd' },
-]
 
 export function useDeadlineView({ draft, advance, deadlineAnswered = false }: GoalStepContext): FlowStepView {
   const t = useTranslations()
@@ -130,7 +100,7 @@ export function useDeadlineView({ draft, advance, deadlineAnswered = false }: Go
     question: t('goals.form.deadlineQuestion'),
     line: t('goals.flow.deadline.line'),
     options: <>
-      {DEADLINE_CHOICES.map(({ choice, label }) => {
+      {GOAL_DEADLINE_CHOICES.map(({ choice, label }) => {
         const value = resolveGoalDeadlineChoice(choice, now, profile?.timeZone)
         return <OptionCard key={choice} label={t(label)} selected={answered && draft.deadline === value} onSelect={() => choose(value)} />
       })}

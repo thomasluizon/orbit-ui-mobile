@@ -16,6 +16,7 @@ import {
   isOrbitMascotSmallSize,
   orbitBlinkMatrix,
   orbitMascotFrame,
+  orbitPausedFrame,
   orbitMascotHeight,
   orbitMascotSizeFor,
   orbitOutlineCutout,
@@ -89,6 +90,12 @@ describe('the rest frame', () => {
     expect(quarter.ringFront).not.toBe(orbitMascotFrame(0, mascotMotion).ringFront)
     expect(orbitMascotFrame(mascotMotion.blinkInterval * 0.96, mascotMotion).blinkScale).toBeCloseTo(0.1)
     expect(orbitMascotFrame(mascotMotion.blinkInterval * 0.5, mascotMotion).blinkScale).toBe(1)
+  })
+
+  it('opens both eyes of a mascot whose loop does not run, and keeps every other part of the frame', () => {
+    const blinking = orbitMascotFrame(mascotMotion.blinkInterval * 0.96, mascotMotion)
+    expect(orbitPausedFrame(blinking, true)).toBe(blinking)
+    expect(orbitPausedFrame(blinking, false)).toEqual({ ...blinking, blinkScale: 1 })
   })
 
   it('closes an eye about its own centre line, so the line stays where it was', () => {

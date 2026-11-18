@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { hasTagDraftChanges } from '@orbit/shared/hooks'
 import type { HabitTag, NormalizedHabit } from '@orbit/shared/types/habit'
-import { buildTagLineItems } from '@orbit/shared/utils'
+import { buildTagLineItems, leadingQuickOptions } from '@orbit/shared/utils'
 import { MAX_TAG_NAME_LENGTH } from '@orbit/shared/validation'
 import { TagSuggestions } from '@/components/habits/habit-form-fields/tag-suggestions'
 import { IconButton } from '@/components/ui/icon-button'
@@ -31,10 +31,6 @@ export interface TagStepProps {
   description: string
   /** The step's own continue, and the answer `Sem tag`. */
   onContinue: () => void
-}
-
-function quickTags(available: readonly HabitTag[], leading: ReadonlySet<string>): HabitTag[] {
-  return [...available.filter((tag) => leading.has(tag.id)), ...available.filter((tag) => !leading.has(tag.id))].slice(0, QUICK_TAGS)
 }
 
 const CACHE_ONLY = { enabled: false }
@@ -103,7 +99,7 @@ export function useTagStepView({ tags, title, description, onContinue }: Readonl
     orbitState: thinking ? 'pensando' : 'parado',
     statusText: thinking ? t('habits.form.suggestingTags') : undefined,
     options: <>
-      {quickTags(actions.availableTags, leading).map((tag) => (
+      {leadingQuickOptions(actions.availableTags, leading, QUICK_TAGS).map((tag) => (
         <OptionCard key={tag.id} label={tag.name} selected={selected.has(tag.id)} disabled={!selected.has(tag.id) && tags.atTagLimit} disabledReason={t('habits.form.tagLimit')} onSelect={() => pressTag(tag.id)} />
       ))}
       <OptionCard label={t('habits.flow.tags.none')} onSelect={() => editor.leave(() => { tags.resetTags([]); onContinue() })} />

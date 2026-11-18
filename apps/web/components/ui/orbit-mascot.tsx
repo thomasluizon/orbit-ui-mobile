@@ -4,11 +4,11 @@ import {
   ORBIT_MASCOT_MAX_FRAME_STEP_MS,
   isOrbitMascotSmallSize,
   orbitMascotFrame,
+  orbitPausedFrame,
   orbitMascotSizeFor,
   orbitEyeOffset,
   orbitRingTurnProgress,
   resolveOrbitShownState,
-  type OrbitMascotFrame,
   type OrbitMascotProps,
 } from '@orbit/shared/contracts/brand'
 import { mascotMotion } from '@orbit/shared/theme'
@@ -94,10 +94,6 @@ function useRingTurn(turnKey: string | number | undefined, enabled: boolean): nu
   return progress
 }
 
-function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
-  return running ? frame : { ...frame, blinkScale: 1 }
-}
-
 export function OrbitMascot({ size, state = 'parado', still = false, color, lead = false, lookAt = null, turnKey }: Readonly<OrbitMascotProps>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -105,7 +101,7 @@ export function OrbitMascot({ size, state = 'parado', still = false, color, lead
   const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const turn = useRingTurn(turnKey, !small && !still && !reducedMotion)
-  const frame = pausedFrame(orbitMascotFrame(clock, mascotMotion, turn), running)
+  const frame = orbitPausedFrame(orbitMascotFrame(clock, mascotMotion, turn), running)
   const eyeOffset = orbitEyeOffset(lookAt, reducedMotion || still)
 
   return (

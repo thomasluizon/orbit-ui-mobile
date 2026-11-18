@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { SPACING } from '@orbit/shared/theme'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
-import { markGuidedFlowCompleted } from '@orbit/shared/utils'
-import { apiKeyExpiryDay, apiKeyExpiryFirstDay, apiKeyExpiryFromDay, apiKeyFormSchema, getApiKeyNameError, validateApiKeyExpiry } from '@orbit/shared/validation'
+import { API_KEY_CREATE_QUESTION_KEYS, apiKeyCreatePosition, apiKeyCreatePrimary, apiKeyTextStepIssue, markGuidedFlowCompleted, readApiKeyCreateSubmission, type ApiKeyCreateStep, type ApiKeyQuestionStep } from '@orbit/shared/utils'
+import { apiKeyExpiryDay, apiKeyExpiryFirstDay, apiKeyExpiryFromDay, getApiKeyNameError, validateApiKeyExpiry } from '@orbit/shared/validation'
 import { DateField } from '@/components/ui/date-field'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { FlowScreen } from '@/components/ui/flow-screen'
@@ -16,8 +16,6 @@ import { OptionCard } from '@/components/ui/option-card'
 import { QuestionFlow } from '@/components/ui/question-flow'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-
-type Step = 'name' | 'access' | 'scope' | 'expiry' | 'reveal'
 
 export interface ApiKeyCreateFlowProps {
   scoped: boolean
@@ -59,32 +57,18 @@ export function ApiKeyReveal({ createdKey }: Readonly<{ createdKey: ApiKeyCreate
   )
 }
 
-function stepsFor(scoped: boolean): Step[] {
-  return scoped ? ['name', 'access', 'scope', 'expiry', 'reveal'] : ['name', 'access', 'expiry', 'reveal']
-}
-
-const QUESTION_KEYS: Readonly<Record<Step, string>> = {
-  name: 'orbitMcp.keyName',
-  access: 'profile.apiKeys.accessQuestion',
-  scope: 'profile.apiKeys.scopeLabel',
-  expiry: 'profile.apiKeys.expiryQuestion',
-  reveal: 'orbitMcp.revealHeading',
-}
-
 function useCreateFlowState(props: ApiKeyCreateFlowProps) {
-  const [step, setStep] = useState<Exclude<Step, 'reveal'>>('name')
+  const [step, setStep] = useState<ApiKeyQuestionStep>('name')
   const [direction, setDirection] = useState<1 | -1>(1)
   const [name, setName] = useState('')
   const [scope, setScope] = useState('')
   const [nameFocus, setNameFocus] = useState(0)
   const [scopeFocus, setScopeFocus] = useState(0)
   const [expiryFocus, setExpiryFocus] = useState(0)
-  const steps = stepsFor(props.scoped)
-  const current: Step = props.createdKey ? 'reveal' : step
-  const index = steps.indexOf(current)
-  const go = (next: Exclude<Step, 'reveal'>, towards: 1 | -1) => { setDirection(towards); setStep(next) }
-  const advance = () => go(steps[index + 1] as Exclude<Step, 'reveal'>, 1)
-  const back = index > 0 && current !== 'reveal' ? () => go(steps[index - 1] as Exclude<Step, 'reveal'>, -1) : undefined
+  const { step: current, steps, index, next, previous } = apiKeyCreatePosition(step, props.scoped, Boolean(props.createdKey))
+  const go = (target: ApiKeyQuestionStep, towards: 1 | -1) => { setDirection(towards); setStep(target) }
+  const advance = () => { if (next) go(next, 1) }
+  const back = previous ? () => go(previous, -1) : undefined
   return { step: current, steps, index, direction, name, setName, scope, setScope, nameFocus, setNameFocus, scopeFocus, setScopeFocus, expiryFocus, setExpiryFocus, advance, back, go }
 }
 
@@ -100,28 +84,21 @@ export function ApiKeyCreateFlow(props: Readonly<ApiKeyCreateFlowProps>) {
 
   async function submit(expiresAt: string) {
     if (props.busy) return
-    const form = apiKeyFormSchema.safeParse({ name: flow.name, expiresAt })
-    if (!form.success) {
-      if (getApiKeyNameError(flow.name)) flow.go('name', -1)
-      else flow.setExpiryFocus((request) => request + 1)
-      return
-    }
-    const scopes = props.scoped ? { scopes: [flow.scope.trim()] } : {}
+    const submission = readApiKeyCreateSubmission({ name: flow.name, scope: flow.scope, expiresAt, scoped: props.scoped })
+    if (submission.kind === 'name') { flow.go('name', -1); return }
+    if (submission.kind === 'expiry') { flow.setExpiryFocus((request) => request + 1); return }
     const continueInCodeQuestion = () => {
       markGuidedFlowCompleted('api_key_create')
       return Promise.resolve(props.onCreateGrantRequired())
     }
-    const result = await props.onCreate({ name: form.data.name, ...scopes, expiresAtUtc: form.data.expiresAt }, continueInCodeQuestion)
+    const result = await props.onCreate(submission.request, continueInCodeQuestion)
     if (result) props.onCreated(result)
   }
 
   function continueFromText() {
-    if (flow.step === 'name') {
-      if (getApiKeyNameError(flow.name)) flow.setNameFocus((request) => request + 1)
-      else flow.advance()
-      return
-    }
-    if (!flow.scope.trim()) flow.setScopeFocus((request) => request + 1)
+    const issue = apiKeyTextStepIssue(flow.step === 'name' ? 'name' : 'scope', flow.name, flow.scope)
+    if (issue === 'name') flow.setNameFocus((request) => request + 1)
+    else if (issue === 'scope') flow.setScopeFocus((request) => request + 1)
     else flow.advance()
   }
 
@@ -141,7 +118,7 @@ export function ApiKeyCreateFlow(props: Readonly<ApiKeyCreateFlowProps>) {
           closeLabel={t('common.close')}
           onClose={close}
           onBack={props.busy ? undefined : flow.back}
-          question={t(QUESTION_KEYS[flow.step])}
+          question={t(API_KEY_CREATE_QUESTION_KEYS[flow.step])}
           options={describeOptions(flow, props, t, (expiresAt) => void submit(expiresAt))}
           primary={primary}
         >
@@ -156,11 +133,11 @@ export function ApiKeyCreateFlow(props: Readonly<ApiKeyCreateFlowProps>) {
 type FlowState = ReturnType<typeof useCreateFlowState>
 type Translate = ReturnType<typeof useTranslations>
 
-function describePrimary(step: Step, props: ApiKeyCreateFlowProps, t: Translate, onContinue: () => void, onCreate: () => void) {
-  if (step === 'access') return undefined
-  if (step === 'reveal') return { label: t('orbitMcp.done'), onPress: props.onClose }
-  if (step === 'expiry') return { label: t('profile.apiKeys.scopeAction'), onPress: onCreate, loading: props.busy }
-  return { label: t('common.continue'), onPress: onContinue }
+function describePrimary(step: ApiKeyCreateStep, props: ApiKeyCreateFlowProps, t: Translate, onContinue: () => void, onCreate: () => void) {
+  const primary = apiKeyCreatePrimary(step)
+  if (!primary) return undefined
+  const onPress = { continue: onContinue, create: onCreate, close: props.onClose }[primary.action]
+  return { label: t(primary.labelKey), onPress, ...(primary.action === 'create' ? { loading: props.busy } : {}) }
 }
 
 function describeOptions(flow: FlowState, props: ApiKeyCreateFlowProps, t: Translate, onNever: (expiresAt: string) => void) {

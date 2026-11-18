@@ -24,3 +24,10 @@ export function resolveGoalDeadlineChoice(choice: GoalDeadlineChoice, now: Date,
   if (choice === 'yearEnd') return resolveYearEndDeadline(now, timeZone)
   return ''
 }
+
+/** The quick deadline options of the goal flow, in order, with the label key of each. */
+export const GOAL_DEADLINE_CHOICES: readonly { choice: GoalDeadlineChoice; label: string }[] = [
+  { choice: 'none', label: 'goals.flow.deadline.none' },
+  { choice: 'monthEnd', label: 'goals.flow.deadline.monthEnd' },
+  { choice: 'yearEnd', label: 'goals.flow.deadline.yearEnd' },
+]

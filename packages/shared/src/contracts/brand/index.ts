@@ -14,6 +14,7 @@ export {
   isOrbitMascotSmallSize,
   orbitBlinkMatrix,
   orbitMascotFrame,
+  orbitPausedFrame,
   orbitMascotHeight,
   orbitMascotSizeFor,
   orbitOutlineCutout,

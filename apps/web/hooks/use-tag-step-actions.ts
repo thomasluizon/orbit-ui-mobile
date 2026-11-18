@@ -3,8 +3,7 @@
 import { useCallback } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { useLocale, useTranslations } from 'next-intl'
-import { validateTagForm } from '@orbit/shared/validation'
-import { extractBackendStatus, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { createTagRequests } from '@orbit/shared/hooks'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
@@ -41,50 +40,21 @@ export function useTagStepActions(tags: TagSelectionState, { title, description 
     accept: (suggestion) => tags.acceptSuggestedTag(suggestion, async (name, color) => (await createTag.mutateAsync({ name, color })).id),
   })
 
-  const changeNewTagName = (name: string) => { setNewTagHint(undefined); tags.setNewTagName(name) }
-  const changeEditTagName = (name: string) => { setEditTagHint(undefined); tags.setEditTagName(name) }
-  const discardEditor = () => {
-    newTagErrors.clearBackendErrors()
-    editTagErrors.clearBackendErrors()
-    setEditTagHint(undefined)
-    tags.cancelEditTag()
-  }
-
-  function createNewTag() {
-    return createHold.run(async (startRequest) => {
-      const validationError = validateTagForm(tags.newTagName, tags.newTagColor)
-      if (validationError) { setNewTagHint(translate(validationError)); return 'stay' }
-      startRequest()
-      try {
-        await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
-      } catch (error: unknown) {
-        if (!newTagErrors.reportBackendErrors(error).handled) setNewTagHint(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-      }
-      return 'stay'
-    })
-  }
-
-  function saveEditedTag() {
-    return renameHold.run(async (startRequest) => {
-      startRequest()
-      try {
-        await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
-      } catch (error: unknown) {
-        if (!editTagErrors.reportBackendErrors(error).handled) setEditTagHint(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-      }
-      return 'stay'
-    })
-  }
-
-  async function deleteExistingTag(id: string) {
-    setDeleteError(null)
-    try {
-      await tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })
-    } catch (error: unknown) {
-      setDeleteError(getFriendlyErrorMessage(error, translate, 'toast.errors.unknown', 'tag'))
-      if (extractBackendStatus(error) !== 409) Sentry.captureException(error)
-    }
-  }
+  const requests = createTagRequests({
+    tags,
+    translate,
+    createTag: async (name, color) => (await createTag.mutateAsync({ name, color })).id,
+    updateTag: async (tagId, name, color) => { await updateTag.mutateAsync({ tagId, name, color }) },
+    deleteTag: async (tagId) => { await deleteTag.mutateAsync(tagId) },
+    createHold,
+    renameHold,
+    newTagErrors,
+    editTagErrors,
+    setNewTagHint,
+    setEditTagHint,
+    setDeleteError,
+    reportError: (error) => { Sentry.captureException(error) },
+  })
 
   return {
     availableTags,
@@ -97,12 +67,7 @@ export function useTagStepActions(tags: TagSelectionState, { title, description 
     editTagError: editTagErrors.fieldErrors.name ?? editTagHint,
     editTagFocusRequest: editTagErrors.focusRequest,
     deleteError,
-    changeNewTagName,
-    changeEditTagName,
-    discardEditor,
-    createNewTag,
-    saveEditedTag,
-    deleteExistingTag,
+    ...requests,
   }
 }
 

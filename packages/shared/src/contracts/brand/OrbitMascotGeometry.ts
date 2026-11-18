@@ -178,6 +178,11 @@ export function orbitOutlineCutout(viewBox: string, outline: string): string {
   return `M${x} ${y}H${x + width}V${y + height}H${x}Z${outline}`
 }
 
+/** The frame a mascot draws while its loop does not run: the loop frame with both eyes open, so a still mascot never holds a blink. */
+export function orbitPausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
+  return running ? frame : { ...frame, blinkScale: 1 }
+}
+
 /** The SVG matrix that closes one eye about its centre line by `scale`. */
 export function orbitBlinkMatrix(scale: number, centreY: number): string {
   return `matrix(1 0 0 ${scale.toFixed(3)} 0 ${(centreY * (1 - scale)).toFixed(3)})`

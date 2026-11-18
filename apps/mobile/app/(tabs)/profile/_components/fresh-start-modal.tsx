@@ -13,6 +13,7 @@ import {
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
   getFriendlyErrorMessage,
+  isFreshStartConfirmed,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { clearChecklistTemplates } from '@/lib/checklist-template-storage'
@@ -86,7 +87,7 @@ export function FreshStartModal({ open, onClose, guided = false }: Readonly<Fres
     }
   }
 
-  const isResetConfirmed = resetConfirmText.trim().toUpperCase() === 'ORBIT'
+  const isResetConfirmed = isFreshStartConfirmed(resetConfirmText)
 
   function completeReset(queued: boolean, isCurrentAccount: () => boolean) {
     if (guided) {

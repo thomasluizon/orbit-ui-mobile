@@ -1,5 +1,7 @@
 import { MAX_GOAL_TITLE_LENGTH } from '../validation/constants'
-import { getGoalDraftFieldErrorKeys } from './goal-form'
+import type { GoalEditDraft, GoalEditSource } from '../hooks/goal-edit-core'
+import type { GoalType } from '../types/goal'
+import { getGoalDraftFieldErrorKeys, isStreakGoal } from './goal-form'
 
 /** The questions of the goal flow, in order. The summary is the last step and the place edit opens on. */
 export type GoalFlowStep = 'what' | 'track' | 'amount' | 'deadline' | 'habits' | 'summary'
@@ -79,4 +81,58 @@ export function getGoalFlowStepError(step: GoalFlowStep, draft: GoalFlowStepDraf
   const keys = getGoalDraftFieldErrorKeys(draft.description, draft.targetValue, draft.unit)
   if (keys.targetValue) return { field: 'targetValue', key: keys.targetValue }
   return keys.unit ? { field: 'unit', key: keys.unit } : null
+}
+
+/** The step a field belongs to: a hint on the summary opens that step. */
+export function goalFlowStepOfField(field: GoalFlowStepError['field']): GoalFlowStep {
+  return field === 'description' ? 'what' : 'amount'
+}
+
+/** The draft a goal flow answers. Create and edit each hold their own owner and pass this view of it. */
+export interface GoalDraftPort {
+  goalType: GoalType
+  description: string
+  targetValue: string
+  unit: string
+  deadline: string
+  setDescription: (value: string) => void
+  setTargetValue: (value: string) => void
+  setUnit: (value: string) => void
+  setDeadline: (value: string) => void
+  /** Absent on edit: the type of a stored goal is shown, not changed. */
+  chooseType?: (type: GoalType) => void
+}
+
+/** The draft port of a goal edit. The type of the stored goal is shown and never changed. */
+export function createGoalEditPort(goal: GoalEditSource, draft: GoalEditDraft, update: (change: Partial<GoalEditDraft>) => void): GoalDraftPort {
+  return {
+    goalType: isStreakGoal(goal.type) ? 'Streak' : 'Standard', ...draft,
+    setDescription: (description) => update({ description }),
+    setTargetValue: (targetValue) => update({ targetValue }),
+    setUnit: (unit) => update({ unit }),
+    setDeadline: (deadline) => update({ deadline }),
+  }
+}
+
+/** The hint of an empty or invalid continue. `request` moves focus to the field each time it changes. */
+export interface GoalStepHint {
+  field: GoalFlowStepError['field']
+  message: string
+  request: number
+}
+
+/** The error and focus request of one field: only the field the hint names shows it. */
+export function goalStepHintFor(hint: GoalStepHint | null, field: GoalStepHint['field']): { error?: string; focusRequest?: number } {
+  return hint?.field === field ? { error: hint.message, focusRequest: hint.request } : {}
+}
+
+export const GOAL_RESULT_DATE_FORMAT: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' }
+
+/** The sentence key of the result dialog of a saved goal: with its deadline, or the sentence that it has none. */
+export function goalResultSentenceKey(change: 'created' | 'updated', deadline: string): string {
+  const sentences = {
+    created: { dated: 'result.goal.created', undated: 'result.goal.createdNoDeadline' },
+    updated: { dated: 'result.goal.updated', undated: 'result.goal.updatedNoDeadline' },
+  } as const
+  return sentences[change][deadline ? 'dated' : 'undated']
 }
