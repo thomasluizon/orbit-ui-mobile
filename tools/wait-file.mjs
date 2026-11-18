@@ -2,19 +2,21 @@
 import { readFileSync, statSync } from "node:fs"
 import { isAbsolute } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
-import { REPO_ROOT, clearWakeSource, readRunState, registerWakeSource } from "./lib/run-state.mjs"
+import { REPO_ROOT, clearWakeSource, isWakeSourceAlive, readRunState, registerWakeSource } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-file.mjs --file <absolute path> [--started-at <ISO timestamp>] [--what <label>] [--ceiling-minutes <n>] [--poll-seconds <n>]
+       [--producer-pid <pid> --producer-start-identity <identity>]
 
 Wait for a detached local check's completion file with a registered harness wake source.
 --file must be an absolute path to a JSON object with an integer exitCode (0..255).
 --started-at is the original check start (defaults to this invocation); older files are refused.
 --what labels the wake source (defaults to the file path).
+--producer-pid and --producer-start-identity name the process that writes the file. When that process is gone and the file is still absent, the wait ends with reason PRODUCER_GONE.
 --ceiling-minutes defaults to 360; --poll-seconds defaults to 1. Both must be positive finite numbers.
 No stdin is read. Prints one JSON result with file, found, reason and waitedSeconds.
 --help, -h  print this usage and exit 0
 exit codes: 0 fresh successful marker; 1 stale, invalid or failed marker, or wake registration failed; 2 invalid arguments;
-            3 ceiling reached; 130 SIGINT; 143 SIGTERM`
+            3 ceiling reached; 4 producer gone without the file; 130 SIGINT; 143 SIGTERM`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -25,7 +27,7 @@ const values = {}
 for (let index = 0; index < args.length; index += 2) {
   const flag = args[index]
   const value = args[index + 1]
-  if (!["--file", "--started-at", "--what", "--ceiling-minutes", "--poll-seconds"].includes(flag) ||
+  if (!["--file", "--started-at", "--what", "--ceiling-minutes", "--poll-seconds", "--producer-pid", "--producer-start-identity"].includes(flag) ||
       !value || value.startsWith("--") || flag in values) {
     console.error(USAGE)
     process.exit(2)
@@ -35,9 +37,11 @@ for (let index = 0; index < args.length; index += 2) {
 const file = values["--file"]
 const ceilingMinutes = Number(values["--ceiling-minutes"] ?? 360)
 const pollSeconds = Number(values["--poll-seconds"] ?? 1)
+const producer = values["--producer-pid"] === undefined && values["--producer-start-identity"] === undefined ? null
+  : { pid: Number(values["--producer-pid"]), processStartIdentity: values["--producer-start-identity"] }
 const startedAt = values["--started-at"] === undefined ? Date.now() : Date.parse(values["--started-at"])
 if (!Number.isFinite(startedAt) || startedAt > Date.now() || !file || !isAbsolute(file) || !Number.isFinite(ceilingMinutes) || ceilingMinutes <= 0 ||
-    !Number.isFinite(pollSeconds) || pollSeconds <= 0) {
+    !Number.isFinite(pollSeconds) || pollSeconds <= 0 || (producer !== null && (!Number.isInteger(producer.pid) || producer.pid <= 0 || typeof producer.processStartIdentity !== "string"))) {
   console.error(USAGE)
   process.exit(2)
 }
@@ -62,6 +66,8 @@ if (!registerWakeSource({ pid: process.pid, kind: "file-waiter", sessionId: proc
   finish("WAKE_REGISTRATION_FAILED", 1)
 }
 
+// The producer can write the file and end between the file read and the liveness read, so its absence counts only on a second read of the file.
+let producerGoneSeen = false
 const deadline = started + ceilingMinutes * 60_000
 while (!finished) {
   try {
@@ -77,6 +83,11 @@ while (!finished) {
       result.error = error.message
       finish("INVALID_MARKER", 1)
     }
+  }
+  if (producer !== null && !isWakeSourceAlive(producer)) {
+    if (producerGoneSeen) finish("PRODUCER_GONE", 4)
+    producerGoneSeen = true
+    continue
   }
   if (Date.now() >= deadline) finish("CEILING", 3)
   await wait(Math.min(pollSeconds * 1000, Math.max(1, deadline - Date.now())))

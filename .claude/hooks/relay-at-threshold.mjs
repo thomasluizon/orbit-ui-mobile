@@ -48,7 +48,9 @@ try {
     if (verdict?.begin) {
       const now = new Date().toISOString()
       const begun = updateRunState((current) => verdictStillHolds(state, current) ? { ...current, relay: { pending: true, forced: verdict.forced, armedAt: current.relay?.armedAt,
-        armedTokens: current.relay?.armedTokens, from: input.session_id, measuredTokens, permissionMode: input.permission_mode, transcriptPath: input.transcript_path, triggeredAt: now } } : undefined, undefined, caller)
+        armedTokens: current.relay?.armedTokens,
+        // The workers that the predecessor passed to this session stay owed to the next one until their results are read.
+        carriedWorkers: current.relay?.carriedWorkers, from: input.session_id, measuredTokens, permissionMode: input.permission_mode, transcriptPath: input.transcript_path, triggeredAt: now } } : undefined, undefined, caller)
       applied = begun !== undefined
       if (applied) recordHandoffRequest(input.session_id, { command: "handoff", origin: "context-relay", sleep: true, crank: begun.crank === true, autoWork: begun.autoWork === true }, now)
     }

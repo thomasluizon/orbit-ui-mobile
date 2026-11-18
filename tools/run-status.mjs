@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process"
-import { readFileSync, readdirSync, statSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -11,8 +11,8 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { currentBaseShaOf, newestChecks, readinessReport, PASSING_CONCLUSIONS } from "./lib/readiness-receipt.mjs"
-import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, readWorkerLaunches, workerLaunchDirectory } from "./lib/run-state.mjs"
-import { workersWithoutWaiter } from "./lib/detached-workers.mjs"
+import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, readWorkerLaunches } from "./lib/run-state.mjs"
+import { readLaunchResults, workersWithoutWaiter } from "./lib/detached-workers.mjs"
 import { parseWorktreeList } from "./lib/git-worktrees.mjs"
 
 const USAGE = `usage: run-status.mjs --session <id>
@@ -157,17 +157,6 @@ const observePull = (row, pull, launches, wakes) => {
     add("MERGE_CANDIDATE", `${commandFor("record-readiness", row)} --delivery ${quote(commandPath(row.deliveryPath ?? `${row.receiptPath}.delivery.json`, row.commandRoot))} --ticket ${quote(commandPath(row.ticketPath ?? `${row.receiptPath}.ticket.json`, row.commandRoot))}`)
   }
   return { observation, actions }
-}
-
-const readLaunchResults = (repoRoot) => {
-  const directory = join(workerLaunchDirectory(repoRoot), "results")
-  let names
-  try { names = readdirSync(directory).filter((name) => /^\d+\.json$/.test(name)) } catch { return [] }
-  return names.map((name) => ({ name, result: readJson(join(directory, name)), modified: statSync(join(directory, name)).mtimeMs }))
-    .sort((left, right) => left.modified - right.modified).map(({ name, result }) =>
-      result && result.launcherPid === Number(name.slice(0, -5)) && Number.isInteger(result.exitCode) &&
-      ["repositoryKey", "issue", "runDirectory", "branch", "outcome"].every((key) => typeof result[key] === "string")
-        ? result : { launcherPid: Number(name.slice(0, -5)), corrupt: true })
 }
 
 const readWorktrees = (repoRoot) => {

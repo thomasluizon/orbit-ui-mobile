@@ -8,7 +8,7 @@ import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
 import { readDrainBlockers } from "./lib/background-runs.mjs"
-import { liveDetachedWorkers } from "./lib/detached-workers.mjs"
+import { endedWorkersOwed, liveDetachedWorkers } from "./lib/detached-workers.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
 import { questionFilterGaps } from "./lib/owner-questions.mjs"
 import { HANDOFF_PROMPT_PATH, checkoutSpecVersions, handoffAutoWork, handoffCrank, openingSpecPaths, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
@@ -241,7 +241,9 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
     if (current?.sessionId !== sessionId || !current.relay?.pending) throw new Error("owner canceled the relay drain")
     // A launch that passed admission before runningSince was written can register after this read, and no refusal or carry covers it.
     // The Stop hook of the successor blocks on a worker with no file waiter, and run-status.mjs names its wait command.
-    return { ...current, relay: { ...current.relay, successorSessionId, lastAttemptAt: now, runningSince: now, carriedWorkers: liveDetachedWorkers(repoRoot), attempts: (current.relay.attempts ?? 0) + 1 } }
+    // A worker that ended before this read has no live supervisor, so its result stays owed through the ended entries.
+    const carriedWorkers = [...liveDetachedWorkers(repoRoot), ...endedWorkersOwed(repoRoot, sessionId, current.relay.carriedWorkers)]
+    return { ...current, relay: { ...current.relay, successorSessionId, lastAttemptAt: now, runningSince: now, carriedWorkers, attempts: (current.relay.attempts ?? 0) + 1 } }
   }, repoRoot, { sessionId })
   stopRelayWaiters(sessionId, repoRoot)
   appendChainEntry(await sessionChainEntry(attempting, previous.relay.transcriptPath), repoRoot)

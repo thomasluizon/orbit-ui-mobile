@@ -313,6 +313,29 @@ const detachedWorkerCases = async () => {
   }
 }
 
+/** A worker that ends after relay.pending and before the snapshot has no live supervisor: only its result still names it. */
+const endedWorkerCases = async () => {
+  const staged = fixture("ended-worker")
+  cpSync(toolPath("lib"), join(staged.checkout, "tools", "lib"), { recursive: true })
+  cpSync(toolPath("relay-session.mjs"), join(staged.checkout, "tools", "relay-session.mjs"))
+  const endedPid = 2 ** 22 + 11
+  const otherPid = 2 ** 22 + 12
+  const earlierPid = 2 ** 22 + 13
+  mkdirSync(join(staged.checkout, ".git", "orbit-worker-launches", "results"), { recursive: true })
+  const resultOf = (launcherPid, sessionId) => ({ launcherPid, sessionId, repositoryKey: "ui", issue: `ORB-${launcherPid}`, runDirectory: join(staged.checkout, "ended"), branch: `fix/${launcherPid}`, outcome: "EXITED", exitCode: 0 })
+  writeFileSync(workerCompletionFile(endedPid, staged.checkout), JSON.stringify(resultOf(endedPid, "predecessor")))
+  writeFileSync(workerCompletionFile(otherPid, staged.checkout), JSON.stringify(resultOf(otherPid, "another-session")))
+  writeFileSync(workerCompletionFile(earlierPid, staged.checkout), JSON.stringify(resultOf(earlierPid, "first-session")))
+  const earlier = { issue: `ORB-${earlierPid}`, launcherPid: earlierPid }
+  updateRunState((current) => ({ ...current, relay: { ...current.relay, carriedWorkers: [earlier] } }), staged.checkout, { sessionId: "predecessor" })
+  const outcome = await failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: [] }), wait: async () => {}, confirmMilliseconds: 10 })
+  const carried = readRunState(staged.checkout).relay?.carriedWorkers ?? []
+  T("relay-session: a worker that ended before the snapshot is carried through its result", outcome === null && carried.some((worker) => worker.launcherPid === endedPid && worker.ended === true && worker.issue === `ORB-${endedPid}`), JSON.stringify({ outcome: String(outcome), carried }))
+  T("relay-session: a result of another session is not carried", !carried.some((worker) => worker.launcherPid === otherPid), JSON.stringify(carried))
+  T("relay-session: the successor owes the ended worker a verification and no waiter", workersWithoutWaiter(staged.checkout, readRunState(staged.checkout).sessionId).length === 0)
+  T("relay-session: a worker that the first relay carried stays carried through the second relay while its result exists", carried.some((worker) => worker.launcherPid === earlierPid && worker.ended === true), JSON.stringify(carried))
+}
+
 const questionFilterCases = async () => {
   const relay = (staged, operations = []) => failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: operations }), wait: async () => {}, confirmMilliseconds: 10 })
   const duplicated = fixture("questions-answerable", { questions: ANSWERABLE, chain: 7, filter: false })
@@ -459,6 +482,7 @@ const ownerHandoffCases = () => {
 
 export const cases = async () => {
   await detachedWorkerCases()
+  await endedWorkerCases()
   await fileWaiterCase()
   await questionFilterCases()
   ownerHandoffCases()

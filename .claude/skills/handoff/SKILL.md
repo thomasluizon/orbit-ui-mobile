@@ -51,7 +51,7 @@ rule below. Every other inventory, spec, prompt, commit and push requirement sti
 
 Workers do not delay a relay, and the handoff lists none of them: the size cap of `NEXT.md` must not shrink the carry as the
 worker count grows. Write one constant line in `NEXT.md`: the successor starts each `WAIT_WORKER` command that
-`node tools/run-status.mjs --session <session id>` prints, as a background task. The relay stores each live worker in the
+`node tools/run-status.mjs --session <session id>` prints, as a background task. The relay stores each live worker, and each ended worker whose result is still owed, in the
 run record as `relay.carriedWorkers`, and the Stop hook blocks the successor until a file waiter watches each one.
 
 For a local check detached with `setsid` to survive the relay, start

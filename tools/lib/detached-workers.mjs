@@ -1,13 +1,18 @@
 /** The workers that outlive their session: what the relay carries to a successor and how that successor waits for each. */
 
+import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
-import { isDetachedWorker, isWakeSourceAlive, readWakeSourceStates, wakeSourceDirectory } from "./run-state.mjs"
+import { isDetachedWorker, isWakeSourceAlive, readWakeSourceStates, wakeSourceDirectory, workerCompletionFile, workerLaunchDirectory } from "./run-state.mjs"
 
 const shellQuote = (value) => /^[\w@%+=:,./-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`
 
-/** The one command that starts the successor's wake source for a worker; it exits when the completion file appears. */
-export const workerWaitCommand = ({ completionFile, startedAt, issue }) =>
-  `node tools/wait-file.mjs --file ${shellQuote(completionFile)} --started-at ${startedAt} --what ${shellQuote(`worker ${issue}`)}`
+/**
+ * The one command that starts the successor's wake source for a worker. It exits when the completion file appears,
+ * and when the supervisor (`pid` and `processStartIdentity`) is gone without it: a killed supervisor writes nothing.
+ */
+export const workerWaitCommand = ({ completionFile, startedAt, issue, pid, processStartIdentity }) =>
+  `node tools/wait-file.mjs --file ${shellQuote(completionFile)} --started-at ${startedAt} --what ${shellQuote(`worker ${issue}`)}` +
+  (Number.isInteger(pid) && typeof processStartIdentity === "string" ? ` --producer-pid ${pid} --producer-start-identity ${shellQuote(processStartIdentity)}` : "")
 
 const carried = (source, repoRoot) => ({
   issue: source.issue,
@@ -24,6 +29,33 @@ const carried = (source, repoRoot) => ({
   completionFile: source.completionFile,
   waitCommand: workerWaitCommand(source),
 })
+
+/** The launch results of the worker supervisors, oldest first. A file that does not hold a whole result reads as corrupt. */
+export const readLaunchResults = (repoRoot) => {
+  const directory = join(workerLaunchDirectory(repoRoot), "results")
+  let names
+  try { names = readdirSync(directory).filter((name) => /^\d+\.json$/.test(name)) } catch { return [] }
+  return names.map((name) => {
+    let result = null
+    try { result = JSON.parse(readFileSync(join(directory, name), "utf8")) } catch { /* a missing or partial file reads as corrupt below */ }
+    return { name, result, modified: statSync(join(directory, name)).mtimeMs }
+  }).sort((left, right) => left.modified - right.modified).map(({ name, result }) =>
+    result && result.launcherPid === Number(name.slice(0, -5)) && Number.isInteger(result.exitCode) &&
+    ["repositoryKey", "issue", "runDirectory", "branch", "outcome"].every((key) => typeof result[key] === "string")
+      ? result : { launcherPid: Number(name.slice(0, -5)), corrupt: true })
+}
+
+/**
+ * The workers that ended and whose result `sessionId` or an earlier relay still owes to the next session. The supervisor
+ * clears its wake source before it writes the result, so a worker that ends while the relay runs is in neither list otherwise.
+ * `previous` is the `carriedWorkers` of the run record that this session adopted.
+ */
+export const endedWorkersOwed = (repoRoot, sessionId, previous = []) => {
+  const earlier = new Set(previous.map((worker) => worker?.launcherPid).filter(Number.isInteger))
+  return readLaunchResults(repoRoot)
+    .filter((result) => !result.corrupt && (result.sessionId === sessionId || earlier.has(result.launcherPid)))
+    .map((result) => ({ issue: result.issue, launcherPid: result.launcherPid, branch: result.branch, worktree: result.runDirectory, completionFile: workerCompletionFile(result.launcherPid, repoRoot), ended: true }))
+}
 
 /** Every detached worker whose supervisor still runs, including one inside its start window. `live` is a read the caller already made. */
 export const liveDetachedWorkers = (repoRoot, live = readWakeSourceStates(repoRoot).live) => live

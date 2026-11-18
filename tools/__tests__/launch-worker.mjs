@@ -1228,7 +1228,9 @@ const poll = setInterval(() => {
  * the run records name. The detached cases below run the real entry process in front of it.
  */
 export const cases = async () => {
+  // A real supervisor always has an entry process, and the Stop hook counts a worker whose entry is gone as unwatched. This process stands in for the entry.
   process.env.ORBIT_LAUNCH_SUPERVISOR = "1"
-  try { await supervisedCases() } finally { delete process.env.ORBIT_LAUNCH_SUPERVISOR }
+  process.env.ORBIT_LAUNCH_ENTRY_PID = String(process.pid)
+  try { await supervisedCases() } finally { delete process.env.ORBIT_LAUNCH_SUPERVISOR; delete process.env.ORBIT_LAUNCH_ENTRY_PID }
   await detachedCases({ launch, launchConfig, stubEngine, githubAuthEnv, discardLog, launchAsync, IMMEDIATE })
 }
