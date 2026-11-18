@@ -128,12 +128,12 @@ it('scales the conversation entry to 0.96 on the press tokens only when motion i
   expect(button.className.split(' ').filter(name => name.includes('scale-[0.96]'))).toEqual(['motion-safe:active:scale-[0.96]'])
 })
 
-it('keeps its whole 60 press target while pressed: the unpainted hit layer takes the inverse press scale only when motion is allowed', async () => {
+it('keeps its whole 60 press target while pressed: the unpainted hit layer covers the 1px edge and takes the inverse press scale only when motion is allowed', async () => {
   mount()
   const button = openButton()
   const rules = await compileClassRules(classNamesIn(document))
   const layer = rules.rulesFor(button).filter(rule => /^::before(?:,|$)/.test(rule.state))
-  expect(layer.map(rule => [rule.declarations.get('position'), rule.declarations.get('inset'), rule.declarations.has('background-color')])).toEqual([['absolute', '0', false]])
+  expect(layer.map(rule => [rule.declarations.get('position'), rule.declarations.get('inset'), rule.declarations.has('background-color')])).toEqual([[undefined, '-1px', false], ['absolute', '0', false]])
   const pressed = rules.rulesFor(button).filter(rule => /^:active::before(?:,|$)/.test(rule.state))
   expect(pressed.map(rule => [rule.media, rule.declarations.get('scale')])).toEqual([[[MOTION_SAFE], 'calc(1 / 0.96)']])
 }, 60_000)
