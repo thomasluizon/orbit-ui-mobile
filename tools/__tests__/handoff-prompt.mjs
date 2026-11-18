@@ -122,6 +122,10 @@ export const cases = () => {
     ["a merge held until another item", "- Do not merge ui#2488 until ui#2486 merges", "Do not merge ui#2488 until ui#2486 merges"],
     ["an item that lands ahead of another", "- api#412 must land ahead of ui#2488", "api#412 must land ahead of ui#2488"],
     ["a hold behind another item", "- Hold ui#2488 until ui#2486 is in main, then merge", "Hold ui#2488 until ui#2486 is in main, then merge"],
+    ["a merge order whose condition ends with done", "- Merge ui#2486 before ui#2488 once its CI is done", "Merge ui#2486 before ui#2488 once its CI is done"],
+    ["an item named FIRST before a sentence about a finished release", "- ui#2486 FIRST. The release of ui#2480 is done.", "ui#2486 FIRST"],
+    ["a merge order that names the cap", "- Queue order under the cap: merge ui#2486 first, then ui#2488", "Queue order under the cap: merge ui#2486 first"],
+    ["an item named FIRST before a sentence that names the cap", "- ui#2486 FIRST. Keep the pool full under the cap.", "ui#2486 FIRST"],
   ]) {
     const refused = holdsOf(line)
     T(`${UNIT}: crank refuses ${label}`, refused.length === 1 && refused[0].includes(`\`${quoted}\``) && refused[0].includes("MERGE_NOW"), JSON.stringify(refused))
@@ -137,6 +141,8 @@ export const cases = () => {
     ["a past merge", "- ui#2486 merged before ui#2488 was approved"],
     ["a superseded order", "- `ui#2486 FIRST`: superseded, crank holds no ready work"],
     ["a finished order", "- merge ui#2486 before ui#2488: done, both merged"],
+    ["a finished hold", "- Hold ui#2488 until ui#2486 is in main, then merge (done)"],
+    ["a start order under the cap", "- Queue order under the cap: #2171 first, then #2172"],
     ["a merge bar wait", "- ui#2488: wait for the review check, then merge"],
     ["a pull request named with its ticket", "- ui#2484 (#2146): wait for CI before the merge"],
     ["a ticket that stays open until its pull request merges", "- `#1628` stays open until `ui#1959` merges and a later build carries it"],

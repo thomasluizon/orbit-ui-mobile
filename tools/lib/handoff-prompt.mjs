@@ -111,7 +111,10 @@ const NAMED_FIRST = /(?:\b[\w-]+)?#\d+\b(?:\s+[\w-]+){0,3}?\s+(?:FIRST\b|first\b
 // `landing` is a repository key and a page name here, so it never counts as an order.
 const MERGE_ORDER = /\b(?:merge|merges|merging|land|lands|ship|ships|hold|holds)\b/i
 const AHEAD_WORD = /\b(?:before|ahead of)\b/i
-const SETTLED_ORDER = /\b(?:superseded|done)\b/i
+// The disposition word settles an order only as its label: after the order, behind a colon or an opening parenthesis.
+const SETTLED_ORDER = /[:(]\s*(?:superseded|done)\b/i
+// A start order says which item starts first when the worker pool is short. It names the cap and holds no ready work.
+const START_ORDER = /\bunder the (?:[\w.-]+\s+){0,2}caps?\b/i
 
 /** One item merges before or ahead of the next one, or an order before it holds it until the next one. */
 const ordersPair = (clause, first, next) => {
@@ -124,19 +127,22 @@ const ordersPair = (clause, first, next) => {
 
 /**
  * Each clause that orders one item of work ahead of another: `X FIRST`, a merge of one item before or
- * ahead of another, or a hold of one item until another. A line that gives the order as superseded or
- * done orders nothing, and a past merge is a fact.
+ * ahead of another, or a hold of one item until another. An order that its own clause labels as
+ * superseded or done orders nothing: the word counts only after the order, not anywhere on the line.
+ * A start order under the cap with no merge word holds no ready work, and a past merge is a fact.
  */
 export const orderingHolds = (text) => {
   const holds = []
   for (const line of String(text ?? "").split("\n")) {
-    if (SETTLED_ORDER.test(line)) continue
     for (const clause of line.split(/[.;](?:\s|$)/)) {
       const named = NAMED_FIRST.exec(clause)
       const references = [...clause.matchAll(WORK_REFERENCE)]
-      const ordered = references.slice(1).some((next, index) => ordersPair(clause, references[index], next))
-      const hold = named ? clause.slice(0, named.index + named[0].length) : ordered ? clause : null
-      if (hold !== null) holds.push(hold.replace(/^[\s>*+-]+/, "").trim())
+      const second = references.slice(1).find((next, index) => ordersPair(clause, references[index], next))
+      if (!named && !second) continue
+      const orderEnd = named ? named.index + named[0].length : second.index + second[0].length
+      if (SETTLED_ORDER.test(clause.slice(orderEnd))) continue
+      if (named && START_ORDER.test(clause.slice(0, named.index)) && !MERGE_ORDER.test(clause)) continue
+      holds.push((named ? clause.slice(0, orderEnd) : clause).replace(/^[\s>*+-]+/, "").trim())
     }
   }
   return holds
@@ -169,7 +175,7 @@ export const validateHandoffPrompt = (text, { sleep, crank, autoWork, specVersio
       missing.push("a `## Crank` section whose body invokes `/crank` immediately after `/sleep` entry")
     }
     for (const hold of orderingHolds(text)) {
-      missing.push(`no ordering hold under crank: remove \`${hold.slice(0, 160)}\`. A pull request at the merge bar merges when \`run-status.mjs\` reports \`MERGE_NOW\`; a real dependency is a ticket relation or a stacked base, never a prompt order`)
+      missing.push(`no ordering hold under crank: remove \`${hold.slice(0, 160)}\`. A pull request at the merge bar merges when \`run-status.mjs\` reports \`MERGE_NOW\`; a real dependency is a ticket relation or a stacked base, never a prompt order. A start order for a short worker pool names the cap (\`Queue order under the cap: #A first, then #B\`), and a finished order keeps \`: done\` or \`: superseded\` after it`)
     }
   }
   if (openingSpecPaths(text).length === 0) missing.push("the spec path `.claude/specs/<slug>.md` before the first `##` heading")

@@ -28,7 +28,7 @@ node tools/run-status.mjs --session "<this session id>"
 
 Read its one JSON object and follow `nextActions[].command` from `commandDirectory`.
 Commands use relative paths when those are shorter. The action set is closed:
-`MERGE_NOW`, `UPDATE_BRANCH`, `REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`,
+`MERGE_NOW`, `UPDATE_BRANCH`, `RETARGET`, `REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`,
 `RECORD_READINESS`, `BEHIND_BASE`, `CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`,
 `ORPHANED_WORKER`, `INTAKE`, `NO_ACTION`.
 
@@ -40,9 +40,11 @@ head. Run it in the same turn under the standing authority of Hard prohibitions 
 For a pull request of the run, write the merge sha to its ledger row as Step 9 says. Outside that
 authority, leave the pull request ready for the owner. `UPDATE_BRANCH` comes next: the pull
 request is only behind its base, and its command merges the base into the branch. The new head
-needs its checks and a review request again, as step 8 says. A draft, a merge conflict and a
-stacked child whose parent is still open get neither action. The snapshot names no other action
-for a pull request that has one of these two.
+needs its checks and a review request again, as step 8 says. `RETARGET` names a pull request that
+meets the bar except that its base is a branch no open pull request owns, because the parent
+merged or closed. Its command changes the base to the default branch; run it, then the next wake
+reports `MERGE_NOW`. A draft, a merge conflict and a stacked child whose parent is still open get
+none of these actions. The snapshot names no other action for a pull request that has one of them.
 
 Delivery and readiness remain decisions of their named tools. A merge candidate calls the
 recorder again; it grants no merge authority. A foreign session has no actions. A linked

@@ -23,11 +23,15 @@ The wake-source reader removes registrations only when both recorded processes a
 One GraphQL read per eight pull requests and one queued-runs REST read per repository, in parallel,
 plus one REST rate_limit read. The open pull requests of the repository owner outside the run cost
 one more round of GraphQL reads, only when one exists.
-MERGE_NOW and UPDATE_BRANCH come first. Both come from GitHub alone: no receipt or run row decides them.
-MERGE_NOW names the squash merge of the exact head: every check green with every required check
-present, pullfrog-approval SUCCESS, zero unresolved threads, behind_by 0 and a clean merge state.
-UPDATE_BRANCH names the branch update when only behind_by fails. A draft, a merge conflict and a
-pull request whose base is the head of another open pull request get neither.
+MERGE_NOW, UPDATE_BRANCH and RETARGET come first. They come from GitHub alone: no receipt or run row decides them.
+MERGE_NOW names the squash merge of the exact head into the default branch: every check green with
+every required check present, pullfrog-approval SUCCESS, zero unresolved threads, behind_by 0 and a
+clean merge state. UPDATE_BRANCH names the branch update when only behind_by fails.
+RETARGET names the base change to the default branch. It is for a pull request whose checks, review
+check and threads hold and whose base is another branch that no open pull request owns: the parent
+merged or closed and its branch remains. A merge conflict gets no MERGE_NOW and no
+UPDATE_BRANCH. A draft and a pull request whose base is the head of an open pull request get none of
+the three.
 Errors are redacted; tokens are scoped to child environments; pull request bodies are never read.
 Active auto-work wakes append INTAKE after in-flight actions, including with an empty queue.
 Ordinary sleep keeps NO_ACTION; a pending relay drain suppresses intake.
@@ -39,6 +43,7 @@ exit codes: 0 snapshot (including absent, foreign or unreadable runs), 2 usage o
 
 export const statusQuery = (numbers) => `query RunStatus($owner: String!, $name: String!) {
   repository(owner: $owner, name: $name) {
+    defaultBranchRef { name }
     pullRequests(states: OPEN, first: 100) { totalCount nodes { number headRefName author { login } } }
     ${numbers.map((number) => `pr${number}: pullRequest(number: ${number}) {
       number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus
@@ -74,7 +79,7 @@ const commandPath = (path, root) => {
 const commandFor = (tool, row) => `node tools/${tool}.mjs --repo ${quote(row.repositoryKey)} --pr ${row.prNumber}`
 // One read of sixteen pull requests takes about the 3.5 s bound of `githubRead`; a read of eight takes about 2.5 s.
 const PULLS_PER_READ = 8
-const READY_ACTIONS = ["MERGE_NOW", "UPDATE_BRANCH"]
+const READY_ACTIONS = ["MERGE_NOW", "UPDATE_BRANCH", "RETARGET"]
 const waitCommand = (row) => commandFor("wait-ci", row)
 const reviewCommand = (row) => `${commandFor("list-bot-threads", row)} --no-request --wait-seconds 0`
 const deliveryCommand = (row, pull, launch, receipt) => {
@@ -107,9 +112,11 @@ const validPull = (pull, number) => pull?.number === number &&
 
 /**
  * The merge bar of one open pull request, from the GitHub response alone. A fact that the response
- * does not confirm yields no action. A stacked child waits: its base is not its final base.
+ * does not confirm yields no action. Only a merge into the default branch lands where it must. A
+ * stacked child waits while its parent is open. When no open pull request owns its base, the merge
+ * would land on the branch of a merged or closed parent, so the action is the retarget.
  */
-const mergeBarOf = (pull, { repositoryKey, slug, openBranches }) => {
+const mergeBarOf = (pull, { repositoryKey, slug, openBranches, defaultBranch }) => {
   const comparison = pull.baseRef?.compare
   const behindBy = comparison?.headTarget?.oid === pull.headRefOid && comparison?.baseTarget?.oid === currentBaseShaOf(pull) &&
     Number.isInteger(comparison.behindBy) ? comparison.behindBy : null
@@ -119,12 +126,15 @@ const mergeBarOf = (pull, { repositoryKey, slug, openBranches }) => {
   const approval = reviewCheck ? reviewCheck.conclusion ?? reviewCheck.status : null
   const required = requiredChecksOf({ checks: (pull.baseRef?.branchProtectionRule?.requiredStatusChecks ?? [])
     .map((check) => ({ context: check?.context, app_id: check?.app?.databaseId ?? null })) })
-  const restHolds = pull.state === "OPEN" && !pull.isDraft && /^[0-9a-f]{40}$/.test(pull.headRefOid) && !openBranches.includes(pull.baseRefName) &&
+  const restHolds = pull.state === "OPEN" && !pull.isDraft && /^[0-9a-f]{40}$/.test(pull.headRefOid) && defaultBranch !== null && !openBranches.includes(pull.baseRefName) &&
     approval === "SUCCESS" && required !== null && readinessCiIsGreen(rollup, reviewChecksFor(required)) &&
     pull.statusCheckRollup.contexts.pageInfo?.hasNextPage === false && pull.reviewThreads.pageInfo.hasNextPage === false &&
     pull.reviewThreads.nodes.every((thread) => thread.isResolved)
   const mergeable = ["CLEAN", "HAS_HOOKS"].includes(pull.mergeStateStatus)
   const identity = { repositoryKey, prNumber: pull.number }
+  if (restHolds && pull.baseRefName !== defaultBranch) {
+    return { behindBy, approval, action: action("RETARGET", `gh pr edit ${pull.number} --repo ${quote(slug)} --base ${quote(defaultBranch)}`, identity) }
+  }
   if (restHolds && behindBy === 0 && mergeable) {
     return { behindBy, approval, action: action("MERGE_NOW", `gh pr merge ${pull.number} --repo ${quote(slug)} --squash --match-head-commit ${pull.headRefOid}`, identity) }
   }
@@ -237,7 +247,7 @@ const readPulls = async (numbers, slug, authentication, runner) => {
 }
 
 const readRepository = async ({ key, slug, rows, auth, budget, runner, now }) => {
-  const snapshot = { repositoryKey: key, status: "OK", openPullRequests: null, queuedRuns: null, openBranches: [], pulls: {}, ownerPulls: [] }
+  const snapshot = { repositoryKey: key, status: "OK", openPullRequests: null, queuedRuns: null, defaultBranch: null, openBranches: [], pulls: {}, ownerPulls: [] }
   try {
     const authentication = await auth
     const limited = budget?.action === "wait"
@@ -253,6 +263,7 @@ const readRepository = async ({ key, slug, rows, auth, budget, runner, now }) =>
       if (!repository || !Number.isInteger(repository.pullRequests?.totalCount) || repository.pullRequests.totalCount < 0 || !Array.isArray(repository.pullRequests.nodes) || repository.pullRequests.nodes.some((pull) => typeof pull.headRefName !== "string")) throw new Error("repository response did not contain the recorded shape")
       snapshot.openPullRequests = repository.pullRequests.totalCount
       snapshot.openBranches = repository.pullRequests.nodes.map((pull) => pull.headRefName)
+      if (typeof repository.defaultBranchRef?.name === "string") snapshot.defaultBranch = repository.defaultBranchRef.name
       snapshot.pulls = repository
       const outsideRun = repository.pullRequests.nodes.filter((pull) => Number.isInteger(pull.number) && !rows.some((row) => row.prNumber === pull.number) &&
         pull.author?.login?.toLowerCase() === slug.split("/")[0].toLowerCase()).map((pull) => pull.number)
@@ -340,13 +351,13 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
     const pull = snapshot.pulls[`pr${row.prNumber}`]
     const repository = repositories.find((entry) => entry.key === row.repositoryKey)
     const worktree = row.worktree ?? repository.worktrees.get(pull?.headRefName)
-    const observed = observePull({ ...row, worktree, commandRoot: repoRoot, slug: repository.slug, openBranches: snapshot.openBranches }, pull, launches, wakes)
+    const observed = observePull({ ...row, worktree, commandRoot: repoRoot, slug: repository.slug, openBranches: snapshot.openBranches, defaultBranch: snapshot.defaultBranch }, pull, launches, wakes)
     observations.push(observed.observation)
     nextActions.push(...observed.actions)
   }
   for (const [index, snapshot] of snapshots.entries()) {
     for (const pull of snapshot.ownerPulls) {
-      const bar = mergeBarOf(pull, { repositoryKey: snapshot.repositoryKey, slug: repositories[index].slug, openBranches: snapshot.openBranches })
+      const bar = mergeBarOf(pull, { repositoryKey: snapshot.repositoryKey, slug: repositories[index].slug, openBranches: snapshot.openBranches, defaultBranch: snapshot.defaultBranch })
       if (bar.action) nextActions.push(bar.action)
     }
   }

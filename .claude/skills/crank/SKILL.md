@@ -53,9 +53,12 @@ While `crank` is true:
   waits for four things only: the merge bar, the admission caps, the load gate and a relay drain.
   No ordering preference holds it: not a relay prompt, not a priority, not the spec's order and
   not this session's own plan. A work order decides which item starts first when capacity is
-  short; it never keeps a ready item waiting for another one.
+  short (`Queue order under the cap: #A first, then #B`); it never keeps a ready item waiting for
+  another one, and the relay validator refuses a merge or launch hold.
 - A stacked parent merges without `--delete-branch`. Retarget each child to the parent's base,
   then delete the parent branch. A stacked child gets no `MERGE_NOW` while its parent is open.
+  After the parent merges, `run-status.mjs` reports `RETARGET` with the exact `gh pr edit`
+  command; the child merges only after that base change.
 - Never idle while work can proceed. Every turn with unfinished work ends with a live registered
   wake source, named as `/sleep` requires. Retain the canonical completion condition.
 
