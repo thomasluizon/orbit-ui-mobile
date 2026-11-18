@@ -2,11 +2,11 @@ import { expect, it, vi } from 'vitest'
 import { assertions } from 'promptfoo'
 import { structural } from '../assertions.mjs'
 import { attemptEvidence } from '../evidence.mjs'
-import { catalogOf, observableSchema } from '../trace-policy.mjs'
+import { catalogsOf, observableSchema } from '../trace-policy.mjs'
 import { toolCall } from './fixtures/producer.mjs'
 
 // Apply the producer's local-reference representation to its exported draft setup union. The structural assertion and
-// the evidence read the lists of a path through catalogOf, so the referenced form goes into that function.
+// the evidence read the lists of a path through catalogsOf, so the referenced form goes into that function.
 vi.mock('../trace-policy.mjs', async (importOriginal) => {
   const policy = await importOriginal()
   const compact = (catalog) => structuredClone(catalog).map((tool) => {
@@ -22,10 +22,8 @@ vi.mock('../trace-policy.mjs', async (importOriginal) => {
     root.properties.input = { $ref: '#/$defs/setupUnion' }
     return tool
   })
-  return { ...policy, catalogOf: (path) => {
-    const lists = policy.catalogOf(path)
-    return { ...lists, habitSetupTools: compact(lists.habitSetupTools), offerHabitSetupTools: compact(lists.offerHabitSetupTools) }
-  } }
+  return { ...policy, catalogsOf: (path) => policy.catalogsOf(path).map((lists) => ({ ...lists,
+    habitSetupTools: compact(lists.habitSetupTools), offerHabitSetupTools: compact(lists.offerHabitSetupTools) })) }
 })
 
 const clientContext = { supportsParts: true }
@@ -58,7 +56,7 @@ it('retains referenced object and array arguments in evidence without retaining 
 it.each(['choice', 'question'])('binds a referenced setup %s to the exact draft and field', async (form) => {
   const create = toolCall('create_habit', { title: 'Read' }, 'Succeeded', 'draft', clientContext)
   // Isolate binding from fixture default generation; all exported create fields except these two are nullable.
-  const createSchema = catalogOf('block-first').tools.find((tool) => tool.function.name === 'create_habit').function.parameters
+  const createSchema = catalogsOf('block-first')[0].tools.find((tool) => tool.function.name === 'create_habit').function.parameters
   create.arguments = { ...Object.fromEntries(createSchema.required.map((name) => [name, null])),
     title: 'Read', orbit_write_complete: false }
   create.result.payload = { draft_call_id: 'draft', title: 'Read', missing_field: 'frequency_unit',

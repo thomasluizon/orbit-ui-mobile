@@ -312,7 +312,8 @@ The exporter uses the API's tool registrations, request builder and strict schem
 composition and legacy clients, in two flag states. With `AiBlockFirst` alone, it writes the `block-first`
 lists under their own keys: `tools`, `legacyTools`, `offerTools`, and the post-read and habit-setup lists.
 With `AiBlockFirst` and `AiChangePlan`, it writes the `change-plan` lists under the `changePlan` key:
-`tools`, `legacyTools` and `offerTools`. On that flag the API keeps one `ask` declaration for the whole
+`tools`, `legacyTools` and `offerTools`, one set for each declaration shape of the change list
+(`### Change list declarations`). On that flag the API keeps one `ask` declaration for the whole
 turn, so `changePlan` has no post-read list and no habit-setup list.
 `catalog.yaml` records the full source SHA as `apiCommit`. Generation refuses a dirty API tree.
 The parts export advertises `CHAT_BLOCK_KINDS` from the shared client registry; the legacy export
@@ -355,13 +356,50 @@ eval accounts through `/flag`, record the state before, and put it back after th
 
 The path selects the lists of `catalog.yaml` for four readers: the structural assertion, the private
 evidence of an attempt, the offline audit and the offer check of a launch run. The write class and the
-sensitive fields of a tool are the same on both paths.
+sensitive fields of a tool are the same on both paths. The `change-plan` path has one set of lists for
+each declaration shape of its change list (`### Change list declarations`).
 
 Each window summary and each merged report state the path: `path` in `summary.json` and `Path:` in
 `summary.md`. A summary with no path measured the `block-first` path. Each merge refuses windows of two
 paths in one verdict. The path is not a part of a core set case, so both paths have the same `corpusDigest`.
 A `change-plan` run compares with the `block-first` baseline of `main`, and the merged report names the
 path of its baseline.
+
+### Change list declarations
+
+On the `change-plan` path the model sends each account change in one typed change list. The API declares
+that list in one of two shapes, from its setting `AI:ChangePlanShape`. The exporter builds the request of
+each shape, and `changePlan.shapes` holds the three lists of each shape under the name of the shape.
+
+| Shape | Declarations of the changes |
+|---|---|
+| `kinds` | One tool for each change kind. Each one adds the `plan_title` argument. |
+| `wrapper` | One `propose_changes` tool with `changes`, `plan_title` and the completion control. Each item of `changes` holds `id`, `kind` and `arguments`, with one alternative for each kind. |
+
+A change kind is a registered write tool that is not a merged single form. Each shape declares each read
+tool, `ask` and `revise_pending_changes`. It declares no `present_plan` and none of the five merged
+single forms: `create_habit`, `create_sub_habit`, `delete_habit`, `log_habit` and `skip_habit`.
+
+`propose_changes` has no registry entry. The exporter accepts it by the producer constant
+`ChangeDeclarations.WrapperName`, with the write class `true` and no sensitive fields. It accepts
+`present_plan` by `PlanToolDeclaration.Name`, and it refuses each other declaration with no registry entry.
+`changePlan` also holds the facts that a trace reader needs: `changeKinds` (the name, the write class and
+the sensitive fields of each kind, from the tool registry) and the producer names `planTitleArgument`,
+`wrapperName` and `changesArgument`.
+
+The eval trace holds one call for each change, in each shape: the name is the change kind, the id is the id
+of the change, and the arguments are the arguments of the change. These are not the arguments of the model
+call. So each reader of a trace (`### Run path`) reads a traced change against the arguments of its kind
+(`trace-policy.mjs` `catalogsOf`):
+
+- In the `kinds` shape, that is the declaration of the kind without `plan_title`.
+- In the `wrapper` shape, that is the `arguments` schema of the alternative of the kind. The completion
+  control and the plan title stay at the top level of `propose_changes`.
+
+A `propose_changes` call is in the trace only when it holds no change. No run names its shape. A trace
+is valid when the lists of one shape accept every call of it, so a trace with a change of one shape and a
+change of the other shape fails. The private evidence keeps an argument that one shape declares. When
+each open shape refuses a call, the reason of the structural assertion holds the refusal of each shape.
 
 Fixture requests retry one transport timeout or network failure for `GET`, `DELETE`, and verified
 replacement `PUT` routes: `habits/{id}`, `habits/{id}/checklist`, `tags/{id}/assign`,
@@ -1179,6 +1217,8 @@ promptfoo debug logging or publish raw output, arguments, results, traces or its
 
 The structural wrapper delegates each nonempty call to promptfoo's
 `is-valid-openai-tools-call` against the SDK request declaration of the run path (`### Run path`).
+A traced change of the `change-plan` path is the exception: its declaration is the arguments of its kind
+(`### Change list declarations`).
 The generated `tools` and `offerTools` catalogs of each path carry the cacheable `ask` schema, including
 nullable `draft_call_id` and `missing_field` on every form except the `about` form of the `change-plan` path.
 `AiIntentService.AppendToolConstraints` retains that schema for the entire turn. Structural validation

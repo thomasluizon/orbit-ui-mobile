@@ -312,17 +312,20 @@ it('accepts an ask after a read that holds no selection and no read directive on
 })
 
 // The flag-on ask declares the draft fields on each form with labels, and the server binds no declaration to a draft.
+// Producer: orbit-api ChangeKinds.MergedForms. The ai_change_plan path declares no create_habit: a new habit is a change
+// of the change list there, so a traced create_habit call is no valid call of that path.
 it('validates a draft-bound ask against the flag-on declaration only on the ai_change_plan path', async () => {
   const create = missingFieldCreate()
   const bound = (draft) => flagAsk({ ...labelInput('habit_setup'), draft_call_id: draft, missing_field: 'frequency_unit' })
   onChangePlan()
-  for (const calls of [[create, bound('new-draft')], [create, bound('another-draft')], [bound('new-draft')]]) {
-    const verdict = await validate(calls)
+  for (const draft of ['new-draft', 'another-draft']) {
+    const verdict = await validate([bound(draft)])
     expect(verdict.pass, verdict.reason).toBe(true)
   }
   const unknownField = bound('new-draft')
   unknownField.arguments.input.invented = true
-  expect((await validate([create, unknownField])).pass).toBe(false)
+  expect((await validate([unknownField])).pass).toBe(false)
+  expect(await validate([create, bound('new-draft')])).toMatchObject({ pass: false, reason: expect.stringContaining('create_habit') })
   onBlockFirst()
   expect((await validate([create, setupAsk('choice', 'another-draft')])).pass).toBe(false)
 })

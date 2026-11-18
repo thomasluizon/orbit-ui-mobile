@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFi
 import { basename, dirname, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
-import { validateToolArguments } from './tool-validation.mjs'
-import { catalogOf, observableSchema, pathOf, RUN_PATHS } from './trace-policy.mjs'
+import { validateTraceCall } from './tool-validation.mjs'
+import { catalogsOf, observableSchema, pathOf, RUN_PATHS } from './trace-policy.mjs'
 import { configureOffers } from './offer-context.mjs'
 import { toolBehavior } from './assertions.mjs'
 import { historicalReadExpectations } from './offer-lifecycle.mjs'
@@ -20,12 +20,12 @@ const observable = (catalog) => catalog.map((tool) => ({ ...tool, function: { ..
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
 } }))
 
-// The request declarations of the path that the window measured.
+// The declarations of the path that the window measured, one list for each declaration shape of that path.
 function declarations(vars, path) {
-  const { tools, legacyTools, offerTools } = catalogOf(path)
-  if (vars.clientContext?.supportsParts !== true) return [observable(legacyTools)]
-  const offers = vars.clientContext.supportsProactiveOffers === true
-  return [observable(offers ? offerTools : tools)]
+  return catalogsOf(path).map(({ tools, legacyTools, offerTools }) => {
+    if (vars.clientContext?.supportsParts !== true) return observable(legacyTools)
+    return observable(vars.clientContext.supportsProactiveOffers === true ? offerTools : tools)
+  })
 }
 
 function restartPopulation(attempt, vars) {
@@ -74,8 +74,14 @@ async function replayAttempt(attempt, descriptor, recorded, path) {
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
   const assertions = structuredClone(attempt.assertions)
   const notes = []
-  const validate = (call) => validateToolArguments(call, declarations(test.vars, path), { test, vars: test.vars })
-  const schemas = await Promise.all(attempt.toolCalls.map((call) => schemaVerdict(call, validate)))
+  let open = declarations(test.vars, path)
+  const validate = async (call) => {
+    const checked = await validateTraceCall(call, open, { test, vars: test.vars })
+    if (checked.verdict.pass) open = checked.open
+    return checked.verdict
+  }
+  const schemas = []
+  for (const call of attempt.toolCalls) schemas.push(await schemaVerdict(call, validate))
   if (schemas.some((verdict) => verdict.redacted)) notes.push('A recorded argument holds a redacted value, so its schema cannot be replayed.')
   const structure = assertions.find((assertion) => assertion.metric === 'toolStructure')
   if (structure?.pass === false && /Call to "ask" does not match schema/u.test(structure.reason)

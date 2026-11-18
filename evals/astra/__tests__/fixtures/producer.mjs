@@ -3,8 +3,12 @@ import { parse } from 'yaml'
 import { completionControls, nullableSchema, resolveSchema, schemaVariants } from '../../tool-schema.mjs'
 
 const exported = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
-// The ai_change_plan path has no post-read declaration (catalog-export.cs).
-const changePlanLists = { ...exported.changePlan, postReadTools: [], offerPostReadTools: [] }
+const { changeKinds, planTitleArgument, wrapperName, changesArgument, shapes } = exported.changePlan
+// The declaration shapes of the change list that the catalog holds (orbit-api ChangeDeclarationShape).
+export const changeShapes = Object.keys(shapes)
+// The ai_change_plan path has no post-read declaration (catalog-export.cs). Each shape declares the same read tools and
+// the same ask, so a read or an ask of this path takes the lists of the first shape.
+const changePlanLists = { ...shapes[changeShapes[0]], postReadTools: [], offerPostReadTools: [] }
 const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
 
 // StrictToolSchema requires nullable properties; composition reads require completion; traces omit marked fields.
@@ -49,9 +53,13 @@ function declaredCall({ tools, legacyTools, postReadTools, offerTools, offerPost
     ...(schema?.properties?.orbit_offer_intent ? { orbit_offer_intent: 'none' } : {}),
     ...(schema?.properties?.orbit_dismissed_offer_keys ? { orbit_dismissed_offer_keys: [] } : {}),
   }
-  const sensitiveFields = new Set(tool?.sensitiveFields)
+  return tracedCall(name, id, strictArguments(schema, { ...controls, ...arguments_ }, schema, complete), status,
+    new Set(tool?.sensitiveFields))
+}
+
+function tracedCall(name, id, arguments_, status, sensitiveFields) {
   return {
-    id, name, arguments: omitSensitiveFields(strictArguments(schema, { ...controls, ...arguments_ }, schema, complete), sensitiveFields), status,
+    id, name, arguments: omitSensitiveFields(arguments_, sensitiveFields), status,
     result: omitSensitiveFields({
       name, id, success: status === 'Succeeded' || status === 'PendingConfirmation',
       entityId: null,
@@ -65,6 +73,41 @@ function declaredCall({ tools, legacyTools, postReadTools, offerTools, offerPost
       } : null,
     }, sensitiveFields),
   }
+}
+
+// Producer: orbit-api ChangeListReplayTests.ChangeList_TheEvalTraceRecordsEachChangeWithItsKindAndArguments. The model
+// sends one list with a delete change of two habits and a rename change of four habits, and it states completion.
+export const changeListHabits = ['44444444-4444-4444-8444-444444444444', '55555555-5555-4555-8555-555555555555',
+  '66666666-6666-4666-8666-666666666666', '77777777-7777-4777-8777-777777777777',
+  '88888888-8888-4888-8888-888888888888', '99999999-9999-4999-8999-999999999999']
+export const changeList = [
+  { id: 'delete', kind: 'bulk_delete_habits', arguments: { habit_ids: changeListHabits.slice(4) } },
+  { id: 'rename', kind: 'bulk_update_habits',
+    arguments: { filter: { habit_ids: changeListHabits.slice(0, 4) }, updates: { title: 'Water - 1.18L' } } },
+]
+
+// The eval trace of a change list in one shape. Producer: ChangeDeclarations.Read gives each change one traced call with
+// the name of its kind, the id of the change and the arguments of the change, each with the status PendingConfirmation.
+// A kind call of the kinds shape loses its plan title. A change of the wrapper shape is one item of the list, and the
+// wrapper holds the completion control and the plan title at its top level.
+export function changeListTrace(shape, clientContext = { supportsParts: true }, changes = changeList) {
+  const { tools, legacyTools, offerTools } = shapes[shape]
+  const list = clientContext.supportsProactiveOffers === true ? offerTools : clientContext.supportsParts === true ? tools : legacyTools
+  const wrapper = list.find((entry) => entry.function.name === wrapperName)?.function.parameters
+  return changes.map((change) => tracedCall(change.kind, change.id,
+    wrapper ? wrappedArguments(wrapper, change) : kindArguments(list, change), 'PendingConfirmation',
+    new Set(changeKinds.find((entry) => entry.name === change.kind).sensitiveFields)))
+}
+
+function kindArguments(list, change) {
+  const schema = list.find((entry) => entry.function.name === change.kind).function.parameters
+  const sent = strictArguments(schema, change.arguments, schema, true)
+  return Object.fromEntries(Object.entries(sent).filter(([name]) => name !== planTitleArgument))
+}
+
+function wrappedArguments(wrapper, change) {
+  const item = wrapper.properties[changesArgument].items.anyOf.find((entry) => entry.properties.kind.enum.includes(change.kind))
+  return strictArguments(item.properties.arguments, change.arguments, wrapper)
 }
 
 // Producer: ProcessUserChatCommand.ToolResults.cs:60-84 and HabitListCard.cs:9-16.

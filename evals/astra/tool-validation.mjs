@@ -24,6 +24,15 @@ function selectedAskForm(catalog, input) {
   })
 }
 
+// The verdict for one call of a trace, and the lists that still hold after it. One API serves one declaration shape, so
+// the next call of the trace is read only against the lists that accepted this one.
+export async function validateTraceCall(call, catalogs, context) {
+  const verdicts = await Promise.all(catalogs.map((catalog) => validateToolArguments(call, [catalog], context)))
+  const open = catalogs.filter((_, index) => verdicts[index].pass)
+  if (open.length) return { verdict: verdicts[verdicts.findIndex(({ pass }) => pass)], open }
+  return { verdict: await validateToolArguments(call, catalogs, context), open }
+}
+
 export async function validateToolArguments(call, catalogs, context) {
   const failures = []
   for (const catalog of catalogs) {
@@ -32,7 +41,10 @@ export async function validateToolArguments(call, catalogs, context) {
     failures.push(verdict)
   }
   const form = call.name === 'ask' ? call.arguments?.input?.form : undefined
-  if (!['choice', 'pickList', 'question'].includes(form)) return failures[0]
+  // The lists of more than one declaration shape can refuse a call for different reasons, so the verdict holds each one.
+  if (!['choice', 'pickList', 'question'].includes(form)) {
+    return { ...failures[0], reason: [...new Set(failures.map(({ reason }) => reason))].join('\n') }
+  }
   const diagnostics = await Promise.all(catalogs.map((catalog) => run(call, selectedAskForm(catalog, call.arguments.input), context)))
   const closest = diagnostics.toSorted((left, right) => left.reason.length - right.reason.length)[0]
   return { ...closest, pass: false, score: 0, reason: `ask ${form}: ${closest.reason}` }

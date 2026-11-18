@@ -6,7 +6,7 @@ import { parse } from 'yaml'
 import { beforeAll, beforeEach } from '../hooks.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
-import { chatResponse, toolCall } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, changeShapes } from './fixtures/producer.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 
 // The catalog that the offer check of a run reads: the committed file, or a file without the named offer lists.
@@ -133,14 +133,18 @@ it('stops an offer run before HTTP when the committed catalog lacks producer var
   expect(fetch).not.toHaveBeenCalled()
 })
 
-// The offer check reads the offer lists of the path of the run. The ai_change_plan path has one offer list; the
-// block-first path has three.
+// The offer check reads the offer lists of the path of the run. The ai_change_plan path has one offer list for each
+// declaration shape of its change list; the block-first path has three.
 const offerCase = () => ({ suite: { tests: [structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-empty-en'))] } })
+const withShapes = (catalog, shapes) => ({ ...catalog, changePlan: { ...catalog.changePlan, shapes } })
+const withoutOfferList = (shape) => (catalog) => withShapes(catalog, { ...catalog.changePlan.shapes,
+  [shape]: { ...catalog.changePlan.shapes[shape], offerTools: [] } })
 it.each([
-  ['change-plan', (catalog) => ({ ...catalog, changePlan: { ...catalog.changePlan, offerTools: [] } }), true],
+  ...changeShapes.map((shape) => ['change-plan', withoutOfferList(shape), true]),
+  ['change-plan', (catalog) => withShapes(catalog, {}), true],
   ['change-plan', (catalog) => ({ ...catalog, offerPostReadTools: [], offerHabitSetupTools: [] }), false],
   ['block-first', (catalog) => ({ ...catalog, offerPostReadTools: [] }), true],
-  ['block-first', (catalog) => ({ ...catalog, changePlan: { ...catalog.changePlan, offerTools: [] } }), false],
+  ['block-first', withoutOfferList(changeShapes[0]), false],
 ])('checks the offer lists of the %s path before a run of offer cases (case %#)', async (path, without, refused) => {
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')

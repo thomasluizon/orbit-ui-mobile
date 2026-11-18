@@ -86,7 +86,11 @@ it('regenerates past a committed catalog.yaml that does not parse', () => {
   }
 })
 
-it.each(['present_plan', 'producer_owned_plan'])('exports the unregistered producer plan %s and rejects other declarations', (planName) => {
+// Producer: orbit-api PlanToolDeclaration.Name and ChangeDeclarations.WrapperName. The API declares these two with no
+// registry entry: the plan of the block-first path, and the propose_changes wrapper of the ai_change_plan path. The second
+// pair of names verifies that the exporter reads each name from its producer constant.
+it.each([['present_plan', 'propose_changes'], ['producer_owned_plan', 'producer_owned_wrapper']])(
+  'exports the unregistered producer declarations %s and %s and rejects other declarations', (planName, wrapperName) => {
   const exporter = readFileSync(new URL('../catalog-export.cs', import.meta.url), 'utf8')
   const entries = exporter.slice(exporter.indexOf('    return sdkCatalog.Keys'), exporter.indexOf('\n}\n\nstatic object? Property'))
   const property = exporter.match(/static object\? Property[^\n]+/)[0]
@@ -99,27 +103,24 @@ it.each(['present_plan', 'producer_owned_plan'])('exports the unregistered produ
 using System.Reflection;
 using System.Text.Json;
 var registry = new Registry();
-var collectSensitiveFields = typeof(RegisteredTool).GetMethod("CollectSensitiveFields")!;
 // Producer: AiIntentService.BuildToolCatalog and catalog-export.cs's SDK property reads.
-var sdk = new {
+var plan = new {
     FunctionName = PlanToolDeclaration.Name,
     FunctionDescription = "Publish the turn's plan alongside its first action calls. Does not execute account actions.",
     FunctionParameters = new BinaryData("{\\"type\\":\\"object\\",\\"properties\\":{\\"title\\":{\\"type\\":\\"string\\"}},\\"required\\":[\\"title\\"],\\"additionalProperties\\":false}"),
     StrictModeEnabled = (bool?)true
 };
-var sdkCatalog = new Dictionary<string, object> { [sdk.FunctionName] = sdk };
+var wrapper = new {
+    FunctionName = ChangeDeclarations.WrapperName,
+    FunctionDescription = "Propose every account change of the request as one list.",
+    FunctionParameters = new BinaryData("{\\"type\\":\\"object\\",\\"properties\\":{\\"changes\\":{\\"type\\":\\"array\\"}},\\"required\\":[\\"changes\\"],\\"additionalProperties\\":false}"),
+    StrictModeEnabled = (bool?)true
+};
+var sdkCatalog = new Dictionary<string, object> { [plan.FunctionName] = plan, [wrapper.FunctionName] = wrapper };
 var exported = JsonSerializer.SerializeToElement(Export());
-if (exported.GetArrayLength() != 1) throw new Exception("The plan declaration was skipped.");
-var plan = exported[0];
-if (plan.GetProperty("type").GetString() != "function" || plan.GetProperty("writes").GetBoolean()
-    || plan.GetProperty("sensitiveFields").GetArrayLength() != 0)
-    throw new Exception("The plan must be read only with no registry sensitivity fields.");
-var function = plan.GetProperty("function");
-if (function.GetProperty("name").GetString() != sdk.FunctionName
-    || function.GetProperty("description").GetString() != sdk.FunctionDescription
-    || function.GetProperty("strict").GetBoolean() != sdk.StrictModeEnabled
-    || function.GetProperty("parameters").GetRawText() != sdk.FunctionParameters.ToString())
-    throw new Exception("The SDK-normalized function changed.");
+if (exported.GetArrayLength() != 2) throw new Exception("A producer declaration was skipped.");
+Check(exported[0], plan.FunctionName, plan.FunctionDescription, plan.FunctionParameters, writes: false);
+Check(exported[1], wrapper.FunctionName, wrapper.FunctionDescription, wrapper.FunctionParameters, writes: true);
 const string unknownName = "unknown_unregistered_declaration";
 sdkCatalog = new Dictionary<string, object> { [unknownName] = new { FunctionName = unknownName } };
 try
@@ -128,22 +129,33 @@ try
     throw new Exception("An unknown declaration was accepted.");
 }
 catch (InvalidOperationException error) when (error.Message.Contains(unknownName, StringComparison.Ordinal)) { }
+void Check(JsonElement entry, string name, string description, BinaryData parameters, bool writes)
+{
+    if (entry.GetProperty("type").GetString() != "function" || entry.GetProperty("writes").GetBoolean() != writes
+        || entry.GetProperty("sensitiveFields").GetArrayLength() != 0)
+        throw new Exception($"The write class or the sensitive fields of {name} changed.");
+    var function = entry.GetProperty("function");
+    if (function.GetProperty("name").GetString() != name
+        || function.GetProperty("description").GetString() != description
+        || function.GetProperty("strict").GetBoolean() != true
+        || function.GetProperty("parameters").GetRawText() != parameters.ToString())
+        throw new Exception($"The SDK-normalized function {name} changed.");
+}
+// Producer: catalog-export.cs SensitiveFields reads the registry entry of a tool.
+string[] SensitiveFields(RegisteredTool tool) => throw new Exception("An unregistered declaration has no sensitive fields.");
 object[] Export()
 {
 ${entries}
 }
 ${property}
-// Producer: PlanToolDeclaration.Name; the alternate value verifies producer ownership.
+// Producer: PlanToolDeclaration.Name and ChangeDeclarations.WrapperName.
 public static class PlanToolDeclaration { public const string Name = ${JSON.stringify(planName)}; }
+public static class ChangeDeclarations { public const string WrapperName = ${JSON.stringify(wrapperName)}; }
 // Producer: AiToolRegistry.GetTool returns null when no tool is registered.
 public sealed class Registry { public RegisteredTool? GetTool(string name) => null; }
 public sealed class RegisteredTool
 {
-    public bool IsReadOnly => throw new Exception("An unregistered plan has no registry metadata.");
-    public object GetParameterSchema() => throw new Exception("An unregistered plan has no parameter schema.");
-    public object? GetResultSchema() => throw new Exception("An unregistered plan has no result schema.");
-    public static void CollectSensitiveFields(JsonElement schema, ISet<string> fields) =>
-        throw new Exception("An unregistered plan has no schema-declared sensitive fields.");
+    public bool IsReadOnly => throw new Exception("An unregistered declaration has no registry metadata.");
 }
 public sealed class BinaryData(string value) { public override string ToString() => value; }
 `)

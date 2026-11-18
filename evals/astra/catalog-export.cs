@@ -29,8 +29,11 @@ var registry = new AiToolRegistry(builder.Services.Where(service => service.Serv
 var intent = new CapturingIntentService();
 var execution = new ChatExecutionDependencies(null!, null!, new AiMessagePayGate(), null!, null!, null!, null!, null!,
     null!, null!, null!, null!, null!, new EmptyPendingOperationStore(), new RefusedChangePreviewer());
-var handler = new ProcessUserChatCommandHandler(null!, new(intent, registry, new EmptySystemPrompt(), new EmptyAgentCatalog()),
-    execution, NullLogger<ProcessUserChatCommandHandler>.Instance, null!, null!);
+ProcessUserChatCommandHandler Handler(ChangeDeclarationShape shape) => new(null!,
+    new(intent, registry, new EmptySystemPrompt(), new EmptyAgentCatalog(), shape), execution,
+    NullLogger<ProcessUserChatCommandHandler>.Instance, null!, null!);
+// The shape changes the declarations of the ai_change_plan path only, so one handler builds each list of the other path.
+var blockFirstHandler = Handler(default);
 var handlerType = typeof(ProcessUserChatCommandHandler);
 var factsType = handlerType.Assembly.GetType("Orbit.Application.Chat.HabitTodaySnapshot", true)!;
 var facts = Activator.CreateInstance(factsType, new object?[] { new HashSet<Guid>(), new HashSet<Guid>(), new HashSet<Guid>(), null });
@@ -58,22 +61,48 @@ var collectSensitiveFields = handlerType.GetNestedType("ChatEvalTraceCollector",
     .GetMethod("CollectSensitiveFields", BindingFlags.NonPublic | BindingFlags.Static)!;
 var partKinds = JsonSerializer.Deserialize<string[]>(args[1])!;
 var habitSetupBinding = new { draftCallId = "__draft_call_id__", missingField = "__missing_field__" };
+// The ai_change_plan path keeps one ask declaration for the whole turn: RefreshAskSchema returns no update there, so this
+// path has no post-read list and no habit-setup list. It has its three lists one time for each declaration shape of the
+// change list (AI:ChangePlanShape), under the name of that shape.
+var shapes = new Dictionary<string, object>(StringComparer.Ordinal);
+foreach (var shape in Enum.GetValues<ChangeDeclarationShape>())
+{
+    var shaped = Handler(shape);
+    shapes[JsonNamingPolicy.CamelCase.ConvertName(shape.ToString())] = new {
+        tools = await ExportTools(shaped, changePlan, true), legacyTools = await ExportTools(shaped, changePlan, false),
+        offerTools = await ExportTools(shaped, changePlan, true, offers: true) };
+}
 File.WriteAllText(args[0], JsonSerializer.Serialize(new {
-    offerTools = await ExportTools(blockFirst, true, offers: true),
-    offerPostReadTools = await ExportTools(blockFirst, true, afterAccountRead: true, offers: true),
-    offerHabitSetupTools = await ExportTools(blockFirst, true, draft: new HabitSetupDraft(
+    offerTools = await ExportTools(blockFirstHandler, blockFirst, true, offers: true),
+    offerPostReadTools = await ExportTools(blockFirstHandler, blockFirst, true, afterAccountRead: true, offers: true),
+    offerHabitSetupTools = await ExportTools(blockFirstHandler, blockFirst, true, draft: new HabitSetupDraft(
         habitSetupBinding.draftCallId, "New habit draft", habitSetupBinding.missingField, Guid.Empty), offers: true),
-    tools = await ExportTools(blockFirst, true), legacyTools = await ExportTools(blockFirst, false),
-    postReadTools = await ExportTools(blockFirst, true, afterAccountRead: true), habitSetupBinding,
-    habitSetupTools = await ExportTools(blockFirst, true, draft: new HabitSetupDraft(
+    tools = await ExportTools(blockFirstHandler, blockFirst, true),
+    legacyTools = await ExportTools(blockFirstHandler, blockFirst, false),
+    postReadTools = await ExportTools(blockFirstHandler, blockFirst, true, afterAccountRead: true), habitSetupBinding,
+    habitSetupTools = await ExportTools(blockFirstHandler, blockFirst, true, draft: new HabitSetupDraft(
         habitSetupBinding.draftCallId, "New habit draft", habitSetupBinding.missingField, Guid.Empty)),
-    // The ai_change_plan path keeps one ask declaration for the whole turn: RefreshAskSchema returns no update there,
-    // so this path has no post-read list and no habit-setup list.
-    changePlan = new { tools = await ExportTools(changePlan, true), legacyTools = await ExportTools(changePlan, false),
-        offerTools = await ExportTools(changePlan, true, offers: true) } }));
+    // The eval trace records each change of a change list as one call with the name of its kind (ChangeDeclarations.Read),
+    // so a trace reader needs the registry facts of each kind and the producer names that place a change in a declaration.
+    changePlan = new {
+        changeKinds = ChangeKinds.All(registry).Select(kind => new { name = kind.Name, writes = !kind.IsReadOnly,
+            sensitiveFields = SensitiveFields(kind) }).ToArray(),
+        planTitleArgument = ChangeDeclarations.PlanTitleArgument, wrapperName = ChangeDeclarations.WrapperName,
+        changesArgument = ChangeDeclarations.ChangesArgument, shapes } }));
 
-async Task<object[]> ExportTools(object context, bool supportsParts, bool afterAccountRead = false, HabitSetupDraft? draft = null,
-    bool offers = false)
+// ProcessUserChatCommand.EvalTrace.cs collects the sensitive fields of a traced call from the registry entry of its name,
+// so a declaration with no registry entry has none.
+string[] SensitiveFields(IAiTool tool)
+{
+    var sensitiveFields = new HashSet<string>(StringComparer.Ordinal);
+    collectSensitiveFields.Invoke(null, [JsonSerializer.SerializeToElement(tool.GetParameterSchema()), sensitiveFields]);
+    if (tool.GetResultSchema() is { } resultSchema)
+        collectSensitiveFields.Invoke(null, [JsonSerializer.SerializeToElement(resultSchema), sensitiveFields]);
+    return sensitiveFields.Order(StringComparer.Ordinal).ToArray();
+}
+
+async Task<object[]> ExportTools(ProcessUserChatCommandHandler handler, object context, bool supportsParts,
+    bool afterAccountRead = false, HabitSetupDraft? draft = null, bool offers = false)
 {
     intent.Captured = null;
     var state = Activator.CreateInstance(handlerType.GetNestedType("ChatTurnState", BindingFlags.NonPublic)!, nonPublic: true);
@@ -107,20 +136,15 @@ async Task<object[]> ExportTools(object context, bool supportsParts, bool afterA
         var sdk = sdkCatalog[key]!;
         var name = (string)Property(sdk, "FunctionName")!;
         var tool = registry.GetTool(name);
-        // ProcessUserChatCommand.Plans.cs:15-16 removes the producer-owned plan before account actions.
-        if (tool is null && name != PlanToolDeclaration.Name)
+        // The producer owns two declarations with no registry entry: the plan of the block-first path, which
+        // ProcessUserChatCommand.Plans.cs removes before account actions, and the wrapper of the change list, which
+        // holds only change kinds, each a write tool (ChangeKinds.IsKind).
+        var wrapsChanges = name == ChangeDeclarations.WrapperName;
+        if (tool is null && name != PlanToolDeclaration.Name && !wrapsChanges)
             throw new InvalidOperationException($"No registry metadata for tool declaration '{name}'.");
-        var sensitiveFields = new HashSet<string>(StringComparer.Ordinal);
-        // ProcessUserChatCommand.EvalTrace.cs:17-28 collects schema sensitivity only for registered tools.
-        if (tool is not null)
-        {
-            collectSensitiveFields.Invoke(null, [JsonSerializer.SerializeToElement(tool.GetParameterSchema()), sensitiveFields]);
-            if (tool.GetResultSchema() is { } resultSchema)
-                collectSensitiveFields.Invoke(null, [JsonSerializer.SerializeToElement(resultSchema), sensitiveFields]);
-        }
         using var parameters = JsonDocument.Parse(((BinaryData)Property(sdk, "FunctionParameters")!).ToString());
-        return (object)new { type = "function", writes = tool is { IsReadOnly: false },
-            sensitiveFields = sensitiveFields.Order(StringComparer.Ordinal).ToArray(),
+        return (object)new { type = "function", writes = tool is null ? wrapsChanges : !tool.IsReadOnly,
+            sensitiveFields = tool is null ? [] : SensitiveFields(tool),
             function = new { name, description = (string?)Property(sdk, "FunctionDescription"),
                 strict = (bool?)Property(sdk, "StrictModeEnabled"), parameters = parameters.RootElement.Clone() } };
     }).ToArray();
