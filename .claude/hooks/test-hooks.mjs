@@ -8,7 +8,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { PLAIN_SUBSET_ADVICE, readCommand, walkCommands } from "./_lib/shell-subset.mjs"
-import { checkGitCommand, GIT_SUBCOMMANDS } from "./_lib/rules-git.mjs"
+import { checkGitCommand as checkGitCommandWith, GIT_SUBCOMMANDS } from "./_lib/rules-git.mjs"
 import { countUnreviewedPendingLessons, isDriftReviewOverdue } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
@@ -39,6 +39,9 @@ const T = (name, got, want) => {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : `  got=${JSON.stringify(got)} want=${JSON.stringify(want)}`}`)
 }
 const blocks = (verdict) => !!verdict?.block
+// A fixture with no real repository resolves each branch word of a push to its own branch, as git does for a plain branch. The symbolic ref rows use real git.
+const ownBranchRef = (_chain, branch) => `refs/heads/${branch}`
+const checkGitCommand = (command, options = {}) => checkGitCommandWith(command, { resolveBranchRef: ownBranchRef, ...options })
 /** True for a command that the modelled subset reads. The hooks refuse each other command as not modelled. */
 const isModelled = (command) => readCommand(command).notModelled === ""
 const HERE_STRING = "a here-string (`<<<`)"
@@ -543,6 +546,37 @@ for (const command of ["git push origin fix/stay-ahead", "git push origin fix/ti
 for (const command of ["git push origin ORIG_HEAD", "git push origin fetch_head", "git push -u origin HEAD", "git push origin HEAD:head", "git push origin HEAD:FETCH_HEAD"]) {
   T(`git review r25: ${command} blocks in a protected repository`, blocks(checkGitCommand(command, inProtectedRepo)), true)
 }
+// git gives a push with no destination the ref that its local word resolves to, so a symbolic ref under `refs/heads/` can name `main`.
+// The rule asks git for that ref in the chain of directories of the push, and it fails safe. `HEAD:<branch>` names its destination, so git resolves no local word.
+const symbolicToMain = { ...inProtectedRepo, resolveBranchRef: (_chain, branch) => (branch === "sneaky" ? "refs/heads/main" : `refs/heads/${branch}`) }
+for (const command of ["git push origin sneaky", "git push -u origin sneaky"]) {
+  T(`git review r26: ${command} blocks when git resolves the word to another ref`, blocks(checkGitCommand(command, symbolicToMain)), true)
+}
+T("git review r26: the refusal names the ref that git resolves the word to", (checkGitCommand("git push origin sneaky", symbolicToMain)?.message ?? "").includes("git resolves `sneaky` to `refs/heads/main`"), true)
+for (const command of ["git push origin feature/x", "git push -u origin feature/x", "git push origin HEAD:sneaky"]) {
+  T(`git review r26: ${command} allows when git resolves the word to its own branch`, checkGitCommand(command, symbolicToMain), null)
+}
+T("git review r26: a push of a branch word blocks when no caller resolves it (fails safe)", blocks(checkGitCommandWith("git push origin feature/x", inProtectedRepo)), true)
+T("git review r26: a push of a branch word that git cannot resolve blocks (fails safe)",
+  blocks(checkGitCommand("git push origin feature/x", { ...inProtectedRepo, resolveBranchRef: () => { throw new Error("exit 128") } })), true)
+T("git review r26: HEAD:<branch> needs no resolver", checkGitCommandWith("git push origin HEAD:feature/x", inProtectedRepo), null)
+T("git review r26: a repository with no protection resolves no branch word", checkGitCommandWith("git push origin sneaky", { resolveRemoteUrl: brainRemote, cwd: ".", unattended: false }), null)
+const resolvedChains = []
+checkGitCommand("git -C /work/ui -C sub push origin feature/x", { ...inProtectedRepo, cwd: "/work", resolveBranchRef: (chain, branch) => { resolvedChains.push([chain, branch]); return `refs/heads/${branch}` } })
+T("git review r26: the resolver gets the chain of directories of the push and the branch word", resolvedChains, [[["/work", "/work/ui", "sub"], "feature/x"]])
+// A command of the same line can make the word a symbolic ref after the hook reads it: `git symbolic-ref`, and a redirect that writes under a `.git` directory.
+for (const [command, names] of [["git symbolic-ref refs/heads/other refs/heads/main && git push origin other", "`git symbolic-ref`"],
+  ["printf 'ref: refs/heads/main\\n' > .git/refs/heads/third && git push -u origin third", "`/work/ui/.git/refs/heads/third`"],
+  ["cd .git && printf 'ref: refs/heads/main\\n' >> refs/heads/third; cd ..; git push origin third", "`/work/ui/.git/refs/heads/third`"],
+  ["git push origin third 2> /work/ui/.GIT/push.log", "`/work/ui/.GIT/push.log`"]]) {
+  const verdict = checkGitCommand(command, { ...inProtectedRepo, cwd: "/work/ui" })
+  T(`git review r26: ${command} blocks in a protected repository and names ${names}`, [blocks(verdict), (verdict?.message ?? "").includes(names)], [true, true])
+}
+for (const command of ["git push origin feature/x > push.log", "printf x > notes.git && git push origin feature/x", "git push origin feature/x 2> /tmp/git/push.log", "cat < .git/HEAD && git push origin feature/x",
+  "git symbolic-ref HEAD", "printf x > .git/info/note"]) {
+  T(`git review r26: ${command} allows in a protected repository`, checkGitCommand(command, { ...inProtectedRepo, cwd: "/work/ui" }), null)
+}
+T("git review r26: a symbolic-ref with a push to a repository with no protection allows", checkGitCommand("git symbolic-ref refs/heads/other refs/heads/main && git push origin other", { resolveRemoteUrl: brainRemote, cwd: ".", unattended: false }), null)
 // A `cd` that the shell can skip leaves the push in the directory before it, so the rule judges the push in each directory that is possible.
 const fromProtected = { cwd: "/work/ui", resolveRemoteUrl: byTextDirectory((directory) => (directory.startsWith("/other") ? "git@github.com:o/sandbox.git" : "git@github.com:o/orbit-ui-mobile.git")) }
 for (const command of ["false && cd /other; git push origin main", "true || cd /other; git push origin main", "cd /other || git push origin main", "if false; then cd /other; fi; git push origin main",
@@ -1385,6 +1419,14 @@ for (const command of [
   T(`approval: ${command} ${expected ? "is not modelled" : "passes"}`, refusedBy(command), expected)
 }
 T("approval: the count of safe rows that the subset models, each one allowed", modelledPasses, 27)
+// Only the `{}` of a `find -exec` command is no target: the reader ends that command before its `;` or `{} +`. A file named `+` or `;` is a target, bare or quoted.
+const inRootDirectory = { ...approvalOptions, cwd: "/" }
+for (const command of ["rm -rf +", "rm -rf '+'", "rm -rf \\;", "rm -rf ';'"]) {
+  T(`approval review r26: ${command} in the root directory names a top-level entry`, refusedBy(command, inRootDirectory), "critical-path")
+}
+for (const command of ["find /work/build -name x -exec rm -rf {} +", "find /work/build -name x -exec rm -rf {} \\;", "find /work/build -name x -exec rm -rf {} ';'", "find /work/build -name x -exec rm -rf {} ';' -exec rmdir {} +"]) {
+  T(`approval review r26: ${command} in the root directory has no target`, refusedBy(command, inRootDirectory), null)
+}
 // Property: for each command of a generated set, the hooks refuse it, or a direct reading proves that it runs no dangerous command.
 // The set puts `git push origin main` and `rm -rf "$TMP"` into each pair of the constructs below, one inside the other and one after the other.
 const DANGEROUS_COMMANDS = ["git push origin main", 'rm -rf "$TMP"']
@@ -2316,7 +2358,8 @@ T("adapter lessons: malformed drift state exits 0 and emits the overdue line", {
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
 T("adapter git-guardrails: the same push from Bash and from Monitor -> 2, 2", bashAndMonitor("git-guardrails.mjs", "git push origin main"), [2, 2])
-T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
+// The fixture root is no repository, so git resolves no branch word there and the rule fails safe. The symbolic ref rows below push a branch that exists -> 0.
+T("adapter git-guardrails: push feature in a directory with no repository -> 2", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 2)
 T("adapter git-guardrails: a grep for the flag that skips the hooks -> 0", runHook("git-guardrails.mjs", bash(`grep -rn -- '${NV}' .claude/hooks`)), 0)
 T("adapter git-guardrails: a push to main in a here-string with a $\"...\" quote -> 2", runHook("git-guardrails.mjs", bash('bash <<<$"git push origin main"')), 2)
 T("adapter git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", bash("git worktree remove --force .claude/worktrees/x")), 2)
@@ -2332,6 +2375,9 @@ for (const [checkout, url] of [[protectedCheckout, "https://github.com/thomaslui
   spawnSync("git", ["init", "-q", checkout])
   spawnSync("git", ["-C", checkout, "remote", "add", "origin", url])
 }
+// The control row below pushes `fix/x` from the protected checkout, so that branch exists there: git resolves the branch word of a push.
+T("adapter git-guardrails symlink fixture: the protected checkout has the branch fix/x", [["config", "user.email", "hooks@test.invalid"], ["config", "user.name", "hooks"], ["config", "commit.gpgsign", "false"],
+  ["commit", "-q", "--allow-empty", "-m", "fixture"], ["branch", "fix/x"]].map((args) => spawnSync("git", ["-C", protectedCheckout, ...args]).status).filter((status) => status !== 0), [])
 const linkToProtected = join(openCheckout, "link")
 symlinkSync(join(protectedCheckout, "apps"), linkToProtected, "junction")
 const fromOpenCheckout = (command, env) => runHook("git-guardrails.mjs", bash(command, openCheckout), env)
@@ -2343,6 +2389,33 @@ for (const command of [`git -C ${linkToProtected}/.. push origin main`, "git -C 
 for (const command of [`cd ${linkToProtected}/..; git push origin main`, `git -C ${openCheckout} push origin main`, "git -C link/.. push origin fix/x"]) {
   T(`adapter git-guardrails symlink: ${command} from a repository with no protection -> 0, 0`, [fromOpenCheckout(command), fromOpenCheckout(command, { ORBIT_LAUNCH_WORKER: "1" })], [0, 0])
 }
+// git pushes a symbolic ref under `refs/heads/` to the ref that it resolves to. The fixture: a bare `orbit-ui-mobile.git`, and a clone with the plain
+// branches `plain`, `other` and `third` and with `sneaky`, a symbolic ref to `main`. The adapter resolves each branch word with real git.
+const symbolicFixture = join(root, "git-symbolic")
+const symbolicOrigin = join(symbolicFixture, "orbit-ui-mobile.git")
+const symbolicClone = join(symbolicFixture, "clone")
+mkdirSync(symbolicClone, { recursive: true })
+const inSymbolicClone = (...args) => spawnSync("git", args, { cwd: symbolicClone, encoding: "utf8" })
+writeFileSync(join(symbolicClone, "tracked.txt"), "tracked\n")
+T("adapter git-guardrails symbolic ref fixture: each git step exits 0", [["init", "-q", "--bare", "-b", "main", symbolicOrigin], ["init", "-q", "-b", "main"], ["remote", "add", "origin", symbolicOrigin],
+  ["config", "user.email", "hooks@test.invalid"], ["config", "user.name", "hooks"], ["config", "commit.gpgsign", "false"], ["add", "tracked.txt"], ["commit", "-q", "-m", "fixture"], ["branch", "plain"], ["branch", "other"],
+  ["branch", "third"], ["symbolic-ref", "refs/heads/sneaky", "refs/heads/main"]].map((args) => inSymbolicClone(...args).status).filter((status) => status !== 0), [])
+T("adapter git-guardrails symbolic ref fixture: git resolves sneaky to main and plain to its own branch",
+  ["sneaky", "plain"].map((name) => inSymbolicClone("rev-parse", "--symbolic-full-name", name).stdout.trim()), ["refs/heads/main", "refs/heads/plain"])
+const fromSymbolicClone = (command, cwd = symbolicClone) => [runHook("git-guardrails.mjs", bash(command, cwd)), runHook("git-guardrails.mjs", bash(command, cwd), { ORBIT_LAUNCH_WORKER: "1" })]
+for (const command of ["git push origin main", "git push origin sneaky", "git push -u origin sneaky", "git push origin missing", "git symbolic-ref refs/heads/other refs/heads/main && git push origin other",
+  "printf 'ref: refs/heads/main\\n' > .git/refs/heads/third && git push -u origin third"]) {
+  T(`adapter git-guardrails symbolic ref: ${command} in a protected repository -> 2, 2`, fromSymbolicClone(command), [2, 2])
+}
+T("adapter git-guardrails symbolic ref: git -C <clone> push origin sneaky from the directory above -> 2, 2", fromSymbolicClone(`git -C ${symbolicClone} push origin sneaky`, symbolicFixture), [2, 2])
+// The controls: git resolves a plain branch to its own ref, `HEAD:<branch>` names its destination, and the two commands that the same line refuses pass alone.
+for (const command of ["git push origin plain", "git push -u origin plain", "git push origin other", "git push -u origin third", "git push origin HEAD:sneaky", "git push origin HEAD:missing",
+  "git symbolic-ref refs/heads/other2 refs/heads/main", "printf 'ref: refs/heads/main\\n' > .git/refs/heads/third2"]) {
+  T(`adapter git-guardrails symbolic ref: ${command} in a protected repository -> 0, 0`, fromSymbolicClone(command), [0, 0])
+}
+T("adapter git-guardrails symbolic ref: git -C <clone> push origin plain from the directory above -> 0, 0", fromSymbolicClone(`git -C ${symbolicClone} push origin plain`, symbolicFixture), [0, 0])
+T("adapter git-guardrails symbolic ref: the refusal names the ref that git resolves the word to",
+  runHookResult("git-guardrails.mjs", JSON.stringify(bash("git push origin sneaky", symbolicClone))).stderr.includes("git resolves `sneaky` to `refs/heads/main`"), true)
 T("handoff git: the top level follows the -C chain as git does", topLevelOf([openCheckout, "link/.."]), realpathSync(protectedCheckout))
 // `find -execdir` runs git in the directory that holds each found file, here the protected checkout, which the `cd` model cannot know.
 // The git rule refuses it attended and in a worker run, and the approval rule refuses it in a worker run.

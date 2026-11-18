@@ -70,14 +70,14 @@ function readWord(raw) {
 const removalInvocations = (words) => invocationsOf(words).filter(({ program }) => removalProgram(program))
   .map(({ program, args }) => ({ program: removalProgram(program), args: args.map((word) => word.raw) }))
 
-/** The operands of one removal: flags and the `find -exec` terminator are not targets. The parsed words hold no redirect. */
+/** The operands of one removal: flags and the `{}` of a `find -exec` command are not targets. `invocationsOf` ends such a command before its `;` or `{} +`. The parsed words hold no redirect. */
 function removalTargets({ args }) {
   const flags = []
   const targets = []
   let operandsOnly = false
   for (let index = 0; index < args.length; index++) {
     const word = args[index]
-    if ([";", "\;", "+", "{}"].includes(word)) continue
+    if (word === "{}") continue
     if (!operandsOnly && word === "--") { operandsOnly = true; continue }
     if (!operandsOnly && word.startsWith("-")) flags.push(word)
     else targets.push(readWord(word))

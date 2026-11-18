@@ -20,14 +20,14 @@ try {
   if (typeof command !== "string") process.exit(0)
 
   // git reads the chain of directories itself, so a symlink and `..` resolve as they do for the command.
-  const resolveRemoteUrl = (chain, remote = "origin") =>
-    execFileSync("git", [...chain.flatMap((directory) => ["-C", directory]), "remote", "get-url", "--push", remote], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim()
+  const gitOutput = (chain, args) =>
+    execFileSync("git", [...chain.flatMap((directory) => ["-C", directory]), ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim()
+  const resolveRemoteUrl = (chain, remote = "origin") => gitOutput(chain, ["remote", "get-url", "--push", remote])
+  // The full name of the ref that a branch word resolves to: the target of a symbolic ref. git exits 128 for a word that names no ref.
+  const resolveBranchRef = (chain, branch) => gitOutput(chain, ["rev-parse", "--symbolic-full-name", branch])
 
   const unattended = isUnattendedRun({ env: process.env, state: runState(), sessionId: input?.session_id ?? "" })
-  const verdict = checkGitCommand(command, { resolveRemoteUrl, cwd: input?.cwd || process.cwd(), unattended })
+  const verdict = checkGitCommand(command, { resolveRemoteUrl, resolveBranchRef, cwd: input?.cwd || process.cwd(), unattended })
   if (verdict?.block) {
     process.stderr.write(verdict.message)
     process.exit(2)

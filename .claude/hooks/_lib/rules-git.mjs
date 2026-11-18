@@ -204,7 +204,10 @@ function pushRepositories(rest) {
 /** True for a URL or a path in place of a remote name. */
 const isRemoteLocation = (remote) => /[:/\\]/.test(remote) || remote.startsWith(".")
 
-/** A plain branch name that is not `main` or `master` in any spelling that git resolves to it, and not a ref name such as `HEAD`, `ORIG_HEAD` or `FETCH_HEAD` in any case. */
+/**
+ * A plain branch name whose text is not `main` or `master`, with or without `heads/` or `refs/heads/` and in any case, and not a ref name
+ * such as `HEAD`, `ORIG_HEAD` or `FETCH_HEAD` in any case. The text does not show a symbolic ref: `branchRefRefusal` asks git for that.
+ */
 const isPlainBranch = (name) => /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name) && !/\.\.|\/\/|\/$|\.lock$|\.$/.test(name) && !/^(?:[A-Za-z]+_)?HEAD$/i.test(name) &&
   !/^(?:refs\/)?(?:heads\/)?(?:main|master)$/i.test(name)
 
@@ -213,6 +216,30 @@ function isAllowedPush(rest) {
   if (rest.length === 2 && rest[0] === "origin") return isPlainBranch(rest[1].startsWith("HEAD:") ? rest[1].slice(5) : rest[1])
   return rest.length === 3 && rest[0] === "-u" && rest[1] === "origin" && isPlainBranch(rest[2])
 }
+
+/**
+ * Why git does not push the branch word of an allowed push to its own branch, or "". A push with no destination goes to the ref that the
+ * local word resolves to, and a symbolic ref resolves to its target, so `refs/heads/sneaky` can name `main`. `resolveBranchRef(chain, branch)`
+ * gives the full name of that ref. `HEAD:<branch>` names its destination, so git resolves no local word for it.
+ * Fails SAFE, as `targetsProtectedRepo` does: a word that git cannot resolve and a caller with no resolver are refused.
+ */
+function branchRefRefusal(chain, rest, resolveBranchRef) {
+  const branch = rest[rest.length - 1]
+  if (branch.startsWith("HEAD:")) return ""
+  let resolved = ""
+  try {
+    if (typeof resolveBranchRef === "function") resolved = resolveBranchRef(chain, branch)
+  } catch {
+    resolved = ""
+  }
+  if (resolved === `refs/heads/${branch}`) return ""
+  return `${resolved ? `git resolves \`${branch}\` to \`${resolved}\`` : `git cannot resolve \`${branch}\` to a local branch`}, not to \`refs/heads/${branch}\`. ` +
+    "A push with no destination goes to the ref that the local name resolves to, and a symbolic ref resolves to its target. " +
+    "Create the branch in an earlier command and name it by its short name, or name the destination: `git push origin HEAD:<branch>`."
+}
+
+/** True for a path with a `.git` segment, in any case: a file under the directory that holds the refs of a repository. */
+const isUnderGitDirectory = (path) => path.split(/[\\/]/).some((segment) => segment.toLowerCase() === ".git")
 
 /** True when the push goes to a protected repository: the directory, or a remote, URL or path that names one. Fails safe. */
 function pushesToProtected(chain, rest, resolveRemoteUrl) {
@@ -264,8 +291,11 @@ function commandOption(subcommand, rest) {
 const PUSH_FORMS = "A protected repository allows only `git push origin <branch>`, `git push -u origin <branch>` and `git push origin HEAD:<branch>`, " +
   "where <branch> is a plain branch name that is not main or master."
 
-/** The refusal for the git commands in `gitCommands`, each one `{ tokens, directory }`, or null. `command` is the text that the message shows. */
-function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }) {
+/**
+ * The refusal for the git commands in `gitCommands`, each one `{ tokens, directory }`, or null. `command` is the text that the message shows,
+ * and `writtenPaths` holds the target of each redirect of the line that writes a file.
+ */
+function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, resolveBranchRef, unattended, writtenPaths }) {
   // Each git command is judged on its own words, so no flag of one command counts for another. The full string,
   // heredoc bodies included, is still what gets shown back in the block message.
   const read = gitCommands.map(({ tokens, directory }) => ({ tokens, directory, ...gitCommandParts(tokens) }))
@@ -304,6 +334,14 @@ function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }
     }
     if (!pushesToProtected(target, rest, resolveRemoteUrl)) continue
     if (!isAllowedPush(rest)) return blocked(command, `This push form is refused in a protected repository (branch protection, squash-merge only). ${PUSH_FORMS} Open a PR.`)
+    // A command of the same line can make the branch word a symbolic ref after the hook asks git for its ref.
+    const writtenRef = writtenPaths.find(isUnderGitDirectory)
+    const refChange = read.some(({ subcommand }) => subcommand === "symbolic-ref") ? "A `git symbolic-ref` command" : writtenRef ? `A redirect to \`${writtenRef}\`` : ""
+    if (refChange) {
+      return blocked(command, `${refChange} in the same command as a push to a protected repository can make a branch name a symbolic ref to main after the hook reads it. Run them as two commands.`)
+    }
+    const unresolved = branchRefRefusal(target, rest, resolveBranchRef)
+    if (unresolved) return blocked(command, `This push is refused in a protected repository: ${unresolved}`)
   }
   return null
 }
@@ -365,19 +403,22 @@ const notModelledRefusal = (command, notModelled) => ({
 /**
  * Each git command that `command` runs, as `{ tokens, directory }`: its words after the git word and the shell directory after the `cd` model.
  * `notModelled` names the first construct outside the subset, or is "", and `gitCommands` is empty when it is not "".
+ * `writtenPaths` holds the target of each redirect that writes a file, from the shell directory of its command. The subset has only literal targets.
  */
 export function readGitCommands(command, { cwd, home } = {}) {
   const { list, notModelled } = readCommand(command, home ? { home } : undefined)
-  if (notModelled) return { gitCommands: [], notModelled }
+  if (notModelled) return { gitCommands: [], writtenPaths: [], notModelled }
   const gitCommands = []
-  const unread = walkCommands(list, cwd || process.cwd(), ({ words }, directory) => {
+  const writtenPaths = []
+  const unread = walkCommands(list, cwd || process.cwd(), ({ words, redirects }, directory) => {
     for (const { program, args } of invocationsOf(words)) {
       if (programName(program.text) === "git") gitCommands.push({ tokens: args.map((word) => word.text), directory })
     }
+    for (const { operator, target } of redirects) if (operator !== "<") writtenPaths.push(resolve(directory, target))
     // The shell `cd` is logical: it reads `..` by text before it follows a symlink, as `resolve` does. git `-C` is not, so git reads those words.
     return words[0]?.text === "cd" && words[1] ? resolve(directory, words[1].text) : directory
   })
-  return unread ? { gitCommands: [], notModelled: unread } : { gitCommands, notModelled: "" }
+  return unread ? { gitCommands: [], writtenPaths: [], notModelled: unread } : { gitCommands, writtenPaths, notModelled: "" }
 }
 
 /**
@@ -386,9 +427,9 @@ export function readGitCommands(command, { cwd, home } = {}) {
  * runs. In an attended session it refuses such a command only when its text names git and a push or a hygiene marker (`attendedTextIsRisky`),
  * or a forced `git worktree remove` (`attendedTextWorktreeRemove`), so the default commit form of Claude Code and a variable git argument pass.
  */
-export function checkGitCommand(command, { resolveRemoteUrl, cwd, home, unattended = true } = {}) {
+export function checkGitCommand(command, { resolveRemoteUrl, resolveBranchRef, cwd, home, unattended = true } = {}) {
   if (typeof command !== "string") return null
-  const { gitCommands, notModelled } = readGitCommands(command, { cwd, home })
+  const { gitCommands, writtenPaths, notModelled } = readGitCommands(command, { cwd, home })
   if (notModelled) return unattended || attendedTextIsRisky(command) ? notModelledRefusal(command, notModelled) : attendedTextWorktreeRemove(command)
-  return judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended })
+  return judgeGitCommands(command, gitCommands, { resolveRemoteUrl, resolveBranchRef, unattended, writtenPaths })
 }

@@ -229,6 +229,13 @@ the agent asked for, and a `git pull` on `main` passes.
 In a protected repository, the push rule allows only `git push origin <branch>`, `git push -u origin <branch>` and
 `git push origin HEAD:<branch>`, where `<branch>` is a plain branch name that is not `main` or `master`. A push in the same command as a
 `git config` or `git remote` change is refused.
+git gives a push with no destination the ref that its local word resolves to, and a symbolic ref resolves to its target, so the text of
+`<branch>` does not prove where the push goes. For `git push [-u] origin <branch>` the adapter asks git, in the same chain of directories:
+`git -C <dir> -C <w1> ... rev-parse --symbolic-full-name <branch>`. The push passes only when the output is `refs/heads/<branch>`. A word
+that git cannot resolve is refused, so the branch must exist before the command of the push. `HEAD:<branch>` names its destination, so git
+resolves no local word for it. A push to a protected repository is also refused in the same command as a `git symbolic-ref` command or
+as a redirect that writes a path with a `.git` segment, because each one can make the word a symbolic ref after the hook reads it.
+The rule reads no other command that writes a ref file, such as `cp` or `tee`, and no config that maps a branch to another destination.
 The rule judges each repository word of a push: the first word that is no option, and each value of `--repo <x>` and
 `--repo=<x>`. In an unattended run and in a protected repository, a URL or a path passes only when it is byte-equal to a
 canonical form, `https://github.com/<owner>/<repo>` or `git@github.com:<owner>/<repo>`, each with an optional `.git`, with no
