@@ -15,9 +15,9 @@ import { parseWorktreeList } from "./git-worktrees.mjs"
 import { researchPaths } from "./research-run.mjs"
 import { isWakeSourceAlive, processStartIdentity } from "./run-state.mjs"
 
-/** The first line of each result. tools/compose-prompt.mjs writes the same lines into each order. */
-export const REVIEW_VERDICT_LINE = /^VERDICT: (?:CLEAN|DEFECTS \(\d+\))$/
-export const PROOF_VERDICT_LINE = /^PROOF: (?:PASS|FAIL \(\d+ defects?\))$/
+/** The first line of each result. reviewOrder and proofOrder below write the same lines into each order. */
+const REVIEW_VERDICT_LINE = /^VERDICT: (?:CLEAN|DEFECTS \(\d+\))$/
+const PROOF_VERDICT_LINE = /^PROOF: (?:PASS|FAIL \(\d+ defects?\))$/
 
 /** The verdict line of a result in `mode` ("review" or "proof"), or null when the first line is not one. */
 export const resultVerdict = (text, mode) => {

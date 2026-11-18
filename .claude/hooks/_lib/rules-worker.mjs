@@ -348,25 +348,43 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
   return null
 }
 
+/**
+ * The value of a body flag token, or null when the token is not one: `-f`, `-F`, `--field`, `--raw-field`
+ * and `--input` as a separate token (value in `next`), a long `--flag=value`, or a value attached to its
+ * shorthand flag (`-fbody=x`), which gh also accepts.
+ */
+function bodyFlagValue(token, next) {
+  if (GH_API_BODY_FLAGS.has(token)) return next ?? ""
+  const long = [...GH_API_BODY_FLAGS].find((flag) => flag.startsWith("--") && token.startsWith(`${flag}=`))
+  if (long) return token.slice(long.length + 1)
+  return /^-[fF]./.test(token) ? token.slice(2) : null
+}
+
 /** Whether a `gh api` call writes: a method other than GET, or a body field or input file without an explicit GET. */
 function ghApiWrites(segment, tokens) {
   const rest = tokens.slice(2)
   let method = null
   let body = false
+  // A query from `--input <file>` or a `key=@<file>` field is a file this hook cannot read.
+  let bodyFromFile = false
   let endpoint = null
   for (let index = 0; index < rest.length; index += 1) {
     const token = unquote(rest[index])
     if (token.startsWith("-X") && token.length > 2) method = token.slice(2)
     else if (token.startsWith("--method=")) method = token.slice("--method=".length)
     else if (token === "-X" || token === "--method") method = unquote(rest[index + 1])
-    if (GH_API_BODY_FLAGS.has(token) || [...GH_API_BODY_FLAGS].some((flag) => flag.startsWith("--") && token.startsWith(`${flag}=`))) body = true
+    const value = bodyFlagValue(token, unquote(rest[index + 1]))
+    if (value !== null) {
+      body = true
+      if (token === "--input" || token.startsWith("--input=") || /^[^=]*=@/.test(value)) bodyFromFile = true
+    }
     if (GH_API_VALUE_FLAGS.has(token)) index += 1
     else if (!token.startsWith("-") && endpoint === null) endpoint = token
   }
   if (method !== null) return method.toUpperCase() !== "GET"
   if (!body) return false
-  // A GraphQL query is a POST with a body field; only a mutation writes.
-  return endpoint !== "graphql" || /\bmutation\b/i.test(segment)
+  // A GraphQL query is a POST with a body field; only a mutation writes, and a query read from a file may be one.
+  return endpoint !== "graphql" || bodyFromFile || /\bmutation\b/i.test(segment)
 }
 
 /** Whether a segment writes to GitHub or reads a credential that could. Judged on the program and its arguments. */
