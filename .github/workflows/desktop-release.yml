@@ -86,10 +86,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
+          package-manager-cache: false
       - name: Plan shell publication
         id: plan
         env:
@@ -155,11 +154,23 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      # The steps of .github/actions/restore-npm-cache, inline: this job checks out a release commit that can be older than that action.
+      - name: Read the npm cache directory
+        id: npm-cache-directory
+        shell: bash
+        run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+      - name: Restore the npm cache
+        uses: actions/cache/restore@v6
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
-          node-version: 22
-          cache: npm
+          path: ${{ steps.npm-cache-directory.outputs.path }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci --prefer-offline --no-audit --fund=false
       - name: Report Windows PowerShell version
         if: runner.os == 'Windows'
@@ -168,9 +179,12 @@ jobs:
       - name: Point the Windows App SDK download cache
         if: runner.os == 'Windows'
         run: echo "ORBIT_WINDOWS_DOWNLOAD_CACHE=$RUNNER_TEMP/windows-app-sdk-downloads" >> "$GITHUB_ENV"
+      # Restore only: Desktop Build is the only writer of these entries and of the Rust compile cache below. A release
+      # of an older commit saves other hashes in the same key family, and the cache sweep then keeps the release entry
+      # as the newest and deletes the one Desktop Build restores.
       - name: Cache Windows App SDK downloads
         if: runner.os == 'Windows'
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}
           key: ${{ runner.os }}-windows-app-sdk-${{ matrix.target }}-${{ hashFiles('apps/desktop/src-tauri/native/windows/downloads.json') }}
@@ -186,7 +200,7 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri -> target
           shared-key: desktop-${{ matrix.target }}
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: "false"
       # The two legs of one operating system run the same host tests, and PR Tests proves the types on this SHA.
       - name: Test the shell on the native leg of each operating system
         if: matrix.target == 'aarch64-apple-darwin' || matrix.target == 'x86_64-pc-windows-msvc'
@@ -317,7 +331,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           for artifact in "$RUNNER_TEMP"/desktop-assets/*; do
-            npx tauri signer sign --app-version "$DESKTOP_VERSION" "$artifact"
+            ../../node_modules/.bin/tauri signer sign --app-version "$DESKTOP_VERSION" "$artifact"
             node --experimental-strip-types scripts/release.ts verify \
               "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$artifact"
           done
@@ -342,10 +356,9 @@ jobs:
           ref: ${{ inputs.source_sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
+          package-manager-cache: false
       - uses: actions/download-artifact@v8
         with:
           pattern: desktop-macos-notary-*
@@ -381,11 +394,23 @@ jobs:
           ref: ${{ inputs.source_sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      # The steps of .github/actions/restore-npm-cache, inline: this job checks out a release commit that can be older than that action.
+      - name: Read the npm cache directory
+        id: npm-cache-directory
+        shell: bash
+        run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+      - name: Restore the npm cache
+        uses: actions/cache/restore@v6
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
-          node-version: 22
-          cache: npm
+          path: ${{ steps.npm-cache-directory.outputs.path }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci --prefer-offline --no-audit --fund=false
       - uses: actions/download-artifact@v8
         with:
@@ -473,7 +498,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           for artifact in "$RUNNER_TEMP"/desktop-assets/*; do
-            npx tauri signer sign --app-version "$DESKTOP_VERSION" "$artifact"
+            ../../node_modules/.bin/tauri signer sign --app-version "$DESKTOP_VERSION" "$artifact"
             node --experimental-strip-types scripts/release.ts verify \
               "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$artifact"
           done
@@ -504,11 +529,23 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      # The steps of .github/actions/restore-npm-cache, inline: this job checks out a release commit that can be older than that action.
+      - name: Read the npm cache directory
+        id: npm-cache-directory
+        shell: bash
+        run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+      - name: Restore the npm cache
+        uses: actions/cache/restore@v6
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
-          node-version: 22
-          cache: npm
+          path: ${{ steps.npm-cache-directory.outputs.path }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci --prefer-offline --no-audit --fund=false
       - uses: actions/download-artifact@v8
         with:
@@ -525,7 +562,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          npx tauri signer sign --app-version "$DESKTOP_VERSION" ../../desktop-assets/latest.json
+          ../../node_modules/.bin/tauri signer sign --app-version "$DESKTOP_VERSION" ../../desktop-assets/latest.json
           node --experimental-strip-types scripts/release.ts verify \
             "$DESKTOP_VARIANT" "$DESKTOP_VERSION" ../../desktop-assets/latest.json
       - name: Publish versioned artifacts before advancing the channel

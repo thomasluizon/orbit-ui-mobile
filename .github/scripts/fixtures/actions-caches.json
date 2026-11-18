@@ -1,0 +1,374 @@
+{
+  "total_count": 41,
+  "actions_caches": [
+    {
+      "id": 10563357949,
+      "ref": "refs/pull/2463/merge",
+      "key": "desktop-benchmark-electron-Windows-X64-45.3.2",
+      "version": "54b8c4973f5e504d6e23a7e8d6da0f89c8f4671c42608060df58f9e149a73eb1",
+      "last_accessed_at": "2026-11-15T18:36:15.885470Z",
+      "created_at": "2026-11-15T18:36:15.885470Z",
+      "size_in_bytes": 158290466
+    },
+    {
+      "id": 10563356574,
+      "ref": "refs/pull/2463/merge",
+      "key": "desktop-benchmark-electron-builder-Windows-X64-26.18.0",
+      "version": "9c89f5fc6a5ef57a53e67bc3e5ae15a1a75e62781776163a133e7e5616e9acf0",
+      "last_accessed_at": "2026-11-15T18:36:12.285114Z",
+      "created_at": "2026-11-15T18:36:12.285114Z",
+      "size_in_bytes": 8280510
+    },
+    {
+      "id": 10563332399,
+      "ref": "refs/pull/2463/merge",
+      "key": "desktop-benchmark-electron-macOS-ARM64-45.3.2",
+      "version": "a0583fbb959cda7b95783a2319460e270a191399969afa4f26d0d43eb56bf550",
+      "last_accessed_at": "2026-11-15T18:35:20.045355Z",
+      "created_at": "2026-11-15T18:35:20.045355Z",
+      "size_in_bytes": 120756174
+    },
+    {
+      "id": 10563331458,
+      "ref": "refs/pull/2463/merge",
+      "key": "desktop-benchmark-electron-builder-macOS-ARM64-26.18.0",
+      "version": "f1d347fa98e1391e6d36fcde51e2146ea57d6a08457491f0fda85eb7fcda063a",
+      "last_accessed_at": "2026-11-15T18:35:17.174307Z",
+      "created_at": "2026-11-15T18:35:17.174307Z",
+      "size_in_bytes": 69034627
+    },
+    {
+      "id": 10563212976,
+      "ref": "refs/heads/main",
+      "key": "ios-compile-pass-v1-642934a70c916ebef664977a22cc931ad50de3c103ce65fb4f48869875be2f71",
+      "version": "5818e490db2e8a58e87c722c14471eb41adad0e70dced8968a91115618dd6972",
+      "last_accessed_at": "2026-11-15T18:30:50.966696Z",
+      "created_at": "2026-11-15T18:30:50.966696Z",
+      "size_in_bytes": 229
+    },
+    {
+      "id": 10563207031,
+      "ref": "refs/heads/main",
+      "key": "macos-26-ARM64-xcode-26.6-ios-release-ccache-v2-cc69f1c05e276c1e0a9abe72da6f69cebaae8a9ec4e4641d23af11e9943a1292",
+      "version": "d8fe8655f5fe466f68d721664335fd6f2b1084ebea7d20931490f277821ccaf8",
+      "last_accessed_at": "2026-11-15T18:30:39.513476Z",
+      "created_at": "2026-11-15T18:30:39.513476Z",
+      "size_in_bytes": 114172506
+    },
+    {
+      "id": 10563126168,
+      "ref": "refs/heads/main",
+      "key": "gradle-home-v2|Linux-X64|build[c41e7da64aff239b29fe13457afab909]-0134c198b477f3f84f8a21c0049075ee595e94dc",
+      "version": "efbc4f98d90c3a37d4c88199cd0a027f9a903840cd0ec083c3af7c7fd4363155",
+      "last_accessed_at": "2026-11-15T18:27:36.020715Z",
+      "created_at": "2026-11-15T18:27:36.020715Z",
+      "size_in_bytes": 7253610
+    },
+    {
+      "id": 10563123376,
+      "ref": "refs/heads/main",
+      "key": "gradle-transforms-v2-97c699cffca924fff5ef404c00281dbe",
+      "version": "00fad2af547a30f915e8e6c098d917113dab5c377ae72e2251ec69f666d9cbcb",
+      "last_accessed_at": "2026-11-15T18:27:33.311909Z",
+      "created_at": "2026-11-15T18:27:33.311909Z",
+      "size_in_bytes": 689602211
+    },
+    {
+      "id": 10563119438,
+      "ref": "refs/heads/main",
+      "key": "gradle-dependencies-v2-4a2e0249d4adaecaac02b5462b5d2636",
+      "version": "3fe128ae564a5338afdcbbcb604b84058af69e9d8347a1d7cc8438856af2b50a",
+      "last_accessed_at": "2026-11-15T18:27:25.106284Z",
+      "created_at": "2026-11-15T18:27:25.106284Z",
+      "size_in_bytes": 1086127533
+    },
+    {
+      "id": 10563117599,
+      "ref": "refs/heads/main",
+      "key": "gradle-wrapper-zips-v2-9db0835d029c62b1a3d29bf9e5532cf5",
+      "version": "1969be451f91d2ae14648a1b64dc9cd99c269ffd97d25f00fd137c0cb7e5ab78",
+      "last_accessed_at": "2026-11-15T18:27:24.470719Z",
+      "created_at": "2026-11-15T18:27:24.470719Z",
+      "size_in_bytes": 137170574
+    },
+    {
+      "id": 10563118085,
+      "ref": "refs/heads/main",
+      "key": "gradle-build-cache-v2-2e04525580316682b73725a5dc4e5822",
+      "version": "07e3ed3ecd228fa2517b71b658f437a8a30f66c57f5c4855fda1b8fe1666ed59",
+      "last_accessed_at": "2026-11-15T18:27:20.810201Z",
+      "created_at": "2026-11-15T18:27:20.810201Z",
+      "size_in_bytes": 113664464
+    },
+    {
+      "id": 10563117607,
+      "ref": "refs/heads/main",
+      "key": "gradle-generated-gradle-jars-v2-8e79c31f3eb4e570a88142dd102a0a2f",
+      "version": "3c74af4fc072d4a8d4e7ab03b2ba1a421fcf012672e059f27449445e03c10dcf",
+      "last_accessed_at": "2026-11-15T18:27:18.411892Z",
+      "created_at": "2026-11-15T18:27:18.411892Z",
+      "size_in_bytes": 41895868
+    },
+    {
+      "id": 10563118049,
+      "ref": "refs/heads/main",
+      "key": "gradle-kotlin-dsl-v2-faed87358b2879a1f1fd05ac4dfd30db",
+      "version": "8258701ccc9ce64517b00e8188533e234634f755e68563440a353ad8f29f2054",
+      "last_accessed_at": "2026-11-15T18:27:18.236449Z",
+      "created_at": "2026-11-15T18:27:18.236449Z",
+      "size_in_bytes": 514283
+    },
+    {
+      "id": 10563117941,
+      "ref": "refs/heads/main",
+      "key": "gradle-groovy-dsl-v2-ce49d92e0655026058a8e6a915477bf0",
+      "version": "442afb47616becd79896b18d86ee5a006ddc168b640702ea228a90bdb3f6ec81",
+      "last_accessed_at": "2026-11-15T18:27:17.869641Z",
+      "created_at": "2026-11-15T18:27:17.869641Z",
+      "size_in_bytes": 610444
+    },
+    {
+      "id": 10563117787,
+      "ref": "refs/heads/main",
+      "key": "gradle-instrumented-jars-v2-d56e5d0847befa94143c84ebe715019d",
+      "version": "4ff68880fc166bea1723f6e820e283e0fd6763c7bca74475854693616d42f46a",
+      "last_accessed_at": "2026-11-15T18:27:17.486175Z",
+      "created_at": "2026-11-15T18:27:17.486175Z",
+      "size_in_bytes": 376047
+    },
+    {
+      "id": 10563112888,
+      "ref": "refs/heads/main",
+      "key": "android-compile-pass-v1-eb4ca1bd001d3406768fc393b688bb1c6668882a24900caa6cd92fcaad8512c0",
+      "version": "2c4df68c300e3071131806f6d9a67c2aec10f2c030cb87be75cbd83699890639",
+      "last_accessed_at": "2026-11-15T18:27:06.815783Z",
+      "created_at": "2026-11-15T18:27:06.815783Z",
+      "size_in_bytes": 232
+    },
+    {
+      "id": 10563111377,
+      "ref": "refs/heads/main",
+      "key": "ccache-android-release-4b59a6714d0105240094823a4527cf02559cb624a9b91d251ff3e79b68135722-compile",
+      "version": "b97fbe098767aae2aa5efb5d4f8da4e488678a6aaf72931965bfb19f3ef9e00a",
+      "last_accessed_at": "2026-11-15T18:27:05.765663Z",
+      "created_at": "2026-11-15T18:27:05.765663Z",
+      "size_in_bytes": 82269252
+    },
+    {
+      "id": 10543842144,
+      "ref": "refs/heads/main",
+      "key": "node-cache-Linux-x64-npm-4b59a6714d0105240094823a4527cf02559cb624a9b91d251ff3e79b68135722",
+      "version": "04d00cc68e25ee34fd8b04095d0a46a28244d98af53e6925e47ed311d487b1d6",
+      "last_accessed_at": "2026-11-15T18:24:34.299873Z",
+      "created_at": "2026-11-15T04:34:26.480500Z",
+      "size_in_bytes": 485151362
+    },
+    {
+      "id": 10562979587,
+      "ref": "refs/heads/main",
+      "key": "workspace-unit-73584e8394659d991d0dc952-095ca005d57a889ee284a950",
+      "version": "f03ecf0bfd94ab7f481735310b8310a24fe64c06f2786157b0abab9126008115",
+      "last_accessed_at": "2026-11-15T18:22:04.953028Z",
+      "created_at": "2026-11-15T18:22:04.953028Z",
+      "size_in_bytes": 158988
+    },
+    {
+      "id": 10562979285,
+      "ref": "refs/heads/main",
+      "key": "mobile-unit-aa21e5135c7ec24d22e4dc63-095ca005d57a889ee284a950",
+      "version": "20bd23d72477f46e46da792a6ad3bea041103fa2e8a4a524c2cc8d6979e39daf",
+      "last_accessed_at": "2026-11-15T18:22:04.312436Z",
+      "created_at": "2026-11-15T18:22:04.312436Z",
+      "size_in_bytes": 203933
+    },
+    {
+      "id": 10562978948,
+      "ref": "refs/heads/main",
+      "key": "web-unit-98bc63222ea24539840ae706-095ca005d57a889ee284a950",
+      "version": "bb8d13d2fa6b8b3193aab7d30bb4f07ae10386c648071c0833560bcf6241a220",
+      "last_accessed_at": "2026-11-15T18:22:03.644166Z",
+      "created_at": "2026-11-15T18:22:03.644166Z",
+      "size_in_bytes": 226063
+    },
+    {
+      "id": 10562937834,
+      "ref": "refs/heads/main",
+      "key": "v0-rust-desktop-x86_64-pc-windows-msvc-Windows_NT-x64-8bca1467-b3672f0d",
+      "version": "f6c25e9f9d4889b4e0ee6c770e94ebc68ccc6800e3d7b919161d72a395334923",
+      "last_accessed_at": "2026-11-15T18:20:28.981139Z",
+      "created_at": "2026-11-15T18:20:28.981139Z",
+      "size_in_bytes": 981521833
+    },
+    {
+      "id": 10562876729,
+      "ref": "refs/heads/main",
+      "key": "codeql-overlay-base-database-1-14bfe9eef27ba5b2-javascript-2.27.4-0134c198b477f3f84f8a21c0049075ee595e94dc-43744653594-1",
+      "version": "d96c176a7c72d361c40b4e5bcab0abec796173d7f00eca68f52f8039917812e4",
+      "last_accessed_at": "2026-11-15T18:18:15.855039Z",
+      "created_at": "2026-11-15T18:18:15.855039Z",
+      "size_in_bytes": 846025219
+    },
+    {
+      "id": 10562838051,
+      "ref": "refs/heads/main",
+      "key": "v0-rust-desktop-aarch64-pc-windows-msvc-Windows_NT-x64-8bca1467-b3672f0d",
+      "version": "f6c25e9f9d4889b4e0ee6c770e94ebc68ccc6800e3d7b919161d72a395334923",
+      "last_accessed_at": "2026-11-15T18:17:03.333873Z",
+      "created_at": "2026-11-15T18:17:03.333873Z",
+      "size_in_bytes": 981305340
+    },
+    {
+      "id": 10562749065,
+      "ref": "refs/heads/main",
+      "key": "v0-rust-desktop-aarch64-apple-darwin-Darwin-arm64-2578a068-b3672f0d",
+      "version": "c3e0966fa1287b5bb3b38546b8948690cec96eeb37be8ab8eab05a0b35711e76",
+      "last_accessed_at": "2026-11-15T18:13:35.789842Z",
+      "created_at": "2026-11-15T18:13:35.789842Z",
+      "size_in_bytes": 800541620
+    },
+    {
+      "id": 10562736902,
+      "ref": "refs/heads/main",
+      "key": "v0-rust-desktop-x86_64-apple-darwin-Darwin-arm64-2578a068-b3672f0d",
+      "version": "c3e0966fa1287b5bb3b38546b8948690cec96eeb37be8ab8eab05a0b35711e76",
+      "last_accessed_at": "2026-11-15T18:13:10.985558Z",
+      "created_at": "2026-11-15T18:13:10.985558Z",
+      "size_in_bytes": 799519690
+    },
+    {
+      "id": 10562613085,
+      "ref": "refs/heads/main",
+      "key": "Linux-playwright-chromium-1.64.1",
+      "version": "b11b119dfd10565044882f81f06d3a75b1602bec6f8658ac905dd63583b2a885",
+      "last_accessed_at": "2026-11-15T18:08:44.916550Z",
+      "created_at": "2026-11-15T18:08:44.916550Z",
+      "size_in_bytes": 293240974
+    },
+    {
+      "id": 10562608247,
+      "ref": "refs/heads/main",
+      "key": "Linux-next-hermetic-4b59a6714d0105240094823a4527cf02559cb624a9b91d251ff3e79b68135722",
+      "version": "a208c2d603458bca1573234de879186565d10eb669eec9052beeaa79f3ae8c3e",
+      "last_accessed_at": "2026-11-15T18:08:34.754230Z",
+      "created_at": "2026-11-15T18:08:34.754230Z",
+      "size_in_bytes": 153169227
+    },
+    {
+      "id": 10562587707,
+      "ref": "refs/heads/main",
+      "key": "Linux-turbo-type-check-0134c198b477f3f84f8a21c0049075ee595e94dc",
+      "version": "4bf656610634b44be64be564991bfa8c636cbe7132a45a5e69a057c0b9f9464c",
+      "last_accessed_at": "2026-11-15T18:07:48.578034Z",
+      "created_at": "2026-11-15T18:07:48.578034Z",
+      "size_in_bytes": 4404
+    },
+    {
+      "id": 10547005118,
+      "ref": "refs/heads/main",
+      "key": "Windows-nsis-tools-eeb700339e702a0716dac018aaf71c02155fa2924ca4d9093fdb2028734aacff",
+      "version": "7cca3d5e92d455dcc580dc36bda8a611fb2a910fb57f3f4027424038c002c3ce",
+      "last_accessed_at": "2026-11-15T18:07:16.890325Z",
+      "created_at": "2026-11-15T07:26:53.009330Z",
+      "size_in_bytes": 1854661
+    },
+    {
+      "id": 10547081374,
+      "ref": "refs/heads/main",
+      "key": "Windows-windows-app-sdk-x86_64-pc-windows-msvc-e37f2d79b1868fa543a74b18e7011fbfb5ca88950ac6d8926f63620f26826771",
+      "version": "19fd7ed206f38a3c9cc5597ad5f0d078ad35779d3140dd29e90f4d9df1d03dc7",
+      "last_accessed_at": "2026-11-15T18:07:14.608490Z",
+      "created_at": "2026-11-15T07:31:09.554658Z",
+      "size_in_bytes": 191386980
+    },
+    {
+      "id": 10561188435,
+      "ref": "refs/heads/main",
+      "key": "Linux-turbo-type-check-e590374a82871f6628b5d0caf203785294541abc",
+      "version": "4bf656610634b44be64be564991bfa8c636cbe7132a45a5e69a057c0b9f9464c",
+      "last_accessed_at": "2026-11-15T18:06:57.278897Z",
+      "created_at": "2026-11-15T17:14:34.766635Z",
+      "size_in_bytes": 3775
+    },
+    {
+      "id": 10544336155,
+      "ref": "refs/heads/main",
+      "key": "node-cache-macOS-arm64-npm-4b59a6714d0105240094823a4527cf02559cb624a9b91d251ff3e79b68135722",
+      "version": "20746cfc6fd6e9aa134aef50a98d5dbdb408c67c38370705a515acf8273b8a5b",
+      "last_accessed_at": "2026-11-15T18:06:35.180238Z",
+      "created_at": "2026-11-15T05:01:19.154290Z",
+      "size_in_bytes": 466664798
+    },
+    {
+      "id": 10547005641,
+      "ref": "refs/heads/main",
+      "key": "Windows-windows-app-sdk-aarch64-pc-windows-msvc-e37f2d79b1868fa543a74b18e7011fbfb5ca88950ac6d8926f63620f26826771",
+      "version": "19fd7ed206f38a3c9cc5597ad5f0d078ad35779d3140dd29e90f4d9df1d03dc7",
+      "last_accessed_at": "2026-11-15T18:06:24.681542Z",
+      "created_at": "2026-11-15T07:26:55.970584Z",
+      "size_in_bytes": 261889203
+    },
+    {
+      "id": 10562535328,
+      "ref": "refs/heads/main",
+      "key": "ubuntu-24.04-x64-ndk-v1-27.1.12297006",
+      "version": "ef8504615d117732fabf0e9b29a10b5f6abe0309d26e2dbdb6e183734a8a3034",
+      "last_accessed_at": "2026-11-15T18:06:02.073587Z",
+      "created_at": "2026-11-15T18:06:02.073587Z",
+      "size_in_bytes": 616883566
+    },
+    {
+      "id": 10562501379,
+      "ref": "refs/heads/main",
+      "key": "Linux-turbo-cli-2.11.10",
+      "version": "4a808422e979df162862299540600e5974e9f1fbc9e13bb327b21be0c81227f2",
+      "last_accessed_at": "2026-11-15T18:05:54.800471Z",
+      "created_at": "2026-11-15T18:04:43.717383Z",
+      "size_in_bytes": 20873951
+    },
+    {
+      "id": 10547019289,
+      "ref": "refs/heads/main",
+      "key": "node-cache-Windows-x64-npm-05cdebda6154c21e7c515f11be63288f06377a4d2ee04ff05954bdde736ab0c5",
+      "version": "5d872498bb5e5b45b82b88123868c17b1ad68f6ac2d6ca194037d636acb7fa90",
+      "last_accessed_at": "2026-11-15T18:05:00.191870Z",
+      "created_at": "2026-11-15T07:27:36.155324Z",
+      "size_in_bytes": 475288211
+    },
+    {
+      "id": 10562450685,
+      "ref": "refs/pull/2463/merge",
+      "key": "Linux-turbo-type-check-59a2d0e83b25674429c4df7a55634ad848c23322",
+      "version": "4bf656610634b44be64be564991bfa8c636cbe7132a45a5e69a057c0b9f9464c",
+      "last_accessed_at": "2026-11-15T18:02:49.288192Z",
+      "created_at": "2026-11-15T18:02:49.288192Z",
+      "size_in_bytes": 4168
+    },
+    {
+      "id": 10562381585,
+      "ref": "refs/pull/2463/merge",
+      "key": "Linux-turbo-build-59a2d0e83b25674429c4df7a55634ad848c23322",
+      "version": "4bf656610634b44be64be564991bfa8c636cbe7132a45a5e69a057c0b9f9464c",
+      "last_accessed_at": "2026-11-15T18:00:08.752714Z",
+      "created_at": "2026-11-15T18:00:08.752714Z",
+      "size_in_bytes": 337173210
+    },
+    {
+      "id": 10562333136,
+      "ref": "refs/pull/2463/merge",
+      "key": "Linux-next-hermetic-4b59a6714d0105240094823a4527cf02559cb624a9b91d251ff3e79b68135722-59a2d0e83b25674429c4df7a55634ad848c23322",
+      "version": "a208c2d603458bca1573234de879186565d10eb669eec9052beeaa79f3ae8c3e",
+      "last_accessed_at": "2026-11-15T17:58:16.678907Z",
+      "created_at": "2026-11-15T17:58:16.678907Z",
+      "size_in_bytes": 153453196
+    },
+    {
+      "id": 10561216706,
+      "ref": "refs/heads/main",
+      "key": "Linux-turbo-build-e590374a82871f6628b5d0caf203785294541abc",
+      "version": "4bf656610634b44be64be564991bfa8c636cbe7132a45a5e69a057c0b9f9464c",
+      "last_accessed_at": "2026-11-15T17:57:18.816053Z",
+      "created_at": "2026-11-15T17:15:39.877996Z",
+      "size_in_bytes": 280934802
+    }
+  ]
+}

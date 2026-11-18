@@ -119,7 +119,10 @@ describe('iOS build and release boundaries', () => {
     expect(compileId).toBeTypeOf('string')
     const saveIndex = steps.findIndex((step) => step.uses === 'actions/cache/save@v6')
     expect(saveIndex).toBeGreaterThan(compileIndex)
-    expect(steps[saveIndex]?.if).toBe(`\${{ always() && steps.${compileId}.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.${cache.id}.outputs.cache-hit != 'true' }}`)
+    const cleanBeforeSave = steps[saveIndex - 1]
+    expect(cleanBeforeSave?.id).toBe('evict')
+    expect(cleanBeforeSave?.if).toBe(`\${{ always() && steps.${compileId}.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.${cache.id}.outputs.cache-hit != 'true' }}`)
+    expect(steps[saveIndex]?.if).toBe('${{ always() && steps.evict.outcome == \'success\' }}')
     const primaryKey = `steps.${cache.id}.outputs.cache-primary-key`
     expect(steps[saveIndex]?.with).toEqual({
       path: cache.with?.path,

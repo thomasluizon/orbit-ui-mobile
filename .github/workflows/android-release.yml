@@ -259,16 +259,11 @@ jobs:
           android: false
 
       - uses: actions/setup-node@v7
-        env:
-          # Bound stalled cache segments so npm ci can continue with a cold cache.
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            apps/mobile/package.json
-            packages/shared/package.json
+          package-manager-cache: false
+
+      - uses: ./.github/actions/restore-npm-cache
 
       - uses: actions/setup-java@v6
         with:
@@ -281,10 +276,13 @@ jobs:
       # gradle/actions documents that its caching interferes with setup-java's, so
       # `cache: gradle` above is deliberately gone rather than kept alongside:
       # https://github.com/gradle/actions/blob/main/docs/setup-gradle.md
-      # Its default writes the cache only from main, so an internal release of a branch reads the main entries
-      # without adding a branch entry to the full repository cache.
+      # Read-only on every ref: Mobile Android Build is the only writer of the Gradle entries on main. A release
+      # entry has other content hashes in the same key family, so the cache sweep would keep it as the newest
+      # and delete the entries that Mobile Android Build restores.
       - name: Set up Gradle with dependency and build caching
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: true
 
       - name: Install dependencies from the lockfile
         run: npm ci --prefer-offline --no-audit --fund=false
@@ -294,7 +292,7 @@ jobs:
         working-directory: apps/mobile
         # EXPO_OFFLINE makes the check read the installed expo/bundledNativeModules.json, not the Expo API,
         # so a new Expo patch release cannot fail a release of an unchanged lockfile.
-        run: EXPO_OFFLINE=1 npx expo install --check
+        run: EXPO_OFFLINE=1 ../../node_modules/.bin/expo install --check
 
       - name: Set Expo app version
         working-directory: apps/mobile
@@ -378,7 +376,7 @@ jobs:
 
           echo "Prebuild API base: ${EXPO_PUBLIC_API_BASE}"
 
-          npx expo prebuild --platform android --no-install
+          ../../node_modules/.bin/expo prebuild --platform android --no-install
 
       - name: Configure Android release signing
         working-directory: apps/mobile
@@ -416,14 +414,19 @@ jobs:
       # stale entry should be missed rather than reused. run_id keeps each run's cache
       # unique to write, with restore-keys falling back to the newest compatible one.
       - name: Restore the ccache directory
+        id: compiler-cache
         if: env.CCACHE_AVAILABLE == 'true'
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ccache
           key: ccache-android-release-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}
           restore-keys: |
             ccache-android-release-${{ hashFiles('package-lock.json') }}-
             ccache-android-release-
+
+      # The stamp follows the restore, so every restored object is older than it.
+      - name: Record the start of the compiler cache use
+        run: echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"
 
       # CMake initializes CMAKE_<LANG>_COMPILER_LAUNCHER from the environment variable
       # of the same name, so routing the NDK compiles through ccache needs no change to
@@ -458,6 +461,40 @@ jobs:
             echo "ccache statistics for this build:"
             ccache --show-stats
           fi
+
+      # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. The
+      # save step after it runs when the build passes, so the entry of each run holds only the objects of this build and
+      # does not grow from one release to the next.
+      # The step names the saved directory, and the save is the next step. It removes each path that is not in the
+      # layout of ccache 4.9.1 and 4.14.2: the 16 object directories, their one-character subdirectories, the stats
+      # and CACHEDIR.TAG files, and the object files. The save runs only when this step passes, so no saved entry
+      # holds a log, a lock, a configuration file or a file that another step writes.
+      # A ccache problem must not fail the release. With continue-on-error, a failed step has the outcome failure and the
+      # conclusion success, and the save reads the outcome, so it still skips. Source: steps context in
+      # https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#steps-context
+      - name: Keep only the objects that this build used
+        id: evict
+        if: env.CCACHE_AVAILABLE == 'true' && steps.compiler-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          ccache --dir ~/.cache/ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+          cd ~/.cache/ccache
+          directory='^[0-9a-f](/[0-9a-f]){0,3}$'
+          file='^[0-9a-f]/(CACHEDIR\.TAG|stats|[0-9a-f]/stats|[0-9a-f](/[0-9a-f]){0,2}/([0-9a-v]{29,31}([MR]|[0-9]W)|[0-9a-f]{36,38}(_[0-9a-f]{2})?))$'
+          find . -mindepth 1 -depth -print0 | while IFS= read -r -d '' entry; do
+            layout=$file
+            if [[ -d $entry ]]; then layout=$directory; fi
+            if [[ -L $entry || ! ( -d $entry || -f $entry ) || ! ${entry#./} =~ $layout ]]; then rm -rf "$entry"; fi
+          done
+
+      # A rerun attempt has the same run id, so it finds its own key and saves nothing.
+      - name: Save the ccache directory
+        if: steps.evict.outcome == 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
 
       - name: Verify AAB signing certificate matches the upload keystore
         working-directory: apps/mobile/android
