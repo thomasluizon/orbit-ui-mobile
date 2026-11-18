@@ -488,6 +488,21 @@ it.each([
     reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
 })
 
+// A title word that no record-naming word joins asks for the retitle, so a question that asks the retitle first is read
+// as the rename, as it was before the title word of the records ("same title") was told apart from it.
+it.each([
+  ['en', 'Which four should get the new title, and which two should I delete?', renamedHalf],
+  ['en', 'Which four get the title Water - 1.18L, and which two should I delete?', renamedHalf],
+  ['en', 'Which two should I delete, and which four should get the title Water - 1.18L?', deletedHalf],
+  ['pt-BR', 'Quais quatro ficam com o título Water - 1.18L e quais dois eu apago?', renamedHalf],
+  ['pt-BR', 'Quais dois eu apago e quais quatro ficam com o título Water - 1.18L?', deletedHalf],
+])('answers a %s question that asks the retitle by a title word beside the deletion: %s', async (locale, prompt, half) => {
+  const card = completedRecordsCard(prompt, locale)
+  const answer = sameTitleCard(shown(card), cardVars(ids, locale))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, { [card.block.questions[0].id]: half }, locale))
+})
+
 // Halves of one size give a selection that names neither half, so the grader never guesses one.
 it.each([
   ['the completed records card', (prompt) => ({ card: completedRecordsCard(prompt, 'en'), trace: { calls: [] } })],

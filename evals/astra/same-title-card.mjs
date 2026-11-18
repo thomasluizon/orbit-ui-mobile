@@ -65,8 +65,10 @@ const renameVerbs = /\b(?:renam|renome|chang|mud|troc|coloc|becom|updat|atualiz)
 // Rename words of a list question only: the habits to keep are the habits to rename, and the habits a list asks a title
 // for are the habits to retitle. A yesNo question that keeps a half or names its title proposes no rename.
 const listRenameWords = /\b(?:keep|mant|title\b|titulo\b)/u
-// A title word also names the records ("the same-title habits"), so it never decides which action a both-actions question asks.
-const titleWords = /\b(?:title|titulo)\b/u
+// A title word that a record-naming word joins ("the same-title habits", "records sharing this title", "mesmo titulo")
+// describes the records, so it never decides which action a both-actions question asks. A title word that none joins
+// ("which four get the title Water - 1.18L") still asks the retitle: listRenameWords reads it.
+const recordTitleWords = /\b(?:same|mesmo|sharing|shared|compartilh\w*)[\s-]+(?:\w+[\s-]+)?(?:title|titulo)\b/u
 // A yes to a negated action, or to one of two alternatives, agrees to no one action.
 const noProposalWords = /\b(?:not|never|nothing|without|instead|rather|or|nao|nunca|nada|nem|sem|ou|em vez|ao inves)\b|n['’]t\b/u
 // Count words for one half of the six children. One, um and uma also read as a pronoun or an article, so only the digit
@@ -93,8 +95,8 @@ const askingWords = /\b(?:which|what|quais|qual|quantos|quantas)\b/u
 // questions are the sentences that end with ?, else the whole text. So "Leaving 4 to rename, which 2 should I delete?"
 // asks the deletion, and a comma or the "e" of "qual é" inside the asking clause does not hide the verb. Null when no
 // asking word comes before an action, when a negation or an alternative (noProposalWords) stands between the two ("Which
-// ones shouldn't I delete?"), and when a title word stands at or before the action ("Which of the same-title habits
-// should I delete?"): the case reports a grader limit, never a guessed half.
+// ones shouldn't I delete?"), and when a record-titling phrase stands at or before the action ("Which of the same-title
+// habits should I delete?"): the case reports a grader limit, never a guessed half.
 function askedAction(text) {
   const questions = text.split(sentenceEnd).filter((sentence) => sentence.trim().endsWith('?'))
   for (const question of questions.length ? questions : [text]) {
@@ -104,7 +106,7 @@ function askedAction(text) {
     if (!action) continue
     // A negation before the asked action ("Which ones shouldn't I delete?") asks the other half: never guess it.
     const actionAt = firstAt(asked, action === 'deleted' ? [deletionWords] : [renameVerbs, listRenameWords])
-    const titleAt = asked.search(titleWords)
+    const titleAt = asked.search(recordTitleWords)
     return noProposalWords.test(asked.slice(0, actionAt)) || (titleAt >= 0 && titleAt <= actionAt) ? null : action
   }
   return null

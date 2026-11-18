@@ -844,8 +844,10 @@ four, pick the two to delete.", the case fails with a grader limit: the grader n
 The same holds when a negation or an alternative (`not`, `n't`, `never`, `or`, `instead`, `without`, `não`, `nunca`, `ou`,
 `sem`) stands between the asking word and that action, as in "Which ones shouldn't I delete? Those get renamed.": the
 question asks for the other half.
-The same holds when a title word (`title`, `título`) stands at or before that action, as in "Which of the same-title
-habits should I delete?": a title word names the records and never asks for a rename.
+The same holds when a title word (`title`, `título`) that a record-naming word joins (`same`, `mesmo`, `sharing`,
+`shared`, `compartilh…`) stands at or before that action, as in "Which of the same-title habits should I delete?": that
+phrase describes the records and does not ask for a rename. A title word that no such word joins asks for the retitle:
+"Which four get the title Water - 1.18L, and which two should I delete?" asks the rename first.
 A count only confirms the action that its clause names. In a list question, `keep` and
 `manter` are rename words, because the records to keep are the records to rename. When the question tells neither, or
 the two signals disagree, the case fails with a message that names a grader limit, not a model fault. A `yesNo`
