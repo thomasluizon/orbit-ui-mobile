@@ -3615,8 +3615,10 @@ T("progress: --remaining reads the open board in dependency order and the open p
   linksPullRequestsToTickets: progressSkill.includes("`Tracks #<ticket-number>` or `Tracks <ticket-repository>#<ticket-number>`"),
   linksByTheHeadBranch: progressSkill.includes("`headRefName` carries `ticket-<ticket-number>`") && progressSkill.includes("`tools/run-status.mjs`"),
   neverLinksByABareNumber: !/names that ticket/.test(progressSkill) && /Any other number in a title or body is a reference, not a\s+link/.test(progressSkill),
+  headBranchWinsOverTracks: /A pull request builds one ticket\. When its\s+`headRefName` carries/.test(progressSkill) && /Only a head that names no ticket links\s+by its first `Tracks` line/.test(progressSkill),
+  laterTracksLineNamesTheEffort: /A later `Tracks` line names the effort the ticket belongs to, not a ticket this pull request\s+builds/.test(progressSkill),
   usesNoWindow: /--remaining`[^\n]*\bno window\b/.test(progressSkill),
-}, { isAnArgument: true, readsTheBoardPlan: true, ordersByDependency: true, claimsNoBoardOrder: true, saysWhenTheBoardIsIncomplete: true, readsTicketBodies: true, linksPullRequestsToTickets: true, linksByTheHeadBranch: true, neverLinksByABareNumber: true, usesNoWindow: true })
+}, { isAnArgument: true, readsTheBoardPlan: true, ordersByDependency: true, claimsNoBoardOrder: true, saysWhenTheBoardIsIncomplete: true, readsTicketBodies: true, linksPullRequestsToTickets: true, linksByTheHeadBranch: true, neverLinksByABareNumber: true, headBranchWinsOverTracks: true, laterTracksLineNamesTheEffort: true, usesNoWindow: true })
 
 /**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by

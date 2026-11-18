@@ -309,10 +309,13 @@ Read live state:
    gains, with `gh issue view <ticket-number> --repo <ticket-repository> --json title,body`. The
    ticket repository is `tickets.repository` in `.claude/orchestrator.json`.
 3. Read the open pull requests of every configured repository with the step 5 listing of the
-   window report, plus the `body` field. A pull request builds a ticket when its body has a
-   `Tracks` line for it, as `Tracks #<ticket-number>` or `Tracks <ticket-repository>#<ticket-number>`,
-   or its `headRefName` carries `ticket-<ticket-number>` or the `orb-<n>` of the ticket, as
-   `tools/run-status.mjs` reads it. Any other number in a title or body is a reference, not a
+   window report, plus the `body` field. A pull request builds one ticket. When its
+   `headRefName` carries `ticket-<ticket-number>` or the `orb-<n>` of the ticket, as
+   `tools/run-status.mjs` reads it, that is the ticket. Only a head that names no ticket links
+   by its first `Tracks` line, as `Tracks #<ticket-number>` or `Tracks <ticket-repository>#<ticket-number>`.
+   A later `Tracks` line names the effort the ticket belongs to, not a ticket this pull request
+   builds. A ticket that only a later `Tracks` line names is not built: it waits for the tickets
+   that those pull requests build. Any other number in a title or body is a reference, not a
    link. The pull request proves that work started. The board `state` does not: a ticket in
    `Todo` can have an open pull request.
 
