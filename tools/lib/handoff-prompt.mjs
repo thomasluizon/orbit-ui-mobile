@@ -106,6 +106,42 @@ const promptOpening = (lines) => {
 /** The spec paths named before the prompt's first `##` heading. */
 export const openingSpecPaths = (text) => [...new Set(promptOpening(String(text ?? "").split("\n")).match(SPEC_PATH) ?? [])]
 
+const WORK_REFERENCE = /(?:\b[\w-]+)?#\d+\b/g
+const NAMED_FIRST = /(?:\b[\w-]+)?#\d+\b(?:\s+[\w-]+){0,3}?\s+(?:FIRST\b|first\b(?=\s*(?:$|[,:)!\]]|then\b|and\b)))/
+// `landing` is a repository key and a page name here, so it never counts as an order.
+const MERGE_ORDER = /\b(?:merge|merges|merging|land|lands|ship|ships|hold|holds)\b/i
+const AHEAD_WORD = /\b(?:before|ahead of)\b/i
+const SETTLED_ORDER = /\b(?:superseded|done)\b/i
+
+/** One item merges before or ahead of the next one, or an order before it holds it until the next one. */
+const ordersPair = (clause, first, next) => {
+  const leading = clause.slice(0, first.index)
+  const between = clause.slice(first.index + first[0].length, next.index)
+  const ahead = AHEAD_WORD.exec(between)
+  if (ahead) return MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(0, ahead.index))
+  return /\buntil\b/i.test(between) && MERGE_ORDER.test(leading)
+}
+
+/**
+ * Each clause that orders one item of work ahead of another: `X FIRST`, a merge of one item before or
+ * ahead of another, or a hold of one item until another. A line that gives the order as superseded or
+ * done orders nothing, and a past merge is a fact.
+ */
+export const orderingHolds = (text) => {
+  const holds = []
+  for (const line of String(text ?? "").split("\n")) {
+    if (SETTLED_ORDER.test(line)) continue
+    for (const clause of line.split(/[.;](?:\s|$)/)) {
+      const named = NAMED_FIRST.exec(clause)
+      const references = [...clause.matchAll(WORK_REFERENCE)]
+      const ordered = references.slice(1).some((next, index) => ordersPair(clause, references[index], next))
+      const hold = named ? clause.slice(0, named.index + named[0].length) : ordered ? clause : null
+      if (hold !== null) holds.push(hold.replace(/^[\s>*+-]+/, "").trim())
+    }
+  }
+  return holds
+}
+
 /**
  * Every requirement the prompt misses; `sleep` true or false adds that mode's rules, undefined checks only the shared ones.
  * `specVersions(path)` returns each version of a named spec that the caller would publish; omitted, no spec size is read.
@@ -131,6 +167,9 @@ export const validateHandoffPrompt = (text, { sleep, crank, autoWork, specVersio
     const body = sectionBody(lines, "## Crank")
     if (body === null || !/(?:^|[\s`(])\/crank(?=$|[\s`),;.!?])/.test(body)) {
       missing.push("a `## Crank` section whose body invokes `/crank` immediately after `/sleep` entry")
+    }
+    for (const hold of orderingHolds(text)) {
+      missing.push(`no ordering hold under crank: remove \`${hold.slice(0, 160)}\`. A pull request at the merge bar merges when \`run-status.mjs\` reports \`MERGE_NOW\`; a real dependency is a ticket relation or a stacked base, never a prompt order`)
     }
   }
   if (openingSpecPaths(text).length === 0) missing.push("the spec path `.claude/specs/<slug>.md` before the first `##` heading")

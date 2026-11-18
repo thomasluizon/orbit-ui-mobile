@@ -113,6 +113,37 @@ export const cases = () => {
   T(`${UNIT}: crank implies the sleep section`, validateHandoffPrompt(crankPrompt.replace("## Sleep", "## Attended"), { crank: true }).some((item) => item.includes("## Sleep")))
   T(`${UNIT}: disabled crank permits an ordinary sleep prompt`, validateHandoffPrompt(sleepPrompt, { sleep: true, crank: false }).length === 0)
 
+  const withInFlight = (line) => crankPrompt.replace("## In flight\n\nnone", `## In flight\n\n${line}`)
+  const holdsOf = (line, modes = { crank: true }) => validateHandoffPrompt(withInFlight(line), modes).filter((item) => item.includes("ordering hold"))
+  for (const [label, line, quoted] of [
+    ["an item named FIRST", "- ui#2486 FIRST, then the other approved pull requests", "ui#2486 FIRST"],
+    ["a lower-case first at the end of a clause", "- merge ui#2486 first, then ui#2488", "merge ui#2486 first"],
+    ["a merge before another item", "- Merge ui#2486 before ui#2488.", "Merge ui#2486 before ui#2488"],
+    ["a merge held until another item", "- Do not merge ui#2488 until ui#2486 merges", "Do not merge ui#2488 until ui#2486 merges"],
+    ["an item that lands ahead of another", "- api#412 must land ahead of ui#2488", "api#412 must land ahead of ui#2488"],
+    ["a hold behind another item", "- Hold ui#2488 until ui#2486 is in main, then merge", "Hold ui#2488 until ui#2486 is in main, then merge"],
+  ]) {
+    const refused = holdsOf(line)
+    T(`${UNIT}: crank refuses ${label}`, refused.length === 1 && refused[0].includes(`\`${quoted}\``) && refused[0].includes("MERGE_NOW"), JSON.stringify(refused))
+    T(`${UNIT}: the same prompt with ${label} passes without crank`, validateHandoffPrompt(withInFlight(line), { sleep: true, crank: false }).length === 0 && holdsOf(line, { sleep: true }).length === 0)
+  }
+  T(`${UNIT}: crank accepts the prompt once the ordering hold is gone`, validateHandoffPrompt(withInFlight("- ui#2486: approved, CI green\n- ui#2488: approved, CI green"), { crank: true }).length === 0)
+  T(`${UNIT}: crank names each ordering hold once per line`, holdsOf("- ui#2486 FIRST\n- merge ui#2490 before ui#2491").length === 2)
+  for (const [label, line] of [
+    ["an ordinal that is not an order", "- ui#2486 is the first of three pull requests of #2074"],
+    ["a first line of a ticket", "- ui#2486: the first review round ended"],
+    ["a retarget before the parent branch is deleted", "- Retarget ui#2488 to main before the branch of ui#2486 is deleted"],
+    ["a fact about a later round", "- ui#2484: review round 2 after the fix of #2146"],
+    ["a past merge", "- ui#2486 merged before ui#2488 was approved"],
+    ["a superseded order", "- `ui#2486 FIRST`: superseded, crank holds no ready work"],
+    ["a finished order", "- merge ui#2486 before ui#2488: done, both merged"],
+    ["a merge bar wait", "- ui#2488: wait for the review check, then merge"],
+    ["a pull request named with its ticket", "- ui#2484 (#2146): wait for CI before the merge"],
+    ["a ticket that stays open until its pull request merges", "- `#1628` stays open until `ui#1959` merges and a later build carries it"],
+  ]) {
+    T(`${UNIT}: crank accepts ${label}`, holdsOf(line).length === 0, JSON.stringify(holdsOf(line)))
+  }
+
   const repoRoot = join(root, "handoff-prompt", "checkout")
   mkdirSync(join(repoRoot, ".git"), { recursive: true })
   T(`${UNIT}: an unrecorded session reads as no request`, readHandoffRequest("s1", repoRoot) === null)
