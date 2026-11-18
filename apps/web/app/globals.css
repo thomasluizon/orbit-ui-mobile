@@ -1852,7 +1852,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: -4px;
 }
 
-@keyframes today-astra-sentence-in {
+@keyframes today-orbit-sentence-in {
   from { opacity: 0; }
 }
 

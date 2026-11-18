@@ -68,7 +68,7 @@ describe('Android Orbit line on Hoje', () => {
     mocks.profile = { ...mocks.profile, aiMessagesUsed: 5 }
     const tree = await renderLine()
     expect(probe(tree).state).toBe('descansando')
-    expect(row(tree).props.accessibilityLabel).toBe('todayAstra.limit')
+    expect(row(tree).props.accessibilityLabel).toBe('conversation.restLimit')
   })
 
   it('shows the sentence with no count of days for a gap beyond the window, as a link to Progresso', async () => {

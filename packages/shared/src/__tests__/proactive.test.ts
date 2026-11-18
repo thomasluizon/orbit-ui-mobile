@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getProactiveActionReason, getTodayAstraLine, getTodayAstraSlot, proactiveActionLabelKey } from '../utils/proactive'
+import { getProactiveActionReason, getTodayAstraLine, getTodayAstraSlot, getTodayOrbitRest, proactiveActionLabelKey } from '../utils/proactive'
 import { createMockProactiveItem } from './factories'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
@@ -59,10 +59,29 @@ describe('today Astra line', () => {
 describe('the sentences of the Orbit line while it rests', () => {
   it.each([
     ['en offline', en.todayAstra.offline], ['pt-BR offline', ptBR.todayAstra.offline],
-    ['en limit', en.todayAstra.limit], ['pt-BR limit', ptBR.todayAstra.limit],
+    ['en limit', en.conversation.restLimit], ['pt-BR limit', ptBR.conversation.restLimit],
   ])('writes the %s reason as one sentence', (_name, sentence) => {
     expect(sentence.match(/[.!?]/gu)).toEqual(['.'])
     expect(sentence.endsWith('.')).toBe(true)
+  })
+})
+
+describe('when the AI rests on Hoje', () => {
+  const available = { isOnline: true, aiMessagesUsed: 0, aiMessagesLimit: 5, hasProAccess: false }
+
+  it.each([
+    [{ isOnline: false }, 'todayAstra.offline'],
+    [{ aiMessagesUsed: 5 }, 'conversation.restLimit'],
+    [{ aiMessagesUsed: undefined, aiMessagesLimit: undefined, hasProAccess: true }, null],
+    [{ aiMessagesUsed: 50, aiMessagesLimit: undefined, hasProAccess: true }, 'conversation.restLimit'],
+    [{ aiMessagesUsed: 4 }, null],
+  ] as const)('returns the reason for %j', (state, reason) => {
+    expect(getTodayOrbitRest({ ...available, ...state })).toBe(reason)
+  })
+
+  it.each([['en', en], ['pt-BR', ptBR]] as const)('holds every reason key in the %s file', (_locale, words) => {
+    expect(words.todayAstra.offline).toBeTruthy()
+    expect(words.conversation.restLimit).toBeTruthy()
   })
 })
 

@@ -18,7 +18,7 @@ const RECENT_DAY_COUNTS = [1, 2, 3, 4, 5, 6, 7]
 
 function orbitLineSentences(words: typeof en, locale: string): string[] {
   return [
-    words.todayAstra.offline, words.todayAstra.limit, words.todayAstra.returningElapsed,
+    words.todayAstra.offline, words.conversation.restLimit, words.todayAstra.returningElapsed,
     words.summary.freePrompt, words.summary.error, words.habits.detail.askAstra,
     ...RECENT_DAY_COUNTS.map((done) => String(new IntlMessageFormat(words.habits.detail.orbit.lastSevenDays, locale).format({ done }))),
   ]

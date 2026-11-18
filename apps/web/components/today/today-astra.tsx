@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { getReturningInterval, getTodayAstraRest, getTodayAstraSlot } from '@orbit/shared/utils'
+import { getReturningInterval, getTodayOrbitRest, getTodayAstraSlot } from '@orbit/shared/utils'
 import { useFlag } from '@/hooks/use-flag'
 import { useOffline } from '@/hooks/use-offline'
 import { useProactiveItem } from '@/hooks/use-proactive-item'
@@ -22,7 +22,7 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
   const { item: proactive, openItem } = useProactiveItem()
   const guided = useFlag('orbit_guided_flows')
   const { isOnline } = useOffline()
-  const rest = guided ? getTodayAstraRest({ isOnline, aiMessagesUsed: profile?.aiMessagesUsed, aiMessagesLimit: profile?.aiMessagesLimit, hasProAccess: profile?.hasProAccess }) : null
+  const rest = guided ? getTodayOrbitRest({ isOnline, aiMessagesUsed: profile?.aiMessagesUsed, aiMessagesLimit: profile?.aiMessagesLimit, hasProAccess: profile?.hasProAccess }) : null
   const line = getTodayAstraSlot({
     isTodaySelected, inDrillOrSurface: suppressed, item: proactive, guided,
     returning: getReturningInterval(profile?.lastCompletionDate, profile?.timeZone),

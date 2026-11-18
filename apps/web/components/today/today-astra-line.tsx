@@ -25,7 +25,7 @@ interface TodayAstraLineProps {
   mascotRef?: Ref<HTMLSpanElement>
 }
 
-const SENTENCE_CHANGE = `today-astra-sentence-in ${motionDurations.micro}ms cubic-bezier(${motionEasings.standard.join(', ')})`
+const SENTENCE_CHANGE = `today-orbit-sentence-in ${motionDurations.micro}ms cubic-bezier(${motionEasings.standard.join(', ')})`
 
 function useSentenceChanged(text: string): boolean {
   const [first] = useState(text)

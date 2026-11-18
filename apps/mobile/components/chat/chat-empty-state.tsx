@@ -10,7 +10,7 @@ interface ChatEmptyStateProps {
   styles: ChatStyles;
   browseAction?: ReactElement;
   mascotState?: EmptyStateProps["mascotState"];
-  restReason?: "todayAstra.offline" | "todayAstra.limit" | null;
+  restReason?: "todayAstra.offline" | "conversation.restLimit" | null;
 }
 
 /** The empty thread. With the guided flows on, a thread that rests (offline or at the message limit) gives the reason in one Orbit line under Orbit. */

@@ -13,6 +13,7 @@ import type { CreateGoalRequest } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
 import { getOnboardingLoginUrl } from '@/lib/onboarding-login-route'
+import { buildConversationEntryHref } from '@/lib/conversation-entry-query'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useBulkCreateHabits } from '@/hooks/use-bulk-create-habits'
 import { useCreateHabit } from '@/hooks/use-create-habit'
@@ -217,7 +218,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
             t('onboarding.flow.meetAstra.importPrompt'),
           )
         }
-        router.push('/?astra=open')
+        router.push(buildConversationEntryHref('open'))
       },
     }),
     [bulkCreateHabits, createGoal, createHabit, logHabit, queryClient, recordCompletion, router, showPersistentError, t, updateHabit],

@@ -368,8 +368,8 @@ describe('conversationMascotState', () => {
   it.each([
     [{ isOnline: true, atMessageLimit: false }, null],
     [{ isOnline: false, atMessageLimit: true }, 'todayAstra.offline'],
-    [{ isOnline: true, atMessageLimit: true }, 'todayAstra.limit'],
-    [{ isOnline: true, atMessageLimit: false, dailyBudgetReached: true }, 'todayAstra.limit'],
+    [{ isOnline: true, atMessageLimit: true }, 'conversation.restLimit'],
+    [{ isOnline: true, atMessageLimit: false, dailyBudgetReached: true }, 'conversation.restLimit'],
   ] as const)('gives the reason of the rest in the first person: %o', (state, expected) => {
     expect(conversationRestReason(state)).toBe(expected)
   })

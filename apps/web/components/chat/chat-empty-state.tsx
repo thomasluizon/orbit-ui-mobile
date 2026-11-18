@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { useFlag } from '@/hooks/use-flag'
 
 /** The empty thread. With the guided flows on, a thread that rests (offline or at the message limit) gives the reason in one Orbit line under Orbit. */
-export function ChatEmptyState({ browseAction, mascotState, restReason }: Readonly<{ browseAction?: ReactElement; mascotState?: EmptyStateProps['mascotState']; restReason?: 'todayAstra.offline' | 'todayAstra.limit' | null }>) {
+export function ChatEmptyState({ browseAction, mascotState, restReason }: Readonly<{ browseAction?: ReactElement; mascotState?: EmptyStateProps['mascotState']; restReason?: 'todayAstra.offline' | 'conversation.restLimit' | null }>) {
   const t = useTranslations()
   const guided = useFlag('orbit_guided_flows')
 

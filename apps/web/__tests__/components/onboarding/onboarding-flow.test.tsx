@@ -672,7 +672,7 @@ describe('OnboardingFlow state model', () => {
     await screen.findByTestId('pro-step')
     expect(mocks.navigate).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'enter-day' }))
-    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/?astra=open'))
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/?orbit=open'))
   })
 
   it('keeps the selected Done tab until the final step finishes', async () => {

@@ -350,8 +350,10 @@
     "returningBounded": "Você concluiu um hábito pela última vez há mais de 30 dias.",
     "viewProgress": "Ver no Progresso",
     "offline": "Preciso de conexão para conversar.",
-    "offlineLog": "Salvo neste aparelho. Eu sincronizo quando você se reconectar.",
-    "limit": "Volto quando renovarem suas mensagens de IA."
+    "offlineLog": "Salvo neste aparelho. Eu sincronizo quando você se reconectar."
+  },
+  "conversation": {
+    "restLimit": "Volto quando renovarem suas mensagens de IA."
   },
   "command": {
     "title": "O que você quer fazer",

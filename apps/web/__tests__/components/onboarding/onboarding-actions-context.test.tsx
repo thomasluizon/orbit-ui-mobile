@@ -290,7 +290,7 @@ describe('live onboarding actions', () => {
     const { result } = renderHook(() => useLiveOnboardingActions())
     result.current.onImport?.()
     expect(setItem).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'onboarding.flow.meetAstra.importPrompt')
-    expect(pushMock).toHaveBeenCalledWith('/?astra=open')
+    expect(pushMock).toHaveBeenCalledWith('/?orbit=open')
     setItem.mockRestore()
   })
 })

@@ -34,10 +34,10 @@ export function getTodayAstraLine(state: TodayAstraState, translate: TodayAstraT
 }
 
 /** The AI is absent while the device is offline or the person has used every AI message of the period. Only the Orbit line rests then: logging and every other part of Hoje keep working. */
-export function getTodayAstraRest(state: { isOnline: boolean; aiMessagesUsed: number | undefined; aiMessagesLimit: number | undefined; hasProAccess: boolean | undefined }): 'todayAstra.offline' | 'todayAstra.limit' | null {
+export function getTodayOrbitRest(state: { isOnline: boolean; aiMessagesUsed: number | undefined; aiMessagesLimit: number | undefined; hasProAccess: boolean | undefined }): 'todayAstra.offline' | 'conversation.restLimit' | null {
   if (!state.isOnline) return 'todayAstra.offline'
   const limit = state.aiMessagesLimit ?? (state.hasProAccess ? 50 : 5)
-  return (state.aiMessagesUsed ?? 0) >= limit ? 'todayAstra.limit' : null
+  return (state.aiMessagesUsed ?? 0) >= limit ? 'conversation.restLimit' : null
 }
 
 export function proactiveActionLabelKey(trigger: string): ProactiveActionLabelKey {

@@ -55,7 +55,7 @@ describe('web Orbit line on Hoje', () => {
     mocks.profile = { ...mocks.profile, aiMessagesUsed: 5 }
     const { container } = renderLine()
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'descansando')
-    expect(screen.getByRole('button', { name: 'todayAstra.limit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'conversation.restLimit' })).toBeInTheDocument()
   })
 
   it('shows the sentence with no count of days for a gap beyond the window, and it opens Progresso', () => {

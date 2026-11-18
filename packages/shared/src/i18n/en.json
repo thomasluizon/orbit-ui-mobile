@@ -350,8 +350,10 @@
     "returningBounded": "You last completed a habit over 30 days ago.",
     "viewProgress": "See it on Progress",
     "offline": "I need a connection to talk.",
-    "offlineLog": "Saved on this device. I sync it when you reconnect.",
-    "limit": "I can talk again when your AI messages renew."
+    "offlineLog": "Saved on this device. I sync it when you reconnect."
+  },
+  "conversation": {
+    "restLimit": "I can talk again when your AI messages renew."
   },
   "command": {
     "title": "What do you want to do",
