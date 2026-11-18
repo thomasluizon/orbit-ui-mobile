@@ -10,6 +10,7 @@ import { assertOutsideRepository, researchEnvironment, researchInvocation, resea
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { passLaunchGate } from "./lib/launch-gate.mjs"
+import { orderSealProblem, runNotesIn } from "./lib/run-notes.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
@@ -26,8 +27,9 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
 
   --issue <reference> migrated ORB identifier or GitHub issue reference (required)
   --worktree <path>  the existing worktree the worker runs in (required)
-  --prompt <file>    the composed work order. MUST live outside the worktree, or the worker commits
-                     it. Only its path is handed to the worker, never its text (required)
+  --prompt <file>    the work order that tools/compose-prompt.mjs wrote. MUST live outside the worktree,
+                     or the worker commits it. Only its path is handed to the worker, never its text.
+                     An order without the compose seal, or with text added after it, exits 2 (required)
   --measurement      this ticket's work IS measurement (Lighthouse, a benchmark, a profile), so it
                      legitimately writes no file for long stretches. Uses
                      timeouts.measurementNoProgressMinutes instead of noProgressMinutes. The hard
@@ -42,7 +44,9 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --fix-round <local|pullfrog>
                      this order answers a review: spend the next caps.reviewFixAttempts round of
                      the branch in the fix-rounds.mjs ledger. Required for an order that
-                     compose-prompt.mjs --review-batch wrote. --relaunch-reason never passes this cap
+                     compose-prompt.mjs --review-batch wrote. --relaunch-reason never passes this cap.
+                     The order must quote a round note for the worktree's head, posted to the ticket
+                     with tools/post-run-note.mjs --kind round-note before the order was composed
   --design-change <file>
                      the written design change that allows one fix round above caps.reviewFixAttempts
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing. The plan names
@@ -183,6 +187,11 @@ const normalize = (path) => path.replaceAll("\\", "/").replace(/\/+$/, "").toLow
 if (normalize(promptFile).startsWith(`${normalize(runDirectory)}/`)) {
   fail(2, `prompt file lives inside ${runDirectory}; a work order written into a repository gets committed. Write it to the session scratchpad instead`)
 }
+const orderText = research ? null : readFileSync(promptFile, "utf8")
+const sealProblem = research ? null : orderSealProblem(orderText)
+if (sealProblem) {
+  fail(2, `${promptFile} is not a composed order: ${sealProblem}. Build every worker order with node tools/compose-prompt.mjs; a fix round's note goes to the ticket first with node tools/post-run-note.mjs --kind round-note`)
+}
 
 const gitIn = (args) => {
   if (research) return ""
@@ -198,8 +207,11 @@ let designChange = null
 if (designChangeArgument !== null) {
   try { designChange = readDesignChange(designChangeArgument) } catch (error) { fail(2, error.message) }
 }
-if (!research && fixRoundArgument === null && readFileSync(promptFile, "utf8").includes(REVIEW_BATCH_ORDER_MARKER)) {
+if (!research && fixRoundArgument === null && orderText.includes(REVIEW_BATCH_ORDER_MARKER)) {
   fail(2, `${promptFile} is a review batch order, which is a fix round: pass --fix-round <local|pullfrog>`)
+}
+if (!research && fixRoundArgument !== null && !runNotesIn(orderText).some((note) => note.kind === "round-note" && note.head === startHead)) {
+  fail(2, `${promptFile} quotes no round note for head ${startHead}. Post the round's note to the ticket with node tools/post-run-note.mjs --kind round-note --issue ${issue} --round <n> --head ${startHead} --body-file <file>, then compose the order again`)
 }
 const fixRoundContext = { cap: config.caps.reviewFixAttempts, branch, designChange }
 /** Read before the launch slot is claimed, so a refused fix round never spends a launch. */

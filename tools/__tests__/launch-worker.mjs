@@ -7,6 +7,8 @@ import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorke
 import { cases as lifecycleCases, cleanupLifecycleLaunch, gateSignalCases, launcherResult } from "./launch-worker-lifecycle.mjs"
 import { SIGN_IN_TEXT, TRANSIENT_TEXT, limitResultLine, resultLine, signInFailureLines } from "./claude-usage-limit.mjs"
 
+import { composeRunNote, sealOrder } from "../lib/run-notes.mjs"
+
 const TOOL = "launch-worker.mjs"
 
 /**
@@ -59,13 +61,27 @@ const launch = (label, config) => {
   repo.git(["remote", "set-url", "origin", `https://github.com/test-owner/${label}.git`])
   const configured = { ...config, repos: { ...config.repos, ...stagedSiblings(config), [config.cloud.repositoryKey]: repo.path } }
   const staged = stageWithConfig(`launch-worker-${label}`, TOOL, configured)
-  return { ...staged, worktree: repo.path, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
+  return { ...staged, worktree: repo.path, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, sealOrder("the work order, verbatim\n")) }
 }
 
 /** caps.reviewFixAttempts counts every fix round of a branch, and the launch cap override never passes it. */
 const fixRoundCases = () => {
   const fixRounds = launch("fix-rounds", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLaunchesPerBranch: 1, reviewFixAttempts: 1 } }))
-  const batchPrompt = stage("launch-worker/fix-rounds-batch.md", `${REVIEW_BATCH_ORDER_MARKER}\n\nthe review batch order\n`)
+  const head = fixRounds.git(["rev-parse", "HEAD"]).stdout.trim()
+  const roundNote = (noteHead) => composeRunNote({ kind: "round-note", round: 1, head: noteHead, body: "Fix the two review findings." })
+  const batchPrompt = stage("launch-worker/fix-rounds-batch.md", sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\n${roundNote(head)}\nthe review batch order\n`))
+  const orderOptions = { path: fixRounds.path, env: githubAuthEnv() }
+  const orderArgs = (prompt) => ["--issue", "ORB-201", "--worktree", fixRounds.worktree, "--prompt", prompt, "--dry-run"]
+  check(TOOL, "an order that compose-prompt.mjs did not seal exits 2", orderArgs(stage("launch-worker/unsealed.md", "a hand-written order\n")),
+    { status: 2, stderr: /is not a composed order: it carries no seal of tools\/compose-prompt\.mjs/ }, orderOptions)
+  check(TOOL, "an order with a note appended after the seal exits 2", orderArgs(stage("launch-worker/appended.md", `${sealOrder("the composed order\n")}\n## Orchestrator note\n\nalso fix this\n`)),
+    { status: 2, stderr: /is not a composed order: it carries no seal/ }, orderOptions)
+  check(TOOL, "an order edited above its seal exits 2", orderArgs(stage("launch-worker/edited.md", sealOrder("the composed order\n").replace("composed", "edited"))),
+    { status: 2, stderr: /its text changed after tools\/compose-prompt\.mjs sealed it/ }, orderOptions)
+  check(TOOL, "a fix round whose order quotes no round note exits 2", [...orderArgs(stage("launch-worker/no-round-note.md", sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\nthe review batch order\n`))), "--fix-round", "local"],
+    { status: 2, stderr: new RegExp(`quotes no round note for head ${head}[\\s\\S]*post-run-note\\.mjs --kind round-note`) }, orderOptions)
+  check(TOOL, "a fix round whose round note answers another head exits 2", [...orderArgs(stage("launch-worker/stale-round-note.md", sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\n${roundNote("0".repeat(40))}\n`))), "--fix-round", "local"],
+    { status: 2, stderr: /quotes no round note for head/ }, orderOptions)
   const fixArgs = ["--issue", "ORB-201", "--worktree", fixRounds.worktree, "--prompt", batchPrompt]
   const fixOptions = { path: fixRounds.path, env: githubAuthEnv() }
   check(TOOL, "a review batch order without --fix-round exits 2", fixArgs, { status: 2, stderr: /is a review batch order, which is a fix round: pass --fix-round/ }, fixOptions)
@@ -795,7 +811,7 @@ export const cases = async () => {
         offArgs.every((argument) => JSON.parse(disabled.stdout).args.includes(argument)), disabled.stdout)
     }
     check(TOOL, `${name} refuses an option it does not support`, [...launchArgs, "--orbit-not-a-flag"], { status: 2, stderr: /unsupported option: --orbit-not-a-flag/ }, launchOptions)
-    writeFileSync(subagents.prompt, "## Review\nSpawn a sub-agent for every lane.\n")
+    writeFileSync(subagents.prompt, sealOrder("## Review\nSpawn a sub-agent for every lane.\n"))
     const stillDisabled = check(TOOL, `${name} prompt text alone grants no permission`, launchArgs, { status: 0 }, launchOptions)
     T(`${TOOL}: ${name} ticket text never enables sub-agents`,
       JSON.parse(stillDisabled.stdout).args.includes(offArgs[1]), stillDisabled.stdout)

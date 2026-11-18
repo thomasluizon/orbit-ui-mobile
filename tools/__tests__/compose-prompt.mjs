@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
 import { REVIEW_BATCH_ORDER_MARKER } from "../lib/run-state.mjs"
+import { orderSealProblem } from "../lib/run-notes.mjs"
 
 import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
@@ -66,6 +67,10 @@ export const cases = () => {
   )
   const prompt = composed(out)
   T(`${TOOL}: the ticket body survives composition verbatim`, prompt.startsWith("# Ticket body\n\nKeep this verbatim."), prompt.slice(0, 200) || written.stderr)
+  T(`${TOOL}: a local order carries a valid seal, and an appended note breaks it`, orderSealProblem(prompt) === null && orderSealProblem(`${prompt}\n## Orchestrator note\n`) !== null, prompt.slice(-200))
+  T(`${TOOL}: a local order carries the standing unattended rules`, prompt.includes("**Nobody answers an approval prompt.**") && prompt.includes("delete with Node") &&
+    prompt.includes("no attribution line") && prompt.includes("at most 12 lines") && prompt.includes("Spend at most 25 minutes of wall time on verification") &&
+    prompt.includes("reference a ticket with Tracks"), prompt)
   T(
     `${TOOL}: local ui delivery names the parity label and justification`,
     prompt.includes("--label parity:exempt") && prompt.includes("## Parity") &&
@@ -343,6 +348,7 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const cloudPrompt = composed(cloudOut)
+  T(`${TOOL}: a Cloud order carries no seal and no local approval rules`, orderSealProblem(cloudPrompt) !== null && !cloudPrompt.includes("Nobody answers an approval prompt"))
   const reviewCloudOut = join(root, "compose-prompt", "review-cloud.md")
   check(
     TOOL,
