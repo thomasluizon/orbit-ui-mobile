@@ -71,14 +71,16 @@ async function prepareHeldPreview(test) {
   const setup = { ...vars, ...turn, evalRequestId: randomUUID() }
   const conversation = openCaseConversation(setup)
   const held = await holdCase(setup, { conversation })
+  if (vars.offerFamily) {
+    vars.setupEvidence = { ...attemptEvidence({ response: { output: held }, testCase: { vars: setup } }, { pass: false, assertions: [] }),
+      requestId: setup.evalRequestId }
+  }
   const verdict = held.error ? { pass: false, reason: held.error } : outcome(held, { vars: setup })
   if (!verdict.pass) throw new Error(`Correction setup failed${vars.setup.caseId ? ` dependency ${vars.setup.caseId}` : ''}: ${verdict.reason}`)
   vars.baselinePreview = held.previews
   vars.conversation = conversation
   if (vars.offerFamily) {
     await prepareOfferSetup(test, held, setup)
-    vars.setupEvidence = { ...attemptEvidence({ response: { output: held }, testCase: { vars: setup } }, { pass: false, assertions: [] }),
-      requestId: setup.evalRequestId }
     conversation.context = vars.clientContext
   }
   return { test }

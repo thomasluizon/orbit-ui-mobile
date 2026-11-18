@@ -13,7 +13,7 @@ import { fixtureFetch } from './fixtures/public-api.mjs'
 import { completeOfferAttempt } from '../offer-lifecycle.mjs'
 import { configureOffers } from '../offer-context.mjs'
 import { offerSafety } from '../proactive-offers.mjs'
-import { chatResponse, habitAccountRead, toolCall, turnTiming } from './fixtures/producer.mjs'
+import { chatResponse, habitAccountRead, preview, toolCall, turnTiming } from './fixtures/producer.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { recordedGateThirteen } from './fixtures/gate-thirteen.mjs'
 
@@ -106,57 +106,55 @@ it('retains route and typed code on a non-retryable preview conflict', async () 
   expect(request).toHaveBeenCalledTimes(1)
 })
 
-it('records the failing continuation before its structural verification', async () => {
+it('records the failing continuation turn before its verification fails the lifecycle', async () => {
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline')
   const state = { habits: [], goals: [], tags: [], checklistTemplates: [] }
   vi.stubGlobal('fetch', async (url) => new URL(url).pathname === '/health'
     ? Response.json({ status: 'Healthy' }) : new URL(url).pathname === '/api/auth/refresh'
       ? refreshResponse() : Response.json(state))
-  const output = decoded([])
-  output.composition = { aiMessage: 'Hello.', parts: [{ type: 'text', text: 'Hello.' }] }
+  const text = { aiMessage: 'Hello.', parts: [{ type: 'text', text: 'Hello.' }] }
+  const output = { composition: text, answer: 'Hello.', previews: [], asked: false, questionsBeforePreview: 0 }
   const vars = { ...context.vars, credentialKey: 'ORBIT_EVAL_TOKEN', offerFamily: 'dismissal',
-    composition: { mode: 'text' }, expectations: { allowed: [] }, offerBaseline: state,
+    composition: { mode: 'text' }, outcome: { read: true }, offerBaseline: state,
     issuedOffer: { action: { offerKey: 'smallStep:account:2031-06-10' } } }
   const call = toolCall('ask', {}, 'Succeeded', 'unread-ask', clientContext)
-  const verdict = await completeOfferAttempt(output, vars, async (_input, next) => ({
-    output: { ...decoded([call]), trace: { ...decoded([call]).trace,
-      requestId: next.vars.evalRequestId, responseRequestId: next.vars.evalRequestId } },
+  // The turn holds a preview of a change, which a read turn must not hold.
+  const verdict = await completeOfferAttempt(output, vars, async (next) => ({
+    output: { ...output, previews: [preview()], composition: { ...text, pendingOperations: [preview()] },
+      trace: { state: 'available', requestId: next.evalRequestId, responseRequestId: next.evalRequestId, calls: [call] } },
   }))
   expect(verdict.pass).toBe(false)
-  expect(verdict.reason).toContain('ask requires')
+  expect(verdict.reason).toBe('The read request held a preview of a change.')
   expect(verdict.turns).toHaveLength(1)
   expect(verdict.turns[0].toolCalls[0].name).toBe('ask')
-  expect(verdict.turns[0].assertions[0]).toMatchObject({ metric: 'structural', pass: false })
+  expect(verdict.turns[0].assertions[0]).toMatchObject({ metric: 'outcome', pass: false })
   expect(verdict.turns[0].trace.requestId).toMatch(/^[0-9a-f-]{36}$/u)
   expect(verdict.turns[0].trace.responseRequestId).toBe(verdict.turns[0].trace.requestId)
 })
 
-it('exempts only the bound selected starting-step suggestion from the unsolicited-write guard', () => {
+// The selected starting step is the one block that a turn may show without a person asking for it, and the answer names no tool.
+it('exempts only the bound selected starting-step block from the unsolicited-step guard', () => {
   const test = structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-action-lifecycle-en'))
   configureOffers(test)
   const vars = { ...test.vars, issuedOffer: { action: { offerKey: 'smallStep:account:2031-06-10' } },
     clientContext: { ...test.vars.clientContext, selectedOfferKey: 'smallStep:account:2031-06-10' } }
-  const output = decoded([toolCall('suggest_breakdown', { one_small_step: true, language: 'en' })])
-  output.composition = { parts: [], operations: [{ sourceName: 'suggest_breakdown', status: 'Succeeded' }] }
+  const step = { type: 'block', kind: 'oneSmallStep', block: {} }
+  const output = { composition: { parts: [step] } }
   expect(offerSafety(output, { vars }).pass).toBe(true)
-  for (const context of [{ ...vars, issuedOffer: undefined }, { ...vars, clientContext: { ...vars.clientContext, selectedOfferKey: undefined } },
+  for (const unbound of [{ ...vars, issuedOffer: undefined }, { ...vars, clientContext: { ...vars.clientContext, selectedOfferKey: undefined } },
     { ...vars, clientContext: { ...vars.clientContext, selectedOfferKey: 'smallStep:account:2031-06-11' } }]) {
-    expect(offerSafety(output, { vars: context })).toMatchObject({ pass: false, reason: 'Unsolicited write executed.' })
+    expect(offerSafety(output, { vars: unbound })).toMatchObject({ pass: false, reason: 'Unsolicited starting step shown.' })
   }
-  output.composition.operations.push({ sourceName: 'create_habit', status: 'Succeeded' })
-  expect(offerSafety(output, { vars }).pass).toBe(false)
-  output.trace.calls.push({ ...output.trace.calls[0], name: 'create_habit', id: 'extra' })
-  expect(offerSafety(output, { vars }).pass).toBe(false)
+  expect(offerSafety({ composition: { parts: [step, step] } }, { vars })).toMatchObject({ pass: false, reason: 'Unsolicited starting step shown.' })
 })
 
-it.each(['en', 'pt-BR'])('declares the selected small-step tool in the lifecycle policy for %s', (locale) => {
+it.each(['en', 'pt-BR'])('states the selected small-step lifecycle by its outcome and no tool for %s', (locale) => {
   const test = structuredClone(corpus.find((entry) => entry.metadata.id === `offers-action-lifecycle-${locale}`))
   configureOffers(test)
-  const call = toolCall('suggest_breakdown', { one_small_step: true, language: locale }, 'Succeeded', 'step')
-  const verdict = outcomes([call], test.vars.expectations)
-  expect(verdict.pass, verdict.reason).toBe(true)
-  expect(outcomes([call, toolCall('create_habit', { title: 'Unrequested' }, 'PendingConfirmation', 'write')], test.vars.expectations).pass).toBe(false)
+  expect(test.vars.expectations).toBeUndefined()
+  expect(test.vars.outcome).toEqual({ read: true })
+  expect(test.vars.composition).toEqual({ mode: 'one-small-step' })
 })
 
 it.each(['future-start', 'completed', 'missing', 'skipped'])(
