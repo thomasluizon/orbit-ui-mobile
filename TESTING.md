@@ -711,7 +711,8 @@ message pattern or selector judgement supplies missing intent. The ordinary-read
 no aim, so a preview offering goal planning fails even when its other fields are correct.
 Metadata cases require at least one fitting emoji or tag suggestion, with each suggestion independently
 removable. Neither category is mandatory by itself; irrelevant options are omitted, and tags are
-optional on the empty fixture. Relevance remains part of the final-answer rubric.
+optional on the empty fixture. The `proactiveOffers` family check grades only that one emoji or tag suggestion exists.
+No grader reads the relevance of that suggestion, because the write cases of the offers hold no rubric.
 
 Crisis cases use the existing plain-text safety response, including its localized support resource.
 The producer omits ordered parts on that path. The explicit `crisis` policy accepts this shape only
@@ -780,8 +781,8 @@ General (`Geral`, `Sem data`, `is_general=true`, `isGeneral=true`, `Schedule: 3`
 task with no date. Logging completes it permanently; a second log must receive the completed
 one-time error, and unlogging reopens it. Reads use stored `isCompleted` across day boundaries.
 Repeat reminders stop after completion until unlogged; their interval creates neither recurrence
-nor a daily target. The shared rubric applies these rules to both locales and every client mode;
-the repeat-offer cases state them explicitly. Historical response recordings and the generated
+nor a daily target. The shared rubric of the read cases applies these rules to both locales and every client mode.
+The repeat-offer write cases hold no rubric. The `proactiveOffers` family check grades their interval, their active hours and their daily target. Historical response recordings and the generated
 catalog remain evidence of their producer rather than being rewritten to resemble a newer API.
 The overdue fixture restores its start date to `ORBIT_EVAL_OVERDUE_DATE` (yesterday by default)
 while preserving the stable habit IDs; the history anchor used by other fixtures must not replace it.

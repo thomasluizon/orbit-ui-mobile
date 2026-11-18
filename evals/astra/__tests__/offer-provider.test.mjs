@@ -6,7 +6,7 @@ import AstraHttpProvider from '../http-provider.mjs'
 import { proactiveOffers } from '../proactive-offers.mjs'
 import { composition } from '../composition.mjs'
 import { configureOffers } from '../offer-context.mjs'
-import { chatResponse, habitAccountRead, habitBlock, preview, toolCall } from './fixtures/producer.mjs'
+import { chatResponse, habitAccountRead, habitBlock, preview } from './fixtures/producer.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { sentTurn, streamedTurn } from './fixtures/offer-stream.mjs'
 

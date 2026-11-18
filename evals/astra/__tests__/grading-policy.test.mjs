@@ -12,7 +12,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 import { composition } from '../composition.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
-import { habitBlock, preview, suggestionResponse, apiKeysStepUpResponse } from './fixtures/producer.mjs'
+import { habitBlock, suggestionResponse, apiKeysStepUpResponse } from './fixtures/producer.mjs'
 
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
