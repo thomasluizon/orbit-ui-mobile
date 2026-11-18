@@ -549,16 +549,18 @@ server, emulator or Playwright command. The worker never runs the guard; the `La
 
 1. The ticket body VERBATIM plus every chronological comment.
 2. **The orchestrator's brief:** target repo and its absolute path, the branch already checked out,
-   the base branch, the affected-file list from step 2, and the scope boundary as a hard limit.
-3. **The mode-specific finishing contract:** compile and run focused tests; commit before broader
-   verification. Local workers then push and open or update exactly one non-draft PR against the
+   the base branch, the affected-file list from step 2, and the scope boundary as a hard limit. It
+   asks for the focused checks of the change only (`vitest related`, `test-tools.mjs --only`, the
+   type check and the lint); CI runs every full suite.
+3. **The mode-specific finishing contract:** compile and run the focused tests of each piece, then
+   commit. Local workers then push and open or update exactly one non-draft PR against the
    supplied base branch, linking the ticket. They report the URL and tests and stop without polling
    CI. The orchestrator owns CI waiting, review fixes and final readiness verification.
    Cross-platform parity and i18n key parity land in the same commit.
    **The worker never merges and never opens a second PR.**
 
-For a local review-fix worker, add `--review-batch` to the compose command. Its order stops after
-the broader suite and a tested commit. The worker reports the commit SHA and test results without
+For a local review-fix worker, add `--review-batch` to the compose command, and launch it with
+`--fix-round <local|pullfrog>`. Its order stops after the focused tests and a tested commit. The worker reports the commit SHA and test results without
 pushing or updating the pull request. The orchestrator replies to and resolves the batch's threads,
 runs the local review of step 8, pushes once, and asks for the review right after that push.
 
@@ -1056,7 +1058,7 @@ pullfrog` before its commit. If the batch has only FILE or not-applicable findin
 resolve and same-head re-review transitions without launching a worker or inventing a commit.
 
 When the batch needs a worker, compose its order with `--review-batch`. The worker commits, runs the
-broader suite, reports the commit SHA and stops without pushing. **Its final report is the batch's
+focused tests of its change, reports the commit SHA and stops without pushing. **Its final report is the batch's
 handoff, and the orchestrator consumes it before anything else.** Read the report's
 `## Test evidence`, `## Assumptions` and `## Manual steps` sections and any `NEEDS_DECISION` line at the step 7
 worker-exit gate, adjudicate the assumptions there exactly as for an initial worker, and write every

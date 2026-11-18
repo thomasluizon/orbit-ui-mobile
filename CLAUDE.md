@@ -4,7 +4,7 @@ Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android, 
 
 ## Maximum implementation (overrides global rule 4, "surgical changes")
 
-Fix anything broken, stale, or wrong that you find in the same PR; never call it "out of scope" or "pre-existing." Exception: `/audit-*` reports against its rubric and does not fix mid-pass. In a review round, only a BLOCKING finding (`review-and-audit.md` rule 14) gets a fix; each other finding is filed one time on the ticket that owns its area. Do everything yourself (MCP servers, CLIs, APIs); involve me only when no other way exists.
+Fix anything broken, stale, or wrong that you find in the same PR; never call it "out of scope" or "pre-existing." Exception: `/audit-*` reports against its rubric and does not fix mid-pass. A review round fixes only BLOCKING findings and files the rest (`review-and-audit.md` rule 14). Do everything yourself (MCP servers, CLIs, APIs); involve me only when no other way exists.
 
 ## The workflow (D1-D9)
 
@@ -47,6 +47,6 @@ Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureS
 
 ## Tooling
 
-- Tools follow `tools/CONVENTIONS.md`, cataloged in `tools/README.md`. After you change `tools/**` or `.claude/**`, RUN `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`.
-- Testing: Vitest unit and behavior tests for every feature, no new E2E against prod. `TESTING.md` is the catalog.
+- Tools follow `tools/CONVENTIONS.md`, cataloged in `tools/README.md`. After you change `tools/**` or `.claude/**`, RUN `node tools/test-tools.mjs --only <module>` per changed tool (a full run: `--parallel 8`), and `node .claude/hooks/test-hooks.mjs` after a `.claude/hooks/**` change.
+- Testing: Vitest unit and behavior tests for every feature, no new E2E against prod. Locally run only focused tests (`vitest related`); CI runs every full suite. `TESTING.md` is the catalog.
 - **Research reports do not live in this repo**: they go stale silently, then get cited as authority. Durable knowledge is an ADR in the brain vault.

@@ -5,7 +5,7 @@ import { dirname, join } from "node:path"
 import { performance } from "node:perf_hooks"
 import { fileURLToPath } from "node:url"
 
-import { parseShard, partitionModules, TIMINGS_MARKER } from "./lib/test-shards.mjs"
+import { parseShard, partitionModules, runShardsInParallel, TIMINGS_MARKER } from "./lib/test-shards.mjs"
 
 const startedAt = performance.now()
 let assertionCount = () => 0
@@ -22,6 +22,9 @@ const USAGE = `usage: test-tools.mjs
   --only <name>  run one registered case module; repeat to select more
   --shard <i/n>  run shard i of n (1-based). The shards partition every case module, so
                  running all n shards runs every module once. Cannot combine with --only
+  --parallel <n> run the complete gate as shards 1/n to n/n in n processes at one time, print each
+                 shard's output when it ends, and fail when one shard fails. The local form of the
+                 CI shards: use --parallel 8 for a full local run. Cannot combine with --only or --shard
   --list         print the selected case module names, one per line, and exit 0 without running them
   --help, -h     print this usage and exit 0
 
@@ -193,16 +196,18 @@ const usageError = (message) => {
 
 const requestedModules = []
 let shardText
+let parallelText
 let listOnly = false
 for (let index = 2; index < process.argv.length; index++) {
   const argument = process.argv[index]
   if (argument === "--list") {
     listOnly = true
-  } else if (argument === "--only" || argument === "--shard") {
+  } else if (argument === "--only" || argument === "--shard" || argument === "--parallel") {
     const value = process.argv[++index]
-    if (!value || value.startsWith("-")) usageError(`${argument} requires ${argument === "--only" ? "a case-module name" : "a value like 2/4"}`)
+    if (!value || value.startsWith("-")) usageError(`${argument} requires ${{ "--only": "a case-module name", "--shard": "a value like 2/4", "--parallel": "a shard count" }[argument]}`)
     if (argument === "--only") requestedModules.push(value)
-    else shardText = value
+    else if (argument === "--shard") shardText = value
+    else parallelText = value
   } else {
     usageError(`unknown option: ${argument}`)
   }
@@ -210,6 +215,22 @@ for (let index = 2; index < process.argv.length; index++) {
 const shard = shardText === undefined ? null : parseShard(shardText)
 if (shardText !== undefined && !shard) usageError(`--shard needs i/n with 1 <= i <= n, got ${shardText}`)
 if (shard && requestedModules.length > 0) usageError("--shard cannot combine with --only")
+const parallelCount = parallelText === undefined ? null : Number(parallelText)
+if (parallelText !== undefined && !(Number.isInteger(parallelCount) && parallelCount >= 1 && parallelCount <= 32)) {
+  usageError(`--parallel needs a whole shard count from 1 to 32, got ${parallelText}`)
+}
+if (parallelCount !== null && (shard || requestedModules.length > 0 || listOnly)) usageError("--parallel cannot combine with --only, --shard or --list")
+
+if (parallelCount !== null) {
+  let assertions = 0
+  assertionCount = () => assertions
+  const result = await runShardsInParallel(parallelCount, (shardName) => [join(TOOLS_DIR, SELF), "--shard", shardName], (shardName, status, output) => {
+    console.log(`\n# shard ${shardName} (exit ${status})\n${output.trimEnd()}`)
+  })
+  assertions = result.assertions
+  console.log(`\n${result.failed.length === 0 ? `ORBIT TOOLS GATE OK (${parallelCount} parallel shards)` : `ORBIT TOOLS GATE FAILED (shards ${result.failed.join(", ")})`}`)
+  process.exit(result.failed.length === 0 ? 0 : 1)
+}
 
 const validModules = [...CASE_MODULES, ...REPOSITORY_CASE_MODULES].map(([, module]) => module)
 const unknownModules = [...new Set(requestedModules.filter((name) => !validModules.includes(name)))]

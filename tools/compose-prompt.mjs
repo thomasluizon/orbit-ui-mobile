@@ -127,7 +127,7 @@ one of these exact terms: ${parityExemptTerms.join(", ")}. Write the term itself
   : ""
 
 const vitestEvidence = repoKey === "ui"
-  ? ` The repository's own Vitest suites are required evidence: run them in full, including any headless Chromium geometry tests they launch. That Chromium use is permitted within Vitest.`
+  ? ` The focused Vitest tests of your change are required evidence, including any headless Chromium geometry test they launch. That Chromium use is permitted within Vitest.`
   : ""
 
 const browserBan = layoutGuard ? `
@@ -146,6 +146,17 @@ and it OVERRIDES the ticket's own Evidence section.**${vitestEvidence} No \`npm 
 Playwright, Maestro or Cypress, nothing under \`e2e/\`, no layout guard, no navigating to localhost
 on any port, no logging in to the app. If the ticket says screenshots are required, do not gather
 them in this worker. A fresh worktree has no seeded session.`
+
+/** CI runs every full suite on the pull request, so a worker spends its time on the checks its change can break. */
+const focusedVerification = `
+
+**Run only the focused checks of your change; CI runs every full suite.** Judge each check by its exit code:
+- Vitest: \`npx vitest related <changed source files> --run\` in each changed workspace. Never start Vitest without a file name.
+- Tools: \`node tools/test-tools.mjs --only <case module>\` for each case module that covers a changed tool (repeat \`--only\`; \`--list\` prints the names). Never run the complete tools suite.
+- Hooks: \`node .claude/hooks/test-hooks.mjs\` only after a change under \`.claude/hooks/**\`.
+- The type check and the lint of each changed workspace or project, and the focused tests of a changed project in a repository without Vitest.
+
+CI runs the full web and mobile Vitest suites, the complete tools suite and the layout tests on the pull request. Do not run them. To reproduce a flake, run the affected file again or in parallel instances.`
 
 const assumptionDestination = cloud
   ? "the committed handoff's `assumptions` array"
@@ -177,7 +188,7 @@ ${baseInstruction}
 review information, never delivery gates. Keep one atomic behaviour complete: migrations with their
 model change, generated Designer or contract output with its source/schema, and required lockfiles
 or codemod output in this pull request. Do not split required generated output away to make the diff look smaller, and
-do not deliver partial behaviour silently.${browserBan}
+do not deliver partial behaviour silently.${browserBan}${focusedVerification}
 
 **Output.** ${outputInstruction}${localUiParityDelivery}
 
@@ -231,9 +242,9 @@ const finishing = `## Finishing contract
 
 You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage or commit \`architecture.json\`, \`architecture.html\` or \`architecture.mmd\`.
 
-For each piece, compile and run focused tests, then commit before broader verification.
+For each piece, compile and run the focused tests of the piece, then commit.
 
-Then, in order: run the broader suite, push, and open or update exactly one pull request. Stop there
+Then, in order: push, and open or update exactly one pull request. Stop there
 and report its URL and test results. Do not wait on CI or poll GitHub Actions. The orchestrator owns
 CI waiting, review fixes and final readiness verification. You do not merge or wait for review.
 
@@ -265,7 +276,7 @@ const reviewBatchFinishing = `${REVIEW_BATCH_ORDER_MARKER}
 
 You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage or commit \`architecture.json\`, \`architecture.html\` or \`architecture.mmd\`.
 
-**Commit as soon as the code compiles and the focused tests pass. Run the broader suite after.**
+**Commit as soon as the code compiles and the focused tests pass.** CI runs the full suites after the push.
 
 Stop after the tested commit. Do not push or open a pull request. Report the commit SHA, then end
 your final report with these literal sections, each one present even when it is empty:

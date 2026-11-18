@@ -125,9 +125,18 @@ export const cases = () => {
     prompt,
   )
   T(
+    `${TOOL}: the brief asks for the focused checks of the change and leaves every full suite to CI`,
+    /Run only the focused checks of your change; CI runs every full suite/.test(prompt) &&
+      /`npx vitest related <changed source files> --run`/.test(prompt) && /Never start Vitest without a file name/.test(prompt) &&
+      /`node tools\/test-tools\.mjs --only <case module>`/.test(prompt) && /Never run the complete tools suite/.test(prompt) &&
+      /`node \.claude\/hooks\/test-hooks\.mjs` only after a change under `\.claude\/hooks\/\*\*`/.test(prompt) &&
+      !/run them in full|broader suite|broader verification/i.test(prompt),
+    prompt,
+  )
+  T(
     `${TOOL}: the UI brief includes Chromium geometry within Vitest evidence`,
-    /repository's own Vitest suites are required evidence: run them in full/.test(prompt) &&
-      /including any headless Chromium geometry tests they launch/.test(prompt) &&
+    /The focused Vitest tests of your change are required evidence/.test(prompt) &&
+      /including any headless Chromium geometry test they launch/.test(prompt) &&
       !/apps\/web\/__tests__\/support\/chromium\.ts/.test(prompt) &&
       /That Chromium use is permitted within Vitest/.test(prompt),
     prompt,
@@ -209,7 +218,7 @@ export const cases = () => {
   const originalFinishing = prompt.slice(prompt.indexOf("## Finishing contract"), prompt.indexOf("\n\n---\n\n## Orchestrator's brief")).trimEnd()
   T(
     `${TOOL}: local finishing section matches the reviewed contract byte for byte`,
-    createHash("sha256").update(originalFinishing).digest("hex") === "d13c3929c22cef1389b6b076155341a2a275ba62ee1e94a2e978c5598ddd25ce",
+    createHash("sha256").update(originalFinishing).digest("hex") === "2c296c59590b16c9ddc3195567f45e7096e4b1678cf387474464e19ccb64979c",
     originalFinishing,
   )
   const reviewOut = join(root, "compose-prompt", "review-batch.md")
@@ -223,7 +232,8 @@ export const cases = () => {
   const reviewPrompt = composed(reviewOut)
   T(
     `${TOOL}: review batch ends after a tested commit and reports its SHA without delivery instructions`,
-    /Run the broader suite/.test(reviewPrompt) &&
+    /CI runs the full suites after the push/.test(reviewPrompt) &&
+      !/broader suite/i.test(reviewPrompt) &&
       /Report the commit SHA/.test(reviewPrompt) &&
       /Stop after the tested commit/.test(reviewPrompt) &&
       /Do not push or open a pull request/.test(reviewPrompt) &&
@@ -371,7 +381,7 @@ export const cases = () => {
   T(
     `${TOOL}: orchestration resolves review batch threads before its single push`,
     /compose its order with `--review-batch`/.test(orchestrateSkill) &&
-      /worker commits, runs the\s+broader suite, reports the commit SHA and stops without pushing/.test(orchestrateSkill) &&
+      /worker commits, runs the\s+focused tests of its change, reports the commit SHA and stops without pushing/.test(orchestrateSkill) &&
       /resolve every identified thread on that commit, run the local review\s+gate on it, then push once/.test(orchestrateSkill) &&
       !/A worker cannot keep that order\s+under today's contract/.test(orchestrateSkill),
     orchestrateSkill,

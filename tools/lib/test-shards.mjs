@@ -3,6 +3,8 @@
  * The harness runs one shard per CI job, so every module must land in exactly one shard.
  */
 
+import { spawn } from "node:child_process"
+
 /** Parse `i/n` into a 1-based shard index and the shard count, or null when the text is not a valid shard. */
 export const parseShard = (text) => {
   const match = /^(\d+)\/(\d+)$/.exec(text ?? "")
@@ -100,3 +102,35 @@ export const mergeTimingLines = (text) => {
  */
 export const slowestShardSeconds = ({ modules, seconds, fixedSeconds, shards }) =>
   Math.max(...shards.map((shard) => fixedSeconds + shardSeconds({ modules, seconds, shard })))
+
+const ASSERTIONS_LINE = /^Assertions: (\d+) \|/m
+
+/**
+ * Runs shards 1/n to n/n as n Node processes at one time. `argsOf(shardName)` gives the Node
+ * arguments of one shard. `onShardEnd(shardName, status, output)` receives the whole output of a
+ * shard when it ends, so the lines of two shards never interleave. Resolves the failed shard names
+ * and the sum of the "Assertions: N" lines.
+ */
+export const runShardsInParallel = async (count, argsOf, onShardEnd) => {
+  const outcomes = await Promise.all(Array.from({ length: count }, (_, offset) => new Promise((resolve) => {
+    const shardName = `${offset + 1}/${count}`
+    const child = spawn(process.execPath, argsOf(shardName), { stdio: ["ignore", "pipe", "pipe"], windowsHide: true })
+    let output = ""
+    child.stdout.on("data", (chunk) => { output += chunk })
+    child.stderr.on("data", (chunk) => { output += chunk })
+    let settled = false
+    const finish = (status, extra = "") => {
+      if (settled) return
+      settled = true
+      output += extra
+      onShardEnd(shardName, status, output)
+      resolve({ shardName, status, assertions: Number(ASSERTIONS_LINE.exec(output)?.[1] ?? 0) })
+    }
+    child.once("error", (error) => finish(1, `${error.message}\n`))
+    child.once("close", (status, signal) => finish(status ?? signal))
+  })))
+  return {
+    failed: outcomes.filter((outcome) => outcome.status !== 0).map((outcome) => outcome.shardName),
+    assertions: outcomes.reduce((total, outcome) => total + outcome.assertions, 0),
+  }
+}

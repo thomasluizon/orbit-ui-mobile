@@ -3,8 +3,8 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import yaml from "js-yaml"
 
-import { mergeTimingLines, parseShard, partitionDefects, partitionModules, shardSeconds, slowestShardSeconds, TIMINGS_MARKER } from "../lib/test-shards.mjs"
-import { BASH, REPO_ROOT, T, run, toolPath } from "./_harness.mjs"
+import { mergeTimingLines, parseShard, partitionDefects, partitionModules, runShardsInParallel, shardSeconds, slowestShardSeconds, TIMINGS_MARKER } from "../lib/test-shards.mjs"
+import { BASH, REPO_ROOT, T, run, stage, toolPath } from "./_harness.mjs"
 
 const TOOL = "lib/test-shards.mjs"
 
@@ -16,7 +16,7 @@ const SHARD_HARNESS_BUDGET_SECONDS = SHARD_JOB_LIMIT_SECONDS - SHARD_SETUP_SECON
 
 const listModules = (...argv) => run("test-tools.mjs", ["--list", ...argv]).stdout.split("\n").filter((line) => /^[a-z0-9-]+$/.test(line))
 
-export const cases = () => {
+export const cases = async () => {
   const timings = JSON.parse(readFileSync(toolPath("test-tools-timings.json"), "utf8"))
   const workflow = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8"))
   T(`${TOOL}: parseShard reads i/n`, JSON.stringify(parseShard("2/5")) === JSON.stringify({ index: 2, count: 5 }))
@@ -156,4 +156,35 @@ export const cases = () => {
   T(`${TOOL}: an invalid --shard exits 2`, usage.status === 2 && /--shard needs i\/n/.test(usage.stderr), usage.stderr)
   const combined = run("test-tools.mjs", ["--shard", "1/4", "--only", "bounded-process"])
   T(`${TOOL}: --shard cannot combine with --only`, combined.status === 2 && /cannot combine/.test(combined.stderr), combined.stderr)
+  for (const argv of [["--parallel", "0"], ["--parallel", "two"], ["--parallel", "2", "--only", "bounded-process"], ["--parallel", "2", "--shard", "1/2"]]) {
+    const refused = run("test-tools.mjs", argv)
+    T(`${TOOL}: test-tools.mjs ${argv.join(" ")} exits 2`, refused.status === 2 && /--parallel/.test(refused.stderr), refused.stderr)
+  }
+  await parallelCases()
+}
+
+/** A stub shard prints an assertion line and fails only as shard 2/3, after a delay, so the run waits for every shard. */
+const parallelCases = async () => {
+  const stub = stage("test-shards/stub-shard.mjs", [
+    "const shard = process.argv[2]",
+    "const delay = shard === \"1/3\" ? 300 : 0",
+    "setTimeout(() => {",
+    "  console.log(`line one of ${shard}`)",
+    "  console.error(`stderr of ${shard}`)",
+    "  console.log(`line two of ${shard}`)",
+    "  console.log(`Assertions: ${shard === \"3/3\" ? 5 : 2} | Elapsed: 0.1s`)",
+    "  process.exit(shard === \"2/3\" ? 1 : 0)",
+    "}, delay)",
+  ].join("\n"))
+  const ended = []
+  const result = await runShardsInParallel(3, (shardName) => [stub, shardName], (shardName, status, output) => ended.push({ shardName, status, output }))
+  T(`${TOOL}: the parallel run names each failed shard and sums every assertion line`,
+    JSON.stringify(result) === JSON.stringify({ failed: ["2/3"], assertions: 9 }), JSON.stringify(result))
+  T(`${TOOL}: the parallel run reports each shard once, with its whole output and exit status`,
+    ended.length === 3 && ended.every(({ shardName, status, output }) =>
+      status === (shardName === "2/3" ? 1 : 0) && output.includes(`line one of ${shardName}`) && output.includes(`stderr of ${shardName}`) && output.includes(`line two of ${shardName}`)),
+    JSON.stringify(ended))
+  T(`${TOOL}: the shards run at one time, so the slow shard ends last`, ended.at(-1)?.shardName === "1/3", JSON.stringify(ended.map((entry) => entry.shardName)))
+  const missing = await runShardsInParallel(1, () => [stage("test-shards/missing-parent/../absent.mjs", "process.exit(3)\n")], () => {})
+  T(`${TOOL}: a shard that exits non-zero with no assertion line fails`, JSON.stringify(missing) === JSON.stringify({ failed: ["1/1"], assertions: 0 }), JSON.stringify(missing))
 }
