@@ -114,7 +114,7 @@ function AstraFallback({
     <View style={{ gap: 12 }}>
       {atLimit ? <CapacityNotice message={limitMessage} /> : null}
       <View style={{ alignItems: 'flex-start', gap: 8 }}>
-        <PillButton minimumHeight={48} borderless iconOnly label={askLabel} variant="ghost" loading={isSuggesting} hint={isSuggesting ? readingLabel : undefined} disabled={disabled || atLimit} onClick={guard(onAsk)}><OrbitMascot size={20} /></PillButton>
+        <PillButton minimumHeight={48} borderless iconOnly label={askLabel} variant="ghost" loading={isSuggesting} loadingFace="icon" hint={isSuggesting ? readingLabel : undefined} disabled={disabled || atLimit} onClick={guard(onAsk)}><OrbitMascot size={20} reading={isSuggesting} /></PillButton>
         {!atLimit ? <Text style={{ color: tokens.fg3, fontSize: 12 }}>{costLabel}</Text> : null}
       </View>
     </View>

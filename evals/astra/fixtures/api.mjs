@@ -96,38 +96,37 @@ export async function approvePendingOperation(api, pendingId, clientContext) {
   return api('POST', `${path}/execute`, { confirmationToken: payload.confirmationToken, clientContext })
 }
 
-export async function requireEvalAccess(credentialKey) {
-  const expected = credentialKey === 'ORBIT_EVAL_TOKEN'
+// Producer: orbit-api ConfigController.GetConfig returns each flag of the account under features. A preflight reads the
+// config of an account once, and each flag check below reads that one payload.
+export async function accountFeatures(credentialKey) {
   try {
-    const { payload } = await publicApi(credentialKey)('GET', 'config')
-    const enabled = payload?.features?.astra_eval_unmetered?.enabled
-    if (enabled !== expected) throw new Error('Eval allowance policy is unavailable.')
-    return enabled
+    return (await publicApi(credentialKey)('GET', 'config')).payload?.features
   } catch (error) {
-    throw new Error(`Eval preflight failed: turn ${expected ? 'on' : 'off'} astra_eval_unmetered for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${safeFailureMessage(error)}`)
+    throw new Error(`Eval preflight failed: the flags of ${credentialKey} are unavailable; verify /api/config on staging and retry. ${safeFailureMessage(error)}`)
   }
+}
+
+const flagFailure = (procedure, credentialKey, cause) => new Error(`Eval preflight failed: ${procedure} for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${cause}`)
+
+export function requireEvalAccess(credentialKey, features) {
+  const expected = credentialKey === 'ORBIT_EVAL_TOKEN'
+  const enabled = features?.astra_eval_unmetered?.enabled
+  if (enabled !== expected) throw flagFailure(`turn ${expected ? 'on' : 'off'} astra_eval_unmetered`, credentialKey, 'Eval allowance policy is unavailable.')
+  return enabled
 }
 
 // Producer: orbit-api ProcessUserChatCommand.Handle returns the opt-in eval trace only when the account holds
 // astra_eval_trace (FeatureFlagKeys.AiEvalTrace), and GET api/config resolves the same flag (FeatureFlagService.Resolve).
-export async function requireEvalTrace(credentialKey) {
-  try {
-    const { payload } = await publicApi(credentialKey)('GET', 'config')
-    if (payload?.features?.astra_eval_trace?.enabled !== true) throw new Error('The eval trace flag is off.')
-  } catch (error) {
-    throw new Error(`Eval preflight failed: turn on astra_eval_trace for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${safeFailureMessage(error)}`)
-  }
+export function requireEvalTrace(credentialKey, features) {
+  if (features?.astra_eval_trace?.enabled !== true) throw flagFailure('turn on astra_eval_trace', credentialKey, 'The eval trace flag is off.')
 }
 
 // Producer: orbit-api ChatContext.ChangePlan reads ai_change_plan (FeatureFlagKeys.AiChangePlan) from the flags of the
 // account, and GET api/config resolves the same flag. The run grades each call against the lists of its path, so an
 // account whose flag does not agree with that path stops the run before any chat turn.
-export async function requireRunPath(credentialKey, path) {
+export function requireRunPath(credentialKey, features, path) {
   const expected = path === CHANGE_PLAN_PATH
-  try {
-    const { payload } = await publicApi(credentialKey)('GET', 'config')
-    if (payload?.features?.[CHANGE_PLAN_FLAG]?.enabled !== expected) throw new Error('The flag state does not agree with the path of the run.')
-  } catch (error) {
-    throw new Error(`Eval preflight failed: this run measures the ${path} path (${RUN_PATH_VARIABLE}); turn ${expected ? 'on' : 'off'} ${CHANGE_PLAN_FLAG} for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${safeFailureMessage(error)}`)
+  if (features?.[CHANGE_PLAN_FLAG]?.enabled !== expected) {
+    throw flagFailure(`this run measures the ${path} path (${RUN_PATH_VARIABLE}); turn ${expected ? 'on' : 'off'} ${CHANGE_PLAN_FLAG}`, credentialKey, 'The flag state does not agree with the path of the run.')
   }
 }

@@ -3,8 +3,7 @@ import { parse } from 'yaml'
 import { completionControls } from './tool-schema.mjs'
 
 const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
-export const { tools, legacyTools, postReadTools, habitSetupTools, habitSetupBinding,
-  offerTools = [], offerPostReadTools = [], offerHabitSetupTools = [] } = catalog
+export const { habitSetupBinding } = catalog
 
 // The path of a run. The block-first path is the API without the ai_change_plan flag; the change-plan path is the API
 // with that flag on for the account (orbit-api FeatureFlagKeys.AiChangePlan, ChatContext.ChangePlan). The API sends
@@ -28,6 +27,7 @@ export function runPathOf(environment = process.env) {
 // The path of a summary. A summary written before summaries named their path measured the block-first path.
 export const pathOf = (summary) => summary.path ?? BLOCK_FIRST_PATH
 
+const { tools, legacyTools, postReadTools, habitSetupTools, offerTools = [], offerPostReadTools = [], offerHabitSetupTools = [] } = catalog
 const { changeKinds, planTitleArgument, wrapperName, changesArgument, shapes } = catalog.changePlan
 const kindOf = new Map(changeKinds.map((kind) => [kind.name, kind]))
 
@@ -60,10 +60,11 @@ function traceList(list) {
     ...(wrapper ? wrappedKinds(wrapper) : [])]
 }
 
-// The lists of one path, one set for each declaration shape that the catalog holds for it. The change-plan path keeps one
-// ask declaration for the whole turn (orbit-api RefreshAskSchema returns no update there), so it has no post-read list
-// and no habit-setup list. It has one set for each shape of its change list (orbit-api AI:ChangePlanShape). No run names
-// its shape, so a traced call of that path is valid when the lists of one shape accept it.
+// The lists of one path, which a reader takes only through catalogsOf, one set for each declaration shape that the catalog
+// holds for it. The change-plan path keeps one ask declaration for the whole turn (orbit-api RefreshAskSchema returns no
+// update there), so it has no post-read list and no habit-setup list. It has one set for each shape of its change list
+// (orbit-api AI:ChangePlanShape). No run names its shape, so a traced call of that path is valid when the lists of one
+// shape accept it.
 const pathLists = {
   [BLOCK_FIRST_PATH]: [{ tools, legacyTools, postReadTools, habitSetupTools, offerTools, offerPostReadTools, offerHabitSetupTools }],
   [CHANGE_PLAN_PATH]: Object.values(shapes).map((lists) => ({

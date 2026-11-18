@@ -60,14 +60,14 @@ it.each(credentialKeys)('refuses the whole run before a case when %s violates it
   const requests = requestsFor((accountIndex) => preflightResponse({ enabled: accountIndex === index ? !expected : accountIndex === 0, planRequirement: null }))
   await expect(Promise.resolve().then(() => beforeAll(suiteFor(credentialKeys))))
     .rejects.toThrow(`turn ${expected ? 'on' : 'off'} astra_eval_unmetered for ${key} through /flag`)
-  expect(requests.mock.calls.filter(([url]) => new URL(url).pathname === '/api/config')).toHaveLength(2 * index + 1)
+  expect(requests.mock.calls.filter(([url]) => new URL(url).pathname === '/api/config')).toHaveLength(index + 1)
 })
 
 it('starts with the main account unmetered and both refusal accounts metered, checking each once', async () => {
   const requests = requestsFor()
   await beforeAll(suiteFor([...credentialKeys, credentialKeys[0]]))
   expect(requests.mock.calls.map(([url]) => new URL(url).pathname)).toEqual([
-    '/health', ...credentialKeys.flatMap(() => ['/api/auth/refresh', '/api/config', '/api/config']),
+    '/health', ...credentialKeys.flatMap(() => ['/api/auth/refresh', '/api/config']),
   ])
 })
 
@@ -75,23 +75,26 @@ it.each(credentialKeys.slice(1))('starts a metered-only selection for %s', async
   const requests = requestsFor(() => preflightResponse({ enabled: false, planRequirement: null }))
   await beforeAll(suiteFor([key, key]))
   expect(requests.mock.calls.map(([url]) => new URL(url).pathname)).toEqual([
-    '/health', '/api/auth/refresh', '/api/config', '/api/config',
+    '/health', '/api/auth/refresh', '/api/config',
   ])
 })
 
-const policyUnavailable = 'Eval allowance policy is unavailable.'
+// A flag that does not agree with its account keeps the /flag procedure of that flag. A config read that gives no flags
+// names the read, because no flag change repairs it.
+const policyUnavailable = `turn off astra_eval_unmetered for ${credentialKeys[1]} through /flag on staging, then verify /api/config and retry. Eval allowance policy is unavailable.`
+const flagsUnavailable = (cause) => `the flags of ${credentialKeys[1]} are unavailable; verify /api/config on staging and retry. ${cause}`
 it.each([
   ['missing flag', () => Response.json({ features: {} }), policyUnavailable],
   ['null flag', () => preflightResponse(null), policyUnavailable],
   ['missing features', () => Response.json({}), policyUnavailable],
   ['string enabled', () => preflightResponse({ enabled: 'true', planRequirement: null }), policyUnavailable],
-  ['rejected config', () => Response.json({ error: 'PRIVATE_SERVER_BODY' }, { status: 403 }), 'Fixture API GET config failed: HTTP 403 (errorCode: none).'],
-  ['malformed config', () => new Response('PRIVATE_SERVER_BODY'), 'Fixture API GET config failed: non-JSON body (HTTP 200).'],
-  ['transport failure', () => { throw new Error('PRIVATE_TRANSPORT') }, 'Fixture API GET config failed: network.'],
-])('stops with its cause and without exposing response contents for %s', async (_name, response, cause) => {
+  ['rejected config', () => Response.json({ error: 'PRIVATE_SERVER_BODY' }, { status: 403 }), flagsUnavailable('Fixture API GET config failed: HTTP 403 (errorCode: none).')],
+  ['malformed config', () => new Response('PRIVATE_SERVER_BODY'), flagsUnavailable('Fixture API GET config failed: non-JSON body (HTTP 200).')],
+  ['transport failure', () => { throw new Error('PRIVATE_TRANSPORT') }, flagsUnavailable('Fixture API GET config failed: network.')],
+])('stops with its cause and without exposing response contents for %s', async (_name, response, failure) => {
   requestsFor(response)
   const pending = Promise.resolve().then(() => beforeAll(suiteFor([credentialKeys[1]])))
-  await expect(pending).rejects.toThrow(`turn off astra_eval_unmetered for ${credentialKeys[1]} through /flag on staging, then verify /api/config and retry. ${cause}`)
+  await expect(pending).rejects.toThrow(`Eval preflight failed: ${failure}`)
   await expect(pending).rejects.not.toThrow('PRIVATE')
 })
 
@@ -127,7 +130,7 @@ it.each([['change-plan', false], ['block-first', true], [undefined, true]])(
     const requests = requestsFor(flagState(enabled))
     if (path) vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', path)
     await expect(beforeAll(suiteFor(credentialKeys))).rejects.toThrow(`${disagreement(path ?? 'block-first', credentialKeys[0])} The flag state does not agree with the path of the run.`)
-    expect(pathsOf(requests)).toEqual(['/health', '/api/auth/refresh', '/api/config', '/api/config'])
+    expect(pathsOf(requests)).toEqual(['/health', '/api/auth/refresh', '/api/config'])
   },
 )
 
@@ -136,7 +139,7 @@ it.each([['change-plan', true], ['block-first', false], [undefined, false]])(
     const requests = requestsFor(flagState(enabled))
     if (path) vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', path)
     await expect(beforeAll(suiteFor(credentialKeys))).resolves.toBeUndefined()
-    expect(pathsOf(requests)).toEqual(['/health', ...credentialKeys.flatMap(() => ['/api/auth/refresh', '/api/config', '/api/config'])])
+    expect(pathsOf(requests)).toEqual(['/health', ...credentialKeys.flatMap(() => ['/api/auth/refresh', '/api/config'])])
   },
 )
 
@@ -145,7 +148,7 @@ it.each([['change-plan', false], [undefined, true]])(
     const requests = requestsFor(flagState(enabled))
     if (path) vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', path)
     await expect(beforeCoreRun(coreSuite)).rejects.toThrow(disagreement(path ?? 'block-first', credentialKeys[0]))
-    expect(pathsOf(requests)).toEqual(['/health', '/api/auth/refresh', '/api/config', '/api/config', '/api/config'])
+    expect(pathsOf(requests)).toEqual(['/health', '/api/auth/refresh', '/api/config'])
   },
 )
 

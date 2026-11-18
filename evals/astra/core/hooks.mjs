@@ -3,7 +3,7 @@ import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from '../credentials.mjs'
 import { requireEvalOrigin, resetFixture } from '../fixtures/reset.mjs'
 import { fixtureHabitTitles } from '../fixtures/names.mjs'
-import { requireEvalAccess, requireEvalTrace, requireRunPath } from '../fixtures/api.mjs'
+import { accountFeatures, requireEvalAccess, requireEvalTrace, requireRunPath } from '../fixtures/api.mjs'
 import { requireCatalogCommit, runPathOf } from '../trace-policy.mjs'
 import { mustPassKOf } from './corpus.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
@@ -38,9 +38,10 @@ export async function beforeAll({ suite }) {
   const unmetered = new Map()
   for (const key of new Set(suite.tests.map((test) => test.vars.credentialKey))) {
     await refreshCredential(key)
-    unmetered.set(key, await requireEvalAccess(key))
-    await requireEvalTrace(key)
-    await requireRunPath(key, path)
+    const features = await accountFeatures(key)
+    unmetered.set(key, requireEvalAccess(key, features))
+    requireEvalTrace(key, features)
+    requireRunPath(key, features, path)
   }
   run = { name, directory: `reports/core-${name}`, descriptors, k: mustPassKOf(), path, apiCommit: health.commit, unmetered, results: [] }
   persist(run.results)

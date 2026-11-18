@@ -9,11 +9,12 @@ import { beforeAll } from '../hooks.mjs'
 import { beforeAll as beforeCoreRun } from '../core/hooks.mjs'
 import { structural } from '../assertions.mjs'
 import { completionControls } from '../tool-schema.mjs'
-import { RUN_PATHS, catalogsOf, toolCompletionControls, toolSensitiveFields, toolWrites } from '../trace-policy.mjs'
+import * as policy from '../trace-policy.mjs'
 import parseResponse from '../response.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { chatResponse, toolCall, changeListTrace, changeShapes } from './fixtures/producer.mjs'
 
+const { RUN_PATHS, catalogsOf, toolCompletionControls, toolSensitiveFields, toolWrites } = policy
 const { apiCommit } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
@@ -97,6 +98,14 @@ it.each(listKeys)('declares one propose_changes tool with one alternative for ea
       expect(Object.keys(item.properties.arguments.properties ?? {}), item.properties.kind.enum[0]).not.toContain(control)
     }
   }
+})
+
+// A list that the module exports by its name holds the declarations of the block-first path only, so a reader that
+// imports it grades a change-plan run with the lists of the other path.
+it('gives the lists of a path only through catalogsOf', () => {
+  for (const list of Object.keys(catalogsOf('block-first')[0])) expect(policy, list).not.toHaveProperty(list)
+  expect(Object.keys(catalogsOf('block-first')[0]).toSorted()).toEqual(['habitSetupTools', 'legacyTools', 'offerHabitSetupTools',
+    'offerPostReadTools', 'offerTools', 'postReadTools', 'tools'])
 })
 
 // One map of each kind classifies the calls of both paths: the exporter takes the write class and the sensitive fields

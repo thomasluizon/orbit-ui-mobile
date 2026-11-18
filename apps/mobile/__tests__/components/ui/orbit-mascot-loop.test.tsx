@@ -4,7 +4,10 @@ import { ORBIT_MASCOT_FACES, ORBIT_MASCOT_VIEW_BOX, ORBIT_SMALL_FACES, orbitMasc
 import { mascotMotion } from '@orbit/shared/theme'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AstraButton } from '@/components/shell/astra-button'
+import { TodayAstraLine } from '@/components/today/today-astra-line'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { useUIStore } from '@/stores/ui-store'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import { NativeDialog } from '@/components/ui/native-dialog'
 import { OverlayHost } from '@/components/ui/overlay-host'
@@ -74,6 +77,18 @@ function moonOf(tree: TestTree) {
   const moon = tree.root.findAll((node) => typeof node.type === 'string' && node.props.fill === moonFill && node.props.cx !== undefined)[0]
   return `${String(moon?.props.cx)},${String(moon?.props.cy)}`
 }
+
+function moonJump(from: string, to: string) {
+  const [fromX, fromY] = from.split(',').map(Number)
+  const [toX, toY] = to.split(',').map(Number)
+  return Math.hypot((toX ?? 0) - (fromX ?? 0), (toY ?? 0) - (fromY ?? 0))
+}
+
+const largestMoonStep = Math.max(...Array.from({ length: 600 }, (_, index) => {
+  const { moon: from } = orbitMascotFrame(index * mascotMotion.frameInterval, mascotMotion)
+  const { moon: to } = orbitMascotFrame((index + 1) * mascotMotion.frameInterval, mascotMotion)
+  return Math.hypot(to.x - from.x, to.y - from.y)
+}))
 
 function advance(milliseconds: number) {
   TestRenderer.act(() => { vi.advanceTimersByTime(milliseconds) })
@@ -169,6 +184,30 @@ describe('Orbit idle loop on Android', () => {
     TestRenderer.act(() => tree.update(<OrbitMascot size={96} state="descansando" />))
     expect(mascots(tree)[0]?.props['data-orbit-state']).toBe('descansando')
     tree.unmount()
+  })
+
+  it('starts a fresh Orbit at its rest pose after another Orbit ran, and moves at most one frame step on its first frames', () => {
+    const first = render(<OrbitMascot size={96} />)
+    advance(2500)
+    TestRenderer.act(() => first.unmount())
+    const tree = render(<OrbitMascot size={96} />)
+    const rest = moonOf(tree)
+    expect(rest).toBe(moonOf(render(<OrbitMascot size={96} still />)))
+    advance(48)
+    expect(moonJump(rest, moonOf(tree))).toBeLessThanOrEqual(largestMoonStep)
+  })
+
+  it('resumes a page Orbit at its own paused pose after an overlay Orbit ran', () => {
+    const view = (open: boolean) => <View><OrbitMascot size={96} /><OrbitOverlayLayer active={open}>{open ? <OrbitMascot size={128} state="feliz" /> : null}</OrbitOverlayLayer></View>
+    const tree = render(view(false))
+    advance(480)
+    TestRenderer.act(() => tree.update(view(true)))
+    const paused = moonOf(tree)
+    advance(2500)
+    TestRenderer.act(() => tree.update(view(false)))
+    expect(loops(tree)).toEqual(['running'])
+    advance(48)
+    expect(moonJump(paused, moonOf(tree))).toBeLessThanOrEqual(largestMoonStep)
   })
 
   it('pauses while the app is in the background and resumes in the foreground', () => {
@@ -301,7 +340,7 @@ describe('Orbit idle loop on Android', () => {
 
   it('lets the conversation entry lead the view when it returns after another Orbit', () => {
     const tree = render(<View><OrbitMascot size={96} />{null}</View>)
-    TestRenderer.act(() => tree.update(<View><OrbitMascot size={96} /><OrbitMascot size={48} lead /></View>))
+    TestRenderer.act(() => tree.update(<View><OrbitMascot size={96} /><OrbitMascot size={48} live="lead" /></View>))
     expect(loops(tree)).toEqual(['still', 'running'])
     tree.unmount()
   })
@@ -402,6 +441,84 @@ describe('Orbit on-screen probe on Android', () => {
     expect(counter.measured).toBeLessThanOrEqual(5)
     expect(loops(tree)).toEqual(['running'])
     tree.unmount()
+  })
+})
+
+describe('Hoje Orbit line with the conversation entry on Android', () => {
+  function hoje(overlay = false) {
+    return <View>
+      <TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} />
+      <OrbitMascot size={96} state="feliz" />
+      <OrbitOverlayLayer active={overlay}>{overlay ? <OrbitMascot size={48} state="pensando" /> : null}</OrbitOverlayLayer>
+      <AstraButton />
+    </View>
+  }
+
+  function loopIn(tree: TestTree, testID: string) {
+    const holder = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === testID)[0]
+    return holder?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]?.props['data-orbit-loop']
+  }
+
+  function pair(tree: TestTree) {
+    return [loopIn(tree, 'today-astra-slot'), loopIn(tree, 'astra-button')]
+  }
+
+  beforeEach(() => { useUIStore.setState(useUIStore.getInitialState()) })
+
+  it('runs the summary Orbit with the entry on one clock, and keeps every other Orbit of the view still', () => {
+    const tree = render(hoje())
+    expect([...pair(tree), loopsByState(tree).feliz]).toEqual(['running', 'running', 'still'])
+    advance(480)
+    const moons = tree.root.findAll((node) => typeof node.type === 'string' && node.props.fill === moonFill && node.props.cx !== undefined)
+      .map((moon) => `${String(moon.props.cx)},${String(moon.props.cy)}`)
+    expect(moons[0]).toBe(moons[2])
+    expect(moons[0]).not.toBe(moonOf(render(<OrbitMascot size={48} still />)))
+  })
+
+  it('keeps the summary Orbit still and runs the empty state Orbit on a view that shows no entry', () => {
+    const tree = render(<View><TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} /><OrbitMascot size={96} state="feliz" /></View>)
+    expect([loopIn(tree, 'today-astra-slot'), loopsByState(tree).feliz]).toEqual(['still', 'running'])
+  })
+
+  it('keeps the summary Orbit and the entry still under reduced motion', () => {
+    const tree = render(hoje())
+    setReducedMotion(true)
+    advance(400)
+    expect(pair(tree)).toEqual(['still', 'still'])
+  })
+
+  it('stops the summary Orbit off screen while the entry keeps running, and draws the pose of the entry when it returns', () => {
+    let calls = 0
+    let summaryOnScreen = true
+    __setMeasureInWindowImpl((callback) => {
+      const summary = calls % 2 === 0
+      calls += 1
+      callback(0, summary && !summaryOnScreen ? 2000 : 100, 48, 34)
+    })
+    const tree = render(<View><TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} /><AstraButton /></View>)
+    advance(250)
+    expect(pair(tree)).toEqual(['running', 'running'])
+    summaryOnScreen = false
+    advance(250)
+    expect(pair(tree)).toEqual(['still', 'running'])
+    advance(500)
+    summaryOnScreen = true
+    advance(250)
+    expect(pair(tree)).toEqual(['running', 'running'])
+    advance(96)
+    const moons = tree.root.findAll((node) => typeof node.type === 'string' && node.props.fill === moonFill && node.props.cx !== undefined)
+      .map((moon) => `${String(moon.props.cx)},${String(moon.props.cy)}`)
+    expect(moons[0]).toBe(moons[1])
+  })
+
+  it('stops the summary Orbit and the entry behind an overlay and in the background', () => {
+    const tree = render(hoje())
+    TestRenderer.act(() => tree.update(hoje(true)))
+    expect([loopIn(tree, 'today-astra-slot'), loopsByState(tree).pensando]).toEqual(['still', 'running'])
+    TestRenderer.act(() => tree.update(hoje()))
+    expect(pair(tree)).toEqual(['running', 'running'])
+    TestRenderer.act(() => { for (const listener of appStateListeners) listener('background') })
+    expect(pair(tree)).toEqual(['still', 'still'])
   })
 })
 
