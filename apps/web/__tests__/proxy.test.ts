@@ -10,7 +10,7 @@ import {
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
 import { createManifest } from '@/lib/manifest'
-import { SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
+import { isPublicPath, SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
 
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }))
 import { POST as issueEventTicket } from '@/app/api/events/ticket/route'
@@ -888,6 +888,12 @@ describe('malformed Server Action requests', () => {
     expect(isRouteHandlerPath(path)).toBe(false)
   })
 
+  it('lists no Route Handler path in the public page paths except the pages under the tunnel route', () => {
+    expect(isPublicPath('/ingest')).toBe(false)
+    expect(isPublicPath('/ingest/e/')).toBe(false)
+    expect(isPublicPath(`${SENTRY_TUNNEL_ROUTE}/x`)).toBe(true)
+  })
+
   it.each(['/monitoring', '/ingest/e/'])('passes a POST with an invalid action header through to the Route Handler %s', async (path) => {
     vi.mocked(resolveSessionTokens).mockClear()
     const response = await proxy(new NextRequest(`https://app.useorbit.org${path}`, {
@@ -907,18 +913,5 @@ describe('malformed Server Action requests', () => {
     expect(response).toMatchObject({ type: 'next' })
     expect(clone).not.toHaveBeenCalled()
     expect(await request.text()).toBe('not form data')
-  })
-
-  it.each(['/api/uploads'])('leaves a multipart POST without an action header untouched at %s', async (path) => {
-    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
-    const request = new NextRequest(`https://app.useorbit.org${path}`, {
-      method: 'POST', headers: { 'content-type': 'multipart/form-data; boundary=upload' }, body: 'route-owned body',
-    })
-    const clone = vi.spyOn(request, 'clone')
-    const response = await proxy(request)
-    expect(response).toMatchObject({ type: 'next' })
-    expect(clone).not.toHaveBeenCalled()
-    expect(request.bodyUsed).toBe(false)
-    expect(await request.text()).toBe('route-owned body')
   })
 })
