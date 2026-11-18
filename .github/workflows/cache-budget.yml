@@ -3,11 +3,17 @@ name: Cache Budget
 # The repository cache has a 10 GB limit. Above it, GitHub evicts the least recently read entries, and the first to
 # go are the pass markers that let a pull request skip a native compile or an emulator boot. This sweep keeps the
 # total under the cap in .github/scripts/sweep-actions-caches.mjs, so that eviction never starts.
-# A closed pull request starts it, because nothing can read the entries of its merge ref again. The schedule
-# clears a missed close event and the entries that main replaced since the last close.
+# A closed pull request starts it, because nothing can read the entries of its merge ref again. The end of each
+# CodeQL run on main starts it, because that run saves a new overlay base database 12 to 18 minutes after the merge,
+# so at most one replaced base exists between two sweeps. The schedule clears a missed event and the other entries
+# that main replaced since the last sweep.
 on:
   pull_request:
     types: [closed]
+  workflow_run:
+    workflows: [CodeQL]
+    types: [completed]
+    branches: [main]
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:

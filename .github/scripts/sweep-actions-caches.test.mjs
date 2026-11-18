@@ -191,10 +191,16 @@ test("the command rejects a call without one repository", () => {
 })
 
 const CACHE_BUDGET = readFileSync(resolve(here, "../workflows/cache-budget.yml"), "utf8")
+const CODEQL = readFileSync(resolve(here, "../workflows/codeql.yml"), "utf8")
 function checkCacheBudget(text) {
   const workflow = yaml.load(text)
   assert.deepEqual(workflow.on.pull_request, { types: ["closed"] })
   assert.ok(workflow.on.schedule.length === 1 && "workflow_dispatch" in workflow.on)
+  // https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run:
+  // the branches filter names the branch that the triggering workflow ran on.
+  assert.deepEqual(workflow.on.workflow_run, { workflows: ["CodeQL"], types: ["completed"], branches: ["main"] },
+    "a main push saves its CodeQL overlay base database after the close run of its merge, so the end of that CodeQL run starts a sweep")
+  assert.equal(yaml.load(CODEQL).name, "CodeQL", "workflow_run names the CodeQL workflow by its name")
   assert.deepEqual(workflow.permissions, {})
   const job = workflow.jobs.sweep
   // https://docs.github.com/en/code-security/dependabot/troubleshooting-dependabot/troubleshooting-dependabot-on-github-actions:
@@ -211,8 +217,14 @@ function checkCacheBudget(text) {
   assert.ok(job.steps.every((step) => !/^actions\/(cache|setup-node)/.test(step.uses ?? "")), "the sweep saves and restores no cache")
 }
 
-test("the Cache Budget workflow sweeps on a closed pull request, on a schedule and on a dispatch, from main code only", () => {
+test("the Cache Budget workflow sweeps on a closed pull request, after a CodeQL run on main, on a schedule and on a dispatch, from main code only", () => {
   checkCacheBudget(CACHE_BUDGET)
+})
+
+test("the Cache Budget check fails when no sweep runs after a CodeQL run on main saves its overlay base", () => {
+  const workflow = yaml.load(CACHE_BUDGET)
+  delete workflow.on.workflow_run
+  assert.throws(() => checkCacheBudget(yaml.dump(workflow)), /the end of that CodeQL run starts a sweep/)
 })
 
 test("the Cache Budget check fails on M12, the condition that a close by Dependabot passes", () => {
