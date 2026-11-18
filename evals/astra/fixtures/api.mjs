@@ -121,8 +121,8 @@ export function requireEvalTrace(credentialKey, features) {
   if (features?.astra_eval_trace?.enabled !== true) throw flagFailure('turn on astra_eval_trace', credentialKey, 'The eval trace flag is off.')
 }
 
-// Producer: orbit-api ChatContext.ChangePlan reads ai_change_plan (FeatureFlagKeys.AiChangePlan) from the flags of the
-// account, and GET api/config resolves the same flag. The run grades each call against the lists of its path, so an
+// Producer: orbit-api TurnPolicy.For resolves ChatContext.Policy from ai_change_plan (FeatureFlagKeys.AiChangePlan) in the
+// flags of the account, and GET api/config resolves the same flag. The run grades each call against the lists of its path, so an
 // account whose flag does not agree with that path stops the run before any chat turn.
 export function requireRunPath(credentialKey, features, path) {
   const expected = path === CHANGE_PLAN_PATH

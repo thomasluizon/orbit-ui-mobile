@@ -369,7 +369,7 @@ export const registrationFingerprint = (state, newestByCheck) => JSON.stringify(
   [...newestByCheck].map(([key, { databaseId, ...node }]) => [key, node]).sort(([left], [right]) => left.localeCompare(right)),
 ])
 
-export const findRegisteredCheck = (newest, required) => {
+const findRegisteredCheck = (newest, required) => {
   for (const node of newest.values()) {
     if (contextOf(node) !== required.context) continue
     if (required.appId === null || node.appId === required.appId) return node
@@ -410,7 +410,7 @@ export const rollupFromGraphQlNodes = (nodes) => {
 
 /** All verdicts are reported together, because fixing OUT_OF_DATE only to discover CI_STALE on
  * the next run turns a mechanical state machine back into a serial guessing loop. */
-export const readinessVerdicts = (receipt) => {
+const readinessVerdicts = (receipt) => {
   const verdicts = []
   if (!receipt || typeof receipt !== "object") return ["RECEIPT_MISSING"]
   if (receipt.draft) verdicts.push("DRAFT")

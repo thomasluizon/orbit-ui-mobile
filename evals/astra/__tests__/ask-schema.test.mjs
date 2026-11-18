@@ -257,7 +257,8 @@ it('still validates every other call after the schema transition', async () => {
 })
 
 // The ai_change_plan path. Producer: orbit-api ExecuteChangePlanAskAsync needs no read before ask, a read there returns
-// no selection (ReadSelectionOf), and RefreshAskSchema gives no bound declaration. So the read-before-ask rule and the
+// no selection (ChangePlanTurnPolicy.ReadSelectionOf), and RefreshesAskSchema is false there, so RefreshAskSchema gives
+// no bound declaration. So the read-before-ask rule and the
 // selection_required clause are rules of the block-first path only.
 const readRequired = 'ask requires a typed account read or a bound missing-field draft.'
 const records = ['22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333']
@@ -296,7 +297,7 @@ it.each(['habit_setup', ...reasons])('accepts the %s label with no read on the a
   expect(verdict.pass, verdict.reason).toBe(true)
 })
 
-// Producer: ProcessUserChatCommand.Selection.cs ReadSelectionOf removes the selection of a read on the flag path.
+// Producer: ChangePlanTurnPolicy.ReadSelectionOf removes the selection of a read on the flag path.
 it('accepts an ask after a read that holds no selection and no read directive on the ai_change_plan path only', async () => {
   const read = changePlanToolCall('query_habits', { for_selection: true }, 'Succeeded', 'read', clientContext)
   read.result.payload = { scope: 'all', items: [] }

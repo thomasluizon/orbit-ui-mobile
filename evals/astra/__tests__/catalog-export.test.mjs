@@ -168,3 +168,45 @@ public sealed class BinaryData(string value) { public override string ToString()
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+// Producer: orbit-api ChatContext.Policy, set from TurnPolicy.For(EnabledFeatureFlags), decides the path of a turn, and
+// ChangePlanTurnPolicy.ReadSelectionOf and RefreshesAskSchema decide what a read and a continuation give on the flag path.
+// Each producer citation of the harness names a symbol that exists at the API commit of the catalog.
+it('cites only producer symbols that exist at the API commit that the catalog names', () => {
+  const citations = [
+    ['trace-policy.mjs', 'ChatContext.Policy'],
+    ['fixtures/api.mjs', 'TurnPolicy.For'],
+    ['__tests__/preflight.test.mjs', 'TurnPolicy.For'],
+    ['__tests__/ask-schema.test.mjs', 'ChangePlanTurnPolicy.ReadSelectionOf'],
+    ['__tests__/ask-schema.test.mjs', 'RefreshesAskSchema'],
+  ]
+  const symbols = {
+    'ChatContext.Policy': ['public TurnPolicy Policy {'],
+    'TurnPolicy.For': ['public static TurnPolicy For('],
+    'ChangePlanTurnPolicy.ReadSelectionOf': ['class ChangePlanTurnPolicy', 'public override AgentOperationResult ReadSelectionOf('],
+    RefreshesAskSchema: ['public abstract bool RefreshesAskSchema'],
+  }
+  for (const [file, cited] of citations) {
+    expect(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'), `${file} cites ${cited}`).toContain(cited)
+  }
+  for (const file of ['trace-policy.mjs', 'fixtures/api.mjs', '__tests__/preflight.test.mjs', '__tests__/ask-schema.test.mjs']) {
+    expect(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'), `${file} cites a removed symbol`)
+      .not.toMatch(/ChatContext\.ChangePlan|Selection\.cs ReadSelectionOf/u)
+  }
+  const checkout = mkdtempSync(join(tmpdir(), 'astra-citation-api-'))
+  try {
+    const repository = process.env.ORBIT_API_REPOSITORY ?? 'https://github.com/thomasluizon/orbit-api.git'
+    const git = (...arguments_) => spawnSync('git', ['-C', checkout, ...arguments_], { encoding: 'utf8', env: offlineEnvironment })
+    expect(git('init', '--quiet').status).toBe(0)
+    const fetched = git('fetch', '--quiet', '--depth', '1', repository, apiCommit)
+    expect(fetched.status, fetched.stderr).toBe(0)
+    expect(git('checkout', '--quiet', '--detach', 'FETCH_HEAD').status).toBe(0)
+    for (const [symbol, patterns] of Object.entries(symbols)) {
+      for (const pattern of patterns) {
+        expect(git('grep', '--quiet', '--fixed-strings', pattern, '--', 'src/*.cs').status, `${symbol}: ${pattern}`).toBe(0)
+      }
+    }
+  } finally {
+    rmSync(checkout, { recursive: true, force: true })
+  }
+}, 300000)
