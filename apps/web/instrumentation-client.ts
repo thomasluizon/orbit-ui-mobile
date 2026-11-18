@@ -3,6 +3,7 @@ import { sampleTodayLaunch } from '@orbit/shared/utils/today-launch'
 import { startTodayLaunch } from '@/lib/today-launch'
 import { beforeSendEvent } from '@/lib/sentry-scrub'
 import { installStaleBuildRecovery } from '@/lib/stale-build-recovery'
+import { claimRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
@@ -21,4 +22,7 @@ Sentry.init({
 startTodayLaunch()
 installStaleBuildRecovery()
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
+export function onRouterTransitionStart(href: string, navigationType: string) {
+  claimRouteTransitionIntent(href, navigationType)
+  Sentry.captureRouterTransitionStart(href, navigationType)
+}
