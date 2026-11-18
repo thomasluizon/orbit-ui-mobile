@@ -1,6 +1,6 @@
 # Generated through the API request and continuation builders, StrictToolSchema and eval trace sensitivity collector.
 # Regenerate with node evals/astra/generate-catalog.mjs <api-checkout>.
-apiCommit: a110505242192b8b6062880ea302889553c5e66d
+apiCommit: 38513551ad4eb24eb93a8c7bc33891a4920bce89
 offerTools:
   - type: function
     writes: false
@@ -87,10 +87,19 @@ offerTools:
                             - string
                             - "null"
                           description: Supporting text, at most 24 characters. Null means absent.
+                        target_ids:
+                          type:
+                            - array
+                            - "null"
+                          maxItems: 50
+                          description: Habit IDs read this turn that the option stands for. Server-only. Null means absent.
+                          items:
+                            type: string
                       required:
                         - id
                         - label
                         - description
+                        - target_ids
                       additionalProperties: false
                   multiSelect:
                     type:
@@ -436,7 +445,7 @@ offerTools:
               - bulk_selection
             description: "Identify input only the person can supply: habit_setup, preference, check_in, record_selection for one
               existing record, or bulk_selection for several existing records. Record and bulk selection require
-              query_habits with for_selection=true earlier in this turn. Resolve an earlier Astra message from history;
+              query_habits with for_selection=true earlier in this turn. Resolve an earlier Orbit message from history;
               never ask which message it was."
           shared2:
             type: string
@@ -640,6 +649,14 @@ offerTools:
                     - Thursday
                     - Friday
                     - Saturday
+              month_days:
+                type:
+                  - array
+                  - "null"
+                description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+                  month uses its last day."
+                items:
+                  type: integer
               due_date:
                 type:
                   - string
@@ -901,6 +918,7 @@ offerTools:
               - frequency_quantity
               - interval_weeks
               - days
+              - month_days
               - due_date
               - end_date
               - due_time
@@ -1818,6 +1836,14 @@ offerTools:
                 type:
                   - integer
                   - "null"
+              month_days:
+                type:
+                  - array
+                  - "null"
+                description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+                  month uses its last day. [] clears."
+                items:
+                  type: integer
               days:
                 type:
                   - array
@@ -2012,6 +2038,7 @@ offerTools:
               - frequency_unit
               - frequency_quantity
               - interval_weeks
+              - month_days
               - days
               - due_date
               - end_date
@@ -2215,29 +2242,33 @@ offerTools:
             anyOf:
               - $ref: "#/$defs/shared4"
               - type: "null"
-          due_date:
+          month_days:
             anyOf:
               - $ref: "#/$defs/shared5"
               - type: "null"
-          end_date:
+          due_date:
             anyOf:
               - $ref: "#/$defs/shared6"
               - type: "null"
-          due_time:
+          end_date:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          due_end_time:
+          due_time:
             anyOf:
               - $ref: "#/$defs/shared8"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared9"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared10"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared11"
               - type: "null"
           is_flexible:
             type:
@@ -2246,35 +2277,35 @@ offerTools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared13"
+              - $ref: "#/$defs/shared14"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared14"
+              - $ref: "#/$defs/shared15"
               - type: "null"
           reminder_enabled:
             anyOf:
-              - $ref: "#/$defs/shared15"
+              - $ref: "#/$defs/shared16"
               - type: "null"
           reminder_times:
             anyOf:
-              - $ref: "#/$defs/shared16"
+              - $ref: "#/$defs/shared17"
               - type: "null"
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared18"
+              - $ref: "#/$defs/shared19"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared20"
+              - $ref: "#/$defs/shared21"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared24"
+              - $ref: "#/$defs/shared25"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -2288,7 +2319,7 @@ offerTools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared25"
+              - $ref: "#/$defs/shared26"
               - type: "null"
           tag_ids:
             type:
@@ -2298,11 +2329,11 @@ offerTools:
               type: string
           goal_ids:
             anyOf:
-              - $ref: "#/$defs/shared26"
+              - $ref: "#/$defs/shared27"
               - type: "null"
           parent_habit_id:
             anyOf:
-              - $ref: "#/$defs/shared27"
+              - $ref: "#/$defs/shared28"
               - type: "null"
           sub_habits:
             type:
@@ -2323,6 +2354,7 @@ offerTools:
           - frequency_quantity
           - interval_weeks
           - days
+          - month_days
           - due_date
           - end_date
           - due_time
@@ -2382,29 +2414,33 @@ offerTools:
                 anyOf:
                   - $ref: "#/$defs/shared4"
                   - type: "null"
-              due_date:
+              month_days:
                 anyOf:
                   - $ref: "#/$defs/shared5"
                   - type: "null"
-              end_date:
+              due_date:
                 anyOf:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
-              due_time:
+              end_date:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              due_end_time:
+              due_time:
                 anyOf:
                   - $ref: "#/$defs/shared8"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared9"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared10"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared11"
                   - type: "null"
               is_flexible:
                 type:
@@ -2413,35 +2449,35 @@ offerTools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared13"
+                  - $ref: "#/$defs/shared14"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared14"
+                  - $ref: "#/$defs/shared15"
                   - type: "null"
               reminder_enabled:
                 anyOf:
-                  - $ref: "#/$defs/shared15"
+                  - $ref: "#/$defs/shared16"
                   - type: "null"
               reminder_times:
                 anyOf:
-                  - $ref: "#/$defs/shared16"
+                  - $ref: "#/$defs/shared17"
                   - type: "null"
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared18"
+                  - $ref: "#/$defs/shared19"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared24"
+                  - $ref: "#/$defs/shared25"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -2455,7 +2491,7 @@ offerTools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared25"
+                  - $ref: "#/$defs/shared26"
                   - type: "null"
               tag_ids:
                 type:
@@ -2465,11 +2501,11 @@ offerTools:
                   type: string
               goal_ids:
                 anyOf:
-                  - $ref: "#/$defs/shared26"
+                  - $ref: "#/$defs/shared27"
                   - type: "null"
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared27"
+                  - $ref: "#/$defs/shared28"
                   - type: "null"
               sub_habits:
                 type:
@@ -2489,6 +2525,7 @@ offerTools:
               - frequency_quantity
               - interval_weeks
               - days
+              - month_days
               - due_date
               - end_date
               - due_time
@@ -2550,22 +2587,28 @@ offerTools:
                 - Friday
                 - Saturday
           shared5:
+            type: array
+            description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+              month uses its last day."
+            items:
+              type: integer
+          shared6:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
               start date. Use requested account-local dates from words or images, including implied holidays and
               weekdays. Default to today only without a date signal.
-          shared6:
+          shared7:
             type:
               - string
               - "null"
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
-          shared7:
+          shared8:
             type: string
             description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
               are accepted as HH:mm:ss.
-          shared8:
+          shared9:
             type:
               - string
               - "null"
@@ -2573,14 +2616,14 @@ offerTools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared9:
+          shared10:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared10:
+          shared11:
             type: boolean
             description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
-          shared11:
+          shared12:
             type: object
             properties:
               text:
@@ -2594,16 +2637,16 @@ offerTools:
               - text
               - is_checked
             additionalProperties: false
-          shared12:
+          shared13:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared11"
-          shared13:
+              $ref: "#/$defs/shared12"
+          shared14:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared14:
+          shared15:
             type: string
             enum:
               - sub_habit
@@ -2611,17 +2654,17 @@ offerTools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared15:
+          shared16:
             type: boolean
             description: For a timed OneTime task without a reminder preference, set true and mark reminder_enabled and
               reminder_times in suggested_fields; preserve explicit false.
-          shared16:
+          shared17:
             type: array
             items:
               type: integer
             description: Minutes before due_time; suggest [15] with reminder_enabled=true, marking both in suggested_fields.
               Prescribed times use scheduled_reminders.
-          shared17:
+          shared18:
             type: object
             properties:
               when:
@@ -2636,12 +2679,12 @@ offerTools:
               - when
               - time
             additionalProperties: false
-          shared18:
+          shared19:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared17"
-          shared19:
+              $ref: "#/$defs/shared18"
+          shared20:
             type: object
             properties:
               minutes_before:
@@ -2665,13 +2708,13 @@ offerTools:
               - when
               - time
             additionalProperties: false
-          shared20:
+          shared21:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared19"
-          shared21:
+              $ref: "#/$defs/shared20"
+          shared22:
             type: integer
             enum:
               - 15
@@ -2701,13 +2744,13 @@ offerTools:
               - 1260
               - 1320
               - 1380
-          shared22:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared23:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared24:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared25:
             type: object
             description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
               overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
@@ -2715,10 +2758,10 @@ offerTools:
               recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared21"
+                $ref: "#/$defs/shared22"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               active_end:
                 type:
@@ -2727,7 +2770,7 @@ offerTools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared23"
+                  - $ref: "#/$defs/shared24"
                   - type: "null"
             required:
               - interval_minutes
@@ -2735,18 +2778,18 @@ offerTools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared25:
+          shared26:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared26:
+          shared27:
             type: array
             items:
               type: string
             description: Set matching offer_account_facts.ActiveGoals IDs; mark unrequested goal_ids in suggested_fields. Preserve
               links; never requery or create equivalent goals.
-          shared27:
+          shared28:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text. Set a fitting offer_account_facts.Habits ID; mark parent_habit_id in
@@ -2807,29 +2850,33 @@ offerTools:
             anyOf:
               - $ref: "#/$defs/shared4"
               - type: "null"
-          due_date:
+          month_days:
             anyOf:
               - $ref: "#/$defs/shared5"
               - type: "null"
-          end_date:
+          due_date:
             anyOf:
               - $ref: "#/$defs/shared6"
               - type: "null"
-          due_time:
+          end_date:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          due_end_time:
+          due_time:
             anyOf:
               - $ref: "#/$defs/shared8"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared9"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared10"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared11"
               - type: "null"
           is_flexible:
             type:
@@ -2838,35 +2885,35 @@ offerTools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared13"
+              - $ref: "#/$defs/shared14"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared14"
+              - $ref: "#/$defs/shared15"
               - type: "null"
           reminder_enabled:
             anyOf:
-              - $ref: "#/$defs/shared15"
+              - $ref: "#/$defs/shared16"
               - type: "null"
           reminder_times:
             anyOf:
-              - $ref: "#/$defs/shared16"
+              - $ref: "#/$defs/shared17"
               - type: "null"
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared18"
+              - $ref: "#/$defs/shared19"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared20"
+              - $ref: "#/$defs/shared21"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared24"
+              - $ref: "#/$defs/shared25"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -2880,7 +2927,7 @@ offerTools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared25"
+              - $ref: "#/$defs/shared26"
               - type: "null"
           tag_ids:
             type:
@@ -2890,10 +2937,10 @@ offerTools:
               type: string
           goal_ids:
             anyOf:
-              - $ref: "#/$defs/shared26"
+              - $ref: "#/$defs/shared27"
               - type: "null"
           parent_habit_id:
-            $ref: "#/$defs/shared27"
+            $ref: "#/$defs/shared28"
           sub_habits:
             type:
               - array
@@ -2913,6 +2960,7 @@ offerTools:
           - frequency_quantity
           - interval_weeks
           - days
+          - month_days
           - due_date
           - end_date
           - due_time
@@ -2972,29 +3020,33 @@ offerTools:
                 anyOf:
                   - $ref: "#/$defs/shared4"
                   - type: "null"
-              due_date:
+              month_days:
                 anyOf:
                   - $ref: "#/$defs/shared5"
                   - type: "null"
-              end_date:
+              due_date:
                 anyOf:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
-              due_time:
+              end_date:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              due_end_time:
+              due_time:
                 anyOf:
                   - $ref: "#/$defs/shared8"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared9"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared10"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared11"
                   - type: "null"
               is_flexible:
                 type:
@@ -3003,35 +3055,35 @@ offerTools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared13"
+                  - $ref: "#/$defs/shared14"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared14"
+                  - $ref: "#/$defs/shared15"
                   - type: "null"
               reminder_enabled:
                 anyOf:
-                  - $ref: "#/$defs/shared15"
+                  - $ref: "#/$defs/shared16"
                   - type: "null"
               reminder_times:
                 anyOf:
-                  - $ref: "#/$defs/shared16"
+                  - $ref: "#/$defs/shared17"
                   - type: "null"
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared18"
+                  - $ref: "#/$defs/shared19"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared24"
+                  - $ref: "#/$defs/shared25"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -3045,7 +3097,7 @@ offerTools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared25"
+                  - $ref: "#/$defs/shared26"
                   - type: "null"
               tag_ids:
                 type:
@@ -3055,11 +3107,11 @@ offerTools:
                   type: string
               goal_ids:
                 anyOf:
-                  - $ref: "#/$defs/shared26"
+                  - $ref: "#/$defs/shared27"
                   - type: "null"
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared27"
+                  - $ref: "#/$defs/shared28"
                   - type: "null"
               sub_habits:
                 type:
@@ -3079,6 +3131,7 @@ offerTools:
               - frequency_quantity
               - interval_weeks
               - days
+              - month_days
               - due_date
               - end_date
               - due_time
@@ -3140,22 +3193,28 @@ offerTools:
                 - Friday
                 - Saturday
           shared5:
+            type: array
+            description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+              month uses its last day."
+            items:
+              type: integer
+          shared6:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
               start date. Use requested account-local dates from words or images, including implied holidays and
               weekdays. Default to today only without a date signal.
-          shared6:
+          shared7:
             type:
               - string
               - "null"
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
-          shared7:
+          shared8:
             type: string
             description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
               are accepted as HH:mm:ss.
-          shared8:
+          shared9:
             type:
               - string
               - "null"
@@ -3163,14 +3222,14 @@ offerTools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared9:
+          shared10:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared10:
+          shared11:
             type: boolean
             description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
-          shared11:
+          shared12:
             type: object
             properties:
               text:
@@ -3184,16 +3243,16 @@ offerTools:
               - text
               - is_checked
             additionalProperties: false
-          shared12:
+          shared13:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared11"
-          shared13:
+              $ref: "#/$defs/shared12"
+          shared14:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared14:
+          shared15:
             type: string
             enum:
               - sub_habit
@@ -3201,17 +3260,17 @@ offerTools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared15:
+          shared16:
             type: boolean
             description: For a timed OneTime task without a reminder preference, set true and mark reminder_enabled and
               reminder_times in suggested_fields; preserve explicit false.
-          shared16:
+          shared17:
             type: array
             items:
               type: integer
             description: Minutes before due_time; suggest [15] with reminder_enabled=true, marking both in suggested_fields.
               Prescribed times use scheduled_reminders.
-          shared17:
+          shared18:
             type: object
             properties:
               when:
@@ -3226,12 +3285,12 @@ offerTools:
               - when
               - time
             additionalProperties: false
-          shared18:
+          shared19:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared17"
-          shared19:
+              $ref: "#/$defs/shared18"
+          shared20:
             type: object
             properties:
               minutes_before:
@@ -3255,13 +3314,13 @@ offerTools:
               - when
               - time
             additionalProperties: false
-          shared20:
+          shared21:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared19"
-          shared21:
+              $ref: "#/$defs/shared20"
+          shared22:
             type: integer
             enum:
               - 15
@@ -3291,13 +3350,13 @@ offerTools:
               - 1260
               - 1320
               - 1380
-          shared22:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared23:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared24:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared25:
             type: object
             description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
               overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
@@ -3305,10 +3364,10 @@ offerTools:
               recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared21"
+                $ref: "#/$defs/shared22"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               active_end:
                 type:
@@ -3317,7 +3376,7 @@ offerTools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared23"
+                  - $ref: "#/$defs/shared24"
                   - type: "null"
             required:
               - interval_minutes
@@ -3325,18 +3384,18 @@ offerTools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared25:
+          shared26:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared26:
+          shared27:
             type: array
             items:
               type: string
             description: Set matching offer_account_facts.ActiveGoals IDs; mark unrequested goal_ids in suggested_fields. Preserve
               links; never requery or create equivalent goals.
-          shared27:
+          shared28:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text. Set a fitting offer_account_facts.Habits ID; mark parent_habit_id in
@@ -5647,8 +5706,8 @@ offerTools:
     sensitiveFields: []
     function:
       name: set_proactive_astra
-      description: Enable or disable proactive Astra push check-ins when the user asks. Requires Pro; in-app proactive items
-        remain available.
+      description: Enable or disable proactive push check-ins when the user asks. Requires Pro; in-app proactive items remain
+        available.
       strict: true
       parameters:
         type: object
@@ -6453,6 +6512,14 @@ offerTools:
               - integer
               - "null"
             description: Repeat interval in weeks, minimum 1.
+          month_days:
+            type:
+              - array
+              - "null"
+            description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+              month uses its last day. [] clears."
+            items:
+              type: integer
           days:
             type:
               - array
@@ -6676,6 +6743,7 @@ offerTools:
           - frequency_unit
           - frequency_quantity
           - interval_weeks
+          - month_days
           - days
           - due_date
           - end_date
@@ -6934,10 +7002,19 @@ offerPostReadTools:
                             - string
                             - "null"
                           description: Supporting text, at most 24 characters. Null means absent.
+                        target_ids:
+                          type:
+                            - array
+                            - "null"
+                          maxItems: 50
+                          description: Habit IDs read this turn that the option stands for. Server-only. Null means absent.
+                          items:
+                            type: string
                       required:
                         - id
                         - label
                         - description
+                        - target_ids
                       additionalProperties: false
                   multiSelect:
                     type:
@@ -7253,7 +7330,7 @@ offerPostReadTools:
               - bulk_selection
             description: "Identify input only the person can supply: habit_setup, preference, check_in, record_selection for one
               existing record, or bulk_selection for several existing records. Record and bulk selection require
-              query_habits with for_selection=true earlier in this turn. Resolve an earlier Astra message from history;
+              query_habits with for_selection=true earlier in this turn. Resolve an earlier Orbit message from history;
               never ask which message it was."
           shared2:
             type: object
@@ -7347,10 +7424,19 @@ offerHabitSetupTools:
                             - string
                             - "null"
                           description: Supporting text, at most 24 characters. Null means absent.
+                        target_ids:
+                          type:
+                            - array
+                            - "null"
+                          maxItems: 50
+                          description: Habit IDs read this turn that the option stands for. Server-only. Null means absent.
+                          items:
+                            type: string
                       required:
                         - id
                         - label
                         - description
+                        - target_ids
                       additionalProperties: false
                   multiSelect:
                     type:
@@ -7723,10 +7809,19 @@ tools:
                             - string
                             - "null"
                           description: Supporting text, at most 24 characters. Null means absent.
+                        target_ids:
+                          type:
+                            - array
+                            - "null"
+                          maxItems: 50
+                          description: Habit IDs read this turn that the option stands for. Server-only. Null means absent.
+                          items:
+                            type: string
                       required:
                         - id
                         - label
                         - description
+                        - target_ids
                       additionalProperties: false
                   multiSelect:
                     type:
@@ -8071,7 +8166,7 @@ tools:
               - bulk_selection
             description: "Identify input only the person can supply: habit_setup, preference, check_in, record_selection for one
               existing record, or bulk_selection for several existing records. Record and bulk selection require
-              query_habits with for_selection=true earlier in this turn. Resolve an earlier Astra message from history;
+              query_habits with for_selection=true earlier in this turn. Resolve an earlier Orbit message from history;
               never ask which message it was."
           shared2:
             type: string
@@ -8251,6 +8346,14 @@ tools:
                     - Thursday
                     - Friday
                     - Saturday
+              month_days:
+                type:
+                  - array
+                  - "null"
+                description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+                  month uses its last day."
+                items:
+                  type: integer
               due_date:
                 type:
                   - string
@@ -8504,6 +8607,7 @@ tools:
               - frequency_quantity
               - interval_weeks
               - days
+              - month_days
               - due_date
               - end_date
               - due_time
@@ -9366,6 +9470,14 @@ tools:
                 type:
                   - integer
                   - "null"
+              month_days:
+                type:
+                  - array
+                  - "null"
+                description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+                  month uses its last day. [] clears."
+                items:
+                  type: integer
               days:
                 type:
                   - array
@@ -9559,6 +9671,7 @@ tools:
               - frequency_unit
               - frequency_quantity
               - interval_weeks
+              - month_days
               - days
               - due_date
               - end_date
@@ -9716,29 +9829,33 @@ tools:
             anyOf:
               - $ref: "#/$defs/shared3"
               - type: "null"
-          due_date:
+          month_days:
             anyOf:
               - $ref: "#/$defs/shared4"
               - type: "null"
-          end_date:
+          due_date:
             anyOf:
               - $ref: "#/$defs/shared5"
               - type: "null"
-          due_time:
+          end_date:
             anyOf:
               - $ref: "#/$defs/shared6"
               - type: "null"
-          due_end_time:
+          due_time:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared8"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared9"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared10"
               - type: "null"
           is_flexible:
             type:
@@ -9747,15 +9864,15 @@ tools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared11"
+              - $ref: "#/$defs/shared12"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared13"
+              - $ref: "#/$defs/shared14"
               - type: "null"
           reminder_enabled:
             type:
@@ -9769,15 +9886,15 @@ tools:
               type: integer
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared15"
+              - $ref: "#/$defs/shared16"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared17"
+              - $ref: "#/$defs/shared18"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared21"
+              - $ref: "#/$defs/shared22"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -9791,7 +9908,7 @@ tools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared22"
+              - $ref: "#/$defs/shared23"
               - type: "null"
           tag_ids:
             type:
@@ -9807,7 +9924,7 @@ tools:
               type: string
           parent_habit_id:
             anyOf:
-              - $ref: "#/$defs/shared23"
+              - $ref: "#/$defs/shared24"
               - type: "null"
           sub_habits:
             type:
@@ -9826,6 +9943,7 @@ tools:
           - frequency_quantity
           - interval_weeks
           - days
+          - month_days
           - due_date
           - end_date
           - due_time
@@ -9881,29 +9999,33 @@ tools:
                 anyOf:
                   - $ref: "#/$defs/shared3"
                   - type: "null"
-              due_date:
+              month_days:
                 anyOf:
                   - $ref: "#/$defs/shared4"
                   - type: "null"
-              end_date:
+              due_date:
                 anyOf:
                   - $ref: "#/$defs/shared5"
                   - type: "null"
-              due_time:
+              end_date:
                 anyOf:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
-              due_end_time:
+              due_time:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared8"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared9"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared10"
                   - type: "null"
               is_flexible:
                 type:
@@ -9912,15 +10034,15 @@ tools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared11"
+                  - $ref: "#/$defs/shared12"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared13"
+                  - $ref: "#/$defs/shared14"
                   - type: "null"
               reminder_enabled:
                 type:
@@ -9934,15 +10056,15 @@ tools:
                   type: integer
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared15"
+                  - $ref: "#/$defs/shared16"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared17"
+                  - $ref: "#/$defs/shared18"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared21"
+                  - $ref: "#/$defs/shared22"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -9956,7 +10078,7 @@ tools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               tag_ids:
                 type:
@@ -9972,7 +10094,7 @@ tools:
                   type: string
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared23"
+                  - $ref: "#/$defs/shared24"
                   - type: "null"
               sub_habits:
                 type:
@@ -9991,6 +10113,7 @@ tools:
               - frequency_quantity
               - interval_weeks
               - days
+              - month_days
               - due_date
               - end_date
               - due_time
@@ -10046,22 +10169,28 @@ tools:
                 - Friday
                 - Saturday
           shared4:
+            type: array
+            description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+              month uses its last day."
+            items:
+              type: integer
+          shared5:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
               start date. Use requested account-local dates from words or images, including implied holidays and
               weekdays. Default to today only without a date signal.
-          shared5:
+          shared6:
             type:
               - string
               - "null"
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
-          shared6:
+          shared7:
             type: string
             description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
               are accepted as HH:mm:ss.
-          shared7:
+          shared8:
             type:
               - string
               - "null"
@@ -10069,14 +10198,14 @@ tools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared8:
+          shared9:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared9:
+          shared10:
             type: boolean
             description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
-          shared10:
+          shared11:
             type: object
             properties:
               text:
@@ -10090,16 +10219,16 @@ tools:
               - text
               - is_checked
             additionalProperties: false
-          shared11:
+          shared12:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared10"
-          shared12:
+              $ref: "#/$defs/shared11"
+          shared13:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared13:
+          shared14:
             type: string
             enum:
               - sub_habit
@@ -10107,7 +10236,7 @@ tools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared14:
+          shared15:
             type: object
             properties:
               when:
@@ -10122,12 +10251,12 @@ tools:
               - when
               - time
             additionalProperties: false
-          shared15:
+          shared16:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared14"
-          shared16:
+              $ref: "#/$defs/shared15"
+          shared17:
             type: object
             properties:
               minutes_before:
@@ -10151,13 +10280,13 @@ tools:
               - when
               - time
             additionalProperties: false
-          shared17:
+          shared18:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared16"
-          shared18:
+              $ref: "#/$defs/shared17"
+          shared19:
             type: integer
             enum:
               - 15
@@ -10187,13 +10316,13 @@ tools:
               - 1260
               - 1320
               - 1380
-          shared19:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared20:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared21:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared22:
             type: object
             description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
               overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
@@ -10201,10 +10330,10 @@ tools:
               recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared18"
+                $ref: "#/$defs/shared19"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared19"
+                  - $ref: "#/$defs/shared20"
                   - type: "null"
               active_end:
                 type:
@@ -10213,7 +10342,7 @@ tools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
             required:
               - interval_minutes
@@ -10221,12 +10350,12 @@ tools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared22:
+          shared23:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared23:
+          shared24:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text.
@@ -10275,29 +10404,33 @@ tools:
             anyOf:
               - $ref: "#/$defs/shared3"
               - type: "null"
-          due_date:
+          month_days:
             anyOf:
               - $ref: "#/$defs/shared4"
               - type: "null"
-          end_date:
+          due_date:
             anyOf:
               - $ref: "#/$defs/shared5"
               - type: "null"
-          due_time:
+          end_date:
             anyOf:
               - $ref: "#/$defs/shared6"
               - type: "null"
-          due_end_time:
+          due_time:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared8"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared9"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared10"
               - type: "null"
           is_flexible:
             type:
@@ -10306,15 +10439,15 @@ tools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared11"
+              - $ref: "#/$defs/shared12"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared13"
+              - $ref: "#/$defs/shared14"
               - type: "null"
           reminder_enabled:
             type:
@@ -10328,15 +10461,15 @@ tools:
               type: integer
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared15"
+              - $ref: "#/$defs/shared16"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared17"
+              - $ref: "#/$defs/shared18"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared21"
+              - $ref: "#/$defs/shared22"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -10350,7 +10483,7 @@ tools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared22"
+              - $ref: "#/$defs/shared23"
               - type: "null"
           tag_ids:
             type:
@@ -10365,7 +10498,7 @@ tools:
             items:
               type: string
           parent_habit_id:
-            $ref: "#/$defs/shared23"
+            $ref: "#/$defs/shared24"
           sub_habits:
             type:
               - array
@@ -10383,6 +10516,7 @@ tools:
           - frequency_quantity
           - interval_weeks
           - days
+          - month_days
           - due_date
           - end_date
           - due_time
@@ -10438,29 +10572,33 @@ tools:
                 anyOf:
                   - $ref: "#/$defs/shared3"
                   - type: "null"
-              due_date:
+              month_days:
                 anyOf:
                   - $ref: "#/$defs/shared4"
                   - type: "null"
-              end_date:
+              due_date:
                 anyOf:
                   - $ref: "#/$defs/shared5"
                   - type: "null"
-              due_time:
+              end_date:
                 anyOf:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
-              due_end_time:
+              due_time:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared8"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared9"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared10"
                   - type: "null"
               is_flexible:
                 type:
@@ -10469,15 +10607,15 @@ tools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared11"
+                  - $ref: "#/$defs/shared12"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared13"
+                  - $ref: "#/$defs/shared14"
                   - type: "null"
               reminder_enabled:
                 type:
@@ -10491,15 +10629,15 @@ tools:
                   type: integer
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared15"
+                  - $ref: "#/$defs/shared16"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared17"
+                  - $ref: "#/$defs/shared18"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared21"
+                  - $ref: "#/$defs/shared22"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -10513,7 +10651,7 @@ tools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               tag_ids:
                 type:
@@ -10529,7 +10667,7 @@ tools:
                   type: string
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared23"
+                  - $ref: "#/$defs/shared24"
                   - type: "null"
               sub_habits:
                 type:
@@ -10548,6 +10686,7 @@ tools:
               - frequency_quantity
               - interval_weeks
               - days
+              - month_days
               - due_date
               - end_date
               - due_time
@@ -10603,22 +10742,28 @@ tools:
                 - Friday
                 - Saturday
           shared4:
+            type: array
+            description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+              month uses its last day."
+            items:
+              type: integer
+          shared5:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
               start date. Use requested account-local dates from words or images, including implied holidays and
               weekdays. Default to today only without a date signal.
-          shared5:
+          shared6:
             type:
               - string
               - "null"
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
-          shared6:
+          shared7:
             type: string
             description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
               are accepted as HH:mm:ss.
-          shared7:
+          shared8:
             type:
               - string
               - "null"
@@ -10626,14 +10771,14 @@ tools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared8:
+          shared9:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared9:
+          shared10:
             type: boolean
             description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
-          shared10:
+          shared11:
             type: object
             properties:
               text:
@@ -10647,16 +10792,16 @@ tools:
               - text
               - is_checked
             additionalProperties: false
-          shared11:
+          shared12:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared10"
-          shared12:
+              $ref: "#/$defs/shared11"
+          shared13:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared13:
+          shared14:
             type: string
             enum:
               - sub_habit
@@ -10664,7 +10809,7 @@ tools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared14:
+          shared15:
             type: object
             properties:
               when:
@@ -10679,12 +10824,12 @@ tools:
               - when
               - time
             additionalProperties: false
-          shared15:
+          shared16:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared14"
-          shared16:
+              $ref: "#/$defs/shared15"
+          shared17:
             type: object
             properties:
               minutes_before:
@@ -10708,13 +10853,13 @@ tools:
               - when
               - time
             additionalProperties: false
-          shared17:
+          shared18:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared16"
-          shared18:
+              $ref: "#/$defs/shared17"
+          shared19:
             type: integer
             enum:
               - 15
@@ -10744,13 +10889,13 @@ tools:
               - 1260
               - 1320
               - 1380
-          shared19:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared20:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared21:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared22:
             type: object
             description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
               overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
@@ -10758,10 +10903,10 @@ tools:
               recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared18"
+                $ref: "#/$defs/shared19"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared19"
+                  - $ref: "#/$defs/shared20"
                   - type: "null"
               active_end:
                 type:
@@ -10770,7 +10915,7 @@ tools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
             required:
               - interval_minutes
@@ -10778,12 +10923,12 @@ tools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared22:
+          shared23:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared23:
+          shared24:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text.
@@ -12650,8 +12795,8 @@ tools:
     sensitiveFields: []
     function:
       name: set_proactive_astra
-      description: Enable or disable proactive Astra push check-ins when the user asks. Requires Pro; in-app proactive items
-        remain available.
+      description: Enable or disable proactive push check-ins when the user asks. Requires Pro; in-app proactive items remain
+        available.
       strict: true
       parameters:
         type: object
@@ -13335,6 +13480,14 @@ tools:
               - integer
               - "null"
             description: Repeat interval in weeks, minimum 1.
+          month_days:
+            type:
+              - array
+              - "null"
+            description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+              month uses its last day. [] clears."
+            items:
+              type: integer
           days:
             type:
               - array
@@ -13556,6 +13709,7 @@ tools:
           - frequency_unit
           - frequency_quantity
           - interval_weeks
+          - month_days
           - days
           - due_date
           - end_date
@@ -13871,6 +14025,14 @@ legacyTools:
                     - Thursday
                     - Friday
                     - Saturday
+              month_days:
+                type:
+                  - array
+                  - "null"
+                description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+                  month uses its last day."
+                items:
+                  type: integer
               due_date:
                 type:
                   - string
@@ -14124,6 +14286,7 @@ legacyTools:
               - frequency_quantity
               - interval_weeks
               - days
+              - month_days
               - due_date
               - end_date
               - due_time
@@ -14986,6 +15149,14 @@ legacyTools:
                 type:
                   - integer
                   - "null"
+              month_days:
+                type:
+                  - array
+                  - "null"
+                description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+                  month uses its last day. [] clears."
+                items:
+                  type: integer
               days:
                 type:
                   - array
@@ -15179,6 +15350,7 @@ legacyTools:
               - frequency_unit
               - frequency_quantity
               - interval_weeks
+              - month_days
               - days
               - due_date
               - end_date
@@ -15336,29 +15508,33 @@ legacyTools:
             anyOf:
               - $ref: "#/$defs/shared3"
               - type: "null"
-          due_date:
+          month_days:
             anyOf:
               - $ref: "#/$defs/shared4"
               - type: "null"
-          end_date:
+          due_date:
             anyOf:
               - $ref: "#/$defs/shared5"
               - type: "null"
-          due_time:
+          end_date:
             anyOf:
               - $ref: "#/$defs/shared6"
               - type: "null"
-          due_end_time:
+          due_time:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared8"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared9"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared10"
               - type: "null"
           is_flexible:
             type:
@@ -15367,15 +15543,15 @@ legacyTools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared11"
+              - $ref: "#/$defs/shared12"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared13"
+              - $ref: "#/$defs/shared14"
               - type: "null"
           reminder_enabled:
             type:
@@ -15389,15 +15565,15 @@ legacyTools:
               type: integer
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared15"
+              - $ref: "#/$defs/shared16"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared17"
+              - $ref: "#/$defs/shared18"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared21"
+              - $ref: "#/$defs/shared22"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -15411,7 +15587,7 @@ legacyTools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared22"
+              - $ref: "#/$defs/shared23"
               - type: "null"
           tag_ids:
             type:
@@ -15427,7 +15603,7 @@ legacyTools:
               type: string
           parent_habit_id:
             anyOf:
-              - $ref: "#/$defs/shared23"
+              - $ref: "#/$defs/shared24"
               - type: "null"
           sub_habits:
             type:
@@ -15446,6 +15622,7 @@ legacyTools:
           - frequency_quantity
           - interval_weeks
           - days
+          - month_days
           - due_date
           - end_date
           - due_time
@@ -15501,29 +15678,33 @@ legacyTools:
                 anyOf:
                   - $ref: "#/$defs/shared3"
                   - type: "null"
-              due_date:
+              month_days:
                 anyOf:
                   - $ref: "#/$defs/shared4"
                   - type: "null"
-              end_date:
+              due_date:
                 anyOf:
                   - $ref: "#/$defs/shared5"
                   - type: "null"
-              due_time:
+              end_date:
                 anyOf:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
-              due_end_time:
+              due_time:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared8"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared9"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared10"
                   - type: "null"
               is_flexible:
                 type:
@@ -15532,15 +15713,15 @@ legacyTools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared11"
+                  - $ref: "#/$defs/shared12"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared13"
+                  - $ref: "#/$defs/shared14"
                   - type: "null"
               reminder_enabled:
                 type:
@@ -15554,15 +15735,15 @@ legacyTools:
                   type: integer
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared15"
+                  - $ref: "#/$defs/shared16"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared17"
+                  - $ref: "#/$defs/shared18"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared21"
+                  - $ref: "#/$defs/shared22"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -15576,7 +15757,7 @@ legacyTools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               tag_ids:
                 type:
@@ -15592,7 +15773,7 @@ legacyTools:
                   type: string
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared23"
+                  - $ref: "#/$defs/shared24"
                   - type: "null"
               sub_habits:
                 type:
@@ -15611,6 +15792,7 @@ legacyTools:
               - frequency_quantity
               - interval_weeks
               - days
+              - month_days
               - due_date
               - end_date
               - due_time
@@ -15666,22 +15848,28 @@ legacyTools:
                 - Friday
                 - Saturday
           shared4:
+            type: array
+            description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+              month uses its last day."
+            items:
+              type: integer
+          shared5:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
               start date. Use requested account-local dates from words or images, including implied holidays and
               weekdays. Default to today only without a date signal.
-          shared5:
+          shared6:
             type:
               - string
               - "null"
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
-          shared6:
+          shared7:
             type: string
             description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
               are accepted as HH:mm:ss.
-          shared7:
+          shared8:
             type:
               - string
               - "null"
@@ -15689,14 +15877,14 @@ legacyTools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared8:
+          shared9:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared9:
+          shared10:
             type: boolean
             description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
-          shared10:
+          shared11:
             type: object
             properties:
               text:
@@ -15710,16 +15898,16 @@ legacyTools:
               - text
               - is_checked
             additionalProperties: false
-          shared11:
+          shared12:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared10"
-          shared12:
+              $ref: "#/$defs/shared11"
+          shared13:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared13:
+          shared14:
             type: string
             enum:
               - sub_habit
@@ -15727,7 +15915,7 @@ legacyTools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared14:
+          shared15:
             type: object
             properties:
               when:
@@ -15742,12 +15930,12 @@ legacyTools:
               - when
               - time
             additionalProperties: false
-          shared15:
+          shared16:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared14"
-          shared16:
+              $ref: "#/$defs/shared15"
+          shared17:
             type: object
             properties:
               minutes_before:
@@ -15771,13 +15959,13 @@ legacyTools:
               - when
               - time
             additionalProperties: false
-          shared17:
+          shared18:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared16"
-          shared18:
+              $ref: "#/$defs/shared17"
+          shared19:
             type: integer
             enum:
               - 15
@@ -15807,13 +15995,13 @@ legacyTools:
               - 1260
               - 1320
               - 1380
-          shared19:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared20:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared21:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared22:
             type: object
             description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
               overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
@@ -15821,10 +16009,10 @@ legacyTools:
               recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared18"
+                $ref: "#/$defs/shared19"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared19"
+                  - $ref: "#/$defs/shared20"
                   - type: "null"
               active_end:
                 type:
@@ -15833,7 +16021,7 @@ legacyTools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
             required:
               - interval_minutes
@@ -15841,12 +16029,12 @@ legacyTools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared22:
+          shared23:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared23:
+          shared24:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text.
@@ -15895,29 +16083,33 @@ legacyTools:
             anyOf:
               - $ref: "#/$defs/shared3"
               - type: "null"
-          due_date:
+          month_days:
             anyOf:
               - $ref: "#/$defs/shared4"
               - type: "null"
-          end_date:
+          due_date:
             anyOf:
               - $ref: "#/$defs/shared5"
               - type: "null"
-          due_time:
+          end_date:
             anyOf:
               - $ref: "#/$defs/shared6"
               - type: "null"
-          due_end_time:
+          due_time:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared8"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared9"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared10"
               - type: "null"
           is_flexible:
             type:
@@ -15926,15 +16118,15 @@ legacyTools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared11"
+              - $ref: "#/$defs/shared12"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared13"
+              - $ref: "#/$defs/shared14"
               - type: "null"
           reminder_enabled:
             type:
@@ -15948,15 +16140,15 @@ legacyTools:
               type: integer
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared15"
+              - $ref: "#/$defs/shared16"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared17"
+              - $ref: "#/$defs/shared18"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared21"
+              - $ref: "#/$defs/shared22"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -15970,7 +16162,7 @@ legacyTools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared22"
+              - $ref: "#/$defs/shared23"
               - type: "null"
           tag_ids:
             type:
@@ -15985,7 +16177,7 @@ legacyTools:
             items:
               type: string
           parent_habit_id:
-            $ref: "#/$defs/shared23"
+            $ref: "#/$defs/shared24"
           sub_habits:
             type:
               - array
@@ -16003,6 +16195,7 @@ legacyTools:
           - frequency_quantity
           - interval_weeks
           - days
+          - month_days
           - due_date
           - end_date
           - due_time
@@ -16058,29 +16251,33 @@ legacyTools:
                 anyOf:
                   - $ref: "#/$defs/shared3"
                   - type: "null"
-              due_date:
+              month_days:
                 anyOf:
                   - $ref: "#/$defs/shared4"
                   - type: "null"
-              end_date:
+              due_date:
                 anyOf:
                   - $ref: "#/$defs/shared5"
                   - type: "null"
-              due_time:
+              end_date:
                 anyOf:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
-              due_end_time:
+              due_time:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared8"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared9"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared10"
                   - type: "null"
               is_flexible:
                 type:
@@ -16089,15 +16286,15 @@ legacyTools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared11"
+                  - $ref: "#/$defs/shared12"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared13"
+                  - $ref: "#/$defs/shared14"
                   - type: "null"
               reminder_enabled:
                 type:
@@ -16111,15 +16308,15 @@ legacyTools:
                   type: integer
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared15"
+                  - $ref: "#/$defs/shared16"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared17"
+                  - $ref: "#/$defs/shared18"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared21"
+                  - $ref: "#/$defs/shared22"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -16133,7 +16330,7 @@ legacyTools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               tag_ids:
                 type:
@@ -16149,7 +16346,7 @@ legacyTools:
                   type: string
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared23"
+                  - $ref: "#/$defs/shared24"
                   - type: "null"
               sub_habits:
                 type:
@@ -16168,6 +16365,7 @@ legacyTools:
               - frequency_quantity
               - interval_weeks
               - days
+              - month_days
               - due_date
               - end_date
               - due_time
@@ -16223,22 +16421,28 @@ legacyTools:
                 - Friday
                 - Saturday
           shared4:
+            type: array
+            description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+              month uses its last day."
+            items:
+              type: integer
+          shared5:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
               start date. Use requested account-local dates from words or images, including implied holidays and
               weekdays. Default to today only without a date signal.
-          shared5:
+          shared6:
             type:
               - string
               - "null"
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
-          shared6:
+          shared7:
             type: string
             description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
               are accepted as HH:mm:ss.
-          shared7:
+          shared8:
             type:
               - string
               - "null"
@@ -16246,14 +16450,14 @@ legacyTools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared8:
+          shared9:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared9:
+          shared10:
             type: boolean
             description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
-          shared10:
+          shared11:
             type: object
             properties:
               text:
@@ -16267,16 +16471,16 @@ legacyTools:
               - text
               - is_checked
             additionalProperties: false
-          shared11:
+          shared12:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared10"
-          shared12:
+              $ref: "#/$defs/shared11"
+          shared13:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared13:
+          shared14:
             type: string
             enum:
               - sub_habit
@@ -16284,7 +16488,7 @@ legacyTools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared14:
+          shared15:
             type: object
             properties:
               when:
@@ -16299,12 +16503,12 @@ legacyTools:
               - when
               - time
             additionalProperties: false
-          shared15:
+          shared16:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared14"
-          shared16:
+              $ref: "#/$defs/shared15"
+          shared17:
             type: object
             properties:
               minutes_before:
@@ -16328,13 +16532,13 @@ legacyTools:
               - when
               - time
             additionalProperties: false
-          shared17:
+          shared18:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared16"
-          shared18:
+              $ref: "#/$defs/shared17"
+          shared19:
             type: integer
             enum:
               - 15
@@ -16364,13 +16568,13 @@ legacyTools:
               - 1260
               - 1320
               - 1380
-          shared19:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared20:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared21:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared22:
             type: object
             description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
               overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
@@ -16378,10 +16582,10 @@ legacyTools:
               recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared18"
+                $ref: "#/$defs/shared19"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared19"
+                  - $ref: "#/$defs/shared20"
                   - type: "null"
               active_end:
                 type:
@@ -16390,7 +16594,7 @@ legacyTools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
             required:
               - interval_minutes
@@ -16398,12 +16602,12 @@ legacyTools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared22:
+          shared23:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared23:
+          shared24:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text.
@@ -18159,8 +18363,8 @@ legacyTools:
     sensitiveFields: []
     function:
       name: set_proactive_astra
-      description: Enable or disable proactive Astra push check-ins when the user asks. Requires Pro; in-app proactive items
-        remain available.
+      description: Enable or disable proactive push check-ins when the user asks. Requires Pro; in-app proactive items remain
+        available.
       strict: true
       parameters:
         type: object
@@ -18834,6 +19038,14 @@ legacyTools:
               - integer
               - "null"
             description: Repeat interval in weeks, minimum 1.
+          month_days:
+            type:
+              - array
+              - "null"
+            description: "Days 1 to 31 for Month: dia 8 e 15 de cada mês or the 8th and 15th of every month is [8, 15]. A short
+              month uses its last day. [] clears."
+            items:
+              type: integer
           days:
             type:
               - array
@@ -19055,6 +19267,7 @@ legacyTools:
           - frequency_unit
           - frequency_quantity
           - interval_weeks
+          - month_days
           - days
           - due_date
           - end_date
@@ -19282,10 +19495,19 @@ postReadTools:
                             - string
                             - "null"
                           description: Supporting text, at most 24 characters. Null means absent.
+                        target_ids:
+                          type:
+                            - array
+                            - "null"
+                          maxItems: 50
+                          description: Habit IDs read this turn that the option stands for. Server-only. Null means absent.
+                          items:
+                            type: string
                       required:
                         - id
                         - label
                         - description
+                        - target_ids
                       additionalProperties: false
                   multiSelect:
                     type:
@@ -19600,7 +19822,7 @@ postReadTools:
               - bulk_selection
             description: "Identify input only the person can supply: habit_setup, preference, check_in, record_selection for one
               existing record, or bulk_selection for several existing records. Record and bulk selection require
-              query_habits with for_selection=true earlier in this turn. Resolve an earlier Astra message from history;
+              query_habits with for_selection=true earlier in this turn. Resolve an earlier Orbit message from history;
               never ask which message it was."
           shared2:
             type: object
@@ -19690,10 +19912,19 @@ habitSetupTools:
                             - string
                             - "null"
                           description: Supporting text, at most 24 characters. Null means absent.
+                        target_ids:
+                          type:
+                            - array
+                            - "null"
+                          maxItems: 50
+                          description: Habit IDs read this turn that the option stands for. Server-only. Null means absent.
+                          items:
+                            type: string
                       required:
                         - id
                         - label
                         - description
+                        - target_ids
                       additionalProperties: false
                   multiSelect:
                     type:
