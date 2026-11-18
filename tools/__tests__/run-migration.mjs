@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { intakeSource, readIntake } from "../lib/auto-work-intake.mjs"
@@ -108,6 +108,14 @@ const migrationCases = async () => {
     reviews: [{ packageName: PLAY_PACKAGES[0], id: "r1", version: "101.000000000", text: "Ótimo" }, { packageName: PLAY_PACKAGES[0], id: "r2", version: "102.000000000", text: "Bom" }] }, applied)
   same(`${UNIT}: the next review collection leaves a migrated review classified`, reviews.pending.map((item) => item.id), ["r2"])
   same(`${UNIT}: the waiter's seen keys moved`, readIntake(applied).wake.seen.mail, ["m2"])
+
+  const withContent = checkoutOf("content")
+  const mailLocal = { gmail: { completed: {}, pending: { m5: { id: "m5", threadId: "t5", bodiesComplete: true, sentId: "s5", subject: "SECRET subject", from: "SECRET sender",
+    snippet: "SECRET snippet", bodies: [{ text: "SECRET body" }], replyTo: "SECRET reply" } }, highWater: "m5" } }
+  await migrateRunState({ localIntake: mailLocal, manifest: [], apply: true, actions: recordingActions().actions, store: runFiles(withContent) })
+  const migratedText = readFileSync(join(withContent, ".git", "orbit-test-run-files", "run-state", "intake.json"), "utf8")
+  T(`${UNIT}: a pending Gmail message moves as its marks and no mail content reaches the intake file`, !/SECRET/.test(migratedText) &&
+    JSON.stringify(intakeSource("gmail", withContent).pending.m5) === JSON.stringify({ id: "m5", threadId: "t5", sentId: "s5", bodiesComplete: true }), migratedText)
 
   const existing = checkoutOf("existing")
   seedIntake(existing, { gmail: { completed: { m1: { id: "m1", classification: "bug" } }, pending: {}, highWater: "m1" } })

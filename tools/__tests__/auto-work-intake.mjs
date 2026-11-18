@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs"
+import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { acknowledgeIntake, intakeSource, updateIntakeSource } from "../lib/auto-work-intake.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
@@ -33,6 +33,17 @@ export const cases = () => {
     intake.readIntake(cutover).wake.seen.board.length === 2, JSON.stringify(intake.readIntake(cutover)))
   writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: { gmail: { completed: {}, pending: {}, highWater: "stale" } } }, cutover)
   T("intake: after the intake file exists, the local run record is never read", intakeSource("gmail", cutover).highWater === "handled")
+  const content = join(root, "intake-cutover-content")
+  mkdirSync(join(content, ".git"), { recursive: true })
+  const legacyMail = { id: "pending", threadId: "thread", bodiesComplete: true, draftId: "draft", from: "SECRET sender", replyTo: "SECRET reply", subject: "SECRET subject",
+    snippet: "SECRET snippet", bodies: [{ mimeType: "text/plain", text: "SECRET body" }], messageId: "<SECRET@example.org>", references: "<SECRET>", internalDate: "1" }
+  writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: { gmail: { completed: {}, pending: { pending: legacyMail }, highWater: "pending" } } }, content)
+  const legacyRead = intake.readIntake(content).gmail.pending.pending
+  T("intake: before the intake file exists, a pending message reads as its marks without mail content",
+    JSON.stringify(legacyRead) === JSON.stringify({ id: "pending", threadId: "thread", draftId: "draft", bodiesComplete: true }), JSON.stringify(legacyRead))
+  intake.updateIntake("wake", () => ({ seen: {}, failures: {} }), content)
+  const committed = readFileSync(join(content, ".git", "orbit-test-run-files", "run-state", "intake.json"), "utf8")
+  T("intake: the first write of the intake file holds no mail content of the local run record", !/SECRET|example\.org/.test(committed) && JSON.parse(committed).gmail.pending.pending.draftId === "draft", committed)
   const checkout = join(root, "intake")
   mkdirSync(join(checkout, ".git"), { recursive: true })
   writeRunState({ sessionId: "parent", sleep: true, autoWork: true }, checkout)

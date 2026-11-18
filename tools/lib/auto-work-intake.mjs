@@ -32,8 +32,21 @@ const activeIntakeRun = (state, repoRoot = REPO_ROOT) => {
 
 export const intakeRun = (repoRoot = REPO_ROOT) => activeIntakeRun(readRunState(repoRoot), repoRoot)
 
+const MAIL_MARKS = ["id", "threadId", "draftId", "sentId", "sendAttempted", "bodiesComplete", "replyReceipt"]
+
+/**
+ * The intake with each pending Gmail message reduced to its identity and state marks. An older run record kept the
+ * text, sender and subject of a pending message; Gmail holds them durably, and the intake file in git history never does.
+ */
+export const withoutMailContent = (intake) => {
+  if (!intake?.gmail?.pending) return intake
+  const pending = Object.fromEntries(Object.entries(intake.gmail.pending).map(([id, item]) =>
+    [id, Object.fromEntries(MAIL_MARKS.filter((mark) => item[mark] !== undefined).map((mark) => [mark, item[mark]]))]))
+  return { ...intake, gmail: { ...intake.gmail, pending } }
+}
+
 // WHY: until INTAKE_FILE exists, an older run record still holds the marks, so no reader before tools/migrate-run-state.mjs sees fewer marks than that record (thomasluizon/orbit-tickets#2152).
-const legacyIntake = (repoRoot) => readRunState(repoRoot)?.intake ?? {}
+const legacyIntake = (repoRoot) => withoutMailContent(readRunState(repoRoot)?.intake ?? {})
 
 /**
  * Every intake mark (Gmail, Play, App Store, the waiter's seen keys), read from INTAKE_FILE in the private tickets

@@ -6,6 +6,7 @@
 
 import { readFileSync } from "node:fs"
 
+import { withoutMailContent } from "./auto-work-intake.mjs"
 import { INTAKE_FILE, readRunJson, updateRunJson } from "./run-files.mjs"
 import { composeRunNote, RUN_RECORD_TITLE } from "./run-notes.mjs"
 
@@ -22,11 +23,12 @@ const mergeSource = (remote, local) => {
 
 /**
  * The intake file after the local marks join it. A mark already on GitHub wins, a completed item never returns to
- * pending, and the waiter's seen keys stay as GitHub has them when it has any.
+ * pending, and the waiter's seen keys stay as GitHub has them when it has any. A pending Gmail message joins as its marks
+ * only: the intake file never holds mail content.
  */
 export const mergeIntake = (remote, local) => {
   const merged = { ...remote }
-  for (const [source, marks] of Object.entries(local ?? {})) {
+  for (const [source, marks] of Object.entries(withoutMailContent(local) ?? {})) {
     merged[source] = source === "wake" ? remote?.wake ?? marks : mergeSource(remote?.[source], marks)
   }
   return merged
