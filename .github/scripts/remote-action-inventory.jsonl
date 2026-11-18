@@ -1,0 +1,22 @@
+{"action":"actions/cache","cache":"cache step","why":"the post step saves the key after a miss; each step has a line in cache-save-inventory.jsonl"}
+{"action":"actions/cache/restore","cache":"restore only","why":"writes no entry; each line of a save pins the restores of its job"}
+{"action":"actions/cache/save","cache":"cache step","why":"saves an entry; each step has a line in cache-save-inventory.jsonl"}
+{"action":"actions/checkout","cache":"no cache","why":"package.json at v7 depends on @actions/tool-cache only, which writes the runner tool directory, not the Actions cache"}
+{"action":"actions/create-github-app-token","cache":"no cache","why":"package.json at v3 has no cache client"}
+{"action":"actions/dependency-review-action","cache":"no cache","why":"package.json at a1d282b36b6f3519aa1f3fc636f609c47dddb294 has no cache client"}
+{"action":"actions/download-artifact","cache":"no cache","why":"package.json at v8 has no cache client; an artifact is not a cache entry"}
+{"action":"actions/setup-java","cache":"cache step","why":"action.yml at v6 has a cache input that restores and saves the Gradle or Maven directories"}
+{"action":"actions/setup-node","cache":"cache step","why":"action.yml at v7 has package-manager-cache, true by default, and package.json names npm"}
+{"action":"actions/upload-artifact","cache":"no cache","why":"package.json at v7 has no cache client; an artifact is not a cache entry"}
+{"action":"docker/build-push-action","cache":"cache step","why":"action.yml at v7 has cache-to, which can export to the Actions cache with type=gha"}
+{"action":"docker/login-action","cache":"no cache","why":"action.yml at v4 has no cache input"}
+{"action":"docker/setup-buildx-action","cache":"cache step","why":"action.yml at v4 has cache-binary, true by default, for a buildx download"}
+{"action":"github/codeql-action/analyze","cache":"cache step","why":"package.json at 33d7b85da1a04171e211befe2c739303b9a4c066 depends on @actions/cache; analyze saves the TRAP and overlay base entries"}
+{"action":"github/codeql-action/init","cache":"cache step","why":"action.yml at 33d7b85da1a04171e211befe2c739303b9a4c066 has the trap-caching and dependency-caching inputs"}
+{"action":"gradle/actions/setup-gradle","cache":"cache step","why":"setup-gradle/action.yml at 8da46b539cd8fe6ab27ca75128919a18d757604c restores and saves the Gradle User Home"}
+{"action":"jlumbroso/free-disk-space","cache":"no cache","why":"a composite action of run steps only at ceedf095f4ec1a097402bc6bd80831f2e1a6fde6"}
+{"action":"pullfrog/pullfrog","cache":"no cache","why":"action.yml and package.json at 0613df0079954102a9727e833b1e4da229b8f440 have no cache input and no cache client"}
+{"action":"r0adkll/upload-google-play","cache":"no cache","why":"package.json at e738b9dd8f2476ea806d921b64aacd24f34515a5 has no cache client"}
+{"action":"reactivecircus/android-emulator-runner","cache":"no cache","why":"package.json at 1dcd0090116d15e7c562f8db72807de5e036a4ed depends on @actions/tool-cache only"}
+{"action":"sonarsource/sonarqube-scan-action","cache":"no cache","why":"package.json at e805d875275f728fac1885b413934be6d7c63f65 depends on @actions/tool-cache only"}
+{"action":"swatinem/rust-cache","cache":"cache step","why":"action.yml at d1527c8f67ef9af357290475d4af4b0fab8f12e0 saves the Rust target and registry directories"}

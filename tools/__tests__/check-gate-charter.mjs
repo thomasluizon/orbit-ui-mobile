@@ -63,6 +63,17 @@ export const cases = () => {
     ["--root", stageRepository("pull-request-range", completeCharter(), { guardWorkflow: yaml.dump(rangeStep('"$PULL_REQUEST_RANGE"')) })], { status: 0 })
   check("check-gate-charter.mjs", "rejects a commit range that is not the pull request range",
     ["--root", stageRepository("other-range", completeCharter(), { guardWorkflow: yaml.dump(rangeStep('"origin/main..HEAD"')) })], { status: 1, stderr: /not scoped/ })
+  const reactDoctor = currentGuards.jobs.guards.steps.find((step) => step.id === "react-doctor__1")
+  const reactDoctorStep = (run) => ({ jobs: { existing: { steps: [{ ...reactDoctor, run }] } } })
+  check("check-gate-charter.mjs", "accepts the React Doctor step that installs its locked tree and scans the changed files",
+    ["--root", stageRepository("react-doctor-locked", completeCharter(), { guardWorkflow: yaml.dump(reactDoctorStep(reactDoctor.run)) })], { status: 0 })
+  check("check-gate-charter.mjs", "rejects a React Doctor step that resolves the package through npx -y",
+    ["--root", stageRepository("react-doctor-npx", completeCharter(), { guardWorkflow: yaml.dump(reactDoctorStep(
+      "npx -y react-doctor@0.7.6 . --blocking error --scope changed --base origin/${{ github.base_ref }} --no-dead-code --no-supply-chain --no-score --yes")) })],
+    { status: 1, stderr: /not scoped/ })
+  check("check-gate-charter.mjs", "rejects a React Doctor step that scans every file",
+    ["--root", stageRepository("react-doctor-full", completeCharter(), { guardWorkflow: yaml.dump(reactDoctorStep(reactDoctor.run.replace(" --scope changed", ""))) })],
+    { status: 1, stderr: /not scoped/ })
   const uninvoked = stageRepository("uninvoked", completeCharter())
   writeFileSync(join(uninvoked, "lefthook.yml"), "{}")
   check("check-gate-charter.mjs", "registered tool without invocation is refused", ["--root", uninvoked], { status: 1, stderr: /not invoked/ })
