@@ -87,14 +87,14 @@ const clauseEnd = /[?!,;]|\.(?!\d)|\b(?:and|e)\b/u
 // The words that ask for a selection, on the normalized text.
 const askingWords = /\b(?:which|what|quais|qual|quantos|quantas)\b/u
 
-// The action a text asks first. Its question is the first sentence that ends with ? and names an action. The clause that
-// asks decides: the first clause of the question that holds an asking word and names an action, so "Leaving 4 to rename,
-// which 2 should I delete?" asks the deletion. A question with no such clause gives its first action, and a text with no
-// question gives its first action.
+// The action a text asks first. Its question is the first sentence that ends with ? and names an action, else the whole
+// text. The first action at or after its first asking word decides, so "Leaving 4 to rename, which 2 should I delete?"
+// asks the deletion, and a comma or the "e" of "qual é" inside the asking clause does not hide the verb. A question with
+// no asking word, or with no action after it, gives its first action.
 function askedAction(text) {
-  const question = text.split(sentenceEnd).filter((sentence) => sentence.trim().endsWith('?')).find((sentence) => firstAction(sentence))
-  if (!question) return firstAction(text)
-  return question.split(clauseEnd).filter((clause) => askingWords.test(clause)).map(firstAction).find(Boolean) ?? firstAction(question)
+  const question = text.split(sentenceEnd).filter((sentence) => sentence.trim().endsWith('?')).find((sentence) => firstAction(sentence)) ?? text
+  const asking = question.search(askingWords)
+  return (asking >= 0 && firstAction(question.slice(asking))) || firstAction(question)
 }
 
 // The half of a list question that names both actions, as "Which two to delete and which four to rename?" does: one

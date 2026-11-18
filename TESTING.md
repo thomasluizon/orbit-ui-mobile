@@ -836,10 +836,10 @@ and one selection the card allows must state the whole decision. When a list can
 renamed half, the grader selects the half that its question asks about: the action words of the question, else the
 count that it states. When the question names both actions, the two halves must differ in size, because the size of
 the selection tells its half: two halves of one size fail with a grader limit. The grader then reads the first sentence
-that ends with `?` and names an action. The clause that asks decides the half: the first clause of that sentence that
-holds an asking word (`which`, `what`, `quais`, `qual`, `quantos`, `quantas`) and names an action. So "Leaving 4 to
-rename, which 2 should I delete?" asks for the deleted half. A sentence with no such clause gives its first action, and a
-question with no such sentence gives its first action.
+that ends with `?` and names an action, or the whole text when no sentence does. The first asking word (`which`, `what`,
+`quais`, `qual`, `quantos`, `quantas`) decides the half: the half of the first action at or after that word. So "Leaving
+4 to rename, which 2 should I delete?" and "Mantendo quatro, qual é o par que eu apago?" ask for the deleted half. A
+question with no asking word, or with no action after it, gives its first action.
 A count only confirms the action that its clause names. In a list question, `keep` and
 `manter` are rename words, because the records to keep are the records to rename. When the question tells neither, or
 the two signals disagree, the case fails with a message that names a grader limit, not a model fault. A `yesNo`
