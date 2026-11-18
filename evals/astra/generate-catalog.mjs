@@ -5,8 +5,6 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tsImport } from 'tsx/esm/api'
 import { parse, stringify } from 'yaml'
-import { healthyApi } from './credentials.mjs'
-import { requireCatalogCommit } from './trace-policy.mjs'
 
 const usage = 'Usage: node evals/astra/generate-catalog.mjs <api-checkout>, or --check [<api-repository>]'
 const catalogUrl = new URL('./catalog.yaml', import.meta.url)
@@ -62,6 +60,10 @@ async function checkCatalog(repository) {
   const { apiCommit } = parse(committed)
   if (!/^[0-9a-f]{40}$/.test(apiCommit ?? '')) throw new Error('catalog.yaml names no full API commit.')
   if (process.env.ORBIT_EVAL_BASE_URL) {
+    // Imported here, not at module scope: trace-policy.mjs parses catalog.yaml when it loads, and regeneration must run
+    // even when that file does not parse.
+    const [{ healthyApi }, { requireCatalogCommit }] = await Promise.all([
+      import('./credentials.mjs'), import('./trace-policy.mjs')])
     requireCatalogCommit((await healthyApi({ fresh: true })).commit)
     process.stdout.write(`The eval target serves API ${apiCommit}.\n`)
   }

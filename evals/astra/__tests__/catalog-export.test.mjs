@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -54,6 +54,33 @@ it('goes on to the build at the catalog commit when the eval target serves that 
   expect(run.stderr).not.toContain('differs from API')
   expect(run.stderr).toContain('astra-missing-api-repository')
 }, 60000)
+
+// Regeneration is the one command that repairs catalog.yaml, so it must not parse the committed file first. A scratch
+// copy of the generator's modules gets a catalog with merge conflict markers, and an API directory with an untracked
+// file stops the run at the generator's own clean checkout check, before any build.
+it('regenerates past a committed catalog.yaml that does not parse', () => {
+  const source = new URL('..', import.meta.url)
+  const scratch = mkdtempSync(join(tmpdir(), 'astra-broken-catalog-'))
+  const apiCheckout = mkdtempSync(join(tmpdir(), 'astra-dirty-api-'))
+  try {
+    for (const name of readdirSync(source)) {
+      if (name.endsWith('.mjs')) copyFileSync(new URL(name, source), join(scratch, name))
+    }
+    symlinkSync(fileURLToPath(new URL('node_modules', source)), join(scratch, 'node_modules'), 'dir')
+    writeFileSync(join(scratch, 'catalog.yaml'), `<<<<<<< HEAD\napiCommit: ${'a'.repeat(40)}\n=======\n`
+      + `apiCommit: ${'b'.repeat(40)}\n>>>>>>> origin/main\n`)
+    spawnSync('git', ['init', '--quiet', apiCheckout])
+    writeFileSync(join(apiCheckout, 'untracked.txt'), 'untracked\n')
+    const run = spawnSync(process.execPath, [join(scratch, 'generate-catalog.mjs'), apiCheckout],
+      { encoding: 'utf8', env: offlineEnvironment, timeout: 60000 })
+    expect(run.status, run.stderr).toBe(1)
+    expect(run.stderr).not.toContain('YAMLParseError')
+    expect(run.stderr).toContain('Catalog generation requires a clean API checkout.')
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+    rmSync(apiCheckout, { recursive: true, force: true })
+  }
+})
 
 it.each(['present_plan', 'producer_owned_plan'])('exports the unregistered producer plan %s and rejects other declarations', (planName) => {
   const exporter = readFileSync(new URL('../catalog-export.cs', import.meta.url), 'utf8')
