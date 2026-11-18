@@ -484,6 +484,31 @@ const notPlannedAlertWakeCases = async () => {
     JSON.stringify([{ source: "alerts", kind: "new", items: [`api code-scanning 28 ticket-closed ${"d".repeat(40)}`] }]), JSON.stringify(completed))
 }
 
+/*
+ * A carrying ticket that no longer exists (404) or was deleted (410 Gone) reads as closed with no reason, so the owner decides its alert once.
+ * Any other failed read (502) stays a named failure that keeps the alert quiet.
+ */
+const missingTicketAlertCases = async () => {
+  const listing = await listOpenAlerts({ repositories: REPOSITORIES, readPages: fakeReader({ "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT] }).readPages })
+  const open = listing.items.reduce((items, alert) => ({ ...items, [alert.key]: alert }), {})
+  const cause = "The test fixture sets Secure false on purpose."
+  const failing = (status, text) => async () => { throw new Error(`gh api repos/thomasluizon/orbit-tickets/issues/2149 failed: gh: ${text} (HTTP ${status})`) }
+  const readNewestScan = async () => API_SCAN_COMMIT
+  for (const [status, text] of [[404, "Not Found"], [410, "Gone"]]) {
+    const ticketed = { open, marks: { "api code-scanning 28": { action: "ticket", ticket: TICKET, cause } } }
+    const missing = await alertsWithClosedTickets(ticketed, { readTicketState: failing(status, text), readNewestScan })
+    T(`github: an alert whose carrying ticket answers ${status} is in ticketClosed once with no reason and no failure`, JSON.stringify(missing.items.map((alert) => [alert.key, alert.stateReason])) ===
+      JSON.stringify([["api code-scanning 28", null]]) && missing.failures.length === 0 && missing.unreadKeys.length === 0, JSON.stringify(missing))
+    const reported = await alertsWithClosedTickets({ open, marks: { "api code-scanning 28": { action: "reported", ticket: TICKET, stateReason: null } } },
+      { readTicketState: failing(status, text), readNewestScan })
+    T(`github: a reported alert whose carrying ticket answers ${status} stays quiet and names no failure`, reported.items.length === 0 && reported.failures.length === 0 &&
+      reported.unreadKeys.length === 0, JSON.stringify(reported))
+  }
+  const gateway = await alertsWithClosedTickets({ open, marks: { "api code-scanning 28": { action: "ticket", ticket: TICKET, cause } } }, { readTicketState: failing(502, "Bad Gateway"), readNewestScan })
+  T("github: an alert whose carrying ticket answers 502 stays a named failure that keeps the alert quiet", gateway.items.length === 0 && gateway.failures.length === 1 &&
+    gateway.failures[0].message.includes("HTTP 502") && JSON.stringify(gateway.unreadKeys) === JSON.stringify(["api code-scanning 28"]), JSON.stringify(gateway))
+}
+
 /* The same failure wakes the model once: a read that fails keeps its seen keys, so its recovery is not new. */
 const failedReadCases = async () => {
   const healthy = { "repos/thomasluizon/orbit-api/pulls": [DEPENDABOT_PULL], "repos/thomasluizon/orbit-ui-mobile/pulls": [CONTRACT_PULL],
@@ -750,6 +775,7 @@ export const cases = async () => {
   permissionCases(listings)
   await closedTicketAlertWakeCases()
   await notPlannedAlertWakeCases()
+  await missingTicketAlertCases()
   await failedReadCases()
   skillCases()
   await baseCheckCases()

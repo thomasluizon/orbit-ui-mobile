@@ -251,7 +251,8 @@ for the successor.
      the alert: reopen the ticket or write a new one with the alert, and mark the alert again.
    - `DUPLICATE`: find the ticket that survives, and mark the alert again with it and the cause.
      Do not reopen the duplicate and do not write a new ticket.
-   - `NOT_PLANNED` or no reason: never reopen the ticket and never write a new one. Put the alert
+   - `NOT_PLANNED`, no reason, or a carrying ticket that no longer exists (404 or 410):
+     never reopen the ticket and never write a new one. Put the alert
      to the owner through `/questions` with its repository, id, rule, `file:line` and ticket.
      Then record `{key, action: reported}`. The tool refuses `ticket` for this alert and
      `reported` for every other alert. The mark keeps the ticket and its close reason, so a new

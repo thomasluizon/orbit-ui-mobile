@@ -186,7 +186,7 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "1a3f64e744a05d47",
+      "digest": "940827e45422b95c",
       "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },

@@ -352,10 +352,13 @@ export const unreportedPullRequests = (contents) => Object.values(contents.open)
 /** The pull requests whose every named ticket is closed, with no mark that holds at their current head. */
 export const closedTicketPullRequests = (contents) => Object.values(contents.open).filter((pull) => pull.closedTickets && !pull.unread && unmarkedAtHead("pullRequests", contents, pull))
 
-/** Reads the state of each ticket number once; a failed read is a named failure. */
+/** Reads the state of each ticket number once. A missing or deleted ticket reads as closed with no reason, so the owner decides its alert once; any other failed read is a named failure. */
 const readTicketStates = async (numbers, readTicketState) => {
   const unique = [...new Set(numbers)]
-  const states = await Promise.allSettled(unique.map((number) => readTicketState(number)))
+  const states = await Promise.allSettled(unique.map((number) => readTicketState(number).catch((error) => {
+    if (ticketIsMissing(error)) return { number, state: "CLOSED", stateReason: null }
+    throw error
+  })))
   return {
     stateOf: new Map(unique.flatMap((number, index) => states[index].status === "fulfilled" ? [[number, states[index].value]] : [])),
     failures: unique.flatMap((number, index) => states[index].status === "rejected"
