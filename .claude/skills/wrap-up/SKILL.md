@@ -57,7 +57,7 @@ this skill does not override any of it.
 
 ## What this skill never does
 
-The work. Not the thing `/progress` reports as half built, not the thing `/questions` just got an
+The work. Not the thing `/progress` reports as built but not merged, not the thing `/questions` just got an
 answer about, and nothing `$ARGUMENTS` describes. All of it goes into the handoff.
 
 **`/handoff` is the end of the session, and so is this.** That rule lives in

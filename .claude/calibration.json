@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-16",
+  "calibratedAt": "2026-11-18",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -151,8 +151,8 @@
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "68b1d9c25e950fa9",
-      "calibratedAt": "2026-11-16",
+      "digest": "ef8da2a8ce3479dc",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: runs or extends the configured Astra eval corpus and distinguishes failed behavior from incomplete tool evidence; it declares no model or effort override."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
@@ -284,8 +284,8 @@
     ".claude/skills/progress/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "89e6a2d3ccd0236c",
-      "calibratedAt": "2026-11-13",
+      "digest": "e3b592b0a7f5289b",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: medium effort; it reads live git and ticket state, resolves integration per repository, and distinguishes ancestry from stacked squash boundaries."
     },
     ".claude/skills/questions/SKILL.md": {
@@ -333,8 +333,8 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "20cffc414b05f2f3",
-      "calibratedAt": "2026-11-09",
+      "digest": "e4ac412339200f6f",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep."
     }
   }

@@ -2092,6 +2092,27 @@ T("progress: a fork's pull request is never read as a stacked parent", {
 }, { anchorListingRequestsTheField: true, anchorRequiresMappedRepository: true, dropsForkRowsFirst: true, saysWhyTheFilterIsNeeded: true })
 
 /**
+ * The owner reads the report to learn what changed in the product. A tracking number, a version or
+ * a release run tells him how the work was filed, so the answer shape excludes each of them.
+ */
+T("progress: the answer has two parts and no tracking number", {
+  mergedIsFirst: /^1\. \*\*Merged\.\*\*/m.test(progressSkill),
+  builtNotMergedIsSecond: /^2\. \*\*Built, not merged\.\*\*/m.test(progressSkill),
+  bansNumbersAndVersions: /no pull request number, ticket number, commit SHA, version number or release\s+run/.test(progressSkill),
+  readsWhatHoldsEachItem: progressSkill.includes("isDraft,statusCheckRollup") && progressSkill.includes("`pullfrog-approval`"),
+  keepsTheWindowStartLine: progressSkill.includes("window.localStartedAt"),
+  hasNoOwnerQuestionPart: !progressSkill.includes("What is waiting on the owner"),
+}, { mergedIsFirst: true, builtNotMergedIsSecond: true, bansNumbersAndVersions: true, readsWhatHoldsEachItem: true, keepsTheWindowStartLine: true, hasNoOwnerQuestionPart: true })
+T("progress: --remaining reads the open board in board order and the open pull requests", {
+  isAnArgument: /^argument-hint: "\[--remaining \| --full\]/m.test(progressSkill),
+  readsTheBoardPlan: progressSkill.includes("node tools/plan-queue.mjs --board"),
+  ordersByPosition: progressSkill.includes("`position`"),
+  readsTicketBodies: progressSkill.includes("gh issue view <ticket-number> --repo <ticket-repository> --json title,body"),
+  linksPullRequestsToTickets: progressSkill.includes("Tracks <ticket-repository>#<ticket-number>"),
+  usesNoWindow: /--remaining`[^\n]*\bno window\b/.test(progressSkill),
+}, { isAnArgument: true, readsTheBoardPlan: true, ordersByPosition: true, readsTicketBodies: true, linksPullRequestsToTickets: true, usesNoWindow: true })
+
+/**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by
  * looking rather than by any gate. A pre-commit hook does not check for them and neither did
  * anything else, so a merge resolved by a substitution that silently matched nothing shipped.
