@@ -74,6 +74,19 @@ describe('the setup turn of a starting-step case', () => {
     expect(vars.conversation.messages).toHaveLength(2)
   })
 
+  it('sends the follow-up of the legacy step client with its own history and no conversation id', async () => {
+    const { vars } = await prepare('composition-one-small-step-smaller-legacy-en')
+    const requests = []
+    const step = 'Read one line'
+    vi.stubGlobal('fetch', recordedStream([stream(turnOf({ aiMessage: step, parts: [{ type: 'text', text: step }] }))], requests))
+    await runOutcomeCase(vars)
+    const sent = JSON.parse(requests[0].form.get('clientContext'))
+    expect(sent).not.toHaveProperty('conversationId')
+    expect(sent).not.toHaveProperty('supportsProactiveOffers')
+    expect(sent.partKinds).toEqual([])
+    expect(JSON.parse(requests[0].form.get('history')).map(({ role }) => role)).toEqual(['user', 'assistant'])
+  })
+
   it('stops the case when the setup turn shows no starting step', async () => {
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
     vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')

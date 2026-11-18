@@ -200,6 +200,16 @@ function approvedFailure({ fields, kept = {} }, habit) {
   return wrong ? `saves ${wrong} as ${JSON.stringify(savedField[wrong](habit) ?? null)}, and the approved preview shows ${JSON.stringify(shown[wrong])}` : null
 }
 
+// The first field that an update preview shows for a stored record (changed, or kept) and that the account holds with another
+// value than the baseline: the preview wrote before the person decided, or the rejection saved it.
+function movedField({ target, fields, kept = {} }, habits, baseline) {
+  const habit = habits.find((saved) => saved.id === target)
+  const before = baseline.find((saved) => saved.id === target)
+  if (!habit || !before) return null
+  return Object.keys({ ...kept, ...fields }).find((field) => savedField[field] && !detailFields.includes(field)
+    && comparable(field, savedField[field](habit)) !== comparable(field, savedField[field](before))) ?? null
+}
+
 // The first field that the request names and the saved record holds with another value.
 function savedFailure(expected, habit, accountDate) {
   const wrong = Object.keys(expected.fields ?? {}).find((field) => !matchesField(expected.fields[field], savedField[field](habit), accountDate))
@@ -234,11 +244,17 @@ function gradeSavedState(readback, matched, vars) {
   if (readback.error) return verdict(false, readback.error, readback.unavailable ? { unavailable: true } : {})
   const date = vars.accountDate
   const before = savedRecords(readback.baseline, date)
-  if (JSON.stringify(savedRecords(readback.held, date)) !== JSON.stringify(before)) {
+  const named = matched.flatMap(({ expected, held }) => held.map((change) => ({ ...change, expected })))
+    .filter(({ expected }) => expected.kind === 'update')
+  if (JSON.stringify(savedRecords(readback.held, date)) !== JSON.stringify(before)
+    || named.some((change) => movedField(change, readback.held, readback.baseline))) {
     return verdict(false, 'The held preview changed the account before its approval.')
   }
+  const rejected = vars.core.decision === 'reject'
+  const moved = rejected ? named.map((change) => movedField(change, readback.after, readback.baseline)).find(Boolean) : null
+  if (moved) return verdict(false, `The rejected preview changed the account: it saved ${moved}.`)
   const differ = verdict(false, 'The saved records differ from the approved changes.')
-  const changes = matched.flatMap(({ expected, held }) => held.map((change) => ({ ...change, expected })))
+  const changes = rejected ? [] : matched.flatMap(({ expected, held }) => held.map((change) => ({ ...change, expected })))
   const wanted = new Map(before.map((habit) => [habit.id, { ...habit }]))
   for (const { expected, target } of changes) {
     if (expected.kind === 'delete') wanted.delete(target)
@@ -278,5 +294,5 @@ export function outcome(output, context) {
     const resent = gradeResend(attempt.resend, attempt.previews)
     if (!resent.pass) return resent
   }
-  return gradeSavedState(attempt.readback, vars.core.decision === 'reject' ? [] : preview.metadata.matched, vars)
+  return gradeSavedState(attempt.readback, preview.metadata.matched, vars)
 }

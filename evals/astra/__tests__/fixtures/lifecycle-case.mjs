@@ -33,8 +33,9 @@ const unit = (value) => value === 'OneTime' ? null : value
 
 // The fixture API of one account. Approval saves what the held previews show, as the recorded execute did: a `delete`
 // action removes the record, a field that the preview shows sets the stored value, and an item with no record creates
-// one. A rejected preview, revised to hold no item, refuses confirmation unless `confirmsAfterRevise`.
-export function account(habits, held, { confirmsAfterRevise = false } = {}) {
+// one. A rejected preview, revised to hold no item, refuses confirmation unless `confirmsAfterRevise`. A defective server
+// saves the held items when the preview is revised (`savesOnRevise`).
+export function account(habits, held, { confirmsAfterRevise = false, savesOnRevise = false } = {}) {
   const state = structuredClone(habits)
   const calls = []
   let revised = false
@@ -60,7 +61,11 @@ export function account(habits, held, { confirmsAfterRevise = false } = {}) {
     if (route === 'eval/pending-operations') return { status: 200, payload: { pendingCount: held.length } }
     if (route.startsWith('habits/')) return { status: 200, payload: structuredClone(state.find((stored) => stored.id === route.split('/')[1])) }
     const [, , id, action] = route.split('/')
-    if (action === 'revise') { revised = true; return { status: 200, payload: {} } }
+    if (action === 'revise') {
+      revised = true
+      if (savesOnRevise) for (const item of held.find((candidate) => candidate.id === id).items) apply(item)
+      return { status: 200, payload: {} }
+    }
     if (action === 'confirm' && revised && !confirmsAfterRevise) return { status: 404, payload: null }
     if (action === 'confirm') return { status: 200, payload: { pendingOperationId: id, confirmationToken: 'offline-confirmation' } }
     for (const item of held.find((candidate) => candidate.id === id).items) apply(item)
@@ -73,10 +78,13 @@ export function account(habits, held, { confirmsAfterRevise = false } = {}) {
 export const turnOf = (fields) => ({ aiMessage: '', actions: [], operations: [], pendingOperations: [], parts: [], conversationId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', ...fields })
 
 // Runs one corpus case through the provider path of a converted case, against the replies that the test gives in order.
-// `held` is what the account approves. Returns the output of the attempt, the requests that the account saw, and the verdict.
-export async function attempt(id, { replies, held = replies.at(-1).pendingOperations ?? [], habits, records, confirmsAfterRevise, ...extra }) {
+// `held` is what the account approves. `accountHabits` is what the account holds when the turn starts, where it differs from the
+// habits that the reset left (a server that wrote before the approval). Returns the output of the attempt, the requests that
+// the account saw, and the verdict.
+export async function attempt(id, { replies, held = replies.at(-1).pendingOperations ?? [], habits, accountHabits = habits, records,
+  confirmsAfterRevise, savesOnRevise, ...extra }) {
   const vars = preparedCase(id, { records, habits, ...extra })
-  const fixture = account(habits, held, { confirmsAfterRevise })
+  const fixture = account(accountHabits, held, { confirmsAfterRevise, savesOnRevise })
   const sent = []
   let turn = 0
   const send = async (_conversation, attempted) => {

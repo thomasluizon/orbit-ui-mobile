@@ -192,6 +192,18 @@ describe('a restart case', () => {
     expect(verdict).toMatchObject({ pass: false, reason: expect.stringContaining('A rejected preview remains confirmable.') })
   })
 
+  it('fails a rejection that the server saved anyway', async () => {
+    const { verdict, fixture } = await heldRestart('composition-restart-reject-en', todayCount(3), { savesOnRevise: true })
+    expect(fixture.state.map((habit) => habit.dueDate)).not.toEqual(restartHabits.map((habit) => habit.dueDate))
+    expect(verdict).toMatchObject({ pass: false, reason: expect.stringContaining('due_date') })
+  })
+
+  it.each(['composition-restart-approve-en', 'composition-restart-reject-en'])('fails %s when the account held the dates before the decision', async (id) => {
+    const moved = restartHabits.map((habit, index) => ({ ...habit, dueDate: todayCount(3)[index] }))
+    const { verdict } = await heldRestart(id, todayCount(3), { accountHabits: moved })
+    expect(verdict).toMatchObject({ pass: false, reason: 'The held preview changed the account before its approval.' })
+  })
+
   it('runs the same case in pt-BR over the same preview', async () => {
     expect((await heldRestart('composition-restart-approve-pt-BR', todayCount(3))).verdict.pass).toBe(true)
   })
@@ -252,6 +264,19 @@ describe('a brain dump case', () => {
     expect((await brainDump('brain-dump-ideas-en', [dentist, stretch, idea])).verdict.pass).toBe(true)
     const without = await brainDump('brain-dump-ideas-en', [dentist, stretch])
     expect(without.verdict).toMatchObject({ pass: false, reason: expect.stringContaining('The preview does not create exactly the records of the request.') })
+  })
+
+  it.each([
+    ['brain-dump-ideas-en', [dentist, stretch], 'Read', 'Day'],
+    ['brain-dump-ideas-pt-BR', [itemOf(null, 'Ligar para o dentista', { title: [null, 'Ligar para o dentista'], frequency_unit: [null, 'OneTime'], due_date: [null, addDays(1)] }),
+      itemOf(null, 'Alongar', { title: [null, 'Alongar'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1'], due_date: [null, accountDate], due_time: [null, '08:00'] })], 'Ler', 'Day'],
+  ])('holds the idea of %s to a daily habit', async (id, requested, title, unit) => {
+    const third = (frequency) => itemOf(null, title, { title: [null, title], frequency_unit: [null, frequency], due_date: [null, accountDate] })
+    expect((await brainDump(id, [...requested, third(unit)])).verdict.pass).toBe(true)
+    for (const other of ['OneTime', 'Week']) {
+      const { verdict } = await brainDump(id, [...requested, third(other)])
+      expect(verdict.pass, other).toBe(false)
+    }
   })
 
   it('runs the pt-BR cases over the same shapes', async () => {

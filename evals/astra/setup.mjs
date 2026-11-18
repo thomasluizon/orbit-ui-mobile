@@ -32,6 +32,9 @@ function prepareStartingAction(vars, block, conversation) {
   if (action.id === 'smaller' && action.previousStep) vars.clientContext.previousStartingStep = structuredClone(action.previousStep)
   vars.clientContextJson = JSON.stringify(vars.clientContext)
   conversation.context = vars.clientContext
+  // The step client with no starting-step block predates conversationId: it sends its own history, and the server holds no
+  // conversation to continue.
+  if (vars.composition.mode === 'one-small-step-legacy') conversation.conversationId = undefined
   const habit = vars.fixtureEvidence.habits.find((stored) => stored.id === vars.checklistHabitId)
   if (vars.startingStepAction === 'saveChecklistItem') {
     if (!habit?.checklistItems.length) throw new Error('Starting-step setup requires an owned habit with existing checklist items.')
