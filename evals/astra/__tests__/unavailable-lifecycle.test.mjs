@@ -15,9 +15,10 @@ import { describeCase } from '../latency.mjs'
 import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { chatResponse, habitAccountRead, turnTiming } from './fixtures/producer.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
+import { recordedGateThirteen } from './fixtures/gate-thirteen.mjs'
 
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
-const recorded = JSON.parse(readFileSync(new URL('./fixtures/gate-thirteen.json', import.meta.url), 'utf8'))
+const recorded = recordedGateThirteen()
 const httpError = recorded.find((row) => row.httpError?.errorCode === 'AI_UNAVAILABLE').httpError
 const today = '2031-06-10'
 const habitId = '22222222-2222-4222-8222-222222222222'
