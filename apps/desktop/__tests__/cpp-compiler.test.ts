@@ -1,20 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { parseClangMajor, resolveCppCompiler, type CompilerProbe } from './support/cpp-compiler.ts'
 
-const hostFolder = process.arch === 'arm64' ? 'ARM64' : 'x64'
-const visualStudioClang = `C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\VC\\Tools\\Llvm\\${hostFolder}\\bin\\clang++.exe`
+const visualStudioClang = 'C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\VC\\Tools\\Llvm\\x64\\bin\\clang++.exe'
 const vswhere = 'C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe'
 
-function runnerProbe(pathClang: string | null, visualStudioVersion: string | null): CompilerProbe {
+function runnerProbe(pathClang: string | null, visualStudioVersion: string | null, visualStudioClangPath: string = visualStudioClang): CompilerProbe {
   return (command, args) => {
     if (command === vswhere) return visualStudioVersion ? { stdout: 'C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\r\n', status: 0 } : { stdout: '', status: 0 }
     if (args[0] !== '--version') throw new Error(`Unexpected probe: ${command} ${args.join(' ')}`)
-    const output = command === 'clang++' ? pathClang : command === visualStudioClang ? visualStudioVersion : null
+    const output = command === 'clang++' ? pathClang : command === visualStudioClangPath ? visualStudioVersion : null
     return output ? { stdout: `clang version ${output} (https://github.com/llvm/llvm-project)\nTarget: x86_64-pc-windows-msvc\n`, status: 0 } : { stdout: '', status: 1 }
   }
 }
 
-const resolveOnWindows = (probe: CompilerProbe) => resolveCppCompiler('win32', probe, 'C:\\Program Files (x86)')
+const resolveOnWindows = (probe: CompilerProbe, architecture: NodeJS.Architecture = 'x64') => resolveCppCompiler('win32', probe, architecture, 'C:\\Program Files (x86)')
 
 describe('parseClangMajor', () => {
   it('reads the major version from the first line of the version output', () => {
@@ -35,6 +34,13 @@ describe('resolveCppCompiler', () => {
 
   it('picks the Visual Studio Clang when it is newer than the Clang on PATH', () => {
     expect(resolveOnWindows(runnerProbe('20.1.8', '22.1.3'))).toBe(visualStudioClang)
+  })
+
+  it.each([
+    ['x64', 'C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\VC\\Tools\\Llvm\\x64\\bin\\clang++.exe'],
+    ['arm64', 'C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\VC\\Tools\\Llvm\\ARM64\\bin\\clang++.exe'],
+  ] as const)('reads the Visual Studio Clang of the %s host from its own folder', (architecture, expectedPath) => {
+    expect(resolveOnWindows(runnerProbe('20.1.8', '22.1.3', expectedPath), architecture)).toBe(expectedPath)
   })
 
   it('keeps the Clang on PATH when it is the newest', () => {
