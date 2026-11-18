@@ -127,6 +127,9 @@ export const cases = () => {
     ["a user interface merge before the API merge it depends on", "- Merge ui#2488 before api#412", "Merge ui#2488 before api#412"],
     ["a hold behind another item", "- Hold ui#2488 until ui#2486 is in main, then merge", "Hold ui#2488 until ui#2486 is in main, then merge"],
     ["a merge order whose condition ends with done", "- Merge ui#2486 before ui#2488 once its CI is done", "Merge ui#2486 before ui#2488 once its CI is done"],
+    ["a user interface item named FIRST before an API item", "- ui#2488 FIRST, then api#412", "ui#2488 FIRST"],
+    ["an API item named FIRST with no user interface item after it", "- api#412 FIRST", "api#412 FIRST"],
+    ["an API item named FIRST before another API item", "- api#412 FIRST, then api#413", "api#412 FIRST"],
     ["an item named FIRST before a sentence about a finished release", "- ui#2486 FIRST. The release of ui#2480 is done.", "ui#2486 FIRST"],
     ["a merge order that names the cap", "- Queue order under the cap: merge ui#2486 first, then ui#2488", "Queue order under the cap: merge ui#2486 first"],
     ["an item named FIRST before a sentence that names the cap", "- ui#2486 FIRST. Keep the pool full under the cap.", "ui#2486 FIRST"],
@@ -156,6 +159,9 @@ export const cases = () => {
     ["a user interface merge after its API merge", "- Merge ui#2488 after api#412"],
     ["a wait for the API merge, then the landing merge", "- Wait for api#412 to merge, then merge landing#31"],
     ["a user interface merge held until its API merge", "- Hold ui#2488 until api#412 is merged and deployed"],
+    ["an API merge and deploy first, then a user interface merge", "- api#412 merges and deploys first, then ui#2488"],
+    ["an API item named FIRST before a user interface item", "- api#412 FIRST, then ui#2488"],
+    ["an API merge first, then a landing merge", "- Merge api#412 first, then landing#31"],
     ["a ticket that stays open until its pull request merges", "- `#1628` stays open until `ui#1959` merges and a later build carries it"],
   ]) {
     T(`${UNIT}: crank accepts ${label}`, holdsOf(line).length === 0, JSON.stringify(holdsOf(line)))
