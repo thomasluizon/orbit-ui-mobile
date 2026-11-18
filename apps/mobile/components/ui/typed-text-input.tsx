@@ -14,12 +14,13 @@ const MIRRORED_INK = { selectionColor: 'transparent', cursorColor: 'transparent'
 // WHY: Android Fabric reads the colour 0 ('transparent') as no colour, so the typed text keeps the default black text colour. https://github.com/facebook/react-native/blob/v0.88.1/packages/react-native/ReactCommon/react/renderer/attributedstring/TextAttributes.cpp#L20-L24
 const MIRRORED_TEXT_COLOR = 'rgba(255, 255, 255, 0)'
 
-// WHY: UITextField drops the line height from typed text, so React Native reads the typed text as different from the React tree text and sets the text and the selection again in the middle of the entry. https://github.com/react/react-native/issues/58904
-function nativeFieldStyle(style: StyleProp<TextStyle>, multiline: boolean | undefined): StyleProp<TextStyle> {
-  if (Platform.OS !== 'ios' || multiline) return style
-  const singleLineStyle = { ...StyleSheet.flatten(style) }
-  delete singleLineStyle.lineHeight
-  return singleLineStyle
+// WHY: React Native sets the text and the selection of a focused iOS field again when the typed text and the React tree text differ in paragraph style. UITextField sets the line height of typed text to 0 and adds its own paragraph style when the React tree text has none. https://github.com/react/react-native/issues/58904
+const IOS_SINGLE_LINE_PARAGRAPH = { lineBreakModeIOS: 'tail' } as const
+
+function singleLineStyle(style: StyleProp<TextStyle>): TextStyle {
+  const next = { ...StyleSheet.flatten(style) }
+  delete next.lineHeight
+  return next
 }
 
 export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
@@ -44,10 +45,12 @@ export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
     }
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
+    const iosSingleLine = Platform.OS === 'ios' && !props.multiline
     return (
       <TextInput
         {...props}
         {...(mirrored ? MIRRORED_INK : {})}
+        {...(iosSingleLine ? IOS_SINGLE_LINE_PARAGRAPH : {})}
         ref={assignRef}
         onFocus={(event) => {
           focusedRef.current = true
@@ -68,7 +71,7 @@ export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
           onContentSizeChange?.(event)
         }}
         placeholderTextColor={placeholderTextColor ?? tokens.fg3}
-        style={[nativeFieldStyle(style, props.multiline), { color: mirrored ? MIRRORED_TEXT_COLOR : proposed ? tokens.fg3 : tokens.fg1 }]}
+        style={[iosSingleLine ? singleLineStyle(style) : style, { color: mirrored ? MIRRORED_TEXT_COLOR : proposed ? tokens.fg3 : tokens.fg1 }]}
       />
     )
   },

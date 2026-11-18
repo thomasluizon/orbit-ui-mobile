@@ -9,7 +9,7 @@ import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-i
 import { Input } from '@/components/ui/input'
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 
-interface RenderedNode { type: unknown; props: { style: TextStyle; multiline?: boolean; keyboardType?: string }; findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[] }
+interface RenderedNode { type: unknown; props: { style: TextStyle; multiline?: boolean; keyboardType?: string; lineBreakModeIOS?: string }; findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[] }
 interface RenderedTree { root: RenderedNode; unmount: () => void }
 const renderer: {
   create: (element: React.ReactElement) => RenderedTree
@@ -43,14 +43,15 @@ function nativeField(element: React.ReactElement) {
   void renderer.act(() => { tree = renderer.create(element) })
   const [field] = tree.root.findAll((node) => node.type === 'TextInput')
   const style = StyleSheet.flatten(field!.props.style)
+  const lineBreakMode = field!.props.lineBreakModeIOS
   void renderer.act(() => tree.unmount())
-  return { style }
+  return { style, lineBreakMode }
 }
 
-describe('a single-line field on iOS gives React Native a text style that the native text field keeps', () => {
+describe('a single-line field on iOS gives React Native the paragraph style that the native text field keeps', () => {
   afterEach(() => usePlatform('android'))
 
-  it('gives the sign-in email field no line height on iOS, so the typed text equals the React tree text', async () => {
+  it('gives the sign-in email field no line height and the tail line break mode on iOS, so the typed text equals the React tree text', async () => {
     usePlatform('ios')
     mocks.flow = { ...createLoginScreenFixture('email', 'en'), turnstileSiteKey: undefined, setEmail: vi.fn(), sendCode: vi.fn() }
     let tree!: RenderedTree
@@ -59,24 +60,30 @@ describe('a single-line field on iOS gives React Native a text style that the na
     expect(email!.props.keyboardType).toBe('email-address')
     expect(email!.props.multiline).toBeUndefined()
     expect(StyleSheet.flatten(email!.props.style)).not.toHaveProperty('lineHeight')
+    expect(email!.props.lineBreakModeIOS).toBe('tail')
     expect(StyleSheet.flatten(email!.props.style)).toMatchObject({ fontSize: 16, minHeight: 54 })
     void renderer.act(() => tree.unmount())
   })
 
-  it.each(fields)('removes the line height from a single-line $name on iOS and keeps the other styles', ({ element }) => {
+  it.each(fields)('gives a single-line $name no line height and the tail line break mode on iOS, and keeps the other styles', ({ element }) => {
     usePlatform('ios')
-    const { style } = nativeField(element(false))
+    const { style, lineBreakMode } = nativeField(element(false))
     expect(style).not.toHaveProperty('lineHeight')
+    expect(lineBreakMode).toBe('tail')
     expect(style.fontSize).toBe(16)
   })
 
-  it.each(fields)('keeps the line height of a multiline $name on iOS', ({ element }) => {
+  it.each(fields)('keeps the line height of a multiline $name on iOS and sets no line break mode', ({ element }) => {
     usePlatform('ios')
-    expect(nativeField(element(true)).style.lineHeight).toBe(24)
+    const { style, lineBreakMode } = nativeField(element(true))
+    expect(style.lineHeight).toBe(24)
+    expect(lineBreakMode).toBeUndefined()
   })
 
-  it.each(fields.flatMap((field) => [false, true].map((multiline) => ({ ...field, multiline }))))('keeps the line height of $name multiline=$multiline on Android', ({ element, multiline }) => {
+  it.each(fields.flatMap((field) => [false, true].map((multiline) => ({ ...field, multiline }))))('keeps the line height of $name multiline=$multiline on Android and sets no line break mode', ({ element, multiline }) => {
     usePlatform('android')
-    expect(nativeField(element(multiline)).style.lineHeight).toBe(24)
+    const { style, lineBreakMode } = nativeField(element(multiline))
+    expect(style.lineHeight).toBe(24)
+    expect(lineBreakMode).toBeUndefined()
   })
 })
