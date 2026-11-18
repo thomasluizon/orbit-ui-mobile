@@ -32,18 +32,28 @@ export const openCaseConversation = (vars) => openConversation({ platform: vars.
   credentialKey: vars.credentialKey, timeZone: vars.accountTimeZone, uses24HourClock: vars.uses24HourClock,
   messages: vars.history ?? [], context: vars.clientContext })
 
+// The typed error of a turn that the server ended, as the answer of POST /api/chat keeps it (response.mjs): an HTTP 400
+// names the response that carried it.
+const httpErrorOf = (turn) => ({ status: turn.status, errorCode: turn.code, error: turn.error,
+  ...(turn.status === 400 ? { responseRequestId: turn.responseRequestId ?? null } : {}) })
+
 // The answer of a refused turn, in the shape that the composition and the rubric of a refusal case read.
 const refusal = ({ error: _error, unavailable: _unavailable, ...output }, turn) => ({ ...output,
   refused: { status: turn.status, code: turn.code }, httpStatus: turn.status,
-  httpError: { status: turn.status, errorCode: turn.code, error: turn.error },
+  httpError: httpErrorOf(turn),
   answer: turn.error, composition: { aiMessage: turn.error },
   trace: { state: 'refused', responseRequestId: turn.responseRequestId, refusalCode: turn.code } })
 
 // Sends the turns of one case on the client path (POST /api/chat/stream, in one conversation) and holds its preview:
-// nothing is approved. A turn that the server refuses is the answer of a case that expects a refusal.
+// nothing is approved. A turn that the server refuses is the answer of a case that expects a refusal. An HTTP 400 with
+// AI_UNAVAILABLE is an outage of the model provider and no evidence of the build, for each form of case: the attempt
+// stays incomplete with its typed error, as on POST /api/chat, and a later window can complete the case.
 export async function holdCase(vars, { send = sendTurn, conversation = vars.conversation ?? openCaseConversation(vars) } = {}) {
   let last
   const output = await runCase(coreVars(vars), { conversation, approve: false, send: async (...turn) => (last = await send(...turn)) })
+  if (last.kind === 'failed' && last.status === 400 && last.code === 'AI_UNAVAILABLE') {
+    return { ...output, unavailable: true, httpStatus: last.status, httpError: httpErrorOf(last) }
+  }
   return vars.outcome.refusal && last.kind === 'failed' && last.status && !output.unavailable ? refusal(output, last) : output
 }
 

@@ -7,9 +7,13 @@ import { composition } from '../composition.mjs'
 import { outcome, runOutcomeCase } from '../client-path.mjs'
 import { corpusTests, gradedByOutcome, readCorpus } from '../grade-method.mjs'
 import { summarize } from '../report.mjs'
+import { mergeReports } from '../merge-reports.mjs'
+import { describeCase } from '../latency.mjs'
+import parseResponse from '../response.mjs'
 import { captures } from './fixtures/core-streams.mjs'
 import { recordedStream } from './fixtures/core-replay.mjs'
 import { apiKeysStepUpResponse, habitBlock, preview, toolCall, traceTiming } from './fixtures/producer.mjs'
+import { recordedGateThirteen } from './fixtures/gate-thirteen.mjs'
 
 const { buildChatClientContext } = await tsImport('../../../packages/shared/src/chat/client-context.ts', import.meta.url)
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
@@ -206,6 +210,16 @@ describe('a converted refusal case', () => {
     expect(composition(response.output, { vars })).toMatchObject({ pass: true, reason: 'Verified concise quota refusal.' })
   })
 
+  // The evidence of an HTTP 400 refusal names the response that refused it, as the answer of POST /api/chat does (response.mjs).
+  it('keeps the request id of an HTTP 400 refusal in its HTTP error, and of no other status', async () => {
+    const moderation = await scripted('legacy-moderation-pt', [refused(400, 'CONTENT_MODERATION_REFUSED')])
+    expect(moderation.verdict).toMatchObject({ pass: true, reason: 'The request was refused with HTTP 400 (CONTENT_MODERATION_REFUSED).' })
+    expect(moderation.response.output.httpError).toEqual({ status: 400, errorCode: 'CONTENT_MODERATION_REFUSED',
+      error: 'You reached the message limit of today.', responseRequestId: requestId })
+    const quota = await scripted('budget-cap-en', [refused(403, 'PAY_GATE')])
+    expect(quota.response.output.httpError).toEqual({ status: 403, errorCode: 'PAY_GATE', error: 'You reached the message limit of today.' })
+  })
+
   it('fails on another code', async () => {
     const { verdict } = await scripted('budget-cap-en', [refused(403, 'FORBIDDEN')])
     expect(verdict).toMatchObject({ pass: false, reason: 'The request was refused with HTTP 403 (FORBIDDEN); the case expects HTTP 403 (PAY_GATE).' })
@@ -226,6 +240,41 @@ describe('a converted refusal case', () => {
     const { vars } = corpus.find((entry) => entry.metadata.id === id)
     expect(vars.outcome).toEqual({ refusal: true })
     expect([vars.expectedHttpStatus, vars.expectedErrorCode]).toEqual(id === 'legacy-moderation-pt' ? [400, 'CONTENT_MODERATION_REFUSED'] : [403, 'PAY_GATE'])
+  })
+})
+
+// Producer: orbit-api ChatTurnStream ends a turn whose result failed with the status of its error code, which is
+// HTTP 400 for AI_UNAVAILABLE, and a turn that threw with HTTP 500 and the same code. The outage is a recorded attempt
+// of the gate (gate-thirteen.json).
+describe('a converted case in a provider outage', () => {
+  const { httpError } = recordedGateThirteen().find((row) => row.httpError?.errorCode === 'AI_UNAVAILABLE')
+  const outage = (status = httpError.status) => ({ kind: 'failed', status, code: httpError.errorCode, error: httpError.error, responseRequestId: requestId })
+  const window = (id, { vars, response }) => {
+    const testCase = { ...corpus.find((entry) => entry.metadata.id === id), vars }
+    return { descriptor: describeCase(testCase), summary: summarize([{ testCase, success: false, response, error: response.error }], [describeCase(testCase)]) }
+  }
+
+  it.each([['a read case', 'single-read-en'], ['a write case', 'single-log-en'], ['a case that must end in a question', 'ambiguity-en'],
+    ['a refusal case', 'budget-cap-en'], ['the moderation refusal case', 'legacy-moderation-pt']])('keeps %s incomplete, so a later window can complete it', async (_form, id) => {
+    const attempt = await scripted(id, [outage()])
+    expect(attempt.response.error).toMatch(/AI_UNAVAILABLE/u)
+    expect(attempt.response.output).toMatchObject({ unavailable: true, httpStatus: 400,
+      httpError: { status: 400, errorCode: 'AI_UNAVAILABLE', error: httpError.error, responseRequestId: requestId } })
+    expect(attempt.response.output.refused).toBeUndefined()
+    const { descriptor, summary } = window(id, attempt)
+    expect(summary.cases[0]).toMatchObject({ allAttemptsPass: 'incomplete', passed: 0, unavailable: 1, unavailableReasons: [attempt.response.error] })
+    expect(() => mergeReports([summary, summary], [descriptor])).not.toThrow()
+    // The replay of a recorded window reads the same attempt as missing evidence (replay.mjs).
+    const { httpStatus, httpError: kept } = attempt.response.output
+    expect(parseResponse(kept, '', { response: { status: httpStatus, headers: { 'x-orbit-request-id': kept.responseRequestId } } }).output.unavailable).toBe(true)
+  })
+
+  it.each(['single-read-en', 'legacy-moderation-pt'])('keeps a turn of %s that threw on the server a failure', async (id) => {
+    const attempt = await scripted(id, [outage(500)])
+    expect(attempt.response.output.unavailable).not.toBe(true)
+    const { descriptor, summary } = window(id, attempt)
+    expect(summary.cases[0]).toMatchObject({ allAttemptsPass: 'fail', unavailable: 0 })
+    expect(() => mergeReports([summary, summary], [descriptor])).toThrow(`Case ${id} failed; declare its permitted rerun with --rerun.`)
   })
 })
 
