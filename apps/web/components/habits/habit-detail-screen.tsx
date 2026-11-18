@@ -420,7 +420,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
         <div role="status" className="flex flex-col gap-3">{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint')) : <RescueWait query={query} />}</div>
         <div className="flex flex-wrap gap-2"><ActionRow>
           {notNow}
-          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton leadingIcon={<OrbitMascot size={16} />} variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.reschedule.suggestDate')}</PillButton> : null}
+          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton leadingIcon={<OrbitMascot size={16} reading={query.isFetching} />} loading={query.isFetching} loadingFace="icon" variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.reschedule.suggestDate')}</PillButton> : null}
         </ActionRow></div>
       </div>
     </Proposed>

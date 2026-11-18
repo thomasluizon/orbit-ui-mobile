@@ -17,6 +17,7 @@ type ExpectedButtonBase = {
   variant?: 'primary' | 'ghost' | 'secondary' | 'destructive' | 'caution'
   size?: 'md' | 'sm'
   loading?: boolean
+  loadingFace?: 'skeleton' | 'icon'
   focusableWhenLoading?: boolean
   minimumHeight?: number
   elevated?: boolean
@@ -53,6 +54,7 @@ export type ButtonTypeContract = [
   Assert<IsExactWidth<ButtonProps['size'], ExpectedButtonBase['size']>>,
   Assert<IsExactWidth<ButtonProps['loading'], boolean | undefined>>,
   Assert<IsExactWidth<ButtonProps['focusableWhenLoading'], boolean | undefined>>,
+  Assert<IsExactWidth<ButtonProps['loadingFace'], 'skeleton' | 'icon' | undefined>>,
   Assert<IsExactWidth<ButtonProps['disabled'], boolean | undefined>>,
   Assert<IsExactWidth<ButtonProps['matchedWidth'], boolean | undefined>>,
   Assert<IsExactWidth<ButtonProps['onClick'], (() => void) | undefined>>,
