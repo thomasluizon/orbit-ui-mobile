@@ -394,7 +394,9 @@ when the branch needs a merge, since Git refuses a merge over a changed index.
 **Always commit both files, by path, in their own commit**, whatever else is in the tree:
 `git commit -- .claude/specs/<slug>.md .claude/handoffs/NEXT.md`. A pathspec commit takes only
 those two, so unrelated work is untouched and nothing has to be stashed. Push if the branch has a
-remote. If a hook rejects the commit, fix what it names and commit again; never bypass it and never
+remote. The `prepare-commit-msg` hook (`tools/mark-relay-skip-ci.mjs`) adds `[skip ci]` to that
+commit, so a relay push starts no workflow. Before a relay record pull request merges, push one
+commit without the marker, so the head that merges runs every check. If a hook rejects the commit, fix what it names and commit again; never bypass it and never
 leave the files uncommitted.
 
 Leaving them staged hands nothing over. A staged file lives in one worktree's index, so a session

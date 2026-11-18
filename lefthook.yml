@@ -33,6 +33,10 @@ pre-commit:
       run: node tools/check-copy.mjs --check
     i18n-usage:
       run: node tools/check-i18n-usage.mjs --staged
+prepare-commit-msg:
+  commands:
+    relay-skip-ci:
+      run: node tools/mark-relay-skip-ci.mjs {1} {2}
 pre-push:
   commands:
     protect-main:
