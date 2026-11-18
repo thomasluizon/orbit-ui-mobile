@@ -24,6 +24,8 @@ Reads the owning checkout's run, wake sources, launcher results, receipts and Gi
 With no run record in the checkout (a fresh clone, another computer, or after a reboot), it rebuilds the
 run from GitHub alone and prints status COLD_START: the board queue, every open ticket pull request
 with its next step, the latest round note and review of each in-flight ticket, and the intake marks.
+A pull request with no worktree here gets CREATE_WORKTREE before the delivery command that needs one:
+its command prints the new worktree path, which is $WORKTREE, and its "then" command checks out the head.
 Prints one compact JSON object with observations and exact next commands. No verdict is decided.
 A foreign session has no actions. A linked worktree names the main checkout without reading its run.
 The wake-source reader removes registrations only when both recorded processes are dead.
@@ -245,6 +247,17 @@ const recoverLaunchResults = ({ repositories, wakes, launches, sessionId }) => {
   return [...results.values()]
 }
 
+/** The delivery actions that run inside the pull request's worktree. */
+const WORKTREE_ACTIONS = new Set(["BEHIND_BASE", "CHECK_FAILED", "VERIFY_DELIVERY"])
+/**
+ * A new computer has no worktree for an open pull request. The fetch makes the local head branch that the
+ * wrapper's base check reads; `then` checks the head branch out in the path the wrapper prints as $WORKTREE.
+ */
+const createWorktreeAction = (row, pull, repositoryPath) => ({
+  ...action("CREATE_WORKTREE", `git -C ${quote(repositoryPath)} fetch origin ${quote(`${pull.headRefName}:${pull.headRefName}`)} && node tools/create-worktree.mjs --repo ${quote(`path:${repositoryPath}`)} --name ${quote(`${row.repositoryKey}-pr-${row.prNumber}`)} --base-branch ${quote(pull.headRefName)} --issue ${row.issue.slice(1)} --no-parent --comment ${quote(`cold start of ${row.repositoryKey}#${row.prNumber}`)} --json`,
+    { repositoryKey: row.repositoryKey, prNumber: row.prNumber }),
+  then: `git -C "$WORKTREE" switch ${quote(pull.headRefName)}`,
+})
 const ticketOfBranch = (branch) => /ticket-(\d+)/.exec(branch)?.[1] ?? null
 const noteSummary = (note) => note && { ...note.note, createdAt: note.createdAt, author: note.author }
 const sourceSummary = (source) => ({ pending: Object.keys(source?.pending ?? {}).length, completed: Object.keys(source?.completed ?? {}).length,
@@ -278,8 +291,11 @@ const coldStart = async ({ repoRoot, config, runner, authenticate, now, reads })
       continue
     }
     const pull = snapshot.pulls[`pr${row.prNumber}`]
-    const observed = observePull({ ...row, worktree: repositories.find((entry) => entry.key === row.repositoryKey)?.worktrees.get(pull?.headRefName), commandRoot: repoRoot }, pull, [], wakes)
+    const repository = repositories.find((entry) => entry.key === row.repositoryKey)
+    const worktree = repository.worktrees.get(pull?.headRefName)
+    const observed = observePull({ ...row, worktree, commandRoot: repoRoot }, pull, [], wakes)
     pullRequests.push({ ...observed.observation, issue: row.issue })
+    if (!worktree && observed.actions.some((entry) => WORKTREE_ACTIONS.has(entry.type))) nextActions.push(createWorktreeAction(row, pull, repository.path))
     nextActions.push(...observed.actions)
   }
   const inFlight = [...new Set([...rows.map((row) => Number(row.issue.slice(1))),

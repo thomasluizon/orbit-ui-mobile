@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { dirname, join, relative } from "node:path"
 
-import { T, check, orcaEnv, realOrchestratorConfig, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
+import { T, check, orcaEnv, realOrchestratorConfig, REPO_ROOT, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
 import { runStatus, statusQuery } from "../run-status.mjs"
 import { readAdmissionCounts, RELEASE_HOLD_MS } from "../lib/admission.mjs"
 import { writeReadinessReceipt } from "../lib/readiness-receipt.mjs"
@@ -18,6 +18,45 @@ const readyPull = () => {
   pull.mergeStateStatus = "CLEAN"
   pull.statusCheckRollup.contexts.nodes = pull.statusCheckRollup.contexts.nodes.map((check) => ({ ...check, status: "COMPLETED", conclusion: "SUCCESS" }))
   return pull
+}
+
+/**
+ * A new computer: a fresh clone whose only branch is main has no worktree of the pull request's head, so the
+ * cold start names the exact create-worktree step before the delivery command that reads "$WORKTREE".
+ */
+const newComputerWorktreeCases = async ({ repo, options, authenticate, runner, reads, head }) => {
+  const branch = head.headRefName
+  spawnSync("git", ["-C", repo.path, "push", "-q", repo.origin, `main:${branch}`], { encoding: "utf8" })
+  const clone = join(dirname(repo.path), "run-status-new-computer")
+  spawnSync("git", ["clone", "-q", repo.origin, clone], { encoding: "utf8" })
+  spawnSync("git", ["-C", clone, "remote", "set-url", "origin", "https://github.com/test-owner/ui.git"], { encoding: "utf8" })
+  const config = { ...options.config, repos: { ui: clone } }
+  const cold = await runStatus({ ...options, config, sessionId: "", authenticate, runner, reads })
+  const createIndex = cold.nextActions.findIndex((entry) => entry.type === "CREATE_WORKTREE" && entry.pr === "ui#1459")
+  const create = cold.nextActions[createIndex]
+  const verify = cold.nextActions[createIndex + 1]
+  T("run-status: a cold start with no worktree names the create-worktree command before the delivery command that needs it", createIndex >= 0 &&
+    create.command === `git -C '${clone}' fetch origin '${branch}:${branch}' && node tools/create-worktree.mjs --repo 'path:${clone}' --name 'ui-pr-1459' --base-branch '${branch}' --issue 1092 --no-parent --comment 'cold start of ui#1459' --json` &&
+    create.then === `git -C "$WORKTREE" switch '${branch}'` &&
+    verify?.type === "VERIFY_DELIVERY" && verify.pr === "ui#1459" && verify.command.includes('--worktree "$WORKTREE"'), JSON.stringify(cold.nextActions))
+  if (createIndex < 0) return
+  const argvFile = join(dirname(repo.path), "run-status-new-computer-orca-argv.json")
+  const created = spawnSync("bash", ["-c", create.command], { cwd: REPO_ROOT, encoding: "utf8", env: { ...process.env,
+    GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: `url.${repo.origin}.insteadOf`, GIT_CONFIG_VALUE_0: "https://github.com/test-owner/ui.git",
+    ...orcaEnv([{ match: "worktree create", argvFile, stdout: "{}" }]) } })
+  const baseSha = spawnSync("git", ["-C", repo.path, "rev-parse", "main"], { encoding: "utf8" }).stdout.trim()
+  const orcaArgs = existsSync(argvFile) ? JSON.parse(readFileSync(argvFile, "utf8")) : []
+  T("run-status: the named create-worktree command runs in a fresh clone that has no local head branch", created.status === 0 &&
+    created.stdout.includes(`WORKTREE_BASE ${branch} ${baseSha}`) && orcaArgs.join(" ").includes(`--base-branch ${branch} --issue 1092`), `${created.status} ${created.stdout} ${created.stderr} ${JSON.stringify(orcaArgs)}`)
+  // Orca creates the worktree on its own branch at the head commit; a detached worktree stands in for it.
+  const worktree = join(dirname(repo.path), "run-status-new-computer-worktree")
+  spawnSync("git", ["-C", clone, "worktree", "add", "-q", "--detach", worktree, branch], { encoding: "utf8" })
+  const switched = spawnSync("bash", ["-c", create.then], { encoding: "utf8", env: { ...process.env, WORKTREE: worktree } })
+  T("run-status: the follow-up command checks out the pull request's head branch in the new worktree", switched.status === 0 &&
+    spawnSync("git", ["-C", worktree, "branch", "--show-current"], { encoding: "utf8" }).stdout.trim() === branch, switched.stderr)
+  const resumed = await runStatus({ ...options, config, sessionId: "", authenticate, runner, reads })
+  T("run-status: a cold start with the head's worktree present names that worktree and no create step", !resumed.nextActions.some((entry) => entry.type === "CREATE_WORKTREE") &&
+    resumed.nextActions.some((entry) => entry.type === "VERIFY_DELIVERY" && entry.command.includes(`--worktree '${relative(repo.path, worktree)}'`)), JSON.stringify(resumed.nextActions))
 }
 
 /** A fresh clone: no run record, no receipt and no launch result, so every fact comes from the stubbed GitHub reads. */
@@ -52,6 +91,7 @@ const coldStartCases = async ({ repo, options, authenticate, readCalls, setRespo
   T("run-status: a cold start summarizes the intake marks from the tickets repository", JSON.stringify(cold.intake.gmail) === JSON.stringify({ pending: 1, completed: 1, highWater: "m2" }) &&
     cold.intake.wake.seen.board === 2 && cold.intake.play.pending === 0, JSON.stringify(cold.intake))
   T("run-status: a cold start writes no run record", !existsSync(join(repo.path, ".git", "orbit-orchestrate-run.json")))
+  await newComputerWorktreeCases({ repo, options, authenticate, runner, reads, head })
   const failing = await runStatus({ ...options, sessionId: "", authenticate, runner, reads: { ...reads, listTickets: async () => { throw new Error("board read failed ghp_abcdefghijklmnopqrstuvwx") } } })
   T("run-status: a failed board read is reported and redacted, never an empty queue", failing.queue.error?.includes("board read failed") && !failing.queue.error.includes("ghp_abcdefghijklmnopqrstuvwx"), JSON.stringify(failing.queue))
 }
