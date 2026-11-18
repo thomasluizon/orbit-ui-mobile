@@ -132,6 +132,8 @@ export const cases = () => {
     ["an API item named FIRST with no user interface item after it", "- api#412 FIRST", "api#412 FIRST"],
     ["an API item named FIRST before another API item", "- api#412 FIRST, then api#413", "api#412 FIRST"],
     ["an API item named FIRST before an API item that precedes a user interface item", "- api#412 FIRST, then api#413 and ui#2488", "api#412 FIRST"],
+    ["a merge of a bare ticket before a user interface item after an API item that is green", "- api#412 is green, merge #2486 before ui#2488", "api#412 is green, merge #2486 before ui#2488"],
+    ["a merge of a bare ticket before a user interface item after an API item that deployed", "- api#412 deployed, then merge #2486 before ui#2488", "api#412 deployed, then merge #2486 before ui#2488"],
     ["an item named FIRST before a sentence about a finished release", "- ui#2486 FIRST. The release of ui#2480 is done.", "ui#2486 FIRST"],
     ["a merge order that names the cap", "- Queue order under the cap: merge ui#2486 first, then ui#2488", "Queue order under the cap: merge ui#2486 first"],
     ["an item named FIRST before a sentence that names the cap", "- ui#2486 FIRST. Keep the pool full under the cap.", "ui#2486 FIRST"],

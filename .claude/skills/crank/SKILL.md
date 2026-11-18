@@ -63,7 +63,9 @@ While `crank` is true:
   then delete the parent branch. A stacked child gets no `MERGE_NOW` while its parent is open.
   After the parent merges, `run-status.mjs` reports `RETARGET` with the exact `gh pr edit` and
   `gh pr update-branch` commands. A base change starts no check, so the branch update that pushes a
-  head follows it, and the child merges once its checks and review are green at that head.
+  head follows it. That push starts the checks but not the review, so ask for the review as step 8
+  says. The child merges once its checks and review are green at that head. A base that was never
+  the head of a pull request, such as an integration branch, gets no `RETARGET`.
 - Never idle while work can proceed. Every turn with unfinished work ends with a live registered
   wake source, named as `/sleep` requires. Retain the canonical completion condition.
 

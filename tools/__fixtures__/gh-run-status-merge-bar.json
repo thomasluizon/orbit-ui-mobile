@@ -2967,5 +2967,31 @@
         }
       }
     }
+  },
+  "retiredBases": {
+    "method": "Recorded verbatim from one read-only live gh api graphql call. No value was entered by hand.",
+    "producer": "gh api graphql -F owner=<repository-owner> -F name=<repository-name> -f query=<query>",
+    "querySource": "retiredBasesQuery(bases) from tools/run-status.mjs",
+    "bases": [
+      "fix/ticket-2135-k1-gate",
+      "chore/ticket-2074-speed-orders",
+      "integration/never-a-pull-request-head"
+    ],
+    "query": "query RetiredBases($owner: String!, $name: String!) {\n  repository(owner: $owner, name: $name) {\n    b0: pullRequests(headRefName: \"fix/ticket-2135-k1-gate\", states: [MERGED, CLOSED], first: 1) { totalCount }\n    b1: pullRequests(headRefName: \"chore/ticket-2074-speed-orders\", states: [MERGED, CLOSED], first: 1) { totalCount }\n    b2: pullRequests(headRefName: \"integration/never-a-pull-request-head\", states: [MERGED, CLOSED], first: 1) { totalCount }\n  }\n}",
+    "response": {
+      "data": {
+        "repository": {
+          "b0": {
+            "totalCount": 1
+          },
+          "b1": {
+            "totalCount": 0
+          },
+          "b2": {
+            "totalCount": 0
+          }
+        }
+      }
+    }
   }
 }

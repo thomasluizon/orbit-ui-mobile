@@ -3,7 +3,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, write
 import { dirname, join } from "node:path"
 
 import { T, check, orcaEnv, realOrchestratorConfig, same, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
-import { runStatus, statusQuery } from "../run-status.mjs"
+import { retiredBasesQuery, runStatus, statusQuery } from "../run-status.mjs"
 import { readAdmissionCounts, RELEASE_HOLD_MS } from "../lib/admission.mjs"
 import { writeReadinessReceipt } from "../lib/readiness-receipt.mjs"
 import { clearWakeSource, readRunState, registerWakeSource, reserveWorkerLaunch, runStatePath, workerLaunchDirectory, writeRunState } from "../lib/run-state.mjs"
@@ -393,6 +393,7 @@ const mergeBarCases = async () => {
   T("run-status: the merge-bar recording came from the production query", statusQuery(recordedNumbers).includes(defaultBranchSelection) && statusQuery(recordedNumbers).includes(mergeCommitSelection) &&
     barFixture.query === statusQuery(recordedNumbers).replace(defaultBranchSelection, "").replaceAll(mergeCommitSelection, "") &&
     barFixture.defaultBranch.query.includes(defaultBranchSelection) && barFixture.mergeCommit.query.includes(mergeCommitSelection))
+  T("run-status: the retired-bases recording came from the production query", barFixture.retiredBases.query === retiredBasesQuery(barFixture.retiredBases.bases))
   const recordedMergeCommit = barFixture.mergeCommit.response.data.repository.pr2487.mergeCommit.oid
   const recordedDefaultBranch = barFixture.defaultBranch.response.data.repository.defaultBranchRef
   const repo = stageRepo("run-status-merge-bar")
@@ -403,11 +404,20 @@ const mergeBarCases = async () => {
   let pulls = {}
   let open = []
   let failingRead = null
+  let failingRetiredRead = false
   let defaultBranchRef = recordedDefaultBranch
+  const retiredReads = []
+  // The recorded answer for each base of the recording; any other base was never the head of a pull request.
+  const recordedRetired = new Map(barFixture.retiredBases.bases.map((base, index) => [base, barFixture.retiredBases.response.data.repository[`b${index}`].totalCount]))
   const runner = async (file, args) => {
     let payload = { total_count: 0, workflow_runs: [] }
     if (args[1] === "rate_limit") payload = fixture.rateLimit
-    if (args[1] === "graphql") {
+    if (args[1] === "graphql" && args.at(-1).startsWith("query=query RetiredBases")) {
+      const asked = [...args.at(-1).matchAll(/b\d+: pullRequests\(headRefName: ("(?:[^"\\]|\\.)*")/g)].map((match) => JSON.parse(match[1]))
+      retiredReads.push(asked)
+      if (failingRetiredRead) return { status: 1, stdout: "", stderr: "gh: HTTP 502", error: null, timedOut: false, overflowed: false }
+      payload = { data: { repository: Object.fromEntries(asked.map((base, index) => [`b${index}`, { totalCount: recordedRetired.get(base) ?? 0 }])) } }
+    } else if (args[1] === "graphql") {
       const numbers = [...args.at(-1).matchAll(/pr(\d+): pullRequest\(number: \d+\)/g)].map((match) => Number(match[1]))
       reads.push(numbers)
       if (failingRead !== null && numbers.includes(failingRead)) return { status: 1, stdout: "", stderr: "gh: HTTP 502", error: null, timedOut: false, overflowed: false }
@@ -425,6 +435,7 @@ const mergeBarCases = async () => {
     writeFileSync(runStatePath(repo.path), JSON.stringify({ sessionId: session, sleep: true, remaining, pullRequests: rows.map(rowOf) }))
     return runStatus({ repoRoot: repo.path, sessionId: session, config, now: Date.parse("2026-10-01T21:00:00Z"), authenticate, runner })
   }
+  const READY = ["MERGE_NOW", "UPDATE_BRANCH", "RETARGET"]
   const typesOf = (report, number) => report.nextActions.filter((entry) => entry.pr === `ui#${number}`).map((entry) => entry.type)
   const neither = (report, number) => !typesOf(report, number).some((type) => ["MERGE_NOW", "UPDATE_BRANCH"].includes(type))
   const statusOf = (name) => fixture.enums.MergeStateStatus.enumValues.find((entry) => entry.name === name).name
@@ -514,8 +525,6 @@ const mergeBarCases = async () => {
   report = await snapshot({ 2488: stackedChild() }, { openNodes: listed(2488, parent.number) })
   T("run-status: a stacked child at the bar gets neither action while its parent is open", neither(report, 2488), JSON.stringify(report.nextActions))
   const retarget = { type: "RETARGET", pr: "ui#2488", command: `gh pr edit 2488 --repo '${slug}' --base '${recordedDefaultBranch.name}' && gh pr update-branch 2488 --repo '${slug}'` }
-  report = await snapshot({ 2488: stackedChild() })
-  same("run-status: the same pull request gets the retarget and no merge when no open pull request owns its base", report.nextActions, [retarget])
   const merged = recorded.pr2487
   const childOfMerged = () => {
     const pull = stackedChild()
@@ -523,14 +532,40 @@ const mergeBarCases = async () => {
     pull.baseRef.name = merged.headRefName
     return pull
   }
+  retiredReads.length = 0
   report = await snapshot({ 2487: structuredClone(merged), 2488: childOfMerged() }, { openNodes: listed(2488) })
   T("run-status: the recorded parent is merged and its head branch is not the default branch", merged.state === "MERGED" && merged.headRefName !== recordedDefaultBranch.name && recordedDefaultBranch.name === recorded[`pr${number}`].baseRefName)
+  T("run-status: GitHub recorded one merged or closed pull request with the head branch of the merged parent", recordedRetired.get(merged.headRefName) === 1)
   same("run-status: a child at the bar whose parent merged and kept its branch gets the retarget and no merge", report.nextActions, [retarget])
+  T("run-status: one extra read names only the unowned base", JSON.stringify(retiredReads) === JSON.stringify([[merged.headRefName]]), JSON.stringify(retiredReads))
+  retiredReads.length = 0
+  report = await snapshot({ [number]: atBar() })
+  T("run-status: a pull request on the default branch costs no extra read", retiredReads.length === 0 && typesOf(report, number)[0] === "MERGE_NOW", JSON.stringify(retiredReads))
+  retiredReads.length = 0
+  report = await snapshot({ 2488: stackedChild() }, { openNodes: listed(2488, parent.number) })
+  T("run-status: a base that an open pull request owns costs no extra read", retiredReads.length === 0)
+  failingRetiredRead = true
+  report = await snapshot({ 2488: childOfMerged() })
+  T("run-status: a failed read of the retired bases gets no retarget and names the error", !typesOf(report, 2488).includes("RETARGET") && report.repositories[0].status === "OK" && report.repositories[0].error?.includes("HTTP 502"), JSON.stringify(report))
+  failingRetiredRead = false
+  const integrationChild = () => {
+    const pull = stackedChild()
+    pull.baseRefName = "integration/never-a-pull-request-head"
+    pull.baseRef.name = pull.baseRefName
+    return pull
+  }
+  T("run-status: GitHub recorded no pull request with the head branch of the integration base", barFixture.retiredBases.bases.includes(integrationChild().baseRefName) && recordedRetired.get(integrationChild().baseRefName) === 0)
+  for (const [label, child] of [["at the bar", integrationChild], ["only behind", () => ({ ...integrationChild(), mergeStateStatus: statusOf("BEHIND"), baseRef: { ...integrationChild().baseRef, compare: { ...integrationChild().baseRef.compare, behindBy: 1 } } })]]) {
+    report = await snapshot({ 2488: child() })
+    T(`run-status: a pull request ${label} on a base that was never the head of a pull request gets no merge, update or retarget`, !typesOf(report, 2488).some((type) => READY.includes(type)), JSON.stringify(report.nextActions))
+  }
+  report = await snapshot({ 2488: stackedChild() })
+  T("run-status: the recorded child on the head branch of an open pull request that this snapshot does not list gets no retarget", recordedRetired.get(recorded.pr2488.baseRefName) === 0 && !typesOf(report, 2488).some((type) => READY.includes(type)), JSON.stringify(report.nextActions))
   const behindChild = childOfMerged()
   behindChild.baseRef.compare.behindBy = recorded[`pr${number}`].baseRef.compare.behindBy
   report = await snapshot({ 2488: behindChild })
   same("run-status: a child behind the branch of its merged parent gets the retarget and no branch update", report.nextActions, [retarget])
-  const conflictedChild = stackedChild()
+  const conflictedChild = childOfMerged()
   conflictedChild.mergeStateStatus = "DIRTY"
   report = await snapshot({ 2488: conflictedChild })
   same("run-status: a child with a merge conflict against its closed parent still gets the retarget", report.nextActions, [retarget])
@@ -568,7 +603,7 @@ const mergeBarCases = async () => {
     report.pullRequests[0].status === "OPEN" && typesOf(report, 2491).includes("READ_REVIEW") && neither(report, number), JSON.stringify(report))
   failingRead = null
 
-  report = await snapshot({ 2491: structuredClone(recorded.pr2491), 2488: stackedChild(), 2484: { ...onlyBehind(), number: 2484 }, [number]: atBar() }, { remaining: ["#1100"] })
+  report = await snapshot({ 2491: structuredClone(recorded.pr2491), 2488: childOfMerged(), 2484: { ...onlyBehind(), number: 2484 }, [number]: atBar() }, { remaining: ["#1100"] })
   T("run-status: ready merges come first, then branch updates, then retargets, then every other action",
     JSON.stringify(report.nextActions.map((entry) => entry.type)) === '["MERGE_NOW","UPDATE_BRANCH","RETARGET","READ_REVIEW","SLOT_FREE"]', JSON.stringify(report.nextActions))
 

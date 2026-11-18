@@ -43,10 +43,11 @@ synchronize the ticket in the same turn, never before the merge. Outside that au
 pull request ready for the owner. `UPDATE_BRANCH` comes next: the pull
 request is only behind its base, and its command merges the base into the branch. The new head
 needs its checks and a review request again, as step 8 says. `RETARGET` names a pull request that
-meets the bar except that its base is a branch no open pull request owns, because the parent
-merged or closed. Its command changes the base to the default branch and then merges that branch into the pull
+meets the bar except that its base is the head branch of a pull request that GitHub shows as merged
+or closed. A base that was never the head of a pull request, such as an integration branch, gets no
+action. Its command changes the base to the default branch and then merges that branch into the pull
 request, because a squash merge leaves the child behind the default branch and a base change starts
-no check. The merge pushes a head, which starts the checks and the review of the new base. Run it;
+no check. Run it. The merge pushes a head that starts the checks of the new base but no review, so ask for the review as step 8 says.
 `MERGE_NOW` follows once those checks and the review are green at that head. A draft and a stacked child whose parent is still open get
 none of these actions, and a merge conflict gets no `MERGE_NOW` or `UPDATE_BRANCH`. A pull request that has one of these actions gets no other action.
 `RECORD_MERGE` names a pull request of the run that GitHub shows as merged while its ledger row has

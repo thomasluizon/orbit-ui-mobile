@@ -27,12 +27,14 @@ MERGE_NOW, UPDATE_BRANCH and RETARGET come first. They come from GitHub alone: n
 MERGE_NOW names the squash merge of the exact head into the default branch: every check green with
 every required check present, pullfrog-approval SUCCESS, zero unresolved threads, behind_by 0 and a
 clean merge state. UPDATE_BRANCH names the branch update when only behind_by fails.
-RETARGET names the base change to the default branch, then the branch update that starts the checks of
-the new base. It is for a pull request whose checks, review
-check and threads hold and whose base is another branch that no open pull request owns: the parent
-merged or closed and its branch remains. A merge conflict gets no MERGE_NOW and no
-UPDATE_BRANCH. A draft and a pull request whose base is the head of an open pull request get none of
-the three.
+RETARGET names the base change to the default branch, then the branch update that pushes a head.
+It is for a pull request whose checks, review check and threads hold and whose base is the head
+branch of a pull request that GitHub shows as merged or closed, and of no open one. A base that was
+never the head of a pull request, such as an integration branch, gets no action. A merge conflict gets
+no MERGE_NOW and no UPDATE_BRANCH. A draft and a pull request whose base is the head of an open pull
+request get none of the three. Only a pull request on the default branch gets MERGE_NOW or UPDATE_BRANCH.
+When such a base is found, one more GraphQL read asks for the merged or closed pull requests of those
+head branches.
 RECORD_MERGE names the write of the merge sha when GitHub shows a pull request of the run as MERGED and
 its ledger row has no sha.
 Errors are redacted; tokens are scoped to child environments; pull request bodies are never read.
@@ -43,6 +45,13 @@ Ordinary sleep keeps NO_ACTION; a pending relay drain suppresses intake.
   --help, -h     print this usage and exit 0
 
 exit codes: 0 snapshot (including absent, foreign or unreadable runs), 2 usage or environment error`
+
+/** One read for the merged or closed pull requests whose head branch is each named base. */
+export const retiredBasesQuery = (bases) => `query RetiredBases($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    ${bases.map((base, index) => `b${index}: pullRequests(headRefName: ${JSON.stringify(base)}, states: [MERGED, CLOSED], first: 1) { totalCount }`).join("\n    ")}
+  }
+}`
 
 export const statusQuery = (numbers) => `query RunStatus($owner: String!, $name: String!) {
   repository(owner: $owner, name: $name) {
@@ -83,6 +92,8 @@ const commandPath = (path, root) => {
 const commandFor = (tool, row) => `node tools/${tool}.mjs --repo ${quote(row.repositoryKey)} --pr ${row.prNumber}`
 // One read of sixteen pull requests takes about the 3.5 s bound of `githubRead`; a read of eight takes about 2.5 s.
 const PULLS_PER_READ = 8
+const basesToRetire = (pulls, { openBranches, defaultBranch }) => [...new Set(pulls.filter((pull) => pull?.state === "OPEN" && typeof pull.baseRefName === "string" &&
+  defaultBranch !== null && pull.baseRefName !== defaultBranch && !openBranches.includes(pull.baseRefName)).map((pull) => pull.baseRefName))]
 const READY_ACTIONS = ["MERGE_NOW", "UPDATE_BRANCH", "RETARGET"]
 const waitCommand = (row) => commandFor("wait-ci", row)
 const reviewCommand = (row) => `${commandFor("list-bot-threads", row)} --no-request --wait-seconds 0`
@@ -116,11 +127,10 @@ const validPull = (pull, number) => pull?.number === number &&
 
 /**
  * The merge bar of one open pull request, from the GitHub response alone. A fact that the response
- * does not confirm yields no action. Only a merge into the default branch lands where it must. A
- * stacked child waits while its parent is open. When no open pull request owns its base, the merge
- * would land on the branch of a merged or closed parent, so the action is the retarget.
+ * does not confirm yields no action. A base that is the head of a merged or closed pull request gets
+ * the retarget, and any other base but the default branch gets no action.
  */
-const mergeBarOf = (pull, { repositoryKey, slug, openBranches, defaultBranch }) => {
+const mergeBarOf = (pull, { repositoryKey, slug, openBranches, defaultBranch, retiredBases = [] }) => {
   const comparison = pull.baseRef?.compare
   const behindBy = comparison?.headTarget?.oid === pull.headRefOid && comparison?.baseTarget?.oid === currentBaseShaOf(pull) &&
     Number.isInteger(comparison.behindBy) ? comparison.behindBy : null
@@ -137,6 +147,7 @@ const mergeBarOf = (pull, { repositoryKey, slug, openBranches, defaultBranch }) 
   const mergeable = ["CLEAN", "HAS_HOOKS"].includes(pull.mergeStateStatus)
   const identity = { repositoryKey, prNumber: pull.number }
   if (restHolds && pull.baseRefName !== defaultBranch) {
+    if (!retiredBases.includes(pull.baseRefName)) return { behindBy, approval, action: null }
     // A base change starts no check, and a squash merge leaves the child behind the default branch, so the update that pushes a head follows it.
     return { behindBy, approval, action: action("RETARGET", `gh pr edit ${pull.number} --repo ${quote(slug)} --base ${quote(defaultBranch)} && gh pr update-branch ${pull.number} --repo ${quote(slug)}`, identity) }
   }
@@ -257,7 +268,8 @@ const readPulls = async (numbers, slug, authentication, runner) => {
 }
 
 const readRepository = async ({ key, slug, rows, auth, budget, runner, now }) => {
-  const snapshot = { repositoryKey: key, status: "OK", openPullRequests: null, queuedRuns: null, defaultBranch: null, openBranches: [], pulls: {}, ownerPulls: [] }
+  const [owner, name] = slug.split("/")
+  const snapshot = { repositoryKey: key, status: "OK", openPullRequests: null, queuedRuns: null, defaultBranch: null, openBranches: [], pulls: {}, ownerPulls: [], retiredBases: [] }
   try {
     const authentication = await auth
     const limited = budget?.action === "wait"
@@ -280,6 +292,11 @@ const readRepository = async ({ key, slug, rows, auth, budget, runner, now }) =>
       try {
         const owned = outsideRun.length > 0 ? await readPulls(outsideRun, slug, authentication, runner) : null
         snapshot.ownerPulls = outsideRun.map((number) => owned?.[`pr${number}`]).filter((pull, index) => validPull(pull, outsideRun[index]))
+        const bases = basesToRetire([...rows.map((row) => repository[`pr${row.prNumber}`]), ...snapshot.ownerPulls], snapshot)
+        if (bases.length > 0) {
+          const retired = (await githubRead(["api", "graphql", "-F", `owner=${owner}`, "-F", `name=${name}`, "-f", `query=${retiredBasesQuery(bases)}`], authentication, runner)).data?.repository
+          snapshot.retiredBases = bases.filter((base, index) => retired?.[`b${index}`]?.totalCount > 0)
+        }
       } catch (error) {
         snapshot.error = error.message.slice(0, 256)
       }
@@ -361,13 +378,13 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
     const pull = snapshot.pulls[`pr${row.prNumber}`]
     const repository = repositories.find((entry) => entry.key === row.repositoryKey)
     const worktree = row.worktree ?? repository.worktrees.get(pull?.headRefName)
-    const observed = observePull({ ...row, worktree, commandRoot: repoRoot, slug: repository.slug, openBranches: snapshot.openBranches, defaultBranch: snapshot.defaultBranch }, pull, launches, wakes)
+    const observed = observePull({ ...row, worktree, commandRoot: repoRoot, slug: repository.slug, openBranches: snapshot.openBranches, defaultBranch: snapshot.defaultBranch, retiredBases: snapshot.retiredBases }, pull, launches, wakes)
     observations.push(observed.observation)
     nextActions.push(...observed.actions)
   }
   for (const [index, snapshot] of snapshots.entries()) {
     for (const pull of snapshot.ownerPulls) {
-      const bar = mergeBarOf(pull, { repositoryKey: snapshot.repositoryKey, slug: repositories[index].slug, openBranches: snapshot.openBranches, defaultBranch: snapshot.defaultBranch })
+      const bar = mergeBarOf(pull, { repositoryKey: snapshot.repositoryKey, slug: repositories[index].slug, openBranches: snapshot.openBranches, defaultBranch: snapshot.defaultBranch, retiredBases: snapshot.retiredBases })
       if (bar.action) nextActions.push(bar.action)
     }
   }
