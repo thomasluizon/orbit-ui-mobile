@@ -71,8 +71,15 @@ function runCase(jobId, stepName, changedPath, mode, options = {}) {
       return
     }
     assert.equal(first.status, 0, `${jobId}: changed paths must resolve: ${first.stderr}`)
+    // A gate runs an installed binary by its path, so each stub binary is a file at that path of the tree.
+    for (const [binary, script] of Object.entries(options.binaries ?? {})) {
+      mkdirSync(dirname(join(directory, binary)), { recursive: true })
+      writeFileSync(join(directory, binary), `#!/bin/sh\n${script}\n`, { mode: 0o755 })
+    }
+    const gateDirectory = join(directory, gate["working-directory"] ?? "")
+    mkdirSync(gateDirectory, { recursive: true })
     const second = spawnSync("bash", ["-e", "-c", `${options.stubs ?? "node() { echo GATE_RAN; }"}\n${substitute(gate.run)}`], {
-      cwd: directory, env: environment, encoding: "utf8",
+      cwd: gateDirectory, env: environment, encoding: "utf8",
     })
     assert.equal(second.status, mode === "owned" ? (options.ownedStatus ?? 0) : 0,
       `${jobId}: gate step exit: ${second.stderr}`)
@@ -92,13 +99,13 @@ for (const [jobId, stepName, path] of cases) {
 
 for (const [jobId, stepName, path, options] of [
   ["lint", "Lint only files changed by this pull request", "apps/web/app/page.tsx",
-    { stubs: "npm() { echo GATE_RAN; }" }],
+    { binaries: { "apps/web/node_modules/.bin/eslint": "echo GATE_RAN" } }],
   ["design-guard", "Ban raw --slate-*, transition-all, h-screen in app code", "apps/web/app/page.tsx",
     { content: "transition-all\n", ownedStatus: 1, marker: "DESIGN.md ban" }],
   ["design-guard", "Ban decorative gradients in app code", "tools/check-gradients.mjs", {}],
   ["workflow-syntax", "Lint all workflows", ".github/actions/setup/action.yml", { stubs: "gh() { echo GATE_RAN; exit 0; }" }],
   ["expo-pin", "Dependencies resolve to the SDK 58 set", "apps/mobile/package.json",
-    { stubs: "node() { :; }\nnpx() { echo \"EXPO_CHECK EXPO_OFFLINE=${EXPO_OFFLINE:-unset} $*\"; }",
+    { stubs: "node() { :; }", binaries: { "node_modules/.bin/expo": 'echo "EXPO_CHECK EXPO_OFFLINE=${EXPO_OFFLINE:-unset} expo $*"' },
       marker: "EXPO_CHECK EXPO_OFFLINE=1 expo install --check" }],
 ]) {
   test(`${jobId}: ${stepName} resolves before consuming changed paths`, () => {
@@ -365,8 +372,8 @@ test("pull requests run each source check through one owner", () => {
   }
   assert.ok(testWorkflow.jobs["tool-tests"].steps.some((step) => step.run?.startsWith("node tools/test-tools.mjs --shard ")))
   assert.ok(testWorkflow.jobs["web-tests"].steps.some((step) => step.name === "Run web shard with coverage"))
-  assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === "npx turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage"))
-  assert.equal(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run?.includes("npx turbo run test")), false)
+  assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === "./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage"))
+  assert.equal(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run?.includes("turbo run test")), false)
 })
 
 test("every pull request runs the full-tree surface scope scan outside the cached unit task", () => {

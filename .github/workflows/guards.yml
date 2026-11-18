@@ -225,7 +225,7 @@ jobs:
             node -e "if (require('expo/package.json').version.split('.')[0] !== '58') process.exit(1)"
             # EXPO_OFFLINE makes the check read the installed expo/bundledNativeModules.json, not the Expo API,
             # so the expected set moves only when the lockfile moves expo.
-            CI=1 EXPO_OFFLINE=1 npx expo install --check
+            CI=1 EXPO_OFFLINE=1 ../../node_modules/.bin/expo install --check
           else
             echo "Expo pin skipped: no dependency manifest changed."
           fi

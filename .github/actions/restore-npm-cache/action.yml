@@ -1,5 +1,5 @@
 name: Restore the npm cache
-description: Restore the npm download cache that main saves, so a pull request reads it and never saves its own entry
+description: Restore the npm cache that main saves, so a pull request reads it and never saves its own entry
 inputs:
   lockfile:
     description: Lockfile whose hash names the cache entry

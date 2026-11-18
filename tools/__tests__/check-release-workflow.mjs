@@ -452,7 +452,7 @@ function checkAppleClientId() {
   }
 }
 
-/** Runs the optional Android Expo check with a stub `npx`, so it proves the check reads the installed expo package, not the Expo API. */
+/** Runs the optional Android Expo check against a stub of the root `node_modules/.bin/expo`, so it proves the check reads the installed expo package, not the Expo API. */
 function checkExpoDependencyStep() {
   const step = load(readFileSync(toolPath("../.github/workflows/android-release.yml"), "utf8")).jobs["release-android"].steps
     .find((candidate) => candidate.name === "Validate Expo dependency compatibility")
@@ -461,8 +461,12 @@ function checkExpoDependencyStep() {
   T("the android Expo check runs in apps/mobile", step["working-directory"] === "apps/mobile")
   const environment = { ...process.env }
   delete environment.EXPO_OFFLINE
-  const stub = 'npx() { echo "EXPO_CHECK EXPO_OFFLINE=${EXPO_OFFLINE:-unset} $*"; }'
-  const result = spawnSync(BASH, ["-c", `${stub}\n${step.run}`], { encoding: "utf8", env: environment })
+  const repository = join(root, "release-expo-check")
+  rmSync(repository, { recursive: true, force: true })
+  mkdirSync(join(repository, "node_modules/.bin"), { recursive: true })
+  mkdirSync(join(repository, step["working-directory"]), { recursive: true })
+  writeFileSync(join(repository, "node_modules/.bin/expo"), '#!/bin/sh\necho "EXPO_CHECK EXPO_OFFLINE=${EXPO_OFFLINE:-unset} expo $*"\n', { mode: 0o755 })
+  const result = spawnSync(BASH, ["-c", step.run], { cwd: join(repository, step["working-directory"]), encoding: "utf8", env: environment })
   T("the android Expo check reads the installed bundled list (EXPO_OFFLINE=1)",
     result.status === 0 && result.stdout.trim() === "EXPO_CHECK EXPO_OFFLINE=1 expo install --check", `${result.stdout}${result.stderr}`)
 }
@@ -547,19 +551,19 @@ function checkMirrorIndependence() {
   const read = (name) => readFileSync(join(workflowsDirectory, name), "utf8")
   const installs = files.flatMap((name) => systemDependencyInstalls(`.github/workflows/${name}`, read(name)))
   T("no workflow installs Playwright system packages through apt", installs.length === 0, installs.join("\n     "))
-  const fixtureWithDeps = "      - run: npx playwright install --with-deps chromium\n"
+  const fixtureWithDeps = "      - run: ./node_modules/.bin/playwright install --with-deps chromium\n"
   const flagged = systemDependencyInstalls("fixture.yml", fixtureWithDeps)
   T("a with-deps Playwright install is rejected with its file and line", flagged.length === 1 && flagged[0].startsWith("fixture.yml:1:"), flagged.join())
   T("a Playwright install-deps command is rejected",
-    systemDependencyInstalls("fixture.yml", "steps:\n  - run: npx playwright install-deps chromium\n").length === 1)
-  T("a plain Playwright browser install is accepted", systemDependencyInstalls("fixture.yml", "  - run: npx playwright install chromium\n").length === 0)
+    systemDependencyInstalls("fixture.yml", "steps:\n  - run: ./node_modules/.bin/playwright install-deps chromium\n").length === 1)
+  T("a plain Playwright browser install is accepted", systemDependencyInstalls("fixture.yml", "  - run: ./node_modules/.bin/playwright install chromium\n").length === 0)
   for (const name of ["test.yml", "release.yml"]) {
     T(`${name} calls no apt command`, !callsApt(read(name)))
   }
   for (const command of ["sudo apt-get install -y ccache", "sudo apt-get -y install libnss3", "sudo apt-get -qq update", "sudo apt -y install fonts-noto"]) {
     T(`the apt check rejects ${command}`, callsApt(`      - run: ${command}\n`))
   }
-  T("the apt check accepts a plain Playwright browser install", !callsApt("      - run: npx playwright install chromium\n"))
+  T("the apt check accepts a plain Playwright browser install", !callsApt("      - run: ./node_modules/.bin/playwright install chromium\n"))
 
   const android = load(read("android-release.yml")).jobs["release-android"].steps
   const setup = android.find((step) => step.name === "Set up ccache for the native C++ builds")

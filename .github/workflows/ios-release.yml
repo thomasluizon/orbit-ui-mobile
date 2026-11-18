@@ -160,7 +160,7 @@ jobs:
           printf '%s' "$APP_STORE_CONNECT_API_PRIVATE_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
       - name: Generate the iOS project and install pods
         working-directory: apps/mobile
-        run: npx expo prebuild --platform ios
+        run: ../../node_modules/.bin/expo prebuild --platform ios
       - name: Archive the embedded app
         id: archive
         working-directory: apps/mobile

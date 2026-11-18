@@ -185,7 +185,7 @@ jobs:
       - name: Read the locked Playwright version
         id: playwright
         if: github.event_name != 'pull_request'
-        run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(./node_modules/.bin/playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
 
       - name: Look up the Playwright Chromium download
         id: playwright-cache
@@ -198,7 +198,7 @@ jobs:
 
       - name: Download lockfile-pinned Playwright Chromium
         if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
+        run: ./node_modules/.bin/playwright install chromium
 
       - name: Save the Playwright Chromium download
         if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit != 'true'
@@ -381,7 +381,7 @@ jobs:
       - name: Merge web reports and enforce coverage thresholds
         if: needs.web-tests.result == 'success'
         working-directory: apps/web
-        run: npx vitest run --merge-reports=.artifacts/unit-tests/blobs --coverage --reporter=default --reporter=json --outputFile.json=.artifacts/unit-tests/merged.json
+        run: ../../node_modules/.bin/vitest run --merge-reports=.artifacts/unit-tests/blobs --coverage --reporter=default --reporter=json --outputFile.json=.artifacts/unit-tests/merged.json
 
       # A failed first step skips the selection, so no report exists to upload. A later budget or coverage failure keeps the upload.
       - name: Upload web test timings
@@ -417,7 +417,7 @@ jobs:
       - name: Merge mobile reports and enforce coverage thresholds
         if: needs.mobile-tests.result == 'success'
         working-directory: apps/mobile
-        run: npx vitest run --merge-reports=.artifacts/unit-tests/blobs --coverage --reporter=default
+        run: ../../node_modules/.bin/vitest run --merge-reports=.artifacts/unit-tests/blobs --coverage --reporter=default
 
       - name: Download workspace coverage
         if: needs.workspace-tests.result == 'success'
@@ -584,7 +584,7 @@ jobs:
         timeout-minutes: 12
         working-directory: apps/web
         run: >-
-          npx vitest run --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.total }}
+          ../../node_modules/.bin/vitest run --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.total }}
           --coverage --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
           --reporter=default --reporter=blob --reporter=json
@@ -629,7 +629,7 @@ jobs:
         timeout-minutes: 10
         working-directory: apps/mobile
         run: >-
-          npx vitest run --shard=${{ matrix.shard }}/${{ matrix.total }}
+          ../../node_modules/.bin/vitest run --shard=${{ matrix.shard }}/${{ matrix.total }}
           --coverage --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
           --reporter=default --reporter=blob
@@ -666,7 +666,7 @@ jobs:
       - run: npm ci
       - name: Run workspaces with coverage thresholds
         timeout-minutes: 6
-        run: npx turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage
+        run: ./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage
       # Preserve repository paths under one folder with the artifact's own name: Unit Tests extracts every
       # artifact at one path.
       - name: Stage workspace coverage
@@ -712,7 +712,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-type-check-
 
-      - run: npx turbo run type-check
+      - run: ./node_modules/.bin/turbo run type-check
 
       # Each push to main adds the results of its changed workspaces to the restored ones, and Turbo removes none.
       # A result that is still current after 30 days costs one more type check of its workspace.
@@ -774,10 +774,10 @@ jobs:
                 desktop+=("${file#apps/desktop/}") ;;
             esac
           done < "$RUNNER_TEMP/changed-paths-present.nul"
-          if [ "${#web[@]}" -gt 0 ]; then npm exec --workspace @orbit/web -- eslint -- "${web[@]}"; fi
-          if [ "${#mobile[@]}" -gt 0 ]; then npm exec --workspace @orbit/mobile -- eslint -- "${mobile[@]}"; fi
-          if [ "${#shared[@]}" -gt 0 ]; then npm exec --workspace @orbit/shared -- eslint -- "${shared[@]}"; fi
-          if [ "${#desktop[@]}" -gt 0 ]; then npm exec --workspace @orbit/desktop -- eslint -- "${desktop[@]}"; fi
+          if [ "${#web[@]}" -gt 0 ]; then (cd apps/web && node_modules/.bin/eslint -- "${web[@]}"); fi
+          if [ "${#mobile[@]}" -gt 0 ]; then (cd apps/mobile && ../../node_modules/.bin/eslint -- "${mobile[@]}"); fi
+          if [ "${#shared[@]}" -gt 0 ]; then (cd packages/shared && node_modules/.bin/eslint -- "${shared[@]}"); fi
+          if [ "${#desktop[@]}" -gt 0 ]; then (cd apps/desktop && node_modules/.bin/eslint -- "${desktop[@]}"); fi
           echo "Linted ${#web[@]} web, ${#mobile[@]} mobile, ${#shared[@]} shared and ${#desktop[@]} desktop files."
 
   layout-shards:
@@ -817,7 +817,7 @@ jobs:
 
       - name: Read the locked Playwright version
         id: playwright
-        run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(./node_modules/.bin/playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
 
       - name: Restore the Playwright Chromium download
         uses: actions/cache/restore@v6
@@ -826,7 +826,7 @@ jobs:
           key: ${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}
 
       - name: Install lockfile-pinned Playwright Chromium
-        run: npx playwright install chromium
+        run: ./node_modules/.bin/playwright install chromium
 
       - name: Check upgrade layout
         run: npm run test:layout -w apps/web -- --shard=${{ matrix.shard }}/8
@@ -886,7 +886,7 @@ jobs:
       - name: Start mock orbit-api and wait for health
         run: |
           set -euo pipefail
-          npx tsx apps/web/test-support/hermetic/mock-api/server.ts &
+          ./node_modules/.bin/tsx apps/web/test-support/hermetic/mock-api/server.ts &
           echo "MOCK_PID=$!" >> "$GITHUB_ENV"
           for _ in $(seq 1 30); do
             if curl -sf http://127.0.0.1:5099/health >/dev/null 2>&1; then

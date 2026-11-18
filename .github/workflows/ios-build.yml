@@ -129,10 +129,10 @@ jobs:
         run: echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"
       - name: Test the compiled widget state and session adapter
         working-directory: apps/mobile
-        run: npx vitest run __tests__/lib/ios-widget-native.test.ts
+        run: ../../node_modules/.bin/vitest run __tests__/lib/ios-widget-native.test.ts
       - name: Generate the iOS project and install pods
         working-directory: apps/mobile
-        run: npx expo prebuild --platform ios
+        run: ../../node_modules/.bin/expo prebuild --platform ios
       - name: Compile without signing or launching a simulator
         id: compile
         working-directory: apps/mobile

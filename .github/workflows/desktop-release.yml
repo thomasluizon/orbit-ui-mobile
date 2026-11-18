@@ -331,7 +331,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           for artifact in "$RUNNER_TEMP"/desktop-assets/*; do
-            npx tauri signer sign --app-version "$DESKTOP_VERSION" "$artifact"
+            ../../node_modules/.bin/tauri signer sign --app-version "$DESKTOP_VERSION" "$artifact"
             node --experimental-strip-types scripts/release.ts verify \
               "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$artifact"
           done
@@ -498,7 +498,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           for artifact in "$RUNNER_TEMP"/desktop-assets/*; do
-            npx tauri signer sign --app-version "$DESKTOP_VERSION" "$artifact"
+            ../../node_modules/.bin/tauri signer sign --app-version "$DESKTOP_VERSION" "$artifact"
             node --experimental-strip-types scripts/release.ts verify \
               "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$artifact"
           done
@@ -562,7 +562,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          npx tauri signer sign --app-version "$DESKTOP_VERSION" ../../desktop-assets/latest.json
+          ../../node_modules/.bin/tauri signer sign --app-version "$DESKTOP_VERSION" ../../desktop-assets/latest.json
           node --experimental-strip-types scripts/release.ts verify \
             "$DESKTOP_VARIANT" "$DESKTOP_VERSION" ../../desktop-assets/latest.json
       - name: Publish versioned artifacts before advancing the channel

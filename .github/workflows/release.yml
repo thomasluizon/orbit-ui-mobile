@@ -525,7 +525,7 @@ jobs:
         run: npm ci
       - name: Install staging smoke browser
         working-directory: staging-smoke-source
-        run: npx playwright install chromium
+        run: ./node_modules/.bin/playwright install chromium
       - name: Wake staging API
         env:
           STAGING_NEXT_PUBLIC_EVENT_API_BASE: ${{ vars.STAGING_NEXT_PUBLIC_EVENT_API_BASE }}
@@ -568,7 +568,7 @@ jobs:
           SMOKE_TEST_EMAIL: ${{ secrets.STAGING_SMOKE_TEST_EMAIL }}
           SMOKE_TEST_CODE: ${{ secrets.STAGING_SMOKE_TEST_CODE }}
           SMOKE_BOT_BYPASS: ${{ secrets.SMOKE_BOT_BYPASS }}
-        run: npm --workspace @orbit/web run test:smoke
+        run: npm run test:smoke --workspace @orbit/web
       - name: Record staging smoke pass
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -654,9 +654,9 @@ jobs:
             npm-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
       - name: Install Playwright chromium
-        run: npx playwright install chromium
+        run: ./node_modules/.bin/playwright install chromium
       - name: Run production smoke suite
-        run: npm --workspace @orbit/web run test:smoke
+        run: npm run test:smoke --workspace @orbit/web
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v7

@@ -956,7 +956,7 @@ const changeText = (path, ...replacements) => {
 }
 const newAction = (directory, steps) => ({ [`.github/actions/${directory}/action.yml`]: `name: ${directory}\ndescription: ${directory}\nruns:\n  using: composite\n  steps:\n${steps}` })
 
-const TYPE_CHECK_RUN = "      - run: npx turbo run type-check\n"
+const TYPE_CHECK_RUN = "      - run: ./node_modules/.bin/turbo run type-check\n"
 const WORKSPACE_ENV = "      ARTIFACT_NAME: workspace-unit-coverage-attempt-${{ github.run_attempt }}\n"
 const WORKSPACE_RUN = "      - name: Run workspaces with coverage thresholds\n"
 const evictRun = (path, options) => `run: |\n${compilerCacheEvict(path, options).trimEnd().split("\n").map((line) => `          ${line}`).join("\n")}`
@@ -1262,7 +1262,7 @@ const MUTATIONS = [
   ["B2 the Type Check job env moves the Turbo cache directory", changeText(".github/workflows/test.yml",
     [TYPE_CHECK_IF, `${TYPE_CHECK_IF}    env:\n      TURBO_CACHE_DIR: .turbo/results\n`]), /Save turbo: the job sets no TURBO_CACHE_DIR/, WRITE],
   ["B3 the Type Check run passes another cache directory", changeText(".github/workflows/test.yml",
-    [TYPE_CHECK_RUN, "      - run: npx turbo run type-check --cache-dir=.turbo/results\n"]), /Save turbo: no step of the job sets TURBO_CACHE_DIR or --cache-dir/, WRITE],
+    [TYPE_CHECK_RUN, "      - run: ./node_modules/.bin/turbo run type-check --cache-dir=.turbo/results\n"]), /Save turbo: no step of the job sets TURBO_CACHE_DIR or --cache-dir/, WRITE],
   ["T3 the Turbo delete step cleans only the cache directory under the saved path", changeText(".github/workflows/test.yml",
     ["        run: find .turbo -type f -mtime +30 -delete\n", "        run: find .turbo/cache -type f -mtime +30 -delete\n"]),
     /Save turbo: the step before the save deletes the Turbo results older than 30 days/, WRITE],

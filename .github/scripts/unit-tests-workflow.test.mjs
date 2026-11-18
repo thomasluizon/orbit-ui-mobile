@@ -329,7 +329,7 @@ test("every test workspace runs in exactly one test job", () => {
   const workspaces = workflow.jobs["workspace-tests"]
   assert.equal(workspaces.strategy, undefined)
   assert.equal(stepNamed(workspaces.steps, "Run workspaces with coverage thresholds").run,
-    "npx turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage")
+    "./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage")
   assert.equal(workspaces.env.ARTIFACT_NAME, "workspace-unit-coverage-attempt-${{ github.run_attempt }}")
   const upload = workspaces.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
   assert.equal(upload.with.name, "${{ env.ARTIFACT_NAME }}")
@@ -520,9 +520,13 @@ test("pull request runs save no cache that a push to main saves", () => {
 })
 
 test("real Vitest reports combine project coverage and reject incomplete coverage", { timeout: 120_000 }, () => {
-  const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
-  const shardCommand = stepNamed(workflow.jobs["web-tests"].steps, "Run web shard with coverage").run
-  const mergeCommand = stepNamed(unitSteps, "Merge web reports and enforce coverage thresholds").run
+  const shardStep = stepNamed(workflow.jobs["web-tests"].steps, "Run web shard with coverage")
+  const mergeStep = stepNamed(unitSteps, "Merge web reports and enforce coverage thresholds")
+  assert.equal(shardStep["working-directory"], mergeStep["working-directory"])
+  // Each command runs the Vitest binary by a path relative to its working directory, so the scratch project takes the place of that directory.
+  const directory = mkdtempSync(join(root, dirname(shardStep["working-directory"]), ".tmp-unit-reports-"))
+  const shardCommand = shardStep.run
+  const mergeCommand = mergeStep.run
   const run = (command, expected) => {
     const result = spawnSync("bash", ["-e", "-c", command], { cwd: directory, env: { ...process.env, CI: "true" }, encoding: "utf8", timeout: 30_000 })
     assert.equal(result.status, expected, `${result.stdout}\n${result.stderr}`)

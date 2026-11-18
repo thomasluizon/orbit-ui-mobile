@@ -292,7 +292,7 @@ jobs:
         working-directory: apps/mobile
         # EXPO_OFFLINE makes the check read the installed expo/bundledNativeModules.json, not the Expo API,
         # so a new Expo patch release cannot fail a release of an unchanged lockfile.
-        run: EXPO_OFFLINE=1 npx expo install --check
+        run: EXPO_OFFLINE=1 ../../node_modules/.bin/expo install --check
 
       - name: Set Expo app version
         working-directory: apps/mobile
@@ -376,7 +376,7 @@ jobs:
 
           echo "Prebuild API base: ${EXPO_PUBLIC_API_BASE}"
 
-          npx expo prebuild --platform android --no-install
+          ../../node_modules/.bin/expo prebuild --platform android --no-install
 
       - name: Configure Android release signing
         working-directory: apps/mobile
