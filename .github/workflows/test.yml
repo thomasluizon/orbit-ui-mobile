@@ -628,8 +628,9 @@ jobs:
       - name: Run mobile shard with coverage
         timeout-minutes: 10
         working-directory: apps/mobile
+        # widget-color-generator.test.ts runs a workspace script with the npm CLI that npm_execpath names, and only npm sets it.
         run: >-
-          ../../node_modules/.bin/vitest run --shard=${{ matrix.shard }}/${{ matrix.total }}
+          npm run test -- --shard=${{ matrix.shard }}/${{ matrix.total }}
           --coverage --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
           --reporter=default --reporter=blob

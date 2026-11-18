@@ -293,6 +293,9 @@ test("mobile shards merge their blobs under the unchanged mobile thresholds", ()
   assert.deepEqual(mobile.strategy.matrix.shard, Array.from({ length: mobileShardCount }, (_, index) => index + 1))
   const run = stepNamed(mobile.steps, "Run mobile shard with coverage")
   assert.equal(run["working-directory"], "apps/mobile")
+  // apps/mobile/__tests__/scripts/widget-color-generator.test.ts runs a workspace script with the npm CLI that
+  // npm_execpath names, and only npm sets that variable. So the shard runs vitest through the workspace test script.
+  assert.match(run.run, /^npm run test -- --shard=/, "the mobile shard runs vitest through npm")
   assert.match(run.run, /--shard=\$\{\{ matrix.shard \}\}\/\$\{\{ matrix.total \}\}/)
   assert.match(run.run, /--coverage\.thresholds\.lines=0/)
   assert.match(run.run, /--outputFile\.blob=\.artifacts\/unit-tests\/blobs\/mobile-\$\{\{ matrix.shard \}\}\.json/)

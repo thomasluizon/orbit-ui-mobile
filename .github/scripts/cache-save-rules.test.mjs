@@ -496,7 +496,7 @@ fi
     ],
   },
   "android-release.yml: release-android": {
-    compile: "Build signed AAB with Gradle", path: "~/.cache/ccache", key: PRIMARY_KEY_OUTPUT,
+    compile: "Build signed AAB with Gradle", path: "~/.cache/ccache", key: PRIMARY_KEY_OUTPUT, continueOnError: true,
     evictWhen: "env.CCACHE_AVAILABLE == 'true' && steps.compiler-cache.outputs.cache-hit != 'true'",
     env: {
       EAS_BUILD_PROFILE: "production",
@@ -603,7 +603,7 @@ fi
     ],
   },
   "ios-release.yml: release": {
-    compile: "archive", path: "${{ env.CCACHE_DIR }}", key: PRIMARY_KEY_OUTPUT,
+    compile: "archive", path: "${{ env.CCACHE_DIR }}", key: PRIMARY_KEY_OUTPUT, continueOnError: true,
     evictWhen: `steps.archive.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE}`,
     env: {
       ORBIT_APP_VARIANT: "${{ inputs.variant }}",
@@ -654,7 +654,8 @@ const COMPILER_CACHE_PATHS = new Set(Object.values(COMPILER_CACHE_SAVERS).map(({
 const savesExactly = (path) => `the save writes exactly ${path}, the directory that the evict step cleans`
 
 // The stamp step and the evict step as a reviewer reads them. The name is free text; every other key is the reviewed form,
-// so a shell, a working directory, an env or a continue-on-error cannot stop the step or move it to another directory.
+// so a shell, a working directory or an env cannot stop the step or move it to another directory, and only a release
+// saver has continue-on-error.
 const reviewedStep = (step, form) => canonical({ name: step?.name, ...form })
 // The run defaults of a job or its workflow set the shell and the directory of each run step that names neither.
 const assertNoRunDefaults = (workflow, job, where) =>
@@ -678,7 +679,7 @@ function checkCompilerCaches(currentTree) {
   assert.deepEqual(saves.map(({ list }) => list.place).sort(), Object.keys(COMPILER_CACHE_SAVERS).sort(), "the compiler cache savers")
   for (const { step: save, list, where } of saves) {
     const saver = COMPILER_CACHE_SAVERS[list.place]
-    const { compile: compileStep, evictWhen, path, partial, key } = saver
+    const { compile: compileStep, evictWhen, path, partial, key, continueOnError } = saver
     const steps = list.entries.map((entry) => entry.step)
     assertNoRunDefaults(list.workflow, list.job, where)
     assert.equal(save.with.path, path, `${where}: ${savesExactly(path)}`)
@@ -694,7 +695,12 @@ function checkCompilerCaches(currentTree) {
     assert.equal(evicts[0].if, evictWhen, `${where}: the evict step runs on each run that can save`)
     assert.equal(stamps[0].if, undefined, `${where}: the stamp step always runs`)
     assert.deepEqual(canonicalStep(stamps[0]), reviewedStep(stamps[0], { run: COMPILER_CACHE_STAMP }), `${where}: the stamp step differs from its reviewed form`)
-    const evictForm = { id: EVICT_ID, if: evictWhen, ...(partial ? { env: COMPILE_OUTCOME_ENV } : {}), run: compilerCacheEvict(path, { partial }) }
+    // A release saver sets continueOnError, so a failed clean skips the save and not the upload. The save reads the outcome,
+    // the result before continue-on-error applies: https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#steps-context
+    const evictForm = {
+      id: EVICT_ID, if: evictWhen, ...(partial ? { env: COMPILE_OUTCOME_ENV } : {}),
+      ...(continueOnError ? { "continue-on-error": true } : {}), run: compilerCacheEvict(path, { partial }),
+    }
     assert.deepEqual(canonicalStep(evicts[0]), reviewedStep(evicts[0], evictForm),
       `${where}: the evict step differs from its reviewed form, which cleans exactly ${path}`)
     assertCompilerCacheSettings(list, saver, evicts[0], where)
@@ -968,6 +974,7 @@ const STAMP_STEP = `      # The stamp follows the restore, so every restored obj
 const ANDROID_RELEASE_EVICT = `      - name: Keep only the objects that this build used
         id: evict
         if: env.CCACHE_AVAILABLE == 'true' && steps.compiler-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
         ${ANDROID_EVICT_RUN}
 `
 const IOS_BUILD_EVICT = `      - name: Clean the ccache directory before its save
@@ -1064,6 +1071,7 @@ const ANDROID_RELEASE_SAVE = `      # A rerun attempt has the same run id, so it
 const KEEP_HISTORY = "      - run: bash .github/ci/keep-history.sh\n"
 const BUILD_SAVE_IF = "        if: ${{ always() && steps.evict.outcome == 'success' }}\n"
 const RELEASE_SAVE_IF = "        if: steps.evict.outcome == 'success'\n"
+const RELEASE_EVICT_KEEPS_GOING = "        continue-on-error: true\n"
 const MOBILE_EVICT_IF = "        if: ${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n"
 // The save of each job as round 17 had it: a failed, cancelled or skipped evict step did not stop it.
 const saveWithoutTheEvictOutcome = (path, name, before, after) => changeText(path, [`      - name: ${name}\n${before}`, `      - name: ${name}\n${after}`])
@@ -1318,6 +1326,16 @@ const MUTATIONS = [
   ["S5 the mobile-build evict step runs only after a passing compile, so the partial entry skips the clean", changeText(".github/workflows/mobile-build.yml",
     [MOBILE_EVICT_IF, "        if: ${{ env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n"]),
   /mobile-build\.yml: build: Save the ccache directory: the evict step runs on each run that can save/, WRITE],
+  ["CE1 the ios-release evict step loses continue-on-error, so a failed clean fails the TestFlight upload", changeText(".github/workflows/ios-release.yml",
+    [RELEASE_EVICT_KEEPS_GOING, ""]), /ios-release\.yml: release: Save compiler outputs: the evict step differs from its reviewed form/, WRITE],
+  ["CE2 the android-release evict step loses continue-on-error, so a failed clean fails the Play upload", changeText(".github/workflows/android-release.yml",
+    [RELEASE_EVICT_KEEPS_GOING, ""]), /android-release\.yml: release-android: Save the ccache directory: the evict step differs from its reviewed form/, WRITE],
+  ["CE3 the android-release save reads the evict conclusion, which is success after a failed clean", saveWithoutTheEvictOutcome(
+    ".github/workflows/android-release.yml", "Save the ccache directory", RELEASE_SAVE_IF, "        if: steps.evict.conclusion == 'success'\n"),
+  NO_SAVE_WITHOUT_A_PASSING_EVICT("android-release\\.yml: release-android"), WRITE],
+  ["CE4 the mobile-build evict step gets continue-on-error, so a failed clean on main turns no job red", changeText(".github/workflows/mobile-build.yml",
+    [MOBILE_EVICT_IF, `${MOBILE_EVICT_IF}${RELEASE_EVICT_KEEPS_GOING}`]),
+  /mobile-build\.yml: build: Save the ccache directory: the evict step differs from its reviewed form/, WRITE],
   ["C8 the android-release job saves through the post step of a combined cache step, whose line names the evict step", ANDROID_RELEASE_COMBINED,
     /Restore the ccache directory: the rule "the evict step" does not cover actions\/cache$/m,
     withRule("android-release.yml: release-android: Restore the ccache directory", "the evict step")],

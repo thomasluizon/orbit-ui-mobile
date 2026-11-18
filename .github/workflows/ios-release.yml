@@ -182,9 +182,13 @@ jobs:
       # layout of ccache 4.9.1 and 4.14.2: the 16 object directories, their one-character subdirectories, the stats
       # and CACHEDIR.TAG files, and the object files. The save runs only when this step passes, so no saved entry
       # holds a log, a lock, a configuration file or a file that another step writes.
+      # A failed clean must not fail the release. With continue-on-error, a failed step has the outcome failure and the
+      # conclusion success, and the save reads the outcome, so it still skips. Source: steps context in
+      # https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#steps-context
       - name: Keep only the objects that this archive used
         id: evict
         if: steps.archive.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
         run: |
           set -euo pipefail
           ccache --dir ${{ env.CCACHE_DIR }} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
