@@ -242,7 +242,7 @@ if (prNumber !== null) {
   updateRunState((current) => {
     const state = current ?? { sessionId: "salvage", sleep: false, remaining: [] }
     const pullRequests = Array.isArray(state.pullRequests) ? state.pullRequests.filter((entry) => !(entry?.repositoryKey === repoKey && entry?.prNumber === prNumber)) : []
-    pullRequests.push({ repositoryKey: repoKey, prNumber, receiptPath: readinessPath })
+    pullRequests.push({ repositoryKey: repoKey, prNumber, receiptPath: readinessPath, issue, worktree, branch })
     return { ...state, pullRequests }
   }, runRoot)
 }

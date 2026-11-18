@@ -1,6 +1,8 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
+import { endedWorkersOwed } from "../lib/detached-workers.mjs"
+import { workerCompletionFile } from "../lib/run-state.mjs"
 import { T, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "salvage-worker.mjs"
@@ -197,6 +199,17 @@ export const cases = () => {
     state.pullRequests?.[0]?.repositoryKey === "ui" && state.pullRequests[0].prNumber === 77 && /ui-77\.json$/.test(state.pullRequests[0].receiptPath),
     JSON.stringify(state),
   )
+  T(
+    `${TOOL}: the salvage row keeps the issue, worktree and branch that every ledger identity keeps`,
+    state.pullRequests?.[0]?.issue === "ORB-250" && state.pullRequests[0].worktree === repo.path && state.pullRequests[0].branch === "feature/salvage",
+    JSON.stringify(state.pullRequests),
+  )
+  // The row is the real producer output: an ended launch on its branch is delivered, so the relay does not carry it.
+  const salvagedPid = 2 ** 22 + 21
+  mkdirSync(join(repo.path, ".git", "orbit-worker-launches", "results"), { recursive: true })
+  writeFileSync(workerCompletionFile(salvagedPid, repo.path), JSON.stringify({ launcherPid: salvagedPid, sessionId: "salvage-session", repositoryKey: "ui", issue: "ORB-250", runDirectory: repo.path, branch: "feature/salvage", outcome: "EXITED", exitCode: 0 }))
+  const carriedAfterSalvage = endedWorkersOwed({ repoRoot: repo.path, sessionId: "salvage-session", worktrees: [], wakes: { live: [], orphaned: [] }, rows: state.pullRequests })
+  T(`${TOOL}: a launch whose branch has the salvage row is delivered and leaves the relay carry`, !carriedAfterSalvage.some((worker) => worker.launcherPid === salvagedPid), JSON.stringify(carriedAfterSalvage))
   T(`${TOOL}: successful salvage reached the named remote branch`, repo.git(["ls-remote", "--heads", "origin", "feature/salvage"]).stdout.includes("refs/heads/feature/salvage"), passed.stdout || passed.stderr)
 
   const beforePr = stageRepo("salvage-worker-before-pr")
