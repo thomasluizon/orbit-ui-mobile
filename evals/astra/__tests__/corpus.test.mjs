@@ -3,7 +3,7 @@ import { expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { summarize } from '../report.mjs'
-import { TOOL_NAME_KEYS, corpusTests, gradedByOutcome } from '../grade-method.mjs'
+import { TOOL_NAME_KEYS, corpusTests, gradedByOutcome, readCorpus } from '../grade-method.mjs'
 import { configureOffers } from '../offer-context.mjs'
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
@@ -13,6 +13,16 @@ it('includes every scenario identity in the launch corpus', () => {
   expect(corpus).toHaveLength(184)
   expect(scenarios).toHaveLength(51)
   expect(new Set([...corpus, ...scenarios].map((entry) => entry.metadata.id)).size).toBe(235)
+})
+it('names the corpus files in one module, and the merge and the reset read the same descriptors', async () => {
+  const { readdirSync } = await import('node:fs')
+  const sources = ['.', 'core', 'fixtures'].flatMap((folder) => readdirSync(new URL(`../${folder}/`, import.meta.url))
+    .filter((name) => name.endsWith('.mjs')).map((name) => `${folder}/${name}`))
+  expect(sources.filter((path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8').includes("'composition-scenarios.yaml'")))
+    .toEqual(['./grade-method.mjs'])
+  const { descriptors } = await import('../merge-reports.mjs')
+  const { describeCase } = await import('../latency.mjs')
+  expect(descriptors).toEqual(readCorpus().map(describeCase))
 })
 it.each([
   ['goal-behind', ['at_risk', 'behind']],

@@ -30,6 +30,16 @@ it.each(['en', 'pt-BR'])('accepts the avoid habit only with its recurring cadenc
   expect(grade(test, habits).reason).toMatch(/^The preview holds a change outside the request\./u)
 })
 
+it.each(['en', 'pt-BR'])('fails an avoid habit that is general or repeats less than daily in %s', (locale) => {
+  const test = scenario(`composition-avoid-form-${locale}`)
+  const [recordedHabit] = recordedHabits(test.metadata.id)
+  const avoid = { ...recordedHabit, frequency_unit: 'Day', frequency_quantity: null, is_general: null }
+  expect(grade(test, [avoid])).toMatchObject({ pass: true })
+  expect(grade(test, [{ ...avoid, frequency_quantity: 1, is_general: false }]).pass).toBe(true)
+  expect(grade(test, [{ ...avoid, is_general: true }]).pass).toBe(false)
+  expect(grade(test, [{ ...avoid, frequency_quantity: 3 }]).pass).toBe(false)
+})
+
 it.each(['en', 'pt-BR'])('preserves medical title wording without admitting wrong dates or cadence in %s', (locale) => {
   const test = scenario(`composition-medical-batch-${locale}`)
   const habits = recordedHabits(test.metadata.id)

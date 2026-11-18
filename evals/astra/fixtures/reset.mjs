@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { parse } from 'yaml'
+import { readCorpus } from '../grade-method.mjs'
 import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage, updateCredentials } from '../credentials.mjs'
 import { guid, publicApi, requireEvalAccess } from './api.mjs'
 import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle, sameTitleSet, startingChecklistItems } from './names.mjs'
@@ -13,8 +12,7 @@ import { dateInTimeZone, goalBehindDates, isBehindState } from './offer-timezone
 import { seedHojeNextStep } from './hoje-next-step.mjs'
 import { seedSameTitleSet } from './same-title-set.mjs'
 
-const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
-  parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'), { merge: true }))
+const corpus = readCorpus()
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
   'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'restart-non-daily', 'starting-step-checklist', 'hoje-next-step',

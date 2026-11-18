@@ -1707,7 +1707,7 @@
       mode: preview
     outcome:
       changes:
-        - { kind: create, fields: { title: Smoking, is_bad_habit: { contains: ['true'] }, frequency_unit: Day } }
+        - { kind: create, fields: { title: Smoking, is_bad_habit: { contains: ['true'] }, frequency_unit: Day, frequency_quantity: { optional: '1' }, is_general: { optional: { contains: ['false'] } } } }
 - description: existing-parents in en
   metadata:
     id: composition-existing-parents-en
@@ -1798,7 +1798,7 @@
       mode: preview
     outcome:
       changes:
-        - { kind: create, fields: { title: Fumar, is_bad_habit: { contains: ['true'] }, frequency_unit: Day } }
+        - { kind: create, fields: { title: Fumar, is_bad_habit: { contains: ['true'] }, frequency_unit: Day, frequency_quantity: { optional: '1' }, is_general: { optional: { contains: ['false'] } } } }
 - description: existing-parents in pt-BR
   metadata:
     id: composition-existing-parents-pt-BR
