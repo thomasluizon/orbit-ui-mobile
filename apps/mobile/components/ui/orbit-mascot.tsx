@@ -68,6 +68,7 @@ function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: RefO
   const [foreground, setForeground] = useState(AppState.currentState === 'active')
   const onScreen = useOnScreen(target, candidate && foreground && isOrbitMotionEnabled())
   const [clock, setClock] = useState(0)
+  const drawn = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
   useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, overlay, role) : undefined), [candidate, onScreen, claim, overlay, role])
@@ -84,11 +85,12 @@ function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: RefO
 
   useEffect(() => {
     if (!running) return undefined
-    const leave = joinOrbitLoopClock()
+    const leave = joinOrbitLoopClock(drawn.current)
     let frame = 0
     const step = (now: number) => {
       frame = requestAnimationFrame(step)
-      setClock(advanceOrbitLoopClock(now))
+      drawn.current = advanceOrbitLoopClock(now)
+      setClock(drawn.current)
     }
     frame = requestAnimationFrame(step)
     return () => {

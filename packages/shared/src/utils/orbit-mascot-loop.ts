@@ -99,9 +99,12 @@ let clockElapsed = 0
 let clockPrevious: number | null = null
 let clockRunners = 0
 
-/** A running Orbit joins the shared clock until the returned function runs. The clock counts only the time while at
- *  least one Orbit runs, so a paused view resumes where it stopped. */
-export function joinOrbitLoopClock(): () => void {
+/** A running Orbit joins the shared clock until the returned function runs. `from` is the time the Orbit drew last.
+ *  The first Orbit to join sets the clock to its own time, so a fresh Orbit starts at rest and a paused Orbit resumes
+ *  where it stopped. An Orbit that joins while another one runs takes the shared time, so the two draw in step. The
+ *  clock counts only the time while at least one Orbit runs. */
+export function joinOrbitLoopClock(from: number): () => void {
+  if (clockRunners === 0) clockElapsed = from
   clockRunners += 1
   let joined = true
   return () => {

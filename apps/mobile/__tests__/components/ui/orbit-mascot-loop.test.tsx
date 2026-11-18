@@ -78,6 +78,18 @@ function moonOf(tree: TestTree) {
   return `${String(moon?.props.cx)},${String(moon?.props.cy)}`
 }
 
+function moonJump(from: string, to: string) {
+  const [fromX, fromY] = from.split(',').map(Number)
+  const [toX, toY] = to.split(',').map(Number)
+  return Math.hypot((toX ?? 0) - (fromX ?? 0), (toY ?? 0) - (fromY ?? 0))
+}
+
+const largestMoonStep = Math.max(...Array.from({ length: 600 }, (_, index) => {
+  const { moon: from } = orbitMascotFrame(index * mascotMotion.frameInterval, mascotMotion)
+  const { moon: to } = orbitMascotFrame((index + 1) * mascotMotion.frameInterval, mascotMotion)
+  return Math.hypot(to.x - from.x, to.y - from.y)
+}))
+
 function advance(milliseconds: number) {
   TestRenderer.act(() => { vi.advanceTimersByTime(milliseconds) })
 }
@@ -172,6 +184,30 @@ describe('Orbit idle loop on Android', () => {
     TestRenderer.act(() => tree.update(<OrbitMascot size={96} state="descansando" />))
     expect(mascots(tree)[0]?.props['data-orbit-state']).toBe('descansando')
     tree.unmount()
+  })
+
+  it('starts a fresh Orbit at its rest pose after another Orbit ran, and moves at most one frame step on its first frames', () => {
+    const first = render(<OrbitMascot size={96} />)
+    advance(2500)
+    TestRenderer.act(() => first.unmount())
+    const tree = render(<OrbitMascot size={96} />)
+    const rest = moonOf(tree)
+    expect(rest).toBe(moonOf(render(<OrbitMascot size={96} still />)))
+    advance(48)
+    expect(moonJump(rest, moonOf(tree))).toBeLessThanOrEqual(largestMoonStep)
+  })
+
+  it('resumes a page Orbit at its own paused pose after an overlay Orbit ran', () => {
+    const view = (open: boolean) => <View><OrbitMascot size={96} /><OrbitOverlayLayer active={open}>{open ? <OrbitMascot size={128} state="feliz" /> : null}</OrbitOverlayLayer></View>
+    const tree = render(view(false))
+    advance(480)
+    TestRenderer.act(() => tree.update(view(true)))
+    const paused = moonOf(tree)
+    advance(2500)
+    TestRenderer.act(() => tree.update(view(false)))
+    expect(loops(tree)).toEqual(['running'])
+    advance(48)
+    expect(moonJump(paused, moonOf(tree))).toBeLessThanOrEqual(largestMoonStep)
   })
 
   it('pauses while the app is in the background and resumes in the foreground', () => {

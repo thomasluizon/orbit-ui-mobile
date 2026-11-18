@@ -214,8 +214,8 @@ describe('Orbit shared loop clock', () => {
   const frame = mascotMotion.frameInterval
 
   it('counts each frame once when two running Orbits advance it with the same timestamp', () => {
-    const leaveEntry = joinOrbitLoopClock()
-    const leaveSummary = joinOrbitLoopClock()
+    const leaveEntry = joinOrbitLoopClock(0)
+    const leaveSummary = joinOrbitLoopClock(0)
     const start = advanceOrbitLoopClock(1000)
     expect(advanceOrbitLoopClock(1000)).toBe(start)
     const next = advanceOrbitLoopClock(1000 + frame)
@@ -227,7 +227,7 @@ describe('Orbit shared loop clock', () => {
   })
 
   it('draws on one grid of the frame interval, so two Orbits that read it in different frames draw the same pose', () => {
-    const leave = joinOrbitLoopClock()
+    const leave = joinOrbitLoopClock(0)
     const start = advanceOrbitLoopClock(2000)
     expect(start % frame).toBe(0)
     expect(advanceOrbitLoopClock(2000 + frame / 3)).toBe(start)
@@ -236,12 +236,12 @@ describe('Orbit shared loop clock', () => {
   })
 
   it('caps one step and does not count the time while no Orbit runs', () => {
-    const leave = joinOrbitLoopClock()
+    const leave = joinOrbitLoopClock(0)
     const start = advanceOrbitLoopClock(5000)
     const paused = advanceOrbitLoopClock(9000)
     leave()
     leave()
-    const leaveAgain = joinOrbitLoopClock()
+    const leaveAgain = joinOrbitLoopClock(paused)
     const resumed = advanceOrbitLoopClock(60_000)
     const next = advanceOrbitLoopClock(60_000 + frame)
     leaveAgain()
@@ -250,9 +250,27 @@ describe('Orbit shared loop clock', () => {
     expect(next - resumed).toBe(frame)
   })
 
+  it('starts from the time of the first Orbit that joins, and gives a later Orbit the shared time', () => {
+    const leaveOther = joinOrbitLoopClock(0)
+    advanceOrbitLoopClock(30_000)
+    const otherLeft = advanceOrbitLoopClock(30_000 + 2500)
+    leaveOther()
+    expect(otherLeft).toBeGreaterThan(0)
+    const leaveFresh = joinOrbitLoopClock(0)
+    expect(advanceOrbitLoopClock(40_000)).toBe(0)
+    expect(advanceOrbitLoopClock(40_000 + frame)).toBe(frame)
+    const leaveJoiner = joinOrbitLoopClock(frame * 30)
+    expect(advanceOrbitLoopClock(40_000 + frame)).toBe(frame)
+    leaveFresh()
+    leaveJoiner()
+    const leaveResumed = joinOrbitLoopClock(frame * 7)
+    expect(advanceOrbitLoopClock(50_000)).toBe(frame * 7)
+    leaveResumed()
+  })
+
   it('keeps counting while one Orbit still runs after the other stops', () => {
-    const leaveEntry = joinOrbitLoopClock()
-    const leaveSummary = joinOrbitLoopClock()
+    const leaveEntry = joinOrbitLoopClock(0)
+    const leaveSummary = joinOrbitLoopClock(0)
     const start = advanceOrbitLoopClock(20_000)
     leaveSummary()
     expect(advanceOrbitLoopClock(20_000 + frame) - start).toBe(frame)

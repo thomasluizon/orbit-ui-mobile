@@ -39,6 +39,18 @@ function eyeScaleOf(container: HTMLElement) {
   return Number(/^matrix\(1 0 0 ([\d.]+) /.exec(transform)?.[1])
 }
 
+function moonJump(from: string, to: string) {
+  const [fromX, fromY] = from.split(',').map(Number)
+  const [toX, toY] = to.split(',').map(Number)
+  return Math.hypot((toX ?? 0) - (fromX ?? 0), (toY ?? 0) - (fromY ?? 0))
+}
+
+const largestMoonStep = Math.max(...Array.from({ length: 600 }, (_, index) => {
+  const { moon: from } = orbitMascotFrame(index * mascotMotion.frameInterval, mascotMotion)
+  const { moon: to } = orbitMascotFrame((index + 1) * mascotMotion.frameInterval, mascotMotion)
+  return Math.hypot(to.x - from.x, to.y - from.y)
+}))
+
 function moonsOf(container: HTMLElement) {
   return [...container.querySelectorAll('[data-part="moon"]')].map((moon) => `${moon.getAttribute('cx')},${moon.getAttribute('cy')}`)
 }
@@ -126,6 +138,30 @@ describe('Orbit idle loop on web', () => {
     const { container, rerender } = render(<><OrbitMascot size={96} />{null}</>)
     rerender(<><OrbitMascot size={96} /><OrbitMascot size={48} live="lead" /></>)
     expect([loopOf(container, 0), loopOf(container, 1)]).toEqual(['still', 'running'])
+  })
+
+  it('starts a fresh Orbit at its rest pose after another Orbit ran, and moves at most one frame step on its first frames', () => {
+    const first = render(<OrbitMascot size={96} />)
+    act(() => { vi.advanceTimersByTime(2500) })
+    first.unmount()
+    const { container } = render(<OrbitMascot size={96} />)
+    const rest = moonOf(container)
+    expect(rest).toBe(moonOf(render(<OrbitMascot size={96} still />).container))
+    act(() => { vi.advanceTimersByTime(48) })
+    expect(moonJump(rest, moonOf(container))).toBeLessThanOrEqual(largestMoonStep)
+  })
+
+  it('resumes a page Orbit at its own paused pose after an overlay Orbit ran', () => {
+    const view = (open: boolean) => <><OrbitMascot size={96} /><OrbitOverlayLayer active={open}>{open ? <OrbitMascot size={128} state="feliz" /> : null}</OrbitOverlayLayer></>
+    const { container, rerender } = render(view(false))
+    act(() => { vi.advanceTimersByTime(480) })
+    rerender(view(true))
+    const paused = moonOf(container)
+    act(() => { vi.advanceTimersByTime(2500) })
+    rerender(view(false))
+    expect(loopOf(container)).toBe('running')
+    act(() => { vi.advanceTimersByTime(48) })
+    expect(moonJump(paused, moonOf(container))).toBeLessThanOrEqual(largestMoonStep)
   })
 
   it('pauses while the tab is in the background and resumes in the foreground', () => {
