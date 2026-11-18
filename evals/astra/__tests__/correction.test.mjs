@@ -135,6 +135,27 @@ it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^
   }
 })
 
+it('keeps a correction whose setup holds no preview as missing evidence, before its own turn', async () => {
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
+  const scenario = corpus.find((entry) => entry.metadata.id === 'composition-medical-correction-en')
+  let turns = 0
+  vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
+    turns++
+    const requestId = new Request(url, options).headers.get('x-orbit-request-id')
+    return streamed({ ...captures.complete.turns[0].at(-1).response, ...chatResponse(requestId), parts: [{ type: 'text', text: 'Done.' }], aiMessage: 'Done.' }, requestId)
+  })
+  const { test } = await beforeEach({ test: structuredClone(scenario) })
+  expect(test.vars.preconditionFailure).toBe('Correction setup failed dependency composition-medical-batch-en: The reply holds no preview and no question card.')
+  const provider = await loadApiProvider(`file://${root}/http-provider.mjs`, { options: { config: config.providers[0].config } })
+  expect(await provider.callApi(test.vars.input, { vars: test.vars })).toMatchObject({
+    error: `Precondition unavailable: ${test.vars.preconditionFailure}`, metadata: { astraPreconditionFailure: true } })
+  expect(turns).toBe(1)
+})
+
 vi.mock('../fixtures/reset.mjs', async (importOriginal) => ({ ...await importOriginal(), resetFixture: vi.fn() }))
 
 it.each([
