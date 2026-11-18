@@ -136,9 +136,19 @@ const issueNumberOf = (name) => {
   try { return resolveTicket(name).number } catch { return null }
 }
 
+/**
+ * A squash merge appends `(#<pull request number>)` to each subject on main, and `git revert` quotes the subject in `Revert "<subject>"`.
+ * A quoted subject with two or more `(#N)` ends in that pull request number, which is not a ticket, so the title drops it. A single
+ * `(#N)` stays a ticket: the Revert button of GitHub quotes a pull request title, which has no suffix.
+ */
+const withoutSquashSuffix = (title) => {
+  const quoted = /^Revert "(.*)"$/s.exec(title)?.[1]
+  return quoted !== undefined && (quoted.match(/\(#[1-9]\d*\)/g) ?? []).length >= 2 ? `Revert "${quoted.replace(/ ?\(#[1-9]\d*\)$/, "")}"` : title
+}
+
 /** The GitHub issue numbers that the branch and the title of a pull request name. */
 const namedTicketNumbers = (pull) => {
-  const text = `${pull.branch ?? ""}\n${pull.title ?? ""}`
+  const text = `${pull.branch ?? ""}\n${withoutSquashSuffix(pull.title ?? "")}`
   return [...new Set(TICKET_NAMES.flatMap((pattern) => [...text.matchAll(pattern)].map(([, name]) => issueNumberOf(name))).filter((number) => number !== null))]
 }
 

@@ -545,6 +545,35 @@ const baseCheckCases = async () => {
     landed: { exits: [0, 0, 0], sameTree: true }, revert: { exits: [0, 0, 0], sameTree: false }, conflict: { exits: [0, 1, 0], sameTree: false } }), JSON.stringify(checked))
 }
 
+/*
+ * A squash merge appends `(#<pull request number>)` to each subject on main, and `git revert` quotes that subject. The pull request number is
+ * not a ticket, so a command line revert names only the ticket that comes before it. The title below is the live subject of ui#2484.
+ */
+const squashSuffixCases = async () => {
+  const COMMAND_LINE_REVERT = { ...REVERT_PULL, number: 2491, branch: "revert-orbit-conversation-entry",
+    title: 'Revert "fix(orbit): give the conversation entry a background and move the Orbit of the Hoje summary line (#2146) (#2484)"' }
+  const listing = await listOpenPullRequests({ repositories: REPOSITORIES, readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": [COMMAND_LINE_REVERT, REVERT_PULL] }).readPages })
+  const readsWith = async (ticketOf) => {
+    const reads = []
+    const tickets = await pullRequestsWithClosedTickets(recordListing("pullRequests", listing, fresh("squash-suffix"), NO_OTHER_RUN), async (number) => {
+      reads.push(number)
+      return ticketOf(number)
+    })
+    return { reads, tickets }
+  }
+  const missing = await readsWith(async (number) => {
+    if (number === 2484) throw new Error(`gh api repos/thomasluizon/orbit-tickets/issues/2484 failed: ${NOT_FOUND}`)
+    return { number, state: "CLOSED", stateReason: "COMPLETED" }
+  })
+  T("github: a command line revert of a squash commit names its ticket and never the pull request number of the suffix", !missing.reads.includes(2484) &&
+    missing.tickets.failures.length === 0 && missing.tickets.items.some((item) => item.key === "ui#2491" && JSON.stringify(item.closedTickets) === JSON.stringify([{ number: 2146, stateReason: "COMPLETED" }])),
+  JSON.stringify(missing))
+  const unrelated = await readsWith(async (number) => ({ number, state: number === 2484 ? "OPEN" : "CLOSED", stateReason: number === 2484 ? null : "COMPLETED" }))
+  T("github: an unrelated open ticket with the number of the squash suffix does not keep the revert pending", unrelated.tickets.items.some((item) => item.key === "ui#2491") &&
+    unrelated.tickets.unreadKeys.length === 0 && !unrelated.reads.includes(2484), JSON.stringify(unrelated))
+  T("github: a revert title with one number still names that number as its ticket", unrelated.reads.includes(2149), JSON.stringify(unrelated.reads))
+}
+
 /* Step 7 asks for the review before its waiter, and steps 7 and 8 name each GitHub write. */
 const skillCases = () => {
   const skill = autoWorkSkill()
@@ -617,5 +646,6 @@ export const cases = async () => {
   await failedReadCases()
   skillCases()
   await baseCheckCases()
+  await squashSuffixCases()
   await checkCases(listings)
 }
