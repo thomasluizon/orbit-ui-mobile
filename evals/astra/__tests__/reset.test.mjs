@@ -349,11 +349,7 @@ it('drives refresh, default reset, independent readback and ID substitution thro
   expect(process.env.ORBIT_EVAL_TOKEN).toBe('pro-access')
 })
 
-// The preflight reads the config of an account twice: its allowance policy, then its ai_change_plan flag against the
-// run path. No attempt reads it again.
-const configReads = () => requests.filter(({ path }) => path === 'config')
-
-it('lets an exhausted exempt ordinary fixture reach chat with no config read after the preflight', async () => {
+it('lets an exhausted exempt ordinary fixture reach chat after one preflight config read', async () => {
   exhausted = true
   vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
   const source = scenario('pro')
@@ -364,7 +360,6 @@ it('lets an exhausted exempt ordinary fixture reach chat with no config read aft
     return Response.json({ aiMessage: 'Hello.' })
   })
   await preflight({ suite: { tests: [source] } })
-  expect(configReads()).toHaveLength(2)
   const provider = new AstraHttpProvider({ config: {
     url: `${process.env.ORBIT_EVAL_BASE_URL}/api/chat`, method: 'POST', body: { message: '{{prompt}}' },
   } })
@@ -374,7 +369,7 @@ it('lets an exhausted exempt ordinary fixture reach chat with no config read aft
     const response = await provider.callApi(`Hello ${attempt}.`, { vars: test.vars })
     expect(response.error).toBeUndefined()
   }
-  expect(configReads()).toHaveLength(2)
+  expect(requests.filter(({ path }) => path === 'config')).toHaveLength(1)
   expect(requests.filter(({ path }) => path === 'chat')).toHaveLength(2)
 })
 
@@ -408,10 +403,9 @@ it.each(['free-at-limit', 'budget-exhausted'])('keeps the metered %s fixture pat
   vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
   const source = scenario(fixture)
   await preflight({ suite: { tests: [source] } })
-  expect(configReads()).toHaveLength(2)
   const { test } = await prepareAttempt({ test: source })
   expect(test.vars).not.toHaveProperty('preconditionFailure')
-  expect(configReads()).toHaveLength(2)
+  expect(requests.filter(({ path }) => path === 'config')).toHaveLength(1)
   if (fixture === 'free-at-limit') {
     expect(habits.filter((habit) => !habit.deleted)).toHaveLength(capacity)
     expect(requests.some(({ path, body }) => path === 'habits/bulk' && body.habits.length > capacity)).toBe(true)

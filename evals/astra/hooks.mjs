@@ -7,7 +7,7 @@ import { dateOffset, requireEvalOrigin, resetFixture } from './fixtures/reset.mj
 import { seedOfferFixture } from './fixtures/offers.mjs'
 import { restoreOfferTimeZone } from './fixtures/offer-timezone.mjs'
 import { fixtureHabitTitles } from './fixtures/names.mjs'
-import { requireEvalAccess, requireRunPath } from './fixtures/api.mjs'
+import { accountFeatures, requireEvalAccess, requireRunPath } from './fixtures/api.mjs'
 import { freshConversation, configureOffers } from './offer-context.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { describeCase } from './latency.mjs'
@@ -74,8 +74,9 @@ async function warmUpAccounts(tests) {
 async function requireAccountPolicies(tests) {
   for (const key of new Set(tests.map((test) => test.vars.credentialKey))) {
     await refreshCredential(key)
-    accountAccess.set(key, await requireEvalAccess(key))
-    await requireRunPath(key, runPath)
+    const features = await accountFeatures(key)
+    accountAccess.set(key, requireEvalAccess(key, features))
+    requireRunPath(key, features, runPath)
   }
 }
 
