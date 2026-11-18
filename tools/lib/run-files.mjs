@@ -20,7 +20,7 @@ const STATUS = /\(HTTP (\d{3})\)/
 
 export class RunFileConflict extends Error {}
 
-const runFilePath = (path) => {
+export const runFilePath = (path) => {
   if (typeof path !== "string" || !/^[\w.-]+(?:\/[\w.-]+)*$/.test(path) || path.split("/").some((part) => part === "." || part === "..")) {
     throw new Error(`run file path must be a relative path of plain names, got ${JSON.stringify(path)}`)
   }
