@@ -38,7 +38,7 @@ export function GoalFlowFrame({ flowId, label, flow, view, requestClose, discard
   const t = useTranslations()
   const { position, total } = flow.position
   return (
-    <FlowScreen label={label} onDismiss={requestClose}>
+    <FlowScreen label={label} onDismiss={flow.canGoBack ? flow.back : requestClose}>
       <QuestionFlow
         flow={flowId}
         stepKey={flow.current.step}

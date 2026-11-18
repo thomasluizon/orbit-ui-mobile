@@ -1,5 +1,6 @@
 import type { z } from 'zod'
 import type { HabitPhraseReadRequest, HabitPhraseReadResponse } from '../types/habit'
+import type { SupportedLocale } from '../types/profile'
 import { getAccountDay } from '../utils/dates'
 import { phraseLeavesWordsUnread, readPhraseCoverage, remainingHabitFlowSteps, resetCoveredAnswers, type HabitFlowAnswers, type HabitFlowStepId } from '../utils/habit-flow'
 import { answerHabitReminder, answerHabitTime, answerHabitWhen, habitRepeatLacksStart, type HabitFlowFormPort, type HabitWhenChoice } from '../utils/habit-flow-answers'
@@ -76,7 +77,7 @@ export interface GuidedHabitFlowOptions {
   isOnline: boolean
   helpers: GuidedHabitFlowHelpers
   form: GuidedHabitFlowForm
-  watched: Pick<HabitFormInput, 'title' | 'dueDate' | 'dueTime' | 'frequencyUnit' | 'isFlexible'>
+  watched: Pick<HabitFormInput, 'title' | 'itemType' | 'dueDate' | 'dueTime' | 'frequencyUnit' | 'isFlexible'>
   readPhrase: (request: HabitPhraseReadRequest) => Promise<HabitPhraseReadResponse | null>
   applySchedule: (patch: HabitFormSuggestionPatch) => boolean
 }
@@ -258,6 +259,17 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
         setIntervalWeeks: (intervalWeeks) => { answered(); controller.setIntervalWeeks(intervalWeeks) },
       }
     }, [controller, releasePhraseDate, setAnswers, setProposals])
+  }
+
+  function usePhraseOwnershipSync(controller: HabitFormController, title: string, itemType: HabitFormInput['itemType'], isGeneral: boolean, locale: SupportedLocale) {
+    const last = useRef({ title, itemType, isGeneral })
+    useEffect(() => {
+      const previous = last.current
+      last.current = { title, itemType, isGeneral }
+      const stoppedRepeating = (itemType === 'task' && previous.itemType !== 'task') || (isGeneral && !previous.isGeneral)
+      if (previous.title !== title || !stoppedRepeating) return
+      controller.reconcilePhraseOwnership(readTypedHabitPhrase(title, locale, itemType, isGeneral))
+    }, [controller, isGeneral, itemType, locale, title])
   }
 
   function useOpeningRead(mode: 'create' | 'edit', applyRead: (read: HabitPhraseRead, date: HabitPhraseDate | null) => void, localRead: HabitPhraseRead, typedDate: HabitPhraseDate | null) {
@@ -455,6 +467,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       holdPhraseDate(date)
     }, [controller, deliberateType, form, helpers, holdPhraseDate])
     useOpeningRead(mode, applyRead, localRead, typedDate)
+    usePhraseOwnershipSync(controller, watched.title, watched.itemType, isGeneral, supportedLocale)
 
     const changeTitle = useCallback((value: string) => {
       form.setField('title', value)

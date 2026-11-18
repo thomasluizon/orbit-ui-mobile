@@ -163,6 +163,15 @@ describe('QuestionFlow on Android', () => {
     } finally { tree.unmount(); vi.useRealTimers() }
   })
 
+  it('hides the live region with a clipped 1 by 1 box and never with a zero alpha, so TalkBack still reads it', () => {
+    const tree = renderNavigation(flow({ line: null }))
+    const region = tree.hosts().find((node) => (node.props as Record<string, unknown>).accessibilityLiveRegion === 'polite')!
+    const style = StyleSheet.flatten(region.props.style as StyleProp<ViewStyle>)
+    expect(style.opacity === undefined || Number(style.opacity) > 0).toBe(true)
+    expect(style).toMatchObject({ position: 'absolute', width: 1, height: 1, overflow: 'hidden' })
+    tree.unmount()
+  })
+
   it('exposes Pensando and the text status', () => {
     const tree = renderNavigation(flow({ orbitState: 'pensando', statusText: 'Orbit está lendo o que você escreveu.' }))
     expect(tree.hosts().some((node) => (node.props as Record<string, unknown>)['data-orbit-state'] === 'pensando')).toBe(true)

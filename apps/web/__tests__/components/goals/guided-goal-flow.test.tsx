@@ -223,6 +223,20 @@ describe('the guided goal create flow', () => {
     expect(screen.getByLabelText('What do you want to reach?')).toHaveValue('Read more')
   })
 
+  it('goes back a step on Escape and keeps every answer, as Android back does', async () => {
+    const onClose = vi.fn()
+    renderWith('en', <CreateGoalSheet open onClose={onClose} />)
+    await type('What do you want to reach?', 'Read more')
+    await press('Continue')
+    expect(heading()).not.toHaveTextContent('What do you want to reach?')
+    await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
+    expect(heading()).toHaveTextContent('What do you want to reach?')
+    expect(screen.getByLabelText('What do you want to reach?')).toHaveValue('Read more')
+    await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByText(en.common.discardChangesTitle)).toBeInTheDocument()
+  })
+
   it('opens a value of the summary and returns to the summary', async () => {
     renderWith('en', <CreateGoalSheet open onClose={vi.fn()} initialHabitIds={['h1']} />)
     await type('What do you want to reach?', 'Run')

@@ -81,6 +81,7 @@ export function ApiKeyCreateFlow(props: Readonly<ApiKeyCreateFlowProps>) {
     onDismiss: props.onClose,
   })
   const close = props.createdKey ? props.onClose : dismissGuard.requestDismiss
+  const dismiss = props.busy ? ignoreDismiss : (flow.back ?? close)
 
   async function submit(expiresAt: string) {
     if (props.busy) return
@@ -105,7 +106,7 @@ export function ApiKeyCreateFlow(props: Readonly<ApiKeyCreateFlowProps>) {
   const primary = describePrimary(flow.step, props, t, continueFromText, () => void submit(props.expiresAt))
   return (
     <>
-      <FlowScreen label={t(props.scoped ? 'profile.apiKeys.createScoped' : 'profile.apiKeys.create')} onDismiss={flow.back ?? close}>
+      <FlowScreen label={t(props.scoped ? 'profile.apiKeys.createScoped' : 'profile.apiKeys.create')} onDismiss={dismiss}>
         <QuestionFlow
           flow="api_key_create"
           showOrbit={false}
@@ -116,7 +117,7 @@ export function ApiKeyCreateFlow(props: Readonly<ApiKeyCreateFlowProps>) {
           progressLabel={t('habits.flow.progress', { position: flow.index + 1, total: flow.steps.length })}
           backLabel={t('common.back')}
           closeLabel={t('common.close')}
-          onClose={close}
+          onClose={props.busy ? undefined : close}
           onBack={props.busy ? undefined : flow.back}
           question={t(API_KEY_CREATE_QUESTION_KEYS[flow.step])}
           options={describeOptions(flow, props, t, (expiresAt) => void submit(expiresAt))}
@@ -129,6 +130,8 @@ export function ApiKeyCreateFlow(props: Readonly<ApiKeyCreateFlowProps>) {
     </>
   )
 }
+
+function ignoreDismiss() {}
 
 type FlowState = ReturnType<typeof useCreateFlowState>
 type Translate = ReturnType<typeof useTranslations>

@@ -24,14 +24,18 @@ const TestRenderer: { create(element: React.ReactNode): TestTree; act(callback: 
 
 const createdKey = { id: 'key-1', name: 'Claude Desktop', keyPrefix: 'orb_', scopes: [], isReadOnly: true, expiresAtUtc: null, createdAtUtc: '2026-11-13T00:00:00Z', lastUsedAtUtc: null, isRevoked: false, key: 'orb_secret_value' } satisfies ApiKeyCreateResponse
 
-function Harness({ scoped = false, draft = '', timeZone = 'America/Sao_Paulo', onCreate, onClose }: Readonly<{ scoped?: boolean; draft?: string; timeZone?: string; onCreate: (...args: unknown[]) => Promise<ApiKeyCreateResponse | null>; onClose: () => void }>) {
+function Harness({ scoped = false, draft = '', timeZone = 'America/Sao_Paulo', trackBusy = false, onCreate, onClose }: Readonly<{ scoped?: boolean; draft?: string; timeZone?: string; trackBusy?: boolean; onCreate: (...args: unknown[]) => Promise<ApiKeyCreateResponse | null>; onClose: () => void }>) {
   const [readOnly, setReadOnly] = useState(false)
   const [expiresAt, setExpiresAt] = useState(draft)
   const [created, setCreated] = useState<ApiKeyCreateResponse | null>(null)
   const [handedOff, setHandedOff] = useState(false)
+  const [busy, setBusy] = useState(false)
   if (handedOff) return null
-  return <ApiKeyCreateFlow scoped={scoped} busy={false} error={null} isReadOnly={readOnly} onReadOnlyChange={setReadOnly} expiresAt={expiresAt} timeZone={timeZone} onExpiryChange={setExpiresAt}
-    createdKey={created} onCreate={onCreate} onCreateGrantRequired={() => setHandedOff(true)} onCreated={setCreated} onClose={onClose} />
+  const create = trackBusy
+    ? async (...args: unknown[]) => { setBusy(true); try { return await onCreate(...args) } finally { setBusy(false) } }
+    : onCreate
+  return <ApiKeyCreateFlow scoped={scoped} busy={busy} error={null} isReadOnly={readOnly} onReadOnlyChange={setReadOnly} expiresAt={expiresAt} timeZone={timeZone} onExpiryChange={setExpiresAt}
+    createdKey={created} onCreate={create} onCreateGrantRequired={() => setHandedOff(true)} onCreated={setCreated} onClose={onClose} />
 }
 
 async function render(props: Parameters<typeof Harness>[0]): Promise<TestTree> {
@@ -123,6 +127,28 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     const events = vi.mocked(captureGuidedFlowEvent).mock.calls.map(([event]) => event.name)
     expect(events).toContain('guided_flow_step_viewed')
     expect(events).not.toContain('guided_flow_abandoned')
+  })
+
+  it('keeps the flow on the expiry step with no close path while the create request runs', async () => {
+    mocks.language = language
+    let resolveCreate: (value: ApiKeyCreateResponse) => void = () => {}
+    const onCreate = vi.fn(() => new Promise<ApiKeyCreateResponse | null>((resolve) => { resolveCreate = resolve }))
+    const onClose = vi.fn()
+    const tree = await render({ trackBusy: true, onCreate, onClose })
+    await type(tree, 'Script')
+    await press(tree, messages.common.continue)
+    await press(tree, messages.orbitMcp.permReadOnly)
+    await press(tree, messages.common.never)
+    expect(onCreate).toHaveBeenCalledOnce()
+    expect(hosts(tree).some((node) => node.props.accessibilityLabel === messages.common.close)).toBe(false)
+    expect(hosts(tree).some((node) => node.props.accessibilityLabel === messages.common.back)).toBe(false)
+    const modal = hosts(tree).find((node) => typeof node.props.onRequestClose === 'function')!
+    await TestRenderer.act(async () => { (modal.props.onRequestClose as () => void)(); await Promise.resolve() })
+    expect(heading(tree)).toBe(messages.profile.apiKeys.expiryQuestion)
+    expect(texts(tree)).not.toContain(messages.common.discardChangesTitle)
+    expect(onClose).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { resolveCreate(createdKey); await Promise.resolve() })
+    expect(heading(tree)).toBe(messages.orbitMcp.revealHeading)
   })
 
   it('opens the discard sheet inside the flow screen, because a sheet beside the flow modal lands under it', async () => {
