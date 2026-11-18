@@ -1,14 +1,41 @@
-import { brotliDecompressSync, gunzipSync, inflateSync } from 'node:zlib'
+import { createServer, get, type IncomingMessage, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { brotliCompressSync, brotliDecompressSync, deflateSync, gzipSync, gunzipSync, inflateSync } from 'node:zlib'
+import { NodeNextRequest, NodeNextResponse } from 'next/dist/server/base-http/node'
 import { pipeToNodeResponse } from 'next/dist/server/pipe-readable'
 import { createRequestResponseMocks } from 'next/dist/server/lib/mock-request'
+import { sendResponse } from 'next/dist/server/send-response'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GET, HEAD, OPTIONS, POST } from '@/app/ingest/[[...path]]/route'
 
 const fetchUpstream = vi.fn<typeof fetch>()
+const nodeFetch = globalThis.fetch
 const encoder = new TextEncoder()
+const servers: Server[] = []
+
+async function listen(server: Server): Promise<string> {
+  servers.push(server)
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+}
+
+function readRaw(url: string): Promise<{ response: IncomingMessage, body: Buffer }> {
+  return new Promise((resolve, reject) => {
+    get(url, { headers: { 'accept-encoding': 'gzip, deflate, br' } }, response => {
+      const chunks: Buffer[] = []
+      response.on('data', (chunk: Buffer) => chunks.push(chunk))
+      response.on('end', () => resolve({ response, body: Buffer.concat(chunks) }))
+      response.on('error', reject)
+    }).on('error', reject)
+  })
+}
 
 beforeEach(() => vi.stubGlobal('fetch', fetchUpstream.mockReset()))
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+afterEach(async () => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+  await Promise.all(servers.splice(0).map(server => new Promise(resolve => server.close(resolve))))
+})
 
 describe('PostHog streaming proxy', () => {
   it.each([
@@ -161,18 +188,38 @@ describe('PostHog streaming proxy', () => {
     expect(response.body).toBeNull()
   })
 
-  it.each([
-    ['gzip', gunzipSync], ['x-gzip', gunzipSync], ['deflate', inflateSync], ['br', brotliDecompressSync],
-  ] as const)('restores the %s encoding that fetch decoded', async (encoding, decode) => {
+  it('drops the upstream framing and hop-by-hop headers from the body that fetch decoded', async () => {
     fetchUpstream.mockResolvedValue(new Response('decoded upstream body', {
-      headers: { 'content-encoding': encoding, 'content-length': '999', 'content-type': 'text/javascript',
+      headers: { 'content-encoding': 'gzip', 'content-length': '999', 'content-type': 'text/javascript',
         connection: 'keep-alive, x-upstream-hop', 'x-upstream-hop': 'private' },
     }))
     const response = await GET(new Request('https://app.example.test/ingest/static/array.js'))
-    expect(response.headers.get('content-encoding')).toBe(encoding)
     expect(response.headers.get('content-type')).toBe('text/javascript')
-    for (const header of ['connection', 'content-length', 'x-upstream-hop']) expect(response.headers.has(header)).toBe(false)
-    expect(decode(Buffer.from(await response.arrayBuffer())).toString()).toBe('decoded upstream body')
+    for (const header of ['connection', 'content-encoding', 'content-length', 'x-upstream-hop']) {
+      expect(response.headers.has(header)).toBe(false)
+    }
+    expect(await response.text()).toBe('decoded upstream body')
+  })
+
+  it.each([
+    ['gzip', gzipSync, gunzipSync], ['x-gzip', gzipSync, gunzipSync], ['deflate', deflateSync, inflateSync],
+    ['br', brotliCompressSync, brotliDecompressSync],
+  ] as const)('serves a %s PostHog body that matches its headers through the Next.js response writer', async (encoding, compress, decompress) => {
+    const json = JSON.stringify({ featureFlags: { 'new-today': true } })
+    const upstreamUrl = await listen(createServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'application/json', 'content-encoding': encoding })
+      response.end(compress(json))
+    }))
+    fetchUpstream.mockImplementation((_destination, init) => nodeFetch(`${upstreamUrl}/flags/?v=2`, init))
+    const proxyUrl = await listen(createServer((request, response) => {
+      void GET(new Request(`https://app.example.test${request.url}`)).then(handlerResponse =>
+        sendResponse(new NodeNextRequest(request), new NodeNextResponse(response), handlerResponse))
+    }))
+    const { response, body } = await readRaw(`${proxyUrl}/ingest/flags/?v=2`)
+    const receivedEncoding = response.headers['content-encoding']
+    const decoded = receivedEncoding === undefined ? body : decompress(body)
+    expect(response.headers['content-type']).toBe('application/json')
+    expect(decoded.toString()).toBe(json)
   })
 
   it('streams chunks before upstream completion with two close listeners even under backpressure', async () => {
