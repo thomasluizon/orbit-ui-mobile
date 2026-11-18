@@ -15,8 +15,9 @@ import { configureOffers } from '../offer-context.mjs'
 import { offerSafety } from '../proactive-offers.mjs'
 import { chatResponse, habitAccountRead, toolCall, turnTiming } from './fixtures/producer.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
+import { recordedGateThirteen } from './fixtures/gate-thirteen.mjs'
 
-const recorded = JSON.parse(readFileSync(new URL('./fixtures/gate-thirteen.json', import.meta.url), 'utf8'))
+const recorded = recordedGateThirteen()
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 const clientContext = { supportsParts: true }
 const context = { vars: { evalRequestId: 'request', clientContext }, test: { vars: {} } }
