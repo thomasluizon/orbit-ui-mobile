@@ -8,7 +8,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { ArrowUp, Check, Lock } from '@/components/ui/icons'
 import { blockDesktopWebReload } from '@/lib/web-reload-state'
 import { QuestionControls } from './question-controls'
-import { QuestionCounters, QuestionInViewNav, useQuestionInView } from './question-in-view'
+import { QuestionCounters, QuestionInViewNav, useFocusQuestionInView, useQuestionInView } from './question-in-view'
 
 export function QuestionBlock(props: QuestionBlockProps) {
   const t = useTranslations()
@@ -19,6 +19,7 @@ export function QuestionBlock(props: QuestionBlockProps) {
   const root = useRef<HTMLDivElement>(null)
   const questions = props.block.questions
   const inView = useQuestionInView(questions, state)
+  useFocusQuestionInView(root, inView.enabled, inView.index)
   const words: QuestionWords = { yes: t('common.yes'), no: t('common.no'), answered: options => t('chat.choice.answered', { options }),
     closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered'), invalid: t('chat.choice.invalid'), error: t('chat.choice.error'),
     offline: t('chat.choice.offline'), limit: props.interaction?.limitReason ?? t('chat.choice.limit', { allowance: props.interaction?.allowance ?? 0 }), acting: t('chat.choice.acting') }
@@ -46,7 +47,7 @@ export function QuestionBlock(props: QuestionBlockProps) {
           const index = questions.indexOf(question)
           const invalid = state.invalidIds.includes(question.id)
           const hintId = `${props.block.blockId}-${question.id}-hint`
-          return <fieldset key={question.id} data-question-invalid={invalid} aria-invalid={invalid} aria-describedby={invalid ? hintId : undefined} aria-label={question.prompt}
+          return <fieldset key={question.id} data-question-invalid={invalid} aria-invalid={invalid} aria-describedby={invalid ? hintId : undefined} aria-label={question.prompt} tabIndex={-1} style={{ outlineWidth: 0 }}
             className="flex min-w-0 flex-col gap-3 border-0 p-0">
             {props.block.title || index > 0 ? <legend className="w-full break-words pb-3 text-base font-medium text-[var(--fg-1)]">{question.prompt}</legend> : null}
             <QuestionControls question={question} answer={state.answers[question.id]} disabled={view.disabled} controller={controller} words={controlWords} />

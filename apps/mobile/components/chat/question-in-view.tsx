@@ -1,13 +1,16 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Text, View } from 'react-native'
+import { AccessibilityInfo, findNodeHandle, Text, View } from 'react-native'
 import { followQuestionInView, moveQuestionInView, startQuestionInView, type QuestionBlockState } from '@orbit/shared/chat'
+import { createUseStepChange } from '@orbit/shared/hooks/step-change-core'
 import type { Question } from '@orbit/shared/types/question-block'
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useFlag } from '@/hooks/use-flag'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+const useStepChange = createUseStepChange({ useEffect, useRef })
 
 /** With the guided flows on, a block of several questions shows one question at a time. */
 export function useQuestionInView(questions: readonly Question[], state: QuestionBlockState) {
@@ -23,6 +26,20 @@ export function useQuestionInView(questions: readonly Question[], state: Questio
   }
 }
 
+/**
+ * When the question in view changes, screen reader focus moves to the new question. The previous and next controls then never hold focus while they turn disabled.
+ * The returned callback ref goes on the prompt of the shown question, or on its container when it has no prompt.
+ */
+export function useFocusQuestionInView(enabled: boolean, index: number): (node: View | Text | null) => void {
+  const anchor = useRef<View | Text | null>(null)
+  const setAnchor = useCallback((node: View | Text | null) => { anchor.current = node }, [])
+  useStepChange(enabled ? String(index) : '', () => {
+    const handle = findNodeHandle(anchor.current)
+    if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle)
+  })
+  return setAnchor
+}
+
 /** The previous control, the position of the question in view, and the next control. */
 export function QuestionInViewNav({ index, total, onMove }: Readonly<{ index: number; total: number; onMove: (step: -1 | 1) => void }>) {
   const { t } = useTranslation()
@@ -30,7 +47,7 @@ export function QuestionInViewNav({ index, total, onMove }: Readonly<{ index: nu
   const tokens = createTokensV2(currentScheme, currentTheme)
   return <View testID="question-in-view" style={{ minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
     <IconButton label={t('chat.question.previous')} disabled={index === 0} onClick={() => onMove(-1)}><ChevronLeft size={20} accessible={false} /></IconButton>
-    <Text style={{ fontSize: 14, lineHeight: 20, color: tokens.fg3 }}>{t('chat.choice.position', { position: index + 1, total })}</Text>
+    <Text accessibilityLiveRegion="polite" style={{ fontSize: 14, lineHeight: 20, color: tokens.fg3 }}>{t('chat.choice.position', { position: index + 1, total })}</Text>
     <IconButton label={t('chat.question.next')} disabled={index === total - 1} onClick={() => onMove(1)}><ChevronRight size={20} accessible={false} /></IconButton>
   </View>
 }

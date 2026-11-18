@@ -1,8 +1,9 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
+import * as ReactNative from 'react-native'
+import { AccessibilityInfo, StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { questionBlockFixture as block } from '@orbit/shared/test-support/chat-fixtures'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
+import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { BlockAnswerInteraction } from '@orbit/shared/chat'
 import { QuestionBlock } from '@/components/chat/question-block'
 
@@ -58,4 +59,42 @@ it('sets the recommended note under the quick options in the type of the Recomme
   await mount()
   const note = tree!.root.findAll(node => typeof node.type === 'string' && typeof node.props.children === 'string' && /: chat\.placement\.recommended$/.test(node.props.children))[0]!
   expect(StyleSheet.flatten(note.props.style as StyleProp<TextStyle>)).toMatchObject({ fontSize: 14, lineHeight: 19.6 })
+})
+
+it('moves screen reader focus to the new question after a quick option answer advances, and announces the position', async () => {
+  enableTestFlags('orbit_guided_flows')
+  const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
+  const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
+  try {
+    await mount()
+    expect(focus).not.toHaveBeenCalled()
+    const navigation = tree!.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'question-in-view')[0]!
+    const position = navigation.findAll(node => typeof node.type === 'string' && node.props.children === 'chat.choice.position')
+    expect(position).toHaveLength(1)
+    expect(position[0]!.props.accessibilityLiveRegion).toBe('polite')
+    await renderer.act(() => optionCards().find(card => /Morning/.test(card.props.accessibilityLabel))!.props.onPress())
+    expect(prompts()).toEqual(['Which activities?'])
+    expect(focus).toHaveBeenCalledTimes(1)
+    expect(focus).toHaveBeenLastCalledWith(42)
+    expect(findNode.mock.calls.at(-1)?.[0]).not.toBeNull()
+  } finally { findNode.mockRestore(); focus.mockRestore() }
+})
+
+it('moves screen reader focus after the previous and the next control, and keeps it where it is while the flag is off', async () => {
+  enableTestFlags('orbit_guided_flows')
+  const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
+  const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
+  try {
+    await mount()
+    await renderer.act(() => control('chat.question.next')!.props.onPress())
+    expect(focus).toHaveBeenCalledTimes(1)
+    await renderer.act(() => control('chat.question.previous')!.props.onPress())
+    expect(focus).toHaveBeenCalledTimes(2)
+    tree!.unmount()
+    resetTestFlags()
+    focus.mockClear()
+    await mount()
+    await renderer.act(() => optionCards().length)
+    expect(focus).not.toHaveBeenCalled()
+  } finally { findNode.mockRestore(); focus.mockRestore() }
 })

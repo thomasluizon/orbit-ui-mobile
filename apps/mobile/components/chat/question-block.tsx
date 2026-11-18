@@ -8,9 +8,9 @@ import { ArrowUp, Check, Lock } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { QuestionControls } from './question-controls'
-import { QuestionCounters, QuestionInViewNav, useQuestionInView } from './question-in-view'
+import { QuestionCounters, QuestionInViewNav, useFocusQuestionInView, useQuestionInView } from './question-in-view'
 
-function QuestionPanel({ invalid, firstInvalid, validationAttempt, showPrompt, ...props }: QuestionControlProps & { invalid: boolean; firstInvalid: boolean; validationAttempt: number; showPrompt: boolean }) {
+function QuestionPanel({ invalid, firstInvalid, validationAttempt, showPrompt, anchor, ...props }: QuestionControlProps & { invalid: boolean; firstInvalid: boolean; validationAttempt: number; showPrompt: boolean; anchor: (node: View | Text | null) => void }) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -24,8 +24,9 @@ function QuestionPanel({ invalid, firstInvalid, validationAttempt, showPrompt, .
       if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle)
     }
   }, [firstInvalid, validationAttempt])
-  return <View style={{ minWidth: 0, gap: 12 }}>
-    {showPrompt || invalid ? <Text ref={prompt} accessibilityRole="header" accessibilityHint={invalid ? t('chat.question.required') : undefined} style={{ fontSize: 16, lineHeight: 24, fontFamily: 'Geist_500Medium', color: tokens.fg1 }}>{props.question.prompt}</Text> : null}
+  const hasPrompt = showPrompt || invalid
+  return <View ref={hasPrompt ? undefined : anchor} style={{ minWidth: 0, gap: 12 }}>
+    {hasPrompt ? <Text ref={(node) => { prompt.current = node; anchor(node) }} accessibilityRole="header" accessibilityHint={invalid ? t('chat.question.required') : undefined} style={{ fontSize: 16, lineHeight: 24, fontFamily: 'Geist_500Medium', color: tokens.fg1 }}>{props.question.prompt}</Text> : null}
     <QuestionControls {...props} />
     <Text style={{ fontSize: 14, lineHeight: 20, color: tokens.statusBadText }}>{invalid ? t('chat.question.required') : ''}</Text>
   </View>
@@ -40,6 +41,7 @@ export function QuestionBlock(props: QuestionBlockProps) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
   const questions = props.block.questions
   const inView = useQuestionInView(questions, state)
+  const anchorQuestion = useFocusQuestionInView(inView.enabled, inView.index)
   const words: QuestionWords = { yes: t('common.yes'), no: t('common.no'), answered: options => t('chat.choice.answered', { options }),
     closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered'), invalid: t('chat.choice.invalid'), error: t('chat.choice.error'),
     offline: t('chat.choice.offline'), limit: props.interaction?.limitReason ?? t('chat.choice.limit', { allowance: props.interaction?.allowance ?? 0 }), acting: t('chat.choice.acting') }
@@ -61,7 +63,7 @@ export function QuestionBlock(props: QuestionBlockProps) {
         <QuestionCounters progress={props.block.progress} answered={inView.enabled ? null : view.completed} total={props.block.questions.length} color={tokens.fg3} />
         {inView.enabled ? <QuestionInViewNav index={inView.index} total={questions.length} onMove={inView.move} /> : null}
         {inView.shown.map((question) => <QuestionPanel key={question.id} question={question} answer={state.answers[question.id]} disabled={view.disabled} controller={controller} words={controlWords}
-          invalid={state.invalidIds.includes(question.id)} firstInvalid={state.invalidIds[0] === question.id} validationAttempt={state.validationAttempt} showPrompt={Boolean(props.block.title) || questions.indexOf(question) > 0} />)}
+          invalid={state.invalidIds.includes(question.id)} firstInvalid={state.invalidIds[0] === question.id} validationAttempt={state.validationAttempt} showPrompt={Boolean(props.block.title) || questions.indexOf(question) > 0} anchor={anchorQuestion} />)}
       </View>}
       actions={<View style={{ minWidth: 0, width: '100%', alignItems: 'flex-end', gap: 8 }}>
         <IconButton label={t('chat.choice.submit')} loading={state.acting} disabled={view.submitDisabled} onClick={() => void controller.submit(props, words, i18n.language)}><ArrowUp size={20} accessible={false} /></IconButton>

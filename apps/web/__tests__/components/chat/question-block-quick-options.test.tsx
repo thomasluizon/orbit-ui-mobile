@@ -107,3 +107,46 @@ it('sets the recommended note under the quick options in the type of the Recomme
   const note = within(question('When?') as HTMLElement).getByText(new RegExp(`: ${en.chat.placement.recommended}$`))
   expect(note).toHaveStyle({ fontSize: '14px', lineHeight: '1.4' })
 })
+
+it('moves focus to the new question and announces its position after a quick option answer advances', () => {
+  enableTestFlags('orbit_guided_flows')
+  render(element(interaction()))
+  expect(document.body).toHaveFocus()
+  fireEvent.click(within(optionGroup('When?')).getByRole('button', { name: /Morning/ }))
+  expect(question('Which activities?')).toHaveFocus()
+  expect(screen.getByText(`2 of ${block.questions.length}`)).toHaveAttribute('role', 'status')
+})
+
+it('moves focus to the new question after the previous and the next control, and never leaves it on a control that turns disabled', () => {
+  enableTestFlags('orbit_guided_flows')
+  render(element(interaction()))
+  const next = () => screen.getByRole('button', { name: en.chat.question.next })
+  for (let step = 1; step < block.questions.length; step++) {
+    next().focus()
+    fireEvent.click(next())
+    expect(question(block.questions[step]!.prompt)).toHaveFocus()
+  }
+  expect(next()).toBeDisabled()
+  expect(document.activeElement).not.toBe(next())
+  const previous = screen.getByRole('button', { name: en.chat.question.previous })
+  previous.focus()
+  fireEvent.click(previous)
+  expect(question(block.questions[block.questions.length - 2]!.prompt)).toHaveFocus()
+})
+
+it('leaves focus where it is while the flag is off and a single answer follows', () => {
+  render(element(interaction()))
+  fireEvent.click(within(screen.getByRole('radiogroup', { name: 'When?' })).getByRole('radio', { name: /Morning/ }))
+  expect(document.body).toHaveFocus()
+})
+
+it('keeps the arrow keys working on a slider that the person reaches after the focus moved to its question', () => {
+  enableTestFlags('orbit_guided_flows')
+  render(element(interaction()))
+  for (let step = 0; step < 3; step++) fireEvent.click(screen.getByRole('button', { name: en.chat.question.next }))
+  const slider = screen.getByRole('slider')
+  slider.focus()
+  fireEvent.keyDown(slider, { key: 'Home' })
+  fireEvent.keyDown(slider, { key: 'ArrowRight' })
+  expect(Number(slider.getAttribute('aria-valuenow'))).toBeGreaterThan(Number(slider.getAttribute('aria-valuemin')))
+})

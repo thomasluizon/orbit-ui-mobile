@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useTranslations } from 'next-intl'
 import { followQuestionInView, moveQuestionInView, startQuestionInView, type QuestionBlockState } from '@orbit/shared/chat'
+import { createUseStepChange } from '@orbit/shared/hooks/step-change-core'
 import type { Question } from '@orbit/shared/types/question-block'
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useFlag } from '@/hooks/use-flag'
+
+const useStepChange = createUseStepChange({ useEffect, useRef })
 
 /** With the guided flows on, a block of several questions shows one question at a time. */
 export function useQuestionInView(questions: readonly Question[], state: QuestionBlockState) {
@@ -22,12 +25,19 @@ export function useQuestionInView(questions: readonly Question[], state: Questio
   }
 }
 
+/** When the question in view changes, focus moves to the new question, so its name is read and the previous and next controls never hold focus while they turn disabled. */
+export function useFocusQuestionInView(root: RefObject<HTMLElement | null>, enabled: boolean, index: number): void {
+  useStepChange(enabled ? String(index) : '', () => {
+    root.current?.querySelector<HTMLElement>('fieldset')?.focus()
+  })
+}
+
 /** The previous control, the position of the question in view, and the next control. */
 export function QuestionInViewNav({ index, total, onMove }: Readonly<{ index: number; total: number; onMove: (step: -1 | 1) => void }>) {
   const t = useTranslations()
   return <div className="flex min-w-0 items-center justify-between gap-2">
     <IconButton label={t('chat.question.previous')} disabled={index === 0} onClick={() => onMove(-1)}><ChevronLeft size={20} aria-hidden="true" /></IconButton>
-    <p className="text-sm text-[var(--fg-3)]">{t('chat.choice.position', { position: index + 1, total })}</p>
+    <p role="status" className="text-sm text-[var(--fg-3)]">{t('chat.choice.position', { position: index + 1, total })}</p>
     <IconButton label={t('chat.question.next')} disabled={index === total - 1} onClick={() => onMove(1)}><ChevronRight size={20} aria-hidden="true" /></IconButton>
   </div>
 }
