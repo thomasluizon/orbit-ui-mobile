@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { coreDescriptors, corpusDigest } from '../core/corpus.mjs'
+import { coreDescriptors, corpusDigest, corpusDigestFor } from '../core/corpus.mjs'
 import { COST_PER_MODEL_CALL_LIMIT_USD, mergeRunFiles, mergeRuns } from '../core/merge.mjs'
 import { noEvidenceKinds, summarize, writeReport, writeResults } from '../core/report.mjs'
 import { changeList } from '../core/change-list.mjs'
@@ -587,6 +587,75 @@ describe('the declaration of a later build on the command line', () => {
   })
 })
 
+// Rows 3a, 3b and 4 of the build queue change the server but not the model input, so their gate runs at k=1 (#2129).
+describe('the k of a gate run', () => {
+  const requiredAtOne = descriptor('required', { k: 1 })
+  const descriptorsAtOne = [requiredAtOne, optional]
+  const windowAt = (k, results, target, name) => summarize(results, [target], { run: name, apiCommit: meta.apiCommit, k })
+  const atThree = () => [windowAt(3, attempts(required, 3), required, 'must-pass'), windowAt(3, [result(optional)], optional, 'other')]
+  const atOne = () => [windowAt(1, [result(requiredAtOne)], requiredAtOne, 'must-pass'), windowAt(1, [result(optional)], optional, 'other')]
+
+  it('states the k of the run in each window summary and in its corpus digest', () => {
+    expect(run(attempts(required, 3), [required])).toMatchObject({ k: 3, corpusDigest })
+    const [window] = atOne()
+    expect(window).toMatchObject({ k: 1, corpusDigest: corpusDigestFor(1), status: 'pass' })
+    expect(window.cases[0]).toMatchObject({ id: 'required', k: 1, attempts: 1, passed: 1, passK: 'pass' })
+  })
+
+  it('merges a k=1 run of one attempt for each must-pass case, and states its k', () => {
+    const summary = mergeRuns(atOne(), { descriptors: descriptorsAtOne, asBaseline: true, runCostUsd: 0.003 })
+    expect(summary).toMatchObject({ run: 'merged', k: 1, corpusDigest: corpusDigestFor(1), status: 'pass' })
+    expect(summary.cases.map(({ id, k, attempts: count, passK }) => ({ id, k, attempts: count, passK }))).toEqual([
+      { id: 'required', k: 1, attempts: 1, passK: 'pass' }, { id: 'optional', k: 1, attempts: 1, passK: 'pass' }])
+    expect(mergeRuns(atThree(), { descriptors, asBaseline: true, runCostUsd: 0.006 })).toMatchObject({ k: 3, corpusDigest })
+  })
+
+  it('refuses a k=1 window in a k=3 verdict, and a k=3 window in a k=1 verdict, with both values', () => {
+    const [threeMustPass, threeOther] = atThree()
+    const [oneMustPass, oneOther] = atOne()
+    expect(() => mergeRuns([threeMustPass, oneOther], { descriptors, asBaseline: true }))
+      .toThrow('Input 2 ran the must-pass cases at k=1, and input 1 at k=3; a k=1 result never joins a k=3 verdict.')
+    expect(() => mergeRuns([oneMustPass, threeOther], { descriptors: descriptorsAtOne, asBaseline: true }))
+      .toThrow('Input 2 ran the must-pass cases at k=3, and input 1 at k=1; a k=3 result never joins a k=1 verdict.')
+    const fixedAtOne = { ...windowAt(1, [result(requiredAtOne)], requiredAtOne, 'must-pass'), apiCommit: fixedBuild }
+    expect(() => mergeRuns(atThree(), { descriptors, asBaseline: true, reruns: [fixedAtOne] }))
+      .toThrow('Input 3 ran the must-pass cases at k=1, and input 1 at k=3; a k=1 result never joins a k=3 verdict.')
+  })
+
+  it('refuses a baseline of the other k, with both values', () => {
+    const baselineAtThree = mergeRuns(atThree(), { descriptors, asBaseline: true, runCostUsd: 0.006 })
+    const baselineAtOne = mergeRuns(atOne(), { descriptors: descriptorsAtOne, asBaseline: true, runCostUsd: 0.003 })
+    expect(() => mergeRuns(atOne(), { descriptors: descriptorsAtOne, baseline: baselineAtThree }))
+      .toThrow('The baseline measured the must-pass cases at k=3, and this run at k=1; a k=1 verdict never compares with a k=3 baseline. Give a baseline of main measured at k=1.')
+    expect(() => mergeRuns(atThree(), { descriptors, baseline: baselineAtOne }))
+      .toThrow('The baseline measured the must-pass cases at k=1, and this run at k=3; a k=3 verdict never compares with a k=1 baseline. Give a baseline of main measured at k=3.')
+    expect(mergeRuns(atOne(), { descriptors: descriptorsAtOne, baseline: baselineAtOne, runCostUsd: 0.003 }).criteria.passRate)
+      .toEqual({ rate: 1, baselineRate: 1, status: 'pass' })
+  })
+
+  // The baseline windows of main written before summaries named their k come from k=3 runs.
+  it('reads a summary that names no k as a k=3 run, and refuses a k it does not know', () => {
+    const withoutK = atThree().map(({ k, ...window }) => window)
+    expect(mergeRuns(withoutK, { descriptors, asBaseline: true, runCostUsd: 0.006 })).toMatchObject({ k: 3, status: 'pass' })
+    const { k, ...baselineWithoutK } = mergeRuns(atThree(), { descriptors, asBaseline: true, runCostUsd: 0.006 })
+    expect(() => mergeRuns(atOne(), { descriptors: descriptorsAtOne, baseline: baselineWithoutK }))
+      .toThrow('The baseline measured the must-pass cases at k=3, and this run at k=1')
+    expect(() => mergeRuns([withoutK[0], atOne()[1]], { descriptors, asBaseline: true }))
+      .toThrow('Input 2 ran the must-pass cases at k=1, and input 1 at k=3; a k=1 result never joins a k=3 verdict.')
+    expect(() => mergeRuns([{ ...atThree()[0], k: 2 }], { descriptors, asBaseline: true }))
+      .toThrow('Input 1 names the k 2; a core set run holds k=3 or k=1.')
+  })
+
+  it('writes the k of the run in its verdict line, and the one condition of k=1', () => {
+    const markdown = writeReport(mergeRuns(atOne(), { descriptors: descriptorsAtOne, asBaseline: true, runCostUsd: 0.003 }), directory())
+    expect(markdown).toContain('Orbit AI core gate, merged run, k=1: pass')
+    expect(markdown).toContain('A must-pass case runs at k=1 and passes only when its one attempt passes.')
+    expect(markdown).toContain('k=1 holds only for a change whose model input equals the model input of main, and the pull request body of that change says why.')
+    expect(markdown).not.toContain('each of its 3 attempts')
+    expect(writeReport(atOne()[0], directory())).toContain('Orbit AI core gate, must-pass run, k=1: pass')
+  })
+})
+
 describe('the report files', () => {
   it('writes the summary with k, pass^k, the questions, the model calls, the seconds and the cost of each case', () => {
     const target = directory()
@@ -596,7 +665,9 @@ describe('the report files', () => {
     const markdown = writeReport(summary, target)
     expect(JSON.parse(readFileSync(join(target, 'summary.json'), 'utf8'))).toEqual(summary)
     expect(readFileSync(join(target, 'summary.md'), 'utf8')).toBe(`${markdown}\n`)
-    expect(markdown).toContain('Orbit AI core gate, merged run: pass')
+    expect(markdown).toContain('Orbit AI core gate, merged run, k=3: pass')
+    expect(markdown).toContain('A must-pass case passes only when each of its 3 attempts passes.')
+    expect(markdown).not.toContain('k=1')
     expect(markdown).toContain(`Corpus digest: ${corpusDigest}`)
     expect(markdown).toContain('| pass^k rate of the core set | 0.5 | this run is the baseline | baseline |')
     expect(markdown).toContain('| required | owner-turns | b | en | yes | 3 | 3/3 | pass | 1, 1, 1 | 1 | 2, 2, 2 | 3.2, 3.2, 3.2 | 0.0045 |  |')
