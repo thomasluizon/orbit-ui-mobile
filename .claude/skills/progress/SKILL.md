@@ -272,8 +272,10 @@ the way the contract allows, and add a heading per scope so he can skim back.
 
 ## Be honest about half done
 
-A screen with six of nine stages built is not "nearly done", it is missing three behaviours. Name
-them. A screen blocked on a capability in another repository is blocked, not in progress.
+A screen with six of nine stages built is not "nearly done", it is missing three behaviours. Behaviour
+that nobody built is neither merged nor built, so it has no part of its own. Name the three as a
+qualifier inside the item of that screen, in the part where the six built stages sit. `--remaining`
+lists them as pending work. A screen blocked on a capability in another repository is blocked, not in progress.
 
 If a defect shipped and was caught, say what it would have done to someone: "a second tap could undo
 the first write" tells him more than "fixed a data-loss bug".
@@ -307,10 +309,12 @@ Read live state:
    gains, with `gh issue view <ticket-number> --repo <ticket-repository> --json title,body`. The
    ticket repository is `tickets.repository` in `.claude/orchestrator.json`.
 3. Read the open pull requests of every configured repository with the step 5 listing of the
-   window report, plus the `body` field. A pull request builds a ticket when its body has the line
-   `Tracks <ticket-repository>#<ticket-number>`, or its title or body names that ticket. The pull
-   request proves that work started. The board `state` does not: a ticket in `Todo` can have an
-   open pull request.
+   window report, plus the `body` field. A pull request builds a ticket when its body has a
+   `Tracks` line for it, as `Tracks #<ticket-number>` or `Tracks <ticket-repository>#<ticket-number>`,
+   or its `headRefName` carries `ticket-<ticket-number>` or the `orb-<n>` of the ticket, as
+   `tools/run-status.mjs` reads it. Any other number in a title or body is a reference, not a
+   link. The pull request proves that work started. The board `state` does not: a ticket in
+   `Todo` can have an open pull request.
 
 Shape: one heading for each product area, the areas and the items in dependency order, one line
 for each item. Each line says what a person can do when the item is done, or which capability the run
