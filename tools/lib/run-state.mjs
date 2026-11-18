@@ -353,7 +353,7 @@ export const recordFixRound = (round, cap, repoRoot = REPO_ROOT) => {
 export const releaseFixRound = (branch, number, repoRoot = REPO_ROOT) =>
   rmSync(join(fixRoundDirectory(repoRoot), `${fixRoundBranchKey(branch)}-round-${number}.json`), { force: true })
 
-export const recordReservedWorkerPid =(launcherPid, workerPid, repoRoot = REPO_ROOT) => {
+export const recordReservedWorkerPid = (launcherPid, workerPid, repoRoot = REPO_ROOT) => {
   const path = occupiedWorktreePath(repoRoot)
   try {
     const reservation = JSON.parse(readFileSync(path, "utf8"))
