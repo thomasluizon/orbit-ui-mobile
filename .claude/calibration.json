@@ -186,7 +186,7 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "1990dd6ccf9d8bc7",
+      "digest": "888fe9e6704e567a",
       "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },
@@ -263,14 +263,14 @@
     ".claude/skills/merge-prs/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "94d69c929e91dfe3",
-      "calibratedAt": "2026-11-09",
+      "digest": "81d0414194be2b7f",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth."
     },
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "34aadcb11b039285",
+      "digest": "58bf5d8ae793a6e6",
       "calibratedAt": "2026-11-18",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
@@ -319,8 +319,8 @@
     ".claude/skills/ticket/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "888e164367d656e2",
-      "calibratedAt": "2026-11-09",
+      "digest": "61ae0638d167bc2a",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it."
     },
     ".claude/skills/validate/SKILL.md": {

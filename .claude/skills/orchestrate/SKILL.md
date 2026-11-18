@@ -734,13 +734,13 @@ records the task title, summary counts, and tracked file paths mentioned in the 
 Named targets make it a lost-work suspect; missing targets leave the cause unknown. Neither proves
 what happened inside the container or establishes a clean no-op.
 
-On `CLOUD_TASK_EMPTY`, immediately append the tool's JSON output to `<scratchpad>/queue-run.jsonl`.
+On `CLOUD_TASK_EMPTY`, immediately post the tool's JSON output as a decision run note on the ticket (`node tools/post-run-note.mjs --kind decision --issue <ref>`).
 Resubmit once with the original `submit-cloud-worker.mjs` arguments and unchanged order. The
 submitter checks the original base and worktree, prepends a standalone commit instruction, and
 reserves the single retry before the remote write. Capacity refusal does not spend that retry;
 resume submission when a slot opens. A reserved or uncertain submission does spend it. Under
 `--sleep --cloud`, launch `--watch <receiptPath>` for the retry and materialize its terminal result
-through the same path. Record the retry task and its result in `queue-run.jsonl`. An exhausted retry
+through the same path. Record the retry task and its result in a decision run note on the ticket. An exhausted retry
 leaves the ticket unfinished and blocked from further Cloud submissions; report it and continue
 independent tickets. Never count an empty result as a completed ticket. Any other apply failure or
 a non-empty remote diff keeps the task unresolved.
@@ -1367,7 +1367,7 @@ The same run, ledger and canonical gates continue. Otherwise, print one summary 
 - Every ticket skipped, with its reason: a deferral from step 1 or a genuine delivery blocker. For a
   `NEEDS_CONVERSATION` deferral, print its open questions too, so the night ends in a decision list.
 - Every `CLOUD_TASK_EMPTY` failure by name, with ticket, task title, summary counts, named targets,
-  classification, and retry task/outcome from `queue-run.jsonl` and durable receipts. Include failures
+  classification, and retry task/outcome from the decision run notes of the ticket and durable receipts. Include failures
   even when the retry delivered. An exhausted or uncertain retry is unfinished, never completed.
 - **Every manual step across the whole queue, in one "still outstanding" list**, merged from all
   three step 10 sources. These are the owner's clicks, not the harness's, and they are the only work
@@ -1377,9 +1377,9 @@ The same run, ledger and canonical gates continue. Otherwise, print one summary 
   a decision list rather than a guess list.
 - **Merge evidence for work merged under D88/D90**, plus the remaining PRs needing the owner.
 
-Append one JSON line per ticket outcome to `<scratchpad>/queue-run.jsonl` as the queue runs, not at
-the end. A summary assembled only at the end does not survive a context reset in the middle of the
-night.
+Post each ticket outcome as a decision run note on its ticket (`--kind decision --issue <ref>`) as the
+queue runs, not at the end. A summary assembled only at the end does not survive a context reset in the
+middle of the night.
 
 ## Step 12. Teardown
 

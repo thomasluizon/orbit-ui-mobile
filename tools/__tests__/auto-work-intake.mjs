@@ -44,6 +44,13 @@ export const cases = () => {
   intake.updateIntake("wake", () => ({ seen: {}, failures: {} }), content)
   const committed = readFileSync(join(content, ".git", "orbit-test-run-files", "run-state", "intake.json"), "utf8")
   T("intake: the first write of the intake file holds no mail content of the local run record", !/SECRET|example\.org/.test(committed) && JSON.parse(committed).gmail.pending.pending.draftId === "draft", committed)
+  const idleWake = join(root, "intake-idle-wake")
+  mkdirSync(join(idleWake, ".git"), { recursive: true })
+  writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: { play: { completed: {}, pending: { old: { id: "old" } }, highWater: null } } }, idleWake)
+  updateIntakeSource("play", (play) => ({ ...play, pending: { ...play.pending, fresh: { id: "fresh" } } }), idleWake)
+  const wakeReads = { readRunStatePlayPending: Object.keys(readRunState(idleWake).intake.play.pending), readIntakePlayPending: Object.keys(intakeSource("play", idleWake).pending) }
+  T("intake: an idle review wake finds the imported review in the intake file, never in the run record",
+    JSON.stringify(wakeReads) === JSON.stringify({ readRunStatePlayPending: ["old"], readIntakePlayPending: ["old", "fresh"] }), JSON.stringify(wakeReads))
   const checkout = join(root, "intake")
   mkdirSync(join(checkout, ".git"), { recursive: true })
   writeRunState({ sessionId: "parent", sleep: true, autoWork: true }, checkout)

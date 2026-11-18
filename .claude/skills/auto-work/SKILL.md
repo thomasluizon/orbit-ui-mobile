@@ -23,8 +23,10 @@ focus, use `/sleep`'s `/orchestrate --auto` entry. Adopt a nominated relay befor
 
 Run `node tools/auto-work-state.mjs --enable` in the orchestrating checkout. Read the state
 back with `readRunState` from `tools/lib/run-state.mjs`, confirming this session and
-`autoWork: true`. Preserve `intake` on every write. `writeRunState` carries both forward within
-the session and into a relay successor. Change part of the record only through `updateRunState`,
+`autoWork: true`. The intake does not live in that record: it lives in `run-state/intake.json` in
+the tickets repository, and each intake writer replaces it through `updateIntake` from
+`tools/lib/auto-work-intake.mjs`. A relay successor reads the same file. Change part of the
+run record only through `updateRunState`,
 which reads and writes under one lock. `updateRunState` refuses the change from a superseded session with
 `session is superseded; run state write refused`, so the read-back then shows the successor's record unchanged.
 An owner-started successor restores the prepared
@@ -45,8 +47,8 @@ With no run there is nothing to disable. An owner stop uses `/sleep`'s stop proc
 
 Run all steps on entry and on each wake that is not an idle waiter wake. A wake from the idle
 waiter runs only the steps for the sources it names (see Idle and relay). A relay drain follows
-the canonical relay protocol before any new admission; unfinished intake remains in run state
-for the successor.
+the canonical relay protocol before any new admission; unfinished intake remains in the intake
+file for the successor.
 
 1. Answer any owner message first, as `/orchestrate` requires. Apply changed instructions
    before continuing intake or queue work.
@@ -69,7 +71,7 @@ for the successor.
    ticket; a hypothesis alone does not qualify. A live production defect gets its own ticket;
    fold it into an existing open ticket when that ticket already owns the affected area.
    Use `tools/comment-ticket.mjs` for the source evidence when folding. Persist the issue id,
-   last observed event and carrying ticket in `intake.sentry`, then read back the state. Admit
+   last observed event and carrying ticket in `intake.sentry` through `updateIntakeSource`, then read the intake back with `readIntake`. Admit
    its worker through `/orchestrate` in this cycle, within existing capacity. Retain the
    standing release verification rule: resolve a Sentry issue only after its carrying release
    shows no new event. Ticketing, a merge or an empty local queue is insufficient.
@@ -179,7 +181,8 @@ The waiter prints one JSON line. A `SOURCE` result has a `wakes` list, and each 
 - `new` gives the new keys in `items`. Run the step for that source: `mail` runs step 4,
   `reviews` classifies the pending reviews of steps 5 and 6, and `board` runs step 7. The
   waiter already ran the review cycle, so the pending reviews are in `intake.play.pending` and
-  `intake.appStore.pending`; read them with `readRunState` and do not start another cycle.
+  `intake.appStore.pending` of the intake file; read them with `readIntake` or `intakeSource`
+  from `tools/lib/auto-work-intake.mjs` and do not start another cycle.
 - `failure` gives the signature in `failure`. Log it once, then run the step for that source,
   which retries the read and keeps its pending items and marks.
 - `due` (only `sentry`) runs step 3.
@@ -189,7 +192,7 @@ listing time to `intake.wake`, so a relay or a new waiter keeps them. Work alrea
 keeps its own wake sources and takes priority on wake.
 
 On a context relay, follow `.claude/skills/handoff/SKILL.md` with `--relay --sleep`. The adopted
-run carries `autoWork`, `intake` and its pending workflow identity; `NEXT.md` starts with exactly
+run carries `autoWork` and its pending workflow identity, and the successor reads `intake` from the intake file; `NEXT.md` starts with exactly
 `/auto-work` and retains the canonical Sleep section, spec and inventory. Include crank only
 when already enabled. The relay tool validates this entry, stops idle waiters at succession
 and retains the original source marks. The successor re-enters through this skill's `/sleep`
