@@ -14,6 +14,7 @@ import {
   ORBIT_SMALL_FACE_BOX_RATIO,
   ORBIT_SMALL_FACES,
   isOrbitMascotSmallSize,
+  orbitMascotDrawnFrame,
   orbitMascotFrame,
   orbitMascotHeight,
   orbitMascotSizeFor,
@@ -88,6 +89,12 @@ describe('the rest frame', () => {
     expect(quarter.ringFront).not.toBe(orbitMascotFrame(0, mascotMotion).ringFront)
     expect(orbitMascotFrame(mascotMotion.blinkInterval * 0.96, mascotMotion).blinkScale).toBeCloseTo(0.1)
     expect(orbitMascotFrame(mascotMotion.blinkInterval * 0.5, mascotMotion).blinkScale).toBe(1)
+  })
+
+  it('draws the frame of the clock while the Orbit runs, and the same pose with open eyes when it stops in a blink', () => {
+    const inBlink = mascotMotion.blinkInterval * 0.96
+    expect(orbitMascotDrawnFrame(inBlink, mascotMotion, true)).toEqual(orbitMascotFrame(inBlink, mascotMotion))
+    expect(orbitMascotDrawnFrame(inBlink, mascotMotion, false)).toEqual({ ...orbitMascotFrame(inBlink, mascotMotion), blinkScale: 1 })
   })
 })
 
