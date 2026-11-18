@@ -19,6 +19,10 @@ describe('quick options of a flow step', () => {
   it('ignores a chosen id that is no longer in the list', () => {
     expect(leadingQuickOptions(items, new Set(['gone', 'e']), 2).map(({ id }) => id)).toEqual(['e', 'a'])
   })
+
+  it('shows each item once when a chosen item sits in a short list', () => {
+    expect(leadingQuickOptions(items.slice(0, 2), new Set(['b']), 4).map(({ id }) => id)).toEqual(['b', 'a'])
+  })
 })
 
 describe('search by title', () => {
