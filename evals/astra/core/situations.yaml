@@ -6,6 +6,7 @@
 #               defect table), same-title (the same-titled sub-habit family).
 # defectClass   the class of the defect table that the situation guards (a1 to l).
 # mustPass      true runs at k=3 and passes only when all 3 attempts pass. false runs at k=1.
+#               ORBIT_EVAL_MUST_PASS_K=1 runs true at k=1, only for a change with equal model input.
 # fixture       a fixture of fixtures/reset.mjs. The records a case can name: pro, composition: water, walk.
 #               same-title-children: parent, children (in list order), walk. duplicate-titles: first, second.
 # prefix        recorded messages the client already holds when the person sends the phrasing. With `live: true` the

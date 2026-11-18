@@ -160,7 +160,7 @@ These tests do not parse Turbo's report fields.
 | Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps) | that the three session hooks (git-guardrails, forbid-ef-migration-raw-index, forbid-raw-linear-mutation) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
 | Harness tools execution | `tools/` | `node tools/test-tools.mjs` (run `npm ci` first) | that every script in `tools/` actually RUNS: the `CONVENTIONS.md` CLI contract (`--help` exits 0, invalid input refused before any work) plus each tool's real decision paths, orca stubbed and hermetic. Fails when a new tool arrives with no coverage |
 | Astra capability eval | `evals/astra` | `cd evals/astra && npx promptfoo eval` | on-demand requests to the real chat endpoint, with one attempt per case and request-bound tool evidence in a pass^k launch report |
-| Astra core set gate | `evals/astra/core` | `cd evals/astra && npx promptfoo eval --config core/must-pass.promptfooconfig.yaml` (then `core/other.promptfooconfig.yaml`, then `node core/merge.mjs`) | one live run for each assistant pull request: 126 cases on `POST /api/chat/stream` as a shipped client sends it, graded by the held previews and the saved state, with pass^3 on the must-pass cases |
+| Astra core set gate | `evals/astra/core` | `cd evals/astra && npx promptfoo eval --config core/must-pass.promptfooconfig.yaml` (then `core/other.promptfooconfig.yaml`, then `node core/merge.mjs`) | one live run for each assistant pull request: 126 cases on `POST /api/chat/stream` as a shipped client sends it, graded by the held previews and the saved state, with pass^3 on the must-pass cases (pass^1 with `ORBIT_EVAL_MUST_PASS_K=1`, only for a change with equal model input) |
 | Desktop configuration and native context | `apps/desktop` | `npm run test -w @orbit/desktop`, then `cargo test --locked` in `src-tauri` | Installed Tauri schema, generated context and native browser handoff policy; native bundles compile in `desktop-build.yml` on macOS and Windows, without launching the app |
 | Installed desktop VM acceptance | GitHub macOS and Windows VMs | `desktop-acceptance.yml` | Recorded release installer, Developer ID signed on macOS, which runs only for same-repository runs through `desktop-staging` (a fork pull request runs Windows only), launched on Windows at Medium integrity, email BFF cookies, Hoje, Astra, native clean quit, signed updater acceptance and refusal, platform accessibility trees, palette traversal, the Windows window bar (no native caption, the `DESIGN.md` canvas colour, a visible glyph on every action of the Orbit bar and the WebView2 colour scheme for each page mode, the menu action opening the window menu as a popup, a drag that starts within 1000 ms of the press and moves the window exactly as far as the pointer, the window menu at the pointer on a right-click of the restored and of the maximized bar, maximize and restore through a pointer press on the snap region, and minimize through the bar actions, with the `window-*.png` captures uploaded as evidence), and the repeat reminder Done action through real WNS or APNs delivery, with the Windows Done click made through the shell's COM activator from a Medium client; no deployed Orbit services. See `tools/desktop-bench/README.md`. This job is a desktop acceptance exception to local unit-only verification. |
 | Native acceptance producer cases | GitHub Windows and macOS runners | `desktop-acceptance-producers.yml` | The producer test files that gate cases on `process.platform` (`test-acceptance.ts`, `test-acceptance-push.ts`, `test-acceptance-readers.ts`, `test-acceptance-launch.ts`), each on `windows-latest` and `macos-latest`: the PowerShell producers, the Windows window bar reader, the Medium-integrity launcher modes, the COM activator HRESULT, the Windows SDK IID check, and the real `clang`, `codesign` and `plutil` captures. `Tool and Hook Tests` runs the same files on Linux, where these cases skip. |
@@ -492,7 +492,17 @@ node core/merge.mjs --run-cost-usd <measured cost> --baseline <baseline summary.
 ```
 
 The must-pass run repeats each of its 90 cases 3 times; a case passes only when all 3 attempts pass
-(pass^3, `core/corpus.mjs`). The other run holds 36 cases at one attempt. Each run writes
+(pass^3, `core/corpus.mjs`). The other run holds 36 cases at one attempt. Each test carries its k as its own
+promptfoo `options.repeat`, so no config holds a global repeat.
+
+k=3 is the default. Set `ORBIT_EVAL_MUST_PASS_K=1` on both runs to run the must-pass cases at
+k=1 only for a change whose model input equals the model input of `main`: for each turn, the API sends the model
+the same model and effort, instructions, tool declarations and messages as `main` does (rows 3a, 3b and 4 of the
+build queue of #2129). The pull request body of that change says why its model input is equal. Each window and
+the merged report state their k. The merge refuses a k=1 window, rerun or baseline in a k=3 verdict, and a k=3 one
+in a k=1 verdict, so a k=1 gate compares with a baseline of `main` that also ran with `ORBIT_EVAL_MUST_PASS_K=1`.
+
+Each run writes
 `reports/core-<run>/summary.md`, `summary.json` and private `attempts/` evidence. Select cases for a daily
 window with `--filter-metadata 'id=<ids>'`; a situation ID selects its six cases. Preserve each window's
 directory before the next run overwrites it, and give every window summary to the merge. The merged report
