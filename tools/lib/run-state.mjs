@@ -694,13 +694,14 @@ export const readWakeSourceStates = (repoRoot = REPO_ROOT) => {
 export const readWakeSources = (repoRoot = REPO_ROOT) => readWakeSourceStates(repoRoot).live
 
 /** Relay waiters observe work that can outlive the session and are stopped at succession. */
-export const isRelayWaiter = (source) => source.kind === "auto-work-waiter" || source.kind === "file-waiter" || source.what?.startsWith("CI ") === true
+export const BACKGROUND_RUN_WAITER = "background-run-waiter"
+export const isRelayWaiter = (source) => source.kind === "auto-work-waiter" || source.kind === "file-waiter" || source.kind === BACKGROUND_RUN_WAITER || source.what?.startsWith("CI ") === true
 
 /** A worker supervisor that outlives its session: the relay carries it to the successor instead of waiting for it. */
 export const isDetachedWorker = (source) => source?.detached === true
 
 /** How long a relay tool run keeps new launches out. A run that stopped without clearing its mark expires. */
-export const RELAY_RUNNING_MAX_AGE_MS = 5 * 60_000
+const RELAY_RUNNING_MAX_AGE_MS = 5 * 60_000
 
 /** True while relay-session.mjs is composing its successor, the only time a launch would miss the carry. */
 export const relayIsRunning = (state, now = Date.now()) => {
