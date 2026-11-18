@@ -207,7 +207,10 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    `conclusion`, and `pullfrog-approval` is the review. A completed entry passes when its
    `conclusion` is `SUCCESS`, `NEUTRAL` or `SKIPPED`, the rule `PASSING_CONCLUSIONS` in
    `tools/lib/readiness-receipt.mjs` states. Any other conclusion fails, and `CANCELLED` and `TIMED_OUT`
-   are included. Together with `isDraft` they say what holds the work. Use the first row that applies:
+   are included. A check that ran more than once at the same head, as `PR Metadata` does after an
+   edit or a label, keeps every run in the rollup: read only the newest entry of each `name` by
+   `startedAt`, as `newestChecks` in that file does. Those newest entries and `isDraft` say what
+   holds the work. Use the first row that applies:
 
    | the row shows | what holds the work |
    |---|---|
@@ -218,10 +221,8 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    | no `pullfrog-approval` entry | the review did not run yet |
    | `pullfrog-approval` is `SUCCESS` and every other entry passes | only the merge is left |
 
-   A `status` or a `conclusion` that this text does not name is unknown: say that the state could
-   not be read. Work that a
-   ledger row or step 4 shows with no pull request is built on a local head: say nobody offered it
-   for review yet.
+   Work that a ledger row or step 4 shows with no pull request is built on a local head: say nobody
+   offered it for review yet.
 
 For the full scope, add:
 
