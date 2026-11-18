@@ -331,7 +331,7 @@ const writeSource = (source, change, repoRoot) => {
 
 /**
  * Replaces the open items of every read that succeeded. A failed read keeps its previous items, so
- * a failure never empties a source. Marks remain only for items that are still open. A pull request
+ * a failure never empties a source, and a kept pull request takes `runOwned` and `otherRun` from this cycle. Marks remain only for items that are still open. A pull request
  * listing needs `otherRuns` from otherLiveRuns, and a failed live run read is named in its failures.
  */
 export const recordListing = (source, listing, repoRoot = REPO_ROOT, { listedAt = new Date().toISOString(), otherRuns } = {}) => {
@@ -344,9 +344,10 @@ export const recordListing = (source, listing, repoRoot = REPO_ROOT, { listedAt 
       const runOwned = owned(item)
       return { runOwned, otherRun: !runOwned && otherRuns.claims(item) }
     }
+    const withOwnership = (item) => source === "pullRequests" ? { ...item, ...ownership(item) } : item
     const open = {
-      ...Object.fromEntries(Object.entries(previous.open).flatMap(([key, item]) => withheld.has(key) ? [[key, { ...item, unread: true }]] : failed.has(item.read) ? [[key, item]] : [])),
-      ...Object.fromEntries(listing.items.map((item) => [item.key, source === "pullRequests" ? { ...item, ...ownership(item) } : item])),
+      ...Object.fromEntries(Object.entries(previous.open).flatMap(([key, item]) => withheld.has(key) ? [[key, { ...item, unread: true }]] : failed.has(item.read) ? [[key, withOwnership(item)]] : [])),
+      ...Object.fromEntries(listing.items.map((item) => [item.key, withOwnership(item)])),
     }
     const failures = [...listing.failures, ...(otherRuns?.failure ? [otherRuns.failure] : [])]
     return { open, marks: Object.fromEntries(Object.entries(previous.marks).filter(([key]) => key in open)), listedAt,

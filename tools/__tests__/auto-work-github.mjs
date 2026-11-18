@@ -213,6 +213,22 @@ const stateCases = async ({ pullListing, alertListing }) => {
   const failed = recordListing("pullRequests", { items: [], reads: pullListing.reads, failures: [{ read: "api pulls", message: NOT_FOUND }] }, checkout, NO_OTHER_RUN)
   T("github: a failed read keeps its previous items and marks and names the failure", failed.open["api#1106"] !== undefined && failed.marks["api#1106"] !== undefined &&
     failed.open["ui#2473"] === undefined && failed.failures[0].read === "api pulls", JSON.stringify(failed))
+  /* EARLIER_OWNER_PULL is api#1115 and its branch names #2074. The api read fails in the second listing, so its items come from the first. */
+  const failedApiRead = { items: [], reads: pullListing.reads, failures: [{ read: "api pulls", message: NOT_FOUND }] }
+  const claimed = fresh("failed-read-claimed")
+  recordListing("pullRequests", pullListing, claimed, NO_OTHER_RUN)
+  const keptClaimed = recordListing("pullRequests", failedApiRead, claimed, { otherRuns: { claims: (pull) => pull.key === "api#1115" } })
+  T("github: a pull request that a failed read keeps takes its ownership from the live runs of this cycle",
+    keptClaimed.open["api#1115"]?.otherRun === true && keptClaimed.open["api#1115"]?.runOwned === false &&
+    !pendingItems("pullRequests", keptClaimed).some((pull) => pull.key === "api#1115") &&
+    ["merged", "fix", "closed", "reported"].every((action) => refusal(() => markItem("pullRequests", { key: "api#1115", head: EARLIER_OWNER_PULL.head, action, ticket: TICKET,
+      reason: "Superseded." }, claimed)) === PULL_REQUEST_CLASSES.otherRun.refusal), JSON.stringify(keptClaimed.open["api#1115"]))
+  const adopted = fresh("failed-read-adopted")
+  recordListing("pullRequests", pullListing, adopted, NO_OTHER_RUN)
+  writeRunState({ ...readRunState(adopted), remaining: ["#2074"] }, adopted)
+  const keptAdopted = recordListing("pullRequests", failedApiRead, adopted, NO_OTHER_RUN)
+  T("github: a pull request that a failed read keeps is run owned when this run names its ticket in remaining",
+    keptAdopted.open["api#1115"]?.runOwned === true && !pendingItems("pullRequests", keptAdopted).some((pull) => pull.key === "api#1115"), JSON.stringify(keptAdopted.open["api#1115"]))
   const closed = recordListing("pullRequests", { items: [], reads: pullListing.reads, failures: [] }, checkout, NO_OTHER_RUN)
   T("github: a pull request that is no longer open leaves the listing and its mark", Object.keys(closed.open).length === 0 && Object.keys(closed.marks).length === 0 &&
     closed.failures === undefined)
