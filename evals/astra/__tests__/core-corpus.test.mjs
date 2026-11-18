@@ -1,7 +1,8 @@
-import { expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
-import { LOCALES, MUST_PASS_ATTEMPTS, OTHER_ATTEMPTS, PHRASINGS_PER_LOCALE, attemptsFor, coreCases, corpusDigest, digestOf, situations } from '../core/corpus.mjs'
+import { EQUAL_MODEL_INPUT_ATTEMPTS, LOCALES, MUST_PASS_ATTEMPTS, MUST_PASS_K_VARIABLE, OTHER_ATTEMPTS, PHRASINGS_PER_LOCALE, attemptsFor, coreCases, coreDescriptors,
+  corpusDigest, corpusDigestFor, digestOf, mustPassKOf, situations } from '../core/corpus.mjs'
 import { mustPass, other } from '../core/tests.mjs'
 
 const cases = coreCases()
@@ -10,6 +11,7 @@ const fixtureRecords = { pro: ['water', 'walk'], composition: ['water', 'walk'],
   'same-title-children': ['parent', 'children', 'walk'] }
 const ownerRequest = 'eu tenho 7 habitos chamados Water - 710ml deleta dois desses, e os outros 4 coloca Water - 1.18L'
 const repository = (path) => readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8')
+afterEach(() => { vi.unstubAllEnvs() })
 
 it('holds 21 situations, each in 3 phrasings, each in English and pt-BR', () => {
   expect(situations).toHaveLength(21)
@@ -34,9 +36,56 @@ it('runs the must-pass cases at k=3 and the other cases at k=1, as two runs', ()
   expect([MUST_PASS_ATTEMPTS, OTHER_ATTEMPTS]).toEqual([3, 1])
   expect(mustPass()).toHaveLength(90)
   expect(other()).toHaveLength(36)
-  for (const { metadata } of cases) expect(metadata.k).toBe(attemptsFor(metadata.mustPass))
-  expect(configuration('must-pass')).toMatchObject({ tests: 'file://tests.mjs:mustPass', evaluateOptions: { repeat: MUST_PASS_ATTEMPTS, maxConcurrency: 1 } })
-  expect(configuration('other')).toMatchObject({ tests: 'file://tests.mjs:other', evaluateOptions: { repeat: OTHER_ATTEMPTS, maxConcurrency: 1 } })
+  for (const { metadata, options } of cases) {
+    expect(metadata.k).toBe(attemptsFor(metadata.mustPass))
+    expect(options).toEqual({ repeat: metadata.k })
+  }
+  // Producer: promptfoo 0.125.1 appendRunEvalOptionsForTestCase repeats a test `testCase.options.repeat` times, and a
+  // global repeat only where a test names none. No config holds a global repeat that could disagree with the k of a case.
+  for (const [name, tests] of [['must-pass', 'file://tests.mjs:mustPass'], ['other', 'file://tests.mjs:other']]) {
+    expect(configuration(name)).toMatchObject({ tests, evaluateOptions: { maxConcurrency: 1 } })
+    expect(configuration(name).evaluateOptions).not.toHaveProperty('repeat')
+  }
+  expect(mustPass().map(({ options }) => options.repeat)).toEqual(Array(90).fill(MUST_PASS_ATTEMPTS))
+  expect(other().map(({ options }) => options.repeat)).toEqual(Array(36).fill(OTHER_ATTEMPTS))
+})
+
+it('runs the must-pass cases at k=3 unless the run names k=1 in ORBIT_EVAL_MUST_PASS_K', () => {
+  expect(MUST_PASS_K_VARIABLE).toBe('ORBIT_EVAL_MUST_PASS_K')
+  expect([mustPassKOf({}), mustPassKOf({ ORBIT_EVAL_MUST_PASS_K: '3' }), mustPassKOf({ ORBIT_EVAL_MUST_PASS_K: '1' })]).toEqual([3, 3, 1])
+  for (const named of ['2', '', ' 1', 'one', '0']) {
+    expect(() => mustPassKOf({ ORBIT_EVAL_MUST_PASS_K: named }))
+      .toThrow(`ORBIT_EVAL_MUST_PASS_K is "${named}"; name 3, the default, or 1, only for a change whose model input equals the model input of main.`)
+  }
+  vi.stubEnv('ORBIT_EVAL_MUST_PASS_K', '1')
+  expect(EQUAL_MODEL_INPUT_ATTEMPTS).toBe(1)
+  expect(mustPass().map(({ metadata, options }) => [metadata.k, options.repeat])).toEqual(Array(90).fill([1, 1]))
+  expect(other().map(({ metadata, options }) => [metadata.k, options.repeat])).toEqual(Array(36).fill([1, 1]))
+  vi.stubEnv('ORBIT_EVAL_MUST_PASS_K', '2')
+  expect(() => mustPass()).toThrow('ORBIT_EVAL_MUST_PASS_K is "2"')
+  expect(() => other()).toThrow('ORBIT_EVAL_MUST_PASS_K is "2"')
+  expect(() => coreCases(situations, 2)).toThrow('The must-pass cases run at k=3 or k=1, never at k=2.')
+})
+
+// A k=1 run and a k=3 run measure two corpora. The digest of the default k stays the digest of the cases alone, so the
+// windows of the k=3 baseline of main written before the k setting still merge.
+it('gives a k=1 run its own corpus digest and keeps the digest of the k=3 run', () => {
+  expect(corpusDigestFor(MUST_PASS_ATTEMPTS)).toBe(corpusDigest)
+  expect(corpusDigestFor(EQUAL_MODEL_INPUT_ATTEMPTS)).not.toBe(corpusDigest)
+  expect(digestOf(cases.map(({ options, ...withoutRepeat }) => withoutRepeat))).toBe(corpusDigest)
+  expect(coreDescriptors(1).filter(({ mustPass: required }) => required).map(({ k }) => k)).toEqual(Array(90).fill(1))
+  expect(coreDescriptors(1).filter(({ mustPass: required }) => !required)).toEqual(coreDescriptors().filter(({ mustPass: required }) => !required))
+})
+
+// The documents that state pass^3 state when k=1 holds, so that no operator reads k=1 as a cheaper k=3.
+it('states in the skill and in TESTING.md that k=1 holds only for a change with equal model input', () => {
+  for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
+    const text = repository(path).replace(/\s+/gu, ' ')
+    expect(text, path).toContain('ORBIT_EVAL_MUST_PASS_K=1')
+    expect(text, path).toMatch(/k=1 only for a change whose model input equals the model input of `main`/u)
+    expect(text, path).toMatch(/pull request body of that change says why its model input is equal/u)
+    expect(text, path).toMatch(/merge refuses a k=1 window, rerun or baseline in a k=3 verdict, and a k=3 one in a k=1 verdict/u)
+  }
 })
 
 it('holds each owner turn on record as a must-pass case, word for word in pt-BR', () => {

@@ -38,6 +38,13 @@ The gate is two runs from `evals/astra`, then one merge:
   `reports/core/summary.md`: k and pass^k for each case, pass^k for each family and locale, the questions before a
   preview, the measured model calls, the seconds and the cost of each case, and the gate verdict.
 
+k=3 is the default. Set `ORBIT_EVAL_MUST_PASS_K=1` on both runs to run the must-pass cases at
+k=1 only for a change whose model input equals the model input of `main`: for each turn, the API sends the model
+the same model and effort, instructions, tool declarations and messages as `main` does (rows 3a, 3b and 4 of the
+build queue of #2129). The pull request body of that change says why its model input is equal. Each window and
+the merged report state their k. The merge refuses a k=1 window, rerun or baseline in a k=3 verdict, and a k=3 one
+in a k=1 verdict, so a k=1 gate compares with a baseline of `main` that also ran with `ORBIT_EVAL_MUST_PASS_K=1`.
+
 The gate passes when every must-pass case passes, the pass^k rate of the core set is at or above the baseline, no
 attempt asks more often than its case allows, and one model call costs at most the D147 limit. An attempt stops one
 question past the allowed count and keeps that count. The baseline is the merged report of `main` in which every case has a verdict; the baseline run of `main`
