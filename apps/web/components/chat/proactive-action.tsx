@@ -6,7 +6,8 @@ import { useLocale, useTranslations } from 'next-intl'
 import type { ProactiveItem } from '@orbit/shared/types'
 import { createAstraAllowanceTranslator, proactiveActionLabelKey } from '@orbit/shared/utils'
 import { useProactiveAction } from '@/hooks/use-proactive-action'
-import { OrbitMascot, useOrbitReadMotionAllowed } from '@/components/ui/orbit-mascot'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { useOrbitReadMotionAllowed } from '@/components/ui/orbit-read-motion'
 import { SkeletonFace } from '@/components/ui/skeleton'
 
 

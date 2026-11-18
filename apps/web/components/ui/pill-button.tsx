@@ -8,7 +8,7 @@ import { actionClasses, actionStyle } from './pill-action-style'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { SkeletonFace } from '@/components/ui/skeleton'
-import { useOrbitReadMotionAllowed } from '@/components/ui/orbit-mascot'
+import { useOrbitReadMotionAllowed } from '@/components/ui/orbit-read-motion'
 import { APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, SIGN_IN_BUTTON_HEIGHT, signInButtonSpec, signInLeadHeight, type ButtonSize, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 
 function buttonDescriptionIds(descriptionId: string | undefined, hintId: string, hint: string | undefined) {

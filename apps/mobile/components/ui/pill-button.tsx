@@ -16,7 +16,8 @@ import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ThemedMotionPressable } from './motion-pressable'
 import { SkeletonFace } from './skeleton'
-import { OrbitMascot, useOrbitReadMotionAllowed } from './orbit-mascot'
+import { OrbitMascot } from './orbit-mascot'
+import { useOrbitReadMotionAllowed } from './orbit-read-motion'
 
 const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 

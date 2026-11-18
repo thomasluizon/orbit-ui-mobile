@@ -34,6 +34,7 @@ import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useOrbitOverlay } from '@/components/ui/orbit-overlay-layer'
+import { useOrbitReadMotionAllowed } from '@/components/ui/orbit-read-motion'
 import { useOrbitScreenFocused } from '@/components/ui/orbit-screen-focus'
 
 const ON_SCREEN_PROBE_MS = 250
@@ -100,13 +101,6 @@ function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: RefO
   }, [running])
 
   return { clock: candidate ? clock : 0, running }
-}
-
-/** Whether the small face read motion may run: no reduced motion and `Orbit em movimento` on. A waiting control keeps the still skeleton face when it is false. */
-export function useOrbitReadMotionAllowed(): boolean {
-  const reducedMotion = usePrefersReducedMotion()
-  const motionEnabled = useSyncExternalStore(subscribeOrbitLoop, isOrbitMotionEnabled, isOrbitMotionEnabled)
-  return !reducedMotion && motionEnabled
 }
 
 function useOrbitReadClock(reading: boolean) {

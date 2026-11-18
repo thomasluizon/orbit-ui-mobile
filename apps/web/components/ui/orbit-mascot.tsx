@@ -14,7 +14,6 @@ import {
   advanceOrbitLoopClock,
   claimOrbitLiveSlot,
   getOrbitLoopVersion,
-  isOrbitMotionEnabled,
   joinOrbitLoopClock,
   mayOrbitRunLoop,
   subscribeOrbitLoop,
@@ -22,6 +21,7 @@ import {
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useOrbitOverlay } from '@/components/ui/orbit-overlay-layer'
+import { useOrbitReadMotionAllowed } from '@/components/ui/orbit-read-motion'
 import { OrbitMascotDrawing } from '@/components/ui/orbit-mascot-drawing'
 
 function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: React.RefObject<SVGSVGElement | null>) {
@@ -72,13 +72,6 @@ function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: Reac
   }, [running])
 
   return { clock: candidate ? clock : 0, running }
-}
-
-/** Whether the small face read motion may run: no reduced motion and `Orbit em movimento` on. A waiting control keeps the still skeleton face when it is false. */
-export function useOrbitReadMotionAllowed(): boolean {
-  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
-  const motionEnabled = useSyncExternalStore(subscribeOrbitLoop, isOrbitMotionEnabled, isOrbitMotionEnabled)
-  return !reducedMotion && motionEnabled
 }
 
 function useOrbitReadClock(reading: boolean) {
