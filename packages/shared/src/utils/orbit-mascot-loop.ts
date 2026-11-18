@@ -126,3 +126,40 @@ export function advanceOrbitLoopClock(now: number): number {
   }
   return Math.round(clockElapsed / mascotMotion.frameInterval) * mascotMotion.frameInterval
 }
+
+/** The animation frame calls of the platform. Web and React Native pass `globalThis`, and a test passes its own. */
+export interface OrbitFrameScheduler {
+  requestAnimationFrame(step: (now: number) => void): number
+  cancelAnimationFrame(frame: number): void
+}
+
+function runAnimationFrames(scheduler: OrbitFrameScheduler, onFrame: (now: number) => void): () => void {
+  let frame = 0
+  const step = (now: number) => {
+    frame = scheduler.requestAnimationFrame(step)
+    onFrame(now)
+  }
+  frame = scheduler.requestAnimationFrame(step)
+  return () => scheduler.cancelAnimationFrame(frame)
+}
+
+/** A running Orbit joins the shared clock from the time it drew last, and gives `draw` the shared time on each animation
+ *  frame. The returned function stops the frames and leaves the clock. */
+export function runOrbitLoopClock(scheduler: OrbitFrameScheduler, from: number, draw: (time: number) => void): () => void {
+  const leave = joinOrbitLoopClock(from)
+  const stop = runAnimationFrames(scheduler, (now) => draw(advanceOrbitLoopClock(now)))
+  return () => {
+    stop()
+    leave()
+  }
+}
+
+/** The own clock of a small Orbit while its read runs. It starts at 0 on the first animation frame and gives `draw` the
+ *  time since then, on the grid of `mascotMotion.frameInterval`, until the returned function runs. */
+export function runOrbitReadClock(scheduler: OrbitFrameScheduler, draw: (time: number) => void): () => void {
+  let start: number | null = null
+  return runAnimationFrames(scheduler, (now) => {
+    start ??= now
+    draw(Math.floor((now - start) / mascotMotion.frameInterval) * mascotMotion.frameInterval)
+  })
+}

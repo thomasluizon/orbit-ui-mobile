@@ -9,8 +9,11 @@ import {
   joinOrbitLoopClock,
   mayOrbitRunLoop,
   pauseOrbitLoopForOverlay,
+  runOrbitLoopClock,
+  runOrbitReadClock,
   setOrbitMotionEnabled,
   subscribeOrbitLoop,
+  type OrbitFrameScheduler,
 } from '../utils/orbit-mascot-loop'
 
 afterEach(() => setOrbitMotionEnabled(undefined))
@@ -275,6 +278,80 @@ describe('Orbit shared loop clock', () => {
     leaveSummary()
     expect(advanceOrbitLoopClock(20_000 + frame) - start).toBe(frame)
     leaveEntry()
+  })
+})
+
+function manualFrames() {
+  let nextFrame = 0
+  let waiting: { readonly frame: number; readonly step: (now: number) => void } | null = null
+  const cancelled: number[] = []
+  const scheduler: OrbitFrameScheduler = {
+    requestAnimationFrame(step) {
+      nextFrame += 1
+      waiting = { frame: nextFrame, step }
+      return nextFrame
+    },
+    cancelAnimationFrame(frame) {
+      cancelled.push(frame)
+      if (waiting?.frame === frame) waiting = null
+    },
+  }
+  const fire = (now: number) => {
+    const current = waiting
+    waiting = null
+    current?.step(now)
+  }
+  return { scheduler, fire, cancelled, isWaiting: () => waiting !== null }
+}
+
+describe('Orbit frame runners', () => {
+  const frame = mascotMotion.frameInterval
+
+  it('draws the shared clock on each frame from the time the Orbit drew last, and stops the frames and leaves the clock', () => {
+    const frames = manualFrames()
+    const drawn: number[] = []
+    const stop = runOrbitLoopClock(frames.scheduler, frame * 4, (time) => drawn.push(time))
+    expect(frames.isWaiting()).toBe(true)
+    frames.fire(60_000)
+    frames.fire(60_000 + frame)
+    expect(drawn).toEqual([frame * 4, frame * 5])
+    stop()
+    expect(frames.cancelled).toEqual([3])
+    expect(frames.isWaiting()).toBe(false)
+    const leaveNext = joinOrbitLoopClock(0)
+    expect(advanceOrbitLoopClock(70_000)).toBe(0)
+    leaveNext()
+  })
+
+  it('lets two runners draw the same pose from one shared clock', () => {
+    const entry = manualFrames()
+    const summary = manualFrames()
+    const entryTimes: number[] = []
+    const summaryTimes: number[] = []
+    const stopEntry = runOrbitLoopClock(entry.scheduler, 0, (time) => entryTimes.push(time))
+    const stopSummary = runOrbitLoopClock(summary.scheduler, frame * 9, (time) => summaryTimes.push(time))
+    entry.fire(80_000)
+    summary.fire(80_000)
+    entry.fire(80_000 + frame * 2)
+    summary.fire(80_000 + frame * 2)
+    expect(summaryTimes).toEqual(entryTimes)
+    expect(entryTimes).toEqual([0, frame * 2])
+    stopEntry()
+    stopSummary()
+  })
+
+  it('starts the read clock at 0 on its first frame and draws the time since then on the frame grid', () => {
+    const frames = manualFrames()
+    const drawn: number[] = []
+    const stop = runOrbitReadClock(frames.scheduler, (time) => drawn.push(time))
+    frames.fire(5_000)
+    frames.fire(5_000 + frame - 1)
+    frames.fire(5_000 + frame * 3 + 1)
+    expect(drawn).toEqual([0, 0, frame * 3])
+    stop()
+    expect(frames.isWaiting()).toBe(false)
+    frames.fire(9_000)
+    expect(drawn).toHaveLength(3)
   })
 })
 

@@ -15,6 +15,7 @@ export {
   ORBIT_SMALL_FACE_MOON,
   isOrbitMascotSmallSize,
   orbitBlinkMatrix,
+  orbitMascotDrawnFrame,
   orbitMascotFrame,
   orbitMascotHeight,
   orbitMascotSizeFor,

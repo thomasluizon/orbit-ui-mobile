@@ -172,6 +172,13 @@ export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimin
   }
 }
 
+/** The frame an Orbit draws at `milliseconds`. A stopped Orbit keeps its pose with its eyes open, so no Orbit stops in a
+ *  blink. */
+export function orbitMascotDrawnFrame(milliseconds: number, timings: OrbitMascotTimings, running: boolean): OrbitMascotFrame {
+  const frame = orbitMascotFrame(milliseconds, timings)
+  return running ? frame : { ...frame, blinkScale: 1 }
+}
+
 /** The clip of the planet and the eyes: the whole drawing box with the ring outline cut out, read with the
  *  even-odd rule. The outline is a hole, not a paint, so it always shows the real surface behind the mascot:
  *  the canvas, a card, a sheet, a hover fill or a pill. */

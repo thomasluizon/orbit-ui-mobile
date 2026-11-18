@@ -5,7 +5,7 @@ import {
   ORBIT_SMALL_FACES,
   isOrbitMascotSmallSize,
   orbitBlinkMatrix,
-  orbitMascotFrame,
+  orbitMascotDrawnFrame,
   orbitMascotHeight,
   orbitMascotSizeFor,
   orbitOutlineCutout,
@@ -19,12 +19,12 @@ import {
 } from '@orbit/shared/contracts/brand'
 import { mascotMotion } from '@orbit/shared/theme'
 import {
-  advanceOrbitLoopClock,
   claimOrbitLiveSlot,
   getOrbitLoopVersion,
   isOrbitMotionEnabled,
-  joinOrbitLoopClock,
   mayOrbitRunLoop,
+  runOrbitLoopClock,
+  runOrbitReadClock,
   subscribeOrbitLoop,
 } from '@orbit/shared/utils'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react'
@@ -86,18 +86,10 @@ function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: RefO
 
   useEffect(() => {
     if (!running) return undefined
-    const leave = joinOrbitLoopClock(drawn.current)
-    let frame = 0
-    const step = (now: number) => {
-      frame = requestAnimationFrame(step)
-      drawn.current = advanceOrbitLoopClock(now)
-      setClock(drawn.current)
-    }
-    frame = requestAnimationFrame(step)
-    return () => {
-      cancelAnimationFrame(frame)
-      leave()
-    }
+    return runOrbitLoopClock(globalThis, drawn.current, (time) => {
+      drawn.current = time
+      setClock(time)
+    })
   }, [running])
 
   return { clock: candidate ? clock : 0, running }
@@ -113,24 +105,9 @@ function useOrbitReadClock(reading: boolean) {
     setClock(0)
   }
 
-  useEffect(() => {
-    if (!running) return undefined
-    let start: number | null = null
-    let frame = 0
-    const step = (now: number) => {
-      frame = requestAnimationFrame(step)
-      start ??= now
-      setClock(Math.floor((now - start) / mascotMotion.frameInterval) * mascotMotion.frameInterval)
-    }
-    frame = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(frame)
-  }, [running])
+  useEffect(() => (running ? runOrbitReadClock(globalThis, setClock) : undefined), [running])
 
   return { clock: running ? clock : 0, running }
-}
-
-function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
-  return running ? frame : { ...frame, blinkScale: 1 }
 }
 
 interface Palette {
@@ -224,7 +201,7 @@ function OrbitMascotDrawing({ size, state = 'parado', still = false, reading = f
   const svgRef = useRef<Svg | null>(null)
   const small = isOrbitMascotSmallSize(size)
   const { clock, running: looping } = useOrbitLoopClock(!small && !still, live, svgRef)
-  const frame = pausedFrame(orbitMascotFrame(clock, mascotMotion), looping)
+  const frame = orbitMascotDrawnFrame(clock, mascotMotion, looping)
   const read = useOrbitReadClock(small && reading)
   const smallMotion = small && read.running ? orbitSmallFaceFrame(read.clock, size, mascotMotion) : undefined
   const running = looping || read.running
