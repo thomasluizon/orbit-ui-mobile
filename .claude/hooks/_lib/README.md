@@ -157,7 +157,11 @@ The reader is an allow list in each class:
   refused, and the refusal names the script file route. `rebase -x` and `--exec`, `bisect run`, `fetch` and `pull` with
   `--upload-pack`, `ls-remote --upload-pack`, `push` with `--receive-pack` or `--exec`, and `grep -O` run a command, so they
   are refused too. The `git procedure:` rows of `test-hooks.mjs` read each git subcommand that a code span of a Markdown
-  file under `.claude/` or `tools/` names, and require it in `GIT_SUBCOMMANDS`.
+  file under `.claude/` or `tools/` names, and require it in `GIT_SUBCOMMANDS`. The same rows also read each fenced
+  `bash` block with no `<placeholder>` of `orchestrate/SKILL.md` and `sleep/SKILL.md`, and require that both rules pass it in an
+  unattended run.
+- `git worktree remove` with a word that git reads as force (`--force`, each prefix of it down to `--f`, or a short group with
+  `f`, such as `-ff`) is refused in each repository and session, because it follows a Windows junction and deletes the target.
 
 The walk unrolls a `for` loop over its literal words. It knows the value of a variable with a lower case name that the line
 sets to a literal value, such as `d=/work/$w` in a loop over `w`, until a declaration builtin runs. A `git` argument and the
@@ -192,7 +196,7 @@ reader proves that it is no action that runs a program (see above). Each other c
 
 The reader models shell syntax, not what a program does with its arguments. A program on the allow list that runs code from
 its arguments or from a file, such as `node -e`, `npm run`, `npx`, `awk` with `system()`, GNU `sed` with `e`, `gh` with an
-alias or an extension, and `dotnet` or `cargo` with a project, is not read. An alias, a function or an option of the user
+alias or an extension, `orca` with a terminal or an agent command, and `dotnet` or `cargo` with a project, is not read. An alias, a function or an option of the user
 profile, a config file that the agent writes (for example a git alias or `url.*.pushInsteadOf` in a git config file), and a
 script file that the agent runs by its path are not read. A `cd` that fails is read as a `cd` that succeeds, and a `CDPATH` in
 the environment is not read.
@@ -200,7 +204,8 @@ the environment is not read.
 `checkGitCommand` refuses a command outside the grammar in an unattended run, the same runs in which the approval rule applies.
 In an attended session it refuses such a command only when the text, with its heredoc bodies, quotes and backslashes removed, names
 `git` and a push or a hygiene marker: `push`, `no-verify`, `no-gpg-sign`, `gpgsign`, `hookspath`, or a `-n` group in a word after `commit`
-in the same command that `expandCommands` finds. A `;`, `|` or line end inside quotes or a substitution does not end that command. So the
+in the same command that `expandCommands` finds. A `;`, `|` or line end inside quotes or a substitution does not end that command. It also
+refuses such a command when the text of one command that `expandCommands` finds is a `git worktree remove` with a force word. So the
 default commit form of Claude Code, `git commit -m "$(cat <<'EOF' ... EOF)"`, and a git command with a variable argument pass
 attended, and the handoff gate reads such a commit from its text. A variable that holds a push or a hygiene flag is not read in an
 attended session. The rule reads a `PowerShell` command with the same bash grammar: this is a deliberate choice, because a
@@ -222,9 +227,8 @@ Each chain keeps its subcommand. When a handoff doc under `.claude/specs/` or `.
 a merge, a pull, a rebase, a cherry-pick, a revert, an `am` or a stash, so the hook never moves HEAD before the command that
 the agent asked for, and a `git pull` on `main` passes.
 In a protected repository, the push rule allows only `git push origin <branch>`, `git push -u origin <branch>` and
-`git push origin HEAD:<branch>`, where `<branch>` is a plain branch name that is not `main` or `master`. Before the subcommand,
-git takes only `-C <path>` and options that change no config, no repository and no hook, so `-c`, `--config-env`,
-`--git-dir` and `--work-tree` are refused. A push in the same command as a `git config` or `git remote` change is refused.
+`git push origin HEAD:<branch>`, where `<branch>` is a plain branch name that is not `main` or `master`. A push in the same command as a
+`git config` or `git remote` change is refused.
 The rule judges each repository word of a push: the first word that is no option, and each value of `--repo <x>` and
 `--repo=<x>`. In an unattended run and in a protected repository, a URL or a path passes only when it is byte-equal to a
 canonical form, `https://github.com/<owner>/<repo>` or `git@github.com:<owner>/<repo>`, each with an optional `.git`, with no
@@ -233,6 +237,10 @@ In an attended session in a repository with no protection, a URL or a path is ju
 with each `.` and `..` segment, each repeated or trailing `/` and each trailing `.git` removed. A percent escape, a `?`, a
 `#` or a path that ends in no name makes the target protected. A named remote is judged by `git remote get-url --push <name>`,
 with the same name reader.
+
+In each repository and each session, a git command takes only `-C <path>` and options that change no config, no repository and no hook
+before the subcommand, so `-c`, `--config-env`, `--git-dir` and `--work-tree` are refused. This refusal is the hooks hygiene: `-c`,
+`-ccore.hooksPath=…` and `--config-env` are the only ways to give a git command another `core.hooksPath`, so no other check reads it.
 
 Widen the grammar only with a construct that the reader models exactly in bash and in zsh, and add its rows to the `subset:`
 group of `test-hooks.mjs`. Do not add a second reading of a construct that the reader does not model.

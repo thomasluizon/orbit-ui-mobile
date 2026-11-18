@@ -146,7 +146,6 @@ function holdsCommitNoVerify(token) {
 
 /** git reads a config key with no case, and `no`, `off`, `0` and an empty value as false. */
 const UNSIGNED_CONFIG = /^(?:-c)?commit\.gpgsign=(?:false|no|off|0)?$/i
-const HOOKS_PATH_CONFIG = /^(?:-c)?core\.hookspath=/i
 
 // Hygiene rules are universal: bypassing hooks or signing is wrong anywhere. A flag counts only as a word of a git command:
 // the same text in the argument of `grep`, `echo` or `gh` is data. Each rule reads the words after the git command word.
@@ -272,11 +271,7 @@ function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }
   const read = gitCommands.map(({ tokens, directory }) => ({ tokens, directory, ...gitCommandParts(tokens) }))
   const hit = HYGIENE_RULES.find((rule) => read.some((parts) => rule.test(parts)))
   if (hit) return blocked(command, hit.why)
-  for (const { subcommand, globals } of read) {
-    if (["commit", "push"].includes(subcommand) && globals.some((token) => HOOKS_PATH_CONFIG.test(token))) {
-      return blocked(command, "Overriding core.hooksPath bypasses the repository hooks.")
-    }
-  }
+  // This refusal is also the hooks hygiene: `-c`, `-ccore.hooksPath=…` and `--config-env` are the only ways to give a git command another core.hooksPath.
   const refused = read.find(({ refusedOption }) => refusedOption)
   if (refused) {
     return blocked(command, `The git option \`${refused.refusedOption}\` before the subcommand can change the config, the repository or the hooks that git uses. ` +
@@ -291,6 +286,7 @@ function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }
     const option = commandOption(subcommand, rest)
     if (option) return blocked(command, `The word \`${option}\` of \`git ${subcommand}\` runs a command that the hook does not read. Run that command as its own command.`)
   }
+  if (read.some(isForcedWorktreeRemove)) return worktreeJunctionRefusal(command)
   const pushes = read.filter(({ subcommand }) => subcommand === "push")
   if (pushes.length === 0) return null
   // A config change earlier in the same line can point a remote, an alias or a push default at a protected repository after the hook reads it.
@@ -312,7 +308,35 @@ function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }
   return null
 }
 
-/** A push, and each hygiene marker that `HYGIENE_RULES` and the `core.hooksPath` check read, by its text with no case. */
+const worktreeJunctionRefusal = (command) => ({
+  block: true,
+  message:
+    `BLOCKED git command (worktree junction footgun):\n  ${command}\n\n` +
+    "`git worktree remove --force` follows a Windows junction/reparse-point inside the worktree and deletes the\n" +
+    "TARGET's contents, not the link. SAFE cleanup order:\n" +
+    "  1. `rmdir` every junction inside the worktree (removes the link, not the target).\n" +
+    "  2. Verify each junction is gone (`git status` / `dir` shows it removed).\n" +
+    "  3. THEN `git worktree remove` (no --force needed once the tree carries no reparse points).\n",
+})
+
+/** True for a parsed `git worktree remove` with a word that git reads as force: `--force` or each prefix of it down to `--f`, or a short group with `f`, such as `-ff`. */
+const isForcedWorktreeRemove = ({ subcommand, rest }) =>
+  subcommand === "worktree" && rest[0] === "remove" && rest.some((word) => isLongOption(word, "--force", "--f") || holdsShortOption(word, "f", ""))
+
+/**
+ * The junction refusal for an attended command outside the subset, which `judgeGitCommands` cannot read, or null. It reads the text of each
+ * command that `expandCommands` finds, without heredoc bodies, quotes and backslashes, so a later `&& npm test -- --force` is not read as force.
+ */
+function attendedTextWorktreeRemove(command) {
+  for (const segment of expandCommands(stripHeredocBodies(command))) {
+    const words = segment.replace(/['"\\]/g, "").trim().split(/\s+/)
+    const remove = words.findIndex((word, index) => word === "worktree" && words[index + 1] === "remove" && words.slice(0, index).some((before) => programName(before) === "git"))
+    if (remove !== -1 && isForcedWorktreeRemove({ subcommand: "worktree", rest: words.slice(remove + 1) })) return worktreeJunctionRefusal(command)
+  }
+  return null
+}
+
+/** A push, each hygiene marker that `HYGIENE_RULES` reads, and a `core.hooksPath` override, by its text with no case. */
 const ATTENDED_RISK = /push|no-?verify|no-?gpg-?sign|gpgsign|hookspath/i
 /**
  * True when the text, without its heredoc bodies, quotes and backslashes, names git and a push or a hygiene marker: an attended session
@@ -357,39 +381,14 @@ export function readGitCommands(command, { cwd, home } = {}) {
 }
 
 /**
- * The refusal for a command that holds a git command which the workflow forbids, or null. The rule reads only the parsed
- * words of the modelled subset (`readCommand`). In an unattended run it refuses each command outside the subset, because it
- * cannot prove what that command runs. In an attended session it refuses such a command only when its text names git and a push or a
- * hygiene marker (`attendedTextIsRisky`), so the default commit form of Claude Code and a git command with a variable argument pass.
+ * The refusal for a command that holds a git command which the workflow forbids, or null. The rule reads only the parsed words of the
+ * modelled subset (`readCommand`). In an unattended run it refuses each command outside the subset, because it cannot prove what that command
+ * runs. In an attended session it refuses such a command only when its text names git and a push or a hygiene marker (`attendedTextIsRisky`),
+ * or a forced `git worktree remove` (`attendedTextWorktreeRemove`), so the default commit form of Claude Code and a variable git argument pass.
  */
 export function checkGitCommand(command, { resolveRemoteUrl, cwd, home, unattended = true } = {}) {
   if (typeof command !== "string") return null
   const { gitCommands, notModelled } = readGitCommands(command, { cwd, home })
-  if (notModelled) return unattended || attendedTextIsRisky(command) ? notModelledRefusal(command, notModelled) : null
+  if (notModelled) return unattended || attendedTextIsRisky(command) ? notModelledRefusal(command, notModelled) : attendedTextWorktreeRemove(command)
   return judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended })
-}
-
-export function checkGitWorktreeRemove(command) {
-  if (typeof command !== "string" || !/\bgit\b/.test(command)) return null
-  // A heredoc/commit-message body that merely NAMES the flag is data, not a
-  // command — strip bodies before matching, same as checkGitCommand.
-  const scannable = expandCommands(stripHeredocBodies(command)).join("\n")
-  // Judge each segment on its own target, mirroring checkGitCommand: the force
-  // flag must belong to the SAME segment as `worktree remove`, so a later
-  // `&& npm test -- --force` cannot false-block a plain `git worktree remove`.
-  for (const segment of scannable.split(/[&|;\n]/)) {
-    if (!/\bgit\b[\s\S]*\bworktree\s+remove\b/.test(segment)) continue
-    if (!/(?<![\w-])(?:--force|-f)(?![\w-])/.test(segment)) continue
-    return {
-      block: true,
-      message:
-        `BLOCKED git command (worktree junction footgun):\n  ${command}\n\n` +
-        "`git worktree remove --force` follows a Windows junction/reparse-point inside the worktree and deletes the\n" +
-        "TARGET's contents, not the link. SAFE cleanup order:\n" +
-        "  1. `rmdir` every junction inside the worktree (removes the link, not the target).\n" +
-        "  2. Verify each junction is gone (`git status` / `dir` shows it removed).\n" +
-        "  3. THEN `git worktree remove` (no --force needed once the tree carries no reparse points).\n",
-    }
-  }
-  return null
 }

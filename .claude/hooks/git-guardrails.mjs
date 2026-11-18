@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process"
 import { readRunState } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { isUnattendedRun } from "./_lib/rules-approval.mjs"
-import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
+import { checkGitCommand } from "./_lib/rules-git.mjs"
 
 /** An unreadable run record cannot prove that a person is present, so the stricter reading applies. */
 const runState = () => {
@@ -27,8 +27,7 @@ try {
     }).trim()
 
   const unattended = isUnattendedRun({ env: process.env, state: runState(), sessionId: input?.session_id ?? "" })
-  const verdict =
-    checkGitCommand(command, { resolveRemoteUrl, cwd: input?.cwd || process.cwd(), unattended }) ?? checkGitWorktreeRemove(command)
+  const verdict = checkGitCommand(command, { resolveRemoteUrl, cwd: input?.cwd || process.cwd(), unattended })
   if (verdict?.block) {
     process.stderr.write(verdict.message)
     process.exit(2)

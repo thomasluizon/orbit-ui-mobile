@@ -268,22 +268,17 @@ Six sources feed every turn. Print each one's current byte count and the total, 
 | every skill `description:`, both scopes | print current | 11,262 |
 
 ```bash
-wc -c CLAUDE.md .claude/rules/core.md ~/.claude/CLAUDE.md \
-      ~/.claude/rules/agentic-baseline.md \
-
-# the sixth source: the frontmatter description: value, continuation lines included,
-# of every discoverable skill in BOTH scopes
-for f in .claude/skills/*/SKILL.md ~/.claude/skills/*/SKILL.md; do
-  awk 'NR==1&&/^---\r?$/{fm=1;next} fm&&/^---\r?$/{exit} \
-       fm&&/^description:/{p=1;print;next} \
-       fm&&p&&/^[A-Za-z_-]+:/{p=0} fm&&p' "$f"
-done | wc -c
+wc -c CLAUDE.md .claude/rules/core.md ~/.claude/CLAUDE.md ~/.claude/rules/agentic-baseline.md
+# the sixth source: the frontmatter description: value, continuation lines included, of every discoverable skill in BOTH scopes
+awk 'FNR==1{fm=0;p=0;done=0} done{next} FNR==1&&/^---\r?$/{fm=1;next} fm&&/^---\r?$/{done=1;next} fm&&/^description:/{p=1;print;next} fm&&p&&/^[A-Za-z_-]+:/{p=0} fm&&p' .claude/skills/*/SKILL.md ~/.claude/skills/*/SKILL.md | wc -c
 ```
 
-The `fm` guard and the exit on the closing `---` are both load-bearing. A `description:` that is the
-LAST frontmatter key is terminated by `---`, not by another key, so an awk that stops only on the
-next `key:` runs into the body and counts the whole file. That bug reported `humanize` at 11,526
-bytes against a true 255.
+The block stays in the plain shell subset of `.claude/hooks/_lib/README.md`, so an unattended run can
+run it as written: one line for each command, with no line continuation and no loop. The `FNR==1`
+reset, the `fm` guard and the `done` flag on the closing `---` are all load-bearing. One `awk` reads
+every file, so each file starts with no state. A `description:` that is the LAST frontmatter key is
+terminated by `---`, not by another key, so an awk that stops only on the next `key:` runs into the
+body and counts the whole file. That bug reported `humanize` at 11,526 bytes against a true 255.
 
 Plugin and built-in skills load descriptions from `~/.claude/plugins/` outside both scopes.
 Print them separately if the total looks unaccountably large. Read the brain vault `hot.md`
@@ -297,10 +292,11 @@ single largest source.
 ### D33. Assert no skill name exists in both scopes
 
 ```bash
-comm -12 <(ls -1 .claude/skills) <(ls -1 ~/.claude/skills)
+ls -1 .claude/skills ~/.claude/skills | sort | uniq -d
 ```
 
-Any output is a **hard FAIL**. Name every colliding skill and stop.
+Any output is a **hard FAIL**. Name every colliding skill and stop. `ls` prints each directory name
+once as a header, and no name repeats inside one directory, so a repeated line is a name in both scopes.
 
 Global (`~/.claude/skills/`) silently overrides project (`.claude/skills/`) for SKILLS. No warning
 is printed and precedence is not configurable; `skillOverrides` controls visibility only.

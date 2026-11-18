@@ -8,7 +8,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { PLAIN_SUBSET_ADVICE, readCommand, walkCommands } from "./_lib/shell-subset.mjs"
-import { checkGitCommand, checkGitWorktreeRemove, GIT_SUBCOMMANDS } from "./_lib/rules-git.mjs"
+import { checkGitCommand, GIT_SUBCOMMANDS } from "./_lib/rules-git.mjs"
 import { countUnreviewedPendingLessons, isDriftReviewOverdue } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
@@ -854,10 +854,41 @@ T("git procedure: each git subcommand that a procedure file names is one that th
 T("git review r15: the refusal of an unknown subcommand names the script file route", (checkGitCommand("git p", r13Options)?.message ?? "").includes("run the file by its literal path, such as `bash /abs/path.sh`"), true)
 T("git attended: the same command in an unattended run blocks", blocks(checkGitCommand("while true; do sleep 5; done")), true)
 T("git attended: a push to main in the subset blocks in an attended session", blocks(checkGitCommand("git push origin main", { unattended: false })), true)
-// git worktree remove --force follows a Windows junction and deletes the target.
-T("git-worktree: --force blocks", blocks(checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x")), true)
-T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x"), null)
-T("git-worktree: force on a later chained command allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x && npm test -- --force"), null)
+// Each fenced `bash` block with no `<placeholder>` of the two skills that an unattended run follows passes both hooks as written. Read from the files, so a new block joins the check.
+const PRESCRIBED_BLOCKS = [".claude/skills/orchestrate/SKILL.md", ".claude/skills/sleep/SKILL.md"].flatMap((file) =>
+  [...readFileSync(join(repoRoot, file), "utf8").matchAll(/^\`\`\`bash\n([\s\S]*?)^\`\`\`/gm)].map((match) => match[1]).filter((block) => !/<[A-Za-z][\w-]*>/.test(block)).map((block) => [file, block]))
+T("git procedure: the preflight blocks are read from the skill files", ["orca --version", "wc -c CLAUDE.md", "| uniq -d"].map((text) => PRESCRIBED_BLOCKS.some(([, block]) => block.includes(text))), [true, true, true])
+for (const [file, block] of PRESCRIBED_BLOCKS) {
+  T(`git procedure block: ${file} ${JSON.stringify(block.slice(0, 70))} passes both hooks in an unattended run`, [readCommand(block).notModelled, checkGitCommand(block, { cwd: repoRoot, resolveRemoteUrl: r13Remote }),
+    checkApprovalPrompt(block, { cwd: repoRoot, workingDirectories: [repoRoot] })], ["", null, null])
+}
+// git worktree remove --force follows a Windows junction and deletes the target. git reads `--force`, each prefix of it down to `--f`, and a short group with `f` as force.
+const WORKTREE_FORCE_FORMS = ["git worktree remove --force .claude/worktrees/x", "git worktree remove -f .claude/worktrees/x", "git worktree remove -ff .claude/worktrees/x",
+  "git worktree remove --forc .claude/worktrees/x", "git worktree remove --fo .claude/worktrees/x", "git worktree remove --f .claude/worktrees/x", "git worktree remove .claude/worktrees/x --force",
+  "git -C /work/brain worktree remove -ff ../w"]
+for (const command of WORKTREE_FORCE_FORMS) {
+  for (const [label, options] of [["unattended", r13Options], ["attended", { ...r13Options, unattended: false }], ["attended with no protection", { ...fromBrain, unattended: false }]]) {
+    T(`git-worktree: ${JSON.stringify(command)} blocks (${label})`, (checkGitCommand(command, options)?.message ?? "").includes("worktree junction footgun"), true)
+  }
+}
+// A command outside the subset in an attended session: the text of each command that `expandCommands` finds is read.
+for (const command of ['git worktree remove -ff "$W"', 'git worktree remove --forc "$W"', "echo $(git worktree remove --fo ../w)", '/usr/bin/git worktree remove -f "$W"']) {
+  T(`git-worktree: ${JSON.stringify(command)} outside the subset blocks in an attended session`, (checkGitCommand(command, { ...fromBrain, unattended: false })?.message ?? "").includes("worktree junction footgun"), true)
+}
+for (const command of ["git worktree remove .claude/worktrees/x", "git worktree remove .claude/worktrees/x && npm test -- --force", "git log --grep 'worktree remove -f'", "git worktree list --porcelain"]) {
+  T(`git-worktree: ${JSON.stringify(command)} allows`, checkGitCommand(command, { ...fromBrain, unattended: false }), null)
+}
+for (const command of ['git worktree remove "$W" && npm test -- --force', "git commit -m \"$(cat <<'EOF'\ngit worktree remove --force x\nEOF\n)\""]) {
+  T(`git-worktree: ${JSON.stringify(command.slice(0, 60))} outside the subset allows in an attended session`, checkGitCommand(command, { ...fromBrain, unattended: false }), null)
+}
+// The global option refusal is the hooks hygiene: no `core.hooksPath` override reaches git past it, in each repository and session.
+for (const [command, option] of [["git -c core.hooksPath=/dev/null commit -m x", "-c"], ["git -ccore.hooksPath=/dev/null push origin feature/x", "-ccore.hooksPath=/dev/null"],
+  ["git --config-env=core.hooksPath=HP commit -m x", "--config-env=core.hooksPath=HP"]]) {
+  for (const [label, options] of [["protected", { ...r13Options, unattended: false }], ["no protection", { ...fromBrain, unattended: false }]]) {
+    T(`git hooksPath: ${JSON.stringify(command)} gets the global option refusal (${label})`, (checkGitCommand(command, options)?.message ?? "").includes(`The git option \`${option}\` before the subcommand`), true)
+  }
+}
+T("git hooksPath: `-C core.hooksPath=x` names a directory, not an override", checkGitCommand("git -C core.hooksPath=x commit -m y", { ...r13Options, unattended: false }), null)
 
 console.log("\n# orchestrator-guardrails (_lib/rules-orchestrator.mjs)")
 T("engine: Orca terminal create cannot bypass launcher", blocks(checkEngineInvocation('orca terminal create --command "claude --model opus"')), true)

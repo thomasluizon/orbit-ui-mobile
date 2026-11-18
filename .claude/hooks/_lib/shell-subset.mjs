@@ -70,7 +70,7 @@ const ALLOWED_PROGRAMS = ["git", "gh", "node", "npm", "npx", "pnpm", "yarn", "tu
   "grep", "egrep", "fgrep", "rg", "cut", "sed", "awk", "wc", "sort", "uniq", "tr", "jq", "ls", "mkdir", "cp", "mv", "touch", "ln", "chmod", "date", "basename", "dirname",
   "sleep", "rm", "rmdir", "find", "diff", "cmp", "comm", "paste", "column", "fold", "nl", "rev", "seq", "expr", "realpath", "readlink", "tee", "stat", "file", "du", "df",
   "shasum", "sha256sum", "md5", "md5sum", "base64", "xxd", "od", "hexdump", "strings", "iconv", "mktemp", "printenv", "uname", "whoami", "id", "hostname", "ps", "lsof",
-  "curl", "which", "man", "sw_vers"]
+  "curl", "which", "man", "sw_vers", "orca"]
 /** Each command word that the reader allows: the wrappers that do not change the user, the allowed builtins, the allowed programs and the POSIX shells. Each other command word is refused. */
 export const KNOWN_COMMAND_WORDS = [...new Set([...WRAPPERS, ...ALLOWED_BUILTINS, ...ALLOWED_PROGRAMS, ...SCRIPT_SHELLS])].filter((word) => !USER_WRAPPERS.has(word))
 /** zsh runs the words after each one as a command, or reads it as a part of a compound command. bash reads the name of a program. */
