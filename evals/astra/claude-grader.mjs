@@ -3,8 +3,8 @@ import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-export const GRADER_MODEL = 'claude-opus-5-5'
-export const GRADER_TIMEOUT_MILLISECONDS = 120000
+const GRADER_MODEL = 'claude-opus-5-5'
+const GRADER_TIMEOUT_MILLISECONDS = 120000
 // The variable that names the worker account directory: workers.claude.configDirEnv of .claude/orchestrator.json, which
 // tools/launch-worker.mjs reads. claude-grader.test.mjs holds the two names equal.
 export const WORKER_CONFIG_VARIABLE = 'ORBIT_WORKER_CLAUDE_CONFIG_DIR'
@@ -16,7 +16,7 @@ const accountOverride = /^(?:ANTHROPIC_|CLAUDE_CODE_|CCR_|AWS_BEARER_TOKEN_BEDRO
 // Print mode of the installed CLI, confirmed against a real call (claude-grader.test.mjs records its response): the grade
 // comes back as structured_output of one JSON result. The grader reads no tool, MCP server, CLAUDE.md, hook or session,
 // and graderEnvironment turns off the file attachment that an @/path mention in the prompt would otherwise add.
-export const graderArguments = ['-p', '--model', GRADER_MODEL, '--output-format', 'json', '--json-schema', schema,
+const graderArguments = ['-p', '--model', GRADER_MODEL, '--output-format', 'json', '--json-schema', schema,
   '--tools', '', '--strict-mcp-config', '--safe-mode', '--no-session-persistence']
 
 const isGrade = (grade) => grade !== null && typeof grade === 'object' && Object.keys(grade).sort().join(',') === 'pass,reason,score'
@@ -59,8 +59,9 @@ function runCli(prompt, environment, directory, signal) {
   })
 }
 
-// A promptfoo provider for llm-rubric: ORBIT_EVAL_GRADER=file://claude-grader.mjs. It returns { output: "<JSON grade>" },
-// or { error } that promptfoo keeps as a grader error, so a failed call is no verdict and never a pass.
+// A promptfoo provider for llm-rubric: ORBIT_EVAL_GRADER=file://<absolute path>/claude-grader.mjs. It returns
+// { output: "<JSON grade>" }, or { error } that promptfoo keeps as a grader error, so a failed call is no verdict and never
+// a pass.
 export default class ClaudeGrader {
   id() { return 'astra-claude-grader' }
 

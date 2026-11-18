@@ -7,13 +7,21 @@ import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import { summarize, writeResults, writeReport } from '../report.mjs'
 import { beforeEach as prepareAttempt } from '../hooks.mjs'
-import { GRADER_MODEL, GRADER_TIMEOUT_MILLISECONDS, WORKER_CONFIG_VARIABLE, graderEnvironment } from '../claude-grader.mjs'
+import ClaudeGrader, { WORKER_CONFIG_VARIABLE, graderEnvironment } from '../claude-grader.mjs'
 import { CLAUDE_ACCOUNT_OVERRIDE_KEYS } from '../../../tools/lib/orchestrator-config.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, turnTiming } from './fixtures/producer.mjs'
 import parseResponse from '../response.mjs'
 
 vi.mock('../fixtures/reset.mjs', async (original) => ({ ...await original(), resetFixture: vi.fn() }))
+// The real execFile, with its time limit read as milliseconds in place of seconds, so the two-minute limit of a hung call
+// ends it in 120 ms. Fake timers do not reach the timer inside execFile.
+vi.mock('node:child_process', async (original) => {
+  const actual = await original()
+  return { ...actual, execFile: vi.fn((file, args, options, callback) => actual.execFile(file, args,
+    { ...options, ...(options.timeout === undefined ? {} : { timeout: options.timeout / 1000 }) }, callback)) }
+})
+import { execFile } from 'node:child_process'
 import { assertions, loadApiProvider } from 'promptfoo'
 
 // Recorded from one real call of the installed CLI (Claude Code 2.1.325) on the worker account, with the grader's flags, on
@@ -105,8 +113,6 @@ it('loads through promptfoo, runs print mode on the worker account and returns t
   expect(call.prompt).toBe(prompt)
   expect(call.args).toEqual(['-p', '--model', 'claude-opus-5-5', '--output-format', 'json', '--json-schema', schemaText,
     '--tools', '', '--strict-mcp-config', '--safe-mode', '--no-session-persistence'])
-  expect(GRADER_MODEL).toBe('claude-opus-5-5')
-  expect(GRADER_TIMEOUT_MILLISECONDS).toBe(120000)
   expect(call.configDirectory).toBe(workerDirectory)
   expect(call.attachments).toBe('1')
   expect(call.apiKey).toBe(false)
@@ -195,6 +201,18 @@ it('stops a call that the caller cancels, gives no verdict and does not retry it
   expect(attempts()).toBe(1)
   errors.mockRestore()
 })
+
+// The grader module through the test's own import, so its execFile is the scaled one above.
+it('ends a hung call at the two-minute limit, gives no verdict and retries it once', async () => {
+  vi.stubEnv('TEST_CLAUDE_MODE', 'hang')
+  vi.mocked(execFile).mockClear()
+  const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  const error = 'Claude rubric grading failed: process interrupted by timeout or cancellation.'
+  expect(await new ClaudeGrader().callApi('Offline rubric control.')).toEqual({ error })
+  expect(vi.mocked(execFile).mock.calls.map(([, , options]) => options.timeout)).toEqual([120000, 120000])
+  expect(attempts()).toBe(2)
+  errors.mockRestore()
+}, 10000)
 
 it('retries one process failure and consumes the recovered grade through the real rubric', async () => {
   vi.stubEnv('TEST_CLAUDE_MODE', 'retry')

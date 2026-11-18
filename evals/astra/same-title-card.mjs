@@ -86,10 +86,11 @@ const sentenceEnd = /(?<=[?!]|\.(?!\d))/u
 const clauseEnd = /[?!,;]|\.(?!\d)|\b(?:and|e)\b/u
 
 // The half of a list question that names both actions, as "Which two to delete and which four to rename?" does: one
-// selection answers one half, and the person selects the half of the action that the question asks first, the first
-// action of its first question sentence. A count belongs to the action its clause names (in a clause that names one), so
-// it only confirms that action. The halves must differ in size, because the selection's size tells its half. Null when
-// they do not, or when a count names the other half of its action, as "Which two should I keep?" does.
+// selection answers one half, and the person selects the half of the action that the question asks first: the first
+// action of the first sentence that ends with ? and names an action, else the first action of the whole text. A count
+// belongs to the action its clause names (in a clause that names one), so it only confirms that action. The halves must
+// differ in size, because the selection's size tells its half. Null when they do not, or when a count names the other
+// half of its action, as "Which two should I keep?" does.
 function bothActionsHalf(text, decision) {
   if (decision.deleted.length === decision.renamed.length) return null
   const asked = text.split(sentenceEnd).filter((sentence) => sentence.trim().endsWith('?')).map(firstAction).find(Boolean)

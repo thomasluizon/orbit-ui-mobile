@@ -1,3 +1,8 @@
+import { fileURLToPath } from 'node:url'
+
+// The absolute provider reference that a test sets as ORBIT_EVAL_GRADER, so the hooks' grader check finds this grader.
+export const offlineGrader = `file://${fileURLToPath(import.meta.url)}`
+
 export default class MockGrader {
   id() { return 'mock-grader' }
   async callApi(prompt) {

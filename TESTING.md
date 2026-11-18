@@ -799,8 +799,10 @@ in `target_ids`. An option that declares none stands for its own id when that id
 the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
 and one selection the card allows must state the whole decision. When a list can hold the deleted half and the
 renamed half, the grader selects the half that its question asks about: the action words of the question, else the
-count that it states. When the question names both actions, the grader selects the half of the first action in its
-first question sentence, and a count only confirms the action that its clause names. In a list question, `keep` and
+count that it states. When the question names both actions, the two halves must differ in size, because the size of
+the selection tells its half: two halves of one size fail with a grader limit. The grader then selects the half of the
+first action in the first sentence that ends with `?` and names an action, else the first action of the whole question.
+A count only confirms the action that its clause names. In a list question, `keep` and
 `manter` are rename words, because the records to keep are the records to rename. When the question tells neither, or
 the two signals disagree, the case fails with a message that names a grader limit, not a model fault. A `yesNo`
 question beside the lists is answered yes only when its verb proposes the decided action for the half that the lists
@@ -852,7 +854,7 @@ checklists and logs. Attempt evidence retains sanitized proposed dates and both 
 |---|---|
 | `ORBIT_EVAL_BASE_URL` | `https://orbit-api-staging-uqu2.onrender.com` (staging) or `https://api.useorbit.org` (production); destructive fixture resets reject every other origin and every non-eval account |
 | `ORBIT_EVAL_CREDENTIALS_FILE` | Private JSON file containing account refresh tokens and the stable habit registry; owned by the runner user, regular file, mode 600 |
-| `ORBIT_EVAL_GRADER` | Set `file://claude-grader.mjs` for the installed Claude Code CLI grader on the worker account |
+| `ORBIT_EVAL_GRADER` | From `evals/astra`, set `file://$PWD/claude-grader.mjs` for the installed Claude Code CLI grader on the worker account; promptfoo resolves a relative `file://` grader from the folder of the run's config, so a relative value fails the core runs in `core/` |
 | `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the refreshed Orbit bearer token |
 | `ORBIT_EVAL_HABIT_ID` | Optional existing Water UUID to adopt on the Pro account; must agree with its private registry |
 | `ORBIT_EVAL_SECOND_HABIT_ID` | Optional existing Walk UUID to adopt on the Pro account; must agree with its private registry |
@@ -1023,9 +1025,13 @@ offline in fix rounds and never authorizes an additional live run.
 
 ### Claude rubric grader
 
-From `evals/astra`, set `ORBIT_EVAL_GRADER=file://claude-grader.mjs`. The provider runs the installed Claude Code CLI
-(`claude` on the runner's `PATH`) on the worker account: `ORBIT_WORKER_CLAUDE_CONFIG_DIR` must name the signed-in
-worker account directory, as `tools/launch-worker.mjs` reads it. The child gets `CLAUDE_CONFIG_DIR` set to that
+From `evals/astra`, set `ORBIT_EVAL_GRADER="file://$PWD/claude-grader.mjs"`, an absolute path: promptfoo resolves a
+relative `file://` grader from the folder of the run's config, and the core configs are in `core/`. Before the first chat
+turn, each graded run (`hooks.mjs`, and `core/hooks.mjs` when a case has a rubric) sends one small rubric through the
+configured grader from the folder of its config (`grader-preflight.mjs`). When the grader returns an error or no grade,
+the run stops before it spends the eval key. That check costs one grader call on the worker account. The provider runs
+the installed Claude Code CLI (`claude` on the runner's `PATH`) on the worker account:
+`ORBIT_WORKER_CLAUDE_CONFIG_DIR` must name the signed-in worker account directory, as `tools/launch-worker.mjs` reads it. The child gets `CLAUDE_CONFIG_DIR` set to that
 directory. Every `ANTHROPIC_`, `CLAUDE_CODE_`, `CCR_` and `ORBIT_EVAL_` variable and `AWS_BEARER_TOKEN_BEDROCK` are
 removed, so the sign-in of that directory is the only credential the CLI can select. After that filter, the child also
 gets `CLAUDE_CODE_DISABLE_ATTACHMENTS=1`: the grading prompt holds Astra's answer, and the CLI would otherwise turn an

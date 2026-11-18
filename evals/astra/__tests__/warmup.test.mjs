@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { beforeAll as preflight, beforeEach as prepareAttempt } from '../hooks.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
+import { offlineGrader } from './fixtures/grader.mjs'
 import { fixtureFetch } from './fixtures/public-api.mjs'
 
 const corpus = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
@@ -11,7 +12,7 @@ let requests, states
 
 beforeEach(() => {
   offlineCredentials()
-  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
   requests = []
   states = Object.fromEntries(['pro', 'free', 'budget'].map((name) => [name, {
     habits: [], goals: [], tags: [], templates: [], requests: [], pro: name === 'pro',

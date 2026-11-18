@@ -5,6 +5,7 @@ import { requireEvalOrigin, resetFixture } from '../fixtures/reset.mjs'
 import { fixtureHabitTitles } from '../fixtures/names.mjs'
 import { requireEvalAccess, requireEvalTrace } from '../fixtures/api.mjs'
 import { requireCatalogCommit } from '../trace-policy.mjs'
+import { requireGrader } from '../grader-preflight.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 
 const { buildChatClientContext } = await tsImport('../../../packages/shared/src/chat/client-context.ts', import.meta.url)
@@ -31,6 +32,7 @@ export async function beforeAll({ suite }) {
   const health = await healthyApi({ fresh: true })
   requireCatalogCommit(health.commit)
   readCredentials()
+  if (graded) await requireGrader(new URL('.', import.meta.url))
   // Each card answer and each measured model call reads the eval trace, so an account without the trace flag stops the
   // run here, before any chat turn spends.
   const unmetered = new Map()

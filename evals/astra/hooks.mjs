@@ -14,6 +14,7 @@ import { describeCase } from './latency.mjs'
 import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 import { requireCatalogCommit } from './trace-policy.mjs'
+import { requireGrader } from './grader-preflight.mjs'
 
 const { buildChatClientContext } = await tsImport('../../packages/shared/src/chat/client-context.ts', import.meta.url)
 
@@ -50,6 +51,7 @@ export async function beforeAll({ suite }) {
   }
   requireCatalogCommit((await healthyApi({ fresh: true })).commit)
   readCredentials()
+  await requireGrader(new URL('.', import.meta.url))
   await requireAccountPolicies(suite.tests)
   await warmUpAccounts(suite.tests)
 }
