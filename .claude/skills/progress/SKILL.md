@@ -34,8 +34,8 @@ He is not asking which tickets closed or which version shipped.
 | `/progress <area>` | any of the three, narrowed to one screen or surface |
 
 `--remaining` replaces the report, so `--full` adds nothing to it. Its procedure is the section
-"`--remaining`: what is pending until the board is empty". Every other section below serves the
-window report.
+"`--remaining`: what is pending until the board is empty". The window procedure below (the helper,
+the base-chain rule and the ancestry check) does not apply to it.
 
 The previous owner-typed `/progress` is the boundary, including work before the current chain
 started. With no earlier invocation, use the open chain start, then the current session start.
