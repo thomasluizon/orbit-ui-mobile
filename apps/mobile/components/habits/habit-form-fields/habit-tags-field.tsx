@@ -20,27 +20,25 @@ import { TagEditorRow } from './tag-editor-row'
 import { TagPickerField } from './tag-picker-field'
 import { TagSuggestions } from './tag-suggestions'
 
-interface HabitTagsFieldProps {
+interface HabitTagEditorOptions {
   tags: TagSelectionState
   title: string
   description: string
 }
 
-/** The tag picker of a habit: select up to the limit, create, rename, delete, suggest and preview. */
-export function HabitTagsField({ tags, title, description }: Readonly<HabitTagsFieldProps>) {
-  const { disabled, guard, isDisabled } = useHabitFormInteraction()
+/**
+ * The tag state of a habit: requests, suggestions, the submit hold and the backend errors.
+ * The always-mounted form calls it, so a collapse of "More details" keeps fetched suggestions and a held request.
+ */
+export function useHabitTagEditor({ tags, title, description }: HabitTagEditorOptions) {
+  const { disabled, isDisabled } = useHabitFormInteraction()
   const { t, i18n } = useTranslation()
-  const allowanceText = useAstraAllowanceCopy()
   const { showError } = useAppToast()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
-  const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const translate = useCallback((key: string, values?: Record<string, unknown>) => t(key, values), [t])
   const newTagErrors = useBackendFieldErrors({ name: tags.newTagName }, { name: 'Name' })
   const editTagErrors = useBackendFieldErrors({ name: tags.editTagName }, { name: 'Name' })
   const { tags: availableTags = [] } = useTags()
   const initialTagName = availableTags.find(tag => tag.id === tags.editingTagId)?.name ?? ''
-  const tagEditorDirty = hasTagDraftChanges(tags, initialTagName)
   const createTag = useCreateTag()
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
@@ -102,15 +100,48 @@ export function HabitTagsField({ tags, title, description }: Readonly<HabitTagsF
     })
   }
 
+  return {
+    availableTags,
+    initialTagName,
+    editorDirty: hasTagDraftChanges(tags, initialTagName),
+    newTagErrors,
+    editTagErrors,
+    submitting: tagSubmission.waiting,
+    pending: tagMutationPending,
+    suggestions: tagSuggestions,
+    discardTagEditor,
+    createNewTag,
+    deleteExistingTag,
+    saveEditedTag,
+  }
+}
+
+export type HabitTagEditor = ReturnType<typeof useHabitTagEditor>
+
+interface HabitTagsFieldProps {
+  tags: TagSelectionState
+  tagEditor: HabitTagEditor
+}
+
+/** The tag picker of a habit: select up to the limit, create, rename, delete, suggest and preview. */
+export function HabitTagsField({ tags, tagEditor }: Readonly<HabitTagsFieldProps>) {
+  const { disabled, guard } = useHabitFormInteraction()
+  const { t } = useTranslation()
+  const allowanceText = useAstraAllowanceCopy()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
+  const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
+  const { newTagErrors, editTagErrors, initialTagName, discardTagEditor } = tagEditor
+
   const editor = tags.showNewTag
-    ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={disabled} pending={tagSubmission.waiting} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={guard(tags.setNewTagName)} onCommit={() => void createNewTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} />
+    ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={disabled} pending={tagEditor.submitting} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={guard(tags.setNewTagName)} onCommit={() => void tagEditor.createNewTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} />
     : tags.editingTagId
-      ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} initialValue={initialTagName} value={tags.editTagName} disabled={disabled} pending={tagSubmission.waiting} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={guard(tags.setEditTagName)} onCommit={() => void saveEditedTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} />
+      ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} initialValue={initialTagName} value={tags.editTagName} disabled={disabled} pending={tagEditor.submitting} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={guard(tags.setEditTagName)} onCommit={() => void tagEditor.saveEditedTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} />
       : undefined
 
   return (
     <View>
-      <TagPickerField editorDirty={tagEditorDirty} onDiscardEditor={discardTagEditor} suggestions={<TagSuggestions translateError={allowanceText} suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} onToggle={guard(tags.toggleTag)} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void deleteExistingTag(id)} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={editor} />
+      <TagPickerField editorDirty={tagEditor.editorDirty} onDiscardEditor={discardTagEditor} suggestions={<TagSuggestions translateError={allowanceText} suggestions={tagEditor.suggestions} atLimit={tags.atTagLimit} disabled={disabled || tagEditor.pending} />} tags={tagEditor.availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={disabled || tagEditor.pending} onToggle={guard(tags.toggleTag)} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tagEditor.deleteExistingTag(id)} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={editor} />
       {tags.atTagLimit ? <Text style={[styles.hint, { color: tokens.fg3 }]}>{t('habits.form.tagLimit')}</Text> : null}
     </View>
   )

@@ -1229,6 +1229,40 @@ describe('habit tag suggestions', () => {
     expect(selected()).toBe('tag-created')
   })
 
+  async function collapseAndReopenDetails() {
+    const details = () => tree.root.findAllByType(ListRow).find((node: { props: Record<string, unknown> }) => node.props.title === 'habits.form.moreDetails')!
+    await TestRenderer.act(() => details().props.onClick())
+    expect(tree.root.findAllByType(ListRow).some((node: { props: Record<string, unknown> }) => node.props.title === 'habits.form.tags')).toBe(false)
+    await TestRenderer.act(() => details().props.onClick())
+    const picker = tree.root.findAllByType(ListRow).find((node: { props: Record<string, unknown> }) => node.props.title === 'habits.form.tags')!
+    await TestRenderer.act(() => picker.props.onClick())
+  }
+
+  it('keeps fetched suggestions when More details collapses and opens again, with no second request', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [{ name: 'Outdoors', color: '#7c3aed', isExisting: false, id: null }] })
+    await renderTagForm()
+    await TestRenderer.act(async () => { button('habits.form.suggestTags').props.onPress(); await Promise.resolve() })
+    expect(proposalButton('Outdoors')).toBeDefined()
+    await collapseAndReopenDetails()
+    expect(proposalButton('Outdoors')).toBeDefined()
+    expect(tagMutations.suggest).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the tag Add hold when More details collapses and opens again during the request', async () => {
+    const request = deferred()
+    tagMutations.create.mockReturnValue(request.promise)
+    await renderTagForm('Read')
+    await TestRenderer.act(() => button('habits.form.newTag').props.onPress())
+    await TestRenderer.act(() => tagNameInput()!.props.onChangeText('Health'))
+    await TestRenderer.act(() => button('common.add').props.onPress())
+    await collapseAndReopenDetails()
+    expectTagActionWaiting('common.add', true)
+    expect(button('common.add').props.onPress).toBeUndefined()
+    expect(tagMutations.create).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => { request.settle().resolve({ id: 'tag-created', name: 'Health', color: '#C4530F' }); await Promise.resolve() })
+    expect(selected()).toBe('tag-created')
+  })
+
   it('ends the tag Add waiting face when the request fails, and the next press sends again', async () => {
     const request = deferred()
     tagMutations.create.mockReturnValue(request.promise)
