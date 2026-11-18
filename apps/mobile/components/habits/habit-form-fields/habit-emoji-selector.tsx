@@ -40,12 +40,13 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
       iconOnly label={t('habits.form.suggestEmoji')}
       minimumHeight={TOUCH_TARGET_MIN}
       loading={isSuggesting}
+      loadingFace="icon"
       focusableWhenLoading
       disabled={disabled || (!isSuggesting && (!canSuggest || isDisabled))}
       hint={[isSuggesting ? t('habits.form.emojiSuggesting') : suggestionHint, suggestionError].filter(Boolean).join(' ') || undefined}
       onClick={guard(() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() })}
     >
-      <OrbitMascot size={20} />
+      <OrbitMascot size={20} reading={isSuggesting} />
     </PillButton>
   ) : null
 }
