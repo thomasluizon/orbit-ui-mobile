@@ -385,9 +385,10 @@ const deletedHalf = ids.slice(4)
 const renamedHalf = ids.slice(0, 4)
 
 // A question that names both actions asks for one selection, and the size of the selection tells its half, because the
-// decision deletes two and renames four. The person selects the half of the action that the question asks first: the
-// first action of its first question sentence. A count belongs to the action its clause names, so it only confirms that
-// action. The prompts of the completed records card are the real prompts of the five baseline grader-limit cases.
+// decision deletes two and renames four. The person selects the half of the action that the question asks first: in
+// its first question sentence, the first action of the clause that holds the asking word, so a clause about the other
+// half before it ("Leaving 4 to rename, ...") does not decide. A count belongs to the action its clause names, so it only
+// confirms that action. The prompts of the completed records card are the real prompts of the five baseline grader-limit cases.
 it.each([
   ['the completed records card', 'en', 'Six found, not seven. Which two to delete and which four to rename?', deletedHalf],
   ['the completed records card', 'en', 'I found 6, not 7. Which 2 should I delete, leaving 4 to rename?', deletedHalf],
@@ -403,6 +404,10 @@ it.each([
   ['the completed records card', 'en', 'The other four get renamed. Which ones should I delete?', deletedHalf],
   ['the completed records card', 'pt-BR', 'Quais eu mantenho? Os outros dois serão excluídos.', renamedHalf],
   ['the completed records card', 'pt-BR', 'Os outros dois serão excluídos. Quais eu mantenho?', renamedHalf],
+  ['the completed records card', 'en', 'Keeping four, which two should I delete?', deletedHalf],
+  ['the completed records card', 'en', 'Leaving 4 to rename, which 2 should I delete?', deletedHalf],
+  ['the completed records card', 'en', 'Before I rename four, which two should I delete?', deletedHalf],
+  ['the completed records card', 'pt-BR', 'Mantendo quatro, quais dois eu apago?', deletedHalf],
   ['the model records card', 'pt-BR', streams.run3.card.block.question, deletedHalf],
   ['the model records card', 'pt-BR', 'Quais dois excluo? Diga por ordem quais quatro renomeio.', deletedHalf],
 ])('answers %s in %s whose question names both actions: %s', async (shape, locale, prompt, half) => {

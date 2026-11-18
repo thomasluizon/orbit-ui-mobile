@@ -822,8 +822,11 @@ the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored chil
 and one selection the card allows must state the whole decision. When a list can hold the deleted half and the
 renamed half, the grader selects the half that its question asks about: the action words of the question, else the
 count that it states. When the question names both actions, the two halves must differ in size, because the size of
-the selection tells its half: two halves of one size fail with a grader limit. The grader then selects the half of the
-first action in the first sentence that ends with `?` and names an action, else the first action of the whole question.
+the selection tells its half: two halves of one size fail with a grader limit. The grader then reads the first sentence
+that ends with `?` and names an action. The clause that asks decides the half: the first clause of that sentence that
+holds an asking word (`which`, `what`, `quais`, `qual`, `quantos`, `quantas`) and names an action. So "Leaving 4 to
+rename, which 2 should I delete?" asks for the deleted half. A sentence with no such clause gives its first action, and a
+question with no such sentence gives its first action.
 A count only confirms the action that its clause names. In a list question, `keep` and
 `manter` are rename words, because the records to keep are the records to rename. When the question tells neither, or
 the two signals disagree, the case fails with a message that names a grader limit, not a model fault. A `yesNo`

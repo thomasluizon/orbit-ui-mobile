@@ -84,17 +84,27 @@ function firstAction(text) {
 // a semicolon or a joining and or e.
 const sentenceEnd = /(?<=[?!]|\.(?!\d))/u
 const clauseEnd = /[?!,;]|\.(?!\d)|\b(?:and|e)\b/u
+// The words that ask for a selection, on the normalized text.
+const askingWords = /\b(?:which|what|quais|qual|quantos|quantas)\b/u
+
+// The action a text asks first. Its question is the first sentence that ends with ? and names an action. The clause that
+// asks decides: the first clause of the question that holds an asking word and names an action, so "Leaving 4 to rename,
+// which 2 should I delete?" asks the deletion. A question with no such clause gives its first action, and a text with no
+// question gives its first action.
+function askedAction(text) {
+  const question = text.split(sentenceEnd).filter((sentence) => sentence.trim().endsWith('?')).find((sentence) => firstAction(sentence))
+  if (!question) return firstAction(text)
+  return question.split(clauseEnd).filter((clause) => askingWords.test(clause)).map(firstAction).find(Boolean) ?? firstAction(question)
+}
 
 // The half of a list question that names both actions, as "Which two to delete and which four to rename?" does: one
-// selection answers one half, and the person selects the half of the action that the question asks first: the first
-// action of the first sentence that ends with ? and names an action, else the first action of the whole text. A count
-// belongs to the action its clause names (in a clause that names one), so it only confirms that action. The halves must
-// differ in size, because the selection's size tells its half. Null when they do not, or when a count names the other
-// half of its action, as "Which two should I keep?" does.
+// selection answers one half, and the person selects the half of the action that the question asks first (askedAction).
+// A count belongs to the action its clause names (in a clause that names one), so it only confirms that action. The
+// halves must differ in size, because the selection's size tells its half. Null when they do not, or when a count names
+// the other half of its action, as "Which two should I keep?" does.
 function bothActionsHalf(text, decision) {
   if (decision.deleted.length === decision.renamed.length) return null
-  const asked = text.split(sentenceEnd).filter((sentence) => sentence.trim().endsWith('?')).map(firstAction).find(Boolean)
-    ?? firstAction(text)
+  const asked = askedAction(text)
   const contradicted = text.split(clauseEnd).some((clause) => {
     const byCount = countHalf(clause, decision)
     const named = deletionWords.test(clause) === (renameVerbs.test(clause) || listRenameWords.test(clause)) ? asked : firstAction(clause)
