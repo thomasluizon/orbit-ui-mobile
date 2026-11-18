@@ -1,3 +1,10 @@
+# A case states one grade method (grade-method.mjs). `outcome` is its expected outcome in the form of the core set
+# (core/situations.yaml): the case runs on the client path and no tool name is graded. read: no preview and no card
+# that asks. question: the turn ends in a question card. refusal: the status and the code of the case. changes: the
+# change list of the held previews, with each record by its fixture name (water, walk, first, second), `previews`
+# (default 1) and `questions` (default none). A changes case holds no rubric. A case with `expectations` keeps the
+# tool-name grade on POST /api/chat.
+
 - description: Read today's habits in English
   metadata: { id: single-read-en, category: single, family: single, locale: en, platform: web, fixture: pro }
   vars:

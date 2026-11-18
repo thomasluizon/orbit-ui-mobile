@@ -154,7 +154,7 @@ async function prepareAttempt(test) {
   test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
   test.vars.historyJson = JSON.stringify(test.vars.history ?? [])
   test.vars.evalRequestId = randomUUID()
-  if (gradedByOutcome(test.vars)) test.vars.records = fixtureRecords(test.vars, account)
+  if (gradedByOutcome(test.vars)) test.vars.records = fixtureRecords(test.vars, substitutions)
   return test.vars.setup ? prepareCorrection(test) : { test }
 }
 

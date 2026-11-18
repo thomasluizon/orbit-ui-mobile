@@ -241,7 +241,7 @@ describe('corpus and execution constraints', () => {
       expect(categories.has(category)).toBe(true)
     }
     expect(new Set(scenarios.map((scenario) => scenario.metadata.id)).size).toBe(scenarios.length)
-    for (const scenario of scenarios) expect(scenario.vars.rubric.trim()).not.toBe('')
+    for (const scenario of scenarios.filter((entry) => !entry.vars.outcome?.changes)) expect(scenario.vars.rubric.trim()).not.toBe('')
   })
   it('requires credentials and an HTTPS origin before requests', async () => {
     offlineCredentials()
@@ -264,13 +264,14 @@ describe('corpus and execution constraints', () => {
     writeFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, '{}')
     await expect(beforeAll({ suite: { tests: scenarios } })).rejects.toThrow('Missing refresh token.')
   })
-  it('resets before each attempt and resolves IDs in prompts and expectations', async () => {
+  it('resets before each attempt and resolves IDs in prompts and in the records that an outcome names', async () => {
     offlineCredentials()
     vi.stubGlobal('fetch', async (url) => new URL(url).pathname === '/health'
       ? Response.json({ status: 'Healthy', commit: null, checks: [] }) : refreshResponse())
       vi.stubEnv('ORBIT_EVAL_HABIT_ID', 'actual-water')
     const test = structuredClone(scenarios.find((scenario) => scenario.metadata.id === 'single-log-en'))
-    expect((await beforeEach({ test })).test.vars.expectations.required[0].arguments.habit_id).toBe('actual-water')
+    expect((await beforeEach({ test })).test.vars.records.water).toBe('actual-water')
+    expect(test.vars.outcome).toEqual({ changes: [{ kind: 'log', targets: { record: 'water' } }] })
     expect(test.vars.input).toContain('actual-water')
     vi.mocked(resetFixture).mockRejectedValueOnce(new Error('reset failed'))
     expect((await beforeEach({ test })).test.vars.preconditionFailure).toBe('reset failed')

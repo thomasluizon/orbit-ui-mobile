@@ -3,6 +3,7 @@ import { expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { summarize } from '../report.mjs'
+import { TOOL_NAME_KEYS, gradedByOutcome } from '../grade-method.mjs'
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
@@ -58,7 +59,52 @@ it.each([
 ])('allows item counting: %s', (rubric) => {
   expect(rubric).not.toMatch(textOccurrenceCount)
 })
-it.each([...corpus, ...scenarios])('grades observable claims in $metadata.id', ({ vars }) => {
+// The first group of the corpus: each case of these families states its expected outcome and holds no tool-name grade.
+const firstGroupScenarios = ['single-read-en', 'single-create-pt', 'single-log-en', 'compound-update-skip-en', 'bulk-log-en', 'bulk-skip-pt',
+  'ambiguity-pt', 'ambiguity-en', 'injection-user-en', 'injection-record-pt', 'moderation-en', 'grounding-en', 'grounding-missing-pt', 'voice-en',
+  'voice-pt', 'edge-overdue-en', 'edge-skipped-pt', 'edge-free-limit-en', 'budget-cap-en', 'legacy-create-pt', 'legacy-moderation-pt']
+const firstGroupCompositionFamilies = ['hoje-next-step', 'habits-schedules', 'logs-history', 'metrics', 'streaks', 'rankings', 'totals',
+  'comparisons', 'goals', 'calendar-sync', 'notifications', 'tags', 'checklist-templates', 'profile-settings', 'subscription-plan', 'referrals',
+  'api-keys', 'achievements-level', 'retrospectives-recaps', 'choice', 'pickList', 'proactive', 'empty', 'partial', 'stale', 'error', 'offline',
+  'plan', 'feature-help', 'coaching-advice', 'small-talk', 'refusal', 'writes-outcomes', 'compound', 'quota', 'compound-legacy',
+  'compound-missing-kind', 'medical-batch', 'medical-correction', 'avoid-form', 'existing-parents']
+const firstGroupIds = [...firstGroupScenarios, ...firstGroupCompositionFamilies.flatMap((family) => ['en', 'pt-BR'].map((locale) => `composition-${family}-${locale}`))]
+const everyCase = [...scenarios, ...corpus]
+const firstGroupFamilies = new Set(['single', 'bilingual', 'compound', 'bulk', 'ambiguity', 'guardrail', 'moderation', 'grounding', 'voice', 'edge',
+  'budget', 'legacy', ...firstGroupCompositionFamilies])
+const heldKeys = (value) => !value || typeof value !== 'object' ? []
+  : Object.entries(value).flatMap(([key, child]) => [...(Array.isArray(value) ? [] : [key]), ...heldKeys(child)])
+const outcomeForm = (vars) => ['changes', 'question', 'read', 'refusal'].filter((form) => vars.outcome[form])
+
+it('keeps each case of the first group, in 52 families', () => {
+  expect(firstGroupIds).toHaveLength(103)
+  expect(firstGroupFamilies.size).toBe(52)
+  const firstGroup = everyCase.filter((entry) => firstGroupFamilies.has(entry.metadata.family))
+  expect(firstGroup.map((entry) => entry.metadata.id).toSorted()).toEqual(firstGroupIds.toSorted())
+})
+it.each(firstGroupIds)('grades %s by its outcome and by no tool name', (id) => {
+  const { vars } = everyCase.find((entry) => entry.metadata.id === id)
+  expect(gradedByOutcome(vars)).toBe(true)
+  expect(heldKeys(vars).filter((key) => key === 'expectations' || TOOL_NAME_KEYS.includes(key))).toEqual([])
+  expect(outcomeForm(vars)).toHaveLength(1)
+  expect(heldKeys(vars.outcome).filter((key) => /Id$/u.test(key))).toEqual([])
+  expect(JSON.stringify(vars.outcome)).not.toMatch(/\{(?:habitId|secondHabitId)\}|[0-9a-f]{8}-[0-9a-f]{4}-/u)
+  if (vars.setup) expect(vars.setup.outcome.changes.length).toBeGreaterThan(0)
+})
+it('counts the cases of each outcome form', () => {
+  const forms = Object.groupBy(everyCase.filter((entry) => gradedByOutcome(entry.vars)), (entry) => outcomeForm(entry.vars)[0])
+  expect(Object.fromEntries(Object.entries(forms).map(([form, entries]) => [form, entries.length]))).toEqual({ read: 74, changes: 19, question: 6, refusal: 4 })
+})
+it('gives each case one grade method', () => {
+  for (const { metadata, vars } of everyCase) {
+    const toolNames = vars.expectations !== undefined || metadata.family.startsWith('offers-')
+    expect(gradedByOutcome(vars) !== toolNames, metadata.id).toBe(true)
+  }
+})
+it('keeps the rubric of each case but a write case, whose held preview no model grades', () => {
+  for (const { metadata, vars } of everyCase) expect(Boolean(vars.rubric), metadata.id).toBe(!vars.outcome?.changes)
+})
+it.each(everyCase.filter((entry) => entry.vars.rubric))('grades observable claims in $metadata.id', ({ vars }) => {
   expect(vars.rubric).not.toMatch(textOccurrenceCount)
   const clauses = vars.rubric.split(/[.;]/).filter((clause) => !/\bharness evidence\b/i.test(clause))
   for (const clause of clauses) {
@@ -86,7 +132,7 @@ it('runs every composition family in both languages with the configured attempts
     'coaching-advice', 'small-talk', 'compound', 'compound-legacy', 'compound-missing-kind', 'medical-batch',
     'medical-correction', 'avoid-form', 'existing-parents', 'suggestions', 'suggestions-duplicate', 'suggestions-refine',
     'restart-preview', 'restart-approve', 'restart-reject', 'restart-preference', 'hoje-next-step']
-  expect(configuration.tests).toContain('file://composition-scenarios.yaml')
+  expect(configuration.tests).toBe('file://grade-method.mjs:corpusTests')
   expect(configuration.evaluateOptions.repeat).toBe(ATTEMPTS_PER_CASE)
   expect(new Set(corpus.map((entry) => entry.metadata.id)).size).toBe(corpus.length)
   for (const family of families) {
@@ -95,7 +141,6 @@ it('runs every composition family in both languages with the configured attempts
       expect(entry, `${family}/${locale}`).toBeDefined()
       expect(entry.vars.clientContext.locale).toBe(locale)
       expect(entry.vars.composition.mode).toBeTruthy()
-      expect(entry.vars.rubric).toBeTruthy()
     }
   }
 })
@@ -103,30 +148,25 @@ it('binds the reported parent and medical cases to strict scope and genuine setu
   for (const locale of ['en', 'pt-BR']) {
     const find = (family) => corpus.find((entry) => entry.metadata.family === family && entry.metadata.locale === locale).vars
     const parent = find('existing-parents')
-    expect(parent.expectations.counts).toEqual({ bulk_create_habits: 1 })
-    expect(parent.expectations.forbidden).toContain('create_habit')
-    expect(parent.expectations.required[0].arguments.habits.map((habit) => habit.parent_habit_id)).toEqual(['{habitId}', '{secondHabitId}'])
+    expect(parent.composition.previews).toBe(1)
+    expect(parent.outcome.changes.map((change) => [change.kind, change.fields.parent_habit_id])).toEqual([
+      ['create', { record: 'first' }], ['create', { record: 'second' }]])
     const medical = find('medical-batch')
-    const commitments = medical.expectations.required[0].arguments.habits.slice(2, 4)
+    expect(medical.outcome.changes.map((change) => change.kind)).toEqual(Array(5).fill('create'))
+    const commitments = medical.outcome.changes.slice(2, 4)
     for (const commitment of commitments) {
-      expect(commitment.is_bad_habit).toBe(false)
-      expect(commitment.frequency_unit).toBe('Day')
-      expect(commitment.end_date).toBe('{accountDate+7}')
+      expect(commitment.fields.is_bad_habit).toEqual({ contains: ['false'] })
+      expect(commitment.fields.frequency_unit).toBe('Day')
+      expect(commitment.fields.end_date).toBe('{accountDate+7}')
     }
-    expect(medical.rubric).toContain("Preserve the person's own wording")
-    expect(medical.rubric).toContain('Reject a title that reverses or changes the medical instruction')
-    expect(medical.rubric).toContain('is_bad_habit=false')
-    expect(medical.expectations.required[0].arguments.habits.slice(0, 2).every((habit) => habit.frequency_unit === 'OneTime')).toBe(true)
+    expect([0, 1, 4].every((index) => medical.outcome.changes[index].fields.frequency_unit === 'OneTime')).toBe(true)
     const correction = find('medical-correction')
     expect(correction.setup.input).toBe(medical.input)
-    expect(correction.setup.expectations).toEqual(medical.expectations)
+    expect(correction.setup.outcome).toEqual(medical.outcome)
     expect(correction.composition.correction.value).toBe('16:00')
-    expect(correction.expectations.required).toEqual([{ name: 'revise_pending_changes', resultStatus: 'PendingConfirmation' }])
-    expect(correction.expectations.counts).toEqual({ revise_pending_changes: 1 })
-    expect(correction.expectations.allowed).toEqual(['query_habits', 'revise_pending_changes'])
-    expect(correction.expectations.forbidden).toEqual(['bulk_create_habits', 'create_habit'])
-    expect(correction.rubric).toContain('from the setup preview')
-    expect(correction.rubric).not.toContain('one-time types')
+    expect(correction.outcome.changes[0].fields.due_time).toEqual({ time: '16:00' })
+    expect(correction.outcome.changes.slice(1)).toEqual(medical.outcome.changes.slice(1))
+    expect({ ...correction.outcome.changes[0].fields, due_time: medical.outcome.changes[0].fields.due_time }).toEqual(medical.outcome.changes[0].fields)
     expect(find('plan').composition.actionSurfaces).toEqual(['subscriptions'])
     expect(find('feature-help').composition.actionSurfaces).toEqual(['today'])
   }
