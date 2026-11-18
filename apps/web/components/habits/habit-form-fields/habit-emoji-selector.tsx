@@ -31,13 +31,14 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
       borderless
       minimumHeight={TOUCH_TARGET_MIN}
       loading={isSuggesting}
+      loadingFace="icon"
       focusableWhenLoading
       hint={isSuggesting ? t('habits.form.emojiSuggesting') : undefined}
       disabled={!isSuggesting && (!canSuggest || isDisabled)}
       descriptionId={[suggestionHint ? hintId : '', suggestionError ? errorId : ''].filter(Boolean).join(' ') || undefined}
       onClick={() => { if (canSuggest && !isDisabled && !isSuggesting) onSuggest() }}
     >
-      <OrbitMascot size={20} />
+      <OrbitMascot size={20} reading={isSuggesting} />
     </PillButton>
   ) : null
 }

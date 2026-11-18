@@ -46,15 +46,15 @@ describe('a wait shows a skeleton shaped like its final layout, never Loading te
     expectNoLoadingText(container, 'common.loading')
   })
 
-  it('keeps the proactive action label on its skeleton face while its status loads, with no Loading line', () => {
+  it('keeps the proactive action label on its well with its Orbit reading and no skeleton face while its status loads, with no Loading line', () => {
     const { container } = render(<ProactiveAction item={createMockProactiveItem()} acted={false} isOnline onSend={vi.fn()} />)
     const action = screen.getByRole('button')
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
     expect(action).not.toHaveAttribute('aria-describedby')
-    expect(action).toHaveClass('relative', 'isolate', 'bg-transparent')
+    expect(action).toHaveClass('relative', 'isolate', 'bg-[var(--bg-well)]')
     expect(action).not.toHaveClass('disabled:opacity-50')
-    expect(action.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
+    expect(action.querySelector('[data-slot="skeleton-face"]')).toBeNull()
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
     expectNoLoadingText(container, 'common.loading')
   })

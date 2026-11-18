@@ -305,7 +305,7 @@ describe('habit tag suggestions', () => {
     expect(action).toHaveAttribute('aria-busy', 'true')
     expect(action).toHaveAttribute('data-borderless', 'true')
     expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
-    expect(action.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).toBeInTheDocument()
+    expect(action.querySelector('[data-slot="skeleton-face"]')).toBeNull()
     expect(action).toHaveAccessibleDescription('habits.form.suggestingTags')
     expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
     fireEvent.click(action)

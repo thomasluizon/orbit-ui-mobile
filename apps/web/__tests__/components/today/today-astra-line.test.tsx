@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { TodayAstraLine } from '@/components/today/today-astra-line'
 
 describe('Hoje Orbit line', () => {
-  it('draws Orbit at 48 at the start edge, still inside its press target, with the foreground planet', () => {
+  it('draws the live Orbit at 48 at the start edge inside its press target, with the foreground planet, still while no conversation entry runs with it', () => {
     const onPress = vi.fn()
     render(<TodayAstraLine text="Sua rotina mudou. Vamos conversar?" destination="Abre a conversa" onPress={onPress} />)
     const line = screen.getByRole('button', { name: 'Sua rotina mudou. Vamos conversar?' })
