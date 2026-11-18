@@ -14,7 +14,7 @@ export const parseShard = (text) => {
   return index >= 1 && index <= count ? { index, count } : null
 }
 
-/** The most shards a local run starts at one time: the CI shard count of the tools gate. */
+/** The most shards a local run starts at one time. CI runs its own count (the tool-tests matrix in test.yml), so a local run above that count splits the modules more finely than CI. */
 export const MAX_LOCAL_SHARDS = 8
 
 /**
