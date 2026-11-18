@@ -419,6 +419,19 @@ for (const command of [
 ]) {
   T(`worker-browser: a device proof may not move its pinned variables or name another: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
 }
+// A shell wrapper cannot hide a device command from the pin (thread E8EM): the hook reads each unwrapped body.
+for (const command of [
+  "bash -c 'adb -s emulator-5554 shell pm clear org.useorbit.app'",
+  'sh -c "adb -e install app.apk"',
+  "eval adb -s emulator-5554 install app.apk",
+  "echo $(adb -s emulator-5554 shell pm clear org.useorbit.app)",
+  "echo `adb -s emulator-5554 shell pm clear org.useorbit.app`",
+  "bash -c \"bash -c 'adb -s emulator-5554 install app.apk'\"",
+]) {
+  T(`worker-browser: a device proof may not hide a command in a wrapper: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+T("worker-browser: a device proof wrapper of the pinned device passes", proofWorker("bash -c 'adb -s emulator-5594 shell input tap 1 1'"), null)
+T("worker-browser: a nesting the expander gives up on is refused", blocks(proofWorker(`${"echo $(".repeat(40)}adb devices${")".repeat(40)}`)), true)
 // The proof order and the hook agree: each command of the order passes the hook of the same pin.
 {
   const order = proofOrder({ slug: "owner/name", pullRequest: "7", head: "abc1234", plan: "1. Tap. Expected: it opens.", devices: ["iPhone 17"], evidenceDirectory: "/evidence", emulatorTool: "/launcher/checkout/tools/android-emulator.mjs" })
@@ -491,6 +504,35 @@ for (const command of [
 ]) {
   T(`read-only run: ${command} blocks`, /A read-only run writes nothing to GitHub/.test(readOnlyWorker(command)?.message ?? ""), true)
 }
+// A wrapper or a leading repository flag cannot hide a GitHub write (threads E8EM and E8EV).
+for (const command of [
+  "bash -c 'gh pr comment 2476 --body x'",
+  "sh -c \"gh pr merge 2476 --squash\"",
+  "eval gh pr merge 2476 --squash",
+  "echo $(gh pr comment 2476 --body x)",
+  "echo `gh pr comment 2476 --body x`",
+  "gh -R thomasluizon/orbit-ui-mobile pr comment 2476 --body x",
+  "gh -Rthomasluizon/orbit-ui-mobile pr comment 2476 --body x",
+  "gh --repo thomasluizon/orbit-ui-mobile pr merge 2476 --squash",
+  "gh --repo=thomasluizon/orbit-ui-mobile issue close 2145",
+  "gh -R thomasluizon/orbit-ui-mobile --repo thomasluizon/orbit-ui-mobile pr merge 2476",
+  "gh --unknown-flag pr view 2476",
+  "gh --hostname github.com pr comment 2476 --body x",
+]) {
+  T(`read-only run: ${command} blocks`, /A read-only run writes nothing to GitHub/.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "gh -R thomasluizon/orbit-ui-mobile pr view 2476",
+  "gh --repo=thomasluizon/orbit-ui-mobile pr view 2476 --json number,state",
+  "gh --repo thomasluizon/orbit-ui-mobile pr list --limit 1",
+  "gh --version",
+  "gh -h",
+  "bash -c 'gh pr view 2476'",
+  "echo $(gh pr diff 2476)",
+]) {
+  T(`read-only run: ${command} allows`, readOnlyWorker(command), null)
+}
+T("read-only run: a nesting the expander gives up on is refused", /nests shell wrappers/.test(readOnlyWorker(`${"echo $(".repeat(40)}gh pr view 2476${")".repeat(40)}`)?.message ?? ""), true)
 T("read-only run: a ticket worker keeps its own GitHub writes", checkReadOnlyRun("gh pr comment 2476 --body x", { env: { ORBIT_LAUNCH_WORKER: "1" } }), null)
 T("read-only run: a typed marker grants nothing to refuse", checkReadOnlyRun("ORBIT_READ_ONLY_RUN=1 gh pr comment 2476 --body x", { env: {} }), null)
 // The same commands from a session that is NOT a worker are none of this gate's business.

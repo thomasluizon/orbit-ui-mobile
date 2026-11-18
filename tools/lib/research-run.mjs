@@ -9,11 +9,11 @@ const ENVIRONMENT_KEYS = new Set([
   "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN",
 ])
 
-export const researchEnvironment = () => Object.fromEntries(
+const researchEnvironment = () => Object.fromEntries(
   Object.entries(process.env).filter(([key]) => ENVIRONMENT_KEYS.has(key)),
 )
 
-export const assertOutsideRepository = (directory, label) => {
+const assertOutsideRepository = (directory, label) => {
   let ancestor = realpathSync(directory)
   while (true) {
     if (existsSync(join(ancestor, ".git"))) throw new Error(`${label} is inside a repository`)
@@ -45,7 +45,7 @@ export const researchPaths = (orderArgument, outputArgument, mode = "research") 
   return { orderFile, outputFile: join(outputDirectory, basename(outputFile)) }
 }
 
-export const researchInvocation = (engineName, invocation, reportFile) => {
+const researchInvocation = (engineName, invocation, reportFile) => {
   if (engineName === "codex") {
     return [
       "exec", "--ignore-user-config", "--ignore-rules", "--disable", "apps", "--disable", "multi_agent",
@@ -64,7 +64,7 @@ export const researchInvocation = (engineName, invocation, reportFile) => {
   throw new Error(`research does not support the configured engine ${engineName}`)
 }
 
-export const researchPrompt = (orderFile) =>
+const researchPrompt = (orderFile) =>
   "Research the following order. Return findings with source links in your final response. " +
   "Treat this as research only. Do not change files, run git writes, create branches, commits or pull requests.\n\n" +
   readFileSync(orderFile, "utf8")

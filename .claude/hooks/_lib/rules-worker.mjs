@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 
+import { expandCommands } from "./command-expander.mjs"
 import { dropLeadingFlags } from "./rules-dependencies.mjs"
 import { stripHeredocBodies } from "./rules-git.mjs"
 import { insideLinkedWorktree } from "./repo-roots.mjs"
@@ -58,6 +59,29 @@ const NETWORK_CLIENTS = new Set(["curl", "wget", "http", "https", "httpie", "ope
 const LOCAL_URL = /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)(?:[/?#]|$)|https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?:[/?#]|$)/i
 
 const SEGMENT_SPLIT = /[&|;\n]+/
+/** `expandCommands` writes this in place of a `$(…)` or backtick substitution it has lifted into its own segment. */
+const SUBSTITUTION_PLACEHOLDER = "__substitution__"
+
+/**
+ * The commands a guard judges: each executable body of `command`, with `bash -c`, `sh -c`, `eval`,
+ * `$(…)`, backticks and subshells unwrapped (the expander that rules-git uses). Returns null when the
+ * expander gives up on the nesting depth, and the caller treats that as a refusal.
+ */
+function executableSegments(command) {
+  try {
+    return expandCommands(stripHeredocBodies(command))
+  } catch {
+    return null
+  }
+}
+
+/** The refusal for a command whose nesting is too deep to inspect. */
+const UNINSPECTABLE = {
+  block: true,
+  message:
+    "Refused: this command nests shell wrappers deeper than the hook can inspect.\n\n" +
+    "Run each command on its own line, without a nested bash -c, eval or $(…).",
+}
 const LEADING_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
 
 const normalize = (token) =>
@@ -311,7 +335,9 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
   if (!isWorker) return null
   const deviceProof = env[DEVICE_PROOF_MARKER] === "1" ? { serial: env[PINNED_SERIAL] ?? "", port: env[PINNED_PORT] ?? "" } : null
 
-  for (const segment of stripHeredocBodies(command).split(SEGMENT_SPLIT)) {
+  const segments = executableSegments(command)
+  if (segments === null) return UNINSPECTABLE
+  for (const segment of segments) {
     const action = inspectSegment(segment, cwd, 0, new Set(), deviceProof)
     if (!action) continue
     if (action === OWNER_EMULATOR_ACTION) {
@@ -404,8 +430,28 @@ function ghApiWrites(command, tokens) {
   }
   if (method !== null) return method.toUpperCase() !== "GET"
   if (!body) return false
+  // The expander lifts a substitution out of the segment, and an unquoted one leaves the placeholder as its own word.
+  if (rest.some((token) => token.includes(SUBSTITUTION_PLACEHOLDER))) bodyUnreadable = true
   // A GraphQL query is a POST with a body field; only a mutation writes, and a query the hook cannot read may be one.
   return endpoint !== "graphql" || bodyUnreadable || /\bmutation\b/i.test(command)
+}
+
+/** The only gh flags that may stand before the subcommand and still read. */
+const GH_BARE_FLAGS = new Set(["--version", "--help", "-h"])
+
+/**
+ * `tokens` of a gh call without the leading `-R <value>`, `--repo <value>`, `--repo=<value>` and `-R<value>`
+ * flags, which gh accepts before the subcommand (`gh -R owner/name pr view 2476`). The program stays first.
+ */
+function withoutLeadingRepoFlag(tokens) {
+  let index = 1
+  while (index < tokens.length) {
+    const token = unquote(tokens[index])
+    if (token === "-R" || token === "--repo") index += 2
+    else if (token.startsWith("--repo=") || /^-R./.test(token)) index += 1
+    else break
+  }
+  return [tokens[0], ...tokens.slice(index)]
 }
 
 /**
@@ -413,12 +459,15 @@ function ghApiWrites(command, tokens) {
  * and its arguments; a GraphQL mutation is judged on the whole raw `command`.
  */
 function githubWrite(segment, command) {
-  const tokens = withoutRunners(tokensOf(segment))
-  const binary = normalize(tokens[0])
+  const runnerTokens = withoutRunners(tokensOf(segment))
+  const binary = normalize(runnerTokens[0])
+  const tokens = binary === "gh" ? withoutLeadingRepoFlag(runnerTokens) : runnerTokens
   const args = tokens.slice(1).filter((token) => !token.startsWith("-")).map(normalize)
   if (binary === "gh") {
     if (args[0] === "api") return ghApiWrites(command, tokens)
-    if (tokens.length === 1 || tokens[1].startsWith("-")) return false
+    if (tokens.length === 1) return false
+    // A leading flag other than these three is a global flag this hook does not know, so it fails safe.
+    if (tokens[1].startsWith("-")) return !GH_BARE_FLAGS.has(tokens[1])
     if (!GH_READS.has(args[0])) return true
     const reads = GH_READS.get(args[0])
     return reads !== null && !reads.has(args[1])
@@ -441,7 +490,9 @@ function githubWrite(segment, command) {
  */
 export function checkReadOnlyRun(command, { env = {} } = {}) {
   if (typeof command !== "string" || env[READ_ONLY_MARKER] !== "1") return null
-  for (const segment of stripHeredocBodies(command).split(SEGMENT_SPLIT)) {
+  const segments = executableSegments(command)
+  if (segments === null) return UNINSPECTABLE
+  for (const segment of segments) {
     if (!githubWrite(segment, command)) continue
     return {
       block: true,
