@@ -36,8 +36,9 @@ UI `main` `b320dacf8`; API `main` `f7abe19fc`; landing `main` `20c1b0a90`; produ
 
 | Item | Disposition |
 | --- | --- |
-| ui#2486 (`#2074` speed build) | Pushed `6e39306a8`, Pullfrog asked, behind `main`: on approval merge `main`, push, wait, merge FIRST; then start `#2152`. |
-| ui#2451, ui#2483, ui#2481 | Pushed, Pullfrog asked: `wait-ci.mjs` each, rerun a cancelled `Tool tests` shard, merge at the bar. |
+| ui#2486 (`#2074` speed build) | 4 Pullfrog threads at `6e39306a8`: fix round 3; merge FIRST at the bar; then start `#2152`. |
+| ui#2451 | 3 Pullfrog threads at `2660a7dee`: fix round 26. |
+| ui#2483, ui#2481 | Pushed, Pullfrog asked: `wait-ci.mjs` each, rerun a cancelled `Tool tests` shard, merge at the bar. |
 | ui#2464, ui#2485, ui#2469, ui#2476, ui#2480, ui#2484, ui#2475, api#1121 | A fix round ran at the relay: read `git status`; a commit gets the delta review and the push, else relaunch its note with a continuation. ui#2480 also holds a `main` merge conflict fix. |
 | `#2159` (5-api) | Its build ran at the relay: a pull request gets the whole review, else relaunch S `order-2159-build.md` with a continuation. |
 | `#2129` rows 3b and 4 | Drafts S `ticket-2129-3b.md` and `ticket-2129-4.md` (or `4a`, `4b`): settle the open points (model S `settle-2129.mjs`), then file them. |
