@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
@@ -207,6 +207,23 @@ export const cases = async () => {
   report = await snapshot()
   T("run-status: live orphan workers are reported and suppress capacity actions", report.wakeSources.orphaned.length === 1 && report.nextActions.some((entry) => entry.type === "ORPHANED_WORKER"))
   clearWakeSource(999999999, repo.path)
+
+  reset()
+  const detachedProcesses = [0, 1, 2].map(() => spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" }))
+  const [detachedSupervisor, detachedWorker, detachedWaiter] = detachedProcesses
+  try {
+    const completionFile = join(workerLaunchDirectory(repo.path), "results", `${detachedSupervisor.pid}.json`)
+    registerWakeSource({ pid: detachedSupervisor.pid, workerPid: detachedWorker.pid, what: "worker ORB-9", detached: true, issue: "ORB-9", runDirectory: "/work/ORB-9", branch: "fix/orb-9", logFile: "/log",
+      startedAt: new Date(options.now - 1000).toISOString(), completionFile, ownerSessionId: "an earlier session", entryPid: 2 ** 22 + 1 }, repo.path)
+    report = await snapshot()
+    const waitAction = report.nextActions.find((entry) => entry.type === "WAIT_WORKER")
+    T("run-status: a detached worker without a file waiter gets a WAIT_WORKER action with the exact wait command", waitAction?.launcherPid === detachedSupervisor.pid && waitAction.issue === "ORB-9" && waitAction.command.startsWith(`node tools/wait-file.mjs --file ${completionFile} --started-at `), JSON.stringify(report.nextActions))
+    registerWakeSource({ pid: detachedWaiter.pid, kind: "file-waiter", file: completionFile, what: "worker ORB-9", sessionId }, repo.path)
+    T("run-status: the worker needs no WAIT_WORKER action once its file waiter is live", !(await snapshot()).nextActions.some((entry) => entry.type === "WAIT_WORKER"))
+  } finally {
+    for (const child of detachedProcesses) child.kill("SIGKILL")
+    for (const child of detachedProcesses) clearWakeSource(child.pid, repo.path)
+  }
 
   reset(); pull.reviewThreads.pageInfo.hasNextPage = true; setPull(pull)
   T("run-status: truncated connections cannot produce a merge or verification inference", !(await snapshot()).nextActions.some((entry) => ["MERGE_CANDIDATE", "VERIFY_DELIVERY", "RECORD_READINESS"].includes(entry.type)))

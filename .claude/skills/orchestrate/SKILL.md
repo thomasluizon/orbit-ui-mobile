@@ -28,8 +28,9 @@ node tools/run-status.mjs --session "<this session id>"
 
 Read its one JSON object and follow `nextActions[].command` from `commandDirectory`.
 Commands use relative paths when those are shorter. The action set is closed:
-`REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`, `RECORD_READINESS`, `BEHIND_BASE`,
+`REARM_WAIT_CI`, `WAIT_WORKER`, `VERIFY_DELIVERY`, `READ_REVIEW`, `RECORD_READINESS`, `BEHIND_BASE`,
 `CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`, `ORPHANED_WORKER`, `INTAKE`, `NO_ACTION`.
+`WAIT_WORKER` names a detached worker that has no file waiter in this session, and its command starts one.
 Delivery and readiness remain decisions of their named tools. A merge candidate calls the
 recorder again; it grants no merge authority. A foreign session has no actions. A linked
 worktree warning names the main checkout where the orchestrating run lives.
@@ -37,7 +38,7 @@ worktree warning names the main checkout where the orchestrating run lives.
 An `INTAKE` action continues the current `/auto-work` run through its complete intake cycle
 after driving the preceding in-flight actions. It appears on every active auto-work wake,
 including an empty queue with an expired idle waiter. It never ends that wake as `NO_ACTION`.
-A pending relay drain suppresses intake until succession under the existing relay protocol.
+A pending relay suppresses intake until succession under the existing relay protocol.
 
 A `NO_ACTION` wakeup ends immediately after at most one background re-arm, using its command
 only when no live wake source remains. Do not list the board, read logs, poll review or repeat
@@ -1508,20 +1509,27 @@ Context relays are the confirmed successor exception to this invariant. The Stop
 `.claude/orchestrator.json`. At the soft threshold it only arms the relay: work continues, and one
 message tells the session to finish the unit in front of it. The relay begins at the next quiet
 point, a turn end with every in-flight item waiting on a live wake source, or at the hard ceiling
-on any call. Then it writes `relay.pending`; admission refuses every new worker launch, including
-review batches. The owner set both values from the cost band that `node tools/measure-relay-cost.mjs` prints. Keep the admitted queue and
-ledger. Launch nothing while existing launchers or release watchers are live. Their exits
-wake this session; finish the drain without introducing another wakeup status scan.
+on any call. Then it writes `relay.pending`. The owner set both values from the cost band that `node tools/measure-relay-cost.mjs` prints. Keep the admitted queue and
+ledger. Launch no new work after `relay.pending`, because the handoff names the workers that exist when it is written.
 
-Live background Workflow runs and background subagents also hold the relay drain open until completion; a record is stale only when the owning Stop omits the run, a terminal workflow snapshot proves it settled, or its recorded process start identity is no longer live.
+A worker does not delay the relay. `tools/launch-worker.mjs` starts each ticket worker under a
+detached supervisor that the session cannot end, and the supervisor writes the completion file
+`<git dir>/orbit-worker-launches/results/<launcherPid>.json` atomically when the worker is gone. The relay carries each live worker
+to the successor, and the successor waits for it with `tools/wait-file.mjs` on that file. Admission refuses a launch
+only while `node tools/relay-session.mjs` runs, which is the `relay.runningSince` mark and lasts seconds.
+A launch that happens after the handoff was written makes the tool refuse with the missing wait command: write the handoff again.
 
-When no drain source remains, invoke `/handoff --relay --sleep`, then `node tools/relay-session.mjs`.
+Live background Workflow runs and background subagents still hold the relay open until completion, because they end with this session; a record is stale only when the owning Stop omits the run, a terminal workflow snapshot proves it settled, or its recorded process start identity is no longer live. Research launchers and release watchers hold it open for the same reason.
+
+When none of those remain, run `node tools/relay-session.mjs --workers`, which prints each live worker with its
+worktree, launch record, completion file and exact `waitCommand`. Invoke `/handoff --relay --sleep` and copy each `waitCommand` into
+the prompt, then run `node tools/relay-session.mjs`.
 The handoff filters the owner questions through `/questions --relay`, so only the questions that
-survive stay in the spec and run state. Never ask the owner during this transition. The tool verifies the pushed spec and prompt, stops this
-session's CI and file waiters and confirms a nominated successor from its run-state write. CI and
-file waiters may remain live during the drain; neither blocks it. A local check detached with
-`setsid` keeps running when its waiter stops. Carry the check and its absolute completion file
-in the handoff; the successor starts a new file waiter on that same file, passing the original start with `--started-at`. Successor
+survive stay in the spec and run state. Never ask the owner during this transition. The tool verifies the pushed spec and prompt, refuses a prompt that lacks the wait command of a live worker, stops this
+session's CI and file waiters and confirms a nominated successor from its run-state write. A worker supervisor
+and a local check detached with `setsid` keep running when the waiters stop. The successor starts one `tools/wait-file.mjs`
+waiter for each carried worker, passing the original start with `--started-at`; the run record's `relay.carriedWorkers` and the
+`WAIT_WORKER` action of `run-status.mjs` name the same commands. Successor
 adoption durably fences the predecessor before the reporting chain is finalized; reading
 the open chain reconciles interrupted finalization. The successor enters through `/sleep`, adopts the run with
 `adoptRelayRun`, and starts its first wakeup with `run-status.mjs` as usual. The open chain
@@ -1530,7 +1538,7 @@ retains every session's decisions, questions and shipping ledger until an owner 
 On relay failure, keep ownership and use `node tools/relay-session.mjs --retry-wake` as the
 background wake source for the ten minute retry cooldown. After two failures near the auto
 compact point, the hook records the fallback and permits continuation. Setting
-`relay.enabled: false` disables the relay hooks and drain admission refusal.
+`relay.enabled: false` disables the relay hooks and the launch refusal while the relay tool runs.
 
 **The invariant:** under `--sleep`, a turn may only end while at least one background task is still
 running, and the turn's last line names it. Nothing else continues the run. Ending a turn with no
@@ -1548,7 +1556,9 @@ has no request. Then ask for the review with `list-bot-threads.mjs --head <sha>`
 Then start the waiter with `--require-check pullfrog-approval`. Without the request, that waiter reaches
 its ceiling, because Pullfrog reviews only on request.
 The worker launcher, Cloud receipt watcher, CI waiter, release waiter, file waiter and relay tool
-each register a live wake source. For a detached local check, start
+each register a live wake source. A ticket worker's launcher is a detached supervisor: its Bash background task is only
+the entry process that gives this session the exit notification, and a signal to that task leaves the worker running. To stop a worker,
+send SIGTERM to its launcher pid. For a detached local check, start
 `node tools/wait-file.mjs --file <absolute completion file> --started-at <original ISO start> --what <check label>` in the background.
 Write the completion file atomically as JSON `{ "exitCode": <check exit status> }` after the check exits. Carry the original ISO start time with the file path. Use a fresh completion file for each check and reuse that file when restarting its waiter after
 a relay; a plain shell polling loop registers no wake source.

@@ -5,6 +5,7 @@ import { dirname, join } from "node:path"
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
 import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, writeRunState } from "../lib/run-state.mjs"
 import { cases as lifecycleCases, cleanupLifecycleLaunch, gateSignalCases, launcherResult } from "./launch-worker-lifecycle.mjs"
+import { cases as detachedCases } from "./launch-worker-detached.mjs"
 import { SIGN_IN_TEXT, TRANSIENT_TEXT, limitResultLine, resultLine, signInFailureLines } from "./claude-usage-limit.mjs"
 
 const TOOL = "launch-worker.mjs"
@@ -699,7 +700,7 @@ setInterval(() => {}, 60000)
   }
 }
 
-export const cases = async () => {
+const supervisedCases = async () => {
   const fixture = launch("dry-run", launchConfig())
   if (!fixture) {
     T(`${TOOL}: a real git worktree fixture is available`, false, "could not stage a git repository")
@@ -721,10 +722,18 @@ export const cases = async () => {
   discardLog(admittedExisting.stdout)
   const argv = ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt]
   const options = { path: fixture.path }
-  writeRunState({ sessionId: "draining", sleep: true, relay: { pending: true } }, fixture.base)
-  const draining = run(TOOL, [...argv, "--dry-run"], options)
-  T(`${TOOL}: a relay drain refuses even dry runs`, draining.status === 8 && /ADMISSION_REFUSED/.test(draining.stdout) && /RELAY_DRAIN/.test(draining.stdout))
-  writeRunState({ sessionId: "draining", sleep: true, relay: { pending: false } }, fixture.base)
+  writeRunState({ sessionId: "relaying", sleep: true, relay: { pending: true } }, fixture.base)
+  const pending = run(TOOL, [...argv, "--dry-run"], options)
+  T(`${TOOL}: a pending relay that has not started its tool run refuses no launch`, pending.status === 0 && !/ADMISSION_REFUSED/.test(pending.stdout), pending.stdout)
+  discardLog(pending.stdout)
+  writeRunState({ sessionId: "relaying", sleep: true, relay: { pending: true, runningSince: new Date().toISOString() } }, fixture.base)
+  const relaying = run(TOOL, [...argv, "--dry-run"], options)
+  T(`${TOOL}: a launch is refused only while the relay tool runs, even for dry runs`, relaying.status === 8 && /ADMISSION_REFUSED/.test(relaying.stdout) && /RELAY_RUNNING/.test(relaying.stdout))
+  writeRunState({ sessionId: "relaying", sleep: true, relay: { pending: true, runningSince: new Date(Date.now() - 10 * 60_000).toISOString() } }, fixture.base)
+  const stale = run(TOOL, [...argv, "--dry-run"], options)
+  T(`${TOOL}: a relay tool run that stopped without clearing its mark expires`, stale.status === 0, stale.stdout)
+  discardLog(stale.stdout)
+  writeRunState({ sessionId: "relaying", sleep: true, relay: { pending: false } }, fixture.base)
 
   const measured = check(TOOL, "--measurement resolves the longer no-progress cap", [...argv, "--measurement", "--dry-run"], { status: 0 }, options)
   const measuredPlan = JSON.parse(measured.stdout)
@@ -1203,4 +1212,14 @@ const poll = setInterval(() => {
     `exit ${refused.status}: ${refused.stderr || refused.stdout}`,
   )
 
+}
+
+/**
+ * Every case above drives the supervisor role directly: the process under test is the launcher whose pid
+ * the run records name. The detached cases below run the real entry process in front of it.
+ */
+export const cases = async () => {
+  process.env.ORBIT_LAUNCH_SUPERVISOR = "1"
+  try { await supervisedCases() } finally { delete process.env.ORBIT_LAUNCH_SUPERVISOR }
+  await detachedCases({ launch, launchConfig, stubEngine, githubAuthEnv, discardLog, launchAsync, IMMEDIATE })
 }

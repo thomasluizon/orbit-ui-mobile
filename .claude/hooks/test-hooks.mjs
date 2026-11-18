@@ -1311,6 +1311,14 @@ for (const count of [0, 1, 6]) {
   T(`relay: first crossing with ${count} launchers starts drain`, checkRelayStop({ ...relayOptions, wakeSources }).begin, true)
   T(`relay: pending drain with ${count} launchers injects only when empty`, Boolean(checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true } }, wakeSources })), count === 0)
 }
+for (const count of [1, 18]) {
+  const detached = Array.from({ length: count }, (_, index) => ({ pid: index + 1, workerPid: index + 1000, what: `worker ORB-${index}`, detached: true }))
+  T(`relay: ${count} detached workers do not delay the relay at the first crossing`, checkRelayStop({ ...relayOptions, wakeSources: detached }).begin, true)
+  T(`relay: ${count} detached workers do not hold a pending relay`, checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true } }, wakeSources: detached })?.begin, false)
+  T(`relay: ${count} detached workers are named in the start message as carried, not drained`, /Workers keep running: do not wait for them/.test(checkRelayStop({ ...relayOptions, wakeSources: detached }).message), true)
+  T(`relay: an old launcher beside ${count} detached workers still holds a pending relay`, checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true } }, wakeSources: [...detached, { pid: 99, what: "research" }] }), null)
+}
+T("sleep: a pending relay allows the stop and names no worker wait", /carries them/.test(checkSleepStop({ state: { ...relayState, relay: { pending: true } } }).message), true)
 for (const type of ["workflow", "subagent"]) {
   const backgroundRuns = [{ id: `${type}-task`, type }]
   T(`relay: pending ${type} blocks completion`, checkRelayStop({ ...relayOptions, backgroundRuns, state: { ...relayState, relay: { pending: true } } }), null)

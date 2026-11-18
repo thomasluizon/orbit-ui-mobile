@@ -101,7 +101,7 @@ export const adoptRelayRun = (sessionId, repoRoot = REPO_ROOT) => {
     if (!current?.relay?.pending || current.relay.successorSessionId !== sessionId) return undefined
     // The predecessor's filter left only the owner's questions in the queue, so the successor inherits it.
     return { ...current, sessionId, sleep: true, decisionLogPath: null,
-      relay: { from: current.sessionId, pending: false, successorTerminal: current.relay.successorTerminal } }
+      relay: { from: current.sessionId, pending: false, successorTerminal: current.relay.successorTerminal, carriedWorkers: current.relay.carriedWorkers ?? [] } }
   }, repoRoot, { sessionId }) !== undefined
 }
 

@@ -12,7 +12,8 @@ import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
+import { clearWakeSource, clearWorkerLaunchReservation, processStartIdentity, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, relayIsRunning, workerCompletionFile } from "./lib/run-state.mjs"
+import { followDetached, startOrphaned, writeExitFile } from "./lib/detached-launch.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -42,6 +43,13 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      account and configDirectory, the account a claude worker runs under
   --help, -h         print this usage and exit 0
 
+Ticket work runs under a detached supervisor, a process that no coordinator session can end: this
+command starts it, copies its stderr, and prints its stdout and exit code when it is done. If this
+command ends first, because its session ended or a signal reached it, the supervisor and the worker
+keep running and the supervisor writes the completion file <git dir>/orbit-worker-launches/results/<launcherPid>.json
+(the JSON below, with exitCode as an integer) atomically when the worker is gone. Watch that file with
+tools/wait-file.mjs. To stop a worker on purpose, send SIGTERM or SIGINT to its launcherPid, which the
+first stderr line names; a signal to this command only ends this command.
 Prints one JSON object on stdout when the worker is gone: issue, engine, tier, account, pid,
 logFile, startedAt, endedAt, exitCode, outcome, usageLimitReached, authenticationFailed, resultError
 and attempts, plus what the run left in the tree: commitsSinceLaunch, commits and treeClean.
@@ -53,7 +61,7 @@ relaunch. attempts names the account, log and outcome of each run, and each log 
 -worker-account.log or -main-account.log. authenticationFailed marks a sign-in the account could
 not complete, such as a cancelled account, and resultError carries the final error text.
 outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY, STOPPED or SPAWN_FAILED.
-A SIGINT or SIGTERM to this launcher ends the worker process tree, then publishes the result with STOPPED.
+A SIGINT or SIGTERM to the supervisor ends the worker process tree, then publishes the result with STOPPED.
 Research prints research, outputFile, published, engine, model, account, pid, logFile, startedAt, endedAt,
 exitCode, outcome, authenticationFailed and resultError. It publishes only a non-empty final response from an engine that exits 0.
 
@@ -63,6 +71,7 @@ exit codes: 0 the worker exited on its own, 1 this launcher killed it or it neve
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
             8 admission refused new ticket work before reservation,
             130 stopped by SIGINT, 143 stopped by SIGTERM
+            (this command itself exits 130 or 143 when a signal reaches it, with the worker still running)
 Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -120,6 +129,44 @@ if (research) {
   }
 }
 
+/**
+ * Ticket work runs under a supervisor that this session cannot end, so a context relay does not wait
+ * for the worker. This entry process stays attached only to give the session its exit notification.
+ */
+const supervisorRole = process.env.ORBIT_LAUNCH_SUPERVISOR === "1"
+if (!research && !dryRun && !supervisorRole) {
+  const directory = join(tmpdir(), "orbit-workers")
+  mkdirSync(directory, { recursive: true })
+  const stem = join(directory, `launch-${process.pid}-${Date.now()}`)
+  const paths = { stdoutPath: `${stem}.stdout`, stderrPath: `${stem}.stderr`, exitPath: `${stem}.exit.json` }
+  let supervisorPid
+  try {
+    supervisorPid = await startOrphaned({
+      command: process.execPath,
+      args: [fileURLToPath(import.meta.url), ...process.argv.slice(2)],
+      cwd: process.cwd(),
+      environment: { ...process.env, ORBIT_LAUNCH_SUPERVISOR: "1", ORBIT_LAUNCH_ENTRY_PID: String(process.pid), ORBIT_LAUNCH_EXIT_FILE: paths.exitPath },
+      ...paths,
+    })
+  } catch (error) {
+    fail(1, error.message)
+  }
+  console.error(`launcher pid ${supervisorPid} supervises the worker detached from this session; completion file ${workerCompletionFile(supervisorPid)}`)
+  for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143], ["SIGHUP", 129]]) {
+    process.on(signal, () => {
+      console.error(`${signal} ended this command only; launcher ${supervisorPid} keeps the worker running. To stop the worker, send SIGTERM to ${supervisorPid}`)
+      process.exit(exitCode)
+    })
+  }
+  const followed = await followDetached({ pid: supervisorPid, ...paths, forward: (text) => process.stderr.write(text) })
+  process.stdout.write(followed.stdout)
+  if (followed.exitCode === null) fail(1, `launcher ${supervisorPid} ended without an exit marker; read ${workerCompletionFile(supervisorPid)} if it exists`)
+  process.exit(followed.exitCode)
+}
+if (supervisorRole && process.env.ORBIT_LAUNCH_EXIT_FILE) {
+  process.on("exit", (exitCode) => writeExitFile(process.env.ORBIT_LAUNCH_EXIT_FILE, exitCode))
+}
+
 let issue = research ? "research" : null
 if (!research) {
   try {
@@ -140,8 +187,8 @@ try {
 }
 let launchRunState
 try { launchRunState = readRunState() } catch (error) { fail(2, error.message) }
-if (config.relay.enabled && launchRunState?.relay?.pending === true) {
-  console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", refusalReason: "RELAY_DRAIN", error: "RELAY_DRAIN" }))
+if (config.relay.enabled && relayIsRunning(launchRunState)) {
+  console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", refusalReason: "RELAY_RUNNING", error: "RELAY_RUNNING" }))
   process.exit(ADMISSION_REFUSED_EXIT)
 }
 
@@ -370,6 +417,7 @@ const reservation = research ? { allowed: true } : reserveWorkerLaunch({
   tier: invocation.tier,
   timestamp,
   relaunchReason: relaunchReasonArgument,
+  detached: supervisorRole,
 }, config.caps.workerLaunchesPerBranch, runDirectory)
 if (!reservation.allowed) {
   if (reservation.occupiedWorkerPid) fail(2, `worktree ${runDirectory} already has a live worker pid ${reservation.occupiedWorkerPid}`)
@@ -382,11 +430,23 @@ if (!reservation.allowed) {
 const accountLabel = (account) => account === null ? "" : ` on the ${account.name} account${account.configDirectory === null ? " (default Claude config)" : ` (${account.configDirectory})`}`
 const startedAt = new Date().toISOString()
 /**
+ * What a successor session needs to wait for this worker and to know that no entry process will wake
+ * it: the relay carries the worker by these fields, and run-status reads entryPid for a wake.
+ */
+const detachedFields = () => {
+  if (research || !supervisorRole) return {}
+  const entryPid = Number(process.env.ORBIT_LAUNCH_ENTRY_PID)
+  return {
+    detached: true, ownerSessionId: launchSessionId, issue, runDirectory, branch, completionFile: workerCompletionFile(process.pid),
+    ...(Number.isInteger(entryPid) && entryPid > 0 ? { entryPid, entryProcessStartIdentity: processStartIdentity(entryPid) } : {}),
+  }
+}
+/**
  * The orchestrator backgrounds this launcher. Register before any awaited setup or child spawn so
  * a Stop in that launch window can observe the live launcher. The reader expires this pending form
  * after 45 seconds, while the process identity still proves that the launcher itself really began.
  */
-if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt })) {
+if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt, ...detachedFields() })) {
   if (!research) clearWorkerLaunchReservation(process.pid, runDirectory)
   fail(3, "could not register the pending launcher wake source")
 }
@@ -615,7 +675,7 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
     attemptChild.kill()
     fail(3, "could not publish the worker pid in the worktree reservation")
   }
-  if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: attemptChild.pid, logFile: attemptLogFile, startedAt })) {
+  if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: attemptChild.pid, logFile: attemptLogFile, startedAt, ...detachedFields() })) {
     attemptChild.kill()
     fail(3, "could not publish the worker pid in the wake source")
   }
@@ -672,10 +732,10 @@ const finish = (attempts) => {
   const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
   const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
   const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
-  const result = { launcherPid: process.pid, sessionId: launchSessionId, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: invocation.model, account: last.account, configDirectory: last.configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, usageLimitReached: last.usageLimitReached, authenticationFailed: last.authenticationFailed, resultError: last.resultError, attempts, commitsSinceLaunch: commits.length, commits, treeClean }
-  const directory = join(workerLaunchDirectory(), "results")
-  mkdirSync(directory, { recursive: true })
-  const resultPath = join(directory, `${process.pid}.json`)
+  // wait-file.mjs and run-status.mjs read this file and accept only an integer exitCode, so a worker that a signal ended reads 1.
+  const result = { launcherPid: process.pid, sessionId: launchSessionId, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: invocation.model, account: last.account, configDirectory: last.configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode: Number.isInteger(exitCode) ? exitCode : 1, outcome, usageLimitReached: last.usageLimitReached, authenticationFailed: last.authenticationFailed, resultError: last.resultError, attempts, commitsSinceLaunch: commits.length, commits, treeClean }
+  const resultPath = workerCompletionFile(process.pid)
+  mkdirSync(dirname(resultPath), { recursive: true })
   const unpublished = `${resultPath}.unpublished`
   writeFileSync(unpublished, `${JSON.stringify(result)}\n`, { flag: "wx" })
   renameSync(unpublished, resultPath)

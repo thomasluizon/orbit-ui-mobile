@@ -57,6 +57,8 @@ export const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url))
 export const runStatePath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-orchestrate-run.json")
 export const wakeSourceDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-wake-sources")
 export const workerLaunchDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-worker-launches")
+/** Where a detached worker's launcher publishes its result when the worker is gone; wait-file.mjs watches it. */
+export const workerCompletionFile = (launcherPid, repoRoot = REPO_ROOT) => join(workerLaunchDirectory(repoRoot), "results", `${launcherPid}.json`)
 const occupiedWorktreePath = (repoRoot) => join(workerLaunchDirectory(repoRoot), "occupied-worktree.json")
 const processIsMissing = (pid) => {
   if (!Number.isInteger(pid) || pid <= 0) return true
@@ -693,6 +695,18 @@ export const readWakeSources = (repoRoot = REPO_ROOT) => readWakeSourceStates(re
 
 /** Relay waiters observe work that can outlive the session and are stopped at succession. */
 export const isRelayWaiter = (source) => source.kind === "auto-work-waiter" || source.kind === "file-waiter" || source.what?.startsWith("CI ") === true
+
+/** A worker supervisor that outlives its session: the relay carries it to the successor instead of waiting for it. */
+export const isDetachedWorker = (source) => source?.detached === true
+
+/** How long a relay tool run keeps new launches out. A run that stopped without clearing its mark expires. */
+export const RELAY_RUNNING_MAX_AGE_MS = 5 * 60_000
+
+/** True while relay-session.mjs is composing its successor, the only time a launch would miss the carry. */
+export const relayIsRunning = (state, now = Date.now()) => {
+  const runningSince = Date.parse(state?.relay?.runningSince)
+  return state?.relay?.pending === true && Number.isFinite(runningSince) && now - runningSince >= 0 && now - runningSince <= RELAY_RUNNING_MAX_AGE_MS
+}
 
 export const registerWakeSource = (source, repoRoot = REPO_ROOT) => {
   try {

@@ -49,15 +49,19 @@ It never asks the owner anything, and it never ends the session before a success
 is confirmed. This is the exception to the owner handoff's ending
 rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
 
+Workers do not delay a relay. Run `node tools/relay-session.mjs --workers` and put each printed worker in the
+in-flight inventory with its worktree, branch, launch record, completion file and `waitCommand`, the exact command that the
+successor runs as a background task. The relay tool refuses a prompt that lacks the `waitCommand` of a live worker.
+
 For a local check detached with `setsid` to survive the relay, start
 `node tools/wait-file.mjs --file <absolute completion file> --started-at <original ISO start> --what <check label>` as a background
-task. Write the completion file atomically as JSON `{ "exitCode": <check exit status> }` after the check exits. Carry the original ISO start time with the file path. Use a fresh completion file for each check. CI and file waiters may remain live during the
-drain; neither blocks it. The relay tool stops this session's waiters while the detached check
-keeps running. Record the check and its absolute completion file in the in-flight inventory;
+task. Write the completion file atomically as JSON `{ "exitCode": <check exit status> }` after the check exits. Carry the original ISO start time with the file path. Use a fresh completion file for each check. CI and file waiters may remain live;
+neither blocks the relay. The relay tool stops this session's waiters while the detached check and every worker supervisor
+keep running. Record the check and its absolute completion file in the in-flight inventory;
 the successor starts a new file waiter on that same file, passing the original start with `--started-at`. The waiter registers a wake source
 until it exits; a plain shell polling loop does not.
 
-Relay mode waits for every live background Workflow run and background subagent to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.
+Relay mode waits for every live background Workflow run, background subagent, release watcher and research launcher to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.
 
 Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs`, using this
 session's exact id. Carry every chain entry's complete decisions, along with the current
@@ -82,7 +86,7 @@ Add this one timeless line to the spec: `The session chain ledger lives untracke
 Keep session ids, timestamps, terminal handles and timed decision logs in that ledger.
 
 After committing and pushing both files in the orchestrating checkout, run
-`node tools/relay-session.mjs`. It remeasures the transcript and checks the actual launchers,
+`node tools/relay-session.mjs`. It remeasures the transcript and checks the live workers,
 release watchers and remote handoff before starting the successor. Only its confirmed
 successor result ends this session. Adoption transfers ownership and durably fences this
 session immediately, even if reporting confirmation is interrupted; the successor reconciles

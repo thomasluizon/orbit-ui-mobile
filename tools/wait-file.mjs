@@ -58,7 +58,7 @@ process.once("exit", () => clearWakeSource(process.pid, REPO_ROOT))
 process.once("SIGINT", () => finish("SIGINT", 130))
 process.once("SIGTERM", () => finish("SIGTERM", 143))
 if (!registerWakeSource({ pid: process.pid, kind: "file-waiter", sessionId: process.env.CLAUDE_CODE_SESSION_ID ?? readRunState()?.sessionId,
-  what: values["--what"] ?? file, startedAt: new Date().toISOString() }, REPO_ROOT)) {
+  what: values["--what"] ?? file, file, startedAt: new Date().toISOString() }, REPO_ROOT)) {
   finish("WAKE_REGISTRATION_FAILED", 1)
 }
 

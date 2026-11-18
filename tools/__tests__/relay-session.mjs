@@ -5,7 +5,9 @@ import { setTimeout as wait } from "node:timers/promises"
 import { closeRelayTerminal, relaySession } from "../relay-session.mjs"
 import { adoptRelayRun, appendChainEntry, confirmChainSuccessor, openSessionChain, readSessionChain, writeSessionChain } from "../lib/session-chain.mjs"
 import { ownerQuestionCandidates, questionFilterGaps, recordQuestionFilter } from "../lib/owner-questions.mjs"
-import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, updateRunState, writeRunState } from "../lib/run-state.mjs"
+import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, relayIsRunning, updateRunState, workerCompletionFile, writeRunState } from "../lib/run-state.mjs"
+import { liveDetachedWorkers, workersWithoutWaiter } from "../lib/detached-workers.mjs"
+import { processIsRunning } from "./_harness.mjs"
 import { readHandoffRequest, recordHandoffRequest } from "../lib/handoff-prompt.mjs"
 import { T, realOrchestratorConfig, stageRepo, stageWithConfig, toolPath } from "./_harness.mjs"
 import { ANSWERABLE, PRODUCT, exitedPid, reusedPidRecord, stageClaudeSessions } from "./owner-questions-core.mjs"
@@ -242,6 +244,88 @@ const fileWaiterCase = async () => {
   }
 }
 
+/** A detached worker as its supervisor registers it, with real processes standing in for the supervisor and the worker. */
+const stageDetachedWorker = (staged, issue) => {
+  const sleeper = () => spawn(process.execPath, ["-e", "setTimeout(() => {}, 120000)"], { stdio: "ignore" })
+  const supervisor = sleeper()
+  const worker = sleeper()
+  const startedAt = new Date().toISOString()
+  const completionFile = workerCompletionFile(supervisor.pid, staged.checkout)
+  registerWakeSource({ pid: supervisor.pid, workerPid: worker.pid, what: `worker ${issue}`, detached: true, issue, runDirectory: join(staged.checkout, issue), branch: `fix/${issue}`,
+    logFile: join(staged.checkout, `${issue}.log`), startedAt, completionFile, ownerSessionId: "predecessor", entryPid: 2 ** 22 + supervisor.pid }, staged.checkout)
+  return { supervisor, worker, issue, completionFile, startedAt }
+}
+
+const publishWorkers = (staged, workers) => {
+  const section = `## Live workers\n${workers.map((worker) => `- ${worker.waitCommand}`).join("\n")}\n`
+  writeFileSync(join(staged.checkout, ".claude", "handoffs", "NEXT.md"), readFileSync(join(staged.checkout, ".claude", "handoffs", "NEXT.md"), "utf8") + section)
+  staged.git(["add", ".claude/handoffs/NEXT.md"])
+  staged.git(["commit", "-qm", "carry workers"])
+  staged.git(["push", "-q", "origin", "relay-docs"])
+}
+
+const detachedWorkerCases = async () => {
+  const staged = fixture("detached-workers")
+  cpSync(toolPath("lib"), join(staged.checkout, "tools", "lib"), { recursive: true })
+  cpSync(toolPath("wait-file.mjs"), join(staged.checkout, "tools", "wait-file.mjs"))
+  cpSync(toolPath("relay-session.mjs"), join(staged.checkout, "tools", "relay-session.mjs"))
+  const detached = ["ORB-301", "ORB-302", "ORB-303"].map((issue) => stageDetachedWorker(staged, issue))
+  const waiters = []
+  try {
+    const carriedBefore = liveDetachedWorkers(staged.checkout)
+    T("relay-session: every live detached worker is carried with its worktree, completion file and exact wait command",
+      carriedBefore.length === 3 && carriedBefore.every((worker, index) => worker.completionFile === detached[index].completionFile && worker.worktree.endsWith(detached[index].issue) &&
+        worker.waitCommand.startsWith("node tools/wait-file.mjs --file ") && worker.waitCommand.includes(`--started-at ${detached[index].startedAt}`) && worker.launchRecord.endsWith(`${detached[index].supervisor.pid}.json`)), JSON.stringify(carriedBefore))
+    T("relay-session: a pending relay that has not started its tool run refuses no launch", readRunState(staged.checkout).relay.pending === true && !relayIsRunning(readRunState(staged.checkout)))
+    const refusedOperations = []
+    const refused = await failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: refusedOperations }), wait: async () => {}, confirmMilliseconds: 10 })
+    T("relay-session: a handoff that carries no live worker is refused, naming each wait command", detached.every((entry, index) => String(refused).includes(carriedBefore[index].waitCommand)) && /NEXT.md misses/.test(refused), String(refused))
+    T("relay-session: the refused relay launched no successor, kept no running mark and owes no retry cooldown", refusedOperations.length === 0 && !relayIsRunning(readRunState(staged.checkout)) && readRunState(staged.checkout).relay.lastAttemptAt === undefined)
+    const cli = spawnSync(process.execPath, [join(staged.checkout, "tools", "relay-session.mjs"), "--workers"], { encoding: "utf8", cwd: staged.checkout, env: { ...process.env, CLAUDE_CODE_SESSION_ID: "predecessor" } })
+    T("relay-session: --workers prints the carry that the handoff copies", cli.status === 0 && JSON.parse(cli.stdout).map((worker) => worker.waitCommand).join() === carriedBefore.map((worker) => worker.waitCommand).join(), cli.stderr)
+
+    publishWorkers(staged, carriedBefore)
+    const runningDuringRelay = []
+    const operations = []
+    const result = await relaySession({ repoRoot: staged.checkout, sessionId: "predecessor", wait: async () => {}, confirmMilliseconds: 10,
+      execute: (binary, args, cwd, environment) => {
+        const during = readRunState(staged.checkout)
+        // Calls after the successor adopts the run belong to the predecessor's terminal cleanup, which the relay tool no longer runs.
+        if (binary !== "git" && during.sessionId === "predecessor") runningDuringRelay.push(relayIsRunning(during))
+        return executeFor(staged.checkout, { commands: operations })(binary, args, cwd, environment)
+      } })
+    const successor = readRunState(staged.checkout)
+    T("relay-session: three live workers do not delay the relay and the successor is confirmed", successor.sessionId === result.successorSessionId && operations.some((args) => args[1] === "create"))
+    T("relay-session: launches are refused only while the relay tool composes the successor", runningDuringRelay.length > 0 && runningDuringRelay.every(Boolean) && !relayIsRunning(successor))
+    T("relay-session: the successor's run record carries each worker", successor.relay.carriedWorkers.map((worker) => worker.issue).join() === "ORB-301,ORB-302,ORB-303")
+    T("relay-session: the relay stops no worker supervisor and no worker",
+      detached.every((entry) => processIsRunning(entry.supervisor.pid) && processIsRunning(entry.worker.pid)) && readWakeSourceStates(staged.checkout).live.filter((source) => source.detached).length === 3)
+
+    T("relay-session: the successor owes a file waiter for each of the three workers", workersWithoutWaiter(staged.checkout, successor.sessionId).length === 3)
+    for (const worker of successor.relay.carriedWorkers) {
+      const child = spawn("/bin/sh", ["-c", `exec ${worker.waitCommand}`], { cwd: staged.checkout, env: { ...process.env, CLAUDE_CODE_SESSION_ID: successor.sessionId }, stdio: ["ignore", "pipe", "ignore"] })
+      let output = ""
+      child.stdout.on("data", (chunk) => { output += chunk })
+      waiters.push({ child, worker, closed: new Promise((resolve) => child.once("close", (status) => resolve({ status, output }))) })
+    }
+    const deadline = Date.now() + 10000
+    while (Date.now() < deadline && readWakeSourceStates(staged.checkout).live.filter((source) => source.kind === "file-waiter").length < 3) await wait(20)
+    const fileWaiters = readWakeSourceStates(staged.checkout).live.filter((source) => source.kind === "file-waiter")
+    T("relay-session: the successor holds exactly one file waiter for each live worker, on its completion file",
+      fileWaiters.length === 3 && detached.every((entry) => fileWaiters.filter((source) => source.file === entry.completionFile && source.sessionId === successor.sessionId).length === 1), JSON.stringify(fileWaiters))
+    T("relay-session: no worker is left without a waiter once the three are running", workersWithoutWaiter(staged.checkout, successor.sessionId).length === 0)
+
+    mkdirSync(join(staged.checkout, ".git", "orbit-worker-launches", "results"), { recursive: true })
+    detached.forEach((entry, index) => writeFileSync(entry.completionFile, JSON.stringify({ exitCode: index === 2 ? 1 : 0, outcome: "EXITED", issue: entry.issue })))
+    const settled = await Promise.race([Promise.all(waiters.map((waiter) => waiter.closed)), wait(10000).then(() => null)])
+    T("relay-session: each file waiter wakes the successor on its worker's completion file",
+      settled !== null && settled.map((entry) => entry.status).join() === "0,0,1" && settled.every((entry, index) => JSON.parse(entry.output).file === detached[index].completionFile && JSON.parse(entry.output).found === true), JSON.stringify(settled))
+  } finally {
+    for (const entry of detached) { entry.supervisor.kill("SIGKILL"); entry.worker.kill("SIGKILL") }
+    for (const waiter of waiters) waiter.child.kill("SIGKILL")
+  }
+}
+
 const questionFilterCases = async () => {
   const relay = (staged, operations = []) => failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: operations }), wait: async () => {}, confirmMilliseconds: 10 })
   const duplicated = fixture("questions-answerable", { questions: ANSWERABLE, chain: 7, filter: false })
@@ -387,6 +471,7 @@ const ownerHandoffCases = () => {
 }
 
 export const cases = async () => {
+  await detachedWorkerCases()
   await fileWaiterCase()
   await questionFilterCases()
   ownerHandoffCases()

@@ -55,6 +55,8 @@ const CASE_MODULES = [
   ["lib/github-read.mjs", "github-read"],
   ["select-artifact-attempts.mjs", "select-artifact-attempts"],
   ["lib/background-runs.mjs", "background-runs"],
+  ["lib/detached-launch.mjs", "detached-launch"],
+  ["lib/detached-workers.mjs", "detached-workers"],
   ["add-ticket-to-project.mjs", "add-ticket-to-project"],
   ["android-emulator.mjs", "android-emulator"],
   ["android-boot.mjs", "android-boot"],

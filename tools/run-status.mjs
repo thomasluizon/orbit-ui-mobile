@@ -12,6 +12,7 @@ import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { currentBaseShaOf, newestChecks, readinessReport, PASSING_CONCLUSIONS } from "./lib/readiness-receipt.mjs"
 import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, readWorkerLaunches, workerLaunchDirectory } from "./lib/run-state.mjs"
+import { workersWithoutWaiter } from "./lib/detached-workers.mjs"
 import { parseWorktreeList } from "./lib/git-worktrees.mjs"
 
 const USAGE = `usage: run-status.mjs --session <id>
@@ -296,6 +297,8 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
       : `node -e ${quote(`process.kill(${source.workerPid},0)` )}`
     nextActions.push(action("ORPHANED_WORKER", inspection, { workerPid: source.workerPid }))
   }
+  // A detached worker outlives the session that launched it: only a file waiter on its completion file wakes this one.
+  for (const worker of workersWithoutWaiter(repoRoot, sessionId)) nextActions.push(action("WAIT_WORKER", worker.waitCommand, { launcherPid: worker.launcherPid, issue: worker.issue }))
   const counts = readAdmissionCounts({ repoRoot, snapshots: snapshots.map((entry, index) => ({ ...entry, slug: repositories[index].slug })), limits: config.caps, now })
   if (state.remaining?.length > 0 && counts.slotFree && wakes.orphaned.filter((source) => source.research !== true).length === 0 && wakes.live.filter((source) => source.research !== true && (source.workerPid || (source.pending === true && source.what?.startsWith("worker ")))).length < config.caps.parallelTickets) {
     nextActions.push(action("SLOT_FREE", `node tools/plan-queue.mjs --tickets ${quote(state.remaining.join(","))}${state.sleep ? " --sleep" : ""}`))

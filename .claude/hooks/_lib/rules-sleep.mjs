@@ -11,7 +11,7 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
   // A record from a PREVIOUS run must never block today's session. The session id is exact, so
   // staleness needs no timestamp heuristic.
   if (typeof state.sessionId === "string" && state.sessionId !== "" && sessionId !== "" && state.sessionId !== sessionId) return null
-  if (relayEnabled && state.relay?.pending === true) return { block: false, terminal: "RELAY_DRAIN", message: "Launch nothing; wait for the live launchers, release watchers, background workflows and background subagents, or relay when drained." }
+  if (relayEnabled && state.relay?.pending === true) return { block: false, terminal: "RELAY_DRAIN", message: "Launch nothing new. Workers keep running and the relay carries them: wait only for release watchers, background workflows and background subagents, then run /handoff --relay --sleep and node tools/relay-session.mjs." }
 
   const remaining = Array.isArray(state.remaining) ? state.remaining.filter((entry) => typeof entry === "string" && entry !== "") : []
   const rawPullRequests = [
