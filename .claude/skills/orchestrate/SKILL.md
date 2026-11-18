@@ -1534,7 +1534,8 @@ survive stay in the spec and run state. Never ask the owner during this transiti
 session's CI and file waiters and confirms a nominated successor from its run-state write. A worker supervisor
 and a local check detached with `setsid` keep running when the waiters stop. The successor starts one `tools/wait-file.mjs`
 waiter for each worker that a `WAIT_WORKER` action of `run-status.mjs` names, with the original start in `--started-at`. The run record's
-`relay.carriedWorkers` holds the same workers, and the Stop hook blocks the successor until a file waiter watches each one. Successor
+`relay.carriedWorkers` holds the same workers, and the Stop hook blocks the successor until a file waiter watches each one. A worker that
+ends after the relay snapshot has no live supervisor, so `run-status.mjs` reports its result as `VERIFY_DELIVERY` for as long as `relay.carriedWorkers` names it. Successor
 adoption durably fences the predecessor before the reporting chain is finalized; reading
 the open chain reconciles interrupted finalization. The successor enters through `/sleep`, adopts the run with
 `adoptRelayRun`, and starts its first wakeup with `run-status.mjs` as usual. The open chain
