@@ -2,7 +2,7 @@
 import { readFileSync, statSync } from "node:fs"
 import { isAbsolute } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
-import { REPO_ROOT, clearWakeSource, isWakeSourceAlive, readRunState, registerWakeSource } from "./lib/run-state.mjs"
+import { REPO_ROOT, clearWakeSource, readRunState, registerWakeSource, watchProcess } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-file.mjs --file <absolute path> [--started-at <ISO timestamp>] [--what <label>] [--ceiling-minutes <n>] [--poll-seconds <n>]
        [--producer-pid <pid> --producer-start-identity <identity>]
@@ -68,6 +68,7 @@ if (!registerWakeSource({ pid: process.pid, kind: "file-waiter", sessionId: proc
 
 // The producer can write the file and end between the file read and the liveness read, so its absence counts only on a second read of the file.
 let producerGoneSeen = false
+const producerLives = producer === null ? null : watchProcess({ pid: producer.pid, startIdentity: producer.processStartIdentity })
 const deadline = started + ceilingMinutes * 60_000
 while (!finished) {
   try {
@@ -84,7 +85,7 @@ while (!finished) {
       finish("INVALID_MARKER", 1)
     }
   }
-  if (producer !== null && !isWakeSourceAlive(producer)) {
+  if (producerLives !== null && !producerLives()) {
     if (producerGoneSeen) finish("PRODUCER_GONE", 4)
     producerGoneSeen = true
     continue

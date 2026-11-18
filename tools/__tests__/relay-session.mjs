@@ -6,7 +6,7 @@ import { readDrainBlockers } from "../lib/background-runs.mjs"
 import { closeRelayTerminal, relaySession } from "../relay-session.mjs"
 import { adoptRelayRun, appendChainEntry, confirmChainSuccessor, openSessionChain, readSessionChain, writeSessionChain } from "../lib/session-chain.mjs"
 import { ownerQuestionCandidates, questionFilterGaps, recordQuestionFilter } from "../lib/owner-questions.mjs"
-import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, relayIsRunning, updateRunState, workerCompletionFile, writeRunState } from "../lib/run-state.mjs"
+import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, relayIsRunning, reserveWorkerLaunch, updateRunState, workerCompletionFile, writeRunState } from "../lib/run-state.mjs"
 import { liveDetachedWorkers, workersWithoutWaiter } from "../lib/detached-workers.mjs"
 import { processIsRunning } from "./_harness.mjs"
 import { readHandoffRequest, recordHandoffRequest } from "../lib/handoff-prompt.mjs"
@@ -326,11 +326,19 @@ const endedWorkerCases = async () => {
   writeFileSync(workerCompletionFile(endedPid, staged.checkout), JSON.stringify(resultOf(endedPid, "predecessor")))
   writeFileSync(workerCompletionFile(otherPid, staged.checkout), JSON.stringify(resultOf(otherPid, "another-session")))
   writeFileSync(workerCompletionFile(earlierPid, staged.checkout), JSON.stringify(resultOf(earlierPid, "first-session")))
+  // A supervisor that died without a result: only the ledger of its worktree names it.
+  const diedPid = 2 ** 22 + 14
+  const diedOtherPid = 2 ** 22 + 15
+  const ledgerOf = (launcherPid, sessionId) => ({ launcherPid, sessionId, issue: `ORB-${launcherPid}`, runDirectory: staged.checkout, repositoryKey: "ui", branch: `fix/${launcherPid}`, tier: "default", timestamp: new Date().toISOString(), headSha: "abc" })
+  reserveWorkerLaunch(ledgerOf(diedPid, "predecessor"), 9, staged.checkout)
+  reserveWorkerLaunch(ledgerOf(diedOtherPid, "another-session"), 9, staged.checkout)
   const earlier = { issue: `ORB-${earlierPid}`, launcherPid: earlierPid }
   updateRunState((current) => ({ ...current, relay: { ...current.relay, carriedWorkers: [earlier] } }), staged.checkout, { sessionId: "predecessor" })
   const outcome = await failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: [] }), wait: async () => {}, confirmMilliseconds: 10 })
   const carried = readRunState(staged.checkout).relay?.carriedWorkers ?? []
   T("relay-session: a worker that ended before the snapshot is carried through its result", outcome === null && carried.some((worker) => worker.launcherPid === endedPid && worker.ended === true && worker.issue === `ORB-${endedPid}`), JSON.stringify({ outcome: String(outcome), carried }))
+  T("relay-session: a launch whose supervisor died without a result is carried through its ledger record", carried.some((worker) => worker.launcherPid === diedPid && worker.ended === true && worker.issue === `ORB-${diedPid}` && worker.branch === `fix/${diedPid}` && worker.worktree === staged.checkout), JSON.stringify(carried))
+  T("relay-session: a ledger launch of another session is not carried", !carried.some((worker) => worker.launcherPid === diedOtherPid), JSON.stringify(carried))
   T("relay-session: a result of another session is not carried", !carried.some((worker) => worker.launcherPid === otherPid), JSON.stringify(carried))
   T("relay-session: the successor owes the ended worker a verification and no waiter", workersWithoutWaiter(staged.checkout, readRunState(staged.checkout).sessionId).length === 0)
   T("relay-session: a worker that the first relay carried stays carried through the second relay while its result exists", carried.some((worker) => worker.launcherPid === earlierPid && worker.ended === true), JSON.stringify(carried))

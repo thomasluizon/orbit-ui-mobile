@@ -2,7 +2,7 @@
 
 import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
-import { isDetachedWorker, isWakeSourceAlive, readWakeSourceStates, wakeSourceDirectory, workerCompletionFile, workerLaunchDirectory } from "./run-state.mjs"
+import { isDetachedWorker, isWakeSourceAlive, readWakeSourceStates, readWorkerLaunches, wakeSourceDirectory, workerCompletionFile, workerLaunchDirectory } from "./run-state.mjs"
 
 const shellQuote = (value) => /^[\w@%+=:,./-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`
 
@@ -31,7 +31,7 @@ const carried = (source, repoRoot) => ({
 })
 
 /** The launch results of the worker supervisors, oldest first. A file that does not hold a whole result reads as corrupt. */
-export const readLaunchResults = (repoRoot) => {
+const readLaunchResults =(repoRoot) => {
   const directory = join(workerLaunchDirectory(repoRoot), "results")
   let names
   try { names = readdirSync(directory).filter((name) => /^\d+\.json$/.test(name)) } catch { return [] }
@@ -45,16 +45,39 @@ export const readLaunchResults = (repoRoot) => {
       ? result : { launcherPid: Number(name.slice(0, -5)), corrupt: true })
 }
 
+/** A worker the predecessor launched stays owed to this session until its result is read: the relay snapshot is the only record that names it. */
+export const carriedLauncherPids = (carriedWorkers) => new Set((Array.isArray(carriedWorkers) ? carriedWorkers : []).map((worker) => worker?.launcherPid).filter(Number.isInteger))
+
 /**
- * The workers that ended and whose result `sessionId` or an earlier relay still owes to the next session. The supervisor
- * clears its wake source before it writes the result, so a worker that ends while the relay runs is in neither list otherwise.
- * `previous` is the `carriedWorkers` of the run record that this session adopted.
+ * Every launch that this session or an earlier relay still owes a verification, from the one reader that run-status.mjs
+ * and the relay share. A launch with a whole result is its result. A launch in the ledger of a worktree that has no whole
+ * result and no live or orphaned wake source is corrupt: the supervisor died without publishing, so only the ledger names it.
  */
-export const endedWorkersOwed = (repoRoot, sessionId, previous = []) => {
-  const earlier = new Set(previous.map((worker) => worker?.launcherPid).filter(Number.isInteger))
-  return readLaunchResults(repoRoot)
-    .filter((result) => !result.corrupt && (result.sessionId === sessionId || earlier.has(result.launcherPid)))
-    .map((result) => ({ issue: result.issue, launcherPid: result.launcherPid, branch: result.branch, worktree: result.runDirectory, completionFile: workerCompletionFile(result.launcherPid, repoRoot), ended: true }))
+export const launchesOwed = ({ repoRoot, sessionId, carriedPids, worktrees, wakes }) => {
+  const results = new Map(readLaunchResults(repoRoot)
+    .filter((launch) => !launch.sessionId || launch.sessionId === sessionId || carriedPids.has(launch.launcherPid))
+    .map((launch) => [launch.launcherPid, launch]))
+  const sources = [...wakes.live, ...wakes.orphaned]
+  for (const launch of worktrees.flatMap((worktree) => readWorkerLaunches(worktree))) {
+    if ((launch.sessionId !== sessionId && !carriedPids.has(launch.launcherPid)) || typeof launch.issue !== "string" || typeof launch.runDirectory !== "string") continue
+    if (sources.some((source) => source.pid === launch.launcherPid)) continue
+    const result = results.get(launch.launcherPid)
+    if (!result || result.corrupt) results.set(launch.launcherPid, { ...launch, corrupt: true })
+  }
+  return [...results.values()]
+}
+
+/**
+ * The workers that ended and that `sessionId` or an earlier relay still owes to the next session. The supervisor clears its
+ * wake source before it writes the result, so a worker that ends while the relay runs is in neither list otherwise, and a
+ * supervisor that dies without a result is named only by its ledger record. `previous` is the `carriedWorkers` of the run
+ * record that this session adopted; `worktrees` and `wakes` are reads the caller already made.
+ */
+export const endedWorkersOwed = ({ repoRoot, sessionId, previous = [], worktrees, wakes }) => {
+  const carriedPids = carriedLauncherPids(previous)
+  return launchesOwed({ repoRoot, sessionId, carriedPids, worktrees, wakes })
+    .filter((launch) => (launch.sessionId === sessionId || carriedPids.has(launch.launcherPid)) && ["issue", "runDirectory", "branch"].every((key) => typeof launch[key] === "string"))
+    .map((launch) => ({ issue: launch.issue, launcherPid: launch.launcherPid, branch: launch.branch, worktree: launch.runDirectory, completionFile: workerCompletionFile(launch.launcherPid, repoRoot), ended: true }))
 }
 
 /** Every detached worker whose supervisor still runs, including one inside its start window. `live` is a read the caller already made. */

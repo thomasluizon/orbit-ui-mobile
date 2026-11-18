@@ -167,9 +167,9 @@ failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or
   while that tool runs, which narrows the window to seconds but does not close it: the Stop hook of the successor is the backstop.
   CI and file waiters may remain live; neither blocks the relay. The relay tool stops
   this session's waiters while a worker supervisor or a local check detached with `setsid` keeps running.
-  The successor starts one `node tools/wait-file.mjs` for each carried worker and each carried
+  The successor starts one `node tools/wait-file.mjs` for each carried live worker and each carried
   check on its absolute completion file; a `WAIT_WORKER` action of `run-status.mjs` names each worker that lacks one,
-  and the Stop hook blocks the successor's turn end until none lacks one.
+  and the Stop hook blocks the successor's turn end until none lacks one. A carried worker with `ended: true` has no live supervisor, so it gets no waiter: `run-status.mjs` reports it as `VERIFY_DELIVERY`.
   A failed relay keeps this session responsible and uses `--retry-wake` for its ten minute
   cooldown. `/handoff --relay` filters the owner questions through `/questions --relay`; never ask
   the owner during the relay.

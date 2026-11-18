@@ -9,7 +9,7 @@ import { spawn } from "node:child_process"
 import { existsSync, readFileSync, renameSync, rmSync, statSync, openSync, readSync, closeSync, writeFileSync } from "node:fs"
 import { setTimeout as pause } from "node:timers/promises"
 import { fileURLToPath } from "node:url"
-import { processIsAlive, processStartIdentity } from "./run-state.mjs"
+import { processStartIdentity, watchProcess } from "./run-state.mjs"
 
 const EXIT_SUFFIX = ".exit.json"
 
@@ -59,7 +59,7 @@ const readFrom = (path, offset) => {
  * code. Null exitCode means the supervisor vanished without writing an exit marker.
  */
 export const followDetached = async ({ pid, stdoutPath, stderrPath, exitPath, forward, pollMilliseconds = 200 }) => {
-  const identity = processStartIdentity(pid)
+  const supervisorLives = watchProcess({ pid, startIdentity: processStartIdentity(pid) })
   let offset = 0
   const flush = () => {
     const chunk = readFrom(stderrPath, offset)
@@ -70,7 +70,7 @@ export const followDetached = async ({ pid, stdoutPath, stderrPath, exitPath, fo
     flush()
     if (existsSync(exitPath)) break
     // A pid that another process now holds, or none, means the supervisor is gone.
-    if (!processIsAlive(pid) || (identity !== null && processStartIdentity(pid) !== identity)) {
+    if (!supervisorLives()) {
       await pause(pollMilliseconds)
       break
     }
@@ -91,8 +91,7 @@ export const followDetached = async ({ pid, stdoutPath, stderrPath, exitPath, fo
  */
 export const settleSupervised = ({ exitPath, entryPid, entryProcessStartIdentity, exitCode }) => {
   writeExitFile(exitPath, exitCode)
-  const entryLives = processIsAlive(entryPid) && (entryProcessStartIdentity === null || processStartIdentity(entryPid) === entryProcessStartIdentity)
-  if (entryLives) return
+  if (watchProcess({ pid: entryPid, startIdentity: entryProcessStartIdentity })()) return
   const { stdoutPath, stderrPath } = supervisionPaths(exitPath.slice(0, -EXIT_SUFFIX.length))
   for (const path of [stdoutPath, stderrPath, exitPath]) rmSync(path, { force: true })
 }

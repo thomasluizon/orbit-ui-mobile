@@ -3,8 +3,10 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { followDetached, settleSupervised, startOrphaned, supervisionPaths, writeExitFile } from "../lib/detached-launch.mjs"
-import { processStartIdentity } from "../lib/run-state.mjs"
-import { processIsRunning, stage, T } from "./_harness.mjs"
+import * as runState from "../lib/run-state.mjs"
+import { countPsSpawns, processIsRunning, stage, T } from "./_harness.mjs"
+
+const { processStartIdentity } = runState
 
 const field = (name, pid) => spawnSync("ps", ["-o", `${name}=`, "-p", String(pid)], { encoding: "utf8" }).stdout.trim()
 
@@ -54,12 +56,50 @@ export const cases = async () => {
   const liveEntry = settleFiles("settle-live")
   settleSupervised({ exitPath: liveEntry.exitPath, entryPid: process.pid, entryProcessStartIdentity: processStartIdentity(process.pid), exitCode: 3 })
   T("detached-launch: settleSupervised publishes the marker and keeps the files for a live entry", JSON.parse(readFileSync(liveEntry.exitPath, "utf8")).exitCode === 3 && present(liveEntry) === 3)
+  // The entry carries its start identity in production. A killed orphan stays a zombie where pid 1 does not reap it, and a zombie has no identity.
   const goneEntry = settleFiles("settle-gone")
-  const gonePid = await startOrphaned({ command: process.execPath, args: ["-e", "process.exit(0)"], cwd: directory, environment: process.env, ...paths("settle-gone-process") })
-  await followDetached({ pid: gonePid, ...paths("settle-gone-process"), forward: () => {}, pollMilliseconds: 20 })
-  settleSupervised({ exitPath: goneEntry.exitPath, entryPid: gonePid, entryProcessStartIdentity: null, exitCode: 0 })
-  T("detached-launch: settleSupervised removes the stdout, stderr and exit files when the entry is gone", present(goneEntry) === 0)
+  const gonePid = await startOrphaned({ command: process.execPath, args: ["-e", "setTimeout(() => {}, 30000)"], cwd: directory, environment: process.env, ...paths("settle-gone-process") })
+  const goneIdentity = processStartIdentity(gonePid)
+  process.kill(gonePid, "SIGKILL")
+  for (let attempt = 0; attempt < 100 && processIsRunning(gonePid); attempt++) await new Promise((resolve) => setTimeout(resolve, 20))
+  settleSupervised({ exitPath: goneEntry.exitPath, entryPid: gonePid, entryProcessStartIdentity: goneIdentity, exitCode: 0 })
+  T("detached-launch: settleSupervised removes the stdout, stderr and exit files when the entry is gone", typeof goneIdentity === "string" && present(goneEntry) === 0)
   const reusedEntry = settleFiles("settle-reused")
   settleSupervised({ exitPath: reusedEntry.exitPath, entryPid: process.pid, entryProcessStartIdentity: "another-process-start", exitCode: 0 })
   T("detached-launch: settleSupervised treats a pid that another process now holds as a gone entry", present(reusedEntry) === 0)
+
+  const { watchProcess } = runState
+  const clock = (start = 0) => { let time = start; return { now: () => time, advance: (milliseconds) => { time += milliseconds } } }
+  const missingPid = 2 ** 22 + 5
+  const missingProbe = { identityOf: () => { throw new Error("a missing pid needs no identity read") } }
+  T("detached-launch: watchProcess reports a missing pid at once and reads no identity", typeof watchProcess === "function" && watchProcess({ pid: missingPid, startIdentity: "any", ...missingProbe })() === false)
+  let identityReads = 0
+  const steady = clock()
+  const steadyWatch = typeof watchProcess === "function" ? watchProcess({ pid: process.pid, startIdentity: "same", now: steady.now, identityOf: () => { identityReads++; return "same" } }) : () => false
+  let steadyAnswers = []
+  for (let poll = 0; poll < 100; poll++) { steadyAnswers.push(steadyWatch()); steady.advance(100) }
+  T("detached-launch: watchProcess reads the identity once in each interval across 100 polls of 10 seconds", steadyAnswers.every(Boolean) && identityReads === 2, String(identityReads))
+  let identity = "same"
+  const reused = clock()
+  const reusedWatch = typeof watchProcess === "function" ? watchProcess({ pid: process.pid, startIdentity: "same", now: reused.now, identityOf: () => identity }) : () => true
+  const beforeReuse = reusedWatch()
+  identity = "another-process"
+  reused.advance(4999)
+  const insideInterval = reusedWatch()
+  reused.advance(1)
+  T("detached-launch: watchProcess finds a pid that another process holds once the interval ends", beforeReuse === true && insideInterval === true && reusedWatch() === false)
+  T("detached-launch: watchProcess with no start identity checks the pid only", typeof watchProcess === "function" && watchProcess({ pid: process.pid, startIdentity: null, identityOf: () => { throw new Error("no identity to compare") } })() === true)
+
+  if (process.platform === "darwin") {
+    const following = paths("following")
+    const followedPid = await startOrphaned({ command: process.execPath, args: ["-e", "setTimeout(() => {}, 30000)"], cwd: directory, environment: process.env, ...following })
+    let result = null
+    const spawns = await countPsSpawns("following", async () => {
+      const running = followDetached({ pid: followedPid, ...following, forward: () => {}, pollMilliseconds: 20 })
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      process.kill(followedPid, "SIGKILL")
+      result = await running
+    })
+    T("detached-launch: followDetached starts ps a few times, not on each of its 20 millisecond polls, and still ends when the supervisor dies", spawns <= 4 && result?.exitCode === null, `ps spawns: ${spawns}`)
+  }
 }

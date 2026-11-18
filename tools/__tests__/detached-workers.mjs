@@ -4,8 +4,8 @@ import { dirname, join } from "node:path"
 import { setTimeout as pause } from "node:timers/promises"
 
 import { endedWorkersOwed, liveDetachedWorkers, workerWaitCommand, workersWithoutWaiter } from "../lib/detached-workers.mjs"
-import { processStartIdentity, registerWakeSource, workerCompletionFile } from "../lib/run-state.mjs"
-import { stage, T, toolPath } from "./_harness.mjs"
+import { processStartIdentity, readWakeSourceStates, registerWakeSource, reserveWorkerLaunch, workerCompletionFile } from "../lib/run-state.mjs"
+import { countPsSpawns, stage, T, toolPath } from "./_harness.mjs"
 
 /** Run wait-file.mjs from a staged checkout and resolve with its exit status and printed result. */
 const runWaiter = (repoRoot, args) => {
@@ -59,9 +59,22 @@ export const cases = async () => {
     writeFileSync(join(results, "9002.json"), JSON.stringify(resultOf(9002, "other")))
     writeFileSync(join(results, "9003.json"), JSON.stringify(resultOf(9003, "older")))
     writeFileSync(join(results, "9004.json"), "{ not json")
-    const owed = endedWorkersOwed(repoRoot, "first", [{ launcherPid: 9003 }, { issue: "no pid" }])
+    const owedFor = (sessionId, previous, worktrees = []) => endedWorkersOwed({ repoRoot, sessionId, previous, worktrees, wakes: readWakeSourceStates(repoRoot) })
+    const owed = owedFor("first", [{ launcherPid: 9003 }, { issue: "no pid" }])
     T("detached-workers: an ended worker is owed when its result names the session or an earlier relay carried it", owed.map((worker) => worker.launcherPid).sort().join() === "9001,9003" && owed.every((worker) => worker.ended === true && worker.completionFile === workerCompletionFile(worker.launcherPid, repoRoot)), JSON.stringify(owed))
     T("detached-workers: a result of another session and a corrupt result are not owed", !owed.some((worker) => [9002, 9004].includes(worker.launcherPid)))
+
+    // A supervisor that dies without a result leaves only its record in the ledger of its worktree.
+    const worktree = join(repoRoot, "ledger-worktree")
+    const ledgerLaunch = (launcherPid, sessionId) => ({ launcherPid, sessionId, issue: `ORB-${launcherPid}`, runDirectory: worktree, repositoryKey: "ui", branch: `fix/${launcherPid}`, tier: "default", timestamp: new Date().toISOString(), headSha: "abc" })
+    for (const [pid, sessionId] of [[9101, "first"], [9102, "other"], [9103, "older"]]) reserveWorkerLaunch(ledgerLaunch(pid, sessionId), 9, worktree)
+    const ledgerOwed = owedFor("first", [{ launcherPid: 9103 }], [worktree])
+    T("detached-workers: a ledger launch with no result and no wake source is owed to its session and to a carried pid", ledgerOwed.filter((worker) => [9101, 9103].includes(worker.launcherPid)).length === 2 && ledgerOwed.every((worker) => worker.ended === true), JSON.stringify(ledgerOwed))
+    T("detached-workers: a ledger launch of another session is not owed", !ledgerOwed.some((worker) => worker.launcherPid === 9102))
+    T("detached-workers: a ledger launch carries its worktree, branch and completion file", ledgerOwed.some((worker) => worker.launcherPid === 9101 && worker.worktree === worktree && worker.branch === "fix/9101" && worker.completionFile === workerCompletionFile(9101, repoRoot)))
+    writeFileSync(join(results, "9101.json"), JSON.stringify(resultOf(9101, "first")))
+    T("detached-workers: a launch with a whole result is owed once, as its result", owedFor("first", [], [worktree]).filter((worker) => worker.launcherPid === 9101).length === 1)
+    T("detached-workers: a ledger launch whose supervisor is live is not owed as ended", !owedFor("first", [], [worktree]).some((worker) => worker.launcherPid === supervisor.pid))
 
     mkdirSync(join(repoRoot, "tools"), { recursive: true })
     cpSync(toolPath("lib"), join(repoRoot, "tools", "lib"), { recursive: true })
@@ -73,6 +86,18 @@ export const cases = async () => {
     producer.kill("SIGKILL")
     const goneResult = await gone.closed
     T("detached-workers: a waiter ends with PRODUCER_GONE and exit 4 when its supervisor dies without the file", goneResult.status === 4 && JSON.parse(goneResult.output).reason === "PRODUCER_GONE" && JSON.parse(goneResult.output).found === false, JSON.stringify(goneResult))
+    if (process.platform === "darwin") {
+      const watched = start()
+      const watchedArgs = ["--file", join(repoRoot, "never-written-either.json"), "--producer-pid", String(watched.pid), "--producer-start-identity", processStartIdentity(watched.pid)]
+      let ended = null
+      const spawns = await countPsSpawns("waiter", async () => {
+        const waiting = runWaiter(repoRoot, watchedArgs)
+        await pause(2000)
+        watched.kill("SIGKILL")
+        ended = await waiting.closed
+      })
+      T("detached-workers: a waiter on a live supervisor starts ps a few times, not on each poll, and still ends when the supervisor dies", spawns <= 6 && ended?.status === 4, `ps spawns: ${spawns} ${JSON.stringify(ended)}`)
+    }
     const finished = join(repoRoot, "written-by-the-dead.json")
     writeFileSync(finished, JSON.stringify({ exitCode: 0 }))
     const foundResult = await runWaiter(repoRoot, [...producerArgs(finished), "--started-at", new Date(Date.now() - 60000).toISOString()]).closed

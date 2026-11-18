@@ -11,9 +11,9 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { currentBaseShaOf, newestChecks, readinessReport, PASSING_CONCLUSIONS } from "./lib/readiness-receipt.mjs"
-import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, readWorkerLaunches } from "./lib/run-state.mjs"
-import { readLaunchResults, workersWithoutWaiter } from "./lib/detached-workers.mjs"
-import { parseWorktreeList } from "./lib/git-worktrees.mjs"
+import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates } from "./lib/run-state.mjs"
+import { carriedLauncherPids, launchesOwed, workersWithoutWaiter } from "./lib/detached-workers.mjs"
+import { checkedOutWorktrees } from "./lib/git-worktrees.mjs"
 
 const USAGE = `usage: run-status.mjs --session <id>
 
@@ -159,12 +159,6 @@ const observePull = (row, pull, launches, wakes) => {
   return { observation, actions }
 }
 
-const readWorktrees = (repoRoot) => {
-  const result = spawnSync(process.env.GIT_BIN || "git", ["-C", repoRoot, "worktree", "list", "--porcelain"], { encoding: "utf8", timeout: 1000 })
-  if (result.status !== 0) return new Map()
-  return new Map(parseWorktreeList(result.stdout).filter((worktree) => worktree.branch !== null).map((worktree) => [worktree.branch, worktree.path]))
-}
-
 const githubRead = async (args, auth, runner) => {
   const result = await runner(process.env.GH_BIN || "gh", args, { env: auth.environment, timeoutMs: 3500, maxBuffer: 8 * 1024 * 1024 })
   if (result.error || result.timedOut || result.overflowed || result.status !== 0) throw new Error(redactSecrets(result.stderr || result.error?.message || (result.timedOut ? "GitHub read timed out" : `exit ${result.status}`), auth.secrets))
@@ -212,23 +206,8 @@ const repositoryTargets = ({ config, rows, owner, authenticate }) => {
       pending.catch(() => {})
       authentications.set(repositoryOwner, pending)
     }
-    return { key, path, slug, worktrees: readWorktrees(path), rows: rows.filter((row) => row.repositoryKey === key), auth: authentications.get(repositoryOwner) }
+    return { key, path, slug, worktrees: checkedOutWorktrees(path), rows: rows.filter((row) => row.repositoryKey === key), auth: authentications.get(repositoryOwner) }
   })
-}
-
-/** A worker the predecessor launched stays owed to this session until its result is read: the relay snapshot is the only record that names it. */
-const carriedLauncherPids = (state) => new Set((Array.isArray(state.relay?.carriedWorkers) ? state.relay.carriedWorkers : []).map((worker) => worker?.launcherPid).filter(Number.isInteger))
-
-const recoverLaunchResults = ({ repositories, wakes, launches, sessionId, carriedPids }) => {
-  const indexed = repositories.flatMap((repository) => [...repository.worktrees.values()].flatMap((worktree) => readWorkerLaunches(worktree)))
-    .filter((launch) => (launch.sessionId === sessionId || carriedPids.has(launch.launcherPid)) && typeof launch.issue === "string" && typeof launch.runDirectory === "string")
-  const results = new Map(launches.map((launch) => [launch.launcherPid, launch]))
-  for (const launch of indexed) {
-    if ([...wakes.live, ...wakes.orphaned].some((source) => source.pid === launch.launcherPid)) continue
-    const result = results.get(launch.launcherPid)
-    if (!result || result.corrupt) results.set(launch.launcherPid, { ...launch, corrupt: true })
-  }
-  return [...results.values()]
 }
 
 export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, runner = runBounded, authenticate = githubEnvironment, now = Date.now() } = {}) => {
@@ -242,15 +221,14 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
   if (state.sessionId !== sessionId) return { status: "FOREIGN_SESSION", nextActions: [] }
   config ??= readOrchestratorConfig()
   const wakes = readWakeSourceStates(repoRoot)
-  const carriedPids = carriedLauncherPids(state)
-  let launches = readLaunchResults(repoRoot).filter((launch) => !launch.sessionId || launch.sessionId === sessionId || carriedPids.has(launch.launcherPid))
+  const carriedPids = carriedLauncherPids(state.relay?.carriedWorkers)
   const rows = [...new Map([...(Array.isArray(state.pullRequests) ? state.pullRequests : []), ...(Array.isArray(state.readinessLedger) ? state.readinessLedger : [])]
     .filter((row) => typeof row?.repositoryKey === "string" && Number.isInteger(row.prNumber) && row.prNumber > 0 && typeof row.receiptPath === "string")
     .map((row) => [`${row.repositoryKey}#${row.prNumber}`, row])).values()]
   const liveRows = rows.filter((row) => !(typeof row.merged === "string" && /^[0-9a-f]{7,40}$/.test(row.merged)))
   const owner = repositorySlug(repoRoot).split("/")[0]
   const repositories = repositoryTargets({ config, rows: liveRows, owner, authenticate })
-  launches = recoverLaunchResults({ repositories, wakes, launches, sessionId, carriedPids })
+  const launches = launchesOwed({ repoRoot, sessionId, carriedPids, worktrees: repositories.flatMap((repository) => [...repository.worktrees.values()]), wakes })
   let budget = null
   try {
     const auth = await repositories[0].auth

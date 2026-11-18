@@ -9,6 +9,7 @@ import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
 import { readDrainBlockers } from "./lib/background-runs.mjs"
 import { endedWorkersOwed, liveDetachedWorkers } from "./lib/detached-workers.mjs"
+import { checkedOutWorktrees } from "./lib/git-worktrees.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
 import { questionFilterGaps } from "./lib/owner-questions.mjs"
 import { HANDOFF_PROMPT_PATH, checkoutSpecVersions, handoffAutoWork, handoffCrank, openingSpecPaths, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
@@ -166,7 +167,7 @@ export const relaySession = async ({ repoRoot = REPO_ROOT, sessionId = process.e
   let result
   try {
     releaseLock = acquireRelayLock(repoRoot)
-    result = await launchSuccessor({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds })
+    result = await launchSuccessor({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds, config })
   } catch (error) {
     // The change checks the owner itself; no caller id keeps a superseded refusal from hiding `error`.
     const failed = releaseLock ? updateRunState((state) => state?.sessionId === sessionId && state.relay?.pending
@@ -228,7 +229,7 @@ const successorCommand = (model, permissionMode, successorSessionId, repoRoot) =
   return `node tools/start-relay-successor.mjs --launch ${payload}`
 }
 
-const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds }) => {
+const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds, config }) => {
   const now = new Date().toISOString()
   const crank = handoffCrank(readHandoffRequest(sessionId, repoRoot), readRunState(repoRoot))
   const autoWork = handoffAutoWork(readHandoffRequest(sessionId, repoRoot), readRunState(repoRoot))
@@ -237,12 +238,15 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
   const successorSessionId = randomUUID()
   const command = successorCommand(metrics.lastCall.model, previous.relay.permissionMode, successorSessionId, repoRoot)
   assertNothingBlocks(repoRoot, sessionId)
+  // The ledger of a worker sits in its own worktree: read the worktrees before the update, so no git call runs inside the run-state lock.
+  const worktrees = Object.values(config.repos).flatMap((path) => [...checkedOutWorktrees(path).values()])
   const attempting = updateRunState((current) => {
     if (current?.sessionId !== sessionId || !current.relay?.pending) throw new Error("owner canceled the relay drain")
     // A launch that passed admission before runningSince was written can register after this read, and no refusal or carry covers it.
     // The Stop hook of the successor blocks on a worker with no file waiter, and run-status.mjs names its wait command.
-    // A worker that ended before this read has no live supervisor, so its result stays owed through the ended entries.
-    const carriedWorkers = [...liveDetachedWorkers(repoRoot), ...endedWorkersOwed(repoRoot, sessionId, current.relay.carriedWorkers)]
+    // A worker that ended before this read has no live supervisor: its result, or its ledger record when the supervisor died without one, stays owed through the ended entries.
+    const wakes = readWakeSourceStates(repoRoot)
+    const carriedWorkers = [...liveDetachedWorkers(repoRoot, wakes.live), ...endedWorkersOwed({ repoRoot, sessionId, previous: current.relay.carriedWorkers, worktrees, wakes })]
     return { ...current, relay: { ...current.relay, successorSessionId, lastAttemptAt: now, runningSince: now, carriedWorkers, attempts: (current.relay.attempts ?? 0) + 1 } }
   }, repoRoot, { sessionId })
   stopRelayWaiters(sessionId, repoRoot)

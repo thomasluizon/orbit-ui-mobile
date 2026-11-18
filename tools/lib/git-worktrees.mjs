@@ -57,6 +57,13 @@ export const parseWorktreeList = (porcelain) => porcelain.split(/\r?\n(?:\r?\n)+
   return { path: fields.get("worktree"), branch: fields.get("branch")?.replace(/^refs\/heads\//, "") ?? null, locked: fields.has("locked"), prunable: fields.has("prunable") }
 })
 
+/** Each worktree of the repository at `repoRoot` that has a branch checked out, as a Map of branch to path. A failed or slow git read gives an empty Map. */
+export const checkedOutWorktrees = (repoRoot) => {
+  const result = spawnSync(process.env.GIT_BIN || "git", ["-C", repoRoot, "worktree", "list", "--porcelain"], { encoding: "utf8", timeout: 1000 })
+  if (result.status !== 0) return new Map()
+  return new Map(parseWorktreeList(result.stdout).filter((worktree) => worktree.branch !== null).map((worktree) => [worktree.branch, worktree.path]))
+}
+
 /**
  * The directory of each `.git` entry under `path`, the path itself included; null when the walk fails or runs out of time.
  * A bare repository has no `.git` entry, so it is not found. A symbolic link is never followed, as neither `rm` nor

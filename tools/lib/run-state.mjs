@@ -644,6 +644,21 @@ export const processIsAlive = (pid) => {
   try { process.kill(pid, 0); return true } catch (error) { return error?.code === "EPERM" }
 }
 
+/**
+ * A liveness probe for one process that a poll loop calls often. A missing pid is found on the call, at the cost of one
+ * signal. The start identity runs `ps` on macOS, so the probe compares it at most once in `identityEveryMilliseconds`:
+ * a pid that another process now holds is found within that time. A null `startIdentity` leaves the pid as the only check.
+ */
+export const watchProcess = ({ pid, startIdentity, identityEveryMilliseconds = 5000, now = Date.now, identityOf = processStartIdentity }) => {
+  let comparedAt = -Infinity
+  return () => {
+    if (!processIsAlive(pid)) return false
+    if (startIdentity === null || now() - comparedAt < identityEveryMilliseconds) return true
+    comparedAt = now()
+    return identityOf(pid) === startIdentity
+  }
+}
+
 /** Recheck the recorded process at the decision point; pid ownership alone is not evidence. */
 export const isWakeSourceAlive = (source) =>
   Number.isInteger(source?.pid) && source.pid > 0 &&

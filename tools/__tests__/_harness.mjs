@@ -78,6 +78,23 @@ export const stage = (relativePath, body) => {
   return path
 }
 
+/**
+ * Runs `body` with a `ps` first on PATH that logs each call and then runs the real one, and returns how many times
+ * a tool under test started `ps` meanwhile. macOS reads a process start time through `ps`, so the count is the cost of
+ * each start identity read there. Use it only where `process.platform === "darwin"`.
+ */
+export const countPsSpawns = async (label, body) => {
+  const directory = dirname(stage(`ps-shim-${label}/.keep`, ""))
+  const log = join(directory, "calls.log")
+  const shim = join(directory, "ps")
+  writeFileSync(log, "")
+  writeFileSync(shim, `#!/bin/sh\necho call >> '${log}'\nexec /bin/ps "$@"\n`, { mode: 0o755 })
+  const earlierPath = process.env.PATH
+  process.env.PATH = `${directory}:${earlierPath}`
+  try { await body() } finally { process.env.PATH = earlierPath }
+  return readFileSync(log, "utf8").split("\n").filter(Boolean).length
+}
+
 /** `kill(pid, 0)` also succeeds for a defunct child. A zombie has terminated and cannot
  * retain work or ports, so process-tree assertions must not call it alive while PID 1 delays reaping. */
 export const processIsRunning = (pid) => {
