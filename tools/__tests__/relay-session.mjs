@@ -33,11 +33,9 @@ const fixture = (label, { tokens = relayThreshold, calls = 20, crank = false, cr
   repo.git(["commit", "-qm", "handoff"])
   repo.git(["push", "-q", "-u", "origin", "relay-docs"])
   const transcriptPath = join(checkout, ".git", "transcript.jsonl")
-  const decisionLogPath = join(checkout, ".git", "sleep-decisions.md")
-  writeFileSync(decisionLogPath, "Decision and reasoning copied in full.\n")
   writeFileSync(transcriptPath, Array.from({ length: calls }, (_, index) => JSON.stringify({ type: "assistant", timestamp: new Date(Date.now() - (calls - index) * 1000).toISOString(),
     message: { id: `call-${index}`, model: "claude-opus-5-5", usage: { ...usage, cache_read_input_tokens: tokens - 670 } } })).join("\n") + "\n")
-  writeRunState({ sessionId: "predecessor", sleep: true, crank, autoWork, intake: { gmail: { completed: ["message-1"] } }, remaining: ["#1091"], decisionLogPath, openOwnerQuestions: questions,
+  writeRunState({ sessionId: "predecessor", sleep: true, crank, autoWork, intake: { gmail: { completed: ["message-1"] } }, remaining: ["#1091"], openOwnerQuestions: questions,
     relay: { from: "predecessor", pending: true, measuredTokens: tokens, permissionMode: "bypassPermissions", transcriptPath, triggeredAt: new Date().toISOString() } }, checkout)
   for (let index = 1; index <= chain; index++) {
     appendChainEntry({ sessionId: `earlier-${index}`, openOwnerQuestions: questions }, checkout)
@@ -288,10 +286,8 @@ const ownerHandoffCases = () => {
   /** A finished attended run of another session, complete enough that a chain entry could be built from it. */
   const finishedRun = (checkout) => {
     const transcriptPath = join(checkout, ".git", "finished.jsonl")
-    const decisionLogPath = join(checkout, ".git", "finished-decisions.md")
     writeFileSync(transcriptPath, `${JSON.stringify({ type: "assistant", timestamp: new Date().toISOString(), message: { id: "call-0", model: "claude-opus-5-5", usage } })}\n`)
-    writeFileSync(decisionLogPath, "A decision of the finished run.\n")
-    return { sessionId: "finished", sleep: false, autoWork: false, transcriptPath, decisionLogPath, openOwnerQuestions: [...ANSWERABLE, PRODUCT] }
+    return { sessionId: "finished", sleep: false, autoWork: false, transcriptPath, openOwnerQuestions: [...ANSWERABLE, PRODUCT] }
   }
 
   const unowned = ownerCheckout(finishedRun)
@@ -442,7 +438,7 @@ export const cases = async () => {
   T("relay-session: all relay reporting and lock release precede predecessor close", closedAfterReport)
   T("relay-session: confirms only the nominated sleep successor", result.terminal === "term_successor" && readRunState(successful.checkout).relay.from === "predecessor")
   const entry = openSessionChain(result.successorSessionId, successful.checkout).entries[0]
-  T("relay-session: chain records measured metrics, complete decisions and questions", entry.measuredTokens === relayThreshold && entry.assistantCalls === 20 && entry.decisions === "Decision and reasoning copied in full.\n" && entry.openOwnerQuestions[0].question === "An owner question." && entry.questionFilter.dispositions[0].disposition === "queued" && entry.superseded === true)
+  T("relay-session: chain records measured metrics and questions, and no copy of a local decision log", entry.measuredTokens === relayThreshold && entry.assistantCalls === 20 && entry.decisions === undefined && entry.openOwnerQuestions[0].question === "An owner question." && entry.questionFilter.dispositions[0].disposition === "queued" && entry.superseded === true)
   T("relay-session: no terminal operation uses an empty handle", commands.filter((args) => ["send", "wait", "close"].includes(args[1])).every((args) => ["term_successor", "term_predecessor"].includes(args[args.indexOf("--terminal") + 1])))
   const command = commands.find((args) => args[1] === "create").at(-2)
   T("relay-session: successor command contains no evaluated source", !/eval|node -e|Buffer.from/.test(command))

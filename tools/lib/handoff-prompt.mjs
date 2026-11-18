@@ -227,7 +227,7 @@ export const adoptOwnerHandoffRun = (sessionId, prompt, repoRoot = REPO_ROOT) =>
     if (!sessionId || sessionId === previous?.sessionId || previous?.autoWork !== true || record?.from !== previous?.sessionId ||
         typeof prompt !== "string" || record.promptHash !== promptHash(prompt) || readHandoffRequest(record.from, repoRoot)?.origin !== "owner") return undefined
     if (record.promptHash !== promptHash(readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8"))) return undefined
-    return { ...previous, sessionId, sleep: true, decisionLogPath: null, relay: { from: previous.sessionId, pending: false },
+    return { ...previous, sessionId, sleep: true, relay: { from: previous.sessionId, pending: false },
       ownerHandoff: { ...record, successorSessionId: sessionId } }
   }, repoRoot, { sessionId })
   if (inherited === undefined) return false

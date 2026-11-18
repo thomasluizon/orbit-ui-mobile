@@ -3,6 +3,7 @@ import { join } from "node:path"
 import { collectProgressWindow } from "../lib/progress-window.mjs"
 import { writeSessionChain } from "../lib/session-chain.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
+import { composeRunNote } from "../lib/run-notes.mjs"
 import { T, root, toolPath } from "./_harness.mjs"
 
 export const fixture = (label) => {
@@ -13,9 +14,7 @@ export const fixture = (label) => {
     sessionId: `relay-${index}`, startedAt, endedAt: times[index + 1], shipped: [],
     decisions: `Complete decisions ${index}\nReasoning ${index}\n`, openOwnerQuestions: [`Question ${index}`],
   })) }] }, repoRoot)
-  const decisionLogPath = join(repoRoot, "decisions.md")
-  writeFileSync(decisionLogPath, "Current decision and its complete reasoning\n")
-  writeRunState({ sessionId: "current", decisionLogPath, openOwnerQuestions: ["Current question"], readinessLedger: [] }, repoRoot)
+  writeRunState({ sessionId: "current", openOwnerQuestions: ["Current question"], readinessLedger: [] }, repoRoot)
   const recorded = JSON.parse(readFileSync(toolPath("__fixtures__/progress-responses.json"), "utf8"))
   const repositories = ["ui", "api", "landing"].map((key) => ({ key, slug: `example/${key}` }))
   const calls = []
@@ -25,6 +24,12 @@ export const fixture = (label) => {
       if (path.includes("/pulls?")) return [times.map((time, index) => ({ ...recorded.pull, number: index + 1, merged_at: time })),
         [{ ...recorded.pull, number: 9, merged_at: null }, { ...recorded.pull, number: 10, merged_at: "2026-09-30T23:59:59Z" }]]
       if (path.includes("/issues?")) return [times.map((time, index) => ({ ...recorded.ticket, number: index + 1, closed_at: time, created_at: time }))]
+      // Decisions are run note comments on tickets; a plain comment in the same read is no decision.
+      if (path.includes("/issues/comments?")) return [[
+        { id: 7001, body: composeRunNote({ kind: "decision", body: "Current decision and its complete reasoning" }), created_at: "2026-10-01T03:30:00Z",
+          html_url: "https://github.com/example/tickets/issues/9#issuecomment-7001", issue_url: "https://api.github.com/repos/example/tickets/issues/9" },
+        { id: 7002, body: "A plain comment.", created_at: "2026-10-01T03:40:00Z",
+          html_url: "https://github.com/example/tickets/issues/9#issuecomment-7002", issue_url: "https://api.github.com/repos/example/tickets/issues/9" }]]
       const android = path.includes("android-release")
       const runs = times.map((time, index) => ({ ...(android ? recorded.android : recorded.run), id: index + 1 + (android ? 100 : 0),
         created_at: time, updated_at: time, ...(index === 3 ? { conclusion: null, status: "in_progress" } : {}) }))
@@ -68,8 +73,8 @@ const ownerBoundaryCases = async () => {
     earlier?.conversation.some((turn) => turn.text.includes("Owner question: which track?")))
   T("progress-window: baseline source and local start are explicit",
     windowReport.baselineSource === "previous-progress" && typeof windowReport.window.localStartedAt === "string")
-  T("progress-window: current session with recorded decisions has no conversation",
-    !Object.hasOwn(windowReport.entries.find((entry) => entry.sessionId === "current"), "conversation"))
+  T("progress-window: the current session reads its decisions from the ticket comments",
+    windowReport.entries.find((entry) => entry.sessionId === "current")?.decisionNotes.some((note) => note.text === "Current decision and its complete reasoning"))
   const offsetPrevious = "2026-09-30T20:00:00-03:00"
   const earlierPath = join(transcriptsDirectory, "earlier.jsonl")
   const earlierRows = readFileSync(earlierPath, "utf8")
@@ -148,10 +153,8 @@ const conversationCases = async () => {
   ]
   writeFileSync(join(transcriptsDirectory, "unrecorded.jsonl"), rows.map((row) => JSON.stringify(row)).join("\n") + "\n")
   const report = await collectProgressWindow({ ...staged.options, transcriptsDirectory })
-  for (const sessionId of ["relay-1", "current"]) {
-    T(`progress-window: ${sessionId} decision log replaces transcript conversation`,
-      !Object.hasOwn(report.entries.find((entry) => entry.sessionId === sessionId), "conversation"))
-  }
+  T("progress-window: a chain entry with copied decisions needs no transcript conversation",
+    !Object.hasOwn(report.entries.find((entry) => entry.sessionId === "relay-1"), "conversation"))
   const turns = report.entries.find((entry) => entry.sessionId === "unrecorded").conversation
   T("progress-window: fallback retains only owner prompts and assistant text within the window",
     turns.length === 4 && turns.map((turn) => turn.role).join() === "user,assistant,user,assistant" &&
@@ -239,7 +242,8 @@ export const cases = async () => {
       entry.merges.length === 3 && entry.releases.length === 4 && entry.closedTickets.length === 1 && entry.createdTickets.length === 1 &&
       [...entry.merges, ...entry.releases, ...entry.closedTickets].every((item) => item.id % 100 === index + 1))
     T(`progress-window: entry ${index} retains complete decisions and owner questions`,
-      entry.decisions === (index === 3 ? "Current decision and its complete reasoning\n" : `Complete decisions ${index}\nReasoning ${index}\n`) &&
+      (index === 3 ? entry.decisions === "" && entry.decisionNotes.length === 1 && entry.decisionNotes[0].text === "Current decision and its complete reasoning" && entry.decisionNotes[0].issue === 9
+        : entry.decisions === `Complete decisions ${index}\nReasoning ${index}\n` && entry.decisionNotes.length === 0) &&
       entry.openOwnerQuestions[0] === (index === 3 ? "Current question" : `Question ${index}`))
   }
   T("progress-window: middle relay's merge and release survive empty shipped and readiness ledgers",
@@ -251,7 +255,7 @@ export const cases = async () => {
     release?.environment === "staging" && release.branch === "integration/next" && release.dispatchBranch === "main" &&
     android?.track === "internal" && android.version === "1.3.59" && android.versionCode === "118")
   T("progress-window: pending runs remain visible without a success claim", report.entries.at(-1).releases.every((run) => run.conclusion === null && run.status === "in_progress"))
-  T("progress-window: one read per source, without GraphQL", staged.calls.length === 8 && new Set(staged.calls.map((call) => call.path)).size === 8 && staged.calls.every((call) => !call.path.includes("graphql")))
+  T("progress-window: one read per source, without GraphQL", staged.calls.length === 9 && new Set(staged.calls.map((call) => call.path)).size === 9 && staged.calls.every((call) => !call.path.includes("graphql")))
   T("progress-window: workflow date filter uses the verified day form", staged.calls.filter((call) => call.path.includes("/runs?")).every((call) => call.path.endsWith("created=%3E%3D2026-10-01")))
   const ticketKinds = await collectProgressWindow({ ...staged.options, readPages: async (path, projection) => {
     const pages = await staged.options.readPages(path, projection)
@@ -278,7 +282,7 @@ export const cases = async () => {
   const single = await collectProgressWindow({ ...standalone.options, transcriptPath })
   T("progress-window: no chain uses only the exact current transcript window", single.entries.length === 1 && single.entries[0].merges.length === 6 && single.window.startedAt === "2026-10-01T02:00:00.000Z")
   let remoteRead = false
-  writeRunState({ sessionId: "foreign", decisionLogPath: join(root, "missing") }, standalone.repoRoot)
+  writeRunState({ sessionId: "foreign" }, standalone.repoRoot)
   const absent = await collectProgressWindow({ ...standalone.options, readPages: async () => { remoteRead = true; throw new Error("unexpected read") } })
   T("progress-window: foreign state never creates a baseline or reads remote sources", absent.baseline === "unavailable" && !remoteRead)
   T("progress-window: source errors propagate instead of a partial success", await rejects({ ...staged.options, readPages: async () => { throw new Error("source unavailable") } }, /source unavailable/))

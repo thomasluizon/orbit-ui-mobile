@@ -1296,9 +1296,7 @@ T("relay fixture: local origin is configured", stagingGit(["remote", "add", "ori
 T("relay fixture: main is published locally", stagingGit(["push", "origin", "HEAD:refs/heads/main"], wakeCheckout).status, 0)
 T("relay fixture: base configuration is available", stagingGit(["update-ref", "refs/remotes/origin/redesign/main", "HEAD"], wakeCheckout).status, 0)
 for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "record-handoff-request.mjs", "require-handoff-prompt.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
-const relayDecisionLog = join(wakeCheckout, ".git", "relay-decisions.md")
-writeFileSync(relayDecisionLog, "No open decisions.\n")
-const relayState = { autoWork: false, sessionId: "relay-parent", sleep: true, remaining: ["#1091"], decisionLogPath: relayDecisionLog }
+const relayState = { autoWork: false, sessionId: "relay-parent", sleep: true, remaining: ["#1091"] }
 /** The shipped thresholds, so the crossing tests follow the real values instead of a copy of them. */
 const { softTokens: relaySoft, hardTokens: relayHard } = JSON.parse(readFileSync(join(repoRoot, ".claude", "orchestrator.json"), "utf8")).relay
 const relayOptions = { enabled: true, softTokens: relaySoft, hardTokens: relayHard, state: relayState, sessionId: relayState.sessionId, measuredTokens: relayHard }
