@@ -122,7 +122,7 @@ test("over the cap, the newest main entry of a release family stays however long
   const simulator = caches.find((cache) => cache.key.startsWith("macos-26-ARM64-xcode-26.6-ios-release-ccache-v2-"))
   const entry = (id, key, createdAt, readAt) => ({ ...simulator, id, key, created_at: createdAt, last_accessed_at: readAt })
   // iOS Release went 62.7 hours between two of its last 9 runs.
-  const iosDevice = entry(9001, `macos-26-ARM64-xcode-26.6-ios-device-ccache-v1-${simulator.key.slice(-64)}`, "2026-11-17T21:00:00.000000Z", new Date(now - 62.7 * 3_600_000).toISOString())
+  const iosDevice = entry(9001, `xcode-27-ARM64-xcode-27.1-ios-device-ccache-v1-${simulator.key.slice(-64)}`, "2026-11-17T21:00:00.000000Z", new Date(now - 62.7 * 3_600_000).toISOString())
   const androidRelease = entry(9002, `ccache-android-release-${lockfileHash}-43744653594`, "2026-11-13T10:00:00.000000Z", "2026-11-13T10:30:00.000000Z")
   const olderAndroidRelease = entry(9003, `ccache-android-release-${lockfileHash}-43521100417`, "2026-11-10T10:00:00.000000Z", "2026-11-13T10:00:00.000000Z")
   // A failed Mobile Android Build compile on main, another family.
