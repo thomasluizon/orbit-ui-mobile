@@ -136,6 +136,7 @@ function textInvocations(segment) {
 const OTHER_AVD_ACTION = "an AVD other than the throwaway of the proof"
 
 const UNPINNED_ACTION = "an unpinned device"
+const UNRESOLVED_WORD_ACTION = "a word that the hook cannot resolve"
 const unquote = (token) => String(token ?? "").replaceAll(/["']/g, "")
 
 /** Whether the words start the boot tool of the proof order: `node <path>/android-emulator.mjs`. */
@@ -202,26 +203,36 @@ const PINNED_NAMES = [PINNED_SERIAL, PINNED_PORT]
 const isPinnedReference = (part) => part.type === "variable" && PINNED_NAMES.some((name) => part.written === "$" + name || part.written === "${" + name + "}")
 
 /**
- * Whether a word holds a value that the walk cannot resolve: a variable it does not know (it tracks only lower-case names), a substitution
- * or a value that bash and zsh split in different ways. A proof reads a reference to a pinned variable as its pinned value, because
- * `changesPinnedVariable` keeps that variable at its pinned value.
+ * Why the walk cannot resolve a word, or "" when it can: a variable it does not know (it tracks only lower-case names), a glob, a brace
+ * expansion, a substitution or a value that bash and zsh split in different ways. A proof reads a reference to a pinned variable as its
+ * pinned value, because `changesPinnedVariable` keeps that variable at its pinned value.
  */
-function holdsUnresolvedValue(word, deviceProof) {
-  if (word.dynamic === "") return false
-  return word.fixed !== "" || word.parts.some((part) => part.type !== "text" && part.type !== "tilde" && !(deviceProof && isPinnedReference(part)))
+function unresolvedReason(word, deviceProof) {
+  if (word.dynamic === "") return ""
+  const holdsVariable = word.parts.some((part) => part.type !== "text" && part.type !== "tilde" && !(deviceProof && isPinnedReference(part)))
+  return word.fixed || (holdsVariable ? word.dynamic : "")
 }
+const holdsUnresolvedValue = (word, deviceProof) => unresolvedReason(word, deviceProof) !== ""
 
 /**
- * Whether a call to a program that decides a GitHub write, a token print or a device holds a word that the walk cannot resolve. Such a word
- * supplies the words that decide it (`M=-XPOST; gh api … $M`, `T=-t1; adb $T shell …`), and a first word that the walk cannot resolve
- * may be one of those programs behind a package runner.
+ * The first word, as `{ text, reason }`, that the walk cannot resolve in a call to a program that decides a GitHub write, a token print or a
+ * device, else null. Such a word supplies the words that decide it (`M=-XPOST; gh api … $M`, `T=-t1; adb $T shell …`), and a first word that
+ * the walk cannot resolve may be one of those programs behind a package runner.
  */
-function hasUnresolvedDecision(program, args, deviceProof, programs) {
+function unresolvedDecisionWord(program, args, deviceProof, programs) {
   const words = [program, ...args]
   const [first] = withoutRunners(words.map((word) => word.text))
   const decides = programs.has(normalize(first)) || isBootTool(words.map((word) => word.text)) || words.some((word) => word.text === first && holdsUnresolvedValue(word, deviceProof))
-  return decides && words.some((word) => holdsUnresolvedValue(word, deviceProof))
+  if (!decides) return null
+  const word = words.find((candidate) => holdsUnresolvedValue(candidate, deviceProof))
+  return word ? { text: word.source || word.text, reason: unresolvedReason(word, deviceProof) } : null
 }
+
+/** The sentences that follow the refusal of an unresolved word: what the hook can read. */
+const unresolvedAdvice = (found, deviceProof) =>
+  `The word ${found.text} holds ${found.reason}, and the hook cannot read its value. Write the literal value in full, with no glob, no brace\n` +
+  "expansion and no substitution, or use a lower-case variable that the same line sets to a literal." +
+  (deviceProof ? ` Only $${PINNED_SERIAL} and $${PINNED_PORT}, alone in a word, stand for their pinned value.` : "")
 
 /** The builtins whose words are `NAME=value`: the reader allows no option for them. */
 const ASSIGNING_BUILTINS = new Set(["export", "declare", "typeset", "local", "readonly"])
@@ -422,7 +433,8 @@ function judgeCommand(command, context) {
         if (context.deviceProof && wrappers.includes("xargs") && isDeviceProgram(withoutRunners([program, ...args].map((word) => word.text)))) return { action: UNPINNED_ACTION, source }
         const found = inspectWords([program, ...args].map((word) => word.text), source, context)
         if (found) return found
-        if (context.deviceProof && hasUnresolvedDecision(program, args, context.deviceProof, DEVICE_PROGRAMS)) return { action: UNPINNED_ACTION, source }
+        const unresolved = context.deviceProof && unresolvedDecisionWord(program, args, context.deviceProof, DEVICE_PROGRAMS)
+        if (unresolved) return { action: UNRESOLVED_WORD_ACTION, source, unresolved }
       }
     }
     return null
@@ -451,7 +463,7 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
 
   const found = judgeCommand(command, { cwd, depth: 0, activeScripts: new Set(), deviceProof })
   if (!found) return null
-  const { action, source, reason } = found
+  const { action, source, reason, unresolved } = found
   if (action === UNINSPECTABLE_ACTION) return UNINSPECTABLE
   if (action === UNREADABLE_PROOF_ACTION) return unreadable(reason, "a device proof")
   if (action === OTHER_AVD_ACTION) {
@@ -462,6 +474,12 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
         "Use the simulators that the order names, or boot the throwaway AVD with the command of the order:\n" +
         `node <launcher>/tools/android-emulator.mjs --avd orbit-proof-$${PINNED_PORT} --port $${PINNED_PORT}\n` +
         "The default AVD of that tool is the owner's, so pass --avd. Delete the AVD when the proof ends.",
+    }
+  }
+  if (action === UNRESOLVED_WORD_ACTION) {
+    return {
+      block: true,
+      message: `A device proof may not pass a word that the hook cannot resolve to a device call. Refused: ${source.trim().slice(0, 160)}\n\n${unresolvedAdvice(unresolved, true)}`,
     }
   }
   if (action === UNPINNED_ACTION) {
@@ -614,7 +632,14 @@ export function checkReadOnlyRun(command, { env = {} } = {}) {
     for (const { program, args, wrappers } of invocationsOf(words)) {
       // xargs adds the words from standard input, which decide the subcommand, the method and the body. A word that the walk cannot resolve does the same.
       const throughXargs = wrappers.includes("xargs") && GITHUB_PROGRAMS.has(normalize(withoutRunners([program, ...args].map((word) => word.text))[0]))
-      if (!throughXargs && !hasUnresolvedDecision(program, args, deviceProof, GITHUB_PROGRAMS) && !githubWrite([program, ...args], command)) continue
+      const unresolved = throughXargs ? null : unresolvedDecisionWord(program, args, deviceProof, GITHUB_PROGRAMS)
+      if (!throughXargs && !unresolved && !githubWrite([program, ...args], command)) continue
+      if (unresolved) {
+        return {
+          block: true,
+          message: `A read-only run may not pass a word that the hook cannot resolve to a gh call. Refused: ${words.map((word) => word.text).join(" ").slice(0, 160)}\n\n${unresolvedAdvice(unresolved, deviceProof)}`,
+        }
+      }
       return {
         block: true,
         message:

@@ -271,6 +271,8 @@ const orderCases = () => {
   const proof = proofOrder({ slug: "owner/name", pullRequest: "7", head: "abc1234", plan: "1. Tap. Expected: it opens.\n", devices: ["iPhone 17"], evidenceDirectory: "/evidence", emulatorTool: "/launcher/checkout/tools/android-emulator.mjs" })
   T(`${UNIT}: the proof boots with the launcher checkout's tool and an AVD named by its port (threads vkfg, vkfZ)`,
     proof.includes("`node /launcher/checkout/tools/android-emulator.mjs --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT`") && !proof.includes("node tools/android-emulator.mjs"), proof)
+  T(`${UNIT}: the proof tells the worker to write each device path in full, because the hook refuses a glob (thread QXTK)`,
+    proof.includes("Write each path in a device call in full, with no glob"), proof)
   T(`${UNIT}: both orders tell the worker to read the project rules, which this run does not load`,
     [review, proof].every((order) => order.includes("Read `CLAUDE.md` and `.claude/rules/core.md` of your directory first.")), review)
   same(`${UNIT}: the review order promises exactly the review verdict lines`, promised(review).map((line) => resultVerdict(line, "review")), ["VERDICT: CLEAN", "VERDICT: DEFECTS (2)"])

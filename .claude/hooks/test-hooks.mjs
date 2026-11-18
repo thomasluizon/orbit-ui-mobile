@@ -1441,7 +1441,7 @@ for (const command of [
   "echo https://api.github.com/repos/thomasluizon/orbit-ui-mobile | xargs curl",
   "echo pr comment 2476 | xargs -n 3 npx gh",
 ]) {
-  T(`read-only run: ${command} blocks`, /A read-only run writes nothing to GitHub/.test(readOnlyWorker(command)?.message ?? ""), true)
+  T(`read-only run: ${command} blocks`, /A read-only run (writes nothing to GitHub|may not pass a word that the hook cannot resolve)/.test(readOnlyWorker(command)?.message ?? ""), true)
 }
 // A wrapper or a leading repository flag cannot hide a GitHub write (threads E8EM and E8EV).
 for (const command of [
@@ -1463,7 +1463,7 @@ for (const command of [
   "env A=1 gh pr merge 2476 --squash",
   "find . -maxdepth 0 -exec gh pr merge 2476 --squash ';'",
 ]) {
-  T(`read-only run: ${command} blocks`, /A read-only run writes nothing to GitHub/.test(readOnlyWorker(command)?.message ?? ""), true)
+  T(`read-only run: ${command} blocks`, /A read-only run (writes nothing to GitHub|may not pass a word that the hook cannot resolve)/.test(readOnlyWorker(command)?.message ?? ""), true)
 }
 for (const command of [
   "gh -R thomasluizon/orbit-ui-mobile pr view 2476",
@@ -1489,7 +1489,7 @@ for (const command of [
   "echo 2476 | xargs gh pr merge --squash",
   "echo 2476 | xargs -n 1 gh pr merge --squash",
 ]) {
-  T(`read-only run: ${command} blocks`, /A read-only run writes nothing to GitHub/.test(readOnlyWorker(command)?.message ?? ""), true)
+  T(`read-only run: ${command} blocks`, /A read-only run (writes nothing to GitHub|may not pass a word that the hook cannot resolve)/.test(readOnlyWorker(command)?.message ?? ""), true)
 }
 for (const command of [
   "echo 'gh pr merge 2476 --squash' | bash",
@@ -1560,16 +1560,37 @@ for (const command of [
   "gh api repos/o/r/issues/1/comments ${M:--XPOST}",
   "gh api -X GET repos/o/r/issues/1/comments ${ANDROID_SERIAL:+-XPOST}",
 ]) {
-  T(`read-only run: ${command} blocks, a word that the walk cannot resolve supplies the words that decide the write`, READ_ONLY_REFUSAL.test(readOnlyWorker(command)?.message ?? "") || /A read-only run writes nothing/.test(readOnlyWorker(command)?.message ?? ""), true)
+  T(`read-only run: ${command} blocks, a word that the walk cannot resolve supplies the words that decide the write`, READ_ONLY_REFUSAL.test(readOnlyWorker(command)?.message ?? "") || /A read-only run may not pass a word that the hook cannot resolve/.test(readOnlyWorker(command)?.message ?? ""), true)
 }
 for (const command of [
   "M=-XPOST; gh api repos/o/r/issues/1/comments $M",
   "S=--show-token; gh auth status $S",
   "gh api -X GET repos/o/r/issues/1/comments ${ANDROID_SERIAL:?missing}",
-  "gh api repos/o/r/issues/1/comments -f body=$ANDROID_SERIAL",
 ]) {
-  T(`read-only run: a proof refuses ${command}`, /A read-only run writes nothing/.test(proofReadOnlyWorker(command)?.message ?? ""), true)
+  T(`read-only run: a proof refuses ${command}`, /A read-only run may not pass a word that the hook cannot resolve/.test(proofReadOnlyWorker(command)?.message ?? ""), true)
 }
+T("read-only run: a proof still reads a pinned variable in a body as a write", /A read-only run writes nothing to GitHub/.test(proofReadOnlyWorker("gh api repos/o/r/issues/1/comments -f body=$ANDROID_SERIAL")?.message ?? ""), true)
+// A refusal of an unresolved word names the word and the reason, and says what passes (thread QXTK).
+for (const [command, word, reason] of [
+  ["gh pr view $PR --json files", "$PR", "a variable"],
+  ["gh pr view 2476 --json files,$FIELDS", "files,$FIELDS", "a variable"],
+  ["gh pr diff $(echo 2476)", "$(echo 2476)", "a command substitution"],
+  ["gh pr view 2476 --json {files,body}", "{files,body}", "a brace expansion"],
+]) {
+  const message = readOnlyWorker(command)?.message ?? ""
+  T(`read-only run: the refusal of ${command} names ${word} and ${reason}`, message.includes(`The word ${word} holds ${reason}`) && message.includes("Write the literal value in full") && !message.includes("Read with gh pr view"), true)
+}
+for (const [command, word, reason] of [
+  ["adb -s $ANDROID_SERIAL install /tmp/build/outputs/apk/release/*.apk", "/tmp/build/outputs/apk/release/*.apk", "a glob"],
+  ["adb install /tmp/build/outputs/apk/release/app-*-release.apk", "/tmp/build/outputs/apk/release/app-*-release.apk", "a glob"],
+  ["adb shell am start -n $PKG/.MainActivity", "$PKG/.MainActivity", "a variable"],
+  ["adb shell input text $(date)", "$(date)", "a command substitution"],
+]) {
+  const message = proofWorker(command)?.message ?? ""
+  T(`worker-browser: the refusal of ${command} names ${word} and ${reason}`, message.includes(`The word ${word} holds ${reason}`) && message.includes("Write the literal value in full") && message.includes("Only $ANDROID_SERIAL and $ORBIT_PROOF_EMULATOR_PORT") && !message.includes("run adb with no option"), true)
+}
+T("worker-browser: a proof still reads an unpinned serial as the pinned-device refusal", /run adb with no option/.test(proofWorker("adb -s emulator-5554 shell pm clear org.useorbit.app")?.message ?? ""), true)
+T("worker-browser: a proof allows its own APK path written in full", proofWorker("adb -s $ANDROID_SERIAL install /tmp/build/outputs/apk/release/app-release.apk"), null)
 for (const command of [
   "echo $HOME; gh pr view 2476",
   "m=-XGET; gh api repos/o/r/pulls/2476/comments $m",
@@ -1588,13 +1609,13 @@ for (const command of [
   "A=-avd; emulator $A orbit-proof-5594 -port 5594 -no-window",
   "E=emulator; npx $E -avd orbit-proof-5594 -port 5594",
 ]) {
-  T(`worker-browser: a proof refuses ${command}, a word that the walk cannot resolve supplies the device`, /pinned device emulator-5594|may boot only its throwaway AVD/.test(proofWorker(command)?.message ?? ""), true)
+  T(`worker-browser: a proof refuses ${command}, a word that the walk cannot resolve supplies the device`, /pinned device emulator-5594|may boot only its throwaway AVD|may not pass a word that the hook cannot resolve/.test(proofWorker(command)?.message ?? ""), true)
 }
 T("worker-browser: a proof allows the order's own variables, ANDROID_SERIAL and ORBIT_PROOF_EMULATOR_PORT, next to a word it can resolve",
   proofWorker('package=org.useorbit.app; adb -s "$ANDROID_SERIAL" shell pm clear $package'), null)
 T("worker-browser: the unresolved word rule leaves a program that is no device program alone", proofWorker("echo $HOME; ls $DIR"), null)
 T("read-only run: a typed marker grants nothing to refuse (unresolved word)", checkReadOnlyRun("M=-XPOST; gh api x $M", { env: {} }), null)
-T("read-only run: a ticket worker keeps its own GitHub writes",checkReadOnlyRun("gh pr comment 2476 --body x", { env: { ORBIT_LAUNCH_WORKER: "1" } }), null)
+T("read-only run: a ticket worker keeps its own GitHub writes", checkReadOnlyRun("gh pr comment 2476 --body x", { env: { ORBIT_LAUNCH_WORKER: "1" } }), null)
 T("read-only run: a typed marker grants nothing to refuse", checkReadOnlyRun("ORBIT_READ_ONLY_RUN=1 gh pr comment 2476 --body x", { env: {} }), null)
 // The same commands from a session that is NOT a worker are none of this gate's business.
 T("worker-browser: npm run dev outside a worker allows", checkWorkerBrowser("npm run dev", { env: {}, cwd: "", repoRoots: [] }), null)

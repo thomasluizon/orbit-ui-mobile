@@ -507,7 +507,7 @@ you finish. Boot it with the orchestrating checkout's tool, on the port that the
 \`node ${emulatorTool} --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT\`.
 The AVD name holds the port, so no other proof uses the same AVD. Its serial is \`$ANDROID_SERIAL\`, which adb
 uses when a command names no device: \`adb -s $ANDROID_SERIAL install <file>\` is the same as
-\`adb install <file>\`. Never pass another serial, never clear or change either variable, never boot or use \`Orbit_Pixel_9_API_35\`, the owner's emulator, and never
+\`adb install <file>\`. Write each path in a device call in full, with no glob, because the hook refuses a word that it cannot resolve. Never pass another serial, never clear or change either variable, never boot or use \`Orbit_Pixel_9_API_35\`, the owner's emulator, and never
 sign in to a personal account. Read \`.claude/playbooks/operations.md\` \`## Android devices and Play\` before you use a device.
 
 ${PROJECT_RULES}
