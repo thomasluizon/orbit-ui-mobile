@@ -5,6 +5,7 @@ import { requireEvalOrigin, resetFixture } from '../fixtures/reset.mjs'
 import { fixtureHabitTitles } from '../fixtures/names.mjs'
 import { requireEvalAccess, requireEvalTrace } from '../fixtures/api.mjs'
 import { requireCatalogCommit } from '../trace-policy.mjs'
+import { mustPassKOf } from './corpus.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 
 const { buildChatClientContext } = await tsImport('../../../packages/shared/src/chat/client-context.ts', import.meta.url)
@@ -13,7 +14,7 @@ let run = null
 
 function persist(results) {
   writeResults(results, run.directory)
-  const summary = summarize(results, run.descriptors, { run: run.name, apiCommit: run.apiCommit })
+  const summary = summarize(results, run.descriptors, { run: run.name, apiCommit: run.apiCommit, k: run.k })
   return { summary, markdown: writeReport(summary, run.directory) }
 }
 
@@ -39,7 +40,7 @@ export async function beforeAll({ suite }) {
     unmetered.set(key, await requireEvalAccess(key))
     await requireEvalTrace(key)
   }
-  run = { name, directory: `reports/core-${name}`, descriptors, apiCommit: health.commit, unmetered, results: [] }
+  run = { name, directory: `reports/core-${name}`, descriptors, k: mustPassKOf(), apiCommit: health.commit, unmetered, results: [] }
   persist(run.results)
 }
 
