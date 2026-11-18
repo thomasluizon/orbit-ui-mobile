@@ -204,8 +204,8 @@ function pushRepositories(rest) {
 /** True for a URL or a path in place of a remote name. */
 const isRemoteLocation = (remote) => /[:/\\]/.test(remote) || remote.startsWith(".")
 
-/** A plain branch name that is not `main` or `master` in any spelling that git resolves to it, and not `HEAD`. */
-const isPlainBranch = (name) => /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name) && !/\.\.|\/\/|\/$|\.lock$|\.$/.test(name) && !/HEAD$/i.test(name) &&
+/** A plain branch name that is not `main` or `master` in any spelling that git resolves to it, and not a ref name such as `HEAD`, `ORIG_HEAD` or `FETCH_HEAD` in any case. */
+const isPlainBranch = (name) => /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name) && !/\.\.|\/\/|\/$|\.lock$|\.$/.test(name) && !/^(?:[A-Za-z]+_)?HEAD$/i.test(name) &&
   !/^(?:refs\/)?(?:heads\/)?(?:main|master)$/i.test(name)
 
 /** The push forms that a protected repository allows: `git push [-u] origin <branch>` and `git push origin HEAD:<branch>`. */

@@ -536,6 +536,13 @@ for (const command of ["git push origin HEAD", "git push -u origin HEAD", "git p
 for (const command of ["git push origin HEAD:feature/x", "git push origin feature/x", "git push -u origin feature/x", "git push origin HEAD:refs/heads/feature/x", "git push origin redesign/main"]) {
   T(`git: ${command} allows in a protected repository`, checkGitCommand(command, inProtectedRepo), null)
 }
+// The ref names `HEAD`, `ORIG_HEAD` and `FETCH_HEAD` are refused as the branch word in each case. A branch name that only ends in the letters `head` is a plain branch.
+for (const command of ["git push origin fix/stay-ahead", "git push origin fix/ticket-2200-final-head", "git push -u origin feature/overhead", "git push origin HEAD:fix/final-head"]) {
+  T(`git review r25: ${command} allows in a protected repository`, checkGitCommand(command, inProtectedRepo), null)
+}
+for (const command of ["git push origin ORIG_HEAD", "git push origin fetch_head", "git push -u origin HEAD", "git push origin HEAD:head", "git push origin HEAD:FETCH_HEAD"]) {
+  T(`git review r25: ${command} blocks in a protected repository`, blocks(checkGitCommand(command, inProtectedRepo)), true)
+}
 // A `cd` that the shell can skip leaves the push in the directory before it, so the rule judges the push in each directory that is possible.
 const fromProtected = { cwd: "/work/ui", resolveRemoteUrl: byTextDirectory((directory) => (directory.startsWith("/other") ? "git@github.com:o/sandbox.git" : "git@github.com:o/orbit-ui-mobile.git")) }
 for (const command of ["false && cd /other; git push origin main", "true || cd /other; git push origin main", "cd /other || git push origin main", "if false; then cd /other; fi; git push origin main",
@@ -702,6 +709,10 @@ const WRAPPER_OPTIONS_REFUSED = ["env -P /tmp/x git status", "env -P/tmp/x git s
 for (const command of WRAPPER_OPTIONS_REFUSED) {
   T(`subset: the wrapper option in ${JSON.stringify(command)} is refused by both rules`, [Boolean(checkGitCommand(command, fromBrain)?.notModelled), checkApprovalPrompt(command, { cwd: "/work/brain" })?.rule], [true, "not-modelled"])
 }
+// The refusal names the file that declares the allow list of the wrapper options.
+const wrapperRefusal = readCommand("env -P /tmp/x git status").notModelled
+const wrapperListFile = /`WRAPPER_OPTIONS` in `([\w.-]+\.mjs)`/.exec(wrapperRefusal)?.[1] ?? ""
+T("subset review r25: the wrapper option refusal names the file that declares WRAPPER_OPTIONS", wrapperListFile !== "" && /^const WRAPPER_OPTIONS = /m.test(readFileSync(join(hooksDir, "_lib", wrapperListFile), "utf8")), true)
 // The controls: each option that the allow list names passes, with its value in the next word or in the same word.
 for (const command of ["env FOO=1 git status", "env -- FOO=1 git status", "nice git status", "nice -n 5 git status", "nice -n5 git status", "timeout 60 git fetch origin", "timeout -s KILL -k 5 60 npm test",
   "timeout --preserve-status --foreground 5m npm test", "time -p npm test", "stdbuf -oL -e 0 tail -1 notes.md", "command -v git", "xargs -0 -r -n 1 -I{} echo {}", "ionice -c 3 nice -n 10 npm test",

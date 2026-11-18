@@ -634,7 +634,7 @@ function checkCommand(command, place) {
     const { refused, assignments, wrappers, end } = readWrappers(command.words, start)
     const user = wrappers.find((wrapper) => USER_WRAPPERS.has(wrapper))
     if (user) notModelled(`the wrapper \`${user}\`, which runs its command as another user, in a directory, a home and a git config that the hook does not read`)
-    if (refused) notModelled(`${refused}, which the allow list of the wrapper options does not name. A wrapper takes only the options of \`WRAPPER_OPTIONS\` in \`command-expander.mjs\``)
+    if (refused) notModelled(`${refused}, which the allow list of the wrapper options does not name. A wrapper takes only the options of \`WRAPPER_OPTIONS\` in \`shell-subset.mjs\``)
     for (const word of assignments) refusedAssignment(ASSIGNMENT_WORD.exec(word.text)[1])
     // A wrapper word and the command word decide which program runs, so each one is literal, also when no command word follows.
     const computed = command.words.slice(start, end + 1).find((word) => word.dynamic)

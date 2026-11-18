@@ -155,12 +155,13 @@ const stuckCases = async () => {
   touch(join(launchedWorkflow, "agent-step.jsonl"), 95)
   T("background-runs: the progress of a workflow that the agent launched holds the wait", drain(124).waiting.length === 1 && drain(125).stuck[0]?.lastProgressAt === at(95), JSON.stringify(drain(125)))
   // A subagent command that runs past the subagent cap moves to the background, and the agent waits on it with no transcript write.
-  // The launch reply copies the shape of a real subagent transcript line. The output file of the shell shows its progress.
+  // The launch reply is a real Claude Code 2.1.325 subagent transcript line, with the ID, the paths and the stdout replaced. The output file of the shell shows its progress.
   const shellOutput = join(dirname(repoRoot), "background-stuck-tasks", "shell-task.output")
   mkdirSync(dirname(shellOutput), { recursive: true })
-  appendFileSync(transcript, `${JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "<value>",
-    content: `Command was moved to the background (ID: shell-task) after running for 180s. Output is being written to: ${shellOutput}. You will be notified when it completes.` }] },
-    toolUseResult: { stdout: "", stderr: "", interrupted: false, isImage: false, noOutputExpected: false, backgroundTaskId: "shell-task", timedOutAfterMs: 180_000, subagentCapApplied: true } })}\n`)
+  const cwdHint = "Session cwd remains <value>; directory changes made by the backgrounded command do not apply to subsequent commands."
+  appendFileSync(transcript, `${JSON.stringify({ type: "user", message: { role: "user", content: [{ tool_use_id: "<value>", type: "tool_result",
+    content: `exit=1\nCommand was moved to the background (ID: shell-task) after running for 180s. Output is being written to: ${shellOutput}. You will be notified when it completes. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. To check interim output, use Read on that file path.\n${cwdHint}`, is_error: false }] },
+    toolUseResult: { stdout: "exit=1", stderr: "", interrupted: false, isImage: false, noOutputExpected: false, backgroundTaskId: "shell-task", timedOutAfterMs: 180_000, subagentCapApplied: true, backgroundCwdHint: cwdHint } })}\n`)
   touch(transcript, 20)
   writeFileSync(shellOutput, "PASS one\n")
   touch(shellOutput, 130)
