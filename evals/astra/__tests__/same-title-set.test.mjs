@@ -207,6 +207,9 @@ it.each([
   ['the completed records card', 'pt-BR', 'Renomeando quatro, qual é a dupla que devo apagar?', deletedHalf],
   ['the completed records card', 'en', 'Keeping four, which ones, of the six, should I delete?', deletedHalf],
   ['the completed records card', 'en', 'Keeping four, tell me which two to delete.', deletedHalf],
+  ['the completed records card', 'en', 'Want me to rename four? Which two should I delete?', deletedHalf],
+  ['the completed records card', 'en', 'Should I rename four of them? Then which two do I delete?', deletedHalf],
+  ['the completed records card', 'pt-BR', 'Posso renomear quatro? Quais dois eu apago?', deletedHalf],
   ['the model records card', 'pt-BR', streams.run3.card.block.question, deletedHalf],
   ['the model records card', 'pt-BR', 'Quais dois excluo? Diga por ordem quais quatro renomeio.', deletedHalf],
 ])('answers %s in %s whose question names both actions: %s', async (shape, locale, prompt, half) => {
@@ -232,6 +235,21 @@ it.each([
   ['en', 'Which two should I keep, and which ones should I delete?'],
   ['pt-BR', 'Quais eu mantenho? Os outros quatro serão excluídos.'],
 ])('reports a grader limit for a %s question that names both actions and whose count its clause contradicts: %s', (locale, prompt) => {
+  expect(sameTitleCard(shown(completedRecordsCard(prompt, locale)), cardVars(ids, locale))).toEqual({ pass: false, score: 0,
+    reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
+})
+
+// No asking word comes before an action, so a clause about the other half would decide the half. The grader never
+// guesses it: the case reports a grader limit.
+it.each([
+  ['en', 'Keeping four, pick the two to delete.'],
+  ['en', 'Keeping four, select the two I should delete.'],
+  ['en', 'I will rename four. Select the two to delete.'],
+  ['en', 'Rename four and delete two: choose the two to delete.'],
+  ['pt-BR', 'Mantendo quatro, escolha os dois para apagar.'],
+  ['pt-BR', 'Vou renomear quatro. Escolha os dois que devo apagar.'],
+  ['pt-BR', 'Mantendo quatro, que dois eu apago?'],
+])('reports a grader limit for a %s question that names both actions with no asking word before an action: %s', (locale, prompt) => {
   expect(sameTitleCard(shown(completedRecordsCard(prompt, locale)), cardVars(ids, locale))).toEqual({ pass: false, score: 0,
     reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
 })

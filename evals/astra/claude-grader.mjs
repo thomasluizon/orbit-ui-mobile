@@ -9,8 +9,9 @@ const GRADER_TIMEOUT_MILLISECONDS = 120000
 // tools/launch-worker.mjs reads. claude-grader.test.mjs holds the two names equal.
 export const WORKER_CONFIG_VARIABLE = 'ORBIT_WORKER_CLAUDE_CONFIG_DIR'
 const schema = readFileSync(new URL('./grader-schema.json', import.meta.url), 'utf8')
-// Each variable that the CLI selects ahead of the sign-in in its config directory (CLAUDE_ACCOUNT_OVERRIDE_KEYS of
-// tools/lib/orchestrator-config.mjs) starts with one of these names; claude-grader.test.mjs holds that true.
+// Each variable that the CLI selects ahead of the sign-in in its config directory starts with one of these names. The
+// worker launch removes the same variables through workerAccountEnvironment of tools/lib/orchestrator-config.mjs, and
+// claude-grader.test.mjs holds the grader equal to that function.
 const accountOverride = /^(?:ANTHROPIC_|CLAUDE_CODE_|CCR_|AWS_BEARER_TOKEN_BEDROCK$)/u
 
 // Print mode of the installed CLI, confirmed against a real call (claude-grader.test.mjs records its response): the grade

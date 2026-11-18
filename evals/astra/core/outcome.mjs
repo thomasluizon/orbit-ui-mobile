@@ -22,9 +22,12 @@ function checklistOf(value) {
 
 // The value a field must take: an exact string, a text that holds one of several words, a date counted from the
 // account date, a date within a span of days counted from it, a month and day in any year, a clock time to the minute,
-// one of several exact strings, or a whole checklist.
+// one of several exact strings, a whole checklist, or an absent field that otherwise holds the value of the inner
+// expectation. A preview has no row for an argument that the model omitted, so an `optional` field passes when it is
+// absent.
 export function matchesField(expected, value, accountDate) {
   if (typeof expected === 'string') return value === expected
+  if (expected.optional !== undefined) return value == null || matchesField(expected.optional, value, accountDate)
   if (expected.oneOf) return expected.oneOf.includes(value ?? null)
   if (expected.contains) return expected.contains.some((text) => normalize(value).includes(normalize(text)))
   if (expected.daysFromToday !== undefined) return value === dateOffset(accountDate, expected.daysFromToday)
