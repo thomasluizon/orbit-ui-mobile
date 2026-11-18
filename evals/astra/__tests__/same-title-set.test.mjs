@@ -473,6 +473,21 @@ it.each([
     reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
 })
 
+// A title word names the records ("the same-title habits"); it never asks for an action. So a question that names only a
+// deletion and calls the records by their title reaches the both-actions reading, and the grader never reads the title
+// word as the asked rename: the case reports a grader limit.
+it.each([
+  ['en', 'Which of the same-title habits should I delete?'],
+  ['en', 'Which ones with the same title should I delete?'],
+  ['en', 'Which of these same-title duplicates do I remove?'],
+  ['en', 'Which of the six records sharing this title should I delete?'],
+  ['pt-BR', 'Quais dos seis hábitos com o mesmo título devo apagar?'],
+  ['pt-BR', 'Quais registros de mesmo título eu excluo?'],
+])('reports a grader limit for a %s question whose title word comes before the action it asks about: %s', (locale, prompt) => {
+  expect(sameTitleCard(shown(completedRecordsCard(prompt, locale)), cardVars(ids, locale))).toEqual({ pass: false, score: 0,
+    reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
+})
+
 // Halves of one size give a selection that names neither half, so the grader never guesses one.
 it.each([
   ['the completed records card', (prompt) => ({ card: completedRecordsCard(prompt, 'en'), trace: { calls: [] } })],
