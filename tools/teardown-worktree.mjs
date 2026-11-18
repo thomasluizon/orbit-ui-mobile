@@ -29,13 +29,14 @@ The local contract branch is retained because deleting a branch that is the base
 request can close that pull request. Existing worktrees can be cleared safely by running this tool
 once per ticket; there is deliberately no unchecked bulk-delete mode.
 
-With --issue, a ticket that is CLOSED with board status Done and has no registered worktree reads as
-already removed: the unattended stale-file cleanup removes the clean worktree of a merged pull request
-before this step runs. A ticket in any other state, and every worktree that still exists, keeps every check.
+With --issue, a ticket that is CLOSED with board status Done, or listed as a standing ticket, and has
+no registered worktree reads as already removed: the unattended stale-file cleanup removes the clean
+worktree of a merged pull request before this step runs. A ticket in any other state, and every
+worktree that still exists, keeps every check.
 
 exit codes: 0 removed and verified, 1 evidence or removal verification failed, 2 usage error,
             3 a git or gh command could not be read, 4 no worktree is registered for a closed and Done
-            ticket (already removed: the line ALREADY REMOVED names it)`
+            or standing ticket (already removed: the line ALREADY REMOVED names it)`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -111,9 +112,11 @@ if (matches.length === 0 && requestedIssue) {
   } catch (error) {
     fail(1, `ticket assertion failed: ${error.message}`)
   }
-  // A ticket that is not closed and Done gives no evidence that a merged worktree was here, so a mistyped number still fails.
-  if (absentTicket.state === "CLOSED" && absentTicket.status === config.tickets.states.done) {
-    console.log(`ALREADY REMOVED no worktree is registered for ticket ${requestedTicketNumber}; the ticket is CLOSED and Done`)
+  // Both callers run this tool only after `gh pr view` reads MERGED. A standing ticket stays OPEN by design, so it joins the closed and Done ticket here, as in the `ticket-done` check below.
+  // A ticket that is neither gives no evidence that a merged worktree was here, so a mistyped number still fails.
+  const closedAndDone = absentTicket.state === "CLOSED" && absentTicket.status === config.tickets.states.done
+  if (closedAndDone || config.tickets.standing.includes(absentTicket.number)) {
+    console.log(`ALREADY REMOVED no worktree is registered for ticket ${requestedTicketNumber}; the ticket is ${closedAndDone ? "CLOSED and Done" : "a standing ticket"}`)
     process.exit(ALREADY_REMOVED_STATUS)
   }
 }
