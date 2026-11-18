@@ -35,7 +35,7 @@ UI `main` `d356d1b5d`; API `main` `f7abe19fc`; landing `main` `20c1b0a90`; produ
 | api#1125 (`#2162`), api#1126 (`#2160`) | New stacked builds, not reviewed: run each whole review (`whole - -`); api#1126 then gets the provider probe and its second launch (spec bullet). |
 | `#2125` Part 5 | `thomasluizon/brain#2` is merged; two small steps are left (spec bullet). |
 | api#1120 | Green and approved at `d7596be4f`, behind `main`; its k=1 gate needs ui#2480 merged and the `#2135` baseline window. |
-| Releases | Web and landing are live. Android Open 1.3.157 (218) is run 44274558335 and iOS 1.3.157 (7) is run 44274605446, both from `d356d1b5d`: read both runs, then add the iOS build to the outside group. No API release. |
+| Releases | Web and landing are live. Android Open 1.3.157 (218) is uploaded. iOS 1.3.157 (7) is uploaded too (run 44274605446, from `d356d1b5d`): read its last jobs, then add the build to the outside group. No API release. |
 | `#2161`, `#2163`, `#2146` item 5, `#2125` Parts 3 and 4, ui#2453 | As their spec bullets say. ui#2453 starts after round 27 of ui#2451 is pushed. |
 | Intake | One cycle ran: no new Sentry event, mail, store review or alert. |
 
