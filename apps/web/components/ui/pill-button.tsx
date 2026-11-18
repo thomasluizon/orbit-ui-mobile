@@ -8,6 +8,7 @@ import { actionClasses, actionStyle } from './pill-action-style'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { SkeletonFace } from '@/components/ui/skeleton'
+import { useOrbitReadMotionAllowed } from '@/components/ui/orbit-mascot'
 import { APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, SIGN_IN_BUTTON_HEIGHT, signInButtonSpec, signInLeadHeight, type ButtonSize, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 
 function buttonDescriptionIds(descriptionId: string | undefined, hintId: string, hint: string | undefined) {
@@ -64,8 +65,8 @@ function ButtonContent({ skeletonWaiting, iconOnly, children, leadingIcon, signI
   </>
 }
 
-function waitingFace(loading: boolean, brand: ButtonProps['brand'], loadingFace: ButtonProps['loadingFace']): boolean | 'icon' {
-  if (loading && loadingFace === 'icon') return 'icon'
+function waitingFace(loading: boolean, brand: ButtonProps['brand'], loadingFace: ButtonProps['loadingFace'], readMotionAllowed: boolean): boolean | 'icon' {
+  if (loading && loadingFace === 'icon' && readMotionAllowed) return 'icon'
   return loading && brand !== 'apple'
 }
 
@@ -114,7 +115,7 @@ export function Button({
   const hintId = useId()
   const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)
   const size = withinRow ? 'sm' : requestedSize
-  const waiting = waitingFace(loading, brand, loadingFace)
+  const waiting = waitingFace(loading, brand, loadingFace, useOrbitReadMotionAllowed())
   const skeletonWaiting = waiting === true
 
   return (

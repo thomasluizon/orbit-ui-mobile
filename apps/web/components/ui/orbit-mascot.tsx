@@ -74,10 +74,16 @@ function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: Reac
   return { clock: candidate ? clock : 0, running }
 }
 
-function useOrbitReadClock(reading: boolean) {
+/** Whether the small face read motion may run: no reduced motion and `Orbit em movimento` on. A waiting control keeps the still skeleton face when it is false. */
+export function useOrbitReadMotionAllowed(): boolean {
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const motionEnabled = useSyncExternalStore(subscribeOrbitLoop, isOrbitMotionEnabled, isOrbitMotionEnabled)
-  const running = reading && !reducedMotion && motionEnabled
+  return !reducedMotion && motionEnabled
+}
+
+function useOrbitReadClock(reading: boolean) {
+  const motionAllowed = useOrbitReadMotionAllowed()
+  const running = reading && motionAllowed
   const [clock, setClock] = useState(0)
   const [wasRunning, setWasRunning] = useState(running)
   if (wasRunning !== running) {

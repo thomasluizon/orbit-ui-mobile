@@ -5,8 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { PillButton } from '@/components/ui/pill-button'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { ProactiveAction } from '@/components/chat/proactive-action'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
+vi.mock('@/hooks/use-proactive-action', () => ({ useProactiveAction: () => ({ reason: null, waiting: true, allowance: 10, act: vi.fn(), aiMessagesPeriod: 'day' }) }))
 vi.mock('@/components/ui/sheet', () => ({
   Sheet: ({ children }: { children: React.ReactNode }) => <div role="dialog">{children}</div>,
   useSheetHost: () => ({ sheetRef: { current: null }, closeSheet: vi.fn() }),
@@ -94,22 +97,19 @@ describe('the Orbit of the fill icon button on web', () => {
     expect(faceOf(button)).toEqual({ loop: 'still', moon: null, eyes: null })
   })
 
-  it('keeps the face still with the busy state under reduced motion', async () => {
-    setReducedMotion(true)
+  it.each([
+    ['under reduced motion', () => setReducedMotion(true)],
+    ['when Orbit em movimento is off', () => setOrbitMotionEnabled(false)],
+  ])('keeps the face still and shows the still skeleton face with the busy state %s', async (_condition, stopMotion) => {
+    stopMotion()
     const button = mountEmojiRead()
     await press(button)
     act(() => { vi.advanceTimersByTime(400) })
     expect(button).toHaveAttribute('aria-busy', 'true')
+    expect(button.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
+    expect(faceOf(button)).toEqual({ loop: 'still', moon: null, eyes: null })
+    await settled(() => settle.resolve('🏃'))
     expect(button.querySelector('[data-slot="skeleton-face"]')).toBeNull()
-    expect(faceOf(button)).toEqual({ loop: 'still', moon: null, eyes: null })
-  })
-
-  it('keeps the face still when Orbit em movimento is off', async () => {
-    setOrbitMotionEnabled(false)
-    const button = mountEmojiRead()
-    await press(button)
-    act(() => { vi.advanceTimersByTime(400) })
-    expect(faceOf(button)).toEqual({ loop: 'still', moon: null, eyes: null })
   })
 
   it('starts each read at the drawn face', async () => {
@@ -133,5 +133,43 @@ describe('a pill that starts an Orbit read on web', () => {
     expect(button.className).not.toContain('disabled:opacity-40')
     expect(button.className).toContain('shadow-[inset_0_0_0_1.5px_var(--hairline-strong)]')
     expect(button.querySelector('svg')).toHaveAttribute('data-orbit-loop', 'running')
+  })
+})
+
+describe('a pill whose Orbit cannot move on web', () => {
+  it.each([
+    ['under reduced motion', () => setReducedMotion(true)],
+    ['when Orbit em movimento is off', () => setOrbitMotionEnabled(false)],
+  ])('keeps the still skeleton face for loadingFace icon %s', (_condition, stopMotion) => {
+    stopMotion()
+    render(<PillButton variant="ghost" size="sm" loading loadingFace="icon" leadingIcon={<OrbitMascot size={16} reading />}>Plan</PillButton>)
+    const button = screen.getByRole('button', { name: 'Plan' })
+    expect(button.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    expect(button.querySelector('svg')).toHaveAttribute('data-orbit-loop', 'still')
+  })
+})
+
+describe('the waiting proactive action on web', () => {
+  it('moves its Orbit and draws no skeleton face while the Orbit may move', () => {
+    render(<ProactiveAction item={createMockProactiveItem()} acted={false} isOnline onSend={vi.fn()} />)
+    const action = screen.getByRole('button')
+    expect(action.querySelector('[data-slot="skeleton-face"]')).toBeNull()
+    expect(action).toHaveClass('bg-[var(--bg-well)]')
+    expect(action.querySelector('svg')).toHaveAttribute('data-orbit-loop', 'running')
+  })
+
+  it.each([
+    ['under reduced motion', () => setReducedMotion(true)],
+    ['when Orbit em movimento is off', () => setOrbitMotionEnabled(false)],
+  ])('keeps the still skeleton face on a clear face %s', (_condition, stopMotion) => {
+    stopMotion()
+    render(<ProactiveAction item={createMockProactiveItem()} acted={false} isOnline onSend={vi.fn()} />)
+    const action = screen.getByRole('button')
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
+    expect(action).toHaveClass('bg-transparent')
+    expect(action).not.toHaveClass('bg-[var(--bg-well)]')
+    expect(action.querySelector('svg')).toHaveAttribute('data-orbit-loop', 'still')
   })
 })

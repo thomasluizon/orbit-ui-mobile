@@ -16,7 +16,7 @@ import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ThemedMotionPressable } from './motion-pressable'
 import { SkeletonFace } from './skeleton'
-import { OrbitMascot } from './orbit-mascot'
+import { OrbitMascot, useOrbitReadMotionAllowed } from './orbit-mascot'
 
 const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
@@ -34,8 +34,8 @@ export function waitingTextColor(tokens: AppTokensV2, variant: ButtonVariant, qu
   return variant === 'ghost' && quiet ? tokens.fg2 : tokens.fg1
 }
 
-function waitsOnSkeletonFace(loading: boolean, apple: boolean, loadingFace: ButtonProps['loadingFace']): boolean {
-  return loading && !apple && loadingFace !== 'icon'
+function waitsOnSkeletonFace(loading: boolean, apple: boolean, iconBusy: boolean): boolean {
+  return loading && !apple && !iconBusy
 }
 
 export function waitingFaceStyle(variant: ButtonVariant, ghostBorderWidth: number): ViewStyle {
@@ -167,8 +167,9 @@ export function ThemedButton({
 
   const signIn = signInButtonSpec(brand)
   const appleColors = brand === 'apple' ? APPLE_SIGN_IN_BUTTON.colors[themeMode] : null
-  const skeletonWaiting = waitsOnSkeletonFace(loading, appleColors !== null, loadingFace)
-  const iconBusy = loading && loadingFace === 'icon'
+  const readMotionAllowed = useOrbitReadMotionAllowed()
+  const iconBusy = loading && loadingFace === 'icon' && readMotionAllowed
+  const skeletonWaiting = waitsOnSkeletonFace(loading, appleColors !== null, iconBusy)
   const textColor = skeletonWaiting ? waitingTextColor(tokens, variant, quiet) : appleColors?.ink ?? buttonTextColors(tokens, quiet)[variant]
   const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColor)
 

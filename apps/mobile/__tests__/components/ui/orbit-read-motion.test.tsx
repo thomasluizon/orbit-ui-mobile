@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 import React from 'react'
-import { AccessibilityInfo } from 'react-native'
+import { AccessibilityInfo, StyleSheet } from 'react-native'
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,11 +8,14 @@ import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-
 import { createStyles } from '@/components/habits/habit-form-fields/styles'
 import { PillButton } from '@/components/ui/pill-button'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { ProactiveAction } from '@/components/chat/proactive-action'
+import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { createTokensV2 } from '@/lib/theme'
 import { getPrefersReducedMotion, usePrefersReducedMotion } from '@/lib/motion'
 
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
+vi.mock('@/hooks/use-proactive-action', () => ({ useProactiveAction: () => ({ reason: null, waiting: true, allowance: 10, act: vi.fn(), aiMessagesPeriod: 'day' }) }))
 vi.mock('@/components/ui/sheet', () => ({
   Sheet: (props: Record<string, unknown>) => React.createElement('Sheet', props, props.children as React.ReactNode),
   useSheetHost: () => ({ sheetRef: { current: null }, closeSheet: vi.fn() }),
@@ -143,22 +146,19 @@ describe('the Orbit of the fill icon button on Android', () => {
     expect(faceOf(tree)).toEqual({ loop: 'still', moon: null, eyes: null })
   })
 
-  it('keeps the face still with the busy state under reduced motion', async () => {
-    setReducedMotion(true)
+  it.each([
+    ['under reduced motion', () => setReducedMotion(true)],
+    ['when Orbit em movimento is off', () => setOrbitMotionEnabled(false)],
+  ])('keeps the face still and shows the still skeleton face with the busy state %s', async (_condition, stopMotion) => {
+    stopMotion()
     const tree = mountEmojiRead()
     await press(tree)
     TestRenderer.act(() => { vi.advanceTimersByTime(400) })
     expect(action(tree).props.accessibilityState).toMatchObject({ busy: true })
+    expect(skeletonIn(tree).length).toBeGreaterThan(0)
+    expect(faceOf(tree)).toEqual({ loop: 'still', moon: null, eyes: null })
+    await settled(() => settle.resolve('🏃'))
     expect(skeletonIn(tree)).toHaveLength(0)
-    expect(faceOf(tree)).toEqual({ loop: 'still', moon: null, eyes: null })
-  })
-
-  it('keeps the face still when Orbit em movimento is off', async () => {
-    setOrbitMotionEnabled(false)
-    const tree = mountEmojiRead()
-    await press(tree)
-    TestRenderer.act(() => { vi.advanceTimersByTime(400) })
-    expect(faceOf(tree)).toEqual({ loop: 'still', moon: null, eyes: null })
   })
 
   it('starts each read at the drawn face', async () => {
@@ -180,5 +180,47 @@ describe('a pill that starts an Orbit read on Android', () => {
     expect(skeletons()).toHaveLength(0)
     const mascot = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]!
     expect(mascot.props['data-orbit-loop']).toBe('running')
+  })
+})
+
+describe('a pill whose Orbit cannot move on Android', () => {
+  it.each([
+    ['under reduced motion', () => setReducedMotion(true)],
+    ['when Orbit em movimento is off', () => setOrbitMotionEnabled(false)],
+  ])('keeps the still skeleton face for loadingFace icon %s', (_condition, stopMotion) => {
+    stopMotion()
+    const tree = render(<PillButton variant="ghost" size="sm" loading loadingFace="icon" accessibleName="Plan" leadingIcon={<OrbitMascot size={16} reading />}>Plan</PillButton>)
+    expect(tree.root.findAll((node) => node.props.testID === 'skeleton-face').length).toBeGreaterThan(0)
+    const mascot = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]!
+    expect(mascot.props['data-orbit-loop']).toBe('still')
+  })
+})
+
+describe('the waiting proactive action on Android', () => {
+  function proactive() {
+    const tree = render(<ProactiveAction item={createMockProactiveItem()} acted={false} isOnline onSend={vi.fn()} />)
+    const button = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!
+    const style = StyleSheet.flatten(typeof button.props.style === 'function' ? (button.props.style as (state: { pressed: boolean }) => unknown)({ pressed: false }) : button.props.style) as { backgroundColor?: string }
+    const mascot = button.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]!
+    return { button, style, loop: mascot.props['data-orbit-loop'], skeletons: button.findAll((node) => node.props.testID === 'skeleton-face') }
+  }
+
+  it('moves its Orbit and draws no skeleton face while the Orbit may move', () => {
+    const { style, loop, skeletons } = proactive()
+    expect(skeletons).toHaveLength(0)
+    expect(style.backgroundColor).toBe(tokens.bgWell)
+    expect(loop).toBe('running')
+  })
+
+  it.each([
+    ['under reduced motion', () => setReducedMotion(true)],
+    ['when Orbit em movimento is off', () => setOrbitMotionEnabled(false)],
+  ])('keeps the still skeleton face on a clear face %s', (_condition, stopMotion) => {
+    stopMotion()
+    const { button, style, loop, skeletons } = proactive()
+    expect(button.props.accessibilityState).toMatchObject({ busy: true })
+    expect(skeletons.length).toBeGreaterThan(0)
+    expect(style.backgroundColor).toBe('transparent')
+    expect(loop).toBe('still')
   })
 })

@@ -1,11 +1,12 @@
 import type { ReactElement } from 'react'
 import { StyleSheet } from 'react-native'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { PushDevicesRow } from '@/components/profile/push-devices-row'
 import NotionCallbackScreen from '@/app/auth-callback/notion'
 import { ProactiveAction } from '@/components/chat/proactive-action'
 import { createTokensV2 } from '@/lib/theme'
+import { getPrefersReducedMotion } from '@/lib/motion'
 
 const mocks = vi.hoisted(() => ({ reason: null as string | null, waiting: true, act: vi.fn() }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
@@ -21,6 +22,8 @@ const tokens = createTokensV2('purple', 'dark')
 type Node = { type: unknown; props: Record<string, any>; findAll(predicate: (node: Node) => boolean): Node[] }
 
 let tree: { root: Node; unmount(): void } | undefined
+
+beforeAll(async () => { await getPrefersReducedMotion() })
 
 afterEach(() => { TestRenderer.act(() => tree?.unmount()); tree = undefined; mocks.reason = null; mocks.waiting = true; mocks.act.mockClear() })
 
