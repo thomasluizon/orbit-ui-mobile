@@ -109,8 +109,8 @@
     ".claude/agents/design-reviewer.md": {
       "model": "sonnet",
       "effort": "medium",
-      "digest": "36f90d089cf47a09",
-      "calibratedAt": "2026-11-15",
+      "digest": "a0371051c0ba9dc2",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: judges a diff against DESIGN.md with the spec in front of it, so sonnet at medium effort is right; the rules are written down, which is what keeps it off high."
     },
     ".claude/agents/design-specialist.md": {
@@ -270,7 +270,7 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "589c02f2ebab1c72",
+      "digest": "989d29f5eac2438b",
       "calibratedAt": "2026-11-18",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
@@ -312,7 +312,7 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "eed7cbf20777f13d",
+      "digest": "70a1d8b022de3ac9",
       "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
