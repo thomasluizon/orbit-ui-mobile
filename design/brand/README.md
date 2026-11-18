@@ -27,7 +27,7 @@ The planet and the ring paint with `currentColor`. The moon paints with `var(--p
 
 **The accent tints exactly one element.** `DESIGN.md` gives the accent four roles and this is the fourth: the moon carries it and nothing else does. A second tinted element is a violation, not a variation.
 
-**The raster pipeline reads two sources.** `tools/generate-brand-assets.mjs` draws every raster from `orbit-mascot.svg` and `orbit-mascot-small.svg`. The small static face serves each raster below 40px. The live rig serves the rest.
+**The raster pipeline reads two sources.** `tools/generate-brand-assets.mjs` draws every raster from `orbit-mascot.svg` and `orbit-mascot-small.svg`. The small static face serves each raster below 40px, and each raster that a platform draws below 40px. The macOS menu bar tray is one: it draws `tray.png` 18pt tall, so that file is the 24 face at 2x. The Windows tray is another: it draws its image at the small icon size of the display scale, so each `tray-windows-<size>.png` is the small face from 16 to 48px. The live rig serves the rest.
 
 **The lockup's 28 measures the MARK, not a 28 box.** `DESIGN.md:269` says so explicitly. The 1024
 art carries wide empty margin, so a literal 28 box draws ink about 8px tall beside a 15.4px cap
@@ -57,13 +57,12 @@ asset, not a CSS override.
 `node tools/generate-brand-assets.mjs --write` rebuilds these files together with every consumer
 asset. The 16px export is the small static face in one ink. The larger transparent marks draw the
 whole 7:5 rig box with the accent moon, centred in a square canvas. The platform icon is the
-filled planet with the ring and the moon and no eyes, at 70% of the canvas on the flat `#09090B`
-ground, with square corners for the platform mask. The Android adaptive layers use 58%, so the ring
-and the moon stay inside the 66 dp safe circle of the 108 dp layer.
-
-**The icon has no eyes.** The icon keeps the eyes only when each eye is at least 2px wide in the 48px
-render of its tightest layer. At the adaptive safe scale an eye is 1.70px, so the icon is the planet,
-the ring and the moon. The generator prints this measurement on every run.
+mascot at rest as `orbit-mascot.svg` draws it: the planet, the two eyes, the ring and the moon. It
+fills 70% of the canvas on the flat `#09090B` ground, with square corners for the platform mask. The
+Android adaptive layers use 58%, so the ring and the moon stay inside the 66 dp safe circle of the
+108 dp layer. An icon layer from 16 to 32px draws the small static face, with its eyes. Every
+layer that draws the live rig draws each eye at least 2px wide; the generator fails on a layer that
+would not.
 
 **Ink on each ground.** The eyes and the ring outline take the canvas colour `#09090B` on every
 coloured raster, so they read inside the planet on a dark and on a light ground. The monochrome
@@ -75,7 +74,7 @@ adaptive layer and the notification icon are one white ink, with the eyes and th
 | `orbit-mark-accent-48.png` | 48px rig box, accent moon, transparent |
 | `orbit-mark-accent-128.png` | 128px rig box, accent moon, transparent |
 | `orbit-mark-accent-512.png` | 512px rig box, accent moon, transparent |
-| `orbit-platform-icon-512.png` | 512px square platform icon on `#09090B`, no eyes |
+| `orbit-platform-icon-512.png` | 512px square platform icon on `#09090B`, with the eyes |
 
 ## Manual upload exports, in `exports/`
 
