@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ResultDialog } from '@/components/ui/result-dialog'
 import { useFlag } from '@/hooks/use-flag'
@@ -25,6 +25,11 @@ export function useHabitDetailResult(seeToday: () => void) {
     seeToday: leave,
     close: () => { if (result?.kind === 'deleted') leave(); else setResult(null) },
   }
+}
+
+/** What habit detail shows when it has no habit to draw. Right after a delete the detail read is already removed, so the deleted result dialog shows there, and the load error shows in every other case. */
+export function HabitDetailUnavailable({ result, onSeeToday, onClose, children }: Readonly<{ result: HabitDetailResult | null; onSeeToday: () => void; onClose: () => void; children: ReactNode }>) {
+  return result?.kind === 'deleted' ? <HabitDetailResultDialog result={result} onSeeToday={onSeeToday} onClose={onClose} /> : children
 }
 
 /** The centred result dialog of habit detail. After a delete Orbit is Parado and does not hop, because nothing was created or finished. */

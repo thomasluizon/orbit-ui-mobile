@@ -68,7 +68,7 @@ import { DayColumnContent } from '@/components/dates/day-column-content'
 import { DayStrip } from '@/components/dates/day-strip'
 import { ListRow } from '@/components/ui/list-row'
 import { HabitDetailOrbitLine, HabitDetailReviewRow } from '@/components/habits/habit-detail-orbit-line'
-import { HabitDetailResultDialog, useHabitDetailResult } from '@/components/habits/habit-detail-result'
+import { HabitDetailResultDialog, HabitDetailUnavailable, useHabitDetailResult } from '@/components/habits/habit-detail-result'
 import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
@@ -629,7 +629,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   }
 
   if (detailQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></div></HabitDetailFrame>
-  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><HabitDetailLoadError message={t('habits.detail.loadError')} offlineMessage={t('offline.description')} error={detailQuery.error} retryLabel={t('habits.detail.retry')} onRetry={retryFailedQueries} /></HabitDetailFrame>
+  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><HabitDetailUnavailable result={resultHost.result} onSeeToday={resultHost.seeToday} onClose={resultHost.close}><HabitDetailLoadError message={t('habits.detail.loadError')} offlineMessage={t('offline.description')} error={detailQuery.error} retryLabel={t('habits.detail.retry')} onRetry={retryFailedQueries} /></HabitDetailUnavailable></HabitDetailFrame>
 
   const children = (detailQuery.data as HabitDetail).children.map((sourceChild) => {
     const child = normalizeDrillDetailChild(sourceChild, habit.id, dateStr)

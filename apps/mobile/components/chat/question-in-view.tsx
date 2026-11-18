@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, findNodeHandle, Text, View } from 'react-native'
 import { followQuestionInView, moveQuestionInView, startQuestionInView, type QuestionBlockState } from '@orbit/shared/chat'
@@ -28,16 +28,28 @@ export function useQuestionInView(questions: readonly Question[], state: Questio
 
 /**
  * When the question in view changes, screen reader focus moves to the new question. The previous and next controls then never hold focus while they turn disabled.
- * The returned callback ref goes on the prompt of the shown question, or on its container when it has no prompt.
+ * The returned callback ref goes on the text that names the shown question: the prompt in the panel, or the title of the frame when the first question has no prompt of its own.
+ * The step key is the index alone: a flag that turns on after the first render is the baseline, never a move of the question.
  */
-export function useFocusQuestionInView(enabled: boolean, index: number): (node: View | Text | null) => void {
-  const anchor = useRef<View | Text | null>(null)
-  const setAnchor = useCallback((node: View | Text | null) => { anchor.current = node }, [])
-  useStepChange(enabled ? String(index) : '', () => {
+export function useFocusQuestionInView(enabled: boolean, index: number): (node: Text | null) => void {
+  const anchor = useRef<Text | null>(null)
+  const setAnchor = useCallback((node: Text | null) => { anchor.current = node }, [])
+  useStepChange(String(index), () => {
+    if (!enabled) return
     const handle = findNodeHandle(anchor.current)
     if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle)
   })
   return setAnchor
+}
+
+/**
+ * The title of the frame of a block with no title of its own, while one question shows at a time: the prompt of question 1.
+ * Question 1 shows no prompt in its panel then, so this text is the focus anchor while question 1 is in view. A question that is invalid shows its own prompt and keeps the anchor.
+ */
+export function questionFrameTitle({ inView, blockTitle, first, invalidIds, anchor, color }: Readonly<{ inView: { enabled: boolean; index: number }; blockTitle: string | undefined; first: Question; invalidIds: readonly string[]; anchor: (node: Text | null) => void; color: string }>): ReactNode {
+  if (!inView.enabled || blockTitle) return undefined
+  const anchored = inView.index === 0 && !invalidIds.includes(first.id)
+  return <Text ref={anchored ? anchor : undefined} style={{ fontFamily: 'Geist_500Medium', fontSize: 16, color }}>{first.prompt}</Text>
 }
 
 /** The previous control, the position of the question in view, and the next control. */

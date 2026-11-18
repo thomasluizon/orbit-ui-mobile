@@ -6,6 +6,7 @@ import { questionBlockFixture as block } from '@orbit/shared/test-support/chat-f
 import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { BlockAnswerInteraction } from '@orbit/shared/chat'
 import { QuestionBlock } from '@/components/chat/question-block'
+import { __getNativeHost } from '../../../test-mocks/react-native'
 
 vi.unmock('react-i18next')
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
@@ -97,4 +98,32 @@ it('moves screen reader focus after the previous and the next control, and keeps
     await renderer.act(async () => {})
     expect(focus).not.toHaveBeenCalled()
   } finally { findNode.mockRestore(); focus.mockRestore() }
+})
+
+it('does not move screen reader focus when the flag turns on or off after the block mounted', async () => {
+  const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
+  try {
+    await mount()
+    enableTestFlags('orbit_guided_flows')
+    await renderer.act(() => { tree!.update(<QuestionBlock block={block} interaction={interaction()} />) })
+    expect(optionCards().length).toBeGreaterThan(0)
+    resetTestFlags()
+    await renderer.act(() => { tree!.update(<QuestionBlock block={block} interaction={interaction()} />) })
+    expect(focus).not.toHaveBeenCalled()
+  } finally { focus.mockRestore() }
+})
+
+it('names the node that takes screen reader focus with the prompt of the question in view, also when question 1 of an untitled block returns', async () => {
+  enableTestFlags('orbit_guided_flows')
+  const taken: number[] = []
+  const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation((tag) => { taken.push(tag) })
+  const focused = () => __getNativeHost(taken.at(-1)!)
+  try {
+    await renderer.act(() => { tree = renderer.create(<QuestionBlock block={{ ...block, title: undefined }} interaction={interaction()} />) })
+    await renderer.act(() => control('chat.question.next')!.props.onPress())
+    expect(focused()).toMatchObject({ name: 'Text', children: 'Which activities?' })
+    await renderer.act(() => control('chat.question.previous')!.props.onPress())
+    expect(taken).toHaveLength(2)
+    expect(focused()).toMatchObject({ name: 'Text', children: 'When?' })
+  } finally { focus.mockRestore() }
 })

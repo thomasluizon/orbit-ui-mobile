@@ -150,3 +150,18 @@ it('keeps the arrow keys working on a slider that the person reaches after the f
   fireEvent.keyDown(slider, { key: 'ArrowRight' })
   expect(Number(slider.getAttribute('aria-valuenow'))).toBeGreaterThan(Number(slider.getAttribute('aria-valuemin')))
 })
+
+it('does not move focus when the flag turns on or off after the block mounted', () => {
+  const outside = document.body.appendChild(document.createElement('button'))
+  try {
+    const view = render(element(interaction()))
+    outside.focus()
+    enableTestFlags('orbit_guided_flows')
+    view.rerender(element(interaction()))
+    expect(question('When?')).not.toBeNull()
+    expect(outside).toHaveFocus()
+    resetTestFlags()
+    view.rerender(element(interaction()))
+    expect(outside).toHaveFocus()
+  } finally { outside.remove() }
+})

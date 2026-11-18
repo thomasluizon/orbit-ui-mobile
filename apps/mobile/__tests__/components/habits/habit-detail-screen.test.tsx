@@ -2435,6 +2435,26 @@ describe('HabitDetailScreen', () => {
     })
   })
 
+  it('shows the deleted result dialog when the delete has already removed the detail query, with the guided flows on', async () => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.deleteHabit.mockImplementationOnce(() => { mocks.detail = null; return Promise.resolve() })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+    TestRenderer.act(() => {
+      tree.root.findByProps({ title: 'habits.detail.delete' }).props.onClick()
+    })
+    await TestRenderer.act(async () => {
+      tree.root.findByProps({ testID: 'confirm-habits.deleteConfirmTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAll((node: TestNode) => node.props.testID === 'result-dialog').length).toBeGreaterThan(0)
+    expect(mocks.routerReplace).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('leaves habit detail suggestions to the shell composer', () => {
     TestRenderer.act(() => {
       TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)

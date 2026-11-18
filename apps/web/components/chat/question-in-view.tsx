@@ -25,10 +25,13 @@ export function useQuestionInView(questions: readonly Question[], state: Questio
   }
 }
 
-/** When the question in view changes, focus moves to the new question, so its name is read and the previous and next controls never hold focus while they turn disabled. */
+/**
+ * When the question in view changes, focus moves to the new question, so its name is read and the previous and next controls never hold focus while they turn disabled.
+ * The step key is the index alone: a flag that turns on after the first render is the baseline, never a move of the question.
+ */
 export function useFocusQuestionInView(root: RefObject<HTMLElement | null>, enabled: boolean, index: number): void {
-  useStepChange(enabled ? String(index) : '', () => {
-    root.current?.querySelector<HTMLElement>('fieldset')?.focus()
+  useStepChange(String(index), () => {
+    if (enabled) root.current?.querySelector<HTMLElement>('fieldset')?.focus()
   })
 }
 

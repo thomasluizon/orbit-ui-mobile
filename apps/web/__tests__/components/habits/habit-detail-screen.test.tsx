@@ -1792,6 +1792,23 @@ describe('HabitDetailScreen', () => {
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
   })
 
+  it('shows the deleted result dialog when the delete has already removed the detail query, with the guided flows on', async () => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.deleteHabit.mockImplementationOnce(() => { mocks.detail = null; return Promise.resolve() })
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.delete' }))
+    fireEvent.click(screen.getByTestId('confirm-habits.deleteConfirmTitle'))
+    await act(async () => Promise.resolve())
+
+    const dialog = screen.getByRole('dialog', { name: 'result.title' })
+    expect(dialog).toHaveAccessibleDescription('result.habit.deleted')
+    expect(screen.queryByText('habits.detail.loadError')).not.toBeInTheDocument()
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'result.seeToday' }))
+    expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
+  })
+
   it('does not route the next account after an old delete completes', async () => {
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')

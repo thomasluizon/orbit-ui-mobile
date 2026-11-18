@@ -8,9 +8,9 @@ import { ArrowUp, Check, Lock } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { QuestionControls } from './question-controls'
-import { QuestionCounters, QuestionInViewNav, useFocusQuestionInView, useQuestionInView } from './question-in-view'
+import { QuestionCounters, QuestionInViewNav, questionFrameTitle, useFocusQuestionInView, useQuestionInView } from './question-in-view'
 
-function QuestionPanel({ invalid, firstInvalid, validationAttempt, showPrompt, anchor, ...props }: QuestionControlProps & { invalid: boolean; firstInvalid: boolean; validationAttempt: number; showPrompt: boolean; anchor: (node: View | Text | null) => void }) {
+function QuestionPanel({ invalid, firstInvalid, validationAttempt, showPrompt, anchor, ...props }: QuestionControlProps & { invalid: boolean; firstInvalid: boolean; validationAttempt: number; showPrompt: boolean; anchor: (node: Text | null) => void }) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -25,7 +25,7 @@ function QuestionPanel({ invalid, firstInvalid, validationAttempt, showPrompt, a
     }
   }, [firstInvalid, validationAttempt])
   const hasPrompt = showPrompt || invalid
-  return <View ref={hasPrompt ? undefined : anchor} style={{ minWidth: 0, gap: 12 }}>
+  return <View style={{ minWidth: 0, gap: 12 }}>
     {hasPrompt ? <Text ref={(node) => { prompt.current = node; anchor(node) }} accessibilityRole="header" accessibilityHint={invalid ? t('chat.question.required') : undefined} style={{ fontSize: 16, lineHeight: 24, fontFamily: 'Geist_500Medium', color: tokens.fg1 }}>{props.question.prompt}</Text> : null}
     <QuestionControls {...props} />
     <Text style={{ fontSize: 14, lineHeight: 20, color: tokens.statusBadText }}>{invalid ? t('chat.question.required') : ''}</Text>
@@ -52,12 +52,14 @@ export function QuestionBlock(props: QuestionBlockProps) {
     const handle = findNodeHandle(element)
     if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle)
   }, [focusWhenClosed])
+  const frameTitle = props.block.title || questions[0]!.prompt
+  const titleContent = questionFrameTitle({ inView, blockTitle: props.block.title, first: questions[0]!, invalidIds: state.invalidIds, anchor: anchorQuestion, color: tokens.fg1 })
   const Glyph = view.answered ? Check : Lock
   const controlWords = { yes: words.yes, no: words.no, recommended: t('chat.placement.recommended'), freeText: t('chat.choice.freeText'), required: t('common.required') }
   return <View style={{ minWidth: 0 }} testID="answer-block-question">
     {view.closed ? <View accessible accessibilityLabel={view.closed} tabIndex={-1} ref={focusClosed} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
       <Glyph size={20} strokeWidth={1.5} accessible={false} color={tokens.fg3} /><Text accessible={false} style={{ flex: 1, minWidth: 0, fontSize: 14, lineHeight: 20, color: tokens.fg3 }}>{view.closed}</Text>
-    </View> : <BlockFrame state={state.acting ? 'acting' : 'resting'} title={props.block.title || props.block.questions[0]!.prompt} wrapTitle items={[]}
+    </View> : <BlockFrame state={state.acting ? 'acting' : 'resting'} title={frameTitle} wrapTitle items={[]} titleContent={titleContent}
       body={<View style={{ minWidth: 0, gap: 24 }}>
         {props.block.intro ? <Text style={{ fontSize: 16, lineHeight: 24, color: tokens.fg2 }}>{props.block.intro}</Text> : null}
         <QuestionCounters progress={props.block.progress} answered={inView.enabled ? null : view.completed} total={props.block.questions.length} color={tokens.fg3} />
