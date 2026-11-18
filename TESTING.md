@@ -841,6 +841,9 @@ ends with `?`, or the whole text when no sentence does. The asking word (`which`
 "Leaving 4 to rename, which 2 should I delete?", "Want me to rename four? Which two should I delete?" and "Mantendo
 quatro, qual é o par que eu apago?" ask for the deleted half. When no asking word comes before an action, as in "Keeping
 four, pick the two to delete.", the case fails with a grader limit: the grader never guesses the half.
+The same holds when a negation or an alternative (`not`, `n't`, `never`, `or`, `instead`, `without`, `não`, `nunca`, `ou`,
+`sem`) stands between the asking word and that action, as in "Which ones shouldn't I delete? Those get renamed.": the
+question asks for the other half.
 A count only confirms the action that its clause names. In a list question, `keep` and
 `manter` are rename words, because the records to keep are the records to rename. When the question tells neither, or
 the two signals disagree, the case fails with a message that names a grader limit, not a model fault. A `yesNo`

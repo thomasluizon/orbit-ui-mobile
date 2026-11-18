@@ -459,6 +459,20 @@ it.each([
     reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
 })
 
+// A negation between the asking word and the asked action asks for the other half ("Which ones shouldn't I delete?"),
+// so the grader never guesses one: the case reports a grader limit.
+it.each([
+  ['en', 'Which ones should I not delete, renaming them instead?'],
+  ['en', "Which ones shouldn't I delete? Those get renamed."],
+  ['en', "Which ones don't need deleting? I'll rename them."],
+  ['en', 'Which ones should I never delete? I will rename those.'],
+  ['pt-BR', 'Quais não devo apagar? Esses eu renomeio.'],
+  ['pt-BR', 'Quais eu não apago, e sim renomeio?'],
+])('reports a grader limit for a %s question that negates the action it asks about: %s', (locale, prompt) => {
+  expect(sameTitleCard(shown(completedRecordsCard(prompt, locale)), cardVars(ids, locale))).toEqual({ pass: false, score: 0,
+    reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
+})
+
 // Halves of one size give a selection that names neither half, so the grader never guesses one.
 it.each([
   ['the completed records card', (prompt) => ({ card: completedRecordsCard(prompt, 'en'), trace: { calls: [] } })],
