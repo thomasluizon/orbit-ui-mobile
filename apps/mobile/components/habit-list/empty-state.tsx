@@ -15,6 +15,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { HABIT_FREQUENCY_FILTER_OPTIONS } from '@orbit/shared/utils/habit-frequency-filter'
 import type { HabitFrequencyFilter } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
+import { useFlag } from '@/hooks/use-flag'
 
 interface HabitListEmptyStateProps {
   title: string
@@ -111,17 +112,19 @@ export function HabitListEmptyState({
   )
 }
 
-/** The completed day: Orbit in Feliz at the state size. Orbit hops once while the celebration of the completed day is the active one, and never on a later visit. */
+/** The completed day: Orbit in Feliz. With the guided flows on, it draws at the state size and hops once while the celebration of the completed day is the active one, and never on a later visit. With them off, it draws at 96 with no hop. */
 export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: () => void }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { t } = useTranslation()
-  const mascotSize = useStateMascotSize()
+  const guided = useFlag('orbit_guided_flows')
+  const stateSize = useStateMascotSize()
+  const mascotSize = guided ? stateSize : 96
   const celebrating = useUIStore((state) => state.activeCelebration?.kind === 'all-done')
   return (
     <View testID="habit-list-all-done" style={styles.allDone}>
       <View testID="completed-day-mark" style={[styles.allDoneMark, { width: mascotSize, height: orbitMascotHeight(mascotSize) }]} importantForAccessibility="no-hide-descendants">
-        <OrbitHop testID="completed-day-hop" active={celebrating}><OrbitMascot size={mascotSize} state="feliz" /></OrbitHop>
+        {guided ? <OrbitHop testID="completed-day-hop" active={celebrating}><OrbitMascot size={mascotSize} state="feliz" /></OrbitHop> : <OrbitMascot size={mascotSize} state="feliz" />}
       </View>
       <View style={styles.allDoneText}>
         <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>

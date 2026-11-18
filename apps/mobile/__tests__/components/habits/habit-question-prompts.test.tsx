@@ -36,7 +36,7 @@ const hosts = (tree: ReturnType<typeof TestRenderer.create>, testID: string): Re
 const options = (tree: ReturnType<typeof TestRenderer.create>) => hosts(tree, 'option-card')
 const labels = (tree: ReturnType<typeof TestRenderer.create>) => options(tree).map((node) => node.props.accessibilityLabel)
 const sheetTitle = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node: ReactTestInstance) => String(node.type) === 'Sheet').map((node: ReactTestInstance) => node.props.title)
-const sentences = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node: ReactTestInstance) => String(node.type) === 'Text' && ['habits.checklistCompleteMessage', 'habits.checklistCompleteLine'].includes(node.props.children as string)).map((node: ReactTestInstance) => node.props.children as string)
+const sentences = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node: ReactTestInstance) => String(node.type) === 'Text' && node.props.children === 'habits.checklistCompleteMessage').map((node: ReactTestInstance) => node.props.children as string)
 const press = (node: ReactTestInstance) => TestRenderer.act(() => { (node.props.onPress as () => void)() })
 const mascots = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node: ReactTestInstance) => node.props.testID === 'orbit-mascot')
 

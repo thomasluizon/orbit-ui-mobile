@@ -95,7 +95,7 @@ function WrappedPageContent({ initialSelection }: Readonly<{
             onBack={() => goBackOrFallback('/profile')}
           />
         ) : null}
-        {playerOpen ? null : (
+        {guided && playerOpen ? null : (
           <WrappedCover
             period={period}
             onSelectPeriod={selectPeriod}

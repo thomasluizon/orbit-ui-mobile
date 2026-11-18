@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
@@ -46,12 +47,25 @@ describe('CelebrationPanel', () => {
     ['all-done', { count: 1 }, 'play'],
     ['daily-streak', { streak: 5 }, 'still'],
   ] as const)('gives the %s mark its one hop, or none for the daily moment', (kind, payload, hop) => {
+    enableTestFlags('orbit_guided_flows')
     useUIStore.getState().enqueueCelebration(kind, payload)
     const { container } = render(<CelebrationPanel />)
     expect(container.querySelector('[data-celebration-mark] [data-orbit-hop]')).toHaveAttribute('data-orbit-hop', hop)
   })
 
+  it.each([
+    ['streak', { streak: 7 }],
+    ['all-done', { count: 1 }],
+    ['daily-streak', { streak: 5 }],
+  ] as const)('draws the %s mark as the base still Orbit with no hop while the flag is off', (kind, payload) => {
+    useUIStore.getState().enqueueCelebration(kind, payload)
+    const { container } = render(<CelebrationPanel />)
+    expect(container.querySelector('[data-celebration-mark] [data-orbit-hop]')).toBeNull()
+    expect(container.querySelector('[data-celebration-mark] [data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'feliz')
+  })
+
   it('keeps the mark still under reduced motion', () => {
+    enableTestFlags('orbit_guided_flows')
     motion.reduced = true
     useUIStore.getState().enqueueCelebration('level-up', { level: 2 })
     const { container } = render(<CelebrationPanel />)

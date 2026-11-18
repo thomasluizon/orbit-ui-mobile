@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppState, StyleSheet, View } from 'react-native'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
@@ -68,6 +69,7 @@ describe('CelebrationPanel mobile', () => {
     ['all-done', { count: 1 }, 'play'],
     ['daily-streak', { streak: 5 }, 'still'],
   ] as const)('gives the %s mark its one hop, or none for the daily moment', (kind, payload, hop) => {
+    enableTestFlags('orbit_guided_flows')
     motion.reduced = false
     useUIStore.getState().enqueueCelebration(kind, payload)
     let tree: ReturnType<typeof TestRenderer.create>
@@ -76,7 +78,22 @@ describe('CelebrationPanel mobile', () => {
     TestRenderer.act(() => tree!.unmount())
   })
 
+  it.each([
+    ['streak', { streak: 7 }],
+    ['all-done', { count: 1 }],
+    ['daily-streak', { streak: 5 }],
+  ] as const)('draws the %s mark as the base still Orbit with no hop while the flag is off', (kind, payload) => {
+    motion.reduced = false
+    useUIStore.getState().enqueueCelebration(kind, payload)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<CelebrationPanel />) })
+    expect(tree!.root.findAllByProps({ testID: 'celebration-mark-hop' })).toHaveLength(0)
+    expect(tree!.root.findByProps({ testID: 'orbit-mascot' }).props).toMatchObject({ width: 48, 'data-orbit-state': 'feliz' })
+    TestRenderer.act(() => tree!.unmount())
+  })
+
   it('keeps the mark still under reduced motion', () => {
+    enableTestFlags('orbit_guided_flows')
     useUIStore.getState().enqueueCelebration('level-up', { level: 2 })
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<CelebrationPanel />) })
@@ -191,6 +208,7 @@ it('animates one daily change and leaves the next queued fact available after ti
 
 
 it.each(['daily-streak', 'streak'] as const)('retains the actual %s queue item and native panel until exit finishes', (kind) => {
+  enableTestFlags('orbit_guided_flows')
   vi.useFakeTimers()
   motion.reduced = false
   useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })

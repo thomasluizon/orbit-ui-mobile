@@ -8,6 +8,7 @@ import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { ORBIT_MASCOT_BOX_HEIGHT, ORBIT_MASCOT_BOX_WIDTH } from '@orbit/shared/contracts/brand'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { HabitListAllDone } from '@/components/habits/habit-list/empty-state'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -29,6 +30,7 @@ describe('Hoje completion text and action geometry', () => {
   it.each([320, 360, 384, 412, 740, 1024, 1440].flatMap(width => ['en', 'pt-BR'].flatMap(locale =>
     (['reduce', 'no-preference'] as const).map(reducedMotion => ({ width, locale, reducedMotion })))))(
     'centres the finish state at $width in $locale with $reducedMotion motion', async ({ width, locale, reducedMotion }) => {
+      enableTestFlags('orbit_guided_flows')
       const messages = locale === 'en' ? en : pt
       const size = width >= 1024 ? 128 : 96
       vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(min-width: 1024px)' && width >= 1024, media: query, addEventListener: () => {}, removeEventListener: () => {} }))
