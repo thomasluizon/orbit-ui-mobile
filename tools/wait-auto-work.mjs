@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { alertCheck, autoWorkRepositories, githubPageReader, listOpenAlerts, listOpenPullRequests, newestScanCommit, otherLiveRuns, pullRequestCheck } from "./lib/auto-work-github.mjs"
-import { readTicket } from "./lib/github-issues.mjs"
+import { readTicketState } from "./lib/github-issues.mjs"
 import { boardCheck, commandRunner, initialWakeMarks, mailCheck, reviewCheck, saveWakeMarks, SENTRY_MODE, watchIntake } from "./lib/auto-work-wake.mjs"
 import { REPO_ROOT, clearWakeSource, readRunState, registerWakeSource } from "./lib/run-state.mjs"
 
@@ -48,7 +48,6 @@ try {
   const readPages = githubPageReader({ signal: commands.signal })
   // The repositories resolve inside each check, so a failure there is a named source failure.
   const reading = () => ({ repositories: autoWorkRepositories(), readPages })
-  const readTicketState = (number) => readTicket(number, { withProjectItem: false })
   const modeChangedIn = (current) =>
     current?.sessionId !== state.sessionId || !current.autoWork || !current.sleep || Boolean(current.relay?.pending)
   const result = await watchIntake({

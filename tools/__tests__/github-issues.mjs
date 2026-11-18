@@ -60,7 +60,7 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,addTicketToProject,assertRepositoryLabel,cancelTicket,completeTicket,createMilestone,createTicket,editBlockers,editLabels,listBoardState,listLabels,listMilestones,listOpenTickets,listProjectViews,preflightTicketCompletion,readComments,readTicket,readTickets,repairTicketStatus,resolveTicket,setProjectViewFilter,setStatus,updateBody,updateTitle",
+      "addComment,addTicketToProject,assertRepositoryLabel,cancelTicket,completeTicket,createMilestone,createTicket,editBlockers,editLabels,listBoardState,listLabels,listMilestones,listOpenTickets,listProjectViews,preflightTicketCompletion,readComments,readTicket,readTicketState,readTickets,repairTicketStatus,resolveTicket,setProjectViewFilter,setStatus,updateBody,updateTitle",
     Object.keys(githubIssues).sort().join(","),
   )
 
@@ -195,6 +195,23 @@ export const cases = async () => {
       `${TOOL}: an issue-only read skips Projects and returns null project fields`,
       existsSync(skippedProjectRead) && issueOnly.status === null && issueOnly.projectItemId === null,
       JSON.stringify(issueOnly),
+    )
+
+    const stateOnlyRead = stage("github-issues/state-only-read", "must remain")
+    const [issueRead, ...dependencyReads] = githubIssueReadPlan(issue({ stateReason: "COMPLETED", state: "CLOSED" }))
+    applyEnvironment(
+      orcaEnv([
+        issueRead,
+        ...dependencyReads.map((entry) => ({ ...entry, removePath: stateOnlyRead })),
+        { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems, removePath: stateOnlyRead },
+        { match: "api graphql -F o=thomasluizon -F r=orbit-tickets -F n=221", stdout: issueProjectItems(), ticketEnvelope: "issueProjectItems", removePath: stateOnlyRead },
+      ]),
+    )
+    const stateOnly = await (await freshGithubIssues()).readTicketState(221)
+    T(
+      `${TOOL}: readTicketState reads the issue alone, with no dependency list and no project item`,
+      existsSync(stateOnlyRead) && JSON.stringify(stateOnly) === JSON.stringify({ number: 221, state: "CLOSED", stateReason: "COMPLETED", labels: [{ name: "repo:ui" }, { name: "harness" }] }),
+      JSON.stringify(stateOnly),
     )
 
     const retryIssues = await freshGithubIssues()

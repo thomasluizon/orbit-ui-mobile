@@ -287,19 +287,25 @@ const relationNumbers = (relation, name) => {
   return relation.nodes.map((ticket) => ({ number: positiveIssueNumber(ticket?.number) }))
 }
 
-const normalizeTicket = (issue, projectItems, repository) => {
-  if (issue === null || typeof issue !== "object" || Array.isArray(issue)) throw new Error("gh issue output was not an object")
-  const number = positiveIssueNumber(issue.number)
+/** Checks the labels, the state and the close reason of one issue response; every ticket reader shares these checks. */
+const checkedStateFields = (issue, number) => {
   if (!Array.isArray(issue.labels) || issue.labels.some((label) => typeof label?.name !== "string")) {
     throw new Error(`gh issue output for #${number} carried invalid labels`)
   }
   if (!new Set(["OPEN", "CLOSED"]).has(issue.state)) throw new Error(`gh issue output for #${number} carried unsupported state ${JSON.stringify(issue.state)}`)
-  for (const field of ["url", "title", "body"]) {
-    if (typeof issue[field] !== "string") throw new Error(`gh issue output for #${number} carried invalid ${field}`)
-  }
   const stateReason = issue.stateReason === "" ? null : issue.stateReason
   if (!["COMPLETED", "NOT_PLANNED", "DUPLICATE", "REOPENED", null].includes(stateReason)) {
     throw new Error(`gh issue output for #${number} carried unsupported stateReason ${JSON.stringify(stateReason)}`)
+  }
+  return { state: issue.state, stateReason, labels: issue.labels.map((label) => ({ name: label.name })) }
+}
+
+const normalizeTicket = (issue, projectItems, repository) => {
+  if (issue === null || typeof issue !== "object" || Array.isArray(issue)) throw new Error("gh issue output was not an object")
+  const number = positiveIssueNumber(issue.number)
+  const { state, stateReason, labels } = checkedStateFields(issue, number)
+  for (const field of ["url", "title", "body"]) {
+    if (typeof issue[field] !== "string") throw new Error(`gh issue output for #${number} carried invalid ${field}`)
   }
   const projectItem = projectItemFor({ number }, projectItems, repository)
   if (projectItem && (typeof projectItem.id !== "string" || projectItem.id.length === 0)) {
@@ -311,9 +317,9 @@ const normalizeTicket = (issue, projectItems, repository) => {
     url: issue.url,
     title: issue.title,
     body: issue.body,
-    state: issue.state,
+    state,
     stateReason,
-    labels: issue.labels.map((label) => ({ name: label.name })),
+    labels,
     blockedBy: relationNumbers(issue.blockedBy, "blockedBy"),
     blocking: relationNumbers(issue.blocking, "blocking"),
     status,
@@ -350,6 +356,20 @@ export const readTicket = async (number, { withProjectItem = true } = {}) => {
   const issue = await readIssue(number, tickets)
   const projectItems = withProjectItem ? await readIssueProjectItems(number, tickets) : []
   return normalizeTicket(issue, projectItems, tickets.repository)
+}
+
+/**
+ * The state, close reason and labels of one ticket from its issue alone: one `gh` call, with no dependency lists and no project item.
+ * A caller that reads only these fields uses this reader, so its cost does not triple with each ticket.
+ */
+export const readTicketState = async (number) => {
+  positiveIssueNumber(number)
+  const args = issueArgs(number, ticketConfiguration().repository)
+  const response = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
+  if (response === null || typeof response !== "object" || Array.isArray(response)) throw new Error("gh issue output was not an object")
+  const upper = (value) => typeof value === "string" ? value.toUpperCase() : value
+  return { number: positiveIssueNumber(response.number),
+    ...checkedStateFields({ labels: response.labels, state: upper(response.state), stateReason: upper(response.state_reason) }, number) }
 }
 
 /** Bulk callers share one snapshot of the open project items while retaining the ordinary issue response. */

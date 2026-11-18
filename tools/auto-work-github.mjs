@@ -3,7 +3,7 @@ import { alertsWithClosedTickets, autoWorkRepositories, closedTicketPullRequests
   listOpenPullRequests, markItem, newestScanCommit, otherLiveRuns, pendingItems, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing,
   recordTicketClosedAlerts, unreportedPullRequests } from "./lib/auto-work-github.mjs"
 import { intakeRun } from "./lib/auto-work-intake.mjs"
-import { readTicket } from "./lib/github-issues.mjs"
+import { readTicketState } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: auto-work-github.mjs <--collect | --mark <pullRequests|alerts> | --dismiss>
@@ -11,7 +11,8 @@ Lists every open pull request and every open alert (code scanning, secret scanni
 of the ui, api and landing repositories, every author and every page, for auto-work steps 7 and 8.
 --collect      writes intake.pullRequests and intake.alerts, reads them back and prints
                {pullRequests, alerts}, each with open, pending (items with no mark, or a pull
-               request whose head moved) and failures. pullRequests adds runOwned (the owner
+               request whose head moved, which carries previousMark {action, head, ticket?}) and
+               failures. pullRequests adds runOwned (the owner
                pull requests that the run recorded or whose branch or title names a ticket in
                remaining, each name resolved to its GitHub issue number), otherRun (the
                owner pull requests that the run state of another live Claude session's
@@ -75,7 +76,6 @@ try {
     process.exit(0)
   }
   const reading = { repositories, readPages: githubPageReader({ config }) }
-  const readTicketState = (number) => readTicket(number, { withProjectItem: false })
   const [pullListing, alertListing] = await Promise.all([listOpenPullRequests({ ...reading, readTicketState }), listOpenAlerts(reading)])
   const otherRuns = otherLiveRuns(intakeRun())
   const pullTickets = pullRequestsWithClosedTickets(recordListing("pullRequests", pullListing, undefined, { otherRuns }))

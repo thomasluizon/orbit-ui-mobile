@@ -113,6 +113,25 @@ const settleReads = async (reads) => {
 /** A ticket that does not exist answers 404, and a deleted one answers 410 Gone; both name no ticket. Any other failed read is a failure. */
 const ticketIsMissing = (error) => /\(HTTP (?:404|410)\)/.test(String(error?.message))
 
+/** The most ticket reads in flight at once; it stays fixed however many pull requests are open. */
+const TICKET_READ_CONCURRENCY = 4
+
+/** Reads each ticket number once, with at most `limit` reads in flight; a second ask for a number shares the first read, a failure included. */
+const readEachTicketOnce = (read, limit) => {
+  const answers = new Map()
+  const waiting = []
+  let running = 0
+  const release = () => {
+    running -= 1
+    waiting.shift()?.()
+  }
+  const acquire = () => running < limit ? (running += 1, Promise.resolve()) : new Promise((resolve) => waiting.push(() => { running += 1; resolve() }))
+  return (number) => {
+    if (!answers.has(number)) answers.set(number, acquire().then(() => read(number)).finally(release))
+    return answers.get(number)
+  }
+}
+
 /**
  * The tickets among `numbers` that carry `repo:<key>` of a pull request, each with its state and close reason. A pull request number in a
  * title, such as the `(#N)` of a squash merge subject, names no ticket when it has no issue or its issue routes to another repository; a
@@ -133,9 +152,11 @@ const routedTickets = async (repositoryKey, numbers, readTicketState) => {
 /**
  * Lists the open pull requests. Each owner pull request carries `tickets`, the tickets of its repository that its branch and title name,
  * each with its state; the ownership and closed ticket rules read only that field. A failed ticket read withholds only the pull request
- * that named the number: the listing names it in `failures` with its `key`, and it is not an item.
+ * that named the number: the listing names it in `failures` with its `key`, and it is not an item. Each number is read once for the whole
+ * listing, whatever number of pull requests name it, and at most TICKET_READ_CONCURRENCY reads run at once.
  */
-export const listOpenPullRequests = async ({ repositories, readPages, readTicketState }) => {
+export const listOpenPullRequests = async ({ repositories, readPages, readTicketState: readTicketStateEach }) => {
+  const readTicketState = readEachTicketOnce(readTicketStateEach, TICKET_READ_CONCURRENCY)
   const listing = await settleReads(repositories.map((repository) => ({
     read: `${repository.key} pulls`,
     list: async () => Promise.all((await readPages(`repos/${repository.slug}/pulls?state=open&per_page=100`, PULL_REQUEST_PROJECTION)).map(async (pull) => {
@@ -342,9 +363,14 @@ const unmarkedAtHead = (source, contents, item) => {
 /**
  * An open item needs the model when it has no mark or, for a pull request, when its head moved. A
  * pull request from an unexpected author or with closed tickets is never pending: it has its own list.
+ * A pending pull request whose head moved carries `previousMark` `{action, head, ticket?}`, so step 7 keeps a `fix` ticket that is still open.
  */
 export const pendingItems = (source, contents) => Object.values(contents.open)
   .filter((item) => !item.runOwned && (source !== "pullRequests" || pullRequestClass(item) === "configured") && unmarkedAtHead(source, contents, item))
+  .map((item) => {
+    const mark = source === "pullRequests" ? contents.marks[item.key] : undefined
+    return mark ? { ...item, previousMark: { action: mark.action, head: mark.head, ...(mark.ticket ? { ticket: mark.ticket } : {}) } } : item
+  })
 
 /** The pull requests from an unexpected author that the owner did not hear about yet. */
 export const unreportedPullRequests = (contents) => Object.values(contents.open).filter((pull) => pull.unexpectedAuthor && !contents.marks[pull.key])

@@ -216,7 +216,12 @@ for the successor.
      step 8 does. While its checks or its review still run, register
      `node tools/wait-ci.mjs --repo <key> --pr <n> --require-check pullfrog-approval` through
      `/orchestrate`'s wake protocol and leave it unmarked.
-   - **Fix** it when a check, a review finding or a conflict keeps it red. Write a ticket with
+   - **Fix** it when a check, a review finding or a conflict keeps it red. First read its
+     `previousMark`: a pull request whose head moved carries its earlier mark. When
+     `previousMark.action` is `fix` and `previousMark.ticket` is on the open board
+     (`node tools/plan-queue.mjs --board`), a worker already carries this upgrade. Write no second
+     ticket and admit no second worker. Record `fix` again at the new head with the same ticket.
+     Otherwise write a ticket with
      `.claude/skills/ticket/SKILL.md` through `node tools/create-ticket.mjs`, with the pull
      request, the red check and its verified cause. Admit its worker through `/orchestrate`
      in this cycle. The worker carries the same upgrade with the fix in its own pull request.

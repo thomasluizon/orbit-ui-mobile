@@ -763,8 +763,61 @@ const checkCases = async ({ pullListing, alertListing }) => {
   T("github: an alert check with no successful read rejects instead of an empty source", message === NOT_FOUND, message)
 }
 
+/*
+ * A pending pull request whose head moved carries its earlier mark, so step 7 keeps the ticket of a `fix` that is still open. The ticket
+ * reads of a listing cost one read for each number, shared by every pull request that names it, with a fixed number in flight at once.
+ */
+const fixMarkAndTicketReadCases = async () => {
+  const movedHead = "b".repeat(40)
+  const listed = async (pull) => listOpenPullRequests({ repositories: REPOSITORIES, readTicketState: routedTickets,
+    readPages: fakeReader({ "repos/thomasluizon/orbit-api/pulls": [pull] }).readPages })
+  const state = fresh("fix-mark-moved-head")
+  const first = recordListing("pullRequests", await listed(DEPENDABOT_PULL), state, NO_OTHER_RUN)
+  T("github: a pending pull request with no mark carries no previousMark", pendingItems("pullRequests", first).every((pull) => pull.previousMark === undefined))
+  markItem("pullRequests", { key: "api#1106", head: DEPENDABOT_PULL.head, action: "fix", ticket: TICKET }, state)
+  const moved = recordListing("pullRequests", await listed({ ...DEPENDABOT_PULL, head: movedHead }), state, NO_OTHER_RUN)
+  const [pending] = pendingItems("pullRequests", moved)
+  T("github: a pull request whose head moved after a fix mark is pending with the ticket of that fix",
+    JSON.stringify(pending?.previousMark) === JSON.stringify({ action: "fix", head: DEPENDABOT_PULL.head, ticket: TICKET }) && pending.head === movedHead, JSON.stringify(pending))
+  T("github: the previous mark of a pending pull request leaves the recorded mark at its head", moved.marks["api#1106"].head === DEPENDABOT_PULL.head, JSON.stringify(moved.marks))
+
+  const skill = autoWorkSkill()
+  const fixRule = skill.slice(skill.indexOf("- **Fix** it"), skill.indexOf("- **Close** it"))
+  T("github skill: step 7 keeps the open ticket of a fix mark at a new head and writes no second ticket and admits no second worker",
+    fixRule.includes("`previousMark.action` is `fix`") && fixRule.includes("`node tools/plan-queue.mjs --board`") && fixRule.includes("Write no second\n     ticket and admit no second worker") &&
+    fixRule.includes("Record `fix` again at the new head with the same ticket"), fixRule)
+
+  const named = (number, ...tickets) => ({ ...OWNER_PULL, number, head: String(number).repeat(10).slice(0, 40), branch: `fix/ticket-${tickets[0]}-x`, title: `fix: y ${tickets.slice(1).map((ticket) => `(#${ticket})`).join(" ")}` })
+  const owner = [...Array.from({ length: 12 }, (_, index) => named(3000 + index, 4000 + index)), named(3100, 4000, 4001), named(3101, 4001)]
+  const reads = []
+  let running = 0
+  let peak = 0
+  const readTicketState = async (number) => {
+    reads.push(number)
+    running += 1
+    peak = Math.max(peak, running)
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    running -= 1
+    return { number, state: "OPEN", stateReason: null, labels: [{ name: "repo:ui" }] }
+  }
+  const listing = await listOpenPullRequests({ repositories: REPOSITORIES, readTicketState,
+    readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": owner }).readPages })
+  T("github: a ticket named by several pull requests is read once in a listing", reads.length === 12 && new Set(reads).size === 12 &&
+    listing.items.length === owner.length && listing.items.find((pull) => pull.key === "ui#3100").tickets.length === 2 && listing.failures.length === 0, JSON.stringify(reads))
+  T("github: a listing keeps at most four ticket reads in flight, however many pull requests are open", peak > 1 && peak <= 4, `peak ${peak}`)
+  const shared = async (number) => {
+    if (number === 4000) throw new Error("gh api repos/thomasluizon/orbit-tickets/issues/4000 failed: gh: Bad Gateway (HTTP 502)")
+    return readTicketState(number)
+  }
+  const withheld = await listOpenPullRequests({ repositories: REPOSITORIES, readTicketState: shared,
+    readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": owner }).readPages })
+  T("github: a failed shared ticket read withholds each pull request that named the number and no other", JSON.stringify(withheld.failures.map(({ key }) => key)) ===
+    JSON.stringify(["ui#3000", "ui#3100"]) && withheld.items.length === owner.length - 2, JSON.stringify(withheld.failures))
+}
+
 export const cases = async () => {
   const listings = await listingCases()
+  await fixMarkAndTicketReadCases()
   await readerCases()
   await stateCases(listings)
   await ownershipCases(listings)
