@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react'
 import type { MotionNavigationIntent, MotionScenario } from '@orbit/shared/theme'
+import { readAppNavigationHistory } from '@/lib/app-navigation-history'
 
 interface RouteIntentSnapshot {
   intent: MotionNavigationIntent
@@ -13,6 +14,9 @@ let snapshot: RouteIntentSnapshot = {
   version: 0,
 }
 
+let claimedVersion: number | null = null
+let writeTask: ReturnType<typeof setTimeout> | null = null
+
 const listeners = new Set<() => void>()
 
 function emit() {
@@ -21,12 +25,50 @@ function emit() {
   }
 }
 
+function closeWriteTask() {
+  writeTask = null
+  if (snapshot.version !== claimedVersion) {
+    resetRouteTransitionIntent()
+  }
+}
+
 export function setRouteTransitionIntent(intent: MotionNavigationIntent) {
   snapshot = {
     intent,
     version: snapshot.version + 1,
   }
+  writeTask ??= setTimeout(closeWriteTask, 0)
   emit()
+}
+
+function readPathnameOnScreen(navigationType: string) {
+  if (navigationType !== 'traverse') {
+    return location.pathname
+  }
+
+  const { entries, index } = readAppNavigationHistory()
+  return entries[index]?.split('?')[0]
+}
+
+/**
+ * Receives each navigation start from Next (`onRouterTransitionStart` in `instrumentation-client.ts`).
+ * An intent stays only for a navigation that starts in the task that wrote it and that goes to another pathname.
+ * No pathname commit follows any other intent, so the end of its task clears it. A traversal moves `location`
+ * before Next reports it, so the pathname on screen then comes from the navigation history.
+ */
+export function claimRouteTransitionIntent(href: string, navigationType: string) {
+  if (writeTask === null) {
+    resetRouteTransitionIntent()
+    return
+  }
+
+  if (snapshot.version === claimedVersion) {
+    return
+  }
+
+  if (new URL(href, location.href).pathname !== readPathnameOnScreen(navigationType)) {
+    claimedVersion = snapshot.version
+  }
 }
 
 export function resetRouteTransitionIntent() {
