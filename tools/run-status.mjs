@@ -72,6 +72,7 @@ const commandPath = (path, root) => {
   return local.length < path.length ? local : path
 }
 const commandFor = (tool, row) => `node tools/${tool}.mjs --repo ${quote(row.repositoryKey)} --pr ${row.prNumber}`
+// One read of sixteen pull requests takes about the 3.5 s bound of `githubRead`; a read of eight takes about 2.5 s.
 const PULLS_PER_READ = 8
 const READY_ACTIONS = ["MERGE_NOW", "UPDATE_BRANCH"]
 const waitCommand = (row) => commandFor("wait-ci", row)
@@ -226,7 +227,7 @@ const githubRead = async (args, auth, runner) => {
   return response
 }
 
-/** One read of many pull requests passes the bound of a single read, so the numbers go out in parallel reads. */
+/** The repository fields of every named pull request, merged from parallel reads of `PULLS_PER_READ`. */
 const readPulls = async (numbers, slug, authentication, runner) => {
   const [owner, name] = slug.split("/")
   const reads = Array.from({ length: Math.max(1, Math.ceil(numbers.length / PULLS_PER_READ)) }, (_, index) => numbers.slice(index * PULLS_PER_READ, (index + 1) * PULLS_PER_READ))
