@@ -3282,7 +3282,7 @@
     input: "Create Weekly desk cleanup on Monday."
     requestedDays: ["Monday"]
     composition: {"mode": "preview", "previews": 1}
-    outcome: {"changes":[{"kind":"create","fields":{"title":{"contains":["desk"]},"frequency_unit":"Week","frequency_quantity":"1"}}]}
+    outcome: {"changes":[{"kind":"create","fields":{"title":{"contains":["desk"]},"frequency_unit":"Day","frequency_quantity":"1"}}]}
 - description: "proactive unsupported-schedule in pt-BR"
   metadata: {"id": "offers-unsupported-schedule-pt-BR", "category": "composition", "family": "offers-unsupported-schedule", "locale": "pt-BR", "fixture": "empty"}
   vars:
@@ -3291,7 +3291,7 @@
     input: "Crie Limpar a mesa semanalmente na segunda-feira."
     requestedDays: ["Monday"]
     composition: {"mode": "preview", "previews": 1}
-    outcome: {"changes":[{"kind":"create","fields":{"title":{"contains":["mesa"]},"frequency_unit":"Week","frequency_quantity":"1"}}]}
+    outcome: {"changes":[{"kind":"create","fields":{"title":{"contains":["mesa"]},"frequency_unit":"Day","frequency_quantity":"1"}}]}
 - description: "proactive dated-reminder in en"
   metadata: {"id": "offers-dated-reminder-en", "category": "composition", "family": "offers-dated-reminder", "locale": "en", "fixture": "empty"}
   vars:

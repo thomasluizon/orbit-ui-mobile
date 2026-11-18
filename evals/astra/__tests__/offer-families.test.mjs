@@ -11,7 +11,7 @@ const cases = [
   ['fixed-medication', { scheduled_reminders: [[{ time: '08:00', when: 'same_day' }, { time: '20:00', when: 'same_day' }], 'requested'] },
     (fields) => { fields[0].proposedValue[1].time = '21:00' }],
   ['ordinary-reading', { title: ['Read a book', 'requested'] }, (fields) => { fields.push(field('repeat_reminder', { interval_minutes: 120 }, 'suggested')) }],
-  ['unsupported-schedule', { frequency_unit: ['Week', 'requested'], days: [['Monday'], 'requested'] }, (fields) => { fields.push(field('repeat_reminder', { interval_minutes: 120 }, 'suggested')) }],
+  ['unsupported-schedule', { frequency_unit: ['Day', 'requested'], days: [['Monday'], 'requested'] }, (fields) => { fields.push(field('repeat_reminder', { interval_minutes: 120 }, 'suggested')) }],
   ['dated-reminder', { due_date: ['2031-06-12', 'requested'], reminder_enabled: [true, 'suggested'] }, (fields) => { fields.pop() }],
   ['parent', { parent_habit_id: [owned, 'suggested'] }, (fields) => { fields[0].proposedValue = unknown }],
   ['root', { title: ['Journal', 'requested'] }, (fields) => { fields.push(field('parent_habit_id', owned, 'suggested')) }],

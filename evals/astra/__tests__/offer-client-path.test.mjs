@@ -211,8 +211,8 @@ describe('the requirements that an offers schedule, children and reading case ke
     }
     return pending
   }
-  const cleanup = (locale, rows, provenance) => withRows(createPreview([{ title: titles[locale].cleanup, frequency_unit: 'Week',
-    frequency_quantity: 1 }]), rows, provenance)
+  const cleanup = (locale, rows, provenance, frequencyUnit = 'Day') => withRows(createPreview([{ title: titles[locale].cleanup,
+    frequency_unit: frequencyUnit, frequency_quantity: 1 }]), rows, provenance)
   const reading = (locale, rows) => withRows(createPreview([{ title: titles[locale].read, frequency_unit: 'Day',
     frequency_quantity: 1 }]), rows)
   const routine = (locale, drafts) => withRows(createPreview([{ title: titles[locale].routine }]), drafts ? { sub_habits: drafts } : {})
@@ -237,6 +237,13 @@ describe('the requirements that an offers schedule, children and reading case ke
       expect(await graded(id, cleanup(locale, { days: ['Monday', 'Tuesday'] }))).toMatchObject({ pass: false })
       expect(await graded(id, cleanup(locale, {}))).toMatchObject({ pass: false, reason: 'The requested weekday changed.' })
       expect(await graded(id, cleanup(locale, { days: ['Tuesday'] }, 'suggested'))).toMatchObject({ pass: false })
+    })
+
+    // Producer: orbit-api LegacyHabitSchedule.Resolve refuses a weekday list unless the unit is Day and the quantity is 1
+    // (DAYS_REQUIRE_QUANTITY_ONE), so a Week preview with days is a preview that approval cannot save.
+    it('fails a weekday list on a weekly schedule, which the API refuses on approval', async () => {
+      const id = `offers-unsupported-schedule-${locale}`
+      expect(await graded(id, cleanup(locale, { days: ['Monday'] }, undefined, 'Week'))).toMatchObject({ pass: false })
     })
 
     it('holds the requested drafts under the routine', async () => {
