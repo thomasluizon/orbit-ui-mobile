@@ -216,7 +216,7 @@ export function checkDependencyFileWrite(filePath, { cwd = "" } = {}) {
 }
 
 /**
- * @param command the Bash or PowerShell command about to run
+ * @param command the Bash, Monitor or PowerShell command about to run
  * @param options `{ cwd }`
  * @returns `{ block, message }` when the command writes into a dependency, else null
  */

@@ -325,7 +325,7 @@ function inspectSegment(segment, cwd, depth, activeScripts, deviceProof) {
 }
 
 /**
- * @param command the Bash or PowerShell command about to run
+ * @param command the Bash, Monitor or PowerShell command about to run
  * @param options `{ env, cwd, repoRoots }`
  * @returns `{ block, message }` when the caller is a worker reaching for a browser, else null
  */

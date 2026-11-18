@@ -3,7 +3,7 @@
 import { spawn, spawnSync } from "node:child_process"
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { delimiter, dirname, extname, join, resolve } from "node:path"
+import { dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { researchLaunch } from "./lib/research-run.mjs"
@@ -13,6 +13,7 @@ import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
+import { checkoutIdentity, resolveOnPath } from "./lib/cloud-worker.mjs"
 import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
@@ -142,17 +143,6 @@ const gitOutput = (directory, args) => {
   return result.status === 0 ? result.stdout.trim() : ""
 }
 
-const gitRepositoryIdentity = (directory) => {
-  const result = spawnSync("git", ["-C", directory, "rev-parse", "--git-common-dir"], { encoding: "utf8", windowsHide: true })
-  if (result.error || result.status !== 0 || result.stdout.trim() === "") return null
-  try {
-    const identity = realpathSync.native(resolve(directory, result.stdout.trim()))
-    return process.platform === "win32" ? identity.toLowerCase() : identity
-  } catch {
-    return null
-  }
-}
-
 /**
  * The launch mode of ticket work, with the values and steps named at `launchMode` below. It takes
  * GitHub admission, holds a branch launch slot, and reports the commits that the run left in the worktree.
@@ -206,10 +196,11 @@ const ticketLaunch = () => {
       continuationArguments = [...scriptArgs, ...invocation.args, `${workerPointer(branch)} An earlier worker on this branch stopped at its account's usage limit before it finished. Read git log and git status first, keep the work it already did, and finish the order.`]
     },
     admit: async ({ config, branch, launched }) => {
-      const repositoryIdentity = gitRepositoryIdentity(runDirectory)
+      const repositoryIdentity = checkoutIdentity(runDirectory)
       if (!repositoryIdentity) fail(2, `could not resolve the Git repository identity for ${runDirectory}`)
+      // A configured repository that is not cloned on this machine has no identity, so it is not the one that holds the run directory.
       launch.repositoryKey = Object.entries(config.repos ?? {}).find(([, repository]) =>
-        typeof repository === "string" && gitRepositoryIdentity(repository) === repositoryIdentity)?.[0] ?? null
+        typeof repository === "string" && checkoutIdentity(repository) === repositoryIdentity)?.[0] ?? null
       if (!launch.repositoryKey) fail(2, `${runDirectory} does not belong to a repository configured in .claude/orchestrator.json`)
       let githubAuth
       try {
@@ -359,27 +350,6 @@ const supervisionNow = () => {
 const acknowledgeSupervisionSample = () => {
   if (!supervisionClockPath || supervisionSample === null) return
   publishSupervisionMarker(`${supervisionClockPath}.sampled-${supervisionSample.byteLength}`, String(supervisionSample.sampledTime))
-}
-
-/**
- * Resolve a bare command the way the platform's launcher does, so the result is a real file rather
- * than a name Node will refuse. On win32 only PATHEXT candidates count: npm also drops an
- * extensionless shell script next to the shim, and Windows cannot execute it.
- */
-const resolveOnPath = (command) => {
-  if (command.includes("/") || command.includes("\\")) {
-    return existsSync(command) ? resolve(command) : null
-  }
-  const extensions = process.platform === "win32"
-    ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)
-    : [""]
-  for (const directory of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
-    for (const extension of extensions) {
-      const candidate = join(directory, `${command}${extension}`)
-      if (existsSync(candidate) && statSync(candidate).isFile()) return candidate
-    }
-  }
-  return null
 }
 
 const NPM_SHIM_SCRIPT = /"%dp0%\\+([^"]+\.js)"/i
