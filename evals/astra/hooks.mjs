@@ -46,9 +46,11 @@ export async function beforeAll({ suite }) {
   requireEvalOrigin()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
   const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
-  const offerLists = runPath === CHANGE_PLAN_PATH ? [catalog.changePlan?.offerTools]
+  // The ai_change_plan path has one offer list for each declaration shape of its change list.
+  const offerLists = runPath === CHANGE_PLAN_PATH ? Object.values(catalog.changePlan?.shapes ?? {}).map((lists) => lists.offerTools)
     : [catalog.offerTools, catalog.offerPostReadTools, catalog.offerHabitSetupTools]
-  if (suite.tests.some((test) => test.metadata?.family?.startsWith('offers-')) && offerLists.some((list) => !list?.length)) {
+  if (suite.tests.some((test) => test.metadata?.family?.startsWith('offers-'))
+    && (!offerLists.length || offerLists.some((list) => !list?.length))) {
     throw new Error('Regenerate the proactive tool catalogs from the evaluated API before running offer cases.')
   }
   requireCatalogCommit((await healthyApi({ fresh: true })).commit)

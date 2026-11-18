@@ -4,7 +4,7 @@ import { basename, dirname, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { validateToolArguments } from './tool-validation.mjs'
-import { catalogOf, observableSchema, pathOf, RUN_PATHS } from './trace-policy.mjs'
+import { catalogsOf, observableSchema, pathOf, RUN_PATHS } from './trace-policy.mjs'
 import { configureOffers } from './offer-context.mjs'
 import { toolBehavior } from './assertions.mjs'
 import { historicalReadExpectations } from './offer-lifecycle.mjs'
@@ -20,12 +20,12 @@ const observable = (catalog) => catalog.map((tool) => ({ ...tool, function: { ..
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
 } }))
 
-// The request declarations of the path that the window measured.
+// The declarations of the path that the window measured, one list for each declaration shape of that path.
 function declarations(vars, path) {
-  const { tools, legacyTools, offerTools } = catalogOf(path)
-  if (vars.clientContext?.supportsParts !== true) return [observable(legacyTools)]
-  const offers = vars.clientContext.supportsProactiveOffers === true
-  return [observable(offers ? offerTools : tools)]
+  return catalogsOf(path).map(({ tools, legacyTools, offerTools }) => {
+    if (vars.clientContext?.supportsParts !== true) return observable(legacyTools)
+    return observable(vars.clientContext.supportsProactiveOffers === true ? offerTools : tools)
+  })
 }
 
 function restartPopulation(attempt, vars) {

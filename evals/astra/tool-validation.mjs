@@ -32,7 +32,10 @@ export async function validateToolArguments(call, catalogs, context) {
     failures.push(verdict)
   }
   const form = call.name === 'ask' ? call.arguments?.input?.form : undefined
-  if (!['choice', 'pickList', 'question'].includes(form)) return failures[0]
+  // The lists of more than one declaration shape can refuse a call for different reasons, so the verdict holds each one.
+  if (!['choice', 'pickList', 'question'].includes(form)) {
+    return { ...failures[0], reason: [...new Set(failures.map(({ reason }) => reason))].join('\n') }
+  }
   const diagnostics = await Promise.all(catalogs.map((catalog) => run(call, selectedAskForm(catalog, call.arguments.input), context)))
   const closest = diagnostics.toSorted((left, right) => left.reason.length - right.reason.length)[0]
   return { ...closest, pass: false, score: 0, reason: `ask ${form}: ${closest.reason}` }

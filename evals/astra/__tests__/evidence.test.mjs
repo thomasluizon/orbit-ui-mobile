@@ -6,7 +6,8 @@ import { join } from 'node:path'
 import { writeResults } from '../report.mjs'
 import parseResponse from '../response.mjs'
 import { behavior } from '../assertions.mjs'
-import { chatResponse, toolCall, changePlanToolCall, traceTiming, suggestionDraft } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, changePlanToolCall, changeListTrace, changeListHabits, changeShapes, traceTiming,
+  suggestionDraft } from './fixtures/producer.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { tsImport } from 'tsx/esm/api'
 
@@ -371,4 +372,23 @@ it('keeps about and several of an ai_change_plan ask and redacts each record id'
   const blockFirst = persist(outputFor([call]))
   expect(blockFirst.evidence.toolCalls[0].arguments.input).toEqual({ form: 'choice', missing_input: 'record_selection', question, allowFreeText: false })
   for (const id of records) expect(blockFirst.text).not.toContain(id)
+})
+
+// Producer: orbit-api ChangeListReplayTests.ChangeList_TheEvalTraceRecordsEachChangeWithItsKindAndArguments. The trace
+// names each change by its kind in each shape, so the evidence reads the arguments of a change against that kind.
+it.each(changeShapes)('keeps the declared arguments and the result of each traced change of the %s shape', (shape) => {
+  vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', 'change-plan')
+  const [remove, rename] = changeListTrace(shape)
+  remove.arguments.note = 'A private note that no kind declares.'
+  const { evidence, text } = persist(outputFor([remove, rename]))
+  const result = { success: true, error: null, payload: { status: 'awaiting_confirmation' } }
+  expect(evidence.toolCalls).toMatchObject([
+    { name: 'bulk_delete_habits', resultStatus: 'PendingConfirmation', result,
+      arguments: { filter: null, habit_ids: ['[redacted]', '[redacted]'] } },
+    { name: 'bulk_update_habits', resultStatus: 'PendingConfirmation', result,
+      arguments: { filter: { habit_ids: Array(4).fill('[redacted]') }, updates: { title: 'Water - 1.18L' } } },
+  ])
+  expect(evidence.toolCalls[0].arguments).not.toHaveProperty('note')
+  expect(text).not.toContain('A private note that no kind declares.')
+  for (const id of changeListHabits) expect(text).not.toContain(id)
 })

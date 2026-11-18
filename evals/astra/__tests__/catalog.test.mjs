@@ -9,10 +9,10 @@ import { beforeAll } from '../hooks.mjs'
 import { beforeAll as beforeCoreRun } from '../core/hooks.mjs'
 import { structural } from '../assertions.mjs'
 import { completionControls } from '../tool-schema.mjs'
-import { RUN_PATHS, catalogOf, toolCompletionControls, toolSensitiveFields, toolWrites } from '../trace-policy.mjs'
+import { RUN_PATHS, catalogsOf, toolCompletionControls, toolSensitiveFields, toolWrites } from '../trace-policy.mjs'
 import parseResponse from '../response.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
-import { chatResponse, toolCall } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, changeListTrace, changeShapes } from './fixtures/producer.mjs'
 
 const { apiCommit } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
 
@@ -22,48 +22,152 @@ const exported = parse(readFileSync(new URL('../catalog.yaml', import.meta.url),
 const namesOf = (list) => list.map((tool) => tool.function.name)
 const askForms = (list) => list.find((tool) => tool.function.name === 'ask').function.parameters.properties.input.anyOf
 
+const { changeKinds, planTitleArgument, wrapperName, changesArgument, shapes } = exported.changePlan
+const listKeys = ['tools', 'legacyTools', 'offerTools']
+const kindNames = changeKinds.map((kind) => kind.name)
+const shapeLists = Object.keys(shapes).flatMap((shape) => listKeys.map((key) => [shape, key]))
+// Producer: orbit-api ChangeKinds.MergedForms. The single form of each of these writes is one kind with its bulk form.
+const mergedSingleForms = ['create_habit', 'create_sub_habit', 'delete_habit', 'log_habit', 'skip_habit']
+
 // Producer: catalog-export.cs exports each client shape in two flag states. The ai_change_plan path keeps one ask
-// declaration for the whole turn (orbit-api RefreshAskSchema returns at once there), so it has three lists only.
-it('keeps each flag-off key and holds the three flag-on lists under changePlan', () => {
+// declaration for the whole turn (orbit-api RefreshAskSchema returns at once there), so it has three lists only. It has
+// them one time for each declaration shape of the change list (orbit-api ChangeDeclarationShape).
+it('keeps each flag-off key and holds the three flag-on lists of each shape under changePlan', () => {
   expect(Object.keys(exported)).toEqual(['apiCommit', 'offerTools', 'offerPostReadTools', 'offerHabitSetupTools', 'tools',
     'legacyTools', 'postReadTools', 'habitSetupBinding', 'habitSetupTools', 'changePlan'])
-  expect(Object.keys(exported.changePlan)).toEqual(['tools', 'legacyTools', 'offerTools'])
-  for (const shape of ['tools', 'legacyTools', 'offerTools']) {
-    expect(exported.changePlan[shape].length).toBeGreaterThan(0)
-    expect(namesOf(exported.changePlan[shape])).toEqual(namesOf(exported[shape]))
-  }
+  expect(Object.keys(exported.changePlan)).toEqual(['changeKinds', 'planTitleArgument', 'wrapperName', 'changesArgument', 'shapes'])
+  // Producer: orbit-api ChangeDeclarations.PlanTitleArgument, WrapperName and ChangesArgument.
+  expect(exported.changePlan).toMatchObject({ planTitleArgument: 'plan_title', wrapperName: 'propose_changes', changesArgument: 'changes' })
+  expect(Object.keys(shapes)).toEqual(['kinds', 'wrapper'])
+  expect(changeShapes).toEqual(Object.keys(shapes))
+  for (const lists of Object.values(shapes)) expect(Object.keys(lists)).toEqual(listKeys)
   for (const key of ['postReadTools', 'habitSetupTools', 'offerPostReadTools', 'offerHabitSetupTools']) {
     expect(namesOf(exported[key])).toEqual(['ask'])
   }
-  expect(namesOf(exported.changePlan.legacyTools)).not.toContain('ask')
+})
+
+// Producer: orbit-api ChangeKinds.IsKind. A change kind is a registered write tool that is no merged single form.
+it('names each change kind with the write class and the sensitive fields of its registry entry', () => {
+  const blockFirstWrites = exported.tools.filter((tool) => tool.writes)
+  expect(kindNames).toEqual(namesOf(blockFirstWrites).filter((name) => !mergedSingleForms.includes(name)))
+  for (const kind of changeKinds) {
+    const { writes, sensitiveFields } = blockFirstWrites.find((tool) => tool.function.name === kind.name)
+    expect(kind, kind.name).toEqual({ name: kind.name, writes, sensitiveFields })
+  }
+})
+
+// Producer: orbit-api ProcessUserChatCommandHandler.ChangeListDeclarations. Each shape declares each read tool, ask and
+// revise_pending_changes of the block-first list, and it declares no plan and no merged single form.
+it.each(shapeLists)('declares each read tool, no present_plan and no merged single form in the %s shape of %s', (shape, key) => {
+  const names = namesOf(shapes[shape][key])
+  const reads = shapes[shape][key].filter((tool) => !tool.writes)
+  expect(namesOf(reads)).toEqual(namesOf(exported[key].filter((tool) => !tool.writes && tool.function.name !== 'present_plan')))
+  expect(names).toContain('revise_pending_changes')
+  expect(names.includes('ask')).toBe(key !== 'legacyTools')
+  for (const name of ['present_plan', ...mergedSingleForms]) expect(names, name).not.toContain(name)
+  expect(reads).toEqual(shapes[changeShapes[0]][key].filter((tool) => !tool.writes))
+})
+
+// Producer: orbit-api ChangeDeclarations.WithPlanTitle. The kinds shape declares one tool for each change kind, and each
+// of them requires the plan title.
+it.each(listKeys)('declares one tool with a plan title for each change kind in the kinds shape of %s', (key) => {
+  const writes = shapes.kinds[key].filter((tool) => tool.writes)
+  expect(namesOf(writes)).toEqual(kindNames)
+  expect(namesOf(writes)).toContain('bulk_delete_habits')
+  expect(namesOf(shapes.kinds[key])).not.toContain(wrapperName)
+  for (const { function: { name, parameters } } of writes) {
+    expect(parameters.properties[planTitleArgument], name).toMatchObject({ type: ['string', 'null'] })
+    expect(parameters.required, name).toContain(planTitleArgument)
+  }
+})
+
+// Producer: orbit-api ChangeDeclarations.Wrapper. The wrapper shape declares one propose_changes tool. It holds the
+// change list, the plan title and the completion control, and each item of the list is one alternative for each kind.
+it.each(listKeys)('declares one propose_changes tool with one alternative for each change kind in the wrapper shape of %s', (key) => {
+  const writes = shapes.wrapper[key].filter((tool) => tool.writes)
+  expect(namesOf(writes)).toEqual([wrapperName])
+  const [{ sensitiveFields, function: { parameters } }] = writes
+  expect(sensitiveFields).toEqual([])
+  expect(parameters.required).toEqual(expect.arrayContaining(['orbit_write_complete', changesArgument, planTitleArgument]))
+  const alternatives = parameters.properties[changesArgument].items.anyOf
+  expect(alternatives.map((item) => item.properties.kind.enum)).toEqual(kindNames.map((name) => [name]))
+  for (const item of alternatives) {
+    expect(item.required).toEqual(['id', 'kind', 'arguments'])
+    for (const control of [planTitleArgument, 'orbit_write_complete']) {
+      expect(Object.keys(item.properties.arguments.properties ?? {}), item.properties.kind.enum[0]).not.toContain(control)
+    }
+  }
 })
 
 // One map of each kind classifies the calls of both paths: the exporter takes the write class and the sensitive fields
 // from the registry entry of a tool, and the flag-on schema keeps the completion arguments of each tool.
 it('gives each tool one write class, one set of sensitive fields and one set of completion controls on both paths', () => {
   expect(RUN_PATHS).toEqual(['block-first', 'change-plan'])
-  expect(Object.keys(catalogOf('change-plan')).toSorted()).toEqual(Object.keys(catalogOf('block-first')).toSorted())
-  expect(catalogOf('change-plan')).toMatchObject({ postReadTools: [], habitSetupTools: [], offerPostReadTools: [], offerHabitSetupTools: [] })
-  const declared = RUN_PATHS.flatMap((path) => Object.values(catalogOf(path)).flat())
+  expect(catalogsOf('block-first')).toHaveLength(1)
+  expect(catalogsOf('change-plan')).toHaveLength(changeShapes.length)
+  for (const lists of catalogsOf('change-plan')) {
+    expect(Object.keys(lists).toSorted()).toEqual(Object.keys(catalogsOf('block-first')[0]).toSorted())
+    expect(lists).toMatchObject({ postReadTools: [], habitSetupTools: [], offerPostReadTools: [], offerHabitSetupTools: [] })
+  }
+  const declared = RUN_PATHS.flatMap((path) => catalogsOf(path).flatMap((lists) => Object.values(lists).flat()))
   expect(declared.length).toBeGreaterThan(400)
   for (const tool of declared) {
     expect(toolWrites.get(tool.function.name), tool.function.name).toBe(tool.writes)
     expect([...toolSensitiveFields.get(tool.function.name)], tool.function.name).toEqual(tool.sensitiveFields)
   }
-  for (const tool of catalogOf('change-plan').tools) {
+  for (const tool of Object.values(shapes).flatMap((lists) => lists.tools)) {
+    if (!toolCompletionControls.has(tool.function.name)) continue
     expect(completionControls(tool.function.parameters), tool.function.name).toEqual(toolCompletionControls.get(tool.function.name))
   }
+  expect(Object.values(shapes).flatMap((lists) => namesOf(lists.tools)).filter((name) => !toolCompletionControls.has(name)))
+    .toEqual([wrapperName])
+})
+
+// The eval trace names a change by its kind in each shape (orbit-api ChangeDeclarations.Read), and the wrapper is a
+// traced call only when it holds no change. The mutation scope check needs a write class for each traced name.
+it('gives each change kind and the wrapper the write class true', () => {
+  for (const name of [...kindNames, wrapperName]) expect(toolWrites.get(name), name).toBe(true)
+})
+
+// A traced change holds the arguments of the change, so its declaration in a trace list is no declaration of a model
+// call: the kinds shape loses the plan title, and the wrapper shape gives each kind the arguments of its alternative.
+it.each(shapeLists)('reads a traced change against the arguments of its kind in the %s shape of %s', (shape, key) => {
+  const list = catalogsOf('change-plan')[changeShapes.indexOf(shape)][key]
+  const declared = shapes[shape][key]
+  for (const kind of changeKinds) {
+    const traced = list.filter((tool) => tool.function.name === kind.name)
+    expect(traced, kind.name).toHaveLength(1)
+    expect(traced[0], kind.name).toMatchObject({ type: 'function', writes: true, sensitiveFields: kind.sensitiveFields })
+    const { parameters, strict, description } = traced[0].function
+    expect(strict, kind.name).toBe(true)
+    expect(Object.keys(parameters.properties), kind.name).not.toContain(planTitleArgument)
+    expect(parameters.required, kind.name).not.toContain(planTitleArgument)
+    const own = declared.find((tool) => tool.function.name === kind.name)
+    if (own) {
+      expect(description).toBe(own.function.description)
+      expect({ ...parameters.properties, [planTitleArgument]: own.function.parameters.properties[planTitleArgument] })
+        .toEqual(own.function.parameters.properties)
+      expect(parameters.required).toEqual(own.function.parameters.required.filter((name) => name !== planTitleArgument))
+    } else {
+      const wrapper = declared.find((tool) => tool.function.name === wrapperName).function.parameters
+      const item = wrapper.properties[changesArgument].items.anyOf.find((entry) => entry.properties.kind.enum.includes(kind.name))
+      expect(description).toBe(item.description)
+      expect(parameters).toEqual({ ...item.properties.arguments, $defs: wrapper.$defs })
+    }
+  }
+  expect(list.filter((tool) => !kindNames.includes(tool.function.name)))
+    .toEqual(declared.filter((tool) => !kindNames.includes(tool.function.name)))
 })
 
 // Producer: orbit-api AskTool.GetChangePlanParameterSchema adds one choice form with `about` and `several`, and removes
 // `target_ids` from each option.
-it.each(['tools', 'offerTools'])('declares the choice about records only in the flag-on ask of %s', (shape) => {
-  const about = askForms(exported.changePlan[shape]).filter((form) => Object.hasOwn(form.properties, 'about'))
+it.each(shapeLists.filter(([, key]) => key !== 'legacyTools'))('declares the choice about records only in the flag-on ask of the %s shape of %s', (shape, key) => {
+  const about = askForms(shapes[shape][key]).filter((form) => Object.hasOwn(form.properties, 'about'))
   expect(about).toHaveLength(1)
   expect(Object.keys(about[0].properties)).toEqual(['form', 'missing_input', 'question', 'about', 'several', 'allowFreeText'])
-  expect(JSON.stringify(exported.changePlan[shape])).not.toContain('target_ids')
-  expect(askForms(exported[shape]).some((form) => Object.hasOwn(form.properties, 'about'))).toBe(false)
-  expect(JSON.stringify(askForms(exported[shape]))).toContain('target_ids')
+  expect(JSON.stringify(shapes[shape][key])).not.toContain('target_ids')
+  expect(askForms(exported[key]).some((form) => Object.hasOwn(form.properties, 'about'))).toBe(false)
+  expect(JSON.stringify(askForms(exported[key]))).toContain('target_ids')
 })
 
 // Producer: orbit-api src/Orbit.Application/Chat/Tools/Implementations/QueryHabitsTool.cs:26-45,
@@ -173,6 +277,63 @@ it.each([relativeRead, completedRead, placedHabit, habitMonth])('accepts the pro
     calls: [{ ...call, resultStatus: status }] } }
   const result = await structural(output, { vars: { evalRequestId: 'catalog', clientContext }, test: { vars: {} } })
   expect(result.pass, result.reason).toBe(true)
+})
+
+async function validateCalls(calls, clientContext) {
+  const output = parseResponse(chatResponse('catalog', calls), '', {
+    response: { status: 200, headers: { 'x-orbit-request-id': 'catalog' } },
+  })
+  return structural(output, { vars: { evalRequestId: 'catalog', clientContext }, test: { vars: {} } })
+}
+const clients = [['parts', { supportsParts: true }], ['legacy', {}], ['offer', { supportsParts: true, supportsProactiveOffers: true }]]
+
+// Producer: orbit-api ChangeListReplayTests.ChangeList_TheEvalTraceRecordsEachChangeWithItsKindAndArguments. In each
+// shape the trace holds one call for each change, with the name of its kind and no propose_changes call.
+it.each(changeShapes.flatMap((shape) => clients.map(([client, clientContext]) => [shape, client, clientContext])))(
+  'validates each traced change of the %s shape against the arguments of its kind (%s client)', async (shape, _, clientContext) => {
+    vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', 'change-plan')
+    const calls = changeListTrace(shape, clientContext)
+    expect(calls.map(({ id, name, status }) => [id, name, status])).toEqual([
+      ['delete', 'bulk_delete_habits', 'PendingConfirmation'], ['rename', 'bulk_update_habits', 'PendingConfirmation']])
+    for (const call of calls) expect(call.arguments).not.toHaveProperty(planTitleArgument)
+    const valid = await validateCalls(calls, clientContext)
+    expect(valid.pass, valid.reason).toBe(true)
+    const [remove, rename] = calls
+    const undeclared = await validateCalls([{ ...remove, arguments: { ...remove.arguments, note: 'not declared' } }, rename], clientContext)
+    expect(undeclared.pass).toBe(false)
+    expect(undeclared.reason).toContain('bulk_delete_habits')
+    // No run names its shape, so the reason holds the refusal of each shape, and one of them names the argument.
+    expect(undeclared.reason).toContain('"additionalProperty":"note"')
+    const invalidUpdate = structuredClone(rename)
+    invalidUpdate.arguments.updates.title = 7
+    const mistyped = await validateCalls([remove, invalidUpdate], clientContext)
+    expect(mistyped.pass).toBe(false)
+    expect(mistyped.reason).toContain('bulk_update_habits')
+    // The plan title is an argument of the model call, never of a change (ChangeDeclarations.Read).
+    const titled = await validateCalls([{ ...remove, arguments: { ...remove.arguments, [planTitleArgument]: null } }, rename], clientContext)
+    expect(titled.pass).toBe(false)
+  },
+)
+
+// Producer: orbit-api ProcessUserChatCommandHandler.TurnDeclarations. The block-first path declares the plan and each
+// single write form; the ai_change_plan path declares neither, so a call of one of them is no valid call there.
+it('validates a trace with present_plan and delete_habit on the block-first path only', async () => {
+  const clientContext = { supportsParts: true }
+  const plan = toolCall('present_plan', { title: 'Delete two habits', steps: [
+    { text: 'Delete Water', tool: 'delete_habit', phase: 'approval' },
+    { text: 'Delete Walk', tool: 'delete_habit', phase: 'approval' }] }, 'Succeeded', 'plan', clientContext)
+  const remove = toolCall('delete_habit', { habit_id: '11111111-1111-4111-8111-111111111111' }, 'PendingConfirmation', 'delete', clientContext, true)
+  for (const select of [() => vi.unstubAllEnvs(), () => vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', 'block-first')]) {
+    select()
+    const valid = await validateCalls([plan, remove], clientContext)
+    expect(valid.pass, valid.reason).toBe(true)
+  }
+  vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', 'change-plan')
+  for (const call of [plan, remove]) {
+    const refused = await validateCalls([call], clientContext)
+    expect(refused.pass, call.name).toBe(false)
+    expect(refused.reason, call.name).toContain(call.name)
+  }
 })
 
 it.each([['different commit', 'a'.repeat(40)], ['missing commit', null], ['matching commit', apiCommit]])(
