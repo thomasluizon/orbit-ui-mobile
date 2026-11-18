@@ -19,7 +19,6 @@ import { mightBeServerReferenceId } from 'next/dist/shared/lib/server-reference-
 const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
 const STATIC_IMAGE_PATH = /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/
 const PUBLIC_ROOT_FILES = new Set(['/sw.js', '/robots.txt'])
-const ROUTE_HANDLER_PREFIXES = ['/ingest', SENTRY_TUNNEL_ROUTE]
 const desktopCallbackAttemptSchema = z.object({
   state: z.string().min(1),
   desktop: desktopAttemptSchema,
@@ -122,7 +121,7 @@ function isStaleServerAction(request: NextRequest) {
 }
 
 function isRouteHandlerPath(pathname: string): boolean {
-  return ROUTE_HANDLER_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  return pathname === SENTRY_TUNNEL_ROUTE || pathname === '/ingest' || pathname.startsWith('/ingest/')
 }
 
 // WHY: Next treats every multipart POST to a page as a possible form action and answers 500 when the body does not parse: https://github.com/vercel/next.js/blob/v16.4.3/packages/next/src/server/lib/server-action-request-meta.ts

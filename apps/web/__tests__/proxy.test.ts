@@ -836,6 +836,8 @@ describe('malformed Server Action requests', () => {
   it.each([
     { path: '/login', contentType: 'multipart/form-data; boundary=x' },
     { path: '/habits', contentType: 'multipart/form-data; boundary=x' },
+    { path: '/monitoring/x', contentType: 'multipart/form-data; boundary=x' },
+    { path: '/monitoring/anything/deeper', contentType: 'multipart/form-data; boundary=x' },
     { path: '/login', contentType: 'multipart/form-data' },
   ])('rejects a malformed form POST without an action header at $path ($contentType)', async ({ path, contentType }) => {
     vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
