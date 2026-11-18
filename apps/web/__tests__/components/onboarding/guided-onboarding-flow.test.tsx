@@ -369,6 +369,50 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     expect(screen.queryByText(flow.completionFailed)).toBeNull()
   })
 
+  const editedPhrase = (name: 'every' | 'once') => locale === 'en'
+    ? { every: 'Read every Friday at 07:00', once: 'Read a book' }[name]
+    : { every: 'Ler toda sexta às 07:00', once: 'Ler um livro' }[name]
+  const openPhraseFromSummary = () => fireEvent.click(within(screen.getByRole('group', { name: guided.summary.question })).getByRole('button', { name: new RegExp(`^${guided.summary.what}`) }))
+
+  it('returns to the summary when Continue follows a phrase edited from the summary, and reads the new phrase once', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages)
+    await typePhrase(messages, locale === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+    expect(heading()).toBe(guided.summary.question)
+    openPhraseFromSummary()
+    expect(heading()).toBe(guided.what.question)
+    fireEvent.change(screen.getByLabelText(guided.what.question, { selector: 'textarea' }), { target: { value: editedPhrase('every') } })
+    await act(async () => { press(flow.continue) })
+    expect(heading()).toBe(guided.summary.question)
+    expect(within(screen.getByRole('group', { name: guided.summary.question })).getByRole('button', { name: new RegExp(`^${guided.summary.what}`) }).textContent).toContain(locale === 'en' ? 'Read' : 'Ler')
+  })
+
+  it('asks the repeat question when the phrase edited from the summary gave no repeat', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages)
+    await typePhrase(messages, locale === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+    openPhraseFromSummary()
+    fireEvent.change(screen.getByLabelText(guided.what.question, { selector: 'textarea' }), { target: { value: editedPhrase('once') } })
+    await act(async () => { press(flow.continue) })
+    expect(heading()).toBe(flow.when.scheduleMode)
+  })
+
+  it('goes back from a phrase edited from the summary to the summary, before Create and after Create then Back', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages)
+    await typePhrase(messages, locale === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+    openPhraseFromSummary()
+    expect(screen.getByRole('button', { name: flow.back })).toBeInTheDocument()
+    press(flow.back)
+    expect(heading()).toBe(guided.summary.question)
+    await act(async () => { press(flow.create) })
+    press(flow.back)
+    expect(heading()).toBe(guided.summary.question)
+    openPhraseFromSummary()
+    press(flow.back)
+    expect(heading()).toBe(guided.summary.question)
+  })
+
   it('closes with the result dialog built from the saved habit read back from the query cache, then opens Today on a Pro plan', async () => {
     useOnboardingDraftStore.setState({ introSeen: true })
     mount(locale, messages)

@@ -115,6 +115,8 @@ export interface OnboardingDecisionProps {
   createFailed: boolean
   creating: boolean
   suggestionPending: boolean
+  /** Counts the settled reads of the phrase. A phrase edited from the summary settles with no step change. */
+  phraseReads: number
   reminderDecision: ReminderDecision
   reminderState: OnboardingRemindState
   createdTitle: string
@@ -241,6 +243,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
   const [createdGeneral, setCreatedGeneral] = useState(false)
   const [skipped, setSkipped] = useState(false)
   const [suggestionPending, setSuggestionPending] = useState(false)
+  const [phraseReads, setPhraseReads] = useState(0)
   const [reminderDecision, setReminderDecision] = useState<ReminderDecision>('idle')
   const completionInFlight = useRef(false)
   const [completionPending, setCompletionPending] = useState(false)
@@ -264,6 +267,11 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
   const allowance = profile?.aiMessagesLimit ?? 5
   const atLimit = isLive && (profile?.aiMessagesUsed ?? 0) >= allowance
 
+  function finishPhraseRead() {
+    setPhraseReads((reads) => reads + 1)
+    setStep(ONBOARDING_WHEN_STEP)
+  }
+
   async function continueFromWhat(phrase: string) {
     if (!phrase.trim() || suggestionPending) return
     const localSchedule = clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(phrase, locale, guided), isLive)
@@ -273,7 +281,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
     setProposed(false)
     setCorrecting(false)
     if (!shouldRequestOnboardingSuggestion({ isLive, atLimit, available: suggestion.available })) {
-      setStep(ONBOARDING_WHEN_STEP)
+      finishPhraseRead()
       return
     }
     const revision = suggestionRevision.current + 1
@@ -293,7 +301,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
     } finally {
       if (suggestionRevision.current === revision) {
         setSuggestionPending(false)
-        setStep(ONBOARDING_WHEN_STEP)
+        finishPhraseRead()
       }
     }
   }
@@ -474,7 +482,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
     runStepTransition(() => setStep(step - 1))
   }
 
-  const decisionProps: OnboardingDecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji: emoji || '◎', schedule, dueTime, proposed, correcting, atLimit, allowance, allowancePeriod: profile?.aiMessagesPeriod, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => { useOnboardingDraftStore.getState().markOnboardingLocallyDone(); router.push(loginUrl) }, onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(sentence), onStarter: chooseStarter, onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
+  const decisionProps: OnboardingDecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji: emoji || '◎', schedule, dueTime, proposed, correcting, atLimit, allowance, allowancePeriod: profile?.aiMessagesPeriod, createFailed, creating, suggestionPending, phraseReads, reminderDecision, reminderState, createdTitle, onAccount: () => { useOnboardingDraftStore.getState().markOnboardingLocallyDone(); router.push(loginUrl) }, onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(sentence), onStarter: chooseStarter, onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
 
   async function finishAndLeave(destination = destinationAfterPro) {
     const accountId = getHeldAccountId()

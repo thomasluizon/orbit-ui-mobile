@@ -193,8 +193,8 @@ export function onboardingBackTarget(navigation: OnboardingGuidedNavigation, int
   const { view, editing, cadencePath } = navigation
   if (view === 'talk') return null
   if (isOnboardingIntroScreen(view)) return ONBOARDING_INTRO_SCREENS[ONBOARDING_INTRO_SCREENS.indexOf(view) - 1]!
-  if (view === 'what') return introRun ? 'restart' : null
   if (editing) return 'summary'
+  if (view === 'what') return introRun ? 'restart' : null
   if (view === 'summary') return cadencePath.at(-1) ?? 'step'
   const index = cadencePath.indexOf(view)
   return index > 0 ? cadencePath[index - 1]! : 'step'

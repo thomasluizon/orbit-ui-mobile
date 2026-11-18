@@ -718,10 +718,27 @@ export function CreateHabitModal({
     )
   }
 
+  const discardSheet = (
+    <DiscardChangesSheet
+      open={dismissGuard.showDiscardDialog}
+      onKeepEditingStart={() => {
+        pendingNavigation.current = null
+        dismissGuard.beginCancelDismiss()
+      }}
+      onKeepEditing={() => {
+        if (!dismissGuard.isCancelling) pendingNavigation.current = null
+        dismissGuard.cancelDismiss()
+      }}
+      onDismissDuringClose={dismissGuard.requestDismiss}
+      onDiscard={dismissGuard.confirmDismiss}
+    />
+  )
+
   return (
     <>
       {open ? (<HabitCreateFrame
         guided={guided}
+        discardSheet={guided ? discardSheet : undefined}
         presentation={presentation}
         fromConversation={fromConversation}
         leaving={leaveAction !== null}
@@ -748,19 +765,7 @@ export function CreateHabitModal({
           onCreateAnother={() => { setSaved(null); setSaveError(null); setFlowRun((run) => run + 1) }}
         />
       ) : null}
-      <DiscardChangesSheet
-        open={dismissGuard.showDiscardDialog}
-        onKeepEditingStart={() => {
-          pendingNavigation.current = null
-          dismissGuard.beginCancelDismiss()
-        }}
-        onKeepEditing={() => {
-          if (!dismissGuard.isCancelling) pendingNavigation.current = null
-          dismissGuard.cancelDismiss()
-        }}
-        onDismissDuringClose={dismissGuard.requestDismiss}
-        onDiscard={dismissGuard.confirmDismiss}
-      />
+      {guided ? null : discardSheet}
     </>
   )
 }

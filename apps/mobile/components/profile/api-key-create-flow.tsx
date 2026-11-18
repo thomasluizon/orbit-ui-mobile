@@ -128,8 +128,8 @@ export function ApiKeyCreateFlow(props: Readonly<ApiKeyCreateFlowProps>) {
         >
           <StepField flow={flow} props={props} onContinue={continueFromText} />
         </QuestionFlow>
+        <DiscardChangesSheet open={dismissGuard.showDiscardDialog} onKeepEditing={dismissGuard.cancelDismiss} onDiscard={dismissGuard.confirmDismiss} />
       </FlowScreen>
-      <DiscardChangesSheet open={dismissGuard.showDiscardDialog} onKeepEditing={dismissGuard.cancelDismiss} onDiscard={dismissGuard.confirmDismiss} />
     </>
   )
 }

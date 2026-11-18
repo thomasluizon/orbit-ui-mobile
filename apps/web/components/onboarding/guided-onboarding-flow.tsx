@@ -285,7 +285,7 @@ function useRemindView(props: GuidedOnboardingProps, onEdit: (step: OnboardingQu
 export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
   const t = useTranslations()
   const locale = useLocale() === 'pt-BR' ? 'pt-BR' : 'en'
-  const { navigation, introRun, go, backAction } = useGuidedNavigation({ step: props.step, readIntroSeen: () => useOnboardingDraftStore.getState().introSeen, readNeedsCadence: () => onboardingNeedsCadence(props.schedule, props.proposed) })
+  const { navigation, introRun, go, backAction } = useGuidedNavigation({ step: props.step, phraseReads: props.phraseReads, readIntroSeen: () => useOnboardingDraftStore.getState().introSeen, readNeedsCadence: () => onboardingNeedsCadence(props.schedule, props.proposed) })
   const { view, direction, cadencePath, editing } = navigation
   const toSummary = () => go('summary', 1, { editing: false, walking: false })
   const answered = (step: OnboardingQuestionStep) => {

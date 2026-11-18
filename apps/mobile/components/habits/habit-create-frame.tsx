@@ -1,7 +1,7 @@
 import { SPACING } from '@orbit/shared/theme'
 import { HABIT_CREATE_OVERLAY_ID } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
-import { useLayoutEffect, type ComponentProps, type ComponentType } from 'react'
+import { useLayoutEffect, type ComponentProps, type ComponentType, type ReactNode } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '@/components/ui/sheet'
@@ -17,11 +17,12 @@ type HabitCreateFrameProps = ComponentProps<typeof Sheet> & {
   fromConversation: boolean
   leaving: boolean
   guided?: boolean
+  discardSheet?: ReactNode
   leaveGuard?: ComponentType<{ leaving: boolean; requestLeave: () => void }>
 }
 
-export function HabitCreateFrame({ presentation, fromConversation, leaving, guided = false, leaveGuard, ...props }: Readonly<HabitCreateFrameProps>) {
-  if (guided) return <GuidedCreateFrame presentation={presentation} leaving={leaving} leaveGuard={leaveGuard} title={props.title} onAttemptDismiss={props.onAttemptDismiss}>{props.children}</GuidedCreateFrame>
+export function HabitCreateFrame({ presentation, fromConversation, leaving, guided = false, discardSheet, leaveGuard, ...props }: Readonly<HabitCreateFrameProps>) {
+  if (guided) return <GuidedCreateFrame presentation={presentation} leaving={leaving} leaveGuard={leaveGuard} title={props.title} discardSheet={discardSheet} onAttemptDismiss={props.onAttemptDismiss}>{props.children}</GuidedCreateFrame>
   if (presentation === 'sheet') return <Sheet {...props} />
   return <HabitCreateScreenFrame {...props} fromConversation={fromConversation} leaving={leaving} leaveGuard={leaveGuard} />
 }
@@ -46,17 +47,18 @@ function HabitCreateScreenFrame({ fromConversation, leaving, leaveGuard: LeaveGu
   </Shell412></KeyboardAwareView>
 }
 
-function GuidedCreateFrame({ presentation, leaving, leaveGuard: LeaveGuard, title, children, onAttemptDismiss }: Readonly<Pick<HabitCreateFrameProps, 'presentation' | 'leaving' | 'leaveGuard' | 'title' | 'children' | 'onAttemptDismiss'>>) {
+function GuidedCreateFrame({ presentation, leaving, leaveGuard: LeaveGuard, title, children, discardSheet, onAttemptDismiss }: Readonly<Pick<HabitCreateFrameProps, 'presentation' | 'leaving' | 'leaveGuard' | 'title' | 'children' | 'discardSheet' | 'onAttemptDismiss'>>) {
   useLayoutEffect(() => {
     if (presentation !== 'screen') return undefined
     useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
     return () => useUIStore.getState().unregisterOpenOverlay(HABIT_CREATE_OVERLAY_ID)
   }, [presentation])
   const dismiss = () => onAttemptDismiss?.()
-  if (presentation === 'sheet') return <FlowScreen label={title ?? ''} onDismiss={dismiss}>{children}</FlowScreen>
+  if (presentation === 'sheet') return <FlowScreen label={title ?? ''} onDismiss={dismiss}>{children}{discardSheet}</FlowScreen>
   return <FlowScreen presentation="route" label={title ?? ''} onDismiss={dismiss}>
     {LeaveGuard ? <LeaveGuard leaving={leaving} requestLeave={dismiss} /> : null}
     {children}
+    {discardSheet}
   </FlowScreen>
 }
 
