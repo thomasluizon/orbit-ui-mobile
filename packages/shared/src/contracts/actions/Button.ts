@@ -3,6 +3,7 @@ interface ButtonBase {
   variant?: 'primary' | 'ghost' | 'secondary' | 'destructive' | 'caution'
   size?: 'md' | 'sm'
   loading?: boolean
+  loadingFace?: 'skeleton' | 'icon'
   focusableWhenLoading?: boolean
   minimumHeight?: number
   elevated?: boolean

@@ -72,7 +72,7 @@ export function TodayAstraLine({ text, destination, role = 'button', onPress, di
       >
         {!disabled && (pressed || hovered) ? <View accessible={false} pointerEvents="none" style={[StyleSheet.absoluteFill, styles.feedback, { backgroundColor: tokens.bgHoverOpaque }]} /> : null}
         <View ref={mascotRef} accessible={false} style={{ width: 48, flexShrink: 0, alignItems: 'center' }}>
-          {guided ? <OrbitMascot size={48} state={mascotState} lookAt={lookAt} turnKey={turnKey} /> : <OrbitMascot size={48} still />}
+          {guided ? <OrbitMascot size={48} live="withLead" state={mascotState} lookAt={lookAt} turnKey={turnKey} /> : <OrbitMascot size={48} live="withLead" />}
         </View>
         {loading ? <View testID="summary-skeleton" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.skeleton, { minHeight: type.lineHeight * 2 }]}>
           <View style={styles.placeholder}><Skeleton variant="fill" grouped /></View>

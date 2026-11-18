@@ -144,6 +144,7 @@ const mocks = vi.hoisted(() => ({
   rescheduleOptions: [] as { enabled: boolean }[],
   rescheduleError: null as Error | null,
   reschedulePaused: false,
+  rescheduleRefetching: false,
   rescheduleRefetch: vi.fn(),
   language: 'en',
   uses24HourClock: undefined as boolean | undefined,
@@ -360,7 +361,7 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
     mocks.rescheduleOptions.push(options)
     const settled = mocks.suggestion !== null || mocks.rescheduleError !== null
     const fetching = !settled && !mocks.reschedulePaused
-    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isLoading: fetching, isFetching: fetching, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isLoading: fetching, isFetching: mocks.rescheduleRefetching || fetching, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
   },
 }))
 vi.mock('@/lib/theme', async (importOriginal) => {
@@ -373,7 +374,7 @@ vi.mock('@/lib/theme', async (importOriginal) => {
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: mocks.theme, surfaces: { screen: { backgroundColor: '#111111' } } }),
 }))
-vi.mock('@/components/ui/orbit-mascot', () => ({ useStateMascotSize: () => 96, OrbitMascot: ({ size, color, state }: { size: number; color?: string; state?: string }) => React.createElement('OrbitMascot', { size, color, state }) }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ useStateMascotSize: () => 96, OrbitMascot: ({ size, color, state, reading }: { size: number; color?: string; state?: string; reading?: boolean }) => React.createElement('OrbitMascot', { size, color, state, reading }) }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
     ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, message, confirmLabel, onConfirm, onCancel })
@@ -562,6 +563,7 @@ describe('HabitDetailScreen', () => {
     mocks.rescheduleOptions = []
     mocks.rescheduleError = null
     mocks.reschedulePaused = false
+    mocks.rescheduleRefetching = false
     mocks.rescheduleRefetch.mockReset()
     mocks.language = 'en'
     mocks.uses24HourClock = undefined
@@ -977,6 +979,29 @@ describe('HabitDetailScreen', () => {
     expect(wait.findAllByType('OrbitMascot')).toHaveLength(0)
     expect(wait.findAllByType('Skeleton').map((block: TestNode) => [block.props.variant, block.props.label])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', undefined]])
     expect(tree.root.findAllByType('OrbitMascot').filter((mascot: TestNode) => mascot.props.state === 'pensando').map((mascot: TestNode) => mascot.props.size)).toEqual([48])
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('moves the Orbit of the suggest date button while a retry with a kept error runs, with no skeleton light', () => {
+    openRescueGate()
+    mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const retry = () => findPillButton(tree.root, 'habits.reschedule.suggestDate')!
+    const face = () => retry().findAllByType('OrbitMascot').map((mascot: TestNode) => [mascot.props.size, mascot.props.reading])
+    expect(face()).toEqual([[16, false]])
+    expect((retry().props.accessibilityState as { busy?: boolean }).busy).toBe(false)
+    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.suggestDate') })
+    expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
+    mocks.rescheduleRefetching = true
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect((retry().props.accessibilityState as { busy?: boolean }).busy).toBe(true)
+    expect(face()).toEqual([[16, true]])
+    expect(retry().findAll((node: TestNode) => node.props.testID === 'skeleton-face')).toHaveLength(0)
+    mocks.rescheduleRefetching = false
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect((retry().props.accessibilityState as { busy?: boolean }).busy).toBe(false)
+    expect(face()).toEqual([[16, false]])
     TestRenderer.act(() => tree.unmount())
   })
 

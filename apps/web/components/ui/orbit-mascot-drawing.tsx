@@ -13,6 +13,7 @@ import {
   type OrbitMascotProps,
   type OrbitMascotSmallSize,
   type OrbitShownState,
+  type OrbitSmallFaceFrame,
 } from '@orbit/shared/contracts/brand'
 import { mascotMotion } from '@orbit/shared/theme'
 
@@ -39,12 +40,12 @@ function Moon({ frame }: Readonly<{ frame: OrbitMascotFrame }>) {
   return <circle cx={frame.moon.x} cy={frame.moon.y} r={frame.moon.radius} fill="var(--primary)" data-part="moon" />
 }
 
-function Planet({ viewBox, outline, clipId, children }: Readonly<{ viewBox: string; outline: string; clipId: string; children: React.ReactNode }>) {
+function Planet({ viewBox, outline, outlineTransform, clipId, children }: Readonly<{ viewBox: string; outline: string; outlineTransform?: string; clipId: string; children: React.ReactNode }>) {
   return (
     <>
       <defs>
         <clipPath id={clipId}>
-          <path d={orbitOutlineCutout(viewBox, outline)} clipRule="evenodd" data-part="outline-cutout" />
+          <path d={orbitOutlineCutout(viewBox, outline)} transform={outlineTransform} clipRule="evenodd" data-part="outline-cutout" />
         </clipPath>
       </defs>
       <g clipPath={`url(#${clipId})`} clipRule="evenodd" data-part="planet">
@@ -75,19 +76,22 @@ function Rig({ state, frame, clipId, eyeOffset }: Readonly<{ state: NonNullable<
   )
 }
 
-function SmallFace({ size, clipId }: Readonly<{ size: OrbitMascotSmallSize; clipId: string }>) {
+function SmallFace({ size, clipId, motion }: Readonly<{ size: OrbitMascotSmallSize; clipId: string; motion?: OrbitSmallFaceFrame }>) {
   const face = ORBIT_SMALL_FACES[size]
+  const moon = <path d={face.moon} transform={motion?.moon} fill="var(--primary)" data-part="moon" />
+  const moonFront = motion?.moonFront ?? true
   return (
     <>
-      <path d={face.ringBack} fill="currentColor" />
-      <Planet viewBox={face.viewBox} outline={face.ringOutline} clipId={clipId}>
+      <path d={face.ringBack} transform={motion?.ring} fill="currentColor" />
+      {moonFront ? null : moon}
+      <Planet viewBox={face.viewBox} outline={face.ringOutline} outlineTransform={motion?.ring} clipId={clipId}>
         <path d={face.planet} fill="currentColor" />
         {face.eyes.map((eye) => (
-          <path key={eye} d={eye} fill="var(--bg)" data-part="eye" />
+          <path key={eye} d={eye} transform={motion?.eyes} fill="var(--bg)" data-part="eye" />
         ))}
       </Planet>
-      <path d={face.ringFront} fill="currentColor" />
-      <path d={face.moon} fill="var(--primary)" data-part="moon" />
+      <path d={face.ringFront} transform={motion?.ring} fill="currentColor" />
+      {moonFront ? moon : null}
     </>
   )
 }
@@ -96,6 +100,7 @@ interface OrbitMascotDrawingProps extends Pick<OrbitMascotProps, 'size' | 'color
   readonly state?: NonNullable<OrbitMascotProps['state']>
   readonly clipId: string
   readonly frame?: OrbitMascotFrame
+  readonly smallMotion?: OrbitSmallFaceFrame
   readonly running?: boolean
   readonly shownState?: OrbitShownState
   readonly turning?: boolean
@@ -103,7 +108,7 @@ interface OrbitMascotDrawingProps extends Pick<OrbitMascotProps, 'size' | 'color
   readonly ref?: React.Ref<SVGSVGElement>
 }
 
-export function OrbitMascotDrawing({ size, state = 'parado', shownState = state, color, clipId, frame = ORBIT_REST_FRAME, running = false, turning = false, eyeOffset = ORBIT_EYES_AT_REST, ref }: Readonly<OrbitMascotDrawingProps>) {
+export function OrbitMascotDrawing({ size, state = 'parado', shownState = state, color, clipId, frame = ORBIT_REST_FRAME, smallMotion, running = false, turning = false, eyeOffset = ORBIT_EYES_AT_REST, ref }: Readonly<OrbitMascotDrawingProps>) {
   const small = isOrbitMascotSmallSize(size)
   return (
     <svg
@@ -120,7 +125,7 @@ export function OrbitMascotDrawing({ size, state = 'parado', shownState = state,
       data-orbit-loop={running ? 'running' : 'still'}
       data-orbit-turn={turning ? 'turning' : 'rest'}
     >
-      {small ? <SmallFace size={size} clipId={clipId} /> : <Rig state={state} frame={frame} clipId={clipId} eyeOffset={eyeOffset} />}
+      {small ? <SmallFace size={size} clipId={clipId} motion={smallMotion} /> : <Rig state={state} frame={frame} clipId={clipId} eyeOffset={eyeOffset} />}
     </svg>
   )
 }
