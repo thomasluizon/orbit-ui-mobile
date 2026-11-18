@@ -223,7 +223,10 @@ describe('TabViewTransition', () => {
     const page = (path: string) => <TabViewTransition><RouteTransitionShell><main>{path}</main></RouteTransitionShell></TabViewTransition>
     navigation.pathname = '/calendar'
     const view = render(page('/calendar'))
-    act(() => setRouteTransitionIntent('forward'))
+    act(() => {
+      setRouteTransitionIntent('forward')
+      claimRouteTransitionIntent('/notifications', 'push')
+    })
     navigation.pathname = '/notifications'
     view.rerender(page('/notifications'))
     expect(getCurrentRouteTransitionIntent()).toBe('forward')
