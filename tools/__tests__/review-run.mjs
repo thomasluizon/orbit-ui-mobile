@@ -97,6 +97,19 @@ const profileCases = () => {
     try { writeSandboxProfile({ protectedDirectories: [path], homeDirectory: "/home/a", runDirectory: "/work/run" }) } catch (error) { message = error.message }
     T(`${UNIT}: the profile refuses the path ${JSON.stringify(path)}`, /cannot name a path with a line break/.test(message), message)
   }
+  // The run directory opens after every deny, so a run directory that holds a protected directory or the home directory would reopen it (thread yoYL).
+  for (const [label, runDirectory, pattern] of [
+    ["the directory that holds the repositories", "/work/repos", /holds the protected directory \/work\/repos\/ui/],
+    ["a parent of every protected directory", "/work", /holds the protected directory \/work\/repos/],
+    ["the home directory", "/home/a.b", /holds the home directory \/home\/a\.b/],
+    ["a parent of the home directory", "/home", /holds the home directory \/home\/a\.b/],
+  ]) {
+    let message = "accepted"
+    try { writeSandboxProfile({ protectedDirectories: ["/work/repos", "/work/repos/ui"], homeDirectory: "/home/a.b", runDirectory }) } catch (error) { message = error.message }
+    T(`${UNIT}: the profile refuses a run directory that is ${label} (thread yoYL)`, pattern.test(message), message)
+  }
+  T(`${UNIT}: a run directory that is itself a protected directory, or sits inside one, still gets a profile (thread yoYL)`,
+    [writeSandboxProfile({ protectedDirectories: ["/work/repos", "/work/review"], homeDirectory: "/home/a.b", runDirectory: "/work/review" }), profile].every((text) => text.startsWith("(version 1)")))
   const invocation = sandboxedInvocation(profile, "claude", ["-p", "order"])
   same(`${UNIT}: the sandboxed invocation runs the worker under the profile`, [invocation.executable, ...invocation.args], [SANDBOX_EXEC, "-p", profile, "claude", "-p", "order"])
   same(`${UNIT}: only macOS has the write sandbox`, [writeSandboxAvailable("linux"), writeSandboxAvailable("win32")], [false, false])

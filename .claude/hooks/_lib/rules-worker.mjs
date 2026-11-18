@@ -360,13 +360,32 @@ function bodyFlagValue(token, next) {
   return /^-[fF]./.test(token) ? token.slice(2) : null
 }
 
-/** Whether a `gh api` call writes: a method other than GET, or a body field or input file without an explicit GET. */
-function ghApiWrites(segment, tokens) {
+/** Whether a raw shell word expands a `$` or backtick substitution: one outside single quotes and not escaped. */
+function expandsSubstitution(word) {
+  let quote = null
+  for (let index = 0; index < word.length; index += 1) {
+    const character = word[index]
+    if (quote === "'") {
+      if (character === "'") quote = null
+    } else if (character === "\\") index += 1
+    else if (character === "$" || character === "`") return true
+    else if (character === quote) quote = null
+    else if (quote === null && (character === "'" || character === '"')) quote = character
+  }
+  return false
+}
+
+/**
+ * Whether a `gh api` call writes: a method other than GET, or a body field or input file without an explicit GET.
+ * A GraphQL mutation is searched in the whole `command`, because a multi-line query or a heredoc body
+ * sits on lines that the segment split separates from the `gh api` call.
+ */
+function ghApiWrites(command, tokens) {
   const rest = tokens.slice(2)
   let method = null
   let body = false
-  // A query from `--input <file>` or a `key=@<file>` field is a file this hook cannot read.
-  let bodyFromFile = false
+  // A query from `--input <file>`, a `key=@<file>` field or a shell substitution is text this hook cannot read.
+  let bodyUnreadable = false
   let endpoint = null
   for (let index = 0; index < rest.length; index += 1) {
     const token = unquote(rest[index])
@@ -376,24 +395,29 @@ function ghApiWrites(segment, tokens) {
     const value = bodyFlagValue(token, unquote(rest[index + 1]))
     if (value !== null) {
       body = true
-      if (token === "--input" || token.startsWith("--input=") || /^[^=]*=@/.test(value)) bodyFromFile = true
+      if (token === "--input" || token.startsWith("--input=") || /^[^=]*=@/.test(value)) bodyUnreadable = true
+      const raw = bodyFlagValue(rest[index], rest[index + 1]) ?? ""
+      if (value.startsWith("query=") && expandsSubstitution(raw)) bodyUnreadable = true
     }
     if (GH_API_VALUE_FLAGS.has(token)) index += 1
     else if (!token.startsWith("-") && endpoint === null) endpoint = token
   }
   if (method !== null) return method.toUpperCase() !== "GET"
   if (!body) return false
-  // A GraphQL query is a POST with a body field; only a mutation writes, and a query read from a file may be one.
-  return endpoint !== "graphql" || bodyFromFile || /\bmutation\b/i.test(segment)
+  // A GraphQL query is a POST with a body field; only a mutation writes, and a query the hook cannot read may be one.
+  return endpoint !== "graphql" || bodyUnreadable || /\bmutation\b/i.test(command)
 }
 
-/** Whether a segment writes to GitHub or reads a credential that could. Judged on the program and its arguments. */
-function githubWrite(segment) {
+/**
+ * Whether a segment of `command` writes to GitHub or reads a credential that could. Judged on the program
+ * and its arguments; a GraphQL mutation is judged on the whole raw `command`.
+ */
+function githubWrite(segment, command) {
   const tokens = withoutRunners(tokensOf(segment))
   const binary = normalize(tokens[0])
   const args = tokens.slice(1).filter((token) => !token.startsWith("-")).map(normalize)
   if (binary === "gh") {
-    if (args[0] === "api") return ghApiWrites(segment, tokens)
+    if (args[0] === "api") return ghApiWrites(command, tokens)
     if (tokens.length === 1 || tokens[1].startsWith("-")) return false
     if (!GH_READS.has(args[0])) return true
     const reads = GH_READS.get(args[0])
@@ -418,7 +442,7 @@ function githubWrite(segment) {
 export function checkReadOnlyRun(command, { env = {} } = {}) {
   if (typeof command !== "string" || env[READ_ONLY_MARKER] !== "1") return null
   for (const segment of stripHeredocBodies(command).split(SEGMENT_SPLIT)) {
-    if (!githubWrite(segment)) continue
+    if (!githubWrite(segment, command)) continue
     return {
       block: true,
       message:

@@ -152,6 +152,7 @@ const usageCases = () => {
   for (const [name, directory, pattern] of [
     ["a review in the configured primary checkout is refused (thread vkfc)", fixture.worktree, /is the configured repository/],
     ["a review in a branch worktree is refused (thread vkfc)", branchWorktree, /is on a branch; make a detached worktree at the head/],
+    ["a review in the directory that holds the configured repository is refused (thread yoYL)", dirname(fixture.worktree), /holds the protected directory/],
   ]) {
     const refused = check(TOOL, name, ["--review", "--order", fixture.order, "--out", out, "--directory", directory], { status: 2, stderr: pattern }, { path: fixture.path })
     T(`${TOOL}: ${name.replace(" is refused", "")} publishes nothing`, !existsSync(out), refused.stderr)

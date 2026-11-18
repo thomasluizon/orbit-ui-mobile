@@ -128,27 +128,31 @@ const profileString = (value) => {
 const regexLiteral = (path) => path.replace(/[\\.*+?^${}()|[\]]/g, "\\$&")
 
 /**
- * The sandbox profile of a read-only run. A later rule wins over an earlier one, so the run directory
- * and the test caches inside node_modules open inside a protected directory, and the run directory's
- * `.git` link closes again after that. `homeDirectory` scopes the git-directory rule, so a test
- * fixture under the temporary directory can still make a repository.
+ * The sandbox profile of a read-only run. A later rule wins: the run directory and the node_modules test
+ * caches open inside a protected directory, then the run directory's `.git` closes again. `homeDirectory`
+ * scopes the git-directory rule. A run directory that holds a protected or home directory would open it, so it is refused.
  */
-export const writeSandboxProfile = ({ protectedDirectories: directories, homeDirectory, runDirectory }) => [
-  "(version 1)",
-  "(allow default)",
-  ...directories.map((directory) => `(deny file-write* (subpath ${profileString(directory)}))`),
-  // A review worktree links node_modules from a protected checkout. Vite and Vitest write their untracked
-  // bundled config and cache there, so a test run needs these directories and no package file.
-  `(allow file-write* (regex #"/node_modules/\\.(vite|vite-temp|cache)(/|$)"))`,
-  // A regex given as a profile string, not as a #"" literal, because a #"" literal has no escape for a quote.
-  `(deny file-write* (regex ${profileString(`^${regexLiteral(homeDirectory)}/(.*/)?[^/]*\\.git(/|$)`)}))`,
-  `(allow file-write* (subpath ${profileString(runDirectory)}))`,
-  `(deny file-write* (subpath ${profileString(join(runDirectory, ".git"))}))`,
-  // Git reaches a network remote only through these programs: the http, https, ftp, ext and fd helpers, and ssh.
-  // A local remote is a directory, which the rules above refuse when it is protected or a git directory under home.
-  `(deny process-exec (regex #"/git-remote-[^/]+$") (regex #"/ssh$"))`,
-  "",
-].join("\n")
+export const writeSandboxProfile = ({ protectedDirectories: directories, homeDirectory, runDirectory }) => {
+  const held = directories.find((directory) => directory !== runDirectory && inside(directory, runDirectory))
+  if (held !== undefined) throw new Error(`run directory ${runDirectory} holds the protected directory ${held}; use a detached worktree at the head or a copy that holds no repository`)
+  if (inside(homeDirectory, runDirectory)) throw new Error(`run directory ${runDirectory} holds the home directory ${homeDirectory}; use a detached worktree at the head or a copy that holds no repository`)
+  return [
+    "(version 1)",
+    "(allow default)",
+    ...directories.map((directory) => `(deny file-write* (subpath ${profileString(directory)}))`),
+    // A review worktree links node_modules from a protected checkout. Vite and Vitest write their untracked
+    // bundled config and cache there, so a test run needs these directories and no package file.
+    `(allow file-write* (regex #"/node_modules/\\.(vite|vite-temp|cache)(/|$)"))`,
+    // A regex given as a profile string, not as a #"" literal, because a #"" literal has no escape for a quote.
+    `(deny file-write* (regex ${profileString(`^${regexLiteral(homeDirectory)}/(.*/)?[^/]*\\.git(/|$)`)}))`,
+    `(allow file-write* (subpath ${profileString(runDirectory)}))`,
+    `(deny file-write* (subpath ${profileString(join(runDirectory, ".git"))}))`,
+    // Git reaches a network remote only through these programs: the http, https, ftp, ext and fd helpers, and ssh.
+    // A local remote is a directory, which the rules above refuse when it is protected or a git directory under home.
+    `(deny process-exec (regex #"/git-remote-[^/]+$") (regex #"/ssh$"))`,
+    "",
+  ].join("\n")
+}
 
 /** The sandbox-exec invocation that runs `executable` under `profile`. */
 export const sandboxedInvocation = (profile, executable, args) => ({ executable: SANDBOX_EXEC, args: ["-p", profile, executable, ...args] })
