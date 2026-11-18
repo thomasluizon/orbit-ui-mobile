@@ -102,17 +102,63 @@ fn build_tray(
             &MenuItem::with_id(app, "quit", labels.text("quit"), true, None::<&str>)?,
         ],
     )?;
+    // The tray draws the small static face, because the live rig of the app icon has eyes under
+    // 2px at a tray size. The macOS menu bar draws tray.png 18pt tall.
+    #[cfg(target_os = "macos")]
+    let icon = tauri::include_image!("icons/tray.png");
+    #[cfg(windows)]
+    let icon = windows_tray_icon();
     TrayIconBuilder::with_id("orbit")
-        .icon(
-            app.default_window_icon()
-                .ok_or("Desktop requires an icon")?
-                .clone(),
-        )
+        .icon(icon)
         .tooltip(app.config().product_name.as_deref().unwrap_or("Orbit"))
         .menu(&tray)
         .show_menu_on_left_click(true)
         .build(app)?;
     Ok(())
+}
+
+/// The sizes of the Windows tray images: SM_CXSMICON at 100%, 125%, 150%, 175%, 200%, 250% and
+/// 300% display scale. tools/generate-brand-assets.mjs writes one icons/tray-windows-<size>.png each.
+#[cfg(any(windows, test))]
+const WINDOWS_TRAY_SIZES: [i32; 7] = [16, 20, 24, 28, 32, 40, 48];
+
+/// The largest Windows tray image no larger than the small icon size, so the notification area
+/// only ever enlarges it and each eye stays at least 2px wide. `GetSystemMetrics` returns 0 on
+/// failure, which takes the 16px image.
+#[cfg(any(windows, test))]
+fn windows_tray_size(small_icon_size: i32) -> i32 {
+    WINDOWS_TRAY_SIZES
+        .into_iter()
+        .rev()
+        .find(|size| *size <= small_icon_size)
+        .unwrap_or(WINDOWS_TRAY_SIZES[0])
+}
+
+/// The notification area draws the tray image at SM_CXSMICON, the small icon size of the system
+/// DPI (NOTIFYICONDATAW). tray-icon 0.25.1 passes the image to CreateIcon at its own size, and the
+/// icon.ico layer that `default_window_icon()` loads is the SM_CXICON one, which draws the live rig
+/// at 48 and 64px.
+#[cfg(windows)]
+fn windows_tray_icon() -> tauri::image::Image<'static> {
+    #[link(name = "user32")]
+    unsafe extern "system" {
+        fn GetSystemMetrics(index: i32) -> i32;
+    }
+    const SM_CXSMICON: i32 = 49;
+    windows_tray_image(windows_tray_size(unsafe { GetSystemMetrics(SM_CXSMICON) }))
+}
+
+#[cfg(any(windows, test))]
+fn windows_tray_image(size: i32) -> tauri::image::Image<'static> {
+    match size {
+        16 => tauri::include_image!("icons/tray-windows-16.png"),
+        20 => tauri::include_image!("icons/tray-windows-20.png"),
+        24 => tauri::include_image!("icons/tray-windows-24.png"),
+        28 => tauri::include_image!("icons/tray-windows-28.png"),
+        32 => tauri::include_image!("icons/tray-windows-32.png"),
+        40 => tauri::include_image!("icons/tray-windows-40.png"),
+        _ => tauri::include_image!("icons/tray-windows-48.png"),
+    }
 }
 
 fn application_menu(
@@ -338,4 +384,26 @@ fn toggle_autostart(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         }))?;
     result?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{windows_tray_image, windows_tray_size, WINDOWS_TRAY_SIZES};
+
+    #[test]
+    fn windows_tray_takes_the_largest_image_no_larger_than_the_small_icon_size() {
+        let picked: Vec<i32> = [0, 16, 20, 22, 24, 28, 32, 36, 40, 48, 64]
+            .into_iter()
+            .map(windows_tray_size)
+            .collect();
+        assert_eq!(picked, [16, 16, 20, 20, 24, 28, 32, 32, 40, 48, 48]);
+    }
+
+    #[test]
+    fn each_windows_tray_image_is_a_square_of_its_size() {
+        for size in WINDOWS_TRAY_SIZES {
+            let image = windows_tray_image(size);
+            assert_eq!((image.width(), image.height()), (size as u32, size as u32));
+        }
+    }
 }
