@@ -195,6 +195,17 @@ describe('a restart case', () => {
   it('runs the same case in pt-BR over the same preview', async () => {
     expect((await heldRestart('composition-restart-approve-pt-BR', todayCount(3))).verdict.pass).toBe(true)
   })
+
+  // The account approves the preview as shown. A write that saves another value than the one the person saw is no approval of it.
+  it.each([
+    ['a date five days on where the preview showed one', (index) => ({ due_date: [restartHabits[index].dueDate, addDays(5), 'date'] }), `saves due_date as "${addDays(5)}"`],
+    ['today where the preview showed tomorrow', (index) => ({ due_date: [restartHabits[index].dueDate, accountDate, 'date'] }), `saves due_date as "${accountDate}"`],
+  ])('fails an approval that saves %s', async (_name, saved, reason) => {
+    const shown = restartPreview(todayCount(3))
+    const saves = restartPreview(todayCount(3)).map((preview) => ({ ...preview, items: preview.items.map((item, index) => index < 3 ? itemOf(item.entityId, item.entityName, saved(index)) : item) }))
+    const { verdict } = await attempt('composition-restart-approve-en', { replies: [turnOf({ pendingOperations: shown })], held: saves, habits: restartHabits, records: { habits: restartIds } })
+    expect(verdict).toMatchObject({ pass: false, reason: expect.stringContaining(reason) })
+  })
 })
 
 // Producer: PendingOperationChangePreviewer.BindReuseFieldsAsync gives a create that reuses a stored habit the record of that

@@ -25,7 +25,7 @@ function checklistOf(value) {
 // one of several exact strings, or a whole checklist.
 export function matchesField(expected, value, accountDate) {
   if (typeof expected === 'string') return value === expected
-  if (expected.oneOf) return expected.oneOf.includes(value)
+  if (expected.oneOf) return expected.oneOf.includes(value ?? null)
   if (expected.contains) return expected.contains.some((text) => normalize(value).includes(normalize(text)))
   if (expected.daysFromToday !== undefined) return value === dateOffset(accountDate, expected.daysFromToday)
   if (expected.withinDays) {
@@ -186,6 +186,20 @@ export const savedRecords = (habits, accountDate) => habits.map((habit) => ({ id
   frequency_unit: savedField.frequency_unit(habit) ?? null, frequency_quantity: savedField.frequency_quantity(habit),
   logged: habit.logs.some((log) => log.date === accountDate && log.value > 0) })).toSorted((left, right) => left.id.localeCompare(right.id))
 
+// A value in the form that a preview row and a saved record can share: a one-time habit has no frequency unit when it is
+// saved, and a checklist is its items in order.
+const comparable = (field, value) => field === 'checklist_items' ? JSON.stringify(checklistOf(value))
+  : field === 'frequency_unit' && value === 'OneTime' ? null : value ?? null
+
+// The first field of an updated record that the preview showed (changed, or kept where it was) and that the saved record
+// holds with another value. A field that only the habit detail holds is not read for an existing record.
+function approvedFailure({ fields, kept = {} }, habit) {
+  const shown = { ...kept, ...fields }
+  const wrong = Object.keys(shown).find((field) => savedField[field] && !detailFields.includes(field)
+    && comparable(field, savedField[field](habit)) !== comparable(field, shown[field]))
+  return wrong ? `saves ${wrong} as ${JSON.stringify(savedField[wrong](habit) ?? null)}, and the approved preview shows ${JSON.stringify(shown[wrong])}` : null
+}
+
 // The first field that the request names and the saved record holds with another value.
 function savedFailure(expected, habit, accountDate) {
   const wrong = Object.keys(expected.fields ?? {}).find((field) => !matchesField(expected.fields[field], savedField[field](habit), accountDate))
@@ -232,9 +246,9 @@ function gradeSavedState(readback, matched, vars) {
   }
   const kept = readback.after.filter((habit) => before.some((stored) => stored.id === habit.id))
   if (kept.length !== wanted.size) return differ
-  for (const { expected, target, fields, offered, derived } of changes.filter(({ expected }) => expected.kind === 'update')) {
+  for (const { expected, target, fields, offered, derived, ...change } of changes.filter(({ expected }) => expected.kind === 'update')) {
     const habit = kept.find((saved) => saved.id === target)
-    const wrong = habit ? savedFailure(expected, habit, date) : null
+    const wrong = habit ? savedFailure(expected, habit, date) ?? approvedFailure({ fields, kept: change.kept }, habit) : null
     if (wrong) return verdict(false, `A saved update ${wrong}.`)
     const shown = { ...derived, ...offered, ...fields }
     for (const field of Object.keys(shown).filter((name) => habit && name in wanted.get(target))) wanted.get(target)[field] = shown[field]

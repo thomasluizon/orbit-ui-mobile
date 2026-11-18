@@ -118,6 +118,15 @@ describe('a save case of a starting step', () => {
     expect(outcome(response.output, { vars }).pass).toBe(false)
   })
 
+  it('fails an approval that saves the step with a repeat count that the preview did not show', async () => {
+    const { vars, block } = await prepare('composition-one-small-step-save-task-en')
+    const step = block.suggestion.step
+    const shown = [previewOf('createHabit', [itemOf(null, step, { title: [null, step], frequency_unit: [null, 'OneTime'] })])]
+    const saves = [previewOf('createHabit', [itemOf(null, step, { title: [null, step], frequency_unit: [null, 'OneTime'], frequency_quantity: [null, '3'] })])]
+    const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: shown })), api: account(habits, saves).api })
+    expect(outcome(response.output, { vars }).pass).toBe(false)
+  })
+
   // Producer: PreviewChecklistAppendAsync merges the added item into checklist_items, and AgentArgumentPreview.Build gives
   // the row the canonical JSON of the full list and the habit_id row.
   const checklistPreview = (items) => [previewOf('updateChecklist', [itemOf(water, 'Water', { habit_id: [null, water],
