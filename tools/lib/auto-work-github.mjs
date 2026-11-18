@@ -109,11 +109,36 @@ const settleReads = async (reads) => {
   return { items, failures, reads: reads.map((read) => read.read) }
 }
 
-export const listOpenPullRequests = ({ repositories, readPages }) => settleReads(repositories.map((repository) => ({
+/** A read of a ticket that does not exist answers 404; any other failed read is a failure. */
+const ticketIsMissing = (error) => /\(HTTP 404\)/.test(String(error?.message))
+
+/**
+ * The numbers among `numbers` that name a ticket routed to the repository of a pull request: the issue exists in orbit-tickets and
+ * carries `repo:<key>`. A pull request number in a title, such as the `(#N)` of a squash merge subject, is not a ticket: it
+ * has no issue, or its issue belongs to another repository. A missing issue names no ticket; any other failed read throws.
+ */
+const routedTicketNumbers = async (repositoryKey, numbers, readTicketState) => {
+  const routed = await Promise.all(numbers.map(async (number) => {
+    try { return (await readTicketState(number)).labels.some((label) => label.name === `repo:${repositoryKey}`) } catch (error) {
+      if (ticketIsMissing(error)) return false
+      throw error
+    }
+  }))
+  return numbers.filter((_, index) => routed[index])
+}
+
+/**
+ * Lists the open pull requests. Each owner pull request carries `ticketNumbers`, the tickets of its repository that its branch and
+ * title name; the ownership and closed ticket rules read only that field. A failed ticket read fails the read of its repository.
+ */
+export const listOpenPullRequests = ({ repositories, readPages, readTicketState }) => settleReads(repositories.map((repository) => ({
   read: `${repository.key} pulls`,
-  list: async () => (await readPages(`repos/${repository.slug}/pulls?state=open&per_page=100`, PULL_REQUEST_PROJECTION)).map((pull) => ({
-    key: `${repository.key}#${pull.number}`, read: `${repository.key} pulls`, repository: repository.key, ...pull,
-    ownerAuthor: pull.author === ownerOf(repository.slug), unexpectedAuthor: unexpectedAuthor(repository, pull.author) })),
+  list: async () => Promise.all((await readPages(`repos/${repository.slug}/pulls?state=open&per_page=100`, PULL_REQUEST_PROJECTION)).map(async (pull) => {
+    const ownerAuthor = pull.author === ownerOf(repository.slug)
+    return { key: `${repository.key}#${pull.number}`, read: `${repository.key} pulls`, repository: repository.key, ...pull, ownerAuthor,
+      unexpectedAuthor: unexpectedAuthor(repository, pull.author),
+      ticketNumbers: ownerAuthor ? await routedTicketNumbers(repository.key, ticketNumbersOf(pull), readTicketState) : [] }
+  })),
 })))
 
 export const listOpenAlerts = ({ repositories, readPages }) => settleReads(repositories.flatMap(({ key, slug }) => ALERT_READS.map((source) => ({
@@ -136,19 +161,9 @@ const issueNumberOf = (name) => {
   try { return resolveTicket(name).number } catch { return null }
 }
 
-/**
- * A squash merge appends `(#<pull request number>)` to each subject on main, and `git revert` quotes the subject in `Revert "<subject>"`.
- * A quoted subject with two or more `(#N)` ends in that pull request number, which is not a ticket, so the title drops it. A single
- * `(#N)` stays a ticket: the Revert button of GitHub quotes a pull request title, which has no suffix.
- */
-const withoutSquashSuffix = (title) => {
-  const quoted = /^Revert "(.*)"$/s.exec(title)?.[1]
-  return quoted !== undefined && (quoted.match(/\(#[1-9]\d*\)/g) ?? []).length >= 2 ? `Revert "${quoted.replace(/ ?\(#[1-9]\d*\)$/, "")}"` : title
-}
-
-/** The GitHub issue numbers that the branch and the title of a pull request name. */
-const namedTicketNumbers = (pull) => {
-  const text = `${pull.branch ?? ""}\n${withoutSquashSuffix(pull.title ?? "")}`
+/** The numbers that the branch and the title of a pull request name, before any is proved a ticket of its repository. */
+const ticketNumbersOf = (pull) => {
+  const text = `${pull.branch ?? ""}\n${pull.title ?? ""}`
   return [...new Set(TICKET_NAMES.flatMap((pattern) => [...text.matchAll(pattern)].map(([, name]) => issueNumberOf(name))).filter((number) => number !== null))]
 }
 
@@ -160,7 +175,7 @@ const namedTicketNumbers = (pull) => {
 const runOwnedPullRequest = (state) => {
   const recorded = runPullRequestKeys(state)
   const inFlight = new Set((Array.isArray(state?.remaining) ? state.remaining : []).map((entry) => resolveTicket(entry).number))
-  return (pull) => pull.ownerAuthor === true && (recorded.has(pull.key) || namedTicketNumbers(pull).some((number) => inFlight.has(number)))
+  return (pull) => pull.ownerAuthor === true && (recorded.has(pull.key) || pull.ticketNumbers.some((number) => inFlight.has(number)))
 }
 
 /** The root of the checkout that contains `directory`: the nearest directory with a `.git` entry, as gitDirectoryOf reads it; null outside any checkout. */
@@ -380,7 +395,7 @@ export const alertsWithClosedTickets = async (contents, { readTicketState, readN
 export const pullRequestsWithClosedTickets = async (contents, readTicketState) => {
   const reported = (pull) => contents.marks[pull.key]?.action === "reported"
   const candidates = Object.values(contents.open).filter((pull) => pull.ownerAuthor === true && !pull.runOwned && pullRequestClass(pull) === "configured" &&
-    (reported(pull) || unmarkedAtHead("pullRequests", contents, pull))).map((pull) => ({ pull, numbers: namedTicketNumbers(pull) }))
+    (reported(pull) || unmarkedAtHead("pullRequests", contents, pull))).map((pull) => ({ pull, numbers: pull.ticketNumbers }))
   const tickets = await readTicketStates(candidates.flatMap(({ numbers }) => numbers), readTicketState)
   const unread = candidates.filter(({ numbers }) => numbers.some((number) => !tickets.stateOf.has(number)))
   const closedTicketsOf = ({ numbers }) => numbers.length > 0 && numbers.every((number) => tickets.stateOf.get(number)?.state === "CLOSED")

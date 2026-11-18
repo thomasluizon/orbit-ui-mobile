@@ -63,6 +63,21 @@ const fakeReader = (answers) => {
   return { readPages, calls }
 }
 
+/**
+ * A stand-in for the ticket read of readTicket (withProjectItem false): `tickets` maps an issue number to the routing key of its
+ * `repo:<key>` label and its state. A number outside the map answers as orbit-tickets answers a missing issue, with the failure
+ * line of a live read of issue 99999999. The ticket shape is the normalized output of readTicket.
+ */
+export const ticketReader = (tickets) => async (number) => {
+  const ticket = tickets[number]
+  if (!ticket) throw new Error(`gh api repos/thomasluizon/orbit-tickets/issues/${number} failed: ${NOT_FOUND}`)
+  return { number, state: ticket.state ?? "OPEN", stateReason: ticket.stateReason ?? null, labels: [{ name: `repo:${ticket.route}` }, { name: "Improvement" }] }
+}
+
+/** The tickets that the pull request fixtures name, each routed to the repository of its pull request. */
+const FIXTURE_TICKETS = { 2144: { route: "ui" }, 2074: { route: "api" }, 2149: { route: "ui" }, 2146: { route: "ui" }, 33: { route: "ui" } }
+const routedTickets = ticketReader(FIXTURE_TICKETS)
+
 const fresh = (label, state = {}) => {
   const checkout = join(root, "auto-work-github", label)
   mkdirSync(join(checkout, ".git"), { recursive: true })
@@ -79,7 +94,7 @@ const noOtherRun = () => NO_OTHER_RUN.otherRuns
 const listingCases = async () => {
   const pulls = fakeReader({ "repos/thomasluizon/orbit-api/pulls": [DEPENDABOT_PULL, EARLIER_OWNER_PULL], "repos/thomasluizon/orbit-ui-mobile/pulls": [OWNER_PULL, CONTRACT_PULL],
     "repos/thomasluizon/orbit-landing-page/pulls": [UNEXPECTED_PULL] })
-  const pullListing = await listOpenPullRequests({ repositories: REPOSITORIES, readPages: pulls.readPages })
+  const pullListing = await listOpenPullRequests({ repositories: REPOSITORIES, readPages: pulls.readPages, readTicketState: routedTickets })
   T("github: every repository is read for open pull requests of every author", JSON.stringify(pulls.calls.map((call) => call.path)) === JSON.stringify([
     "repos/thomasluizon/orbit-ui-mobile/pulls?state=open&per_page=100", "repos/thomasluizon/orbit-api/pulls?state=open&per_page=100",
     "repos/thomasluizon/orbit-landing-page/pulls?state=open&per_page=100"]) && !pulls.calls[0].path.includes("creator"), JSON.stringify(pulls.calls))
@@ -236,10 +251,12 @@ const ownershipCases = async ({ pullListing }) => {
     !pendingItems("pullRequests", pulls).some((pull) => pull.key === "ui#2473"), JSON.stringify(pulls.open["ui#2473"]))
   T("github: an owner pull request of a ticket outside remaining stays pending", pulls.open["api#1115"]?.runOwned === false &&
     pendingItems("pullRequests", pulls).some((pull) => pull.key === "api#1115"))
-  const renamed = recordListing("pullRequests", { ...pullListing, items: pullListing.items.map((pull) => pull.key === "ui#2473" ? { ...pull, branch: "fix/icon-eyes" } : pull) }, checkout, NO_OTHER_RUN)
+  const relisted = async (pull) => (await listOpenPullRequests({ repositories: REPOSITORIES, readTicketState: routedTickets,
+    readPages: fakeReader({ [`repos/thomasluizon/orbit-${pull.url.includes("orbit-api") ? "api" : "ui-mobile"}/pulls`]: [pull] }).readPages })).items[0]
+  const replace = (key, item) => ({ ...pullListing, items: pullListing.items.map((pull) => pull.key === key ? item : pull) })
+  const renamed = recordListing("pullRequests", replace("ui#2473", await relisted({ ...OWNER_PULL, branch: "fix/icon-eyes" })), checkout, NO_OTHER_RUN)
   T("github: an owner pull request whose title alone names an in-flight ticket is run owned", renamed.open["ui#2473"]?.runOwned === true, JSON.stringify(renamed.open["ui#2473"]))
-  const borrowed = recordListing("pullRequests", { ...pullListing, items: pullListing.items.map((pull) => pull.key === "api#1106"
-    ? { ...pull, branch: "fix/ticket-2144-bump", title: `${pull.title} (#2144)` } : pull) }, checkout, NO_OTHER_RUN)
+  const borrowed = recordListing("pullRequests", replace("api#1106", await relisted({ ...DEPENDABOT_PULL, branch: "fix/ticket-2144-bump", title: `${DEPENDABOT_PULL.title} (#2144)` })), checkout, NO_OTHER_RUN)
   T("github: a bot pull request never becomes run owned through a ticket reference", borrowed.open["api#1106"]?.runOwned === false &&
     pendingItems("pullRequests", borrowed).some((pull) => pull.key === "api#1106"))
   const keys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout), readOtherRuns: noOtherRun })()
@@ -253,7 +270,7 @@ const migratedOwnershipCases = async ({ pullListing }) => {
     { ...OWNER_PULL, number: 6, head: "6".repeat(40), branch: "fix/orb-27-migrated", title: "docs: record the demo clips (ORB-27)" },
     { ...OWNER_PULL, number: 7, head: "7".repeat(40), branch: "fix/orb-99999-unknown", title: "docs: a name outside the migration map (ORB-99999)" }]
   const listing = { ...pullListing, items: [...pullListing.items, ...(await listOpenPullRequests({ repositories: REPOSITORIES,
-    readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": migrated }).readPages })).items] }
+    readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": migrated }).readPages, readTicketState: routedTickets })).items] }
   for (const name of ["#33", "ORB-27"]) {
     const checkout = fresh(`migrated-${name.replace("#", "")}`, { remaining: ["#2144", "#2149", name] })
     const pulls = recordListing("pullRequests", listing, checkout, NO_OTHER_RUN)
@@ -312,7 +329,7 @@ const liveRunCases = async ({ pullListing }) => {
    * A live session maps to the run record of the checkout that contains its cwd, and that record claims only while its
    * own session, or its pending relay successor, is live. EARLIER_OWNER_PULL's branch names #2074.
    */
-  const earlierPull = { ...EARLIER_OWNER_PULL, key: "api#1115", ownerAuthor: true }
+  const earlierPull = { ...EARLIER_OWNER_PULL, key: "api#1115", ownerAuthor: true, ticketNumbers: [2074] }
   const deadCheckout = fresh("live-run-dead", { sessionId: "dead", remaining: ["#2074"] })
   const unrelated = otherLiveRuns(readRunState(checkout), { repoRoot: checkout, sessions: sessions({ sessionId: "fresh", pid: 3, cwd: deadCheckout }) })
   T("github: a live session in a checkout whose run record names a dead session claims nothing", unrelated.failure === undefined && !unrelated.claims(earlierPull),
@@ -469,7 +486,7 @@ const failedReadCases = async () => {
   let answers = healthy
   const readPages = (path, projection) => fakeReader(answers).readPages(path, projection)
   const checks = [
-    { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests({ repositories: REPOSITORIES, readPages }), readState: () => ({}), readOtherRuns: noOtherRun }) },
+    { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests({ repositories: REPOSITORIES, readPages, readTicketState: routedTickets }), readState: () => ({}), readOtherRuns: noOtherRun }) },
     { source: "alerts", run: alertCheck({ list: () => listOpenAlerts({ repositories: REPOSITORIES, readPages }) }) }]
   let marks = { seen: {}, failures: {}, sentryListedAt: new Date(0).toISOString() }
   const interval = async (current) => {
@@ -527,7 +544,7 @@ const baseCheckRepository = () => {
 const baseCheckCases = async () => {
   const { checkout, headOf } = baseCheckRepository()
   const listing = await listOpenPullRequests({ repositories: REPOSITORIES,
-    readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": [{ ...REVERT_PULL, head: headOf(REVERT_PULL.number) }] }).readPages })
+    readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": [{ ...REVERT_PULL, head: headOf(REVERT_PULL.number) }] }).readPages, readTicketState: routedTickets })
   const state = fresh("revert")
   const tickets = await pullRequestsWithClosedTickets(recordListing("pullRequests", listing, state, NO_OTHER_RUN), async (number) => ({ number, state: "CLOSED", stateReason: "COMPLETED" }))
   const [revert] = closedTicketPullRequests(recordClosedTicketPullRequests(tickets, state))
@@ -546,32 +563,54 @@ const baseCheckCases = async () => {
 }
 
 /*
- * A squash merge appends `(#<pull request number>)` to each subject on main, and `git revert` quotes that subject. The pull request number is
- * not a ticket, so a command line revert names only the ticket that comes before it. The title below is the live subject of ui#2484.
+ * A squash merge appends `(#<pull request number>)` to each subject on main, and a revert quotes that subject, so a title cannot tell a pull
+ * request number from a ticket number. The ticket decides: a named number counts only when it is an issue of orbit-tickets that carries the
+ * `repo:<key>` label of the pull request repository, and a 404 names no ticket. The titles are the live subjects of ui#2481 and ui#2484.
  */
 const squashSuffixCases = async () => {
-  const COMMAND_LINE_REVERT = { ...REVERT_PULL, number: 2491, branch: "revert-orbit-conversation-entry",
-    title: 'Revert "fix(orbit): give the conversation entry a background and move the Orbit of the Hoje summary line (#2146) (#2484)"' }
-  const listing = await listOpenPullRequests({ repositories: REPOSITORIES, readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": [COMMAND_LINE_REVERT, REVERT_PULL] }).readPages })
-  const readsWith = async (ticketOf) => {
+  const revert = (subject, number) => ({ ...REVERT_PULL, number, branch: `revert-${number}`, head: String(number).repeat(10).slice(0, 40), title: `Revert "${subject}"` })
+  const single = revert("chore(deps): bump next from 16.4.3 to 16.4.5 (#2481)", 2501)
+  const double = revert("fix(orbit): give the conversation entry a background and move the Orbit of the Hoje summary line (#2146) (#2484)", 2502)
+  const ticketOnly = revert("feat(auto-work): act on every open pull request and security alert in all three repositories (#2149)", 2503)
+  const closed = { route: "ui", state: "CLOSED", stateReason: "COMPLETED" }
+  const rows = [
+    ["single suffix, 404", single, {}, [], []],
+    ["single suffix, open ticket of this repository", single, { 2481: { route: "ui" } }, [2481], []],
+    ["single suffix, open ticket of another repository", single, { 2481: { route: "api" } }, [], []],
+    ["two numbers, 404 on the suffix", double, { 2146: closed }, [2146], [2146]],
+    ["two numbers, open ticket of this repository on the suffix", double, { 2146: closed, 2484: { route: "ui" } }, [2146, 2484], []],
+    ["two numbers, open ticket of another repository on the suffix", double, { 2146: closed, 2484: { route: "api" } }, [2146], [2146]],
+    ["ticket and no suffix, 404", ticketOnly, {}, [], []],
+    ["ticket and no suffix, open ticket of this repository", ticketOnly, { 2149: { route: "ui" } }, [2149], []],
+    ["ticket and no suffix, open ticket of another repository", ticketOnly, { 2149: { route: "api" } }, [], []],
+  ]
+  for (const [name, pull, tickets, named, closedNumbers] of rows) {
     const reads = []
-    const tickets = await pullRequestsWithClosedTickets(recordListing("pullRequests", listing, fresh("squash-suffix"), NO_OTHER_RUN), async (number) => {
-      reads.push(number)
-      return ticketOf(number)
-    })
-    return { reads, tickets }
+    const readTicketState = ticketReader(tickets)
+    const listing = await listOpenPullRequests({ repositories: REPOSITORIES, readTicketState,
+      readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": [pull] }).readPages })
+    const state = fresh(`squash-suffix-${name.replaceAll(/\W+/g, "-")}`, { remaining: [] })
+    const recorded = recordListing("pullRequests", listing, state, NO_OTHER_RUN)
+    const result = await pullRequestsWithClosedTickets(recorded, async (number) => { reads.push(number); return readTicketState(number) })
+    const key = `ui#${pull.number}`
+    const expectedItems = closedNumbers.length ? [[key, closedNumbers.map((number) => ({ number, stateReason: "COMPLETED" }))]] : []
+    T(`github: a revert with ${name} counts a named number only when it is a ticket of its repository`,
+      JSON.stringify([recorded.open[key]?.ticketNumbers, reads, result.items.map((item) => [item.key, item.closedTickets]), result.failures, result.unreadKeys, listing.failures]) ===
+        JSON.stringify([named, named, expectedItems, [], [], []]), JSON.stringify({ listing, reads, result }))
   }
-  const missing = await readsWith(async (number) => {
-    if (number === 2484) throw new Error(`gh api repos/thomasluizon/orbit-tickets/issues/2484 failed: ${NOT_FOUND}`)
-    return { number, state: "CLOSED", stateReason: "COMPLETED" }
-  })
-  T("github: a command line revert of a squash commit names its ticket and never the pull request number of the suffix", !missing.reads.includes(2484) &&
-    missing.tickets.failures.length === 0 && missing.tickets.items.some((item) => item.key === "ui#2491" && JSON.stringify(item.closedTickets) === JSON.stringify([{ number: 2146, stateReason: "COMPLETED" }])),
-  JSON.stringify(missing))
-  const unrelated = await readsWith(async (number) => ({ number, state: number === 2484 ? "OPEN" : "CLOSED", stateReason: number === 2484 ? null : "COMPLETED" }))
-  T("github: an unrelated open ticket with the number of the squash suffix does not keep the revert pending", unrelated.tickets.items.some((item) => item.key === "ui#2491") &&
-    unrelated.tickets.unreadKeys.length === 0 && !unrelated.reads.includes(2484), JSON.stringify(unrelated))
-  T("github: a revert title with one number still names that number as its ticket", unrelated.reads.includes(2149), JSON.stringify(unrelated.reads))
+  const owned = recordListing("pullRequests", await listOpenPullRequests({ repositories: REPOSITORIES, readTicketState: ticketReader({ 2481: { route: "ui" } }),
+    readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": [single] }).readPages }), fresh("squash-suffix-owned", { remaining: ["#2481"] }), NO_OTHER_RUN)
+  const unowned = recordListing("pullRequests", await listOpenPullRequests({ repositories: REPOSITORIES, readTicketState: ticketReader({}),
+    readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": [single] }).readPages }), fresh("squash-suffix-unowned", { remaining: ["#2481"] }), NO_OTHER_RUN)
+  T("github: a pull request number of a title owns the pull request only when it is a ticket of its repository in remaining",
+    owned.open[`ui#${single.number}`]?.runOwned === true && unowned.open[`ui#${single.number}`]?.runOwned === false, JSON.stringify([owned.open, unowned.open]))
+  const ownCheckout = fresh("squash-suffix-own")
+  const claimant = fresh("squash-suffix-claim", { sessionId: "other", remaining: ["#2481"] })
+  const claims = otherLiveRuns(readRunState(ownCheckout), { repoRoot: ownCheckout,
+    sessions: () => [{ sessionId: "github", pid: 1, cwd: ownCheckout }, { sessionId: "other", pid: 2, cwd: claimant }] })
+  T("github: another live run claims a pull request only through a number that is a ticket of its repository", claims.failure === undefined &&
+    claims.claims({ ...single, key: "ui#2501", ownerAuthor: true, ticketNumbers: [2481] }) && !claims.claims({ ...single, key: "ui#2501", ownerAuthor: true, ticketNumbers: [] }),
+  JSON.stringify(claims.failure))
 }
 
 /* Step 7 asks for the review before its waiter, and steps 7 and 8 name each GitHub write. */

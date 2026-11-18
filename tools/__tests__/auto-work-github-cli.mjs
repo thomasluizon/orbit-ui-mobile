@@ -11,9 +11,12 @@ const TICKET_2149_URL = "https://github.com/thomasluizon/orbit-tickets/issues/21
 /** The live output of the REST issue filter in tools/lib/github-issues.mjs for a closed ticket, with its body left out. */
 const ISSUE_2140 = { body: "", html_url: CLOSED_TICKET_URL, labels: [{ name: "repo:ui" }, { name: "Improvement" }, { name: "parity:no" }, { name: "needs:no-conversation" }],
   number: 2140, state: "CLOSED", state_reason: "COMPLETED", title: "Lay out borders in the mobile Yoga test helpers, so a geometry test sees the device size" }
-/** An owner pull request from an earlier run whose branch and title name ticket #2140, projected from the live api#1115 with its branch and title changed. */
+/** An owner pull request from an earlier run whose branch and title name ticket #2140 (label repo:ui), projected from the live ui#1115 with its repository, branch and title changed. */
 const CLOSED_TICKET_PULL = { number: 1115, author: "thomasluizon", authorType: "User", head: "fcfcc2d215a0eca16b43935efd77635bec167183", branch: "fix/ticket-2140-part-2", base: "main",
-  draft: false, title: "fix(test): lay out borders in the Yoga test helpers, part 2 (#2140)", url: "https://github.com/thomasluizon/orbit-api/pull/1115" }
+  draft: false, title: "fix(test): lay out borders in the Yoga test helpers, part 2 (#2140)", url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/1115" }
+/** A revert of a squash merge subject: its one `(#2481)` is the pull request number of ui#2481, and no such issue exists in orbit-tickets. */
+const SQUASH_SUFFIX_PULL = { number: 2501, author: "thomasluizon", authorType: "User", head: "c".repeat(40), branch: "revert-next-bump", base: "main", draft: false,
+  title: 'Revert "chore(deps): bump next from 16.4.3 to 16.4.5 (#2481)"', url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/2501" }
 const quoted = (value) => JSON.stringify(value).replaceAll("'", "'\\''")
 
 /** The CLI against a gh stand-in whose answers are the live projections above. */
@@ -32,7 +35,10 @@ case "$*" in
   "api --method PATCH --input - repos/"*)
     if [ -n "\${DISMISS_FAIL:-}" ]; then echo '${NOT_FOUND}' >&2; exit 1; fi
     cat > "${installation.base}/patch-\$(echo "$6" | tr '/' '_').json"; echo '{}';;
-  *"repos/thomasluizon/orbit-api/pulls?"*) printf '%s\\n' '${JSON.stringify(DEPENDABOT_PULL)}'
+  *"repos/thomasluizon/orbit-api/pulls?"*) printf '%s\\n' '${JSON.stringify(DEPENDABOT_PULL)}';;
+  "api repos/thomasluizon/orbit-tickets/issues/2481 --jq "*) echo '${NOT_FOUND}' >&2; exit 1;;
+  *"repos/thomasluizon/orbit-ui-mobile/pulls?"*)
+    if [ -n "\${SUFFIX_PULL:-}" ]; then printf '%s\\n' '${quoted(SQUASH_SUFFIX_PULL)}'; fi
     if [ -n "\${OWNER_PULL:-}" ]; then printf '%s\\n' '${quoted(CLOSED_TICKET_PULL)}' | sed "s/${CLOSED_TICKET_PULL.head}/\${OWNER_HEAD:-${CLOSED_TICKET_PULL.head}}/"; fi;;
   *"repos/thomasluizon/orbit-landing-page/pulls?"*) printf '%s\\n' '${JSON.stringify(UNEXPECTED_PULL)}';;
   *"repos/thomasluizon/orbit-api/code-scanning/alerts?"*) printf '%s\\n' '${quoted(CODE_SCANNING_ALERT)}';;
@@ -150,22 +156,27 @@ esac
     const again = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, OWNER_PULL: "1", ISSUE_STATE: issueState, ISSUE_REASON: issueReason } })
     try { return { ...again, result: JSON.parse(again.stdout) } } catch { return { ...again, result: {} } }
   }
+  /* A pull request number in a title names no ticket: its read answers 404, and the collection neither fails on it nor drops the pull request. */
+  const suffixed = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, SUFFIX_PULL: "1" } })
+  const suffixedResult = (() => { try { return JSON.parse(suffixed.stdout) } catch { return {} } })()
+  T("github cli: a pull request number in a title is no ticket: its 404 is no failure and the pull request is pending", suffixedResult.pullRequests?.failures.length === 0 &&
+    suffixedResult.pullRequests.pending.some((pull) => pull.key === "ui#2501") && suffixedResult.pullRequests.ticketClosed.length === 0, `${suffixed.status} ${suffixed.stdout}${suffixed.stderr}`)
   const ownerOpen = collectOwner("OPEN", "COMPLETED")
-  T("github cli: an owner pull request whose ticket is open stays pending for adoption", ownerOpen.result.pullRequests?.pending.some((pull) => pull.key === "api#1115") &&
+  T("github cli: an owner pull request whose ticket is open stays pending for adoption", ownerOpen.result.pullRequests?.pending.some((pull) => pull.key === "ui#1115") &&
     ownerOpen.result.pullRequests.ticketClosed?.length === 0, `${ownerOpen.status} ${ownerOpen.stdout}${ownerOpen.stderr}`)
   const ownerClosed = collectOwner("CLOSED", "NOT_PLANNED")
   T("github cli: an owner pull request whose ticket closed is listed in ticketClosed with the close reason and is not pending",
-    !ownerClosed.result.pullRequests?.pending.some((pull) => pull.key === "api#1115") &&
+    !ownerClosed.result.pullRequests?.pending.some((pull) => pull.key === "ui#1115") &&
     JSON.stringify((ownerClosed.result.pullRequests?.ticketClosed ?? []).map((pull) => [pull.key, pull.closedTickets])) ===
-      JSON.stringify([["api#1115", [{ number: 2140, stateReason: "NOT_PLANNED" }]]]), `${ownerClosed.status} ${ownerClosed.stdout}${ownerClosed.stderr}`)
+      JSON.stringify([["ui#1115", [{ number: 2140, stateReason: "NOT_PLANNED" }]]]), `${ownerClosed.status} ${ownerClosed.stdout}${ownerClosed.stderr}`)
   const closedMerge = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
-    input: JSON.stringify({ key: "api#1115", head: CLOSED_TICKET_PULL.head, action: "merged" }) })
+    input: JSON.stringify({ key: "ui#1115", head: CLOSED_TICKET_PULL.head, action: "merged" }) })
   const closedReport = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
-    input: JSON.stringify({ key: "api#1115", head: CLOSED_TICKET_PULL.head, action: "reported" }) })
+    input: JSON.stringify({ key: "ui#1115", head: CLOSED_TICKET_PULL.head, action: "reported" }) })
   const afterReport = collectOwner("CLOSED", "NOT_PLANNED")
   T("github cli: a pull request of a closed ticket is never merged, is reported once and leaves the list", closedMerge.status === 1 &&
     closedMerge.stderr.includes("never merged or fixed") && closedReport.status === 0 && afterReport.result.pullRequests?.ticketClosed?.length === 0 &&
-    !afterReport.result.pullRequests.pending.some((pull) => pull.key === "api#1115"), `${closedMerge.stderr}${closedReport.stderr}${afterReport.stdout}`)
+    !afterReport.result.pullRequests.pending.some((pull) => pull.key === "ui#1115"), `${closedMerge.stderr}${closedReport.stderr}${afterReport.stdout}`)
   /* One reported decision holds at every later head, until a ticket or its close reason changes. */
   const movedHead = "b".repeat(40)
   const collectMoved = (issueState, issueReason) => {
@@ -173,41 +184,41 @@ esac
       env: { ...env, OWNER_PULL: "1", OWNER_HEAD: movedHead, ISSUE_STATE: issueState, ISSUE_REASON: issueReason } })
     try { return { ...again, result: JSON.parse(again.stdout) } } catch { return { ...again, result: {} } }
   }
-  const ownerMark = () => readRunState(installation.base).intake.pullRequests.marks["api#1115"]
+  const ownerMark = () => readRunState(installation.base).intake.pullRequests.marks["ui#1115"]
   const reportedMoved = collectMoved("CLOSED", "NOT_PLANNED")
   T("github cli: a reported pull request of a closed ticket is not asked again at a new head", reportedMoved.result.pullRequests?.ticketClosed?.length === 0 &&
-    !reportedMoved.result.pullRequests.pending.some((pull) => pull.key === "api#1115") && ownerMark()?.action === "reported",
+    !reportedMoved.result.pullRequests.pending.some((pull) => pull.key === "ui#1115") && ownerMark()?.action === "reported",
   `${reportedMoved.status} ${reportedMoved.stdout}${reportedMoved.stderr}`)
   const reasonChanged = collectMoved("CLOSED", "DUPLICATE")
   T("github cli: a reported pull request of a closed ticket is asked again when a close reason changes", ownerMark() === undefined &&
     JSON.stringify((reasonChanged.result.pullRequests?.ticketClosed ?? []).map((pull) => [pull.key, pull.closedTickets])) ===
-      JSON.stringify([["api#1115", [{ number: 2140, stateReason: "DUPLICATE" }]]]), `${reasonChanged.status} ${reasonChanged.stdout}${reasonChanged.stderr}`)
-  run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env, input: JSON.stringify({ key: "api#1115", head: movedHead, action: "reported" }) })
+      JSON.stringify([["ui#1115", [{ number: 2140, stateReason: "DUPLICATE" }]]]), `${reasonChanged.status} ${reasonChanged.stdout}${reasonChanged.stderr}`)
+  run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env, input: JSON.stringify({ key: "ui#1115", head: movedHead, action: "reported" }) })
   const reopened = collectMoved("OPEN", "COMPLETED")
   T("github cli: a reopened ticket ends the report, and the pull request is pending for adoption", ownerMark() === undefined &&
-    reopened.result.pullRequests?.pending.some((pull) => pull.key === "api#1115") && reopened.result.pullRequests.ticketClosed?.length === 0,
+    reopened.result.pullRequests?.pending.some((pull) => pull.key === "ui#1115") && reopened.result.pullRequests.ticketClosed?.length === 0,
   `${reopened.status} ${reopened.stdout}${reopened.stderr}`)
 
-  /* Another live run in its own checkout names ticket #2140 in remaining, so api#1115 has a live driver and is never adopted here. */
+  /* Another live run in its own checkout names ticket #2140 in remaining, so ui#1115 has a live driver and is never adopted here. */
   const otherCheckout = join(installation.base, "other-run")
   mkdirSync(join(otherCheckout, ".git"), { recursive: true })
   writeRunState({ sessionId: "other", sleep: true, autoWork: true, remaining: ["#2140"] }, otherCheckout)
   sessionRecord("other", otherCheckout)
   const driven = collectOwner("OPEN", "COMPLETED")
   const drivenMerge = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
-    input: JSON.stringify({ key: "api#1115", head: CLOSED_TICKET_PULL.head, action: "merged" }) })
+    input: JSON.stringify({ key: "ui#1115", head: CLOSED_TICKET_PULL.head, action: "merged" }) })
   T("github cli: an owner pull request whose ticket another live run names is in otherRun, is not pending and takes no mark",
-    JSON.stringify(driven.result.pullRequests?.otherRun) === JSON.stringify(["api#1115"]) && !driven.result.pullRequests.pending.some((pull) => pull.key === "api#1115") &&
+    JSON.stringify(driven.result.pullRequests?.otherRun) === JSON.stringify(["ui#1115"]) && !driven.result.pullRequests.pending.some((pull) => pull.key === "ui#1115") &&
     drivenMerge.status === 1 && drivenMerge.stderr.includes("another live run drives this pull request"), `${driven.stdout}${driven.stderr} ${drivenMerge.stderr}`)
   rmSync(join(claudeDirectory, "sessions", "other.json"))
   const ended = collectOwner("OPEN", "COMPLETED")
   T("github cli: when the other run's session ends, its owner pull request is pending for adoption", ended.result.pullRequests?.otherRun?.length === 0 &&
-    ended.result.pullRequests.pending.some((pull) => pull.key === "api#1115"), `${ended.stdout}${ended.stderr}`)
+    ended.result.pullRequests.pending.some((pull) => pull.key === "ui#1115"), `${ended.stdout}${ended.stderr}`)
   rmSync(join(claudeDirectory, "sessions", "cli.json"))
   const blind = collectOwner("OPEN", "COMPLETED")
   T("github cli: without the run's own session record the live runs are a named failure, and no owner pull request is pending", blind.status === 3 &&
     blind.result.pullRequests?.failures.some((failure) => failure.read === "live runs" && failure.message.includes("session cli of this run")) &&
-    JSON.stringify(blind.result.pullRequests.otherRun) === JSON.stringify(["api#1115"]) && !blind.result.pullRequests.pending.some((pull) => pull.key === "api#1115"),
+    JSON.stringify(blind.result.pullRequests.otherRun) === JSON.stringify(["ui#1115"]) && !blind.result.pullRequests.pending.some((pull) => pull.key === "ui#1115"),
   `${blind.status} ${blind.stdout}${blind.stderr}`)
   sessionRecord("cli", installation.base)
 

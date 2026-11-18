@@ -136,7 +136,10 @@ for the successor.
    `runOwned` is the work of this run. The owner account opened it, and the run recorded it in
    `pullRequests` or the readiness ledger, or its branch or title names a ticket in `remaining`
    (`ticket-<N>-`, `(#N)` or `ORB-N`). The tool resolves each name and each `remaining` entry
-   to the GitHub issue number, so `#33` and `ORB-27` are one ticket. A bot pull request is
+   to the GitHub issue number, so `#33` and `ORB-27` are one ticket. A name counts only when
+   that issue exists in `orbit-tickets` and carries the `repo:<key>` label of the pull request
+   repository. A pull request number, such as the `(#N)` that a squash merge appends to a
+   subject, names no ticket: its issue does not exist, or it belongs to another repository. A bot pull request is
    never run owned, also when the run recorded it. Step 2 drives a run-owned pull request, so
    skip it here. Exit 3 means at least one read
    failed: the tool names it in `failures` and keeps that read's previous items. Log each

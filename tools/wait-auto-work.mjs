@@ -48,14 +48,15 @@ try {
   const readPages = githubPageReader({ signal: commands.signal })
   // The repositories resolve inside each check, so a failure there is a named source failure.
   const reading = () => ({ repositories: autoWorkRepositories(), readPages })
+  const readTicketState = (number) => readTicket(number, { withProjectItem: false })
   const modeChangedIn = (current) =>
     current?.sessionId !== state.sessionId || !current.autoWork || !current.sleep || Boolean(current.relay?.pending)
   const result = await watchIntake({
     checks: [{ source: "board", seed: true, run: boardCheck() }, { source: "mail", run: mailCheck({ run }) },
       { source: "reviews", run: reviewCheck({ run }) },
-      { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests(reading()), readState: readRunState, readOtherRuns: otherLiveRuns }) },
+      { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests({ ...reading(), readTicketState }), readState: readRunState, readOtherRuns: otherLiveRuns }) },
       { source: "alerts", run: alertCheck({ list: () => listOpenAlerts(reading()), readState: readRunState,
-        readTicketState: (number) => readTicket(number, { withProjectItem: false }), readNewestScan: (key) => newestScanCommit(reading(), key) }) }],
+        readTicketState, readNewestScan: (key) => newestScanCommit(reading(), key) }) }],
     marks: initialWakeMarks(state.intake, started),
     intervalMilliseconds: seconds * 1000,
     modeChanged: () => modeChangedIn(readRunState()),

@@ -109,8 +109,8 @@
     ".claude/agents/design-reviewer.md": {
       "model": "sonnet",
       "effort": "medium",
-      "digest": "36f90d089cf47a09",
-      "calibratedAt": "2026-11-15",
+      "digest": "a0371051c0ba9dc2",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: judges a diff against DESIGN.md with the spec in front of it, so sonnet at medium effort is right; the rules are written down, which is what keeps it off high."
     },
     ".claude/agents/design-specialist.md": {
@@ -186,7 +186,7 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "bc9905188448a051",
+      "digest": "f0bb3c61ebb7eb48",
       "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },

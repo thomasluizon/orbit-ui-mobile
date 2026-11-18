@@ -75,8 +75,8 @@ try {
     process.exit(0)
   }
   const reading = { repositories, readPages: githubPageReader({ config }) }
-  const [pullListing, alertListing] = await Promise.all([listOpenPullRequests(reading), listOpenAlerts(reading)])
   const readTicketState = (number) => readTicket(number, { withProjectItem: false })
+  const [pullListing, alertListing] = await Promise.all([listOpenPullRequests({ ...reading, readTicketState }), listOpenAlerts(reading)])
   const otherRuns = otherLiveRuns(intakeRun())
   const pullTickets = await pullRequestsWithClosedTickets(recordListing("pullRequests", pullListing, undefined, { otherRuns }), readTicketState)
   const pulls = recordClosedTicketPullRequests(pullTickets)
