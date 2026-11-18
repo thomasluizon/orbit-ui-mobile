@@ -6,9 +6,22 @@ import { readinessReport } from "../../tools/lib/readiness-receipt.mjs"
 import { readOrchestratorConfig } from "../../tools/lib/orchestrator-config.mjs"
 import { readSessionContext } from "../../tools/lib/session-context.mjs"
 import { isWakeSourceAlive, readRunState, readWakeSourceStates } from "../../tools/lib/run-state.mjs"
+import { liveBackgroundTasks, readDrainBlockers } from "../../tools/lib/background-runs.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
+
+/**
+ * The Stop payload names the live tasks with authority; the records add which of them count as stuck. Only a relay
+ * drain reads the background runs (rules-sleep.mjs), so a turn end with no pending relay spends no read on them.
+ */
+const waitingBackgroundRuns = (input, state, relayEnabled) => {
+  if (!relayEnabled || state?.relay?.pending !== true || state.sleep !== true || state.sessionId !== input?.session_id) return []
+  const drain = readDrainBlockers(input.session_id)
+  if (!Array.isArray(input.background_tasks)) return drain.waiting
+  const stuck = new Set(drain.stuck.map((run) => run.id))
+  return liveBackgroundTasks(input).filter((task) => !stuck.has(task.id))
+}
 
 /** READY comes from the persisted receipt alone. An unreadable or not-READY receipt is null. */
 const receiptVerdict = (entry) => {
@@ -39,6 +52,7 @@ try {
     relayEnabled: config.relay.enabled,
     wakeSources: wakeSourceStates.live,
     orphanedWakeSources: wakeSourceStates.orphaned,
+    backgroundRuns: waitingBackgroundRuns(input, state, config.relay.enabled),
     sessionId: input?.session_id ?? "",
     stopHookActive: input?.stop_hook_active === true,
     isWakeSourceAlive,

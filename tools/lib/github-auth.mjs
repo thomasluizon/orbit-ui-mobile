@@ -22,7 +22,7 @@ export const repositorySlug = (repoPath, gitBin = process.env.GIT_BIN || "git", 
   return slug
 }
 
-export const repositoryOwner = (repoPath, gitBin = process.env.GIT_BIN || "git", environment = process.env) => repositorySlug(repoPath, gitBin, environment).split("/")[0]
+const repositoryOwner = (repoPath, gitBin = process.env.GIT_BIN || "git", environment = process.env) => repositorySlug(repoPath, gitBin, environment).split("/")[0]
 
 export const githubEnvironment = async (repoPath, { ghBin = process.env.GH_BIN || "gh", gitBin = process.env.GIT_BIN || "git", environment = process.env, timeoutMs = 30000 } = {}) => {
   const owner = repositoryOwner(repoPath, gitBin, environment)
