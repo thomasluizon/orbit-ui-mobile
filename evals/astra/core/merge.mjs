@@ -4,6 +4,7 @@ import { dirname, relative } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { MUST_PASS_ATTEMPTS, MUST_PASS_K_VALUES, coreDescriptors, corpusDigestFor } from './corpus.mjs'
 import { callsOf, caseOf, groupsOf, totalsOf, writeReport } from './report.mjs'
+import { RUN_PATHS, pathOf } from '../trace-policy.mjs'
 
 // D147 limit: the warm mean cost of one model call (orbit-api tests/Orbit.Infrastructure.Tests/AI/AiInputBudgetTests).
 export const COST_PER_MODEL_CALL_LIMIT_USD = 0.0009
@@ -111,9 +112,11 @@ function costOf(cases, runCostUsd, modelCalls) {
 // The pass^k rate of the baseline: a merged report of this corpus at the k of this run, in which every case has a
 // verdict. A window summary or a report with an incomplete case counts that case as not passed, so its low rate would
 // pass any later run. A pass^1 rate is at or above the pass^3 rate of the same build, so a baseline of the other k
-// would move the rate criterion.
+// would move the rate criterion. The baseline of main measured the block-first path, and a run of the ai_change_plan
+// path compares with it: both paths measure the same corpus, and the criterion asks that the new path is not worse.
 function baselineRateOf(baseline, descriptors, k, corpusDigest) {
   if (baseline.gate !== 'core' || baseline.run !== 'merged' || !Array.isArray(baseline.cases)) throw new Error('The baseline is not a merged report of the core set.')
+  if (!RUN_PATHS.includes(pathOf(baseline))) throw new Error(unknownPath('The baseline', baseline.path))
   if (kOf(baseline) !== k) {
     throw new Error(`The baseline measured the must-pass cases at k=${kOf(baseline)}, and this run at k=${k}; a k=${k} verdict never compares with a k=${kOf(baseline)} baseline. Give a baseline of main measured at k=${k}.`)
   }
@@ -160,6 +163,19 @@ function kOfWindows(windows) {
   return kOf(first)
 }
 
+const unknownPath = (source, path) => `${source} names the path "${path}"; a core set run measures ${RUN_PATHS.join(' or ')}.`
+
+// The path of the windows of one gate run. The API sends other tool declarations on each path, so one verdict holds the
+// windows of one path: each window states the path of its run, and one merge holds one path.
+function pathOfWindows(windows) {
+  const [first] = windows
+  const mixed = windows.find((window) => pathOf(window) !== pathOf(first))
+  if (mixed) {
+    throw new Error(`Input ${mixed.inputPosition} measured the ${pathOf(mixed)} path, and input ${first.inputPosition} the ${pathOf(first)} path; one verdict holds the windows of one path.`)
+  }
+  return pathOf(first)
+}
+
 // A gate run names its baseline report, or is declared the baseline run of `main`: a run without either would pass
 // the rate criterion against nothing. `reruns` holds the windows of the later builds. A window names its
 // `evidenceDirectory` relative to the merged report, so that the report links the private evidence of each failed case
@@ -184,8 +200,10 @@ export function mergeRuns(ordinaryWindows, { baseline, asBaseline = false, rerun
       throw new Error(`Input ${window.inputPosition} names no API commit of 40 lowercase hexadecimal characters.`)
     }
     if (!MUST_PASS_K_VALUES.includes(kOf(window))) throw new Error(`Input ${window.inputPosition} names the k ${window.k}; a core set run holds k=3 or k=1.`)
+    if (!RUN_PATHS.includes(pathOf(window))) throw new Error(unknownPath(`Input ${window.inputPosition}`, window.path))
   }
   const k = kOfWindows(inputs)
+  const path = pathOfWindows(inputs)
   // One merge holds one k, and the merged report states it. A test gives its own descriptors; the command line takes the core set at that k.
   const descriptors = givenDescriptors ?? coreDescriptors(k)
   const corpusDigest = corpusDigestFor(k)
@@ -194,7 +212,7 @@ export function mergeRuns(ordinaryWindows, { baseline, asBaseline = false, rerun
   const totals = totalsOf(joined.cases)
   const { cases, cost } = costOf(joined.cases, runCostUsd, totals.modelCalls)
   const criteria = criteriaOf(cases, totals, cost, baselineRate)
-  return { gate: 'core', run: 'merged', k, apiCommit: windows[0].apiCommit,
+  return { gate: 'core', run: 'merged', k, path, ...(baseline ? { baselinePath: pathOf(baseline) } : {}), apiCommit: windows[0].apiCommit,
     ...(joined.laterApiCommits.length ? { laterApiCommits: joined.laterApiCommits } : {}),
     corpusDigest, utcDayWindows: new Set([...windows, ...reruns].map((window) => window.utcDay)).size,
     status: overall(Object.values(criteria).map(({ status }) => status === 'baseline' ? 'pass' : status)),

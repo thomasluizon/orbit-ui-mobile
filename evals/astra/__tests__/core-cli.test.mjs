@@ -52,8 +52,9 @@ describe('the must-pass run through the real promptfoo CLI', () => {
     const caseId = requestId
     const { run, directory, summary } = runGate('complete')
     expect(run.status, run.stdout + run.stderr).toBe(0)
-    expect(summary).toMatchObject({ gate: 'core', run: 'must-pass', k: 3, status: 'pass', corpusDigest })
+    expect(summary).toMatchObject({ gate: 'core', run: 'must-pass', k: 3, path: 'block-first', status: 'pass', corpusDigest })
     expect(run.stdout).toContain('Orbit AI core gate, must-pass run, k=3: pass')
+    expect(run.stdout).toContain('Path: block-first')
     expect(summary.cases).toHaveLength(1)
     expect(summary.cases[0]).toMatchObject({ id: caseId, family: 'owner-turns', locale: 'pt-BR', mustPass: true, k: MUST_PASS_ATTEMPTS,
       attempts: 3, passed: 3, passK: 'pass', maxQuestions: 1, questionsBeforePreview: [1, 1, 1], reasons: [] })
@@ -78,6 +79,35 @@ describe('the must-pass run through the real promptfoo CLI', () => {
     const printed = run.stdout + run.stderr
     expect(run.status, printed).not.toBe(0)
     expect(printed).toContain('ORBIT_EVAL_MUST_PASS_K is "2"; name 3, the default, or 1, only for a change whose model input equals the model input of main.')
+    expect(printed).not.toContain('core-test: chat turn sent')
+    expect(existsSync(summaryPath)).toBe(false)
+  })
+
+  // The path of a run is a run setting, not a part of a case: the corpus digest of a path run is the digest of main.
+  it('runs the ai_change_plan path when the run names ORBIT_EVAL_ASTRA_PATH=change-plan, and states the path', () => {
+    const { run, summary } = runGate('complete', requestId, { ORBIT_EVAL_MUST_PASS_K: '1', ORBIT_EVAL_ASTRA_PATH: 'change-plan', CORE_TEST_CHANGE_PLAN: 'on' })
+    expect(run.status, run.stdout + run.stderr).toBe(0)
+    expect(summary).toMatchObject({ gate: 'core', run: 'must-pass', k: 1, path: 'change-plan', status: 'pass', corpusDigest: corpusDigestFor(1) })
+    expect(run.stdout).toContain('Path: change-plan')
+  })
+
+  it.each([
+    ['change-plan', {}, 'turn on ai_change_plan'],
+    ['block-first', { CORE_TEST_CHANGE_PLAN: 'on' }, 'turn off ai_change_plan'],
+  ])('stops before any chat turn when the flag of the eval account does not agree with the %s path', (path, account, procedure) => {
+    const { run, summaryPath } = spawnGate('complete', requestId, { ORBIT_EVAL_ASTRA_PATH: path, ...account })
+    const printed = run.stdout + run.stderr
+    expect(run.status, printed).not.toBe(0)
+    expect(printed).toContain(`Eval preflight failed: this run measures the ${path} path (ORBIT_EVAL_ASTRA_PATH); ${procedure} for ORBIT_EVAL_TOKEN through /flag on staging, then verify /api/config and retry.`)
+    expect(printed).not.toContain('core-test: chat turn sent')
+    expect(existsSync(summaryPath)).toBe(false)
+  })
+
+  it('stops before any chat turn when ORBIT_EVAL_ASTRA_PATH names an unknown path', () => {
+    const { run, summaryPath } = spawnGate('complete', requestId, { ORBIT_EVAL_ASTRA_PATH: 'flag' })
+    const printed = run.stdout + run.stderr
+    expect(run.status, printed).not.toBe(0)
+    expect(printed).toContain('ORBIT_EVAL_ASTRA_PATH is "flag"; name block-first, the default, for the path without ai_change_plan, or change-plan for the path of that flag.')
     expect(printed).not.toContain('core-test: chat turn sent')
     expect(existsSync(summaryPath)).toBe(false)
   })

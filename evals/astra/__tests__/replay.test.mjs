@@ -140,3 +140,27 @@ it('still counts an unredacted schema failure on a passing case as a regression'
   const source = window([attempt])
   await expect(replayWindow(source, `${directory}/output`)).rejects.toThrow('changed a previously passing case')
 })
+
+// Producer: orbit-api AskTool.GetChangePlanParameterSchema. A window summary states the path of its run, and the audit
+// replays each recorded call against the lists of that path. A summary with no path measured the block-first path.
+it('replays a window of the ai_change_plan path against the flag-on lists', async () => {
+  const attempt = structuredClone(saved.find((entry) => entry.caseId === 'composition-choice-en'))
+  attempt.pass = true
+  attempt.assertions = attempt.assertions.map((assertion) => ({ ...assertion, pass: true }))
+  attempt.toolCalls.find((entry) => entry.name === 'ask').arguments.input = { form: 'choice', missing_input: 'record_selection',
+    question: 'Which habit would you like to change?', about: ['[redacted]', '[redacted]'], several: false, allowFreeText: false }
+  const summary = (path) => JSON.stringify({ ...(path ? { path } : {}), cases: [{ id: attempt.caseId, allAttemptsPass: 'pass' }] })
+  const source = window([attempt])
+  writeFileSync(`${source}/summary.json`, summary('change-plan'))
+  const [verdict] = await replayWindow(source, `${directory}/output`)
+  expect(verdict.schemas.map(({ name, pass }) => [name, pass])).toEqual([['query_habits', true], ['ask', true]])
+  expect(verdict).toMatchObject({ before: 'pass', after: 'pass' })
+  for (const path of ['block-first', undefined]) {
+    writeFileSync(`${source}/summary.json`, summary(path))
+    await expect(replayWindow(source, `${directory}/output-${path}`)).rejects.toThrow('changed a previously passing case')
+    const audit = JSON.parse(readFileSync(`${directory}/output-${path}/replay.json`, 'utf8'))
+    expect(audit.results[0].schemas.find((entry) => entry.name === 'ask')).toMatchObject({ pass: false })
+  }
+  writeFileSync(`${source}/summary.json`, summary('flag'))
+  await expect(replayWindow(source, `${directory}/output-unknown`)).rejects.toThrow('The window names the path "flag"; a run measures block-first or change-plan.')
+})

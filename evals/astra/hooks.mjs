@@ -7,30 +7,32 @@ import { dateOffset, requireEvalOrigin, resetFixture } from './fixtures/reset.mj
 import { seedOfferFixture } from './fixtures/offers.mjs'
 import { restoreOfferTimeZone } from './fixtures/offer-timezone.mjs'
 import { fixtureHabitTitles } from './fixtures/names.mjs'
-import { requireEvalAccess } from './fixtures/api.mjs'
+import { accountFeatures, requireEvalAccess, requireRunPath } from './fixtures/api.mjs'
 import { freshConversation, configureOffers } from './offer-context.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { describeCase } from './latency.mjs'
 import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
-import { requireCatalogCommit } from './trace-policy.mjs'
+import { requireCatalogCommit, runPathOf, CHANGE_PLAN_PATH } from './trace-policy.mjs'
 
 const { buildChatClientContext } = await tsImport('../../packages/shared/src/chat/client-context.ts', import.meta.url)
 
 let completedResults = []
 let selectedCases = []
+let runPath = null
 const accountAccess = new Map()
 const freshFreeWindows = new Set()
 
 function persistResults(results, expectedCases) {
   writeResults(results)
-  const summary = summarize(results, expectedCases)
+  const summary = summarize(results, expectedCases, runPath)
   const completeCorpus = descriptors.every(({ id }) => summary.cases.some((entry) => entry.id === id))
   summary.gateStatus = !completeCorpus && summary.status === 'pass' ? 'incomplete' : summary.status
   return { summary, markdown: writeReport(summary) }
 }
 
 export async function beforeAll({ suite }) {
+  runPath = runPathOf()
   completedResults = []
   selectedCases = suite.tests.map(describeCase)
   accountAccess.clear()
@@ -43,9 +45,10 @@ export async function beforeAll({ suite }) {
   apiOrigin()
   requireEvalOrigin()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
-  const { offerTools, offerPostReadTools, offerHabitSetupTools } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
-  if (suite.tests.some((test) => test.metadata?.family?.startsWith('offers-'))
-    && (!offerTools?.length || !offerPostReadTools?.length || !offerHabitSetupTools?.length)) {
+  const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+  const offerLists = runPath === CHANGE_PLAN_PATH ? [catalog.changePlan?.offerTools]
+    : [catalog.offerTools, catalog.offerPostReadTools, catalog.offerHabitSetupTools]
+  if (suite.tests.some((test) => test.metadata?.family?.startsWith('offers-')) && offerLists.some((list) => !list?.length)) {
     throw new Error('Regenerate the proactive tool catalogs from the evaluated API before running offer cases.')
   }
   requireCatalogCommit((await healthyApi({ fresh: true })).commit)
@@ -71,7 +74,9 @@ async function warmUpAccounts(tests) {
 async function requireAccountPolicies(tests) {
   for (const key of new Set(tests.map((test) => test.vars.credentialKey))) {
     await refreshCredential(key)
-    accountAccess.set(key, await requireEvalAccess(key))
+    const features = await accountFeatures(key)
+    accountAccess.set(key, requireEvalAccess(key, features))
+    requireRunPath(key, features, runPath)
   }
 }
 

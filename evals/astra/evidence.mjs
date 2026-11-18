@@ -1,7 +1,7 @@
 import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { redactCredentials } from './credentials.mjs'
 import { guid, guidPattern } from './fixtures/api.mjs'
-import { tools, legacyTools, postReadTools, habitSetupTools, offerTools, offerPostReadTools, offerHabitSetupTools, normalizeField } from './trace-policy.mjs'
+import { catalogOf, runPathOf, normalizeField } from './trace-policy.mjs'
 import { schemaVariants } from './tool-schema.mjs'
 
 // The private evidence file of one attempt, relative to the directory of its run.
@@ -155,7 +155,9 @@ function offerContextEvidence(vars, withheld) {
 
 export function attemptEvidence(entry, attempt) {
   const output = entry.response?.output
-  const catalog = entry.testCase.vars?.clientContext?.supportsParts === true ? [...tools, ...postReadTools, ...habitSetupTools, ...offerTools, ...offerPostReadTools, ...offerHabitSetupTools] : legacyTools
+  // The declarations of the path of the run: an argument that only the other path declares is dropped as undeclared.
+  const { legacyTools, ...partLists } = catalogOf(runPathOf())
+  const catalog = entry.testCase.vars?.clientContext?.supportsParts === true ? Object.values(partLists).flat() : legacyTools
   const withheld = new Set()
   const toolCalls = (output?.trace?.calls ?? []).map((call) => {
     const declarations = catalog.filter((candidate) => candidate.function.name === call.name)

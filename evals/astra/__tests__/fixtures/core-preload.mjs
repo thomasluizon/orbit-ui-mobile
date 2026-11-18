@@ -3,9 +3,11 @@ import { fixtureFetch } from './public-api.mjs'
 
 // The offline API of the core set CLI test: the fixture API of an eval account whose profile uses the 12-hour clock,
 // the recorded staging stream of the capture that CORE_TEST_CAPTURE names, and an approval that saves what the held
-// preview shows. CORE_TEST_TRACE=off turns off the trace flag of the account.
+// preview shows. CORE_TEST_TRACE=off turns off the trace flag of the account, and CORE_TEST_CHANGE_PLAN=on turns on its
+// ai_change_plan flag.
 const account = { habits: [], goals: [], tags: [], templates: [], requests: [], pro: true, exhausted: false, capacity: 100,
-  email: 'thomaslrgregorio+orbit-eval-pro@gmail.com', uses24HourClock: false, trace: process.env.CORE_TEST_TRACE !== 'off' }
+  email: 'thomaslrgregorio+orbit-eval-pro@gmail.com', uses24HourClock: false, trace: process.env.CORE_TEST_TRACE !== 'off',
+  changePlan: process.env.CORE_TEST_CHANGE_PLAN === 'on' }
 const fixtureApi = fixtureFetch(() => account)
 const capture = captures[process.env.CORE_TEST_CAPTURE]
 const headers = { Authorization: 'Bearer pro-access', 'api-version': '2.0' }

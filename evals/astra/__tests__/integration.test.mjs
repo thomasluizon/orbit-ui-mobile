@@ -254,7 +254,8 @@ describe('corpus and execution constraints', () => {
       if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: apiCommit, checks: [] })
       if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
       expect(new URL(url).pathname).toBe('/api/config')
-      return Response.json({ features: { astra_eval_unmetered: { enabled: configReads++ === 0, planRequirement: null } } })
+      return Response.json({ features: { astra_eval_unmetered: { enabled: configReads++ === 0, planRequirement: null },
+        ai_change_plan: { enabled: false, planRequirement: null } } })
     })
     await expect(beforeAll({ suite: { tests: scenarios } })).resolves.toBeUndefined()
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'http://astra.invalid')

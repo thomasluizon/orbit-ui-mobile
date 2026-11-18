@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage, updateCredentials } from '../credentials.mjs'
-import { guid, publicApi, requireEvalAccess } from './api.mjs'
+import { accountFeatures, guid, publicApi, requireEvalAccess } from './api.mjs'
 import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle, sameTitleSet, startingChecklistItems } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
 import { seedRestart } from './restart.mjs'
@@ -296,7 +296,7 @@ export async function runReset(caseId) {
   if (!test) throw new Error('Unknown corpus case ID.')
   requireEvalOrigin()
   await refreshCredential(test.vars.credentialKey)
-  const unmetered = await requireEvalAccess(test.vars.credentialKey)
+  const unmetered = requireEvalAccess(test.vars.credentialKey, await accountFeatures(test.vars.credentialKey))
   configureOffers(test)
   freshConversation(test.vars)
   const today = new Date().toISOString().slice(0, 10)

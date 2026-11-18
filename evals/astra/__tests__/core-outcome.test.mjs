@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { tsImport } from 'tsx/esm/api'
 import { coreCases, coreDescriptors } from '../core/corpus.mjs'
 import { runCase } from '../core/conversation.mjs'
+import { answerQuestion } from '../core/answers.mjs'
 import { changeList } from '../core/change-list.mjs'
 import { mergeRuns } from '../core/merge.mjs'
 import { gradePreview, matchesField, outcome } from '../core/outcome.mjs'
@@ -361,6 +362,48 @@ describe('a same-title choice card with set options', () => {
     expect(output).toMatchObject({ unavailable: true, error: noTrace, modelCalls: 0 })
     expect(output.answerFailure).toBeUndefined()
     expect(verdict).toMatchObject({ pass: false, metadata: { unavailable: true } })
+  })
+})
+
+// Producer: orbit-api ProcessUserChatCommand.ChangePlanAsk.cs RecordsCard. On the ai_change_plan path the server builds
+// one option for each record of `about`, with the record id as the option id: a choice for up to 4 records, one
+// `records` question for up to 10. The traced ask holds `about` and no option, so no option declares target_ids.
+describe('a card of a choice about records on the ai_change_plan path', () => {
+  const source = caseOf('same-title-singular-en-1')
+  const { children } = captures.complete
+  const question = 'Which Water - 710ml do you mean?'
+  const vars = { clientContext: buildChatClientContext({ platform: 'web', locale: 'en' }),
+    core: { ...source.vars.core, records: { children } } }
+  const traceOf = (about) => ({ calls: [{ name: 'ask', resultStatus: 'Succeeded', arguments: { orbit_read_complete: false,
+    input: { form: 'choice', missing_input: 'record_selection', question, about, several: false, allowFreeText: false } } }] })
+  const optionOf = (id, index) => ({ id, label: 'Water - 710ml', description: `Water, ${index + 1} of 6` })
+  const choice = choiceCard(question, children.slice(0, 4).map(optionOf))
+  const records = { type: 'block', kind: 'question', block: { blockId: '99999999-0000-4000-8000-000000000003',
+    title: '', intro: null, progress: null, expiresAtUtc: '2026-11-14T00:00:00Z', questions: [{ id: 'records', type: 'singleChoice',
+      prompt: question, allowFreeText: false, options: children.map((id, index) => ({ id, label: `Water - 710ml (Water, ${index + 1} of 6)` })) }] } }
+
+  it('holds the answer of the case: the third child', () => {
+    expect(source.vars.core.answer.pick).toEqual({ of: 'children', position: 2 })
+  })
+
+  it.each([['with its trace', traceOf(children.slice(0, 4))], ['with no trace', null]])(
+    'selects the record of the case on a choice card of four records %s', (_name, trace) => {
+      const answer = answerQuestion({ response: { parts: [choice] }, trace }, vars)
+      expect(answer).toEqual({ pass: true, message: 'Water - 710ml', blockAnswer: { blockId: choice.block.blockId, selectedIds: [children[2]] } })
+    },
+  )
+
+  it('selects the record of the case on the records question of six records', () => {
+    const answer = answerQuestion({ response: { parts: [records] }, trace: traceOf(children) }, vars)
+    expect(answer).toMatchObject({ pass: true, blockAnswer: { blockId: records.block.blockId, selectedIds: [],
+      answers: [{ questionId: 'records', selectedIds: [children[2]] }] } })
+    expect(answer.message).toContain('Water - 710ml (Water, 3 of 6)')
+  })
+
+  it('types the answer of the case when the card offers no option for its record', () => {
+    const others = choiceCard(question, [children[0], children[1], children[3]].map(optionOf))
+    expect(answerQuestion({ response: { parts: [others] }, trace: traceOf([children[0], children[1], children[3]]) }, vars))
+      .toEqual({ pass: true, message: 'The third one in the list' })
   })
 })
 

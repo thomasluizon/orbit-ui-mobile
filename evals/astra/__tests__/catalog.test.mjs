@@ -8,13 +8,72 @@ import { parse } from 'yaml'
 import { beforeAll } from '../hooks.mjs'
 import { beforeAll as beforeCoreRun } from '../core/hooks.mjs'
 import { structural } from '../assertions.mjs'
+import { completionControls } from '../tool-schema.mjs'
+import * as policy from '../trace-policy.mjs'
 import parseResponse from '../response.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
 
+const { RUN_PATHS, catalogOf, toolCompletionControls, toolSensitiveFields, toolWrites } = policy
 const { apiCommit } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+
+const exported = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
+const namesOf = (list) => list.map((tool) => tool.function.name)
+const askForms = (list) => list.find((tool) => tool.function.name === 'ask').function.parameters.properties.input.anyOf
+
+// Producer: catalog-export.cs exports each client shape in two flag states. The ai_change_plan path keeps one ask
+// declaration for the whole turn (orbit-api RefreshAskSchema returns at once there), so it has three lists only.
+it('keeps each flag-off key and holds the three flag-on lists under changePlan', () => {
+  expect(Object.keys(exported)).toEqual(['apiCommit', 'offerTools', 'offerPostReadTools', 'offerHabitSetupTools', 'tools',
+    'legacyTools', 'postReadTools', 'habitSetupBinding', 'habitSetupTools', 'changePlan'])
+  expect(Object.keys(exported.changePlan)).toEqual(['tools', 'legacyTools', 'offerTools'])
+  for (const shape of ['tools', 'legacyTools', 'offerTools']) {
+    expect(exported.changePlan[shape].length).toBeGreaterThan(0)
+    expect(namesOf(exported.changePlan[shape])).toEqual(namesOf(exported[shape]))
+  }
+  for (const key of ['postReadTools', 'habitSetupTools', 'offerPostReadTools', 'offerHabitSetupTools']) {
+    expect(namesOf(exported[key])).toEqual(['ask'])
+  }
+  expect(namesOf(exported.changePlan.legacyTools)).not.toContain('ask')
+})
+
+// A list that the module exports by its name holds the declarations of the block-first path only, so a reader that
+// imports it grades a change-plan run with the lists of the other path.
+it('gives the lists of a path only through catalogOf', () => {
+  for (const list of Object.keys(catalogOf('block-first'))) expect(policy, list).not.toHaveProperty(list)
+  expect(Object.keys(catalogOf('block-first')).toSorted()).toEqual(['habitSetupTools', 'legacyTools', 'offerHabitSetupTools',
+    'offerPostReadTools', 'offerTools', 'postReadTools', 'tools'])
+})
+
+// One map of each kind classifies the calls of both paths: the exporter takes the write class and the sensitive fields
+// from the registry entry of a tool, and the flag-on schema keeps the completion arguments of each tool.
+it('gives each tool one write class, one set of sensitive fields and one set of completion controls on both paths', () => {
+  expect(RUN_PATHS).toEqual(['block-first', 'change-plan'])
+  expect(Object.keys(catalogOf('change-plan')).toSorted()).toEqual(Object.keys(catalogOf('block-first')).toSorted())
+  expect(catalogOf('change-plan')).toMatchObject({ postReadTools: [], habitSetupTools: [], offerPostReadTools: [], offerHabitSetupTools: [] })
+  const declared = RUN_PATHS.flatMap((path) => Object.values(catalogOf(path)).flat())
+  expect(declared.length).toBeGreaterThan(400)
+  for (const tool of declared) {
+    expect(toolWrites.get(tool.function.name), tool.function.name).toBe(tool.writes)
+    expect([...toolSensitiveFields.get(tool.function.name)], tool.function.name).toEqual(tool.sensitiveFields)
+  }
+  for (const tool of catalogOf('change-plan').tools) {
+    expect(completionControls(tool.function.parameters), tool.function.name).toEqual(toolCompletionControls.get(tool.function.name))
+  }
+})
+
+// Producer: orbit-api AskTool.GetChangePlanParameterSchema adds one choice form with `about` and `several`, and removes
+// `target_ids` from each option.
+it.each(['tools', 'offerTools'])('declares the choice about records only in the flag-on ask of %s', (shape) => {
+  const about = askForms(exported.changePlan[shape]).filter((form) => Object.hasOwn(form.properties, 'about'))
+  expect(about).toHaveLength(1)
+  expect(Object.keys(about[0].properties)).toEqual(['form', 'missing_input', 'question', 'about', 'several', 'allowFreeText'])
+  expect(JSON.stringify(exported.changePlan[shape])).not.toContain('target_ids')
+  expect(askForms(exported[shape]).some((form) => Object.hasOwn(form.properties, 'about'))).toBe(false)
+  expect(JSON.stringify(askForms(exported[shape]))).toContain('target_ids')
+})
 
 // Producer: orbit-api src/Orbit.Application/Chat/Tools/Implementations/QueryHabitsTool.cs:26-45,
 // src/Orbit.Application/Chat/RelativeReadPeriod.cs:37-43 and Chat/TerminalReadDirective.cs:19-33.

@@ -1,7 +1,9 @@
-import { expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { behavior, structural } from '../assertions.mjs'
 import parseResponse from '../response.mjs'
-import { chatResponse, toolCall, habitAccountRead } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, changePlanToolCall, habitAccountRead } from './fixtures/producer.mjs'
+
+afterEach(() => { vi.unstubAllEnvs() })
 
 const clientContext = { supportsParts: true }
 const reasons = ['preference', 'check_in', 'record_selection', 'bulk_selection']
@@ -252,4 +254,94 @@ it.each([
 it('still validates every other call after the schema transition', async () => {
   const invalidRead = toolCall('query_habits', { extra: true }, 'Succeeded', 'invalid', clientContext)
   expect((await validate([habitAccountRead(), ask(), invalidRead])).pass).toBe(false)
+})
+
+// The ai_change_plan path. Producer: orbit-api ExecuteChangePlanAskAsync needs no read before ask, a read there returns
+// no selection (ChangePlanTurnPolicy.ReadSelectionOf), and RefreshesAskSchema is false there, so RefreshAskSchema gives
+// no bound declaration. So the read-before-ask rule and the
+// selection_required clause are rules of the block-first path only.
+const readRequired = 'ask requires a typed account read or a bound missing-field draft.'
+const records = ['22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333']
+const onChangePlan = () => vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', 'change-plan')
+const onBlockFirst = () => vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', 'block-first')
+const validateFor = (offers) => (calls) => structural(response(calls), { ...context,
+  vars: { ...context.vars, clientContext: { ...clientContext, supportsProactiveOffers: offers } } })
+const flagAsk = (input, offers = false) => changePlanToolCall('ask', { input }, 'Succeeded', 'ask',
+  { ...clientContext, supportsProactiveOffers: offers })
+
+// Producer: AskTool.GetChangePlanParameterSchema and ChangePlanReplayTests.RunAboutAskAsync.
+const aboutInput = () => ({ form: 'choice', missing_input: 'record_selection', question: 'Which Water - 710ml do you mean?',
+  about: [...records], several: false, allowFreeText: false })
+// Producer: ChangePlanRequestTests.AskFormMap_ChoiceWithLabelsShowsForEveryMissingInputLabelWithNoRead.
+const labelInput = (reason = 'preference') => ({ form: 'choice', missing_input: reason, question: 'When?', multiSelect: true,
+  allowFreeText: true, options: [{ id: 'morning', label: 'Morning' }, { id: 'evening', label: 'Evening' }] })
+
+it.each([['a choice about records', aboutInput], ['a choice with labels', labelInput]].flatMap(([name, input]) =>
+  [false, true].map((offers) => [name, offers, input])))(
+  'accepts %s with no read on the ai_change_plan path, and fails the same trace on the block-first path (offers: %s)',
+  async (_, offers, input) => {
+    const calls = [flagAsk(input(), offers)]
+    onChangePlan()
+    const flagPath = await validateFor(offers)(calls)
+    expect(flagPath.pass, flagPath.reason).toBe(true)
+    for (const select of [onBlockFirst, () => vi.unstubAllEnvs()]) {
+      select()
+      expect(await validateFor(offers)(calls)).toMatchObject({ pass: false, reason: readRequired })
+    }
+  },
+)
+
+it.each(['habit_setup', ...reasons])('accepts the %s label with no read on the ai_change_plan path', async (reason) => {
+  onChangePlan()
+  const verdict = await validate([flagAsk(labelInput(reason))])
+  expect(verdict.pass, verdict.reason).toBe(true)
+})
+
+// Producer: ChangePlanTurnPolicy.ReadSelectionOf removes the selection of a read on the flag path.
+it('accepts an ask after a read that holds no selection and no read directive on the ai_change_plan path only', async () => {
+  const read = changePlanToolCall('query_habits', { for_selection: true }, 'Succeeded', 'read', clientContext)
+  read.result.payload = { scope: 'all', items: [] }
+  expect(read.result).not.toHaveProperty('readDirective')
+  onChangePlan()
+  const flagPath = await validate([read, flagAsk(labelInput('record_selection'))])
+  expect(flagPath.pass, flagPath.reason).toBe(true)
+  onBlockFirst()
+  expect(await validate([read, flagAsk(labelInput('record_selection'))])).toMatchObject({ pass: false, reason: readRequired })
+  const selection = await validate([habitAccountRead(true), ask()])
+  expect(selection.pass, selection.reason).toBe(true)
+})
+
+// The flag-on ask declares the draft fields on each form with labels, and the server binds no declaration to a draft.
+it('validates a draft-bound ask against the flag-on declaration only on the ai_change_plan path', async () => {
+  const create = missingFieldCreate()
+  const bound = (draft) => flagAsk({ ...labelInput('habit_setup'), draft_call_id: draft, missing_field: 'frequency_unit' })
+  onChangePlan()
+  for (const calls of [[create, bound('new-draft')], [create, bound('another-draft')], [bound('new-draft')]]) {
+    const verdict = await validate(calls)
+    expect(verdict.pass, verdict.reason).toBe(true)
+  }
+  const unknownField = bound('new-draft')
+  unknownField.arguments.input.invented = true
+  expect((await validate([create, unknownField])).pass).toBe(false)
+  onBlockFirst()
+  expect((await validate([create, setupAsk('choice', 'another-draft')])).pass).toBe(false)
+})
+
+it('accepts about of two records on the ai_change_plan path, and fails its schema on the block-first path', async () => {
+  onChangePlan()
+  const valid = await validate([flagAsk(aboutInput())])
+  expect(valid.pass, valid.reason).toBe(true)
+  const one = flagAsk(aboutInput())
+  one.arguments.input.about = [records[0]]
+  // The flag-on ask declares two choice forms; the reason names the fault of the form that the call is closest to.
+  expect(await validate([one])).toMatchObject({ pass: false,
+    reason: 'ask choice: Call to "ask" does not match schema: [{"instancePath":"/input/about","schemaPath":"#/properties/input/properties/about/minItems","keyword":"minItems","params":{"limit":2},"message":"must NOT have fewer than 2 items"}]' })
+  const withTargets = flagAsk(labelInput())
+  withTargets.arguments.input.options[0].target_ids = [records[0]]
+  expect((await validate([withTargets])).pass).toBe(false)
+  onBlockFirst()
+  const blockFirst = await validate([habitAccountRead(), flagAsk(aboutInput())])
+  expect(blockFirst.pass).toBe(false)
+  expect(blockFirst.reason).not.toBe(readRequired)
+  expect(blockFirst.reason).toMatch(/^ask choice: Call to "ask" does not match schema/u)
 })

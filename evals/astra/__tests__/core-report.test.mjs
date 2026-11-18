@@ -656,6 +656,74 @@ describe('the k of a gate run', () => {
   })
 })
 
+// The path of a gate run (trace-policy.mjs runPathOf). The path is a setting of the run, never a part of a case, so
+// each path measures the same corpus and a run of the ai_change_plan path compares with the baseline of main.
+describe('the path of a gate run', () => {
+  const windowOn = (path, results, target, name) => summarize(results, [target], { run: name, apiCommit: meta.apiCommit, path })
+  const windowsOn = (path, passes = true) => [windowOn(path, attempts(required, 3), required, 'must-pass'),
+    windowOn(path, [result(optional, { pass: passes })], optional, 'other')]
+  const merge = (windows, options = { asBaseline: true }) => mergeRuns(windows, { descriptors, runCostUsd: 0.006, ...options })
+
+  it('states the path in each window summary and in the merged report, with the corpus digest of main', () => {
+    expect(run(attempts(required, 3), [required])).toMatchObject({ path: 'block-first', corpusDigest })
+    expect(windowsOn('change-plan').map(({ path, corpusDigest: digest }) => [path, digest])).toEqual([['change-plan', corpusDigest], ['change-plan', corpusDigest]])
+    expect(merge(windowsOn('change-plan'))).toMatchObject({ run: 'merged', path: 'change-plan', corpusDigest, status: 'pass' })
+    expect(merge(windowsOn('block-first'))).toMatchObject({ run: 'merged', path: 'block-first', status: 'pass' })
+  })
+
+  it('refuses windows of two paths in one verdict, and names both paths', () => {
+    const [changePlanMustPass, changePlanOther] = windowsOn('change-plan')
+    const [blockFirstMustPass, blockFirstOther] = windowsOn('block-first')
+    expect(() => merge([blockFirstMustPass, changePlanOther]))
+      .toThrow('Input 2 measured the change-plan path, and input 1 the block-first path; one verdict holds the windows of one path.')
+    expect(() => merge([changePlanMustPass, blockFirstOther]))
+      .toThrow('Input 2 measured the block-first path, and input 1 the change-plan path; one verdict holds the windows of one path.')
+    const fixedOnChangePlan = { ...windowOn('change-plan', attempts(required, 3), required, 'must-pass'), apiCommit: fixedBuild }
+    expect(() => merge(windowsOn('block-first', false), { asBaseline: true, reruns: [fixedOnChangePlan] }))
+      .toThrow('Input 3 measured the change-plan path, and input 1 the block-first path; one verdict holds the windows of one path.')
+  })
+
+  // The windows and the baseline of main written before summaries named their path measured the block-first path.
+  it('reads a summary that names no path as the block-first path, and refuses a path it does not know', () => {
+    const withoutPath = windowsOn('block-first').map(({ path, ...window }) => window)
+    expect(withoutPath.every((window) => !Object.hasOwn(window, 'path'))).toBe(true)
+    expect(merge(withoutPath)).toMatchObject({ path: 'block-first', status: 'pass' })
+    expect(merge([withoutPath[0], windowsOn('block-first')[1]])).toMatchObject({ path: 'block-first', status: 'pass' })
+    expect(() => merge([withoutPath[0], windowsOn('change-plan')[1]]))
+      .toThrow('Input 2 measured the change-plan path, and input 1 the block-first path; one verdict holds the windows of one path.')
+    expect(() => merge([{ ...windowsOn('block-first')[0], path: 'flag' }]))
+      .toThrow('Input 1 names the path "flag"; a core set run measures block-first or change-plan.')
+  })
+
+  it('compares a run of the ai_change_plan path with a baseline of the block-first path, and names the path of the baseline', () => {
+    const baseline = merge(windowsOn('block-first', false))
+    expect(baseline).toMatchObject({ path: 'block-first', criteria: { passRate: { rate: 0.5, baselineRate: null, status: 'baseline' } } })
+    expect(baseline).not.toHaveProperty('baselinePath')
+    const { path, ...baselineWithoutPath } = baseline
+    for (const given of [baseline, baselineWithoutPath]) {
+      const better = merge(windowsOn('change-plan'), { baseline: given })
+      expect(better).toMatchObject({ path: 'change-plan', baselinePath: 'block-first', status: 'pass',
+        criteria: { passRate: { rate: 1, baselineRate: 0.5, status: 'pass' } } })
+    }
+    const worse = merge(windowsOn('change-plan', false), { baseline: merge(windowsOn('block-first')) })
+    expect(worse).toMatchObject({ path: 'change-plan', baselinePath: 'block-first', status: 'fail',
+      criteria: { passRate: { rate: 0.5, baselineRate: 1, status: 'fail' } } })
+    expect(() => merge(windowsOn('change-plan'), { baseline: { ...baseline, path: 'flag' } }))
+      .toThrow('The baseline names the path "flag"; a core set run measures block-first or change-plan.')
+  })
+
+  it('writes the path of the run and the path of its baseline in the report', () => {
+    const baseline = merge(windowsOn('block-first'))
+    const lines = (summary) => writeReport(summary, directory()).split('\n')
+    expect(lines(baseline)).toContain('Path: block-first')
+    expect(lines(baseline).some((line) => line.startsWith('Baseline path'))).toBe(false)
+    const gate = lines(merge(windowsOn('change-plan'), { baseline }))
+    expect(gate).toContain('Path: change-plan')
+    expect(gate).toContain('Baseline path: block-first')
+    expect(lines(windowsOn('change-plan')[0])).toContain('Path: change-plan')
+  })
+})
+
 describe('the report files', () => {
   it('writes the summary with k, pass^k, the questions, the model calls, the seconds and the cost of each case', () => {
     const target = directory()

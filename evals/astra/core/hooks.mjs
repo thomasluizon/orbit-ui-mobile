@@ -3,8 +3,8 @@ import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from '../credentials.mjs'
 import { requireEvalOrigin, resetFixture } from '../fixtures/reset.mjs'
 import { fixtureHabitTitles } from '../fixtures/names.mjs'
-import { requireEvalAccess, requireEvalTrace } from '../fixtures/api.mjs'
-import { requireCatalogCommit } from '../trace-policy.mjs'
+import { accountFeatures, requireEvalAccess, requireEvalTrace, requireRunPath } from '../fixtures/api.mjs'
+import { requireCatalogCommit, runPathOf } from '../trace-policy.mjs'
 import { mustPassKOf } from './corpus.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 
@@ -14,11 +14,12 @@ let run = null
 
 function persist(results) {
   writeResults(results, run.directory)
-  const summary = summarize(results, run.descriptors, { run: run.name, apiCommit: run.apiCommit, k: run.k })
+  const summary = summarize(results, run.descriptors, { run: run.name, apiCommit: run.apiCommit, k: run.k, path: run.path })
   return { summary, markdown: writeReport(summary, run.directory) }
 }
 
 export async function beforeAll({ suite }) {
+  const path = runPathOf()
   const descriptors = suite.tests.map((test) => test.metadata)
   const name = descriptors.every((descriptor) => descriptor.mustPass) ? 'must-pass'
     : descriptors.every((descriptor) => !descriptor.mustPass) ? 'other' : null
@@ -33,14 +34,16 @@ export async function beforeAll({ suite }) {
   requireCatalogCommit(health.commit)
   readCredentials()
   // Each card answer and each measured model call reads the eval trace, so an account without the trace flag stops the
-  // run here, before any chat turn spends.
+  // run here, before any chat turn spends. So does an account whose ai_change_plan flag does not agree with the path.
   const unmetered = new Map()
   for (const key of new Set(suite.tests.map((test) => test.vars.credentialKey))) {
     await refreshCredential(key)
-    unmetered.set(key, await requireEvalAccess(key))
-    await requireEvalTrace(key)
+    const features = await accountFeatures(key)
+    unmetered.set(key, requireEvalAccess(key, features))
+    requireEvalTrace(key, features)
+    requireRunPath(key, features, path)
   }
-  run = { name, directory: `reports/core-${name}`, descriptors, k: mustPassKOf(), apiCommit: health.commit, unmetered, results: [] }
+  run = { name, directory: `reports/core-${name}`, descriptors, k: mustPassKOf(), path, apiCommit: health.commit, unmetered, results: [] }
   persist(run.results)
 }
 

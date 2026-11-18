@@ -287,7 +287,7 @@ at low effort.
 Each pull request that changes the assistant gets one live run of the core set (`### Core set gate`), from a
 local checkout, on a staging build of that branch, before merge. The app-launch live gate runs the launch
 corpus once, with one attempt per case and a 2 USD spend ceiling for that run; the ceiling returns to
-0.50 USD a day after it. After a fix, the failed cases and the cases with a grader limit run once more
+the daily value of its environment after it. After a fix, the failed cases and the cases with a grader limit run once more
 live on the fixed build. A rerun on the same build never replaces a failed case. When staging serves
 another API commit before the run ends, the cases without a verdict continue on that build. There is no
 other live run. A fix round never calls the provider: it replays recorded real provider
@@ -297,7 +297,8 @@ responses offline at the model-service port, following the `orbit-api`
 Eval traffic uses `AI__EvalApiKey`, the separate OpenAI key for the `Orbit Eval` project
 with a hard monthly limit. An eval account without that key fails closed and never falls
 back to the production key. The API enforces `AI__EvalDailyBudgetUsd`, a hard shared ceiling
-of 0.50 USD per UTC day per environment for all eval accounts together. The per-account
+per UTC day per environment for all eval accounts together: 1.20 USD on staging and 0.50 USD on
+production (`infra/configuration.tf` in `orbit-api`). The per-account
 `astra_eval_unmetered` flag does not bypass this shared ceiling.
 A ceiling stop ends that UTC day's window; the gate continues with its remaining cases in the
 next UTC day's window (`### Daily windows and combined report`). Never continue it on another
@@ -308,7 +309,11 @@ on that ticket afterward.
 Before a live run, regenerate the tool catalogs from a clean checkout of the evaluated API
 commit with `node evals/astra/generate-catalog.mjs <api-checkout>` from the repository root.
 The exporter uses the API's tool registrations, request builder and strict schema normalizer for both
-composition and legacy clients, with `AiBlockFirst` enabled for the gate;
+composition and legacy clients, in two flag states. With `AiBlockFirst` alone, it writes the `block-first`
+lists under their own keys: `tools`, `legacyTools`, `offerTools`, and the post-read and habit-setup lists.
+With `AiBlockFirst` and `AiChangePlan`, it writes the `change-plan` lists under the `changePlan` key:
+`tools`, `legacyTools` and `offerTools`. On that flag the API keeps one `ask` declaration for the whole
+turn, so `changePlan` has no post-read list and no habit-setup list.
 `catalog.yaml` records the full source SHA as `apiCommit`. Generation refuses a dirty API tree.
 The parts export advertises `CHAT_BLOCK_KINDS` from the shared client registry; the legacy export
 omits part kinds. The catalog regression requires `ask` for the parts client and excludes it for legacy.
@@ -326,11 +331,37 @@ exporter, generator, `CHAT_BLOCK_KINDS` and `catalog.yaml` against that commit. 
 stops the build with CS0535 or a refusal that names the member. The offline suite runs the check without
 `ORBIT_EVAL_BASE_URL`; set `ORBIT_API_REPOSITORY` to a local `orbit-api` repository to fetch the commit without the
 network. The exporter tests require the .NET SDK.
-Structural validation selects the schema matching the case's `clientContext.supportsParts` and removes
+Structural validation selects the lists of the run path (`### Run path`), then the schema matching the
+case's `clientContext.supportsParts`. It removes
 only properties the API's trace sensitivity collector marks for omission, retaining all observable constraints.
 The live gate checks `/health` before its first case and before refreshing credentials. It refuses to
 start unless the reported `commit` matches `apiCommit`, naming both commits and the regeneration command.
 The other offline unit tests validate against the committed catalog without contacting the API.
+
+### Run path
+
+`ORBIT_EVAL_ASTRA_PATH` names the path that a run measures. Set it on the launch corpus run and on both
+core set runs.
+
+| Value | Path | `ai_change_plan` of each eval account |
+|---|---|---|
+| `block-first` (the default) | The API without the flag | off |
+| `change-plan` | The API with the flag | on |
+
+An unknown value stops the run before its first request. Before its first turn, the run reads `/api/config`
+for each eval account. It stops when `features.ai_change_plan.enabled` does not agree with the path. The
+message names the credential key and the `/flag` action. For a `change-plan` run, turn the flag on for the
+eval accounts through `/flag`, record the state before, and put it back after the run.
+
+The path selects the lists of `catalog.yaml` for four readers: the structural assertion, the private
+evidence of an attempt, the offline audit and the offer check of a launch run. The write class and the
+sensitive fields of a tool are the same on both paths.
+
+Each window summary and each merged report state the path: `path` in `summary.json` and `Path:` in
+`summary.md`. A summary with no path measured the `block-first` path. Each merge refuses windows of two
+paths in one verdict. The path is not a part of a core set case, so both paths have the same `corpusDigest`.
+A `change-plan` run compares with the `block-first` baseline of `main`, and the merged report names the
+path of its baseline.
 
 Fixture requests retry one transport timeout or network failure for `GET`, `DELETE`, and verified
 replacement `PUT` routes: `habits/{id}`, `habits/{id}/checklist`, `tags/{id}/assign`,
@@ -344,9 +375,10 @@ flag for `ORBIT_EVAL_TOKEN`, the main account, keeping global enablement off. Ke
 so those accounts still prove the limits refuse. The flag resolves in staging and for production
 eval accounts admitted by the API's `StagingEval:AccountIds` allowlist.
 The startup hook waits for `/health`, refreshes each selected account and reads its authenticated
-`/api/config` once; `features.astra_eval_unmetered.enabled` must be `true` for the main account
+`/api/config`; `features.astra_eval_unmetered.enabled` must be `true` for the main account
 and `false` for both refusal accounts before any case starts. A missing flag or policy mismatch
-stops the run with the account selector and the `/flag` action to turn it on or off.
+stops the run with the account selector and the `/flag` action to turn it on or off. The hook then
+checks `features.ai_change_plan.enabled` of the account against the run path (`### Run path`).
 The hook passes the resolved value to every fixture attempt without rereading config.
 After those checks and before the first case, it warms each selected credential account once
 through the same fixture reset used by that account's first selected case. The existing health
@@ -526,6 +558,9 @@ the same model and effort, instructions, tool declarations and messages as `main
 build queue of #2129). The pull request body of that change says why its model input is equal. Each window and
 the merged report state their k. The merge refuses a k=1 window, rerun or baseline in a k=3 verdict, and a k=3 one
 in a k=1 verdict, so a k=1 gate compares with a baseline of `main` that also ran with `ORBIT_EVAL_MUST_PASS_K=1`.
+
+Set `ORBIT_EVAL_ASTRA_PATH` on both runs to name the path of the gate run (`### Run path`). Each window and
+the merged report state their path, and the merge refuses windows of two paths in one verdict.
 
 Each run writes
 `reports/core-<run>/summary.md`, `summary.json` and private `attempts/` evidence. Select cases for a daily
@@ -1018,7 +1053,7 @@ leaving an account idle across multiple days: public log undo accepts only the p
 and positive history beyond that window cannot be removed while preserving IDs. Composition
 analytics use two rolling three-day periods ending yesterday, inside this public write window.
 
-Merge all sanitized window files against the complete checked-in corpus:
+Merge all sanitized window files of one run path against the complete checked-in corpus:
 
 ```sh
 node merge-reports.mjs reports/window-01/summary.json reports/window-02/summary.json
@@ -1143,18 +1178,29 @@ database. Sharing and database writes are disabled in the configuration. For loc
 promptfoo debug logging or publish raw output, arguments, results, traces or its local state.
 
 The structural wrapper delegates each nonempty call to promptfoo's
-`is-valid-openai-tools-call` against the SDK request declaration. The generated `tools` and
-`offerTools` catalogs carry the cacheable `ask` schema, including nullable `draft_call_id` and
-`missing_field` on every form. `AiIntentService.AppendToolConstraints` retains that schema for
-the entire turn. The exported `postReadTools` and `habitSetupTools` describe continuation
-instruction constraints, not replacement SDK declarations. Structural validation always checks
-the request schema and separately enforces a bound missing-field draft before an account read.
+`is-valid-openai-tools-call` against the SDK request declaration of the run path (`### Run path`).
+The generated `tools` and `offerTools` catalogs of each path carry the cacheable `ask` schema, including
+nullable `draft_call_id` and `missing_field` on every form except the `about` form of the `change-plan` path.
+`AiIntentService.AppendToolConstraints` retains that schema for the entire turn. Structural validation
+always checks the request schema.
+
+Two more rules apply to the `block-first` path only. The exported `postReadTools` and `habitSetupTools`
+describe continuation instruction constraints, not replacement SDK declarations. Structural validation
+enforces a bound missing-field draft before an account read.
 A successful typed account read earlier in the same turn unlocks the other missing-input reasons.
 Evidence is the result's call-bound `readDirective`, or `query_habits` returning
 `selection_required: true`, as produced by `ProcessUserChatCommand.ToolResults.cs`. Failed reads,
 untyped successes and reads in another turn do not unlock it. This mirrors
 `ProcessUserChatCommand.Ask.cs` `RecordSuccessfulAskRead` and `RefreshAskSchema`, with strict
-normalization through `AiIntentService.BuildToolCatalog`. A genuine zero-call trace passes structural
+normalization through `AiIntentService.BuildToolCatalog`.
+
+The `change-plan` path has neither rule. There the API needs no read before `ask`
+(`ProcessUserChatCommand.ChangePlanAsk.cs`), a read returns no selection, and the `ask` declaration does
+not change during a turn. Its `ask` declares one more choice form with `about` (the ids of the records)
+and `several`, and no option holds `target_ids`. So an `ask` with no read passes on the `change-plan`
+path and fails on the `block-first` path. An `ask` with `about` fails the schema of the `block-first` path.
+
+A genuine zero-call trace passes structural
 validation. The next JavaScript assertion matches all necessary calls and key arguments without imposing their
 sequence. IDs and enums are exact, arrays match without order, and `{ textContains: ... }`
 normalizes case, accents, and whitespace for free text. `counts` and `forbidden` detect repeated
@@ -1234,7 +1280,8 @@ Preview revisions with a fingerprint conflict are not replayed automatically: th
 idempotent replacements.
 
 For an offline assertion audit, run `node evals/astra/replay.mjs <source-window> <separate-output>`.
-The source window must contain `summary.json` and one saved attempt per case. The audit reads
+The source window must contain `summary.json` and one saved attempt per case. The audit replays each
+call against the lists of the path that `summary.json` states (`### Run path`). It reads
 every attempt and writes a before/after table and JSON outside the source directory. It never
 calls the chat provider or rubric judge. It replays available argument schemas and changed
 outcome scopes, retaining other verdicts explicitly. Older projections omit identities, full
@@ -1436,7 +1483,8 @@ The generated tool catalog records its API revision in `catalog.yaml` and is der
 `IAiTool.cs`, `AiToolRegistry.cs`, every application chat tool's `GetParameterSchema`, `BulkHabitToolArguments.cs` and
 `src/Orbit.Infrastructure/AI/StrictToolSchema.cs`. The exporter also invokes
 `ProcessUserChatCommandHandler.RefreshAskSchema` with successful-account-read state to capture
-`ToolDeclarationUpdates` through the same strict normalization. The export command above recompiles
+`ToolDeclarationUpdates` through the same strict normalization. It does this for the `block-first` lists
+only, because the API gives no update on the `ai_change_plan` flag. The export command above recompiles
 those sources without writing into the API checkout. `http-provider.mjs` follows the pinned
 `providers-Bn5yoNPJ.js` HTTP response construction, `fetch-C5riNk7b.js` rate-limit error
 construction and `shared-B6JP5nof.js` scheduler's `rateLimitRetryable` handling. The installed
