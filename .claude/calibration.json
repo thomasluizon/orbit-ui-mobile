@@ -284,7 +284,7 @@
     ".claude/skills/progress/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "8b9b1c0d858cd732",
+      "digest": "194aaf3c78f467db",
       "calibratedAt": "2026-11-18",
       "verdict": "current: medium effort; it reads live git and ticket state, resolves integration per repository, and distinguishes ancestry from stacked squash boundaries."
     },

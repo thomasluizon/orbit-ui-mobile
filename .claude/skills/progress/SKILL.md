@@ -34,8 +34,9 @@ He is not asking which tickets closed or which version shipped.
 | `/progress <area>` | any of the three, narrowed to one screen or surface |
 
 `--remaining` replaces the report, so `--full` adds nothing to it. Its procedure is the section
-"`--remaining`: what is pending until the board is empty". The window procedure below (the helper,
-the base-chain rule and the ancestry check) does not apply to it.
+"`--remaining`: what is pending until the board is empty". The window procedure below (the helper
+and the ancestry check) does not apply to it. `--remaining` keeps the base-chain
+walk of step 3, started at the own `baseRefName` of each open pull request, to find a stacked pull request.
 
 The previous owner-typed `/progress` is the boundary, including work before the current chain
 started. With no earlier invocation, use the open chain start, then the current session start.
@@ -210,7 +211,10 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    are included. A check that ran more than once at the same head, as `PR Metadata` does after an
    edit or a label, keeps every run in the rollup: read only the newest entry of each `name` by
    `startedAt`, as `newestChecks` in that file does. Those newest entries and `isDraft` say what
-   holds the work. Use the first row that applies:
+   holds the work. For the stacked row, run the base-chain walk of step 3 from the own `baseRefName`
+   of that pull request. A walk that ends at that same branch means the pull request is not stacked.
+   A walk that cannot resolve, as a parent that closed with nothing merged, means it waits for that parent.
+   Use the first row that applies:
 
    | the row shows | what holds the work |
    |---|---|
@@ -219,9 +223,10 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    | a completed entry other than `pullfrog-approval` that fails | a check fails: say what that check protects |
    | `pullfrog-approval` is completed and fails | the review asked for a fix |
    | no `pullfrog-approval` entry | the review did not run yet |
-   | `baseRefName` is not the resolved integration branch | it waits for the work it is stacked on to merge, and the full checks run only once it targets the integration branch |
+   | the base-chain walk that starts at its own `baseRefName` ends at another branch | it waits for the work it is stacked on to merge, and the full checks run only once it targets the integration branch |
    | `mergeable` is `CONFLICTING` | it conflicts with its base: the conflict needs a fix, then the checks and the review run again |
-   | `pullfrog-approval` passes and every other entry passes | only the merge is left |
+   | `mergeable` is still `UNKNOWN` after `gh pr view <number> --json mergeable` | GitHub has not said yet whether it conflicts with its base |
+   | `pullfrog-approval` passes, every other entry passes and `mergeable` is `MERGEABLE` | only the merge is left |
 
    Work that a ledger row or step 4 shows with no pull request is built on a local head: say nobody
    offered it for review yet.

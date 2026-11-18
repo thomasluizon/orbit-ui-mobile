@@ -3601,13 +3601,15 @@ T("progress: the answer has two parts and no tracking number", {
   readsOnlyTheNewestRun: /read only the newest entry of each\s+`name` by\s+`startedAt`/.test(progressSkill),
   hasNoUnknownRuleThatContradictsTheTable: !/does not name is unknown/.test(progressSkill),
   readsMergeability: progressSkill.includes("isDraft,statusCheckRollup,mergeable"),
-  stackedPullRequestWaitsForItsParent: progressSkill.includes("| `baseRefName` is not the resolved integration branch | it waits for the work it is stacked on to merge"),
+  stackedPullRequestWaitsForItsParent: progressSkill.includes("| the base-chain walk that starts at its own `baseRefName` ends at another branch | it waits for the work it is stacked on to merge"),
+  remainingKeepsTheBaseChainWalk: /`--remaining` keeps the base-chain\s+walk of step 3/.test(progressSkill) && !progressSkill.includes("the helper,\nthe base-chain rule and the ancestry check) does not apply"),
   conflictingPullRequestNeedsAFix: progressSkill.includes("| `mergeable` is `CONFLICTING` | it conflicts with its base"),
-  holdsNothingWhenTheReviewPasses: progressSkill.includes("| `pullfrog-approval` passes and every other entry passes | only the merge is left |") && !progressSkill.includes("`pullfrog-approval` is `SUCCESS`"),
+  uncomputedMergeabilityIsNamed: progressSkill.includes("| `mergeable` is still `UNKNOWN` after `gh pr view <number> --json mergeable` | GitHub has not said yet whether it conflicts with its base |"),
+  holdsNothingWhenTheReviewPasses: progressSkill.includes("| `pullfrog-approval` passes, every other entry passes and `mergeable` is `MERGEABLE` | only the merge is left |") && !progressSkill.includes("`pullfrog-approval` is `SUCCESS`"),
   keepsTheWindowStartLine: progressSkill.includes("window.localStartedAt"),
   hasNoOwnerQuestionPart: !progressSkill.includes("What is waiting on the owner"),
   placesMissingBehaviourInsideTheItem: !/is missing three behaviours\. Name\s+them\./.test(progressSkill) && /qualifier inside the item of that screen/.test(progressSkill),
-}, { mergedIsFirst: true, builtNotMergedIsSecond: true, bansNumbersAndVersions: true, readsWhatHoldsEachItem: true, restatesThePassRule: true, readsOnlyTheNewestRun: true, hasNoUnknownRuleThatContradictsTheTable: true, readsMergeability: true, stackedPullRequestWaitsForItsParent: true, conflictingPullRequestNeedsAFix: true, holdsNothingWhenTheReviewPasses: true, keepsTheWindowStartLine: true, hasNoOwnerQuestionPart: true, placesMissingBehaviourInsideTheItem: true })
+}, { mergedIsFirst: true, builtNotMergedIsSecond: true, bansNumbersAndVersions: true, readsWhatHoldsEachItem: true, restatesThePassRule: true, readsOnlyTheNewestRun: true, hasNoUnknownRuleThatContradictsTheTable: true, readsMergeability: true, stackedPullRequestWaitsForItsParent: true, remainingKeepsTheBaseChainWalk: true, conflictingPullRequestNeedsAFix: true, uncomputedMergeabilityIsNamed: true, holdsNothingWhenTheReviewPasses: true, keepsTheWindowStartLine: true, hasNoOwnerQuestionPart: true, placesMissingBehaviourInsideTheItem: true })
 T("progress: --remaining reads the open board in dependency order and the open pull requests", {
   isAnArgument: /^argument-hint: "\[--remaining \| --full\]/m.test(progressSkill),
   readsTheBoardPlan: progressSkill.includes("node tools/plan-queue.mjs --board"),
