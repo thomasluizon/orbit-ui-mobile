@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`) and run `node tools/relay-checkout.mjs --check`.
 
-Scratchpad (S): run `node $HOME/.orbit-run-carry/carry-lean.mjs <new full id> <predecessor full id>` (the predecessor id is `relay.from`). Start a new `sleep-decisions.md` from D690 with the Write tool. A missing file: `node S/restore-missing.mjs '<name pattern>'`. Read `date` before you write a time. The first block of S `task-map.md` holds each worktree, head and exact next command, and wins over this prompt. Task outputs of the predecessor do not carry: read S `review-<key>-local.md` for a verdict and `git log` in the worktree for a round result.
+Scratchpad (S): run `node $HOME/.orbit-run-carry/carry-lean.mjs <new full id> <predecessor full id>` (the predecessor id is `relay.from`). Start a new `sleep-decisions.md` from D690 with the Write tool. A missing file: `node S/restore-missing.mjs '<name pattern>'`. Read `date` before you write a time. The first block of S `task-map.md` holds each worktree, head and exact next command, and wins over this prompt. Predecessor task outputs do not carry: read S `review-<key>-local.md` and `git log` in the worktree.
 
 Models (owner order): the coordinator and Pullfrog run Opus 5.5; every worker tier runs `claude-sonnet-5-5`. Confirm all four tiers in `.claude/orchestrator.json`; never change or ask about a model unless the owner orders it in chat. A worker that stops at a usage limit is reported to the owner at once. Sentry is connected; Gmail, Orbit and Chrome are not. The Render MCP has no workspace selected: never pick one.
 
@@ -12,7 +12,7 @@ Owner orders (spec standing rules): run tooling (Batch T, Batch 0b) first; under
 
 Speed rules: a review order names the new commits only and labels each finding BLOCKING or NOTE. Push on CLEAN or NOTES; file each note once on its ticket (`node S/ticket-ops.mjs <ticket> <key>`, then `tools/comment-ticket.mjs`). A regression of the pull request or a failed acceptance probe starts a fix round. The coordinator corrects a false body statement before the push. Workers run focused tests only. A body stays under 60,000 characters. A Pullfrog review that fails with no thread names its blocker in the review body: `node S/save-frog.mjs <key> <pr>` saves it to S `pf-<pr>-last.md`; put that item in the round note.
 
-Tool facts: the approval-prompt hook refuses a Bash command with a variable in a `cd` path or a redirect target, a `[` beside a `$(` or a backtick, `sysctl`, `pgrep`, or `ui#N` and `-` arguments on a bash line: write literal commands or a `.mjs` file. A `gh issue list` with a redirect runs alone on its line (the ticket hook refuses it beside other commands). `grep` is ugrep and `ls` is not plain: search with node (S `grep-body.mjs <file> <regex>`, S `notes-of.mjs`). A worker cannot start a browser, a dev server or an emulator. `wait-ci.mjs` exits only when every named pull request settles: start one waiter per pull request near the bar.
+Tool facts: the approval-prompt hook refuses a Bash command with a variable in a `cd` path or a redirect target, a `[` beside a `$(` or a backtick, `sysctl`, `pgrep`, or `ui#N` and `-` arguments on a bash line: write literal commands or a `.mjs` file. A `gh issue list` with a redirect runs alone on its line (the ticket hook refuses it beside other commands). `grep` is ugrep and `ls` is not plain: search with node (S `grep-body.mjs <file> <regex>`, S `notes-of.mjs`). A worker cannot start a browser, a dev server or an emulator. One `wait-ci.mjs` per pull request.
 
 Standing loop: `launch-review-round.sh`, `round-result.mjs`, `rv.sh`, `review-verdict.mjs <task> <key>`, `merge-main.mjs` (a stacked branch merges its base branch instead), `push-round.mjs <key> <pr> <absolute worktree> <body | ->`, then `tools/wait-ci.mjs --require-check pullfrog-approval` in the background; `pr-bar.mjs`; `make-frog-note.mjs <pr> <round> <head> <key>`; merge at once at the bar (green, fresh Pullfrog approval at the head, 0 threads, behind 0). Stale files: `node tools/stale-files.mjs --list`, then `--delete --listing <id>` at once. After every `main` merge, merge `origin/main` into the relay checkout. Every turn ends with a registered wake source.
 
@@ -54,7 +54,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: the API release of `70c66e7be` (staging and production) and `#2172` closed; ui#2489 merged; every listed Pullfrog failure got its round and push; the 2483-r12, 2480-r9 and 2495-r6 rounds pushed; ui#2500 and ui#2501 base merges pushed; the picomatch gate (advisory withdrawn).
+- Done: the API release and `#2172` closed; ui#2489 merged; every listed round pushed; the picomatch gate (advisory withdrawn).
 - Superseded: "release web once ui#2499 merges" by releasing `2263a8b67` now under crank (S D671).
 - Carried: every other In flight row and every standing order above.
 
