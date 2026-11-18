@@ -145,7 +145,7 @@ export const relayPolicyStats = (entries) => {
 }
 
 /** The part of one call's cost that grows with the context: the cache read. */
-export const contextCost = (context, weights = PRICE_WEIGHTS) => context * weights.cacheRead
+const contextCost = (context, weights = PRICE_WEIGHTS) => context * weights.cacheRead
 
 /**
  * Weighted cost per work call when the relay arms at `threshold` tokens. A session makes
