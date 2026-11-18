@@ -510,15 +510,16 @@ const mergedContainerOf = (worktree, tip, probes) => {
 }
 
 /**
- * Why a branch with no pull request stays for its age: a launch makes the branch from the base and its worker starts later,
- * so a branch made after the run's last relay can still be the branch of a queued launch. The creation is the time of the
- * oldest entry of the branch's reflog, which `%gd` prints as `<branch>@{<unix seconds>}`; `%ct` would give the time of the
- * commit that the entry points to, and a branch made now from an old commit would look old. A reflog that cannot be read keeps it.
+ * Why a branch with no pull request stays for its age: a branch made after the run's last relay can be the branch of a queued
+ * launch. Its creation is the oldest reflog entry, which `%gd` prints as `<branch>@{<unix seconds>}`; `%ct` is the time of the
+ * commit and would make a new branch on an old commit look old. A reflog that cannot be read keeps it. A reflog that exists
+ * with no entry has no hold: `git gc` expired every entry (`gc.reflogExpire`, 90 days, above the minimum age), so it is old.
  */
 const youngBranchHoldOf = (worktree, lastRelayAt, probes, now) => {
   const entries = probes.git(worktree.path, ["log", "--walk-reflogs", "--date=unix", "--format=%gd", `refs/heads/${worktree.branch}`, "--"])
   const oldest = /@\{(\d+)\}$/.exec((entries ?? "").split("\n").filter(Boolean).at(-1) ?? "")
   const created = oldest ? Number(oldest[1]) * 1000 : 0
+  if (created === 0 && entries === "" && probes.git(worktree.path, ["reflog", "exists", `refs/heads/${worktree.branch}`]) === "") return null
   if (created === 0) return "the age of its branch could not be read, and a branch with no pull request can be the branch of a queued launch"
   if (lastRelayAt !== null && created >= lastRelayAt) return `its branch has no pull request and was made after the last relay at ${new Date(lastRelayAt).toISOString()}`
   return now - created < MINIMUM_BRANCH_AGE_MS ? `its branch has no pull request and was made less than ${MINIMUM_BRANCH_AGE_MS / 3_600_000} hours ago` : null

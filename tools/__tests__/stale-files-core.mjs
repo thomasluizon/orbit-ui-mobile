@@ -621,7 +621,7 @@ const launchCases = () => {
     [tree("old")]: `${entry("old", relayAt - 1000)}\n${entry("old", relayAt - 7_200_000)}`, [tree("no-reflog")]: "" }
   const listing = collectListing({ ...machine.context, repositories: { ui: machine.checkout } }, { probes: { ...quietProbes, repositories: () => [],
     pullRequests: (path, branch) => (branch === "fix/merged" ? [{ number: 9, state: "MERGED", headRefOid: "2" }] : []),
-    git: (cwd, args) => ({ worktree: () => records, "rev-list": () => "0", "rev-parse": () => "2", "symbolic-ref": () => "origin/main", "cat-file": () => "",
+    git: (cwd, args) => ({ worktree: () => records, "rev-list": () => "0", "rev-parse": () => "2", "symbolic-ref": () => "origin/main", "cat-file": () => "", reflog: () => null,
       log: () => reflogs[cwd] ?? `main@{${Math.floor((relayAt - 7_200_000) / 1000)}}` }[args[0]] ?? (() => ""))() } })
   T("stale-files: the wake source fixture is a live wake source", identity !== null)
   for (const [name, reason] of [["ticket-4242-queued", /^ticket #4242 of the run queue names it$/], ["orb-77-queued", /^ticket ORB-77 of the run queue names it$/],
@@ -650,7 +650,7 @@ const freshBranchCases = () => {
   const entry = (name, age) => `${branches[name]}@{${Math.floor((now - age) / 1000)}}`
   const reflogs = { [tree("fresh")]: entry("fresh", 60_000), [tree("aged")]: entry("aged", MINIMUM_BRANCH_AGE_MS + 60_000), [tree("no-reflog")]: "" }
   const listing = collectListing({ ...machine.context, repositories: { ui: machine.checkout } }, { now, probes: { ...quietProbes, repositories: () => [],
-    git: (cwd, args) => ({ worktree: () => records, "rev-list": () => "0", "rev-parse": () => "2", "symbolic-ref": () => "origin/main", "cat-file": () => "",
+    git: (cwd, args) => ({ worktree: () => records, "rev-list": () => "0", "rev-parse": () => "2", "symbolic-ref": () => "origin/main", "cat-file": () => "", reflog: () => null,
       log: () => reflogs[cwd] ?? "" }[args[0]] ?? (() => ""))() } })
   same("stale-files: with no relay on record, a new branch with no pull request and no commit stays for the minimum age", reasonOf(listing, tree("fresh")),
     `its branch has no pull request and was made less than ${MINIMUM_BRANCH_AGE_MS / 3_600_000} hours ago`)
@@ -665,13 +665,39 @@ const freshBranchCases = () => {
   const withNested = `${records}\nworktree ${nested}\nHEAD 2\nbranch refs/heads/feature/late\n`
   reflogs[nested] = `feature/late@{${Math.floor((now - 60_000) / 1000)}}`
   const removalProbes = { ...quietProbes, repositories: () => [],
-    git: (cwd, args) => ({ worktree: () => withNested, "rev-list": () => "0", "rev-parse": () => "2", "symbolic-ref": () => "origin/main", "cat-file": () => "",
+    git: (cwd, args) => ({ worktree: () => withNested, "rev-list": () => "0", "rev-parse": () => "2", "symbolic-ref": () => "origin/main", "cat-file": () => "", reflog: () => null,
       log: () => reflogs[cwd] ?? "" }[args[0]] ?? (() => ""))() }
   T("stale-files: the fresh branch fixture lists the session directory as stale", stalePaths(listing, "session").includes(session), JSON.stringify(listing.stale.map((item) => item.path)))
   const outcome = removeListed({ ...listing, stale: listing.stale.filter((item) => item.path === session) }, { ui: machine.checkout }, { probes: removalProbes })
   same("stale-files: the removal keeps a session directory that holds a new worktree on a branch younger than the minimum age, with the reason", outcome.skipped.map((item) => item.reason),
     [`the check before the removal keeps it: worktree ${nested} in it stays: its branch has no pull request and was made less than ${MINIMUM_BRANCH_AGE_MS / 3_600_000} hours ago`])
   T("stale-files: the session directory with the young nested worktree still exists", existsSync(nested) && outcome.removed.length === 0, JSON.stringify(outcome))
+}
+
+/**
+ * A default `git gc` expires every reflog entry older than `gc.reflogExpire`, so the branch of a worktree that nobody touched for
+ * months keeps an existing, empty reflog. That branch is old, so no age hold applies; a branch with no reflog at all still stays.
+ */
+const expiredReflogCases = () => {
+  const machine = stageMachine("expired-reflog")
+  const repository = join(machine.base, "repository")
+  mkdirSync(repository)
+  const git = (args, env = {}) => spawnSync("git", ["-C", repository, ...args], { encoding: "utf8", env: { ...process.env, ...env } })
+  const hundredDaysAgo = `${Math.floor(Date.now() / 1000) - 100 * 86_400} +0000`
+  const worktreeOf = (name) => join(machine.base, name)
+  const staged = [["init", "-q", "--initial-branch=main"], ["-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", "commit", "-q", "--allow-empty", "-m", "base"],
+    ["update-ref", "refs/remotes/origin/main", "HEAD"]].every((args) => git(args).status === 0)
+    && [["fix/expired", {}], ["fix/never-logged", { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.logAllRefUpdates", GIT_CONFIG_VALUE_0: "false" }]].every(([branch, env]) =>
+      git(["branch", branch], { ...env, GIT_COMMITTER_DATE: hundredDaysAgo }).status === 0 && git(["worktree", "add", "-q", worktreeOf(branch.split("/")[1]), branch]).status === 0)
+    && git(["reflog", "expire", "--expire=now", "--all"]).status === 0
+  T("stale-files: the expired reflog fixture stages", staged)
+  if (!staged) return
+  T("stale-files: the expired reflog fixture has one empty reflog and one missing reflog", git(["reflog", "exists", "refs/heads/fix/expired"]).status === 0
+    && git(["reflog", "exists", "refs/heads/fix/never-logged"]).status === 1)
+  const listing = collectListing({ ...machine.context, repositories: { ui: repository } }, { probes: { ...realGitProbes, repositories: () => [] } })
+  same("stale-files: a branch whose every reflog entry expired is stale", stalePaths(listing, "worktree"), [worktreeOf("expired")])
+  T("stale-files: a branch with no reflog at all stays", /^the age of its branch could not be read/.test(reasonOf(listing, worktreeOf("never-logged")) ?? ""),
+    `reason: ${reasonOf(listing, worktreeOf("never-logged"))}`)
 }
 
 /**
@@ -911,6 +937,7 @@ export const cases = async () => {
   cleanupDueCases()
   launchCases()
   freshBranchCases()
+  expiredReflogCases()
   await lateLivenessCases()
   lateTreeCases()
   await lockCases()
