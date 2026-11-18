@@ -1,6 +1,6 @@
 import { createServer, get, type IncomingMessage, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { brotliCompressSync, brotliDecompressSync, deflateSync, gzipSync, gunzipSync, inflateSync } from 'node:zlib'
+import { brotliCompressSync, deflateSync, gzipSync } from 'node:zlib'
 import { NodeNextRequest, NodeNextResponse } from 'next/dist/server/base-http/node'
 import { pipeToNodeResponse } from 'next/dist/server/pipe-readable'
 import { createRequestResponseMocks } from 'next/dist/server/lib/mock-request'
@@ -202,9 +202,8 @@ describe('PostHog streaming proxy', () => {
   })
 
   it.each([
-    ['gzip', gzipSync, gunzipSync], ['x-gzip', gzipSync, gunzipSync], ['deflate', deflateSync, inflateSync],
-    ['br', brotliCompressSync, brotliDecompressSync],
-  ] as const)('serves a %s PostHog body that matches its headers through the Next.js response writer', async (encoding, compress, decompress) => {
+    ['gzip', gzipSync], ['x-gzip', gzipSync], ['deflate', deflateSync], ['br', brotliCompressSync],
+  ] as const)('serves a %s PostHog body that matches its headers through the Next.js response writer', async (encoding, compress) => {
     const json = JSON.stringify({ featureFlags: { 'new-today': true } })
     const upstreamUrl = await listen(createServer((_request, response) => {
       response.writeHead(200, { 'content-type': 'application/json', 'content-encoding': encoding })
@@ -216,10 +215,9 @@ describe('PostHog streaming proxy', () => {
         sendResponse(new NodeNextRequest(request), new NodeNextResponse(response), handlerResponse))
     }))
     const { response, body } = await readRaw(`${proxyUrl}/ingest/flags/?v=2`)
-    const receivedEncoding = response.headers['content-encoding']
-    const decoded = receivedEncoding === undefined ? body : decompress(body)
+    expect(response.headers['content-encoding']).toBeUndefined()
     expect(response.headers['content-type']).toBe('application/json')
-    expect(decoded.toString()).toBe(json)
+    expect(body.toString()).toBe(json)
   })
 
   it('streams chunks before upstream completion with two close listeners even under backpressure', async () => {
