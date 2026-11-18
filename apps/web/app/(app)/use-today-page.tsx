@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 import type { ActiveView } from '@orbit/shared/stores'
@@ -74,7 +74,7 @@ export function useTodayPage(
   const [showCompleted, setShowCompleted] = useState(false)
   const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const hidden = isSelectMode || showCreateModal || listSurfaceOpen ||
       data.showLoadError || (data.hasFetched && data.habitsCount === 0)
     setTodayFabHidden(hidden)

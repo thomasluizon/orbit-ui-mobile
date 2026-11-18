@@ -1563,7 +1563,7 @@ A collection whose item count can exceed 20 declares its "too many" behaviour be
 
 **Every data surface ships the loading / empty / error triad.**
 
-- **Loading:** a skeleton for any operation expected to exceed about 300ms. Below that, show nothing. Never show a spinner. The skeleton is **shaped like the final layout** and occupies the final dimensions, so nothing shifts when data lands. Set `aria-busy="true"` on the updating region.
+- **Loading:** a skeleton for any operation expected to exceed about 300ms. Below that, show nothing. The exceptions are a region that mounts while its data is pending, which draws its skeleton on the first frame so the first screen never shows a blank region, and a skeleton that already shows, which stays visible when the request key changes while the request is still pending. Never show a spinner. The skeleton is **shaped like the final layout** and occupies the final dimensions, so nothing shifts when data lands. Set `aria-busy="true"` on the updating region.
 - **Empty:** a composed invitation to act. It says what this place is and how to fill it, with one clear next action. A search or filter empty state names the query and offers an exit. **Never park persistent information in an empty state**; it disappears the moment content exists.
 - **Error:** see **Voice**.
 - **Disabled:** use native `disabled` when a control is genuinely unavailable. Use `aria-disabled="true"` only when the control must stay focusable and discoverable, and then block activation in the handler and explain why nearby. Never set both. A natively disabled control cannot carry a tooltip, so the reason goes in visible text beside it.

@@ -2,7 +2,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { PADDING, SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, Animated, StyleSheet, View, type Text } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -228,7 +228,7 @@ function TodayScreenContent() {
     }, [accountId, clearSelection]),
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const hidden = isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen ||
       (habitsQuery.data === undefined ? habitsQuery.isError : habitsById.size === 0)
     setTodayFabHidden(hidden)

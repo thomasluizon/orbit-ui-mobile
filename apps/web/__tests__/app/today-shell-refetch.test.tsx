@@ -1,6 +1,6 @@
 vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { beforeEach, expect, it, vi } from 'vitest'
-import { useLayoutEffect } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
 import { render, screen } from '@testing-library/react'
 import { useTodayPage } from '@/app/(app)/use-today-page'
 import { DestinationShell } from '@/components/shell/destination-shell'
@@ -101,6 +101,31 @@ it('keeps the pending FAB in place when the list arrives and again after returni
   view.rerender(<TodayShell mounted={false} />)
   view.rerender(<TodayShell />)
   expect(state.paints.every(Boolean)).toBe(true)
+})
+
+it('commits the FAB hidden by the end of the first layout phase when Today returns over a list cached empty', () => {
+  state.habits = { hasFetched: true, habitsCount: 0, isFetching: false, showLoadError: false }
+  const atLayoutEnd: boolean[] = []
+  function AfterToday() {
+    useLayoutEffect(() => { atLayoutEnd.push(useUIStore.getState().todayFabHidden) })
+    return null
+  }
+  function ReturningToday() {
+    const setTodayFabHidden = useUIStore((store) => store.setTodayFabHidden)
+    useEffect(() => () => setTodayFabHidden(false), [setTodayFabHidden])
+    return <TodayPage />
+  }
+  function ReturnShell({ mounted }: { mounted: boolean }) {
+    const todayFabHidden = useUIStore((store) => store.todayFabHidden)
+    return <DestinationShell todayFabHidden={todayFabHidden} onCreate={() => {}}>{mounted ? <ReturningToday /> : null}<AfterToday /></DestinationShell>
+  }
+  const view = render(<ReturnShell mounted />)
+  view.rerender(<ReturnShell mounted={false} />)
+  expect(useUIStore.getState().todayFabHidden).toBe(false)
+  atLayoutEnd.length = 0
+  view.rerender(<ReturnShell mounted />)
+  expect(atLayoutEnd[0]).toBe(true)
+  expect(document.querySelector('[data-shell-fab]')).toBeNull()
 })
 
 it.each([412, 1280])('draws the whole shell, including the create control, at %i with every query pending', (width) => {
