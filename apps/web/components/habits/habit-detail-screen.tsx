@@ -629,7 +629,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   }
 
   if (detailQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></div></HabitDetailFrame>
-  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><HabitDetailUnavailable result={resultHost.result} onSeeToday={resultHost.seeToday} onClose={resultHost.close}><HabitDetailLoadError message={t('habits.detail.loadError')} offlineMessage={t('offline.description')} error={detailQuery.error} retryLabel={t('habits.detail.retry')} onRetry={retryFailedQueries} /></HabitDetailUnavailable></HabitDetailFrame>
+  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><HabitDetailUnavailable result={resultHost.result} habitDeleted={resultHost.habitDeleted} onSeeToday={resultHost.seeToday} onClose={resultHost.close}><HabitDetailLoadError message={t('habits.detail.loadError')} offlineMessage={t('offline.description')} error={detailQuery.error} retryLabel={t('habits.detail.retry')} onRetry={retryFailedQueries} /></HabitDetailUnavailable></HabitDetailFrame>
 
   const children = (detailQuery.data as HabitDetail).children.map((sourceChild) => {
     const child = normalizeDrillDetailChild(sourceChild, habit.id, dateStr)

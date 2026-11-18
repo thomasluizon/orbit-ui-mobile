@@ -24,13 +24,15 @@ function splitWeekday(input: string): { weekday: number | null; phrase: string }
   return weekday === null ? { weekday: null, phrase: input.trim() } : { weekday, phrase: input.slice(comma + 1).trim() }
 }
 
-/** The date a typed phrase in the month picker names, read on the device with the habit form parser. "dia 20" is day 20 of the shown month; "sexta, dia 20" is the first day 20 from that month that falls on a Friday. Returns null when the text does not resolve. */
+/** The date a typed phrase in the month picker names, read on the device with the habit form parser. "dia 20" is day 20 of the shown month, and a day that month lacks, such as "dia 31" in February, does not resolve instead of moving to a later month; "sexta, dia 20" is the first day 20 from that month that falls on a Friday. Returns null when the text does not resolve. */
 export function resolveCalendarJumpPhrase(input: string, context: CalendarJumpContext): string | null {
   const { weekday, phrase } = splitWeekday(input)
-  let referenceDate = BARE_DAY.test(phrase.toLowerCase().replaceAll(/\s+/g, ' ')) ? context.monthStart : context.todayKey
+  const bareDay = BARE_DAY.test(phrase.toLowerCase().replaceAll(/\s+/g, ' '))
+  let referenceDate = bareDay ? context.monthStart : context.todayKey
   for (let attempt = 0; attempt < MAX_WEEKDAY_SEARCH; attempt++) {
     const result = parseDatePhrase(phrase, { referenceDate, locale: context.locale, timeZone: context.timeZone })
     if (result.status !== 'resolved') return null
+    if (weekday === null && bareDay && !result.date.startsWith(context.monthStart.slice(0, 7))) return null
     if (weekday === null || weekdayOf(result.date) === weekday) return result.date
     referenceDate = formatAPIDate(addDays(parseAPIDate(result.date), 1))
   }

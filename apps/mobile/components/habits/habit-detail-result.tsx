@@ -14,22 +14,25 @@ export type HabitDetailResult = { kind: 'rescheduled'; date: string } | { kind: 
 export function useHabitDetailResult(seeToday: () => void) {
   const guided = useFlag('orbit_guided_flows')
   const [result, setResult] = useState<HabitDetailResult | null>(null)
+  const [habitDeleted, setHabitDeleted] = useState(false)
   const leave = () => {
     setResult(null)
     seeToday()
   }
   return {
     result,
-    deleted: () => { if (guided) setResult({ kind: 'deleted' }); else seeToday() },
+    habitDeleted,
+    deleted: () => { setHabitDeleted(true); if (guided) setResult({ kind: 'deleted' }); else seeToday() },
     rescheduled: (date: string) => { if (guided) setResult({ kind: 'rescheduled', date }) },
     seeToday: leave,
     close: () => { if (result?.kind === 'deleted') leave(); else setResult(null) },
   }
 }
 
-/** What habit detail shows when it has no habit to draw. Right after a delete the detail read is already removed, so the deleted result dialog shows there, and the load error shows in every other case. */
-export function HabitDetailUnavailable({ result, onSeeToday, onClose, children }: Readonly<{ result: HabitDetailResult | null; onSeeToday: () => void; onClose: () => void; children: ReactNode }>) {
-  return result?.kind === 'deleted' ? <HabitDetailResultDialog result={result} onSeeToday={onSeeToday} onClose={onClose} /> : children
+/** What habit detail shows when it has no habit to draw. Right after a delete the detail read is already removed: the deleted result dialog shows there while it is open, an empty frame shows while the route leaves, and the load error shows in every other case. */
+export function HabitDetailUnavailable({ result, habitDeleted, onSeeToday, onClose, children }: Readonly<{ result: HabitDetailResult | null; habitDeleted: boolean; onSeeToday: () => void; onClose: () => void; children: ReactNode }>) {
+  if (result?.kind === 'deleted') return <HabitDetailResultDialog result={result} onSeeToday={onSeeToday} onClose={onClose} />
+  return habitDeleted ? null : children
 }
 
 /** The centred result dialog of habit detail. After a delete Orbit is Parado and does not hop, because nothing was created or finished. */

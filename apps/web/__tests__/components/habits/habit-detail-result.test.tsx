@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, renderHook, screen, waitFor, act } from '@testing-library/react'
 import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
-import { HabitDetailResultDialog, useHabitDetailResult } from '@/components/habits/habit-detail-result'
+import { HabitDetailResultDialog, HabitDetailUnavailable, useHabitDetailResult } from '@/components/habits/habit-detail-result'
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -48,6 +48,31 @@ describe('web habit detail result dialog', () => {
     act(() => off.result.current.deleted())
     expect(off.result.current.result).toBeNull()
     expect(seeToday).toHaveBeenCalledOnce()
+  })
+
+  it.each([['on', true], ['off', false]])('never brings back the load error while detail leaves after a delete, with the guided flows %s', async (_label, guided) => {
+    if (guided) enableTestFlags('orbit_guided_flows')
+    const seeToday = vi.fn()
+    function Detail() {
+      const host = useHabitDetailResult(seeToday)
+      return <>
+        <button onClick={host.deleted}>delete</button>
+        <HabitDetailUnavailable result={host.result} habitDeleted={host.habitDeleted} onSeeToday={host.seeToday} onClose={host.close}>
+          <p>habits.detail.loadError</p>
+        </HabitDetailUnavailable>
+      </>
+    }
+    render(<Detail />)
+    expect(screen.getByText('habits.detail.loadError')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'delete' }))
+    if (guided) {
+      await screen.findByRole('dialog', { name: 'result.title' })
+      expect(screen.queryByText('habits.detail.loadError')).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'result.seeToday' }))
+      expect(screen.queryByRole('dialog')).toBeNull()
+    }
+    expect(seeToday).toHaveBeenCalledOnce()
+    expect(screen.queryByText('habits.detail.loadError')).toBeNull()
   })
 
   it('holds the result with the guided flows on, and a deleted habit leaves to Hoje however its dialog closes', () => {

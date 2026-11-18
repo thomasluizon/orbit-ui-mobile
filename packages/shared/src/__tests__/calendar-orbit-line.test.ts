@@ -114,6 +114,15 @@ describe('resolveCalendarJumpPhrase', () => {
     expect(resolveCalendarJumpPhrase('the 20th', { ...context, locale: 'en' })).toBe('2026-12-20')
   })
 
+  it('returns null for a bare day that the shown month lacks, and reads day 29 of a leap February', () => {
+    expect(resolveCalendarJumpPhrase('dia 31', { ...context, monthStart: '2027-02-01' })).toBeNull()
+    expect(resolveCalendarJumpPhrase('dia 30', { ...context, monthStart: '2027-02-01' })).toBeNull()
+    expect(resolveCalendarJumpPhrase('dia 31', { ...context, monthStart: '2026-04-01' })).toBeNull()
+    expect(resolveCalendarJumpPhrase('the 31st', { ...context, monthStart: '2026-11-01', locale: 'en' })).toBeNull()
+    expect(resolveCalendarJumpPhrase('dia 29', { ...context, monthStart: '2028-02-01' })).toBe('2028-02-29')
+    expect(resolveCalendarJumpPhrase('dia 31', { ...context, monthStart: '2026-12-01' })).toBe('2026-12-31')
+  })
+
   it('finds the first day 20 from the shown month that falls on the named weekday', () => {
     expect(resolveCalendarJumpPhrase('sexta, dia 20', context)).toBe('2027-08-20')
     expect(resolveCalendarJumpPhrase('sexta, dia 20', { ...context, monthStart: '2026-11-01' })).toBe('2026-11-20')

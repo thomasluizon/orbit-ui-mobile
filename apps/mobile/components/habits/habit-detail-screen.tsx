@@ -576,7 +576,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
 
   const appBar = <HabitDetailNavigation parentId={parentId} titleIsHeading={detailQuery.isLoading || detailQuery.isError || !habit || !detailQuery.data} onBack={back} />
   if (detailQuery.isLoading) return <FlowShell nav={false} mode="detail" header={appBar}><View style={styles.content}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></View></FlowShell>
-  if (detailQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} mode="detail" header={appBar}><HabitDetailUnavailable result={resultHost.result} onSeeToday={resultHost.seeToday} onClose={resultHost.close}><HabitDetailLoadError message={t('habits.detail.loadError')} offlineMessage={t('offline.description')} error={detailQuery.error} retryLabel={t('habits.detail.retry')} onRetry={retryFailedQueries} /></HabitDetailUnavailable></FlowShell>
+  if (detailQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} mode="detail" header={appBar}><HabitDetailUnavailable result={resultHost.result} habitDeleted={resultHost.habitDeleted} onSeeToday={resultHost.seeToday} onClose={resultHost.close}><HabitDetailLoadError message={t('habits.detail.loadError')} offlineMessage={t('offline.description')} error={detailQuery.error} retryLabel={t('habits.detail.retry')} onRetry={retryFailedQueries} /></HabitDetailUnavailable></FlowShell>
 
   const children = detailQuery.data.children.map((sourceChild) => {
     const child = normalizeDrillDetailChild(sourceChild, habit.id, dateStr)
