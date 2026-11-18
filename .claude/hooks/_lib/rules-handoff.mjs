@@ -23,7 +23,7 @@ const TEXT_GIT_RECORD = new RegExp(`\\bgit\\b((?:\\s+-C\\s+(?:"[^"]+"|'[^']+'|\\
  * Each git command that can record the index that `command` runs, as `{ chain, subcommand }`. The chain is read as the git rule reads it:
  * the shell directory after the `cd` model, then each `-C` word as the shell gives it to git. The readers give each chain to git as
  * `git -C <dir> -C <w1> ...`, because git applies each word with `chdir`, which follows a symlink before it reads `..`. Text that runs no
- * such command gives no chain. A command outside the subset whose text names one gives `notModelled` in an unattended run, and the chain of that text attended.
+ * such command gives no chain. A command outside the subset whose text names one gives `notModelled` in an unattended run. Attended, each such git command of that text gives its own chain.
  */
 export const gitCommitChains = (command, { cwd, home, unattended = true } = {}) => {
   const text = String(command ?? "")
@@ -33,10 +33,12 @@ export const gitCommitChains = (command, { cwd, home, unattended = true } = {}) 
       .map(({ globals, directory, subcommand }) => ({ chain: gitDirectoryChain(globals, directory), subcommand }))
     return { chains: [...new Map(chains.map((item) => [JSON.stringify(item), item])).values()], notModelled: "" }
   }
-  const match = TEXT_GIT_RECORD.exec(text)
-  if (!match) return { chains: [], notModelled: "" }
+  const matches = [...text.matchAll(new RegExp(TEXT_GIT_RECORD.source, "g"))]
+    .filter((match) => recordsIndex({ subcommand: match[2], rest: [text.slice(match.index + match[0].length).match(/^\s+([^\s;&|]+)/)?.[1]] }))
+  if (matches.length === 0) return { chains: [], notModelled: "" }
   if (unattended) return { chains: [], notModelled }
-  return { chains: [{ chain: [cwd, ...[...match[1].matchAll(/-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)].map((item) => item[1] ?? item[2] ?? item[3])], subcommand: match[2] }], notModelled: "" }
+  const chains = matches.map((match) => ({ chain: [cwd, ...[...match[1].matchAll(/-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)].map((item) => item[1] ?? item[2] ?? item[3])], subcommand: match[2] }))
+  return { chains: [...new Map(chains.map((item) => [JSON.stringify(item), item])).values()], notModelled: "" }
 }
 
 const notModelledRefusal = (command, notModelled) =>

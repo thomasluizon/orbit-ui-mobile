@@ -3577,6 +3577,16 @@ const refreshedChains = []
 T("handoff commit: each recording subcommand is judged, and only a commit refreshes the checkout", checkHandoffCommit({ command: "git pull; git -C /work/b merge x; git stash; git -C /work/c commit -m y",
   cwd: "/work/a", request: { sleep: true }, promptsForCommit: () => [goodSleepPrompt], refreshCheckout: (chain) => refreshedChains.push(chain) }), null)
 T("handoff commit: the refresh reads only the commit chain", refreshedChains, [["/work/a", "/work/c"]])
+// An attended line outside the subset is read from its text: each git command of the text gives its own chain.
+for (const [name, command, want] of [
+  ["a merge before the commit refreshes the commit chain", 'git merge "$B" && git commit -m y', [["/work/a"]]],
+  ["a `git stash list` before the commit refreshes the commit chain", 'git stash list "$X"; git commit -m y', [["/work/a"]]],
+]) {
+  const refreshed = []
+  T(`handoff commit attended text: ${name}`, [checkHandoffCommit({ command, cwd: "/work/a", unattended: false, promptsForCommit: () => [],
+    refreshCheckout: (chain) => refreshed.push(chain) }), refreshed], [null, want])
+}
+T("handoff chain: an attended `git stash list` outside the subset gives no chain", gitCommitChains('git stash list "$X"', { cwd: "/work/a", unattended: false }), { chains: [], notModelled: "" })
 T("handoff chain: an unattended recording subcommand outside the subset names the construct", gitCommitChains('git -C "$WT" merge --continue', { cwd: "/work/a" }),
   { chains: [], notModelled: "a variable in a `git` argument" })
 T("handoff chain: an attended recording subcommand outside the subset is read from its text", gitCommitChains('git -C "$WT" rebase --continue', { cwd: "/work/a", unattended: false }),
