@@ -202,7 +202,8 @@ it('stops a call that the caller cancels, gives no verdict and does not retry it
   errors.mockRestore()
 })
 
-// The grader module through the test's own import, so its execFile is the scaled one above.
+// The grader module through the test's own import, so its execFile is the scaled one above. The execFile calls count the
+// attempts: on a loaded host the fake CLI can die at the scaled limit before it writes its own counter.
 it('ends a hung call at the two-minute limit, gives no verdict and retries it once', async () => {
   vi.stubEnv('TEST_CLAUDE_MODE', 'hang')
   vi.mocked(execFile).mockClear()
@@ -210,7 +211,6 @@ it('ends a hung call at the two-minute limit, gives no verdict and retries it on
   const error = 'Claude rubric grading failed: process interrupted by timeout or cancellation.'
   expect(await new ClaudeGrader().callApi('Offline rubric control.')).toEqual({ error })
   expect(vi.mocked(execFile).mock.calls.map(([, , options]) => options.timeout)).toEqual([120000, 120000])
-  expect(attempts()).toBe(2)
   errors.mockRestore()
 }, 10000)
 
