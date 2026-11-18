@@ -129,6 +129,7 @@ No open ticket.
 Includes the packaging milestone ("Packaging: caps, quotas and tiers") and the PostHog work.
 
 - `#2096` Audit app motion on web and mobile and file one ticket per area. Next: `ui#2490` was approved; `main` is merged and pushed, Pullfrog asked: merge at the bar, then close.
+- `#2176` Apply the unslop-ui skill to the whole app, on web and mobile in both languages (owner order). Next: after `#2122` merges (the screens it reads), one worker vendors the pinned skill into `.claude/skills/unslop-ui/`, then runs its full procedure with `--surface` under the `DESIGN.md` D42 ladder.
 
 ### Batch 3: the landing page and the Play listing
 

@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`) and run `node tools/relay-checkout.mjs --check`.
 
-Scratchpad (S): run `node $HOME/.orbit-run-carry/carry-lean.mjs <new full id> <predecessor full id>` (the predecessor id is `relay.from`). Start a new `sleep-decisions.md` from D687 with the Write tool. A missing file: `node S/restore-missing.mjs '<name pattern>'`. Read `date` before you write a time. The first block of S `task-map.md` holds each worktree, head and exact next command, and wins over this prompt. Task outputs of the predecessor do not carry: read S `review-<key>-local.md` for a verdict and `git log` in the worktree for a round result.
+Scratchpad (S): run `node $HOME/.orbit-run-carry/carry-lean.mjs <new full id> <predecessor full id>` (the predecessor id is `relay.from`). Start a new `sleep-decisions.md` from D689 with the Write tool. A missing file: `node S/restore-missing.mjs '<name pattern>'`. Read `date` before you write a time. The first block of S `task-map.md` holds each worktree, head and exact next command, and wins over this prompt. Task outputs of the predecessor do not carry: read S `review-<key>-local.md` for a verdict and `git log` in the worktree for a round result.
 
 Models (owner order): the coordinator and Pullfrog run Opus 5.5; every worker tier runs `claude-sonnet-5-5`. Confirm all four tiers in `.claude/orchestrator.json`; never change or ask about a model unless the owner orders it in chat. A worker that stops at a usage limit is reported to the owner at once. Sentry is connected; Gmail, Orbit and Chrome are not. The Render MCP has no workspace selected: never pick one.
 
@@ -18,7 +18,7 @@ Standing loop: `launch-review-round.sh`, `round-result.mjs`, `rv.sh`, `review-ve
 
 ## Goal
 
-Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. The order reconciles: open 39, placed 39, unplaced 0, placed twice 0.
+Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. The order reconciles: open 40, placed 40, unplaced 0, placed twice 0.
 
 ## In flight
 
@@ -34,6 +34,7 @@ UI `main` `9723bfcd3` (ui#2489 merged); API `main` and production `70c66e7be` (`
 | ui#2451 | Windows red until ui#2502 merges; then merge main, push, merge at the bar. |
 | ui#2498 (`#2173`) | Merge condition: the live relay proofs A and B of S `body-2498-main1.md` lines 35 to 55. |
 | ui#2491, ui#2494; api#1120, api#1121, api#1124, api#1125, api#1126, api#1127, api#1128 | Wait on api#1124 and on the `#2135` core set gate after ui#2480 merges (then one baseline window). |
+| `#2176` (owner order: apply the unslop-ui skill to the whole app) | Blocked by `#2122`; then one worker (spec Batch 2b bullet). The skill is installed at `~/.claude/skills/unslop-ui/` for the main account only. |
 | `#2146` and the mobile pair | The web check through `claude-in-chrome` once connected; the Android Open plus TestFlight pair after ui#2499 merges. |
 
 ## Then, in this order
