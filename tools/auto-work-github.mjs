@@ -23,7 +23,7 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                ORB-N in the branch or the title) is closed, each with closedTickets
                [{number, stateReason}]. Neither list is pending. A reported mark holds at
                every head; collect drops it when the closed tickets or a close reason change. A pull request whose ticket
-               read failed is not pending in that collection. alerts adds ticketClosed: the
+               read failed is named in failures with its key; it is not pending and takes no mark, and the other pull requests of its repository are listed. alerts adds ticketClosed: the
                open alerts whose carrying ticket is closed, each with its ticket, its
                stateReason and, for code scanning of a ticket closed as COMPLETED,
                scannedCommit (the commit of the newest scan of main); they are pending again.

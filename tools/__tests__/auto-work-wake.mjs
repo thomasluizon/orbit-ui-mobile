@@ -142,6 +142,11 @@ const stateCases = () => {
   T("wake: a partial alert read wakes once for its failure and keeps the keys it read", JSON.stringify(partial.wakes) ===
     JSON.stringify([{ source: "alerts", kind: "failure", failure: "GitHub read failed at x: gh: Not Found (HTTP 404)" }]) &&
     partial.marks.seen.alerts[0] === "api code-scanning 28", JSON.stringify(partial))
+  const withheld = evaluateChecks([{ source: "pullRequests" }], [{ status: "fulfilled", value: { keys: [], failure: "Cannot read the tickets of ui#2510: HTTP 410", unreadKeys: ["ui#2510"] } }],
+    startMarks({ pullRequests: ["ui#2510 abc", "ui#2510", "ui#25101 abc", "ui#2511 abc"] }), Date.now())
+  T("wake: an unread key keeps its own seen keys, and no key of another pull request that shares its digits", JSON.stringify(withheld.marks.seen.pullRequests) ===
+    JSON.stringify(["ui#2510 abc", "ui#2510"]) && JSON.stringify(withheld.wakes) === JSON.stringify([{ source: "pullRequests", kind: "failure", failure: "Cannot read the tickets of ui#2510: HTTP 410" }]),
+  JSON.stringify(withheld))
 }
 
 const commandCases = async () => {

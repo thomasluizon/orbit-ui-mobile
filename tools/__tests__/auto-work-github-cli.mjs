@@ -17,6 +17,8 @@ const CLOSED_TICKET_PULL = { number: 1115, author: "thomasluizon", authorType: "
 /** A revert of a squash merge subject: its one `(#2481)` is the pull request number of ui#2481, and no such issue exists in orbit-tickets. */
 const SQUASH_SUFFIX_PULL = { number: 2501, author: "thomasluizon", authorType: "User", head: "c".repeat(40), branch: "revert-next-bump", base: "main", draft: false,
   title: 'Revert "chore(deps): bump next from 16.4.3 to 16.4.5 (#2481)"', url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/2501" }
+/** The gh failure line of a gateway error, in the form of NOT_FOUND. */
+const BAD_GATEWAY = "gh: Bad Gateway (HTTP 502)"
 const quoted = (value) => JSON.stringify(value).replaceAll("'", "'\\''")
 
 /** The CLI against a gh stand-in whose answers are the live projections above. */
@@ -36,7 +38,7 @@ case "$*" in
     if [ -n "\${DISMISS_FAIL:-}" ]; then echo '${NOT_FOUND}' >&2; exit 1; fi
     cat > "${installation.base}/patch-\$(echo "$6" | tr '/' '_').json"; echo '{}';;
   *"repos/thomasluizon/orbit-api/pulls?"*) printf '%s\\n' '${JSON.stringify(DEPENDABOT_PULL)}';;
-  "api repos/thomasluizon/orbit-tickets/issues/2481 --jq "*) echo '${NOT_FOUND}' >&2; exit 1;;
+  "api repos/thomasluizon/orbit-tickets/issues/2481 --jq "*) if [ -n "\${TICKET_READ_FAILS:-}" ]; then echo '${BAD_GATEWAY}' >&2; else echo '${NOT_FOUND}' >&2; fi; exit 1;;
   *"repos/thomasluizon/orbit-ui-mobile/pulls?"*)
     if [ -n "\${SUFFIX_PULL:-}" ]; then printf '%s\\n' '${quoted(SQUASH_SUFFIX_PULL)}'; fi
     if [ -n "\${OWNER_PULL:-}" ]; then printf '%s\\n' '${quoted(CLOSED_TICKET_PULL)}' | sed "s/${CLOSED_TICKET_PULL.head}/\${OWNER_HEAD:-${CLOSED_TICKET_PULL.head}}/"; fi;;
@@ -161,6 +163,17 @@ esac
   const suffixedResult = (() => { try { return JSON.parse(suffixed.stdout) } catch { return {} } })()
   T("github cli: a pull request number in a title is no ticket: its 404 is no failure and the pull request is pending", suffixedResult.pullRequests?.failures.length === 0 &&
     suffixedResult.pullRequests.pending.some((pull) => pull.key === "ui#2501") && suffixedResult.pullRequests.ticketClosed.length === 0, `${suffixed.status} ${suffixed.stdout}${suffixed.stderr}`)
+  /* A ticket read that fails for another reason withholds only its pull request: the others are listed, and the collection exits 3 and names it. */
+  const withheld = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, SUFFIX_PULL: "1", TICKET_READ_FAILS: "1" } })
+  const withheldResult = (() => { try { return JSON.parse(withheld.stdout) } catch { return {} } })()
+  T("github cli: a failed ticket read withholds only its pull request, names it and exits 3", withheld.status === 3 &&
+    JSON.stringify(withheldResult.pullRequests?.failures.map(({ read, key }) => [read, key])) === JSON.stringify([["ui pulls", "ui#2501"]]) &&
+    withheldResult.pullRequests.failures[0].message.includes(BAD_GATEWAY) && withheldResult.pullRequests.open === 3 &&
+    readRunState(installation.base).intake.pullRequests.open["api#1106"] !== undefined && readRunState(installation.base).intake.pullRequests.open["ui#2501"]?.unread === true &&
+    !withheldResult.pullRequests.pending.some((pull) => pull.key === "ui#2501"), `${withheld.status} ${withheld.stdout}${withheld.stderr}`)
+  const withheldMark = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
+    input: JSON.stringify({ key: "ui#2501", head: SQUASH_SUFFIX_PULL.head, action: "closed", reason: "Superseded." }) })
+  T("github cli: a withheld pull request takes no mark", withheldMark.status === 1 && withheldMark.stderr.includes("could not be read"), `${withheldMark.stdout}${withheldMark.stderr}`)
   const ownerOpen = collectOwner("OPEN", "COMPLETED")
   T("github cli: an owner pull request whose ticket is open stays pending for adoption", ownerOpen.result.pullRequests?.pending.some((pull) => pull.key === "ui#1115") &&
     ownerOpen.result.pullRequests.ticketClosed?.length === 0, `${ownerOpen.status} ${ownerOpen.stdout}${ownerOpen.stderr}`)

@@ -30,15 +30,16 @@ export const unexpectedAuthor = ({ key, slug }, author) => author !== ownerOf(sl
 export const PULL_REQUEST_CLASSES = {
   unexpectedAuthor: { actions: ["reported"], refusal: "a pull request from an unexpected author is never merged, fixed or closed; report it to the owner" },
   otherRun: { actions: [], refusal: "another live run drives this pull request, or the live runs could not be read; skip it" },
+  unread: { actions: [], refusal: "the tickets of this pull request could not be read; skip it until the next collection reads them" },
   closedTickets: { actions: ["closed", "reported"], refusal: "a pull request whose tickets are closed is never merged or fixed; close it as superseded or report it to the owner" },
   configured: { actions: ["merged", "fix", "closed"], refusal: "only a pull request from an unexpected author or with closed tickets is reported" },
 }
 
 /**
- * The class of one open pull request: an unexpected author, an owner pull request of another live run, an owner pull
- * request whose tickets are all closed, or a configured author.
+ * The class of one open pull request: an unexpected author, an owner pull request whose ticket read failed, an owner pull
+ * request of another live run, an owner pull request whose tickets are all closed, or a configured author.
  */
-export const pullRequestClass = (pull) => pull.unexpectedAuthor ? "unexpectedAuthor" : pull.otherRun ? "otherRun" : pull.closedTickets ? "closedTickets" : "configured"
+export const pullRequestClass = (pull) => pull.unexpectedAuthor ? "unexpectedAuthor" : pull.unread ? "unread" : pull.otherRun ? "otherRun" : pull.closedTickets ? "closedTickets" : "configured"
 
 /*
  * Each projection prints one JSON line per item across every page. The fields come from live reads;
@@ -114,8 +115,9 @@ const ticketIsMissing = (error) => /\(HTTP 404\)/.test(String(error?.message))
 
 /**
  * The numbers among `numbers` that name a ticket routed to the repository of a pull request: the issue exists in orbit-tickets and
- * carries `repo:<key>`. A pull request number in a title, such as the `(#N)` of a squash merge subject, is not a ticket: it
- * has no issue, or its issue belongs to another repository. A missing issue names no ticket; any other failed read throws.
+ * carries `repo:<key>`. A pull request number in a title, such as the `(#N)` of a squash merge subject, names no ticket when it has no
+ * issue or its issue routes to another repository; a number that is also an issue of this repository still counts, so the tickets
+ * of an adopted pull request need a check by hand. A missing issue names no ticket; any other failed read throws.
  */
 const routedTicketNumbers = async (repositoryKey, numbers, readTicketState) => {
   const routed = await Promise.all(numbers.map(async (number) => {
@@ -129,17 +131,25 @@ const routedTicketNumbers = async (repositoryKey, numbers, readTicketState) => {
 
 /**
  * Lists the open pull requests. Each owner pull request carries `ticketNumbers`, the tickets of its repository that its branch and
- * title name; the ownership and closed ticket rules read only that field. A failed ticket read fails the read of its repository.
+ * title name; the ownership and closed ticket rules read only that field. A failed ticket read withholds only the pull request that
+ * named the number: the listing names it in `failures` with its `key`, and it is not an item.
  */
-export const listOpenPullRequests = ({ repositories, readPages, readTicketState }) => settleReads(repositories.map((repository) => ({
-  read: `${repository.key} pulls`,
-  list: async () => Promise.all((await readPages(`repos/${repository.slug}/pulls?state=open&per_page=100`, PULL_REQUEST_PROJECTION)).map(async (pull) => {
-    const ownerAuthor = pull.author === ownerOf(repository.slug)
-    return { key: `${repository.key}#${pull.number}`, read: `${repository.key} pulls`, repository: repository.key, ...pull, ownerAuthor,
-      unexpectedAuthor: unexpectedAuthor(repository, pull.author),
-      ticketNumbers: ownerAuthor ? await routedTicketNumbers(repository.key, ticketNumbersOf(pull), readTicketState) : [] }
-  })),
-})))
+export const listOpenPullRequests = async ({ repositories, readPages, readTicketState }) => {
+  const listing = await settleReads(repositories.map((repository) => ({
+    read: `${repository.key} pulls`,
+    list: async () => Promise.all((await readPages(`repos/${repository.slug}/pulls?state=open&per_page=100`, PULL_REQUEST_PROJECTION)).map(async (pull) => {
+      const ownerAuthor = pull.author === ownerOf(repository.slug)
+      const item = { key: `${repository.key}#${pull.number}`, read: `${repository.key} pulls`, repository: repository.key, ...pull, ownerAuthor,
+        unexpectedAuthor: unexpectedAuthor(repository, pull.author) }
+      try { return { ...item, ticketNumbers: ownerAuthor ? await routedTicketNumbers(repository.key, ticketNumbersOf(pull), readTicketState) : [] } } catch (error) {
+        return { key: item.key, read: item.read, ticketReadFailure: String(error?.message ?? error) }
+      }
+    })),
+  })))
+  return { ...listing, items: listing.items.filter((item) => !item.ticketReadFailure),
+    failures: [...listing.failures, ...listing.items.filter((item) => item.ticketReadFailure)
+      .map(({ key, read, ticketReadFailure }) => ({ read, key, message: `Cannot read the tickets of ${key}: ${ticketReadFailure}` }))] }
+}
 
 export const listOpenAlerts = ({ repositories, readPages }) => settleReads(repositories.flatMap(({ key, slug }) => ALERT_READS.map((source) => ({
   read: `${key} ${source.kind}`,
@@ -217,13 +227,16 @@ export const otherLiveRuns = (state, { repoRoot = REPO_ROOT, sessions = liveSess
 const pullRequestWakeKey = (pull, mark) => pull.unexpectedAuthor || mark?.action === "reported" ? pull.key : `${pull.key} ${pull.head}`
 
 /**
- * Turns a listing into waiter keys; it rejects only when no read succeeded. `unreadPrefixes` holds
- * the key prefix of each failed read, so the waiter keeps the seen keys that read cannot confirm.
+ * Turns a listing into waiter keys; it rejects only when no read succeeded. `unreadPrefixes` holds the key prefix of
+ * each failed read and `unreadKeys` the key of each withheld item, so the waiter keeps the seen keys that failure cannot confirm.
  */
 const wakeKeys = (listing, keyOf, prefixOf) => {
   const failure = listing.failures.map((entry) => entry.message).join("; ")
-  if (listing.failures.length === listing.reads.length) throw new Error(failure)
-  return { keys: listing.items.map(keyOf), ...(failure ? { failure, unreadPrefixes: listing.failures.map((entry) => prefixOf(entry.read)) } : {}) }
+  const failedReads = listing.failures.filter((entry) => entry.key === undefined)
+  const withheld = listing.failures.filter((entry) => entry.key !== undefined)
+  if (failedReads.length === listing.reads.length) throw new Error(failure)
+  return { keys: listing.items.map(keyOf), ...(failure ? { failure, unreadPrefixes: failedReads.map((entry) => prefixOf(entry.read)),
+    ...(withheld.length ? { unreadKeys: withheld.map((entry) => entry.key) } : {}) } : {}) }
 }
 
 /**
@@ -240,7 +253,8 @@ export const pullRequestCheck = ({ list, readState, readOtherRuns }) => async ()
   const checked = wakeKeys({ ...listing, items: listing.items.filter((pull) => !owned(pull) && !otherRuns.claims(pull)) }, keyOf, (read) => `${read.split(" ")[0]}#`)
   if (!otherRuns.failure) return checked
   const withheld = listing.items.filter((pull) => !owned(pull) && otherRuns.claims(pull)).map(keyOf)
-  return { keys: checked.keys, failure: [checked.failure, otherRuns.failure.message].filter(Boolean).join("; "), unreadPrefixes: [...(checked.unreadPrefixes ?? []), ...withheld] }
+  return { keys: checked.keys, failure: [checked.failure, otherRuns.failure.message].filter(Boolean).join("; "),
+    unreadPrefixes: [...(checked.unreadPrefixes ?? []), ...withheld], ...(checked.unreadKeys ? { unreadKeys: checked.unreadKeys } : {}) }
 }
 
 /**
@@ -301,14 +315,15 @@ const writeSource = (source, change, repoRoot) => {
 export const recordListing = (source, listing, repoRoot = REPO_ROOT, { listedAt = new Date().toISOString(), otherRuns } = {}) => {
   if (source === "pullRequests" && !otherRuns) throw new Error("a pull request listing needs the live runs")
   return writeSource(source, (previous, state) => {
-    const failed = new Set(listing.failures.map((failure) => failure.read))
+    const failed = new Set(listing.failures.filter((failure) => failure.key === undefined).map((failure) => failure.read))
+    const withheld = new Set(listing.failures.filter((failure) => failure.key !== undefined).map((failure) => failure.key))
     const owned = runOwnedPullRequest(state)
     const ownership = (item) => {
       const runOwned = owned(item)
       return { runOwned, otherRun: !runOwned && otherRuns.claims(item) }
     }
     const open = {
-      ...Object.fromEntries(Object.entries(previous.open).filter(([, item]) => failed.has(item.read))),
+      ...Object.fromEntries(Object.entries(previous.open).flatMap(([key, item]) => withheld.has(key) ? [[key, { ...item, unread: true }]] : failed.has(item.read) ? [[key, item]] : [])),
       ...Object.fromEntries(listing.items.map((item) => [item.key, source === "pullRequests" ? { ...item, ...ownership(item) } : item])),
     }
     const failures = [...listing.failures, ...(otherRuns?.failure ? [otherRuns.failure] : [])]
@@ -334,7 +349,7 @@ export const pendingItems = (source, contents) => Object.values(contents.open)
 export const unreportedPullRequests = (contents) => Object.values(contents.open).filter((pull) => pull.unexpectedAuthor && !contents.marks[pull.key])
 
 /** The pull requests whose every named ticket is closed, with no mark that holds at their current head. */
-export const closedTicketPullRequests = (contents) => Object.values(contents.open).filter((pull) => pull.closedTickets && unmarkedAtHead("pullRequests", contents, pull))
+export const closedTicketPullRequests = (contents) => Object.values(contents.open).filter((pull) => pull.closedTickets && !pull.unread && unmarkedAtHead("pullRequests", contents, pull))
 
 /** Reads the state of each ticket number once; a failed read is a named failure. */
 const readTicketStates = async (numbers, readTicketState) => {

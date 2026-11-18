@@ -396,12 +396,15 @@ const exportCases = () => {
 /** One table row names the actions of each pull request class, and markItem permits exactly those actions. */
 const permissionCases = ({ pullListing }) => {
   T("github: the pull request permission table has one row of actions for each class", JSON.stringify(Object.fromEntries(Object.entries(PULL_REQUEST_CLASSES)
-    .map(([name, row]) => [name, row.actions]))) === JSON.stringify({ unexpectedAuthor: ["reported"], otherRun: [], closedTickets: ["closed", "reported"], configured: ["merged", "fix", "closed"] }),
+    .map(([name, row]) => [name, row.actions]))) === JSON.stringify({ unexpectedAuthor: ["reported"], otherRun: [], unread: [], closedTickets: ["closed", "reported"], configured: ["merged", "fix", "closed"] }),
   JSON.stringify(PULL_REQUEST_CLASSES))
   const checkout = fresh("permissions")
-  recordListing("pullRequests", pullListing, checkout, { otherRuns: { claims: (pull) => pull.key === "ui#2473" } })
+  const otherRuns = { claims: (pull) => pull.key === "ui#2473" }
+  recordListing("pullRequests", pullListing, checkout, { otherRuns })
+  recordListing("pullRequests", { ...pullListing, items: pullListing.items.filter((pull) => pull.key !== "ui#2462"),
+    failures: [{ read: "ui pulls", key: "ui#2462", message: "Cannot read the tickets of ui#2462: HTTP 502" }] }, checkout, { otherRuns })
   const pulls = recordClosedTicketPullRequests({ items: [{ key: "api#1115", closedTickets: [{ number: 2140, stateReason: "COMPLETED" }] }] }, checkout)
-  const permitted = Object.fromEntries(["landing#20", "ui#2473", "api#1115", "api#1106"].map((key) => [pullRequestClass(pulls.open[key]),
+  const permitted = Object.fromEntries(["landing#20", "ui#2473", "ui#2462", "api#1115", "api#1106"].map((key) => [pullRequestClass(pulls.open[key]),
     ["merged", "fix", "closed", "reported"].filter((action) => refusal(() => markItem("pullRequests", { key, head: pulls.open[key].head, action, ticket: TICKET, reason: "Superseded." },
       checkout)) === "")]))
   T("github: markItem permits exactly the actions of each pull request class", JSON.stringify(permitted) ===
@@ -648,6 +651,61 @@ const skillCases = () => {
     reasonRule("NOT_PLANNED").includes("action: reported") && !reasonRule("NOT_PLANNED").includes("scannedCommit"), closedAlertRule)
 }
 
+/*
+ * A ticket read that fails for a reason other than a missing issue (410 for a deleted issue, 502 from the gateway) withholds only the pull request
+ * that named the number: the other pull requests of its repository are listed, and the waiter keeps the seen keys of the withheld one.
+ */
+const ticketReadFailureCases = async () => {
+  const withheldPull = { ...REVERT_PULL, number: 2510, branch: "revert-2510", head: "d".repeat(40), title: 'Revert "feat: y (#1500) (#1600)"' }
+  const failing = (status) => async (number) => {
+    if (number === 1600) throw new Error(`gh api repos/thomasluizon/orbit-tickets/issues/1600 failed: gh: Gateway (HTTP ${status})`)
+    return ticketReader(FIXTURE_TICKETS)(number)
+  }
+  const pulls = { "repos/thomasluizon/orbit-ui-mobile/pulls": [OWNER_PULL, withheldPull, CONTRACT_PULL], "repos/thomasluizon/orbit-api/pulls": [DEPENDABOT_PULL] }
+  for (const status of [410, 502]) {
+    const listing = await listOpenPullRequests({ repositories: REPOSITORIES, readPages: fakeReader(pulls).readPages, readTicketState: failing(status) })
+    T(`github: a ticket read that answers ${status} withholds only the pull request that named it`, JSON.stringify(listing.items.map((pull) => pull.key)) ===
+      JSON.stringify(["ui#2473", "ui#2462", "api#1106"]) && JSON.stringify(listing.failures.map(({ read, key }) => [read, key])) === JSON.stringify([["ui pulls", "ui#2510"]]) &&
+      listing.failures[0].message.includes(`HTTP ${status}`), JSON.stringify(listing))
+  }
+  const listing = await listOpenPullRequests({ repositories: REPOSITORIES, readPages: fakeReader(pulls).readPages, readTicketState: failing(410) })
+  const state = fresh("ticket-read-failure")
+  recordListing("pullRequests", { ...listing, items: [...listing.items, { ...withheldPull, key: "ui#2510", read: "ui pulls", repository: "ui", ownerAuthor: true, unexpectedAuthor: false,
+    ticketNumbers: [] }], failures: [] }, state, NO_OTHER_RUN)
+  const recorded = recordListing("pullRequests", listing, state, NO_OTHER_RUN)
+  const pending = pendingItems("pullRequests", recorded).map((pull) => pull.key)
+  T("github: a withheld pull request keeps its previous item as unread, is not pending and takes no mark", recorded.open["ui#2510"]?.unread === true &&
+    pullRequestClass(recorded.open["ui#2510"]) === "unread" && JSON.stringify(pending) === JSON.stringify(["ui#2473", "ui#2462", "api#1106"]) &&
+    ["merged", "fix", "closed", "reported"].every((action) => refusal(() => markItem("pullRequests", { key: "ui#2510", head: withheldPull.head, action, ticket: TICKET, reason: "Superseded." }, state)) ===
+      PULL_REQUEST_CLASSES.unread.refusal), JSON.stringify(recorded.open["ui#2510"]))
+  const healthy = recordListing("pullRequests", await listOpenPullRequests({ repositories: REPOSITORIES, readPages: fakeReader(pulls).readPages, readTicketState: routedTickets }), state, NO_OTHER_RUN)
+  T("github: the next read that succeeds lists the withheld pull request again", healthy.open["ui#2510"]?.unread === undefined && pendingItems("pullRequests", healthy).some((pull) => pull.key === "ui#2510"),
+    JSON.stringify(healthy.open["ui#2510"]))
+
+  let answers = pulls
+  let tickets = routedTickets
+  const check = pullRequestCheck({ list: () => listOpenPullRequests({ repositories: REPOSITORIES, readPages: (path, projection) => fakeReader(answers).readPages(path, projection),
+    readTicketState: (number) => tickets(number) }), readState: () => ({}), readOtherRuns: noOtherRun })
+  let marks = { seen: {}, failures: {}, sentryListedAt: new Date(0).toISOString() }
+  const interval = async () => {
+    const evaluated = evaluateChecks([{ source: "pullRequests" }], await Promise.allSettled([check()]), marks, 0)
+    marks = evaluated.marks
+    return evaluated.wakes
+  }
+  await interval()
+  const seenBefore = marks.seen.pullRequests
+  tickets = failing(410)
+  answers = { ...pulls, "repos/thomasluizon/orbit-ui-mobile/pulls": [...pulls["repos/thomasluizon/orbit-ui-mobile/pulls"], { ...OWNER_PULL, number: 2511, head: "e".repeat(40), branch: "fix/ticket-2144-other" }] }
+  const failed = await interval()
+  const again = await interval()
+  tickets = routedTickets
+  const recovered = await interval()
+  T("github: the waiter wakes for a new pull request next to a withheld one, keeps the withheld key and wakes once for the failure",
+    seenBefore.includes(`ui#2510 ${withheldPull.head}`) && marks.seen.pullRequests.includes(`ui#2510 ${withheldPull.head}`) &&
+    JSON.stringify(failed.map((wake) => [wake.source, wake.kind])) === JSON.stringify([["pullRequests", "failure"], ["pullRequests", "new"]]) &&
+    JSON.stringify(failed[1].items) === JSON.stringify([`ui#2511 ${"e".repeat(40)}`]) && again.length === 0 && recovered.length === 0, JSON.stringify({ failed, again, recovered, seen: marks.seen }))
+}
+
 const checkCases = async ({ pullListing, alertListing }) => {
   const pulls = await pullRequestCheck({ list: async () => pullListing, readState: () => ({ pullRequests: [{ repositoryKey: "ui", prNumber: 2473 }] }), readOtherRuns: noOtherRun })()
   T("github: the pull request check keys each pull request the run did not open by its head, and an unexpected author once", JSON.stringify(pulls) ===
@@ -686,5 +744,6 @@ export const cases = async () => {
   skillCases()
   await baseCheckCases()
   await squashSuffixCases()
+  await ticketReadFailureCases()
   await checkCases(listings)
 }
