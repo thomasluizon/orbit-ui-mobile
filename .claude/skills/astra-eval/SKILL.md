@@ -53,6 +53,12 @@ corpus run. The run reads `/api/config` for each eval account before its first t
 report state their path, and a summary with no path measured `block-first`. The merge refuses windows of two paths in
 one verdict. A `change-plan` run compares with the `block-first` baseline of `main`.
 
+On the `change-plan` path the model sends each account change in one typed change list. The API declares that list in
+one of two shapes (`AI:ChangePlanShape`), and `changePlan` holds one set of lists for each shape. The trace names each
+change by its kind in each shape, so no run names its shape: a traced call is valid when the lists of one shape accept
+it. That path declares no `present_plan` and no single write form that a bulk form covers. `TESTING.md`
+`### Change list declarations` has the detail.
+
 The gate passes when every must-pass case passes, the pass^k rate of the core set is at or above the baseline, no
 attempt asks more often than its case allows, and one model call costs at most the D147 limit. An attempt stops one
 question past the allowed count and keeps that count. The baseline is the merged report of `main` in which every case has a verdict; the baseline run of `main`
