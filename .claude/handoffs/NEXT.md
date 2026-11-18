@@ -26,6 +26,7 @@ UI `main` `9723bfcd3` (ui#2489 merged); API `main` and production `70c66e7be` (`
 
 | Item | Disposition |
 | --- | --- |
+| FIRST (owner order in chat: the harness speed work is late) | Pullfrog FAILED at the relay: ui#2486 (1 thread, CI speed), ui#2502 (2 threads, Windows CI), ui#2498 (3 threads, relay without a drain). Launch their rounds before any other work, then merge each at the bar; ui#2498 runs proof A at the next relay. Tell the owner which merged. |
 | Web release of `2263a8b67` | Staging run 44409596020 was still queued at the relay, and its watcher was stopped so the relay could start: start `node tools/wait-release.mjs --repo ui --run 44409596020 --sha 2263a8b67c938123082d6d22f528ae0bf59f9b0d --workflow-sha 9723bfcd38f98d64c1a808fc911943de95b1ba46 --service-url https://app-staging.useorbit.org` at once (S task-map has the production command). When staging is healthy and `web-staging-smoke` passed: production, `wait-release.mjs` on `https://app.useorbit.org`, then the ORBIT-WEB-1H watch (`#2156`). |
 | Pushed, Pullfrog asked: ui#2490, ui#2480, ui#2495, ui#2502, ui#2486, ui#2499, ui#2498, ui#2476, ui#2453, ui#2501, ui#2500, ui#2488, ui#2475, landing#137 (heads in S task-map) | One waiter per pull request; merge each at the bar; a failed Pullfrog gets one round; approved but behind merges `main` first. |
 | ui#2483 r13 committed `65b59f4e2` | Delta review (`rv.sh 2483-r13 ui:2483 2143 <wt> 65b59f4e2 65b59f4e2 review-2483-r12-local.md note-2483-r13.md`), merge main, push with `body-2483-r13.md`. |
