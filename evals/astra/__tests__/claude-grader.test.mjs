@@ -8,7 +8,7 @@ import { parse } from 'yaml'
 import { summarize, writeResults, writeReport } from '../report.mjs'
 import { beforeEach as prepareAttempt } from '../hooks.mjs'
 import ClaudeGrader, { WORKER_CONFIG_VARIABLE, graderEnvironment } from '../claude-grader.mjs'
-import { CLAUDE_ACCOUNT_OVERRIDE_KEYS } from '../../../tools/lib/orchestrator-config.mjs'
+import { WORKER_ACCOUNT, workerAccountEnvironment } from '../../../tools/lib/orchestrator-config.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, turnTiming } from './fixtures/producer.mjs'
 import parseResponse from '../response.mjs'
@@ -121,15 +121,22 @@ it('loads through promptfoo, runs print mode on the worker account and returns t
 })
 
 // The eval package installs without the harness (install.test.mjs), so the grader names the worker account variable and
-// the credential overrides itself; these checks hold them equal to the worker launch.
+// the credential overrides itself. This check holds them equal to the worker launch through workerAccountEnvironment, the
+// function that the launch calls. The override list of that function is private, so the test reads its keys from the source
+// and proves through the function that it removes each one.
 it('reads the worker account variable and removes every credential override that the worker launch removes', () => {
   const orchestrator = JSON.parse(readFileSync(new URL('../../../.claude/orchestrator.json', import.meta.url), 'utf8'))
   expect(WORKER_CONFIG_VARIABLE).toBe(orchestrator.workers.claude.configDirEnv)
-  const overrides = Object.fromEntries(CLAUDE_ACCOUNT_OVERRIDE_KEYS.map((key) => [key, 'PRIVATE_SENTINEL']))
-  const child = graderEnvironment({ ...overrides, PATH: '/bin', [WORKER_CONFIG_VARIABLE]: ` ${workerDirectory} `,
-    CLAUDE_CONFIG_DIR: join(directory, 'main-account'), ORBIT_EVAL_TOKEN: 'PRIVATE_SENTINEL' })
-  expect(child).toEqual({ PATH: '/bin', [WORKER_CONFIG_VARIABLE]: ` ${workerDirectory} `, CLAUDE_CONFIG_DIR: workerDirectory,
-    CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' })
+  const source = readFileSync(new URL('../../../tools/lib/orchestrator-config.mjs', import.meta.url), 'utf8')
+  const overrideKeys = [...source.match(/const CLAUDE_ACCOUNT_OVERRIDE_KEYS = \[([^\]]*)\]/u)[1].matchAll(/"([A-Z_]+)"/gu)].map(([, key]) => key)
+  expect(overrideKeys.length).toBeGreaterThan(15)
+  const overrides = Object.fromEntries(overrideKeys.map((key) => [key, 'PRIVATE_SENTINEL']))
+  const account = { name: WORKER_ACCOUNT, configDirectory: workerDirectory }
+  expect(Object.keys(workerAccountEnvironment(overrides, account))).toEqual(['CLAUDE_CONFIG_DIR'])
+  const environment = { ...overrides, PATH: '/bin', [WORKER_CONFIG_VARIABLE]: ` ${workerDirectory} `,
+    CLAUDE_CONFIG_DIR: join(directory, 'main-account'), ORBIT_EVAL_TOKEN: 'PRIVATE_SENTINEL' }
+  const { ORBIT_EVAL_TOKEN: _evalSecret, ...launchEnvironment } = workerAccountEnvironment(environment, account)
+  expect(graderEnvironment(environment)).toEqual({ ...launchEnvironment, CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' })
 })
 
 // The rubric prompt holds Astra's answer, untrusted model output, and the CLI expands an @/path mention in a -p prompt
