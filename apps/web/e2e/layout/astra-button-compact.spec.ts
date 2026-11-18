@@ -4,7 +4,6 @@ import en from '@orbit/shared/i18n/en.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { profileSchema } from '@orbit/shared/types/profile'
-import { FAB_SIZE } from '@orbit/shared/theme'
 import { ASTRA_BUTTON_GAP, getAccountDay } from '@orbit/shared/utils'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
@@ -90,7 +89,7 @@ for (const width of [412, 840]) {
       await expect(page.locator(conversation)).toBeVisible()
     })
 
-    test('takes the create button slot when Hoje has no create button', async ({ page, context }) => {
+    test('stacks above the create button while the habits load, then takes its slot once Hoje settles with no create button', async ({ page, context }) => {
       let releaseHabits!: () => void
       const habitsHeld = new Promise<void>(resolve => { releaseHabits = resolve })
       await context.route(url => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, async route => {
@@ -99,13 +98,12 @@ for (const width of [412, 840]) {
       })
       await openClientFetchedHojeView(page)
       await expect(page.getByRole('button', { name: en.shell.astraButton.open, exact: true })).toBeVisible()
-      await expect(page.locator('[data-shell-fab]')).toHaveCount(0)
-      await expect(page.locator('[data-shell-fab-pending]')).toHaveCount(1)
+      await expect(page.locator('[data-shell-fab] button')).toBeVisible()
+      await expect(page.locator('[data-shell-fab-pending]')).toHaveCount(0)
       const pending = await page.evaluate(measureStack)
-      expect(pending.columnBottom - pending.bottom).toBeCloseTo(FAB_SIZE + ASTRA_BUTTON_GAP, 0)
+      expect(pending.createTop! - pending.bottom).toBeCloseTo(ASTRA_BUTTON_GAP, 0)
 
       releaseHabits()
-      await expect(page.locator('[data-shell-fab-pending]')).toHaveCount(0)
       await expect(page.locator('[data-shell-fab]')).toHaveCount(0)
       const stack = await page.evaluate(measureStack)
       expect(stack.bottom).toBeCloseTo(stack.columnBottom, 0)

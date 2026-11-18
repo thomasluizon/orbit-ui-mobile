@@ -1,62 +1,50 @@
-import { captureException } from '@sentry/nextjs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useShellStore } from '@/stores/shell-store'
+import { SIDEBAR_COLLAPSED_COOKIE } from '@/lib/sidebar-preference'
 
-vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
+function clearCookie() {
+  document.cookie = `${SIDEBAR_COLLAPSED_COOKIE}=; path=/; max-age=0`
+}
 
-describe('sidebar preference storage', () => {
+async function loadShellStore() {
+  vi.resetModules()
+  return (await import('@/stores/shell-store')).useShellStore
+}
+
+describe('sidebar preference cookie', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
-    vi.clearAllMocks()
-    localStorage.clear()
-    useShellStore.setState(useShellStore.getInitialState())
+    clearCookie()
   })
 
-  it('persists only the sidebar preference in the production storage format', async () => {
+  it('writes the preference to a one-year cookie the server can read', async () => {
+    const useShellStore = await loadShellStore()
+    const writes: string[] = []
+    vi.spyOn(document, 'cookie', 'set').mockImplementation((value) => { writes.push(value) })
     useShellStore.getState().toggleSidebar()
     useShellStore.getState().setPaletteOpen(true)
     useShellStore.getState().setLastDestination('perfil')
-    expect(JSON.parse(localStorage.getItem('orbit-shell-store')!)).toEqual({ state: { sidebarCollapsed: true }, version: 1 })
-    const saved = localStorage.getItem('orbit-shell-store')!
-    useShellStore.setState(useShellStore.getInitialState())
-    localStorage.setItem('orbit-shell-store', saved)
-    await useShellStore.persist.rehydrate()
+    expect(writes).toEqual([`${SIDEBAR_COLLAPSED_COOKIE}=1; path=/; max-age=31536000; SameSite=Strict; Secure`])
+    useShellStore.getState().toggleSidebar()
+    expect(writes.at(-1)).toBe(`${SIDEBAR_COLLAPSED_COOKIE}=0; path=/; max-age=31536000; SameSite=Strict; Secure`)
+    expect(useShellStore.getState().sidebarCollapsed).toBe(false)
+  })
+
+  it('creates the store with the saved preference and keeps the other state at its default', async () => {
+    document.cookie = `${SIDEBAR_COLLAPSED_COOKIE}=1; path=/`
+    const useShellStore = await loadShellStore()
     expect(useShellStore.getState()).toMatchObject({ sidebarCollapsed: true, paletteOpen: false, lastDestination: 'hoje' })
   })
 
-  it('reports a blocked storage write and keeps the control usable in memory', () => {
-    const error = new DOMException('Storage unavailable', 'QuotaExceededError')
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw error })
-    expect(() => useShellStore.getState().toggleSidebar()).not.toThrow()
-    expect(useShellStore.getState().sidebarCollapsed).toBe(true)
-    useShellStore.getState().toggleSidebar()
+  it.each(['0', '', 'true', 'yes'])('treats the cookie value "%s" as expanded', async (value) => {
+    document.cookie = `${SIDEBAR_COLLAPSED_COOKIE}=${value}; path=/`
+    const useShellStore = await loadShellStore()
     expect(useShellStore.getState().sidebarCollapsed).toBe(false)
-    expect(captureException).toHaveBeenCalledWith(error)
   })
 
-  it('reports a blocked storage read and allows a new selection', async () => {
-    const error = new DOMException('Storage unavailable', 'SecurityError')
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw error })
-    await useShellStore.persist.rehydrate()
-    expect(captureException).toHaveBeenCalledWith(error)
-    useShellStore.getState().toggleSidebar()
-    expect(useShellStore.getState().sidebarCollapsed).toBe(true)
-  })
-
-  it('reports malformed JSON and keeps the default state usable', async () => {
-    localStorage.setItem('orbit-shell-store', '{')
-    await useShellStore.persist.rehydrate()
-    expect(captureException).toHaveBeenCalledWith(expect.any(SyntaxError))
+  it('starts expanded with no cookie and toggles in memory', async () => {
+    const useShellStore = await loadShellStore()
     expect(useShellStore.getState().sidebarCollapsed).toBe(false)
     useShellStore.getState().toggleSidebar()
     expect(useShellStore.getState().sidebarCollapsed).toBe(true)
-  })
-
-  it('rejects invalid persisted preferences without replacing store actions', async () => {
-    localStorage.setItem('orbit-shell-store', JSON.stringify({ version: 1, state: { sidebarCollapsed: 'true', toggleSidebar: null, paletteOpen: true } }))
-    await useShellStore.persist.rehydrate()
-    expect(useShellStore.getState().sidebarCollapsed).toBe(false)
-    expect(useShellStore.getState().paletteOpen).toBe(false)
-    expect(useShellStore.getState().toggleSidebar).toBeTypeOf('function')
   })
 })

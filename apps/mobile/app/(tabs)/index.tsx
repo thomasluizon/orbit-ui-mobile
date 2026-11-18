@@ -14,6 +14,7 @@ import { plural } from '@/lib/plural'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habit-queries'
 import { useUIStore } from '@/stores/ui-store'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
+import { HabitListSkeleton } from '@/components/habit-list/habit-list-skeleton'
 import { useOpenHabit } from '@/hooks/use-open-habit'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
@@ -106,11 +107,7 @@ export default function TodayScreen() {
       ? <><ScreenReaderHeading title={t('nav.today')} /><ErrorState fullSurface message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></>
       : <><ScreenReaderHeading title={t('nav.today')} /><View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
           <Skeleton variant="settings" grouped />
-          <View style={styles.profileLoadingHabits}>
-            <Skeleton variant="habit-row" grouped />
-            <Skeleton variant="habit-row" grouped />
-            <Skeleton variant="habit-row" grouped />
-          </View>
+          <HabitListSkeleton />
         </View></>
   }
   return <TodayScreenContent key={todayResetVersion} />
@@ -384,7 +381,6 @@ function TodayScreenContent() {
 const styles = StyleSheet.create({
   screen: { alignSelf: 'center', flex: 1, maxWidth: 740, width: '100%' },
   profileLoading: { gap: 24, padding: SPACING.s16 },
-  profileLoadingHabits: { gap: 12 },
   listBand: { flex: 1 },
   viewHeader: { gap: PADDING.sectionGap },
   header: { gap: PADDING.sectionGap, paddingBottom: PADDING.sectionGap },

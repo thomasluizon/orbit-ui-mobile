@@ -33,7 +33,18 @@ afterEach(() => {
 })
 
 describe('delayed loading', () => {
-  it('shows loading at 300 ms and clears it when the request settles', () => {
+  it('shows loading on the first frame of a region that mounts while pending and clears it when the request settles', () => {
+    render(true)
+    expect(visible).toBe(true)
+    void act(() => { vi.advanceTimersByTime(300) })
+    expect(visible).toBe(true)
+    render(false)
+    expect(visible).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('shows loading at 300 ms when a request starts after the region mounted and clears it when the request settles', () => {
+    render(false)
     render(true)
     expect(visible).toBe(false)
     void act(() => { vi.advanceTimersByTime(299) })
@@ -47,8 +58,10 @@ describe('delayed loading', () => {
 
   it('restarts the full delay when the selected key changes', () => {
     render(true)
+    expect(visible).toBe(true)
     void act(() => { vi.advanceTimersByTime(250) })
     render(true, 'next')
+    expect(visible).toBe(false)
     void act(() => { vi.advanceTimersByTime(50) })
     expect(visible).toBe(false)
     void act(() => { vi.advanceTimersByTime(249) })
@@ -63,6 +76,7 @@ describe('delayed loading', () => {
     render(false)
     expect(vi.getTimerCount()).toBe(0)
     render(true)
+    expect(visible).toBe(false)
     void act(() => { vi.advanceTimersByTime(299) })
     render(false)
     void act(() => { vi.advanceTimersByTime(1) })

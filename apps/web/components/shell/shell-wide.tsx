@@ -24,6 +24,7 @@ import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useIsClient } from '@/hooks/use-is-client'
 import { PanelLeft, PanelLeftClose, Plus, Search } from '@/components/ui/icons'
 import { useShellStore } from '@/stores/shell-store'
+import { useInitialSidebarCollapsed } from './sidebar-preference-provider'
 import { SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { Lockup } from '@/components/ui/lockup'
@@ -204,7 +205,6 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
   const client = useIsClient()
   const collapsed = props.collapsed
   const navigationId = useId()
-  useEffect(() => { void useShellStore.persist.rehydrate() }, [])
 
   return (
     <aside
@@ -448,7 +448,8 @@ function ShellWideBackground({
   const navigationEnabled = props.nav !== false
   const client = useIsClient()
   const savedCollapsed = useShellStore(state => state.sidebarCollapsed)
-  const collapsed = client && savedCollapsed
+  const initialCollapsed = useInitialSidebarCollapsed()
+  const collapsed = client ? savedCollapsed : initialCollapsed
   const sidebarRefusal = getSidebarCreateRefusal(props, wide, collapsed)
   const pinnedSlot = getPinnedSlot(props)
   const hasFlowAction = pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)

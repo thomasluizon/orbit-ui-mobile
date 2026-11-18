@@ -23,6 +23,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { ErrorState } from '@/components/ui/error-state'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { HabitListSkeleton } from '@/components/habits/habit-list/empty-state'
 
 interface TodayPageClientProps {
   initialToday: string
@@ -103,14 +104,10 @@ export function TodayPageClient({
   if (!profile) {
     return isError
       ? <><h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1><ErrorState fullSurface message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></>
-      : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="mx-auto flex w-full max-w-[740px] flex-col gap-6 p-4">
+      : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="mx-auto flex w-full max-w-[740px] flex-col gap-6 py-4">
           <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
-          <Skeleton variant="settings" grouped />
-          <div className="flex min-w-0 flex-col gap-3">
-            <Skeleton variant="habit-row" grouped />
-            <Skeleton variant="habit-row" grouped />
-            <Skeleton variant="habit-row" grouped />
-          </div>
+          <div className="px-4"><Skeleton variant="settings" grouped /></div>
+          <HabitListSkeleton />
         </div>
   }
   return <TodayPageContent key={todayResetVersion} initialToday={initialToday} initialHabits={accountHeldInitialHabits} preloadedProfile={preloadedProfile} />

@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import TodayScreen from '@/app/(tabs)/index'
 import { useUIStore } from '@/stores/ui-store'
+import { PADDING, SPACING } from '@orbit/shared/theme'
+import { HabitListSkeleton } from '@/components/habit-list/habit-list-skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: vi.fn(async () => {}) }) }))
 
@@ -491,7 +493,21 @@ describe('mobile Today Astra owned surfaces', () => {
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
-  it('separates the profile date placeholder from the habit placeholders by 24', async () => {
+  it('draws one skeleton per region while the profile is pending: the date header and the habit list skeleton', async () => {
+    mocks.profileReady = false
+    mocks.habitListProps = null
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
+    try {
+      const units = (variant: string) => tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === `skeleton-unit-${variant}`)
+      expect(units('settings')).toHaveLength(1)
+      expect(tree.root.findAllByType(HabitListSkeleton)).toHaveLength(1)
+      expect(units('habit-row')).toHaveLength(5)
+      expect(mocks.habitListProps).toBeNull()
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('separates the profile date placeholder from the habit skeleton by the gap the loaded header leaves above the list skeleton', async () => {
     mocks.profileReady = false
     let tree!: GeometryTree
     await TestRenderer.act(() => { tree = createTestTree(<View><TodayScreen /></View>) as GeometryTree })
@@ -502,7 +518,7 @@ describe('mobile Today Astra owned surfaces', () => {
         if (host.props.testID === 'skeleton-unit-habit-row' && !firstHabitFound) { firstHabitFound = true; return 'habit' }
         return undefined
       })
-      expect(firstLayout.get('habit')!.top - firstLayout.get('date')!.bottom).toBe(24)
+      expect(firstLayout.get('habit')!.top - firstLayout.get('date')!.bottom).toBe(PADDING.sectionGap + SPACING.s12)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
