@@ -119,7 +119,7 @@ if (switches.has("--delete")) {
     for (const item of outcome.removed) console.log(`REMOVED ${item.kind} ${item.path} (${sizeOf(item)})`)
     for (const item of outcome.skipped) console.log(`SKIPPED ${item.kind} ${item.path}: ${item.reason}`)
     for (const item of outcome.failed) console.error(`FAILED ${item.kind} ${item.path}: ${item.reason}`)
-    // The next removal measures each item that failed again; `removal` keeps what this one did, with each reason.
+    // `stale` keeps only the items that failed, so the next listing reuses their known sizes instead of measuring them; `removal` keeps what this one did, with each reason.
     writeStoredListing({ ...fresh, stale: outcome.failed.map(({ reason: _reason, ...item }) => item),
       removal: { finishedAt: new Date().toISOString(), removed: outcome.removed, skipped: outcome.skipped, failed: outcome.failed } })
     console.log(`FREED ${outcome.removed.length === 0 ? "nothing" : summarize(outcome.removed)}; free space changed by ${outcome.freed < 0 ? "-" : "+"}${describeBytes(Math.abs(outcome.freed))}`)
