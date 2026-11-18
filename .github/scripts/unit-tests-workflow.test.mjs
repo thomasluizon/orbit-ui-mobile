@@ -224,7 +224,6 @@ test("required checks report on every pull request through job conditions, never
   // Each limit above 15 minutes is 1.5 times the measured worst run that its workflow comment names.
   const measuredAboveFifteen = {
     "unit-tests": [16, "Unit Tests holds the tests and the scan: 619 s at worst on main, times 1.5"],
-    "layout-shards": [23, "Layout shard 4 took up to 912 s, times 1.5"],
   }
   for (const [id, job] of Object.entries(workflow.jobs)) {
     if (id in measuredAboveFifteen) {
@@ -499,7 +498,15 @@ test("layout shards and the Lighthouse budget reuse the one hermetic Build", () 
   }
   const shards = workflow.jobs["layout-shards"]
   assert.deepEqual(shards.strategy.matrix.shard, [1, 2, 3, 4, 5, 6, 7, 8])
-  assert.ok(shards.steps.some((step) => step.run === "npm run test:layout -w apps/web -- --shard=${{ matrix.shard }}/8"))
+  assert.ok(shards.steps.some((step) => step.run === 'npm run test:layout -w apps/web -- --test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt"'))
+  const plan = stepNamed(shards.steps, "Plan the balanced layout shard lists")
+  assert.match(plan.run, /npm run test:layout -w apps\/web -- --list --reporter=json/)
+  assert.match(plan.run, /plan-layout-shards\.mjs --list "\$RUNNER_TEMP\/layout-list\.json" \\\n\s+--timings \.github\/layout-shard-timings\.json --shards 8 --out-dir "\$RUNNER_TEMP\/layout-shards"/)
+  assert.equal(plan.env.PLAYWRIGHT_JSON_OUTPUT_FILE, "${{ runner.temp }}/layout-list.json")
+  assert.equal(shards.steps.some((step) => /--shard=/.test(step.run ?? "")), false, "Playwright's count split puts the slow spec in one shard")
+  const timings = stepNamed(shards.steps, "Upload layout test timings")
+  assert.equal(timings.with.name, "layout-timings-${{ matrix.shard }}")
+  assert.equal(timings.with.path, "apps/web/.artifacts/layout/layout-report.json")
   const restore = shards.steps.find((step) => step.uses?.startsWith("actions/cache/restore@"))
   const save = build.steps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.path === "~/.cache/ms-playwright")
   assert.equal(restore.with.path, "~/.cache/ms-playwright")

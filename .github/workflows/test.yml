@@ -258,7 +258,7 @@ jobs:
           fi
 
       - name: Test CI workflow behavior
-        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/check-critical-production-cves.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs
+        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/check-critical-production-cves.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/plan-layout-shards.test.mjs
 
       # This step owns the full-tree graphic floor assertion outside cached unit shards.
       # Other findings stay advisory; graphic floor findings and scanner errors fail.
@@ -767,9 +767,10 @@ jobs:
     needs: [plan, build]
     if: github.event_name == 'pull_request' && needs.plan.outputs.web == 'true'
     runs-on: ubuntu-24.04
-    # Shard 4 holds most of interaction-fill-clearance.spec.ts and took up to 912 s in the last 5 pull request runs.
-    # The limit is 1.5 times that.
-    timeout-minutes: 23
+    # Each shard runs one test list that plan-layout-shards.mjs balances from .github/layout-shard-timings.json.
+    # Run 44216168902 summed 7032 s of layout tests, so each shard holds about 879 s on 2 workers (440 s).
+    # The limit is about 1.5 times that projection plus the 120 s setup the shards share.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -810,8 +811,25 @@ jobs:
       - name: Install lockfile-pinned Playwright Chromium
         run: npx playwright install chromium
 
+      - name: Plan the balanced layout shard lists
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/layout-list.json
+        run: |
+          npm run test:layout -w apps/web -- --list --reporter=json
+          node .github/scripts/plan-layout-shards.mjs --list "$RUNNER_TEMP/layout-list.json" \
+            --timings .github/layout-shard-timings.json --shards 8 --out-dir "$RUNNER_TEMP/layout-shards"
+
       - name: Check upgrade layout
-        run: npm run test:layout -w apps/web -- --shard=${{ matrix.shard }}/8
+        run: npm run test:layout -w apps/web -- --test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt"
+
+      - name: Upload layout test timings
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: layout-timings-${{ matrix.shard }}
+          path: apps/web/.artifacts/layout/layout-report.json
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload failure diagnostics
         if: failure()

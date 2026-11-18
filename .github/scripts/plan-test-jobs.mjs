@@ -15,7 +15,7 @@ exit codes: 0 plan printed, 1 missing Turbo task or unreadable input, 2 invalid 
 
 const workflowFile = /^\.github\/workflows\/test\.yml$/
 const scopes = {
-  web: [/^(apps\/web|packages\/shared)\//, /^(package|package-lock|turbo|tsconfig\.base)\.json$/, /^tools\/check-hermetic-web-build\.mjs$/],
+  web: [/^(apps\/web|packages\/shared)\//, /^(package|package-lock|turbo|tsconfig\.base)\.json$/, /^tools\/check-hermetic-web-build\.mjs$/, /^\.github\/(scripts\/plan-layout-shards\.mjs|layout-shard-timings\.json)$/],
   'type-check': [/^(apps|packages|eslint-rules)\/.+\.([cm]?[jt]sx?|json)$/, /(^|\/)tsconfig[^/]*\.json$/, /^(package|package-lock|turbo)\.json$/],
   lint: [/^(apps\/(web|mobile)|packages\/shared)\/.+\.[cm]?[jt]sx?$/, /^apps\/desktop\/(?!src-tauri\/).+\.[cm]?[jt]sx?$/],
 }
