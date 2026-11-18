@@ -55,6 +55,10 @@ While `crank` is true:
   not this session's own plan. A work order decides which item starts first when capacity is
   short (`Queue order under the cap: #A first, then #B`); it never keeps a ready item waiting for
   another one, and the relay validator refuses a merge or launch hold.
+- Deploy-API-first is a standing rule, not an ordering preference, and `MERGE_NOW` does not read it.
+  Before you merge a UI or landing pull request, check the ticket relations. When an open API
+  ticket blocks it, merge and deploy the API pull request first. A relay prompt can state this
+  order, and the validator accepts it.
 - A stacked parent merges without `--delete-branch`. Retarget each child to the parent's base,
   then delete the parent branch. A stacked child gets no `MERGE_NOW` while its parent is open.
   After the parent merges, `run-status.mjs` reports `RETARGET` with the exact `gh pr edit` and

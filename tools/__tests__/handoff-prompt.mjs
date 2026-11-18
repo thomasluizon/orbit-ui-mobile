@@ -123,7 +123,8 @@ export const cases = () => {
     ["a merge after another item", "- Merge ui#2488 after ui#2486", "Merge ui#2488 after ui#2486"],
     ["a wait for one merge, then a merge", "- Wait for ui#2486 to merge, then merge ui#2488", "Wait for ui#2486 to merge, then merge ui#2488"],
     ["a merge once another item is in main", "- Merge ui#2488 only once ui#2486 is in main", "Merge ui#2488 only once ui#2486 is in main"],
-    ["an item that lands ahead of another", "- api#412 must land ahead of ui#2488", "api#412 must land ahead of ui#2488"],
+    ["an item that lands ahead of another", "- ui#2487 must land ahead of ui#2488", "ui#2487 must land ahead of ui#2488"],
+    ["a user interface merge before the API merge it depends on", "- Merge ui#2488 before api#412", "Merge ui#2488 before api#412"],
     ["a hold behind another item", "- Hold ui#2488 until ui#2486 is in main, then merge", "Hold ui#2488 until ui#2486 is in main, then merge"],
     ["a merge order whose condition ends with done", "- Merge ui#2486 before ui#2488 once its CI is done", "Merge ui#2486 before ui#2488 once its CI is done"],
     ["an item named FIRST before a sentence about a finished release", "- ui#2486 FIRST. The release of ui#2480 is done.", "ui#2486 FIRST"],
@@ -150,6 +151,11 @@ export const cases = () => {
     ["a past merge, then a status", "- ui#2486 merged, then ui#2488 was behind main"],
     ["a merge bar wait", "- ui#2488: wait for the review check, then merge"],
     ["a pull request named with its ticket", "- ui#2484 (#2146): wait for CI before the merge"],
+    ["an API item that lands ahead of a user interface item", "- api#412 must land ahead of ui#2488"],
+    ["an API merge and deploy before a user interface merge", "- api#88 merges and deploys before ui#2490 (deploy-API-first)"],
+    ["a user interface merge after its API merge", "- Merge ui#2488 after api#412"],
+    ["a wait for the API merge, then the landing merge", "- Wait for api#412 to merge, then merge landing#31"],
+    ["a user interface merge held until its API merge", "- Hold ui#2488 until api#412 is merged and deployed"],
     ["a ticket that stays open until its pull request merges", "- `#1628` stays open until `ui#1959` merges and a later build carries it"],
   ]) {
     T(`${UNIT}: crank accepts ${label}`, holdsOf(line).length === 0, JSON.stringify(holdsOf(line)))

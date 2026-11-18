@@ -121,15 +121,23 @@ const START_ORDER = /\bunder the (?:[\w.-]+\s+){0,2}caps?\b/i
 // An item that merges after another one, or once another one has merged, waits for it as `before` does.
 const AFTER_WORD = /\b(?:after|once|then)\b/i
 
+// Deploy-API-first is a standing rule, not an ordering preference: an API item that merges before a user interface or landing item is stated, never refused.
+const repositoryOf = (reference) => reference[0].slice(0, reference[0].indexOf("#"))
+const isDeployApiFirst = (earlier, later) => repositoryOf(earlier) === "api" && ["ui", "landing"].includes(repositoryOf(later))
+
 /** One item merges before or ahead of the next one, or after or once the previous one, or an order before it holds it until the next one. */
 const ordersPair = (clause, first, next) => {
   const leading = clause.slice(0, first.index)
   const between = clause.slice(first.index + first[0].length, next.index)
   const ahead = AHEAD_WORD.exec(between)
-  if (ahead) return MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(0, ahead.index))
+  if (ahead) return (MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(0, ahead.index))) && !isDeployApiFirst(first, next)
   const after = AFTER_WORD.exec(between)
-  if (after) return MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(after.index))
-  return /\buntil\b/i.test(between) && MERGE_ORDER.test(leading)
+  if (after) {
+    // `Wait for Y to merge, then merge X` merges the first reference earlier; `Merge X after Y` and `X once Y merged` merge the next one earlier.
+    const [earlier, later] = after[0].toLowerCase() === "then" ? [first, next] : [next, first]
+    return (MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(after.index))) && !isDeployApiFirst(earlier, later)
+  }
+  return /\buntil\b/i.test(between) && MERGE_ORDER.test(leading) && !isDeployApiFirst(next, first)
 }
 
 /**
@@ -138,7 +146,7 @@ const ordersPair = (clause, first, next) => {
  * superseded or done orders nothing: the word counts only after the order, not anywhere on the line.
  * A start order under the cap with no merge word holds no ready work, and a past merge is a fact.
  */
-export const orderingHolds = (text) => {
+const orderingHolds = (text) => {
   const holds = []
   for (const line of String(text ?? "").split("\n")) {
     for (const clause of line.split(/[.;](?:\s|$)/)) {

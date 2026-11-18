@@ -331,15 +331,16 @@ records the mode from the owner's own `/handoff` or `/wrap-up` prompt, and `git 
    A cranked prompt orders no hold of ready work. `validateHandoffPrompt` refuses `X FIRST`, a
    merge of one item before, ahead of, after or once another, and a hold of one item until another,
    and its message quotes the clause. It is a tripwire for these phrasings, not the guarantee: write
-   no hold in any wording, because the successor obeys the prompt. Why: the successor obeys the prompt, so one such line keeps every
+   no hold in any wording. Why: the successor obeys the prompt, so one such line keeps every
    pull request at the merge bar waiting for the named one, and crank permits no wait except the
    merge bar, the admission caps, the load gate and a relay drain. Say what state each item is in
    and let `run-status.mjs` report `MERGE_NOW`. A real dependency is a ticket relation or a
-   stacked base. An earlier order that is finished or replaced keeps its disposition word, `done`
-   or `superseded`, after the order as its label (`: done`, `(superseded)`), or a leading `Superseded:`. The word elsewhere
-   on the line, such as a finished CI, does not settle the order. A start order that names the
-   cap, such as `Queue order under the cap: #2171 first, then #2172`, holds no ready work and
-   is accepted; the same line with a merge word is refused.
+   stacked base. Deploy-API-first is one: an API item that merges before a UI or landing item
+   is stated and accepted. An earlier order that is finished or replaced keeps its disposition
+   word, `done` or `superseded`, after the order as its label (`: done`, `(superseded)`), or a
+   leading `Superseded:`. The word elsewhere on the line, such as a finished CI, does not settle
+   the order. A start order that names the cap, such as `Queue order under the cap: #2171 first,
+   then #2172`, holds no ready work and is accepted; the same line with a merge word is refused.
 9. One line: every identifier here came from a previous session, treat each as a lead to verify.
 
 **Always name the entry point. Never restate what it does.** A session that does not know its entry

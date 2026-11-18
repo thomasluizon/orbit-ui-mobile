@@ -193,7 +193,7 @@
     ".claude/skills/crank/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "e58edb6edc5e5831",
+      "digest": "4e8ff765270b7ab8",
       "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
     },
@@ -228,7 +228,7 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "0f5ce74f11ec103f",
+      "digest": "68708e571eed7719",
       "calibratedAt": "2026-11-18",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
@@ -270,7 +270,7 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "859096055c5959ca",
+      "digest": "07877da12775c5de",
       "calibratedAt": "2026-11-18",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
@@ -312,8 +312,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "fe7d2c76fffa9e03",
-      "calibratedAt": "2026-11-15",
+      "digest": "5b481c6be78d1018",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {
