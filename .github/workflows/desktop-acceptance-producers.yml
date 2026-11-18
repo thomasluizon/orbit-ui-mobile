@@ -42,11 +42,10 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
+      - uses: ./.github/actions/restore-npm-cache
       - run: npm ci --prefer-offline --no-audit --fund=false
       - name: Run the platform-gated producer tests
         run: |
