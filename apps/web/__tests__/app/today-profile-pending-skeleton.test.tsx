@@ -19,8 +19,16 @@ it('draws the date header skeleton and the habit list skeleton, and no other ske
   expect(status).toHaveAttribute('aria-busy', 'true')
   expect(screen.getByRole('heading', { name: 'nav.today', hidden: true })).toBeInTheDocument()
   expect(view.container.querySelectorAll('[data-variant="settings"]')).toHaveLength(1)
-  const list = status.querySelector('[aria-busy="true"]')
+  const list = status.querySelector('[data-variant="habit-row"]')?.parentElement
   expect(list).not.toBeNull()
   expect(list!.querySelectorAll('[data-variant="habit-row"]')).toHaveLength(5)
   expect(status.querySelectorAll('[data-variant]')).toHaveLength(6)
+})
+
+it('announces the pending Today region once, with no progress bar nested inside it', () => {
+  render(<TodayPageClient initialToday="2026-09-04" initialHabits={null} />)
+  const status = screen.getByRole('status', { name: 'profile.loading' })
+  expect(status.querySelectorAll('[role="progressbar"]')).toHaveLength(0)
+  expect(status.querySelectorAll('[aria-busy="true"]')).toHaveLength(0)
+  expect(screen.queryAllByRole('progressbar')).toHaveLength(0)
 })

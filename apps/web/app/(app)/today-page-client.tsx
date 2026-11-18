@@ -107,7 +107,7 @@ export function TodayPageClient({
       : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="mx-auto flex w-full max-w-[740px] flex-col gap-6 py-4">
           <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
           <div className="px-4"><Skeleton variant="settings" grouped /></div>
-          <HabitListSkeleton />
+          <HabitListSkeleton grouped />
         </div>
   }
   return <TodayPageContent key={todayResetVersion} initialToday={initialToday} initialHabits={accountHeldInitialHabits} preloadedProfile={preloadedProfile} />

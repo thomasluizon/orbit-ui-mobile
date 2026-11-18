@@ -5,6 +5,7 @@ import { Text, TextInput } from 'react-native'
 import { Portal, PortalHost } from '@rn-primitives/portal'
 import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { normalizeHabitQueryData } from '@orbit/shared/utils/habit-normalization'
+import { buildHabitCreateHref } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import en from '@orbit/shared/i18n/en.json'
 import { __setWindowDimensions } from '../../test-mocks/react-native'
@@ -393,6 +394,24 @@ describe('Wrapped root shell', () => {
     createState.profile = { hasProAccess: true }
     await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
     expect(createState.showCreate).not.toHaveBeenCalledWith(false)
+  })
+
+  it('opens the create screen on the press while the profile loads, once, and does not replay it when the profile arrives', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.mountToday = true
+    createState.profile = undefined
+    createState.showCreate.mockImplementation((open: boolean) => useUIStore.setState({ showCreateModal: open }))
+    const tree = await renderRoot()
+    const [createFab] = findByTestId(tree, 'fab')
+    await TestRenderer.act(() => (createFab?.props.onPress as () => void)())
+    expect(createState.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/', date: '2026-09-14', conversation: false }))
+    expect(useUIStore.getState().showCreateModal).toBe(false)
+
+    createState.profile = { hasProAccess: true }
+    await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
+    expect(createState.push).toHaveBeenCalledTimes(1)
+    createState.showCreate.mockReset()
   })
 
   it('names the Hoje create FAB for the habit action', async () => {

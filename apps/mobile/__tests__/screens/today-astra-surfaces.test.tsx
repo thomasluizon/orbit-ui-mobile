@@ -507,6 +507,18 @@ describe('mobile Today Astra owned surfaces', () => {
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
+  it('announces the pending Today region once, with no progressbar nested inside it', async () => {
+    mocks.profileReady = false
+    let tree!: ReturnType<typeof createTestTree>
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
+    try {
+      const progressbars = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')
+      expect(progressbars).toHaveLength(1)
+      expect(progressbars[0]!.props.accessibilityLabel).toBe('profile.loading')
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-habit-row' && node.props.accessible === false)).toHaveLength(5)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
   it('separates the profile date placeholder from the habit skeleton by the gap the loaded header leaves above the list skeleton', async () => {
     mocks.profileReady = false
     let tree!: GeometryTree

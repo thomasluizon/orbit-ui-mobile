@@ -107,7 +107,7 @@ export default function TodayScreen() {
       ? <><ScreenReaderHeading title={t('nav.today')} /><ErrorState fullSurface message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></>
       : <><ScreenReaderHeading title={t('nav.today')} /><View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
           <Skeleton variant="settings" grouped />
-          <HabitListSkeleton />
+          <HabitListSkeleton grouped />
         </View></>
   }
   return <TodayScreenContent key={todayResetVersion} />
@@ -357,9 +357,6 @@ function TodayScreenContent() {
       </Animated.View>
 
       <TodayModals
-        showCreateModal={showCreateModal}
-        onCloseCreateModal={() => setShowCreateModal(false)}
-        createInitialDate={activeView === 'today' ? date.dateStr : null}
         editHabit={editHabit}
         editHabitParentIsGeneral={editHabit?.parentId ? (habitsById.get(editHabit.parentId)?.isGeneral ?? null) : null}
         onCloseEdit={() => {

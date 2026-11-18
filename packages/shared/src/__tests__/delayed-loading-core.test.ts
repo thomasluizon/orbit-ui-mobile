@@ -56,20 +56,44 @@ describe('delayed loading', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
-  it('restarts the full delay when the selected key changes', () => {
+  it('restarts the full delay when the selected key changes after the previous key settled', () => {
     render(true)
-    expect(visible).toBe(true)
-    void act(() => { vi.advanceTimersByTime(250) })
+    render(false)
     render(true, 'next')
     expect(visible).toBe(false)
-    void act(() => { vi.advanceTimersByTime(50) })
-    expect(visible).toBe(false)
-    void act(() => { vi.advanceTimersByTime(249) })
+    void act(() => { vi.advanceTimersByTime(299) })
     expect(visible).toBe(false)
     void act(() => { vi.advanceTimersByTime(1) })
     expect(visible).toBe(true)
+    render(false, 'next')
     render(true, 'newest')
     expect(visible).toBe(false)
+  })
+
+  it('keeps a visible skeleton visible when the key changes while the request is still pending', () => {
+    render(true)
+    expect(visible).toBe(true)
+    render(true, 'next')
+    expect(visible).toBe(true)
+    void act(() => { vi.advanceTimersByTime(300) })
+    expect(visible).toBe(true)
+    render(true, 'newest')
+    expect(visible).toBe(true)
+    render(false, 'newest')
+    expect(visible).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('restarts the full delay when the key changes while the pending skeleton is not yet visible', () => {
+    render(false)
+    render(true)
+    void act(() => { vi.advanceTimersByTime(250) })
+    render(true, 'next')
+    expect(visible).toBe(false)
+    void act(() => { vi.advanceTimersByTime(299) })
+    expect(visible).toBe(false)
+    void act(() => { vi.advanceTimersByTime(1) })
+    expect(visible).toBe(true)
   })
 
   it('never flashes for a quick request and releases an unmounted timer', () => {
