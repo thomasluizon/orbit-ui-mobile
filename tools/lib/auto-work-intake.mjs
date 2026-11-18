@@ -56,12 +56,11 @@ export const intakeSource = (source, repoRoot = REPO_ROOT) => {
 export const updateIntake = (key, change, repoRoot = REPO_ROOT) => {
   intakeRun(repoRoot)
   let contents
-  const written = updateRunJson(INTAKE_FILE, (intake) => {
+  updateRunJson(INTAKE_FILE, (intake) => {
     const current = intake ?? legacyIntake(repoRoot)
     contents = change(current)
     return contents === undefined ? undefined : { ...current, [key]: contents }
   }, `intake: ${key}`, runFiles(repoRoot))
-  if (contents !== undefined && JSON.stringify(written?.[key]) !== JSON.stringify(contents)) throw new Error("Intake write was not confirmed")
   return contents
 }
 

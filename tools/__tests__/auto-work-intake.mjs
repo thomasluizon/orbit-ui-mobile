@@ -1,8 +1,8 @@
-import { mkdirSync } from "node:fs"
+import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { acknowledgeIntake, intakeSource, updateIntakeSource } from "../lib/auto-work-intake.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
-import { T, root } from "./_harness.mjs"
+import { T, root, toolPath } from "./_harness.mjs"
 import * as intake from "../lib/auto-work-intake.mjs"
 
 export const cases = () => {
@@ -33,6 +33,9 @@ export const cases = () => {
     intake.readIntake(cutover).wake.seen.board.length === 2, JSON.stringify(intake.readIntake(cutover)))
   writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: { gmail: { completed: {}, pending: {}, highWater: "stale" } } }, cutover)
   T("intake: after the intake file exists, the local run record is never read", intakeSource("gmail", cutover).highWater === "handled")
+  // updateRunJson returns the value the same callback call built, so a comparison of that value with the write can never fire; a failed PUT already throws.
+  const updateIntakeBody = readFileSync(toolPath("lib/auto-work-intake.mjs"), "utf8").split("export const updateIntake = ")[1].split("export const updateIntakeSource")[0]
+  T("intake: updateIntake holds no confirmation that compares a write with its own input", !/not confirmed|const written\b/.test(updateIntakeBody), updateIntakeBody)
   const checkout = join(root, "intake")
   mkdirSync(join(checkout, ".git"), { recursive: true })
   writeRunState({ sessionId: "parent", sleep: true, autoWork: true }, checkout)
