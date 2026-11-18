@@ -32,15 +32,15 @@ Answer the owner first, in English. `#2074` is MAX priority, then `#2152`.
 
 ## In flight
 
-UI `main` `c3fad04a3`; API `main` `d5f3bdcce`; landing `main` `20c1b0a90`. Owner order: `/crank` and `/sleep` stay on; finish every ticket. Owner question queue: empty. The spec bullets hold each next step; S `task-map.md` names each worktree.
+UI `main` `c3fad04a3`; API `main` `3930b6d5b`; landing `main` `20c1b0a90`. Owner order: `/crank` and `/sleep` stay on; finish every ticket. Owner question queue: empty. The spec bullets hold each next step; S `task-map.md` names each worktree.
 
 | Item | Disposition |
 | --- | --- |
-| api#1116 (`#2150`), ui#2481 (`#2149`) | Pullfrog approved each head: `pr-bar.mjs`, merge at once when the checks are green. After api#1116: `test.yml` and `guards.yml` on API `main`, then the API release with the manual steps. |
+| `#2150` | api#1116 merged; `test.yml` and `guards.yml` were dispatched on API `main`: when both pass, the API release with the manual steps. Merge `main` into api#1120, api#1121 and api#1122. |
+| ui#2481 (`#2149`), ui#2469 (`#2074`) | ui#2481: Pullfrog approved, merge when the checks are green. ui#2469: round 22 pushed, Pullfrog asked. |
 | ui#2486 (`#2074` speed build) | Pushed, Pullfrog asked: merge FIRST at the bar, then start `#2152`. |
 | ui#2483, ui#2478, ui#2475, ui#2451, api#1120, api#1122 | Pushed, Pullfrog asked: `wait-ci.mjs` each, merge at the bar (api#1120 also needs its k=1 gate; ui#2478 after ui#2480 and after CodeQL alert 59 closes; ui#2451 needs a rerun of its cancelled tool shard). After api#1122: a targeted apply of `render_env_group.staging_api`. |
 | ui#2485, ui#2484, ui#2480, ui#2476, ui#2464, api#1121 | A fix round ran at the relay: read `git status` and S `task-map.md`; a commit gets the delta review, else relaunch its note with a continuation. |
-| ui#2469 | Round 22 committed; its delta review `2469-r22` ran at the relay: read the verdict, then push. |
 | landing#137 | Round 2 committed (`3a6e2a1`): delta review, push. Its `Build` is red on `npm audit` until a patched `picomatch` exists. |
 | `#2135` k=1 gate | Build ran at the relay (worktree `ticket-2121-part6-critic`): a pull request gets the whole review, else relaunch its order with a continuation. |
 | `#2129` | A background agent wrote the 5-api and 6-api drafts and the gate rule options at the relay (spec bullet): file the two tickets and post the two gate rules. |
