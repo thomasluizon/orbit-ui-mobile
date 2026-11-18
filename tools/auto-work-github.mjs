@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { alertsWithClosedTickets, autoWorkRepositories, closedTicketPullRequests, dismissAlert, githubPageReader, githubWriter, INTAKE_GITHUB_SOURCES, listOpenAlerts,
   listOpenPullRequests, markItem, newestScanCommit, pendingItems, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing,
-  recordTicketClosedAlertKeys, ticketClosedWakeKey, unreportedPullRequests } from "./lib/auto-work-github.mjs"
+  recordTicketClosedAlerts, unreportedPullRequests } from "./lib/auto-work-github.mjs"
 import { readTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
@@ -20,9 +20,11 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                [{number, stateReason}]. Neither list is pending. A reported mark holds at
                every head; collect drops it when the closed tickets or a close reason change. A pull request whose ticket
                read failed is not pending in that collection. alerts adds ticketClosed: the
-               open alerts whose carrying ticket is closed, each with its ticket and, for code
-               scanning, scannedCommit (the commit of the newest scan of main); they are
-               pending again. A failed read, also a failed ticket or scan read, is named in
+               open alerts whose carrying ticket is closed, each with its ticket, its
+               stateReason and, for code scanning of a ticket closed as COMPLETED,
+               scannedCommit (the commit of the newest scan of main); they are pending again.
+               A reported alert stays out of ticketClosed while its ticket stays closed with
+               the reported stateReason. A failed read, also a failed ticket or scan read, is named in
                failures; a failed list read keeps its previous items, and it is never an empty
                source.
 --mark <source> stdin JSON receipt for one open item:
@@ -31,7 +33,10 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                  the current head. reported is the only action for an unexpected author. A
                  pull request in ticketClosed takes only closed or reported, and its reported mark
                  keeps its closedTickets. No other pull request is reported.
-               alerts {key, action: ticket, ticket, cause}
+               alerts {key, action: ticket|reported, ticket?, cause?}
+                 ticket needs ticket and cause. reported is the only action for an alert in
+                 ticketClosed whose stateReason is NOT_PLANNED or null, and its mark keeps
+                 that ticket and stateReason; no other alert is reported.
 --dismiss      stdin JSON receipt {key, ticket, reason} for one open alert that the analysis on
                its ticket proves a false positive. Dismisses it on GitHub with the request of its
                kind (code scanning "false positive", Dependabot "inaccurate", secret scanning
@@ -72,7 +77,7 @@ try {
   const openPulls = Object.values(pulls.open)
   const alerts = recordListing("alerts", alertListing)
   const closedTickets = await alertsWithClosedTickets(alerts, { readTicketState, readNewestScan: (key) => newestScanCommit(reading, key) })
-  recordTicketClosedAlertKeys(closedTickets.items.map(ticketClosedWakeKey))
+  recordTicketClosedAlerts(closedTickets.items)
   const result = {
     pullRequests: { open: openPulls.length, pending: pendingItems("pullRequests", pulls).filter((pull) => !pullTickets.unreadKeys.includes(pull.key)),
       runOwned: openPulls.filter((pull) => pull.runOwned).map((pull) => pull.key), unexpectedAuthor: unreportedPullRequests(pulls),

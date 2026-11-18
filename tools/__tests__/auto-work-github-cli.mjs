@@ -6,6 +6,8 @@ import { T, realOrchestratorConfig, run, stageWithConfig } from "./_harness.mjs"
 import { API_SCAN_COMMIT, CODE_SCANNING_ALERT, DEPENDABOT_ALERT, DEPENDABOT_PULL, NOT_FOUND, UNEXPECTED_PULL } from "./auto-work-github.mjs"
 
 const CLOSED_TICKET_URL = "https://github.com/thomasluizon/orbit-tickets/issues/2140"
+/** The ticket that survives a duplicate close; no collection reads it. */
+const TICKET_2149_URL = "https://github.com/thomasluizon/orbit-tickets/issues/2149"
 /** The live output of the REST issue filter in tools/lib/github-issues.mjs for a closed ticket, with its body left out. */
 const ISSUE_2140 = { body: "", html_url: CLOSED_TICKET_URL, labels: [{ name: "repo:ui" }, { name: "Improvement" }, { name: "parity:no" }, { name: "needs:no-conversation" }],
   number: 2140, state: "CLOSED", state_reason: "COMPLETED", title: "Lay out borders in the mobile Yoga test helpers, so a geometry test sees the device size" }
@@ -26,7 +28,7 @@ echo "$*" >> "${log}"
 case "$*" in
   "auth token --user thomasluizon") echo token-2149;;
   "api repos/thomasluizon/orbit-tickets/issues/2140 --jq "*) printf '%s\\n' '${quoted(ISSUE_2140)}' | sed "s/\\"CLOSED\\"/\\"\${ISSUE_STATE:-OPEN}\\"/; s/\\"COMPLETED\\"/\\"\${ISSUE_REASON:-COMPLETED}\\"/";;
-  "api repos/thomasluizon/orbit-api/code-scanning/analyses?ref=refs/heads/main&per_page=1 --jq "*) printf '%s\\n' '{"commit":"${API_SCAN_COMMIT}"}';;
+  "api repos/thomasluizon/orbit-api/code-scanning/analyses?ref=refs/heads/main&per_page=1 --jq "*) printf '%s\\n' "{\\"commit\\":\\"\${SCAN_COMMIT:-${API_SCAN_COMMIT}}\\"}";;
   "api --method PATCH --input - repos/"*)
     if [ -n "\${DISMISS_FAIL:-}" ]; then echo '${NOT_FOUND}' >&2; exit 1; fi
     cat > "${installation.base}/patch-\$(echo "$6" | tr '/' '_').json"; echo '{}';;
@@ -67,8 +69,8 @@ esac
   const refused = run("auto-work-github.mjs", ["--mark", "alerts"], { path: installation.path, env, input: JSON.stringify({ key: "api code-scanning 28", action: "ticket" }) })
   T("github cli: an incomplete alert mark exits 1 and names the requirement", refused.status === 1 && refused.stderr.includes("verified cause"), refused.stderr)
 
-  const collectWith = (issueState) => {
-    const again = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, ISSUE_STATE: issueState } })
+  const collectWith = (issueState, issueReason = "COMPLETED", scanCommit = API_SCAN_COMMIT) => {
+    const again = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, ISSUE_STATE: issueState, ISSUE_REASON: issueReason, SCAN_COMMIT: scanCommit } })
     try { return { ...again, result: JSON.parse(again.stdout) } } catch { return { ...again, result: {} } }
   }
   run("auto-work-github.mjs", ["--mark", "alerts"], { path: installation.path, env,
@@ -86,6 +88,32 @@ esac
     ticketClosed.result.alerts?.ticketClosed?.[0]?.scannedCommit === API_SCAN_COMMIT &&
     JSON.stringify(readRunState(installation.base).intake.alerts.ticketClosed) === JSON.stringify([`api code-scanning 28 ticket-closed ${API_SCAN_COMMIT}`]),
   `${ticketClosed.stdout}${ticketClosed.stderr}`)
+  /* A carrying ticket closed as not planned goes to the owner once: the run neither files a new ticket for its alert nor asks again. */
+  const alertMark = () => readRunState(installation.base).intake.alerts.marks["api code-scanning 28"]
+  const markAlert = (receipt) => run("auto-work-github.mjs", ["--mark", "alerts"], { path: installation.path, env, input: JSON.stringify({ key: "api code-scanning 28", ...receipt }) })
+  const notPlanned = collectWith("CLOSED", "NOT_PLANNED")
+  T("github cli: an alert whose carrying ticket closed as not planned is listed with the close reason and no scan of main",
+    JSON.stringify((notPlanned.result.alerts?.ticketClosed ?? []).map((alert) => [alert.key, alert.stateReason, alert.scannedCommit ?? null])) ===
+      JSON.stringify([["api code-scanning 28", "NOT_PLANNED", null]]) && notPlanned.result.alerts.pending.some((alert) => alert.key === "api code-scanning 28"),
+  `${notPlanned.status} ${notPlanned.stdout}${notPlanned.stderr}`)
+  const newTicket = markAlert({ action: "ticket", ticket: TICKET_2149_URL, cause: "The test fixture sets Secure false on purpose." })
+  const ownerReport = markAlert({ action: "reported" })
+  T("github cli: the alert of a ticket closed as not planned takes no new ticket and is reported with its ticket and close reason",
+    newTicket.status === 1 && newTicket.stderr.includes("goes to the owner") && ownerReport.status === 0 &&
+    JSON.stringify([alertMark()?.action, alertMark()?.ticket, alertMark()?.stateReason]) === JSON.stringify(["reported", CLOSED_TICKET_URL, "NOT_PLANNED"]),
+  `${newTicket.status} ${newTicket.stderr} ${ownerReport.status} ${ownerReport.stderr}`)
+  const afterAlertReport = collectWith("CLOSED", "NOT_PLANNED", "e".repeat(40))
+  T("github cli: a reported not planned alert is not pending and is not asked again after a new scan of main",
+    afterAlertReport.result.alerts?.ticketClosed?.length === 0 && !afterAlertReport.result.alerts.pending.some((alert) => alert.key === "api code-scanning 28") &&
+    JSON.stringify(readRunState(installation.base).intake.alerts.ticketClosed) === "[]" && alertMark()?.action === "reported",
+  `${afterAlertReport.status} ${afterAlertReport.stdout}${afterAlertReport.stderr}`)
+  const duplicate = collectWith("CLOSED", "DUPLICATE")
+  const reported = markAlert({ action: "reported" })
+  const surviving = markAlert({ action: "ticket", ticket: TICKET_2149_URL, cause: "The test fixture sets Secure false on purpose." })
+  T("github cli: the alert of a ticket closed as a duplicate is asked again, is never reported and is marked with the surviving ticket",
+    JSON.stringify((duplicate.result.alerts?.ticketClosed ?? []).map((alert) => [alert.key, alert.stateReason])) === JSON.stringify([["api code-scanning 28", "DUPLICATE"]]) &&
+    reported.status === 1 && reported.stderr.includes("not planned or with no reason") && surviving.status === 0 && alertMark()?.ticket === TICKET_2149_URL,
+  `${duplicate.stdout}${duplicate.stderr} ${reported.stderr} ${surviving.stderr}`)
 
   /* The secret scanning item is seeded in run state: no repository has had a secret scanning alert to record. */
   const seeded = readRunState(installation.base)

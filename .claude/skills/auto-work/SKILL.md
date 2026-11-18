@@ -209,12 +209,21 @@ for the successor.
    `node tools/auto-work-github.mjs --mark alerts` and `{key, action: ticket, ticket, cause}`.
    An alert closes only when its fix is on the default branch and the next scan shows it as
    fixed. An alert in `ticketClosed` is still open after its carrying ticket closed, so it is
-   pending again. For code scanning, `scannedCommit` names the commit of the newest scan of the
-   default branch. Compare it with the merge of the fix first. When the scan is older than the
-   merge, do nothing more for that alert in this cycle: the next scan of the default branch
-   changes its waiter key and wakes the model again. When it is newer, the
-   fix did not remove the alert: reopen the ticket or write a new one with the alert, and mark
-   the alert again. Never dismiss an alert to empty the list. Dismiss it only when the analysis proves a
+   pending again. Each entry carries the `stateReason` of that ticket:
+   - `COMPLETED`: for code scanning, `scannedCommit` names the commit of the newest scan of the
+     default branch. Compare it with the merge of the fix first. When the scan is older than the
+     merge, do nothing more for that alert in this cycle: the next scan of the default branch
+     changes its waiter key and wakes the model again. When it is newer, the fix did not remove
+     the alert: reopen the ticket or write a new one with the alert, and mark the alert again.
+   - `DUPLICATE`: find the ticket that survives, and mark the alert again with it and the cause.
+     Do not reopen the duplicate and do not write a new ticket.
+   - `NOT_PLANNED` or no reason: never reopen the ticket and never write a new one. Put the alert
+     to the owner through `/questions` with its repository, id, rule, `file:line` and ticket.
+     Then record `{key, action: reported}`. The tool refuses `ticket` for this alert and
+     `reported` for every other alert. The mark keeps the ticket and its close reason, so a new
+     scan of the default branch does not ask again. When that ticket reopens and closes with
+     another reason, the alert is in `ticketClosed` again with the new reason.
+   Never dismiss an alert to empty the list. Dismiss it only when the analysis proves a
    false positive. Write that analysis on its ticket first. Then run
    `node tools/auto-work-github.mjs --dismiss` with `{key, ticket, reason}` on stdin. The tool
    sends the request of the alert kind and records the false-positive mark only after GitHub

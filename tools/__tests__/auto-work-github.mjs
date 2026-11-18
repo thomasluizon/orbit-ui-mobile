@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process"
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { alertCheck, dismissAlert, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, PULL_REQUEST_CLASSES, pendingItems, pullRequestCheck,
+import { alertCheck, alertsWithClosedTickets, dismissAlert, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, PULL_REQUEST_CLASSES, pendingItems, pullRequestCheck,
   pullRequestClass, recordClosedTicketPullRequests, recordListing, runPullRequestKeys, unexpectedAuthor, unreportedPullRequests } from "../lib/auto-work-github.mjs"
 import { evaluateChecks } from "../lib/auto-work-wake.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
@@ -316,6 +316,42 @@ const closedTicketAlertWakeCases = async () => {
     JSON.stringify([{ source: "alerts", kind: "new", items: [`api code-scanning 28 ticket-closed ${"a".repeat(40)}`] }]), JSON.stringify(rescanned))
 }
 
+/* Only a ticket closed as completed leads to the scan comparison: the owner decides a ticket closed as not planned once, and a new scan asks nothing again. */
+const notPlannedAlertWakeCases = async () => {
+  const listing = await listOpenAlerts({ repositories: REPOSITORIES, readPages: fakeReader({ "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT] }).readPages })
+  const cause = "The test fixture sets Secure false on purpose."
+  let state = { intake: { alerts: { marks: { "api code-scanning 28": { action: "ticket", ticket: TICKET, cause } } } } }
+  let ticket = { state: "CLOSED", stateReason: "NOT_PLANNED" }
+  let scan = API_SCAN_COMMIT
+  const scanReads = []
+  const readers = { readTicketState: async (number) => ({ number, ...ticket }), readNewestScan: async (key) => { scanReads.push(key); return scan } }
+  const check = { source: "alerts", run: alertCheck({ list: async () => listing, readState: () => state, ...readers }) }
+  let marks = { seen: { alerts: ["api code-scanning 28"] }, failures: {}, sentryListedAt: new Date(0).toISOString() }
+  const interval = async () => {
+    const evaluated = evaluateChecks([check], await Promise.allSettled([check.run()]), marks, 0)
+    marks = evaluated.marks
+    return evaluated.wakes
+  }
+  const closed = await alertsWithClosedTickets({ open: listing.items.reduce((open, alert) => ({ ...open, [alert.key]: alert }), {}), marks: state.intake.alerts.marks }, readers)
+  T("github: a closed-ticket alert carries the close reason of its ticket, and only a completed ticket reads the scan of main",
+    JSON.stringify(closed.items.map((alert) => [alert.key, alert.ticket, alert.stateReason, alert.scannedCommit ?? null])) ===
+      JSON.stringify([["api code-scanning 28", TICKET, "NOT_PLANNED", null]]) && scanReads.length === 0, JSON.stringify({ closed, scanReads }))
+  const notPlanned = await interval()
+  scan = "c".repeat(40)
+  const rescanned = await interval()
+  state = { intake: { alerts: { marks: { "api code-scanning 28": { action: "reported", ticket: TICKET, stateReason: "NOT_PLANNED" } } } } }
+  const reported = await interval()
+  scan = "d".repeat(40)
+  const reportedRescan = await interval()
+  ticket = { state: "CLOSED", stateReason: "COMPLETED" }
+  const completed = await interval()
+  T("github: the close of a carrying ticket as not planned wakes the waiter once, and a new scan of main wakes nothing", JSON.stringify(notPlanned) ===
+    JSON.stringify([{ source: "alerts", kind: "new", items: ["api code-scanning 28 ticket-closed"] }]) && rescanned.length === 0, JSON.stringify({ notPlanned, rescanned }))
+  T("github: a reported not planned alert stays quiet at every later scan", reported.length === 0 && reportedRescan.length === 0, JSON.stringify({ reported, reportedRescan }))
+  T("github: a reported alert wakes again when the close reason of its ticket changes", JSON.stringify(completed) ===
+    JSON.stringify([{ source: "alerts", kind: "new", items: [`api code-scanning 28 ticket-closed ${"d".repeat(40)}`] }]), JSON.stringify(completed))
+}
+
 /* The same failure wakes the model once: a read that fails keeps its seen keys, so its recovery is not new. */
 const failedReadCases = async () => {
   const healthy = { "repos/thomasluizon/orbit-api/pulls": [DEPENDABOT_PULL], "repos/thomasluizon/orbit-ui-mobile/pulls": [CONTRACT_PULL],
@@ -362,6 +398,13 @@ const skillCases = () => {
   const authorRule = skill.slice(skill.indexOf("7. List every open pull request"), skill.indexOf("An owner pull request in `pending`"))
   T("github skill: step 7 states that the three repositories are public and never runs the branch of an unexpected author",
     authorRule.includes("The three repositories are public") && !/\bprivate\b/.test(authorRule) && authorRule.includes("never check out or run its branch"), authorRule)
+  const closedAlertRule = skill.slice(skill.indexOf("An alert in `ticketClosed`"), skill.indexOf("Never dismiss an alert to empty the list"))
+  const reasonRule = (reason) => closedAlertRule.slice(closedAlertRule.indexOf(`- \`${reason}\``)).split("\n   - ")[0]
+  T("github skill: step 8 compares scans only for a completed ticket, re-marks a duplicate and asks the owner once otherwise",
+    reasonRule("COMPLETED").includes("`scannedCommit`") && reasonRule("COMPLETED").includes("reopen the ticket or write a new one") &&
+    reasonRule("DUPLICATE").includes("ticket that survives") && !reasonRule("DUPLICATE").includes("scannedCommit") &&
+    reasonRule("NOT_PLANNED").includes("never reopen the ticket and never write a new one") && reasonRule("NOT_PLANNED").includes("`/questions`") &&
+    reasonRule("NOT_PLANNED").includes("action: reported") && !reasonRule("NOT_PLANNED").includes("scannedCommit"), closedAlertRule)
 }
 
 const checkCases = async ({ pullListing, alertListing }) => {
@@ -395,6 +438,7 @@ export const cases = async () => {
   await recordedAuthorCases(listings)
   permissionCases(listings)
   await closedTicketAlertWakeCases()
+  await notPlannedAlertWakeCases()
   await failedReadCases()
   skillCases()
   await checkCases(listings)

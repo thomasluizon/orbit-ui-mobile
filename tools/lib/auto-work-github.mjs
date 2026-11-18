@@ -173,8 +173,9 @@ export const pullRequestCheck = ({ list, readState }) => async () => {
 }
 
 /**
- * The waiter key of an open alert whose carrying ticket is closed. For code scanning it carries the
- * commit of the newest scan of the default branch, so a later scan that still finds the alert is new.
+ * The waiter key of an open alert whose carrying ticket is closed. For code scanning of a ticket closed
+ * as completed it carries the commit of the newest scan of the default branch, so a later scan that
+ * still finds the alert is new. No other close reason compares scans, so a new scan wakes nothing.
  */
 export const ticketClosedWakeKey = (alert) => `${alert.key} ticket-closed${alert.scannedCommit ? ` ${alert.scannedCommit}` : ""}`
 
@@ -194,7 +195,7 @@ export const alertCheck = ({ list, readState = () => ({}), readTicketState, read
   const listing = await list()
   const marks = readState()?.intake?.alerts?.marks ?? {}
   const checked = wakeKeys(listing, (alert) => alert.key, (read) => `${read} `)
-  if (!Object.values(marks).some((mark) => mark?.action === "ticket")) return checked
+  if (!Object.values(marks).some((mark) => TICKETED_ALERT_ACTIONS.includes(mark?.action))) return checked
   const closed = await alertsWithClosedTickets({ open: Object.fromEntries(listing.items.map((alert) => [alert.key, alert])), marks }, { readTicketState, readNewestScan })
   const failure = [checked.failure, ...closed.failures.map((entry) => entry.message)].filter(Boolean).join("; ")
   const unreadPrefixes = [...(checked.unreadPrefixes ?? []), ...closed.unreadKeys.map((key) => `${key} ticket-closed`)]
@@ -269,23 +270,36 @@ const readTicketStates = async (numbers, readTicketState) => {
 
 const ticketNumberOfUrl = (url) => Number(String(url).split("/").at(-1))
 
+/** The alert marks whose ticket carries the alert: a ticket, or the report of a ticket the owner decides. */
+const TICKETED_ALERT_ACTIONS = ["ticket", "reported"]
+
+/** The close reasons of a carrying ticket that the run acts on: completed compares scans, and a duplicate takes the surviving ticket. */
+const RUN_DECIDED_CLOSE_REASONS = ["COMPLETED", "DUPLICATE"]
+
+/** An alert whose carrying ticket closed as not planned or with no reason waits for the owner's decision. */
+const ownerDecidesAlert = (alert) => Boolean(alert.closedTicket) && !RUN_DECIDED_CLOSE_REASONS.includes(alert.closedTicket.stateReason)
+
 /**
- * The open alerts whose carrying ticket is closed: the ticket ended while its alert stayed open, so
- * the work needs the model again. Each code scanning alert carries the commit of the newest scan of
- * the default branch. A failed ticket or scan read is a named failure, and its alerts stay quiet.
+ * The open alerts whose carrying ticket is closed, each with the close reason of its ticket. Only code
+ * scanning of a completed ticket reads the newest scan of main. A reported mark holds while its ticket
+ * stays closed with that reason. A failed ticket or scan read is a named failure; its alerts stay quiet.
  */
 export const alertsWithClosedTickets = async (contents, { readTicketState, readNewestScan }) => {
-  const marked = Object.values(contents.open).filter((alert) => contents.marks[alert.key]?.action === "ticket")
+  const marked = Object.values(contents.open).filter((alert) => TICKETED_ALERT_ACTIONS.includes(contents.marks[alert.key]?.action))
   const tickets = await readTicketStates(marked.map((alert) => ticketNumberOfUrl(contents.marks[alert.key].ticket)), readTicketState)
   const unreadTicket = new Set(tickets.failures.map((failure) => failure.number))
-  const closed = marked.filter((alert) => tickets.stateOf.get(ticketNumberOfUrl(contents.marks[alert.key].ticket))?.state === "CLOSED")
-  const scanned = [...new Set(closed.filter((alert) => alert.kind === "code-scanning").map((alert) => alert.repository))]
+  const ticketOf = (alert) => tickets.stateOf.get(ticketNumberOfUrl(contents.marks[alert.key].ticket))
+  const reasonOf = (alert) => ticketOf(alert).stateReason ?? null
+  const decided = (alert) => contents.marks[alert.key].action === "reported" && (contents.marks[alert.key].stateReason ?? null) === reasonOf(alert)
+  const closed = marked.filter((alert) => ticketOf(alert)?.state === "CLOSED" && !decided(alert))
+  const comparesScan = (alert) => alert.kind === "code-scanning" && reasonOf(alert) === "COMPLETED"
+  const scanned = [...new Set(closed.filter(comparesScan).map((alert) => alert.repository))]
   const scans = await Promise.allSettled(scanned.map((repository) => readNewestScan(repository)))
   const commitOf = new Map(scanned.flatMap((repository, index) => scans[index].status === "fulfilled" ? [[repository, scans[index].value]] : []))
-  const unscanned = (alert) => alert.kind === "code-scanning" && !commitOf.has(alert.repository)
+  const unscanned = (alert) => comparesScan(alert) && !commitOf.has(alert.repository)
   return {
-    items: closed.filter((alert) => !unscanned(alert)).map((alert) => ({ ...alert, ticket: contents.marks[alert.key].ticket,
-      ...(alert.kind === "code-scanning" && commitOf.get(alert.repository) ? { scannedCommit: commitOf.get(alert.repository) } : {}) })),
+    items: closed.filter((alert) => !unscanned(alert)).map((alert) => ({ ...alert, ticket: contents.marks[alert.key].ticket, stateReason: reasonOf(alert),
+      ...(comparesScan(alert) && commitOf.get(alert.repository) ? { scannedCommit: commitOf.get(alert.repository) } : {}) })),
     failures: [...tickets.failures.map(({ read, message }) => ({ read, message })),
       ...scanned.flatMap((repository, index) => scans[index].status === "rejected"
         ? [{ read: `${repository} code-scanning analyses`, message: String(scans[index].reason?.message ?? scans[index].reason) }] : [])],
@@ -328,8 +342,15 @@ export const recordClosedTicketPullRequests = ({ items, staleReports = [] }, rep
   marks: Object.fromEntries(Object.entries(current.marks).filter(([key]) => !staleReports.includes(key))) }
 }, repoRoot)
 
-/** Records the waiter keys of the closed-ticket alerts the model listed, so the waiter does not wake for them again. */
-export const recordTicketClosedAlertKeys = (keys, repoRoot = REPO_ROOT) => writeSource("alerts", (current) => ({ ...current, ticketClosed: keys }), repoRoot)
+/**
+ * Records the closed carrying ticket and its close reason on each closed-ticket alert of this
+ * collection, for the receipt check, and their waiter keys, so the waiter does not wake for them again.
+ */
+export const recordTicketClosedAlerts = (items, repoRoot = REPO_ROOT) => writeSource("alerts", (current) => {
+  const closedTicketOf = new Map(items.map((alert) => [alert.key, { ticket: alert.ticket, stateReason: alert.stateReason }]))
+  return { ...current, open: Object.fromEntries(Object.entries(current.open).map(([key, alert]) =>
+    [key, { ...alert, closedTicket: closedTicketOf.get(key) ?? null }])), ticketClosed: items.map(ticketClosedWakeKey) }
+}, repoRoot)
 
 const text = (value) => typeof value === "string" && value.trim().length > 0
 
@@ -342,6 +363,7 @@ const ACTIONS = {
   },
   alerts: {
     ticket: { valid: (receipt) => carryingTicket(receipt.ticket) && text(receipt.cause), requirement: "an alert needs its carrying ticket and the verified cause" },
+    reported: { valid: () => true },
     "false-positive": { valid: (receipt) => carryingTicket(receipt.ticket) && text(receipt.reason),
       requirement: "a false positive needs the ticket that holds the analysis and the reason" },
   },
@@ -351,7 +373,8 @@ export const INTAKE_GITHUB_SOURCES = Object.keys(ACTIONS)
 const markOf = (source, item, receipt) => source === "pullRequests"
   ? { head: item.head, action: receipt.action, ...(receipt.ticket ? { ticket: receipt.ticket } : {}), ...(receipt.reason ? { reason: receipt.reason } : {}),
     ...(receipt.action === "reported" && item.closedTickets ? { closedTickets: item.closedTickets } : {}) }
-  : { action: receipt.action, rule: item.rule ?? null, location: item.path ? `${item.path}${item.line ? `:${item.line}` : ""}` : null, ticket: receipt.ticket,
+  : { action: receipt.action, rule: item.rule ?? null, location: item.path ? `${item.path}${item.line ? `:${item.line}` : ""}` : null,
+    ...(receipt.action === "reported" ? { ticket: item.closedTicket.ticket, stateReason: item.closedTicket.stateReason } : { ticket: receipt.ticket }),
     ...(receipt.cause ? { cause: receipt.cause } : {}), ...(receipt.reason ? { reason: receipt.reason } : {}) }
 
 /** Returns the open item of a valid receipt, or throws the requirement the receipt misses. */
@@ -362,7 +385,13 @@ const receiptItem = (source, current, receipt) => {
   if (!item) throw new Error(`No open ${source} item matches the receipt key`)
   if (!Object.hasOwn(actions, receipt.action)) throw new Error(`Unknown ${source} action; use ${Object.keys(actions).join(", ")}`)
   if (!actions[receipt.action].valid(receipt)) throw new Error(actions[receipt.action].requirement)
-  if (source !== "pullRequests") return item
+  if (source === "alerts") {
+    const ownerDecides = ownerDecidesAlert(item)
+    if (ownerDecides !== (receipt.action === "reported")) throw new Error(ownerDecides
+      ? "an alert whose carrying ticket closed as not planned or with no reason goes to the owner; record reported"
+      : "only an alert whose carrying ticket closed as not planned or with no reason is reported")
+    return item
+  }
   const { actions: permitted, refusal } = PULL_REQUEST_CLASSES[pullRequestClass(item)]
   if (!permitted.includes(receipt.action)) throw new Error(refusal)
   if (receipt.head !== item.head) throw new Error(`The receipt head is not the current head ${item.head}`)
