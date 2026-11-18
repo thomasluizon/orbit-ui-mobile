@@ -494,6 +494,22 @@ function ghApiWrites(command, tokens) {
   return endpoint !== "graphql" || bodyUnreadable || /\bmutation\b/i.test(command)
 }
 
+/**
+ * Whether the words of a `gh auth status` call ask for the token: `--show-token`, or a short flag cluster that holds `t`.
+ * `-h` takes the rest of its cluster as the host name, so the letters after it are no flags.
+ */
+function showsToken(tokens) {
+  return tokens.slice(1).map(unquote).some((word) => {
+    if (/^--show-token(?:=|$)/.test(word)) return true
+    if (!/^-[A-Za-z]/.test(word)) return false
+    for (const letter of word.slice(1)) {
+      if (letter === "t") return true
+      if (letter === "h") return false
+    }
+    return false
+  })
+}
+
 /** The only gh flags that may stand before the subcommand and still read. */
 const GH_BARE_FLAGS = new Set(["--version", "--help", "-h"])
 
@@ -528,7 +544,9 @@ function githubWrite(segment, command) {
     if (tokens[1].startsWith("-")) return !GH_BARE_FLAGS.has(tokens[1])
     if (!GH_READS.has(args[0])) return true
     const reads = GH_READS.get(args[0])
-    return reads !== null && !reads.has(args[1])
+    if (reads === null) return false
+    // `gh auth status -t` prints the token in full, as `gh auth token` does.
+    return !reads.has(args[1]) || (args[0] === "auth" && showsToken(tokens))
   }
   if (binary === "security") return args.some((arg) => /^(?:find-(?:generic|internet)-password|dump-keychain|export)$/.test(arg))
   if (binary === "git") return args[0] === "credential" || args[0]?.startsWith("credential-")
