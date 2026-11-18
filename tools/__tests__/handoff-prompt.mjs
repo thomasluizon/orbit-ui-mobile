@@ -141,6 +141,7 @@ export const cases = () => {
     ["a past merge", "- ui#2486 merged before ui#2488 was approved"],
     ["a superseded order", "- `ui#2486 FIRST`: superseded, crank holds no ready work"],
     ["a finished order", "- merge ui#2486 before ui#2488: done, both merged"],
+    ["a superseded label before the quoted order", "- Superseded: \"ui#2486 FIRST\", crank holds no ready work"],
     ["a finished hold", "- Hold ui#2488 until ui#2486 is in main, then merge (done)"],
     ["a start order under the cap", "- Queue order under the cap: #2171 first, then #2172"],
     ["a merge bar wait", "- ui#2488: wait for the review check, then merge"],

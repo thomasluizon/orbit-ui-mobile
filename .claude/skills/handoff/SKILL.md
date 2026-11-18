@@ -335,7 +335,7 @@ records the mode from the owner's own `/handoff` or `/wrap-up` prompt, and `git 
    merge bar, the admission caps, the load gate and a relay drain. Say what state each item is in
    and let `run-status.mjs` report `MERGE_NOW`. A real dependency is a ticket relation or a
    stacked base. An earlier order that is finished or replaced keeps its disposition word, `done`
-   or `superseded`, after the order as its label (`: done`, `(superseded)`). The word elsewhere
+   or `superseded`, after the order as its label (`: done`, `(superseded)`), or a leading `Superseded:`. The word elsewhere
    on the line, such as a finished CI, does not settle the order. A start order that names the
    cap, such as `Queue order under the cap: #2171 first, then #2172`, holds no ready work and
    is accepted; the same line with a merge word is refused.

@@ -228,7 +228,7 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "992293ca1cdaf51d",
+      "digest": "3f8cd209e852f942",
       "calibratedAt": "2026-11-18",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },

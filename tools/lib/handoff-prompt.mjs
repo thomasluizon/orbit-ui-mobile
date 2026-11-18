@@ -111,8 +111,10 @@ const NAMED_FIRST = /(?:\b[\w-]+)?#\d+\b(?:\s+[\w-]+){0,3}?\s+(?:FIRST\b|first\b
 // `landing` is a repository key and a page name here, so it never counts as an order.
 const MERGE_ORDER = /\b(?:merge|merges|merging|land|lands|ship|ships|hold|holds)\b/i
 const AHEAD_WORD = /\b(?:before|ahead of)\b/i
-// The disposition word settles an order only as its label: after the order, behind a colon or an opening parenthesis.
+// The disposition word settles an order only as its label: behind a colon or an opening parenthesis after the order, or before the colon that opens the clause.
 const SETTLED_ORDER = /[:(]\s*(?:superseded|done)\b/i
+// A clause that opens with the label (`Superseded: "ui#2486 FIRST"`) settles the order it quotes.
+const SETTLED_LABEL = /^[\s>*+-]*(?:superseded|done)\s*:/i
 // A start order says which item starts first when the worker pool is short. It names the cap and holds no ready work.
 const START_ORDER = /\bunder the (?:[\w.-]+\s+){0,2}caps?\b/i
 
@@ -140,7 +142,7 @@ export const orderingHolds = (text) => {
       const second = references.slice(1).find((next, index) => ordersPair(clause, references[index], next))
       if (!named && !second) continue
       const orderEnd = named ? named.index + named[0].length : second.index + second[0].length
-      if (SETTLED_ORDER.test(clause.slice(orderEnd))) continue
+      if (SETTLED_LABEL.test(clause) || SETTLED_ORDER.test(clause.slice(orderEnd))) continue
       if (named && START_ORDER.test(clause.slice(0, named.index)) && !MERGE_ORDER.test(clause)) continue
       holds.push((named ? clause.slice(0, orderEnd) : clause).replace(/^[\s>*+-]+/, "").trim())
     }
