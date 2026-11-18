@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi, type MockInstance } from 'vitest'
 import { act, render } from '@testing-library/react'
 import type { useRouter } from 'next/navigation'
 
@@ -17,7 +17,10 @@ import { handleVerifySuccess } from '@/app/(auth)/login/login-form-helpers'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { getCurrentRouteTransitionIntent, resetRouteTransitionIntent, setRouteTransitionIntent } from '@/lib/motion/route-intent'
 
+let consoleError: MockInstance<typeof console.error>
+
 beforeEach(() => {
+  consoleError = vi.spyOn(console, 'error')
   vi.useFakeTimers()
   navigation.pathname = '/login'
   window.history.replaceState(null, '', '/login')
@@ -25,10 +28,14 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  vi.runOnlyPendingTimers()
-  resetRouteTransitionIntent()
+  act(() => {
+    vi.runOnlyPendingTimers()
+    resetRouteTransitionIntent()
+  })
   window.history.replaceState(null, '', '/')
   vi.useRealTimers()
+  expect(consoleError).not.toHaveBeenCalled()
+  consoleError.mockRestore()
 })
 
 it('clears the replace intent of a login after the app shell mounts', async () => {
