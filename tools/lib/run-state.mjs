@@ -311,17 +311,24 @@ export const readDesignChange = (path) => {
   return { path: resolve(path), sha256: createHash("sha256").update(text).digest("hex"), summary: text.trim().split("\n")[0].slice(0, 200) }
 }
 
+/** The earlier round of `rounds` that a design change with the same digest already allowed, or null. */
+export const roundOfDesignChange = (rounds, designChange) =>
+  designChange === null ? null : rounds.find((round) => round.designChange?.sha256 === designChange.sha256) ?? null
+
 /**
  * Spends the next fix round of `round.branch`. Each round number is one exclusive file, so two
- * writers cannot spend the same round. A round above `cap` needs `round.designChange`.
+ * writers cannot spend the same round. A round above `cap` needs a `round.designChange` that no
+ * earlier round of the branch used: one file allows one round.
  */
 export const recordFixRound = (round, cap, repoRoot = REPO_ROOT) => {
   const directory = fixRoundDirectory(repoRoot)
   mkdirSync(directory, { recursive: true })
   const key = fixRoundBranchKey(round.branch)
   for (let number = 1; ; number++) {
-    if (number > cap && round.designChange === null) {
-      return { allowed: false, number, rounds: readFixRounds(round.branch, repoRoot) }
+    if (number > cap) {
+      const rounds = readFixRounds(round.branch, repoRoot)
+      const spentBy = roundOfDesignChange(rounds, round.designChange)
+      if (round.designChange === null || spentBy !== null) return { allowed: false, number, rounds, spentBy }
     }
     const claim = claimLaunchFile(join(directory, `${key}-round-${number}.json`), { ...round, number })
     if (claim.claimed) return { allowed: true, number, rounds: readFixRounds(round.branch, repoRoot) }

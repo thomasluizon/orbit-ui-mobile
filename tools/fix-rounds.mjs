@@ -25,7 +25,8 @@ Prints one JSON object on stdout: branch, headSha, cap, rounds (each with number
 timestamp and designChange), used, remaining, and recorded with the round number when --record ran.
 
 exit codes: 0 status printed or round recorded, 2 usage or config error,
-            5 the cap is reached and no --design-change was given (nothing recorded)`
+            5 the cap is reached and no --design-change was given, or the design change file
+              already allowed an earlier round (nothing recorded)`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -86,6 +87,7 @@ try {
 } catch (error) { fail(2, error.message) }
 if (!result.allowed) {
   console.log(JSON.stringify(report(result.rounds, null), null, 2))
+  if (result.spentBy) fail(5, `design change ${designChange.path} already allowed fix round ${result.spentBy.number} on branch ${branch}: one file allows one round. Write the next design change in a new file, or push the head that meets the acceptance and file the rest.`)
   fail(5, `fix round cap ${cap} reached for branch ${branch}: ${result.rounds.map((round) => `${round.number}. ${round.kind} at ${round.headSha.slice(0, 9)}`).join(", ")}. Push the head that meets the acceptance and file the rest, or write the design change and pass --design-change <file>.`)
 }
 console.log(JSON.stringify(report(result.rounds, result.number), null, 2))

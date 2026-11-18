@@ -259,6 +259,8 @@ test("required checks report on every pull request through job conditions, never
   assert.equal(workflow.jobs["type-check"].if, "needs.plan.outputs.type-check == 'true'")
   assert.equal(workflow.jobs.lint.if, "github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true'")
   assert.equal(workflow.jobs["tool-hook-tests"].if, "${{ !cancelled() }}")
+  assert.equal(workflow.jobs["tool-tests"].if, "needs.plan.outputs.tools == 'true'")
+  assert.equal(workflow.jobs["hook-tests"].if, undefined, "the hook tests scan every tracked doc, the relay record among them")
   for (const step of unitSteps) assert.doesNotMatch(String(step.if ?? ""), /outputs\.(web|type-check|lint)\b|base_ref/, `${step.name ?? step.uses}: Unit Tests and its scan never follow a path scope`)
   // Each limit above 15 minutes is 1.5 times the measured worst run that its workflow comment names.
   const measuredAboveFifteen = {

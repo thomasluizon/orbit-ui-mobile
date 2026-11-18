@@ -46,10 +46,14 @@ export const cases = () => {
     JSON.stringify(passed),
   )
   check(TOOL, "the next round above the cap needs its own design change", [...worktree, "--record", "local"], { status: 5 }, options)
+  const reused = check(TOOL, "a design change file that already passed the cap is refused with exit 5", [...worktree, "--record", "local", "--design-change", designFile], { status: 5, stderr: /design change .*design\.md already allowed fix round 3 on branch main/ }, options)
+  T(`${TOOL}: a refused reuse writes nothing`, parse(reused)?.used === 3 && parse(check(TOOL, "reads the ledger after a refused reuse", worktree, { status: 0 }, options))?.used === 3, reused.stdout)
+  const secondDesign = stage("fix-rounds/second-design.md", "Split the guard into one rule per input class.\n")
+  T(`${TOOL}: a new design change file allows the next round`, parse(check(TOOL, "a second design change file allows round 4", [...worktree, "--record", "local", "--design-change", secondDesign], { status: 0 }, options))?.recorded === 4)
 
   repo.git(["checkout", "-q", "-b", "fix/other"])
   const other = parse(check(TOOL, "a second branch in the same checkout starts at zero", worktree, { status: 0 }, options))
   T(`${TOOL}: the count is kept per branch`, other?.used === 0 && other.branch === "fix/other", JSON.stringify(other))
   const ledger = readdirSync(join(repo.path, ".git", "orbit-fix-rounds"))
-  T(`${TOOL}: the ledger lives in the git directory, one file per round`, ledger.filter((name) => name.endsWith(".json")).length === 3, ledger.join(","))
+  T(`${TOOL}: the ledger lives in the git directory, one file per round`, ledger.filter((name) => name.endsWith(".json")).length === 4, ledger.join(","))
 }

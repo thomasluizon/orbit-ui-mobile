@@ -12,7 +12,7 @@ import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, clearWorkerLaunchReservation, FIX_ROUND_KINDS, readDesignChange, readFixRounds, recordFixRound, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, REVIEW_BATCH_ORDER_MARKER, workerLaunchDirectory } from "./lib/run-state.mjs"
+import { clearWakeSource, clearWorkerLaunchReservation, FIX_ROUND_KINDS, readDesignChange, readFixRounds, recordFixRound, recordReservedWorkerPid, roundOfDesignChange, registerWakeSource, reserveWorkerLaunch, readRunState, REVIEW_BATCH_ORDER_MARKER, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -195,9 +195,14 @@ if (!research && fixRoundArgument === null && readFileSync(promptFile, "utf8").i
   fail(2, `${promptFile} is a review batch order, which is a fix round: pass --fix-round <local|pullfrog>`)
 }
 /** Read before the launch slot is claimed, so a refused fix round never spends a launch. */
-const fixRoundsUsed = fixRoundArgument === null ? 0 : readFixRounds(branch, runDirectory).length
+const fixRoundsSpent = fixRoundArgument === null ? [] : readFixRounds(branch, runDirectory)
+const fixRoundsUsed = fixRoundsSpent.length
 if (fixRoundArgument !== null && fixRoundsUsed >= config.caps.reviewFixAttempts && designChange === null) {
   fail(2, `fix round cap ${config.caps.reviewFixAttempts} reached for branch ${branch} (node tools/fix-rounds.mjs --worktree ${runDirectory} lists them). --relaunch-reason does not pass it: push the head that meets the acceptance and file the rest, or pass --design-change <file>.`)
+}
+const designChangeRound = fixRoundsUsed >= config.caps.reviewFixAttempts ? roundOfDesignChange(fixRoundsSpent, designChange) : null
+if (designChangeRound !== null) {
+  fail(2, `design change ${designChange.path} already allowed fix round ${designChangeRound.number} on branch ${branch}: one file allows one round, and --relaunch-reason does not pass it. Write the next design change in a new file.`)
 }
 const engineName = config.worker
 const engine = config.workers[engineName]
@@ -410,6 +415,7 @@ if (fixRoundArgument !== null) {
   const fixRound = recordFixRound({ branch, kind: fixRoundArgument, headSha: startHead, timestamp, designChange, issue }, config.caps.reviewFixAttempts, runDirectory)
   if (!fixRound.allowed) {
     clearWorkerLaunchReservation(process.pid, runDirectory)
+    if (fixRound.spentBy) fail(2, `design change ${designChange.path} already allowed fix round ${fixRound.spentBy.number} on branch ${branch} while this launch started; one file allows one round`)
     fail(2, `fix round cap ${config.caps.reviewFixAttempts} reached for branch ${branch} while this launch started; --relaunch-reason does not pass it`)
   }
   console.error(`${issue} spends fix round ${fixRound.number} of ${config.caps.reviewFixAttempts} on ${branch}`)

@@ -15,10 +15,10 @@ concurrency:
 permissions:
   contents: read
 
-# Unit test results cached by the Turbo hash of their inputs. A push or a dispatch saves them; a pull request
-# whose inputs match main restores them instead of starting the test jobs. Pull requests save no cache. A push or a
-# dispatch on main also saves the results of the pull request that merged its commit when the keys are equal, and
-# starts no test job for that group.
+# Unit test results cached by the Turbo hash of their inputs. Every event looks up the key of each test group and starts
+# no test job for a group whose key is cached. A push or a dispatch saves the results that its test jobs produce; pull
+# requests save no cache. A push or a dispatch on main that misses the cache also takes the results of the pull request
+# that merged its commit when the keys are equal, saves them, and starts no test job for that group.
 env:
   WEB_UNIT_RESULTS: apps/web/coverage/lcov.info
   MOBILE_UNIT_RESULTS: apps/mobile/coverage/lcov.info
@@ -28,7 +28,8 @@ env:
     eslint-rules/coverage/lcov.info
 
 jobs:
-  # Pull requests skip a job whose inputs did not change; every other event runs every job.
+  # Pull requests skip a job whose inputs did not change; every other event runs every path scope. Every event skips a
+  # unit group whose key is cached or whose result the merged pull request stored at the same key.
   plan:
     name: Plan
     runs-on: ubuntu-latest
@@ -42,6 +43,7 @@ jobs:
       web: ${{ steps.plan.outputs.web }}
       type-check: ${{ steps.plan.outputs.type-check }}
       lint: ${{ steps.plan.outputs.lint }}
+      tools: ${{ steps.plan.outputs.tools }}
       web-unit-key: ${{ steps.plan.outputs.web-unit-key }}
       mobile-unit-key: ${{ steps.plan.outputs.mobile-unit-key }}
       workspace-unit-key: ${{ steps.plan.outputs.workspace-unit-key }}
@@ -281,8 +283,12 @@ jobs:
   # The 8 minute limit is about 1.5 times the slowest end to end time of 325 s.
   # npm ci with --prefer-offline --no-audit took 27 to 48 s in the layout shards of runs 44216168902 and 44221130214;
   # plain npm ci took 90 to 168 s in these shards, and pushed shard 2 of runs 44217309946 and 44149853753 past the limit.
+  # A pull request whose whole diff is the relay record skips the shards; no commit message carries a skip marker,
+  # because a squash merge copies every message to main and the marker would stop the main push workflows.
   tool-tests:
     name: Tool tests (${{ matrix.shard }}/${{ matrix.total }})
+    needs: plan
+    if: needs.plan.outputs.tools == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     strategy:
@@ -355,16 +361,22 @@ jobs:
   tool-hook-tests:
     name: Tool and Hook Tests
     if: ${{ !cancelled() }}
-    needs: [tool-tests, hook-tests]
+    needs: [plan, tool-tests, hook-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Require every tool shard and the hook tests
         env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          TOOLS_PLANNED: ${{ needs.plan.outputs.tools }}
           TOOL_RESULT: ${{ needs.tool-tests.result }}
           HOOK_RESULT: ${{ needs.hook-tests.result }}
         run: |
-          test "$TOOL_RESULT" = success
+          test "$PLAN_RESULT" = success
+          if [ "$TOOL_RESULT" != success ] && { [ "$TOOL_RESULT" != skipped ] || [ "$TOOLS_PLANNED" != false ]; }; then
+            echo "::error::The tool test shards ended $TOOL_RESULT and the plan did not skip them."
+            exit 1
+          fi
           test "$HOOK_RESULT" = success
 
   # The required check: every test group passed here or has a cached result at the same inputs.

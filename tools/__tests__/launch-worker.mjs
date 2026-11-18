@@ -90,6 +90,14 @@ const fixRoundCases = () => {
     { status: 0, stderr: /spends fix round 2 of 1/ },
     fixOptions,
   ).stdout)
+  check(
+    TOOL,
+    "a design change file that already passed the cap exits 2 before the launch slot",
+    [...fixArgs, "--fix-round", "pullfrog", "--relaunch-reason", "same design again", "--design-change", design],
+    { status: 2, stderr: /design change .*fix-rounds-design\.md already allowed fix round 2 on branch main/ },
+    fixOptions,
+  )
+  T(`${TOOL}: a refused design change reuse spends no launch slot`, launchSlots() === 2, String(launchSlots()))
   const roundDirectory = join(fixRounds.worktree, ".git", "orbit-fix-rounds")
   const rounds = readdirSync(roundDirectory).filter((name) => name.endsWith(".json")).sort()
     .map((name) => JSON.parse(readFileSync(join(roundDirectory, name), "utf8")))

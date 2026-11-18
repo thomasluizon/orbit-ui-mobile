@@ -68,18 +68,24 @@ export const cases = async () => {
 
   const gate = workflow.jobs["tool-hook-tests"]
   const gateStep = gate?.steps?.find((step) => step.name === "Require every tool shard and the hook tests")
-  T(`${TOOL}: Tool and Hook Tests keeps its required name, runs unless cancelled and needs the shards and the hook job`,
-    gate?.name === "Tool and Hook Tests" && gate.if === "${{ !cancelled() }}" && JSON.stringify(gate.needs) === JSON.stringify(["tool-tests", "hook-tests"]) &&
-      JSON.stringify(gateStep?.env) === JSON.stringify({ TOOL_RESULT: "${{ needs.tool-tests.result }}", HOOK_RESULT: "${{ needs.hook-tests.result }}" }),
+  T(`${TOOL}: the shards run only when the plan names a tool input among the changed paths`,
+    job?.needs === "plan" && job.if === "needs.plan.outputs.tools == 'true'", JSON.stringify({ needs: job?.needs, if: job?.if }))
+  T(`${TOOL}: Tool and Hook Tests keeps its required name, runs unless cancelled and needs the plan, the shards and the hook job`,
+    gate?.name === "Tool and Hook Tests" && gate.if === "${{ !cancelled() }}" && JSON.stringify(gate.needs) === JSON.stringify(["plan", "tool-tests", "hook-tests"]) &&
+      JSON.stringify(gateStep?.env) === JSON.stringify({
+        PLAN_RESULT: "${{ needs.plan.result }}", TOOLS_PLANNED: "${{ needs.plan.outputs.tools }}",
+        TOOL_RESULT: "${{ needs.tool-tests.result }}", HOOK_RESULT: "${{ needs.hook-tests.result }}",
+      }),
     JSON.stringify(gate))
   if (BASH) {
     const outcomes = ["success", "failure", "cancelled", "skipped"]
-    const wrong = outcomes.flatMap((tool) => outcomes.map((hook) => ({ tool, hook })))
-      .filter(({ tool, hook }) => {
-        const gated = spawnSync(BASH, ["-e", "-c", gateStep.run], { env: { ...process.env, TOOL_RESULT: tool, HOOK_RESULT: hook } })
-        return (gated.status === 0) !== (tool === "success" && hook === "success")
+    const wrong = outcomes.flatMap((plan) => ["true", "false", ""].flatMap((planned) => outcomes.flatMap((tool) => outcomes.map((hook) => ({ plan, planned, tool, hook })))))
+      .filter(({ plan, planned, tool, hook }) => {
+        const env = { ...process.env, PLAN_RESULT: plan, TOOLS_PLANNED: planned, TOOL_RESULT: tool, HOOK_RESULT: hook }
+        const gated = spawnSync(BASH, ["-e", "-c", gateStep.run], { env })
+        return (gated.status === 0) !== (plan === "success" && hook === "success" && (tool === "success" || (tool === "skipped" && planned === "false")))
       })
-    T(`${TOOL}: Tool and Hook Tests passes only when every shard and the hook job succeeded`, wrong.length === 0, JSON.stringify(wrong))
+    T(`${TOOL}: Tool and Hook Tests passes only when the plan and the hook job succeeded and every shard succeeded or the plan skipped them`, wrong.length === 0, JSON.stringify(wrong))
   }
   const hookCommands = workflow.jobs["hook-tests"]?.steps?.map((step) => step.run ?? "") ?? []
   T(`${TOOL}: the hook job runs the hooks harness and the workflow behavior tests`,
