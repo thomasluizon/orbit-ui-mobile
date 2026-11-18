@@ -45,10 +45,12 @@ describe('resolveCppCompiler', () => {
     expect(resolveOnWindows(runnerProbe('22.1.3', null))).toBe('clang++')
   })
 
-  it('fails with the versions it found when no Clang is new enough, and never hides the mismatch', () => {
-    expect(() => resolveOnWindows(runnerProbe('20.1.8', '20.1.8'))).toThrow(
-      `No Clang 22 or newer for the installed MSVC STL. Found: clang++ (Clang 20), ${visualStudioClang} (Clang 20).`,
-    )
-    expect(() => resolveOnWindows(runnerProbe(null, null))).toThrow('Found: none.')
+  it('returns the newest Clang even when it is old, so the STL reports its own minimum at compile time', () => {
+    expect(resolveOnWindows(runnerProbe('18.1.8', '20.1.8'))).toBe(visualStudioClang)
+    expect(resolveOnWindows(runnerProbe('20.1.8', null))).toBe('clang++')
+  })
+
+  it('fails when no Clang is installed, and never hides the missing compiler', () => {
+    expect(() => resolveOnWindows(runnerProbe(null, null))).toThrow('No Clang found on PATH or in Visual Studio.')
   })
 })

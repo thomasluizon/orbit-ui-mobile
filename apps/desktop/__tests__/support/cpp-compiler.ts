@@ -1,11 +1,9 @@
 import { spawnSync } from 'node:child_process'
 import { win32 } from 'node:path'
 
-export const WINDOWS_STL_MINIMUM_CLANG_MAJOR = 22
-
 export type CompilerProbe = (command: string, args: string[]) => { stdout: string; status: number | null }
 
-export interface CompilerCandidate {
+interface CompilerCandidate {
   command: string
   major: number
 }
@@ -29,7 +27,7 @@ function readVisualStudioClang(probe: CompilerProbe, programFilesX86: string): s
   return [win32.join(installation, 'VC', 'Tools', 'Llvm', architecture, 'bin', 'clang++.exe')]
 }
 
-export function listCompilerCandidates(probe: CompilerProbe, programFilesX86: string): CompilerCandidate[] {
+function listCompilerCandidates(probe: CompilerProbe, programFilesX86: string): CompilerCandidate[] {
   const commands = ['clang++', ...readVisualStudioClang(probe, programFilesX86)]
   return commands.flatMap(command => {
     const version = probe(command, ['--version'])
@@ -39,8 +37,8 @@ export function listCompilerCandidates(probe: CompilerProbe, programFilesX86: st
 }
 
 /**
- * Windows runner images hold a standalone LLVM on PATH and a Clang inside Visual Studio. The MSVC STL refuses a Clang older than
- * its own minimum (STL1000), so the newest candidate wins. Other platforms use the Clang on PATH.
+ * Windows runner images hold a standalone LLVM on PATH and a Clang inside Visual Studio. The newest candidate wins. The MSVC STL
+ * owns its Clang minimum and reports it at compile time (STL1000), so no floor is copied here. Other platforms use the Clang on PATH.
  */
 export function resolveCppCompiler(
   platform: NodeJS.Platform = process.platform,
@@ -50,9 +48,6 @@ export function resolveCppCompiler(
   if (platform !== 'win32') return 'clang++'
   const candidates = listCompilerCandidates(probe, programFilesX86)
   const newest = candidates.reduce<CompilerCandidate | undefined>((best, candidate) => (best && best.major >= candidate.major ? best : candidate), undefined)
-  if (!newest || newest.major < WINDOWS_STL_MINIMUM_CLANG_MAJOR) {
-    const seen = candidates.map(candidate => `${candidate.command} (Clang ${candidate.major})`).join(', ') || 'none'
-    throw new Error(`No Clang ${WINDOWS_STL_MINIMUM_CLANG_MAJOR} or newer for the installed MSVC STL. Found: ${seen}.`)
-  }
+  if (!newest) throw new Error('No Clang found on PATH or in Visual Studio.')
   return newest.command
 }
