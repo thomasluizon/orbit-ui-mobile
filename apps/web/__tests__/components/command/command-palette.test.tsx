@@ -92,6 +92,8 @@ import {
 import { Sheet } from '@/components/ui/sheet'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
+import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
+import { getCurrentRouteTransitionIntent, resetRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -105,6 +107,11 @@ const navItems = [
   { id: 'progresso', label: 'Progress', icon: NavIcon, onSelect: () => mockPush('/progress') },
   { id: 'perfil', label: 'Profile', icon: NavIcon, onSelect: () => mockPush('/profile') },
 ] as const
+
+function DraftGuard({ leaving, onNavigate }: Readonly<{ leaving: boolean; onNavigate: (action: () => void) => void }>) {
+  useHabitCreateNavigationGuard({ active: true, dirty: true, leaving, onNavigate, onReturn: () => {} })
+  return null
+}
 
 async function renderPaletteContent(content: ReactNode) {
   const view = render(content)
@@ -246,6 +253,40 @@ describe('CommandPalette', () => {
     await renderPalette()
     fireEvent.click(screen.getByText('Run'))
     expect(mockPush).toHaveBeenCalledWith('/habits/h1')
+  })
+
+  it.each([
+    ['a searched habit', 'Run', '/habits/h1'],
+    ['a destination', 'Calendar', '/calendar'],
+  ])('writes the instant intent for %s only after the draft guard approves', async (_row, label, route) => {
+    history.replaceState(null, '', '/habits/new')
+    resetRouteTransitionIntent()
+    const held: (() => void)[] = []
+    let pushedIntent: string | undefined
+    mockPush.mockImplementationOnce(() => { pushedIntent = getCurrentRouteTransitionIntent() })
+    const palette = (leaving: boolean) => <>
+      <DraftGuard leaving={leaving} onNavigate={(action) => held.push(action)} />
+      <CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />
+    </>
+    try {
+      const view = await renderPaletteContent(palette(false))
+
+      fireEvent.click(screen.getByText(label))
+
+      expect(held).toHaveLength(1)
+      expect(mockPush).not.toHaveBeenCalled()
+      expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+
+      view.rerender(palette(true))
+      act(() => held[0]!())
+
+      expect(mockPush).toHaveBeenCalledExactlyOnceWith(route)
+      expect(pushedIntent).toBe('instant')
+    } finally {
+      mockPush.mockReset()
+      resetRouteTransitionIntent()
+      history.replaceState(null, '', '/')
+    }
   })
 
   it('leaves a failed log to the mutation error toast', async () => {

@@ -40,6 +40,7 @@ export const cases = async () => {
     return Response.json({ data: [], links: { self: String(url), next: "https://example.org/steal" } })
   }))
   T("app store: pagination cannot send credentials to another host", forged === "Invalid App Store Connect pagination link" && hosts.join() === "api.appstoreconnect.apple.com")
-  const failed = await rejects(readAppStoreReviews("123", "token", async () => new Response("{}", { status: 500 })))
-  T("app store: reviews are read through the shared App Store Connect transport", failed === "App Store Connect GET /v1/apps/123/customerReviews failed (HTTP 500)")
+  // A status the transport does not send again, so this case does not wait on the transport's timer.
+  const failed = await rejects(readAppStoreReviews("123", "token", async () => new Response("{}", { status: 403 })))
+  T("app store: reviews are read through the shared App Store Connect transport", failed === "App Store Connect GET /v1/apps/123/customerReviews failed (HTTP 403)")
 }

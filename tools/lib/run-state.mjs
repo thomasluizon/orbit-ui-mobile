@@ -284,7 +284,7 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   return { allowed: true, earlierLaunches, recorded: override.recorded }
 }
 
-const fixRoundDirectory =(repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-fix-rounds")
+const fixRoundDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-fix-rounds")
 export const FIX_ROUND_KINDS = ["local", "pullfrog"]
 /** compose-prompt.mjs writes this line into a review batch order; launch-worker.mjs then requires --fix-round. */
 export const REVIEW_BATCH_ORDER_MARKER = "<!-- orbit-order: review-batch -->"
