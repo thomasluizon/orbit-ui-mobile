@@ -3,7 +3,7 @@
 import { resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { REPO_ROOT } from "./lib/run-state.mjs"
+import { REPO_ROOT, RelayLockHeld } from "./lib/run-state.mjs"
 import {
   claudeConfigDirectories, collectListing, describeBytes, knownSizesOf, readStoredListing, removeListed, summarize, takeCleanupLock, writeStoredListing,
 } from "./lib/stale-files.mjs"
@@ -15,7 +15,8 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
   --delete itself at each relay adoption and whenever free disk on /System/Volumes/Data is under 50 GiB; no owner
   answer gates it, because the listing at the removal proves each item stale. Each unattended start, each REMOVED,
   SKIPPED and FAILED line and any crash go to ~/.orbit-stale-files-cleanup.log, which keeps its newest half past
-  1 MiB; the store keeps each removed, skipped and failed item of the last --delete with its reason.
+  1 MiB; the store keeps each removed, skipped and failed item of the last --delete with its reason, until the next
+  --list rewrites the store. The log keeps the full record. A log that cannot be written does not stop the removal.
 
   session    a session directory under --session-root that is not this session, the run session, a live
              session, the predecessor of one of them, the nominated successor of the run, or a session
@@ -100,7 +101,7 @@ const sizeOf = (item) => (Number.isFinite(item.bytes) ? describeBytes(item.bytes
 if (switches.has("--delete")) {
   let release
   try { release = takeCleanupLock() } catch (error) {
-    if (!error.message.startsWith("EEXIST")) fail(1, `the removal lock could not be taken, so nothing was removed: ${error.message}`)
+    if (!(error instanceof RelayLockHeld)) fail(1, `the removal lock could not be taken, so nothing was removed: ${error.message}`)
     console.log("NOTHING REMOVED: another removal runs and holds the lock")
     process.exit(0)
   }

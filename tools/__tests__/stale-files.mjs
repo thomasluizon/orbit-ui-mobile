@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process"
-import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs"
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
@@ -21,6 +21,7 @@ const NESTED_UNTRACKED = "aaaaaaaa-0000-4000-8000-00000000000a"
 const WORKER = "bbbbbbbb-0000-4000-8000-00000000000b"
 const NESTED_FLAGGED = "cccccccc-0000-4000-8000-00000000000c"
 const RECORD_REMOVED = "dddddddd-0000-4000-8000-00000000000d"
+const UNLOGGED_REMOVED = "eeeeeeee-0000-4000-8000-00000000000e"
 const RECORD_OUTER = "feature/record-outer"
 const RECORD_STUCK = "feature/record-stuck"
 
@@ -214,6 +215,16 @@ const relayCases = async (tool, checkout) => {
     && !/^REMOVED /m.test(blocked.stdout) && existsSync(before) && existsSync(after), blocked.stdout + blocked.stderr)
   await holder.end()
 
+  // A lock error that only starts with the text `EEXIST` is no held lock: the raw `mkdir` error of a file at the lock path says it, and the removal must fail loud.
+  const lockPath = join(checkout, ".git", "orbit-stale-files-cleanup-lock")
+  rmSync(lockPath, { recursive: true, force: true })
+  writeFileSync(lockPath, "a file where the lock directory belongs\n")
+  const unreadable = tool(["--delete", "--session", THIS])
+  rmSync(lockPath, { force: true })
+  T("stale-files: a lock error that starts with EEXIST but is no held lock exits 1 and says nothing was removed",
+    unreadable.status === 1 && unreadable.stderr.includes("the removal lock could not be taken, so nothing was removed: EEXIST") && !/NOTHING REMOVED/.test(unreadable.stdout)
+    && existsSync(before) && existsSync(after), unreadable.stdout + unreadable.stderr)
+
   const removed = tool(["--delete", "--session", THIS])
   T("stale-files: once the running removal ends, --delete removes the branch made before the relay", removed.status === 0
     && new RegExp(`^REMOVED worktree ${before} \\(`, "m").test(removed.stdout) && !existsSync(before), removed.stdout + removed.stderr)
@@ -228,6 +239,41 @@ const relayCases = async (tool, checkout) => {
  * it removed, skipped and could not remove, each with its reason. A worktree with a read-only ignored directory makes
  * `git worktree remove` fail, and the finished worktree that holds it then stays. The log keeps its newest half past its limit.
  */
+const startLikeTheHook = (base, checkout, env, name) => {
+  // The hook's own call: the staged library's `startCleanup`, in a process with the run's environment. The stub preload
+  // answers a node process whose first argument is no file, so the call lives in a file.
+  const script = join(base, `${name}.mjs`)
+  writeFileSync(script, `import { startCleanup } from ${JSON.stringify(pathToFileURL(join(checkout, "tools", "lib", "stale-files.mjs")).href)}
+console.log(startCleanup({ sessionId: ${JSON.stringify(THIS)}, sessionRoot: ${JSON.stringify(sessionRoot)}, reason: "relay adoption", repoRoot: ${JSON.stringify(checkout)} }))\n`)
+  const starter = spawnSync(process.execPath, [script], { encoding: "utf8", env: { ...process.env, ...env } })
+  return { starter, pid: Number(starter.stdout.trim()) }
+}
+
+const waitForExit = async (pid) => {
+  const alive = () => {
+    try { return process.kill(pid, 0) } catch { return false }
+  }
+  for (let waited = 0; pid > 0 && alive() && waited < 120_000; waited += 100) await new Promise((resolve) => setTimeout(resolve, 100))
+}
+
+/**
+ * The log is a record, not a gate: a log path that cannot be opened (a directory there, as a full disk or an unwritable home
+ * makes it) must not stop the removal, and the start marker is still written so the next prompt does not retry at once.
+ */
+const unwritableLogCases = async (checkout, env) => {
+  const unloggedHome = join(base, "home-unwritable-log")
+  mkdirSync(join(unloggedHome, ".orbit-stale-files-cleanup.log"), { recursive: true })
+  const unloggedSession = join(sessionRoot, UNLOGGED_REMOVED)
+  mkdirSync(join(unloggedSession, "scratchpad"), { recursive: true })
+  const marker = join(checkout, ".git", "orbit-stale-files-cleanup.json")
+  rmSync(marker, { force: true })
+  const { starter, pid } = startLikeTheHook(base, checkout, { ...env, HOME: unloggedHome, USERPROFILE: unloggedHome }, "start-cleanup-unwritable-log")
+  T("stale-files: a log path that cannot be opened does not stop the unattended removal from starting", starter.status === 0 && pid > 0, starter.stdout + starter.stderr)
+  await waitForExit(pid)
+  T("stale-files: the removal runs to its end with no log, and removes the stale session directory", !existsSync(unloggedSession), unloggedSession)
+  T("stale-files: the start marker is written when the log cannot be", existsSync(marker) && Number.isFinite(JSON.parse(readFileSync(marker, "utf8")).startedAt))
+}
+
 const removalRecordCases = async (checkout, env) => {
   const removedSession = join(sessionRoot, RECORD_REMOVED)
   mkdirSync(join(removedSession, "scratchpad"), { recursive: true })
@@ -245,18 +291,9 @@ const removalRecordCases = async (checkout, env) => {
   const oldest = "an old line that the bound drops\n"
   writeFileSync(log, `${oldest}${"an older line that the bound keeps\n".repeat(Math.ceil(1_200_000 / 35))}`)
   try {
-    // The hook's own call: the staged library's `startCleanup`, in a process with the run's environment. The stub preload
-    // answers a node process whose first argument is no file, so the call lives in a file.
-    const script = join(base, "start-cleanup.mjs")
-    writeFileSync(script, `import { startCleanup } from ${JSON.stringify(pathToFileURL(join(checkout, "tools", "lib", "stale-files.mjs")).href)}
-console.log(startCleanup({ sessionId: ${JSON.stringify(THIS)}, sessionRoot: ${JSON.stringify(sessionRoot)}, reason: "relay adoption", repoRoot: ${JSON.stringify(checkout)} }))\n`)
-    const starter = spawnSync(process.execPath, [script], { encoding: "utf8", env: { ...process.env, ...env } })
-    const pid = Number(starter.stdout.trim())
+    const { starter, pid } = startLikeTheHook(base, checkout, env, "start-cleanup")
     T("stale-files: the unattended removal starts the way the hook starts it", starter.status === 0 && pid > 0, starter.stdout + starter.stderr)
-    const alive = () => {
-      try { return process.kill(pid, 0) } catch { return false }
-    }
-    for (let waited = 0; pid > 0 && alive() && waited < 120_000; waited += 100) await new Promise((resolve) => setTimeout(resolve, 100))
+    await waitForExit(pid)
     const text = existsSync(log) ? readFileSync(log, "utf8") : ""
     T("stale-files: the log names the start of the unattended removal and its reason", /^=== \S+ unattended removal started: relay adoption \(session 00000000-/m.test(text), text.slice(-2000))
     T("stale-files: the log keeps the removed item of the unattended removal", new RegExp(`^REMOVED session ${removedSession} \\(`, "m").test(text) && !existsSync(removedSession), text.slice(-2000))
@@ -413,6 +450,7 @@ export const cases = async () => {
     T("stale-files: a second --delete finds nothing more to remove", again.status === 0 && /^FREED nothing;/m.test(again.stdout) && !/^REMOVED /m.test(again.stdout), again.stdout + again.stderr)
     await relayCases(tool, staged.base)
     await removalRecordCases(staged.base, env)
+    await unwritableLogCases(staged.base, env)
   } finally {
     worker.kill()
   }

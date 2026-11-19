@@ -565,7 +565,8 @@ export const readCleanupAdoption = (repoRoot = REPO_ROOT) => {
 
 /**
  * Takes the lock of the removal for the life of this process, and returns the function that releases it. Only one process
- * holds it at a time; it throws an `EEXIST` error while a live process holds it, and takes over the lock of a process that died.
+ * holds it at a time; it throws `RelayLockHeld` (from `lib/run-state.mjs`) while a live process holds it, and takes over the
+ * lock of a process that died. A caller tests that class, never the message.
  */
 export const takeCleanupLock = (repoRoot = REPO_ROOT) => acquireRelayLock(primaryCheckoutOf(repoRoot), CLEANUP_LOCK)
 
@@ -615,15 +616,21 @@ const boundCleanupLog = (path) => {
  */
 export const startCleanup = ({ sessionId, sessionRoot, reason, adoptedBy = null, repoRoot = REPO_ROOT, now = Date.now() }) => {
   const logPath = cleanupLogPath()
-  boundCleanupLog(logPath)
-  appendFileSync(logPath, `=== ${new Date(now).toISOString()} unattended removal started: ${reason} (session ${sessionId})\n`)
-  const log = openSync(logPath, "a")
+  let log = null
+  // The log is a record, not a gate: a full disk is the case this removal exists for, and a log that cannot be written must not stop it.
+  try {
+    boundCleanupLog(logPath)
+    appendFileSync(logPath, `=== ${new Date(now).toISOString()} unattended removal started: ${reason} (session ${sessionId})\n`)
+    log = openSync(logPath, "a")
+  } catch {
+    log = null
+  }
   let child
   try {
     child = spawn(process.execPath, [join(repoRoot, "tools", "stale-files.mjs"), "--delete", "--session", sessionId, ...(sessionRoot ? ["--session-root", sessionRoot] : [])],
-      { cwd: repoRoot, detached: true, stdio: ["ignore", log, log], windowsHide: true })
+      { cwd: repoRoot, detached: true, stdio: log === null ? "ignore" : ["ignore", log, log], windowsHide: true })
   } finally {
-    closeSync(log)
+    if (log !== null) closeSync(log)
   }
   child.unref()
   writeFileSync(cleanupMarkerPath(repoRoot), `${JSON.stringify({ startedAt: now, reason })}\n`)

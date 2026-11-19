@@ -10,7 +10,7 @@ import {
 import * as staleFiles from "../lib/stale-files.mjs"
 import { T, root, same } from "./_harness.mjs"
 import { claudeProcessFields, reusedPidRecord } from "./owner-questions-core.mjs"
-import { processStartIdentity } from "../lib/run-state.mjs"
+import { RelayLockHeld, processStartIdentity } from "../lib/run-state.mjs"
 
 const THIS = "00000000-0000-4000-8000-000000000000"
 const CHAIN_PREDECESSOR = "11111111-0000-4000-8000-000000000001"
@@ -829,10 +829,12 @@ const lateTreeCases = () => {
 
 /** A process that tries the removal lock of `repoRoot`, prints `taken` or `busy`, and holds what it took until its stdin closes. */
 const LIBRARY = new URL("../lib/stale-files.mjs", import.meta.url).href
+const RUN_STATE = new URL("../lib/run-state.mjs", import.meta.url).href
 export const lockContender = (repoRoot) => {
   const script = `import { takeCleanupLock } from ${JSON.stringify(LIBRARY)}
+import { RelayLockHeld } from ${JSON.stringify(RUN_STATE)}
 let release = null
-try { release = takeCleanupLock(process.argv[1]); console.log("taken") } catch (error) { console.log(error.message.startsWith("EEXIST") ? "busy" : \`error \${error.message}\`) }
+try { release = takeCleanupLock(process.argv[1]); console.log("taken") } catch (error) { console.log(error instanceof RelayLockHeld ? "busy" : \`error \${error.message}\`) }
 process.stdin.on("end", () => { release?.(); process.exit(0) })
 process.stdin.resume()`
   const child = spawn(process.execPath, ["--input-type=module", "-e", script, repoRoot], { stdio: ["pipe", "pipe", "inherit"] })
@@ -874,8 +876,8 @@ const lockCases = async () => {
   same("stale-files: of two removals that start at once, from the primary checkout and a linked worktree, exactly one takes the lock", [...answers].sort(), ["busy", "taken"])
   T("stale-files: while a removal holds the lock, both checkouts see it run", cleanupIsRunning(primary) && cleanupIsRunning(linked))
   let second = null
-  try { second = takeCleanupLock(primary) } catch (error) { second = error.message }
-  T("stale-files: a third start while the removal runs takes no lock", typeof second === "string" && second.startsWith("EEXIST"), String(second))
+  try { second = takeCleanupLock(primary) } catch (error) { second = error }
+  T("stale-files: a third start while the removal runs takes no lock and throws the held-lock class", second instanceof RelayLockHeld, String(second))
   await Promise.all(contenders.map((contender) => contender.end()))
   T("stale-files: the lock is free when the removal ends", !cleanupIsRunning(primary))
 
