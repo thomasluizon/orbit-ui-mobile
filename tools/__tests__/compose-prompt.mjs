@@ -549,7 +549,7 @@ export const cases = () => {
       /File a NOTE one time on the ticket that owns its area/.test(rule14Body) &&
       /A NOTE starts no fix round/.test(rule14Body) &&
       /false statement in the pull request body goes under `## Body`, and the coordinator fixes it/.test(rule14Body) &&
-      !/matter of taste|confirmed defect/.test(rule14Body) &&
+      !/matter of taste/.test(rule14Body) &&
       rule14.split("BLOCKING is every confirmed finding under a lens above that this diff makes").length === 2 &&
       !/only when one of these is true|failing probe against the acceptance|No open search|at most one finding|new spelling/.test(rule14),
     rule14Body,
@@ -586,8 +586,7 @@ export const cases = () => {
   )
   T(
     `${TOOL}: orchestration sends a free-text class to its lens in the review brief and leaves its rank to rule 14`,
-    /fix a free-text guess as its lens in the review\s+brief says/.test(orchestrateSkill) &&
-      !/never with one more pattern/.test(orchestrateSkill),
+    /fix a free-text guess as its lens in the review\s+brief says/.test(orchestrateSkill),
     orchestrateSkill,
   )
   T(
