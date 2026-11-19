@@ -113,12 +113,16 @@ it.each([
   expect(requests.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/health'])
 })
 
-it('stops a graded core run before an account check when the configured grader cannot grade', async () => {
+// A same-title card question is read through the same Claude grader, so a core run of a card case needs it as a rubric does.
+const cardSuite = { suite: { tests: [{ metadata: { id: 'owner-water-request-en', mustPass: true },
+  vars: { credentialKey: 'ORBIT_EVAL_TOKEN', core: { answer: { sameTitle: { deleted: [4, 5], renamed: [0, 1, 2, 3] } } } } }] } }
+
+it.each([['a rubric', coreSuite], ['a same-title card answer', cardSuite]])('stops a core run with %s before an account check when the configured grader cannot grade', async (_name, suite) => {
   const requests = requestsFor()
   vi.stubEnv('ORBIT_EVAL_GRADER', claudeGrader)
   vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', '')
   vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-  await expect(beforeCoreRun(coreSuite)).rejects.toThrow('The configured grader cannot grade, so the run stops before any chat '
+  await expect(beforeCoreRun(suite)).rejects.toThrow('The configured grader cannot grade, so the run stops before any chat '
     + 'turn spends: Claude rubric grading failed: ORBIT_WORKER_CLAUDE_CONFIG_DIR is not set.')
   expect(requests.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/health'])
 })

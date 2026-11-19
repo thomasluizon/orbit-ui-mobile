@@ -832,37 +832,18 @@ A card case adds `sameTitleSet.answer` (the decided `deleted` and `renamed` posi
 `composition.allowQuestion`. When the first turn asks, each option stands for the records its `ask` call declares
 in `target_ids`. An option that declares none stands for its own id when that id is a nonempty GUID, in the order of
 the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
-and one selection the card allows must state the whole decision. When a list can hold the deleted half and the
-renamed half, the grader selects the half that its question asks about: the action words of the question, else the
-count that it states. When the question names both actions, the two halves must differ in size, because the size of
-the selection tells its half: two halves of one size fail with a grader limit. The grader then reads each sentence that
-ends with `?`, or the whole text when no sentence does. The asking word (`which`, `what`, `quais`, `qual`, `quantos`,
-`quantas`) decides the half: the half of the first action at or after that word, in the first question that has one. So
-"Leaving 4 to rename, which 2 should I delete?", "Want me to rename four? Which two should I delete?" and "Mantendo
-quatro, qual é o par que eu apago?" ask for the deleted half. When no asking word comes before an action, as in "Keeping
-four, pick the two to delete.", the case fails with a grader limit: the grader never guesses the half.
-The same holds when a negation or an alternative (`not`, `n't`, `never`, `or`, `instead`, `without`, `não`, `nunca`, `ou`,
-`sem`) stands between the asking word and that action, as in "Which ones shouldn't I delete? Those get renamed.": the
-question asks for the other half.
-The same holds when a title word (`title`, `título`) stands at or before that action, as in "Which of the same-title
-habits should I delete?", "Which habits with the title Water - 710ml should I delete?" or "Which four get the title
-Water - 1.18L, and which two should I delete?". A record description and a retitle use the same words, so a title word
-never decides the half. A title word after the asked action changes nothing.
-When a title word is the only rename word of the question, the question may name only the deletion. The deleted count
-that it states then answers it: "Which two of the same-title habits should I delete?" asks for the deleted half. A
-question with no such count, or with a count of the renamed half, stays a grader limit.
-A count only confirms the action that its clause names. In a list question, `keep` and
-`manter` are rename words, because the records to keep are the records to rename. When the question tells neither, or
-the two signals disagree, the case fails with a message that names a grader limit, not a model fault. A `yesNo`
-question beside the lists is answered yes only when its verb proposes the decided action for the half that the lists
-leave out. A count can confirm that half, but a count alone
-never decides it. In a `yesNo` question, `keep`, `manter`, `leave`, `stay`, `ficar` and each other verb of no change
-are not rename words, and `title` and `título` are not rename words. A negation (`not`, `don't`, `without`,
-`instead`, `não`, `sem`, `em vez`) or an alternative (`or`, `ou`) makes the prompt propose no one action. A `yesNo`
-question fails the case with a grader-limit message when it proposes no action, both actions or the action of the
-selected half. It also fails the case with that message when its count and its verb point at different halves.
-Every `scale` or `slider` question also fails the case with a grader-limit message. The model-fault message stays for
-a card whose every question the grader reads. The provider sends that selection as `blockAnswer`, with the message
+and one selection the card allows must state the whole decision. A list that can hold only one half is answered with that
+half and needs no read. When a list can hold both halves, and for each `yesNo` question, one call of the Claude grader
+reads the question (`askClaude` of `claude-grader.mjs`, the same CLI, model, worker account, environment and time limit as
+the rubric). The prompt holds the question text as one quoted string, its type (a list or `yesNo`), and both halves of the
+decision by count and title. The answer is the JSON `{"half":"deleted"}`, `{"half":"renamed"}` or `{"half":"unclear"}`:
+the half that a list question asks the person to select, or that a yes to a `yesNo` question agrees to. No word list or
+regular expression reads the question. Any other answer, a malformed answer and a failed call are `unclear`. An `unclear`
+read fails the case with a grader-limit message, never a model fault, and the report names the question. A `yesNo`
+question is answered yes only when its read is the half that the lists leave out; a read of the half that the lists state
+is a grader limit. Every `scale` or `slider` question also fails the case with a grader-limit message, with no read. The
+model-fault message stays for a card whose every question the grader reads. A run with a card case needs the grader before
+its first chat turn, as a run with a rubric does (`requireGrader`). The provider sends that selection as `blockAnswer`, with the message
 and the history the web client sends. As the client does, the answer turn, confirm and execute send the first
 response's `conversationId` in `clientContext`, so the API reads the stored conversation.
 The shared client functions build the message: the selected labels for a choice card, and each question prompt with
@@ -1098,7 +1079,9 @@ limit. A missing CLI, a non-zero exit, an error result, a malformed grade, a tim
 sanitized provider error that names the failure. A cancellation gets no retry. Any other failure gets one retry, and
 then it stays a grader error: the attempt gives no evidence, and it never becomes a passing rubric. Promptfoo continues to pass only the final rendered answer projection
 to the rubric. The offline test drives a fake executable with responses recorded from one real call of the installed
-CLI (`__tests__/fixtures/claude-grader-result.json` and `claude-grader-error.json`).
+CLI (`__tests__/fixtures/claude-grader-result.json` and `claude-grader-error.json`). The same-title card read calls the
+same function, `askClaude`, with its own schema and its own check of the answer (see the card case of the same-title
+family), so each rule above holds for it: the worker account, the environment, the time limit and the retry.
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
 natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.

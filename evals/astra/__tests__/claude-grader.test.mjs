@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import { summarize, writeResults, writeReport } from '../report.mjs'
 import { beforeEach as prepareAttempt } from '../hooks.mjs'
-import ClaudeGrader, { WORKER_CONFIG_VARIABLE, graderEnvironment } from '../claude-grader.mjs'
+import ClaudeGrader, { WORKER_CONFIG_VARIABLE, askClaude, graderEnvironment } from '../claude-grader.mjs'
 import { WORKER_ACCOUNT, workerAccountEnvironment } from '../../../tools/lib/orchestrator-config.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, turnTiming } from './fixtures/producer.mjs'
@@ -118,6 +118,44 @@ it('loads through promptfoo, runs print mode on the worker account and returns t
   expect(call.apiKey).toBe(false)
   expect(call.leaked).toEqual([])
   expect(existsSync(call.cwd)).toBe(false)
+})
+
+// The card question read of same-title-card.mjs calls askClaude, so it takes the CLI path of the rubric: the same flags,
+// worker account, environment and time limit, with its own schema and its own check of the structured output.
+it('asks the card question read through the same CLI path as the rubric, with its own schema', async () => {
+  vi.stubEnv('CLAUDE_CODE_DISABLE_ATTACHMENTS', '0')
+  const schema = JSON.stringify({ type: 'object', properties: { half: { type: 'string' } }, required: ['half'] })
+  const recorded = JSON.parse(readFileSync(recordedResult, 'utf8'))
+  vi.mocked(execFile).mockClear()
+  expect(await askClaude('Which half does the question ask about?', { schema, accepts: (value) => typeof value === 'object' }))
+    .toEqual({ value: recorded.structured_output })
+  const call = record()
+  expect(call.args).toEqual(['-p', '--model', 'claude-opus-5-5', '--output-format', 'json', '--json-schema', schema,
+    '--tools', '', '--strict-mcp-config', '--safe-mode', '--no-session-persistence'])
+  expect(call.prompt).toBe('Which half does the question ask about?')
+  expect(call.configDirectory).toBe(workerDirectory)
+  expect(call.attachments).toBe('1')
+  expect(call.apiKey).toBe(false)
+  expect(call.leaked).toEqual([])
+  expect(existsSync(call.cwd)).toBe(false)
+  expect(vi.mocked(execFile).mock.calls.map(([, , options]) => options.timeout)).toEqual([120000])
+})
+
+it('gives no value for an answer that its own check refuses, and retries the call once', async () => {
+  const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  expect(await askClaude('Which half?', { schema: '{}', accepts: () => false }))
+    .toEqual({ error: 'Claude rubric grading failed: grade schema invalid.' })
+  expect(attempts()).toBe(2)
+  errors.mockRestore()
+})
+
+it('never runs the CLI for a card question read when the worker account directory is unset', async () => {
+  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', '')
+  const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  expect(await askClaude('Which half?', { schema: '{}', accepts: () => true }))
+    .toEqual({ error: 'Claude rubric grading failed: ORBIT_WORKER_CLAUDE_CONFIG_DIR is not set.' })
+  expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(false)
+  errors.mockRestore()
 })
 
 // The eval package installs without the harness (install.test.mjs), so the grader names the worker account variable and

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -10,10 +10,15 @@ import { mergeRuns } from '../core/merge.mjs'
 import { gradePreview, matchesField, outcome } from '../core/outcome.mjs'
 import { summarize, writeResults } from '../core/report.mjs'
 import { publicApi } from '../fixtures/api.mjs'
+import { askClaude } from '../claude-grader.mjs'
 import { captures } from './fixtures/core-streams.mjs'
 import { recordedApi, recordedStream, requestVars } from './fixtures/core-replay.mjs'
 import { snapshotFixture } from './fixtures/eval-snapshot.mjs'
 import { preview, turnTiming } from './fixtures/producer.mjs'
+
+// No offline test spends a model call: a same-title card question is read through askClaude, which each test stubs with the
+// deleted half, the half that the question of every recorded card here asks the person to select.
+vi.mock('../claude-grader.mjs', async (original) => ({ ...await original(), askClaude: vi.fn() }))
 
 const { buildChatClientContext } = await tsImport('../../../packages/shared/src/chat/client-context.ts', import.meta.url)
 const caseOf = (id) => coreCases().find(({ metadata }) => metadata.id === id)
@@ -21,6 +26,7 @@ const request = caseOf('owner-water-request-pt-BR-1')
 const guid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u
 const finalOf = (name, turn) => captures[name].turns[turn].at(-1).response
 
+beforeEach(() => { vi.mocked(askClaude).mockReset().mockResolvedValue({ value: { half: 'deleted' } }) })
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 
 function offlineVars(name, source, overrides = {}) {

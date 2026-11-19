@@ -37,7 +37,7 @@ function answerVars(vars, card) {
 }
 
 async function answerQuestion(output, vars, chat) {
-  const card = sameTitleCard(output, vars)
+  const card = await sameTitleCard(output, vars)
   if (!card.pass) return { card: { pass: false, reason: card.reason } }
   const next = answerVars(vars, { ...card, turn: output.composition })
   const response = await chat(next.input, { vars: next })

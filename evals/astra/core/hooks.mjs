@@ -24,7 +24,8 @@ export async function beforeAll({ suite }) {
   const name = descriptors.every((descriptor) => descriptor.mustPass) ? 'must-pass'
     : descriptors.every((descriptor) => !descriptor.mustPass) ? 'other' : null
   if (!name) throw new Error('One run of the core set holds must-pass cases or other cases, never both.')
-  const graded = suite.tests.some((test) => test.vars.rubric)
+  // A rubric and a same-title card question each read through the Claude grader, so each needs it before a chat turn spends.
+  const graded = suite.tests.some((test) => test.vars.rubric || test.vars.core?.answer?.sameTitle)
   for (const key of ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_CREDENTIALS_FILE', ...(graded ? ['ORBIT_EVAL_GRADER'] : [])]) {
     if (!process.env[key]) throw new Error(`Missing required environment variable: ${key}`)
   }

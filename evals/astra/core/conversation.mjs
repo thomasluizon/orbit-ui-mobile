@@ -92,7 +92,7 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
     output.questionsBeforePreview++
     if (output.questionsBeforePreview > maxQuestions) break
     if (output.turns < typed.length) { attempted = typedMessage(output.turns); continue }
-    const answer = answerQuestion(turn, vars)
+    const answer = await answerQuestion(turn, vars)
     if (!answer.pass) {
       // The turn without the trace adds no counted model calls, as a failed turn adds none, so a later window that
       // replaces this attempt keeps the cost of the run measured.
