@@ -382,6 +382,19 @@ describe('useLoginFlow (mobile)', () => {
     expect(mocks.showError).not.toHaveBeenCalled()
   })
 
+  it('refuses an empty guided submit with the address hint and a focus request, without calling the API', async () => {
+    const harness = await renderLoginFlow()
+    const focusBefore = harness.current.emailFocusRequest
+
+    await act(() => harness.current.refuseEmptyEmail())
+
+    expect(harness.current).toMatchObject({ step: 'email', errorKey: 'auth.errors.invalidEmail', errorMessage: 'auth.errors.invalidEmail' })
+    expect(harness.current.emailFocusRequest).toBe(focusBefore + 1)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    await act(() => harness.current.setEmail('person@example.com'))
+    expect(harness.current.errorMessage).toBeNull()
+  })
+
   it('rejects an invalid email without calling the API', async () => {
     const harness = await renderLoginFlow()
 

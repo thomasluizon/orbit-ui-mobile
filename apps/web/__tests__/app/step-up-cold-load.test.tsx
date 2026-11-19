@@ -16,6 +16,7 @@ vi.mock('next-intl', () => ({
     params ? `${key}:${JSON.stringify(params)}` : key,
 }))
 
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { email: 'person@example.com', hasProAccess: false } }),
 }))

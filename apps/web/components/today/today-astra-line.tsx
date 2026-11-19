@@ -14,9 +14,10 @@ interface TodayAstraLineProps {
   busy?: boolean
   announce?: boolean
   loading?: boolean
+  gutter?: boolean
 }
 
-export function TodayAstraLine({ text, destination, href, onPress, disabled = false, busy = false, announce = false, loading = false }: Readonly<TodayAstraLineProps>) {
+export function TodayAstraLine({ text, destination, href, onPress, disabled = false, busy = false, announce = false, loading = false, gutter = true }: Readonly<TodayAstraLineProps>) {
   const destinationId = useId()
   const content = <>
     <span aria-hidden="true" className="relative flex w-[48px] shrink-0 items-center justify-center">
@@ -27,7 +28,7 @@ export function TodayAstraLine({ text, destination, href, onPress, disabled = fa
     </span>
   </>
   const waitingSurface = loading ? { background: 'transparent' } : undefined
-  return <div className="px-screen-gutter" data-today-astra-slot aria-busy={busy}>
+  return <div className={gutter ? 'px-screen-gutter' : undefined} data-today-astra-slot aria-busy={busy}>
     {href ? <Link className="today-astra-line" style={waitingSurface} href={href} aria-describedby={destinationId}>{content}</Link>
       : <button type="button" className="today-astra-line" style={waitingSurface} aria-describedby={destinationId} disabled={disabled} onClick={onPress}>{content}</button>}
     <span id={destinationId} className="sr-only">{destination}</span>

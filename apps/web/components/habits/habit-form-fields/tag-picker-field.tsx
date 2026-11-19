@@ -41,7 +41,7 @@ interface TagPickerListProps extends Omit<TagPickerFieldProps, 'selectedIds'> {
   selectedIds: Set<string>
 }
 
-function TagPickerRow({ tag, selected, atLimit, disabled, onToggle, onEdit, onDelete, editLabel, deleteLabel }: Readonly<{
+export function TagPickerRow({ tag, selected, atLimit, disabled, onToggle, onEdit, onDelete, editLabel, deleteLabel }: Readonly<{
   tag: HabitTag
   selected: boolean
   atLimit: boolean

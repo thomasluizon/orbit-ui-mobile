@@ -14,8 +14,11 @@ import { DESKTOP_WINDOW_BAR_END_INSET, DESKTOP_WINDOW_BAR_HEIGHT, DESKTOP_WINDOW
 import { OnboardingActionsProvider, type OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
+import { FreshStartFlow } from '@/app/(app)/profile/_components/fresh-start-flow'
+import { GuidedStepUp } from '@/app/step-up/guided-step-up'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { stubViewportMedia } from '@/__tests__/support/flow-layout'
 
 vi.mock('next/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next/navigation')>()),
@@ -23,6 +26,7 @@ vi.mock('next/navigation', async (importOriginal) => ({
   usePathname: () => '/onboarding',
   useSearchParams: () => new URLSearchParams(),
 }))
+vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined, refetch: vi.fn() }) }))
@@ -126,6 +130,7 @@ describe('the desktop window bar is a top inset for the surfaces fixed to the vi
   })
   afterEach(() => {
     cleanup()
+    vi.unstubAllGlobals()
     document.documentElement.removeAttribute('data-desktop-window-bar')
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
@@ -172,6 +177,44 @@ describe('the desktop window bar is a top inset for the surfaces fixed to the vi
         expect(geometry.shell.top).toBe(0)
         expect(geometry.shell.bottom).toBe(height)
         const tops = await controlTops(page, '[data-shell-header]')
+        expect(tops.length).toBeGreaterThan(0)
+        expect(Math.min(...tops)).toBeGreaterThanOrEqual(DESKTOP_WINDOW_BAR_HEIGHT)
+      } finally { await page.close() }
+    },
+  )
+
+  const noop = () => {}
+  const guidedSurfaces = {
+    'guided overlay flow': {
+      surface: '[data-flow-screen]',
+      element: <FreshStartFlow step="confirm" deletedItems={[]} preservedItems={[]} confirmText="" onConfirmTextChange={noop} loading={false} error="" offline={false} onContinue={noop} onBack={noop} onClose={noop} onReset={noop} />,
+    },
+    'guided step-up': {
+      surface: '[data-guided-step-up]',
+      element: <GuidedStepUp operation="delete" state={{ kind: 'exhausted', backLabel: en.common.back, lockSeconds: 754, onBack: noop }} />,
+    },
+  } as const
+  it.each(PLATFORMS.flatMap((platform) => (Object.keys(guidedSurfaces) as (keyof typeof guidedSurfaces)[]).map((name) => ({ platform, name }))))(
+    'starts the back arrow and the progress of the $name below the $platform bar', async ({ platform, name }) => {
+      const { surface, element } = guidedSurfaces[name]
+      stubViewportMedia(800)
+      await act(async () => {
+        render(<QueryClientProvider client={new QueryClient()}>
+          <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">{element}</NextIntlClientProvider>
+        </QueryClientProvider>)
+      })
+      const markup = document.querySelector(surface)!.outerHTML
+      const page = await browser.newPage({ viewport: { width: 800, height: 600 }, reducedMotion: 'reduce' })
+      try {
+        await page.setContent(rootMarkup(platform, markup, stylesheet))
+        const geometry = await page.evaluate(() => {
+          const back = document.querySelector('[data-question-flow] header button')!.getBoundingClientRect()
+          const progress = document.querySelector('[data-question-flow] header > div')!.getBoundingClientRect()
+          return { backTop: back.top, progressTop: progress.top }
+        })
+        expect(geometry.backTop, JSON.stringify(geometry)).toBeGreaterThanOrEqual(DESKTOP_WINDOW_BAR_HEIGHT)
+        expect(geometry.progressTop, JSON.stringify(geometry)).toBeGreaterThanOrEqual(DESKTOP_WINDOW_BAR_HEIGHT)
+        const tops = await controlTops(page, surface)
         expect(tops.length).toBeGreaterThan(0)
         expect(Math.min(...tops)).toBeGreaterThanOrEqual(DESKTOP_WINDOW_BAR_HEIGHT)
       } finally { await page.close() }

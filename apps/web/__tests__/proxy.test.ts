@@ -404,7 +404,7 @@ describe('proxy', () => {
     '/profile',
     '/profile/account',
     '/profile/preferences',
-    '/profile/astra',
+    '/profile/ai',
     '/profile/notifications',
     '/manifest.webmanifest/private',
     '/manifest.webmanifest.json',

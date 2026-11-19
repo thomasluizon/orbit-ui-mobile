@@ -23,6 +23,8 @@ module.exports = {
                 roles: { type: 'array', items: { type: 'string' } },
                 iconOnly: { type: 'boolean' },
                 iconAction: { type: 'boolean' },
+                /** A control with its own documented cap, such as a quick option (4) or the destination action of a result dialog (3). */
+                maxWords: { type: 'integer', minimum: 1 },
               },
               required: ['name'],
               additionalProperties: false,
@@ -70,10 +72,11 @@ module.exports = {
         }
 
         const reported = new Set()
+        const limit = control.maxWords ?? MAX_CONTROL_WORDS
         for (const candidate of candidates) {
           const count = wordCount(candidate.label)
           const identity = `${candidate.locale}\u0000${candidate.label}`
-          if (count === null || count <= MAX_CONTROL_WORDS || reported.has(identity)) continue
+          if (count === null || count <= limit || reported.has(identity)) continue
           reported.add(identity)
           context.report({
             node: openingElement,
@@ -83,7 +86,7 @@ module.exports = {
               label: candidate.label,
               count: String(count),
               locale: candidate.locale,
-              limit: String(MAX_CONTROL_WORDS),
+              limit: String(limit),
             },
           })
         }

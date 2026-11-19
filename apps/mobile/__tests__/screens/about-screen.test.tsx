@@ -249,8 +249,9 @@ describe('AboutScreen', () => {
       const onPress = destinations[1]!.props.onPress as () => void
       onPress()
     })
-    expect(textContent(tree.root.findAll((node) => node.props.testID === 'guide-sheet')[0]!))
-      .toContain('Orbit guide')
+    const guideSheet = textContent(tree.root.findAll((node) => node.props.testID === 'guide-sheet')[0]!)
+    expect(guideSheet).toContain(en.onboarding.featureGuide.question)
+    expect(guideSheet).not.toContain('Orbit guide')
 
     TestRenderer.act(() => {
       destinations.slice(2).forEach((destination) => {

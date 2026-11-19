@@ -297,6 +297,12 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:common.syncOrphanedDetail": {
+      "targets": [
+        "mobile:display:common.syncOrphanedDetail"
+      ],
+      "reason": "The same sentence follows the recovery message of the create surface, which now sits outside the form action owner."
+    },
     "mobile:control:common.top": {
       "targets": [
         "mobile:control:common.backToTop"
@@ -1329,7 +1335,7 @@
       "targets": [
         "mobile:display:common.never"
       ],
-      "reason": "ApiKeyDetails in apps/mobile/components/profile/profile-api-keys.tsx renders common.never when an existing key has no expiry, independently of the creation input placeholder."
+      "reason": "ApiKeyDetails in apps/mobile/components/profile/api-key-list.tsx renders common.never when an existing key has no expiry, independently of the creation input placeholder."
     },
     "mobile:display:common.no": {
       "targets": [
@@ -1510,7 +1516,7 @@
         "mobile:control:habits.form.habitTypeAvoidHint"
       ],
       "owners": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
+        "apps/mobile/components/habits/habit-form-fields/habit-avoidance-fields.tsx"
       ],
       "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },
@@ -1519,7 +1525,7 @@
         "mobile:control:habits.form.habitTypeBuildHint"
       ],
       "owners": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
+        "apps/mobile/components/habits/habit-form-fields/habit-avoidance-fields.tsx"
       ],
       "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },
@@ -3552,7 +3558,7 @@
         "web:control:habits.form.habitTypeAvoidHint"
       ],
       "owners": [
-        "apps/web/components/habits/habit-form-fields.tsx"
+        "apps/web/components/habits/habit-form-fields/habit-avoidance-fields.tsx"
       ],
       "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },
@@ -3561,7 +3567,7 @@
         "web:control:habits.form.habitTypeBuildHint"
       ],
       "owners": [
-        "apps/web/components/habits/habit-form-fields.tsx"
+        "apps/web/components/habits/habit-form-fields/habit-avoidance-fields.tsx"
       ],
       "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },
@@ -3932,6 +3938,12 @@
         "web:route:/profile"
       ],
       "reason": "Perfil owns the former Explore entries; each action is audited independently."
+    },
+    "web:route:/profile/astra": {
+      "targets": [
+        "web:route:/profile/ai"
+      ],
+      "reason": "The AI settings page moved to /profile/ai (#2121). The old slug redirects there."
     },
     "web:route:/streak": {
       "targets": [

@@ -12,12 +12,15 @@ import {
   type OrbitMascotFrame,
   type OrbitMascotProps,
   type OrbitMascotSmallSize,
+  type OrbitShownState,
   type OrbitSmallFaceFrame,
 } from '@orbit/shared/contracts/brand'
 import { mascotMotion } from '@orbit/shared/theme'
 
 
 const ORBIT_REST_FRAME = orbitMascotFrame(0, mascotMotion)
+
+const ORBIT_EYES_AT_REST = { x: 0, y: 0 } as const
 
 function Eye({ shape, blink }: Readonly<{ shape: OrbitEyeShape; blink?: string }>) {
   if (shape.kind === 'fill') return <path d={shape.d} fill="var(--bg)" transform={blink} data-part="eye" />
@@ -52,7 +55,7 @@ function Planet({ viewBox, outline, outlineTransform, clipId, children }: Readon
   )
 }
 
-function Rig({ state, frame, clipId }: Readonly<{ state: NonNullable<OrbitMascotProps['state']>; frame: OrbitMascotFrame; clipId: string }>) {
+function Rig({ state, frame, clipId, eyeOffset }: Readonly<{ state: NonNullable<OrbitMascotProps['state']>; frame: OrbitMascotFrame; clipId: string; eyeOffset: { readonly x: number; readonly y: number } }>) {
   const face = ORBIT_MASCOT_FACES[state]
   const blink = face.blinkCentreY === null ? undefined : orbitBlinkMatrix(frame.blinkScale, face.blinkCentreY)
   return (
@@ -61,9 +64,11 @@ function Rig({ state, frame, clipId }: Readonly<{ state: NonNullable<OrbitMascot
       {frame.moon.front ? null : <Moon frame={frame} />}
       <Planet viewBox={ORBIT_MASCOT_VIEW_BOX} outline={frame.ringOutline} clipId={clipId}>
         <circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} fill="currentColor" />
-        {face.eyes.map((shape) => (
-          <Eye key={shape.d} shape={shape} blink={blink} />
-        ))}
+        <g transform={`translate(${eyeOffset.x} ${eyeOffset.y})${frame.eyeWiden === 1 ? '' : ` scale(${frame.eyeWiden} 1)`}`} data-part="eyes">
+          {face.eyes.map((shape) => (
+            <Eye key={shape.d} shape={shape} blink={blink} />
+          ))}
+        </g>
       </Planet>
       <path d={frame.ringFront} fill="currentColor" />
       {frame.moon.front ? <Moon frame={frame} /> : null}
@@ -97,10 +102,13 @@ interface OrbitMascotDrawingProps extends Pick<OrbitMascotProps, 'size' | 'color
   readonly frame?: OrbitMascotFrame
   readonly smallMotion?: OrbitSmallFaceFrame
   readonly running?: boolean
+  readonly shownState?: OrbitShownState
+  readonly turning?: boolean
+  readonly eyeOffset?: { readonly x: number; readonly y: number }
   readonly ref?: React.Ref<SVGSVGElement>
 }
 
-export function OrbitMascotDrawing({ size, state = 'parado', color, clipId, frame = ORBIT_REST_FRAME, smallMotion, running = false, ref }: Readonly<OrbitMascotDrawingProps>) {
+export function OrbitMascotDrawing({ size, state = 'parado', shownState = state, color, clipId, frame = ORBIT_REST_FRAME, smallMotion, running = false, turning = false, eyeOffset = ORBIT_EYES_AT_REST, ref }: Readonly<OrbitMascotDrawingProps>) {
   const small = isOrbitMascotSmallSize(size)
   return (
     <svg
@@ -112,11 +120,12 @@ export function OrbitMascotDrawing({ size, state = 'parado', color, clipId, fram
       color={color ?? 'var(--fg-1)'}
       aria-hidden="true"
       data-asset="orbit-mascot"
-      data-orbit-state={state}
+      data-orbit-state={shownState}
       data-orbit-face={small ? 'small' : 'rig'}
       data-orbit-loop={running ? 'running' : 'still'}
+      data-orbit-turn={turning ? 'turning' : 'rest'}
     >
-      {small ? <SmallFace size={size} clipId={clipId} motion={smallMotion} /> : <Rig state={state} frame={frame} clipId={clipId} />}
+      {small ? <SmallFace size={size} clipId={clipId} motion={smallMotion} /> : <Rig state={state} frame={frame} clipId={clipId} eyeOffset={eyeOffset} />}
     </svg>
   )
 }

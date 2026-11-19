@@ -12,6 +12,10 @@ import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { HabitCreateActions } from './habit-create-actions'
 import { HabitCreateFrame } from './habit-create-frame'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { useFlag } from '@/hooks/use-flag'
+import { captureGuidedFlowCompleted } from '@/lib/posthog'
+import { GuidedHabitFlow, type GuidedHabitCompletion, type GuidedHabitFields } from './guided/guided-habit-flow'
+import { HabitResultDialog } from './guided/habit-result-dialog'
 
 import { HabitFormFields } from './habit-form-fields'
 import {
@@ -35,7 +39,7 @@ import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
   applyHabitEmojiSuggestion,
-  reportHabitFormValidationError,
+  reportRefusedHabitSave,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
@@ -48,8 +52,9 @@ import {
   resolveAutoManagedReminderEnabled,
   resolveSupportedLocale,
   toggleSelectedId,
+  optimisticHabitResult,
 } from '@orbit/shared/utils'
-import type { HabitFormProposal, HabitPhraseFormOwnership } from '@orbit/shared/utils'
+import type { HabitFormProposal, HabitPhraseFormOwnership, HabitResultItem } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { habitSuggestionCreateValues } from '@orbit/shared/chat'
 import type { HabitSuggestionDraft } from '@orbit/shared/types'
@@ -164,6 +169,10 @@ export function CreateHabitModal({
   const [emojiFailure, setEmojiFailure] = useState<{ title: string; message: string; atLimit: boolean } | null>(null)
   const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
+  const guided = useFlag('orbit_guided_flows')
+  const [saved, setSaved] = useState<{ id: string; optimistic: HabitResultItem } | null>(null)
+  const [flowRun, setFlowRun] = useState(0)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const activeView = useUIStore((s) => s.activeView)
 
   const [pendingChecklistItem, setPendingChecklistItem] = useState('')
@@ -308,6 +317,7 @@ export function CreateHabitModal({
       setPendingChecklistItem('')
       setEmojiFailure(null)
       setCreateBoundary(null)
+      setSaveError(null)
       setReminderWasManuallyToggled(false)
       setExpandAdvancedSignal(0)
       formHelpers.clearBackendErrors()
@@ -359,7 +369,7 @@ export function CreateHabitModal({
       )
     })
     // react-doctor-disable-next-line exhaustive-deps -- reset-on-open must run once per open transition only, never re-fire on formHelpers/tags/parentHabit reference churn while already open; latest values are read from resetOnOpenRef, updated every render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [open, replaceSubHabits])
+  }, [open, replaceSubHabits, flowRun])
 
   useEffect(() => {
     if (!open) return
@@ -411,17 +421,17 @@ export function CreateHabitModal({
       return
     }
     if (formHelpers.reportBackendErrors(error)) return
-    showError(
-      getFriendlyErrorMessage(
-        error,
-        translate,
-        isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit',
-        isSubHabitMode ? 'subHabit' : 'habit',
-      ),
+    const message = getFriendlyErrorMessage(
+      error,
+      translate,
+      isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit',
+      isSubHabitMode ? 'subHabit' : 'habit',
     )
-  }, [formHelpers, isSubHabitMode, showError, translate])
+    if (guided) setSaveError(message)
+    else showError(message)
+  }, [formHelpers, guided, isSubHabitMode, showError, translate])
 
-  const submitCreate = useCallback(async (startRequest: () => void): Promise<SubmitOutcome> => {
+  const submitCreate = useCallback(async (startRequest: () => void, completion?: GuidedHabitCompletion): Promise<SubmitOutcome> => {
     flushBufferedInputsRef.current()
 
     const subHabitValues = subHabits.map((entry) => entry.value)
@@ -434,9 +444,10 @@ export function CreateHabitModal({
       subHabits: subHabitValues,
     })
     if (error) {
-      reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
+      reportRefusedHabitSave(error, { guided, showSaveError: setSaveError, getFieldState: formHelpers.form.getFieldState, showError })
       return 'stay'
     }
+    setSaveError(null)
     const data = habitFormSchema.parse(formHelpers.form.getValues())
 
     startRequest()
@@ -452,7 +463,7 @@ export function CreateHabitModal({
           data: subRequest,
         })
       } else {
-        const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(i18n.language), phraseOwnershipRef.current)
+        const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(i18n.language), phraseOwnershipRef.current, guided)
         const request = buildCreateHabitRequest(
           { ...data, title },
           reminderTimes,
@@ -460,7 +471,12 @@ export function CreateHabitModal({
           selectedGoalIds,
           subHabitValues,
         )
-        await createHabit.mutateAsync(request)
+        const created = await createHabit.mutateAsync(request)
+        if (guided) {
+          captureGuidedFlowCompleted('habit_create', completion?.stepCount ?? 0, completion?.usedAiRead ?? false)
+          setSaved({ id: created.id, optimistic: optimisticHabitResult(data) })
+          return 'stay'
+        }
       }
       finishClose(() => { onClose(); onCreated?.() }, true)
       return 'leave'
@@ -479,11 +495,12 @@ export function CreateHabitModal({
     reminderTimes,
     createHabit,
     createSubHabit,
+    guided,
     finishClose,
     onClose,
     onCreated,
-    showError,
     reportCreateFailure,
+    showError,
   ])
 
   const handleSuggestEmoji = useCallback(async () => {
@@ -620,9 +637,121 @@ export function CreateHabitModal({
   const sheetTitle = resolveCreateSheetTitle(isSubHabitMode, t, formHelpers.form.watch('itemType') === 'task')
   const lockedGeneral = parentHabit?.isGeneral ?? null
 
+  function buildFieldProps(): GuidedHabitFields {
+    return {
+    pendingChecklistItem,
+    onPendingChecklistItemChange: setPendingChecklistItem,
+    tags,
+    selectedGoalIds,
+    atGoalLimit,
+    onToggleGoal: toggleGoal,
+    reminderTimes,
+    onReminderTimesChange: setReminderTimes,
+    onReminderEnabledChange: handleReminderEnabledChange,
+    onSuggestionContextChange: suggestionRevision.advance,
+    onPhraseOwnershipChange: handlePhraseOwnershipChange,
+    onResolveSubHabitProposalReady: handleResolveSubHabitProposalReady,
+    expandAdvancedSignal,
+    onSuggestSetup: isSubHabitMode ? undefined : handleSuggest,
+    onSuggestEmoji: handleSuggestEmoji,
+    isEmojiSuggesting,
+    emojiSuggestionError: emojiFailure?.title === watchedTitle && !emojiFailure.atLimit ? emojiFailure.message : undefined,
+    emojiSuggestionLimitReached: emojiFailure?.title === watchedTitle && emojiFailure.atLimit,
+    isSuggesting: suggestion.isPending,
+    readPhraseLocally: true,
+    lockedGeneral,
+    onUpgrade: navigateToUpgrade,
+    children: isSubHabitMode ? undefined : (proposedItemCount: number) => (
+      <SubHabitEditor
+        task={formHelpers.form.watch('itemType') === 'task'}
+        subHabits={subHabits}
+        proposedItemCount={proposedItemCount}
+        onUpdateSubHabit={updateSubHabitValue}
+        onRemoveSubHabit={removeSubHabit}
+        onAddSubHabit={addSubHabit}
+        tokens={tokens}
+        styles={styles}
+      />
+    ),
+    }
+  }
+
+  function renderFormFields() {
+    return (
+      <View style={styles.scrollContent}>
+        {recoveryMessage ? <Text style={{ color: tokens.fg2 }}>{recoveryMessage} {t('common.syncOrphanedDetail')}</Text> : null}
+        <HabitFormFields formHelpers={formHelpers} onFlushBufferedInputsReady={handleBufferedInputsReady} {...buildFieldProps()} />
+      </View>
+    )
+  }
+
+  function renderCreateActions() {
+    return (
+      <>
+          <View accessibilityLiveRegion="polite" style={createBoundary ? { paddingBottom: 12 } : undefined}>
+            <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
+          </View>
+          <HabitCreateActions task={formHelpers.form.watch('itemType') === 'task'} presentation={presentation} pending={isPending}
+            empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
+            onCancel={dismissGuard.requestDismiss} onSubmit={() => void runSubmission(submitCreate)} />
+      </>
+    )
+  }
+
+  function renderGuidedFlow() {
+    const task = formHelpers.form.watch('itemType') === 'task'
+    const createLabel = isSubHabitMode ? t('common.create') : t(task ? 'habits.createTask' : 'habits.createHabit')
+    return (
+      <GuidedHabitFlow
+        key={flowRun}
+        formHelpers={formHelpers}
+        fields={{ ...buildFieldProps(), subHabitTitles: subHabits.map((entry) => entry.value), linkedGoals: parentHabit?.linkedGoals }}
+        lockedGeneral={lockedGeneral}
+        fromConversation={fromConversation}
+        pending={isPending}
+        saveError={saveError}
+        notice={<CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />}
+        createLabel={createLabel}
+        onSubmit={(completion) => void runSubmission((startRequest) => submitCreate(startRequest, completion))}
+        onClose={dismissGuard.requestDismiss}
+      />
+    )
+  }
+
+  const discardSheet = (
+    <DiscardChangesSheet
+      open={dismissGuard.showDiscardDialog}
+      onKeepEditingStart={() => {
+        pendingNavigation.current = null
+        dismissGuard.beginCancelDismiss()
+      }}
+      onKeepEditing={() => {
+        if (!dismissGuard.isCancelling) pendingNavigation.current = null
+        dismissGuard.cancelDismiss()
+      }}
+      onDismissDuringClose={dismissGuard.requestDismiss}
+      onDiscard={dismissGuard.confirmDismiss}
+    />
+  )
+
+  const result = saved ? (
+    <HabitResultDialog
+      habitId={saved.id}
+      optimistic={saved.optimistic}
+      change="created"
+      onClose={() => {
+        setSaved(null)
+        finishClose(() => { onClose(); onCreated?.() })
+      }}
+      onCreateAnother={() => { setSaved(null); setSaveError(null); setFlowRun((run) => run + 1) }}
+    />
+  ) : undefined
   return (
     <>
       {open ? (<HabitCreateFrame
+        guided={guided}
+        discardSheet={guided ? discardSheet : undefined}
+        result={result}
         presentation={presentation}
         fromConversation={fromConversation}
         leaving={leaveAction !== null}
@@ -632,72 +761,13 @@ export function CreateHabitModal({
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={sheetTitle}
-        actions={<>
-          <View accessibilityLiveRegion="polite" style={createBoundary ? { paddingBottom: 12 } : undefined}>
-            <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
-          </View>
-          <HabitCreateActions task={formHelpers.form.watch('itemType') === 'task'} presentation={presentation} pending={isPending}
-            empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
-            onCancel={dismissGuard.requestDismiss} onSubmit={() => void runSubmission(submitCreate)} />
-        </>}
+        actions={guided ? undefined : renderCreateActions()}
 
       >
-        <View style={styles.scrollContent}>
-          {recoveryMessage ? <Text style={{ color: tokens.fg2 }}>{recoveryMessage} {t('common.syncOrphanedDetail')}</Text> : null}
-          <HabitFormFields
-              pendingChecklistItem={pendingChecklistItem}
-              onPendingChecklistItemChange={setPendingChecklistItem}
-            formHelpers={formHelpers}
-            tags={tags}
-            selectedGoalIds={selectedGoalIds}
-            atGoalLimit={atGoalLimit}
-            onToggleGoal={toggleGoal}
-            reminderTimes={reminderTimes}
-            onReminderTimesChange={setReminderTimes}
-            onReminderEnabledChange={handleReminderEnabledChange}
-            onSuggestionContextChange={suggestionRevision.advance}
-            onPhraseOwnershipChange={handlePhraseOwnershipChange}
-            onFlushBufferedInputsReady={handleBufferedInputsReady}
-            onResolveSubHabitProposalReady={handleResolveSubHabitProposalReady}
-            expandAdvancedSignal={expandAdvancedSignal}
-            onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
-            onSuggestEmoji={handleSuggestEmoji}
-            isEmojiSuggesting={isEmojiSuggesting}
-            emojiSuggestionError={emojiFailure?.title === watchedTitle && !emojiFailure.atLimit ? emojiFailure.message : undefined}
-            emojiSuggestionLimitReached={emojiFailure?.title === watchedTitle && emojiFailure.atLimit}
-            isSuggesting={suggestion.isPending}
-            readPhraseLocally
-            lockedGeneral={lockedGeneral}
-            onUpgrade={navigateToUpgrade}
-          >
-            {(proposedItemCount) => !isSubHabitMode ? (
-              <SubHabitEditor
-                task={formHelpers.form.watch('itemType') === 'task'}
-                subHabits={subHabits}
-                proposedItemCount={proposedItemCount}
-                onUpdateSubHabit={updateSubHabitValue}
-                onRemoveSubHabit={removeSubHabit}
-                onAddSubHabit={addSubHabit}
-                tokens={tokens}
-                styles={styles}
-              />
-            ) : null}
-          </HabitFormFields>
-        </View>
+        {guided ? renderGuidedFlow() : renderFormFields()}
       </HabitCreateFrame>) : null}
-      <DiscardChangesSheet
-        open={dismissGuard.showDiscardDialog}
-        onKeepEditingStart={() => {
-          pendingNavigation.current = null
-          dismissGuard.beginCancelDismiss()
-        }}
-        onKeepEditing={() => {
-          if (!dismissGuard.isCancelling) pendingNavigation.current = null
-          dismissGuard.cancelDismiss()
-        }}
-        onDismissDuringClose={dismissGuard.requestDismiss}
-        onDiscard={dismissGuard.confirmDismiss}
-      />
+      {open ? null : result}
+      {guided ? null : discardSheet}
     </>
   )
 }

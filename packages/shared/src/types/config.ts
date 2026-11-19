@@ -37,6 +37,7 @@ export type FeatureKey =
   | 'astra_status_blocks_disabled'
   | 'astra_record_lists_disabled'
   | 'astra_account_rows_disabled'
+  | 'orbit_guided_flows'
 
 const configLimitsSchema = z.object({
   maxActiveApiKeys: z.number().default(DEFAULT_MAX_ACTIVE_API_KEYS),

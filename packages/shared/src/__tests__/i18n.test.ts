@@ -74,6 +74,7 @@ describe('Portuguese ICU zero plurals', () => {
     ['habits.breakdown.createCount', 'nenhum hábito'],
     ['habits.breakdown.createdSuccess', 'nenhum hábito criado'],
     ['goals.detail.derivedStreak', 'O progresso da sequência é calculado automaticamente, então não pode ser editado aqui.'],
+    ['goals.detail.line.daysLeft', 'Pelas minhas contas, o prazo é hoje.'],
     ['wrapped.slides.streak.caption', 'Seu próximo registro começa uma nova sequência.'],
     ['progressScreen.streak.covered', 'Um congelamento cobriu date. Não resta nenhum.'],
     ['progressScreen.streak.automaticCovered', 'O Orbit cobriu date automaticamente com um congelamento. Não resta nenhum.'],
@@ -245,6 +246,7 @@ describe('i18n locale parity', () => {
       'chat.insight.overview',
       'privacy.intro.body',
       'onboarding.featureGuide.astraSection.cannotDoDesc',
+      'result.task.undated',
     ])
     for (const { catalog, locale, task, internal, general } of [
       { catalog: ptFlat, locale: 'pt-BR', task: 'Tarefa única', internal: /recorrente|flexíve(l|is)|tarefas? únicas?/i, general: /\bgera(l|is)\b/i },
@@ -532,7 +534,7 @@ describe('counted message grammar', () => {
       'charts.bar.selectedDay', 'charts.bar.readout', 'chat.choice.position',
       'chat.habitList.count', 'chat.plan.count', 'chat.insight.pageAnnounce', 'chat.streakCard.xp',
       'chat.recordList.count', 'chat.preview.summary.repeatInterval',
-      'wrapped.progressLabel', 'onboarding.flow.step', 'upgrade.billing.usage.aiMessagesOf',
+      'wrapped.progressLabel', 'onboarding.flow.step', 'habits.flow.progress', 'upgrade.billing.usage.aiMessagesOf',
       'goals.streak.ofTarget', 'progressScreen.streak.freezesCount',
       'progressScreen.goals.position', 'progressScreen.goals.reorderMoved',
       'progressScreen.goals.reorderBoundary', 'progressScreen.achievements.xp',

@@ -5,6 +5,12 @@ import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { useState, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { FlowScreen } from '@/components/ui/flow-screen'
+import { OfflineRefusal } from '@/components/ui/offline-refusal'
+import { GuidedHabitFlow, type GuidedHabitCompletion, type GuidedHabitFields } from '@/components/habits/guided/guided-habit-flow'
+import { HabitResultDialog } from '@/components/habits/guided/habit-result-dialog'
+import { useFlag } from '@/hooks/use-flag'
+import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 import { PillButton } from '@/components/ui/pill-button'
@@ -32,7 +38,7 @@ import {
   applyHabitFormMode,
   buildEditHabitFormState,
   applyHabitEmojiSuggestion,
-  reportHabitFormValidationError,
+  reportRefusedHabitSave,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
@@ -43,6 +49,8 @@ import {
   getHabitDisplayStartDate,
   hasHabitFormProposal,
   rebaseSelectedIds,
+  describeEditDetailsError,
+  resolveGuidedEditDetails,
 } from '@orbit/shared/utils'
 import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
@@ -100,6 +108,8 @@ function EditHabitDraft({
   const updateHabit = useUpdateHabit()
   const [saveError, setSaveError] = useState<string | null>(null)
   const [uncertain, setUncertain] = useState(false)
+  const guided = useFlag('orbit_guided_flows')
+  const [saved, setSaved] = useState(false)
   const { waiting: saving, isRunning: isSubmitting, run: runSubmission, release: releaseSubmission } = useSubmitHold()
   const mountedRef = useRef(true)
   useLayoutEffect(() => {
@@ -174,10 +184,14 @@ function EditHabitDraft({
   const {
     data: habitDetail,
     isPending: detailPending,
+    isFetching: detailFetching,
     error: detailError,
     refetch: refetchDetail,
   } = useHabitDetail(open && habit ? habit.id : null)
+  const sessionHabitId = open && habit ? habit.id : null
   const detailFieldsPending = open && !!habit && detailPending
+  const guidedDetails = resolveGuidedEditDetails({ guided, habitId: sessionHabitId, hasDetail: !!habitDetail, pending: detailPending, fetching: detailFetching, error: detailError })
+  const guidedDetailsError = describeEditDetailsError(guidedDetails.summaryError, translate, () => { void refetchDetail() })
   const parent = useEditorParent(habit, habitDetail, formHelpers.isGeneral, lockedGeneral, translate)
 
   const { sheetRef, closeSheet } = useSheetHost()
@@ -193,15 +207,15 @@ function EditHabitDraft({
     formHelpers.form.setValue('slipAlertEnabled', nextEnabled, { shouldDirty: true })
   }, [formHelpers.form])
 
+  const detailToastError = guidedDetails.toastError
   useEffect(() => {
-    if (detailError) {
+    if (detailToastError) {
       showError(
-        getFriendlyErrorMessage(detailError, translate, 'errors.fetchHabits', 'habit'),
+        getFriendlyErrorMessage(detailToastError, translate, 'errors.fetchHabitDetails', 'habit'),
       )
     }
-  }, [detailError, showError, translate])
+  }, [detailToastError, showError, translate])
 
-  const sessionHabitId = open && habit ? habit.id : null
   useLayoutEffect(() => {
     suggestionRevision.advance()
   }, [sessionHabitId, suggestionRevision])
@@ -318,7 +332,7 @@ function EditHabitDraft({
     })
 
     if (error) {
-      reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
+      reportRefusedHabitSave(error, { guided, showSaveError: setSaveError, getFieldState: formHelpers.form.getFieldState, showError })
       return null
     }
     const data = habitFormSchema.parse(formHelpers.form.getValues())
@@ -352,7 +366,7 @@ function EditHabitDraft({
     return { parentId: readback.data.parentId }
   }
 
-  async function submitSave(startRequest: () => void): Promise<SubmitOutcome> {
+  async function submitSave(startRequest: () => void, completion?: GuidedHabitCompletion): Promise<SubmitOutcome> {
     if (!habit) return 'stay'
     const generation = getAccountGeneration()
     const isCurrent = () => mountedRef.current && getAccountGeneration() === generation
@@ -367,6 +381,11 @@ function EditHabitDraft({
       await updateHabit.mutateAsync({ habitId: habit.id, data: request })
       if (!isCurrent()) return 'stay'
       setUncertain(false)
+      if (guided) {
+        captureGuidedFlowCompleted('habit_edit', completion?.stepCount ?? 1, completion?.usedAiRead ?? false)
+        setSaved(true)
+        return 'stay'
+      }
       closeSheet(() => { releaseSubmission(); onOpenChange(false) })
       await onSaved?.()
       return 'leave'
@@ -479,8 +498,57 @@ function EditHabitDraft({
     }
   }, [allowanceText, isSubmitting, formHelpers, locale, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
+  const fieldProps: GuidedHabitFields = {
+    pendingChecklistItem,
+    onPendingChecklistItemChange: setPendingChecklistItem,
+    habitId: sessionHabitId ?? undefined,
+    tags: trackedTags,
+    selectedGoalIds,
+    atGoalLimit,
+    onToggleGoal: toggleGoal,
+    onGoalCreated: selectCreatedGoal,
+    reminderTimes,
+    onReminderTimesChange: setReminderTimes,
+    onSlipAlertEnabledChange: handleSlipAlertEnabledChange,
+    onSuggestionContextChange: suggestionRevision.advance,
+    onSuggestSetup: handleSuggest,
+    onSuggestEmoji: handleSuggestEmoji,
+    isEmojiSuggesting,
+    emojiSuggestionError: emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && !emojiFailure.atLimit ? emojiFailure.message : undefined,
+    emojiSuggestionLimitReached: emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && emojiFailure.atLimit,
+    isSuggesting: suggestion.isPending,
+    lockedGeneral: parent.lockedGeneral,
+    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || detailFieldsPending} guided={guided} onRetryDetail={() => void refetchDetail()} />,
+    defaultExpanded: true,
+    startDate: habit && getHabitDisplayStartDate(habit),
+  }
+
+  function renderGuidedEdit() {
+    const title = t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')
+    return (
+      <FlowScreen label={title} onDismiss={() => { if (!isSubmitting()) dismissGuard.requestDismiss() }}>
+        <GuidedHabitFlow
+          mode="edit"
+          formHelpers={formHelpers}
+          fields={{ ...fieldProps, parentValue: parent.value, linkedGoals: habitDetail?.linkedGoals ?? habit?.linkedGoals }}
+          lockedGeneral={parent.lockedGeneral}
+          fromConversation={Boolean(initialSuggestion)}
+          pending={saving}
+          detailsLoading={guidedDetails.loading}
+          detailsError={guidedDetailsError}
+          saveError={saveError}
+          notice={isOnline ? null : <div role="status"><OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /></div>}
+          createLabel={t('common.save')}
+          onSubmit={(completion) => { if (habit && isOnline && !guidedDetails.blocked) void runSubmission((startRequest) => submitSave(startRequest, completion)) }}
+          onClose={() => { if (!isSubmitting()) dismissGuard.requestDismiss() }}
+        />
+      </FlowScreen>
+    )
+  }
+
   function renderEditSheet() {
     if (!open) return null
+    if (guided) return saved ? null : renderGuidedEdit()
     return (
       <Sheet
         ref={sheetRef}
@@ -512,33 +580,7 @@ function EditHabitDraft({
               detailFieldsPending ? 'pointer-events-none opacity-60' : ''
             }`}
           >
-            <HabitFormFields
-              disabled={detailFieldsPending || saving}
-              pendingChecklistItem={pendingChecklistItem}
-              onPendingChecklistItemChange={setPendingChecklistItem}
-              habitId={sessionHabitId ?? undefined}
-              formHelpers={formHelpers}
-              titleInputRef={titleInputRef}
-              tags={trackedTags}
-              selectedGoalIds={selectedGoalIds}
-              atGoalLimit={atGoalLimit}
-              onToggleGoal={toggleGoal}
-              onGoalCreated={selectCreatedGoal}
-              reminderTimes={reminderTimes}
-              onReminderTimesChange={setReminderTimes}
-              onSlipAlertEnabledChange={handleSlipAlertEnabledChange}
-              onSuggestionContextChange={suggestionRevision.advance}
-              onSuggestSetup={handleSuggest}
-              onSuggestEmoji={handleSuggestEmoji}
-              isEmojiSuggesting={isEmojiSuggesting}
-              emojiSuggestionError={emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && !emojiFailure.atLimit ? emojiFailure.message : undefined}
-              emojiSuggestionLimitReached={emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && emojiFailure.atLimit}
-              isSuggesting={suggestion.isPending}
-              lockedGeneral={parent.lockedGeneral}
-              parentField={<EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || detailFieldsPending} onRetryDetail={() => void refetchDetail()} />}
-              defaultExpanded
-              startDate={habit && getHabitDisplayStartDate(habit)}
-            />
+            <HabitFormFields disabled={detailFieldsPending || saving} formHelpers={formHelpers} titleInputRef={titleInputRef} {...fieldProps} />
           </fieldset>
         </form>
       </Sheet>
@@ -548,6 +590,13 @@ function EditHabitDraft({
   return (
     <>
       {renderEditSheet()}
+      {saved && habit ? (
+        <HabitResultDialog
+          habitId={habit.id}
+          change="updated"
+          onClose={() => { setSaved(false); onOpenChange(false); void onSaved?.() }}
+        />
+      ) : null}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
         message={uncertain ? t('habits.form.saveUncertain') : undefined}

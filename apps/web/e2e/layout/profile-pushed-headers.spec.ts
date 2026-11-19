@@ -65,7 +65,7 @@ for (const width of [320, 412, 600, 1280, 1352]) {
         ['/about', messages.profile.aboutRow, messages.about.title],
         ['/profile/account', null, messages.profile.submenus.account],
         ['/profile/preferences', messages.profile.submenus.preferences, messages.profile.submenus.preferences],
-        ['/profile/astra', messages.profile.groups.astra, messages.profile.groups.astra],
+        ['/profile/ai', messages.profile.groups.astra, messages.profile.groups.astra],
         ['/profile/notifications', messages.profile.groups.notifications, messages.profile.groups.notifications],
       ] as const) {
         test(`${path} retains its header after client navigation`, async ({ page }) => {
@@ -91,13 +91,13 @@ for (const width of [320, 412, 600, 1280, 1352]) {
         await assertPushedHeader(page, messages.notifications.title, messages.common.back)
       })
 
-      test('API keys live in the Astra sub-screen', async ({ page }) => {
+      test('API keys live in the AI settings sub-screen', async ({ page }) => {
         await openProfile(page)
         await page.getByRole('link', { name: messages.profile.groups.astra, exact: true }).click()
         const keys = page.getByTestId('profile-api-keys')
         await expect(keys.getByRole('heading', { name: messages.profile.settingsRows.apiKeysMcp })).toBeVisible()
         await expect(keys.getByRole('button', { name: messages.profile.apiKeys.unlock, exact: true })).toBeVisible()
-        await expect(page).toHaveURL(/\/profile\/astra$/)
+        await expect(page).toHaveURL(/\/profile\/ai$/)
       })
 
       test.describe('paid subscription', () => {
@@ -115,10 +115,10 @@ for (const width of [320, 412, 600, 1280, 1352]) {
           await openProfile(page)
           await page.getByRole('link', { name: messages.profile.groups.astra, exact: true }).click()
           await page.getByRole('link', { name: messages.profile.allowance.manageSubscription, exact: true }).click()
-          await expect(page).toHaveURL(/\/upgrade\?from=%2Fprofile%2Fastra$/)
+          await expect(page).toHaveURL(/\/upgrade\?from=%2Fprofile%2Fai$/)
           await expect(page.getByRole('heading', { level: 1, name: messages.upgrade.title, exact: true })).toBeVisible()
           await page.getByRole('button', { name: messages.common.backToOrbit, exact: true }).click()
-          await expect(page).toHaveURL(/\/profile\/astra$/)
+          await expect(page).toHaveURL(/\/profile\/ai$/)
         })
       })
     })
