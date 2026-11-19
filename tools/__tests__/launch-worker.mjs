@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
+import { HERMETIC_LAUNCH_GATE, processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
 import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, REVIEW_BATCH_ORDER_MARKER, writeRunState } from "../lib/run-state.mjs"
 import { cases as lifecycleCases, cleanupLifecycleLaunch, gateSignalCases, launcherResult } from "./launch-worker-lifecycle.mjs"
 import { SIGN_IN_TEXT, TRANSIENT_TEXT, limitResultLine, resultLine, signInFailureLines } from "./claude-usage-limit.mjs"
@@ -17,7 +17,7 @@ const TOOL = "launch-worker.mjs"
  * is swapped by default: the configured worker is `claude`, which is not installed in CI, and a
  * gate that needs a model CLI on PATH is not hermetic.
  */
-const launchConfig = ({ engine = {}, timeouts = {}, caps = {}, launchGate = { loadMax: 1_000_000, spacingSeconds: 0 } } = {}) => {
+const launchConfig = ({ engine = {}, timeouts = {}, caps = {}, launchGate = HERMETIC_LAUNCH_GATE } = {}) => {
   const real = realOrchestratorConfig()
   return {
     ...real,
@@ -954,6 +954,21 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
     { path: innerSpawnFailure.path, env: { ...innerFailureEnv, NODE_OPTIONS: `${innerFailureEnv.NODE_OPTIONS} --require "${failGateSpawn}"` } },
   )
   discardLog(innerFailure.stdout)
+
+  const refusedGate = (launchGate) => {
+    try {
+      stageWithConfig("launch-worker-gate-refusal", TOOL, { ...realOrchestratorConfig(), launchGate })
+      return null
+    } catch (error) {
+      return error.message
+    }
+  }
+  T(
+    `${TOOL}: a staged launcher refuses the shipped launch gate, so a case module fails at once instead of waiting out the spacing`,
+    /launchGate: HERMETIC_LAUNCH_GATE/.test(refusedGate(realOrchestratorConfig().launchGate) ?? "") && /launchGate: HERMETIC_LAUNCH_GATE/.test(refusedGate(undefined) ?? ""),
+    String(refusedGate(realOrchestratorConfig().launchGate)),
+  )
+  T(`${TOOL}: a staged launcher accepts the hermetic launch gate`, refusedGate(HERMETIC_LAUNCH_GATE) === null, String(refusedGate(HERMETIC_LAUNCH_GATE)))
 
   const dryRun = check(TOOL, "--dry-run resolves the plan and exits 0", [...argv, "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, options)
   const real = realOrchestratorConfig()

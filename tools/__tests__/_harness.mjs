@@ -452,7 +452,20 @@ export const check = (file, name, argv, expect, options = {}) => {
   return result
 }
 
+/**
+ * The launch gate every staged launch uses. launch-worker.mjs waits at passLaunchGate for the configured spacing
+ * since the previous launch of the checkout, so a staged config that keeps the shipped 45 seconds makes each
+ * second launch of one case module sleep. The load ceiling is far above any real load.
+ */
+export const HERMETIC_LAUNCH_GATE = { loadMax: 1_000_000, spacingSeconds: 0 }
+
+/** The tool that passes the launch gate. A staged copy of it must never wait at the real gate. */
+const LAUNCH_GATE_TOOL = "launch-worker.mjs"
+
 export const stageWithConfig = (label, tool, config) => {
+  if (tool === LAUNCH_GATE_TOOL && config.launchGate?.spacingSeconds !== 0) {
+    throw new Error(`stageWithConfig("${label}"): ${tool} passes the launch gate, so the staged config needs launchGate: HERMETIC_LAUNCH_GATE (spacingSeconds 0), got ${JSON.stringify(config.launchGate)}`)
+  }
   const base = join(root, "staged", label)
   mkdirSync(join(base, "tools"), { recursive: true })
   mkdirSync(join(base, ".claude"), { recursive: true })
