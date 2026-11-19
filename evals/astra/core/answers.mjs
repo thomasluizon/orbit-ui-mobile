@@ -82,6 +82,15 @@ function pickOnList(card, trace, recordId, locale) {
   return row ? { message: formatBlockAnswer([row.label], undefined, locale), blockAnswer: { blockId: card.block.blockId, selectedIds: [row.id] } } : null
 }
 
+// How many records of a set the card offers as an option of their own: an option that stands for exactly that record. A case
+// that states `answer.separate` (the name of a set of its fixture) needs the card to offer each record of the set so, and a card
+// with no option for the picked record fails the case: the person cannot answer such a card by typing. A same-title card is a
+// choice or a question card: a list card holds no update (questionOf), so no case that states `separate` meets one.
+function separatelyOffered(card, trace, set) {
+  const single = new Set([...optionTargets(selectionLists(card), trace).values()].filter((targets) => targets.length === 1).flat())
+  return { count: set.filter((id) => single.has(id)).length, of: set.length }
+}
+
 // What the person does when the assistant asks with a card (questionOf): answer it through blockAnswer when the card
 // can hold the decision of the case, and type the decision when it cannot. A same-title card that cannot hold the decision fails
 // the case, because the person cannot answer it. runCase answers only a question past the typed messages that the case
@@ -104,9 +113,14 @@ export async function answerQuestion(turn, vars) {
       sameTitleSet: { answer: { ...answer.sameTitle, text: answer.text[locale] }, renamed: { title: retitle } } })
   }
   const recordId = pickedRecord(answer.pick, records)
+  const offered = answer.separate ? separatelyOffered(card, turn.trace, records[answer.separate]) : null
+  if (offered && offered.count !== offered.of) {
+    return { pass: false, reason: `The card offers ${offered.count} of the ${offered.of} same-title children as separate options.` }
+  }
   const selection = card.kind === 'pickList' ? pickOnList(card, turn.trace, recordId, locale) : pickOnCard(card, turn.trace, recordId, locale)
   if (selection?.limit) {
     return { pass: false, graderLimit: true, reason: 'The grader cannot tell which record each row of the list card stands for.' }
   }
+  if (answer.separate && !selection) return { pass: false, reason: 'The card has no option that stands for the picked record.' }
   return { pass: true, ...(selection ?? { message: answer.text[locale] }) }
 }

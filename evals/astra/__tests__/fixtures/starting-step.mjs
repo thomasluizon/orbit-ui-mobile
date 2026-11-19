@@ -1,5 +1,6 @@
 import { chatResponse, toolCall } from './producer.mjs'
 
+// Producer: orbit-api SuggestBreakdownTool and the oneSmallStep block of the final response.
 export function startingResponse(locale = 'en', requestId = 'request', suppliedSuggestion, supportsContext = false) {
   const portuguese = locale === 'pt-BR'
   const suggestion = suppliedSuggestion ?? { goal: portuguese ? 'Estudar' : 'Study', step: portuguese ? 'Abrir o livro' : 'Open the book', language: locale }

@@ -76,7 +76,7 @@ const reply = (pendingOperations) => ({ ...questionCard, aiMessage: '', parts: [
 const meditar = () => createPreview('Meditar', { frequency_unit: 'Day', frequency_quantity: '1' })
 
 describe('how a case selects its grade method', () => {
-  it('gives a case with an outcome the outcome grade alone, and each other case the six assertions of the tool-name grade', () => {
+  it('gives a case with an outcome the outcome grade alone, and a refine case the default assertions', () => {
     const tests = corpusTests()
     expect(tests.map((test) => test.metadata.id)).toEqual(corpus.map((entry) => entry.metadata.id))
     const read = tests.find((test) => test.metadata.id === 'single-read-en')
@@ -85,9 +85,9 @@ describe('how a case selects its grade method', () => {
     expect(read.assert[2]).toEqual(configuration.defaultTest.assert.find((assertion) => assertion.type === 'llm-rubric'))
     const write = tests.find((test) => test.metadata.id === 'single-log-en')
     expect(write.assert.map((assertion) => assertion.metric)).toEqual(['outcome', 'composition'])
-    const lifecycle = tests.find((test) => test.metadata.id === 'same-title-split-en')
-    expect(lifecycle.options).toBeUndefined()
-    expect(lifecycle.assert).toBeUndefined()
+    const refine = tests.find((test) => test.metadata.id === 'composition-suggestions-refine-en')
+    expect(refine.options).toBeUndefined()
+    expect(refine.assert).toBeUndefined()
     expect(configuration.defaultTest.assert.map((assertion) => assertion.metric))
       .toEqual(['toolStructure', 'toolBehavior', 'composition', 'savedStep', 'proactiveOffers', 'finalAnswer'])
     expect(configuration.tests).toBe('file://grade-method.mjs:corpusTests')

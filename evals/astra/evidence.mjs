@@ -179,21 +179,8 @@ export function attemptEvidence(entry, attempt) {
     composition: (output?.composition?.parts ?? []).filter((part) => part?.type === 'block')
       .map((part) => ({ kind: part.kind, subtype: part.block?.kind ?? null })),
     toolCalls,
-    ...(output?.restartReadback ? { restart: {
-      proposed: (output.composition.pendingOperations ?? []).flatMap((pending) => pending.items.map((item) => ({
-        title: item.entityName, dueDate: item.fields.find((field) => field.field === 'due_date')?.newValue,
-      }))),
-      ...output.restartReadback,
-    } } : {}),
-    ...(output?.sameTitleReadback || output?.sameTitleAnswer ? { sameTitleSet: {
-      proposed: (output.sameTitleAnswer?.composition ?? output.composition).pendingOperations?.map((pending) => ({ actionKey: pending.actionKey, items: pending.items.length })) ?? [],
-      ...(output.sameTitleAnswer ? { answer: { card: output.sameTitleAnswer.card, message: output.sameTitleAnswer.message ?? null,
-        checks: output.sameTitleAnswer.checks ?? [] } } : {}),
-      ...output.sameTitleReadback,
-    } } : {}),
     timing: timingEvidence(output?.trace?.timing),
     savedStep: entry.gradingResult?.componentResults?.find((assertion) => assertion.assertion?.metric === 'savedStep')?.metadata?.savedStep ?? null,
-    ...(output?.brainDumpReadback ? { brainDumpReadback: output.brainDumpReadback } : {}),
     ...(output?.offerReadback ? { offerReadback: output.offerReadback } : {}),
     renderError: output?.renderError ?? null,
     graderRationale: attempt.assertions.filter((assertion) => assertion.metric === 'finalAnswer')

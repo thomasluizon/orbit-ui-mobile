@@ -1,8 +1,7 @@
 import { suggestionComposition, refineResult } from './suggestions.mjs'
-import { startingStepComposition, validStartingBlock } from './one-small-step.mjs'
+import { startingStepComposition, validStartingBlock, validStartingText } from './one-small-step.mjs'
 import { gradedByOutcome } from './grade-method.mjs'
 import { toolWrites } from './trace-policy.mjs'
-import { brainDumpPreview } from './brain-dumps.mjs'
 import { isDeepStrictEqual } from 'node:util'
 import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfaces.ts'
 import { tsImport } from 'tsx/esm/api'
@@ -69,6 +68,11 @@ function shortLines(value, maximum, allowLists) {
     && (allowLists || !/^\s*(?:[-*•]|\d+[.)])\s/u.test(line)))
 }
 
+// A note beside a preview that the case holds to one sentence with no figure; shortLines holds it to one short line.
+function plainSentence(value) {
+  return !/\d/u.test(value) && (value.match(/[.!?](?:\s|$)/gu)?.length ?? 0) <= 1
+}
+
 function validStepUp(pending) {
   return object(pending) && text(pending.id) && text(pending.displayName) && text(pending.summary)
     && pending.capabilityId === 'api-keys.read' && pending.confirmationRequirement === 'StepUp'
@@ -125,13 +129,24 @@ function coachingStartingStep(parsed, vars) {
     { ...vars, composition: { mode: 'one-small-step' } })
 }
 
-// A case with an outcome names no tool, so its starting step is read from the reply alone: one block with the server
-// actions, no prose and no other surface.
-function startingStepBlock(response, client) {
+// A case with an outcome names no tool, so its starting step is read from the reply alone. A client that shows blocks gets
+// one block with the server actions, no prose and no other surface. A client that shows none gets the readable step alone.
+// A smaller step changes the previous one; the rubric checks its effort and activity.
+function startingStep(response, vars) {
+  const client = vars.clientContext
   const parts = response.parts
   const surfaces = ['actions', 'pendingOperations', 'policyDenials', 'relatedSurfaces', 'followUps', 'followUpContext'].some((key) => response[key]?.length)
     || (response.operations ?? []).some((operation) => operation.status !== 'Succeeded')
-  return !surfaces && client?.supportsParts === true && client.partKinds?.includes('oneSmallStep') && parts.length === 1
+  const legacy = vars.composition.mode === 'one-small-step-legacy'
+  const step = legacy ? response.aiMessage : parts?.[0]?.block?.suggestion?.step
+  if (vars.previousStartingStep && step === vars.previousStartingStep.step) {
+    return result(false, 'A smaller step must change the previous action; the rubric checks effort and activity.')
+  }
+  if (legacy) {
+    return !surfaces && validStartingText(response, client)
+      ? result(true, 'One readable starting step and no block.') : result(false, 'The legacy answer must contain only the readable starting step.')
+  }
+  return !surfaces && client?.supportsParts === true && client.partKinds?.includes('oneSmallStep') && Array.isArray(parts) && parts.length === 1
     && (response.aiMessage == null || response.aiMessage === '') && validStartingBlock(parts[0].block, client.locale)
     ? result(true, 'One starting step with its server actions and no prose.')
     : result(false, 'Missing one starting-step block with server actions and no prose.')
@@ -173,7 +188,7 @@ export function composition(output, context) {
     : parsed.trace?.calls?.some((call) => call.name === 'suggest_breakdown'))
   if (coachingStep || ['one-small-step', 'one-small-step-legacy'].includes(expected.mode)) {
     if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
-    if (byOutcome) return startingStepBlock(response, context.vars.clientContext)
+    if (byOutcome) return startingStep(response, context.vars)
     return coachingStep ? coachingStartingStep(parsed, context.vars) : startingStepComposition(parsed, context.vars)
   }
   if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome', 'step-up', 'crisis'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
@@ -182,11 +197,6 @@ export function composition(output, context) {
     return context.vars.offerFamily === 'crisis' && text(response.aiMessage) && !hasCrisisSurfaces(response)
       ? result(true, 'Verified plain-text crisis response without productivity surfaces.')
       : result(false, 'Crisis response requires plain text without productivity surfaces.')
-  }
-  if (context.vars.brainDump) {
-    const preview = brainDumpPreview(parsed, context.vars)
-    return !preview.pass ? preview : parsed.brainDumpReadback?.pass === true
-      ? parsed.brainDumpReadback : result(false, parsed.brainDumpReadback?.reason ?? 'Missing brain dump approval readback.', parsed.brainDumpReadback?.metadata)
   }
   if (expected.mode === 'suggestions') return suggestionComposition(response, context.vars)
   if ((response.followUps?.length ?? 0) > 2 || (response.followUpContext?.length ?? 0) > 2
@@ -201,7 +211,18 @@ export function composition(output, context) {
       && context.vars.clientContext?.supportsParts !== true && shortLines(response.aiMessage, 3, false)
       ? result(true, 'Verified concise legacy moderation refusal.') : result(false, 'Unexpected moderation refusal.')
   }
-  return partsComposition(parsed, expected, context.vars)
+  return questionTurnFailure(parsed, expected, context.vars) ?? partsComposition(parsed, expected, context.vars)
+}
+
+// The layout of each question turn that a conversation held before the preview of a case that allows one question first:
+// `runCase` (core/conversation.mjs) keeps the response of each such turn, as the final turn holds the preview alone.
+function questionTurnFailure(parsed, expected, vars) {
+  if (expected.mode !== 'preview' || expected.allowQuestion !== true) return null
+  for (const response of parsed.questionResponses ?? []) {
+    const asked = partsComposition({ ...parsed, composition: response }, expected, vars)
+    if (!asked.pass) return { ...asked, reason: `The question before the preview: ${asked.reason}` }
+  }
+  return null
 }
 
 // The ordered parts of an answer: their blocks, their prose, and the layout that the scenario's mode expects.
@@ -237,7 +258,8 @@ function partsComposition(parsed, expected, vars) {
   }
   const outcome = (response.actions?.length ?? 0) > 0 || (response.policyDenials?.length ?? 0) > 0
     || (response.operations ?? []).some((operation) => ['Failed', 'Denied', 'UnsupportedByPolicy'].includes(operation.status))
-  // A preview case may allow one question first; the HTTP provider answers it and grades the answer turn's preview.
+  // A preview case may allow one question first. On the client path the turn that holds the preview is the final turn, and
+  // `questionTurnFailure` grades each earlier question turn; this branch grades a case whose last turn is still a question.
   if (expected.mode === 'preview' && expected.allowQuestion === true && !pending.length && !outcome) {
     const question = blocks.length ? blocks.length === 1 && ['choice', 'question'].includes(blocks[0].kind) && (!external || shortLines(external, 1, false))
       : shortLines(response.aiMessage, 3, false)
@@ -266,7 +288,15 @@ function modeLayout(expected, { response, parts, blocks, pending, outcome, exter
   if (expected.mode === 'clarification' && (blocks.length !== 1 || !['choice', 'question'].includes(blocks[0].kind) || pending.length || outcome)) {
     return result(false, 'Clarification requires plain text without a block or exactly one choice or question card without a write.')
   }
-  if (expected.mode === 'preview' && external && expected.allowPreviewNote !== true) return result(false, 'Preview must be the entire answer.')
+  if (expected.mode === 'preview' && expected.previewOnly === true && (blocks.length || outcome
+    || ['followUps', 'followUpContext'].some((key) => response[key]?.length))) {
+    return result(false, 'A preview case allows only the preview and its note.')
+  }
+  const plainNote = expected.previewNote === 'plain'
+  if (expected.mode === 'preview' && external && expected.allowPreviewNote !== true && !plainNote) return result(false, 'Preview must be the entire answer.')
+  if (expected.mode === 'preview' && plainNote && external && !plainSentence(external)) {
+    return result(false, 'A preview note must be one sentence without a figure.')
+  }
   if (expected.mode === 'preview' && pending.length !== (expected.previews ?? 1)) return result(false, 'Missing batch preview.')
   if (expected.mode === 'outcome' && !outcome) return result(false, 'Missing typed operation outcome.')
   const leadingText = expected.mode === 'data' && parts?.[0]?.type === 'text'

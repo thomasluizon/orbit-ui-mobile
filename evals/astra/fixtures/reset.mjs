@@ -22,7 +22,7 @@ export function requireEvalOrigin() {
   if (!disposableEvalOrigins.includes(apiOrigin())) throw new Error('Fixture reset requires a known eval origin and a disposable eval account.')
 }
 
-export async function clearPendingOperations(api) {
+async function clearPendingOperations(api) {
   for (const [method, field] of [['DELETE', 'cancelledCount'], ['GET', 'pendingCount']]) {
     let response
     for (let attempt = 0; attempt < 3; attempt++) {

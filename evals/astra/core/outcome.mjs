@@ -9,16 +9,33 @@ const sameMembers = (left, right) => left.length === right.length && left.every(
 const tally = (changes) => Object.entries(Object.groupBy(changes, (change) => change.kind))
   .map(([kind, members]) => `${kind} ${members.length}`).join(', ') || 'no change'
 
+// A checklist as the preview shows it (the JSON text of its items, each with is_checked) and as the account stores it
+// (each item with isChecked), in one form: the text and the checked state of each item, in order.
+function checklistOf(value) {
+  try {
+    const items = typeof value === 'string' ? JSON.parse(value) : value
+    return Array.isArray(items) ? items.map((item) => ({ text: item.text, checked: (item.is_checked ?? item.isChecked) === true })) : null
+  } catch {
+    return null
+  }
+}
+
 // The value a field must take: an exact string, a text that holds one of several words, a date counted from the
-// account date, a month and day in any year, a clock time to the minute, one of several exact strings, or an absent
-// field that otherwise holds the value of the inner expectation. A preview has no row for an argument that the model
-// omitted, so an `optional` field passes when it is absent.
+// account date, a date within a span of days counted from it, a month and day in any year, a clock time to the minute,
+// one of several exact strings, a whole checklist, or an absent field that otherwise holds the value of the inner
+// expectation. A preview has no row for an argument that the model omitted, so an `optional` field passes when it is
+// absent.
 export function matchesField(expected, value, accountDate) {
   if (typeof expected === 'string') return value === expected
   if (expected.optional !== undefined) return value == null || matchesField(expected.optional, value, accountDate)
-  if (expected.oneOf) return expected.oneOf.includes(value)
+  if (expected.oneOf) return expected.oneOf.includes(value ?? null)
   if (expected.contains) return expected.contains.some((text) => normalize(value).includes(normalize(text)))
   if (expected.daysFromToday !== undefined) return value === dateOffset(accountDate, expected.daysFromToday)
+  if (expected.withinDays) {
+    const [from, to] = expected.withinDays
+    return /^\d{4}-\d{2}-\d{2}$/u.test(value ?? '') && value >= dateOffset(accountDate, from) && value <= dateOffset(accountDate, to)
+  }
+  if (expected.checklist) return JSON.stringify(checklistOf(value)) === JSON.stringify(expected.checklist)
   if (expected.monthDay) return /^\d{4}-\d{2}-\d{2}$/u.test(value ?? '') && value.slice(5) === expected.monthDay
   if (expected.time) return typeof value === 'string' && value.slice(0, 5) === expected.time
   throw new Error('Unknown field expectation in the core set.')
@@ -33,12 +50,14 @@ const savedField = {
   due_time: (habit) => habit.dueTime,
   frequency_unit: (habit) => habit.frequencyUnit,
   frequency_quantity: (habit) => habit.frequencyQuantity == null ? null : String(habit.frequencyQuantity),
+  checklist_items: (habit) => habit.checklistItems,
 }
 export const detailFields = ['due_time']
 
 // The change whose saved state the readback cannot read: a kind that leaves no mark in the snapshot, a field that no
 // saved record names, or a field of an existing record that only the habit detail holds. The core set refuses such an
-// expected change when it loads (core/corpus.mjs), so the grader never meets one.
+// expected change when it loads (core/corpus.mjs); the launch corpus loads no such gate, so it states such a field
+// (the parent of a create) and the grader reads it on the preview alone (savedFailure).
 export function unreadable({ kind, fields = {} }) {
   if (kind === 'delete' || kind === 'log') return null
   if (kind !== 'create' && kind !== 'update') return kind
@@ -57,14 +76,26 @@ function expectedTargets(targets, records, answered) {
   return targets.count === undefined ? { ids: [...set] } : { among: set, count: targets.count }
 }
 
+// The value of a field in a change. A field that the request lets a record keep (`mayStay`) is the value the preview
+// shows it holding when it is no change (`kept`).
+const heldValue = (expected, change, field) => change.fields[field] ?? (expected.fields[field]?.mayStay ? change.kept?.[field] : undefined)
+
 function fieldFailure(expected, change, accountDate) {
-  const wanted = Object.keys(expected.fields ?? {})
   const changed = Object.keys(change.fields)
+  const wanted = Object.keys(expected.fields ?? {}).filter((field) => changed.includes(field) || heldValue(expected, change, field) === undefined)
   if (expected.kind === 'update' && !sameMembers(changed, wanted)) {
-    return `changes ${changed.join(', ') || 'no field'} where the request changes ${wanted.join(', ')}`
+    return `changes ${changed.join(', ') || 'no field'} where the request changes ${Object.keys(expected.fields ?? {}).join(', ')}`
   }
-  const wrong = wanted.find((field) => !matchesField(expected.fields[field], change.fields[field], accountDate))
-  return wrong ? `gives ${wrong} the value ${JSON.stringify(change.fields[wrong] ?? null)}` : null
+  const wrong = Object.keys(expected.fields ?? {}).find((field) => !matchesField(expected.fields[field], heldValue(expected, change, field), accountDate))
+  return wrong ? `gives ${wrong} the value ${JSON.stringify(heldValue(expected, change, wrong) ?? null)}` : null
+}
+
+// How many of the held changes leave the habit due on the account date, counting a habit that stays due then. A request
+// states the number it needs (`dueToday`: a count, or a span of min and max).
+function dueTodayFailure(expected, held, accountDate) {
+  if (expected.dueToday === undefined) return null
+  const count = held.filter((change) => (change.fields.due_date ?? change.kept?.due_date) === accountDate).length
+  return withinRange(count, expected.dueToday, 0) ? null : `leaves ${count} of ${held.length} due today, and the request needs ${JSON.stringify(expected.dueToday)}`
 }
 
 // Compares the change list of the held previews with the expected list: each expected change is held over exactly its
@@ -90,6 +121,8 @@ function compareChanges(expected, actual, { records, accountDate }, answered) {
       if (wrong) return { failure: `A ${change.kind} of the preview ${wrong}.` }
       remaining.splice(remaining.indexOf(candidate), 1)
     }
+    const spread = dueTodayFailure(change, held, accountDate)
+    if (spread) return { failure: `The ${change.kind} of the preview ${spread}.` }
     matched.push({ expected: change, held })
   }
   return remaining.length ? { failure: `The preview holds a change outside the request. ${needs}` } : { matched }
@@ -107,6 +140,13 @@ function gradeRefusal(output, vars) {
   const { status, code } = output.refused
   return status === vars.expectedHttpStatus && code === vars.expectedErrorCode ? verdict(true, `The request was refused with ${wanted}.`)
     : verdict(false, `The request was refused with HTTP ${status} (${code}); the case expects ${wanted}.`)
+}
+
+// A request that states `distinctTitles` creates each record once: two created records of the preview with one title (in one
+// normal form) are one record held twice.
+function sharedTitle(changes) {
+  const titles = changes.filter((change) => change.kind === 'create' && change.fields.title !== undefined).map((change) => normalize(change.fields.title))
+  return new Set(titles).size !== titles.length
 }
 
 // The outcome of the turns before any approval: the questions that came before the preview, and the change list of the
@@ -136,7 +176,8 @@ export function gradePreview(output, vars) {
   if (!previews.length) return verdict(false, `No preview came after ${questions} question(s).`)
   if (questions < min) return verdict(false, 'The assistant held a change without the question that the request needs.')
   if (!withinRange(previews.length, expected.previews, 1)) return verdict(false, `The request is held in ${previews.length} previews.`)
-  const { changes, unclassified } = changeList(previews, output.written ?? null, { nestedCreates: vars.core.nestedCreates === true })
+  const { changes, unclassified } = changeList(previews, output.written ?? null,
+    { nestedCreates: vars.core.nestedCreates === true, reuses: vars.core.reuses === true })
   if (unclassified.length) {
     return verdict(false, `The grader cannot classify a held preview: ${unclassified.join(', ')}.`, { graderLimit: true })
   }
@@ -146,8 +187,9 @@ export function gradePreview(output, vars) {
       + 'held write sets or clears from one that the server derives.', { unavailable: true })
   }
   const comparison = compareChanges(expected.changes, changes, { records: vars.core.records, accountDate: vars.accountDate }, questions > 0)
-  return comparison.failure ? verdict(false, comparison.failure)
-    : verdict(true, 'The held previews hold exactly the requested changes.', { matched: comparison.matched })
+  if (comparison.failure) return verdict(false, comparison.failure)
+  if (expected.distinctTitles && sharedTitle(changes)) return verdict(false, 'Two created records of the preview share a title.')
+  return verdict(true, 'The held previews hold exactly the requested changes.', { matched: comparison.matched })
 }
 
 // What the readback compares of each stored habit: its identity, its title, its frequency and whether it is logged on
@@ -156,14 +198,53 @@ export const savedRecords = (habits, accountDate) => habits.map((habit) => ({ id
   frequency_unit: savedField.frequency_unit(habit) ?? null, frequency_quantity: savedField.frequency_quantity(habit),
   logged: habit.logs.some((log) => log.date === accountDate && log.value > 0) })).toSorted((left, right) => left.id.localeCompare(right.id))
 
-// The first field that the request names and the saved record holds with another value.
+// A value in the form that a preview row and a saved record can share: a one-time habit has no frequency unit when it is
+// saved, and a checklist is its items in order.
+const comparable = (field, value) => field === 'checklist_items' ? JSON.stringify(checklistOf(value))
+  : field === 'frequency_unit' && value === 'OneTime' ? null : value ?? null
+
+// The first field of an updated record that the preview showed (changed, or kept where it was) and that the saved record
+// holds with another value. A field that only the habit detail holds is not read for an existing record.
+function approvedFailure({ fields, kept = {} }, habit) {
+  const shown = { ...kept, ...fields }
+  const wrong = Object.keys(shown).find((field) => savedField[field] && !detailFields.includes(field)
+    && comparable(field, savedField[field](habit)) !== comparable(field, shown[field]))
+  return wrong ? `saves ${wrong} as ${JSON.stringify(savedField[wrong](habit) ?? null)}, and the approved preview shows ${JSON.stringify(shown[wrong])}` : null
+}
+
+// The first field that an update preview shows for a stored record (changed, or kept) and that the account holds with another
+// value than the baseline: the preview wrote before the person decided, or the rejection saved it.
+function movedField({ target, fields, kept = {} }, habits, baseline) {
+  const habit = habits.find((saved) => saved.id === target)
+  const before = baseline.find((saved) => saved.id === target)
+  if (!habit || !before) return null
+  return Object.keys({ ...kept, ...fields }).find((field) => savedField[field] && !detailFields.includes(field)
+    && comparable(field, savedField[field](habit)) !== comparable(field, savedField[field](before))) ?? null
+}
+
+// The first baseline record that the account still holds with another log history before the account date. A log of the
+// account date is the one that an approved log writes, and savedRecords reads it. Only a case that states a decision reads this:
+// the core set approves with no decision and keeps its verdicts.
+function movedHistory(habits, baseline, accountDate) {
+  const past = (habit) => JSON.stringify(habit.logs.filter((log) => log.date < accountDate).map((log) => JSON.stringify(log)).toSorted())
+  return baseline.find((before) => {
+    const saved = habits.find((habit) => habit.id === before.id)
+    return saved && past(saved) !== past(before)
+  })
+}
+
+// The first field that the request names and the saved record holds with another value. A field that no saved record
+// names (the parent of a create: the snapshot row holds none) is graded on the preview alone: the core set refuses such a
+// field when it loads, and the launch corpus states it and skips it here.
 function savedFailure(expected, habit, accountDate) {
-  const wrong = Object.keys(expected.fields ?? {}).find((field) => !matchesField(expected.fields[field], savedField[field](habit), accountDate))
+  const wrong = Object.keys(expected.fields ?? {}).filter((field) => savedField[field])
+    .find((field) => !matchesField(expected.fields[field], savedField[field](habit), accountDate))
   return wrong ? `gives ${wrong} the value ${JSON.stringify(savedField[wrong](habit) ?? null)}` : null
 }
 
 // Each offered draft of the approved preview is saved as one new record with its title. Each expected create is saved as
-// one other new record that holds each field the request names, and no other record is new.
+// one other new record that holds each field the request names that a saved record can show (savedFailure), and no other
+// record is new.
 function gradeCreated(creates, created, drafts, accountDate) {
   const differ = verdict(false, 'The created records differ from the approved changes.')
   const unmatched = [...created]
@@ -182,7 +263,9 @@ function gradeCreated(creates, created, drafts, accountDate) {
 }
 
 // The saved state after approval, read back from the account: each deleted record is gone, each log is saved, each
-// updated and each created record holds each field the request names, and every other record is as it was. The person
+// updated and each created record holds each field the request names that a saved record can show (the launch corpus
+// states fields that the preview alone grades), and every other record is as it was. A case that states a decision also
+// keeps each log before the account date (movedHistory), and `decision: hold` grades the held state alone. The person
 // approves the preview as shown: an updated record holds each value that its rows show, requested, offered or derived
 // (AddChanges writes them in the stored format), and each draft that the preview offers is a new record.
 function gradeSavedState(readback, matched, vars) {
@@ -190,11 +273,22 @@ function gradeSavedState(readback, matched, vars) {
   if (readback.error) return verdict(false, readback.error, readback.unavailable ? { unavailable: true } : {})
   const date = vars.accountDate
   const before = savedRecords(readback.baseline, date)
-  if (JSON.stringify(savedRecords(readback.held, date)) !== JSON.stringify(before)) {
+  const named = matched.flatMap(({ expected, held }) => held.map((change) => ({ ...change, expected })))
+    .filter(({ expected }) => expected.kind === 'update')
+  const decided = vars.core.decision !== undefined
+  if (JSON.stringify(savedRecords(readback.held, date)) !== JSON.stringify(before)
+    || named.some((change) => movedField(change, readback.held, readback.baseline))
+    || (decided && movedHistory(readback.held, readback.baseline, date))) {
     return verdict(false, 'The held preview changed the account before its approval.')
   }
+  if (vars.core.decision === 'hold') return verdict(true, 'The held previews left the account as it was.')
+  const rejected = vars.core.decision === 'reject'
+  const moved = rejected ? named.map((change) => movedField(change, readback.after, readback.baseline)).find(Boolean) : null
+  if (moved) return verdict(false, `The rejected preview changed the account: it saved ${moved}.`)
+  const rewritten = decided ? movedHistory(readback.after, readback.baseline, date) : null
+  if (rewritten) return verdict(false, `The ${rejected ? 'rejected' : 'approved'} preview changed the past log history of ${rewritten.title}.`)
   const differ = verdict(false, 'The saved records differ from the approved changes.')
-  const changes = matched.flatMap(({ expected, held }) => held.map((change) => ({ ...change, expected })))
+  const changes = rejected ? [] : matched.flatMap(({ expected, held }) => held.map((change) => ({ ...change, expected })))
   const wanted = new Map(before.map((habit) => [habit.id, { ...habit }]))
   for (const { expected, target } of changes) {
     if (expected.kind === 'delete') wanted.delete(target)
@@ -202,9 +296,9 @@ function gradeSavedState(readback, matched, vars) {
   }
   const kept = readback.after.filter((habit) => before.some((stored) => stored.id === habit.id))
   if (kept.length !== wanted.size) return differ
-  for (const { expected, target, fields, offered, derived } of changes.filter(({ expected }) => expected.kind === 'update')) {
+  for (const { expected, target, fields, offered, derived, ...change } of changes.filter(({ expected }) => expected.kind === 'update')) {
     const habit = kept.find((saved) => saved.id === target)
-    const wrong = habit ? savedFailure(expected, habit, date) : null
+    const wrong = habit ? savedFailure(expected, habit, date) ?? approvedFailure({ fields, kept: change.kept }, habit) : null
     if (wrong) return verdict(false, `A saved update ${wrong}.`)
     const shown = { ...derived, ...offered, ...fields }
     for (const field of Object.keys(shown).filter((name) => habit && name in wanted.get(target))) wanted.get(target)[field] = shown[field]
