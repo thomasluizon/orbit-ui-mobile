@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-18",
+  "calibratedAt": "2026-11-19",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -228,8 +228,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "aa0be8ecb8401653",
-      "calibratedAt": "2026-11-15",
+      "digest": "5d6723b8846789dd",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -264,21 +264,21 @@
       "model": null,
       "effort": null,
       "digest": "b4115a7a97f82e7f",
-      "calibratedAt": "2026-11-18",
+      "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth."
     },
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "38e6b288ad98ad14",
-      "calibratedAt": "2026-11-18",
+      "digest": "3171baf5e73057d0",
+      "calibratedAt": "2026-11-19",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "0ee56c735f815bce",
-      "calibratedAt": "2026-11-15",
+      "digest": "3295660407f385cd",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },
     ".claude/skills/progress/SKILL.md": {
@@ -312,7 +312,7 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "5b481c6be78d1018",
+      "digest": "ea90c7d26c8099f8",
       "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
