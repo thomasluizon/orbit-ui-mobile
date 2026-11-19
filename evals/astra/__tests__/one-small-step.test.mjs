@@ -5,6 +5,7 @@ import * as grades from '../assertions.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { visibleBlock } from '../visible-blocks.mjs'
 import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
+import { startingResponse } from './fixtures/starting-step.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { approveStartingStep } from '../step-persistence.mjs'
 import { readFileSync } from 'node:fs'
@@ -14,28 +15,6 @@ import { assertions as promptfooAssertions } from 'promptfoo'
 import parseResponse from '../response.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
-
-export function startingResponse(locale = 'en', requestId = 'request', suppliedSuggestion, supportsContext = false) {
-  const portuguese = locale === 'pt-BR'
-  const suggestion = suppliedSuggestion ?? { goal: portuguese ? 'Estudar' : 'Study', step: portuguese ? 'Abrir o livro' : 'Open the book', language: locale }
-  const goal = JSON.stringify(suggestion.goal)
-  const step = JSON.stringify(suggestion.step)
-  const actions = [
-    { id: 'smaller', label: portuguese ? 'Menor ainda' : 'Smaller', message: portuguese
-      ? `Quero um passo ainda menor para ${goal}. O passo anterior foi ${step}.`
-      : `Give me an even smaller starting step for ${goal}. The previous step was ${step}.` },
-    { id: 'saveTask', label: portuguese ? 'Salvar como tarefa' : 'Save as task', message: portuguese
-      ? `Quero salvar ${step} como tarefa.` : `Save ${step} as a task.` },
-    { id: 'saveChecklistItem', label: portuguese ? 'Salvar no checklist' : 'Save as checklist item', message: portuguese
-      ? `Quero adicionar ${step} ao checklist de um hábito.` : `Add ${step} to a habit's checklist.` },
-  ]
-  if (supportsContext) actions[0].previousStep = structuredClone(suggestion)
-  const call = toolCall('suggest_breakdown', { one_small_step: true, language: locale,
-    title: suggestion.goal, suggested_sub_habits: [{ title: suggestion.step }] }, 'Succeeded', 'call-1', { supportsParts: true }, true)
-  call.result.payload = suggestion
-  return { ...chatResponse(requestId, [call]), aiMessage: null,
-    parts: [{ type: 'block', kind: 'oneSmallStep', block: { suggestion, actions } }] }
-}
 
 const varsFor = (locale = 'en', legacy = false) => ({ evalRequestId: 'request',
   clientContext: { supportsParts: true, locale, partKinds: legacy ? [] : ['oneSmallStep'] },
@@ -358,45 +337,33 @@ describe.each(['en', 'pt-BR'])('%s coaching after permitted reads', (locale) => 
     return response
   }
 
-  it.each([1, 2])('accepts %i successful reads followed by one matching suggestion through all assertions', async (count) => {
+  it.each([1, 2])('accepts %i successful reads followed by one matching suggestion', async (count) => {
     const response = readThenSuggestion()
     if (count === 2) response.evalTrace.toolCalls.unshift({ ...structuredClone(response.evalTrace.toolCalls[0]),
       id: 'read-2', result: { ...response.evalTrace.toolCalls[0].result, id: 'read-2' } })
     const output = parsedResponse(response)
-    for (const grade of [grades.structural, grades.behavior, grades.composition]) {
-      const verdict = await grade(output, { vars, test: { vars } })
-      expect(verdict.pass, `${grade.name}: ${verdict.reason}`).toBe(true)
-    }
+    expect(vars.outcome).toEqual({ read: true })
+    expect(grades.composition(output, { vars })).toMatchObject({ pass: true, reason: 'One starting step with its server actions and no prose.' })
     expect(output.trace.calls.map(({ name }) => name)).toEqual([...Array(count).fill('query_habits'), 'suggest_breakdown'])
   })
 
   it.each([
-    ['extra suggestion', (response) => {
-      const call = structuredClone(response.evalTrace.toolCalls[1])
-      call.id = call.result.id = 'extra'
-      response.evalTrace.toolCalls.push(call)
-    }],
-    ['failed extra suggestion', (response) => { response.evalTrace.toolCalls.push(toolCall('suggest_breakdown', {}, 'Failed', 'extra')) }],
-    ['unrelated write', (response) => { response.evalTrace.toolCalls.unshift(toolCall('log_habit', { habit_id: 'walk' }, 'PendingConfirmation', 'write')) }],
-    ['unpermitted read', (response) => { response.evalTrace.toolCalls.unshift(toolCall('get_profile', {}, 'Succeeded', 'profile')) }],
-    ['failed read', (response) => { response.evalTrace.toolCalls[0].status = 'Failed' }],
-    ['unsuccessful read result', (response) => { response.evalTrace.toolCalls[0].result.success = false }],
-    ['read error', (response) => { response.evalTrace.toolCalls[0].result.error = 'Unavailable' }],
     ['malformed actions', (response) => { response.parts[0].block.actions[1].message = 'Save something else.' }],
     ['framing part', (response) => { response.parts.unshift({ type: 'text', text: 'Try this.' }) }],
     ['framing message', (response) => { response.aiMessage = 'Try this.' }],
-    ['extra suggested step', (response) => { response.evalTrace.toolCalls[1].arguments.suggested_sub_habits.push({ title: 'Another step' }) }],
+    ['a held change', (response) => { response.pendingOperations = [{ id: 'held' }] }],
+    ['a second block', (response) => { response.parts.push(structuredClone(response.parts[0])) }],
   ])('rejects %s even with a permitted read', (_, mutate) => {
     const response = readThenSuggestion()
     mutate(response)
     expect(grades.composition(parsedResponse(response), { vars }).pass).toBe(false)
   })
 
-  it('rejects a write even if listed among allowed tools', () => {
+  it('reads the starting step from the reply alone and grades no tool name of the trace', () => {
     const response = readThenSuggestion()
-    response.evalTrace.toolCalls.unshift(toolCall('log_habit', { habit_id: 'walk' }, 'Succeeded', 'write'))
-    const expectations = { ...vars.expectations, allowed: [...vars.expectations.allowed, 'log_habit'] }
-    expect(grades.composition(parsedResponse(response), { vars: { ...vars, expectations } }).pass).toBe(false)
+    response.evalTrace.toolCalls.unshift(toolCall('get_profile', {}, 'Succeeded', 'profile'))
+    response.evalTrace.toolCalls.at(-1).name = 'bulk_create_habits'
+    expect(grades.composition(parsedResponse(response), { vars }).pass).toBe(true)
   })
 
   it.each([false, true])('keeps the dedicated starting-step validator strict with legacy=%s', (legacy) => {

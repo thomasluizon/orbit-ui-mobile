@@ -6,10 +6,11 @@ import { beforeEach } from '../hooks.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { fileURLToPath } from 'node:url'
 import { composition } from '../composition.mjs'
-import parseResponse from '../response.mjs'
-import { behavior, structural } from '../assertions.mjs'
+import gradingInput from '../grading-input.mjs'
+import { outcome } from '../client-path.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, preview } from './fixtures/producer.mjs'
+import { captures } from './fixtures/core-streams.mjs'
 
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
@@ -42,47 +43,72 @@ it('assigns an explicit parts composition policy to every main catalog case', ()
   expect(configuration.defaultTest.vars).not.toHaveProperty('clientContextJson')
   expect(configuration.defaultTest.vars).not.toHaveProperty('composition')
 })
-it('keeps legacy previews limited to their readable aiMessage for grading', async () => {
-  const scenario = scenarios.find((entry) => entry.metadata.id === 'legacy-create-pt')
-  expect(scenario).toBeDefined()
-  const test = await prepare(scenario)
-  expect(test.vars.clientContextJson).toBe('{}')
-  expect(test.vars.composition.mode).toBe('fallback')
-  const response = { ...chatResponse(test.vars.evalRequestId), aiMessage: 'Confira a prévia de Meditar.', pendingOperations: [preview('Hidden operation field')] }
+// The legacy profile language calls of a pt-BR case with no locale in its context, and the chat reply of the test.
+function legacyApi(reply, requests = []) {
   let language = 'en'
-  vi.stubGlobal('fetch', async (url, options) => {
+  return async (url, options) => {
     if (new URL(url).pathname === '/api/profile/language') {
       language = JSON.parse(options.body).language
       return new Response(null, { status: 204 })
     }
     if (new URL(url).pathname === '/api/profile') return Response.json({ language })
-    return Response.json(response, { headers: { 'x-orbit-request-id': test.vars.evalRequestId } })
-  })
-  const provider = new AstraHttpProvider({ config: { ...configuration.providers[0].config, url: 'https://astra.invalid/api/chat',
-    transformResponse: `file://${fileURLToPath(new URL('../response.mjs', import.meta.url))}`,
-  } })
-  const { output } = await provider.callApi(test.vars.input, { vars: test.vars })
+    const request = new Request(url, options)
+    requests.push({ path: new URL(url).pathname, context: JSON.parse((await request.formData()).get('clientContext')) })
+    return reply(request.headers.get('x-orbit-request-id'))
+  }
+}
+const provider = () => new AstraHttpProvider({ config: { ...configuration.providers[0].config, url: 'https://astra.invalid/api/chat',
+  transformResponse: `file://${fileURLToPath(new URL('../response.mjs', import.meta.url))}` } })
+const legacyContext = [{ path: '/api/chat/stream', context: { conversationId: expect.stringMatching(/^[0-9a-f-]{36}$/u) } }]
+
+it('keeps legacy previews limited to their readable aiMessage for grading on the client path', async () => {
+  const scenario = scenarios.find((entry) => entry.metadata.id === 'legacy-create-pt')
+  expect(scenario).toBeDefined()
+  const test = await prepare(scenario)
+  expect(test.vars.clientContext).toEqual({})
+  expect(test.vars.composition.mode).toBe('fallback')
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
+  const held = preview('Meditar')
+  held.items[0].fields = [['title', 'Meditar'], ['frequency_unit', 'Day'], ['frequency_quantity', '1']].map(([field, value]) => (
+    { ...held.items[0].fields[0], field, newValue: value, proposedValue: value, valueType: 'text' }))
+  const response = { ...captures.complete.turns[0].at(-1).response, ...chatResponse(test.vars.evalRequestId), parts: undefined,
+    aiMessage: 'Confira a prévia de Meditar.', pendingOperations: [held] }
+  const requests = []
+  vi.stubGlobal('fetch', legacyApi((requestId) => new Response([...captures.complete.turns[0].slice(0, -1), { type: 'final', response, evalTrace: response.evalTrace }]
+    .map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream', 'x-orbit-request-id': requestId } }), requests))
+  const { output } = await provider().callApi(test.vars.input, { vars: test.vars })
+  expect(requests).toEqual(legacyContext)
   expect(output.answer).toBe(response.aiMessage)
   expect(output.composition.pendingOperations).toEqual(response.pendingOperations)
+  const context = { vars: test.vars }
+  expect(outcome(output, context)).toMatchObject({ pass: true })
+  expect(composition(output, context)).toMatchObject({ pass: true })
 })
-it('grades only an explicitly expected typed legacy moderation refusal with bound identity', async () => {
+it('grades only an explicitly expected typed legacy moderation refusal with bound identity on the client path', async () => {
   const scenario = scenarios.find((entry) => entry.metadata.id === 'legacy-moderation-pt')
   expect(scenario).toBeDefined()
   const test = await prepare(scenario)
-  expect(test.vars.clientContextJson).toBe('{}')
+  expect(test.vars.clientContext).toEqual({})
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
   const body = { error: 'Não posso ajudar com isso, mas posso ajudar com seus hábitos e metas.', errorCode: 'CONTENT_MODERATION_REFUSED' }
-  const parse = (response = body, requestId = test.vars.evalRequestId) => parseResponse(response, '', {
-    vars: test.vars, response: { status: 400, headers: { 'x-orbit-request-id': requestId } },
-  })
+  const requests = []
+  async function refused(response = body, requestId) {
+    vi.stubGlobal('fetch', legacyApi((sent) => Response.json(response, { status: 400, headers: { 'x-orbit-request-id': requestId ?? sent } }), requests))
+    return provider().callApi(test.vars.input, { vars: test.vars })
+  }
   const context = { vars: test.vars }
-  expect(parse().answer).toBe(body.error)
-  expect(behavior(parse(), context).pass).toBe(true)
-  expect((await structural(parse(), context)).pass).toBe(true)
-  expect(composition(parse(), context).pass).toBe(true)
-  expect(behavior(parse(body, 'wrong-request'), context).pass).toBe(false)
-  expect(behavior(parse(), { vars: { ...test.vars, expectedHttpStatus: 200 } }).pass).toBe(false)
-  expect(parse({ ...body, errorCode: 'OTHER_ERROR' })).toHaveProperty('error')
-  expect(parse({ error: body.error })).toHaveProperty('error')
+  const { output, error } = await refused()
+  expect(error).toBeUndefined()
+  expect(requests).toEqual(legacyContext)
+  expect(output.answer).toBe(body.error)
+  expect(outcome(output, context)).toMatchObject({ pass: true, reason: 'The request was refused with HTTP 400 (CONTENT_MODERATION_REFUSED).' })
+  expect(composition(output, context)).toMatchObject({ pass: true, reason: 'Verified concise legacy moderation refusal.' })
+  expect(JSON.parse(gradingInput(output, context)).groundingEvidence.httpError).toMatchObject({ status: 400, errorCode: 'CONTENT_MODERATION_REFUSED' })
+  expect(JSON.parse(gradingInput((await refused(body, 'wrong-request')).output, context)).groundingEvidence).not.toHaveProperty('httpError')
+  expect(outcome(output, { vars: { ...test.vars, expectedHttpStatus: 403 } }).pass).toBe(false)
+  const other = await refused({ ...body, errorCode: 'OTHER_ERROR' })
+  expect(outcome(other.output, context)).toMatchObject({ pass: false,
+    reason: 'The request was refused with HTTP 400 (OTHER_ERROR); the case expects HTTP 400 (CONTENT_MODERATION_REFUSED).' })
 })
 
 vi.mock('../fixtures/reset.mjs', async (importOriginal) => ({ ...await importOriginal(), resetFixture: vi.fn() }))

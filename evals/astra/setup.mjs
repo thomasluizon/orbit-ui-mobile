@@ -9,6 +9,8 @@ import { offerActions, proactiveOfferSetup } from './proactive-offers.mjs'
 import { readStartingHabits } from './step-persistence.mjs'
 import { attemptEvidence } from './evidence.mjs'
 import { followConversation } from './offer-context.mjs'
+import { gradedByOutcome } from './grade-method.mjs'
+import { holdCase, openCaseConversation, outcome } from './client-path.mjs'
 
 function prepareStartingAction(test, block) {
   const vars = test.vars
@@ -33,8 +35,23 @@ function prepareStartingAction(test, block) {
   ] }
 }
 
+// The setup of a case with an outcome runs on the client path, in the conversation of the case: its preview is graded
+// by its outcome and stays held, so the turn of the case corrects it.
+async function prepareHeldPreview(test) {
+  const vars = test.vars
+  const conversation = openCaseConversation(vars)
+  const setup = { ...vars, input: vars.setup.input, outcome: vars.setup.outcome, evalRequestId: randomUUID() }
+  const held = await holdCase(setup, { conversation })
+  const verdict = held.error ? { pass: false, reason: held.error } : outcome(held, { vars: setup })
+  if (!verdict.pass) throw new Error(`Correction setup failed${vars.setup.caseId ? ` dependency ${vars.setup.caseId}` : ''}: ${verdict.reason}`)
+  vars.baselinePreview = held.previews
+  vars.conversation = conversation
+  return { test }
+}
+
 export async function prepareCorrection(test) {
   delete test.vars.setupEvidence
+  if (gradedByOutcome(test.vars)) return prepareHeldPreview(test)
   const setup = test.vars.setup
   if (['saveTask', 'saveChecklistItem'].includes(test.vars.startingStepAction)) {
     test.vars.startingHabitBaseline = await readStartingHabits(test.vars.credentialKey)

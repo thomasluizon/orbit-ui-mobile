@@ -14,19 +14,23 @@ const { CHAT_STREAM_IDLE_TIMEOUT_MS } = await shared('chat/stream-constants.ts')
 
 // The state a shipped client keeps for one conversation: its message list, the conversation id it sends on each turn
 // and the clock setting of the account profile. `messages` may start with a recorded exchange; a restored conversation
-// holds its earlier turns the same way.
-export function openConversation({ platform = 'web', locale = 'en', credentialKey, timeZone = 'UTC', uses24HourClock, messages = [] }) {
-  return { platform, locale, credentialKey, timeZone, uses24HourClock, conversationId: randomUUID(),
+// holds its earlier turns the same way. `context` is the client context that a launch corpus case states.
+export function openConversation({ platform = 'web', locale = 'en', credentialKey, timeZone = 'UTC', uses24HourClock, messages = [], context }) {
+  return { platform, locale, credentialKey, timeZone, uses24HourClock, context, conversationId: randomUUID(),
     messages: messages.map(({ role, content }) => ({ id: randomUUID(), role: role === 'assistant' ? 'ai' : 'user', content })) }
 }
 
 // The context that useChatRequestPayload of apps/web and apps/mobile builds. The eval types each message in the chat and
 // dismisses no offer, so it sends what the apps send then: no entry point intent, no follow-up origin, no earlier
-// starting step, no selected offer and no dismissed offer key.
-export const clientContextOf = (conversation) => buildChatClientContext({
-  platform: conversation.platform, locale: conversation.locale, uses24HourClock: conversation.uses24HourClock,
-  conversationId: conversation.conversationId, dismissedOfferKeys: [],
-})
+// starting step, no selected offer and no dismissed offer key. A case that states a client context keeps it: over the
+// shared context for a client with parts, and alone with the conversation id for a client with no parts, which no shared
+// builder describes.
+export function clientContextOf(conversation) {
+  const { context, conversationId } = conversation
+  if (context && context.supportsParts !== true) return { ...context, conversationId }
+  return { ...buildChatClientContext({ platform: conversation.platform, locale: conversation.locale,
+    uses24HourClock: conversation.uses24HourClock, conversationId, dismissedOfferKeys: [] }), ...context }
+}
 
 // useChatRequestPayload.buildChatFormData of apps/web and apps/mobile. A typed message is already the last stored
 // message when the form is built; a card answer is stored only after the server accepts it.
@@ -135,7 +139,7 @@ export async function sendTurn(conversation, attempted, requestId = randomUUID()
   const exchange = { frames: [], responseRequestId: null }
   const steps = []
   const outcome = await transmit(conversation, turn, requestId, exchange, steps)
-  if (outcome.kind === 'failed') return outcome
+  if (outcome.kind === 'failed') return { ...outcome, responseRequestId: exchange.responseRequestId }
   if (!typed) conversation.messages.push({ id: randomUUID(), role: 'user', content: attempted.content, answerToBlockId: attempted.blockAnswer.blockId })
   const response = outcome.response
   conversation.messages.push({ id: randomUUID(), role: 'ai', timestamp: new Date(), ...buildChatFinalMessageFields(response, steps) })

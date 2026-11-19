@@ -10,6 +10,7 @@ const kindByActionKey = {
   deleteHabit: 'delete', deleteHabits: 'delete',
   logHabit: 'log', logHabits: 'log',
   skipHabit: 'skip', skipHabits: 'skip',
+  viewApiKeys: 'view',
 }
 // Producer: AccountChangeSet.PreviewAsync joins the items of its member previews under this key and keeps no member key.
 const combinedActionKey = 'applyAccountChanges'
@@ -93,27 +94,58 @@ function offeredDrafts(offers) {
   return rows.filter((row) => !rows.some((outer) => row.field.startsWith(`${outer.field}/`))).flatMap((row) => draftTitles(row.proposedValue))
 }
 
+// Producer: PendingAgentOperationStore.Map holds a read behind a step-up as a preview without items and without changes.
+// PendingOperationActionKeys names the API key read viewApiKeys: the approval shows the keys and changes no record.
+const heldRead = (operation, items) => !items.length && kindByActionKey[operation.actionKey] === 'view'
+
+// Producer: AgentArgumentPreview.FormatValue shows a value of a held write as its JSON text: a number as its digits and
+// a boolean as True or False.
+const shownValue = (value) => typeof value === 'boolean' ? (value ? 'True' : 'False') : typeof value === 'number' ? String(value) : value
+// The records that the child drafts of a create add (CreationFields, above): each draft that names no stored habit is
+// one create with the values of its draft, and the drafts below it follow it. A draft with no parent of its own goes under
+// the stored habit that the reused item (PreviewCreateAsync gives it as its entity id) or the enclosing draft names; a
+// new parent has no stored id and gives no parent field. Only `nestedCreates` holds them: the launch corpus sets it, and
+// the core set does not, so each core verdict stays as it is under rule B1 of #2129.
+const childCreates = (drafts, preview, parent) => Array.isArray(drafts) ? drafts.flatMap((draft) => [
+  ...recordId(draft?.habit_id) ? [] : [{ kind: 'create', target: null, preview, offered: {}, derived: {}, undetermined: {}, drafts: [],
+    fields: { ...parent ? { parent_habit_id: parent } : {}, ...Object.fromEntries(Object.entries(draft ?? {}).map(([field, value]) => [field, shownValue(value)])
+      .filter(([, value]) => typeof value === 'string' && value !== '')) } }],
+  ...childCreates(draft?.sub_habits, preview, recordId(draft?.habit_id))]) : []
+
 // The change list of the held previews: one entry for each record a preview changes, with the kind of the change, the
 // record, the fields that the model writes, the fields that the preview offers, the fields that the server derives, and
 // the titles of the records that the offered drafts add. A stored row is written when the held writes name its field
-// (`written`, from writtenFields), and derived otherwise; without the trace (`written` null) it is undetermined. A row
-// of a create preview that only names a habit the create reuses is no change.
-export function changeList(pendingOperations, written = null) {
+// (`written`, from writtenFields), and derived otherwise; without the trace (`written` null) it is undetermined. Under
+// `nestedCreates`, an item of a create preview that reuses a stored habit is an update of it (UpdateExistingTreeAsync
+// writes its fields on approval), and is no change when none of its rows differs from the stored value.
+export function changeList(pendingOperations, written = null, { nestedCreates = false } = {}) {
   const changes = []
   const unclassified = []
   for (const operation of pendingOperations ?? []) {
-    for (const item of previewItems(operation)) {
+    const items = previewItems(operation)
+    if (heldRead(operation, items)) {
+      changes.push({ kind: 'view', target: null, preview: operation.id, fields: {}, offered: {}, derived: {}, undetermined: {}, drafts: [] })
+    }
+    for (const item of items) {
       const kind = itemKind(item, operation.actionKey)
       if (!kind) { unclassified.push(operation.actionKey ?? 'a preview without an action key'); continue }
-      if (kind === 'create' && item.fields.some(marksExistingHabit)) continue
-      const offers = item.fields.filter(isOffer)
-      const stored = item.fields.filter((field) => field.provenance === 'stored')
+      const children = nestedCreates && kind === 'create'
+        ? item.fields.filter((field) => field.field === 'sub_habits' && !isOffer(field)).flatMap((field) => childCreates(field.proposedValue, operation.id, recordId(item.entityId))) : []
+      const reused = kind === 'create' && item.fields.some(marksExistingHabit)
+      // The core set skips a reused item, as before the launch corpus graded it, so each core verdict stays (rule B1 of #2129).
+      if (reused && !nestedCreates) continue
+      const fields = reused ? item.fields.filter((field) => field.field !== 'sub_habits') : item.fields
+      const offers = fields.filter(isOffer)
+      const stored = fields.filter((field) => field.provenance === 'stored')
       const derived = written ? stored.filter((field) => !written.includes(field.field)) : []
       const undetermined = written ? [] : stored
-      const requested = item.fields.filter((field) => !isOffer(field) && !derived.includes(field) && !undetermined.includes(field))
-      changes.push({ kind, target: recordId(item.entityId), preview: operation.id, fields: changedFields(requested, kind),
-        offered: changedFields(offers, kind), derived: changedFields(derived, kind), undetermined: changedFields(undetermined, kind),
-        drafts: offeredDrafts(offers) })
+      const requested = fields.filter((field) => !isOffer(field) && !derived.includes(field) && !undetermined.includes(field))
+      const changeKind = reused ? 'update' : kind
+      const change = { kind: changeKind, target: recordId(item.entityId), preview: operation.id, fields: changedFields(requested, changeKind),
+        offered: changedFields(offers, changeKind), derived: changedFields(derived, changeKind),
+        undetermined: changedFields(undetermined, changeKind), drafts: offeredDrafts(offers) }
+      const edits = [change.fields, change.offered, change.derived, change.undetermined].some((changed) => Object.keys(changed).length)
+      changes.push(...!reused || edits ? [change] : [], ...children)
     }
   }
   return { changes, unclassified: [...new Set(unclassified)] }
