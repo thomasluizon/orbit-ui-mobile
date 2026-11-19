@@ -10,6 +10,7 @@ import { parityExemptTerms } from "./lib/parity-scope.mjs"
 import { proofOrder, reviewBrief, reviewOrder } from "./lib/review-run.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REVIEW_BATCH_ORDER_MARKER } from "./lib/run-state.mjs"
+import { sealOrder } from "./lib/run-notes.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
        compose-prompt.mjs --review --repo <key> --pr <n> --head <sha> [--since <sha>] [--base <ref>] --out <absolute path>
@@ -44,6 +45,10 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
                     when absent and refused when it holds a file (--proof only)
   Both orders forbid every tracked write, commit, branch, push and GitHub write, and end with a
   final message of at most 12 lines.
+
+A local order ends with a seal line. tools/launch-worker.mjs refuses an order without it, or one whose text
+changed after it, so a fix round's note reaches a worker only as a ticket comment
+(node tools/post-run-note.mjs --kind round-note) that this tool reads.
 
 Prints the output path on stdout.
 exit codes: 0 prompt written, 2 usage or ticket read error`
@@ -127,7 +132,7 @@ const readOnlyOrder = () => {
   return proofOrder({ slug, pullRequest, head, plan, devices, evidenceDirectory: resolve(evidenceArgument), emulatorTool: fileURLToPath(new URL("./android-emulator.mjs", import.meta.url)) })
 }
 if (readOnlyMode !== null) {
-  writeFileSync(resolve(out), readOnlyOrder(), "utf8")
+  writeFileSync(resolve(out), sealOrder(readOnlyOrder()), "utf8")
   console.log(resolve(out))
   process.exit(0)
 }
@@ -223,7 +228,21 @@ const focusedVerification = `
 - Hooks: \`node .claude/hooks/test-hooks.mjs\` after a change to \`.claude/**\`, a tracked \`*.md\` file, or another file the harness reads or imports (\`grep -n <file name> .claude/hooks/test-hooks.mjs\`). It checks the wiring in \`.claude/settings.json\` and scans every tracked doc.
 - The type check and the lint of each changed workspace or project, and the focused tests of a changed project in a repository without Vitest.
 
-CI runs the full web and mobile Vitest suites, the complete tools suite and the layout tests on the pull request. Do not run them. To reproduce a flake, run the affected file again or in parallel instances.`
+CI runs the full web and mobile Vitest suites, the complete tools suite and the layout tests on the pull request. Do not run them. To reproduce a flake, run the affected file again or in parallel instances. Spend at most 25 minutes of wall time on verification after your commit, and report each command with its exit code.`
+
+/**
+ * The standing rules of every local worker in an unattended run. They lived in a scratchpad file that each launch
+ * script appended; now they are part of every composed order, so no order can miss them (thomasluizon/orbit-tickets#2152).
+ */
+const unattendedRules = cloud ? "" : `
+
+**Nobody answers an approval prompt.** The owner is away, and a held command stalls the run for hours.
+- Never run a command that Claude Code can hold for approval: \`rm\` (delete with Node, \`node -e "require('node:fs').rmSync('<literal absolute path>', { recursive: true, force: true })"\`, only inside your own worktree or temporary directory), \`sudo\`, \`chmod -R\`, \`git push --force\`, or \`git reset --hard\` on a branch you did not create. Never write outside your worktree and the system temporary directory.
+- Keep each shell command plain. Never put \`$(\`, a backtick, \`eval\` or a variable in a path, a redirect or a grep pattern. For a longer search or text check, write a \`.mjs\` file in the system temporary directory and run it with \`node\`.
+- Never comment on GitHub, resolve a review thread, or close a pull request or an issue unless this order says so in words.
+- Copy every GitHub identifier (pull request number, SHA, thread id) from command output of this run, never from memory.
+- Commit with a plain conventional message: no attribution line and no co-author line.
+- ${reviewBatch ? "Your final report is the batch's handoff: the commit SHA, then the complete `## Test evidence`, `## Assumptions` and `## Manual steps` sections of the finishing contract." : "Your final message is at most 12 lines: the verdict, the commit SHAs, each test command with its pass count, and the pull request URL when you opened one. The pull request body carries the full report."}`
 
 /**
  * The approval hook loads only in a checkout that holds it. A worker in another repository gets the same rule
@@ -269,13 +288,14 @@ ${baseInstruction}
 review information, never delivery gates. Keep one atomic behaviour complete: migrations with their
 model change, generated Designer or contract output with its source/schema, and required lockfiles
 or codemod output in this pull request. Do not split required generated output away to make the diff look smaller, and
-do not deliver partial behaviour silently.${browserBan}${focusedVerification}
+do not deliver partial behaviour silently.${browserBan}${focusedVerification}${unattendedRules}
 
 **Output.** ${outputInstruction}${localUiParityDelivery}
 
 **Boundaries.** Never merge, in any shape: no gh pr merge, no PUT /repos/{owner}/{repo}/pulls/N/merge,
 no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. Never --no-verify or
---no-gpg-sign. Do not edit the ticket. Do not touch a second repository: cross-repo work is
+--no-gpg-sign. Do not edit the ticket. Public pull request bodies reference a ticket with Tracks, never an
+automatic closing keyword: the orchestrator closes tickets. Do not touch a second repository: cross-repo work is
 two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.
 
 **Dependencies.** Never edit installed files by hand inside \`node_modules\`, under any path, in any
@@ -378,5 +398,7 @@ const finishingContract = cloud
   : reviewBatch ? reviewBatchFinishing : finishing
 
 const order = cloud ? `${brief}\n\n---\n\n${finishingContract}` : `${finishingContract}\n\n---\n\n${brief}`
-writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${order}\n`, "utf8")
+const composed = `${ticket.replace(/\s*$/, "")}\n\n---\n\n${order}\n`
+// A Cloud order goes to tools/submit-cloud-worker.mjs, which appends its own contract; only a local launch checks the seal.
+writeFileSync(resolve(out), cloud ? composed : sealOrder(composed), "utf8")
 console.log(resolve(out))

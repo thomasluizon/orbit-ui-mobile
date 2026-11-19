@@ -34,13 +34,14 @@ standalone `/crank` while preparing this handoff.
 
 If `handoffAutoWork` from `tools/lib/handoff-prompt.mjs` resolves the matching run to true,
 the unattended prompt starts with exactly `/auto-work` instead of `/sleep`. Retain the Sleep
-section and the existing relay procedure. Carry `intake` source marks, pending items and any
-review workflow identity through run-state adoption; never copy or reset them in the prompt.
+section and the existing relay procedure. The intake source marks, pending items and the review
+workflow identity live in `run-state/intake.json` in the tickets repository, so the successor reads
+them there; never copy or reset them in the prompt.
 The successor enters `/sleep` through the auto-work skill. Crank remains independently inherited.
-For an owner-started handoff, `relay-session.mjs --close-chain` prepares a durable intake carry
+For an owner-started handoff, `relay-session.mjs --close-chain` prepares a durable adoption record
 even without an open reporting chain. It binds the current predecessor to the exact committed
 `NEXT.md` contents. The successor's `/sleep` entry calls `adoptOwnerHandoffRun` with its actual
-incoming prompt before any ordinary state write. The carry can be consumed once; changed
+incoming prompt before any ordinary state write. The record can be consumed once; changed
 prompts, unrelated runs and disabled auto-work cannot inherit it. Keep intake out of tracked text.
 
 `--relay` is the unattended context transition requested by `relay-at-threshold.mjs`.
@@ -60,8 +61,9 @@ until it exits; a plain shell polling loop does not.
 Relay mode waits for every live background Workflow run and background subagent to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.
 
 Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs`, using this
-session's exact id. Carry every chain entry's complete decisions, along with the current
-decision log.
+session's exact id. Decisions are not copied: each decision is a run note comment on its ticket, and
+a run-wide decision is a comment on the "Orbit run record" issue
+(`node tools/post-run-note.mjs --kind decision`). Post each decision of this session there before the handoff.
 
 With `--relay`, invoke `/questions --relay` before writing the spec or the prompt. It answers or
 decides every queued question the run can settle, and it records each disposition where the work
@@ -79,7 +81,7 @@ only when a filter or the owner settled it. Keep the owner-only steps and the se
 the section also holds.
 
 Add this one timeless line to the spec: `The session chain ledger lives untracked at .git/orbit-session-chain.json.`
-Keep session ids, timestamps, terminal handles and timed decision logs in that ledger.
+Keep session ids, timestamps and terminal handles in that ledger.
 
 After committing and pushing both files in the orchestrating checkout, run
 `node tools/relay-session.mjs`. It remeasures the transcript and checks the actual launchers,
@@ -105,7 +107,12 @@ Two outputs, both committed files in this repo:
 | `.claude/handoffs/NEXT.md` | the prompt for the next session. **Exactly one, always at this path.** |
 
 Both outputs are timeless tracked text: no session IDs, dated run sections, attributed quotes,
-personal machine paths or anecdote histories. Keep timed decision logs in the session scratchpad.
+personal machine paths or anecdote histories. Name no file on one computer: no scratchpad file, no
+`S <file>` reference, no system temporary directory and no home directory path. `validateHandoffPrompt`
+and the `Handoff Size` step refuse each one. A successor on any computer reads its state from GitHub:
+the round notes, reviews, reports and decisions are ticket comments, the run-wide decisions are on the
+run record issue, and `node tools/run-status.mjs` rebuilds the in-flight set. The successor's
+scratchpad starts empty, and nothing copies from the predecessor's.
 
 ## `/handoff` ENDS the session. Nothing more gets done in it.
 
@@ -272,7 +279,7 @@ the easiest to lose, because the repo you are in looks finished.
 | branches with no pull request | compare branches against `gh pr list` | |
 | commits on a detached HEAD | `git worktree list`, then `git log` where HEAD is detached | reachable from no branch and no remote, so they are garbage collected and gone |
 | stashes | `git stash list` | a stash leaves the worktree clean, so nothing else here reveals it |
-| work under ignored paths | `git status --ignored` and this session's scratchpad | a gitignored file crosses no boundary at all. A decision log, a generated map, a run state file or anything else there is gone the moment the session ends. Copy what is durable into the spec, or commit it |
+| work under ignored paths | `git status --ignored` and this session's scratchpad | a gitignored file crosses no boundary at all, and the scratchpad is never carried. Post a round note, review, report or decision to its ticket (`node tools/post-run-note.mjs`), a body or reply to its pull request, and anything else durable to the spec, or commit it |
 | running workers | the harness's own worker list | its result arrives after you hand over and lands nowhere durable |
 
 Every item leaves with a disposition: drive it, merge it, close it, or explicitly leave it and why.

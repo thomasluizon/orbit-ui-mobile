@@ -8,15 +8,42 @@ effort: high
 # /orchestrate: a queue of tickets, a stack of reviewed pull requests
 
 Tracked prose produced during orchestration states current rules and facts without dated incidents,
-attributed quotes, personal machine paths or session IDs. Keep timed run evidence in the scratchpad.
+attributed quotes, personal machine paths or session IDs. Timed run evidence goes to GitHub, never to a
+file that only this computer holds (see "Run state lives on GitHub" below).
 
 Constants:
 
 - Ticket repository `thomasluizon/orbit-tickets`; the configured Projects v2 board carries Status.
 - The session always runs from orbit-ui-mobile (D17). Each worktree opens in whichever repo its
   ticket's `repo:*` label names.
-- **Scratchpad** = this session's scratchpad directory. Every prompt, diff, log and findings file
-  goes there. Never inside a repo: a file written into the worktree gets committed by the worker.
+- **Scratchpad** = this session's scratchpad directory: temporary space for one session, never
+  carried to a successor. A composed order, a diff or a log may go there. Never inside a repo: a file
+  written into the worktree gets committed by the worker.
+
+## Run state lives on GitHub
+
+Anyone with a clone of the three repositories, `gh` signed in and a Claude account continues the run
+from their own computer. So each kind of state has one home on GitHub:
+
+| state | home |
+|---|---|
+| a worker order and each fix round's note | a ticket comment posted before the launch: `node tools/post-run-note.mjs --kind round-note --issue <ref> --round <n> --head <sha>`. `compose-prompt.mjs` reads every comment, and `launch-worker.mjs --fix-round` refuses an order that quotes no round note for the worktree's head |
+| the standing worker rules | the brief inside `tools/compose-prompt.mjs`. Never append a note to a composed order: `launch-worker.mjs` refuses an order whose seal does not match |
+| a review result | a ticket comment that names the reviewed head: `--kind review --head <sha>`, body starting `VERDICT:` |
+| a worker's final report | the pull request body, plus a ticket comment with the commit SHAs: `--kind report --commits <sha,...>` |
+| a pull request body or a thread reply | written straight to the pull request, never a draft file |
+| a decision about one ticket | a ticket comment: `--kind decision --issue <ref>` |
+| a run-wide decision, or an owner question no ticket owns | a comment on the closed "Orbit run record" issue: `--kind decision --run-record` |
+| intake marks (Gmail, Play, App Store, the waiter's seen keys) | `run-state/intake.json` in `thomasluizon/orbit-tickets`, through `tools/lib/auto-work-intake.mjs` |
+| the queue | the board Status and the spec's order; `remaining` is derived at each wake |
+| readiness | recomputed from GitHub at each wake; a local receipt is a cache |
+| process liveness (wake sources, locks, reservations, pids, worker logs) | local in `.git` and the system temporary directory; it holds no work |
+
+Only a pull request body and a thread reply go to a public repository. Everything else goes to the
+private tickets repository. With no run record in the checkout, `node tools/run-status.mjs` rebuilds
+the queue, every open ticket pull request with its next step, each ticket's latest round note and the
+intake marks from GitHub alone. A one-time move of an older run is `node tools/migrate-run-state.mjs`
+(a dry run first, then `--apply`).
 
 ## Every wakeup starts with the run snapshot
 
@@ -30,7 +57,11 @@ Read its one JSON object and follow `nextActions[].command` from `commandDirecto
 Commands use relative paths when those are shorter. The action set is closed:
 `MERGE_NOW`, `UPDATE_BRANCH`, `RETARGET`, `REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`,
 `RECORD_READINESS`, `BEHIND_BASE`, `CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`,
-`ORPHANED_WORKER`, `RECORD_MERGE`, `INTAKE`, `NO_ACTION`.
+`ORPHANED_WORKER`, `RECORD_MERGE`, `INTAKE`, `NO_ACTION`, `CREATE_WORKTREE`, `PLAN_QUEUE`. For `CREATE_WORKTREE`,
+run `command`, set `$WORKTREE` to the path it prints, then run its `then` command, which checks out the head
+branch of the pull request. `PLAN_QUEUE` appears only on a cold start, when the board holds a `Todo` or
+`Backlog` ticket. Its command, `node tools/plan-queue.mjs --board --sleep`, plans the queue from every open
+board ticket.
 
 **Read `MERGE_NOW` first.** The snapshot lists it before every other action. It names a pull
 request that GitHub shows at the merge bar, in the run or opened by the repository owner outside
@@ -52,7 +83,6 @@ no check. Run it. The merge pushes a head that starts the checks of the new base
 none of these actions, and a merge conflict gets no `MERGE_NOW` or `UPDATE_BRANCH`. A pull request that has one of these actions gets no other action.
 `RECORD_MERGE` names a pull request of the run that GitHub shows as merged while its ledger row has
 no sha, as when another session merged it. Run its command: it writes the sha that the stop hook waits for.
-
 Delivery and readiness remain decisions of their named tools. A merge candidate calls the
 recorder again; it grants no merge authority. A foreign session has no actions. A linked
 worktree warning names the main checkout where the orchestrating run lives.
@@ -729,13 +759,13 @@ records the task title, summary counts, and tracked file paths mentioned in the 
 Named targets make it a lost-work suspect; missing targets leave the cause unknown. Neither proves
 what happened inside the container or establishes a clean no-op.
 
-On `CLOUD_TASK_EMPTY`, immediately append the tool's JSON output to `<scratchpad>/queue-run.jsonl`.
+On `CLOUD_TASK_EMPTY`, immediately post the tool's JSON output as a decision run note on the ticket (`node tools/post-run-note.mjs --kind decision --issue <ref>`).
 Resubmit once with the original `submit-cloud-worker.mjs` arguments and unchanged order. The
 submitter checks the original base and worktree, prepends a standalone commit instruction, and
 reserves the single retry before the remote write. Capacity refusal does not spend that retry;
 resume submission when a slot opens. A reserved or uncertain submission does spend it. Under
 `--sleep --cloud`, launch `--watch <receiptPath>` for the retry and materialize its terminal result
-through the same path. Record the retry task and its result in `queue-run.jsonl`. An exhausted retry
+through the same path. Record the retry task and its result in a decision run note on the ticket. An exhausted retry
 leaves the ticket unfinished and blocked from further Cloud submissions; report it and continue
 independent tickets. Never count an empty result as a completed ticket. Any other apply failure or
 a non-empty remote diff keeps the task unresolved.
@@ -766,9 +796,8 @@ read-only sandbox with live web search; Claude exposes only WebSearch and WebFet
 arguments that grant writes are replaced by the research restrictions. The order arrives on stdin,
 and only a successful non-empty final response reaches the output file. No branch, commit, pull
 request, ticket admission reservation or parallel ticket slot is created. Both clocks, log caps and
-wake registration still apply. Start research through the same scratchpad launch gate as workers:
-wait for the one-minute load below 20 and 90 seconds since the previous launch, under its lock.
-Background the gated launcher as a harness task so its completion wakes the session. Raw model
+wake registration still apply. Research passes the same launch gate as workers inside
+`launch-worker.mjs`. Background the launcher as a harness task so its completion wakes the session. Raw model
 commands remain forbidden.
 
 `launch-worker.mjs` runs in the FOREGROUND as its own watchdog and owns both clocks: the hard
@@ -1376,7 +1405,7 @@ The same run, ledger and canonical gates continue. Otherwise, print one summary 
 - Every ticket skipped, with its reason: a deferral from step 1 or a genuine delivery blocker. For a
   `NEEDS_CONVERSATION` deferral, print its open questions too, so the night ends in a decision list.
 - Every `CLOUD_TASK_EMPTY` failure by name, with ticket, task title, summary counts, named targets,
-  classification, and retry task/outcome from `queue-run.jsonl` and durable receipts. Include failures
+  classification, and retry task/outcome from the decision run notes of the ticket and durable receipts. Include failures
   even when the retry delivered. An exhausted or uncertain retry is unfinished, never completed.
 - **Every manual step across the whole queue, in one "still outstanding" list**, merged from all
   three step 10 sources. These are the owner's clicks, not the harness's, and they are the only work
@@ -1386,9 +1415,9 @@ The same run, ledger and canonical gates continue. Otherwise, print one summary 
   a decision list rather than a guess list.
 - **Merge evidence for work merged under D88/D90**, plus the remaining PRs needing the owner.
 
-Append one JSON line per ticket outcome to `<scratchpad>/queue-run.jsonl` as the queue runs, not at
-the end. A summary assembled only at the end does not survive a context reset in the middle of the
-night.
+Post each ticket outcome as a decision run note on its ticket (`--kind decision --issue <ref>`) as the
+queue runs, not at the end. A summary assembled only at the end does not survive a context reset in the
+middle of the night.
 
 ## Step 12. Teardown
 

@@ -10,6 +10,8 @@ import { researchLaunch } from "./lib/research-run.mjs"
 import { readOnlyLaunch } from "./lib/review-run.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
+import { passLaunchGate } from "./lib/launch-gate.mjs"
+import { orderSealProblem, runNotesIn } from "./lib/run-notes.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
@@ -23,7 +25,7 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --order <file>     non-empty research order outside every repository
   --out <file>       new findings file in an existing scratchpad directory outside every repository
                      Engine output is published only on successful completion. Uses the same
-                     session load and launch-spacing gate as ticket work
+                     machine load and launch spacing gate as ticket work
 
   Read-only: launch-worker.mjs --review|--proof --order <file> --out <scratchpad file> --directory <path>
                      [--tier <t>] [--hard-ceiling-minutes <n>] [--measurement] [--dry-run]
@@ -59,8 +61,9 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
 
   --issue <reference> migrated ORB identifier or GitHub issue reference (required)
   --worktree <path>  the existing worktree the worker runs in (required)
-  --prompt <file>    the composed work order. MUST live outside the worktree, or the worker commits
-                     it. Only its path is handed to the worker, never its text (required)
+  --prompt <file>    the work order that tools/compose-prompt.mjs wrote. MUST live outside the worktree,
+                     or the worker commits it. Only its path is handed to the worker, never its text.
+                     An order without the compose seal, or with text added after it, exits 2 (required)
   --measurement      this ticket's work IS measurement (Lighthouse, a benchmark, a profile), so it
                      legitimately writes no file for long stretches. Uses
                      timeouts.measurementNoProgressMinutes instead of noProgressMinutes. The hard
@@ -77,12 +80,20 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      the branch in the fix-rounds.mjs ledger. A launch that ends with no commit
                      gives the round back, so its relaunch spends the same round. Required for an
                      order that compose-prompt.mjs --review-batch wrote. --relaunch-reason never
-                     passes this cap
+                     passes this cap.
+                     The order must quote a round note for the worktree's head, posted to the ticket
+                     with tools/post-run-note.mjs --kind round-note before the order was composed
   --design-change <file>
                      the written design change that allows one fix round above caps.reviewFixAttempts
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing. The plan names
-                     account and configDirectory, the account a claude worker runs under
+                     account and configDirectory, the account a claude worker runs under. A dry run
+                     never waits at the launch gate
   --help, -h         print this usage and exit 0
+
+Before admission, every launch waits at the launch gate: until the one-minute load is under
+launchGate.loadMax and launchGate.spacingSeconds have passed since the previous launch from this
+checkout (.claude/orchestrator.json). The check and the launch record share one lock, so start each
+launch in its own background command and never gate a launch by hand
 
 Prints one JSON object on stdout when the worker is gone: issue, engine, tier, account, pid,
 logFile, startedAt, endedAt, exitCode, outcome, usageLimitReached, authenticationFailed, resultError
@@ -199,6 +210,7 @@ const ticketLaunch = () => {
     reservation: null,
     repositoryKey: null,
     fixRounds: true,
+    sealedOrder: true,
     clearsClaimsOnExit: false,
     inheritedDescriptors: [],
     plan: { issue, research: false, mode: null, outputFile: null, writeSandbox: null, proofEmulatorPort: null },
@@ -267,7 +279,7 @@ if (readOnlyFlags.length > 1 || (researchFlag && readOnlyFlags.length > 0)) fail
 /**
  * The one choice between ticket work, research and a read-only run. Each mode owns its arguments and
  * everything else that differs. The flow below reads its values (label, runDirectory, promptFile, plan,
- * workerArguments, environment, reservation, repositoryKey, wake, clearsClaimsOnExit, inheritedDescriptors)
+ * workerArguments, environment, reservation, repositoryKey, wake, sealedOrder, clearsClaimsOnExit, inheritedDescriptors)
  * and calls its steps in this order: checkRunDirectory, prepare, admit, begin, spawn, relaunchArguments, finish.
  */
 const cli = { argv: process.argv, argOf, fail }
@@ -302,6 +314,11 @@ const normalize = (path) => path.replaceAll("\\", "/").replace(/\/+$/, "").toLow
 if (normalize(promptFile).startsWith(`${normalize(runDirectory)}/`)) {
   fail(2, `prompt file lives inside ${runDirectory}; a work order written into a repository gets committed. Write it to the session scratchpad instead`)
 }
+const orderText = launchMode.sealedOrder ? readFileSync(promptFile, "utf8") : null
+const sealProblem = launchMode.sealedOrder ? orderSealProblem(orderText) : null
+if (sealProblem) {
+  fail(2, `${promptFile} is not a composed order: ${sealProblem}. Build every worker order with node tools/compose-prompt.mjs; a fix round's note goes to the ticket first with node tools/post-run-note.mjs --kind round-note`)
+}
 
 /** A run directory outside git reads as the empty text. */
 const gitIn = (args) => gitOutput(runDirectory, args)
@@ -315,8 +332,11 @@ let designChange = null
 if (designChangeArgument !== null) {
   try { designChange = readDesignChange(designChangeArgument) } catch (error) { fail(2, error.message) }
 }
-if (launchMode.fixRounds === true && fixRoundArgument === null && readFileSync(promptFile, "utf8").includes(REVIEW_BATCH_ORDER_MARKER)) {
+if (launchMode.fixRounds === true && fixRoundArgument === null && orderText.includes(REVIEW_BATCH_ORDER_MARKER)) {
   fail(2, `${promptFile} is a review batch order, which is a fix round: pass --fix-round <local|pullfrog>`)
+}
+if (launchMode.fixRounds === true && fixRoundArgument !== null && !runNotesIn(orderText).some((note) => note.kind === "round-note" && note.head === startHead)) {
+  fail(2, `${promptFile} quotes no round note for head ${startHead}. Post the round's note to the ticket with node tools/post-run-note.mjs --kind round-note --issue ${issue} --round <n> --head ${startHead} --body-file <file>, then compose the order again`)
 }
 const fixRoundContext = { cap: config.caps.reviewFixAttempts, branch, designChange }
 /** Read before the launch slot is claimed, so a refused fix round never spends a launch. */
@@ -434,6 +454,13 @@ if (dryRun) {
 
 /** The markers of a worker that this launcher started. The worker hooks read the first one. */
 const launched = (environment) => ({ ...environment, ORBIT_LAUNCH_WORKER: "1", ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca" })
+const gate = await passLaunchGate(config.launchGate)
+console.error(`${issue} passed the launch gate at load ${gate.load.toFixed(2)} after ${Math.round(gate.waitedMs / 1000)} s`)
+try { launchRunState = readRunState() } catch (error) { fail(2, error.message) }
+if (config.relay.enabled && launchRunState?.relay?.pending === true) {
+  console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", refusalReason: "RELAY_DRAIN", error: "RELAY_DRAIN" }))
+  process.exit(ADMISSION_REFUSED_EXIT)
+}
 // The network step of the mode: it sets the worker environment, and it may refuse the launch.
 await launchMode.admit({ config, branch, launched })
 /** Set while an attempt runs. It stops that attempt's whole group and returns false when a clock already did. */

@@ -289,7 +289,7 @@ marks five tools with `requiresUserInteraction() { return true }`: `AskUserQuest
 `OfferChromeSetup`, `PublishPlugin`, `SendToProject` and `ShowOnboardingRolePicker`.
 `PERSON_PROMPT_TOOLS` holds the five names, and `.claude/settings.json` registers the hook on each.
 In an unattended run, `checkPersonPrompt` refuses each one by its name. Its message tells the agent
-to decide with the best option and to write the decision to the decision log. For a real owner
+to decide with the best option and to post the decision as a decision run note. For a real owner
 question, the agent adds a `{ question, blocks }` row to `openOwnerQuestions` through
 `updateRunState` and asks the question in plain reply text, which never blocks the run.
 A launched worker records the decision in the assumptions section of its order.

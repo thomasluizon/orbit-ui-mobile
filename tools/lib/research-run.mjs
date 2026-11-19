@@ -102,6 +102,7 @@ export const researchLaunch = ({ argv, argOf, fail }) => {
     wake: { what: "research", research: true, review: false },
     reservation: null,
     repositoryKey: null,
+    sealedOrder: false,
     clearsClaimsOnExit: true,
     inheritedDescriptors: [],
     plan: null,

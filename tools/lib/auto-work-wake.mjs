@@ -1,9 +1,9 @@
 import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
-import { activeIntakeRun, pendingReviewKeys, REVIEW_RUN_SECONDS } from "./auto-work-intake.mjs"
+import { pendingReviewKeys, REVIEW_RUN_SECONDS, updateIntake } from "./auto-work-intake.mjs"
 import { runBounded } from "./bounded-process.mjs"
 import { listBoardState } from "./github-issues.mjs"
-import { REPO_ROOT, updateRunState } from "./run-state.mjs"
+import { readRunState, REPO_ROOT } from "./run-state.mjs"
 
 /**
  * No read-only Sentry token exists and no Sentry REST response has been verified, so the waiter
@@ -51,7 +51,7 @@ export const reviewCheck = ({ run, repoRoot = REPO_ROOT }) => async () => {
   return { keys: cycle.keys, ...(typeof cycle.failure === "string" ? { failure: cycle.failure } : {}) }
 }
 
-/** Seen keys, failure signatures and the Sentry listing time, all carried in run state. */
+/** Seen keys, failure signatures and the Sentry listing time, all carried in the intake file on GitHub. */
 export const initialWakeMarks = (intake, nowMilliseconds) => {
   const marks = intake?.wake ?? {}
   return {
@@ -62,17 +62,12 @@ export const initialWakeMarks = (intake, nowMilliseconds) => {
 }
 
 /**
- * Saves the marks in one locked read-change-write. When `modeChanged` holds for the current record,
- * nothing is written and the result is false, so a save never lands after a mode change.
+ * Saves the marks in one compare-and-swap of the intake file. When `modeChanged` holds for the local run record,
+ * nothing is written and the result is false; the waiter's next pass then reports the mode change.
  */
 export const saveWakeMarks = (marks, repoRoot = REPO_ROOT, modeChanged = () => false) => {
-  const written = updateRunState((current) => {
-    if (modeChanged(current)) return undefined
-    const state = activeIntakeRun(current, repoRoot)
-    return { ...state, intake: { ...state.intake, wake: marks } }
-  }, repoRoot)
-  if (written === undefined) return false
-  if (JSON.stringify(written.intake?.wake) !== JSON.stringify(marks)) throw new Error("Wake marks write was not confirmed")
+  if (modeChanged(readRunState(repoRoot))) return false
+  updateIntake("wake", () => marks, repoRoot)
   return true
 }
 

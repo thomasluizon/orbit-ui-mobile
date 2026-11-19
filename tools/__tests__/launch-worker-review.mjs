@@ -5,6 +5,7 @@ import { dirname, join } from "node:path"
 import { REPO_ROOT, T, TOOLS_DIR, check, orcaEnv, root, run, stage } from "./_harness.mjs"
 import { emulatorPortClaimDirectory } from "../lib/review-run.mjs"
 import { clearWorkerLaunchReservation, gitDirectoryOf, reserveWorkerLaunch } from "../lib/run-state.mjs"
+import { sealOrder } from "../lib/run-notes.mjs"
 import { discardAttemptLogs, githubAuthEnv, launch, launchConfig, stubEngine } from "./launch-worker.mjs"
 import { limitResultLine } from "./claude-usage-limit.mjs"
 
@@ -39,7 +40,7 @@ const reviewFixture = (label, body, overrides = {}, configuration = {}, headFile
   fixture.git(["commit", "-q", "-m", "a tracked file"])
   const runDirectory = join(dirname(fixture.worktree), `launch-worker-review-${label}-head`)
   fixture.git(["worktree", "add", "-q", "--detach", runDirectory])
-  const order = stage(`launch-worker-review/${label}-order.md`, "Review the head and write the verdict first.\n")
+  const order = stage(`launch-worker-review/${label}-order.md`, sealOrder("Review the head and write the verdict first.\n"))
   const output = () => join(dirname(order), `${label}-result-${sequence += 1}.md`)
   const argv = (mode, out) => [`--${mode}`, "--order", order, "--out", out, "--directory", runDirectory]
   return { ...fixture, runDirectory, order, output, argv }
@@ -369,6 +370,26 @@ fs.writeFileSync(resultPath, fs.existsSync(resultPath) ? "VERDICT: CLEAN\\nthe s
   T(`${TOOL}: a killed review publishes no result file`, burned.report?.published === false && burned.published === null, burned.result.stdout)
 }
 
+/** The order that compose-prompt.mjs writes carries the seal that the launcher checks; a hand-written or changed order does not. */
+const sealCases = () => {
+  const fixture = reviewFixture("seal", "fs.writeFileSync(resultPath, 'VERDICT: CLEAN\\n')")
+  const composeTool = join(fixture.base, "tools", "compose-prompt.mjs")
+  cpSync(join(TOOLS_DIR, "compose-prompt.mjs"), composeTool)
+  mkdirSync(join(fixture.base, ".claude", "playbooks"), { recursive: true })
+  cpSync(join(REPO_ROOT, ".claude", "playbooks", "review-and-audit.md"), join(fixture.base, ".claude", "playbooks", "review-and-audit.md"))
+  const directory = dirname(fixture.order)
+  const composed = join(directory, "seal-composed-review.md")
+  check("compose-prompt.mjs", "a review order is composed for the launcher",
+    ["--review", "--repo", "ui", "--pr", "2145", "--head", "0123456789abcdef0123456789abcdef01234567", "--out", composed], { status: 0 }, { path: composeTool, env: orcaEnv([]) })
+  const dryRun = (order) => ["--review", "--order", order, "--out", fixture.output(), "--directory", fixture.runDirectory, "--dry-run"]
+  check(TOOL, "a review order that compose-prompt.mjs wrote passes the seal check", dryRun(composed), { status: 0 }, { path: fixture.path })
+  const appended = join(directory, "seal-appended-review.md")
+  writeFileSync(appended, `${readFileSync(composed, "utf8")}One more line.\n`)
+  check(TOOL, "the same review order with one appended line exits 2", dryRun(appended), { status: 2, stderr: /is not a composed order/ }, { path: fixture.path })
+  const handWritten = stage("launch-worker-review/seal-hand-written.md", "Review the head and write the verdict first.\n")
+  check(TOOL, "a hand-written review order exits 2", dryRun(handWritten), { status: 2, stderr: /is not a composed order/ }, { path: fixture.path })
+}
+
 /**
  * The launcher chooses its mode on one line. After that line, the clocks, the CPU probe, the wake source and
  * the attempt loop read the values of the mode, so no later line names a mode flag (thread __pE).
@@ -393,6 +414,7 @@ export const cases = async () => {
     unsandboxedCase()
     return
   }
+  sealCases()
   cleanCases()
   await concurrentProofCase()
   sandboxCases()

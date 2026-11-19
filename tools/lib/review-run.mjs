@@ -330,6 +330,7 @@ export const readOnlyLaunch = (mode, { argv, argOf, fail }) => {
     /** A read-only run claims a git run directory against a second launch, but holds no branch slot. */
     reservation: gitWorktree ? { branchCap: null } : null,
     repositoryKey: null,
+    sealedOrder: true,
     clearsClaimsOnExit: true,
     inheritedDescriptors: [],
     plan: null,
