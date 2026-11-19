@@ -15,7 +15,7 @@ const engineStub = (label, body) => {
 const fixture = (label, command, overrides = {}) => {
   const real = realOrchestratorConfig()
   const worker = overrides.worker ?? real.worker
-  const config = { ...real, launchGate: HERMETIC_LAUNCH_GATE, ...overrides, workers: { ...real.workers, [worker]: { ...real.workers[worker], command } } }
+  const config = { ...real, ...overrides, launchGate: HERMETIC_LAUNCH_GATE, workers: { ...real.workers, [worker]: { ...real.workers[worker], command } } }
   const staged = stageWithConfig(`research-${label}`, TOOL, config)
   const order = stage(`research/${label}-order.md`, "Compare read-only research approaches and cite sources.\n")
   const output = join(dirname(order), `${label}-findings.md`)

@@ -17,11 +17,11 @@ const TOOL = "launch-worker.mjs"
  * is swapped by default: the configured worker is `claude`, which is not installed in CI, and a
  * gate that needs a model CLI on PATH is not hermetic.
  */
-const launchConfig = ({ engine = {}, timeouts = {}, caps = {}, launchGate = HERMETIC_LAUNCH_GATE } = {}) => {
+const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
   const real = realOrchestratorConfig()
   return {
     ...real,
-    launchGate,
+    launchGate: HERMETIC_LAUNCH_GATE,
     workers: { ...real.workers, [real.worker]: { ...real.workers[real.worker], command: process.execPath, ...engine } },
     timeouts: { ...real.timeouts, ...timeouts },
     caps: { ...real.caps, ...caps },
