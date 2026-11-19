@@ -222,8 +222,11 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format mar
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--layout-guard] [--review-batch] [--cloud]
+node tools/compose-prompt.mjs    --review --repo <key> --pr <n> --head <sha> [--since <reviewed sha>] --out <file>
+node tools/compose-prompt.mjs    --proof --repo <key> --pr <n> --head <sha> --plan <file> --devices <names> --evidence <dir> --out <file>
 node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>] [--fix-round <local|pullfrog> [--design-change <file>]]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
+node tools/launch-worker.mjs --review|--proof --order <scratchpad order> --out <scratchpad result> --directory <detached worktree> [--tier <t>] [--hard-ceiling-minutes <n>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
 node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
@@ -772,9 +775,21 @@ a non-empty remote diff keeps the task unresolved.
 ```bash
 node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>] [--fix-round <local|pullfrog> [--design-change <file>]]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
+node tools/launch-worker.mjs --review|--proof --order <scratchpad order> --out <scratchpad result> --directory <detached worktree>
 ```
 
 Headless, `stdin=NUL`, `cwd` = the worktree, log to the scratchpad.
+
+Every pre-push review, fix-round review and device proof runs on a read-only worker:
+`compose-prompt.mjs --review` or `--proof` writes the order, and `launch-worker.mjs --review` or
+`--proof` runs it in a detached worktree at the head (`.claude/playbooks/review-and-audit.md` rule 14).
+It runs on the worker account, takes no admission and no branch launch slot, and its launcher is a
+wake source that holds no ticket slot. It runs only on macOS, under a `sandbox-exec` write profile
+that refuses each commit, branch, push and tracked write outside the run directory. It publishes the
+result file only after a clean run. Post a review result to the ticket as `post-run-note.mjs --kind review`
+and a proof result as `--kind decision`, because a result file in the scratchpad reaches no other computer.
+The launcher exits 5 when the worker committed or changed a tracked
+file in its own run directory.
 
 For research without a ticket, use `launch-worker.mjs --research --order <file> --out <file>`.
 Both paths live in the session scratchpad outside every repository; the output must be a new file.
@@ -997,8 +1012,9 @@ console settings `review.mode` `none` and `review.re-review` `false` stop the re
 push. The review runs beside CI, so a round costs the slower of the two. The merge bar does not
 change: green checks, an approval at the exact head, zero unresolved threads and `behind_by=0`.
 
-**Run the local review gate, `.claude/playbooks/review-and-audit.md` rule 14, before every push of a
-pull request head and before you ask for the review of a head that a worker pushed.** That gate is
+**Run the local review gate, `.claude/playbooks/review-and-audit.md` rule 14, on a review worker
+(`launch-worker.mjs --review`) before every push of a pull request head and before you ask for the
+review of a head that a worker pushed.** A fix round gets its own review worker with `--since`. That gate is
 what keeps a head that fails CI, or that carries a finding the reviewer will open, from costing a
 review round.
 
@@ -1413,6 +1429,8 @@ Per worktree, only after `gh pr view <n> --json state` reads `MERGED`:
 node tools/teardown-worktree.mjs --issue "<ticket-ref>" --repo <key>
 ```
 
+Exit 4 and the line `ALREADY REMOVED` mean the unattended stale-file cleanup removed the clean worktree of the merged ticket. Treat exit 4 as done. Any other non-zero exit is a failure.
+
 Never tear down an unmerged worktree. The branch and its work are the only copy. In a queue this
 runs for merged tickets only, including those merged under D88/D90 standing authority.
 
@@ -1541,7 +1559,9 @@ percent CPU floor, `CPU_PROGRESS_FRACTION` in `tools/launch-worker.mjs`. On a ma
 floor is missed and the assertion fails on its own.
 Check that test name first when an unexpected FAIL appears, and rerun it on a quiet machine.
 
-**Never substitute a Claude SUBAGENT for a worker.** A subagent lives inside the orchestrating
+**Never substitute a Claude SUBAGENT for a worker**, and that includes a pre-push review, a fix-round
+review and a device proof: each one runs through `launch-worker.mjs --review` or `--proof` on the
+worker account, so the main account stays free for the orchestrator. A subagent lives inside the orchestrating
 session, so it dies with that session and a handoff inherits nothing: its edits sit uncommitted in a
 worktree with no record of what they were, and the next session cannot resume or even find them.
 A subagent also registers no wake source, so `.claude/hooks/require-wake-source.mjs` correctly reads
