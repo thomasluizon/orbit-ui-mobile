@@ -7,6 +7,7 @@ import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
+import { SidebarPreferenceProvider } from '@/components/shell/sidebar-preference-provider'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({
@@ -26,8 +27,7 @@ function shell(onCreate = vi.fn()) {
 describe('sidebar collapse', () => {
   beforeEach(() => {
     useUIStore.setState({ astraConversationOpen: false })
-    localStorage.clear()
-    useShellStore.setState(useShellStore.getInitialState())
+    useShellStore.setState({ sidebarCollapsed: false })
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
   })
 
@@ -73,7 +73,7 @@ describe('sidebar collapse', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('keeps all sidebar actions reachable when collapsed and restores the saved preference after remount', async () => {
+  it('keeps all sidebar actions reachable when collapsed and keeps the preference after remount', async () => {
     const onCreate = vi.fn()
     const view = render(shell(onCreate))
     fireEvent.click(screen.getByRole('button', { name: 'shell.collapseSidebar' }))
@@ -86,10 +86,7 @@ describe('sidebar collapse', () => {
     expect(sidebar.getByRole('button', { name: 'shell.astraButton.open' })).toBeEnabled()
     expect(sidebar.getByRole('button', { name: 'notifications.bell' })).toBeEnabled()
     expect(sidebar.getByRole('button', { name: 'Person, person@example.test' })).toBeVisible()
-    const savedPreference = localStorage.getItem('orbit-shell-store')
     view.unmount()
-    useShellStore.setState(useShellStore.getInitialState())
-    localStorage.setItem('orbit-shell-store', savedPreference!)
     render(shell())
     expect(await screen.findByRole('button', { name: 'shell.expandSidebar' })).toBeEnabled()
   })
@@ -128,24 +125,48 @@ describe('sidebar collapse', () => {
   })
 
   it('hydrates a saved collapsed preference without replacing the server content', async () => {
-    useShellStore.getState().toggleSidebar()
-    const content = shell()
+    useShellStore.setState({ sidebarCollapsed: true })
+    const content = <SidebarPreferenceProvider initialCollapsed>{shell()}</SidebarPreferenceProvider>
     const container = document.createElement('div')
     container.innerHTML = renderToString(content)
     document.body.append(container)
     const heading = within(container).getByRole('heading', { name: 'Today' })
-    expect(within(container).getByRole('button', { name: 'shell.collapseSidebar' })).toBeDisabled()
+    const serverSidebar = container.querySelector('[data-shell-sidebar]')
     const onRecoverableError = vi.fn()
     let root: ReturnType<typeof hydrateRoot> | undefined
     try {
       await act(async () => { root = hydrateRoot(container, content, { onRecoverableError }) })
       expect(within(container).getByRole('button', { name: 'shell.expandSidebar' })).toBeEnabled()
       expect(within(container).getByRole('heading', { name: 'Today' })).toBe(heading)
+      expect(container.querySelector('[data-shell-sidebar]')).toBe(serverSidebar)
       expect(onRecoverableError).not.toHaveBeenCalled()
     } finally {
       await act(async () => root?.unmount())
       container.remove()
     }
+  })
+
+  it('draws the saved collapsed sidebar in the server HTML, before any script runs', () => {
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(<SidebarPreferenceProvider initialCollapsed>{shell()}</SidebarPreferenceProvider>)
+    const sidebar = container.querySelector<HTMLElement>('[data-shell-sidebar]')!
+    expect(sidebar).toHaveAttribute('data-collapsed', 'true')
+    expect(sidebar).toHaveClass('w-[96px]')
+    expect(within(sidebar).getByRole('button', { name: 'nav.createHabit' })).toBeTruthy()
+    expect(within(container).getByRole('button', { name: 'shell.expandSidebar' })).toBeDisabled()
+  })
+
+  it('draws the expanded sidebar in the server HTML when no preference is saved', () => {
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(shell())
+    expect(container.querySelector('[data-shell-sidebar]')).not.toHaveAttribute('data-collapsed')
+  })
+
+  it('draws the saved collapsed sidebar on the first client frame, with no swap after an effect', () => {
+    useShellStore.setState({ sidebarCollapsed: true })
+    const { container } = render(shell())
+    expect(container.querySelector('[data-shell-sidebar]')).toHaveAttribute('data-collapsed', 'true')
+    expect(screen.getByRole('button', { name: 'shell.expandSidebar' })).toBeInTheDocument()
   })
 
   it('disables the toggle before client hydration', () => {

@@ -193,8 +193,8 @@
     ".claude/skills/crank/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "ce68f3978587e5b3",
-      "calibratedAt": "2026-11-13",
+      "digest": "ca8bd0a468115ae4",
+      "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
     },
     ".claude/skills/deep-research/SKILL.md": {
@@ -228,7 +228,7 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "c7e609dac46b1954",
+      "digest": "624f655181bdf769",
       "calibratedAt": "2026-11-19",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
@@ -270,7 +270,7 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "da849b351000b043",
+      "digest": "8882cac180a9a571",
       "calibratedAt": "2026-11-19",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
