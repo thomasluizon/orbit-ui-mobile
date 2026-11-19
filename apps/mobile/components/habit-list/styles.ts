@@ -38,10 +38,6 @@ export function createStyles(tokens: AppTokens) {
   const skeletonBone = alpha(tokens.fg1, 0.08)
 
   return StyleSheet.create({
-    skeletonContainer: {
-      paddingTop: SPACING.s12,
-      gap: SPACING.s12,
-    },
     skeletonCard: {
       backgroundColor: tokens.bgCard,
       borderRadius: 20,
