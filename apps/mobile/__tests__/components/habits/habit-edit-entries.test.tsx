@@ -85,7 +85,7 @@ async function tap(tree: Tree, name: string) {
 const mountDetail = () => renderNavigation(<QueryClientProvider client={new QueryClient()}><HabitDetailScreen habitId="habit-1" /></QueryClientProvider>)
 const todayModals = (editHabit: ReturnType<typeof createMockHabit> | null) => (
   <QueryClientProvider client={new QueryClient()}>
-    <TodayModals showCreateModal={false} onCloseCreateModal={vi.fn()} createInitialDate={null} editHabit={editHabit} editHabitParentIsGeneral={null}
+    <TodayModals editHabit={editHabit} editHabitParentIsGeneral={null}
       onCloseEdit={vi.fn()} editHabitOnSaved={null} showBulkDeleteConfirm={false} onBulkDeleteOpenChange={vi.fn()} onConfirmBulkDelete={vi.fn()}
       selectedCount={0} showReferral={false} onCloseReferral={vi.fn()} />
   </QueryClientProvider>
