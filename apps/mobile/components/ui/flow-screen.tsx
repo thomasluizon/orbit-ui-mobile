@@ -18,7 +18,7 @@ interface FlowScreenProps {
   children: ReactNode
 }
 
-/** The one host of a one-question flow on Android. Every flow mounts inside it, and so does its result dialog. */
+/** The one host of a one-question flow on Android and iOS. Every flow mounts inside it, and so does its result dialog. */
 export function FlowScreen({ label, onDismiss, presentation = 'overlay', open = true, onDismissed, result, children }: Readonly<FlowScreenProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -33,6 +33,8 @@ export function FlowScreen({ label, onDismiss, presentation = 'overlay', open = 
     <View
       testID="flow-screen"
       accessibilityViewIsModal={presentation === 'overlay' && !result}
+      accessibilityElementsHidden={showsResult}
+      importantForAccessibility={showsResult ? 'no-hide-descendants' : 'auto'}
       accessibilityLabel={label}
       style={[styles.root, { backgroundColor: tokens.bg, paddingTop: insets.top, paddingBottom: insets.bottom }]}
     >

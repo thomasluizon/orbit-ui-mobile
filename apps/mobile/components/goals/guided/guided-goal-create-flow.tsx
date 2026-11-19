@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import type { CreateGoalSheetProps } from '@orbit/shared/hooks'
@@ -10,10 +10,10 @@ import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { GoalSummary, useAmountView, useDeadlineView, useTrackView, useWhatView } from './goal-flow-steps'
 import { useGoalHabitsSummary, useGoalHabitsView } from './goal-habits-step'
 import { GoalResultDialog } from './goal-result-dialog'
-import { GoalFlowFrame, useStepHints, type SavedGoal } from './guided-goal-flow'
+import { GoalFlowContent, GoalFlowWindow, useStepHints, type GoalFlowDismissRef, type SavedGoal } from './guided-goal-flow'
 import { useGuidedGoalFlow } from './use-guided-goal-flow'
 
-function GoalCreateRun({ props, onSaved, result }: Readonly<{ props: CreateGoalSheetProps; onSaved: (goal: SavedGoal) => void; result: ReactNode }>) {
+function GoalCreateRun({ props, onSaved, dismissRef }: Readonly<{ props: CreateGoalSheetProps; onSaved: (goal: SavedGoal) => void; dismissRef: GoalFlowDismissRef }>) {
   const { t } = useTranslation()
   const { showError } = useAppToast()
   const submitted = useRef<Omit<SavedGoal, 'goalId'>>({ title: '', deadline: '' })
@@ -62,11 +62,13 @@ function GoalCreateRun({ props, onSaved, result }: Readonly<{ props: CreateGoalS
     },
   }
   const requestClose = () => { if (!form.isSubmitting) form.dismissGuard.requestDismiss() }
-  return <GoalFlowFrame flowId="goal_create" label={t('goals.create')} flow={flow} view={views[flow.current.step]} requestClose={requestClose} discard={form.dismissGuard} result={result} />
+  return <GoalFlowContent flowId="goal_create" flow={flow} view={views[flow.current.step]} requestClose={requestClose} discard={form.dismissGuard} dismissRef={dismissRef} />
 }
 
 /** The guided goal create flow: one question at a time over the draft the current sheet owns, closed by the result dialog. */
 export function GuidedGoalCreateFlow(props: Readonly<CreateGoalSheetProps>) {
+  const { t } = useTranslation()
+  const dismissRef: GoalFlowDismissRef = useRef(null)
   const [run, setRun] = useState(0)
   const [saved, setSaved] = useState<SavedGoal | null>(null)
   const { onOpenGoal } = props
@@ -81,5 +83,5 @@ export function GuidedGoalCreateFlow(props: Readonly<CreateGoalSheetProps>) {
       onClose={props.onClose}
     />
   ) : null
-  return <GoalCreateRun key={run} props={props} onSaved={setSaved} result={result} />
+  return <GoalFlowWindow label={t('goals.create')} dismissRef={dismissRef} result={result}><GoalCreateRun key={run} props={props} onSaved={setSaved} dismissRef={dismissRef} /></GoalFlowWindow>
 }

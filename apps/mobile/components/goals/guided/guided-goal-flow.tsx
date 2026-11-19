@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import type { GoalDismissGuard, GuidedGoalFlowNavigation } from '@orbit/shared/hooks'
@@ -23,21 +23,31 @@ export function useStepHints(draft: Pick<GoalDraftPort, 'description' | 'targetV
   return { hint, show, clear: () => setHint(null), submit }
 }
 
-interface GoalFlowFrameProps {
+interface GoalFlowContentProps {
   flowId: 'goal_create' | 'goal_edit'
-  label: string
   flow: GuidedGoalFlowNavigation
   view: FlowStepView
   requestClose: () => void
   discard: GoalDismissGuard
-  result?: ReactNode
+  dismissRef: GoalFlowDismissRef
 }
 
-export function GoalFlowFrame({ flowId, label, flow, view, requestClose, discard, result }: Readonly<GoalFlowFrameProps>) {
+export type GoalFlowDismissRef = MutableRefObject<(() => void) | null>
+
+/**
+ * The question and the discard sheet of a goal flow. The native window around them belongs to the caller, so a flow that
+ * starts again swaps this content under one window and never mounts a second Modal while the first one dismisses.
+ */
+export function GoalFlowContent({ flowId, flow, view, requestClose, discard, dismissRef }: Readonly<GoalFlowContentProps>) {
   const { t } = useTranslation()
   const { position, total } = flow.position
+  const dismiss = flow.canGoBack ? flow.back : requestClose
+  useEffect(() => {
+    dismissRef.current = dismiss
+    return () => { dismissRef.current = null }
+  })
   return (
-    <FlowScreen label={label} onDismiss={flow.canGoBack ? flow.back : requestClose} result={result}>
+    <>
       <QuestionFlow
         flow={flowId}
         stepKey={flow.current.step}
@@ -57,6 +67,31 @@ export function GoalFlowFrame({ flowId, label, flow, view, requestClose, discard
         {view.free}
       </QuestionFlow>
       <DiscardChangesSheet open={discard.showDiscardDialog} onKeepEditing={discard.cancelDismiss} onDiscard={discard.confirmDismiss} />
-    </FlowScreen>
+    </>
   )
+}
+
+interface GoalFlowWindowProps {
+  label: string
+  open?: boolean
+  onDismissed?: () => void
+  dismissRef: GoalFlowDismissRef
+  result?: ReactNode
+  children: ReactNode
+}
+
+/** The one native window of a goal flow. The content inside it reports its close action through `dismissRef`. */
+export function GoalFlowWindow({ label, open, onDismissed, dismissRef, result, children }: Readonly<GoalFlowWindowProps>) {
+  return <FlowScreen label={label} open={open} onDismissed={onDismissed} onDismiss={() => dismissRef.current?.()} result={result}>{children}</FlowScreen>
+}
+
+interface GoalFlowFrameProps extends Omit<GoalFlowContentProps, 'dismissRef'>, Pick<GoalFlowWindowProps, 'open' | 'onDismissed'> {
+  label: string
+  result?: ReactNode
+}
+
+/** A goal flow that owns its window and never starts again in place. */
+export function GoalFlowFrame({ label, open, onDismissed, result, ...content }: Readonly<GoalFlowFrameProps>) {
+  const dismissRef: GoalFlowDismissRef = useRef(null)
+  return <GoalFlowWindow label={label} open={open} onDismissed={onDismissed} dismissRef={dismissRef} result={result}><GoalFlowContent {...content} dismissRef={dismissRef} /></GoalFlowWindow>
 }

@@ -16,9 +16,11 @@ import { useGuidedGoalFlow } from './use-guided-goal-flow'
 interface GuidedGoalEditFlowProps {
   goal: GoalEditSource & { id: string }
   onClose: () => void
+  windowOpen?: boolean
+  onWindowDismissed?: () => void
 }
 
-function GoalEditRun({ goal, onClose, onSaved, result }: Readonly<GuidedGoalEditFlowProps & { onSaved: (goal: SavedGoal) => void; result: ReactNode }>) {
+function GoalEditRun({ goal, onClose, windowOpen, onWindowDismissed, onSaved, result }: Readonly<GuidedGoalEditFlowProps & { onSaved: (goal: SavedGoal) => void; result: ReactNode }>) {
   const { t } = useTranslation()
   const translate = (key: string, values?: Record<string, unknown>) => t(key, values)
   const updateGoal = useUpdateGoal()
@@ -59,12 +61,12 @@ function GoalEditRun({ goal, onClose, onSaved, result }: Readonly<GuidedGoalEdit
     primary: { label: t('common.save'), onPress: () => void save(), loading: submission.waiting },
   }
   const requestClose = () => { if (!submission.isRunning()) discard.requestDismiss() }
-  return <GoalFlowFrame flowId="goal_edit" label={t('goals.detail.edit')} flow={flow} view={views[flow.current.step] ?? summary} requestClose={requestClose} discard={discard} result={result} />
+  return <GoalFlowFrame flowId="goal_edit" label={t('goals.detail.edit')} flow={flow} view={views[flow.current.step] ?? summary} requestClose={requestClose} discard={discard} open={windowOpen} onDismissed={onWindowDismissed} result={result} />
 }
 
 /** The guided goal edit: it opens on the summary with the stored values, and a save closes with the result dialog. */
-export function GuidedGoalEditFlow({ goal, onClose }: Readonly<GuidedGoalEditFlowProps>) {
+export function GuidedGoalEditFlow({ goal, onClose, windowOpen, onWindowDismissed }: Readonly<GuidedGoalEditFlowProps>) {
   const [saved, setSaved] = useState<SavedGoal | null>(null)
   const result = saved ? <GoalResultDialog title={saved.title} deadline={saved.deadline} change="updated" opensGoal onPrimary={onClose} onClose={onClose} /> : null
-  return <GoalEditRun goal={goal} onClose={onClose} onSaved={setSaved} result={result} />
+  return <GoalEditRun goal={goal} onClose={onClose} windowOpen={windowOpen} onWindowDismissed={onWindowDismissed} onSaved={setSaved} result={result} />
 }

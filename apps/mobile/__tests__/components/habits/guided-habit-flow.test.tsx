@@ -278,7 +278,7 @@ describe.each([
     tree.unmount()
   })
 
-  it('moves accessibility focus to the question on each step change, a return to the first step included', async () => {
+  it('sets accessibility focus once on each step change, a return to the first step included', async () => {
     const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
     const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
     const tree = renderNavigation(<Harness />)

@@ -167,6 +167,28 @@ describe('the guided goal create flow on Android', () => {
     tree.unmount()
   })
 
+  it('keeps one flow window mounted while Create another starts an empty flow, so iOS presents no second Modal', async () => {
+    await i18n.changeLanguage('en')
+    const tree = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} />)
+    await type(tree, EN.title, 'Gym days')
+    await tap(tree, 'Continue')
+    await tap(tree, 'Streak')
+    await type(tree, 'How many days in a row?', '30')
+    await tap(tree, 'Continue')
+    await tap(tree, 'No deadline')
+    await tap(tree, 'Continue')
+    await tap(tree, 'Create goal')
+    expect(resultDialog(tree)).toBeDefined()
+    const [flowWindow] = nativeWindows(tree)
+    await tap(tree, 'Create another')
+    expect(resultDialog(tree)).toBeUndefined()
+    expect(heading(tree)).toBe(EN.title)
+    expect(progress(tree)).toBe('Step 1 of 6')
+    expect(nativeWindows(tree)).toHaveLength(1)
+    expect(nativeWindows(tree)[0], 'the window of the flow is the same one, not a new Modal').toBe(flowWindow)
+    tree.unmount()
+  })
+
   it('skips the habits for a goal that starts from a habit and shows that habit on the summary', async () => {
     await i18n.changeLanguage('en')
     const tree = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} initialHabitIds={['habit-read']} fromHabit={{ title: 'Read' }} />)

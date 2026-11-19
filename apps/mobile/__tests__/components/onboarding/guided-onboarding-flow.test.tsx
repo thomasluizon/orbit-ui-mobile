@@ -490,6 +490,27 @@ describe('the native window handoff of the guided onboarding', () => {
     }
   })
 
+  it('on iOS keeps the steps window until UIKit finishes its dismissal, then presents the Pro dialog after a push recovery', async () => {
+    mocks.pro = false
+    useOnboardingDraftStore.setState({ introSeen: true, habits: [{ title: 'Walk', dueTime: '18:00' }], pushPermissionGranted: true, pushRegistrationFailed: true })
+    const proStep = (tree: TestTree) => tree.root.findAll((node) => node.type === 'ProStep')
+    const platform = await import('react-native')
+    platform.Platform.OS = 'ios'
+    try {
+      const tree = await mount()
+      await press(tree, en.onboarding.flow.remind.continue)
+      const leaving = stepsWindow(tree)
+      expect(leaving, 'the steps window is still mounted and dismissing').toHaveLength(1)
+      expect(leaving[0]!.props.visible).toBe(false)
+      expect(proStep(tree), 'the Pro dialog waits, because UIKit refuses a presentation over a dismissal').toHaveLength(0)
+      await TestRenderer.act(async () => { (leaving[0]!.props.onDismiss as () => void)(); await Promise.resolve() })
+      expect(proStep(tree)).toHaveLength(1)
+      expect(stepsWindow(tree)).toHaveLength(0)
+    } finally {
+      platform.Platform.OS = 'android'
+    }
+  })
+
   it('on Android presents the done shell at once, with no window left behind', async () => {
     const tree = await mount()
     await skipFromFirstQuestion(tree)

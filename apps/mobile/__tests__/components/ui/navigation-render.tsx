@@ -21,6 +21,8 @@ type NavigationHost = {
     onFocus?: () => void
     onRequestClose?: () => void
     accessibilityViewIsModal?: boolean
+    accessibilityElementsHidden?: boolean
+    importantForAccessibility?: 'auto' | 'yes' | 'no' | 'no-hide-descendants'
     testID?: string
     style?: unknown
   }

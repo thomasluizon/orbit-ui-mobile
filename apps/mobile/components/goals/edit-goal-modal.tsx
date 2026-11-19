@@ -34,6 +34,8 @@ import { createStyles } from './edit-goal-modal/styles'
 
 interface EditGoalModalProps {
   open: boolean
+  windowOpen?: boolean
+  onWindowDismissed?: () => void
   onClose: () => void
   goal: {
     id: string
@@ -59,7 +61,7 @@ export function EditGoalModal(props: Readonly<EditGoalModalProps>) {
 
 function OpenEditGoalModal(props: Readonly<EditGoalModalProps>) {
   const guided = useFlag('orbit_guided_flows')
-  return guided ? <GuidedGoalEditFlow goal={props.goal} onClose={props.onClose} /> : <CurrentEditGoalModal {...props} />
+  return guided ? <GuidedGoalEditFlow goal={props.goal} onClose={props.onClose} windowOpen={props.windowOpen} onWindowDismissed={props.onWindowDismissed} /> : <CurrentEditGoalModal {...props} />
 }
 
 function CurrentEditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalProps>) {

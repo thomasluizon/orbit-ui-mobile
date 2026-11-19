@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type Mutab
 import { Platform } from 'react-native'
 import { MODAL_TRANSITION_FALLBACK_MS } from '@/components/ui/native-window-host'
 
-/** The close action of the result dialog that draws in the window. The window sends the Android back press there. */
+/** The close action of the result dialog that draws in the window. The window sends the back press there, on Android and on iOS. */
 export type FlowWindowResultClose = MutableRefObject<(() => void) | null>
 
 const FlowWindowContext = createContext<FlowWindowResultClose | null>(null)
@@ -17,6 +17,29 @@ export const FlowWindowProvider = FlowWindowContext.Provider
  */
 export function useFlowWindow(): FlowWindowResultClose | null {
   return useContext(FlowWindowContext)
+}
+
+/**
+ * Keeps a `Modal` mounted after it closes, until UIKit finishes its dismissal, so that the surface behind it presents
+ * only then. The reverse of `useWindowHandoff`: a sheet that returns under a closing `Modal` is the presentation UIKit refuses.
+ * `held` is true from the close until `settle`, which the `Modal` calls from `onDismiss`. UIKit reports nothing for a
+ * transition it refuses, so a fallback releases the hold. Off (`holds` false) and on Android there is no hold.
+ */
+export function useDismissHold(open: boolean, holds: boolean): { held: boolean; settle: () => void } {
+  const [wasOpen, setWasOpen] = useState(open)
+  const [held, setHeld] = useState(false)
+  const holdsOnThisPlatform = holds && Platform.OS === 'ios'
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    setHeld(holdsOnThisPlatform && !open)
+  }
+  useEffect(() => {
+    if (!held) return undefined
+    const fallback = setTimeout(() => setHeld(false), MODAL_TRANSITION_FALLBACK_MS)
+    return () => clearTimeout(fallback)
+  }, [held])
+  const settle = useCallback(() => setHeld(false), [])
+  return { held, settle }
 }
 
 /**

@@ -26,6 +26,7 @@ import { GoalProgressBlock } from './goal-detail-drawer/goal-progress-block'
 import { useGoalStatusActions } from './goal-detail-drawer/use-goal-status-actions'
 import { GoalAskEntry, useGoalOrbitLine } from './goal-detail-drawer/goal-orbit-line'
 import { GoalStatusResultDialog } from './goal-detail-drawer/goal-status-result-dialog'
+import { useDismissHold } from '@/components/ui/flow-window'
 import { goalDetailSheetShows, useAfterSheetCloses, useGoalDetailOutcomes } from './goal-detail-drawer/use-goal-detail-outcomes'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -63,6 +64,8 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const [editing, setEditing] = useAccountScopedState(false)
   const [editingProgress, setEditingProgress] = useAccountScopedState(false)
   const [deleting, setDeleting] = useAccountScopedState(false)
+  const editWindow = useDismissHold(editing, guided)
+  const resultWindow = useDismissHold(outcomes.result !== null, guided)
   const headingRef = useRef<View>(null)
   const focusedInlineGoalId = useRef<string | null>(null)
   const close = useCallback(() => {
@@ -147,13 +150,13 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
     </View>
   )
 
-  const showsSheet = goalDetailSheetShows({ open, inline, editingProgress, guidedModalOpen: guided && (editing || outcomes.result !== null) })
+  const showsSheet = goalDetailSheetShows({ open, inline, editingProgress, guidedModalOpen: guided && (editing || outcomes.result !== null || editWindow.held || resultWindow.held) })
   return (
     <>
       {showsSheet ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} onBack={close} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} {...getGoalSheetTitle(goal, guided, t('progressScreen.sections.goals'))}>{body}</Sheet> : null}
       {open && editingProgress && sheetGoal ? <GoalProgressForm key={goalId} goal={sheetGoal} refetchDetail={refetch} asQuestion={guided} onClose={() => { setEditingProgress(false); outcomes.progressFormClosed() }} /> : null}
-      {sheetGoal ? <EditGoalModal open={editing} onClose={() => setEditing(false)} goal={sheetGoal} /> : null}
-      <GoalStatusResultDialog result={outcomes.result} onClose={outcomes.clearResult} onOpenList={openGoalsList} />
+      {sheetGoal ? <EditGoalModal open={editing || editWindow.held} windowOpen={editing} onWindowDismissed={editWindow.settle} onClose={() => setEditing(false)} goal={sheetGoal} /> : null}
+      <GoalStatusResultDialog result={outcomes.result} held={resultWindow.held} onDismissed={resultWindow.settle} onClose={outcomes.clearResult} onOpenList={openGoalsList} />
       <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>
   )

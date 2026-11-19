@@ -42,6 +42,8 @@ function useWindowFade(active: boolean) {
 }
 
 interface ResultDialogFrameProps {
+  visible?: boolean
+  onDismissed?: () => void
   label: string
   hint?: string
   testID?: string
@@ -53,7 +55,7 @@ interface ResultDialogFrameProps {
  * The centred panel of the result dialog over the scrim, at every width. The result dialog and its read failure share it.
  * Inside the window of a flow it draws there; elsewhere it presents its own `Modal`.
  */
-export function ResultDialogFrame({ label, hint, testID = 'result-dialog', onClose, children }: Readonly<ResultDialogFrameProps>) {
+export function ResultDialogFrame({ visible = true, onDismissed, label, hint, testID = 'result-dialog', onClose, children }: Readonly<ResultDialogFrameProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const reducedMotion = usePrefersReducedMotion()
@@ -75,14 +77,14 @@ export function ResultDialogFrame({ label, hint, testID = 'result-dialog', onClo
   )
   if (insideFlowWindow) return <OrbitOverlayLayer>{panel}</OrbitOverlayLayer>
   return (
-    <Modal transparent visible animationType={reducedMotion ? 'none' : 'fade'} statusBarTranslucent onRequestClose={onClose}>
+    <Modal transparent visible={visible} onDismiss={onDismissed} animationType={reducedMotion ? 'none' : 'fade'} statusBarTranslucent onRequestClose={onClose}>
       <OrbitOverlayLayer>{panel}</OrbitOverlayLayer>
     </Modal>
   )
 }
 
 /** The result dialog: centred at every width, Orbit at 128, one sentence, a filled action and a ghost action. It asks nothing. */
-export function ResultDialog({ title, sentence, primaryLabel, onPrimary, secondaryLabel, onSecondary, onClose, orbitState = 'feliz' }: Readonly<ResultDialogProps>) {
+export function ResultDialog({ visible, onDismissed, title, sentence, primaryLabel, onPrimary, secondaryLabel, onSecondary, onClose, orbitState = 'feliz' }: Readonly<ResultDialogProps & Pick<ResultDialogFrameProps, 'visible' | 'onDismissed'>>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const reducedMotion = usePrefersReducedMotion()
@@ -95,7 +97,7 @@ export function ResultDialog({ title, sentence, primaryLabel, onPrimary, seconda
   }, [])
 
   return (
-    <ResultDialogFrame label={title} hint={sentence} onClose={onClose}>
+    <ResultDialogFrame visible={visible} onDismissed={onDismissed} label={title} hint={sentence} onClose={onClose}>
       <Animated.View testID="result-dialog-orbit" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={{ transform: [{ translateY: hop }] }}>
         <OrbitMascot size={128} state={orbitState} />
       </Animated.View>

@@ -53,14 +53,31 @@ describe('the result dialog of a flow on Android and iOS', () => {
     tree.unmount()
   })
 
-  it('closes on the scrim and hides the flow from assistive technology while it shows', () => {
+  it('closes on the scrim', () => {
     const onClose = vi.fn()
-    const tree = renderNavigation(flow())
-    expect(byTestId(tree, 'flow-screen')!.props.accessibilityViewIsModal).toBe(true)
-    tree.update(flow(result({ onClose })))
-    expect(byTestId(tree, 'flow-screen')!.props.accessibilityViewIsModal).toBe(false)
+    const tree = renderNavigation(flow(result({ onClose })))
     press(byTestId(tree, 'result-dialog-scrim')!)
     expect(onClose).toHaveBeenCalledTimes(1)
+    tree.unmount()
+  })
+
+  it('hides the flow from assistive technology while the result shows, and shows it again after', () => {
+    const tree = renderNavigation(flow())
+    const hidden = () => ({ elements: byTestId(tree, 'flow-screen')!.props.accessibilityElementsHidden, importance: byTestId(tree, 'flow-screen')!.props.importantForAccessibility })
+    expect(byTestId(tree, 'flow-screen')!.props.accessibilityViewIsModal).toBe(true)
+    expect(hidden()).toEqual({ elements: false, importance: 'auto' })
+    tree.update(flow(result()))
+    expect(byTestId(tree, 'flow-screen')!.props.accessibilityViewIsModal).toBe(false)
+    expect(hidden()).toEqual({ elements: true, importance: 'no-hide-descendants' })
+    tree.update(flow())
+    expect(hidden()).toEqual({ elements: false, importance: 'auto' })
+    tree.unmount()
+  })
+
+  it('keeps the result dialog itself reachable for assistive technology', () => {
+    const tree = renderNavigation(flow(result()))
+    expect(byTestId(tree, 'result-dialog')!.props.accessibilityViewIsModal).toBe(true)
+    expect(byTestId(tree, 'result-dialog')!.props.importantForAccessibility).not.toBe('no-hide-descendants')
     tree.unmount()
   })
 
