@@ -6,8 +6,10 @@ import { REPO_ROOT } from "./lib/run-state.mjs"
 
 const USAGE = `usage: orbit-mail.mjs <--collect | --unseen | --draft | --reply | --ack>
 Read the Orbit mailbox, draft replies or send clear replies under the auto-work policy.
---collect paginates all received mail, including spam and trash, then reads only unseen ids.
-Complete pending messages are cached; unreadable text parts are retried without losing reply receipts.
+--collect paginates all received mail, including spam and trash, then reads each id that is not completed, and writes the marks once per page.
+The intake file holds only message ids, thread ids, completeness and reply receipts, never text, sender or subject:
+each collection reads every message that is not completed again from Gmail and prints its content; drafting and sending read the reply headers by id.
+Unreadable text parts are retried without losing reply receipts.
 External text parts use Gmail attachments.get; incomplete messages can only receive drafts.
 Completed message ids are the durable high-water mark.
 --unseen paginates the same id listing without reading a message and prints {"unseen": [ids]}
@@ -52,6 +54,14 @@ const messageBodies = async (client, messageId, part) => {
   return contents
 }
 
+/** The headers a reply needs, read again from Gmail by id: the intake file never holds mail content. */
+const replyHeaders = async (client, item) => {
+  const message = await client.read(item.id)
+  if (message.id !== item.id) throw new Error("Invalid Gmail message identity")
+  return { ...item, replyTo: mailHeader(message, "Reply-To") || mailHeader(message, "From"), subject: mailHeader(message, "Subject"),
+    messageId: mailHeader(message, "Message-ID"), references: mailHeader(message, "References") }
+}
+
 const replyMessage = (item, text) => {
   if (typeof text !== "string" || !text.trim()) throw new Error("Reply text is required")
   const headers = { From: MAILBOX, To: cleanHeader(item.replyTo), Subject: `=?UTF-8?B?${Buffer.from(item.subject).toString("base64")}?=`,
@@ -79,24 +89,35 @@ export const unseenMailIds = async (client, repoRoot = REPO_ROOT) => {
   return unseen
 }
 
+/** The marks the intake file keeps for one message: identity and state, never the text, sender or subject. */
+const mailMarks = (previous, message, bodiesComplete) => ({ ...previous, id: message.id, threadId: message.threadId, bodiesComplete })
+
 export const collectMail = async (client, repoRoot = REPO_ROOT) => {
   let current = intakeSource("gmail", repoRoot)
+  const collected = []
   let pageToken
   do {
     const page = await client.list({ ...RECEIVED_MAIL, ...(pageToken ? { pageToken } : {}) })
+    const marks = {}
     for (const entry of page.messages ?? []) {
-      if (current.completed[entry.id] || current.pending[entry.id]?.bodiesComplete === true) continue
+      if (current.completed[entry.id]) continue
       const message = await client.read(entry.id)
       if (typeof entry.id !== "string" || message.id !== entry.id || typeof message.threadId !== "string") throw new Error("Invalid Gmail message identity")
-      const item = { ...current.pending[entry.id], id: message.id, threadId: message.threadId, internalDate: message.internalDate,
-        from: mailHeader(message, "From"), replyTo: mailHeader(message, "Reply-To") || mailHeader(message, "From"),
-        subject: mailHeader(message, "Subject"), messageId: mailHeader(message, "Message-ID"), references: mailHeader(message, "References"),
-        ...await messageBodies(client, message.id, message.payload), snippet: message.snippet }
-      current = updateIntakeSource("gmail", (latest) => ({ ...latest, pending: { ...latest.pending, [item.id]: item }, highWater: item.id }), repoRoot)
+      const { bodies, bodiesComplete } = await messageBodies(client, message.id, message.payload)
+      const mark = mailMarks(current.pending[entry.id], message, bodiesComplete)
+      marks[entry.id] = mark
+      collected.push({ ...mark, internalDate: message.internalDate, from: mailHeader(message, "From"),
+        replyTo: mailHeader(message, "Reply-To") || mailHeader(message, "From"), subject: mailHeader(message, "Subject"),
+        messageId: mailHeader(message, "Message-ID"), references: mailHeader(message, "References"), bodies, snippet: message.snippet })
+    }
+    const changed = Object.entries(marks).filter(([id, mark]) => JSON.stringify(current.pending[id]) !== JSON.stringify(mark))
+    if (changed.length) {
+      current = updateIntakeSource("gmail", (latest) => ({ ...latest, pending: { ...latest.pending, ...Object.fromEntries(changed) },
+        highWater: changed.at(-1)[0] }), repoRoot)
     }
     pageToken = page.nextPageToken
   } while (pageToken)
-  return Object.values(current.pending)
+  return collected
 }
 
 export const draftReply = async (client, { id, text }, repoRoot = REPO_ROOT) => {
@@ -108,7 +129,7 @@ export const draftReply = async (client, { id, text }, repoRoot = REPO_ROOT) => 
   const existing = await client.listDrafts({ q: `rfc822msgid:${marker.slice(1, -1)}`, maxResults: "1" })
   let draftId = existing.drafts?.[0]?.id
   if (!draftId) {
-    const draft = await client.createDraft(replyMessage(item, text))
+    const draft = await client.createDraft(replyMessage(await replyHeaders(client, item), text))
     draftId = draft.id
   }
   if (typeof draftId !== "string" || !draftId) throw new Error("Gmail did not return a draft id")
@@ -123,11 +144,12 @@ export const replyToMail = async (client, receipt, repoRoot = REPO_ROOT) => {
   if (disposition === "none") return { disposition }
   if (item.sentId) return { disposition: "sent", sentId: item.sentId }
   if (disposition === "draft") return { disposition, draftId: await draftReply(client, receipt, repoRoot) }
-  const message = replyMessage(item, receipt.text)
+  if (typeof receipt.text !== "string" || !receipt.text.trim()) throw new Error("Reply text is required")
   const sent = await client.list({ q: `in:sent rfc822msgid:${replyMarker(receipt.id).slice(1, -1)}`, maxResults: "1" })
   let sentId = sent.messages?.[0]?.id
   if (!sentId) {
     if (item.sendAttempted) throw new Error("Previous send is unconfirmed; retain the item for owner review instead of sending twice")
+    const message = replyMessage(await replyHeaders(client, item), receipt.text)
     const draftId = await draftReply(client, receipt, repoRoot)
     updateIntakeSource("gmail", (latest) => ({ ...latest,
       pending: { ...latest.pending, [receipt.id]: { ...latest.pending[receipt.id], sendAttempted: true, replyReceipt: receipt } } }), repoRoot)

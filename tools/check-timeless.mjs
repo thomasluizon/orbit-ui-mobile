@@ -13,6 +13,8 @@ const USAGE = "usage: check-timeless.mjs --all | --base <ref> | --staged | --hoo
 const machine = new RegExp([
   "/" + "Users/", "[A-Za-z]:\\\\+Users", "/private/" + "tmp", "/private/" + "var", "/var/" + "folders",
   "(?:^|[\\s'\"=(])/home/[a-z][^/\\s.]+/", "~/" + "Developer/",
+  // Run state lives on GitHub; the old relay carry and the session scratchpad root exist on one computer only (thomasluizon/orbit-tickets#2152).
+  "\\.orbit-" + "run-carry", "\\.claude-" + "tmp/",
 ].join("|"))
 const owner = new RegExp(["\\bTho" + "mas\\b", "\\b(?:in )?(?:his|her) (?:own )?words\\b", "\\b(?:he|she) (?:said|asked|wrote|answered|decided)\\b"].join("|"))
 const date = /\b(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])(?=\b|T)/

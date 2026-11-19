@@ -162,7 +162,7 @@ jobs:
         run: node tools/check-dashes.mjs --check-baseline
         if: ${{ !cancelled() }}
       - id: handoff-size__1
-        name: "Handoff Size: Changed specs and the relay prompt stay inside their byte ceilings"
+        name: "Handoff Size: Changed specs and the relay prompt stay inside their byte ceilings and name no local file"
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
         run: |
           xargs -0 --no-run-if-empty node tools/check-handoff-size.mjs --files \

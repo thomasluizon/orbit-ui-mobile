@@ -157,6 +157,9 @@ const removeStaleReclaim = (path) => {
 let ownProcessStartIdentity = null
 const ownProcessIdentity = () => (ownProcessStartIdentity ??= processStartIdentity(process.pid))
 
+/** `acquireRelayLock` throws it when a live or unproven owner holds the lock. A caller that waits tests for this class, never the message. */
+export class RelayLockHeld extends Error {}
+
 /** The directory is only a container; a complete, exclusive owner file is the lock. */
 export const acquireRelayLock = (repoRoot = REPO_ROOT, lockName = "orbit-relay-lock") => {
   const directory = join(gitDirectoryOf(repoRoot), lockName)
@@ -166,7 +169,7 @@ export const acquireRelayLock = (repoRoot = REPO_ROOT, lockName = "orbit-relay-l
   const identity = ownProcessIdentity()
   if (identity === null) throw new Error("cannot prove relay lock owner identity")
   const owner = { pid: process.pid, processStartIdentity: identity, claimId: randomUUID() }
-  const occupied = () => { throw new Error("EEXIST: relay lock has a live or unproven owner") }
+  const occupied = () => { throw new RelayLockHeld("EEXIST: relay lock has a live or unproven owner") }
   for (let attempt = 0; attempt < 3; attempt++) {
     if (existsSync(reclaimPath) && !removeStaleReclaim(reclaimPath)) occupied()
     const claim = claimLaunchFile(path, owner)
@@ -572,7 +575,7 @@ const withRunStateLock = (repoRoot, action) => {
   let release
   while (!release) {
     try { release = acquireRelayLock(repoRoot, "orbit-run-state-lock") } catch (error) {
-      if (!error.message.startsWith("EEXIST:")) throw error
+      if (!(error instanceof RelayLockHeld)) throw error
       if (Date.now() >= deadline) throw new Error(`run state lock stayed held for ${RUN_STATE_LOCK_WAIT_MILLISECONDS} ms`, { cause: error })
       Atomics.wait(lockPause, 0, 0, RUN_STATE_LOCK_RETRY_MILLISECONDS)
     }
@@ -669,6 +672,7 @@ const publishRunState = (state, repoRoot) => {
   const pullRequests = relaySuccessor
     ? [...new Map([...(previous.pullRequests ?? []), ...(state.pullRequests ?? [])].map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
     : state.pullRequests
+  // WHY: an older run record still holds intake marks until tools/migrate-run-state.mjs copies them to GitHub (thomasluizon/orbit-tickets#2152).
   const inherited = preserveLedger
     ? Object.fromEntries(["autoWork", "intake"].filter((key) => previous[key] !== undefined).map((key) => [key, previous[key]]))
     : {}
