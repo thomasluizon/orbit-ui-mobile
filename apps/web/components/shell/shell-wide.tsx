@@ -16,7 +16,7 @@ import {
   type RefCallback,
   type CSSProperties,
 } from 'react'
-import { BUTTON_SIZES, FAB_SIZE, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { BUTTON_SIZES, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { ASTRA_BUTTON_GAP, ASTRA_STACK_CLEARANCE } from '@orbit/shared/utils'
@@ -24,6 +24,7 @@ import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useIsClient } from '@/hooks/use-is-client'
 import { PanelLeft, PanelLeftClose, Plus, Search } from '@/components/ui/icons'
 import { useShellStore } from '@/stores/shell-store'
+import { useInitialSidebarCollapsed } from './sidebar-preference-provider'
 import { SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { Lockup } from '@/components/ui/lockup'
@@ -59,7 +60,7 @@ type WithDestinationHrefs<Props> = Props extends { items: ShellWideItem[] }
   ? Omit<Props, 'items'> & { items: WebShellWideItem[]; themeAction?: ReactNode }
   : Props
 
-type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; astraButton?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; fabPending?: boolean; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void; tabViewTransition?: boolean; landmark?: false }
+type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; astraButton?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void; tabViewTransition?: boolean; landmark?: false }
 
 function SidebarItem({
   item,
@@ -170,7 +171,8 @@ function SidebarBrandRow({ collapsed, navigationId, notifications, themeAction }
   const t = useTranslations()
   const toggleSidebar = useShellStore(state => state.toggleSidebar)
   const toggleLabel = collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')
-  const expandedControlsLayout = notifications ? 'w-full justify-between' : 'self-end'
+  const expandedControlsLayout = themeAction ? 'w-full justify-between' : 'self-end'
+  const notificationsSlot = notifications ? <span key="notifications" className="flex shrink-0 items-center gap-3">{notifications}</span> : null
   const sidebarToggle = (
     <IconButton
       key="toggle"
@@ -190,12 +192,12 @@ function SidebarBrandRow({ collapsed, navigationId, notifications, themeAction }
     <div data-shell-brand-row="" data-focus-inset="" className={`flex min-h-12 flex-col gap-3 ${collapsed ? 'items-center px-6' : 'items-start ps-6 pe-3'}`}>
       <div className={collapsed ? 'sr-only' : 'flex w-full items-center justify-between gap-3'}>
         <span className="shrink-0"><Lockup /></span>
-        {!collapsed ? themeAction : null}
+        {!collapsed ? notificationsSlot : null}
       </div>
       <div className={`flex items-center gap-3 ${collapsed ? 'flex-col' : expandedControlsLayout}`}>
-        {notifications ? <span key="notifications" className="flex shrink-0 items-center gap-3">{notifications}</span> : null}
+        {themeAction}
         {sidebarToggle}
-        {collapsed ? themeAction : null}
+        {collapsed ? notificationsSlot : null}
       </div>
     </div>
   )
@@ -205,7 +207,6 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
   const client = useIsClient()
   const collapsed = props.collapsed
   const navigationId = useId()
-  useEffect(() => { void useShellStore.persist.rehydrate() }, [])
 
   return (
     <aside
@@ -299,7 +300,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
 }>) {
   const navigationEnabled = props.nav !== false
   const pinnedSlot = getPinnedSlot(props)
-  const floating = props.fab !== undefined || props.fabPending === true
+  const floating = props.fab !== undefined
   const { scrollOwner, columnMinimum, safeAreaPadding, safeBottom } = getBottomViewportClasses(floating)
   if (!visible) return null
   const actionMinimum = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined) ? BUTTON_SIZES.md.height + 8 : undefined
@@ -424,12 +425,11 @@ function ShellConversation({ conversationId, label, wide, children }: Readonly<{
           ><main className="h-full">{children}</main></motion.div>
 }
 
-function ShellFabColumn({ astraButton, fab, fabPending }: Readonly<{ astraButton: ReactNode; fab: ReactNode; fabPending: boolean }>) {
+function ShellFabColumn({ astraButton, fab }: Readonly<{ astraButton: ReactNode; fab: ReactNode }>) {
   return <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
     <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] flex-col items-end" style={{ gap: ASTRA_BUTTON_GAP }}>
       {astraButton !== undefined ? <div data-shell-astra-button="" className="pointer-events-none [&_button]:pointer-events-auto">{astraButton}</div> : null}
       {fab !== undefined ? <div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{fab}</div> : null}
-      {fab === undefined && fabPending && astraButton !== undefined ? <div data-shell-fab-pending="" aria-hidden="true" inert className="pointer-events-none shrink-0" style={{ width: FAB_SIZE, height: FAB_SIZE }} /> : null}
     </div>
   </div>
 }
@@ -450,13 +450,14 @@ function ShellWideBackground({
   const navigationEnabled = props.nav !== false
   const client = useIsClient()
   const savedCollapsed = useShellStore(state => state.sidebarCollapsed)
-  const collapsed = client && savedCollapsed
+  const initialCollapsed = useInitialSidebarCollapsed()
+  const collapsed = client ? savedCollapsed : initialCollapsed
   const sidebarRefusal = getSidebarCreateRefusal(props, wide, collapsed)
   const pinnedSlot = getPinnedSlot(props)
   const hasFlowAction = pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined
-  const floating = props.fab !== undefined || props.fabPending === true
+  const floating = props.fab !== undefined
   const astraSpacing = getFabColumnSpacing({ hasBottomChrome, hasPinnedSlot: pinnedSlot !== undefined, floating, astraButton: props.astraButton !== undefined, wide })
   // WHY: a shell inside a modal dialog sits over a page that already owns the one main landmark. https://www.w3.org/WAI/ARIA/apg/practices/landmark-regions/
   const Scroller = props.landmark === false ? 'div' : 'main'
@@ -493,7 +494,7 @@ function ShellWideBackground({
           </div> : null}
           <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${astraSpacing.minimum}`} style={SHELL_PAGE_CLEARANCE}>
             {tabViewTransition ? <TabViewTransition>{scroller}</TabViewTransition> : scroller}
-            {astraSpacing.fabColumn ? <ShellFabColumn astraButton={props.astraButton} fab={props.fab} fabPending={props.fabPending === true} /> : null}
+            {astraSpacing.fabColumn ? <ShellFabColumn astraButton={props.astraButton} fab={props.fab} /> : null}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">
                 <div className="pointer-events-auto">{props.scrollToTop}</div>

@@ -9,11 +9,17 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { bundleGeometry } from '@/__tests__/support/profile-settings-browser'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import type { Page } from '@playwright/test'
 
 const cases = (['en', 'pt-BR'] as const).flatMap(locale => (['dark', 'light'] as const).flatMap(theme =>
   [false, true].map(collapsed => ({ locale, theme, collapsed }))))
 const account = 'A person with a longer account name spanning several words'
 const email = 'a.person.with.a.very.long.complete.email.address@example.com'
+
+async function openPageOnRealOrigin(page: Page, html: string) {
+  await page.route('https://account-menu.test/', route => route.fulfill({ contentType: 'text/html', body: html }))
+  await page.goto('https://account-menu.test/')
+}
 
 describe('sidebar account menu geometry in Chromium', () => {
   let launch: BrowserLaunch | undefined
@@ -55,7 +61,7 @@ describe('sidebar account menu geometry in Chromium', () => {
     ('retains the account trigger on Search after $input and Escape at $width pixels in $locale', async configuration => {
       const page = await browser.newPage({ viewport: { width: configuration.width, height: 915 }, reducedMotion: 'reduce' })
       try {
-        await page.setContent(`<html class="dark"><style>${stylesheet} .orbit-menu-panel[data-state="closed"] { animation-play-state: paused !important; }</style><div id="root"></div></html>`)
+        await openPageOnRealOrigin(page, `<html class="dark"><style>${stylesheet} .orbit-menu-panel[data-state="closed"] { animation-play-state: paused !important; }</style><div id="root"></div></html>`)
         await page.evaluate(({ configuration, account, email, variables }) => {
           document.getElementById('root')!.dataset.configuration = JSON.stringify({ ...configuration, account, email, collapsed: false, search: true })
           for (const [key, value] of Object.entries(variables)) document.documentElement.style.setProperty(key, value)
@@ -95,7 +101,7 @@ describe('sidebar account menu geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width: 1024, height: 600 } })
     try {
       await page.emulateMedia({ reducedMotion: 'reduce' })
-      await page.setContent(`<html class="${configuration.theme}"><style>${stylesheet}</style><div id="root"></div></html>`)
+      await openPageOnRealOrigin(page, `<html class="${configuration.theme}"><style>${stylesheet}</style><div id="root"></div></html>`)
       await page.evaluate(({ configuration, account, email, variables }) => {
         document.getElementById('root')!.dataset.configuration = JSON.stringify({ ...configuration, account, email })
         for (const [key, value] of Object.entries(variables)) document.documentElement.style.setProperty(key, value)
