@@ -56,7 +56,8 @@ export const detailFields = ['due_time']
 
 // The change whose saved state the readback cannot read: a kind that leaves no mark in the snapshot, a field that no
 // saved record names, or a field of an existing record that only the habit detail holds. The core set refuses such an
-// expected change when it loads (core/corpus.mjs), so the grader never meets one.
+// expected change when it loads (core/corpus.mjs); the launch corpus loads no such gate, so it states such a field
+// (the parent of a create) and the grader reads it on the preview alone (savedFailure).
 export function unreadable({ kind, fields = {} }) {
   if (kind === 'delete' || kind === 'log') return null
   if (kind !== 'create' && kind !== 'update') return kind
@@ -214,7 +215,8 @@ function movedField({ target, fields, kept = {} }, habits, baseline) {
 }
 
 // The first field that the request names and the saved record holds with another value. A field that no saved record
-// names (the parent of a create: the snapshot row holds none) is graded on the preview alone.
+// names (the parent of a create: the snapshot row holds none) is graded on the preview alone: the core set refuses such a
+// field when it loads, and the launch corpus states it and skips it here.
 function savedFailure(expected, habit, accountDate) {
   const wrong = Object.keys(expected.fields ?? {}).filter((field) => savedField[field])
     .find((field) => !matchesField(expected.fields[field], savedField[field](habit), accountDate))
@@ -222,7 +224,8 @@ function savedFailure(expected, habit, accountDate) {
 }
 
 // Each offered draft of the approved preview is saved as one new record with its title. Each expected create is saved as
-// one other new record that holds each field the request names, and no other record is new.
+// one other new record that holds each field the request names that a saved record can show (savedFailure), and no other
+// record is new.
 function gradeCreated(creates, created, drafts, accountDate) {
   const differ = verdict(false, 'The created records differ from the approved changes.')
   const unmatched = [...created]
@@ -241,9 +244,10 @@ function gradeCreated(creates, created, drafts, accountDate) {
 }
 
 // The saved state after approval, read back from the account: each deleted record is gone, each log is saved, each
-// updated and each created record holds each field the request names, and every other record is as it was. The person
-// approves the preview as shown: an updated record holds each value that its rows show, requested, offered or derived
-// (AddChanges writes them in the stored format), and each draft that the preview offers is a new record.
+// updated and each created record holds each field the request names that a saved record can show (the launch corpus
+// states fields that the preview alone grades), and every other record is as it was. The person approves the preview as
+// shown: an updated record holds each value that its rows show, requested, offered or derived (AddChanges writes them in
+// the stored format), and each draft that the preview offers is a new record.
 function gradeSavedState(readback, matched, vars) {
   if (!readback) return verdict(false, 'The approved preview has no saved state readback.')
   if (readback.error) return verdict(false, readback.error, readback.unavailable ? { unavailable: true } : {})

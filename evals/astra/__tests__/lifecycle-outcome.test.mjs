@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { TOOL_NAME_KEYS, corpusTests, gradedByOutcome } from '../grade-method.mjs'
 import { captures } from './fixtures/core-streams.mjs'
 import { streams } from './fixtures/same-title-streams.mjs'
-import { accountDate, addDays, attempt, corpus, itemOf, previewOf, storedHabit, turnOf } from './fixtures/lifecycle-case.mjs'
+import { accountDate, addDays, attempt, caseOf, corpus, itemOf, previewOf, storedHabit, turnOf } from './fixtures/lifecycle-case.mjs'
 
 const lifecycleId = /^(same-title-|composition-(one-small-step|restart|brain-dump|suggestions))|^brain-dump-/u
 const lifecycle = corpus.filter((entry) => lifecycleId.test(entry.metadata.id))
@@ -220,6 +220,52 @@ describe('a restart case', () => {
   })
 })
 
+// The rows that each restart case states: the window of the new date, the count of habits due today, and the decision.
+describe.each(['preview', 'approve', 'reject', 'preference'].flatMap((family) => ['en', 'pt-BR'].map((locale) => [`composition-restart-${family}-${locale}`, family])))('the rows of %s', (id, family) => {
+  const keeps = family === 'preference' ? 2 : 3
+  const wrongCounts = family === 'preference' ? [1, 3] : [0, 6]
+
+  it('passes the preview that holds every row, and does what the decision of the case says', async () => {
+    const { verdict, fixture } = await heldRestart(id, todayCount(keeps))
+    const paths = fixture.calls.map((call) => call.path.split('/').at(-1))
+    if (family === 'approve') {
+      expect(verdict).toMatchObject({ pass: true, reason: 'The saved state matches the approved changes.' })
+      expect(paths).toEqual(['snapshot', 'confirm', 'execute', 'snapshot'])
+      expect(fixture.state.map((habit) => habit.dueDate)).toEqual(todayCount(keeps))
+    } else if (family === 'reject') {
+      expect(verdict).toMatchObject({ pass: true, reason: 'The saved state matches the approved changes.' })
+      expect(paths).toContain('revise')
+      expect(fixture.state.map((habit) => habit.dueDate)).toEqual(restartHabits.map((habit) => habit.dueDate))
+    } else {
+      expect(verdict).toMatchObject({ pass: true, reason: 'The held previews hold exactly the requested changes.' })
+      expect(paths).toEqual([])
+    }
+  })
+
+  it('states the window and the count, and the decision that the family needs', () => {
+    const { outcome } = caseOf(id).vars
+    expect(Object.keys(outcome.changes[0].fields)).toEqual(['due_date'])
+    expect(outcome.changes[0].fields.due_date).toEqual({ withinDays: [0, 7], mayStay: true })
+    expect(outcome.changes[0].dueToday).toEqual(family === 'preference' ? 2 : { min: 1, max: 5 })
+    expect(outcome.decision).toBe({ approve: 'approve', reject: 'reject' }[family])
+  })
+
+  it.each([
+    ['a date beyond the window', [...todayCount(keeps).slice(0, 5), addDays(9)]],
+    ['a past date', [addDays(-1), ...todayCount(keeps).slice(1)]],
+  ])('fails %s', async (_name, dates) => {
+    expect((await heldRestart(id, dates)).verdict).toMatchObject({ pass: false, reason: expect.stringContaining('gives due_date the value') })
+  })
+
+  it.each(wrongCounts)('fails %i habits due today, and passes them once the count is removed', async (count) => {
+    const { verdict } = await heldRestart(id, todayCount(count))
+    expect(verdict).toMatchObject({ pass: false, reason: expect.stringContaining(`leaves ${count} of 6 due today`) })
+    const stripped = structuredClone(caseOf(id).vars.outcome)
+    delete stripped.changes[0].dueToday
+    expect((await heldRestart(id, todayCount(count), { outcome: stripped })).verdict.pass, 'without dueToday').toBe(true)
+  })
+})
+
 // Producer: PendingOperationChangePreviewer.BindReuseFieldsAsync gives a create that reuses a stored habit the record of that
 // habit and each of its stored values, and PreserveReuseParent adds the parent row that changes nothing.
 const water = '22222222-2222-4222-8222-222222222222'
@@ -279,30 +325,59 @@ describe('a brain dump case', () => {
       expect(verdict.pass, other).toBe(false)
     }
   })
+})
 
-  // The deleted brain dump guard failed an item that carried a parent. The preview shows the parent of a create as the
-  // parent_habit_id row (the parent title, or No parent), and the eval/snapshot row holds no parent, so the preview grade holds it.
-  const dentista = itemOf(null, 'Ligar para o dentista', { ...rootParent, title: [null, 'Ligar para o dentista'], frequency_unit: [null, 'OneTime'], due_date: [null, addDays(1)] })
-  const alongar = itemOf(null, 'Alongar', { ...rootParent, title: [null, 'Alongar'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1'], due_date: [null, accountDate], due_time: [null, '08:00'] })
-  const nested = (item, parent) => ({ ...item, fields: item.fields.map((field) => field.field === 'parent_habit_id' ? { ...field, newValue: parent, proposedValue: water } : field) })
-  it.each([
-    ['brain-dump-mixed-en', [dentist, stretch]],
-    ['brain-dump-mixed-pt-BR', [dentista, alongar]],
-    ['brain-dump-reuse-en', [dentist, stretch, reused]],
-    ['brain-dump-reuse-pt-BR', [dentista, alongar, reused]],
-    ['brain-dump-ideas-en', [dentist, stretch, idea]],
-    ['brain-dump-ideas-pt-BR', [dentista, alongar, idea]],
-  ])('fails %s when a create is filed under a stored habit', async (id, items) => {
-    expect((await brainDump(id, items)).verdict.pass, 'every create at the root').toBe(true)
-    for (const index of [0, 1]) {
-      const filed = items.map((item, at) => at === index ? nested(item, 'Water') : item)
-      const { verdict } = await brainDump(id, filed)
-      expect(verdict, `item ${index}`).toMatchObject({ pass: false, reason: expect.stringContaining('The preview does not create exactly the records of the request.') })
-    }
+// The rows that each brain dump case states, and for each row an item of the preview that breaks that row alone. The preview
+// shows the parent of a create as the parent_habit_id row (the parent title, or No parent), and the eval/snapshot row holds no
+// parent, so the preview grade holds it.
+const dentista = itemOf(null, 'Ligar para o dentista', { ...rootParent, title: [null, 'Ligar para o dentista'], frequency_unit: [null, 'OneTime'], due_date: [null, addDays(1)] })
+const alongar = itemOf(null, 'Alongar', { ...rootParent, title: [null, 'Alongar'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1'], due_date: [null, accountDate], due_time: [null, '08:00'] })
+const withRow = (item, field, value) => ({ ...item, fields: item.fields.map((row) => row.field === field ? { ...row, newValue: value, proposedValue: value } : row) })
+const filedUnder = (item) => ({ ...item, fields: item.fields.map((row) => row.field === 'parent_habit_id' ? { ...row, newValue: 'Water', proposedValue: water } : row) })
+const editing = (change) => (items, at) => items.map((item, index) => index === at ? change(item) : item)
+const rowViolations = {
+  task: { parent_habit_id: editing(filedUnder), title: editing((item) => withRow(item, 'title', 'Pay the rent')),
+    frequency_unit: editing((item) => withRow(item, 'frequency_unit', 'Day')), due_date: editing((item) => withRow(item, 'due_date', accountDate)) },
+  habit: { parent_habit_id: editing(filedUnder), title: editing((item) => withRow(item, 'title', 'Pay the rent')),
+    frequency_unit: editing((item) => withRow(item, 'frequency_unit', 'Week')), frequency_quantity: editing((item) => withRow(item, 'frequency_quantity', '2')),
+    due_date: editing((item) => withRow(item, 'due_date', addDays(1))), due_time: editing((item) => withRow(item, 'due_time', '09:00')) },
+  idea: { parent_habit_id: editing(filedUnder), frequency_unit: editing((item) => withRow(item, 'frequency_unit', 'Week')) },
+  reuse: { record: (items, at) => items.filter((_, index) => index !== at) },
+}
+const dumpItems = { en: { task: dentist, habit: stretch, reuse: reused, idea }, 'pt-BR': { task: dentista, habit: alongar, reuse: reused, idea } }
+const withoutRow = (id, at, field) => {
+  const { outcome } = structuredClone(caseOf(id).vars)
+  if (field === 'record') outcome.changes.splice(at, 1)
+  else delete outcome.changes[at].fields[field]
+  return outcome
+}
+
+describe.each([
+  ['brain-dump-mixed-en', 'en', ['task', 'habit']],
+  ['brain-dump-mixed-pt-BR', 'pt-BR', ['task', 'habit']],
+  ['brain-dump-reuse-en', 'en', ['task', 'habit', 'reuse']],
+  ['brain-dump-reuse-pt-BR', 'pt-BR', ['task', 'habit', 'reuse']],
+  ['brain-dump-ideas-en', 'en', ['task', 'habit', 'idea']],
+  ['brain-dump-ideas-pt-BR', 'pt-BR', ['task', 'habit', 'idea']],
+])('the rows of %s', (id, locale, roles) => {
+  const items = roles.map((role) => dumpItems[locale][role])
+
+  it('states one row for each field of each create that the table breaks, and the reuse of the stored habit', () => {
+    const { changes } = caseOf(id).vars.outcome
+    expect(changes.map((change) => change.kind)).toEqual(roles.map((role) => role === 'reuse' ? 'reuse' : 'create'))
+    roles.forEach((role, at) => expect(Object.keys(changes[at].fields ?? {}).toSorted(), `change ${at}`)
+      .toEqual(role === 'reuse' ? [] : Object.keys(rowViolations[role]).toSorted()))
   })
 
-  it('runs the pt-BR cases over the same shapes', async () => {
-    expect((await brainDump('brain-dump-mixed-pt-BR', [itemOf(null, 'Ligar para o dentista', { ...rootParent, title: [null, 'Ligar para o dentista'], frequency_unit: [null, 'OneTime'], due_date: [null, addDays(1)] }),
-      itemOf(null, 'Alongar', { ...rootParent, title: [null, 'Alongar'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1'], due_date: [null, accountDate], due_time: [null, '08:00'] })])).verdict.pass).toBe(true)
+  it('passes the preview that holds every row, approves it and reads the saved records back', async () => {
+    const { verdict } = await brainDump(id, items)
+    expect(verdict).toMatchObject({ pass: true, reason: 'The saved state matches the approved changes.' })
   })
+
+  it.each(roles.flatMap((role, at) => Object.entries(rowViolations[role]).map(([field, violate]) => [`${role} ${at}`, at, field, violate])))(
+    'fails the preview that breaks the row of %s %s, and passes it once that row is removed', async (_role, at, field, violate) => {
+      const broken = violate(items, at)
+      expect((await brainDump(id, broken)).verdict.pass, `${field} of change ${at}`).toBe(false)
+      expect((await brainDump(id, broken, { outcome: withoutRow(id, at, field) })).verdict.pass, `without ${field}`).toBe(true)
+    })
 })

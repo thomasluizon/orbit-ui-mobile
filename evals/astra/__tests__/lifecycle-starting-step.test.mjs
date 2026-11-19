@@ -124,6 +124,16 @@ describe('the setup turn of a starting-step case', () => {
       .rejects.toThrow('Correction setup failed: Missing one starting-step block with server actions and no prose.')
   })
 
+  it.each(['en', 'pt-BR'].flatMap((locale) => ['one-small-step-smaller', 'one-small-step-smaller-legacy', 'one-small-step-save-task', 'one-small-step-save-checklist',
+    'suggestions-refine'].map((family) => `composition-${family}-${locale}`)))('stops %s when its setup turn holds a preview of a change', async (id) => {
+    vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
+    vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
+    const vars = preparedCase(id, { records, habits })
+    const held = turnOf({ pendingOperations: [previewOf('createHabit', [itemOf(null, 'Read', { title: [null, 'Read'] })])] })
+    vi.stubGlobal('fetch', recordedStream([stream(held)]))
+    await expect(prepareCorrection({ vars, metadata: caseOf(id).metadata })).rejects.toThrow('Correction setup failed: The read request held a preview of a change.')
+  })
+
   it('takes the drafts to refine from the suggestion block of the setup turn', async () => {
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
     vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
@@ -137,11 +147,31 @@ describe('the setup turn of a starting-step case', () => {
   })
 })
 
-describe('a save case of a starting step', () => {
+// Each row that a save-task case states, with the row of a preview that breaks that row alone. The preview shows a row for each
+// argument that the model passed (AgentArgumentPreview.Build: days as the JSON text of the list, a boolean as True or False).
+const taskViolations = {
+  title: { title: [null, 'Study'] },
+  frequency_unit: { frequency_unit: [null, 'Day'] },
+  frequency_quantity: { frequency_quantity: [null, '3', 'number'] },
+  days: { days: [null, '["Monday"]', 'array'] },
+  is_bad_habit: { is_bad_habit: [null, 'True', 'boolean'] },
+  is_general: { is_general: [null, 'True', 'boolean'] },
+  parent_habit_id: { parent_habit_id: [null, 'Water'] },
+}
+const lowercaseFlags = { is_bad_habit: { is_bad_habit: [null, 'false', 'boolean'] }, is_general: { is_general: [null, 'false', 'boolean'] } }
+const withoutRow = (vars, field) => ({ ...vars.outcome, changes: vars.outcome.changes.map((change) => ({ ...change,
+  fields: Object.fromEntries(Object.entries(change.fields).filter(([name]) => name !== field)) })) })
+
+describe.each(['en', 'pt-BR'])('a save case of a starting step in %s', (locale) => {
+  const saveTask = `composition-one-small-step-save-task-${locale}`
+  const saveChecklist = `composition-one-small-step-save-checklist-${locale}`
+  const taskHeld = (step, rows = {}) => [previewOf('createHabit', [itemOf(null, step, { title: [null, step], frequency_unit: [null, 'OneTime'], ...rows })])]
+  const graded = async (vars, held) => outcome((await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: held })), api: account(habits, held).api })).output, { vars })
+
   it('passes the one-time task that holds the step, approves it and reads the saved task back', async () => {
-    const { vars, block } = await prepare('composition-one-small-step-save-task-en')
+    const { vars, block } = await prepare(saveTask)
     const step = block.suggestion.step
-    const held = [previewOf('createHabit', [itemOf(null, step, { title: [null, step], frequency_unit: [null, 'OneTime'] })])]
+    const held = taskHeld(step)
     const fixture = account(habits, held)
     const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: held })), api: fixture.api })
     const verdict = outcome(response.output, { vars })
@@ -149,46 +179,33 @@ describe('a save case of a starting step', () => {
     expect(fixture.state.at(-1)).toMatchObject({ title: step, frequencyUnit: null })
   })
 
-  it.each([
-    ['another title', (step) => itemOf(null, 'Study', { title: [null, 'Study'], frequency_unit: [null, 'OneTime'] })],
-    ['a recurring habit', (step) => itemOf(null, step, { title: [null, step], frequency_unit: [null, 'Day'] })],
-  ])('fails %s', async (_name, item) => {
-    const { vars, block } = await prepare('composition-one-small-step-save-task-en')
-    const held = [previewOf('createHabit', [item(block.suggestion.step)])]
-    const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: held })), api: account(habits, held).api })
-    expect(outcome(response.output, { vars }).pass).toBe(false)
+  it('states one row for each argument that the save-task preview must show', () => {
+    expect(Object.keys(caseOf(saveTask).vars.outcome.changes[0].fields).toSorted()).toEqual(Object.keys(taskViolations).toSorted())
   })
 
-  // The deleted saved step guard read the saved task as one with no days, no bad-habit flag and no general flag. The preview
-  // shows a row for each argument that the model passed (AgentArgumentPreview.Build: days as the JSON text of the list, a
-  // boolean as True or False), so each row is graded on the preview where the readback cannot read it.
-  it.each([
-    ['one day of the week', { days: [null, '["Monday"]', 'array'] }],
-    ['a bad habit', { is_bad_habit: [null, 'True', 'boolean'] }],
-    ['a general task', { is_general: [null, 'True', 'boolean'] }],
-    ['a parent habit', { parent_habit_id: [null, 'Water'] }],
-  ])('fails a saved task that the preview files as %s', async (_name, row) => {
-    const { vars, block } = await prepare('composition-one-small-step-save-task-en')
-    const step = block.suggestion.step
-    const held = [previewOf('createHabit', [itemOf(null, step, { title: [null, step], frequency_unit: [null, 'OneTime'], ...row })])]
-    const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: held })), api: account(habits, held).api })
-    expect(outcome(response.output, { vars })).toMatchObject({ pass: false, reason: expect.stringContaining('The preview does not create exactly the records of the request.') })
+  it.each(Object.entries(taskViolations))('fails a saved task whose preview breaks the row %s, and passes it once that row is removed', async (field, row) => {
+    const { vars, block } = await prepare(saveTask)
+    const held = taskHeld(block.suggestion.step, row)
+    expect(await graded(vars, held)).toMatchObject({ pass: false, reason: expect.stringContaining('The preview does not create exactly the records of the request.') })
+    expect((await graded({ ...vars, outcome: withoutRow(vars, field) }, held)).pass, `without ${field}`).toBe(true)
+  })
+
+  it.each(Object.entries(lowercaseFlags))('fails the flag %s in another case than the exact text of the preview', async (field, row) => {
+    const { vars, block } = await prepare(saveTask)
+    expect(await graded(vars, taskHeld(block.suggestion.step, row))).toMatchObject({ pass: false })
   })
 
   it('passes a saved task whose preview shows no day, no flag and no parent, or shows them empty', async () => {
-    const { vars, block } = await prepare('composition-one-small-step-save-task-en')
-    const step = block.suggestion.step
+    const { vars, block } = await prepare(saveTask)
     const shown = { days: [null, '[]', 'array'], is_bad_habit: [null, 'False', 'boolean'], is_general: [null, 'False', 'boolean'], parent_habit_id: [null, 'No parent'] }
-    const held = [previewOf('createHabit', [itemOf(null, step, { title: [null, step], frequency_unit: [null, 'OneTime'], ...shown })])]
-    const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: held })), api: account(habits, held).api })
-    expect(outcome(response.output, { vars })).toMatchObject({ pass: true })
+    expect(await graded(vars, taskHeld(block.suggestion.step, shown))).toMatchObject({ pass: true })
   })
 
   it('fails an approval that saves the step with a repeat count that the preview did not show', async () => {
-    const { vars, block } = await prepare('composition-one-small-step-save-task-en')
+    const { vars, block } = await prepare(saveTask)
     const step = block.suggestion.step
-    const shown = [previewOf('createHabit', [itemOf(null, step, { title: [null, step], frequency_unit: [null, 'OneTime'] })])]
-    const saves = [previewOf('createHabit', [itemOf(null, step, { title: [null, step], frequency_unit: [null, 'OneTime'], frequency_quantity: [null, '3'] })])]
+    const shown = taskHeld(step)
+    const saves = taskHeld(step, { frequency_quantity: [null, '3'] })
     const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: shown })), api: account(habits, saves).api })
     expect(outcome(response.output, { vars }).pass).toBe(false)
   })
@@ -199,8 +216,12 @@ describe('a save case of a starting step', () => {
     checklist_items: [JSON.stringify(checklist.map(({ text, isChecked }) => ({ text, is_checked: isChecked }))), JSON.stringify(items), 'array'] })])]
   const itemsWith = (step, change = (list) => list) => change([...checklist.map(({ text, isChecked }) => ({ text, is_checked: isChecked })), { text: step, is_checked: false }])
 
+  it('states the checklist row alone for the save-checklist preview', () => {
+    expect(Object.keys(caseOf(saveChecklist).vars.outcome.changes[0].fields)).toEqual(['checklist_items'])
+  })
+
   it('passes the stored checklist with the step appended unchecked, and saves exactly that', async () => {
-    const { vars, block } = await prepare('composition-one-small-step-save-checklist-en')
+    const { vars, block } = await prepare(saveChecklist)
     const held = checklistPreview(itemsWith(block.suggestion.step))
     const fixture = account(habits, held)
     const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: held })), api: fixture.api })
@@ -215,10 +236,9 @@ describe('a save case of a starting step', () => {
     ['a checked state changed', (list) => list.map((item, index) => index === 0 ? { ...item, is_checked: false } : item)],
     ['the step checked', (list) => list.map((item, index) => index === list.length - 1 ? { ...item, is_checked: true } : item)],
   ])('fails %s', async (_name, change) => {
-    const { vars, block } = await prepare('composition-one-small-step-save-checklist-en')
+    const { vars, block } = await prepare(saveChecklist)
     const held = checklistPreview(itemsWith(block.suggestion.step, change))
-    const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: held })), api: account(habits, held).api })
-    expect(outcome(response.output, { vars })).toMatchObject({ pass: false, reason: expect.stringContaining('gives checklist_items the value') })
+    expect(await graded(vars, held)).toMatchObject({ pass: false, reason: expect.stringContaining('gives checklist_items the value') })
   })
 })
 
@@ -269,6 +289,18 @@ describe('a read case of a starting step', () => {
     const other = await read(id, reply('Read one line'), { previousStartingStep: { goal: 'Study', step, language: 'en' } })
     expect(other.verdict.pass).toBe(true)
   })
+})
+
+describe.each(['en', 'pt-BR'])('a read case of the one small step and the suggestions in %s', (locale) => {
+  it.each(['one-small-step', 'one-small-step-legacy', 'one-small-step-smaller', 'one-small-step-smaller-legacy', 'suggestions', 'suggestions-duplicate'])(
+    'holds no preview in the case %s: a turn with no preview passes and a turn with a preview fails', async (family) => {
+      const id = `composition-${family}-${locale}`
+      expect(caseOf(id).vars.outcome).toMatchObject({ read: true })
+      const none = await attempt(id, { replies: [turnOf({})], habits: [], records })
+      expect(none.verdict).toMatchObject({ pass: true, reason: 'The read turn held no preview and no card.' })
+      const held = await attempt(id, { replies: [turnOf({ pendingOperations: [previewOf('createHabit', [itemOf(null, 'x', { title: [null, 'x'] })])] })], habits: [], records })
+      expect(held.verdict).toMatchObject({ pass: false, reason: 'The read request held a preview of a change.' })
+    })
 })
 
 describe('a suggestion case', () => {

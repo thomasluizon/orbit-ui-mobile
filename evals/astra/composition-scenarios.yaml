@@ -2147,7 +2147,7 @@
     outcome:
       decision: approve
       changes:
-        - { kind: create, fields: { title: { previousStep: true }, frequency_unit: { oneOf: [OneTime, null] }, frequency_quantity: { oneOf: [null] }, days: { optional: { oneOf: ['[]'] } }, is_bad_habit: { optional: { contains: ['false'] } }, is_general: { optional: { contains: ['false'] } }, parent_habit_id: { optional: No parent } } }
+        - { kind: create, fields: { title: { previousStep: true }, frequency_unit: { oneOf: [OneTime, null] }, frequency_quantity: { oneOf: [null] }, days: { optional: { oneOf: ['[]'] } }, is_bad_habit: { optional: { oneOf: ['False'] } }, is_general: { optional: { oneOf: ['False'] } }, parent_habit_id: { optional: No parent } } }
 - description: one-small-step-save-checklist in en
   metadata:
     id: composition-one-small-step-save-checklist-en
@@ -2332,7 +2332,7 @@
     outcome:
       decision: approve
       changes:
-        - { kind: create, fields: { title: { previousStep: true }, frequency_unit: { oneOf: [OneTime, null] }, frequency_quantity: { oneOf: [null] }, days: { optional: { oneOf: ['[]'] } }, is_bad_habit: { optional: { contains: ['false'] } }, is_general: { optional: { contains: ['false'] } }, parent_habit_id: { optional: No parent } } }
+        - { kind: create, fields: { title: { previousStep: true }, frequency_unit: { oneOf: [OneTime, null] }, frequency_quantity: { oneOf: [null] }, days: { optional: { oneOf: ['[]'] } }, is_bad_habit: { optional: { oneOf: ['False'] } }, is_general: { optional: { oneOf: ['False'] } }, parent_habit_id: { optional: No parent } } }
 - description: one-small-step-save-checklist in pt-BR
   metadata:
     id: composition-one-small-step-save-checklist-pt-BR
