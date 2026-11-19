@@ -1,4 +1,14 @@
+import { setTimeout as delay } from "node:timers/promises"
+
 const API_ORIGIN = "https://api.appstoreconnect.apple.com"
+
+// The waits before the second, third and fourth attempt of one request. Their count sets the attempt limit.
+const RETRY_WAITS_MS = [1_000, 4_000, 16_000]
+
+// A GET changes nothing, so a server error or a rate limit answer is safe to send again. The API reference documents
+// no repeat-safe POST after a server error: the first POST can have created the resource. It does document that the
+// API rejects a request with a 429 (Identifying Rate Limits), so only that status sends a POST again.
+const RETRY_STATUSES = { GET: new Set([429, 500, 502, 503, 504]), POST: new Set([429]) }
 
 const ADDRESS_PATTERN = /[^\s@"'<>]+@[^\s@"'<>]+/g
 
@@ -10,20 +20,26 @@ const errorSummary = async (response) => {
 }
 
 /**
- * The one App Store Connect API transport: a fresh bearer token per request (each token lives 10 minutes),
- * a 30-second limit, GET with pagination and JSON POST. A pagination link must keep the API host and the
- * first path, and is read once, so the token never goes to another host. A failure names the method, path,
- * status and the first error's code and title. The detail is never read: Apple repeats a person's address there.
+ * The one App Store Connect API transport: GET with pagination and JSON POST. Each attempt has a fresh bearer token
+ * (a token lives 10 minutes) and a 30-second limit; a transient answer gets the next attempt after a wait. A pagination
+ * link must keep the API host and the first path, and is read once, so the token never goes to another host. A failure
+ * names the method, path, status and the first error's code and title; the detail can hold a person's address.
  */
-export const apiClient = (createToken, request = fetch) => {
+export const apiClient = (createToken, request = fetch, wait = delay) => {
   const send = async (url, options) => {
-    const response = await request(url, {
-      ...options,
-      headers: { Authorization: `Bearer ${createToken()}`, ...(options.body ? { "Content-Type": "application/json" } : {}) },
-      signal: AbortSignal.timeout(30_000),
-    })
-    if (!response.ok) throw new Error(`App Store Connect ${options.method} ${new URL(url).pathname} failed (HTTP ${response.status})${await errorSummary(response)}`)
-    return response
+    for (let attempt = 0; ; attempt += 1) {
+      const response = await request(url, {
+        ...options,
+        headers: { Authorization: `Bearer ${createToken()}`, ...(options.body ? { "Content-Type": "application/json" } : {}) },
+        signal: AbortSignal.timeout(30_000),
+      })
+      if (response.ok) return response
+      if (attempt === RETRY_WAITS_MS.length || !RETRY_STATUSES[options.method].has(response.status)) {
+        throw new Error(`App Store Connect ${options.method} ${new URL(url).pathname} failed (HTTP ${response.status})${await errorSummary(response)}`)
+      }
+      await response.body?.cancel()
+      await wait(RETRY_WAITS_MS[attempt])
+    }
   }
   const getAll = async (path, query = {}) => {
     const first = new URL(path, API_ORIGIN)
