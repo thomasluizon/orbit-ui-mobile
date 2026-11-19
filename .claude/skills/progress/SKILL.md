@@ -217,8 +217,9 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    cycle or two open rows is the ambiguity that step 3 names. Only for a pull request that is not stacked, read
    the checks that its base branch requires with
    `gh api repos/<owner>/<repo>/branches/<baseRefName>/protection/required_status_checks`, where
-   `<owner>/<repo>` is the entry of `repos` in `.claude/orchestrator.json`. A stacked base has no
-   branch protection, so this read answers 404 for it: a stacked row skips the read, because its
+   `<owner>/<repo>` is the `origin` remote of the checkout that `repos` in `.claude/orchestrator.json`
+   maps the repository to, as `repositorySlug` in `tools/lib/github-auth.mjs` reads it. A stacked
+   base has no branch protection, so this read answers 404 for it: a stacked row skips the read, because its
    row already says what holds it. Each `checks[].context` is a required `name`. A required check
    has no entry when no newest entry carries its `name`. A retarget does not start the full checks:
    they run on the first push after it. When the read fails for a pull request that is not stacked,
