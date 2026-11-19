@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/orchestrate` over the admitted queue without replanning. Crank is OFF (owner order): never invoke `/crank`. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`) and run `node tools/relay-checkout.mjs --check`.
 
-State lives on GitHub: the newest decision comments on the run record `#2179` (the RELAY queue block D827) hold the in-flight queue, the scratchpad folder that keeps the bodies, replies and push and launch helpers, and decisions D820 to D827; the successor starts from D828. Each ticket's comments hold its round notes, reviews and reports. Start each wake with `node tools/run-status.mjs --session <id>`. Read `date` before you write a time. The orchestrating checkout must contain `origin/main`: merge it into the relay branch after each merge to `main`, or `list-bot-threads.mjs` and `fix-rounds.mjs` refuse.
+State lives on GitHub: the newest decision comments on the run record `#2179` (the RELAY queue block D841) hold the in-flight queue, the scratchpad folder that keeps the bodies, replies and push and launch helpers, and decisions D828 to D841; the successor starts from D842. Each ticket's comments hold its round notes, reviews and reports. Start each wake with `node tools/run-status.mjs --session <id>`. Read `date` before you write a time. The orchestrating checkout must contain `origin/main`: merge it into the relay branch after each merge to `main`, or `list-bot-threads.mjs` and `fix-rounds.mjs` refuse.
 
 Models and accounts (owner orders): the coordinator runs Opus 5.5; every worker tier runs `claude-sonnet-5-5`; never change or ask about a model. Pullfrog runs on the main account token. The worker account is at its weekly limit: workers run on the main account (`ORBIT_WORKER_CLAUDE_CONFIG_DIR` empty at launch). At most 3 workers at once, reviews included; drive open pull requests to the merge bar before a new ticket. A worker that stops at a usage limit is reported to the owner at once. Sentry is connected. The Render MCP has no workspace selected: never pick one.
 
@@ -20,18 +20,18 @@ Finish the spec: an empty board except `#33`, verified releases, the assistant f
 
 ## In flight
 
-UI `main` `2460ef091`; API `main` and production `70c66e7be`; landing `main` and staging `3dbd6cd` (production `20c1b0a90`); web staging `2460ef091`, web production `2263a8b67`. Owner question queue: empty (`/questions --relay` recorded none). Board 36 open, 36 placed in `## The order`, 0 unplaced, 0 placed twice.
+UI `main` `c91bbac24`; API `main` and production `70c66e7be`; landing `main` and staging `3dbd6cd` (production `20c1b0a90`); web staging and production `2460ef091`. Owner question queue: empty (`/questions --relay` recorded none). Board 34 open, 34 placed in `## The order`, 0 unplaced, 0 placed twice.
 
 | Item | Disposition |
 | --- | --- |
-| ui#2451 (`#2121`) | Pushed `42585ea88`, review CLEAN, 0 unresolved, Pullfrog asked: wait, merge at the bar, close `#2121`, then ui#2453. |
-| ui#2492 (`#2166`) | Pushed `89efd3b9f`, reviews CLEAN, eval suite 2,584 passed, Pullfrog asked: wait, merge at the bar, then the ui#2500 and ui#2501 base merges. |
-| ui#2475 (`#2149`) | Local `be0ace398` (draft class and waiter key fix), not pushed: review since `89f927214`, reply, body, push, merge. |
-| Releases | Production web release of `2460ef091` (staging verified), then the Android Open and TestFlight pair (never the App Store), then close `#2177` and run the `#2146` web check. |
-| `#2145` | One device proof through `launch-worker.mjs --proof` (the `#2146` rendered check), then close. |
-| `#2074` | The quality build on `chore/ticket-2074-whole-diff-review` (no commits; merge `main` first). |
-| ui#2500, `#2126`, `#2135`, Harness | As the D818 block: ui#2500 round 2 after ui#2492; landing rendered check then production release; the `#2135` baseline window at 1.20 USD a day; the require-wake-source Stop hook firing inside a worker, fixed red first. |
-| Held | ui#2453 (after ui#2451), ui#2501 (stacked on ui#2492), ui#2491 and ui#2494 on api#1124, ui#2498 proofs A and B at a real relay, the api assistant PRs on the `#2135` gate, `#2156` after its `resolveAfter`, `#2176` after `#2122`. |
+| ui#2500 (`#2167`) | Pushed `df0bd219b` (base merges, review CLEAN), Pullfrog asked: wait, merge at the bar, close `#2167`. |
+| ui#2475 (`#2149`) | Local `f2a6d56ac` (seed fix for thread `PRRT_kwDOR5Siws65h4Je`, red first), not pushed: review since `73525ba68`, reply, body section, push, merge. |
+| ui#2501 (`#2168`) | Local `e56def733` (base merges, eval suite 2,639 passed), not pushed: review since `e41846661`, body line 4 (part 1 merged), push, merge. |
+| ui#2506 (`#2074`) | Fix round 1 of its local review on a worker (report on `#2074`): review since `052739226`, body file, push, merge at the bar. |
+| `#2146` / `#2145` | Android proof worker (`launch-worker.mjs --proof`, result posted on `#2146`); on PASS close `#2145`; the web half at 375 in the browser on production; then the Android Open and TestFlight pair (never the App Store), close `#2177` and `#2146`. |
+| ui#2453 (`#2122`) | DIRTY after ui#2451 merged: merge `e01f0d14c` (final ui#2451 head) first, then `main`, review, push. |
+| `#2126`, `#2135`, Harness | Landing rendered check then production release; the `#2135` baseline window at 1.20 USD a day; the require-wake-source Stop hook firing inside a worker, fixed red first. |
+| Held | ui#2491 and ui#2494 on api#1124, ui#2498 proofs A and B at a real relay, the api assistant PRs on the `#2135` gate, `#2156` after its `resolveAfter`, `#2176` after `#2122`. |
 
 ## Then, in this order
 
@@ -45,8 +45,8 @@ Unattended: never ask the owner; decide with the best option and log it on the r
 
 ## Previous prompt, disposition
 
-- Done: ui#2451 round 3 tested (web related 4,062 passed), reviewed, review defects fixed and pushed (D823, D825); ui#2475 alert case split pushed (D821); ui#2492 retry thread fixed for its whole class and pushed (D822, D826); web staging release of `2460ef091` verified (D827); intake run (D824).
-- Superseded: the D818 and D819 queue blocks (D827 replaces them).
-- Carried: the production web and mobile releases, the `#2145` proof, the `#2074` build, the ui#2500, `#2126`, `#2135` and harness rows, the held rows, intake, every standing order above.
+- Done: ui#2492 and ui#2451 merged, `#2166` and `#2121` closed (D830, D836); production web release of `2460ef091` verified (D829, D836); ui#2475 review notes fixed and pushed (D832); ui#2451 test-gap threads fixed and pushed (D831, D833); ui#2500 base merge round, review CLEAN, pushed (D834, D839); `#2074` quality build opened as ui#2506 (D835); intake (D837).
+- Superseded: the D827 queue block (the newest RELAY block on `#2179` replaces it).
+- Carried: the Android Open and TestFlight pair, the `#2145` proof, ui#2475, ui#2501, ui#2506, ui#2453, the `#2126`, `#2135` and harness rows, the held rows, intake, every standing order above.
 
 Treat every identifier here as a lead to verify.
