@@ -302,7 +302,7 @@ describe.each(['en', 'pt-BR'])('a save case of a starting step in %s', (locale) 
   it.each([
     ['a write that was saved', () => ({ operations: [{ operationId: 'create_habit', status: 'Succeeded' }] }), none],
     ['no preview', () => ({}), none],
-    ['two previews', (step) => ({ pendingOperations: twoPreviews(step) }), expect.any(String)],
+    ['two previews', (step) => ({ pendingOperations: twoPreviews(step) }), 'The request is held in 2 previews.'],
   ])('approves nothing of a save-task turn with %s', async (_name, fields, reason) => {
     const { vars, block } = await prepare(saveTask)
     const fixture = account(habits, taskHeld(block.suggestion.step))

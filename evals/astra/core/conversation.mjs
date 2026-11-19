@@ -47,8 +47,8 @@ async function decide(preview, conversation, vars, api) {
 }
 
 // Decides each held preview, then reads the saved state back. Nothing is decided when the held records already differ from
-// the baseline in id, title, frequency or the log of the day (savedRecords); a field that only a named update moves is
-// graded afterwards by gradeSavedState.
+// the baseline in id, title, frequency or the log of the day (savedRecords); a field that only a named update moves, and
+// each log before the account date (movedHistory), is graded afterwards by gradeSavedState.
 async function approveAndReadBack(previews, conversation, vars, api) {
   try {
     const held = await readHabits(api)

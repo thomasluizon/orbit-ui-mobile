@@ -621,7 +621,7 @@ at most. The change list holds one `create` for each item of the request, and ea
 request. An ideas case states one more `create` with `frequency_unit: Day`: the idea joins the same preview. It also
 states `distinctTitles: true`, so two creates with one title fail. The grade does not compare that idea with the
 suggestion draft. The outcome grade then approves the preview through the existing confirmation gateway and reads the
-saved items back: title, schedule and time. Each fixture habit must keep its id, title, frequency and its log of the day, and appear only once. The grade does not read the due time of a fixture habit (the snapshot row holds none) or the count of pending operations.
+saved items back: title, schedule and time. Each fixture habit must keep its id, title, frequency, its log of the day and each log before the account date, and appear only once. The grade does not read the due time of a fixture habit (the snapshot row holds none) or the count of pending operations.
 Offline tests do not replace the live gate.
 
 Refine cases first run a real suggestion setup turn on the client path. The setup states `outcome: { read: true }` and its
