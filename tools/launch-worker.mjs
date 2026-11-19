@@ -81,7 +81,7 @@ exit codes: 0 the worker exited on its own, 1 this launcher killed it or it neve
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
             8 admission refused new ticket work before reservation,
             130 stopped by SIGINT, 143 stopped by SIGTERM
-            (this command itself exits 130 or 143 when a signal reaches it, with the worker still running)
+            (this command itself exits 130 on SIGINT, 143 on SIGTERM or 129 on SIGHUP, with the worker still running)
 Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {

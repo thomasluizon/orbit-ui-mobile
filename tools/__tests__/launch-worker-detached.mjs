@@ -178,4 +178,18 @@ const timer = setInterval(() => { if (existsSync(${JSON.stringify(trigger)})) { 
     for (const pid of [stoppingSource?.pid, stoppingSource?.workerPid]) if (processIsRunning(pid)) try { process.kill(pid, "SIGKILL") } catch { /* already gone */ }
     try { process.kill(-stoppingEntry.child.pid, "SIGKILL") } catch { /* already gone */ }
   }
+
+  // The end of the coordinator's session sends SIGHUP: it also ends only the entry.
+  const hangup = launch("detached-hangup", launchConfig({ ...stubEngine(worker), timeouts: { pollSeconds: 0.2 } }))
+  const hangupEntry = startEntry(hangup, githubAuthEnv())
+  let hangupSource
+  try {
+    hangupSource = await waitUntil(() => detachedSource(hangup))
+    process.kill(hangupEntry.child.pid, "SIGHUP")
+    const hungUp = await hangupEntry.closed
+    T(`${TOOL}: SIGHUP to the entry exits 129 and leaves the worker running`, hungUp.status === 129 && hungUp.stderr.includes(`send SIGTERM to ${hangupSource.pid}`) && processIsRunning(hangupSource.pid) && processIsRunning(hangupSource.workerPid), JSON.stringify(hungUp))
+  } finally {
+    for (const pid of [hangupSource?.pid, hangupSource?.workerPid]) if (processIsRunning(pid)) try { process.kill(pid, "SIGKILL") } catch { /* already gone */ }
+    try { process.kill(-hangupEntry.child.pid, "SIGKILL") } catch { /* already gone */ }
+  }
 }
