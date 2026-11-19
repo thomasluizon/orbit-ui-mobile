@@ -10,6 +10,7 @@ import { beforeAll as beforeCoreRun } from '../core/hooks.mjs'
 import { structural } from '../assertions.mjs'
 import parseResponse from '../response.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
+import { offlineGrader } from './fixtures/grader.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
 
 const { apiCommit } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
@@ -128,7 +129,7 @@ it.each([relativeRead, completedRead, placedHabit, habitMonth])('accepts the pro
 it.each([['different commit', 'a'.repeat(40)], ['missing commit', null], ['matching commit', apiCommit]])(
   'checks the catalog before the first live case: %s', async (_, servedCommit) => {
     offlineCredentials()
-    vi.stubEnv('ORBIT_EVAL_GRADER', 'offline-grader')
+    vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
     // Producer: orbit-api src/Orbit.Api/Extensions/WebApplicationExtensions.cs:103-125.
     const request = vi.fn(async () => Response.json({ status: 'Healthy', commit: servedCommit, checks: [] }))
     vi.stubGlobal('fetch', request)

@@ -651,7 +651,7 @@ No rerun on the same build replaces a failure. An attempt that fails, fails its 
 a wrong preview, a reply without a preview and without a question card, HTTP 5xx, a stream that ends
 without a final event, or a failed approval. Only a throttle (HTTP 429), a spend ceiling
 (`AI_DAILY_BUDGET_EXCEEDED` or `AI_PROVIDER_QUOTA_EXHAUSTED`), a failed precondition, a failed rubric
-grader, a card turn without the trace that its answer needs and a preview turn without the trace that
+grader, a failed card question read, a card turn without the trace that its answer needs and a preview turn without the trace that
 shows a `stored` field are no evidence. Such an attempt leaves its case incomplete, and only such a
 case may appear again in a later window of the same build. The merge refuses a second result on one
 build for a case that passed, failed or holds a grader limit, an ordinary window of another API commit,
@@ -921,19 +921,27 @@ A card case adds `sameTitleSet.answer` (the decided `deleted` and `renamed` posi
 `composition.allowQuestion`. When the first turn asks, each option stands for the records its `ask` call declares
 in `target_ids`. An option that declares none stands for its own id when that id is a nonempty GUID, in the order of
 the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
-and one selection the card allows must state the whole decision. When a list can hold the deleted half and the
-renamed half, the grader selects the half that its question asks about: the action words of the question, else the
-count that it states. In a list question, `keep` and `manter` are rename words, because the records to keep are the
-records to rename. When the question tells neither, or the two signals disagree, the case fails with a message that
-names a grader limit, not a model fault. A `yesNo` question beside the lists is answered yes only when its verb
-proposes the decided action for the half that the lists leave out. A count can confirm that half, but a count alone
-never decides it. In a `yesNo` question, `keep`, `manter`, `leave`, `stay`, `ficar` and each other verb of no change
-are not rename words, and `title` and `título` are not rename words. A negation (`not`, `don't`, `without`,
-`instead`, `não`, `sem`, `em vez`) or an alternative (`or`, `ou`) makes the prompt propose no one action. A `yesNo`
-question fails the case with a grader-limit message when it proposes no action, both actions or the action of the
-selected half. It also fails the case with that message when its count and its verb point at different halves.
-Every `scale` or `slider` question also fails the case with a grader-limit message. The model-fault message stays for
-a card whose every question the grader reads. The provider sends that selection as `blockAnswer`, with the message
+and one selection the card allows must state the whole decision. A list that can hold only one half is answered with that
+half and needs no read. When a list can hold both halves, and for each `yesNo` question, one call of the configured
+grader, the provider that `ORBIT_EVAL_GRADER` names, reads the question as the rubric does (`askGrader` of
+`grader-provider.mjs` loads it with `config: { schema: 'half' }` from the folder of the run's config). With
+`claude-grader.mjs` that is the same CLI, model, worker account, environment and time limit as the rubric. The prompt
+holds the question text as one quoted string, its type (a list or `yesNo`), and both halves of the
+decision by count and title. The answer is the JSON `{"half":"deleted"}`, `{"half":"renamed"}` or `{"half":"unclear"}`:
+the half that a list question asks the person to select, or that a yes to a `yesNo` question agrees to. One selection of
+a list states one half, so a list question that asks about both halves is read as the half that it asks the person to select
+first (`Which two to delete and which four to rename?` is `deleted`). `unclear` stays for a question that gives no
+direction, or that names a half only by a negation or an alternative. No word list or regular expression reads the question.
+The strict shape is one key, `half`, with one of the three names: `claude-grader.mjs` retries a call whose answer has
+another shape once, as it retries a malformed rubric grade, and any other answer of a call that succeeded is `unclear`. An
+`unclear` read fails the case with a grader-limit message, never a model fault, and the report names the question. A failed
+call of the grader, or a malformed answer after its retry, gives no evidence of the build, as a failed rubric grader does: the
+core set records the attempt as `unavailable` (the kind `a failed card question read`), the full corpus records an
+unavailable assertion, and the case is neither a grader limit nor a behavior failure, so a later window runs it again. A `yesNo`
+question is answered yes only when its read is the half that the lists leave out; a read of the half that the lists state
+is a grader limit. Every `scale` or `slider` question also fails the case with a grader-limit message, with no read. The
+model-fault message stays for a card whose every question the grader reads. A run with a card case needs the grader before
+its first chat turn, as a run with a rubric does (`requireGrader`). The provider sends that selection as `blockAnswer`, with the message
 and the history the web client sends. As the client does, the answer turn, confirm and execute send the first
 response's `conversationId` in `clientContext`, so the API reads the stored conversation.
 The shared client functions build the message: the selected labels for a choice card, and each question prompt with
@@ -974,7 +982,7 @@ checklists and logs. Attempt evidence retains sanitized proposed dates and both 
 |---|---|
 | `ORBIT_EVAL_BASE_URL` | `https://orbit-api-staging-uqu2.onrender.com` (staging) or `https://api.useorbit.org` (production); destructive fixture resets reject every other origin and every non-eval account |
 | `ORBIT_EVAL_CREDENTIALS_FILE` | Private JSON file containing account refresh tokens and the stable habit registry; owned by the runner user, regular file, mode 600 |
-| `ORBIT_EVAL_GRADER` | Set `file://codex-grader.mjs` for the installed, authenticated Codex CLI grader |
+| `ORBIT_EVAL_GRADER` | From `evals/astra`, set `file://$PWD/claude-grader.mjs` for the installed Claude Code CLI grader on the worker account; promptfoo resolves a relative `file://` grader from the folder of the run's config, so a relative value fails the core runs in `core/` |
 | `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the refreshed Orbit bearer token |
 | `ORBIT_EVAL_HABIT_ID` | Optional existing Water UUID to adopt on the Pro account; must agree with its private registry |
 | `ORBIT_EVAL_SECOND_HABIT_ID` | Optional existing Walk UUID to adopt on the Pro account; must agree with its private registry |
@@ -1143,25 +1151,43 @@ merging, and a case without complete evidence remains incomplete. A window pass 
 Keep one settled API/prompt/tool surface across the launch gate's windows. A changed surface is validated
 offline in fix rounds and never authorizes an additional live run.
 
-### Codex rubric grader
+### Claude rubric grader
 
-From `evals/astra`, set `ORBIT_EVAL_GRADER=file://codex-grader.mjs`. Install the Codex CLI on the
-runner and authenticate its existing account session through `codex login` before evaluation;
-the executable must be on the runner's normal `PATH`. The grader removes every `node_modules/.bin`
-entry, including normalized relative entries, before launching the CLI so npm and npx cannot select
-promptfoo's bundled copy. A missing or failing installed CLI fails the rubric closed.
-This provider needs no purchased OpenAI API key.
-The local command is ready to use with the coordinator's authenticated CLI. The provider executes
-`codex exec -m gpt-6.1-sol -s read-only --skip-git-repo-check --ephemeral --output-schema <schema file> -o <output file>`
-with the grading prompt on stdin in a private temporary directory. It removes Orbit eval environment
-variables from the child, validates `{ "pass": true, "score": 1, "reason": "<grading explanation>" }`
-against the checked-in schema constraints, and returns promptfoo's `{ output: "<JSON grade>" }`.
-A CLI failure, missing file, malformed grade or two-minute timeout returns a sanitized provider error;
-it never becomes a passing rubric. Temporary output is removed after every call. Promptfoo continues
-to pass only the final rendered answer projection to the rubric. A successful `finalAnswer` assertion
-from an authenticated run proves grader setup; the offline test uses a fake executable exclusively.
-The invocation follows the installed `codex exec --help` and
-[official Codex CLI reference](https://developers.openai.com/codex/cli/reference/).
+From `evals/astra`, set `ORBIT_EVAL_GRADER="file://$PWD/claude-grader.mjs"`, an absolute path: promptfoo resolves a
+relative `file://` grader from the folder of the run's config, and the core configs are in `core/`. Before the first chat
+turn, each graded run (`hooks.mjs`, and `core/hooks.mjs` when a case has a rubric or a same-title card answer) sends
+one small rubric through the configured grader from the folder of its config (`grader-preflight.mjs`). When the grader
+returns an error or no grade, the run stops before it spends the eval key. That check costs one grader call on the
+worker account. The provider runs the installed Claude Code CLI (`claude` on the runner's `PATH`) on the worker account:
+`ORBIT_WORKER_CLAUDE_CONFIG_DIR` must name the signed-in worker account directory, as `tools/launch-worker.mjs` reads it. The child gets `CLAUDE_CONFIG_DIR` set to that
+directory. Every `ANTHROPIC_`, `CLAUDE_CODE_`, `CCR_` and `ORBIT_EVAL_` variable and `AWS_BEARER_TOKEN_BEDROCK` are
+removed, so the sign-in of that directory is the only credential the CLI can select. After that filter, the child also
+gets `CLAUDE_CODE_DISABLE_ATTACHMENTS=1`: the grading prompt holds Astra's answer, and the CLI would otherwise turn an
+`@/path` mention in it into a file attachment. The offline test holds these rules and the variable name equal to the
+worker launch, and the eval package does not import the harness. When the variable
+is unset or names no directory, the grader fails closed and never runs the CLI, so it never spends the main account.
+The grader spends no eval key and does not count against the 0.50 USD daily eval ceiling.
+The provider executes
+`claude -p --model claude-opus-5-5 --output-format json --json-schema <schema JSON> --tools "" --strict-mcp-config --safe-mode --no-session-persistence`
+with the grading prompt on stdin, in a private temporary directory that it removes after every call. It reads the
+grade from the `structured_output` of the one JSON result (`type: "result"`, `subtype: "success"`,
+`is_error: false`), validates `{ "pass": true, "score": 1, "reason": "<grading explanation>" }` against the
+checked-in schema constraints, and returns promptfoo's `{ output: "<JSON grade>" }`. Each call has a two-minute time
+limit. A missing CLI, a non-zero exit, an error result, a malformed grade, a timeout or a cancellation returns a
+sanitized provider error that names the failure. A cancellation gets no retry. Any other failure gets one retry, and
+then it stays a grader error: the attempt gives no evidence, and it never becomes a passing rubric. Promptfoo continues to pass only the final rendered answer projection
+to the rubric. The offline test drives a fake executable with responses recorded from one real call of the installed
+CLI (`__tests__/fixtures/claude-grader-result.json` and `claude-grader-error.json`). The same-title card read uses the
+configured grader, as the rubric does: `ClaudeGrader` answers with the half schema when the provider reference carries
+`config: { schema: 'half' }` and with the rubric schema otherwise (see the card case of the same-title family), so each
+rule above holds for it: the worker account, the environment, the time limit and the retry. The offline fixture grader
+(`__tests__/fixtures/grader.mjs`) answers that read with the live answer that `__tests__/fixtures/claude-grader-half-results.json`
+records for the exact prompt (three reads of Opus 5.5 through the real CLI path on 19 November 2026: the baseline card and
+the run 3 card, which ask about both halves, and a one-action control; each entry holds the argument list, the prompt and the
+complete CLI result), from a table keyed by the question text for one other recorded one-action question, and answers
+`unclear` for any other question. A test that depends on the read of a question that asks about both halves takes the
+recorded answer (`recordedAskGrader`), which answers only the exact recorded prompt, so it fails when the prompt drifts.
+Record the three reads again after any change to `halfPrompt`.
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
 natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.
