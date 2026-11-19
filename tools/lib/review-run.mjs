@@ -457,12 +457,13 @@ The hooks of this run come from the orchestrating checkout, not from the head.`
 const FINAL_MESSAGE = `**Your final message has at most 12 lines:** the verdict line, the result file path, and one line for
 each of the most severe findings. The orchestrator reads the result file, not your message.`
 
-/** The order of a pre-push review, or with `since` of a fix-round review that reads only the newer commits. */
+/** The order of a pre-push review. With `since` it also names the new commits, so a fix-round review checks each fix. It reads the whole diff either way. */
 export const reviewOrder = ({ brief, slug, pullRequest, head, since = null, baseBranch = "main" }) => {
+  const whole = `Read the whole diff against its merge base: \`git diff origin/${baseBranch}...${head}\`.`
   const scope = since === null
-    ? `Read the whole diff against its merge base: \`git diff origin/${baseBranch}...${head}\`.`
-    : `This is a fix round. The previous review read \`${since}\`. Read only the new commits,
-\`git diff ${since}..${head}\`, and the code around each hunk.`
+    ? whole
+    : `${whole} This is a fix round. The previous review read \`${since}\`. Read the whole diff again, as
+the GitHub reviewer does, and use \`git diff ${since}..${head}\` to check each fix.`
   return `# Read-only review of ${slug} pull request #${pullRequest}
 
 ${brief}

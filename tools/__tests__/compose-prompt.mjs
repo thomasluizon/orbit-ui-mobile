@@ -68,8 +68,18 @@ const readOnlyCases = () => {
   const fixRoundPath = join(directory, "fix-round.md")
   check(TOOL, "--review --since composes a fix-round order", ["--review", ...base, "--since", REVIEWED, "--base", "release", "--out", fixRoundPath], { status: 0 }, options)
   const fixRound = composed(fixRoundPath)
-  T(`${TOOL}: a fix-round order reads only the commits after the reviewed head`,
-    fixRound.includes(`git diff ${REVIEWED}..${HEAD}`) && !fixRound.includes("git merge-base"), fixRound)
+  T(`${TOOL}: a fix-round order reads the whole diff and checks each fix against the commits after the reviewed head`,
+    fixRound.includes("git diff origin/release...") && fixRound.includes(`git diff ${REVIEWED}..${HEAD}`) && fixRound.includes("Read the whole diff again") &&
+      !fixRound.includes("Read only the new commits") && !fixRound.includes("git merge-base"), fixRound)
+  T(`${TOOL}: a review order asks for every instance of each defect class, from the brief alone`,
+    [review, fixRound].every((order) => order.includes("For each defect class, name the class one time and list every instance, one `path:line` each, including an instance outside the changed lines that the diff caused") &&
+      order.split("name the class one time and list every instance").length === 2), review)
+  T(`${TOOL}: a review order carries the BLOCKING and NOTE definition that its brief ranks by`,
+    [review, fixRound].every((order) => order.includes("BLOCKING is every confirmed finding under a lens above that this diff makes, in the changed lines or in code they break") &&
+      order.includes("a case that passed on `main` or on the earlier head fails at this head, such as an unchanged caller of a renamed export") &&
+      order.includes("NOTE is every other confirmed finding, such as a matter of taste with no wrong result or a defect that the diff did not make") &&
+      order.includes("- A broken repository rule: a rule of the repository's `CLAUDE.md`, of `DESIGN.md` `## Bans` or of `BRAND.md` that this diff breaks.") &&
+      !order.includes("as rule 14 defines them")), review)
 
   writeFileSync(playbook, readFileSync(playbook, "utf8").replace("The lenses:", "The lenses, edited in the playbook only:"))
   const editedPath = join(directory, "edited.md")
@@ -342,6 +352,15 @@ export const cases = () => {
     reviewPrompt,
   )
   T(
+    `${TOOL}: the review batch order tells the worker to fix every instance of each class in one commit`,
+    reviewPrompt.includes("**Fix every instance of each defect class in one commit.**") &&
+      reviewPrompt.includes("Give each class one table test, with a row for each instance that a test can see, proven red with its guard removed") &&
+      reviewPrompt.includes("An instance that no test can see (a comment, a doc or an unused export) has no guard: make the edit and name it in your report") &&
+      reviewPrompt.includes("When a\nclass comes from a word list or a regex that guesses at natural-language input in code, replace the guess with a\nstructured input or delete it. Never add one more pattern. A test assertion that pins doc text is not such code.") &&
+      !prompt.includes("**Fix every instance of each defect class in one commit.**"),
+    reviewPrompt,
+  )
+  T(
     `${TOOL}: only the review batch order carries the marker that makes launch-worker.mjs spend a fix round`,
     reviewPrompt.includes(REVIEW_BATCH_ORDER_MARKER) && !prompt.includes(REVIEW_BATCH_ORDER_MARKER),
     reviewPrompt.slice(0, 400),
@@ -521,6 +540,72 @@ export const cases = () => {
     `${TOOL}: the skill makes every unattended agent brief point at the approval hook`,
     /Every agent brief in an unattended run forbids commands that ask for an approval/.test(orchestrateSkill) &&
       orchestrateSkill.includes(".claude/hooks/forbid-approval-prompt.mjs") && orchestrateSkill.includes("node tools/wait-background-runs.mjs"),
+  )
+  const rule14 = readFileSync(join(REPO_ROOT, ".claude", "playbooks", "review-and-audit.md"), "utf8")
+  const rule14Body = rule14.slice(rule14.indexOf("**BLOCKING and NOTE.**"), rule14.indexOf("**The body is evidence, not code.**"))
+  const rule14Brief = rule14.slice(rule14.indexOf("#### The review brief"))
+  T(
+    `${TOOL}: rule 14 points at the brief for BLOCKING and NOTE, and the ranking by lens is written once in the playbook`,
+    /The review brief below owns the definition of BLOCKING and NOTE/.test(rule14Body) &&
+      /File a NOTE one time on the ticket that owns its area/.test(rule14Body) &&
+      /A NOTE starts no fix round/.test(rule14Body) &&
+      /false statement in the pull request body goes under `## Body`, and the coordinator fixes it/.test(rule14Body) &&
+      !/matter of taste/.test(rule14Body) &&
+      rule14.split("BLOCKING is every confirmed finding under a lens above that this diff makes").length === 2 &&
+      !/only when one of these is true|failing probe against the acceptance|No open search|at most one finding|new spelling/.test(rule14),
+    rule14Body,
+  )
+  T(
+    `${TOOL}: rule 14 reads the whole diff on every pass and fixes every instance of each class`,
+    /A review pass, a fix-round pass included, reads the whole diff of the pull request against its merge base/.test(rule14Body) &&
+      /fixes every instance of each class in one commit, including an instance outside the changed lines that the diff caused/.test(rule14Body) &&
+      /Each class gets one table test, with a row for each instance that a test can see, proven red with the guard removed/.test(rule14Body) &&
+      /An instance that no test can see \(a comment, a doc or an unused export\) has no guard to remove: it needs only the edit, and the report names it/.test(rule14Body) &&
+      !/reads only the new commits|narrows this to the new commits|do not search for new forms of a class/.test(rule14),
+    rule14Body,
+  )
+  T(
+    `${TOOL}: the review brief ranks by cause, so a regression outside the changed lines is BLOCKING and an older defect is a NOTE`,
+    /BLOCKING is every confirmed finding under a lens above that this diff makes, in the changed lines or in code they break \(a case that passed on \`main\` or on the earlier head fails at this head, such as an unchanged caller of a renamed export\)\. NOTE is every other confirmed finding, such as a matter of taste with no wrong result or a defect that the diff did not make/.test(rule14Brief) &&
+      /- A broken repository rule: a rule of the repository's `CLAUDE\.md`, of `DESIGN\.md` `## Bans` or of `BRAND\.md` that this diff breaks\./.test(rule14Brief) &&
+      /list every instance, one \`path:line\` each, including an instance outside the changed lines that the diff caused/.test(rule14Brief),
+    rule14Brief,
+  )
+  T(
+    `${TOOL}: the review brief lets its lenses own what a defect is, so no finding under a lens ranks as a NOTE`,
+    /The lenses above own what a defect is\. BLOCKING is every confirmed finding under a lens above/.test(rule14Brief) &&
+      /Find every defect that the GitHub reviewer \(Pullfrog\) would open a thread for, so that the next round can approve\. You are READ-ONLY/.test(rule14Brief) &&
+      /- A wrong claim: a comment, a doc comment or a doc that contradicts the code\./.test(rule14Brief) &&
+      /- Dead code: an export, a prop, a branch, a helper or a test helper that nothing uses after this diff\./.test(rule14Brief),
+    rule14Brief,
+  )
+  T(
+    `${TOOL}: the review brief owns the free-text content: its scope, its exclusion and its fix, and it ranks like any other lens`,
+    /A guess at free text in code whose behaviour depends on reading natural-language input: a word list or a regex that reads prose\. A test assertion that pins doc text is not such code\. The fix is a structured input or a deletion, never one more pattern/.test(rule14Brief) &&
+      rule14.split("one more pattern").length === 2,
+    rule14Brief,
+  )
+  T(
+    `${TOOL}: orchestration sends a free-text class to its lens in the review brief and leaves its rank to rule 14`,
+    /fix a free-text guess as its lens in the review\s+brief says/.test(orchestrateSkill),
+    orchestrateSkill,
+  )
+  T(
+    `${TOOL}: the review brief lists each class with every instance as path:line`,
+    /name the class one time and list every instance, one \`path:line\` each, including an instance outside the changed lines that the diff caused/.test(rule14Brief) &&
+      /one numbered item for each class, with the rank, the class, every instance as \`path:line\`/.test(rule14Brief) &&
+      !/at most one finding|do not search for new forms/.test(rule14Brief),
+    rule14Brief,
+  )
+  T(
+    `${TOOL}: orchestration step 8 and the finding split state the same BLOCKING and NOTE rule as rule 14`,
+    /FIX every BLOCKING finding, every instance of its class in one commit/.test(orchestrateSkill) &&
+      /\*\*FIX it in this pull request\*\* when rule 14 ranks it BLOCKING\. A thread on a regression that this pull\s+request causes in code it did not touch gets the BLOCKING rank too\. Fix it as the paragraph "Fix\s+every instance of a class" of rule 14 says/.test(orchestrateSkill) &&
+      /The round note of a batch names each defect class one time and lists every instance, one `path:line` each,\s+including an instance outside the changed lines that the pull request caused\. The next review reads\s+the whole diff/.test(orchestrateSkill) &&
+      /\*\*FILE it\*\* otherwise, when rule 14 ranks it a NOTE\. File its class one time/.test(orchestrateSkill) &&
+      /A thread on a regression that this pull\s+request causes in code it did not touch gets the BLOCKING rank too/.test(orchestrateSkill) &&
+      !/a failing probe against the acceptance/.test(orchestrateSkill),
+    orchestrateSkill,
   )
   T(
     `${TOOL}: orchestration resolves review batch threads before its single push`,
