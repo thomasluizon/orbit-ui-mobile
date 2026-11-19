@@ -159,6 +159,31 @@ describe('a save case of a starting step', () => {
     expect(outcome(response.output, { vars }).pass).toBe(false)
   })
 
+  // The deleted saved step guard read the saved task as one with no days, no bad-habit flag and no general flag. The preview
+  // shows a row for each argument that the model passed (AgentArgumentPreview.Build: days as the JSON text of the list, a
+  // boolean as True or False), so each row is graded on the preview where the readback cannot read it.
+  it.each([
+    ['one day of the week', { days: [null, '["Monday"]', 'array'] }],
+    ['a bad habit', { is_bad_habit: [null, 'True', 'boolean'] }],
+    ['a general task', { is_general: [null, 'True', 'boolean'] }],
+    ['a parent habit', { parent_habit_id: [null, 'Water'] }],
+  ])('fails a saved task that the preview files as %s', async (_name, row) => {
+    const { vars, block } = await prepare('composition-one-small-step-save-task-en')
+    const step = block.suggestion.step
+    const held = [previewOf('createHabit', [itemOf(null, step, { title: [null, step], frequency_unit: [null, 'OneTime'], ...row })])]
+    const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: held })), api: account(habits, held).api })
+    expect(outcome(response.output, { vars })).toMatchObject({ pass: false, reason: expect.stringContaining('The preview does not create exactly the records of the request.') })
+  })
+
+  it('passes a saved task whose preview shows no day, no flag and no parent, or shows them empty', async () => {
+    const { vars, block } = await prepare('composition-one-small-step-save-task-en')
+    const step = block.suggestion.step
+    const shown = { days: [null, '[]', 'array'], is_bad_habit: [null, 'False', 'boolean'], is_general: [null, 'False', 'boolean'], parent_habit_id: [null, 'No parent'] }
+    const held = [previewOf('createHabit', [itemOf(null, step, { title: [null, step], frequency_unit: [null, 'OneTime'], ...shown })])]
+    const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: held })), api: account(habits, held).api })
+    expect(outcome(response.output, { vars })).toMatchObject({ pass: true })
+  })
+
   it('fails an approval that saves the step with a repeat count that the preview did not show', async () => {
     const { vars, block } = await prepare('composition-one-small-step-save-task-en')
     const step = block.suggestion.step

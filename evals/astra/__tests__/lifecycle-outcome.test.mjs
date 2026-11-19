@@ -224,11 +224,12 @@ describe('a restart case', () => {
 // habit and each of its stored values, and PreserveReuseParent adds the parent row that changes nothing.
 const water = '22222222-2222-4222-8222-222222222222'
 const brainHabits = [storedHabit(water, 'Water')]
-const dentist = itemOf(null, 'Call the dentist', { title: [null, 'Call the dentist'], frequency_unit: [null, 'OneTime'], due_date: [null, addDays(1), 'date'] })
-const stretch = itemOf(null, 'Stretch', { title: [null, 'Stretch'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1', 'number'],
+const rootParent = { parent_habit_id: [null, 'No parent'] }
+const dentist = itemOf(null, 'Call the dentist', { ...rootParent, title: [null, 'Call the dentist'], frequency_unit: [null, 'OneTime'], due_date: [null, addDays(1), 'date'] })
+const stretch = itemOf(null, 'Stretch', { ...rootParent, title: [null, 'Stretch'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1', 'number'],
   due_date: [null, accountDate, 'date'], due_time: [null, '08:00', 'time'] })
 const reused = itemOf(water, 'Water', { frequency_unit: ['Day', 'Day'], parent_habit_id: ['No parent', 'No parent'] })
-const idea = itemOf(null, 'Read', { title: [null, 'Read'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1', 'number'], due_date: [null, accountDate, 'date'] })
+const idea = itemOf(null, 'Read', { ...rootParent, title: [null, 'Read'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1', 'number'], due_date: [null, accountDate, 'date'] })
 const brainDump = (id, items, options = {}) => attempt(id, { replies: [turnOf({ pendingOperations: [previewOf('createHabits', items)] })], habits: brainHabits,
   records: { first: water, water, second: water, walk: water }, ...options })
 
@@ -241,9 +242,9 @@ describe('a brain dump case', () => {
 
   it.each([
     ['an unrequested third item', [dentist, stretch, idea], 'The preview holds a change outside the request.'],
-    ['the habit at another time', [dentist, itemOf(null, 'Stretch', { title: [null, 'Stretch'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1'], due_date: [null, accountDate], due_time: [null, '09:00'] })], 'The preview does not create exactly the records of the request.'],
-    ['the task as a daily habit', [itemOf(null, 'Call the dentist', { title: [null, 'Call the dentist'], frequency_unit: [null, 'Day'], due_date: [null, addDays(1)] }), stretch], 'The preview does not create exactly the records of the request.'],
-    ['the task today', [itemOf(null, 'Call the dentist', { title: [null, 'Call the dentist'], frequency_unit: [null, 'OneTime'], due_date: [null, accountDate] }), stretch], 'The preview does not create exactly the records of the request.'],
+    ['the habit at another time', [dentist, itemOf(null, 'Stretch', { ...rootParent, title: [null, 'Stretch'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1'], due_date: [null, accountDate], due_time: [null, '09:00'] })], 'The preview does not create exactly the records of the request.'],
+    ['the task as a daily habit', [itemOf(null, 'Call the dentist', { ...rootParent, title: [null, 'Call the dentist'], frequency_unit: [null, 'Day'], due_date: [null, addDays(1)] }), stretch], 'The preview does not create exactly the records of the request.'],
+    ['the task today', [itemOf(null, 'Call the dentist', { ...rootParent, title: [null, 'Call the dentist'], frequency_unit: [null, 'OneTime'], due_date: [null, accountDate] }), stretch], 'The preview does not create exactly the records of the request.'],
   ])('fails %s', async (_name, items, reason) => {
     const { verdict } = await brainDump('brain-dump-mixed-en', items)
     expect(verdict.pass).toBe(false)
@@ -256,7 +257,7 @@ describe('a brain dump case', () => {
     expect(fixture.state).toHaveLength(3)
     const lost = await brainDump('brain-dump-reuse-en', [dentist, stretch])
     expect(lost.verdict).toMatchObject({ pass: false, reason: expect.stringContaining('The preview does not reuse exactly the records of the request.') })
-    const duplicate = await brainDump('brain-dump-reuse-en', [dentist, stretch, itemOf(null, 'Water', { title: [null, 'Water'], frequency_unit: [null, 'Day'] })])
+    const duplicate = await brainDump('brain-dump-reuse-en', [dentist, stretch, itemOf(null, 'Water', { ...rootParent, title: [null, 'Water'], frequency_unit: [null, 'Day'] })])
     expect(duplicate.verdict.pass).toBe(false)
   })
 
@@ -268,10 +269,10 @@ describe('a brain dump case', () => {
 
   it.each([
     ['brain-dump-ideas-en', [dentist, stretch], 'Read', 'Day'],
-    ['brain-dump-ideas-pt-BR', [itemOf(null, 'Ligar para o dentista', { title: [null, 'Ligar para o dentista'], frequency_unit: [null, 'OneTime'], due_date: [null, addDays(1)] }),
-      itemOf(null, 'Alongar', { title: [null, 'Alongar'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1'], due_date: [null, accountDate], due_time: [null, '08:00'] })], 'Ler', 'Day'],
+    ['brain-dump-ideas-pt-BR', [itemOf(null, 'Ligar para o dentista', { ...rootParent, title: [null, 'Ligar para o dentista'], frequency_unit: [null, 'OneTime'], due_date: [null, addDays(1)] }),
+      itemOf(null, 'Alongar', { ...rootParent, title: [null, 'Alongar'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1'], due_date: [null, accountDate], due_time: [null, '08:00'] })], 'Ler', 'Day'],
   ])('holds the idea of %s to a daily habit', async (id, requested, title, unit) => {
-    const third = (frequency) => itemOf(null, title, { title: [null, title], frequency_unit: [null, frequency], due_date: [null, accountDate] })
+    const third = (frequency) => itemOf(null, title, { ...rootParent, title: [null, title], frequency_unit: [null, frequency], due_date: [null, accountDate] })
     expect((await brainDump(id, [...requested, third(unit)])).verdict.pass).toBe(true)
     for (const other of ['OneTime', 'Week']) {
       const { verdict } = await brainDump(id, [...requested, third(other)])
@@ -279,8 +280,29 @@ describe('a brain dump case', () => {
     }
   })
 
+  // The deleted brain dump guard failed an item that carried a parent. The preview shows the parent of a create as the
+  // parent_habit_id row (the parent title, or No parent), and the eval/snapshot row holds no parent, so the preview grade holds it.
+  const dentista = itemOf(null, 'Ligar para o dentista', { ...rootParent, title: [null, 'Ligar para o dentista'], frequency_unit: [null, 'OneTime'], due_date: [null, addDays(1)] })
+  const alongar = itemOf(null, 'Alongar', { ...rootParent, title: [null, 'Alongar'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1'], due_date: [null, accountDate], due_time: [null, '08:00'] })
+  const nested = (item, parent) => ({ ...item, fields: item.fields.map((field) => field.field === 'parent_habit_id' ? { ...field, newValue: parent, proposedValue: water } : field) })
+  it.each([
+    ['brain-dump-mixed-en', [dentist, stretch]],
+    ['brain-dump-mixed-pt-BR', [dentista, alongar]],
+    ['brain-dump-reuse-en', [dentist, stretch, reused]],
+    ['brain-dump-reuse-pt-BR', [dentista, alongar, reused]],
+    ['brain-dump-ideas-en', [dentist, stretch, idea]],
+    ['brain-dump-ideas-pt-BR', [dentista, alongar, idea]],
+  ])('fails %s when a create is filed under a stored habit', async (id, items) => {
+    expect((await brainDump(id, items)).verdict.pass, 'every create at the root').toBe(true)
+    for (const index of [0, 1]) {
+      const filed = items.map((item, at) => at === index ? nested(item, 'Water') : item)
+      const { verdict } = await brainDump(id, filed)
+      expect(verdict, `item ${index}`).toMatchObject({ pass: false, reason: expect.stringContaining('The preview does not create exactly the records of the request.') })
+    }
+  })
+
   it('runs the pt-BR cases over the same shapes', async () => {
-    expect((await brainDump('brain-dump-mixed-pt-BR', [itemOf(null, 'Ligar para o dentista', { title: [null, 'Ligar para o dentista'], frequency_unit: [null, 'OneTime'], due_date: [null, addDays(1)] }),
-      itemOf(null, 'Alongar', { title: [null, 'Alongar'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1'], due_date: [null, accountDate], due_time: [null, '08:00'] })])).verdict.pass).toBe(true)
+    expect((await brainDump('brain-dump-mixed-pt-BR', [itemOf(null, 'Ligar para o dentista', { ...rootParent, title: [null, 'Ligar para o dentista'], frequency_unit: [null, 'OneTime'], due_date: [null, addDays(1)] }),
+      itemOf(null, 'Alongar', { ...rootParent, title: [null, 'Alongar'], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1'], due_date: [null, accountDate], due_time: [null, '08:00'] })])).verdict.pass).toBe(true)
   })
 })

@@ -213,9 +213,11 @@ function movedField({ target, fields, kept = {} }, habits, baseline) {
     && comparable(field, savedField[field](habit)) !== comparable(field, savedField[field](before))) ?? null
 }
 
-// The first field that the request names and the saved record holds with another value.
+// The first field that the request names and the saved record holds with another value. A field that no saved record
+// names (the parent of a create: the snapshot row holds none) is graded on the preview alone.
 function savedFailure(expected, habit, accountDate) {
-  const wrong = Object.keys(expected.fields ?? {}).find((field) => !matchesField(expected.fields[field], savedField[field](habit), accountDate))
+  const wrong = Object.keys(expected.fields ?? {}).filter((field) => savedField[field])
+    .find((field) => !matchesField(expected.fields[field], savedField[field](habit), accountDate))
   return wrong ? `gives ${wrong} the value ${JSON.stringify(savedField[wrong](habit) ?? null)}` : null
 }
 

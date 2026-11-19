@@ -2147,7 +2147,7 @@
     outcome:
       decision: approve
       changes:
-        - { kind: create, fields: { title: { previousStep: true }, frequency_unit: { oneOf: [OneTime, null] }, frequency_quantity: { oneOf: [null] } } }
+        - { kind: create, fields: { title: { previousStep: true }, frequency_unit: { oneOf: [OneTime, null] }, frequency_quantity: { oneOf: [null] }, days: { optional: { oneOf: ['[]'] } }, is_bad_habit: { optional: { contains: ['false'] } }, is_general: { optional: { contains: ['false'] } }, parent_habit_id: { optional: No parent } } }
 - description: one-small-step-save-checklist in en
   metadata:
     id: composition-one-small-step-save-checklist-en
@@ -2332,7 +2332,7 @@
     outcome:
       decision: approve
       changes:
-        - { kind: create, fields: { title: { previousStep: true }, frequency_unit: { oneOf: [OneTime, null] }, frequency_quantity: { oneOf: [null] } } }
+        - { kind: create, fields: { title: { previousStep: true }, frequency_unit: { oneOf: [OneTime, null] }, frequency_quantity: { oneOf: [null] }, days: { optional: { oneOf: ['[]'] } }, is_bad_habit: { optional: { contains: ['false'] } }, is_general: { optional: { contains: ['false'] } }, parent_habit_id: { optional: No parent } } }
 - description: one-small-step-save-checklist in pt-BR
   metadata:
     id: composition-one-small-step-save-checklist-pt-BR
@@ -2400,8 +2400,8 @@
     outcome:
       decision: approve
       changes:
-        - { kind: create, fields: { title: { contains: [dentist] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
-        - { kind: create, fields: { title: { contains: [stretch] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [dentist] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [stretch] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
 
 - description: Brain dump mixed in pt-BR
   metadata: { id: brain-dump-mixed-pt-BR, category: composition, family: brain-dump-mixed, locale: pt-BR, platform: mobile, fixture: pro }
@@ -2413,8 +2413,8 @@
     outcome:
       decision: approve
       changes:
-        - { kind: create, fields: { title: { contains: [dentista] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
-        - { kind: create, fields: { title: { contains: [along] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [dentista] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [along] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
 
 - description: Brain dump reuse in en
   metadata: { id: brain-dump-reuse-en, category: composition, family: brain-dump-reuse, locale: en, platform: web, fixture: pro }
@@ -2426,8 +2426,8 @@
     outcome:
       decision: approve
       changes:
-        - { kind: create, fields: { title: { contains: [dentist] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
-        - { kind: create, fields: { title: { contains: [stretch] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [dentist] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [stretch] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
         - { kind: reuse, targets: { record: first } }
 
 - description: Brain dump reuse in pt-BR
@@ -2440,8 +2440,8 @@
     outcome:
       decision: approve
       changes:
-        - { kind: create, fields: { title: { contains: [dentista] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
-        - { kind: create, fields: { title: { contains: [along] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [dentista] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [along] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
         - { kind: reuse, targets: { record: first } }
 
 - description: Brain dump ideas in en
@@ -2454,9 +2454,9 @@
     outcome:
       decision: approve
       changes:
-        - { kind: create, fields: { title: { contains: [dentist] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
-        - { kind: create, fields: { title: { contains: [stretch] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
-        - { kind: create, fields: { frequency_unit: Day } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [dentist] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [stretch] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, frequency_unit: Day } }
 
 - description: Brain dump ideas in pt-BR
   metadata: { id: brain-dump-ideas-pt-BR, category: composition, family: brain-dump-ideas, locale: pt-BR, platform: mobile, fixture: pro }
@@ -2468,9 +2468,9 @@
     outcome:
       decision: approve
       changes:
-        - { kind: create, fields: { title: { contains: [dentista] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
-        - { kind: create, fields: { title: { contains: [along] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
-        - { kind: create, fields: { frequency_unit: Day } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [dentista] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [along] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
+        - { kind: create, fields: { parent_habit_id: No parent, frequency_unit: Day } }
 - description: restart-preview in en
   metadata:
     id: composition-restart-preview-en
