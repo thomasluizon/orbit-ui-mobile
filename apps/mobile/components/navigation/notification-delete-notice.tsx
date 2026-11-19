@@ -8,8 +8,7 @@ import {
   cancelPendingNotificationDelete,
   dismissFailedNotificationDelete,
   FAILED_DELETE_NOTICE_LIFE_MS,
-  getFailedNotificationDeleteIdsSnapshot,
-  getVisiblePendingNotificationDeleteIdsSnapshot,
+  getNotificationDeleteNoticeSnapshot,
   dismissPendingNotificationDeleteNotice,
   retryFailedNotificationDelete,
   subscribePendingNotificationDeleteIds,
@@ -35,21 +34,16 @@ export function NotificationDeleteNotice() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const pendingIds = useSyncExternalStore(
+  const notice = useSyncExternalStore(
     subscribePendingNotificationDeleteIds,
-    getVisiblePendingNotificationDeleteIdsSnapshot,
-    getVisiblePendingNotificationDeleteIdsSnapshot,
+    getNotificationDeleteNoticeSnapshot,
+    getNotificationDeleteNoticeSnapshot,
   )
-  const failedIds = useSyncExternalStore(
-    subscribePendingNotificationDeleteIds,
-    getFailedNotificationDeleteIdsSnapshot,
-    getFailedNotificationDeleteIdsSnapshot,
-  )
-  return <>{pendingIds.map((id) => (
-    <Toast key={id} kind="neutral" icon={<Trash2 size={20} color={tokens.fg2} />} message={t('notifications.deleteQueued')}
+  if (!notice) return null
+  if (notice.kind === 'failed') return <FailedDeleteToast key={`failed-${notice.id}`} notificationId={notice.id} />
+  return (
+    <Toast key={notice.id} kind="neutral" icon={<Trash2 size={20} color={tokens.fg2} />} message={t('notifications.deleteQueued')}
       actionLabel={t('notifications.deleteUndo')}
-      onAction={() => cancelPendingNotificationDelete(id)} onDismiss={() => dismissPendingNotificationDeleteNotice(id)} />
-  ))}{failedIds.map((id) => (
-    <FailedDeleteToast key={`failed-${id}`} notificationId={id} />
-  ))}</>
+      onAction={() => cancelPendingNotificationDelete(notice.id)} onDismiss={() => dismissPendingNotificationDeleteNotice(notice.id)} />
+  )
 }

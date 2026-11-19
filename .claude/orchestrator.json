@@ -98,6 +98,10 @@
     "workerLaunchesPerBranch": 2,
     "workerLogMegabytes": 512
   },
+  "launchGate": {
+    "loadMax": 60,
+    "spacingSeconds": 45
+  },
   "cloud": {
     "enabled": false,
     "environmentId": "6a95b419b608819199eb78d9eabc9579",

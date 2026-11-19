@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-18",
+  "calibratedAt": "2026-11-19",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -151,9 +151,9 @@
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "b58887f5ab0d1ca5",
-      "calibratedAt": "2026-11-18",
-      "verdict": "undeclared, inherits the session: runs or extends the configured Astra eval corpus and distinguishes failed behavior from incomplete tool evidence; it declares no model or effort override."
+      "digest": "753092e38ad54389",
+      "calibratedAt": "2026-11-19",
+      "verdict": "undeclared, inherits the session: runs or extends the Astra eval core set gate and launch corpus, and reads its pass^k report to tell failed behavior from incomplete tool evidence; it declares no model or effort override."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
       "model": null,
@@ -186,22 +186,22 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "0012ff9ca4d1616d",
-      "calibratedAt": "2026-11-14",
+      "digest": "888fe9e6704e567a",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },
     ".claude/skills/crank/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "ce68f3978587e5b3",
-      "calibratedAt": "2026-11-13",
+      "digest": "fa51d4318bd76ad9",
+      "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
     },
     ".claude/skills/deep-research/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "385a041a5606b0fb",
-      "calibratedAt": "2026-11-13",
+      "digest": "44d57830a20808ab",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: it fans out web-researcher subagents that carry their own sonnet/medium tuning, so the orchestrating half inheriting the session is defensible today."
     },
     ".claude/skills/dev-server/SKILL.md": {
@@ -228,8 +228,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "aa0be8ecb8401653",
-      "calibratedAt": "2026-11-15",
+      "digest": "14d9ae044ab0ec4d",
+      "calibratedAt": "2026-11-19",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -263,36 +263,36 @@
     ".claude/skills/merge-prs/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "94d69c929e91dfe3",
-      "calibratedAt": "2026-11-09",
+      "digest": "1ba3abf3816176e5",
+      "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth."
     },
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "4c38523aa18a9ba1",
-      "calibratedAt": "2026-11-18",
+      "digest": "7c1779b558a98ce1",
+      "calibratedAt": "2026-11-19",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "0ee56c735f815bce",
-      "calibratedAt": "2026-11-15",
+      "digest": "3295660407f385cd",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },
     ".claude/skills/progress/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "89e6a2d3ccd0236c",
-      "calibratedAt": "2026-11-13",
+      "digest": "a661317f2eeaa6bf",
+      "calibratedAt": "2026-11-19",
       "verdict": "current: medium effort; it reads live git and ticket state, resolves integration per repository, and distinguishes ancestry from stacked squash boundaries."
     },
     ".claude/skills/questions/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "5693fd8497007a0f",
-      "calibratedAt": "2026-11-15",
+      "digest": "68a0c60525394119",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision."
     },
     ".claude/skills/release/SKILL.md": {
@@ -312,15 +312,15 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "5b481c6be78d1018",
-      "calibratedAt": "2026-11-18",
+      "digest": "26ef4a176643945a",
+      "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "888e164367d656e2",
-      "calibratedAt": "2026-11-09",
+      "digest": "61ae0638d167bc2a",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it."
     },
     ".claude/skills/validate/SKILL.md": {
@@ -333,8 +333,8 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "20cffc414b05f2f3",
-      "calibratedAt": "2026-11-09",
+      "digest": "800ef238ec4c0a37",
+      "calibratedAt": "2026-11-19",
       "verdict": "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep."
     }
   }

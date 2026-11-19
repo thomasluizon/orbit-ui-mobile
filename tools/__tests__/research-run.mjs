@@ -1,8 +1,9 @@
 import { spawn, spawnSync } from "node:child_process"
-import { chmodSync, existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { chmodSync, closeSync, existsSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, WORKER_CONFIG_DIRECTORY, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { HERMETIC_LAUNCH_GATE, T, WORKER_CONFIG_DIRECTORY, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { researchLaunch } from "../lib/research-run.mjs"
 import { readWakeSourceStates, wakeSourceDirectory, workerLaunchDirectory, writeRunState } from "../lib/run-state.mjs"
 
 const TOOL = "launch-worker.mjs"
@@ -15,7 +16,7 @@ const engineStub = (label, body) => {
 const fixture = (label, command, overrides = {}) => {
   const real = realOrchestratorConfig()
   const worker = overrides.worker ?? real.worker
-  const config = { ...real, ...overrides, workers: { ...real.workers, [worker]: { ...real.workers[worker], command } } }
+  const config = { ...real, ...overrides, launchGate: HERMETIC_LAUNCH_GATE, workers: { ...real.workers, [worker]: { ...real.workers[worker], command } } }
   const staged = stageWithConfig(`research-${label}`, TOOL, config)
   const order = stage(`research/${label}-order.md`, "Compare read-only research approaches and cite sources.\n")
   const output = join(dirname(order), `${label}-findings.md`)
@@ -148,7 +149,42 @@ const discardLog = (result) => {
   return report
 }
 
+/** The research mode decides its own values once; the launcher reads them and never asks which mode runs (thread __pE). */
+const launchModeCase = () => {
+  const order = stage("research/mode-order.md", "Compare two approaches.\n")
+  const argv = ["--research", "--order", order, "--out", join(dirname(order), "mode-findings.md")]
+  const refusals = []
+  const cli = (given) => ({
+    argv: ["node", TOOL, ...given],
+    argOf: (flag) => given.includes(flag) ? given[given.indexOf(flag) + 1] : null,
+    fail: (code, message) => { refusals.push(code); throw new Error(message) },
+  })
+  const mode = researchLaunch(cli(argv))
+  const storage = dirname(mode.runDirectory)
+  try {
+    T("research mode: it names itself, its order and an empty run directory", mode.label === "research" && mode.promptFile.endsWith("mode-order.md") && readdirSync(mode.runDirectory).length === 0, JSON.stringify([mode.label, mode.promptFile]))
+    T("research mode: it registers a research wake source, claims no run directory and clears its wake source on exit",
+      JSON.stringify(mode.wake) === JSON.stringify({ what: "research", research: true, review: false }) && mode.reservation === null && mode.clearsClaimsOnExit === true, JSON.stringify([mode.wake, mode.reservation]))
+    T("research mode: it never runs a second time", mode.relaunchArguments() === null)
+    mode.prepare({ engineName: "claude", invocation: { model: "a-model" }, scriptArgs: ["shim.js"] })
+    T("research mode: its plan and its worker arguments are its own", mode.plan.research === true && mode.plan.issue === null && mode.workerArguments[0] === "shim.js" && mode.workerArguments.includes("WebSearch,WebFetch"), JSON.stringify([mode.plan, mode.workerArguments]))
+    const message = mode.spawn("engine", ["-p"], 4)
+    T("research mode: the gate message carries the order as input and no report descriptor before the first attempt",
+      message.executable === "engine" && message.input.includes("Compare two approaches.") && message.reportDescriptor === null, JSON.stringify(message))
+    mode.begin()
+    T("research mode: a claude engine prints its findings to the first inherited descriptor", mode.inheritedDescriptors.length === 1 && mode.spawn("engine", ["-p"], 4).reportDescriptor === 4, JSON.stringify(mode.inheritedDescriptors))
+    closeSync(mode.inheritedDescriptors[0])
+  } finally {
+    mode.release()
+  }
+  T("research mode: release removes the temporary directory it made", !existsSync(storage), storage)
+  let message = "accepted"
+  try { researchLaunch(cli([...argv, "--issue", "#1128"])) } catch (error) { message = error.message }
+  T("research mode: it refuses a ticket argument with exit 2", /unsupported research option: --issue/.test(message) && refusals.join() === "2", `${message} ${refusals.join()}`)
+}
+
 export const cases = async () => {
+  launchModeCase()
   const command = engineStub("immediate", immediateBody)
   const staged = fixture("success", command, { worker: "codex" })
   const result = run(TOOL, staged.argv, { path: staged.path, env: { GH_TOKEN: "fixture", GITHUB_TOKEN: "fixture", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "credential.helper", GIT_CONFIG_VALUE_0: "fixture", SSH_AUTH_SOCK: "fixture" } })

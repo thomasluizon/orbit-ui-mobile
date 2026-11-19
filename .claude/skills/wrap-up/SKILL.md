@@ -8,7 +8,7 @@ effort: medium
 # /wrap-up
 
 The spec receives timeless rules and one overwritten `## Current state` section through `/handoff`.
-Timed session evidence stays in the scratchpad outside the repository.
+Timed session evidence goes to GitHub as run notes on the tickets and the run record issue.
 Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs` using this
 session's exact id. `/progress` uses its default window since the previous owner-typed
 `/progress`, including every overlapping session. `/questions` covers the open chain plus the
@@ -57,7 +57,7 @@ this skill does not override any of it.
 
 ## What this skill never does
 
-The work. Not the thing `/progress` reports as half built, not the thing `/questions` just got an
+The work. Not the thing `/progress` reports as built but not merged, not the thing `/questions` just got an
 answer about, and nothing `$ARGUMENTS` describes. All of it goes into the handoff.
 
 **`/handoff` is the end of the session, and so is this.** That rule lives in

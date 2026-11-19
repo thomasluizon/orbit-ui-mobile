@@ -56,7 +56,7 @@ export default class AstraHttpProvider {
   async chat(prompt, context, options) {
     if (context.vars.preconditionFailure) return {
       error: `Precondition unavailable: ${context.vars.preconditionFailure}`,
-      metadata: { astraPreconditionFailure: true, astraPreconditionReason: context.vars.preconditionFailure },
+      metadata: { astraPreconditionFailure: true, astraPreconditionReason: context.vars.preconditionFailure, rateLimitRetryable: false },
     }
     let response
     try {

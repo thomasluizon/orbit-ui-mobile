@@ -34,7 +34,6 @@ beforeEach(() => {
   navigation.pathname = '/profile'
   locale.portuguese = false
   navigation.back.mockClear()
-  useShellStore.persist.clearStorage()
   useShellStore.setState({ sidebarCollapsed: false })
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
     matches: /min-width/.test(query), media: query,

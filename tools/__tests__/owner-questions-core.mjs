@@ -124,9 +124,7 @@ const survivorCases = async () => {
 
   const transcriptPath = join(checkout, ".git", "transcript.jsonl")
   writeFileSync(transcriptPath, `${JSON.stringify({ type: "assistant", timestamp: "2026-11-01T00:00:00.000Z", message: { id: "call", usage: { input_tokens: 1, cache_creation_input_tokens: 1, cache_read_input_tokens: 1, output_tokens: 1 } } })}\n`)
-  const decisionLogPath = join(checkout, ".git", "sleep-decisions.md")
-  writeFileSync(decisionLogPath, "D7 The helper stays in the app until a third caller exists.\n")
-  appendChainEntry(await sessionChainEntry({ ...readRunState(checkout), decisionLogPath }, transcriptPath), checkout)
+  appendChainEntry(await sessionChainEntry(readRunState(checkout), transcriptPath), checkout)
   confirmChainSuccessor("current", "next", "term_next", 1, checkout)
   writeRunState({ sessionId: "next", sleep: true, openOwnerQuestions: ["Does the widget ship in the first release?"] }, checkout)
   const later = ownerQuestionCandidates("next", checkout)

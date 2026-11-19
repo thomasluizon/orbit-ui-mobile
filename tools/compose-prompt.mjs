@@ -1,14 +1,20 @@
 #!/usr/bin/env node
 
-import { existsSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { dirname, isAbsolute, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
 import { parityExemptTerms } from "./lib/parity-scope.mjs"
+import { proofOrder, reviewBrief, reviewOrder } from "./lib/review-run.mjs"
+import { repositorySlug } from "./lib/github-auth.mjs"
+import { REVIEW_BATCH_ORDER_MARKER } from "./lib/run-state.mjs"
+import { sealOrder } from "./lib/run-notes.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
+       compose-prompt.mjs --review --repo <key> --pr <n> --head <sha> [--since <sha>] [--base <ref>] --out <absolute path>
+       compose-prompt.mjs --proof --repo <key> --pr <n> --head <sha> --plan <file> --devices <names> --evidence <directory> --out <absolute path>
 
   --issue <reference> ticket whose body and comments to compose (required)
   --repo <key>      target repository key from .claude/orchestrator.json (required)
@@ -17,9 +23,32 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
   --branch <name>   branch already checked out for the worker
   --base <ref>      base branch the pull request targets (default: main)
   --layout-guard    allow editing only apps/web/e2e/layout/ among e2e files; never run it (ui only)
-  --review-batch    stop a local review fix after a tested commit
+  --review-batch    stop a local review fix after a tested commit. The order carries the review batch
+                    marker, so launch-worker.mjs requires --fix-round for it
   --cloud          compose the container contract instead of local PR delivery
   --help, -h        print this usage and exit 0
+
+  Read-only orders for node tools/launch-worker.mjs --review or --proof. Neither reads the ticket.
+  --review          a pre-push review of pull request --pr at --head, or with --since a fix-round
+                    review of only the commits after the reviewed head. Embeds the review brief of
+                    .claude/playbooks/review-and-audit.md rule 14. The result opens with
+                    VERDICT: CLEAN (no BLOCKING finding) or VERDICT: DEFECTS (<n>), where n counts
+                    BLOCKING findings only. A NOTE and a body line never change it
+  --proof           a device proof of pull request --pr at --head. The result opens with
+                    PROOF: PASS or PROOF: FAIL (<n> defects)
+  --pr <n>          the pull request number
+  --head <sha>      the commit under review or proof, 7 to 40 hex characters copied from git
+  --since <sha>     the head that the previous review read (--review only)
+  --plan <file>     the proof steps and the expected result of each, non-empty (--proof only)
+  --devices <names> the comma-separated simulators and AVDs the proof may use (--proof only)
+  --evidence <dir>  absolute directory outside every repository for screenshots and logs, created
+                    when absent and refused when it holds a file (--proof only)
+  Both orders forbid every tracked write, commit, branch, push and GitHub write, and end with a
+  final message of at most 12 lines.
+
+A local order ends with a seal line. tools/launch-worker.mjs refuses an order without it, or one whose text
+changed after it, so a fix round's note reaches a worker only as a ticket comment
+(node tools/post-run-note.mjs --kind round-note) that this tool reads.
 
 Prints the output path on stdout.
 exit codes: 0 prompt written, 2 usage or ticket read error`
@@ -48,7 +77,12 @@ const baseBranch = argOf("--base") ?? "main"
 const cloud = process.argv.includes("--cloud")
 const layoutGuard = process.argv.includes("--layout-guard")
 const reviewBatch = !cloud && process.argv.includes("--review-batch")
-if (!issue || !repoKey || !out || !isAbsolute(out)) fail(2, USAGE)
+const readOnlyModes = ["--review", "--proof"].filter((flag) => process.argv.includes(flag))
+if (readOnlyModes.length > 1 || (readOnlyModes.length === 1 && (cloud || layoutGuard || reviewBatch || issue !== null))) {
+  fail(2, `${USAGE}\n\n--review and --proof compose an order with no ticket: drop --issue, --cloud, --layout-guard and --review-batch`)
+}
+const readOnlyMode = readOnlyModes[0]?.slice(2) ?? null
+if ((readOnlyMode === null && !issue) || !repoKey || !out || !isAbsolute(out)) fail(2, USAGE)
 
 const config = readOrchestratorConfig()
 const repoPath = config.repos?.[repoKey]
@@ -58,10 +92,49 @@ if (layoutGuard && repoKey !== "ui") fail(2, "--layout-guard is available only f
 
 /** The prompt must not land inside a repository: a worker that finds its own work order in the
  * tree can commit it, and a reviewer would then read instructions written by the change. */
-for (const declared of Object.values(config.repos)) {
-  if (resolve(out).toLowerCase().startsWith(resolve(declared).toLowerCase())) {
-    fail(2, `--out ${out} is inside the ${declared} repository; write the prompt to the scratchpad instead`)
+const insideDeclaredRepository = (path, flag) => {
+  for (const declared of Object.values(config.repos)) {
+    if (resolve(path).toLowerCase().startsWith(resolve(declared).toLowerCase())) {
+      fail(2, `${flag} ${path} is inside the ${declared} repository; keep it in the scratchpad instead`)
+    }
   }
+}
+insideDeclaredRepository(out, "--out")
+
+const COMMIT = /^[0-9a-f]{7,40}$/
+const readOnlyOrder = () => {
+  const pullRequest = argOf("--pr")
+  const head = argOf("--head")
+  const since = argOf("--since")
+  if (!/^[1-9]\d*$/.test(pullRequest ?? "")) fail(2, `--${readOnlyMode} needs --pr <n>, a pull request number`)
+  if (!COMMIT.test(head ?? "")) fail(2, `--${readOnlyMode} needs --head <sha>, 7 to 40 lowercase hex characters copied from git`)
+  let slug
+  try { slug = repositorySlug(repoPath) } catch (error) { fail(2, `could not read the GitHub repository of ${repoPath}: ${error.message}`) }
+  if (readOnlyMode === "review") {
+    if (since !== null && !COMMIT.test(since)) fail(2, "--since needs the reviewed head, 7 to 40 lowercase hex characters copied from git")
+    let brief
+    try { brief = reviewBrief(readFileSync(new URL("../.claude/playbooks/review-and-audit.md", import.meta.url), "utf8")) } catch (error) { fail(2, `could not read the review brief: ${error.message}`) }
+    return reviewOrder({ brief, slug, pullRequest, head, since, baseBranch })
+  }
+  if (since !== null) fail(2, "--since belongs to --review")
+  const planArgument = argOf("--plan")
+  const devices = (argOf("--devices") ?? "").split(",").map((name) => name.trim()).filter(Boolean)
+  const evidenceArgument = argOf("--evidence")
+  let plan = ""
+  try { plan = readFileSync(resolve(planArgument ?? ""), "utf8") } catch { fail(2, "--proof needs --plan <file>, the proof steps") }
+  if (plan.trim() === "") fail(2, `--plan ${planArgument} is empty`)
+  if (devices.length === 0) fail(2, "--proof needs --devices <names>, the simulators and AVDs the proof may use")
+  if (!evidenceArgument || !isAbsolute(evidenceArgument)) fail(2, "--proof needs --evidence <directory>, an absolute path")
+  insideDeclaredRepository(evidenceArgument, "--evidence")
+  mkdirSync(evidenceArgument, { recursive: true })
+  if (!statSync(evidenceArgument).isDirectory() || readdirSync(evidenceArgument).length > 0) fail(2, `--evidence ${evidenceArgument} must be a new or empty directory`)
+  // The proof boots with this checkout's tool, never with the tool of the head under review.
+  return proofOrder({ slug, pullRequest, head, plan, devices, evidenceDirectory: resolve(evidenceArgument), emulatorTool: fileURLToPath(new URL("./android-emulator.mjs", import.meta.url)) })
+}
+if (readOnlyMode !== null) {
+  writeFileSync(resolve(out), sealOrder(readOnlyOrder()), "utf8")
+  console.log(resolve(out))
+  process.exit(0)
 }
 
 let resolvedTicket
@@ -126,7 +199,7 @@ one of these exact terms: ${parityExemptTerms.join(", ")}. Write the term itself
   : ""
 
 const vitestEvidence = repoKey === "ui"
-  ? ` The repository's own Vitest suites are required evidence: run them in full, including any headless Chromium geometry tests they launch. That Chromium use is permitted within Vitest.`
+  ? ` The focused Vitest tests of your change are required evidence, including any headless Chromium geometry test they launch. That Chromium use is permitted within Vitest.`
   : ""
 
 const browserBan = layoutGuard ? `
@@ -145,6 +218,31 @@ and it OVERRIDES the ticket's own Evidence section.**${vitestEvidence} No \`npm 
 Playwright, Maestro or Cypress, nothing under \`e2e/\`, no layout guard, no navigating to localhost
 on any port, no logging in to the app. If the ticket says screenshots are required, do not gather
 them in this worker. A fresh worktree has no seeded session.`
+
+/** CI runs every full suite on the pull request, so a worker spends its time on the checks its change can break. */
+const focusedVerification = `
+
+**Run only the focused checks of your change; CI runs every full suite.** Judge each check by its exit code:
+- Vitest: \`npx vitest related <changed source files> --run\` in each changed workspace. Never start Vitest without a file name.
+- Tools: \`node tools/test-tools.mjs --only <case module>\` for each case module that covers a changed tool or reads a changed file (\`grep -rl <file name> tools/__tests__\` finds the readers; repeat \`--only\`; \`--list\` prints the names). Never run the complete tools suite.
+- Hooks: \`node .claude/hooks/test-hooks.mjs\` after a change to \`.claude/**\`, a tracked \`*.md\` file, or another file the harness reads or imports (\`grep -n <file name> .claude/hooks/test-hooks.mjs\`). It checks the wiring in \`.claude/settings.json\` and scans every tracked doc.
+- The type check and the lint of each changed workspace or project, and the focused tests of a changed project in a repository without Vitest.
+
+CI runs the full web and mobile Vitest suites, the complete tools suite and the layout tests on the pull request. Do not run them. To reproduce a flake, run the affected file again or in parallel instances. Spend at most 25 minutes of wall time on verification after your commit, and report each command with its exit code.`
+
+/**
+ * The standing rules of every local worker in an unattended run. They lived in a scratchpad file that each launch
+ * script appended; now they are part of every composed order, so no order can miss them (thomasluizon/orbit-tickets#2152).
+ */
+const unattendedRules = cloud ? "" : `
+
+**Nobody answers an approval prompt.** The owner is away, and a held command stalls the run for hours.
+- Never run a command that Claude Code can hold for approval: \`rm\` (delete with Node, \`node -e "require('node:fs').rmSync('<literal absolute path>', { recursive: true, force: true })"\`, only inside your own worktree or temporary directory), \`sudo\`, \`chmod -R\`, \`git push --force\`, or \`git reset --hard\` on a branch you did not create. Never write outside your worktree and the system temporary directory.
+- Keep each shell command plain. Never put \`$(\`, a backtick, \`eval\` or a variable in a path, a redirect or a grep pattern. For a longer search or text check, write a \`.mjs\` file in the system temporary directory and run it with \`node\`.
+- Never comment on GitHub, resolve a review thread, or close a pull request or an issue unless this order says so in words.
+- Copy every GitHub identifier (pull request number, SHA, thread id) from command output of this run, never from memory.
+- Commit with a plain conventional message: no attribution line and no co-author line.
+- ${reviewBatch ? "Your final report is the batch's handoff: the commit SHA, then the complete `## Test evidence`, `## Assumptions` and `## Manual steps` sections of the finishing contract." : "Your final message is at most 12 lines: the verdict, the commit SHAs, each test command with its pass count, and the pull request URL when you opened one. The pull request body carries the full report."}`
 
 /**
  * The approval hook loads only in a checkout that holds it. A worker in another repository gets the same rule
@@ -190,13 +288,14 @@ ${baseInstruction}
 review information, never delivery gates. Keep one atomic behaviour complete: migrations with their
 model change, generated Designer or contract output with its source/schema, and required lockfiles
 or codemod output in this pull request. Do not split required generated output away to make the diff look smaller, and
-do not deliver partial behaviour silently.${browserBan}
+do not deliver partial behaviour silently.${browserBan}${focusedVerification}${unattendedRules}
 
 **Output.** ${outputInstruction}${localUiParityDelivery}
 
 **Boundaries.** Never merge, in any shape: no gh pr merge, no PUT /repos/{owner}/{repo}/pulls/N/merge,
 no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. Never --no-verify or
---no-gpg-sign. Do not edit the ticket. Do not touch a second repository: cross-repo work is
+--no-gpg-sign. Do not edit the ticket. Public pull request bodies reference a ticket with Tracks, never an
+automatic closing keyword: the orchestrator closes tickets. Do not touch a second repository: cross-repo work is
 two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.
 
 **Dependencies.** Never edit installed files by hand inside \`node_modules\`, under any path, in any
@@ -248,9 +347,9 @@ const finishing = `## Finishing contract
 
 You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage or commit \`architecture.json\`, \`architecture.html\` or \`architecture.mmd\`.
 
-For each piece, compile and run focused tests, then commit before broader verification.
+For each piece, compile and run the focused tests of the piece, then commit.
 
-Then, in order: run the broader suite, push, and open or update exactly one pull request. Stop there
+Then, in order: push, and open or update exactly one pull request. Stop there
 and report its URL and test results. Do not wait on CI or poll GitHub Actions. The orchestrator owns
 CI waiting, review fixes and final readiness verification. You do not merge or wait for review.
 
@@ -276,11 +375,13 @@ migration or backfill), each naming the exact key, the exact console or screen, 
 took effect. The harness reads both sections mechanically at handover; prose elsewhere in the body
 does not reach it.`
 
-const reviewBatchFinishing = `## Finishing contract
+const reviewBatchFinishing = `${REVIEW_BATCH_ORDER_MARKER}
+
+## Finishing contract
 
 You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage or commit \`architecture.json\`, \`architecture.html\` or \`architecture.mmd\`.
 
-**Commit as soon as the code compiles and the focused tests pass. Run the broader suite after.**
+**Commit as soon as the code compiles and the focused tests pass.** CI runs the full suites after the push.
 
 Stop after the tested commit. Do not push or open a pull request. Report the commit SHA, then end
 your final report with these literal sections, each one present even when it is empty:
@@ -297,5 +398,7 @@ const finishingContract = cloud
   : reviewBatch ? reviewBatchFinishing : finishing
 
 const order = cloud ? `${brief}\n\n---\n\n${finishingContract}` : `${finishingContract}\n\n---\n\n${brief}`
-writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${order}\n`, "utf8")
+const composed = `${ticket.replace(/\s*$/, "")}\n\n---\n\n${order}\n`
+// A Cloud order goes to tools/submit-cloud-worker.mjs, which appends its own contract; only a local launch checks the seal.
+writeFileSync(resolve(out), cloud ? composed : sealOrder(composed), "utf8")
 console.log(resolve(out))

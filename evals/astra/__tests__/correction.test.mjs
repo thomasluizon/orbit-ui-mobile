@@ -152,7 +152,7 @@ it('keeps a correction whose setup holds no preview as missing evidence, before 
   expect(test.vars.preconditionFailure).toBe('Correction setup failed dependency composition-medical-batch-en: The reply holds no preview and no question card.')
   const provider = await loadApiProvider(`file://${root}/http-provider.mjs`, { options: { config: config.providers[0].config } })
   expect(await provider.callApi(test.vars.input, { vars: test.vars })).toMatchObject({
-    error: `Precondition unavailable: ${test.vars.preconditionFailure}`, metadata: { astraPreconditionFailure: true } })
+    error: `Precondition unavailable: ${test.vars.preconditionFailure}`, metadata: { astraPreconditionFailure: true, rateLimitRetryable: false } })
   expect(turns).toBe(1)
 })
 

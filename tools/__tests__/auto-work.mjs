@@ -6,6 +6,7 @@ import { setTimeout as wait } from "node:timers/promises"
 import { T, TOOLS_DIR, realOrchestratorConfig, run, stageWithConfig } from "./_harness.mjs"
 import { isRelayWaiter, readRunState, readWakeSourceStates, wakeSourceDirectory, writeRunState } from "../lib/run-state.mjs"
 import { checkSleepStop } from "../../.claude/hooks/_lib/rules-sleep.mjs"
+import { readIntake } from "../lib/auto-work-intake.mjs"
 
 /** One BoardState page, its node shape copied from a live read of the ticket repository. */
 const BOARD_PAGE = JSON.stringify({ data: { repository: { issues: { pageInfo: { hasNextPage: false, endCursor: "Y3Vyc29yOnYyOpK0MjAyNi0xMS0wOFQyMzozMzoxNFrPAAAAAXYjtkw=" },
@@ -30,8 +31,8 @@ const stageSources = (base) => {
 }
 
 /**
- * Holds the waiter's first run state publish until the test releases it, so a disable write lands
- * exactly between the waiter's read and its write when nothing serializes the two.
+ * Holds the waiter's first intake publish until the test releases it, so a disable write lands between the
+ * waiter's mode check and its intake write. The marks live in another file, so the disable must survive.
  */
 const stagePublishPause = (base) => {
   const paused = join(base, "publish-paused")
@@ -43,7 +44,7 @@ const realRename = fs.renameSync
 const idle = new Int32Array(new SharedArrayBuffer(4))
 let held = false
 fs.renameSync = function (from, to, ...rest) {
-  if (!held && String(to).endsWith("orbit-orchestrate-run.json")) {
+  if (!held && String(to).endsWith("intake.json")) {
     held = true
     fs.writeFileSync(${JSON.stringify(paused)}, "")
     while (!fs.existsSync(${JSON.stringify(release)})) Atomics.wait(idle, 0, 0, 10)
@@ -83,7 +84,7 @@ export const cases = async () => {
         wakeSources: live, isWakeSourceAlive: () => true }) === null)
       if (mode === "disable") {
         for (let tries = 0; tries < 200 && !existsSync(pause.paused); tries++) await wait(10)
-        T("auto-work disable: the waiter reached its first run state publish", existsSync(pause.paused))
+        T("auto-work disable: the waiter reached its first intake publish", existsSync(pause.paused))
         cpSync(join(TOOLS_DIR, "auto-work-state.mjs"), join(installation.base, "tools", "auto-work-state.mjs"))
         const disabler = spawn(process.execPath, [join(installation.base, "tools", "auto-work-state.mjs"), "--disable"],
           { env: { ...childEnv, CLAUDE_CODE_SESSION_ID: "auto" } })
@@ -105,10 +106,10 @@ export const cases = async () => {
         T("auto-work source: a new mail id and the review failure name their sources", JSON.stringify(result.wakes) === JSON.stringify([
           { source: "mail", kind: "new", items: ["m-new"] },
           { source: "reviews", kind: "failure", failure: "orbit-play-reviews.mjs --cycle failed (exit 1): gh workflow run failed (exit 1): gh stand-in refuses" }]), stdout)
-        const wake = readRunState(installation.base).intake.wake
+        const wake = readIntake(installation.base).wake
         T("auto-work source: the board baseline, seen mail and failure persist", wake.seen.board[0] === "#2065 2026-11-08T22:53:42Z blocked by #2064" &&
           wake.seen.mail[0] === "m-new" && wake.failures.reviews.startsWith("orbit-play-reviews.mjs --cycle failed") &&
-          readRunState(installation.base).intake.play.workflowCycle === undefined, JSON.stringify(wake))
+          readIntake(installation.base).play.workflowCycle === undefined, JSON.stringify(wake))
         const ghCalls = readFileSync(sources.log, "utf8").trim().split("\n")
         T("auto-work source: the board is read through GraphQL and the review cycle dispatch went to the gh stand-in",
           ghCalls.some((line) => line.startsWith("api graphql") && line.includes("query BoardState")) &&

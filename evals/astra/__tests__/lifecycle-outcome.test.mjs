@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { askGrader } from '../grader-provider.mjs'
 import { TOOL_NAME_KEYS, corpusTests, gradedByOutcome } from '../grade-method.mjs'
 import { captures } from './fixtures/core-streams.mjs'
 import { streams } from './fixtures/same-title-streams.mjs'
 import { accountDate, addDays, attempt, caseOf, corpus, itemOf, previewOf, storedHabit, turnOf } from './fixtures/lifecycle-case.mjs'
+
+vi.mock('../grader-provider.mjs', async (original) => ({ ...await original(), askGrader: vi.fn() }))
+// No offline test spends a model call: the read of a card question that asks about both halves is a stub that reads the deleted half.
+beforeEach(() => { vi.mocked(askGrader).mockReset().mockResolvedValue({ value: { half: 'deleted' } }) })
 
 const lifecycleId = /^(same-title-|composition-(one-small-step|restart|brain-dump|suggestions))|^brain-dump-/u
 const lifecycle = corpus.filter((entry) => lifecycleId.test(entry.metadata.id))

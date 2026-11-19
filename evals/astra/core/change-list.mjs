@@ -124,9 +124,9 @@ const childCreates = (drafts, preview, parent) => Array.isArray(drafts) ? drafts
 // The change list of the held previews: one entry for each record a preview changes, with the kind of the change, the
 // record, the fields that the model writes, the fields that the preview offers, the fields that the server derives, and
 // the titles of the records that the offered drafts add. A stored row is written when the held writes name its field
-// (`written`, from writtenFields), and derived otherwise; without the trace (`written` null) it is undetermined. A
-// create item that reuses a stored habit is an update of it (UpdateExistingTreeAsync writes its fields on approval),
-// no change when no row differs, and a `reuse` change with `reuses` (a brain dump holds the habit in its list).
+// (`written`, from writtenFields), and derived otherwise; without the trace (`written` null) it is undetermined. Under
+// `nestedCreates`, a create item that reuses a stored habit is an update of it (UpdateExistingTreeAsync writes its fields
+// on approval), and no change when no row differs; under `reuses` that is a `reuse` change (a brain dump holds the habit).
 export function changeList(pendingOperations, written = null, { nestedCreates = false, reuses = false } = {}) {
   const changes = []
   const unclassified = []
@@ -141,6 +141,8 @@ export function changeList(pendingOperations, written = null, { nestedCreates = 
       const children = nestedCreates && kind === 'create'
         ? item.fields.filter((field) => field.field === 'sub_habits' && !isOffer(field)).flatMap((field) => childCreates(field.proposedValue, operation.id, recordId(item.entityId))) : []
       const reused = kind === 'create' && item.fields.some(marksExistingHabit)
+      // The core set skips a reused item, as before the launch corpus graded it, so each core verdict stays (rule B1 of #2129).
+      if (reused && !nestedCreates) continue
       const fields = reused ? item.fields.filter((field) => field.field !== 'sub_habits') : item.fields
       const offers = fields.filter(isOffer)
       const stored = fields.filter((field) => field.provenance === 'stored')

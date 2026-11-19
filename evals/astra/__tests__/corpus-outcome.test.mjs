@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { tsImport } from 'tsx/esm/api'
 import { changeList } from '../core/change-list.mjs'
+import OrbitChatStreamProvider from '../core/provider.mjs'
+import AstraHttpProvider from '../http-provider.mjs'
 import { composition } from '../composition.mjs'
 import { outcome, runOutcomeCase } from '../client-path.mjs'
 import { corpusTests, gradedByOutcome, readCorpus } from '../grade-method.mjs'
@@ -430,6 +432,10 @@ describe('the kinds that the change list gained', () => {
       expect(grade(wrapped([water, walk], [edit, {}]))).toMatchObject({ pass: false })
     })
 
+    it('skips a reused parent on the core path, as before, even when the wrapper edits it', () => {
+      expect(changeList([wrapped([water, walk], [{ emoji: '💊' }, {}])], []).changes).toEqual([])
+    })
+
     it('fails an edit of the second reused parent', () => {
       expect(grade(wrapped([water, walk], [{}, { emoji: '💊' }]))).toMatchObject({ pass: false })
     })
@@ -523,7 +529,41 @@ describe('the client path of a converted case', () => {
     vi.stubGlobal('fetch', api)
     expect(await runOutcomeCase({ ...prepared('single-read-en'), preconditionFailure: 'Fixture reset failed.' })).toEqual({
       error: 'Precondition unavailable: Fixture reset failed.',
-      metadata: { astraPreconditionFailure: true, astraPreconditionReason: 'Fixture reset failed.' } })
+      metadata: { astraPreconditionFailure: true, astraPreconditionReason: 'Fixture reset failed.', rateLimitRetryable: false } })
+    expect(api).not.toHaveBeenCalled()
+  })
+
+  // promptfoo retries a provider result whose error names HTTP 429 unless its metadata says rateLimitRetryable: false
+  // (isProviderResponseRateLimited in promptfoo's scheduler). A case runs once per window, so no shape may be retried.
+  it.each([
+    ['a throttled turn', [{ kind: 'failed', status: 429, code: null, error: 'Too many requests.' }]],
+    ['a provider outage', [{ kind: 'failed', status: 400, code: 'AI_UNAVAILABLE', error: 'The model is unavailable.' }]],
+    ['a gradable answer', [reply([meditar()])]],
+  ])('tells promptfoo never to retry %s', async (_shape, replies) => {
+    const { response } = await scripted('single-read-en', replies)
+    expect(response.metadata).toEqual({ rateLimitRetryable: false })
+  })
+})
+
+describe('the provider of the core set', () => {
+  // One return statement gives the precondition result and the result of a failed turn, so this result covers both.
+  it('tells promptfoo never to retry an attempt without a gradable answer', async () => {
+    const api = vi.fn()
+    vi.stubGlobal('fetch', api)
+    const error = 'Precondition unavailable: Fixture reset failed.'
+    expect(await new OrbitChatStreamProvider().callApi('', { vars: { preconditionFailure: 'Fixture reset failed.' } })).toEqual({
+      error, output: { unavailable: true, error }, metadata: { rateLimitRetryable: false } })
+    expect(api).not.toHaveBeenCalled()
+  })
+})
+
+describe('the provider of POST /api/chat', () => {
+  it('tells promptfoo never to retry the precondition result of a case without an outcome', async () => {
+    const api = vi.fn()
+    vi.stubGlobal('fetch', api)
+    expect(await new AstraHttpProvider({ config: {} }).callApi('', { vars: { preconditionFailure: 'Fixture reset failed.' } })).toEqual({
+      error: 'Precondition unavailable: Fixture reset failed.',
+      metadata: { astraPreconditionFailure: true, astraPreconditionReason: 'Fixture reset failed.', rateLimitRetryable: false } })
     expect(api).not.toHaveBeenCalled()
   })
 })
