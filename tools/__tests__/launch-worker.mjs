@@ -13,9 +13,8 @@ const TOOL = "launch-worker.mjs"
 
 /**
  * Derived from the shipped .claude/orchestrator.json rather than hand-written, so a fixture cannot
- * agree with a guess about the schema while the real config carries something else. Only `command`
- * is swapped by default: the configured worker is `claude`, which is not installed in CI, and a
- * gate that needs a model CLI on PATH is not hermetic.
+ * agree with a guess about the schema while the real config carries something else. `command` is swapped,
+ * because `claude` is not installed in CI, and `launchGate` is always HERMETIC_LAUNCH_GATE.
  */
 const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
   const real = realOrchestratorConfig()
