@@ -31,7 +31,7 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      [--tier <t>] [--hard-ceiling-minutes <n>] [--measurement] [--dry-run]
   --review           a pre-push or fix-round review (tools/compose-prompt.mjs --review composes the order)
   --proof            a device proof (tools/compose-prompt.mjs --proof composes the order). The worker
-                     gets ORBIT_DEVICE_PROOF=1, which lets the worker hook allow adb and emulator, and
+                     gets ORBIT_DEVICE_PROOF=1, which lets the worker hook allow adb, emulator and xcrun, and
                      a free emulator port pair from 5560: ORBIT_PROOF_EMULATOR_PORT=<port> and
                      ANDROID_SERIAL=emulator-<port>. The launcher claims the port in
                      <git common dir>/orbit-proof-ports/<port>.json until it exits, so two proofs
