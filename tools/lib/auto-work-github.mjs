@@ -94,13 +94,10 @@ const ownerGitHub = ({ config, repoRoot, run, signal }) => {
   }
 }
 
-/**
- * Reads every page of one REST list through gh with the token of the repository owner. With
- * `allPages: false` it reads the first page only, for a list whose first item is all a caller needs.
- */
+/** Reads every page of one REST list through gh with the token of the repository owner. */
 export const githubPageReader = ({ config = readOrchestratorConfig(), repoRoot = REPO_ROOT, run = runBounded, signal } = {}) => {
   const call = ownerGitHub({ config, repoRoot, run, signal })
-  return async (path, projection, { allPages = true } = {}) => (await call("read", path, [...(allPages ? ["--paginate"] : []), path, "--jq", projection]))
+  return async (path, projection) => (await call("read", path, ["--paginate", path, "--jq", projection]))
     .split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line))
 }
 

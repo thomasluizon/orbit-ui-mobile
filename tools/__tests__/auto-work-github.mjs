@@ -479,7 +479,8 @@ const alertKindCases = async () => {
     codeRead.projection.includes("commit: .most_recent_instance.commit_sha") && analysesReads.length === 0 &&
     listing.items.find((alert) => alert.key === codeKey).commit === ALERT_COMMIT, JSON.stringify(reader.calls))
   const checkout = fresh("alert-kinds")
-  recordListing("alerts", listing, checkout)
+  // Every kind carries a commit here, so only the kind check in comparesScan keeps it off the secret and Dependabot alerts.
+  recordListing("alerts", { ...listing, items: listing.items.map((alert) => ({ ...alert, commit: ALERT_COMMIT })) }, checkout)
   const cause = "The test fixture sets Secure false on purpose."
   for (const key of [codeKey, secretKey, dependabotKey]) markItem("alerts", { key, action: "ticket", ticket: TICKET, cause }, checkout)
   const completed = await alertsWithClosedTickets(readIntake(checkout).alerts, { readTicketState: async (number) => ({ number, state: "CLOSED", stateReason: "COMPLETED" }) })

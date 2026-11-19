@@ -63,7 +63,7 @@ const args = process.argv.slice(2)
 if (args.includes("--help") || args.includes("-h")) { console.log(USAGE); process.exit(0) }
 const collect = args.length === 1 && args[0] === "--collect"
 const mark = args.length === 2 && args[0] === "--mark" && INTAKE_GITHUB_SOURCES.includes(args[1])
-const closing = args.length === 1 ? CLOSING_FLAGS[args[0]] : undefined
+const closing = args.length === 1 && Object.hasOwn(CLOSING_FLAGS, args[0]) ? CLOSING_FLAGS[args[0]] : undefined
 if (!collect && !mark && !closing) { console.error(USAGE); process.exit(2) }
 let receipt
 if (mark || closing) {

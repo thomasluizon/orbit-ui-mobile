@@ -60,6 +60,11 @@ esac
   mkdirSync(join(claudeDirectory, "sessions"), { recursive: true })
   sessionRecord("cli", installation.base)
   const env = { GH_BIN: gh, CLAUDE_CODE_SESSION_ID: "cli", CLAUDE_CONFIG_DIR: claudeDirectory }
+  for (const inherited of ["toString", "constructor", "__proto__"]) {
+    const refused = run("auto-work-github.mjs", [inherited], { path: installation.path, env, input: "{}" })
+    T(`github cli: ${inherited} is not a closing flag, so it prints the usage and exits 2`, refused.status === 2 && refused.stderr.startsWith("usage: auto-work-github.mjs"),
+      JSON.stringify({ status: refused.status, stderr: refused.stderr.slice(0, 160) }))
+  }
   const collected = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env })
   let result = {}
   try { result = JSON.parse(collected.stdout) } catch { /* the assertion below reports the raw output */ }
