@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/orchestrate` over the admitted queue without replanning. Crank is OFF (owner order): never invoke `/crank`. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`) and run `node tools/relay-checkout.mjs --check`.
 
-Scratchpad (S): run `node $HOME/.orbit-run-carry/carry-lean.mjs <new full id> <predecessor full id>` (the predecessor id is `relay.from`). Start a new `sleep-decisions.md` from D767 with the Write tool. A missing file: `node S/restore-missing.mjs '<name pattern>'`. Read `date` before you write a time. The first block of S `task-map.md` and S `pending-queue.md` hold each worktree, head and next command, and win over this prompt. Predecessor task outputs do not carry: read S `review-<key>-local.md` and `git log` in the worktree. A `cd` into S resets the shell: call S tools by absolute path.
+Your scratchpad starts empty; nothing is copied. S below is the predecessor's scratchpad: the sibling of yours named by the run state's `relay.from`. Its first blocks of `task-map.md` and `pending-queue.md` hold each worktree, head and next command, and win over this prompt; its `note-*`, `design-*`, `body-*`, `reply-*` and `review-*-local.md` files are the round state, read in place until the `#2152` migration posts them to GitHub. Start `sleep-decisions.md` from D767. Read `date` before you write a time.
 
 Models and accounts (owner orders): the coordinator runs Opus 5.5; every worker tier runs `claude-sonnet-5-5`; never change or ask about a model. Pullfrog runs on the main account token. The worker account is at its weekly limit (the last launch result names its reset), so S `gated-launch.sh` unsets `ORBIT_WORKER_CLAUDE_CONFIG_DIR` and workers run on the main account. The main account's weekly tokens must last until its reset: at most 3 workers at once, reviews included; drive open pull requests to the merge bar before a new ticket. A worker that stops at a usage limit is reported to the owner at once. Sentry is connected. The Render MCP has no workspace selected: never pick one.
 
@@ -20,7 +20,7 @@ Finish the spec: an empty board except `#33`, verified releases, the assistant f
 
 ## In flight
 
-UI `main` `6934dd6ca`; API `main` and production `70c66e7be`; landing `main` `20c1b0a90`; web production `2263a8b67`. Owner question queue: empty. Board 38 open, 38 placed in `## The order`, 0 unplaced, 0 placed twice.
+UI `main` `d7538f743`; API `main` and production `70c66e7be`; landing `main` `20c1b0a90`; web production `2263a8b67`. Owner question queue: empty. Board 38 open, 38 placed in `## The order`, 0 unplaced, 0 placed twice.
 
 | Item | Disposition |
 | --- | --- |
@@ -28,7 +28,8 @@ UI `main` `6934dd6ca`; API `main` and production `70c66e7be`; landing `main` `20
 | ui#2480 (`#2135`) | Design round s6g (S `design-2480-s6g.md`, `note-2480-s6g.md`) in W/ticket-2122-part3: read its commit, review 2480-s6g, push with S `body-2480-s6e.md` plus a `## s6g` section. |
 | ui#2476 (`#2145`) | Pushed 5f571d83e (review NOTES 1), Pullfrog asked: a waiter, merge at the bar. |
 | ui#2475 (`#2149`) | Pullfrog failed at 643e3077e (2 threads): design round s6y (S `design-2475-s6y.md`, `note-2475-s6y.md`). |
-| ui#2488, ui#2493 | Pushed ab806b810 and c59290a82, Pullfrog asked: a waiter each, merge at the bar. |
+| `#2152` (ui#2488 merged) | First, before an intake cycle: the one-time migration, steps 1 and 2 of `## Manual steps` in S `body-2488-r11.md` (a manifest of the live S notes, reviews, bodies, replies and decisions; dry run, then `--apply`). Keep each S loop tool until a repository tool replaces it, then step 3. Then close `#2152`. |
+| ui#2493 | Pushed c59290a82, Pullfrog asked: a waiter, merge at the bar. |
 | ui#2498 (`#2173`) | Pullfrog found nothing; it approves after live relay proofs A and B (S `body-2498-m3.md` `## Live relay proof`), which need the branch code in the orchestrating checkout at a real relay. |
 | Next launches | S `pending-queue.md` first block: 137-s6w review, ui#2483 and ui#2451 Pullfrog rounds (main merged), the `#2074` quality build, ui#2453 and ui#2500 resumes. |
 | Releases | After ui#2504 merges: one web release (`/release`) with ui#2499, ui#2503, ui#2504; then the Android Open and TestFlight pair (never the App Store); then the `#2146` web check. |
@@ -46,7 +47,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: ui#2503 merged (`#2178` closed); ui#2480 s6e notes fixed and pushed; ui#2488 r10 and r11 pushed; ui#2498 m3 blocker fixed and pushed; reviews 2475-s6w and 2493-s6w fixed and pushed; ui#2476 pushed; ui#2504 r3 round committed and reviewed; intake clean.
+- Done: ui#2503 merged (`#2178` closed); ui#2488 merged; ui#2480 s6e notes fixed and pushed; ui#2488 r10 and r11 pushed; ui#2498 m3 blocker fixed and pushed; reviews 2475-s6w and 2493-s6w fixed and pushed; ui#2476 pushed; ui#2504 r3 round committed and reviewed; intake clean.
 - Carried: every In flight row, the ui#2498 proofs, the held rows, the `#2074` quality build, every standing order above.
 
 Treat every identifier here as a lead to verify.

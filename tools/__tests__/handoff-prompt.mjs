@@ -89,6 +89,32 @@ export const cases = () => {
   T(`${UNIT}: any oversized version of the spec is refused`, sizeIssues(validateHandoffPrompt(sleepPrompt, { sleep: true, specVersions: () => ["small", "x".repeat(40961)] })).length === 1)
   T(`${UNIT}: the ceiling counts bytes, not characters`, handoff.relayDocumentOversize(handoff.HANDOFF_PROMPT_PATH, "\u00e9".repeat(4097))?.includes("(it is 8194 B)") === true)
   T(`${UNIT}: a document outside the relay paths has no ceiling`, handoff.relayDocumentLimit("docs/notes.md") === null && handoff.relayDocumentLimit(".claude/specs/nested/a.md") === null)
+  const localIssues = (missing) => missing.filter((item) => item.includes("` without "))
+  const carryDirectory = [".orbit-", "run-carry"].join("")
+  for (const [label, reference] of [
+    ["a scratchpad file", "Read `scratchpad/note-2469-r20.md` first."],
+    ["a scratchpad paragraph", "Scratchpad: copy the predecessor files."],
+    ["an `S` file reference", "| `ui#2469` | `S note-2469-r20.md` |"],
+    ["an `S` tool reference", "Run `S usage-guard.mjs` at each wake."],
+    ["a system temporary directory path", `Logs are in ${["/private", "/tmp/orbit-workers"].join("")}.`],
+    ["the old run carry", `Run \`$HOME/${carryDirectory}/carry-from-predecessor.sh\`.`],
+    ["a home directory path", "Read `~/notes/run.md`."],
+    ["a home variable path", "Read `${HOME}/notes/run.md`."],
+    ["a macOS home path", `Read ${["/", "Users/alex/run.md"].join("")}.`],
+  ]) {
+    const prompt = validateHandoffPrompt(`${sleepPrompt}\n${reference}\n`, { sleep: true })
+    T(`${UNIT}: a prompt that names ${label} is refused`, localIssues(prompt).length >= 1 && localIssues(prompt)[0].startsWith("`.claude/handoffs/NEXT.md` without "), JSON.stringify(prompt))
+    const spec = validateHandoffPrompt(sleepPrompt, { sleep: true, specVersions: () => [`# Spec\n\n${reference}\n`] })
+    T(`${UNIT}: a spec that names ${label} is refused`, localIssues(spec).length >= 1 && localIssues(spec)[0].startsWith("`.claude/specs/example.md` without "), JSON.stringify(spec))
+  }
+  for (const [label, text] of [
+    ["a repository path", "Read `tools/lib/run-state.mjs` and `.claude/skills/handoff/SKILL.md`."],
+    ["a ticket comment link", "The round note is https://github.com/thomasluizon/orbit-tickets/issues/2152#issuecomment-1."],
+    ["a capital S word", "S is not a file, and Sentry has no extension."],
+  ]) {
+    T(`${UNIT}: a prompt that names ${label} passes the local reference check`, localIssues(validateHandoffPrompt(`${sleepPrompt}\n${text}\n`, { sleep: true })).length === 0)
+  }
+  T(`${UNIT}: a document outside the relay paths has no local reference check`, handoff.relayDocumentLocalReferences("docs/notes.md", "Read `S note.md`.").length === 0)
   const specRoot = join(root, "handoff-prompt", "spec-checkout")
   mkdirSync(join(specRoot, ".claude", "specs"), { recursive: true })
   writeFileSync(join(specRoot, ".claude", "specs", "example.md"), "x".repeat(41984))

@@ -156,6 +156,10 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   if (!Number.isInteger(config.caps?.cloudParallelTasks) || config.caps.cloudParallelTasks < 4 || config.caps.cloudParallelTasks > 8) {
     throw new Error(".claude/orchestrator.json caps.cloudParallelTasks must be an integer from 4 through 8")
   }
+  positive(config.launchGate?.loadMax, "launchGate.loadMax")
+  if (!Number.isFinite(config.launchGate?.spacingSeconds) || config.launchGate.spacingSeconds < 0) {
+    throw new Error(".claude/orchestrator.json launchGate.spacingSeconds must be a number of seconds, 0 or more")
+  }
   if (!isRecord(config.cloud)) throw new Error(".claude/orchestrator.json must declare a cloud object")
   if (typeof config.cloud.enabled !== "boolean") {
     throw new Error(".claude/orchestrator.json cloud.enabled must be a boolean")

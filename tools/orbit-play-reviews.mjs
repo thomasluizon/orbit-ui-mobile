@@ -6,7 +6,7 @@ import { isAbsolute, join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
 import { pathToFileURL } from "node:url"
 import { googleToken } from "./lib/auto-work-google.mjs"
-import { acknowledgeIntake, intakeRun, intakeSource, pendingReviewKeys, REVIEW_RUN_SECONDS, updateIntakeSource } from "./lib/auto-work-intake.mjs"
+import { acknowledgeIntake, intakeRun, intakeSource, pendingReviewKeys, readIntake, REVIEW_RUN_SECONDS, updateIntakeSource } from "./lib/auto-work-intake.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { REPO_ROOT } from "./lib/run-state.mjs"
 import { importAppStoreReviews } from "./orbit-app-store-reviews.mjs"
@@ -160,7 +160,8 @@ export const collectReviewCycle = async ({ run, repoRoot = REPO_ROOT, sleep = wa
     importAppStoreReviews(await downloadArtifact({ run, runId: found.databaseId, name: REVIEW_ARTIFACTS.appStore }), repoRoot)
   }
   clearReviewCycle(repoRoot)
-  const { intake } = intakeRun(repoRoot)
+  intakeRun(repoRoot)
+  const intake = readIntake(repoRoot)
   const pending = [...Object.values(intake?.play?.pending ?? {}).map((item) => ({ source: "play", ...item })),
     ...Object.values(intake?.appStore?.pending ?? {}).map((item) => ({ source: "appStore", ...item }))]
   return { keys: pendingReviewKeys(intake), pending, backfillRequiredSince: play.backfillRequiredSince,
