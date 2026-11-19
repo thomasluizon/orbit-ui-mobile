@@ -21,7 +21,7 @@ import { ListRow } from '@/components/ui/list-row'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { CreateGoalSheet } from '../goals/create-goal-sheet'
+import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { createUseGoalLinking, type GoalLinkingFieldProps } from '@orbit/shared/hooks'
 
 const useGoalLinking = createUseGoalLinking(useAccountScopedState)
@@ -29,6 +29,11 @@ const useGoalLinking = createUseGoalLinking(useAccountScopedState)
 async function fetchGoals(): Promise<Goal[]> {
   const response = await apiClient<PaginatedGoalResponse | Goal[]>(API.goals.list)
   return Array.isArray(response) ? response : response.items
+}
+
+/** Every goal of the account, the list a habit links its goals from. */
+export function useLinkableGoals() {
+  return useQuery({ queryKey: goalKeys.lists(), queryFn: fetchGoals, staleTime: QUERY_STALE_TIMES.goals })
 }
 
 function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<{ goals: Goal[]; selectedIds: string[]; atLimit: boolean; onToggle: (id: string) => void }>) {
@@ -56,7 +61,7 @@ export function GoalLinkingField(props: Readonly<GoalLinkingFieldProps>) {
   const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { sheetRef, closeSheet } = useSheetHost()
-  const { data: goals } = useQuery({ queryKey: goalKeys.lists(), queryFn: fetchGoals, staleTime: QUERY_STALE_TIMES.goals })
+  const { data: goals } = useLinkableGoals()
   const { open, setOpen, creating, setCreating, activeGoals, selectedGoals,
     openCreateGoal, handleCreated, initialHabitIds } = useGoalLinking(props, goals, closeSheet)
 

@@ -104,7 +104,7 @@ function restoredRuleRegressions(platform, current, files, inventory, rules, obs
     }
     else if (path.endsWith('shell-wide.tsx')) files[path] = files[path].replace('label={toggleLabel}', '')
     else if (path.endsWith('mcp-code-client.tsx')) files[path] = files[path].split('\n').filter((line) => !line.includes("t('orbitMcp.configInstructions')") && !line.includes("t('orbitMcp.replaceKey')")).join('\n')
-    else if (path.endsWith('profile-api-keys.tsx')) files[path] = files[path].split('\n').filter((line) => !line.includes("t('orbitMcp.created')") && !line.includes("t('orbitMcp.lastUsed')") && !line.includes("apiKey.isReadOnly ? t('orbitMcp.permReadOnly')")).join('\n')
+    else if (path.endsWith('api-key-list.tsx')) files[path] = files[path].split('\n').filter((line) => !line.includes("t('orbitMcp.created')") && !line.includes("t('orbitMcp.lastUsed')") && !line.includes("apiKey.isReadOnly ? t('orbitMcp.permReadOnly')")).join('\n')
     T(`${platform} the restoration evidence source is deliberately broken`, files[path] !== originals.get(path), path)
   }
   const removed = compare(capabilities, scan(current, platform), rules)
@@ -250,7 +250,8 @@ export function fullTreeCases(platform) {
   files[apiKeys] = originalApiKeys
   restoredRuleRegressions(platform, current, files, inventory, rules, currentObservations)
   invocationRuleRegressions(platform, current, files, inventory, rules, currentObservations)
-  const keyOwner = `apps/${platform}/components/profile/profile-api-keys.tsx`
+  const keyOwner = `apps/${platform}/components/profile/api-key-list.tsx`
+  const keyInputOwner = `apps/${platform}/components/profile/profile-api-keys.tsx`
   const noExpiryId = `${platform}:display:common.never`
   const keyObservations = scan(current, platform, rules)
   const keyCapabilities = keyObservations.filter((entry) => entry.id === noExpiryId)
@@ -258,7 +259,7 @@ export function fullTreeCases(platform) {
   T(`${platform} no-expiry metadata resolves to the existing key details output`, beforeKey.length === 1 && beforeKey[0].disposition === 'retained' && beforeKey[0].redesign.every((item) => item.file === keyOwner))
   const originalKeyOwner = files[keyOwner]
   files[keyOwner] = originalKeyOwner.replace(": t('common.never')}</", ': null}</')
-  T(`${platform} mutation removes no-expiry output while retaining the input placeholder`, files[keyOwner] !== originalKeyOwner && files[keyOwner].includes("placeholder={t('common.never')}"))
+  T(`${platform} mutation removes no-expiry output while retaining the input placeholder`, files[keyOwner] !== originalKeyOwner && files[keyInputOwner].includes("placeholder={t('common.never')}"))
   const afterKey = compare(keyCapabilities, scan(current, platform, rules), rules)
   T(`${platform} the creation placeholder cannot retain deleted no-expiry metadata`, afterKey.length === 1 && afterKey[0].disposition === 'missing')
   T(`${platform} removing restored no-expiry metadata blocks parity`, newLosses(afterKey, beforeKey).some((entry) => entry.id === noExpiryId))

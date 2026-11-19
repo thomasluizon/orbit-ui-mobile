@@ -1,3 +1,4 @@
+import type { FlowStepFrame } from '../contracts/flow/QuestionFlow'
 export interface SupportProfileFields {
   name: string
   email: string
@@ -68,22 +69,27 @@ export function getSupportSendReasonKey({
   return null
 }
 
+/** Each subject: the label of the current form, and the shorter quick option of the guided flow, which holds one line at 320. */
 export const SUPPORT_SUBJECT_OPTIONS = [
   {
     id: 'problem',
     labelKey: 'profile.support.subjects.problem.label',
+    optionKey: 'profile.support.subjects.problem.option',
   },
   {
     id: 'billing',
     labelKey: 'profile.support.subjects.billing.label',
+    optionKey: 'profile.support.subjects.billing.option',
   },
   {
     id: 'account',
     labelKey: 'profile.support.subjects.account.label',
+    optionKey: 'profile.support.subjects.account.option',
   },
   {
     id: 'other',
     labelKey: 'profile.support.subjects.other.label',
+    optionKey: 'profile.support.subjects.other.option',
   },
 ] as const
 
@@ -105,4 +111,33 @@ export function buildSupportRequestBody(
     subject: fields.subject.trim(),
     message: fields.message.trim(),
   }
+}
+
+type FlowTranslate = (key: string, values?: Record<string, string>) => string
+
+/** The state of the support flow that its frame reads. */
+export interface SupportFlowStepState {
+  step: 'subject' | 'message'
+  error: string | null
+  isSending: boolean
+  isOnline: boolean
+  disabledReason: string | null
+  onBack: () => void
+  onClose: () => void
+  onSend: () => void
+}
+
+/**
+ * The frame of a support flow step: the place in the two steps, the question and line, the way back and the send.
+ * The subject step has no way back and no send: a subject answers it. A send in progress removes the way back, so the
+ * close of the frame closes the flow. The reason the send waits shows only online: offline has its own notice.
+ */
+export function describeSupportFlowStep(state: SupportFlowStepState, translate: FlowTranslate): FlowStepFrame {
+  if (state.step === 'subject') {
+    return { position: 1, direction: -1 as const, question: translate('profile.support.subject'), line: null, onBack: undefined, onDismiss: state.onClose, primary: undefined }
+  }
+  const onBack = state.isSending ? undefined : state.onBack
+  const hint = state.isOnline ? state.disabledReason ?? undefined : undefined
+  const primary = { label: translate(state.error ? 'profile.support.retry' : 'profile.support.send'), onPress: state.onSend, loading: state.isSending, hint }
+  return { position: 2, direction: 1 as const, question: translate('profile.support.message'), line: translate('profile.support.description'), onBack, onDismiss: onBack ?? state.onClose, primary }
 }

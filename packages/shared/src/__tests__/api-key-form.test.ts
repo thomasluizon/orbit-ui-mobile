@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { apiKeyFormSchema, getApiKeyNameError, API_KEY_EXPIRY_DEFAULT, parseApiKeyExpiryUtc, validateApiKeyExpiry } from '../validation/api-key-form'
+import { apiKeyExpiryDay, apiKeyExpiryFirstDay, apiKeyExpiryFromDay, apiKeyFormSchema, getApiKeyNameError, API_KEY_EXPIRY_DEFAULT, parseApiKeyExpiryUtc, validateApiKeyExpiry } from '../validation/api-key-form'
 
 describe('getApiKeyNameError', () => {
   it.each(['', '   ', '\n\t'])('requires a name for %j', (name) => {
@@ -98,5 +98,54 @@ describe('apiKeyFormSchema', () => {
     expect(apiKeyFormSchema.safeParse({ name: 'Personal key', expiresAt: 'tomorrow' }).success).toBe(false)
     expect(apiKeyFormSchema.parse({ name: '  Personal key  ', expiresAt: '' })).toEqual({ name: 'Personal key', expiresAt: null })
     expect(apiKeyFormSchema.parse({ name: 'x'.repeat(50), expiresAt: '2099-12-31T23:59' })).toEqual({ name: 'x'.repeat(50), expiresAt: '2099-12-31T23:59:00.000Z' })
+  })
+})
+
+describe('the expiry day of the date picker', () => {
+  const now = Date.UTC(2026, 10, 15, 22, 30)
+
+  it.each([
+    ['UTC', '2099-12-31', '2099-12-31T23:59:59'],
+    ['Europe/Berlin', '2026-11-20', '2026-11-20T22:59:59'],
+    ['America/Sao_Paulo', '2026-11-20', '2026-11-21T02:59:59'],
+    ['America/Los_Angeles', '2026-11-20', '2026-11-21T07:59:59'],
+    ['Asia/Tokyo', '2026-11-20', '2026-11-20T14:59:59'],
+    ['Pacific/Kiritimati', '2026-11-20', '2026-11-20T09:59:59'],
+    ['Europe/Berlin', '2027-03-28', '2027-03-28T21:59:59'],
+    ['Europe/Berlin', '2027-10-31', '2027-10-31T22:59:59'],
+  ])('turns a day picked in %s into the last second of that day there, in the UTC shape the API takes', (timeZone, day, draft) => {
+    expect(apiKeyExpiryFromDay(day, timeZone)).toBe(draft)
+    expect(validateApiKeyExpiry(apiKeyExpiryFromDay(day, timeZone), now)).toEqual({ valid: true, expiresAtUtc: `${draft}.000Z` })
+    expect(apiKeyFormSchema.parse({ name: 'Script', expiresAt: apiKeyExpiryFromDay(day, timeZone) }).expiresAt).toBe(`${draft}.000Z`)
+    expect(apiKeyExpiryDay(draft, timeZone)).toBe(day)
+  })
+
+  it('reads a day in the device zone when the account has no zone', () => {
+    expect(apiKeyExpiryFromDay('2026-11-20', null)).toBe('2026-11-21T02:59:59')
+    expect(apiKeyExpiryFromDay('2026-11-20')).toBe('2026-11-21T02:59:59')
+    expect(apiKeyExpiryDay('2026-11-21T02:59:59', null)).toBe('2026-11-20')
+    expect(apiKeyExpiryFirstDay(null, Date.UTC(2026, 10, 16, 1, 0))).toBe('2026-11-15')
+  })
+
+  it('keeps no day as a key that never expires', () => {
+    expect(apiKeyExpiryFromDay('', 'Asia/Tokyo')).toBe(API_KEY_EXPIRY_DEFAULT)
+    expect(validateApiKeyExpiry(apiKeyExpiryFromDay('', 'Asia/Tokyo'), now)).toEqual({ valid: true, expiresAtUtc: null })
+  })
+
+  it('reads the day back from a draft in the account zone, and reads no day from a draft the parser refuses', () => {
+    expect(apiKeyExpiryDay(' 2099-12-31T10:00 ', 'UTC')).toBe('2099-12-31')
+    expect(apiKeyExpiryDay('2099-12-31T23:59:59', 'Europe/Berlin')).toBe('2100-01-01')
+    expect(apiKeyExpiryDay('', 'Europe/Berlin')).toBe('')
+    expect(apiKeyExpiryDay('soon', 'Europe/Berlin')).toBe('')
+  })
+
+  it.each([
+    ['UTC', Date.UTC(2026, 10, 15, 23, 0), '2026-11-15'],
+    ['Asia/Tokyo', Date.UTC(2026, 10, 15, 23, 0), '2026-11-16'],
+    ['America/Sao_Paulo', Date.UTC(2026, 10, 16, 1, 0), '2026-11-15'],
+    ['America/Los_Angeles', Date.UTC(2026, 10, 16, 7, 59), '2026-11-15'],
+  ])('offers today in %s as the first day, and that day is still a valid expiry', (timeZone, at, day) => {
+    expect(apiKeyExpiryFirstDay(timeZone, at)).toBe(day)
+    expect(validateApiKeyExpiry(apiKeyExpiryFromDay(apiKeyExpiryFirstDay(timeZone, at), timeZone), at).valid).toBe(true)
   })
 })

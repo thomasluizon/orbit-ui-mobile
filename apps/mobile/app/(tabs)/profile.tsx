@@ -21,7 +21,7 @@ export default function ProfileScreen() {
   const router = useRouter()
   const { subscription } = useLocalSearchParams<{ subscription?: string }>()
   useEffect(() => {
-    if (subscription === 'success') router.replace('/profile/astra?subscription=success')
+    if (subscription === 'success') router.replace('/profile/ai?subscription=success')
   }, [router, subscription])
   const clearance = useShellScrollerClearance()
   const { profile, isLoading, error, patchProfile } = useProfile()

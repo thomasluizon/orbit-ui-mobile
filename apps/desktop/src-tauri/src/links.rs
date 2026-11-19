@@ -25,6 +25,7 @@ fn known_path(path: &str) -> bool {
             | "/progress/streak"
             | "/profile"
             | "/profile/account"
+            | "/profile/ai"
             | "/profile/astra"
             | "/profile/notifications"
             | "/profile/preferences"
@@ -126,6 +127,7 @@ mod tests {
             "/progress/streak",
             "/profile",
             "/profile/account",
+            "/profile/ai",
             "/profile/astra",
             "/profile/notifications",
             "/profile/preferences",
@@ -143,6 +145,19 @@ mod tests {
                 .unwrap();
             assert_eq!(
                 destination(&origin, "org.useorbit.desktop.staging", &link),
+                Some(origin.join(path).unwrap()),
+                "{path}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_ai_settings_page_opens_at_its_new_slug_and_at_its_old_one() {
+        let origin = Url::parse("https://app.useorbit.org/").unwrap();
+        for path in ["/profile/ai", "/profile/astra"] {
+            let link = format!("org.useorbit.desktop://app{path}").parse().unwrap();
+            assert_eq!(
+                destination(&origin, "org.useorbit.desktop", &link),
                 Some(origin.join(path).unwrap()),
                 "{path}"
             );

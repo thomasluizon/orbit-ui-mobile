@@ -49,7 +49,7 @@ export function getAndroidBackFallbackRoute(
       return '/'
     case '/profile/account':
     case '/profile/preferences':
-    case '/profile/astra':
+    case '/profile/ai':
     case '/profile/notifications':
     case '/about':
     case '/support':

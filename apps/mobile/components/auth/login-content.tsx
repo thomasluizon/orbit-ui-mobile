@@ -1,5 +1,6 @@
 import { ShellContent } from '@/components/shell/shell-content'
-import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/utils'
+import { getPendingAuthProvider, getAuthCallbackErrorKey, showsAuthCallbackLine } from '@orbit/shared/utils'
+import type { AuthCallbackState } from '@orbit/shared/utils/auth-callback-failure'
 import { SPACING } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { Platform, Text, View, useWindowDimensions } from 'react-native'
@@ -15,15 +16,22 @@ import { useLoginFlow } from '@/app/use-login-flow'
 import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } from './login-sections'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
+import { GuidedLoginContent } from './guided-login'
+import { useGuidedSignIn } from './guided-sign-in'
 
 export interface LoginCallback {
   provider?: 'apple' | 'google'
-  state: 'pending' | 'failed' | 'account'
+  state: AuthCallbackState
   onContinue: () => void
   loading?: boolean
 }
 
+/** With `orbit_guided_flows` on, sign-in is the one-question flow. With it off, the current surface shows. */
 export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
+  return useGuidedSignIn() ? <GuidedLoginContent callback={callback} /> : <CurrentLoginContent callback={callback} />
+}
+
+function CurrentLoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const wide = width >= 768
@@ -40,7 +48,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const account = Boolean(flow.accountBack) || callback?.state === 'account'
   const pendingProvider = getPendingAuthProvider(callback)
   const callbackErrorKey = getAuthCallbackErrorKey(callback?.provider)
-  const googleFailed = callback?.state === 'failed' && !callbackDismissed
+  const googleFailed = showsAuthCallbackLine(callback) && !callbackDismissed
   const emailErrorKey = googleFailed ? callbackErrorKey : flow.errorKey
   const emailErrorMessage = googleFailed ? t(callbackErrorKey) : flow.errorMessage
   const sendCodeLabel = flow.fromOnboarding ? t('auth.onboarding.continue') : undefined

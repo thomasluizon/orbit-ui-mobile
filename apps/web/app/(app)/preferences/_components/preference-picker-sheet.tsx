@@ -4,18 +4,22 @@ import { ChevronDown } from '@/components/ui/icons'
 
 import { IconButton } from '@/components/ui/icon-button'
 
-import { useMemo, useRef, useState } from 'react'
-import { buildPreferencePickerModel, getTimezoneList, type PreferencePicker } from '@orbit/shared/utils'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { motionPresets } from '@orbit/shared/theme'
+import { buildGuidedTimeZoneOptions, filterTimeZones, buildPreferencePickerModel, getClientTimeZone, getTimezoneList, TIME_ZONE_PAGE_SIZE, type PreferencePicker } from '@orbit/shared/utils'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
 
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-group'
+import { Input } from '@/components/ui/input'
+import { OptionCard } from '@/components/ui/option-card'
+import { useFlag } from '@/hooks/use-flag'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 export type { PreferencePicker }
 
 const TIME_ZONE_OPTIONS = getTimezoneList()
-const TIME_ZONE_PAGE_SIZE = 20
 
 function PickerOptions<Value extends string | number>({
   label,
@@ -54,27 +58,32 @@ function PickerOptions<Value extends string | number>({
   )
 }
 
+function QuickOptions<Value extends string | number>({ label, options, selected, onCommit }: Readonly<{
+  label: string
+  options: readonly { value: Value; label: string }[]
+  selected: Value | null
+  onCommit: (value: Value) => void
+}>) {
+  const [answer, setAnswer] = useState<Value | null>(null)
+  return (
+    <div role="group" aria-label={label} data-option-group="" className="grid grid-cols-2 gap-3">
+      {options.map((option) => (
+        <OptionCard key={String(option.value)} label={option.label} selected={(answer ?? selected) === option.value} onSelect={() => { setAnswer(option.value); onCommit(option.value) }} />
+      ))}
+    </div>
+  )
+}
+
 function TimeZoneOptions({
   selected,
   searchLabel,
   noResultsLabel,
   showMoreLabel,
   onCommit,
-}: Readonly<{
-  selected?: string | null
-  searchLabel: string
-  noResultsLabel: string
-  showMoreLabel: string
-  onCommit: (timeZone: string) => void
-}>) {
+}: Readonly<TimeZoneOptionsProps>) {
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase()
-    return normalized
-      ? TIME_ZONE_OPTIONS.filter((option) => option.toLocaleLowerCase().includes(normalized))
-      : TIME_ZONE_OPTIONS
-  }, [query])
+  const filtered = useMemo(() => filterTimeZones(TIME_ZONE_OPTIONS, query), [query])
   const ordered = selected && filtered.includes(selected)
     ? [selected, ...filtered.filter((option) => option !== selected)]
     : filtered
@@ -113,6 +122,35 @@ function TimeZoneOptions({
   )
 }
 
+interface TimeZoneOptionsProps {
+  selected?: string | null
+  questionLabel: string
+  searchLabel: string
+  noResultsLabel: string
+  showMoreLabel: string
+  onCommit: (timeZone: string) => void
+}
+
+function GuidedTimeZoneOptions({ selected, questionLabel, searchLabel, noResultsLabel, showMoreLabel, onCommit }: Readonly<TimeZoneOptionsProps>) {
+  const [query, setQuery] = useState('')
+  const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
+  const [deviceTimeZone] = useState(getClientTimeZone)
+  const [answer, setAnswer] = useState<string | null>(null)
+  const { quick, searched, visible, hasMore } = buildGuidedTimeZoneOptions({ zones: TIME_ZONE_OPTIONS, selected, deviceTimeZone, query, visibleCount })
+  const option = (zone: string) => <OptionCard key={zone} wide label={zone} selected={zone === (answer ?? selected)} onSelect={() => { setAnswer(zone); onCommit(zone) }} />
+  return (
+    <div data-time-zone-question="" className="flex flex-col gap-3">
+      <div role="group" aria-label={questionLabel} data-option-group="" className="grid grid-cols-2 gap-3">{quick.map(option)}</div>
+      <Input kind="search" label={searchLabel} name="timeZoneSearch" autoComplete="off" value={query} onChange={(value) => { setQuery(value); setVisibleCount(TIME_ZONE_PAGE_SIZE) }} />
+      {searched && visible.length === 0 ? <p role="status" className="text-center text-sm text-[var(--fg-3)]">{noResultsLabel}</p> : null}
+      {visible.length > 0 ? <div role="group" aria-label={searchLabel} data-option-group="" className="grid grid-cols-2 gap-3">{visible.map(option)}</div> : null}
+      {hasMore ? <div className="flex justify-center">
+        <IconButton label={showMoreLabel} onClick={() => setVisibleCount((count) => count + TIME_ZONE_PAGE_SIZE)}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+      </div> : null}
+    </div>
+  )
+}
+
 interface PreferencePickerSheetProps {
   activePicker: PreferencePicker | null
   mounted: boolean
@@ -139,34 +177,46 @@ function PickerContent({
   commitSelection,
 }: Readonly<{
   props: PreferencePickerSheetProps
-  commitSelection: (apply: () => void) => void
+  commitSelection: (apply: () => void, settle: boolean) => void
 }>) {
+  const guided = useFlag('orbit_guided_flows')
   if (props.activePicker === null) return null
   const model = buildPreferencePickerModel({ ...props, activePicker: props.activePicker, ready: props.mounted })
   if (model.kind === 'timeZone') {
-    return <TimeZoneOptions
+    const TimeZones = guided ? GuidedTimeZoneOptions : TimeZoneOptions
+    return <TimeZones
       selected={model.selected}
+      questionLabel={props.pickerTitles.timeZone}
       searchLabel={props.timeZoneSearchLabel}
       noResultsLabel={props.timeZoneNoResultsLabel}
       showMoreLabel={props.timeZoneShowMoreLabel}
-      onCommit={(value) => commitSelection(() => model.onCommit(value))}
+      onCommit={(value) => commitSelection(() => model.onCommit(value), guided)}
     />
   }
-  return <PickerOptions
+  const Options = guided ? QuickOptions : PickerOptions
+  return <Options
     label={model.label}
     options={model.options}
     selected={model.selected}
-    onCommit={(value) => commitSelection(() => model.onCommit(value))}
+    onCommit={(value) => commitSelection(() => model.onCommit(value), guided)}
   />
 }
 
 export function PreferencePickerSheet(props: Readonly<PreferencePickerSheetProps>) {
   const { activePicker, pickerTitles, pickerDescriptions, onClose } = props
   const { sheetRef, closeSheet } = useSheetHost()
-  const commitSelection = (apply: () => void) => closeSheet(() => {
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(settleTimer.current), [])
+  const close = (apply: () => void) => closeSheet(() => {
     onClose()
     apply()
   })
+  const commitSelection = (apply: () => void, settle: boolean) => {
+    clearTimeout(settleTimer.current)
+    if (!settle || reducedMotion) close(apply)
+    else settleTimer.current = setTimeout(() => close(apply), motionPresets.selection.enterDuration)
+  }
   if (activePicker === null) return null
 
   return (

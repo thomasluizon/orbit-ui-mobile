@@ -88,6 +88,7 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('next/navigation', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => { const { navigate } = React.useContext(NavigationContext); return { push: navigate, replace: navigate } }, usePathname: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').pathname, useSearchParams: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').searchParams }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profileAvailable ? mocks.profile : undefined, refetch: mocks.refetchProfile }) }))
@@ -970,6 +971,22 @@ describe('OnboardingFlow state model', () => {
     const request = mocks.createHabit.mock.calls[0]?.[0]
     expect(request).not.toHaveProperty('isGeneral')
     expect(request).not.toHaveProperty('isFlexible')
+  })
+
+  it.each([
+    ['a time', 'Water the plants at 9am', { title: 'Water the plants', frequencyUnit: 'Day', dueTime: '09:00', emoji: '🌿' }],
+    ['a repeat', 'Water the plants 3 times a week', { title: 'Water the plants', frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true, dueTime: '07:00', emoji: '🌿' }],
+    ['a day', 'Water the plants every monday', { title: 'Water the plants', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }],
+    ['an emoji', '💧 Water the plants', { title: '💧 Water the plants', frequencyUnit: 'Day', dueTime: '07:00', emoji: null }],
+    ['a bare interval', 'Water the plants every 2 weeks', { title: 'Water the plants', frequencyUnit: 'Week', frequencyQuantity: 2, dueTime: '07:00', emoji: '🌿' }],
+    ['no emoji when the sentence holds only a text sign', 'Buy Coca-Cola® zero', { title: 'Buy Coca-Cola® zero', frequencyUnit: 'Day', dueTime: '07:00', emoji: '🌿' }],
+  ] as const)('keeps %s the person typed in the sentence when the Orbit suggestion proposes another value', async (_field, sentence, expected) => {
+    mocks.suggest.mockResolvedValue({ emoji: '🌿', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    mount(true)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: sentence } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'create' }))
+    await waitFor(() => expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining(expected)))
   })
 
   it.each([

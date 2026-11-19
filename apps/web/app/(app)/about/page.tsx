@@ -119,7 +119,6 @@ export default function AboutPage() {
                     accessibilityLabel={t(destination.titleKey)}
                     onClick={() => destination.route ? router.push(destination.route) : setShowGuide(true)}
                     title={t(destination.titleKey)}
-                    titleTranslate={destination.titleTranslate}
                     compact
                     wrapTitle
                   />

@@ -1,4 +1,5 @@
 import { buildAccountScopedStorageKey } from './account-scoped-storage'
+import { markGuidedFlowCompleted, type GuidedFlowId } from './guided-flow-events'
 
 export const STEP_UP_CODE_LENGTH = 6
 export const STEP_UP_CHALLENGE_DURATION_MS = 10 * 60 * 1000
@@ -6,6 +7,23 @@ export const STEP_UP_RESEND_COOLDOWN_MS = 60 * 1000
 export const STEP_UP_ATTEMPT_WINDOW_MS = 15 * 60 * 1000
 
 export type StepUpOperation = 'delete' | 'keys'
+
+/** Deleting an account asks three questions: the warning, the code request and the code. */
+export const DELETE_ACCOUNT_FLOW_STEP_COUNT = 3
+
+/**
+ * The place of the code question in the flow that asked for it. Deleting an account asks the code as its last
+ * question. An API key asks for the code on its own, before or during its own questions.
+ */
+export function getStepUpFlowProgress(operation: StepUpOperation): { flow: GuidedFlowId; position: number; total: number } {
+  if (operation === 'delete') return { flow: 'delete_account', position: DELETE_ACCOUNT_FLOW_STEP_COUNT, total: DELETE_ACCOUNT_FLOW_STEP_COUNT }
+  return { flow: 'api_key_create', position: 1, total: 1 }
+}
+
+/** A verified code hands the person back to the flow that asked for it, so the code question is not reported as a flow the person left. */
+export function markStepUpFlowContinued(operation: StepUpOperation): void {
+  markGuidedFlowCompleted(getStepUpFlowProgress(operation).flow)
+}
 
 const STEP_UP_STORAGE_PREFIX = 'orbit.step-up'
 

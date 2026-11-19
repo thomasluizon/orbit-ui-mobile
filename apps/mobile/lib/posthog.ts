@@ -1,6 +1,7 @@
 import { PostHog } from 'posthog-react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Sentry from '@sentry/react-native'
+import { markGuidedFlowCompleted, type GuidedFlowEvent, type GuidedFlowId } from '@orbit/shared/utils'
 
 const key = process.env.EXPO_PUBLIC_POSTHOG_KEY
 const PREFERENCE_KEY = 'analytics-opt-out'
@@ -109,6 +110,16 @@ export function resetPostHogUser(): void {
 
 export function captureHabitLogged(): void {
   if (posthog && analyticsEnabled) posthog.capture('habit_logged')
+}
+
+export function captureGuidedFlowEvent(event: GuidedFlowEvent): void {
+  if (posthog && analyticsEnabled) posthog.capture(event.name, event.properties)
+}
+
+/** A flow reached its result. It also tells the flow shell that the flow was not abandoned. */
+export function captureGuidedFlowCompleted(flow: GuidedFlowId, stepCount: number, usedAiRead: boolean): void {
+  markGuidedFlowCompleted(flow)
+  captureGuidedFlowEvent({ name: 'guided_flow_completed', properties: { flow, step_count: stepCount, used_ai_read: usedAiRead } })
 }
 
 export function captureScreen(name: string): void {

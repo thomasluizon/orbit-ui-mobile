@@ -47,6 +47,7 @@ vi.mock('@/hooks/use-api-key-management', () => ({
   }),
 }))
 
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined }) }))
 vi.mock('@/components/shell/flow-shell', () => ({ FlowShell: ({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) => <div>{children}{action}</div> }))
 
@@ -507,7 +508,7 @@ it.each([
   fireEvent.change(input, { target: { value: '123456' } })
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.stepUp.confirm })) })
   expect(confirmApiKeyCreationChallenge).toHaveBeenCalledWith('123456', 'user-1')
-  expect(management.replace).toHaveBeenCalledWith('/profile/astra')
+  expect(management.replace).toHaveBeenCalledWith('/profile/ai')
   expect(hasApiKeyCreationGrant()).toBe(true)
   challenge.unmount()
 
@@ -586,6 +587,7 @@ it('withholds key details while access is locked or the list is loading', () => 
   management.loading = true
   view.rerender(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
   const skeleton = screen.getByRole('progressbar', { name: en.common.loading })
+  expect(skeleton).toHaveAttribute('data-variant', 'settings')
   expect(skeleton).toHaveAttribute('aria-busy', 'true')
   expect(skeleton.querySelectorAll('[data-settings-skeleton-row]')).toHaveLength(2)
   expect(screen.queryByText(en.common.loading)).toBeNull()

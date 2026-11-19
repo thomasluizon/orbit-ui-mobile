@@ -1,15 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 import {
   attachSupportVersion,
   buildSupportRequestBody,
   buildSupportVersionSuffix,
+  describeSupportFlowStep,
   getSupportMessageFit,
   getSupportMessageMaxLength,
   getSupportSendReasonKey,
   normalizeSupportSubjectId,
   SUPPORT_SUBJECT_OPTIONS,
+  type SupportFlowStepState,
 } from '../utils/support'
 
 describe('buildSupportRequestBody', () => {
@@ -121,5 +123,40 @@ describe('support version metadata', () => {
       hasMessage: true, hasProfile: false, hasSubject: true,
       isOnline: true, isSending: false, messageFits: true,
     })).toBe('profile.support.sendNeedsProfile')
+  })
+})
+
+describe('support flow step frame', () => {
+  const translate = (key: string) => key
+  const state = (change: Partial<SupportFlowStepState> = {}): SupportFlowStepState => ({
+    step: 'message', error: null, isSending: false, isOnline: true, disabledReason: null,
+    onBack: vi.fn(), onClose: vi.fn(), onSend: vi.fn(), ...change,
+  })
+
+  it('opens on the subject with no way back and no send: a subject answers the step', () => {
+    const subject = state({ step: 'subject' })
+    expect(describeSupportFlowStep(subject, translate)).toEqual({
+      position: 1, direction: -1, question: 'profile.support.subject', line: null, onBack: undefined, onDismiss: subject.onClose, primary: undefined,
+    })
+  })
+
+  it('sends the message, goes back to the subject, and offers a retry after a failure', () => {
+    const message = state()
+    const frame = describeSupportFlowStep(message, translate)
+    expect(frame).toMatchObject({ position: 2, direction: 1, question: 'profile.support.message', line: 'profile.support.description', onBack: message.onBack, onDismiss: message.onBack })
+    expect(frame.primary).toMatchObject({ label: 'profile.support.send', loading: false, hint: undefined })
+    frame.primary?.onPress()
+    expect(message.onSend).toHaveBeenCalledTimes(1)
+    expect(describeSupportFlowStep(state({ error: 'Network down' }), translate).primary?.label).toBe('profile.support.retry')
+  })
+
+  it('removes the way back while the message sends, so the close closes the flow', () => {
+    const sending = state({ isSending: true })
+    expect(describeSupportFlowStep(sending, translate)).toMatchObject({ onBack: undefined, onDismiss: sending.onClose, primary: { loading: true } })
+  })
+
+  it('shows the reason the send waits only online, because offline has its own notice', () => {
+    expect(describeSupportFlowStep(state({ disabledReason: 'Write a message' }), translate).primary?.hint).toBe('Write a message')
+    expect(describeSupportFlowStep(state({ disabledReason: 'Write a message', isOnline: false }), translate).primary?.hint).toBeUndefined()
   })
 })

@@ -9,7 +9,7 @@ const noop = () => {}
 const flow = {
   ...createLoginScreenFixture(step, locale),
   t: createTranslator({ locale, messages: locale === 'en' ? en : ptBR }),
-  turnstileSiteKey: 'layout-site-key', turnstileToken: null, turnstileResetKey: 0, onTurnstileToken: noop,
+  signedIn: false, turnstileSiteKey: 'layout-site-key', turnstileToken: null, turnstileResetKey: 0, onTurnstileToken: noop,
   setEmail: noop, sendCode: noop, verifyCode: noop, resendCode: noop, backToEmail: noop, onCodeChange: noop,
   signInWithGoogle: noop, signInWithApple: noop, continueAccount: noop,
 }

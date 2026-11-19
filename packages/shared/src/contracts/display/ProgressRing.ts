@@ -3,4 +3,6 @@ export interface ProgressRingProps {
   value?: number
   size?: number
   label?: string
+  /** The duration of a value change: `base` by default, `slow` for the one sweep of a value that changed since the person last saw it. */
+  sweepDuration?: 'base' | 'slow'
 }

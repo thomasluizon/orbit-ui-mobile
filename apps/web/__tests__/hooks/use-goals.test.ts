@@ -333,6 +333,22 @@ describe('useDeleteGoal', () => {
 
     await waitFor(() => expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1', 'account-a'))
   })
+
+  it('hands the same undo to the caller instead of the snackbar when the result dialog offers it', async () => {
+    mockShowQueued.mockReset()
+    const { deleteGoal, restoreGoal } = await import('@/lib/actions/goals')
+    vi.mocked(deleteGoal).mockResolvedValue(undefined as never)
+    vi.mocked(restoreGoal).mockReset().mockResolvedValue(undefined as never)
+    const onDeleted = vi.fn()
+
+    const { result } = renderHook(() => useDeleteGoal({ onDeleted }), { wrapper: createWrapper() })
+    await act(async () => { await result.current.mutateAsync('g-1') })
+
+    expect(mockShowQueued).not.toHaveBeenCalled()
+    expect(onDeleted).toHaveBeenCalledOnce()
+    await act(async () => { (onDeleted.mock.calls[0]![0] as () => void)() })
+    await waitFor(() => expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1', 'account-a'))
+  })
 })
 
 describe('useRestoreGoal', () => {

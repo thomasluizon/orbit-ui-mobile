@@ -4,6 +4,7 @@ import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))

@@ -594,6 +594,15 @@ describe('ShellWide', () => {
     expect(container.querySelector('[data-shell-sidebar]')).not.toBeInTheDocument()
     expect(container.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Continue')
   })
+
+  it('claims no main landmark when a modal dialog mounts it over a page that owns one, and keeps the same scroller', () => {
+    const { container, rerender } = render(<ShellWide nav={false}><h1>Onboarding</h1></ShellWide>)
+    expect(screen.getByRole('main')).toBe(container.querySelector('[data-shell-scroller]'))
+
+    rerender(<ShellWide nav={false} landmark={false}><h1>Onboarding</h1></ShellWide>)
+    expect(screen.queryByRole('main')).toBeNull()
+    expect(container.querySelector('[data-shell-scroller]')).toContainElement(screen.getByRole('heading', { name: 'Onboarding' }))
+  })
 })
 
 it.each([1100, 1352, 1440])('opens from the first sidebar row at %ipx and restores its focus', (width) => {

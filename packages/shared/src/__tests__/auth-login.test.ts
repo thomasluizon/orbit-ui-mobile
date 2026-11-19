@@ -3,14 +3,20 @@ import {
   AUTH_BACKEND_ERROR_CODE_MAP,
   AUTH_BACKEND_ERROR_MAP,
   createVerificationCodeDigits,
+  deriveLoginEmailErrors,
   extractAuthBackendMessage,
   fillVerificationCodeDigits,
+  getAuthCallbackErrorKey,
   getAuthLoginErrorKey,
   getAuthLoginErrorKeyByCode,
+  getPendingAuthProvider,
   isValidVerificationCode,
   isVerificationCodeComplete,
   normalizeVerificationCodeInput,
   resolveAuthLoginErrorKey,
+  showsAuthCallbackLine,
+  loginCodeLine,
+  loginRefusalHint,
 } from '../utils/auth-login'
 import { createApiClientError, extractBackendErrorCode } from '../utils/error-utils'
 
@@ -174,5 +180,70 @@ describe('extractAuthBackendMessage', () => {
     expect(extractAuthBackendMessage(null)).toBeUndefined()
     expect(extractAuthBackendMessage(undefined)).toBeUndefined()
     expect(extractAuthBackendMessage(42)).toBeUndefined()
+  })
+})
+
+describe('where a failure of the email step shows', () => {
+  const failure = (errorKey: string | null, fieldError?: string) => deriveLoginEmailErrors({ isOnline: true, fieldError, errorKey, errorMessage: errorKey ? 'Message' : null })
+
+  it('shows an email the server refused beside the field', () => {
+    expect(failure('auth.errors.invalidEmail')).toEqual({ field: 'Message', provider: null, send: null })
+  })
+
+  it('shows the error of the field itself before any server message', () => {
+    expect(failure('auth.errors.sendCode', 'Enter your email')).toEqual({ field: 'Enter your email', provider: null, send: null })
+  })
+
+  it.each(['auth.errors.googleError', 'auth.errors.appleError'])('shows %s under the provider actions', (errorKey) => {
+    expect(failure(errorKey)).toEqual({ field: null, provider: 'Message', send: null })
+  })
+
+  it('shows every other failure beside the continue action, and none when nothing failed', () => {
+    expect(failure('auth.errors.sendCode')).toEqual({ field: null, provider: null, send: 'Message' })
+    expect(failure(null)).toEqual({ field: null, provider: null, send: null })
+  })
+
+  it('shows none offline, because the offline notice names the state', () => {
+    expect(deriveLoginEmailErrors({ isOnline: false, fieldError: 'Enter your email', errorKey: 'auth.errors.googleError', errorMessage: 'Message' })).toEqual({ field: null, provider: null, send: null })
+  })
+})
+
+describe('the provider callback on the sign-in surface', () => {
+  it('names the provider only while its callback is pending, and Google when the callback names none', () => {
+    expect(getPendingAuthProvider({ state: 'pending', provider: 'apple' })).toBe('apple')
+    expect(getPendingAuthProvider({ state: 'pending' })).toBe('google')
+    expect(getPendingAuthProvider({ state: 'failed', provider: 'apple' })).toBeNull()
+    expect(getPendingAuthProvider(undefined)).toBeNull()
+  })
+
+  it('shows the provider line after a failure and after a cancel only', () => {
+    expect(showsAuthCallbackLine({ state: 'failed' })).toBe(true)
+    expect(showsAuthCallbackLine({ state: 'cancelled' })).toBe(true)
+    expect(showsAuthCallbackLine({ state: 'pending' })).toBe(false)
+    expect(showsAuthCallbackLine(undefined)).toBe(false)
+  })
+
+  it('reads the error of the provider that failed', () => {
+    expect(getAuthCallbackErrorKey('apple')).toBe('auth.errors.appleError')
+    expect(getAuthCallbackErrorKey('google')).toBe('auth.errors.googleError')
+    expect(getAuthCallbackErrorKey(undefined)).toBe('auth.errors.googleError')
+  })
+})
+
+describe('sign-in step lines', () => {
+  const translate = (key: string, values?: Record<string, string>) => (values ? `${key} ${JSON.stringify(values)}` : key)
+
+  it('names the missing connection first, then the human check, and nothing when the step can send', () => {
+    expect(loginRefusalHint(translate, false, false)).toBe('auth.errors.offline')
+    expect(loginRefusalHint(translate, true, false)).toBe('auth.turnstileLabel')
+    expect(loginRefusalHint(translate, true, true)).toBeUndefined()
+  })
+
+  it('states the wait of a locked code, an expired code, or the address the code went to', () => {
+    const base = { codeFailure: null, lockCountdown: 0, email: 'ana@example.com' } as const
+    expect(loginCodeLine(translate, { ...base, waiting: true, codeFailure: 'locked', lockCountdown: 125 })).toBe('auth.line.codeLocked {"time":"2:05"}')
+    expect(loginCodeLine(translate, { ...base, waiting: false, codeFailure: 'expired' })).toBe('auth.line.codeExpired')
+    expect(loginCodeLine(translate, { ...base, waiting: false, codeFailure: 'locked' }), 'a lock with no wait left sends the person back to the code').toBe('auth.line.codeSent {"email":"ana@example.com"}')
+    expect(loginCodeLine(translate, { ...base, waiting: false, codeFailure: 'wrong' })).toBe('auth.line.codeSent {"email":"ana@example.com"}')
   })
 })
