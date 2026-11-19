@@ -17,10 +17,10 @@ const notifications = notificationsResponseSchema.parse({
 for (const width of [1024, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
     for (const mode of ['light', 'dark'] as const) {
-      test.describe(`sidebar bell leading edge at ${width}px in ${locale} and ${mode}`, () => {
+      test.describe(`sidebar brand controls order at ${width}px in ${locale} and ${mode}`, () => {
         test.use({ appLocale: locale, viewport: { width, height: 915 }, layoutProfile: { themePreference: mode } })
 
-        test('aligns the expanded bell with the lockup and keeps it above the collapsed toggle', async ({ page, context }) => {
+        test('puts the bell on the lockup row and the theme action before the toggle, expanded and collapsed', async ({ page, context }) => {
           const words = locale === 'en' ? en : ptBR
           await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
           await page.goto('/')
@@ -56,6 +56,7 @@ for (const width of [1024, 1352]) {
                 expect(geometry.bell.top - geometry.toggle.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
                 expect(geometry.bell.left).toBe(geometry.toggle.left)
               } else {
+                expect(geometry.theme.left - geometry.sidebar.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
                 expect(Math.abs(geometry.theme.left - geometry.lockup.left)).toBeLessThanOrEqual(1)
                 expect(geometry.toggle.top).toBe(geometry.theme.top)
                 expect(geometry.toggle.left - geometry.theme.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
