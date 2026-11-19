@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type Mutab
 import { Platform } from 'react-native'
 import { MODAL_TRANSITION_FALLBACK_MS } from '@/components/ui/native-window-host'
 
-/** The close action of the result dialog that draws in the window. The window sends the back press there, on Android and on iOS. */
+/** The close action of the result dialog that draws in the window. The window sends the Android back press there. */
 export type FlowWindowResultClose = MutableRefObject<(() => void) | null>
 
 const FlowWindowContext = createContext<FlowWindowResultClose | null>(null)
