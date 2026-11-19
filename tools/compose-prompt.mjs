@@ -32,8 +32,7 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
   --review          a pre-push review of pull request --pr at --head. It reads the whole diff against
                     the merge base on every pass. With --since, a fix-round review also reads the
                     commits after the reviewed head, to check each fix. Embeds the review brief of
-                    .claude/playbooks/review-and-audit.md rule 14: every confirmed defect is BLOCKING,
-                    and each class lists every instance. The result opens with
+                    .claude/playbooks/review-and-audit.md rule 14. The result opens with
                     VERDICT: CLEAN (no BLOCKING finding) or VERDICT: DEFECTS (<n>), where n counts
                     BLOCKING findings only. A NOTE and a body line never change it
   --proof           a device proof of pull request --pr at --head. The result opens with
@@ -386,8 +385,8 @@ You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage o
 **Fix every instance of each defect class in one commit.** The round note lists each class and each instance.
 Fix every one of them. Give each instance that a test can see (wrong behaviour, a missed edge case, a test or a guard that passes without its code) a test that you proved red with its guard removed. An instance of a comment, a doc or an unused export has no guard: make the edit and name it in your report. Do not stop at the
 first instance of a class, and do not leave one for the next review: the next review reads the whole diff. When a
-class comes from guessing at free text (a word list or a regex that reads prose), replace the guess with a
-structured input or delete it. Never add one more pattern.
+class comes from a word list or a regex that guesses at natural-language input in code, replace the guess with a
+structured input or delete it. Never add one more pattern. A test assertion that pins doc text is not such code.
 
 **Commit as soon as the code compiles and the focused tests pass.** CI runs the full suites after the push.
 

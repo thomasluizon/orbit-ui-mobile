@@ -105,8 +105,8 @@ The local review ends after these two passes. Never start a third local pass, an
 
 **BLOCKING and NOTE.** Every confirmed defect in the changed lines is BLOCKING. A defect is one of these:
 
-- Wrong behaviour: a failing input, state or command.
-- A missed edge case.
+- Wrong behaviour: a failing input, state or command. A word list or a regex that reads natural-language input in code gives wrong behaviour when it returns a wrong result.
+- A missed edge case. Such a word list or regex has a missed edge case when it misses a form of the input.
 - A test or a guard that passes with the code it guards removed.
 - A comment or a doc that contradicts the code.
 - An unused export, prop, branch or helper that this diff leaves.
@@ -117,7 +117,7 @@ A NOTE is a matter of taste with no wrong result. An older defect that the diff 
 
 **List every instance of a class.** For each defect class, the review names the class one time and then lists every instance in the changed lines, one `path:line` each. A review never stops at the first instance. The fix round fixes every instance of each class in one commit. Each instance that a test can see (wrong behaviour, a missed edge case, a test or a guard that passes without its code) gets a row in one table test, proven red with the guard removed. An instance of a comment, a doc or an unused export has no guard to remove: it needs only the edit, and the report names it. One class never costs one round for each member.
 
-**Free text is never a rule.** A defect class that comes from guessing at free text (a word list, or a regex that reads prose) is fixed with a structured input or with a deletion, never with one more pattern.
+**Free text is never a rule.** This covers code whose behaviour depends on reading natural-language input. A word list or a regex that guesses at that input is BLOCKING when it gives a wrong result or misses a case, as the first two kinds above say, and never otherwise. A test assertion that pins doc text is not such code. Fix the defect class with a structured input or with a deletion, never with one more pattern.
 
 **The body is evidence, not code.** The `## Test evidence` of the pull request body comes from command output: the command, the exit code, the counts and the SHA. A reviewer does not read body prose as code. The coordinator corrects a false statement in a body or a reply itself; that correction starts no round.
 
@@ -145,12 +145,12 @@ The lenses:
 - A behaviour path with no test, or a fix with no test that fails without it.
 - A platform path with no fallback: Windows path separators, a web, Android or iOS branch that the other platform lacks (web and mobile must match below the shell), reduced motion, a missing error path.
 - A wrong claim in a comment or a doc comment.
-- A guess at free text: a word list or a regex that reads prose. It is BLOCKING. The fix is a structured input or a deletion, never one more pattern.
+- A guess at free text in code whose behaviour depends on reading natural-language input: a word list or a regex that reads prose. It is BLOCKING when it gives a wrong result or misses a case, like any other defect, and a test assertion that pins doc text is not such code. The fix is a structured input or a deletion, never one more pattern.
 - A correctness defect: a race, a state that leaks across turns, an early return that skips cleanup, an unchecked external value.
 - Copy: a visible string in one locale only, or a pt-BR string translated word for word.
 - A gate edit that weakens a gate (an ESLint rule, a baseline, an inventory, an allowlist) without a reason.
 
-What a finding is: something you confirmed in the code at the head, with `path:line`, the concrete failure (the inputs or state, then the wrong result), and the smallest correct fix. Rank each one BLOCKING or NOTE. BLOCKING is every confirmed defect in the changed lines: wrong behaviour, a missed edge case, a test or a guard that passes without its code, a comment or a doc that contradicts the code, an unused export, prop, branch or helper that the diff leaves. NOTE is a matter of taste with no wrong result, or an older defect that the diff did not make (file its class on the ticket that owns the area). A BLOCKING finding names its wrong result: the input or state, then the failure. For each defect class, name the class one time and list every instance in the changed lines, one `path:line` each. Do not pad: a finding you could not confirm goes under `## Not confirmed`, with what would confirm it. Zero findings is a valid result: say "NO FINDINGS" and name what you read.
+What a finding is: something you confirmed in the code at the head, with `path:line`, the concrete failure (the inputs or state, then the wrong result), and the smallest correct fix. Rank each one BLOCKING or NOTE. BLOCKING is every confirmed defect in the changed lines: wrong behaviour, a missed edge case, a test or a guard that passes without its code, a comment or a doc that contradicts the code, an unused export, prop, branch or helper that the diff leaves. A word list or a regex that guesses at natural-language input in code ranks the same way: BLOCKING when it gives a wrong result or misses a case. NOTE is a matter of taste with no wrong result, or an older defect that the diff did not make (file its class on the ticket that owns the area). A BLOCKING finding names its wrong result: the input or state, then the failure. For each defect class, name the class one time and list every instance in the changed lines, one `path:line` each. Do not pad: a finding you could not confirm goes under `## Not confirmed`, with what would confirm it. Zero findings is a valid result: say "NO FINDINGS" and name what you read.
 
 Your report, with repository-relative paths only:
 

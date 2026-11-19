@@ -351,13 +351,12 @@ export const cases = () => {
     reviewPrompt,
   )
   T(
-    `${TOOL}: the review batch order tells the worker to fix every instance of each class, never to search for no other case`,
+    `${TOOL}: the review batch order tells the worker to fix every instance of each class in one commit`,
     reviewPrompt.includes("**Fix every instance of each defect class in one commit.**") &&
       reviewPrompt.includes("Give each instance that a test can see (wrong behaviour, a missed edge case, a test or a guard that passes without its code) a test that you proved red with its guard removed") &&
       reviewPrompt.includes("An instance of a comment, a doc or an unused export has no guard: make the edit and name it in your report") &&
-      !reviewPrompt.includes("give each instance a test that you proved red") &&
-      reviewPrompt.includes("replace the guess with a\nstructured input or delete it. Never add one more pattern.") &&
-      !/no other change|search for no other case/i.test(reviewPrompt) && !prompt.includes("**Fix every instance of each defect class in one commit.**"),
+      reviewPrompt.includes("When a\nclass comes from a word list or a regex that guesses at natural-language input in code, replace the guess with a\nstructured input or delete it. Never add one more pattern. A test assertion that pins doc text is not such code.") &&
+      !prompt.includes("**Fix every instance of each defect class in one commit.**"),
     reviewPrompt,
   )
   T(
@@ -560,16 +559,23 @@ export const cases = () => {
       /fixes every instance of each class in one commit/.test(rule14Body) &&
       /Each instance that a test can see \(wrong behaviour, a missed edge case, a test or a guard that passes without its code\) gets a row in one table test, proven red with the guard removed/.test(rule14Body) &&
       /An instance of a comment, a doc or an unused export has no guard to remove: it needs only the edit, and the report names it/.test(rule14Body) &&
-      !/each class gets one table test with a row for each instance, proven red/.test(rule14Body) &&
       !/reads only the new commits|narrows this to the new commits|do not search for new forms of a class/.test(rule14),
     rule14Body,
   )
   T(
-    `${TOOL}: rule 14 fixes a free-text guess with a structured input or a deletion, in the rule, the brief lenses and the fix round`,
-    /A defect class that comes from guessing at free text \(a word list, or a regex that reads prose\) is fixed with a structured input or with a deletion, never with one more pattern/.test(rule14Body) &&
-      /A guess at free text: a word list or a regex that reads prose\. It is BLOCKING\. The fix is a structured input or a deletion, never one more pattern/.test(rule14Brief) &&
-      /structured input or a deletion/.test(readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")),
+    `${TOOL}: rule 14, the brief and the defect list rank a free-text guess BLOCKING only for a wrong result or a missed case, in code that reads natural-language input`,
+    /A word list or a regex that reads natural-language input in code gives wrong behaviour when it returns a wrong result/.test(rule14Body) &&
+      /Such a word list or regex has a missed edge case when it misses a form of the input/.test(rule14Body) &&
+      /This covers code whose behaviour depends on reading natural-language input\. A word list or a regex that guesses at that input is BLOCKING when it gives a wrong result or misses a case, as the first two kinds above say, and never otherwise\. A test assertion that pins doc text is not such code\. Fix the defect class with a structured input or with a deletion, never with one more pattern/.test(rule14Body) &&
+      /A guess at free text in code whose behaviour depends on reading natural-language input: a word list or a regex that reads prose\. It is BLOCKING when it gives a wrong result or misses a case, like any other defect, and a test assertion that pins doc text is not such code\. The fix is a structured input or a deletion, never one more pattern/.test(rule14Brief) &&
+      /A word list or a regex that guesses at natural-language input in code ranks the same way: BLOCKING when it gives a wrong result or misses a case/.test(rule14Brief),
     rule14Brief,
+  )
+  T(
+    `${TOOL}: orchestration fixes a free-text class with a structured input or a deletion and leaves its rank to rule 14`,
+    /A class of word lists or regexes that guess at natural-language\s+input in code is fixed with a structured input or a deletion, never with one more pattern/.test(orchestrateSkill) &&
+      /to fix a class of word lists or regexes that guess at\s+natural-language input in code with a structured input or a deletion/.test(orchestrateSkill),
+    orchestrateSkill,
   )
   T(
     `${TOOL}: the review brief lists each class with every instance as path:line`,
@@ -581,12 +587,11 @@ export const cases = () => {
   T(
     `${TOOL}: orchestration step 8 and the finding split state the same BLOCKING and NOTE rule as rule 14`,
     /FIX every BLOCKING finding, every instance of its class in one commit/.test(orchestrateSkill) &&
-      /a confirmed defect in the changed lines/.test(orchestrateSkill) && /Fix every instance of its class in one commit\. Each instance that a test can see gets a\s+test proven red with the guard removed; a comment, doc or unused-export instance needs only the edit/.test(orchestrateSkill) &&
+      /\*\*FIX it in this pull request\*\* when rule 14 ranks it BLOCKING\. Fix every instance of its class in one\s+commit\. Each instance that a test can see gets a test proven red with the guard removed; a comment, doc or\s+unused-export instance needs only the edit/.test(orchestrateSkill) &&
       /with a test\s+proven red with its guard removed for each instance that a test can see \(a comment, doc or unused-export instance needs only the edit\)/.test(orchestrateSkill) &&
-      !/with a test for each instance proven red|with a\s+test for each instance proven red/.test(orchestrateSkill) &&
-      /a matter of taste with no wrong result, or an older defect that this\s+diff did not make/.test(orchestrateSkill) &&
+      /\*\*FILE it\*\* when rule 14 ranks it a NOTE\. File its class one time/.test(orchestrateSkill) &&
       /It never says "add no other change" or "search for no other\s+case"/.test(orchestrateSkill) &&
-      !/a failing probe against the acceptance|a regression this pull request made|regression that this pull request made/.test(orchestrateSkill),
+      !/a failing probe against the acceptance|regression that this pull request made/.test(orchestrateSkill),
     orchestrateSkill,
   )
   T(

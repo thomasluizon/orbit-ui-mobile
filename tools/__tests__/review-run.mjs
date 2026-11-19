@@ -311,8 +311,6 @@ const orderCases = () => {
   T(`${UNIT}: a fix-round review reads the whole diff against the merge base and checks each fix against the new commits`,
     fixRoundReview.includes("git diff origin/main...abc1234") && fixRoundReview.includes("git diff def5678..abc1234") &&
       fixRoundReview.includes("Read the whole diff again, as\nthe GitHub reviewer does") && !/Read only the new commits/.test(fixRoundReview), fixRoundReview)
-  T(`${UNIT}: the contract leaves the one-class-one-list sentence to the brief, its one owner`,
-    [review, fixRoundReview].every((order) => !/name the class\s+one time and list every instance/.test(order)), review)
   T(`${UNIT}: the proof result names its head on the second line, for the decision note (thread b_s2)`,
     /Its second line is\s+`HEAD: abc1234`/.test(proof), proof)
   same(`${UNIT}: the proof order promises exactly the proof verdict lines`, promised(proof).map((line) => resultVerdict(line, "proof")), ["PROOF: PASS", "PROOF: FAIL (2 defects)"])

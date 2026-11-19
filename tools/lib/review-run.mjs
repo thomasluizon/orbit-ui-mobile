@@ -463,8 +463,7 @@ export const reviewOrder = ({ brief, slug, pullRequest, head, since = null, base
   const scope = since === null
     ? whole
     : `${whole} This is a fix round. The previous review read \`${since}\`. Read the whole diff again, as
-the GitHub reviewer does, and use \`git diff ${since}..${head}\` to check each fix. A defect outside the new commits is
-BLOCKING when the diff made it.`
+the GitHub reviewer does, and use \`git diff ${since}..${head}\` to check each fix.`
   return `# Read-only review of ${slug} pull request #${pullRequest}
 
 ${brief}
