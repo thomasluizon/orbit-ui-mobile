@@ -117,7 +117,7 @@ File a NOTE one time on the ticket that owns its area (`node tools/comment-ticke
 
 #### The review brief
 
-You review ONE open pull request before its next push. Find every defect that the GitHub reviewer (Pullfrog) would open a thread for, so that the next round can approve, and list each matter of taste as a NOTE. You are READ-ONLY: you edit no file, you commit nothing, you push nothing, and you post nothing to GitHub. You may run read-only commands (`git diff`, `git show`, `git log`, `grep`, `gh pr view`, `gh api` GET) and a focused test or type check when it confirms a finding. Never run Playwright, an emulator or a simulator.
+You review ONE open pull request before its next push. Find every defect that the GitHub reviewer (Pullfrog) would open a thread for, so that the next round can approve, and list each other finding as a NOTE. You are READ-ONLY: you edit no file, you commit nothing, you push nothing, and you post nothing to GitHub. You may run read-only commands (`git diff`, `git show`, `git log`, `grep`, `gh pr view`, `gh api` GET) and a focused test or type check when it confirms a finding. Never run Playwright, an emulator or a simulator.
 
 What to read:
 

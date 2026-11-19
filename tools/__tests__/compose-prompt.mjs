@@ -572,6 +572,13 @@ export const cases = () => {
     rule14Brief,
   )
   T(
+    `${TOOL}: the review brief names every defect kind once and never narrows a NOTE to taste`,
+    /such as an unchanged caller of a renamed export\): wrong behaviour, a missed edge case, a test or a guard that passes without its code, a comment or a doc that contradicts the code, an unused export, prop, branch or helper that the diff leaves\./.test(rule14Brief) &&
+      /so that the next round can approve, and list each other finding as a NOTE\./.test(rule14Brief) &&
+      !/list each matter of taste as a NOTE/.test(rule14Brief),
+    rule14Brief,
+  )
+  T(
     `${TOOL}: the review brief owns the free-text content: its scope, its wrong-result condition, its exclusion and its fix`,
     /A guess at free text in code whose behaviour depends on reading natural-language input: a word list or a regex that reads prose\. It is BLOCKING when it gives a wrong result or misses a case, like any other defect, and a test assertion that pins doc text is not such code\. The fix is a structured input or a deletion, never one more pattern/.test(rule14Brief) &&
       rule14.split("one more pattern").length === 2,
