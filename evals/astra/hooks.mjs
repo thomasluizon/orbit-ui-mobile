@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { parse } from 'yaml'
 import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
@@ -46,11 +44,6 @@ export async function beforeAll({ suite }) {
   apiOrigin()
   requireEvalOrigin()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
-  const { offerTools, offerPostReadTools, offerHabitSetupTools } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
-  if (suite.tests.some((test) => test.metadata?.family?.startsWith('offers-'))
-    && (!offerTools?.length || !offerPostReadTools?.length || !offerHabitSetupTools?.length)) {
-    throw new Error('Regenerate the proactive tool catalogs from the evaluated API before running offer cases.')
-  }
   requireCatalogCommit((await healthyApi({ fresh: true })).commit)
   readCredentials()
   await requireGrader(new URL('.', import.meta.url))

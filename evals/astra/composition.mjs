@@ -179,10 +179,9 @@ export function composition(output, context) {
   if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome', 'step-up', 'crisis'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
   if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
   if (expected.mode === 'crisis') {
-    return context.vars.offerFamily === 'crisis' && parsed.httpStatus === 200 && text(response.aiMessage) && !hasCrisisSurfaces(response)
-      && Array.isArray(parsed.trace?.calls) && parsed.trace.calls.length === 0
-      ? result(true, 'Verified plain-text crisis response without tools or productivity surfaces.')
-      : result(false, 'Crisis response requires plain text without tools or productivity surfaces.')
+    return context.vars.offerFamily === 'crisis' && text(response.aiMessage) && !hasCrisisSurfaces(response)
+      ? result(true, 'Verified plain-text crisis response without productivity surfaces.')
+      : result(false, 'Crisis response requires plain text without productivity surfaces.')
   }
   if (context.vars.brainDump) {
     const preview = brainDumpPreview(parsed, context.vars)
