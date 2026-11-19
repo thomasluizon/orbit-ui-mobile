@@ -4,12 +4,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
+import { resolveCppCompiler } from './support/cpp-compiler.ts'
 
 it('replaces an expired WNS channel in the retained process and returns its new endpoint on subsequent requests', () => {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-channel-'))
   try {
     const executable = join(directory, process.platform === 'win32' ? 'channel.exe' : 'channel')
-    const compiled = spawnSync('clang++', ['-std=c++20', fileURLToPath(new URL('./native-channel.cpp', import.meta.url)), '-o', executable], { encoding: 'utf8' })
+    const compiled = spawnSync(resolveCppCompiler(), ['-std=c++20', fileURLToPath(new URL('./native-channel.cpp', import.meta.url)), '-o', executable], { encoding: 'utf8' })
     expect(compiled.error, compiled.stderr).toBeUndefined()
     expect(compiled.status, compiled.stderr).toBe(0)
     const result = spawnSync(executable, [], { encoding: 'utf8' })
