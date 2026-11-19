@@ -81,6 +81,8 @@ export async function compileComposerGeometry() {
       import { useUIStore } from './stores/ui-store';
       import { AstraConversation } from './components/chat/conversation';
       import { createChatThreadScroll } from '@orbit/shared/hooks';
+      import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+      const queryClient = new QueryClient();
       const props = JSON.parse(document.getElementById('configuration').textContent);
       function MountedAstraShell() {
         const open = useUIStore(state => state.astraConversationOpen);
@@ -130,12 +132,12 @@ export async function compileComposerGeometry() {
           }, React.createElement('div', { style: { height: 900 } }));
         }
         if (initialProps.withMessages === undefined) return React.createElement(Composer, composerProps);
-        return React.createElement(AstraConversation, { chat: {
+        return React.createElement(QueryClientProvider, { client: queryClient }, React.createElement(AstraConversation, { chat: {
           composerProps, threadScroll: createChatThreadScroll(), chatContainerRef: { current: null },
           messages: initialProps.withMessages ? [{ id: 'previous', role: 'user', content: initialProps.value, timestamp: new Date(0) }] : [],
           activeSteps: [], canShowFollowUps: false, showSuggestions: !initialProps.withMessages,
           isTyping: false, streamingMessageId: null, scrollToBottom: () => {},
-        } });
+        } }));
       }
       const root = createRoot(document.getElementById('root'));
       let revision = 0;

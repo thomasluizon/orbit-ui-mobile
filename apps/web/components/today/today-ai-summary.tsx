@@ -15,7 +15,7 @@ export function TodayAISummary({ date }: Readonly<{ date: string }>) {
   const { profile } = useProfile()
   if (!profile || (profile.hasProAccess && !profile.aiSummaryEnabled)) return null
   if (profile.hasProAccess) return <DailySummary key={date} date={date} language={profile.language} timeZone={profile.timeZone} />
-  return <TodayAstraLine text={t(guided ? 'summary.guided.freePrompt' : 'summary.freePrompt')} destination={t('summary.upgrade')}
+  return <TodayAstraLine text={guided ? t('summary.guided.freePrompt') : t('summary.freePrompt')} destination={t('summary.upgrade')}
     href="/upgrade" />
 }
 

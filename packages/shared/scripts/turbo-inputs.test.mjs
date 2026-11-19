@@ -234,6 +234,7 @@ const folderWalks = {
   'packages/shared/src/__tests__/backlog-port-source.test.ts': { folders: ['apps/mobile/', 'apps/web/'], files: /\.(?:css|tsx?)$/ },
   'packages/shared/src/__tests__/brand-paths.test.ts': { folders: ['design/brand/'], files: /^design\/brand\/[^/]+\.svg$/ },
   'packages/shared/src/__tests__/design-primitives-kit.test.ts': { folders: ['apps/mobile/', 'apps/web/'], files: /\.tsx$/ },
+  'packages/shared/src/__tests__/destinations-keep-open-ledger.test.ts': { folders: ['apps/mobile/', 'apps/web/'], files: /\.tsx$/ },
   'packages/shared/src/__tests__/hermes-intl-guard.test.ts': { folders: ['apps/mobile/'], files: /\.[jt]sx?$/ },
   'packages/shared/src/__tests__/primitive-contracts.test.ts': { folders: ['apps/mobile/components/', 'apps/web/components/'],
     files: /\.[jt]sx?$/ },

@@ -21,6 +21,10 @@ vi.mock('@/hooks/use-viewport-match', () => ({
   useViewportMatch: (query: string) => query.includes('prefers-reduced-motion') ? mocks.reducedMotion : false,
 }))
 
+function innermostTextOf(line: string) {
+  return (_: string, element: Element | null) => element?.textContent === line && ![...element.children].some((child) => child.textContent === line)
+}
+
 const SEEN_KEY = buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-1')
 
 beforeEach(() => {
@@ -55,7 +59,7 @@ describe('the trial expired dialog', () => {
     expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
     const messages = locale === 'en' ? en : ptBR
     for (const line of [messages.trial.expired.eyebrow, messages.trial.expired.astraCeiling, messages.trial.expired.calendarSync, messages.trial.expired.retrospective, messages.trial.expired.proactiveAstra]) {
-      expect(within(content).getByText(line)).toBeInTheDocument()
+      expect(within(content).getByText(innermostTextOf(line))).toBeInTheDocument()
     }
     expect(within(content).getAllByText(messages.trial.expired.paused)).toHaveLength(4)
     expect(content).toHaveTextContent('41%')
