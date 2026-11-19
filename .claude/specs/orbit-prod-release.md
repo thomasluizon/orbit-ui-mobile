@@ -87,7 +87,6 @@ A finding from an owner review or a rendered sweep that shows broken behaviour l
 The gates every later batch runs through. Re-read each ticket against the tree before you build it.
 
 - `#2149` Make auto-work read every open pull request (Dependabot and every other author) and every code scanning, secret scanning and Dependabot alert in the three repositories, and fix them (owner order). Next: `ui#2475` is pushed at `73525ba68`; Pullfrog's seed thread `PRRT_kwDOR5Siws65h4Je` (a draft listed after a ready sighting kept its old waiter key) is fixed locally at `f2a6d56ac`, test red first: a read-only review since `73525ba68`, the reply, push, merge at the bar.
-- `#2145` Run the pre-push reviews and the device proofs as workers on the worker account (owner order). Next: the one device proof through `--proof` runs (the `#2146` Android check at `main` `633c03786`); on `PROOF: PASS`, close.
 
 
 Worker hard ceiling: a long build passes `--hard-ceiling-minutes 150` to `tools/launch-worker.mjs`. A second red of `android-release-certificate.test.ts:39` (`beforeAll`) gives that hook its own time limit; a third hang of "Run median TBT and script budget gates" gives that step its own time limit.
@@ -143,7 +142,7 @@ No open ticket.
 
 ### Batch M: the Orbit mascot rebrand (owner order: started, in ticket order)
 Each ticket is its body plus its work-order comments: one pull request each, never split, except `#2122`, which merges in its seven parts. `#2126` starts now and `#2125` starts after `#2144` (owner order; the other tickets keep the ticket order). The API releases first.
-- `#2146` Give the Orbit conversation entry a background and make the Orbit in the Hoje summary line move (owner order on the live app: it targets `main` and ships at once). `ui#2484` is merged and production web serves it. Next: the Android proof worker runs (staging APK, a 375 dp throwaway AVD, light, dark, reduced motion); the web half is a coordinator browser check at 375 on production web; then the Android Open plus TestFlight pair, then close.
+- `#2146` Give the Orbit conversation entry a background and make the Orbit in the Hoje summary line move (owner order on the live app: it targets `main` and ships at once). `ui#2484` is merged and production web serves it; the Android proof passed (posted on the ticket). Next: the web half at 375 in the browser on production web, then the Android Open plus TestFlight pair, then close.
 - `#2122` Move every destination to the Orbit logic: Hoje, conversation, Calendário, Progresso and the rest. Next: `ui#2453` is DIRTY after `ui#2451` merged (`c91bbac24`): the base merge (the final `ui#2451` head `e01f0d14c` first, then `main`), review, push, Pullfrog. `#2158` (keep the selection ring on a clicked Calendário day while the selection moves) is folded in as a ticket comment.
 - `#2123` Finish the rebrand in the app: rename, guard, remove the old paths and clean the source. Next: after `#2122`.
 - `#2124` Finish the rebrand in the API: flag row, brand files and a cleanup of every file. Next: after `#2123`.

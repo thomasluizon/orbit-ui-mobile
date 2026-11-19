@@ -20,7 +20,7 @@ Finish the spec: an empty board except `#33`, verified releases, the assistant f
 
 ## In flight
 
-UI `main` `c91bbac24`; API `main` and production `70c66e7be`; landing `main` and staging `3dbd6cd` (production `20c1b0a90`); web staging and production `2460ef091`. Owner question queue: empty (`/questions --relay` recorded none). Board 34 open, 34 placed in `## The order`, 0 unplaced, 0 placed twice.
+UI `main` `c91bbac24`; API `main` and production `70c66e7be`; landing `main` and staging `3dbd6cd` (production `20c1b0a90`); web staging and production `2460ef091`. Owner question queue: empty (`/questions --relay` recorded none). Board 33 open, 33 placed in `## The order`, 0 unplaced, 0 placed twice.
 
 | Item | Disposition |
 | --- | --- |
@@ -28,7 +28,7 @@ UI `main` `c91bbac24`; API `main` and production `70c66e7be`; landing `main` and
 | ui#2475 (`#2149`) | Local `f2a6d56ac` (seed fix for thread `PRRT_kwDOR5Siws65h4Je`, red first), not pushed: review since `73525ba68`, reply, body section, push, merge. |
 | ui#2501 (`#2168`) | Local `e56def733` (base merges, eval suite 2,639 passed), not pushed: review since `e41846661`, body line 4 (part 1 merged), push, merge. |
 | ui#2506 (`#2074`) | Local `496821865` (fix round 1, report on `#2074`), not pushed: review since `052739226`, the body file of the round, push, merge at the bar. |
-| `#2146` / `#2145` | Android proof worker (`launch-worker.mjs --proof`, result posted on `#2146`); on PASS close `#2145`; the web half at 375 in the browser on production; then the Android Open and TestFlight pair (never the App Store), close `#2177` and `#2146`. |
+| `#2146` | Android proof PASS (posted on `#2146`), `#2145` closed. Next: the web half at 375 in the browser on production, then the Android Open and TestFlight pair (never the App Store), close `#2177` and `#2146`. Put the proof's deviations (API base and Turnstile key for a local staging build, `transition_animation_scale`, in-app dark mode) into `operations.md` `## Android devices and Play`. |
 | ui#2453 (`#2122`) | DIRTY after ui#2451 merged: merge `e01f0d14c` (final ui#2451 head) first, then `main`, review, push. |
 | `#2126`, `#2135`, Harness | Landing rendered check then production release; the `#2135` baseline window at 1.20 USD a day; the require-wake-source Stop hook firing inside a worker, fixed red first. |
 | Held | ui#2491 and ui#2494 on api#1124, ui#2498 proofs A and B at a real relay, the api assistant PRs on the `#2135` gate, `#2156` after its `resolveAfter`, `#2176` after `#2122`. |
@@ -45,8 +45,8 @@ Unattended: never ask the owner; decide with the best option and log it on the r
 
 ## Previous prompt, disposition
 
-- Done: ui#2492 and ui#2451 merged, `#2166` and `#2121` closed (D830, D836); production web release of `2460ef091` verified (D829, D836); ui#2475 review notes fixed and pushed (D832); ui#2451 test-gap threads fixed and pushed (D831, D833); ui#2500 base merge round, review CLEAN, pushed (D834, D839); `#2074` quality build opened as ui#2506 (D835); intake (D837).
+- Done: ui#2492 and ui#2451 merged, `#2166` and `#2121` closed (D830, D836); production web release of `2460ef091` verified (D829, D836); ui#2475 review notes fixed and pushed (D832); ui#2451 test-gap threads fixed and pushed (D831, D833); ui#2500 base merge round, review CLEAN, pushed (D834, D839); `#2074` quality build opened as ui#2506 (D835); intake (D837); `#2146` Android proof PASS and `#2145` closed (D841).
 - Superseded: the D827 queue block (the newest RELAY block on `#2179` replaces it).
-- Carried: the Android Open and TestFlight pair, the `#2145` proof, ui#2475, ui#2501, ui#2506, ui#2453, the `#2126`, `#2135` and harness rows, the held rows, intake, every standing order above.
+- Carried: the Android Open and TestFlight pair, the `#2146` web check, ui#2475, ui#2501, ui#2506, ui#2453, the `#2126`, `#2135` and harness rows, the held rows, intake, every standing order above.
 
 Treat every identifier here as a lead to verify.
