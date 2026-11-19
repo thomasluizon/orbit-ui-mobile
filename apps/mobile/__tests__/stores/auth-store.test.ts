@@ -2770,6 +2770,38 @@ describe('mobile auth store security paths', () => {
     }
   })
 
+  it('does not carry a failed notification delete into a replacement account', async () => {
+    vi.useFakeTimers()
+    const executeDelete = vi.fn(() => { throw new Error('Server error') })
+    try {
+      await useAuthStore.getState().login('account-a-token', null, {
+        userId: 'account-a',
+        email: 'account-a@example.com',
+        name: 'Account A',
+      })
+      queuePendingNotificationDelete('account-a-notification', executeDelete)
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['account-a-notification'])
+
+      await useAuthStore.getState().logout()
+
+      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(retryFailedNotificationDelete('account-a-notification')).toBe(false)
+
+      await useAuthStore.getState().login('account-b-token', null, {
+        userId: 'account-b',
+        email: 'account-b@example.com',
+        name: 'Account B',
+      })
+
+      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(executeDelete).toHaveBeenCalledTimes(1)
+    } finally {
+      resetPendingNotificationDeletesForTests()
+      vi.useRealTimers()
+    }
+  })
+
   it('drops a previous account pending delete when a login follows no teardown', async () => {
     vi.useFakeTimers()
     const staleDelete = vi.fn(() => Promise.resolve())
