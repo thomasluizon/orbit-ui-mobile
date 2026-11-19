@@ -25,7 +25,7 @@ UI `main` `d7538f743`; API `main` and production `70c66e7be`; landing `main` `20
 | Item | Disposition |
 | --- | --- |
 | ui#2505 (`#2152`) | The tool shard fix (`3d892fcf7`): Pullfrog left one P1 thread (`tools/__tests__/launch-worker.mjs:20`, D773): fix its class with a test red first, push, merge at the bar. Every UI head fails `Tool tests (4/4)` until it merges; then merge `main` into each row below before its push. |
-| ui#2504 (`#2177`) | Round 5 worker running (design round: one source of truth for the failed delete). Read the worktree `ticket-2177-one-delete-toast`, review, push, merge at the bar. |
+| ui#2504 (`#2177`) | Round 5 committed `19b54e11f` (the failed delete retry is held on the notice owner, no second map; Pullfrog thread `bfNJ`). Review it, push with its reply, merge at the bar. |
 | ui#2480 (`#2135`) | Approved at `41290a1c8`, only the tool shard failed: merge `main`, push, merge at the bar; then the ui#2492 base merge and the `#2135` baseline window. |
 | ui#2476 (`#2145`) | Approved at `fd6c355b3`, only the tool shard failed: merge `main`, push, merge at the bar. |
 | ui#2493 (`#2170`) | Local `c773229d1` (merged-parent thread fix): merge `main`, write its reply and body section, push. |
