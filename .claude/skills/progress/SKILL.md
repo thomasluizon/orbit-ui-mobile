@@ -237,6 +237,7 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    | `pullfrog-approval` is completed and fails | the review asked for a fix |
    | no `pullfrog-approval` entry | the review did not run yet |
    | the base-chain walk that starts at its own `baseRefName` ends at another branch | it waits for the work it is stacked on to merge, and the full checks run on its first push after it targets the integration branch |
+   | the base-chain walk that starts at its own `baseRefName` cannot resolve | a parent that closed with nothing merged: the work needs a new base; a cycle or two open rows: the ambiguity that step 3 names |
    | `mergeable` is `CONFLICTING` | it conflicts with its base: the conflict needs a fix, then the checks and the review run again |
    | `mergeable` is still `UNKNOWN` after `gh pr view <number> --json mergeable` | GitHub has not said yet whether it conflicts with its base |
    | a check that the base branch requires has no entry | the full checks did not run on this head: they run on its next push |
