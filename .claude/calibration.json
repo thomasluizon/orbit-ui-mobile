@@ -151,8 +151,8 @@
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "ef8da2a8ce3479dc",
-      "calibratedAt": "2026-11-18",
+      "digest": "8da90be21f79f248",
+      "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: runs or extends the configured Astra eval corpus and distinguishes failed behavior from incomplete tool evidence; it declares no model or effort override."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
