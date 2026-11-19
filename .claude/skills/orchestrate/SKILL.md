@@ -1132,8 +1132,8 @@ resolve and same-head re-review transitions without launching a worker or invent
 The round note of a batch names each defect class one time and lists every instance in the changed lines,
 one `path:line` each. It tells the worker to fix every instance of each class in one commit, with a test
 proven red with its guard removed for each instance that a test can see (a comment, doc or unused-export instance needs only the edit), and to fix a class of word lists or regexes that guess at
-natural-language input in code with a structured input or a deletion. It never says "add no other change" or "search for no other
-case": the next review reads the whole diff, so an instance left behind costs the next round.
+natural-language input in code with a structured input or a deletion. The next review reads the whole diff, so an instance left
+behind costs the next round.
 
 When the batch needs a worker, compose its order with `--review-batch`. The worker commits, runs the
 focused tests of its change, reports the commit SHA and stops without pushing. **Its final report is the batch's

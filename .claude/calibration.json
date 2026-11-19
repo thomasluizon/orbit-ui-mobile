@@ -270,7 +270,7 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "cc4b31366c87d147",
+      "digest": "bdd06ad11ec02058",
       "calibratedAt": "2026-11-19",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },

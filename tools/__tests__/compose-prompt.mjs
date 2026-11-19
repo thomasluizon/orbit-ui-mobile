@@ -590,7 +590,6 @@ export const cases = () => {
       /\*\*FIX it in this pull request\*\* when rule 14 ranks it BLOCKING\. Fix every instance of its class in one\s+commit\. Each instance that a test can see gets a test proven red with the guard removed; a comment, doc or\s+unused-export instance needs only the edit/.test(orchestrateSkill) &&
       /with a test\s+proven red with its guard removed for each instance that a test can see \(a comment, doc or unused-export instance needs only the edit\)/.test(orchestrateSkill) &&
       /\*\*FILE it\*\* when rule 14 ranks it a NOTE\. File its class one time/.test(orchestrateSkill) &&
-      /It never says "add no other change" or "search for no other\s+case"/.test(orchestrateSkill) &&
       !/a failing probe against the acceptance|regression that this pull request made/.test(orchestrateSkill),
     orchestrateSkill,
   )
