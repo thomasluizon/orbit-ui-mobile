@@ -1,6 +1,6 @@
 import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
-import { listedWakeKeys } from "./auto-work-github.mjs"
+import { listedPullRequests, listedWakeKeys } from "./auto-work-github.mjs"
 import { pendingReviewKeys, REVIEW_RUN_SECONDS, updateIntake } from "./auto-work-intake.mjs"
 import { runBounded } from "./bounded-process.mjs"
 import { listBoardState } from "./github-issues.mjs"
@@ -53,13 +53,16 @@ export const reviewCheck = ({ run, repoRoot = REPO_ROOT }) => async () => {
 }
 
 /**
- * Seen keys, failure signatures and the Sentry listing time, all carried in the intake file on GitHub. The pull
- * requests and alerts the model listed in its last cycle join the seen keys of the last waiter.
+ * Seen keys, failure signatures and the Sentry listing time, from the intake file. A listed pull request replaces every
+ * key the last waiter saved for it, so a listed draft keeps no key and its ready head wakes the next waiter. Alert keys
+ * stay a union: a listed alert key lacks the ticket-closed part of its waiter key, so a replacement would wake every seed.
  */
 export const initialWakeMarks = (intake, nowMilliseconds) => {
   const marks = intake?.wake ?? {}
+  const pulls = listedPullRequests(intake)
+  const replacedByListing = (source, key) => source === "pullRequests" && pulls.some((pull) => key === pull || key.startsWith(`${pull} `))
   const listed = Object.fromEntries(Object.entries(listedWakeKeys(intake))
-    .map(([source, keys]) => [source, [...new Set([...(marks.seen?.[source] ?? []), ...keys])]]))
+    .map(([source, keys]) => [source, [...new Set([...(marks.seen?.[source] ?? []).filter((key) => !replacedByListing(source, key)), ...keys])]]))
   return {
     seen: { reviews: pendingReviewKeys(intake), ...marks.seen, ...listed },
     failures: { ...marks.failures },

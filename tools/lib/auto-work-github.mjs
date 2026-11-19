@@ -319,6 +319,12 @@ export const alertCheck = ({ list, readIntakeMarks = () => ({}), readTicketState
   return { keys: [...checked.keys, ...closed.items.map(ticketClosedWakeKey)], ...(failure ? { failure, unreadPrefixes } : {}) }
 }
 
+/**
+ * The pull requests the model listed in its last cycle, a draft included. Each one's listed key is as fresh as any key a
+ * waiter saved for it (every pull request wake is followed by a collection), so the listing replaces those keys.
+ */
+export const listedPullRequests = (intake) => Object.values(intake?.pullRequests?.open ?? {}).map((pull) => pull.key)
+
 /** The keys the model listed in its last cycle, so the waiter does not wake for them again. */
 export const listedWakeKeys = (intake) => ({
   ...(intake?.pullRequests?.open ? { pullRequests: Object.values(intake.pullRequests.open).filter((pull) => !pull.runOwned && !pull.otherRun && wakesForPullRequest(pull))

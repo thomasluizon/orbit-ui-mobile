@@ -5,7 +5,7 @@ import { alertCheck, alertsWithClosedTickets, closedTicketPullRequests, closeAle
   pendingItems, pullRequestCheck, pullRequestClass, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing, runPullRequestKeys, unexpectedAuthor,
   unreportedPullRequests } from "../lib/auto-work-github.mjs"
 import { readIntake } from "../lib/auto-work-intake.mjs"
-import { evaluateChecks } from "../lib/auto-work-wake.mjs"
+import { evaluateChecks, initialWakeMarks } from "../lib/auto-work-wake.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 import { T, TOOLS_DIR, root } from "./_harness.mjs"
 
@@ -494,6 +494,20 @@ const draftCases = async () => {
     JSON.stringify(markedReady) === JSON.stringify([{ source: "pullRequests", kind: "new", items: [`ui#2473 ${OWNER_PULL.head}`] }]) && again.length === 0 &&
     JSON.stringify(listed(true)) === JSON.stringify({ pullRequests: [] }) && JSON.stringify(listed(false)) === JSON.stringify({ pullRequests: [`ui#2473 ${OWNER_PULL.head}`] }),
   JSON.stringify({ whileDraft, markedReady, again, draftListed: listed(true) }))
+
+  /* A waiter seeded after a ready sighting, from a collection that lists the pull request as a draft, still wakes once when it is ready again. */
+  const readyKey = `ui#2473 ${OWNER_PULL.head}`
+  const seedOf = (draft) => initialWakeMarks({ wake: { seen: { pullRequests: [readyKey, "ui#24 other"] } },
+    pullRequests: { open: { "ui#2473": { key: "ui#2473", head: OWNER_PULL.head, runOwned: false, draft } } } }, 0)
+  const seeded = seedOf(true)
+  marks = seeded
+  listing = await listingOf(false)
+  const readyAfterSeed = await interval()
+  T("github: a seed from a collection that lists a draft drops its earlier ready key, so marking it ready at the same head wakes once",
+    JSON.stringify(seeded.seen.pullRequests) === JSON.stringify(["ui#24 other"]) &&
+    JSON.stringify(seedOf(false).seen.pullRequests) === JSON.stringify(["ui#24 other", readyKey]) &&
+    JSON.stringify(readyAfterSeed) === JSON.stringify([{ source: "pullRequests", kind: "new", items: [readyKey] }]),
+  JSON.stringify({ seeded: seeded.seen, readyAfterSeed }))
 }
 
 /* The same failure wakes the model once: a read that fails keeps its seen keys, so its recovery is not new. */
