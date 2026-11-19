@@ -47,10 +47,6 @@ function floatingNotice(state: string) {
   return <div style={{ minHeight: state === 'tall' ? 160 : undefined }}><Toast kind="neutral" message="Saved" /></div>
 }
 
-async function giveOpaqueOriginPageAnEmptyCookieJar(page: Awaited<ReturnType<Browser['newPage']>>) {
-  await page.evaluate(() => { Object.defineProperty(document, 'cookie', { value: '', writable: true }) })
-}
-
 function expectCentred(bounds: { left: number; right: number }, container: { left: number; right: number }) {
   expect.soft(Math.abs(bounds.left + bounds.right - container.left - container.right)).toBeLessThanOrEqual(2)
 }
@@ -225,7 +221,6 @@ describe('page content centring and add control clearance', () => {
         await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: viewport.top, bottom: viewport.bottom, left: viewport.left, right: viewport.right } })
         await page.setContent(`<style>${stylesheet}:root{font-size:${viewport.pressure ? 32 : 16}px}</style><div id="root"></div>`)
         await page.locator('#root').evaluate((element, pressure) => { element.dataset.configuration = JSON.stringify({ pressure }) }, viewport.pressure)
-        await giveOpaqueOriginPageAnEmptyCookieJar(page)
         const renderError = page.waitForEvent('pageerror').then(error => { throw error })
         await Promise.race([
           page.addScriptTag({ content: shortShellScript }).then(() => page.locator('[data-shell-tab-bar]').waitFor({ state: 'visible' })),
