@@ -214,7 +214,8 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    edit or a label, keeps every run in the rollup: read only the newest entry of each `name` by
    `startedAt`, as `newestChecks` in that file does. For the stacked row, run the base-chain walk
    of step 3 from the own `baseRefName` of that pull request. A walk that ends at that same branch
-   means the pull request is not stacked. A walk that cannot resolve is not a wait:
+   means the pull request is not stacked. A first step whose deciding row is `MERGED` is not a wait
+   either: the work it is stacked on already merged, so say it needs a retarget. A walk that cannot resolve is not a wait:
    a parent that closed with nothing merged never merges, so say the work needs a new base, and a
    cycle or two open rows is the ambiguity that step 3 names. Only for a pull request that is not stacked, read
    the checks that its base branch requires with
@@ -236,6 +237,7 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    | a completed entry other than `pullfrog-approval` that fails | a check fails: say what that check protects |
    | `pullfrog-approval` is completed and fails | the review asked for a fix |
    | no `pullfrog-approval` entry | the review did not run yet |
+   | its own `baseRefName` is the head of a pull request whose deciding row in step 3 is `MERGED` | the work it is stacked on already merged: it needs a retarget onto the branch that work merged into, and the full checks run on its first push after the retarget |
    | the base-chain walk that starts at its own `baseRefName` ends at another branch | it waits for the work it is stacked on to merge, and the full checks run on its first push after it targets the integration branch |
    | the base-chain walk that starts at its own `baseRefName` cannot resolve | a parent that closed with nothing merged: the work needs a new base; a cycle or two open rows: the ambiguity that step 3 names |
    | `mergeable` is `CONFLICTING` | it conflicts with its base: the conflict needs a fix, then the checks and the review run again |
