@@ -54,13 +54,17 @@
     "snapshot": "none",
     "constants": "none"
   },
-  ".claude/hooks/offer-stale-cleanup.mjs": {
+  ".claude/hooks/clean-stale-files.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": [
       {
-        "name": "listing age and listing time ceiling",
-        "source": "tools/lib/stale-files.mjs LISTING_MAX_AGE_MS and LISTING_CEILING_MS"
+        "name": "free disk floor and cleanup interval",
+        "source": "tools/lib/stale-files.mjs FREE_DISK_FLOOR_BYTES and CLEANUP_INTERVAL_MS"
+      },
+      {
+        "name": "minimum age of a branch with no pull request",
+        "source": "tools/lib/stale-files.mjs MINIMUM_BRANCH_AGE_MS"
       }
     ]
   },

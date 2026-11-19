@@ -26,6 +26,7 @@ import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
 import { proofOrder, reviewOrder } from "../../tools/lib/review-run.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
+import { takeCleanupLock } from "../../tools/lib/stale-files.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
 import { adoptRelayRun, appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain } from "../../tools/lib/session-chain.mjs"
 
@@ -2700,7 +2701,7 @@ for (const hook of ["git-guardrails", "orchestrator-guardrails", "forbid-invente
   T(`adapter ${hook}: malformed stdin blocks`, result.status, 2)
   T(`adapter ${hook}: failure identifies the hook`, result.stderr.includes(hook), true)
 }
-for (const hook of ["surface-pending-lessons", "record-handoff-request", "relay-at-threshold", "offer-stale-cleanup"]) {
+for (const hook of ["surface-pending-lessons", "record-handoff-request", "relay-at-threshold", "clean-stale-files"]) {
   T(`reminder ${hook}: malformed stdin allows`, runHookResult(`${hook}.mjs`, "not json").status, 0)
 }
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
@@ -4680,55 +4681,90 @@ const noFindingResult = secondOpinionReply(placeholderVerdict, "success", " ")
 T("second-opinion: no dossier degrades", [noFindingResult.status, noFindingResult.reason], ["UNAVAILABLE", "no finding text on stdin"])
 
 // ---------------------------------------------------------------------------
-// Stale files offer (UserPromptSubmit), in the isolated checkout so no test reads or writes this machine's listing
+// Unattended stale files cleanup (UserPromptSubmit and Stop), in the isolated checkout so no test removes this machine's files
 // ---------------------------------------------------------------------------
-console.log("\n# offer-stale-cleanup (stale files offer on every prompt)")
-const { LISTING_MAX_AGE_MS, listingIdOf, staleFilesStorePath } = await import("../../tools/lib/stale-files.mjs")
-const STALE_OFFER_HOOK = "offer-stale-cleanup.mjs"
-cpSync(join(hooksDir, STALE_OFFER_HOOK), join(wakeHooks, STALE_OFFER_HOOK))
-const staleListingArguments = join(root, "stale-listing-arguments.json")
-// The real tool reads the whole machine. This stand-in only records how the hook starts a listing.
-writeFileSync(join(wakeCheckout, "tools", "stale-files.mjs"), `import { writeFileSync } from "node:fs"\nwriteFileSync(${JSON.stringify(staleListingArguments)}, JSON.stringify(process.argv.slice(2)))\n`)
-const staleSessionRoot = join(root, "stale-offer-sessions")
-const staleSessionDirectory = join(staleSessionRoot, "0f0f0f0f-0000-4000-8000-00000000000f")
-mkdirSync(staleSessionDirectory, { recursive: true })
-const offerPrompt = { session_id: "stale-offer-session", hook_event_name: "UserPromptSubmit", prompt: "Continue.", cwd: wakeCheckout, scratchpad_dir: join(staleSessionRoot, "stale-offer-session", "scratchpad") }
-const runOfferHook = (payload = offerPrompt, env = {}) => spawnSync(process.execPath, [join(wakeHooks, STALE_OFFER_HOOK)], { input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env } })
-const offerOutput = (result) => (result.stdout === "" ? null : JSON.parse(result.stdout).hookSpecificOutput)
-const startedListing = async (attempts = 100) => {
-  for (let attempt = 0; attempt < attempts && !existsSync(staleListingArguments); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 50))
-  const started = existsSync(staleListingArguments) ? JSON.parse(readFileSync(staleListingArguments, "utf8")) : null
-  rmSync(staleListingArguments, { force: true })
-  rmSync(join(wakeCheckout, ".git", "orbit-stale-files-refresh.json"), { force: true })
+console.log("\n# clean-stale-files (unattended stale files cleanup)")
+const CLEANUP_HOOK = "clean-stale-files.mjs"
+cpSync(join(hooksDir, CLEANUP_HOOK), join(wakeHooks, CLEANUP_HOOK))
+const cleanupArguments = join(root, "stale-cleanup-arguments.json")
+const cleanupMarker = join(wakeCheckout, ".git", "orbit-stale-files-cleanup.json")
+const cleanupAdoption = join(wakeCheckout, ".git", "orbit-stale-files-adoption.json")
+const cleanupRunState = join(wakeCheckout, ".git", "orbit-orchestrate-run.json")
+// The real tool reads the whole machine. This stand-in only records how the hook starts the removal.
+writeFileSync(join(wakeCheckout, "tools", "stale-files.mjs"), `import { writeFileSync } from "node:fs"\nwriteFileSync(${JSON.stringify(cleanupArguments)}, JSON.stringify(process.argv.slice(2)))\n`)
+const cleanupSessionRoot = join(root, "stale-cleanup-sessions")
+const cleanupSession = "5e5e5e5e-0000-4000-8000-00000000005e"
+const cleanupInput = (event) => ({ session_id: cleanupSession, hook_event_name: event, cwd: wakeCheckout, scratchpad_dir: join(cleanupSessionRoot, cleanupSession, "scratchpad"),
+  ...(event === "UserPromptSubmit" ? { prompt: "Continue." } : { stop_hook_active: false }) })
+// The removal writes its log in the home directory: a home of its own keeps the test out of this machine's log.
+const cleanupHome = join(root, "stale-cleanup-home")
+mkdirSync(cleanupHome, { recursive: true })
+const runCleanupHook = (payload = cleanupInput("Stop"), env = {}) => spawnSync(process.execPath, [join(wakeHooks, CLEANUP_HOOK)], { input: JSON.stringify(payload), encoding: "utf8",
+  env: { ...process.env, HOME: cleanupHome, USERPROFILE: cleanupHome, ORBIT_LAUNCH_WORKER: "", ...env } })
+const startedCleanup = async (attempts = 100) => {
+  for (let attempt = 0; attempt < attempts && !existsSync(cleanupArguments); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 50))
+  const started = existsSync(cleanupArguments) ? JSON.parse(readFileSync(cleanupArguments, "utf8")) : null
+  rmSync(cleanupArguments, { force: true })
   return started
 }
-const storeStaleListing = (stale, generatedAt = new Date().toISOString()) => writeFileSync(staleFilesStorePath(wakeCheckout),
-  JSON.stringify({ version: 1, generatedAt, listingId: listingIdOf(stale), context: { sessionId: "stale-offer-session", sessionRoot: staleSessionRoot }, stale, kept: [] }))
-const staleItem = { kind: "session", path: staleSessionDirectory, bytes: 3 * 1024 ** 3, reason: "not this session, its predecessor, or a session with a live process" }
+// A recent finished cleanup, so free disk on this machine cannot start one during the adoption cases.
+const recentCleanup = () => writeFileSync(cleanupMarker, JSON.stringify({ startedAt: Date.now(), reason: "test" }))
+const removalOrder = ["--delete", "--session", cleanupSession, "--session-root", cleanupSessionRoot]
 
-const firstPrompt = runOfferHook()
-T("stale offer: a prompt with no stored listing adds nothing", [firstPrompt.status, firstPrompt.stdout], [0, ""])
-T("stale offer: a prompt with no stored listing starts one detached listing for this session", await startedListing(), ["--list", "--session", "stale-offer-session", "--session-root", staleSessionRoot])
-storeStaleListing([staleItem])
-const offered = runOfferHook()
-const offerContext = offerOutput(offered)?.additionalContext ?? ""
-T("stale offer: a prompt with a stale item exits 0 and adds context to the prompt", [offered.status, offerOutput(offered)?.hookEventName], [0, "UserPromptSubmit"])
-T("stale offer: the context is one line with the item count, the total size and the removal command", {
-  oneLine: !offerContext.includes("\n"), count: offerContext.includes("1 item, 3.0 GB (1 session directory)"), owner: /Offer this cleanup to the owner in one line/.test(offerContext),
-  consent: /only after the owner says yes/.test(offerContext), command: offerContext.includes(`node tools/stale-files.mjs --delete --listing ${listingIdOf([staleItem])}`),
-}, { oneLine: true, count: true, owner: true, consent: true, command: true })
-T("stale offer: the offer appears again on the next prompt", runOfferHook().stdout, offered.stdout)
-T("stale offer: a recent listing starts no second listing", await startedListing(20), null)
-T("stale offer: a launched worker has no owner, so it gets no offer", runOfferHook(offerPrompt, { ORBIT_LAUNCH_WORKER: "1" }).stdout, "")
-T("stale offer: a subagent gets no offer", runOfferHook({ ...offerPrompt, agent_id: "agent-1" }).stdout, "")
-storeStaleListing([staleItem], new Date(Date.now() - LISTING_MAX_AGE_MS - 1000).toISOString())
-T("stale offer: an old listing still gives the offer", offerOutput(runOfferHook())?.additionalContext, offerContext)
-T("stale offer: an old listing starts a new listing", await startedListing(), ["--list", "--session", "stale-offer-session", "--session-root", staleSessionRoot])
-storeStaleListing([])
-T("stale offer: a listing with no stale item adds nothing", [runOfferHook().status, runOfferHook().stdout], [0, ""])
-storeStaleListing([{ ...staleItem, path: join(staleSessionRoot, "removed-by-hand") }])
-T("stale offer: an item that no longer exists is not offered", runOfferHook().stdout, "")
-rmSync(staleFilesStorePath(wakeCheckout), { force: true })
+recentCleanup()
+const unadopted = runCleanupHook()
+T("stale cleanup: with no relay adoption and a recent cleanup, a stop starts nothing and adds no context", [unadopted.status, unadopted.stdout, await startedCleanup(20)], [0, "", null])
+writeFileSync(cleanupRunState, JSON.stringify({ sessionId: cleanupSession, sleep: true, remaining: [], relay: { from: "4d4d4d4d-0000-4000-8000-00000000004d", pending: false } }))
+for (const event of ["Stop", "UserPromptSubmit"]) {
+  recentCleanup()
+  rmSync(cleanupAdoption, { force: true })
+  const adopted = runCleanupHook(cleanupInput(event))
+  T(`stale cleanup: a ${event} after a relay adoption adds no context and asks nobody`, [adopted.status, adopted.stdout, adopted.stderr], [0, "", ""])
+  T(`stale cleanup: a ${event} after a relay adoption starts the removal with no listing id`, await startedCleanup(), removalOrder)
+  T(`stale cleanup: the checkout records the adoption that a ${event} cleaned for`, JSON.parse(readFileSync(cleanupAdoption, "utf8")).sessionId, cleanupSession)
+}
+T("stale cleanup: the log in the home directory records each removal that the hook starts",
+  readFileSync(join(cleanupHome, ".orbit-stale-files-cleanup.log"), "utf8").match(new RegExp(`^=== \\S+ unattended removal started: relay adoption \\(session ${cleanupSession}\\)$`, "gm"))?.length, 2)
+T("stale cleanup: one adoption starts one removal", [runCleanupHook().stdout, await startedCleanup(20)], ["", null])
+// A second relayed run in a linked worktree of the same repository adopts its own relay. Each adoption still starts one removal.
+const cleanupLinked = join(root, "stale-cleanup-linked")
+const cleanupLinkedGit = join(wakeCheckout, ".git", "worktrees", "stale-cleanup-linked")
+mkdirSync(cleanupLinkedGit, { recursive: true })
+writeFileSync(join(cleanupLinkedGit, "commondir"), "../..\n")
+mkdirSync(join(cleanupLinked, ".claude"), { recursive: true })
+writeFileSync(join(cleanupLinked, ".git"), `gitdir: ${cleanupLinkedGit}\n`)
+cpSync(join(wakeCheckout, "tools"), join(cleanupLinked, "tools"), { recursive: true })
+cpSync(wakeHooks, join(cleanupLinked, ".claude", "hooks"), { recursive: true })
+const linkedSession = "6f6f6f6f-0000-4000-8000-00000000006f"
+writeFileSync(join(cleanupLinkedGit, "orbit-orchestrate-run.json"), JSON.stringify({ sessionId: linkedSession, sleep: true, remaining: [], relay: { from: "7a7a7a7a-0000-4000-8000-00000000007a", pending: false } }))
+const runLinkedCleanupHook = () => spawnSync(process.execPath, [join(cleanupLinked, ".claude", "hooks", CLEANUP_HOOK)],
+  { input: JSON.stringify({ ...cleanupInput("Stop"), session_id: linkedSession, cwd: cleanupLinked, scratchpad_dir: join(cleanupSessionRoot, linkedSession, "scratchpad") }), encoding: "utf8",
+    env: { ...process.env, HOME: cleanupHome, USERPROFILE: cleanupHome, ORBIT_LAUNCH_WORKER: "" } })
+T("stale cleanup: the adoption in a linked worktree starts its own removal", await (runLinkedCleanupHook(), startedCleanup()),
+  ["--delete", "--session", linkedSession, "--session-root", cleanupSessionRoot])
+T("stale cleanup: after an adoption in another checkout, the next stop of an adopted run starts nothing", [runCleanupHook().stdout, await startedCleanup(20)], ["", null])
+T("stale cleanup: after an adoption in another checkout, the next stop of the linked run starts nothing", [runLinkedCleanupHook().stdout, await startedCleanup(20)], ["", null])
+// A removal that runs holds the lock in the common git directory, however long it runs: a new adoption starts nothing until it ends.
+recentCleanup()
+rmSync(cleanupAdoption, { force: true })
+const releaseRunningRemoval = takeCleanupLock(wakeCheckout)
+T("stale cleanup: a relay adoption starts no removal while a live removal holds the lock", [runCleanupHook().stdout, await startedCleanup(20)], ["", null])
+releaseRunningRemoval()
+T("stale cleanup: the relay adoption starts its removal once the running removal ends", await (runCleanupHook(), startedCleanup()), removalOrder)
+recentCleanup()
+// The adoption is due again before each case, so only the guard stops a launched worker or a subagent from starting the removal.
+rmSync(cleanupAdoption, { force: true })
+T("stale cleanup: a launched worker starts no removal", [runCleanupHook(cleanupInput("Stop"), { ORBIT_LAUNCH_WORKER: "1" }).stdout, await startedCleanup(20)], ["", null])
+rmSync(cleanupAdoption, { force: true })
+T("stale cleanup: a subagent starts no removal", [runCleanupHook({ ...cleanupInput("Stop"), agent_id: "agent-1" }).stdout, await startedCleanup(20)], ["", null])
+// The offer text was built in the library and added by a prompt hook: scan both places, so the old offer cannot come back in either one.
+const offerSources = [join(".claude", "hooks"), join(".claude", "hooks", "_lib"), join("tools", "lib")]
+  .flatMap((directory) => readdirSync(join(repoRoot, directory)).filter((name) => name.endsWith(".mjs") && name !== "test-hooks.mjs").map((name) => join(directory, name)))
+T("stale cleanup: no hook or library offers the cleanup to the owner",
+  offerSources.filter((path) => /stale-files\.mjs --delete --listing|Offer this cleanup/.test(readFileSync(join(repoRoot, path), "utf8"))), [])
+rmSync(cleanupMarker, { force: true })
+rmSync(cleanupAdoption, { force: true })
+rmSync(cleanupRunState, { force: true })
 
 T("monitor parity: each guard on the Bash matcher refuses one command from Bash and from Monitor in a test", BASH_GUARDS.filter((file) => !monitorRefusalGuards.has(file)), [])
 
