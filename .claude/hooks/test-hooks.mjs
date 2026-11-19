@@ -3600,6 +3600,9 @@ T("progress: the answer has two parts and no tracking number", {
   restatesThePassRule: progressSkill.includes("`SUCCESS`, `NEUTRAL` or `SKIPPED`") && progressSkill.includes("`PASSING_CONCLUSIONS`") && progressSkill.includes("`CANCELLED` and `TIMED_OUT`"),
   readsOnlyTheNewestRun: /read only the newest entry of each\s+`name` by\s+`startedAt`/.test(progressSkill),
   hasNoUnknownRuleThatContradictsTheTable: !/does not name is unknown/.test(progressSkill),
+  readsTheRequiredChecksOfTheBase: progressSkill.includes("gh api repos/<owner>/<repo>/branches/<baseRefName>/protection/required_status_checks") && progressSkill.includes("`checks[].context`"),
+  holdsAPullRequestWhoseRequiredChecksNeverRan: progressSkill.includes("| a check that the base branch requires has no entry | the full checks did not run on this head: they run on its next push |") && progressSkill.indexOf("| a check that the base branch requires has no entry |") < progressSkill.indexOf("| `pullfrog-approval` passes, every other entry passes and `mergeable` is `MERGEABLE` |"),
+  saysARetargetDoesNotRunTheChecks: !progressSkill.includes("run only once it targets the integration branch") && /the full checks run on its first push after it\s+targets the integration branch/.test(progressSkill),
   readsMergeability: progressSkill.includes("isDraft,statusCheckRollup,mergeable"),
   stackedPullRequestWaitsForItsParent: progressSkill.includes("| the base-chain walk that starts at its own `baseRefName` ends at another branch | it waits for the work it is stacked on to merge"),
   remainingKeepsTheBaseChainWalk: /`--remaining` keeps the base-chain\s+walk of step 3/.test(progressSkill) && !progressSkill.includes("the helper,\nthe base-chain rule and the ancestry check) does not apply"),
@@ -3610,7 +3613,7 @@ T("progress: the answer has two parts and no tracking number", {
   keepsTheWindowStartLine: progressSkill.includes("window.localStartedAt"),
   hasNoOwnerQuestionPart: !progressSkill.includes("What is waiting on the owner"),
   placesMissingBehaviourInsideTheItem: !/is missing three behaviours\. Name\s+them\./.test(progressSkill) && /qualifier inside the item of that screen/.test(progressSkill),
-}, { mergedIsFirst: true, builtNotMergedIsSecond: true, bansNumbersAndVersions: true, readsWhatHoldsEachItem: true, restatesThePassRule: true, readsOnlyTheNewestRun: true, hasNoUnknownRuleThatContradictsTheTable: true, readsMergeability: true, stackedPullRequestWaitsForItsParent: true, remainingKeepsTheBaseChainWalk: true, conflictingPullRequestNeedsAFix: true, uncomputedMergeabilityIsNamed: true, holdsNothingWhenTheReviewPasses: true, unresolvedWalkIsNotAWait: true, keepsTheWindowStartLine: true, hasNoOwnerQuestionPart: true, placesMissingBehaviourInsideTheItem: true })
+}, { mergedIsFirst: true, builtNotMergedIsSecond: true, bansNumbersAndVersions: true, readsWhatHoldsEachItem: true, restatesThePassRule: true, readsOnlyTheNewestRun: true, hasNoUnknownRuleThatContradictsTheTable: true, readsTheRequiredChecksOfTheBase: true, holdsAPullRequestWhoseRequiredChecksNeverRan: true, saysARetargetDoesNotRunTheChecks: true, readsMergeability: true, stackedPullRequestWaitsForItsParent: true, remainingKeepsTheBaseChainWalk: true, conflictingPullRequestNeedsAFix: true, uncomputedMergeabilityIsNamed: true, holdsNothingWhenTheReviewPasses: true, unresolvedWalkIsNotAWait: true, keepsTheWindowStartLine: true, hasNoOwnerQuestionPart: true, placesMissingBehaviourInsideTheItem: true })
 T("progress: --remaining reads the open board in dependency order and the open pull requests", {
   isAnArgument: /^argument-hint: "\[--remaining \| --full\]/m.test(progressSkill),
   readsTheBoardPlan: progressSkill.includes("node tools/plan-queue.mjs --board"),

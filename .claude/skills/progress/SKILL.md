@@ -210,8 +210,12 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    `tools/lib/readiness-receipt.mjs` states. Any other conclusion fails, and `CANCELLED` and `TIMED_OUT`
    are included. A check that ran more than once at the same head, as `PR Metadata` does after an
    edit or a label, keeps every run in the rollup: read only the newest entry of each `name` by
-   `startedAt`, as `newestChecks` in that file does. Those newest entries and `isDraft` say what
-   holds the work. For the stacked row, run the base-chain walk of step 3 from the own `baseRefName`
+   `startedAt`, as `newestChecks` in that file does. Read the checks that the own base branch
+   requires with `gh api repos/<owner>/<repo>/branches/<baseRefName>/protection/required_status_checks`.
+   Each `checks[].context` is a required `name`. A required check has no entry when no newest entry
+   carries its `name`. A retarget does not start the full checks: they run on the first push after it.
+   When this read fails, say that the required checks could not be read. Those newest entries,
+   `isDraft` and the required checks say what holds the work. For the stacked row, run the base-chain walk of step 3 from the own `baseRefName`
    of that pull request. A walk that ends at that same branch means the pull request is not stacked.
    A walk that cannot resolve is not a wait: a parent that closed with nothing merged never merges, so
    say the work needs a new base, and a cycle or two open rows is the ambiguity that step 3 names.
@@ -224,9 +228,10 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    | a completed entry other than `pullfrog-approval` that fails | a check fails: say what that check protects |
    | `pullfrog-approval` is completed and fails | the review asked for a fix |
    | no `pullfrog-approval` entry | the review did not run yet |
-   | the base-chain walk that starts at its own `baseRefName` ends at another branch | it waits for the work it is stacked on to merge, and the full checks run only once it targets the integration branch |
+   | the base-chain walk that starts at its own `baseRefName` ends at another branch | it waits for the work it is stacked on to merge, and the full checks run on its first push after it targets the integration branch |
    | `mergeable` is `CONFLICTING` | it conflicts with its base: the conflict needs a fix, then the checks and the review run again |
    | `mergeable` is still `UNKNOWN` after `gh pr view <number> --json mergeable` | GitHub has not said yet whether it conflicts with its base |
+   | a check that the base branch requires has no entry | the full checks did not run on this head: they run on its next push |
    | `pullfrog-approval` passes, every other entry passes and `mergeable` is `MERGEABLE` | only the merge is left |
 
    Work that a ledger row or step 4 shows with no pull request is built on a local head: say nobody
