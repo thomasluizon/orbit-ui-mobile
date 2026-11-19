@@ -10,6 +10,7 @@ import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { summarize, writeResults } from '../report.mjs'
+import { recordedStream } from './fixtures/core-replay.mjs'
 const directories = []
 afterEach(() => {
   vi.unstubAllGlobals(); vi.unstubAllEnvs()
@@ -150,28 +151,27 @@ it.each(['valid', 'no-reminder', 'malformed-removal'])(
 
 vi.mock('../fixtures/reset.mjs', async (importOriginal) => ({ ...await importOriginal(), resetFixture: vi.fn() }))
 
-it('reports a missing starting-step setup tool as unavailable and sends no save request', async () => {
+it('reports a setup turn without a starting step as unavailable and sends no save request', async () => {
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_HABIT_ID', 'water')
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
   const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
   const test = structuredClone(corpus.find((entry) => entry.metadata.id === 'composition-one-small-step-save-checklist-en'))
-  const chats = []
+  const requests = []
+  const answer = recordedStream([[{ type: 'started', turnId: 'turn', state: 'running', replayed: false },
+    { type: 'final', turnId: 'turn', state: 'completed', response: { ...chatResponse('request'), conversationId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' } }]], requests)
   vi.stubGlobal('fetch', async (url, options) => {
     const path = new URL(url).pathname
     if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     if (path === '/api/auth/refresh') return refreshResponse()
     if (path === '/api/eval/snapshot') return Response.json(evalSnapshot({ habits: [{ id: 'water', title: 'Water', checklistItems: [{ text: 'Fill bottle', isChecked: false }] }] }))
-    expect(path).toBe('/api/chat')
-    const request = new Request(url, options)
-    const form = await request.formData()
-    chats.push(form.get('message'))
-    const requestId = request.headers.get('x-orbit-request-id')
-    return Response.json(chatResponse(requestId), { headers: { 'x-orbit-request-id': requestId } })
+    expect(path).toBe('/api/chat/stream')
+    return answer(url, options)
   })
   const prepared = (await beforeEach({ test })).test
-  expect(prepared.vars.preconditionFailure).toContain('Missing tool or incorrect arguments/result: suggest_breakdown')
+  expect(prepared.vars.preconditionFailure).toContain('Correction setup failed: Missing one starting-step block with server actions and no prose.')
   const response = await new AstraHttpProvider({ config: {} }).callApi('Save the step.', { vars: prepared.vars })
-  expect(chats).toEqual([test.vars.setup.input])
+  expect(requests.map((request) => request.form.get('message'))).toEqual([test.vars.setup.input])
   expect(response.metadata.astraPreconditionFailure).toBe(true)
   const summary = summarize([{ testCase: prepared, response, success: false }], [prepared.metadata])
   expect(summary.cases[0]).toMatchObject({ unavailable: 1, allAttemptsPass: 'incomplete' })

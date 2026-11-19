@@ -1,6 +1,6 @@
 import { sameTitleSet } from './names.mjs'
 
-export async function readSameTitleSet(api, parentId) {
+async function readSameTitleSet(api, parentId) {
   const { payload: parent } = await api('GET', `habits/${parentId}`)
   if (typeof parent?.title !== 'string' || !Array.isArray(parent.children)) throw new Error('Same-title fixture parent readback is incomplete.')
   const children = parent.children.map(({ id, title, position }) => ({ id, title, position }))

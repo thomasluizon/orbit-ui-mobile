@@ -6,7 +6,7 @@ const { marksExistingHabit } = await tsImport('../../../packages/shared/src/chat
 // and the bulk form of one write are one kind. A key outside this table is not classified; it is never guessed.
 const kindByActionKey = {
   createHabit: 'create', createHabits: 'create', createSubHabit: 'create',
-  updateHabit: 'update', updateHabits: 'update', rescheduleHabits: 'update', updateHabitEmojis: 'update',
+  updateHabit: 'update', updateHabits: 'update', rescheduleHabits: 'update', updateHabitEmojis: 'update', updateChecklist: 'update',
   deleteHabit: 'delete', deleteHabits: 'delete',
   logHabit: 'log', logHabits: 'log',
   skipHabit: 'skip', skipHabits: 'skip',
@@ -77,6 +77,15 @@ function itemKind(item, actionKey) {
   return kindByActionKey[actionKey] ?? null
 }
 
+// Producer: PendingOperationChangePreviewer.AddProposedFields shows a field that the write names and the habit already holds
+// as a row whose old and new value are the proposed value. It changes nothing, so it is no changed field. An update keeps
+// such a row apart (`kept`), for a request that allows a record to stay where it is (a restart keeps some habits today).
+function keptFields(fields, kind) {
+  const kept = fields.filter((field) => kind === 'update' && field.valueType !== 'action' && field.field !== 'habit_id'
+    && field.newValue != null && field.oldValue === field.newValue)
+  return Object.fromEntries(kept.map((field) => [field.field, field.newValue]))
+}
+
 function changedFields(fields, kind) {
   const changed = fields.filter((field) => field.valueType !== 'action' && field.field !== 'habit_id'
     && (kind === 'create' ? field.newValue != null && field.newValue !== '' : field.oldValue !== field.newValue))
@@ -116,9 +125,9 @@ const childCreates = (drafts, preview, parent) => Array.isArray(drafts) ? drafts
 // record, the fields that the model writes, the fields that the preview offers, the fields that the server derives, and
 // the titles of the records that the offered drafts add. A stored row is written when the held writes name its field
 // (`written`, from writtenFields), and derived otherwise; without the trace (`written` null) it is undetermined. Under
-// `nestedCreates`, an item of a create preview that reuses a stored habit is an update of it (UpdateExistingTreeAsync
-// writes its fields on approval), and is no change when none of its rows differs from the stored value.
-export function changeList(pendingOperations, written = null, { nestedCreates = false } = {}) {
+// `nestedCreates`, a create item that reuses a stored habit is an update of it (UpdateExistingTreeAsync writes its fields
+// on approval), and no change when no row differs; under `reuses` that is a `reuse` change (a brain dump holds the habit).
+export function changeList(pendingOperations, written = null, { nestedCreates = false, reuses = false } = {}) {
   const changes = []
   const unclassified = []
   for (const operation of pendingOperations ?? []) {
@@ -141,11 +150,13 @@ export function changeList(pendingOperations, written = null, { nestedCreates = 
       const undetermined = written ? [] : stored
       const requested = fields.filter((field) => !isOffer(field) && !derived.includes(field) && !undetermined.includes(field))
       const changeKind = reused ? 'update' : kind
+      const kept = keptFields(requested, changeKind)
       const change = { kind: changeKind, target: recordId(item.entityId), preview: operation.id, fields: changedFields(requested, changeKind),
         offered: changedFields(offers, changeKind), derived: changedFields(derived, changeKind),
-        undetermined: changedFields(undetermined, changeKind), drafts: offeredDrafts(offers) }
+        undetermined: changedFields(undetermined, changeKind), drafts: offeredDrafts(offers), ...(Object.keys(kept).length ? { kept } : {}) }
       const edits = [change.fields, change.offered, change.derived, change.undetermined].some((changed) => Object.keys(changed).length)
-      changes.push(...!reused || edits ? [change] : [], ...children)
+      const unchanged = { kind: 'reuse', target: change.target, preview: operation.id, fields: {}, offered: {}, derived: {}, undetermined: {}, drafts: [] }
+      changes.push(...!reused || edits ? [change] : reuses ? [unchanged] : [], ...children)
     }
   }
   return { changes, unclassified: [...new Set(unclassified)] }

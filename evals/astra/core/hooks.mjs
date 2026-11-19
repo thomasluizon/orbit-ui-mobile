@@ -50,6 +50,7 @@ export async function beforeAll({ suite }) {
 // The records a case names, from the fixture the reset left in the account.
 export function fixtureRecords(vars, account) {
   const set = vars.sameTitleBaseline
+  if (vars.restartBaseline) return { habits: vars.restartBaseline.map(({ habit }) => habit.id) }
   return set ? { parent: set.parent.id, children: set.children.map((child) => child.id), walk: account.secondHabitId }
     : { water: account.habitId, walk: account.secondHabitId, first: account.habitId, second: account.secondHabitId }
 }

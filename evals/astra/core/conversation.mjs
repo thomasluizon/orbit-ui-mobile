@@ -36,14 +36,27 @@ async function readSaved(api, { expected, baseline }) {
   return saved
 }
 
-// Approves each held preview as the client does, then reads the saved state back. Nothing is approved when the held
-// preview already changed the account.
+// What the person does with a held preview. The person approves it as the client does, or rejects it: the client revises
+// the preview to hold no item, and the server then refuses to confirm it.
+async function decide(preview, conversation, vars, api) {
+  if (vars.core.decision !== 'reject') return approvePendingOperation(api, preview.id, clientContextOf(conversation))
+  const path = `ai/pending-operations/${preview.id}`
+  await api('POST', `${path}/revise`, { previewFingerprint: preview.previewFingerprint, items: [], clientContext: clientContextOf(conversation) })
+  const confirmation = await api('POST', `${path}/confirm`, undefined, [], [404])
+  if (confirmation.status !== 404) throw new Error('A rejected preview remains confirmable.')
+}
+
+// Decides each held preview, then reads the saved state back. Nothing is decided when the held records already differ from
+// the baseline in id, title, frequency or the log of the day (savedRecords); a field that only a named update moves, and
+// each log before the account date (movedHistory), is graded afterwards by gradeSavedState. A case that holds its preview
+// (`decision: hold`) decides nothing and reads the held state only.
 async function approveAndReadBack(previews, conversation, vars, api) {
   try {
     const held = await readHabits(api)
     const unchanged = JSON.stringify(savedRecords(held, vars.accountDate)) === JSON.stringify(savedRecords(vars.core.baseline, vars.accountDate))
-    if (unchanged) for (const preview of previews) await approvePendingOperation(api, preview.id, clientContextOf(conversation))
-    return { baseline: vars.core.baseline, held, after: unchanged ? await readSaved(api, vars.core) : held }
+    const decides = unchanged && vars.core.decision !== 'hold'
+    if (decides) for (const preview of previews) await decide(preview, conversation, vars, api)
+    return { baseline: vars.core.baseline, held, after: decides ? await readSaved(api, vars.core) : held }
   } catch (error) {
     return requestFailure(error, 'Approval or the saved state readback')
   }
@@ -64,8 +77,8 @@ async function sendTurnAgain(turn, api) {
 // then the phrasing, one message after each question, in one conversation; answers each further question the case
 // allows; and stops at the first preview. A reply that is no question, and one question past the allowed count, are
 // recorded and not answered. A case that expects no change ends with its first reply. A write case whose preview holds
-// the expected changes is approved and read back. A launch corpus case passes `approve: false` and, when an earlier turn
-// of the case opened it, the `conversation`: it holds its preview and approves nothing.
+// the expected changes is approved and read back. A launch corpus case passes the `conversation` of an earlier turn,
+// and `approve` only with a `decision`: `hold` reads the account back and decides nothing; no decision reads nothing.
 export async function runCase(vars, { send = sendTurn, api = publicApi(vars.credentialKey), now = () => performance.now(),
   conversation = openConversation({ platform: vars.clientContext.platform, locale: vars.clientContext.locale,
     credentialKey: vars.credentialKey, timeZone: vars.accountTimeZone, uses24HourClock: vars.uses24HourClock, messages: vars.core.prefix }),
@@ -94,6 +107,9 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
     const question = questionOf(turn, expected)
     if (!question.pass) { output.answerFailure = question.reason; break }
     output.questionsBeforePreview++
+    // The final turn holds the preview, so each question turn keeps its response for the layout grade of composition.mjs.
+    output.questionResponses ??= []
+    output.questionResponses.push(turn.response)
     if (output.questionsBeforePreview > maxQuestions) break
     if (output.turns < typed.length) { attempted = typedMessage(output.turns); continue }
     const answer = await answerQuestion(turn, vars)

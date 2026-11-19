@@ -24,15 +24,6 @@ function declarations(vars) {
   return [observable(offers ? offerTools : tools)]
 }
 
-function restartPopulation(attempt, vars) {
-  if (!vars.restart) return
-  const seeded = attempt.groundingEvidence?.fixture?.habits
-  const reads = attempt.groundingEvidence?.successfulTools?.filter((call) => call.name === 'query_habits')
-  if (seeded?.length === 6 && reads?.length && reads.some((call) => call.result?.totalCount !== seeded.length)) {
-    return 'Recorded restart fixture returned fewer than six unfinished habits; the reset precondition needs a new attempt.'
-  }
-}
-
 // Ajv stops at the first error, so each saved "[redacted]" field value becomes null and the call is validated again.
 // Producer schemas make every optional field nullable; a redacted array item or non-nullable field still fails.
 function withoutRedactedFields(value) {
@@ -76,8 +67,6 @@ export async function replayAttempt(attempt, descriptor, recorded) {
   let after = before
   if (before === 'fail' && assertions.length && assertions.every((assertion) => assertion.pass)) after = 'pass'
   if (recorded.latency?.status === 'fail') { after = 'fail'; notes.push('The recorded read latency still exceeds its budget.') }
-  const population = restartPopulation(attempt, test.vars)
-  if (population) { after = 'incomplete'; notes.push(population) }
   if (attempt.httpError) {
     const parsed = parseResponse(attempt.httpError, '', { response: { status: attempt.httpStatus,
       headers: { 'x-orbit-request-id': attempt.httpError.responseRequestId } } })

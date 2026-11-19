@@ -11,6 +11,7 @@ import AstraHttpProvider from '../http-provider.mjs'
 import { beforeEach } from '../hooks.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { suggestionDraft, suggestionResponse } from './fixtures/producer.mjs'
+import { recordedStream } from './fixtures/core-replay.mjs'
 
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
@@ -24,8 +25,6 @@ it.each(['en', 'pt-BR'])('grades the producer suggestion block and its projected
   const response = suggestionResponse('request', locale)
   const parsed = output(response)
   expect(composition(parsed, { vars: test.vars }).pass).toBe(true)
-  expect(behavior(parsed, { vars: test.vars }).pass).toBe(true)
-  expect((await structural(parsed, { vars: test.vars, test })).pass).toBe(true)
   const answer = JSON.parse(visibleAnswer(parsed.composition, test.vars.clientContext))
   const draft = answer.parts[1].block.drafts[0]
   expect(draft).toMatchObject({ title: locale === 'en' ? 'Read' : 'Ler', dueTime: '21:00:00', dueEndTime: '21:10:00',
@@ -80,22 +79,22 @@ it.each(['en', 'pt-BR'])('drives verified chat setup and one real HTTP refine re
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
   const test = scenario('suggestions-refine', locale)
-  let baseline
+  const baseline = suggestionResponse('request', locale).parts[1].block.drafts
+  const setupRequests = []
+  // The drafts are due on the account date, which the beforeEach hook sets after this stub is built.
+  const setupTurn = (url, options) => {
+    for (const draft of baseline) draft.dueDate = test.vars.accountDate
+    return recordedStream([[{ type: 'started', turnId: 'turn', state: 'running', replayed: false }, { type: 'final', turnId: 'turn', state: 'completed',
+      response: { ...suggestionResponse('request', locale), parts: [{ type: 'block', kind: 'habitSuggestions', block: { language: locale, drafts: baseline } }],
+        aiMessage: null, conversationId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' } }]], setupRequests)(url, options)
+  }
   let requests = 0
   vi.stubGlobal('fetch', async (url, options) => {
     const path = new URL(url).pathname
     if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     if (path === '/api/auth/refresh') return refreshResponse()
+    if (path === '/api/chat/stream') return setupTurn(url, options)
     const request = new Request(url, options)
-    if (path === '/api/chat') {
-      const form = await request.formData()
-      expect(form.get('message')).toBe(test.vars.setup.input)
-      expect(JSON.parse(form.get('clientContext')).partKinds).toContain('habitSuggestions')
-      const response = suggestionResponse(request.headers.get('x-orbit-request-id'), locale)
-      baseline = response.parts[1].block.drafts
-      for (const draft of baseline) draft.dueDate = test.vars.accountDate
-      return Response.json(response, { headers: { 'x-orbit-request-id': request.headers.get('x-orbit-request-id') } })
-    }
     expect(path).toBe('/api/chat/habit-suggestions/refine')
     expect(request.method).toBe('POST')
     expect(request.headers.get('authorization')).toBe('Bearer offline-token')
@@ -107,6 +106,8 @@ it.each(['en', 'pt-BR'])('drives verified chat setup and one real HTTP refine re
   })
   await beforeEach({ test })
   expect(test.vars.preconditionFailure).toBeUndefined()
+  expect(setupRequests[0].form.get('message')).toBe(test.vars.setup.input)
+  expect(JSON.parse(setupRequests[0].form.get('clientContext')).partKinds).toContain('habitSuggestions')
   expect(test.vars.baselineDrafts).toEqual(baseline)
   const provider = new AstraHttpProvider({ config: { ...configuration.providers[0].config,
     url: 'https://astra.invalid/api/chat', transformResponse: `file://${fileURLToPath(new URL('../response.mjs', import.meta.url))}` } })

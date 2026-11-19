@@ -107,10 +107,15 @@ it.each(firstGroupIds)('grades %s by its outcome and by no tool name', (id) => {
 })
 it('counts the cases of each outcome form', () => {
   const forms = Object.groupBy(everyCase.filter((entry) => gradedByOutcome(entry.vars)), (entry) => outcomeForm(entry.vars)[0])
-  expect(Object.fromEntries(Object.entries(forms).map(([form, entries]) => [form, entries.length]))).toEqual({ read: 114, changes: 49, question: 6, refusal: 4 })
+  expect(Object.fromEntries(Object.entries(forms).map(([form, entries]) => [form, entries.length]))).toEqual({ read: 126, changes: 97, question: 6, refusal: 4 })
 })
 it('gives each case one grade method', () => {
   for (const { metadata, vars } of everyCase) {
+    // A refine case grades the revised draft that the refine route returns: it holds neither an outcome nor a tool name.
+    if (vars.refine) {
+      expect([gradedByOutcome(vars), vars.expectations !== undefined], metadata.id).toEqual([false, false])
+      continue
+    }
     expect(gradedByOutcome(vars) !== (vars.expectations !== undefined), metadata.id).toBe(true)
   }
 })

@@ -130,8 +130,8 @@ ticket writes, or outbound messages.
 local run is the only live run of the corpus. A case holds one grade method (`grade-method.mjs`).
 A case with `vars.outcome` runs on the client path (`POST /api/chat/stream`, with a conversation id) and gets the outcome
 grade of the core set: no tool name is graded. A case with `vars.expectations` runs on `POST /api/chat` and grades
-request-bound tool evidence against `catalog.yaml`. The lifecycle families keep the tool-name grade until their ticket converts them, and it stays
-until the old assistant path is deleted. The `offers-*` cases hold an `outcome` on the client path. Merge its
+request-bound tool evidence against `catalog.yaml`. No case of the launch corpus holds `expectations` now, and the
+tool-name functions stay until the old assistant path is deleted. Every family holds an `outcome` on the client path, except that the two `suggestions-refine` cases hold it in `setup.outcome` only: `refineResult` grades their refine turn. Merge its
 window summaries in chronological order with `node merge-reports.mjs`; a continuation replaces only incomplete case
 entries. `--rerun` declares the single permitted rerun of a failed case after a fix; a rerun on the same build never
 replaces a failure. Follow `TESTING.md` `### Daily windows and combined report` for the exact commands.
@@ -169,9 +169,13 @@ digest ties each report to the cases it measured. pt-BR phrasings read as a Braz
 A launch corpus case states its `outcome` in one of four forms: `read: true` (no preview and no card that asks),
 `question: true` (a card that asks, which is a `choice`, `question` or `pickList` card, and no preview; plain text fails), `refusal: true` (the status and the error code of
 the case) or `changes` (the change list of the held previews, with each record by its fixture name and never by its id).
-A `changes` case holds no rubric, and it grades a bulk write and a single write the same way. A case of the lifecycle
-families keeps `expectations`: exact ID and enum assertions, tolerant text matching, and unordered
-compound tool requirements, with one bulk call for a bulk case. Grade only the final rendered answer
+A `changes` case holds no rubric, and it grades a bulk write and a single write the same way. A case with `decision: approve | reject`
+approves or rejects the held preview and reads the saved state back. A case with `decision: hold` decides nothing and reads
+the account after the preview, so a held preview that already changed it fails. A brain dump case also holds
+`composition.previewNote: plain` (one sentence without a figure beside the preview) and `previewOnly: true` (the
+preview and its note alone). An ideas case also holds `outcome.distinctTitles: true`, and a mixed or an ideas case holds
+`outcome.reuses: true`. A same-title case with a singular request holds `answer.separate: children`: its card must offer each
+child as an option of its own. Grade only the final rendered answer
 projection with `llm-rubric`; it includes visible blocks and preview fields, excludes traces and execution payloads,
 and accepts block-only replies. Verify the fixture reset can recreate the case before each configured attempt. Run
 the offline tests after changing a corpus or its assertions.

@@ -30,6 +30,11 @@ export function validStartingBlock(block, locale) {
   } catch { return false }
 }
 
+// The answer of a client that shows no starting-step block: the readable step, once, as the message and as the only part.
+export const validStartingText = (response, client) => !client.partKinds?.includes('oneSmallStep') && singleLine(response.aiMessage)
+  && (response.parts == null || Array.isArray(response.parts) && response.parts.length === 1
+    && response.parts[0].type === 'text' && response.parts[0].text === response.aiMessage)
+
 export function startingStepComposition(parsed, vars) {
   const response = parsed.composition
   const calls = parsed.trace?.calls

@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
-import { completionControls, nullableSchema, resolveSchema, schemaVariants } from '../../tool-schema.mjs'
+import { nullableSchema, resolveSchema, schemaVariants } from '../../tool-schema.mjs'
 
 const { tools, legacyTools, postReadTools, offerTools, offerPostReadTools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
+const completionControls = (schema) => ['orbit_read_complete', 'orbit_write_complete']
+  .filter((name) => Object.hasOwn(resolveSchema(schema)?.properties ?? {}, name))
 const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
 
 // StrictToolSchema requires nullable properties; composition reads require completion; traces omit marked fields.
@@ -149,14 +151,6 @@ export function suggestionResponse(requestId, locale = 'en') {
       policyReason: null, pendingOperationId: null, payload: { language: locale, drafts } }],
     aiMessage: introduction, parts: [{ type: 'text', text: introduction },
       { type: 'block', kind: 'habitSuggestions', block: { language: locale, drafts } }] }
-}
-
-// Producer: ProcessUserChatCommand.CreationReads.cs, AwaitCreationReads.
-export function deferredCreationCall(arguments_ = { habits: [] }) {
-  const call = toolCall('bulk_create_habits', arguments_, 'Succeeded', 'deferred-creation')
-  call.result.payload = { status: 'awaiting_reads',
-    instruction: 'Nothing was previewed or saved. Read the results from this round first, then call bulk_create_habits once with the complete set. Reuse each existing habit\'s ID and stored title verbatim. Copy selected suggestion draft fields unchanged, without inventing quantities, times or activities.' }
-  return call
 }
 
 // Producer: ToolResult.FromFailure and HabitCapacityFailure, serialized by BuildToolCallResult.

@@ -105,10 +105,10 @@ describe('a converted offers write case', () => {
   })
 
   // Producer: orbit-api PendingOperationActionKeys gives each write its own key; the change list classifies five kinds of
-  // habit change and never guesses another. The offers cases gain no kind, so an unknown key stays a limit of the grader.
+  // habit change and never guesses another. An unknown key stays a limit of the grader.
   it('reports an action key that it does not classify as a limit of the grader, with the key', async () => {
-    const { verdict } = await scripted('offers-ordinary-reading-en', held({ ...reading(), actionKey: 'updateChecklist' }))
-    expect(verdict).toMatchObject({ pass: false, reason: 'The grader cannot classify a held preview: updateChecklist.',
+    const { verdict } = await scripted('offers-ordinary-reading-en', held({ ...reading(), actionKey: 'duplicateHabit' }))
+    expect(verdict).toMatchObject({ pass: false, reason: 'The grader cannot classify a held preview: duplicateHabit.',
       metadata: { graderLimit: true, unavailable: true } })
   })
 

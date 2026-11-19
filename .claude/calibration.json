@@ -151,7 +151,7 @@
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "cae25604f361b25f",
+      "digest": "49977144711bed06",
       "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: runs or extends the Astra eval core set gate and launch corpus, and reads its pass^k report to tell failed behavior from incomplete tool evidence; it declares no model or effort override."
     },

@@ -129,18 +129,6 @@ it('keeps issued suggestion drafts and typed targets while redacting draft crede
   expect(text).not.toMatch(/private-draft-credential|person@example.invalid|offline-refresh/)
 })
 
-it('retains sanitized brain dump approval and persisted schedule evidence', () => {
-  const output = outputFor()
-  output.brainDumpReadback = { pass: true, score: 1, reason: 'Persisted schedules verified.',
-    beforeApprovalUnchanged: true, persistedItems: [{ title: 'Water', schedule: 'Recurring', reused: true,
-      dueDate: '2026-10-28', dueTime: '08:00:00', identity: '12345678-1234-1234-1234-123456789abc' }] }
-  const { evidence, text } = persist(output)
-  expect(evidence.brainDumpReadback).toMatchObject({ pass: true, beforeApprovalUnchanged: true,
-    persistedItems: [{ title: 'Water', schedule: 'Recurring', reused: true, identity: '[redacted]' }] })
-  expect(text).not.toContain('12345678-1234-1234-1234-123456789abc')
-  expect(text).not.toContain('confirmationToken')
-})
-
 it('preserves the graded projection, block subtypes, full verdicts and schema-confirmed timing', () => {
   const output = outputFor([toolCall('query_habits', { date: 'today' })])
   output.answer = ' Water is ready.\n\n  Keep this spacing.\n'
@@ -338,19 +326,3 @@ it('retains diagnostic calls from a mismatched trace without accepting it as gra
   expect(evidence.timing).toEqual(traceTiming)
 })
 
-it('retains sanitized restart proposals and independent persisted readbacks', () => {
-  const output = outputFor()
-  const id = '11111111-1111-4111-8111-111111111111'
-  output.composition.pendingOperations = [{ items: [{ entityId: id, entityName: 'Water', fields: [
-    { field: 'due_date', newValue: '2026-10-29' },
-  ] }] }]
-  output.restartReadback = { held: [{ habit: { id, title: 'Water', dueDate: '2026-10-28' }, logs: [] }],
-    after: [{ habit: { id, title: 'Water', dueDate: '2026-10-29' }, logs: [] }] }
-  const { evidence, text } = persist(output)
-  expect(evidence.restart).toEqual({
-    proposed: [{ title: 'Water', dueDate: '2026-10-29' }],
-    held: [{ habit: { id: '[redacted]', title: 'Water', dueDate: '2026-10-28' }, logs: [] }],
-    after: [{ habit: { id: '[redacted]', title: 'Water', dueDate: '2026-10-29' }, logs: [] }],
-  })
-  expect(text).not.toContain(id)
-})
