@@ -2,15 +2,16 @@
 
 import { useSyncExternalStore } from 'react'
 import type { ThemeMode } from '@orbit/shared'
+import { readClientCookie, writeClientCookie } from '@/lib/client-cookie'
 import { normalizeThemeMode, resolveInitialTheme } from '@/lib/theme-dom'
 
 const listeners = new Set<() => void>()
 
 export function getSavedTheme(): ThemeMode | null {
   if (typeof document === 'undefined') return null
-  const match = /(?:^|; )orbit_theme_mode=([^;]*)/.exec(document.cookie)
+  const saved = readClientCookie('orbit_theme_mode')
   try {
-    return resolveInitialTheme(match?.[1] ? decodeURIComponent(match[1]) : null)
+    return resolveInitialTheme(saved ? decodeURIComponent(saved) : null)
   } catch {
     return null
   }
@@ -27,7 +28,7 @@ function subscribe(listener: () => void) {
 }
 
 export function setCurrentTheme(theme: ThemeMode, persist = true) {
-  if (persist) document.cookie = `orbit_theme_mode=${theme}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Strict; Secure`
+  if (persist) writeClientCookie('orbit_theme_mode', theme)
   document.documentElement.style.setProperty('color-scheme', theme)
   for (const listener of listeners) listener()
 }
