@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
+import { HERMETIC_LAUNCH_GATE, processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
 import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, REVIEW_BATCH_ORDER_MARKER, writeRunState } from "../lib/run-state.mjs"
 import { cases as lifecycleCases, cleanupLifecycleLaunch, gateSignalCases, launcherResult } from "./launch-worker-lifecycle.mjs"
 import { SIGN_IN_TEXT, TRANSIENT_TEXT, limitResultLine, resultLine, signInFailureLines } from "./claude-usage-limit.mjs"
@@ -13,15 +13,14 @@ const TOOL = "launch-worker.mjs"
 
 /**
  * Derived from the shipped .claude/orchestrator.json rather than hand-written, so a fixture cannot
- * agree with a guess about the schema while the real config carries something else. Only `command`
- * is swapped by default: the configured worker is `claude`, which is not installed in CI, and a
- * gate that needs a model CLI on PATH is not hermetic.
+ * agree with a guess about the schema while the real config carries something else. `command` is swapped,
+ * because `claude` is not installed in CI, and `launchGate` is always HERMETIC_LAUNCH_GATE.
  */
-export const launchConfig = ({ engine = {}, timeouts = {}, caps = {}, launchGate = { loadMax: 1_000_000, spacingSeconds: 0 } } = {}) => {
+export const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
   const real = realOrchestratorConfig()
   return {
     ...real,
-    launchGate,
+    launchGate: HERMETIC_LAUNCH_GATE,
     workers: { ...real.workers, [real.worker]: { ...real.workers[real.worker], command: process.execPath, ...engine } },
     timeouts: { ...real.timeouts, ...timeouts },
     caps: { ...real.caps, ...caps },
@@ -956,6 +955,27 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
     { path: innerSpawnFailure.path, env: { ...innerFailureEnv, NODE_OPTIONS: `${innerFailureEnv.NODE_OPTIONS} --require "${failGateSpawn}"` } },
   )
   discardLog(innerFailure.stdout)
+
+  const refusedGate = (launchGate) => {
+    try {
+      stageWithConfig("launch-worker-gate-refusal", TOOL, { ...realOrchestratorConfig(), launchGate })
+      return null
+    } catch (error) {
+      return error.message
+    }
+  }
+  T(
+    `${TOOL}: a staged launcher refuses the shipped launch gate, so a case module fails at once instead of waiting out the spacing`,
+    /launchGate: HERMETIC_LAUNCH_GATE/.test(refusedGate(realOrchestratorConfig().launchGate) ?? "") && /launchGate: HERMETIC_LAUNCH_GATE/.test(refusedGate(undefined) ?? ""),
+    String(refusedGate(realOrchestratorConfig().launchGate)),
+  )
+  const shippedLoadCeiling = { ...HERMETIC_LAUNCH_GATE, loadMax: realOrchestratorConfig().launchGate.loadMax }
+  T(
+    `${TOOL}: a staged launcher refuses a gate with no spacing but the shipped load ceiling, which still waits on a loaded machine`,
+    /launchGate: HERMETIC_LAUNCH_GATE/.test(refusedGate(shippedLoadCeiling) ?? ""),
+    String(refusedGate(shippedLoadCeiling)),
+  )
+  T(`${TOOL}: a staged launcher accepts the hermetic launch gate`, refusedGate(HERMETIC_LAUNCH_GATE) === null, String(refusedGate(HERMETIC_LAUNCH_GATE)))
 
   const dryRun = check(TOOL, "--dry-run resolves the plan and exits 0", [...argv, "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, options)
   const real = realOrchestratorConfig()
