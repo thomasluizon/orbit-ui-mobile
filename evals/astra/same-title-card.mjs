@@ -51,7 +51,7 @@ export function optionTargets(lists, trace) {
 }
 
 // The choice and question cards of a turn, in the order the response shows them.
-export const shownCards = (output) => (output.composition?.parts ?? []).filter((part) => part?.type === 'block' && cardKinds.includes(part.kind))
+const shownCards = (output) => (output.composition?.parts ?? []).filter((part) => part?.type === 'block' && cardKinds.includes(part.kind))
 
 // The half of the decision that a card question asks about is one read of the configured grader (ORBIT_EVAL_GRADER, as the
 // rubric), never a guess from the words of the question. The grader answers only deleted, renamed or unclear (half-answer.mjs);

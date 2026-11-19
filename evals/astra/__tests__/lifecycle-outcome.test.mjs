@@ -387,6 +387,10 @@ describe.each([
       .toEqual(role === 'reuse' ? [] : Object.keys(rowViolations[role]).toSorted()))
   })
 
+  it('holds the note beside its preview to one plain sentence', () => {
+    expect(caseOf(id).vars.composition).toEqual({ mode: 'preview', previewNote: 'plain' })
+  })
+
   it('passes the preview that holds every row, approves it and reads the saved records back', async () => {
     const { verdict } = await brainDump(id, items)
     expect(verdict).toMatchObject({ pass: true, reason: 'The saved state matches the approved changes.' })

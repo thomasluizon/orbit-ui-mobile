@@ -2396,7 +2396,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: web, locale: en, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "My head is all over the place. Need to call the dentist tomorrow, and I want to stretch every morning at eight starting today. Can you organize this?"
-    composition: { mode: preview, allowPreviewNote: true }
+    composition: { mode: preview, previewNote: plain }
     outcome:
       decision: approve
       changes:
@@ -2409,7 +2409,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: mobile, locale: pt-BR, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "Minha cabeça tá uma bagunça. Amanhã preciso ligar para o dentista, e quero alongar todo dia de manhã, às oito, começando hoje. Organiza isso pra mim?"
-    composition: { mode: preview, allowPreviewNote: true }
+    composition: { mode: preview, previewNote: plain }
     outcome:
       decision: approve
       changes:
@@ -2422,7 +2422,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: web, locale: en, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "My head is all over the place. Need to call the dentist tomorrow, and I want to stretch every morning at eight starting today. Can you organize this? Oh, and put Water on there every day too. That habit is already in my list, use that one."
-    composition: { mode: preview, allowPreviewNote: true }
+    composition: { mode: preview, previewNote: plain }
     outcome:
       decision: approve
       changes:
@@ -2436,7 +2436,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: mobile, locale: pt-BR, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "Minha cabeça tá uma bagunça. Amanhã preciso ligar para o dentista, e quero alongar todo dia de manhã, às oito, começando hoje. Organiza isso pra mim? Ah, e coloca Beber água todo dia também. Esse hábito já está na minha lista, aproveita ele."
-    composition: { mode: preview, allowPreviewNote: true }
+    composition: { mode: preview, previewNote: plain }
     outcome:
       decision: approve
       changes:
@@ -2450,7 +2450,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: web, locale: en, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "My head is all over the place. Need to call the dentist tomorrow, and I want to stretch every morning at eight starting today. Can you organize this? Also suggest one simple daily habit idea and put everything together for me to approve."
-    composition: { mode: preview, allowPreviewNote: true }
+    composition: { mode: preview, previewNote: plain }
     outcome:
       decision: approve
       changes:
@@ -2464,7 +2464,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: mobile, locale: pt-BR, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "Minha cabeça tá uma bagunça. Amanhã preciso ligar para o dentista, e quero alongar todo dia de manhã, às oito, começando hoje. Organiza isso pra mim? Me dá também uma ideia simples de hábito diário e coloca tudo junto pra eu aprovar."
-    composition: { mode: preview, allowPreviewNote: true }
+    composition: { mode: preview, previewNote: plain }
     outcome:
       decision: approve
       changes:

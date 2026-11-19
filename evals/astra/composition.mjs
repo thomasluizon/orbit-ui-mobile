@@ -68,6 +68,11 @@ function shortLines(value, maximum, allowLists) {
     && (allowLists || !/^\s*(?:[-*•]|\d+[.)])\s/u.test(line)))
 }
 
+// A note beside a preview that the case holds to one sentence with no figure; shortLines holds it to one short line.
+function plainSentence(value) {
+  return !/\d/u.test(value) && (value.match(/[.!?](?:\s|$)/gu)?.length ?? 0) <= 1
+}
+
 function validStepUp(pending) {
   return object(pending) && text(pending.id) && text(pending.displayName) && text(pending.summary)
     && pending.capabilityId === 'api-keys.read' && pending.confirmationRequirement === 'StepUp'
@@ -272,7 +277,11 @@ function modeLayout(expected, { response, parts, blocks, pending, outcome, exter
   if (expected.mode === 'clarification' && (blocks.length !== 1 || !['choice', 'question'].includes(blocks[0].kind) || pending.length || outcome)) {
     return result(false, 'Clarification requires plain text without a block or exactly one choice or question card without a write.')
   }
-  if (expected.mode === 'preview' && external && expected.allowPreviewNote !== true) return result(false, 'Preview must be the entire answer.')
+  const plainNote = expected.previewNote === 'plain'
+  if (expected.mode === 'preview' && external && expected.allowPreviewNote !== true && !plainNote) return result(false, 'Preview must be the entire answer.')
+  if (expected.mode === 'preview' && plainNote && external && !plainSentence(external)) {
+    return result(false, 'A preview note must be one sentence without a figure.')
+  }
   if (expected.mode === 'preview' && pending.length !== (expected.previews ?? 1)) return result(false, 'Missing batch preview.')
   if (expected.mode === 'outcome' && !outcome) return result(false, 'Missing typed operation outcome.')
   const leadingText = expected.mode === 'data' && parts?.[0]?.type === 'text'

@@ -267,6 +267,36 @@ describe('preview and outcome composition', () => {
     pending.items = []
     expect((await gate(produced, { composition: { mode: 'preview' } })).pass).toBe(false)
   })
+  // The brain dump cases hold the note to one plain sentence beside the preview: no figure, one sentence, one line.
+  describe('the plain note beside a preview', () => {
+    const noted = (note, policy) => gate(response([{ type: 'text', text: note }], note, { pendingOperations: [preview()] }),
+      { composition: { mode: 'preview', ...policy } })
+    const plain = { previewNote: 'plain' }
+    const allowed = { allowPreviewNote: true }
+
+    it('accepts one short sentence without a figure', async () => {
+      expect((await noted('Here is your plan, approve it below.', plain)).pass).toBe(true)
+    })
+
+    it.each([
+      ['a figure', 'Dentist on 11/20, stretching daily, and one new idea.'],
+      ['a count', 'I added 3 items for you to approve.'],
+      ['two sentences', 'Here is your plan. Approve it below.'],
+      ['a question after a sentence', 'Here is your plan! Does it look right?'],
+    ])('fails %s, and passes it where the case allows any one-line note', async (_name, note) => {
+      expect(await noted(note, plain)).toMatchObject({ pass: false, reason: 'A preview note must be one sentence without a figure.' })
+      expect((await noted(note, allowed)).pass).toBe(true)
+    })
+
+    it('fails a note of more than one line or over 180 characters, as any note beside a preview', async () => {
+      expect((await noted('Here is your plan.\nApprove it below.', plain)).pass).toBe(false)
+      expect((await noted(`${'a'.repeat(181)}.`, plain)).pass).toBe(false)
+    })
+
+    it('still refuses a note where the case allows none', async () => {
+      expect((await noted('Here is your plan.', {})).pass).toBe(false)
+    })
+  })
   it('compares every correction field with its actual original preview', async () => {
     const { preview } = await import('./fixtures/producer.mjs')
     const original = preview()
