@@ -3,6 +3,7 @@ import { createHash } from "node:crypto"
 import { join } from "node:path"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
+import { REVIEW_BATCH_ORDER_MARKER } from "../lib/run-state.mjs"
 
 import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
@@ -129,9 +130,21 @@ export const cases = () => {
     prompt,
   )
   T(
+    `${TOOL}: the brief asks for the focused checks of the change and leaves every full suite to CI`,
+    /Run only the focused checks of your change; CI runs every full suite/.test(prompt) &&
+      /`npx vitest related <changed source files> --run`/.test(prompt) && /Never start Vitest without a file name/.test(prompt) &&
+      /`node tools\/test-tools\.mjs --only <case module>` for each case module that covers a changed tool or reads a changed file \(`grep -rl <file name> tools\/__tests__`/.test(prompt) &&
+      /Never run the complete tools suite/.test(prompt) &&
+      // The hooks harness reads .claude/settings.json and every tracked doc, so a trigger narrower than these skips the suite that covers the edit.
+      /`node \.claude\/hooks\/test-hooks\.mjs` after a change to `\.claude\/\*\*`, a tracked `\*\.md` file, or another file the harness reads or imports \(`grep -n <file name> \.claude\/hooks\/test-hooks\.mjs`\)/.test(prompt) &&
+      !/hooks\/\*\*`/.test(prompt) &&
+      !/run them in full|broader suite|broader verification/i.test(prompt),
+    prompt,
+  )
+  T(
     `${TOOL}: the UI brief includes Chromium geometry within Vitest evidence`,
-    /repository's own Vitest suites are required evidence: run them in full/.test(prompt) &&
-      /including any headless Chromium geometry tests they launch/.test(prompt) &&
+    /The focused Vitest tests of your change are required evidence/.test(prompt) &&
+      /including any headless Chromium geometry test they launch/.test(prompt) &&
       !/apps\/web\/__tests__\/support\/chromium\.ts/.test(prompt) &&
       /That Chromium use is permitted within Vitest/.test(prompt),
     prompt,
@@ -213,7 +226,7 @@ export const cases = () => {
   const originalFinishing = prompt.slice(prompt.indexOf("## Finishing contract"), prompt.indexOf("\n\n---\n\n## Orchestrator's brief")).trimEnd()
   T(
     `${TOOL}: local finishing section matches the reviewed contract byte for byte`,
-    createHash("sha256").update(originalFinishing).digest("hex") === "d13c3929c22cef1389b6b076155341a2a275ba62ee1e94a2e978c5598ddd25ce",
+    createHash("sha256").update(originalFinishing).digest("hex") === "2c296c59590b16c9ddc3195567f45e7096e4b1678cf387474464e19ccb64979c",
     originalFinishing,
   )
   const reviewOut = join(root, "compose-prompt", "review-batch.md")
@@ -227,7 +240,8 @@ export const cases = () => {
   const reviewPrompt = composed(reviewOut)
   T(
     `${TOOL}: review batch ends after a tested commit and reports its SHA without delivery instructions`,
-    /Run the broader suite/.test(reviewPrompt) &&
+    /CI runs the full suites after the push/.test(reviewPrompt) &&
+      !/broader suite/i.test(reviewPrompt) &&
       /Report the commit SHA/.test(reviewPrompt) &&
       /Stop after the tested commit/.test(reviewPrompt) &&
       /Do not push or open a pull request/.test(reviewPrompt) &&
@@ -236,6 +250,11 @@ export const cases = () => {
       !/One commit series on your branch, pushed/.test(reviewPrompt) &&
       !/The pull request must NOT be a draft/.test(reviewPrompt),
     reviewPrompt,
+  )
+  T(
+    `${TOOL}: only the review batch order carries the marker that makes launch-worker.mjs spend a fix round`,
+    reviewPrompt.includes(REVIEW_BATCH_ORDER_MARKER) && !prompt.includes(REVIEW_BATCH_ORDER_MARKER),
+    reviewPrompt.slice(0, 400),
   )
   T(
     `${TOOL}: review batch report ends with the literal sections the orchestrator copies into the body`,
@@ -348,6 +367,17 @@ export const cases = () => {
       deliverySentences.every((sentence) => !cloudPrompt.includes(sentence)),
     cloudPrompt.slice(-1200),
   )
+  for (const [name, text] of [
+    ["the Cloud order", cloudPrompt],
+    ["the orchestrate skill", readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")],
+    ["the sleep skill", readFileSync(join(REPO_ROOT, ".claude", "skills", "sleep", "SKILL.md"), "utf8")],
+  ]) {
+    T(
+      `${TOOL}: ${name} asks for no broader verification beside the focused checks`,
+      !/broader verification/i.test(text),
+      text.split("\n").filter((line) => /broader verification/i.test(line)).join("\n"),
+    )
+  }
   /**
    * One brief feeds the local, Cloud and explicit main orders, so each one is asserted separately: a
    * later split could drop the block from any single mode and the other two would stay green. Each
@@ -404,7 +434,7 @@ export const cases = () => {
   T(
     `${TOOL}: orchestration resolves review batch threads before its single push`,
     /compose its order with `--review-batch`/.test(orchestrateSkill) &&
-      /worker commits, runs the\s+broader suite, reports the commit SHA and stops without pushing/.test(orchestrateSkill) &&
+      /worker commits, runs the\s+focused tests of its change, reports the commit SHA and stops without pushing/.test(orchestrateSkill) &&
       /resolve every identified thread on that commit, run the local review\s+gate on it, then push once/.test(orchestrateSkill) &&
       !/A worker cannot keep that order\s+under today's contract/.test(orchestrateSkill),
     orchestrateSkill,
