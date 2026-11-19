@@ -75,7 +75,7 @@ describe('shared toast geometry', () => {
     } finally { view.unmount(); clearPendingNotificationDeletes(); await page.close() }
   })
 
-  it.each([412, 1352])('shows the pending delete alone beside the update banner when a failed delete waits at %ipx', async (width) => {
+  it.each([412, 1352])('replaces a failed delete toast with the newer pending delete beside the update banner at %ipx', async (width) => {
     vi.useFakeTimers()
     queuePendingNotificationDelete('failed-stack', () => { throw new Error('Delete failed') })
     vi.advanceTimersByTime(5000)
@@ -97,6 +97,7 @@ describe('shared toast geometry', () => {
       const slot = page.locator('[data-shell-notice-content]')
       const measured = await slot.evaluate(measureToastStack)
       expect(measured).toHaveLength(1)
+      expect(await slot.locator('[data-kind]').getAttribute('aria-label')).toBe(ptBR.notifications.deleteQueued)
       expect(await slot.evaluate(element => {
         const banner = element.querySelector('[data-update-banner]')!.getBoundingClientRect()
         const toast = element.querySelector('[data-kind]')!.getBoundingClientRect()

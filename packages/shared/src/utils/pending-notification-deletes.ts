@@ -13,7 +13,6 @@ const pendingDeleteTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const activeDeleteAttempts = new Map<string, symbol>()
 const subscribers = new Set<() => void>()
 let pendingDeleteSnapshot: string[] = []
-let failedDeleteSnapshot: string[] = []
 let noticeSnapshot: NotificationDeleteNoticeState | null = null
 
 type NotificationDeleteNoticeState = { kind: 'pending' | 'failed'; id: string }
@@ -25,7 +24,6 @@ let noticeOwner: NoticeOwner | null = null
 function syncPendingDeleteSnapshot(): void {
   if (noticeOwner?.kind === 'pending' && !pendingDeleteTimers.has(noticeOwner.id)) noticeOwner = null
   pendingDeleteSnapshot = Array.from(pendingDeleteTimers.keys())
-  failedDeleteSnapshot = noticeOwner?.kind === 'failed' ? [noticeOwner.id] : []
   if (noticeOwner?.kind !== noticeSnapshot?.kind || noticeOwner?.id !== noticeSnapshot?.id) {
     noticeSnapshot = noticeOwner && { kind: noticeOwner.kind, id: noticeOwner.id }
   }
@@ -54,7 +52,7 @@ export function getPendingNotificationDeleteIdsSnapshot(): string[] {
 /**
  * Returns the one delete toast to show, or null, as a stable snapshot. A queued delete takes the
  * toast from the old owner. A failure takes it too, but never from a pending undo. When the owner
- * ends, no older delete gets the toast back, and the failed list holds at most the owner.
+ * ends, no older delete gets the toast back. Only a failed owner can be retried.
  */
 export function getNotificationDeleteNoticeSnapshot(): NotificationDeleteNoticeState | null {
   return noticeSnapshot
@@ -71,11 +69,6 @@ export function dismissNotificationDeleteNotices(): void {
   noticeOwner = null
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
-}
-
-/** Returns failed delayed deletes that remain available for retry. */
-export function getFailedNotificationDeleteIdsSnapshot(): string[] {
-  return failedDeleteSnapshot
 }
 
 function takeFailedDelete(notificationId: string): PendingDeleteExecutor | null {

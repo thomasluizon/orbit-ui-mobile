@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cancelPendingNotificationDelete,
-  getFailedNotificationDeleteIdsSnapshot,
+  getNotificationDeleteNoticeSnapshot,
   getPendingNotificationDeleteIdsSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
@@ -59,12 +59,12 @@ describe('web pending notification deletes', () => {
     queuePendingNotificationDelete('notif-1', execute)
 
     await vi.advanceTimersByTimeAsync(5000)
-    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['notif-1'])
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'notif-1' })
     expect(retryFailedNotificationDelete('notif-1')).toBe(true)
-    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+    expect(getNotificationDeleteNoticeSnapshot()?.kind).not.toBe('failed')
 
     await vi.advanceTimersByTimeAsync(5000)
     expect(execute).toHaveBeenCalledTimes(2)
-    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+    expect(getNotificationDeleteNoticeSnapshot()?.kind).not.toBe('failed')
   })
 })

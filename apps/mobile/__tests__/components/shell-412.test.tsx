@@ -72,7 +72,7 @@ describe('Shell412 mobile', () => {
     }
   })
 
-  it('shows the pending delete alone when a failed delete waits', async () => {
+  it('replaces a failed delete toast with the newer pending delete', async () => {
     vi.useFakeTimers()
     let tree!: ReactTestRenderer
     try {

@@ -37,7 +37,7 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useDeleteNotification } from '@/hooks/use-notifications'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import {
-  getFailedNotificationDeleteIdsSnapshot,
+  getNotificationDeleteNoticeSnapshot,
   getPendingNotificationDeleteIdsSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
@@ -2738,7 +2738,7 @@ describe('mobile auth store security paths', () => {
       queuePendingNotificationDelete('active-notification', executeActiveDelete)
       queuePendingNotificationDelete('failed-notification', failedDelete)
       await vi.advanceTimersByTimeAsync(5000)
-      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['failed-notification'])
+      expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'failed-notification' })
       queuePendingNotificationDelete('pending-notification', pendingDelete)
 
       await useAuthStore.getState().logout()
@@ -2756,7 +2756,7 @@ describe('mobile auth store security paths', () => {
       await vi.advanceTimersByTimeAsync(5000)
 
       expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
-      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(getNotificationDeleteNoticeSnapshot()?.kind).not.toBe('failed')
       expect(retryFailedNotificationDelete('failed-notification')).toBe(false)
       expect(retryFailedNotificationDelete('active-notification')).toBe(false)
       expect(failedDelete).toHaveBeenCalledTimes(1)
@@ -2781,11 +2781,11 @@ describe('mobile auth store security paths', () => {
       })
       queuePendingNotificationDelete('account-a-notification', executeDelete)
       await vi.advanceTimersByTimeAsync(5000)
-      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['account-a-notification'])
+      expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'account-a-notification' })
 
       await useAuthStore.getState().logout()
 
-      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(getNotificationDeleteNoticeSnapshot()?.kind).not.toBe('failed')
       expect(retryFailedNotificationDelete('account-a-notification')).toBe(false)
 
       await useAuthStore.getState().login('account-b-token', null, {
@@ -2794,7 +2794,7 @@ describe('mobile auth store security paths', () => {
         name: 'Account B',
       })
 
-      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(getNotificationDeleteNoticeSnapshot()?.kind).not.toBe('failed')
       expect(executeDelete).toHaveBeenCalledTimes(1)
     } finally {
       resetPendingNotificationDeletesForTests()
