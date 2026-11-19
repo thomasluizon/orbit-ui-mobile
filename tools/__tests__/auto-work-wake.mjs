@@ -128,6 +128,32 @@ const stateCases = () => {
   saveWakeMarks(marks, checkout)
   writeRunState({ ...readRunState(checkout), sessionId: "child", relay: { from: "wake" } }, checkout)
   T("wake: a relay reads the same wake marks from the intake file", JSON.stringify(initialWakeMarks(readIntake(checkout), Date.now())) === JSON.stringify(marks))
+
+  const listedIntake = { wake: { seen: { pullRequests: ["api#1105 old"], alerts: ["ui dependabot 186"] } },
+    pullRequests: { open: { "api#1106": { key: "api#1106", head: "1eb7c13b62064064a60a3589eff1b1812f39190e" } } },
+    alerts: { open: { "api code-scanning 28": { key: "api code-scanning 28" } } } }
+  const listed = initialWakeMarks(listedIntake, Date.now())
+  T("wake: the pull requests and alerts of the last listing join the seen keys of the last waiter",
+    JSON.stringify(listed.seen.pullRequests) === JSON.stringify(["api#1105 old", "api#1106 1eb7c13b62064064a60a3589eff1b1812f39190e"]) &&
+    JSON.stringify(listed.seen.alerts) === JSON.stringify(["ui dependabot 186", "api code-scanning 28"]), JSON.stringify(listed.seen))
+  T("wake: with no listing the pull request and alert keys stay unknown, so every open item wakes",
+    initialWakeMarks({}, Date.now()).seen.pullRequests === undefined && initialWakeMarks({}, Date.now()).seen.alerts === undefined)
+  const head = evaluateChecks([{ source: "pullRequests" }], [{ status: "fulfilled", value: { keys: ["api#1106 2222222222222222222222222222222222222222"] } }],
+    startMarks({ pullRequests: ["api#1106 1eb7c13b62064064a60a3589eff1b1812f39190e"] }), Date.now())
+  T("wake: a new head on an open pull request wakes", JSON.stringify(head.wakes) ===
+    JSON.stringify([{ source: "pullRequests", kind: "new", items: ["api#1106 2222222222222222222222222222222222222222"] }]), JSON.stringify(head))
+  const first = evaluateChecks([{ source: "alerts" }], [{ status: "fulfilled", value: { keys: ["api code-scanning 28"] } }], startMarks(), Date.now())
+  T("wake: an alert with no baseline wakes, because the alert source is never seeded silently", first.wakes[0]?.items?.[0] === "api code-scanning 28", JSON.stringify(first))
+  const partial = evaluateChecks([{ source: "alerts" }], [{ status: "fulfilled", value: { keys: ["api code-scanning 28"], failure: "GitHub read failed at x: gh: Not Found (HTTP 404)" } }],
+    startMarks({ alerts: ["api code-scanning 28"] }), Date.now())
+  T("wake: a partial alert read wakes once for its failure and keeps the keys it read", JSON.stringify(partial.wakes) ===
+    JSON.stringify([{ source: "alerts", kind: "failure", failure: "GitHub read failed at x: gh: Not Found (HTTP 404)" }]) &&
+    partial.marks.seen.alerts[0] === "api code-scanning 28", JSON.stringify(partial))
+  const withheld = evaluateChecks([{ source: "pullRequests" }], [{ status: "fulfilled", value: { keys: [], failure: "Cannot read the tickets of ui#2510: HTTP 502", unreadKeys: ["ui#2510"] } }],
+    startMarks({ pullRequests: ["ui#2510 abc", "ui#2510", "ui#25101 abc", "ui#2511 abc"] }), Date.now())
+  T("wake: an unread key keeps its own seen keys, and no key of another pull request that shares its digits", JSON.stringify(withheld.marks.seen.pullRequests) ===
+    JSON.stringify(["ui#2510 abc", "ui#2510"]) && JSON.stringify(withheld.wakes) === JSON.stringify([{ source: "pullRequests", kind: "failure", failure: "Cannot read the tickets of ui#2510: HTTP 502" }]),
+  JSON.stringify(withheld))
 }
 
 const commandCases = async () => {

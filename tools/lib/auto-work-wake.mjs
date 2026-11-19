@@ -1,5 +1,6 @@
 import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
+import { listedPullRequests, listedWakeKeys } from "./auto-work-github.mjs"
 import { pendingReviewKeys, REVIEW_RUN_SECONDS, updateIntake } from "./auto-work-intake.mjs"
 import { runBounded } from "./bounded-process.mjs"
 import { listBoardState } from "./github-issues.mjs"
@@ -51,11 +52,20 @@ export const reviewCheck = ({ run, repoRoot = REPO_ROOT }) => async () => {
   return { keys: cycle.keys, ...(typeof cycle.failure === "string" ? { failure: cycle.failure } : {}) }
 }
 
-/** Seen keys, failure signatures and the Sentry listing time, all carried in the intake file on GitHub. */
+/**
+ * Seen keys, failure signatures and the Sentry listing time, from the intake file. A listed pull request replaces every
+ * key the last waiter saved for it, so a listed draft keeps no key and its ready head wakes the next waiter. Alert keys
+ * stay a union: until recordTicketClosedAlerts runs, a listed alert key can lack the ticket-closed part of its waiter key,
+ * so a replacement could wake every seed.
+ */
 export const initialWakeMarks = (intake, nowMilliseconds) => {
   const marks = intake?.wake ?? {}
+  const pulls = listedPullRequests(intake)
+  const replacedByListing = (source, key) => source === "pullRequests" && pulls.some((pull) => key === pull || key.startsWith(`${pull} `))
+  const listed = Object.fromEntries(Object.entries(listedWakeKeys(intake))
+    .map(([source, keys]) => [source, [...new Set([...(marks.seen?.[source] ?? []).filter((key) => !replacedByListing(source, key)), ...keys])]]))
   return {
-    seen: { reviews: pendingReviewKeys(intake), ...marks.seen },
+    seen: { reviews: pendingReviewKeys(intake), ...marks.seen, ...listed },
     failures: { ...marks.failures },
     sentryListedAt: Number.isFinite(Date.parse(marks.sentryListedAt)) ? marks.sentryListedAt : new Date(nowMilliseconds).toISOString(),
   }
@@ -86,7 +96,10 @@ export const evaluateChecks = (checks, outcomes, marks, nowMilliseconds, sentryP
     } else delete next.failures[check.source]
     if (outcome.status === "rejected") return
     const known = next.seen[check.source]
-    const keys = outcome.value.keys
+    // A key whose read failed stays seen, so the recovery of that read is not new. An unread key matches itself and the keys that extend it with a space and a head.
+    const unread = (known ?? []).filter((key) => (outcome.value.unreadPrefixes ?? []).some((prefix) => key.startsWith(prefix)) ||
+      (outcome.value.unreadKeys ?? []).some((unreadKey) => key === unreadKey || key.startsWith(`${unreadKey} `)))
+    const keys = [...new Set([...outcome.value.keys, ...unread])]
     next.seen[check.source] = keys
     if (known === undefined && check.seed) return
     const items = keys.filter((key) => !(known ?? []).includes(key))

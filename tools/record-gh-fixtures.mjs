@@ -132,7 +132,7 @@ const boardStateQuery = `query BoardState($o: String!, $r: String!, $after: Stri
     }
   }
 }`
-const restIssueFilter = "{number,html_url,title,body,state:(.state|ascii_upcase),state_reason:(if .state_reason==null then null else (.state_reason|ascii_upcase) end),labels:[.labels[]|{name}]}"
+const restIssueFilter = "{number,html_url,title,body,state:(.state|ascii_upcase),state_reason:(if .state_reason==null then null else (.state_reason|ascii_upcase) end),closed_at,labels:[.labels[]|{name}]}"
 const dependencySampleNumber = 318
 const [repositoryOwner, repositoryName] = config.repository.split("/")
 const commands = {

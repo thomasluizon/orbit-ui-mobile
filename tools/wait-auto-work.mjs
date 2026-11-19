@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { alertCheck, autoWorkRepositories, githubPageReader, listOpenAlerts, listOpenPullRequests, otherLiveRuns, pullRequestCheck } from "./lib/auto-work-github.mjs"
+import { readTicketState } from "./lib/github-issues.mjs"
 import { boardCheck, commandRunner, initialWakeMarks, mailCheck, reviewCheck, saveWakeMarks, SENTRY_MODE, watchIntake } from "./lib/auto-work-wake.mjs"
 import { readIntake } from "./lib/auto-work-intake.mjs"
 import { REPO_ROOT, clearWakeSource, readRunState, registerWakeSource } from "./lib/run-state.mjs"
@@ -6,14 +8,19 @@ import { REPO_ROOT, clearWakeSource, readRunState, registerWakeSource } from "./
 const USAGE = `usage: wait-auto-work.mjs [--interval-seconds <n>]
 Register an idle wake source, then check the intake sources at the end of each interval.
 The board (open tickets on the project with their updatedAt and open blockers, read through
-tools/lib/github-issues.mjs with no model call), the mailbox (orbit-mail.mjs --unseen) and the reviews
-(orbit-play-reviews.mjs --cycle) are checked; a key absent from intake.wake.seen (run-state/intake.json in the
+tools/lib/github-issues.mjs with no model call), the mailbox (orbit-mail.mjs --unseen), the reviews
+(orbit-play-reviews.mjs --cycle), the open pull requests that neither the run nor another live run
+owns (one key per pull request and head, and one key per pull request from an unexpected author or
+with a reported mark) and the open code scanning, secret scanning and Dependabot alerts of the ui, api
+and landing repositories (tools/lib/auto-work-github.mjs) are checked. An open alert whose carrying
+ticket is closed has a second key, which for code scanning names the commit that the alert's own
+category analyzed last, and which for a Dependabot alert gains "overdue" once, 24 hours after that ticket closed. A key absent from intake.wake.seen (run-state/intake.json in the
 tickets repository) is new.
 Exit only for a new item, a source failure with a new signature, the hourly Sentry MCP listing
 (no read-only Sentry token exists, so sentryMode is mcp-hourly) or a change of the owning mode.
 The interval defaults to 900 seconds; a positive finite value is required.
 No stdin. Prints one JSON result with reason, waitedSeconds and sentryMode; a SOURCE result adds
-wakes, each with source (board, mail, reviews or sentry), kind (new, failure or due) and items or failure.
+wakes, each with source (board, mail, reviews, pullRequests, alerts or sentry), kind (new, failure or due) and items or failure.
 --help, -h print usage
 exit codes: 0 source wake or mode changed; 1 missing run, registration or state failure; 2 invalid arguments; 130 SIGINT; 143 SIGTERM`
 const args = process.argv.slice(2)
@@ -40,11 +47,17 @@ try {
   if (!registerWakeSource({ pid: process.pid, kind: "auto-work-waiter", sessionId: state.sessionId,
     what: "Auto-work intake cycle", startedAt: new Date().toISOString() })) finish("WAKE_REGISTRATION_FAILED", 1)
   const run = commandRunner({ signal: commands.signal })
+  const readPages = githubPageReader({ signal: commands.signal })
+  // The repositories resolve inside each check, so a failure there is a named source failure.
+  const reading = () => ({ repositories: autoWorkRepositories(), readPages })
   const modeChangedIn = (current) =>
     current?.sessionId !== state.sessionId || !current.autoWork || !current.sleep || Boolean(current.relay?.pending)
   const result = await watchIntake({
     checks: [{ source: "board", seed: true, run: boardCheck() }, { source: "mail", run: mailCheck({ run }) },
-      { source: "reviews", run: reviewCheck({ run }) }],
+      { source: "reviews", run: reviewCheck({ run }) },
+      { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests({ ...reading(), readTicketState }), readState: readRunState, readIntakeMarks: readIntake, readOtherRuns: otherLiveRuns }) },
+      { source: "alerts", run: alertCheck({ list: () => listOpenAlerts(reading()), readIntakeMarks: readIntake,
+        readTicketState }) }],
     marks: initialWakeMarks(readIntake(), started),
     intervalMilliseconds: seconds * 1000,
     modeChanged: () => modeChangedIn(readRunState()),
