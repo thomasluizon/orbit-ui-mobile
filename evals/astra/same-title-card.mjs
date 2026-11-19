@@ -12,8 +12,8 @@ const emptyGuid = /^[0-]+$/u
 const sameSet = (left, right) => left.length === right.length && left.every((id) => right.includes(id))
 const cardKinds = ['choice', 'question']
 const choiceTypes = ['choice', 'singleChoice', 'multipleChoice']
-// The grader-limit wording starts "The grader cannot", so the report never blames the model for a card it cannot read.
-const graderLimit = (cause, prompt) => result(false, `The grader cannot ${cause}: ${prompt}`)
+// A grader limit carries graderLimit: true, so the report never blames the model for a card it cannot read.
+const graderLimit = (cause, prompt) => ({ ...result(false, `The grader cannot ${cause}: ${prompt}`), graderLimit: true })
 const cannotTell = 'tell which action the card question asks about (delete or rename)'
 
 // Producer: orbit-api AskTool gives a choice option a server-only target_ids list (the habits read this turn that the option
@@ -66,7 +66,7 @@ const halfSchema = JSON.stringify({ type: 'object', additionalProperties: false,
 
 // The question and the decision are data. The question is untrusted text of the assistant, so the prompt quotes it as one
 // JSON string and tells the grader to follow no instruction in it.
-export function halfPrompt(list, decision, titles) {
+function halfPrompt(list, decision, titles) {
   const records = `${titles.child} habits`
   return [
     'A person asked an assistant to delete some records and to rename the other records. The assistant then showed the person one card question.',

@@ -376,7 +376,7 @@ const renamedHalf = ids.slice(0, 4)
 // each read with the half or with a value that is not a half. A read goes first to the lists in order, then to a yesNo question.
 const readsAs = (...values) => { for (const half of values) vi.mocked(askClaude).mockResolvedValueOnce({ value: { half } }) }
 const limitOf = (prompt, cause = 'tell which action the card question asks about (delete or rename)') => ({ pass: false, score: 0,
-  reason: `The grader cannot ${cause}: ${prompt}` })
+  reason: `The grader cannot ${cause}: ${prompt}`, graderLimit: true })
 const halves = { deleted: deletedHalf, renamed: renamedHalf }
 
 // A record card lets the person select either half of the decision, so the selection is the half that the read names.
@@ -528,13 +528,14 @@ it.each([
 
 // The model-fault wording stays for a card the grader reads in full: a single-choice record list cannot select two.
 it.each([
-  ['a readable yes or no question', { type: 'yesNo', prompt: 'Rename the other five?' }, ['renamed'], 'No selection the card allows states the whole decision.'],
+  ['a readable yes or no question', { type: 'yesNo', prompt: 'Rename the other five?' }, ['renamed'],
+    { pass: false, score: 0, reason: 'No selection the card allows states the whole decision.' }],
   ['a scale question', { type: 'scale', prompt: 'How sure are you?', lowLabel: 'Unsure', highLabel: 'Sure' }, [],
-    'The grader cannot answer a scale card question: How sure are you?'],
-])('fails a single-choice record list beside %s by what the grader can read', async (_name, question, reads, reason) => {
+    limitOf('How sure are you?', 'answer a scale card question')],
+])('fails a single-choice record list beside %s by what the grader can read', async (_name, question, reads, expected) => {
   readsAs(...reads)
   const card = withQuestion(questionCard(ids, 'Which one should I delete?', 'singleChoice'), question)
-  expect(await sameTitleCard(shown(card), cardVars(ids, 'en'))).toEqual({ pass: false, score: 0, reason })
+  expect(await sameTitleCard(shown(card), cardVars(ids, 'en'))).toEqual(expected)
 })
 
 it('lets a card case show one question and keeps every other preview case strict', () => {

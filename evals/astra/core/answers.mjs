@@ -102,7 +102,7 @@ export async function answerQuestion(turn, vars) {
     const sameTitle = await sameTitleCard({ composition: turn.response, trace: turn.trace }, { clientContext: vars.clientContext,
       sameTitleBaseline: { children: records.children.map((id) => ({ id })) },
       sameTitleSet: { answer: { ...answer.sameTitle, text: answer.text[locale] }, renamed: { title: retitle } } })
-    return sameTitle.pass ? sameTitle : { ...sameTitle, graderLimit: sameTitle.reason.startsWith('The grader cannot') }
+    return sameTitle.pass ? sameTitle : { ...sameTitle, graderLimit: sameTitle.graderLimit === true }
   }
   const recordId = pickedRecord(answer.pick, records)
   const selection = card.kind === 'pickList' ? pickOnList(card, turn.trace, recordId, locale) : pickOnCard(card, turn.trace, recordId, locale)

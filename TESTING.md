@@ -1057,10 +1057,10 @@ offline in fix rounds and never authorizes an additional live run.
 
 From `evals/astra`, set `ORBIT_EVAL_GRADER="file://$PWD/claude-grader.mjs"`, an absolute path: promptfoo resolves a
 relative `file://` grader from the folder of the run's config, and the core configs are in `core/`. Before the first chat
-turn, each graded run (`hooks.mjs`, and `core/hooks.mjs` when a case has a rubric) sends one small rubric through the
-configured grader from the folder of its config (`grader-preflight.mjs`). When the grader returns an error or no grade,
-the run stops before it spends the eval key. That check costs one grader call on the worker account. The provider runs
-the installed Claude Code CLI (`claude` on the runner's `PATH`) on the worker account:
+turn, each graded run (`hooks.mjs`, and `core/hooks.mjs` when a case has a rubric or a same-title card answer) sends
+one small rubric through the configured grader from the folder of its config (`grader-preflight.mjs`). When the grader
+returns an error or no grade, the run stops before it spends the eval key. That check costs one grader call on the
+worker account. The provider runs the installed Claude Code CLI (`claude` on the runner's `PATH`) on the worker account:
 `ORBIT_WORKER_CLAUDE_CONFIG_DIR` must name the signed-in worker account directory, as `tools/launch-worker.mjs` reads it. The child gets `CLAUDE_CONFIG_DIR` set to that
 directory. Every `ANTHROPIC_`, `CLAUDE_CODE_`, `CCR_` and `ORBIT_EVAL_` variable and `AWS_BEARER_TOKEN_BEDROCK` are
 removed, so the sign-in of that directory is the only credential the CLI can select. After that filter, the child also

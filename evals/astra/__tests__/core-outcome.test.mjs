@@ -387,6 +387,15 @@ describe('a same-title records card whose question names both actions', () => {
     expect(output.graderLimit).toBeUndefined()
     expect(verdict).toMatchObject({ pass: true })
   })
+
+  it('marks a grader limit when the read of the question is unclear, and does not answer', async () => {
+    vi.mocked(askClaude).mockReset().mockResolvedValue({ value: { half: 'unclear' } })
+    const { sent, output, verdict } = await scripted([textReply(null, [card]), finalOf('complete', 1)], source, { traces: [{ calls: [] }] })
+    expect(sent).toHaveLength(1)
+    expect(output).toMatchObject({ graderLimit: true,
+      answerFailure: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
+    expect(verdict).toMatchObject({ pass: false, metadata: { graderLimit: true } })
+  })
 })
 
 // The round 3 rule holds for a read request too: only a card is the question, and a list card asks the person to act.
