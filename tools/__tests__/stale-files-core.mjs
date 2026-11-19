@@ -474,6 +474,10 @@ const unreadableGitCases = () => {
     "it holds work nobody merged: no pull request, and no merged branch contains its branch")
   same("stale-files: a branch with no pull request whose containment read fails stays with the unreadable reason, not as work nobody merged",
     reasonOf(listWith({ pullRequests: [], fails: (failed) => failed === "rev-list" }), finished), "git rev-list could not be read")
+  // `answers` has no `reflog` key, so `git reflog exists` answers "": the reflog exists, and only the failed walk keeps the worktree.
+  same("stale-files: a branch with no pull request whose reflog walk fails stays with the unreadable reason, though its reflog exists",
+    reasonOf(listWith({ pullRequests: [], fails: (failed) => failed === "log" }), finished),
+    "the age of its branch could not be read, and a branch with no pull request can be the branch of a queued launch")
   same("stale-files: a branch with no pull request whose git for-each-ref fails stays with the unreadable reason, not as work nobody merged",
     reasonOf(listWith({ pullRequests: [], over: outside, fails: (failed) => failed === "for-each-ref" }), finished), "git for-each-ref could not be read")
   // A second branch that holds the tip is a container only when its merged pull request head holds the tip too.
