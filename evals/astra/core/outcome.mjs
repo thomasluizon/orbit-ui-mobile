@@ -142,6 +142,13 @@ function gradeRefusal(output, vars) {
     : verdict(false, `The request was refused with HTTP ${status} (${code}); the case expects ${wanted}.`)
 }
 
+// A request that states `distinctTitles` creates each record once: two created records of the preview with one title (in one
+// normal form) are one record held twice.
+function sharedTitle(changes) {
+  const titles = changes.filter((change) => change.kind === 'create' && change.fields.title !== undefined).map((change) => normalize(change.fields.title))
+  return new Set(titles).size !== titles.length
+}
+
 // The outcome of the turns before any approval: the questions that came before the preview, and the change list of the
 // held previews against the expected list. A read turn holds no preview and no card that asks the person. A turn that
 // must end in a question holds a card that asks and no preview. A refusal is the status and the code of the case and no
@@ -180,8 +187,9 @@ export function gradePreview(output, vars) {
       + 'held write sets or clears from one that the server derives.', { unavailable: true })
   }
   const comparison = compareChanges(expected.changes, changes, { records: vars.core.records, accountDate: vars.accountDate }, questions > 0)
-  return comparison.failure ? verdict(false, comparison.failure)
-    : verdict(true, 'The held previews hold exactly the requested changes.', { matched: comparison.matched })
+  if (comparison.failure) return verdict(false, comparison.failure)
+  if (expected.distinctTitles && sharedTitle(changes)) return verdict(false, 'Two created records of the preview share a title.')
+  return verdict(true, 'The held previews hold exactly the requested changes.', { matched: comparison.matched })
 }
 
 // What the readback compares of each stored habit: its identity, its title, its frequency and whether it is logged on

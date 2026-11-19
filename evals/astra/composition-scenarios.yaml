@@ -2398,6 +2398,7 @@
     input: "My head is all over the place. Need to call the dentist tomorrow, and I want to stretch every morning at eight starting today. Can you organize this?"
     composition: { mode: preview, previewNote: plain, previewOnly: true }
     outcome:
+      reuses: true
       decision: approve
       changes:
         - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [dentist] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
@@ -2411,6 +2412,7 @@
     input: "Minha cabeça tá uma bagunça. Amanhã preciso ligar para o dentista, e quero alongar todo dia de manhã, às oito, começando hoje. Organiza isso pra mim?"
     composition: { mode: preview, previewNote: plain, previewOnly: true }
     outcome:
+      reuses: true
       decision: approve
       changes:
         - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [dentista] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
@@ -2452,6 +2454,8 @@
     input: "My head is all over the place. Need to call the dentist tomorrow, and I want to stretch every morning at eight starting today. Can you organize this? Also suggest one simple daily habit idea and put everything together for me to approve."
     composition: { mode: preview, previewNote: plain, previewOnly: true }
     outcome:
+      reuses: true
+      distinctTitles: true
       decision: approve
       changes:
         - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [dentist] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
@@ -2466,6 +2470,8 @@
     input: "Minha cabeça tá uma bagunça. Amanhã preciso ligar para o dentista, e quero alongar todo dia de manhã, às oito, começando hoje. Organiza isso pra mim? Me dá também uma ideia simples de hábito diário e coloca tudo junto pra eu aprovar."
     composition: { mode: preview, previewNote: plain, previewOnly: true }
     outcome:
+      reuses: true
+      distinctTitles: true
       decision: approve
       changes:
         - { kind: create, fields: { parent_habit_id: No parent, title: { contains: [dentista] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }

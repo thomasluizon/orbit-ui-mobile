@@ -423,3 +423,80 @@ describe.each([
       expect((await brainDump(id, broken, { outcome: withoutRow(id, at, field) })).verdict.pass, `without ${field}`).toBe(true)
     })
 })
+
+// Producer: the records card that orbit-api CompleteRecordCard sends over more than four records (a choice holds four options
+// at most, AskTool.cs): one question block with one singleChoice `records` question, one option per record in read order, its
+// id the record id.
+const recordsQuestion = (offered, id = 'records') => ({ id, type: 'singleChoice', prompt: 'Which Water - 710ml habit do you want to rename?',
+  allowFreeText: false, options: offered.map((record) => ({ id: record, label: `Water - 710ml (${children.indexOf(record) + 1} of ${children.length})` })) })
+const recordsCard = (...questions) => turnOf({ parts: [{ type: 'block', kind: 'question', block: { blockId: '99999999-9999-4999-8999-999999999999',
+  expiresAtUtc: '2026-11-14T04:33:04Z', questions } }] })
+const thirdRename = turnOf({ pendingOperations: [previewOf('updateHabits', [itemOf(children[2], 'Water - 710ml', { title: ['Water - 710ml', 'Water - 1.18L'] })])] })
+const singularCases = ['singular', 'control-thanks', 'control-order'].flatMap((name) => ['en', 'pt'].map((suffix) => `same-title-${name}-${suffix}`))
+const withoutSeparate = (id) => {
+  const { answer } = structuredClone(caseOf(id).vars)
+  delete answer.separate
+  return answer
+}
+const singular = (id, card, extra = {}) => attempt(id, { replies: [card, thirdRename], habits: sameTitleHabits, records: sameTitleRecords, ...extra })
+
+describe('the card of a singular same-title request', () => {
+  it.each(singularCases)('asks %s for each of the six children as its own option', (id) => {
+    expect(caseOf(id).vars.answer).toMatchObject({ pick: { of: 'children', position: 2 }, separate: 'children' })
+  })
+
+  it.each(singularCases)('passes %s when the card offers each of the six children as a separate option', async (id) => {
+    const { verdict, sent } = await singular(id, recordsCard(recordsQuestion(children)))
+    expect(verdict.pass, verdict.reason).toBe(true)
+    expect(sent[1].blockAnswer).toMatchObject({ answers: [{ questionId: 'records', selectedIds: [children[2]] }] })
+  })
+
+  it.each(singularCases.flatMap((id) => [
+    [id, 'four of the six', children.slice(0, 4), 4],
+    [id, 'five of the six, without the picked one', children.filter((_, index) => index !== 2), 5],
+    [id, 'five of the six, with the picked one', children.filter((_, index) => index !== 5), 5],
+  ]))('fails %s for a card that offers %s, sends no answer, and passes once the case states no separate options', async (id, _name, offered, count) => {
+    const { verdict, sent } = await singular(id, recordsCard(recordsQuestion(offered)))
+    expect(verdict).toMatchObject({ pass: false, reason: `The card offers ${count} of the 6 same-title children as separate options.` })
+    expect(sent).toHaveLength(1)
+    if (!offered.includes(children[2])) {
+      expect((await singular(id, recordsCard(recordsQuestion(offered)), { answer: withoutSeparate(id) })).verdict.pass, 'without separate').toBe(true)
+    }
+  })
+
+  it.each(singularCases)('fails %s for a card with no option that stands for the picked record, never by typing the answer', async (id) => {
+    const card = recordsCard(recordsQuestion(children), recordsQuestion(children, 'second'))
+    const { verdict, sent } = await singular(id, card)
+    expect(verdict).toMatchObject({ pass: false, reason: 'The card has no option that stands for the picked record.' })
+    expect(sent).toHaveLength(1)
+    expect((await singular(id, card, { answer: withoutSeparate(id) })).verdict.pass, 'without separate').toBe(true)
+  })
+})
+
+// Two checks of the brain dump preview that no row of an expected create carries: two creates that share a title, and a
+// stored habit that the preview reuses and the request does not name.
+const sameTitleIdea = (title) => itemOf(null, title, { ...rootParent, title: [null, title], frequency_unit: [null, 'Day'], frequency_quantity: [null, '1', 'number'],
+  due_date: [null, accountDate, 'date'] })
+const withoutKey = (id, key) => {
+  const stripped = structuredClone(caseOf(id).vars.outcome)
+  delete stripped[key]
+  return stripped
+}
+
+describe('the brain dump previews that repeat or reuse a record', () => {
+  it.each([['brain-dump-ideas-en', 'en', 'Stretch'], ['brain-dump-ideas-pt-BR', 'pt-BR', 'Alongar']])(
+    'fails %s for an idea that repeats the title of a requested habit, and passes once the case states no distinct titles', async (id, locale, title) => {
+      const repeated = [dumpItems[locale].task, dumpItems[locale].habit, sameTitleIdea(title.toLowerCase())]
+      const { verdict } = await brainDump(id, repeated)
+      expect(verdict).toMatchObject({ pass: false, reason: 'Two created records of the preview share a title.' })
+      expect((await brainDump(id, repeated, { outcome: withoutKey(id, 'distinctTitles') })).verdict.pass, 'without distinctTitles').toBe(true)
+    })
+
+  it.each([['brain-dump-mixed-en', 'en'], ['brain-dump-mixed-pt-BR', 'pt-BR'], ['brain-dump-ideas-en', 'en'], ['brain-dump-ideas-pt-BR', 'pt-BR']])(
+    'fails %s for a stored habit that the request does not name, and passes once the case states no reuses', async (id, locale) => {
+      const items = id.includes('ideas') ? [dumpItems[locale].task, dumpItems[locale].habit, dumpItems[locale].idea] : [dumpItems[locale].task, dumpItems[locale].habit]
+      const { verdict } = await brainDump(id, [...items, reused])
+      expect(verdict).toMatchObject({ pass: false, reason: expect.stringContaining('The preview holds a change outside the request.') })
+      expect((await brainDump(id, [...items, reused], { outcome: withoutKey(id, 'reuses') })).verdict.pass, 'without reuses').toBe(true)
+    })
+})

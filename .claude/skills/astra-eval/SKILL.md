@@ -172,7 +172,9 @@ the case) or `changes` (the change list of the held previews, with each record b
 A `changes` case holds no rubric, and it grades a bulk write and a single write the same way. A case with `decision: approve | reject`
 approves or rejects the held preview and reads the saved state back. A brain dump case also holds
 `composition.previewNote: plain` (one sentence without a figure beside the preview) and `previewOnly: true` (the
-preview and its note alone). Grade only the final rendered answer
+preview and its note alone). An ideas case also holds `outcome.distinctTitles: true`, and a mixed or an ideas case holds
+`outcome.reuses: true`. A same-title case with a singular request holds `answer.separate: children`: its card must offer each
+child as an option of its own. Grade only the final rendered answer
 projection with `llm-rubric`; it includes visible blocks and preview fields, excludes traces and execution payloads,
 and accepts block-only replies. Verify the fixture reset can recreate the case before each configured attempt. Run
 the offline tests after changing a corpus or its assertions.

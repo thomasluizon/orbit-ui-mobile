@@ -528,8 +528,10 @@ the preview and its note and nothing else: no block, follow-up, action, policy d
 `previewNote: plain` holds the note beside the preview to one sentence without a figure, on one line of 180 characters
 at most. The change list holds one `create` for each item of the request, and each create states
 `parent_habit_id: No parent`, so a create that the preview files under a stored habit fails. A reuse case states a
-`reuse` change for the stored habit, so a preview that leaves it out fails. An ideas case states one more `create`
-with `frequency_unit: Day`: the idea joins the same preview. The grade does not compare that idea with the
+`reuse` change for the stored habit, so a preview that leaves it out fails. A mixed or an ideas case states
+`reuses: true`, so a stored habit that the preview reuses and the request does not name is a change outside the
+request. An ideas case states one more `create` with `frequency_unit: Day`: the idea joins the same preview. It also
+states `distinctTitles: true`, so two creates with one title fail. The grade does not compare that idea with the
 suggestion draft. The outcome grade then approves the preview through the existing confirmation gateway and reads the
 saved items back: title, schedule and time. Existing fixture habits must remain unchanged and appear only once.
 Offline tests do not replace the live gate.
@@ -907,9 +909,11 @@ the same six children. It expects one question. The person then picks the third 
 rename. The API settles a title group only when it has two
 or more records, so a control over distinct titles cannot reach the set and order classifier.
 
-The two singular cases and the four control cases state `outcome.questions: { min: 1, max: 1 }`, then the pick of the
-third child in `answer.pick`. When the question has a card, the card must offer each of the six children as a separate
-option, because a singular request means one child. The API completes a record card that offers more than four records
+The two singular cases and the four control cases state `outcome.questions: { min: 1, max: 1 }`, the pick of the
+third child in `answer.pick` and `answer.separate: children`. The card must offer each of the six children as a separate
+option, because a singular request means one child. `core/answers.mjs` reads that rule. A card that offers fewer fails
+the case, and the reason names how many children it offers. A card with no option for the picked child fails too: the
+person cannot answer it by typing. The API completes a record card that offers more than four records
 as one `question` block with one `records` question, because a choice holds four options at most. Its options are the
 record ids in read order, labelled `Water - 710ml (1 of 6)` or `Water - 710ml (1º de 6)`.
 

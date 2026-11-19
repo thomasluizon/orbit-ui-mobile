@@ -24,7 +24,7 @@ function coreVars(vars) {
     : vars.outcome
   return { ...vars, core: { expected, answer: vars.answer ?? null, prefix: [], lead: [], image: null, resend: false,
     records: vars.records, nestedCreates: true, decision: vars.outcome.decision,
-    reuses: vars.outcome.changes?.some((change) => change.kind === 'reuse') === true, baseline: vars.fixtureEvidence?.habits } }
+    reuses: vars.outcome.reuses === true || vars.outcome.changes?.some((change) => change.kind === 'reuse') === true, baseline: vars.fixtureEvidence?.habits } }
 }
 
 // The client context that a turn of a case sends. A conversation id makes the shared builder turn offers on, so a client
