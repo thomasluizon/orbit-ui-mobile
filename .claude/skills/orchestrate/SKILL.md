@@ -1090,7 +1090,8 @@ push asks for its review.
 **Split every unresolved finding two ways, and act on both halves.** Rank each one as
 `review-and-audit.md` rule 14 ranks a local review finding:
 
-- **FIX it in this pull request** when rule 14 ranks it BLOCKING. Fix every instance of its class in one
+- **FIX it in this pull request** when rule 14 ranks it BLOCKING. A thread on a regression that this pull
+  request causes in code it did not touch gets the BLOCKING rank too. Fix every instance of its class in one
   commit. Each instance that a test can see gets a test proven red with the guard removed; a comment, doc or
   unused-export instance needs only the edit. A class of word lists or regexes that guess at natural-language
   input in code is fixed with a structured input or a deletion, never with one more pattern. Such a
@@ -1129,8 +1130,8 @@ the same round; a fix the orchestrator writes spends it with `node tools/fix-rou
 pullfrog` before its commit. If the batch has only FILE or not-applicable findings, perform their existing reply,
 resolve and same-head re-review transitions without launching a worker or inventing a commit.
 
-The round note of a batch names each defect class one time and lists every instance in the changed lines,
-one `path:line` each. It tells the worker to fix every instance of each class in one commit, with a test
+The round note of a batch names each defect class one time and lists every instance, one `path:line` each,
+including an instance outside the changed lines that the pull request caused. It tells the worker to fix every instance of each class in one commit, with a test
 proven red with its guard removed for each instance that a test can see (a comment, doc or unused-export instance needs only the edit), and to fix a class of word lists or regexes that guess at
 natural-language input in code with a structured input or a deletion. The next review reads the whole diff, so an instance left
 behind costs the next round.
