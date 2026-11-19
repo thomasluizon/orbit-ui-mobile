@@ -167,7 +167,7 @@ gives. Add a situation with its 3 phrasings in both locales; never edit a commit
 digest ties each report to the cases it measured. pt-BR phrasings read as a Brazilian wrote them.
 
 A launch corpus case states its `outcome` in one of four forms: `read: true` (no preview and no card that asks),
-`question: true` (a question card and no preview; plain text fails), `refusal: true` (the status and the error code of
+`question: true` (a card that asks, which is a `choice`, `question` or `pickList` card, and no preview; plain text fails), `refusal: true` (the status and the error code of
 the case) or `changes` (the change list of the held previews, with each record by its fixture name and never by its id).
 A `changes` case holds no rubric, and it grades a bulk write and a single write the same way. A case of the lifecycle
 families or of the offers keeps `expectations`: exact ID and enum assertions, tolerant text matching, and unordered

@@ -844,6 +844,10 @@ four, pick the two to delete.", the case fails with a grader limit: the grader n
 The same holds when a negation or an alternative (`not`, `n't`, `never`, `or`, `instead`, `without`, `não`, `nunca`, `ou`,
 `sem`) stands between the asking word and that action, as in "Which ones shouldn't I delete? Those get renamed.": the
 question asks for the other half.
+The same holds when a title word (`title`, `título`) that a record-naming word joins (`same`, `mesmo`, `sharing`,
+`shared`, `compartilh…`) stands at or before that action, as in "Which of the same-title habits should I delete?": that
+phrase describes the records and does not ask for a rename. A title word that no such word joins asks for the retitle:
+"Which four get the title Water - 1.18L, and which two should I delete?" asks the rename first.
 A count only confirms the action that its clause names. In a list question, `keep` and
 `manter` are rename words, because the records to keep are the records to rename. When the question tells neither, or
 the two signals disagree, the case fails with a message that names a grader limit, not a model fault. A `yesNo`
@@ -1385,7 +1389,8 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    (`grade-method.mjs`). `vars.outcome` selects the client path (`POST /api/chat/stream`, with a conversation id) and the
    outcome grade of the core set. `vars.expectations` selects `POST /api/chat` and the tool-name grade. A case never
    holds both. An `outcome` has one of four forms. `read: true` holds no preview and no card that asks the person.
-   `question: true` ends in a question card and holds no preview. `refusal: true` gives the `expectedHttpStatus` and
+   `question: true` ends in a card that asks (`choice`, `question` or `pickList`) and holds no preview.
+   `refusal: true` gives the `expectedHttpStatus` and
    `expectedErrorCode` of the case. `changes` lists the held changes by kind, with each record by its fixture name
    (`water`, `walk`, `first`, `second`) and never by its id. A `changes` case holds no rubric. A case that reads
    an answer holds a final-answer rubric. The lifecycle families and the offers keep `expectations` until their own
@@ -1401,9 +1406,10 @@ rendered consumers; this harness change does not unblock broad rollout by itself
 2. Extend the reset executable if the case needs new state. Describe that state in this catalog.
    A case with `expectations` states compound cases by every tool and its key arguments, and bulk cases by exactly
    one bulk call. A case with an `outcome` states them by the change list, whatever tool wrote it. Ambiguity cases
-   of the outcome grade end in `question: true`, which only a question card satisfies; the rubric requires a question
-   rather than action. Use `composition.mode: clarification` to accept either one to three short plain-text lines without
-   a block or exactly one `choice` or `question` card. A case with `question: true` still needs the card. The API sends a `question` card for the same intent: it folds only one short
+   of the outcome grade end in `question: true`. Any card that asks satisfies it (`choice`, `question` or `pickList`,
+   `questionCards` of `core/answers.mjs`) and plain text never does; the rubric requires a question rather than action.
+   Use `composition.mode: clarification` to accept either one to three short plain-text lines without a block or exactly
+   one `choice` or `question` card. The API sends a `question` card for the same intent: it folds only one short
    `singleChoice` question into a choice, and it sends a record card over more than four records as a
    question. Other block kinds, multiple blocks and pending writes fail this policy. A case that
    declares `sameTitleSet` also needs its card to offer each stored child as a separate option, and

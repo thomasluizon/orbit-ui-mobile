@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import {
   domMax,
@@ -66,7 +66,6 @@ export function RouteTransitionShell({
   const pathname = usePathname()
   const prefersReducedMotion = useReducedMotion()
   const routeIntent = useRouteTransitionIntent()
-  const committedPathnameRef = useRef(pathname)
   const [routePaths, setRoutePaths] = useState<RoutePathState>(() => ({
     current: pathname,
     hasNavigated: false,
@@ -88,11 +87,6 @@ export function RouteTransitionShell({
   const committedIntentVersion = routePaths.intentVersion
 
   useEffect(() => {
-    if (committedPathnameRef.current === pathname) {
-      return
-    }
-
-    committedPathnameRef.current = pathname
     const timer = globalThis.setTimeout(() => {
       resetRouteTransitionIntentIfCurrent(committedIntentVersion)
     }, 0)
