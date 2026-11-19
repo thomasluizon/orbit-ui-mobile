@@ -390,7 +390,7 @@ const coldStart = async ({ repoRoot, config, runner, authenticate, now, reads })
     const pull = snapshot.pulls[`pr${row.prNumber}`]
     const repository = repositories.find((entry) => entry.key === row.repositoryKey)
     const worktree = repository.worktrees.get(pull?.headRefName)
-    const observed = observePull({ ...row, worktree, commandRoot: repoRoot }, pull, [], wakes)
+    const observed = observePull({ ...row, worktree, commandRoot: repoRoot, slug: repository.slug, openBranches: snapshot.openBranches, defaultBranch: snapshot.defaultBranch, retiredBases: snapshot.retiredBases }, pull, [], wakes)
     pullRequests.push({ ...observed.observation, issue: row.issue })
     if (!worktree && observed.actions.some((entry) => WORKTREE_ACTIONS.has(entry.type))) nextActions.push(createWorktreeAction(row, pull, repository.path))
     nextActions.push(...observed.actions)
