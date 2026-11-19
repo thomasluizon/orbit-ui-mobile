@@ -45,7 +45,7 @@ describe('shared toast geometry', () => {
 
   it.each([412, 1352].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
     (['destination', 'flow'] as const).map(shell => ({ width, locale, shell })),
-  )))('separates queued deletes without moving one notice at $width in $locale $shell', async ({ width, locale, shell }) => {
+  )))('keeps one notice of one height after each queued delete at $width in $locale $shell', async ({ width, locale, shell }) => {
     const words = locale === 'en' ? en : ptBR
     const notice = <><UpdateAvailableBanner inset={false} /><NotificationDeleteNotice /></>
     const view = render(<NextIntlClientProvider locale={locale} messages={words} timeZone="UTC">
@@ -62,22 +62,20 @@ describe('shared toast geometry', () => {
         await page.setContent(`<html class="dark"><style>${stylesheet}</style><body>${view.container.innerHTML}</body></html>`)
         await loadAppFonts(page)
         const measured = await page.locator('[data-shell-notice-content]').evaluate(measureToastStack)
-        expect(measured).toHaveLength(count)
-        expect(measured[0]!.topInset).toBe(0)
-        expect(measured.at(-1)!.bottomInset).toBe(0)
-        if (count === 1) singleHeight = measured[0]!.height
-        for (const [index, toast] of measured.entries()) {
-          expect(toast.height).toBe(singleHeight)
-          if (index) expect(toast.gap).toBe(12)
-          expect(toast.actionOffset).not.toBeNull()
-          expect(Math.abs(toast.actionOffset!)).toBeLessThanOrEqual(1)
-          expect(Math.abs(toast.closeOffset)).toBeLessThanOrEqual(1)
-        }
+        expect(measured).toHaveLength(1)
+        const [toast] = measured
+        expect(toast!.topInset).toBe(0)
+        expect(toast!.bottomInset).toBe(0)
+        if (count === 1) singleHeight = toast!.height
+        expect(toast!.height).toBe(singleHeight)
+        expect(toast!.actionOffset).not.toBeNull()
+        expect(Math.abs(toast!.actionOffset!)).toBeLessThanOrEqual(1)
+        expect(Math.abs(toast!.closeOffset)).toBeLessThanOrEqual(1)
       }
     } finally { view.unmount(); clearPendingNotificationDeletes(); await page.close() }
   })
 
-  it.each([412, 1352])('separates a failed delete, pending delete and update banner at %ipx', async (width) => {
+  it.each([412, 1352])('replaces a failed delete toast with the newer pending delete beside the update banner at %ipx', async (width) => {
     vi.useFakeTimers()
     queuePendingNotificationDelete('failed-stack', () => { throw new Error('Delete failed') })
     vi.advanceTimersByTime(5000)
@@ -98,8 +96,8 @@ describe('shared toast geometry', () => {
       await loadAppFonts(page)
       const slot = page.locator('[data-shell-notice-content]')
       const measured = await slot.evaluate(measureToastStack)
-      expect(measured).toHaveLength(2)
-      expect(measured[1]!.gap).toBe(12)
+      expect(measured).toHaveLength(1)
+      expect(await slot.locator('[data-kind]').getAttribute('aria-label')).toBe(ptBR.notifications.deleteQueued)
       expect(await slot.evaluate(element => {
         const banner = element.querySelector('[data-update-banner]')!.getBoundingClientRect()
         const toast = element.querySelector('[data-kind]')!.getBoundingClientRect()
