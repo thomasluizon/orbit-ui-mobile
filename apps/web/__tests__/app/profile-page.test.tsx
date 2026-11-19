@@ -930,7 +930,7 @@ describe('ProfilePage', () => {
     expect(freeMore.getByRole('link', { name: /profile\.settingsRows\.wrapped/i })).toHaveAttribute('href', '/wrapped')
     expect(freeMore.getByRole('button', { name: /profile\.widgetTitle/i })).toBeInTheDocument()
     const calendarGate = freeMore.getByRole('link', { name: /profile\.calendarSync\.title/i })
-    expect(calendarGate).toHaveAttribute('href', '/upgrade')
+    expect(calendarGate).toHaveAttribute('href', '/upgrade?from=%2Fprofile')
     expect(calendarGate).not.toHaveAttribute('aria-disabled', 'true')
     expect(freeMore.getByRole('link', { name: /profile\.support\.rowTitle/i })).toHaveAttribute('href', '/support')
     expect(freeMore.getByRole('link', { name: /profile\.aboutRow/i })).toHaveAttribute('href', '/about')

@@ -268,7 +268,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     setShowCreateRefusal(false)
     if (profile !== undefined && !hasProAccess && habitCountLoaded && totalHabitCount >= 10) {
       setRouteTransitionIntent('forward')
-      router.push('/upgrade')
+      router.push(`/upgrade?from=${encodeURIComponent(pathname)}`)
       return
     }
     setShowCreateModal(true)
