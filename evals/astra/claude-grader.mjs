@@ -34,18 +34,21 @@ const failedResult = (result) => [result?.terminal_reason, Number.isInteger(resu
 
 class GradeFailure extends Error {}
 
-// The child environment: the sign-in of the worker account directory is the only credential the CLI can select, and no
-// Orbit eval secret reaches it. Unset, or naming no directory, the grader fails closed and never spends the main account.
+// The child environment, with the account rule of workerAccountEnvironment in tools/lib/orchestrator-config.mjs: the sign-in
+// of the chosen account is the only credential the CLI can select, and no Orbit eval secret reaches it. A set variable names
+// the worker account directory. Unset or empty, the child runs on the main account: CLAUDE_CONFIG_DIR is removed, so the CLI
+// reads its default config, as a worker launch does in single-account mode. A set variable that names no directory fails closed.
 // The prompt holds Astra's answer, untrusted text, so the attachment guard is set after the filter that removes a runner value.
 export function graderEnvironment(environment = process.env) {
   const directory = environment[WORKER_CONFIG_VARIABLE]?.trim()
-  if (!directory) throw new GradeFailure(`${WORKER_CONFIG_VARIABLE} is not set`)
+  const kept = Object.entries(environment).filter(([key]) => !key.startsWith('ORBIT_EVAL_') && !accountOverride.test(key) && key !== 'CLAUDE_CONFIG_DIR')
+  const scoped = { ...Object.fromEntries(kept), CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' }
+  if (!directory) return scoped
   const configDirectory = resolve(directory)
   if (!statSync(configDirectory, { throwIfNoEntry: false })?.isDirectory()) {
     throw new GradeFailure(`${WORKER_CONFIG_VARIABLE} names no existing directory`)
   }
-  const kept = Object.entries(environment).filter(([key]) => !key.startsWith('ORBIT_EVAL_') && !accountOverride.test(key))
-  return { ...Object.fromEntries(kept), CLAUDE_CONFIG_DIR: configDirectory, CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' }
+  return { ...scoped, CLAUDE_CONFIG_DIR: configDirectory }
 }
 
 function runCli(prompt, schema, environment, directory, signal) {

@@ -938,7 +938,7 @@ and one selection the card allows must state the whole decision. A list that can
 half and needs no read. When a list can hold both halves, and for each `yesNo` question, one call of the configured
 grader, the provider that `ORBIT_EVAL_GRADER` names, reads the question as the rubric does (`askGrader` of
 `grader-provider.mjs` loads it with `config: { schema: 'half' }` from the folder of the run's config). With
-`claude-grader.mjs` that is the same CLI, model, worker account, environment and time limit as the rubric. The prompt
+`claude-grader.mjs` that is the same CLI, model, account, environment and time limit as the rubric. The prompt
 holds the question text as one quoted string, its type (a list or `yesNo`), and both halves of the
 decision by count and title. The answer is the JSON `{"half":"deleted"}`, `{"half":"renamed"}` or `{"half":"unclear"}`:
 the half that a list question asks the person to select, or that a yes to a `yesNo` question agrees to. One selection of
@@ -995,7 +995,7 @@ checklists and logs. Attempt evidence retains sanitized proposed dates and both 
 |---|---|
 | `ORBIT_EVAL_BASE_URL` | `https://orbit-api-staging-uqu2.onrender.com` (staging) or `https://api.useorbit.org` (production); destructive fixture resets reject every other origin and every non-eval account |
 | `ORBIT_EVAL_CREDENTIALS_FILE` | Private JSON file containing account refresh tokens and the stable habit registry; owned by the runner user, regular file, mode 600 |
-| `ORBIT_EVAL_GRADER` | From `evals/astra`, set `file://$PWD/claude-grader.mjs` for the installed Claude Code CLI grader on the worker account; promptfoo resolves a relative `file://` grader from the folder of the run's config, so a relative value fails the core runs in `core/` |
+| `ORBIT_EVAL_GRADER` | From `evals/astra`, set `file://$PWD/claude-grader.mjs` for the installed Claude Code CLI grader (the account rule is in the grader section); promptfoo resolves a relative `file://` grader from the folder of the run's config, so a relative value fails the core runs in `core/` |
 | `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the refreshed Orbit bearer token |
 | `ORBIT_EVAL_HABIT_ID` | Optional existing Water UUID to adopt on the Pro account; must agree with its private registry |
 | `ORBIT_EVAL_SECOND_HABIT_ID` | Optional existing Walk UUID to adopt on the Pro account; must agree with its private registry |
@@ -1170,15 +1170,17 @@ From `evals/astra`, set `ORBIT_EVAL_GRADER="file://$PWD/claude-grader.mjs"`, an 
 relative `file://` grader from the folder of the run's config, and the core configs are in `core/`. Before the first chat
 turn, each graded run (`hooks.mjs`, and `core/hooks.mjs` when a case has a rubric or a same-title card answer) sends
 one small rubric through the configured grader from the folder of its config (`grader-preflight.mjs`). When the grader
-returns an error or no grade, the run stops before it spends the eval key. That check costs one grader call on the
-worker account. The provider runs the installed Claude Code CLI (`claude` on the runner's `PATH`) on the worker account:
-`ORBIT_WORKER_CLAUDE_CONFIG_DIR` must name the signed-in worker account directory, as `tools/launch-worker.mjs` reads it. The child gets `CLAUDE_CONFIG_DIR` set to that
-directory. Every `ANTHROPIC_`, `CLAUDE_CODE_`, `CCR_` and `ORBIT_EVAL_` variable and `AWS_BEARER_TOKEN_BEDROCK` are
-removed, so the sign-in of that directory is the only credential the CLI can select. After that filter, the child also
+returns an error or no grade, the run stops before it spends the eval key. That check costs one grader call.
+The provider runs the installed Claude Code CLI (`claude` on the runner's `PATH`). The account rule is the one of
+`tools/launch-worker.mjs`, and it is stated here once. When `ORBIT_WORKER_CLAUDE_CONFIG_DIR` names a signed-in directory, the child
+runs on the worker account: it gets `CLAUDE_CONFIG_DIR` set to that directory. When the variable is unset or empty, the child
+runs on the main account: `CLAUDE_CONFIG_DIR` is removed from its environment, also when the runner exports one, so the CLI
+reads its default config. A set variable that names no directory fails closed. Every `ANTHROPIC_`, `CLAUDE_CODE_`, `CCR_` and `ORBIT_EVAL_` variable and `AWS_BEARER_TOKEN_BEDROCK` are
+removed, so the sign-in of the chosen account is the only credential the CLI can select. After that filter, the child also
 gets `CLAUDE_CODE_DISABLE_ATTACHMENTS=1`: the grading prompt holds Astra's answer, and the CLI would otherwise turn an
 `@/path` mention in it into a file attachment. The offline test holds these rules and the variable name equal to the
 worker launch, and the eval package does not import the harness. When the variable
-is unset or names no directory, the grader fails closed and never runs the CLI, so it never spends the main account.
+names no existing directory, the grader never runs the CLI.
 The grader spends no eval key and does not count against the 0.50 USD daily eval ceiling.
 The provider executes
 `claude -p --model claude-opus-5-5 --output-format json --json-schema <schema JSON> --tools "" --strict-mcp-config --safe-mode --no-session-persistence`
@@ -1193,7 +1195,7 @@ to the rubric. The offline test drives a fake executable with responses recorded
 CLI (`__tests__/fixtures/claude-grader-result.json` and `claude-grader-error.json`). The same-title card read uses the
 configured grader, as the rubric does: `ClaudeGrader` answers with the half schema when the provider reference carries
 `config: { schema: 'half' }` and with the rubric schema otherwise (see the card case of the same-title family), so each
-rule above holds for it: the worker account, the environment, the time limit and the retry. The offline fixture grader
+rule above holds for it: the account, the environment, the time limit and the retry. The offline fixture grader
 (`__tests__/fixtures/grader.mjs`) answers that read with the live answer that `__tests__/fixtures/claude-grader-half-results.json`
 records for the exact prompt (three reads of Opus 5.5 through the real CLI path on 19 November 2026: the baseline card and
 the run 3 card, which ask about both halves, and a one-action control; each entry holds the argument list, the prompt and the
