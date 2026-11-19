@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -10,10 +10,16 @@ import { mergeRuns } from '../core/merge.mjs'
 import { gradePreview, matchesField, outcome } from '../core/outcome.mjs'
 import { summarize, writeResults } from '../core/report.mjs'
 import { publicApi } from '../fixtures/api.mjs'
+import { askGrader } from '../grader-provider.mjs'
 import { captures } from './fixtures/core-streams.mjs'
+import { recordedAskGrader } from './fixtures/recorded-halves.mjs'
 import { recordedApi, recordedStream, requestVars } from './fixtures/core-replay.mjs'
 import { snapshotFixture } from './fixtures/eval-snapshot.mjs'
 import { preview, turnTiming } from './fixtures/producer.mjs'
+
+// No offline test spends a model call: a same-title card question is read through askGrader, which each test stubs with the
+// deleted half, the half that the question of every recorded card here asks the person to select.
+vi.mock('../grader-provider.mjs', async (original) => ({ ...await original(), askGrader: vi.fn() }))
 
 const { buildChatClientContext } = await tsImport('../../../packages/shared/src/chat/client-context.ts', import.meta.url)
 const caseOf = (id) => coreCases().find(({ metadata }) => metadata.id === id)
@@ -21,6 +27,7 @@ const request = caseOf('owner-water-request-pt-BR-1')
 const guid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u
 const finalOf = (name, turn) => captures[name].turns[turn].at(-1).response
 
+beforeEach(() => { vi.mocked(askGrader).mockReset().mockResolvedValue({ value: { half: 'deleted' } }) })
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 
 function offlineVars(name, source, overrides = {}) {
@@ -361,6 +368,51 @@ describe('a same-title choice card with set options', () => {
     expect(output).toMatchObject({ unavailable: true, error: noTrace, modelCalls: 0 })
     expect(output.answerFailure).toBeUndefined()
     expect(verdict).toMatchObject({ pass: false, metadata: { unavailable: true } })
+  })
+})
+
+// The card of the baseline grader-limit case owner-water-request-en-1 (staging API 38513551a): orbit-api CompleteRecordCard
+// completes the model's choice into one multipleChoice `records` question over the six children, with the model's prompt.
+describe('a same-title records card whose question names both actions', () => {
+  const source = caseOf('owner-water-request-en-1')
+  const { children } = captures.complete
+  const prompt = 'Six found, not seven. Which two to delete and which four to rename?'
+  const card = { type: 'block', kind: 'question', block: { blockId: '99999999-0000-4000-8000-000000000002',
+    expiresAtUtc: '2026-11-16T20:00:00Z', questions: [{ id: 'records', type: 'multipleChoice', prompt, allowFreeText: true,
+      options: children.map((id, index) => ({ id, label: `Water - 710ml (${index + 1} of 6)` })) }] } }
+
+  // The read of the question is the answer of the live read of this exact card question (recorded-halves.mjs): the grader that
+  // answers only the recorded prompt returns no answer when the prompt of the production read drifts, and the test fails.
+  it('answers through blockAnswer with the two records to delete, and grades the preview that follows', async () => {
+    vi.mocked(askGrader).mockReset().mockImplementation(recordedAskGrader)
+    const { sent, output, verdict } = await scripted([textReply(null, [card]), finalOf('complete', 1)], source, { traces: [{ calls: [] }] })
+    expect(sent[1]).toEqual({ content: `${prompt}: Water - 710ml (5 of 6) and Water - 710ml (6 of 6)`,
+      blockAnswer: { blockId: card.block.blockId, selectedIds: [], answers: [{ questionId: 'records', selectedIds: children.slice(4) }] } })
+    expect(output.graderLimit).toBeUndefined()
+    expect(verdict).toMatchObject({ pass: true })
+  })
+
+  // A failed call of the grader gives no evidence of the build: the attempt is unavailable, not a grader limit that closes the
+  // case on its build and not a failure of the assistant, and no answer is sent.
+  it('gives the attempt no evidence when the grader call that reads the question fails, and does not answer', async () => {
+    const failure = 'Claude grading failed: process exited with code 1.'
+    vi.mocked(askGrader).mockReset().mockResolvedValue({ error: failure })
+    const { sent, output, verdict } = await scripted([textReply(null, [card]), finalOf('complete', 1)], source, { traces: [{ calls: [] }] })
+    expect(sent).toHaveLength(1)
+    expect(output).toMatchObject({ unavailable: true, error: `The grader call that reads the card question failed (${failure}): ${prompt}` })
+    expect(output.graderLimit).toBeUndefined()
+    expect(output.answerFailure).toBeUndefined()
+    expect(verdict).toMatchObject({ pass: false, metadata: { unavailable: true } })
+    expect(verdict.metadata.graderLimit).toBeUndefined()
+  })
+
+  it('marks a grader limit when the read of the question is unclear, and does not answer', async () => {
+    vi.mocked(askGrader).mockReset().mockResolvedValue({ value: { half: 'unclear' } })
+    const { sent, output, verdict } = await scripted([textReply(null, [card]), finalOf('complete', 1)], source, { traces: [{ calls: [] }] })
+    expect(sent).toHaveLength(1)
+    expect(output).toMatchObject({ graderLimit: true,
+      answerFailure: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
+    expect(verdict).toMatchObject({ pass: false, metadata: { graderLimit: true } })
   })
 })
 
