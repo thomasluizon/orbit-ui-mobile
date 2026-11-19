@@ -16,10 +16,14 @@ const defaults = parse(readFileSync(new URL('./promptfooconfig.yaml', import.met
 const shared = (metric) => defaults.find((assertion) => assertion.metric === metric)
 const outcomeAssertion = { type: 'javascript', value: 'file://client-path.mjs:outcome', metric: 'outcome' }
 
+const isOfferCase = (test) => test.metadata.family?.startsWith('offers-') === true
+
 // The tests of the launch corpus. promptfoo gives each test the assertions of `defaultTest`, the tool-name grade, unless
 // the test disables them (evaluator: `options.disableDefaultAsserts`). A case with an outcome disables them and gets its
-// outcome, the composition of its answer and, when it holds a rubric, the model grade of its answer text.
+// outcome, the composition of its answer, the typed offers of an offers case and, when it holds a rubric, the model grade
+// of its answer text.
 export function corpusTests() {
   return readCorpus().map((test) => gradedByOutcome(test.vars) ? { ...test, options: { ...test.options, disableDefaultAsserts: true },
-    assert: [outcomeAssertion, shared('composition'), ...(test.vars.rubric ? [shared('finalAnswer')] : [])] } : test)
+    assert: [outcomeAssertion, shared('composition'), ...(isOfferCase(test) ? [shared('proactiveOffers')] : []),
+      ...(test.vars.rubric ? [shared('finalAnswer')] : [])] } : test)
 }

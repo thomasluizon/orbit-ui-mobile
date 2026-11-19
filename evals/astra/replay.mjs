@@ -6,7 +6,6 @@ import { validateToolArguments } from './tool-validation.mjs'
 import { tools, legacyTools, offerTools, observableSchema } from './trace-policy.mjs'
 import { configureOffers } from './offer-context.mjs'
 import { toolBehavior } from './assertions.mjs'
-import { historicalReadExpectations } from './offer-lifecycle.mjs'
 import parseResponse from './response.mjs'
 import { gradedByOutcome, readCorpus } from './grade-method.mjs'
 import { tsImport } from 'tsx/esm/api'
@@ -32,20 +31,6 @@ function restartPopulation(attempt, vars) {
   if (seeded?.length === 6 && reads?.length && reads.some((call) => call.result?.totalCount !== seeded.length)) {
     return 'Recorded restart fixture returned fewer than six unfinished habits; the reset precondition needs a new attempt.'
   }
-}
-
-function historicalScope(attempt, vars, assertions) {
-  const offers = assertions.find((assertion) => assertion.metric === 'proactiveOffers')
-  const turns = attempt.offerReadback?.turns
-  const accountDate = attempt.groundingEvidence?.fixture?.loggedState?.date
-  if (vars.offerFamily !== 'due-log' || offers?.pass !== false || turns?.length !== 1
-    || turns[0].assertions?.find((assertion) => assertion.metric === 'behavior')?.pass !== false
-    || !/^\d{4}-\d{2}-\d{2}$/u.test(accountDate ?? '')) return
-  const date = new Date(Date.parse(`${accountDate}T12:00:00Z`) - 86400000).toISOString().slice(0, 10)
-  const verdict = toolBehavior(turns[0].toolCalls, historicalReadExpectations(date))
-  if (!verdict.pass) return `Historical read scope: ${verdict.reason}`
-  Object.assign(offers, { reason: 'Historical read scope matched; its offer check and the partial-scope turn were never recorded.' })
-  return 'incomplete'
 }
 
 // Ajv stops at the first error, so each saved "[redacted]" field value becomes null and the call is validated again.
@@ -83,19 +68,12 @@ export async function replayAttempt(attempt, descriptor, recorded) {
   // A case with an outcome holds no tool-name expectations, so its recorded calls are not graded again against them.
   const byOutcome = gradedByOutcome(test.vars)
   const behavior = byOutcome ? undefined : assertions.find((assertion) => assertion.metric === 'toolBehavior')
-  const completedGoal = test.vars.offerFamily === 'goal-on-track' && test.vars.offerState === 'completed'
-  if (behavior && (completedGoal || behavior.pass === false && behavior.reason.startsWith('Mutation outside the declared operation scope:'))) {
+  if (behavior?.pass === false && behavior.reason.startsWith('Mutation outside the declared operation scope:')) {
     const verdict = toolBehavior(attempt.toolCalls, test.vars.expectations)
     Object.assign(behavior, { pass: verdict.pass, reason: verdict.reason })
-    notes.push(completedGoal
-      ? `Completed-goal coverage: ${verdict.reason} An active-only query cannot prove completed-goal exclusion; the revised case needs fresh evidence.`
-      : `Outcome scope: ${verdict.reason}`)
+    notes.push(`Outcome scope: ${verdict.reason}`)
   }
-  const historical = historicalScope(attempt, test.vars, assertions)
   let after = before
-  if (historical === 'incomplete') { after = 'incomplete'; notes.push('The historical read now matches its requested day; the unrecorded offer and partial-scope checks need a new attempt.') }
-  else if (historical) notes.push(historical)
-  if (completedGoal && behavior?.pass === false) after = 'fail'
   if (before === 'fail' && assertions.length && assertions.every((assertion) => assertion.pass)) after = 'pass'
   if (recorded.latency?.status === 'fail') { after = 'fail'; notes.push('The recorded read latency still exceeds its budget.') }
   const population = restartPopulation(attempt, test.vars)

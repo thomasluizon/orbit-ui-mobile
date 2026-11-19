@@ -6,7 +6,8 @@ import { changeList } from '../core/change-list.mjs'
 import OrbitChatStreamProvider from '../core/provider.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { composition } from '../composition.mjs'
-import { outcome, runOutcomeCase } from '../client-path.mjs'
+import { openCaseConversation, outcome, runOutcomeCase } from '../client-path.mjs'
+import { clientContextOf } from '../core/client-turn.mjs'
 import { corpusTests, gradedByOutcome, readCorpus } from '../grade-method.mjs'
 import { summarize } from '../report.mjs'
 import { mergeReports } from '../merge-reports.mjs'
@@ -75,7 +76,7 @@ const reply = (pendingOperations) => ({ ...questionCard, aiMessage: '', parts: [
 const meditar = () => createPreview('Meditar', { frequency_unit: 'Day', frequency_quantity: '1' })
 
 describe('how a case selects its grade method', () => {
-  it('gives a case with an outcome the outcome grade alone, and each other case the six assertions of the tool-name grade', () => {
+  it('gives a case with an outcome the outcome grade alone, and a refine case the default assertions', () => {
     const tests = corpusTests()
     expect(tests.map((test) => test.metadata.id)).toEqual(corpus.map((entry) => entry.metadata.id))
     const read = tests.find((test) => test.metadata.id === 'single-read-en')
@@ -84,9 +85,9 @@ describe('how a case selects its grade method', () => {
     expect(read.assert[2]).toEqual(configuration.defaultTest.assert.find((assertion) => assertion.type === 'llm-rubric'))
     const write = tests.find((test) => test.metadata.id === 'single-log-en')
     expect(write.assert.map((assertion) => assertion.metric)).toEqual(['outcome', 'composition'])
-    const toolName = tests.find((test) => test.metadata.id === 'offers-repeat-en')
-    expect(toolName.options).toBeUndefined()
-    expect(toolName.assert).toBeUndefined()
+    const refine = tests.find((test) => test.metadata.id === 'composition-suggestions-refine-en')
+    expect(refine.options).toBeUndefined()
+    expect(refine.assert).toBeUndefined()
     expect(configuration.defaultTest.assert.map((assertion) => assertion.metric))
       .toEqual(['toolStructure', 'toolBehavior', 'composition', 'savedStep', 'proactiveOffers', 'finalAnswer'])
     expect(configuration.tests).toBe('file://grade-method.mjs:corpusTests')
@@ -522,6 +523,14 @@ describe('the client path of a converted case', () => {
     const { form } = await sentContext('composition-proactive-en')
     expect(form.get('message')).toBe('Show what is left for today from this reminder.')
     expect(JSON.parse(form.get('history'))).toEqual([{ role: 'assistant', content: 'You have habits left for today. Want to see what is pending?' }])
+  })
+
+  it('sends the proactive offers setting that the case file states, for each case with parts', () => {
+    const withParts = corpus.filter((entry) => entry.vars.clientContext?.supportsParts === true)
+    expect(withParts.length).toBeGreaterThan(0)
+    const mismatched = withParts.filter((entry) => clientContextOf(openCaseConversation(entry.vars)).supportsProactiveOffers
+      !== (entry.vars.clientContext.supportsProactiveOffers === true)).map((entry) => entry.metadata.id)
+    expect(mismatched).toEqual([])
   })
 
   it('returns a precondition failure before any turn', async () => {

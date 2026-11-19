@@ -6,7 +6,7 @@ import { visibleAnswer } from './visible-answer.mjs'
 import { safeFailureMessage } from './credentials.mjs'
 import { restoreOfferTimeZone } from './fixtures/offer-timezone.mjs'
 import { gradedByOutcome } from './grade-method.mjs'
-import { runOutcomeCase } from './client-path.mjs'
+import { offerTurns, openCaseConversation, runOutcomeCase } from './client-path.mjs'
 
 export default class AstraHttpProvider {
   constructor(options) {
@@ -39,16 +39,19 @@ export default class AstraHttpProvider {
     finally { await restoreOfferTimeZone(context.vars) }
   }
 
-  async attempt(prompt, context, options) {
-    if (gradedByOutcome(context.vars)) return runOutcomeCase(context.vars)
-    if (context.vars.offerFamily) {
-      const response = await this.chat(prompt, context, options)
-      if (response.output?.composition && !response.error) {
-        response.output.offerReadback = await completeOfferAttempt(response.output, context.vars,
-          (input, next) => this.chat(input, next, options))
-      }
-      return response
+  // A case with an outcome runs on the client path. An offers case then runs its lifecycle in the same conversation.
+  async outcomeCase(vars) {
+    if (vars.preconditionFailure) return runOutcomeCase(vars)
+    const conversation = vars.conversation ?? openCaseConversation(vars)
+    const response = await runOutcomeCase(vars, { conversation })
+    if (vars.offerFamily && response.output?.composition && !response.error) {
+      response.output.offerReadback = await completeOfferAttempt(response.output, vars, offerTurns(conversation))
     }
+    return response
+  }
+
+  async attempt(prompt, context, options) {
+    if (gradedByOutcome(context.vars)) return this.outcomeCase(context.vars)
     return this.chat(prompt, context, options)
   }
 

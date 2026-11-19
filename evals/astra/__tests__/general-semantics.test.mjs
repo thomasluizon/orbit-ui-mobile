@@ -8,7 +8,7 @@ const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', impo
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 
 it.each(['en', 'pt-BR'])('sends one-time General semantics to the actual rubric for both client modes in %s', async (locale) => {
-  const test = corpus.find((entry) => entry.metadata.id === `offers-repeat-${locale}`)
+  const test = corpus.find((entry) => entry.metadata.id === `offers-due-log-${locale}`)
   for (const supportsParts of [true, false]) {
     const grader = { id: () => 'offline-policy-grader', callApi: vi.fn(async () => ({
       output: JSON.stringify({ pass: true, score: 1, reason: 'Captured policy only.' }),
@@ -23,7 +23,7 @@ it.each(['en', 'pt-BR'])('sends one-time General semantics to the actual rubric 
     expect(prompt).toContain('only unlogging reopens it')
     expect(prompt).toContain('Reads use stored isCompleted')
     expect(prompt).toContain('A second completion must be refused with the completed one-time task error')
-    expect(prompt).toContain('Never promise a daily reset or repeated completion')
+    expect(prompt).toContain(test.vars.rubric)
   }
 })
 

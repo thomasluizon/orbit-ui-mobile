@@ -27,9 +27,10 @@ function coreVars(vars) {
     reuses: vars.outcome.changes?.some((change) => change.kind === 'reuse') === true, baseline: vars.fixtureEvidence?.habits } }
 }
 
-// The client context that a turn of a case sends. A conversation id makes the shared builder turn offers on, and a
-// converted case grades no offer, so a client with parts keeps offers off, as hooks.mjs builds the context that grades it.
-export const caseClientContext = (clientContext) => clientContext.supportsParts === true
+// The client context that a turn of a case sends. A conversation id makes the shared builder turn offers on, so a client
+// with parts sends the offers setting that the case file states: an offers case keeps its context and offers on, any other
+// case keeps offers off.
+export const caseClientContext = (clientContext) => clientContext.supportsParts === true && clientContext.supportsProactiveOffers !== true
   ? { ...clientContext, supportsProactiveOffers: false } : clientContext
 
 // The conversation of one case on a shipped client: the client context that the case states, and its recorded history
@@ -75,6 +76,14 @@ export async function runOutcomeCase(vars, dependencies) {
   const output = await holdCase(vars, dependencies)
   const metadata = { rateLimitRetryable: false }
   return output.error ? { error: output.error, output, metadata } : { output, metadata }
+}
+
+// The turns that an offers case sends after its first, for its lifecycle: in the conversation of the case, or after a
+// reload in a conversation with the same id and none of its messages. Each turn is graded by the outcome of its own policy.
+export const offerTurns = (conversation, dependencies) => (next, reload) => {
+  const turnConversation = reload ? { ...openCaseConversation(next), conversationId: conversation.conversationId } : conversation
+  turnConversation.context = next.clientContext
+  return runOutcomeCase(next, { ...dependencies, conversation: turnConversation })
 }
 
 // promptfoo assertion: the outcome of one attempt of a launch corpus case: its held preview and, when the case decides

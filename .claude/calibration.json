@@ -151,7 +151,7 @@
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "753092e38ad54389",
+      "digest": "cae25604f361b25f",
       "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: runs or extends the Astra eval core set gate and launch corpus, and reads its pass^k report to tell failed behavior from incomplete tool evidence; it declares no model or effort override."
     },
@@ -186,8 +186,8 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "888fe9e6704e567a",
-      "calibratedAt": "2026-11-18",
+      "digest": "80e0c561f50a9454",
+      "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },
     ".claude/skills/crank/SKILL.md": {

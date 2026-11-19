@@ -43,16 +43,47 @@ function prepareStartingAction(vars, block, conversation) {
   if (vars.outcome.changes) vars.outcome = resolvedOutcome(vars.outcome, block.suggestion.step, habit?.checklistItems ?? [])
 }
 
+// The setup of an offers case: its first turn must issue the offer that the case continues from. The person dismisses
+// the issued offer, or selects it, through the API as a client does.
+async function prepareOfferSetup(test, held, setup) {
+  const vars = test.vars
+  const context = { vars: { ...setup, offerFamily: undefined }, test }
+  const structure = await composition(held, context)
+  if (structure.pass !== true || structure.metadata?.skipped || structure.metadata?.unavailable) {
+    throw new Error(`Correction setup failed: ${structure.reason}`)
+  }
+  const previewFamily = vars.offerFamily === 'preview-rejection' ? 'preview-rejection' : 'repeat'
+  const offerCheck = proactiveOfferSetup(held, { vars: { ...setup, offerFamily: setup.composition.mode === 'preview' ? previewFamily : 'empty',
+    offerRequireReadback: false } })
+  if (!offerCheck.pass) throw new Error(`Offer setup failed: ${offerCheck.reason}`)
+  const actions = offerActions(held.composition)
+  if (vars.offerFamily !== 'preview-rejection' && actions.length !== 1) throw new Error('Offer setup requires exactly one issued action.')
+  vars.issuedOffer = structuredClone(actions[0] ?? null)
+  if (vars.offerFamily === 'dismissal') {
+    const dismissed = await publicApi(vars.credentialKey)('POST', 'chat/offers/dismiss', {
+      conversationId: vars.clientContext.conversationId, offerKeys: [actions[0].action.offerKey],
+    })
+    if (dismissed.status !== 204) throw new Error('Offer dismissal did not return HTTP 204.')
+  }
+  if (vars.offerFamily === 'action-lifecycle') {
+    vars.clientContext.selectedOfferKey = actions[0].action.offerKey
+  }
+}
+
 // The setup of a case with an outcome runs on the client path, in the conversation of the case: its turn is graded by its
 // outcome and a preview stays held, so the turn of the case continues it. A setup that states a client of its own runs on
 // that client, and the turn of the case then continues on the client that the case states. A setup whose turn the case
 // reads (a starting step to act on, a suggestion draft to refine) must also show the answer that its composition states.
 async function prepareHeldPreview(test) {
   const vars = test.vars
-  const setup = { ...vars, refine: undefined, ...(vars.setup.clientContext ? { clientContext: vars.setup.clientContext } : {}), input: vars.setup.input,
-    outcome: vars.setup.outcome, composition: vars.setup.composition, evalRequestId: randomUUID() }
+  const { caseId: _caseId, ...turn } = vars.setup
+  const setup = { ...vars, refine: undefined, ...turn, evalRequestId: randomUUID() }
   const conversation = openCaseConversation(setup)
   const held = await holdCase(setup, { conversation })
+  if (vars.offerFamily) {
+    vars.setupEvidence = { ...attemptEvidence({ response: { output: held }, testCase: { vars: setup } }, { pass: false, assertions: [] }),
+      requestId: setup.evalRequestId }
+  }
   const verdict = held.error ? { pass: false, reason: held.error } : outcome(held, { vars: setup })
   const shape = verdict.pass && (vars.startingStepAction || vars.refine) ? await composition(held, { vars: setup }) : verdict
   if (!shape.pass || shape.metadata?.unavailable) {
@@ -60,6 +91,7 @@ async function prepareHeldPreview(test) {
   }
   vars.baselinePreview = held.previews
   vars.conversation = conversation
+  if (vars.offerFamily) await prepareOfferSetup(test, held, setup)
   conversation.context = caseClientContext(vars.clientContext)
   if (vars.startingStepAction) prepareStartingAction(vars, held.composition.parts[0].block, conversation)
   if (vars.refine) {
@@ -91,30 +123,10 @@ export async function prepareCorrection(test) {
     throw new Error(`Correction setup failed${setup.caseId ? ` dependency ${setup.caseId}` : ''}: ${failures.map((check) => check.reason).join('; ')}`)
   }
   // A follow-up on the setup's own client continues its conversation. A setup with a client of its own keeps the
-  // follow-up's context: an offer case already shares one id.
+  // follow-up's context.
   if (!setup.clientContext) {
     test.vars.clientContext = followConversation(test.vars.clientContext, response.output)
     test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
-  }
-  if (test.vars.offerFamily) {
-    const previewFamily = test.vars.offerFamily === 'preview-rejection' ? 'preview-rejection' : 'repeat'
-    const policy = { ...vars, offerFamily: setup.composition.mode === 'preview' ? previewFamily : 'empty',
-      offerRequireReadback: false }
-    const offerCheck = proactiveOfferSetup(response.output, { vars: policy })
-    if (!offerCheck.pass) throw new Error(`Offer setup failed: ${offerCheck.reason}`)
-    const actions = offerActions(response.output.composition)
-    if (test.vars.offerFamily !== 'preview-rejection' && actions.length !== 1) throw new Error('Offer setup requires exactly one issued action.')
-    test.vars.issuedOffer = structuredClone(actions[0] ?? null)
-    if (test.vars.offerFamily === 'dismissal') {
-      const dismissed = await publicApi(test.vars.credentialKey)('POST', 'chat/offers/dismiss', {
-        conversationId: test.vars.clientContext.conversationId, offerKeys: [actions[0].action.offerKey],
-      })
-      if (dismissed.status !== 204) throw new Error('Offer dismissal did not return HTTP 204.')
-    }
-    if (test.vars.offerFamily === 'action-lifecycle') {
-      test.vars.clientContext.selectedOfferKey = actions[0].action.offerKey
-      test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
-    }
   }
   test.vars.baselinePreview = response.output.composition.pendingOperations
   const correction = test.vars.composition?.correction
@@ -134,6 +146,6 @@ export async function prepareCorrection(test) {
     }
   }
   test.vars.historyJson = JSON.stringify([{ role: 'user', content: setup.input }, { role: 'assistant', content: response.output.answer }])
-  if (!test.vars.offerFamily) delete test.vars.setupEvidence
+  delete test.vars.setupEvidence
   return { test }
 }
