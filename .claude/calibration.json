@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-18",
+  "calibratedAt": "2026-11-19",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -284,8 +284,8 @@
     ".claude/skills/progress/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "194aaf3c78f467db",
-      "calibratedAt": "2026-11-18",
+      "digest": "6f69a4814958dca4",
+      "calibratedAt": "2026-11-19",
       "verdict": "current: medium effort; it reads live git and ticket state, resolves integration per repository, and distinguishes ancestry from stacked squash boundaries."
     },
     ".claude/skills/questions/SKILL.md": {
