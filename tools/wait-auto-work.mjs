@@ -2,6 +2,7 @@
 import { alertCheck, autoWorkRepositories, githubPageReader, listOpenAlerts, listOpenPullRequests, newestScanCommit, otherLiveRuns, pullRequestCheck } from "./lib/auto-work-github.mjs"
 import { readTicketState } from "./lib/github-issues.mjs"
 import { boardCheck, commandRunner, initialWakeMarks, mailCheck, reviewCheck, saveWakeMarks, SENTRY_MODE, watchIntake } from "./lib/auto-work-wake.mjs"
+import { readIntake } from "./lib/auto-work-intake.mjs"
 import { REPO_ROOT, clearWakeSource, readRunState, registerWakeSource } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-auto-work.mjs [--interval-seconds <n>]
@@ -13,7 +14,8 @@ owns (one key per pull request and head, and one key per pull request from an un
 with a reported mark) and the open code scanning, secret scanning and Dependabot alerts of the ui, api
 and landing repositories (tools/lib/auto-work-github.mjs) are checked. An open alert whose carrying
 ticket is closed has a second key, which for code scanning names the commit of the newest scan of
-main. A key absent from intake.wake.seen is new.
+main. A key absent from intake.wake.seen (run-state/intake.json in the
+tickets repository) is new.
 Exit only for a new item, a source failure with a new signature, the hourly Sentry MCP listing
 (no read-only Sentry token exists, so sentryMode is mcp-hourly) or a change of the owning mode.
 The interval defaults to 900 seconds; a positive finite value is required.
@@ -53,13 +55,13 @@ try {
   const result = await watchIntake({
     checks: [{ source: "board", seed: true, run: boardCheck() }, { source: "mail", run: mailCheck({ run }) },
       { source: "reviews", run: reviewCheck({ run }) },
-      { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests({ ...reading(), readTicketState }), readState: readRunState, readOtherRuns: otherLiveRuns }) },
-      { source: "alerts", run: alertCheck({ list: () => listOpenAlerts(reading()), readState: readRunState,
+      { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests({ ...reading(), readTicketState }), readState: readRunState, readIntakeMarks: readIntake, readOtherRuns: otherLiveRuns }) },
+      { source: "alerts", run: alertCheck({ list: () => listOpenAlerts(reading()), readIntakeMarks: readIntake,
         readTicketState, readNewestScan: (key) => newestScanCommit(reading(), key) }) }],
-    marks: initialWakeMarks(state.intake, started),
+    marks: initialWakeMarks(readIntake(), started),
     intervalMilliseconds: seconds * 1000,
     modeChanged: () => modeChangedIn(readRunState()),
-    // The mode check and the save share one locked update; after a mode change the next loop pass reports MODE_CHANGED.
+    // saveWakeMarks skips the save after a mode change; the next loop pass reports MODE_CHANGED.
     saveMarks: (marks) => saveWakeMarks(marks, REPO_ROOT, modeChangedIn),
   })
   finish(result.reason, 0, result.wakes)

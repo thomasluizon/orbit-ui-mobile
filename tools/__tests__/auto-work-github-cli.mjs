@@ -1,8 +1,9 @@
 import { spawnSync } from "node:child_process"
 import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { readRunState, writeRunState } from "../lib/run-state.mjs"
-import { T, realOrchestratorConfig, run, stageWithConfig } from "./_harness.mjs"
+import { readIntake } from "../lib/auto-work-intake.mjs"
+import { writeRunState } from "../lib/run-state.mjs"
+import { T, realOrchestratorConfig, run, seedIntake, stageWithConfig } from "./_harness.mjs"
 import { API_SCAN_COMMIT, CODE_SCANNING_ALERT, DEPENDABOT_ALERT, DEPENDABOT_PULL, NOT_FOUND, UNEXPECTED_PULL } from "./auto-work-github.mjs"
 
 const CLOSED_TICKET_URL = "https://github.com/thomasluizon/orbit-tickets/issues/2140"
@@ -69,10 +70,10 @@ esac
     result.alerts.failures[0]?.read === "landing secret-scanning", `${collected.status} ${collected.stdout}${collected.stderr}`)
   const calls = readFileSync(log, "utf8").trim().split("\n")
   T("github cli: twelve paginated reads cover three repositories and four sources", calls.filter((line) => line.startsWith("api --paginate ")).length === 12, calls.join("\n"))
-  T("github cli: the listing reads back from run state", readRunState(installation.base).intake.alerts.open["api code-scanning 28"].rule === "cs/web/cookie-secure-not-set")
+  T("github cli: the listing reads back from the intake file", readIntake(installation.base).alerts.open["api code-scanning 28"].rule === "cs/web/cookie-secure-not-set")
   const marked = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
     input: JSON.stringify({ key: "api#1106", head: DEPENDABOT_PULL.head, action: "closed", reason: "Superseded by api#1107." }) })
-  T("github cli: a mark from stdin persists", marked.status === 0 && readRunState(installation.base).intake.pullRequests.marks["api#1106"].reason === "Superseded by api#1107.",
+  T("github cli: a mark from stdin persists", marked.status === 0 && readIntake(installation.base).pullRequests.marks["api#1106"].reason === "Superseded by api#1107.",
     `${marked.status} ${marked.stdout}${marked.stderr}`)
   const unexpectedMerge = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
     input: JSON.stringify({ key: "landing#20", head: UNEXPECTED_PULL.head, action: "merged" }) })
@@ -80,7 +81,7 @@ esac
     input: JSON.stringify({ key: "landing#20", head: UNEXPECTED_PULL.head, action: "reported" }) })
   T("github cli: a pull request from an unexpected author takes only the reported mark", unexpectedMerge.status === 1 &&
     unexpectedMerge.stderr.includes("never merged, fixed or closed") && unexpectedReport.status === 0 &&
-    readRunState(installation.base).intake.pullRequests.marks["landing#20"].action === "reported", `${unexpectedMerge.stderr}${unexpectedReport.stderr}`)
+    readIntake(installation.base).pullRequests.marks["landing#20"].action === "reported", `${unexpectedMerge.stderr}${unexpectedReport.stderr}`)
   const refused = run("auto-work-github.mjs", ["--mark", "alerts"], { path: installation.path, env, input: JSON.stringify({ key: "api code-scanning 28", action: "ticket" }) })
   T("github cli: an incomplete alert mark exits 1 and names the requirement", refused.status === 1 && refused.stderr.includes("verified cause"), refused.stderr)
 
@@ -101,10 +102,10 @@ esac
   `${ticketClosed.status} ${ticketClosed.stdout}${ticketClosed.stderr}`)
   T("github cli: a closed-ticket code scanning alert names the newest scan of main, and its waiter key is recorded",
     ticketClosed.result.alerts?.ticketClosed?.[0]?.scannedCommit === API_SCAN_COMMIT &&
-    JSON.stringify(readRunState(installation.base).intake.alerts.ticketClosed) === JSON.stringify([`api code-scanning 28 ticket-closed ${API_SCAN_COMMIT}`]),
+    JSON.stringify(readIntake(installation.base).alerts.ticketClosed) === JSON.stringify([`api code-scanning 28 ticket-closed ${API_SCAN_COMMIT}`]),
   `${ticketClosed.stdout}${ticketClosed.stderr}`)
   /* A carrying ticket closed as not planned goes to the owner once: the run neither files a new ticket for its alert nor asks again. */
-  const alertMark = () => readRunState(installation.base).intake.alerts.marks["api code-scanning 28"]
+  const alertMark = () => readIntake(installation.base).alerts.marks["api code-scanning 28"]
   const markAlert = (receipt) => run("auto-work-github.mjs", ["--mark", "alerts"], { path: installation.path, env, input: JSON.stringify({ key: "api code-scanning 28", ...receipt }) })
   const notPlanned = collectWith("CLOSED", "NOT_PLANNED")
   T("github cli: an alert whose carrying ticket closed as not planned is listed with the close reason and no scan of main",
@@ -120,7 +121,7 @@ esac
   const afterAlertReport = collectWith("CLOSED", "NOT_PLANNED", "e".repeat(40))
   T("github cli: a reported not planned alert is not pending and is not asked again after a new scan of main",
     afterAlertReport.result.alerts?.ticketClosed?.length === 0 && !afterAlertReport.result.alerts.pending.some((alert) => alert.key === "api code-scanning 28") &&
-    JSON.stringify(readRunState(installation.base).intake.alerts.ticketClosed) === "[]" && alertMark()?.action === "reported",
+    JSON.stringify(readIntake(installation.base).alerts.ticketClosed) === "[]" && alertMark()?.action === "reported",
   `${afterAlertReport.status} ${afterAlertReport.stdout}${afterAlertReport.stderr}`)
   const duplicate = collectWith("CLOSED", "DUPLICATE")
   const reported = markAlert({ action: "reported" })
@@ -130,11 +131,10 @@ esac
     reported.status === 1 && reported.stderr.includes("not planned or with no reason") && surviving.status === 0 && alertMark()?.ticket === TICKET_2149_URL,
   `${duplicate.stdout}${duplicate.stderr} ${reported.stderr} ${surviving.stderr}`)
 
-  /* The secret scanning item is seeded in run state: no repository has had a secret scanning alert to record. */
-  const seeded = readRunState(installation.base)
-  writeRunState({ ...seeded, intake: { ...seeded.intake, alerts: { ...seeded.intake.alerts, open: { ...seeded.intake.alerts.open,
-    "landing secret-scanning 3": { key: "landing secret-scanning 3", read: "landing secret-scanning", repository: "landing", kind: "secret-scanning", number: 3 } } } } },
-  installation.base)
+  /* The secret scanning item is seeded in the intake file: no repository has had a secret scanning alert to record. */
+  const seeded = readIntake(installation.base)
+  seedIntake(installation.base, { ...seeded, alerts: { ...seeded.alerts, open: { ...seeded.alerts.open,
+    "landing secret-scanning 3": { key: "landing secret-scanning 3", read: "landing secret-scanning", repository: "landing", kind: "secret-scanning", number: 3 } } } })
   const falsePositive = { ticket: CLOSED_TICKET_URL, reason: "The alert names a test fixture value." }
   const markOnly = run("auto-work-github.mjs", ["--mark", "alerts"], { path: installation.path, env,
     input: JSON.stringify({ key: "api code-scanning 28", action: "false-positive", ...falsePositive }) })
@@ -142,7 +142,7 @@ esac
   const failedDismissal = run("auto-work-github.mjs", ["--dismiss"], { path: installation.path, env: { ...env, DISMISS_FAIL: "1" },
     input: JSON.stringify({ key: "api code-scanning 28", ...falsePositive }) })
   T("github cli: a failed dismissal records no mark", failedDismissal.status === 1 && failedDismissal.stderr.includes(NOT_FOUND) &&
-    readRunState(installation.base).intake.alerts.marks["api code-scanning 28"].action === "ticket", `${failedDismissal.status} ${failedDismissal.stderr}`)
+    readIntake(installation.base).alerts.marks["api code-scanning 28"].action === "ticket", `${failedDismissal.status} ${failedDismissal.stderr}`)
   const dismissals = ["api code-scanning 28", "ui dependabot 186", "landing secret-scanning 3"].map((key) =>
     run("auto-work-github.mjs", ["--dismiss"], { path: installation.path, env, input: JSON.stringify({ key, ...falsePositive }) }))
   const body = (name) => { try { return JSON.parse(readFileSync(join(installation.base, `patch-${name}.json`), "utf8")) } catch { return null } }
@@ -152,7 +152,7 @@ esac
     JSON.stringify(body("repos_thomasluizon_orbit-ui-mobile_dependabot_alerts_186")) === JSON.stringify({ state: "dismissed", dismissed_reason: "inaccurate", dismissed_comment: comment }) &&
     JSON.stringify(body("repos_thomasluizon_orbit-landing-page_secret-scanning_alerts_3")) === JSON.stringify({ state: "resolved", resolution: "false_positive", resolution_comment: comment }),
   dismissals.map((result) => `${result.status} ${result.stdout}${result.stderr}`).join("\n"))
-  const marks = readRunState(installation.base).intake.alerts.marks
+  const marks = readIntake(installation.base).alerts.marks
   T("github cli: a dismissal records the false positive mark with its ticket and reason", ["api code-scanning 28", "ui dependabot 186", "landing secret-scanning 3"]
     .every((key) => marks[key]?.action === "false-positive" && marks[key].ticket === CLOSED_TICKET_URL && marks[key].reason === falsePositive.reason), JSON.stringify(marks))
   /* An owner pull request that names a closed ticket has its own list, and the tool refuses to merge or fix it. */
@@ -169,7 +169,7 @@ esac
   const deleted = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, SUFFIX_PULL: "1", TICKET_GONE: "1" } })
   const deletedResult = (() => { try { return JSON.parse(deleted.stdout) } catch { return {} } })()
   T("github cli: a pull request that names a deleted ticket is listed and pending, with no failure of its own", deletedResult.pullRequests?.failures.length === 0 &&
-    deletedResult.pullRequests.pending.some((pull) => pull.key === "ui#2501") && readRunState(installation.base).intake.pullRequests.open["ui#2501"]?.unread === undefined,
+    deletedResult.pullRequests.pending.some((pull) => pull.key === "ui#2501") && readIntake(installation.base).pullRequests.open["ui#2501"]?.unread === undefined,
   `${deleted.status} ${deleted.stdout}${deleted.stderr}`)
   /* A ticket read that fails for another reason withholds only its pull request: the others are listed, and the collection exits 3 and names it. */
   const withheld = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, SUFFIX_PULL: "1", TICKET_READ_FAILS: "1" } })
@@ -177,7 +177,7 @@ esac
   T("github cli: a failed ticket read withholds only its pull request, names it and exits 3", withheld.status === 3 &&
     JSON.stringify(withheldResult.pullRequests?.failures.map(({ read, key }) => [read, key])) === JSON.stringify([["ui pulls", "ui#2501"]]) &&
     withheldResult.pullRequests.failures[0].message.includes(BAD_GATEWAY) && withheldResult.pullRequests.open === 3 &&
-    readRunState(installation.base).intake.pullRequests.open["api#1106"] !== undefined && readRunState(installation.base).intake.pullRequests.open["ui#2501"]?.unread === true &&
+    readIntake(installation.base).pullRequests.open["api#1106"] !== undefined && readIntake(installation.base).pullRequests.open["ui#2501"]?.unread === true &&
     !withheldResult.pullRequests.pending.some((pull) => pull.key === "ui#2501"), `${withheld.status} ${withheld.stdout}${withheld.stderr}`)
   const withheldMark = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
     input: JSON.stringify({ key: "ui#2501", head: SQUASH_SUFFIX_PULL.head, action: "closed", reason: "Superseded." }) })
@@ -213,7 +213,7 @@ esac
       env: { ...env, OWNER_PULL: "1", OWNER_HEAD: movedHead, ISSUE_STATE: issueState, ISSUE_REASON: issueReason } })
     try { return { ...again, result: JSON.parse(again.stdout) } } catch { return { ...again, result: {} } }
   }
-  const ownerMark = () => readRunState(installation.base).intake.pullRequests.marks["ui#1115"]
+  const ownerMark = () => readIntake(installation.base).pullRequests.marks["ui#1115"]
   const reportedMoved = collectMoved("CLOSED", "NOT_PLANNED")
   T("github cli: a reported pull request of a closed ticket is not asked again at a new head", reportedMoved.result.pullRequests?.ticketClosed?.length === 0 &&
     !reportedMoved.result.pullRequests.pending.some((pull) => pull.key === "ui#1115") && ownerMark()?.action === "reported",

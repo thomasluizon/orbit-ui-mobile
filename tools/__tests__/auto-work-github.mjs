@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { alertCheck, alertsWithClosedTickets, closedTicketPullRequests, dismissAlert, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, otherLiveRuns, PULL_REQUEST_CLASSES,
   pendingItems, pullRequestCheck, pullRequestClass, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing, runPullRequestKeys, unexpectedAuthor,
   unreportedPullRequests } from "../lib/auto-work-github.mjs"
+import { readIntake } from "../lib/auto-work-intake.mjs"
 import { evaluateChecks } from "../lib/auto-work-wake.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 import { T, TOOLS_DIR, root } from "./_harness.mjs"
@@ -176,7 +177,7 @@ esac
 const stateCases = async ({ pullListing, alertListing }) => {
   const checkout = fresh("state", { pullRequests: [{ repositoryKey: "ui", prNumber: 2473, receiptPath: "receipt.json" }] })
   const pulls = recordListing("pullRequests", pullListing, checkout, { ...NO_OTHER_RUN, listedAt: "2026-11-16T12:00:00.000Z" })
-  T("github: the listing persists in intake.pullRequests and reads back", JSON.stringify(readRunState(checkout).intake.pullRequests) === JSON.stringify(pulls) &&
+  T("github: the listing persists in intake.pullRequests and reads back", JSON.stringify(readIntake(checkout).pullRequests) === JSON.stringify(pulls) &&
     pulls.listedAt === "2026-11-16T12:00:00.000Z")
   T("github: a pull request the run opened is marked run owned and is not pending", pulls.open["ui#2473"].runOwned === true &&
     !pendingItems("pullRequests", pulls).some((pull) => pull.key === "ui#2473"))
@@ -191,7 +192,7 @@ const stateCases = async ({ pullListing, alertListing }) => {
     action: "reported" }, checkout)) === "only a pull request from an unexpected author or with closed tickets is reported")
   const reported = markItem("pullRequests", { key: "landing#20", head: UNEXPECTED_PULL.head, action: "reported" }, checkout)
   T("github: a reported pull request from an unexpected author is not reported again", unreportedPullRequests(reported).length === 0 &&
-    readRunState(checkout).intake.pullRequests.marks["landing#20"].action === "reported")
+    readIntake(checkout).pullRequests.marks["landing#20"].action === "reported")
 
   T("github: a fix mark needs its carrying ticket", refusal(() => markItem("pullRequests", { key: "api#1106", head: DEPENDABOT_PULL.head, action: "fix" }, checkout)) ===
     "a fix needs its carrying ticket")
@@ -203,7 +204,7 @@ const stateCases = async ({ pullListing, alertListing }) => {
     "No open pullRequests item matches the receipt key" &&
     refusal(() => markItem("pullRequests", { key: "api#1106", head: DEPENDABOT_PULL.head, action: "dismissed" }, checkout)).startsWith("Unknown pullRequests action"))
   const marked = markItem("pullRequests", { key: "api#1106", head: DEPENDABOT_PULL.head, action: "fix", ticket: TICKET }, checkout)
-  T("github: a fix mark at the current head persists and clears the pending item", readRunState(checkout).intake.pullRequests.marks["api#1106"].ticket === TICKET &&
+  T("github: a fix mark at the current head persists and clears the pending item", readIntake(checkout).pullRequests.marks["api#1106"].ticket === TICKET &&
     !pendingItems("pullRequests", marked).some((pull) => pull.key === "api#1106"))
   const moved = recordListing("pullRequests", { ...pullListing, items: pullListing.items.map((pull) => ["api#1106", "landing#20"].includes(pull.key) ? { ...pull, head: "a".repeat(40) } : pull) }, checkout, NO_OTHER_RUN)
   T("github: a new head on a marked pull request makes it pending again", pendingItems("pullRequests", moved).some((pull) => pull.key === "api#1106") &&
@@ -250,8 +251,8 @@ const stateCases = async ({ pullListing, alertListing }) => {
     closed.failures === undefined)
 
   const alerts = recordListing("alerts", alertListing, checkout)
-  T("github: the alert listing persists in intake.alerts beside the pull requests", JSON.stringify(readRunState(checkout).intake.alerts) === JSON.stringify(alerts) &&
-    pendingItems("alerts", alerts).length === 2 && readRunState(checkout).intake.pullRequests !== undefined)
+  T("github: the alert listing persists in intake.alerts beside the pull requests", JSON.stringify(readIntake(checkout).alerts) === JSON.stringify(alerts) &&
+    pendingItems("alerts", alerts).length === 2 && readIntake(checkout).pullRequests !== undefined)
   T("github: an alert mark needs its ticket and the verified cause", refusal(() => markItem("alerts", { key: "api code-scanning 28", action: "ticket", ticket: TICKET }, checkout)) ===
     "an alert needs its carrying ticket and the verified cause")
   T("github: a mark never dismisses an alert", refusal(() => markItem("alerts", { key: "api code-scanning 28", action: "dismissed", ticket: TICKET }, checkout))
@@ -269,10 +270,10 @@ const stateCases = async ({ pullListing, alertListing }) => {
   T("github: an alert mark keeps the rule, the file and line, the ticket and the cause", JSON.stringify({ ...ticketed.marks["api code-scanning 28"], markedAt: undefined }) ===
     JSON.stringify({ action: "ticket", rule: "cs/web/cookie-secure-not-set", location: "tests/Orbit.Infrastructure.Tests/Controllers/OAuthControllerTests.CookiePolicy.cs:84",
       ticket: TICKET, cause: "The test fixture sets Secure false on purpose." }), JSON.stringify(ticketed.marks))
-  T("github: the waiter seeds its keys from the last listing without run owned pull requests", JSON.stringify(listedWakeKeys(readRunState(checkout).intake)) ===
-    JSON.stringify({ pullRequests: [], alerts: ["ui dependabot 186", "api code-scanning 28"] }), JSON.stringify(listedWakeKeys(readRunState(checkout).intake)))
+  T("github: the waiter seeds its keys from the last listing without run owned pull requests", JSON.stringify(listedWakeKeys(readIntake(checkout))) ===
+    JSON.stringify({ pullRequests: [], alerts: ["ui dependabot 186", "api code-scanning 28"] }), JSON.stringify(listedWakeKeys(readIntake(checkout))))
   writeRunState({ ...readRunState(checkout), sessionId: "child", relay: { from: "github" } }, checkout)
-  T("github: a relay carries the pull request and alert marks", readRunState(checkout).intake.alerts.marks["api code-scanning 28"].ticket === TICKET)
+  T("github: a relay carries the pull request and alert marks", readIntake(checkout).alerts.marks["api code-scanning 28"].ticket === TICKET)
   T("github: the run pull request keys come from the pull request entries and the readiness ledger",
     JSON.stringify([...runPullRequestKeys({ pullRequests: [{ repositoryKey: "ui", prNumber: 1 }], readinessLedger: [{ repositoryKey: "api", prNumber: 2 }, { prNumber: 3 }] })]) ===
     JSON.stringify(["ui#1", "api#2"]) && runPullRequestKeys(null).size === 0)
@@ -300,10 +301,10 @@ const ownershipCases = async ({ pullListing }) => {
   T("github: a remaining entry that names no ticket owns nothing and does not stop the listing", oddPulls.open?.["ui#2473"]?.runOwned === true &&
     oddPulls.open?.["api#1115"]?.runOwned === false, JSON.stringify(oddPulls.error ?? oddPulls.open?.["ui#2473"]))
   let oddKeys
-  try { oddKeys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(odd), readOtherRuns: noOtherRun })() } catch (error) { oddKeys = { error: error.message } }
+  try { oddKeys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(odd), readIntakeMarks: () => readIntake(odd), readOtherRuns: noOtherRun })() } catch (error) { oddKeys = { error: error.message } }
   T("github: a remaining entry that names no ticket does not stop the waiter check", Array.isArray(oddKeys.keys) &&
     !oddKeys.keys.some((key) => key.startsWith("ui#2473 ")), JSON.stringify(oddKeys))
-  const keys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout), readOtherRuns: noOtherRun })()
+  const keys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout), readIntakeMarks: () => readIntake(checkout), readOtherRuns: noOtherRun })()
   T("github: the waiter skips an owner pull request of an in-flight ticket", JSON.stringify(keys.keys) ===
     JSON.stringify([`ui#2462 ${CONTRACT_PULL.head}`, `api#1106 ${DEPENDABOT_PULL.head}`, `api#1115 ${EARLIER_OWNER_PULL.head}`, "landing#20"]), JSON.stringify(keys))
 }
@@ -334,7 +335,7 @@ const recordedAuthorCases = async ({ pullListing }) => {
     .every((key) => pulls.open[key]?.runOwned === false), JSON.stringify(Object.values(pulls.open).map((pull) => [pull.key, pull.runOwned])))
   T("github: a recorded bot pull request stays pending and a recorded unexpected author waits for its report",
     pendingItems("pullRequests", pulls).some((pull) => pull.key === "api#1106") && unreportedPullRequests(pulls).some((pull) => pull.key === "landing#20"))
-  const keys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout), readOtherRuns: noOtherRun })()
+  const keys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout), readIntakeMarks: () => readIntake(checkout), readOtherRuns: noOtherRun })()
   T("github: the waiter keeps the keys of a recorded bot and a recorded unexpected author pull request", keys.keys.includes(`api#1106 ${DEPENDABOT_PULL.head}`) &&
     keys.keys.includes("landing#20") && keys.keys.includes(`ui#2462 ${CONTRACT_PULL.head}`), JSON.stringify(keys))
 }
@@ -360,8 +361,8 @@ const liveRunCases = async ({ pullListing }) => {
     PULL_REQUEST_CLASSES.otherRun.refusal))
   const tickets = pullRequestsWithClosedTickets(pulls)
   T("github: an owner pull request of another live run is never listed with closed tickets", !tickets.items.some((item) => item.key === "api#1115"), JSON.stringify(tickets))
-  T("github: the listed wake keys skip an owner pull request of another live run", !listedWakeKeys(readRunState(checkout).intake).pullRequests.some((key) => key.startsWith("api#1115")))
-  const keys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout),
+  T("github: the listed wake keys skip an owner pull request of another live run", !listedWakeKeys(readIntake(checkout)).pullRequests.some((key) => key.startsWith("api#1115")))
+  const keys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout), readIntakeMarks: () => readIntake(checkout),
     readOtherRuns: (state) => otherLiveRuns(state, { repoRoot: checkout, sessions: sessions(otherSession) }) })()
   T("github: the waiter skips an owner pull request of another live run", !keys.keys.some((key) => key.startsWith("api#1115")) && keys.failure === undefined, JSON.stringify(keys))
 
@@ -408,7 +409,7 @@ const liveRunCases = async ({ pullListing }) => {
 
   /* The same live run failure wakes the waiter once, and its recovery wakes nothing: the withheld keys stay seen. */
   let failing = false
-  const checks = [{ source: "pullRequests", run: pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout),
+  const checks = [{ source: "pullRequests", run: pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout), readIntakeMarks: () => readIntake(checkout),
     readOtherRuns: (state) => otherLiveRuns(state, { repoRoot: checkout, sessions: failing ? () => [otherSession] : sessions() }) }) }]
   let marks = { seen: {}, failures: {}, sentryListedAt: new Date(0).toISOString() }
   const interval = async () => {
@@ -462,7 +463,7 @@ const closedTicketAlertWakeCases = async () => {
   let ticket = { state: "OPEN", stateReason: null }
   let scan = API_SCAN_COMMIT
   const ticketReads = []
-  const check = { source: "alerts", run: alertCheck({ list: async () => listing, readState: () => state,
+  const check = { source: "alerts", run: alertCheck({ list: async () => listing, readIntakeMarks: () => state.intake,
     readTicketState: async (number) => { ticketReads.push(number); if (ticket instanceof Error) throw ticket; return { number, ...ticket } }, readNewestScan: async () => scan }) }
   let marks = { seen: { alerts: ["api code-scanning 28"] }, failures: {}, sentryListedAt: new Date(0).toISOString() }
   const interval = async () => {
@@ -498,7 +499,7 @@ const notPlannedAlertWakeCases = async () => {
   let scan = API_SCAN_COMMIT
   const scanReads = []
   const readers = { readTicketState: async (number) => ({ number, ...ticket }), readNewestScan: async (key) => { scanReads.push(key); return scan } }
-  const check = { source: "alerts", run: alertCheck({ list: async () => listing, readState: () => state, ...readers }) }
+  const check = { source: "alerts", run: alertCheck({ list: async () => listing, readIntakeMarks: () => state.intake, ...readers }) }
   let marks = { seen: { alerts: ["api code-scanning 28"] }, failures: {}, sentryListedAt: new Date(0).toISOString() }
   const interval = async () => {
     const evaluated = evaluateChecks([check], await Promise.allSettled([check.run()]), marks, 0)
@@ -558,7 +559,7 @@ const failedReadCases = async () => {
   let answers = healthy
   const readPages = (path, projection) => fakeReader(answers).readPages(path, projection)
   const checks = [
-    { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests({ repositories: REPOSITORIES, readPages, readTicketState: routedTickets }), readState: () => ({}), readOtherRuns: noOtherRun }) },
+    { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests({ repositories: REPOSITORIES, readPages, readTicketState: routedTickets }), readState: () => ({}), readIntakeMarks: () => ({}), readOtherRuns: noOtherRun }) },
     { source: "alerts", run: alertCheck({ list: () => listOpenAlerts({ repositories: REPOSITORIES, readPages }) }) }]
   let marks = { seen: {}, failures: {}, sentryListedAt: new Date(0).toISOString() }
   const interval = async (current) => {
@@ -761,7 +762,7 @@ const ticketReadFailureCases = async () => {
   let answers = pulls
   let tickets = routedTickets
   const check = pullRequestCheck({ list: () => listOpenPullRequests({ repositories: REPOSITORIES, readPages: (path, projection) => fakeReader(answers).readPages(path, projection),
-    readTicketState: (number) => tickets(number) }), readState: () => ({}), readOtherRuns: noOtherRun })
+    readTicketState: (number) => tickets(number) }), readState: () => ({}), readIntakeMarks: () => ({}), readOtherRuns: noOtherRun })
   let marks = { seen: {}, failures: {}, sentryListedAt: new Date(0).toISOString() }
   const interval = async () => {
     const evaluated = evaluateChecks([{ source: "pullRequests" }], await Promise.allSettled([check()]), marks, 0)
@@ -783,7 +784,7 @@ const ticketReadFailureCases = async () => {
 }
 
 const checkCases = async ({ pullListing, alertListing }) => {
-  const pulls = await pullRequestCheck({ list: async () => pullListing, readState: () => ({ pullRequests: [{ repositoryKey: "ui", prNumber: 2473 }] }), readOtherRuns: noOtherRun })()
+  const pulls = await pullRequestCheck({ list: async () => pullListing, readState: () => ({ pullRequests: [{ repositoryKey: "ui", prNumber: 2473 }] }), readIntakeMarks: () => ({}), readOtherRuns: noOtherRun })()
   T("github: the pull request check keys each pull request the run did not open by its head, and an unexpected author once", JSON.stringify(pulls) ===
     JSON.stringify({ keys: [`ui#2462 ${CONTRACT_PULL.head}`, `api#1106 ${DEPENDABOT_PULL.head}`, `api#1115 ${EARLIER_OWNER_PULL.head}`, "landing#20"] }), JSON.stringify(pulls))
   const listed = listedWakeKeys({ pullRequests: { open: { "ui#2473": { key: "ui#2473", head: OWNER_PULL.head, runOwned: true },
@@ -792,7 +793,7 @@ const checkCases = async ({ pullListing, alertListing }) => {
   T("github: the listed wake keys skip run owned pull requests and match the check keys", JSON.stringify(listed) ===
     JSON.stringify({ pullRequests: [`api#1106 ${DEPENDABOT_PULL.head}`, "landing#20"] }), JSON.stringify(listed))
   const reportedMarks = { "api#1115": { head: "0".repeat(40), action: "reported", closedTickets: [{ number: 2140, stateReason: "NOT_PLANNED" }] } }
-  const reported = await pullRequestCheck({ list: async () => pullListing, readState: () => ({ intake: { pullRequests: { marks: reportedMarks } } }), readOtherRuns: noOtherRun })()
+  const reported = await pullRequestCheck({ list: async () => pullListing, readState: () => ({}), readIntakeMarks: () => ({ pullRequests: { marks: reportedMarks } }), readOtherRuns: noOtherRun })()
   const reportedListed = listedWakeKeys({ pullRequests: { open: { "api#1115": { key: "api#1115", head: EARLIER_OWNER_PULL.head, runOwned: false } }, marks: reportedMarks } })
   T("github: a reported pull request keys without its head, so a new head does not wake the waiter", reported.keys.includes("api#1115") &&
     !reported.keys.some((key) => key.startsWith("api#1115 ")) && JSON.stringify(reportedListed) === JSON.stringify({ pullRequests: ["api#1115"] }),
@@ -802,7 +803,7 @@ const checkCases = async ({ pullListing, alertListing }) => {
     reads: ["ui pulls"], failures: [] })
   let sharedListing = sharedDigits(25, 251, 2510)
   let liveRunFailure
-  const sharedCheck = pullRequestCheck({ list: async () => sharedListing, readState: () => ({ intake: { pullRequests: { marks: { "ui#25": { head: "a".repeat(40), action: "reported" } } } } }),
+  const sharedCheck = pullRequestCheck({ list: async () => sharedListing, readState: () => ({}), readIntakeMarks: () => ({ pullRequests: { marks: { "ui#25": { head: "a".repeat(40), action: "reported" } } } }),
     readOtherRuns: () => ({ claims: (pull) => liveRunFailure !== undefined && pull.ownerAuthor === true, ...(liveRunFailure ? { failure: liveRunFailure } : {}) }) })
   let sharedMarks = { seen: {}, failures: {}, sentryListedAt: new Date(0).toISOString() }
   const sharedInterval = async () => {

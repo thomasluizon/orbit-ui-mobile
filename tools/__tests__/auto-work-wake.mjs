@@ -1,6 +1,6 @@
-import { mkdirSync } from "node:fs"
+import { mkdirSync, statSync } from "node:fs"
 import { join } from "node:path"
-import { intakeSource, updateIntakeSource } from "../lib/auto-work-intake.mjs"
+import { intakeSource, readIntake, updateIntakeSource } from "../lib/auto-work-intake.mjs"
 import { boardCheck, evaluateChecks, initialWakeMarks, mailCheck, reviewCheck, saveWakeMarks, SENTRY_DETAIL, watchIntake } from "../lib/auto-work-wake.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 import { T, root } from "./_harness.mjs"
@@ -113,14 +113,21 @@ const stateCases = () => {
   const checkout = fresh("marks")
   updateIntakeSource("play", (play) => ({ ...play, pending: { ...play.pending, r1: { id: "r1" } } }), checkout)
   updateIntakeSource("appStore", (appStore) => ({ ...appStore, pending: { ...appStore.pending, a1: { id: "a1" } } }), checkout)
-  const marks = initialWakeMarks(readRunState(checkout).intake, Date.parse("2026-11-08T00:00:00.000Z"))
+  const marks = initialWakeMarks(readIntake(checkout), Date.parse("2026-11-08T00:00:00.000Z"))
   T("wake: pending reviews the model already holds are seeded as seen", JSON.stringify(marks.seen.reviews) === JSON.stringify(["play r1", "appStore a1"]) &&
     marks.sentryListedAt === "2026-11-08T00:00:00.000Z" && marks.seen.board === undefined)
   saveWakeMarks(marks, checkout)
-  T("wake: marks persist in intake.wake beside the source state", JSON.stringify(readRunState(checkout).intake.wake) === JSON.stringify(marks) &&
+  T("wake: marks persist in intake.wake beside the source state", JSON.stringify(readIntake(checkout).wake) === JSON.stringify(marks) &&
     intakeSource("play", checkout).pending.r1.id === "r1")
+  const intakePath = join(checkout, ".git", "orbit-test-run-files", "run-state", "intake.json")
+  const inodeBefore = statSync(intakePath, { bigint: true }).ino
+  saveWakeMarks(marks, checkout)
+  T("wake: saving the marks the intake file already holds replaces no file", statSync(intakePath, { bigint: true }).ino === inodeBefore)
+  saveWakeMarks({ ...marks, sentryListedAt: "2026-11-09T00:00:00.000Z" }, checkout)
+  T("wake: saving changed marks replaces the intake file", statSync(intakePath, { bigint: true }).ino !== inodeBefore)
+  saveWakeMarks(marks, checkout)
   writeRunState({ ...readRunState(checkout), sessionId: "child", relay: { from: "wake" } }, checkout)
-  T("wake: a relay carries the wake marks", JSON.stringify(initialWakeMarks(readRunState(checkout).intake, Date.now())) === JSON.stringify(marks))
+  T("wake: a relay reads the same wake marks from the intake file", JSON.stringify(initialWakeMarks(readIntake(checkout), Date.now())) === JSON.stringify(marks))
 
   const listedIntake = { wake: { seen: { pullRequests: ["api#1105 old"], alerts: ["ui dependabot 186"] } },
     pullRequests: { open: { "api#1106": { key: "api#1106", head: "1eb7c13b62064064a60a3589eff1b1812f39190e" } } },

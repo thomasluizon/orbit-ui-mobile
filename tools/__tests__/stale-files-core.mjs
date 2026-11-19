@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import fs, { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import fs, { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { syncBuiltinESMExports } from "node:module"
 import { basename, dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -23,25 +23,22 @@ const CHAINED = "88888888-0000-4000-8000-000000000008"
 const HOLDS_WORK = "99999999-0000-4000-8000-000000000009"
 const STALE = "aaaaaaaa-0000-4000-8000-00000000000a"
 const OTHER = "cccccccc-0000-4000-8000-00000000000c"
-const LIVE_CARRY = "0f0f0f0f-0000-4000-8000-00000000000f"
 const LIVE_ELSEWHERE = "dddddddd-0000-4000-8000-00000000000d"
 const SESSIONS = [THIS, CHAIN_PREDECESSOR, RUN_PREDECESSOR, SUCCESSOR, LIVE_RECORD, LIVE_DIRECTORY, LIVE_COMMAND, LINKED, CHAINED, HOLDS_WORK, STALE]
 
-/** One checkout with a run state and a chain ledger, one session root and one carry root, all under the suite root. */
+/** One checkout with a run state and a chain ledger and one session root, all under the suite root. */
 const stageMachine = (label) => {
   const base = join(root, "stale-core", label)
   const checkout = join(base, "checkout")
   const sessionRoot = join(base, "sessions")
-  const carryRoot = join(base, "carry")
   mkdirSync(join(checkout, ".git"), { recursive: true })
-  mkdirSync(carryRoot, { recursive: true })
   writeFileSync(join(checkout, ".git", "orbit-orchestrate-run.json"), JSON.stringify({ sessionId: THIS, relay: { from: RUN_PREDECESSOR, pending: true, successorSessionId: SUCCESSOR } }))
   writeFileSync(join(checkout, ".git", "orbit-session-chain.json"), JSON.stringify({ chains: [{ id: "chain", currentSessionId: THIS,
     entries: [{ sessionId: STALE, successorSessionId: CHAIN_PREDECESSOR }, { sessionId: CHAIN_PREDECESSOR, successorSessionId: THIS }] }] }))
   for (const session of SESSIONS) mkdirSync(join(sessionRoot, session, "scratchpad"), { recursive: true })
   mkdirSync(join(sessionRoot, "tasks-not-a-session"))
-  return { base, checkout, sessionRoot, carryRoot,
-    context: { sessionId: THIS, sessionRoot, carryRoot, repositories: {}, configDirectories: [], repoRoot: checkout } }
+  return { base, checkout, sessionRoot,
+    context: { sessionId: THIS, sessionRoot, repositories: {}, configDirectories: [], repoRoot: checkout } }
 }
 
 /** Live session records with no working directory. A listing session always runs, so it has one too. */
@@ -54,7 +51,7 @@ const sessionCases = () => {
   const machine = stageMachine("sessions")
   const directory = (session) => join(machine.sessionRoot, session)
   mkdirSync(join(directory(LINKED), "scratchpad", "build"))
-  // The live session links to a link in a second directory, which links on: the middle directory must stay too.
+  // Nothing carries a scratchpad forward any more, so a link from a live scratchpad holds no other session directory.
   symlinkSync(join(directory(LINKED), "scratchpad", "build"), join(directory(CHAINED), "scratchpad", "build"), "dir")
   symlinkSync(join(directory(CHAINED), "scratchpad", "build"), join(directory(LIVE_RECORD), "scratchpad", "build"), "dir")
   const worktree = join(directory(HOLDS_WORK), "scratchpad", "scratch-worktree")
@@ -67,21 +64,20 @@ const sessionCases = () => {
     liveSessions: () => [{ sessionId: THIS, cwd: null }, { sessionId: LIVE_RECORD, cwd: machine.checkout }],
     git: (cwd, args) => (args[0] === "worktree" ? `worktree ${machine.checkout}\nHEAD 1\nbranch refs/heads/main\n\nworktree ${worktree}\nHEAD 2\nbranch refs/heads/scratch\n` : cwd === worktree ? " M unsaved.txt" : "") }
   const listing = collectListing({ ...machine.context, repositories: { ui: machine.checkout } }, { probes })
-  same("stale-files: only the session directory that no session owns is stale", stalePaths(listing, "session"), [directory(STALE)])
+  same("stale-files: only the session directories that no session owns are stale", stalePaths(listing, "session").sort(), [LINKED, CHAINED, STALE].map(directory).sort())
   T("stale-files: the stale session directory carries its size and the reason", listing.stale[0]?.bytes === 1024 && /not this session, its predecessor, or a session with a live process/.test(listing.stale[0]?.reason), JSON.stringify(listing.stale))
   for (const [name, session, reason] of [
     ["this session", THIS, /^this session$/], ["the chain predecessor", CHAIN_PREDECESSOR, /predecessor of this session/],
     ["the run state predecessor", RUN_PREDECESSOR, /predecessor of this session/], ["the nominated successor", SUCCESSOR, /nominated successor/],
     ["a session with a live record", LIVE_RECORD, /live session 44444444 uses it/], ["a session a process works in", LIVE_DIRECTORY, /a live process works in it/],
-    ["a session a process names", LIVE_COMMAND, /a live process names it/], ["a directory a live scratchpad links into", LINKED, /scratchpad of session 44444444 links into it/],
-    ["the middle directory of a link chain", CHAINED, /scratchpad of session 44444444 links into it/],
+    ["a session a process names", LIVE_COMMAND, /a live process names it/],
     ["a directory with an uncommitted worktree", HOLDS_WORK, /holds an uncommitted change/],
   ]) T(`stale-files: ${name} is kept`, reason.test(reasonOf(listing, directory(session)) ?? ""), `reason: ${reasonOf(listing, directory(session))}`)
   same("stale-files: a directory that is not a session id is never an item", [...listing.stale, ...listing.kept].some((item) => item.path.includes("tasks-not-a-session")), false)
   // A second session in the same checkout lists and removes too: the run's own relay pair must stay for it as well.
   const second = collectListing({ ...machine.context, sessionId: OTHER, repositories: { ui: machine.checkout } },
     { probes: { ...probes, liveSessions: () => [{ sessionId: LIVE_RECORD, cwd: machine.checkout }, { sessionId: OTHER, cwd: machine.checkout }] } })
-  same("stale-files: another session's listing marks only the same session directory stale", stalePaths(second, "session"), [directory(STALE)])
+  same("stale-files: another session's listing marks only the same session directories stale", stalePaths(second, "session").sort(), [LINKED, CHAINED, STALE].map(directory).sort())
   for (const [name, session, reason] of [
     ["the run session", THIS, /^the run session$/], ["the run session's chain predecessor", CHAIN_PREDECESSOR, /predecessor of the run session/],
     ["the run session's relay predecessor", RUN_PREDECESSOR, /predecessor of the run session/], ["the run session's nominated successor", SUCCESSOR, /nominated successor of the run session/],
@@ -108,28 +104,6 @@ const sessionCases = () => {
   same("stale-files: no session root means no session item", [...rootless.stale, ...rootless.kept].filter((item) => item.kind === "session").length, 0)
 }
 
-const carryCases = () => {
-  const machine = stageMachine("carry")
-  const copies = [["durable-0f0f0f0f", 60], ["durable-0a0a0a0a", 50], ["durable-0b0b0b0b", 40], ["durable-22222222", 30], ["durable-0d0d0d0d", 20], ["durable-0e0e0e0e", 10]]
-  for (const [name, age] of copies) {
-    mkdirSync(join(machine.carryRoot, name, "kept-build"), { recursive: true })
-    utimesSync(join(machine.carryRoot, name), new Date(Date.now() - age * 3_600_000), new Date(Date.now() - age * 3_600_000))
-  }
-  mkdirSync(join(machine.carryRoot, "scratchpad"))
-  writeFileSync(join(machine.carryRoot, "carry-0a0a0a0a.log"), "carried\n")
-  symlinkSync(join(machine.carryRoot, "durable-0b0b0b0b", "kept-build"), join(machine.sessionRoot, THIS, "scratchpad", "kept-build"), "dir")
-  // A live session in another checkout still mirrors its scratchpad into its own durable copy, however old the copy's directory is.
-  const listing = collectListing(machine.context, { probes: { ...quietProbes, liveSessions: () => [{ sessionId: THIS, cwd: null }, { sessionId: LIVE_CARRY, cwd: machine.base }] } })
-  const copy = (name) => join(machine.carryRoot, name)
-  same("stale-files: only a durable copy older than the newest two is stale", stalePaths(listing, "carry"), [copy("durable-0a0a0a0a")])
-  T("stale-files: the stale durable copy names its reason", /older than the newest two durable copies/.test(listing.stale.find((item) => item.kind === "carry")?.reason ?? ""), JSON.stringify(listing.stale))
-  for (const name of ["durable-0e0e0e0e", "durable-0d0d0d0d"]) T(`stale-files: ${name} is one of the newest two`, /newest two/.test(reasonOf(listing, copy(name)) ?? ""), `reason: ${reasonOf(listing, copy(name))}`)
-  T("stale-files: the durable copy of the predecessor is kept at any age", /durable copy of the predecessor/.test(reasonOf(listing, copy("durable-22222222")) ?? ""), `reason: ${reasonOf(listing, copy("durable-22222222"))}`)
-  T("stale-files: a durable copy this scratchpad links into is kept", /scratchpad of session 00000000 links into it/.test(reasonOf(listing, copy("durable-0b0b0b0b")) ?? ""), `reason: ${reasonOf(listing, copy("durable-0b0b0b0b"))}`)
-  T("stale-files: the durable copy of a live session is kept at any age", /durable copy of live session 0f0f0f0f/.test(reasonOf(listing, copy("durable-0f0f0f0f")) ?? ""), `reason: ${reasonOf(listing, copy("durable-0f0f0f0f"))}`)
-  same("stale-files: other entries of the carry root are never items", [...listing.stale, ...listing.kept].filter((item) => item.kind === "carry").length, 6)
-}
-
 /** Claude Code keeps `<session base>/<project>/<session id>/scratchpad`: the run session and a live session can sit in another project's root. */
 const rootCases = () => {
   const machine = stageMachine("roots")
@@ -137,14 +111,7 @@ const rootCases = () => {
   const otherRoot = join(machine.base, "other-project")
   for (const session of [OTHER, STALE, CHAINED]) mkdirSync(join(listingRoot, session, "scratchpad"), { recursive: true })
   mkdirSync(join(otherRoot, LIVE_ELSEWHERE, "scratchpad"), { recursive: true })
-  for (const [name, age] of [["durable-0a0a0a0a", 30], ["durable-0d0d0d0d", 20], ["durable-0e0e0e0e", 10]]) {
-    mkdirSync(join(machine.carryRoot, name, "kept-build"), { recursive: true })
-    utimesSync(join(machine.carryRoot, name), new Date(Date.now() - age * 3_600_000), new Date(Date.now() - age * 3_600_000))
-  }
-  const linkedCopy = join(machine.carryRoot, "durable-0a0a0a0a")
-  // The run session's scratchpad, in the primary checkout's project root, links into a copy that is not one of the newest two.
-  symlinkSync(join(linkedCopy, "kept-build"), join(machine.sessionRoot, THIS, "scratchpad", "kept-build"), "dir")
-  // A live session in a third project links into an old session directory of the listing's own root.
+  // A live session in a third project links into an old session directory of the listing's own root; the link holds nothing.
   mkdirSync(join(listingRoot, STALE, "scratchpad", "build"))
   symlinkSync(join(listingRoot, STALE, "scratchpad", "build"), join(otherRoot, LIVE_ELSEWHERE, "scratchpad", "build"), "dir")
   // The run session keeps a finished worktree in its scratchpad, and no process works in it at the moment of the listing.
@@ -154,20 +121,9 @@ const rootCases = () => {
     git: (cwd, args) => (args[0] === "worktree" ? `worktree ${machine.checkout}\nHEAD 1\nbranch refs/heads/main\n\nworktree ${runWorktree}\nHEAD 2\nbranch refs/heads/done\n` : "") }
   const context = { ...machine.context, sessionId: OTHER, sessionRoot: listingRoot, repositories: { ui: machine.checkout } }
   const listing = collectListing(context, { probes })
-  T("stale-files: a durable copy that the run session's scratchpad in another project root links into is kept", /scratchpad of session 00000000 links into it/.test(reasonOf(listing, linkedCopy) ?? ""), `reason: ${reasonOf(listing, linkedCopy)}`)
-  T("stale-files: a session directory that a live session in another project root links into is kept", /scratchpad of session dddddddd links into it/.test(reasonOf(listing, join(listingRoot, STALE)) ?? ""), `reason: ${reasonOf(listing, join(listingRoot, STALE))}`)
-  same("stale-files: from a linked project root, only the session directory that nothing reads is stale", stalePaths(listing, "session"), [join(listingRoot, CHAINED)])
+  same("stale-files: from a linked project root, a session directory that another scratchpad links into is stale", stalePaths(listing, "session").sort(), [join(listingRoot, CHAINED), join(listingRoot, STALE)].sort())
   T("stale-files: a worktree in the directory of the run session in another project root is kept", /directory of session 00000000, which stays: the run session/.test(reasonOf(listing, runWorktree) ?? ""), `reason: ${reasonOf(listing, runWorktree)}`)
-  // A scratchpad that exists and cannot be read can link anywhere. The superuser reads it anyway, so the case needs another user.
-  if (process.getuid?.() !== 0) {
-    const runScratchpad = join(machine.sessionRoot, THIS, "scratchpad")
-    chmodSync(runScratchpad, 0o000)
-    let sealed
-    try { sealed = collectListing(context, { probes }) } finally { chmodSync(runScratchpad, 0o755) }
-    T("stale-files: an unreadable scratchpad of a session that stays keeps every durable copy older than the newest two", /scratchpads .* could not be read/.test(reasonOf(sealed, linkedCopy) ?? ""), `reason: ${reasonOf(sealed, linkedCopy)}`)
-  }
   const rootless = collectListing({ ...context, sessionRoot: null }, { probes })
-  T("stale-files: with no session root, a durable copy older than the newest two is kept", /scratchpads .* could not be read/.test(reasonOf(rootless, linkedCopy) ?? ""), `reason: ${reasonOf(rootless, linkedCopy)}`)
   T("stale-files: with no session root, a worktree inside a session directory is kept", /in a session directory, .* could not be read/.test(reasonOf(rootless, runWorktree) ?? ""), `reason: ${reasonOf(rootless, runWorktree)}`)
 }
 
@@ -201,14 +157,9 @@ const listWithRemovalAfterListing = (directory, name, list) => {
 /** An entry that goes away between the listing of its root and its own stat is gone; it never ends the whole listing. */
 const raceCases = () => {
   const machine = stageMachine("race")
-  const carryRoot = join(root, "stale-core", "race-carry")
   const otherRoot = join(machine.base, "other-project")
   mkdirSync(join(otherRoot, LIVE_ELSEWHERE, "scratchpad"), { recursive: true })
-  for (const [name, age] of [["durable-0a0a0a0a", 30], ["durable-0d0d0d0d", 20], ["durable-0e0e0e0e", 10]]) {
-    mkdirSync(join(carryRoot, name), { recursive: true })
-    utimesSync(join(carryRoot, name), new Date(Date.now() - age * 3_600_000), new Date(Date.now() - age * 3_600_000))
-  }
-  const context = { ...machine.context, carryRoot }
+  const context = machine.context
   const outcome = (raced) => raced.error ? `threw ${raced.error.code}: ${raced.error.message}` : `removed: ${raced.removed}, stale: ${JSON.stringify(raced.listing.stale)}`
   const items = (raced) => [...raced.listing.stale, ...raced.listing.kept].map((item) => item.path)
   const stale = join(machine.sessionRoot, STALE)
@@ -218,10 +169,6 @@ const raceCases = () => {
   const own = listWithRemovalAfterListing(machine.sessionRoot, STALE, () => collectListing(context, { probes: quietProbes }))
   T("stale-files: a session directory of the listing's own root that goes away between the listing and its stat is no item", own.removed && !own.error
     && !items(own).includes(stale) && /nominated successor/.test(reasonOf(own.listing, join(machine.sessionRoot, SUCCESSOR)) ?? ""), outcome(own))
-  const oldest = join(carryRoot, "durable-0a0a0a0a")
-  const carry = listWithRemovalAfterListing(carryRoot, "durable-0a0a0a0a", () => collectListing(context, { probes: quietProbes }))
-  T("stale-files: a durable copy that goes away between the listing and its stat is no item", carry.removed && !carry.error
-    && !items(carry).includes(oldest) && stalePaths(carry.listing, "carry").length === 0, outcome(carry))
   // Only a missing entry is skipped. An entry of a root that can be listed and not searched still stops the listing.
   if (process.getuid?.() === 0) return
   mkdirSync(join(otherRoot, LIVE_ELSEWHERE))
@@ -569,7 +516,6 @@ const reportCases = () => {
 
 export const cases = () => {
   sessionCases()
-  carryCases()
   rootCases()
   raceCases()
   recordCases()

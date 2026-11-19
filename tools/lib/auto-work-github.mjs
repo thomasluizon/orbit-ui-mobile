@@ -1,12 +1,12 @@
 import { existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { configuredRepositorySlug } from "./admission.mjs"
-import { activeIntakeRun, carryingTicket, intakeRun } from "./auto-work-intake.mjs"
+import { carryingTicket, intakeRun, readIntake, updateIntake } from "./auto-work-intake.mjs"
 import { runBounded } from "./bounded-process.mjs"
 import { githubEnvironment, redactSecrets, repositorySlug } from "./github-auth.mjs"
 import { resolveTicket } from "./github-issues.mjs"
 import { readOrchestratorConfig } from "./orchestrator-config.mjs"
-import { REPO_ROOT, claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, readRunState, updateRunState } from "./run-state.mjs"
+import { REPO_ROOT, claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, readRunState } from "./run-state.mjs"
 
 /** The three code repositories whose open pull requests and alerts auto-work reads every cycle. */
 const REPOSITORY_KEYS = ["ui", "api", "landing"]
@@ -266,12 +266,12 @@ const wakeKeys = (listing, keyOf, prefixOf) => {
  * Keys each pull request that neither this run nor another live run owns. When the live runs cannot be read, the
  * withheld owner pull requests keep their seen keys, so the same failure wakes the model once and its recovery is not new.
  */
-export const pullRequestCheck = ({ list, readState, readOtherRuns }) => async () => {
+export const pullRequestCheck = ({ list, readState, readIntakeMarks, readOtherRuns }) => async () => {
   const listing = await list()
   const state = readState()
   const owned = runOwnedPullRequest(state)
   const otherRuns = readOtherRuns(state)
-  const marks = state?.intake?.pullRequests?.marks ?? {}
+  const marks = readIntakeMarks()?.pullRequests?.marks ?? {}
   const keyOf = (pull) => pullRequestWakeKey(pull, marks[pull.key])
   const checked = wakeKeys({ ...listing, items: listing.items.filter((pull) => !owned(pull) && !otherRuns.claims(pull)) }, keyOf, (read) => `${read.split(" ")[0]}#`)
   if (!otherRuns.failure) return checked
@@ -299,9 +299,9 @@ export const newestScanCommit = async ({ repositories, readPages }, repositoryKe
  * Keys each open alert, and each open alert whose carrying ticket is closed a second time, so the
  * close of that ticket wakes the model. An alert whose ticket or scan read failed keeps its seen key.
  */
-export const alertCheck = ({ list, readState = () => ({}), readTicketState, readNewestScan }) => async () => {
+export const alertCheck = ({ list, readIntakeMarks = () => ({}), readTicketState, readNewestScan }) => async () => {
   const listing = await list()
-  const marks = readState()?.intake?.alerts?.marks ?? {}
+  const marks = readIntakeMarks()?.alerts?.marks ?? {}
   const checked = wakeKeys(listing, (alert) => alert.key, (read) => `${read} `)
   if (!Object.values(marks).some((mark) => TICKETED_ALERT_ACTIONS.includes(mark?.action))) return checked
   const closed = await alertsWithClosedTickets({ open: Object.fromEntries(listing.items.map((alert) => [alert.key, alert])), marks }, { readTicketState, readNewestScan })
@@ -317,16 +317,14 @@ export const listedWakeKeys = (intake) => ({
   ...(intake?.alerts?.open ? { alerts: [...Object.keys(intake.alerts.open), ...(intake.alerts.ticketClosed ?? [])] } : {}),
 })
 
-const sourceOf = (state, source) => ({ open: {}, marks: {}, ...state.intake?.[source] })
+const sourceOf = (intake, source) => ({ open: {}, marks: {}, ...intake?.[source] })
 
+/** One compare-and-swap of intake.<source> in the intake file on GitHub, read back; the run record supplies the ownership of pull requests. */
 const writeSource = (source, change, repoRoot) => {
+  const state = intakeRun(repoRoot)
   let contents
-  const written = updateRunState((current) => {
-    const state = activeIntakeRun(current, repoRoot)
-    contents = change(sourceOf(state, source), state)
-    return { ...state, intake: { ...state.intake, [source]: contents } }
-  }, repoRoot)
-  if (JSON.stringify(sourceOf(written, source)) !== JSON.stringify(contents)) throw new Error(`intake.${source} write was not confirmed`)
+  updateIntake(source, (intake) => (contents = change(sourceOf(intake, source), state)), repoRoot)
+  if (JSON.stringify(sourceOf(readIntake(repoRoot), source)) !== JSON.stringify(contents)) throw new Error(`intake.${source} write was not confirmed`)
   return contents
 }
 
@@ -548,7 +546,7 @@ const DISMISSALS = {
  */
 export const dismissAlert = async (receipt, { repositories, write, repoRoot = REPO_ROOT }) => {
   const dismissal = { ...receipt, action: "false-positive" }
-  const alert = receiptItem("alerts", sourceOf(intakeRun(repoRoot), "alerts"), dismissal)
+  const alert = receiptItem("alerts", sourceOf(readIntake(repoRoot), "alerts"), dismissal)
   const slug = repositories.find((repository) => repository.key === alert.repository)?.slug
   if (!slug) throw new Error(`No repository matches ${alert.repository}`)
   const { body, comment } = DISMISSALS[alert.kind]

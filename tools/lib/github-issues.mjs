@@ -867,3 +867,31 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   }
   return ticket
 }
+
+/**
+ * The one issue that holds the run-wide decisions and the owner questions no ticket owns, found by its exact title in
+ * every state: it stays closed, so no open-ticket count or board placement counts it. Null when it does not exist.
+ */
+export const findRunRecord = async (title) => {
+  nonEmptyString(title, "Run record title")
+  const tickets = ticketConfiguration()
+  const args = ["issue", "list", "--repo", tickets.repository, "--state", "all", "--search", `"${title}" in:title`, "--limit", "20", "--json", "number,url,title,state"]
+  const issues = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
+  if (!Array.isArray(issues)) throw new Error("gh issue list returned no issue array")
+  const exact = issues.filter((issue) => issue?.title === title)
+  if (exact.length > 1) throw new Error(`${exact.length} issues are titled "${title}": ${exact.map((issue) => `#${issue.number}`).join(", ")}; keep one`)
+  if (exact.length === 1 && !Number.isInteger(exact[0].number)) throw new Error(`gh issue list carried no number for "${title}"`)
+  return exact[0] ? { number: exact[0].number, url: exact[0].url, state: exact[0].state } : null
+}
+
+/** Creates the run record issue outside the board and closes it as not planned; a closed issue still takes comments. */
+export const createRunRecord = async (title, body) => {
+  nonEmptyString(title, "Run record title")
+  nonEmptyString(body, "Run record body")
+  const tickets = ticketConfiguration()
+  const url = (await runGh(["issue", "create", "--repo", tickets.repository, "--title", title, "--body-file", "-"], { input: body })).trim()
+  const number = Number(/\/issues\/([1-9]\d*)$/.exec(url)?.[1])
+  if (!Number.isInteger(number)) throw new Error(`gh issue create printed no issue URL: ${url}`)
+  await runGh(["issue", "close", String(number), "--repo", tickets.repository, "--reason", "not planned"])
+  return { number, url }
+}

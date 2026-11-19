@@ -13,16 +13,20 @@ relaxes a quality gate or changes merge and release authority.
 ## Entry and mode
 
 Read `.claude/skills/sleep/SKILL.md` and enter through that skill, including relay adoption,
-the initial write and readback, the scratchpad decision log and canonical orchestrator entry.
+the initial write and readback, the decisions posted to GitHub and canonical orchestrator entry.
 After its initial state write or adoption, enable this mode before canonical queue selection
 or dispatch, so a fresh session with an empty board still reaches the first intake cycle.
-An existing run keeps its admitted queue, readiness ledger, relay and decision log. With no
+An existing run keeps its admitted queue, readiness ledger and relay. With no run record in the
+checkout, run `node tools/run-status.mjs` first: it rebuilds the queue, the in-flight pull requests,
+the latest round notes and the intake marks from GitHub. With no
 focus, use `/sleep`'s `/orchestrate --auto` entry. Adopt a nominated relay before changing mode.
 
 Run `node tools/auto-work-state.mjs --enable` in the orchestrating checkout. Read the state
 back with `readRunState` from `tools/lib/run-state.mjs`, confirming this session and
-`autoWork: true`. Preserve `intake` on every write. `writeRunState` carries both forward within
-the session and into a relay successor. Change part of the record only through `updateRunState`,
+`autoWork: true`. The intake does not live in that record: it lives in `run-state/intake.json` in
+the tickets repository, and each intake writer replaces it through `updateIntake` from
+`tools/lib/auto-work-intake.mjs`. A relay successor reads the same file. Change part of the
+run record only through `updateRunState`,
 which reads and writes under one lock. `updateRunState` refuses the change from a superseded session with
 `session is superseded; run state write refused`, so the read-back then shows the successor's record unchanged.
 An owner-started successor restores the prepared
@@ -43,8 +47,8 @@ With no run there is nothing to disable. An owner stop uses `/sleep`'s stop proc
 
 Run all steps on entry and on each wake that is not an idle waiter wake. A wake from the idle
 waiter runs only the steps for the sources it names (see Idle and relay). A relay drain follows
-the canonical relay protocol before any new admission; unfinished intake remains in run state
-for the successor.
+the canonical relay protocol before any new admission; unfinished intake remains in the intake
+file for the successor.
 
 1. Answer any owner message first, as `/orchestrate` requires. Apply changed instructions
    before continuing intake or queue work.
@@ -67,15 +71,17 @@ for the successor.
    ticket; a hypothesis alone does not qualify. A live production defect gets its own ticket;
    fold it into an existing open ticket when that ticket already owns the affected area.
    Use `tools/comment-ticket.mjs` for the source evidence when folding. Persist the issue id,
-   last observed event and carrying ticket in `intake.sentry`, then read back the state. Admit
+   last observed event and carrying ticket in `intake.sentry` through `updateIntakeSource`, then read the intake back with `readIntake`. Admit
    its worker through `/orchestrate` in this cycle, within existing capacity. Retain the
    standing release verification rule: resolve a Sentry issue only after its carrying release
    shows no new event. Ticketing, a merge or an empty local queue is insufficient.
 4. Read the Orbit mailbox with `node tools/orbit-mail.mjs --collect`. This uses the Gmail API
    as `contact@useorbit.org`; the claude.ai Gmail connection reads a different mailbox and
    cannot substitute. Exhaust all pages. The tool scans received message ids, including spam
-   and trash, without an age cutoff or an ordering assumption; it fetches bodies only for ids
-   absent from completed state and from completely read pending items. Every text MIME part
+   and trash, without an age cutoff or an ordering assumption; it reads each id absent from
+   completed state again from Gmail and prints its content. The intake file keeps only ids,
+   thread ids, completeness and reply receipts, never text, sender or subject, and it is written
+   once per mailbox page. Drafting and sending read the reply headers from Gmail by id. Every text MIME part
    behind `attachmentId` is fetched through Gmail's attachments endpoint. Unreadable parts
    retain their identifiers and mark the message incomplete; replies remain drafts regardless
    of classification. The next collection retries incomplete messages while preserving reply
@@ -334,7 +340,8 @@ The waiter prints one JSON line. A `SOURCE` result has a `wakes` list, and each 
   `reviews` classifies the pending reviews of steps 5 and 6, `pullRequests` runs step 7,
   `alerts` runs step 8, and `board` runs step 9. Steps 7 and 8 share one collection. The
   waiter already ran the review cycle, so the pending reviews are in `intake.play.pending` and
-  `intake.appStore.pending`; read them with `readRunState` and do not start another cycle.
+  `intake.appStore.pending` of the intake file; read them with `readIntake` or `intakeSource`
+  from `tools/lib/auto-work-intake.mjs` and do not start another cycle.
 - `failure` gives the signature in `failure`. Log it once, then run the step for that source,
   which retries the read and keeps its pending items and marks.
 - `due` (only `sentry`) runs step 3.
@@ -344,7 +351,7 @@ listing time to `intake.wake`, so a relay or a new waiter keeps them. Work alrea
 keeps its own wake sources and takes priority on wake.
 
 On a context relay, follow `.claude/skills/handoff/SKILL.md` with `--relay --sleep`. The adopted
-run carries `autoWork`, `intake` and its pending workflow identity; `NEXT.md` starts with exactly
+run carries `autoWork` and its pending workflow identity, and the successor reads `intake` from the intake file; `NEXT.md` starts with exactly
 `/auto-work` and retains the canonical Sleep section, spec and inventory. Include crank only
 when already enabled. The relay tool validates this entry, stops idle waiters at succession
 and retains the original source marks. The successor re-enters through this skill's `/sleep`

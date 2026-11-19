@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
 
 import { readGithub } from "./github-read.mjs"
-import { acquireRelayLock, gitDirectoryOf, REPO_ROOT } from "./run-state.mjs"
+import { acquireRelayLock, gitDirectoryOf, RelayLockHeld, REPO_ROOT } from "./run-state.mjs"
 
 const HOUR = 3_600_000
 const ceiling = () => Object.assign(new Error("GitHub read ceiling reached"), { code: "GITHUB_READ_CEILING" })
@@ -45,7 +45,7 @@ export const createCiBudget = ({ owner, environment, repoRoot = REPO_ROOT, now =
       options.signal.throwIfAborted()
       if (now() >= options.deadline) throw ceiling()
       try { release = acquireRelayLock(repoRoot, lockName) } catch (error) {
-        if (!error.message.startsWith("EEXIST:")) throw error
+        if (!(error instanceof RelayLockHeld)) throw error
         await pause(now() + 50, options)
       }
     }

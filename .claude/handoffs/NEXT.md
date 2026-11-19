@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and check free disk (floor 50 GiB).
 
-Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> dfebfac5-ec49-4f55-8476-9d4c7207c308 4b980cf7-b273-4058-b961-72df627e1968` as a background task before writing any file there, then point `mirror.sh` at `durable-<new id>` with `perl -pi`. The predecessor log is `sleep-decisions.md` in the `dfebfac5` scratchpad (D1 to D14). Helpers there: `gl.sh` (gated launcher), `batch-body.sh <launch json> <pr> <label>` (worker report into the PR body), `open-threads.sh`, `views-2062.sh`, `drag-2063.sh`, `check-2061-r3.sh`, `play-complete.mjs`. Write files there with the Write tool or from inside the directory: the guardrail refuses a redirect target that holds a shell variable.
+Run state: the scratchpad starts empty and nothing is copied from the predecessor. Each ticket's latest round note, review result and decisions are comments on that ticket, run-wide decisions are comments on the "Orbit run record" issue in `thomasluizon/orbit-tickets`, and the intake marks are its `run-state/intake.json`. `node tools/run-status.mjs --session <id>` rebuilds the in-flight set from GitHub.
 
 ## Goal
 
@@ -17,7 +17,7 @@ UI `main` `ec54a1f6a`; API `main` `3da71dcf6`; landing `main` `aab36c695`. Produ
 | Item | Disposition |
 | --- | --- |
 | `ui#2386` (`#2064`) | Clean republish, both harnesses green. CI, review, merge first; then close `ui#1989`, start the next relay branch from `main`, launch `#2065`. |
-| `ui#2378`, `#2379`, `#2380`, `#2383`, `#2384` (`#2066`, `#2067`, `#2073`, `#2070`, `#2072`) | Round 2 pushed by the orchestrator, threads resolved. CI, fresh review, merge at the merge bar; base-merge the `orchestrate/SKILL.md` editors as they conflict and reseed the calibration (`node tools/reseed-calibration.mjs`). After `ui#2378`: `disabledMcpServers` in `~/.claude.json` and `MEMORY.md` to 6 KB. After `ui#2383`: the `#2071` token swap. |
+| `ui#2378`, `#2379`, `#2380`, `#2383`, `#2384` (`#2066`, `#2067`, `#2073`, `#2070`, `#2072`) | Round 2 pushed by the orchestrator, threads resolved. CI, fresh review, merge at the merge bar; base-merge the `orchestrate/SKILL.md` editors as they conflict and reseed the calibration (`node tools/reseed-calibration.mjs`). After `ui#2378`: `disabledMcpServers` in the user Claude config `.claude.json` and `MEMORY.md` to 6 KB. After `ui#2383`: the `#2071` token swap. |
 | `ui#2381`, `ui#2382` (`#2068`, `#2069`) | Worker round 2 pushed (`d612f46c2`, `a79854516`), bodies merged. CI, review, merge. After `ui#2382`: intake step 5 runs `node tools/orbit-play-reviews.mjs --cycle`. |
 | `ui#2387` (`#2074`) | Delivered, body fixed to `Tracks`. CI, review; at the base merge after `ui#2386`, move its three spec Constraints lines to `.claude/playbooks/operations.md`. After merge, `npx pullfrog@latest config set review.mode none` and `review.re-review false` in all three repositories, then prove one requested review. |
 | `ui#2375` (`#2063`) | Round 3 `a6e248e41` pushed; device proof posted (main 1 of 20 drags, branch 20 of 20). CI, review, merge, then one Android Open for `#2062` and `#2063`. |
