@@ -473,6 +473,36 @@ it.each([
     reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
 })
 
+// A title word names the records ("the same-title habits"); it never asks for an action. So a question that names only a
+// deletion and calls the records by their title reaches the both-actions reading, and the grader never reads the title
+// word as the asked rename: the case reports a grader limit.
+it.each([
+  ['en', 'Which of the same-title habits should I delete?'],
+  ['en', 'Which ones with the same title should I delete?'],
+  ['en', 'Which of these same-title duplicates do I remove?'],
+  ['en', 'Which of the six records sharing this title should I delete?'],
+  ['pt-BR', 'Quais dos seis hábitos com o mesmo título devo apagar?'],
+  ['pt-BR', 'Quais registros de mesmo título eu excluo?'],
+])('reports a grader limit for a %s question whose title word comes before the action it asks about: %s', (locale, prompt) => {
+  expect(sameTitleCard(shown(completedRecordsCard(prompt, locale)), cardVars(ids, locale))).toEqual({ pass: false, score: 0,
+    reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
+})
+
+// A title word that no record-naming word joins asks for the retitle, so a question that asks the retitle first is read
+// as the rename, as it was before the title word of the records ("same title") was told apart from it.
+it.each([
+  ['en', 'Which four should get the new title, and which two should I delete?', renamedHalf],
+  ['en', 'Which four get the title Water - 1.18L, and which two should I delete?', renamedHalf],
+  ['en', 'Which two should I delete, and which four should get the title Water - 1.18L?', deletedHalf],
+  ['pt-BR', 'Quais quatro ficam com o título Water - 1.18L e quais dois eu apago?', renamedHalf],
+  ['pt-BR', 'Quais dois eu apago e quais quatro ficam com o título Water - 1.18L?', deletedHalf],
+])('answers a %s question that asks the retitle by a title word beside the deletion: %s', async (locale, prompt, half) => {
+  const card = completedRecordsCard(prompt, locale)
+  const answer = sameTitleCard(shown(card), cardVars(ids, locale))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, { [card.block.questions[0].id]: half }, locale))
+})
+
 // Halves of one size give a selection that names neither half, so the grader never guesses one.
 it.each([
   ['the completed records card', (prompt) => ({ card: completedRecordsCard(prompt, 'en'), trace: { calls: [] } })],
