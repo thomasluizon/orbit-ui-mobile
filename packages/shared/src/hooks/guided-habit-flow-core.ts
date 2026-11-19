@@ -66,8 +66,7 @@ export interface GuidedHabitFlowHelpers {
   backendFocusField: 'title' | 'description' | undefined
 }
 
-/** The form helpers that switch the mode of the item. The flow wraps them so a switch keeps the answers the flow holds. */
-export type GuidedHabitModeSwitches = Pick<GuidedHabitFlowHelpers, 'chooseItemType' | 'setOneTime' | 'setRecurring' | 'setFlexible' | 'setGeneral'>
+type GuidedHabitModeSwitches = Pick<GuidedHabitFlowHelpers, 'chooseItemType' | 'setOneTime' | 'setRecurring' | 'setFlexible' | 'setGeneral'>
 
 export interface GuidedHabitFlowOptions {
   mode: 'create' | 'edit'
@@ -240,10 +239,11 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
         const before = form.getValues()
         const held = TIME_ANSWER_FIELDS.map((field) => [field, before[field]] as const)
         const droppedTime = Boolean(before.dueTime)
+        const wasGeneral = Boolean(before.isGeneral)
         const timeIsProposal = readProposals().time
         switchMode(...args)
         const after = form.getValues()
-        if (before.isGeneral || after.isGeneral) {
+        if (wasGeneral || after.isGeneral) {
           if (droppedTime && !after.dueTime) setAnswers((value) => (value.time ? { ...value, time: false } : value))
           return
         }

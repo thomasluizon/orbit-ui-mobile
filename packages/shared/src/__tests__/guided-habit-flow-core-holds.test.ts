@@ -7,6 +7,11 @@ async function answerPhrase(mounted: ModeFlow, phrase: string) {
   await act(async () => { await mounted.flow.leavePhrase() })
 }
 
+const HELD_TIME = {
+  dueTime: '08:00', dueEndTime: '09:00', reminderEnabled: true,
+  scheduledReminders: [{ when: 'same_day', time: '07:30' }], repeatReminder: { intervalMinutes: 30, activeStart: '08:00', activeEnd: '09:00' },
+}
+
 async function visitEachModeThenAnswerTimeAndReminder(mounted: ModeFlow, from: 'task' | 'habit') {
   await answerPhrase(mounted, 'gym')
   void act(() => mounted.flow.controller.setSchedule('Week', 3, true))
@@ -14,6 +19,8 @@ async function visitEachModeThenAnswerTimeAndReminder(mounted: ModeFlow, from: '
   void act(() => mounted.flow.answerWhen(from === 'habit' ? 'everyDay' : 'today'))
   void act(() => mounted.flow.answerTime('08:00'))
   void act(() => mounted.flow.answerReminder(true))
+  const { dueEndTime, scheduledReminders, repeatReminder } = HELD_TIME
+  Object.assign(mounted.values, { dueEndTime, scheduledReminders, repeatReminder })
 }
 
 const flush = (mounted: ModeFlow) => { void act(() => { mounted.flow.back() }) }
@@ -28,7 +35,7 @@ describe('guided habit flow: a later answer keeps the time and the reminder that
     for (let step = 0; step < 3; step += 1) flush(mounted)
     expect(mounted.flow.current.step).toBe('when')
     void act(() => mounted.flow.answerWhen('today'))
-    expect(mounted.values).toMatchObject({ itemType: 'task', frequencyUnit: undefined, dueTime: '08:00', reminderEnabled: true })
+    expect(mounted.values).toMatchObject({ itemType: 'task', frequencyUnit: undefined, ...HELD_TIME })
     mounted.unmount()
   })
 
@@ -48,9 +55,19 @@ describe('guided habit flow: a later answer keeps the time and the reminder that
   ])('keeps the time and the reminder through %s', async (_name, from, run, expected) => {
     const mounted = mountModeFlow()
     await visitEachModeThenAnswerTimeAndReminder(mounted, from)
-    expect(mounted.values).toMatchObject({ dueTime: '08:00', reminderEnabled: true })
+    expect(mounted.values).toMatchObject(HELD_TIME)
     void act(() => run(mounted))
-    expect(mounted.values).toMatchObject({ ...expected, dueTime: '08:00', reminderEnabled: true })
+    expect(mounted.values).toMatchObject({ ...expected, ...HELD_TIME })
+    mounted.unmount()
+  })
+
+  it('keeps the time and the reminders of the repeat that the person leaves No date for', async () => {
+    const mounted = mountModeFlow()
+    await visitEachModeThenAnswerTimeAndReminder(mounted, 'habit')
+    void act(() => mounted.flow.answerWhen('noDate'))
+    expect(mounted.values).toMatchObject({ isGeneral: true, dueTime: '' })
+    void act(() => mounted.flow.answerWhen('everyDay'))
+    expect(mounted.values).toMatchObject({ isGeneral: false, frequencyUnit: 'Day', ...HELD_TIME })
     mounted.unmount()
   })
 
