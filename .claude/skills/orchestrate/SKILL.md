@@ -786,7 +786,9 @@ Every pre-push review, fix-round review and device proof runs on a read-only wor
 It runs on the worker account, takes no admission and no branch launch slot, and its launcher is a
 wake source that holds no ticket slot. It runs only on macOS, under a `sandbox-exec` write profile
 that refuses each commit, branch, push and tracked write outside the run directory. It publishes the
-result file only after a clean run, and it exits 5 when the worker committed or changed a tracked
+result file only after a clean run. Post a review result to the ticket as `post-run-note.mjs --kind review`
+and a proof result as `--kind decision`, because a result file in the scratchpad reaches no other computer.
+The launcher exits 5 when the worker committed or changed a tracked
 file in its own run directory.
 
 For research without a ticket, use `launch-worker.mjs --research --order <file> --out <file>`.

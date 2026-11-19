@@ -84,6 +84,8 @@ const readOnlyCases = () => {
   const proofArgs = ["--proof", ...base, "--plan", plan, "--devices", "iPhone 17, orbit-proof-2145", "--evidence", evidence, "--out", proofPath]
   check(TOOL, "--proof composes a device proof order", proofArgs, { status: 0 }, options)
   const proof = composed(proofPath)
+  T(`${TOOL}: a review order and a proof order carry a valid seal, and an appended line breaks it (thread b_tA)`,
+    [review, proof].every((order) => orderSealProblem(order) === null && orderSealProblem(`${order}One more line.\n`) !== null), `${review.slice(-200)}\n${proof.slice(-200)}`)
   T(`${TOOL}: the proof order names its steps, devices, evidence directory and verdict lines`,
     proof.startsWith("# Device proof of thomasluizon/orbit-ui-mobile pull request #2145") && proof.includes("Drag the Astra button 20 times") &&
       proof.includes("Use only these: iPhone 17, orbit-proof-2145.") && proof.includes(evidence) && existsSync(evidence) &&

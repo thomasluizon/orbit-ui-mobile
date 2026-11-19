@@ -16,9 +16,9 @@ import { parseWorktreeList } from "./git-worktrees.mjs"
 import { requireKeyringOwner, withoutGithubToken } from "./github-auth.mjs"
 import { researchPaths } from "./research-run.mjs"
 import { isWakeSourceAlive, processStartIdentity } from "./run-state.mjs"
+import { VERDICT as REVIEW_VERDICT_LINE } from "./run-notes.mjs"
 
 /** The first line of each result. reviewOrder and proofOrder below write the same lines into each order. */
-const REVIEW_VERDICT_LINE = /^VERDICT: (?:CLEAN|DEFECTS \(\d+\))$/
 const PROOF_VERDICT_LINE = /^PROOF: (?:PASS|FAIL \(\d+ defects?\))$/
 
 /** The verdict line of a result in `mode` ("review" or "proof"), or null when the first line is not one. */
@@ -522,7 +522,8 @@ by its step.
 
 **Your result.** Write the complete report to the result file that the launch instruction names, and
 to no other file. Its first line is exactly \`PROOF: PASS\` when every step met its expected result.
-Otherwise it is \`PROOF: FAIL (<n> defects)\`, where n counts the steps that did not. Then write one
+Otherwise it is \`PROOF: FAIL (<n> defects)\`, where n counts the steps that did not. Its second line is
+\`HEAD: ${head}\`, because the orchestrator posts this file to the ticket as a decision note. Then write one
 section for each step: the device, the exact commands, the observed result and the evidence files.
 
 ${FINAL_MESSAGE}

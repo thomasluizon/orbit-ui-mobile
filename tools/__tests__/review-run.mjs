@@ -4,6 +4,7 @@ import { dirname, join } from "node:path"
 
 import { REPO_ROOT, T, same, stage, stageRepo } from "./_harness.mjs"
 import { assertDetachedRunDirectory, claimEmulatorPort, emulatorPortClaimDirectory, launcherSettings, proofOrder, protectedDirectories, readOnlyLaunch, readOnlyPaths, resultVerdict, reviewBrief, reviewOrder, runDirectorySnapshot, runDirectoryWrites, SANDBOX_EXEC, sandboxedInvocation, writeSandboxAvailable, writeSandboxProfile } from "../lib/review-run.mjs"
+import { composeRunNote } from "../lib/run-notes.mjs"
 import { processStartIdentity } from "../lib/run-state.mjs"
 
 const UNIT = "lib/review-run.mjs"
@@ -28,6 +29,30 @@ const verdictCases = () => {
   ]) {
     same(`${UNIT}: ${JSON.stringify(text)} is no ${mode} verdict line`, resultVerdict(text, mode), null)
   }
+  // The launcher publishes a result only when the run note step accepts its first line (thread b_s2).
+  for (const line of ["VERDICT: CLEAN", "VERDICT: DEFECTS (1)", "VERDICT: DEFECTS (12)", "VERDICT: DEFECTS (0)", "VERDICT: DEFECTS (01)", "VERDICT: DEFECTS ()"]) {
+    let noteAccepts = true
+    try { composeRunNote({ kind: "review", head: "0123456789abcdef0123456789abcdef01234567", body: `${line}\nHEAD: abc\n` }) } catch { noteAccepts = false }
+    same(`${UNIT}: the launcher publishes ${JSON.stringify(line)} only when post-run-note accepts it`, resultVerdict(`${line}\n`, "review") !== null, noteAccepts)
+  }
+}
+
+/** A result that stays in a scratchpad file reaches no other computer, so each rule names its GitHub home (thread b_s2). */
+const resultHomeCases = () => {
+  const text = (path) => readFileSync(join(REPO_ROOT, path), "utf8")
+  const lines = (path) => text(path).split("\n")
+  const handoff = lines(".claude/skills/handoff/SKILL.md")
+  const first = handoff.findIndex((line) => line.startsWith("4. The in-flight inventory"))
+  const row = handoff.slice(first, first + 1 + handoff.slice(first + 1).findIndex((line) => /^\d+\. /.test(line))).join("\n")
+  T(`${UNIT}: the handoff row of a review or proof worker names no order file, no result file and no scratchpad`,
+    row.includes("--review") && !/order file|result file|scratchpad/.test(row) && row.includes("run note"), row)
+  const posting = lines(".claude/playbooks/review-and-audit.md").find((line) => line.startsWith("4. Read the result file")) ?? ""
+  T(`${UNIT}: rule 14 posts the review result as the review run note`,
+    posting.includes("post-run-note.mjs --kind review --issue <ticket> --head <full sha> --body-file <result>"), posting)
+  T(`${UNIT}: the proof paragraph of operations.md posts the proof result as a decision note`,
+    /post-run-note\.mjs --kind decision --issue <ticket> --body-file <result>/.test(text(".claude/playbooks/operations.md")), "no decision note step")
+  T(`${UNIT}: orchestrate names the run note kind of a review result and of a proof result`,
+    /`post-run-note\.mjs --kind review`\s+and a proof result as `--kind decision`/.test(text(".claude/skills/orchestrate/SKILL.md")), "no run note step")
 }
 
 const pathCases = () => {
@@ -282,6 +307,8 @@ const orderCases = () => {
       /`VERDICT: DEFECTS \(<n>\)`, where n counts the BLOCKING findings only/.test(contract) &&
       /A NOTE and a\s+`## Body` line never change the verdict/.test(contract) &&
       !/no\s+body line is wrong|and the wrong body lines/.test(contract), contract)
+  T(`${UNIT}: the proof result names its head on the second line, for the decision note (thread b_s2)`,
+    /Its second line is\s+`HEAD: abc1234`/.test(proof), proof)
   same(`${UNIT}: the proof order promises exactly the proof verdict lines`, promised(proof).map((line) => resultVerdict(line, "proof")), ["PROOF: PASS", "PROOF: FAIL (2 defects)"])
   const maximum = (order) => Number(/at most (\d+) lines/.exec(order)?.[1])
   T(`${UNIT}: both orders cap the final message at 12 lines`, maximum(review) === 12 && maximum(proof) === 12, `${maximum(review)} ${maximum(proof)}`)
@@ -328,6 +355,7 @@ export const cases = async () => {
   await portClaimCases()
   settingsCases()
   verdictCases()
+  resultHomeCases()
   pathCases()
   profileCases()
   protectedCases()

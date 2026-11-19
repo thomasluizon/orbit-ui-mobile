@@ -370,7 +370,11 @@ fs.writeFileSync(resultPath, fs.existsSync(resultPath) ? "VERDICT: CLEAN\\nthe s
   T(`${TOOL}: a killed review publishes no result file`, burned.report?.published === false && burned.published === null, burned.result.stdout)
 }
 
-/** The order that compose-prompt.mjs writes carries the seal that the launcher checks; a hand-written or changed order does not. */
+/**
+ * The order that compose-prompt.mjs writes carries the seal that the launcher checks; a hand-written or changed order does not.
+ * The launcher checks the seal before the write sandbox, so these cases run on every platform (thread b_tA). Off macOS the
+ * composed order passes the seal and then stops at the sandbox check.
+ */
 const sealCases = () => {
   const fixture = reviewFixture("seal", "fs.writeFileSync(resultPath, 'VERDICT: CLEAN\\n')")
   const composeTool = join(fixture.base, "tools", "compose-prompt.mjs")
@@ -382,7 +386,9 @@ const sealCases = () => {
   check("compose-prompt.mjs", "a review order is composed for the launcher",
     ["--review", "--repo", "ui", "--pr", "2145", "--head", "0123456789abcdef0123456789abcdef01234567", "--out", composed], { status: 0 }, { path: composeTool, env: orcaEnv([]) })
   const dryRun = (order) => ["--review", "--order", order, "--out", fixture.output(), "--directory", fixture.runDirectory, "--dry-run"]
-  check(TOOL, "a review order that compose-prompt.mjs wrote passes the seal check", dryRun(composed), { status: 0 }, { path: fixture.path })
+  const sandboxed = process.platform === "darwin"
+  check(TOOL, sandboxed ? "a review order that compose-prompt.mjs wrote passes the seal check" : "a review order that compose-prompt.mjs wrote passes the seal check and stops at the missing write sandbox",
+    dryRun(composed), sandboxed ? { status: 0 } : { status: 2, stderr: /needs the macOS write sandbox/ }, { path: fixture.path })
   const appended = join(directory, "seal-appended-review.md")
   writeFileSync(appended, `${readFileSync(composed, "utf8")}One more line.\n`)
   check(TOOL, "the same review order with one appended line exits 2", dryRun(appended), { status: 2, stderr: /is not a composed order/ }, { path: fixture.path })
@@ -410,11 +416,11 @@ const modeChoiceCase = () => {
 export const cases = async () => {
   modeChoiceCase()
   usageCases()
+  sealCases()
   if (process.platform !== "darwin") {
     unsandboxedCase()
     return
   }
-  sealCases()
   cleanCases()
   await concurrentProofCase()
   sandboxCases()
