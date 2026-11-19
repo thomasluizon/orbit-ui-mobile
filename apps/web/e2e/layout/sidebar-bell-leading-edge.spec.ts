@@ -53,13 +53,14 @@ for (const width of [1024, 1352]) {
               expect(geometry.bell.width).toBe(44)
               expect(geometry.bell.height).toBe(44)
               if (collapsed) {
-                expect(geometry.toggle.top - geometry.bell.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+                expect(geometry.bell.top - geometry.toggle.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
                 expect(geometry.bell.left).toBe(geometry.toggle.left)
               } else {
-                expect(Math.abs(geometry.bell.left - geometry.lockup.left)).toBeLessThanOrEqual(1)
-                expect(geometry.toggle.top).toBe(geometry.bell.top)
-                expect(geometry.toggle.left - geometry.bell.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-                expect(geometry.toggle.right).toBe(geometry.theme.right)
+                expect(Math.abs(geometry.theme.left - geometry.lockup.left)).toBeLessThanOrEqual(1)
+                expect(geometry.toggle.top).toBe(geometry.theme.top)
+                expect(geometry.toggle.left - geometry.theme.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+                expect(geometry.toggle.right).toBe(geometry.bell.right)
+                expect(geometry.bell.left - geometry.lockup.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
               }
             }).toPass()
             await expectInteractionFill(bell)
