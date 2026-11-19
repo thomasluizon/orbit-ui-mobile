@@ -22,6 +22,6 @@ export async function withLegacyProfileLanguage(vars, run) {
     }
   } catch (error) {
     const reason = `Legacy profile language unavailable. ${safeFailureMessage(error)}`
-    return { error: reason, metadata: { astraPreconditionFailure: true, astraPreconditionReason: reason } }
+    return { error: reason, metadata: { astraPreconditionFailure: true, astraPreconditionReason: reason, rateLimitRetryable: false } }
   }
 }

@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { tsImport } from 'tsx/esm/api'
 import { changeList } from '../core/change-list.mjs'
+import OrbitChatStreamProvider from '../core/provider.mjs'
+import AstraHttpProvider from '../http-provider.mjs'
 import { composition } from '../composition.mjs'
 import { outcome, runOutcomeCase } from '../client-path.mjs'
 import { corpusTests, gradedByOutcome, readCorpus } from '../grade-method.mjs'
@@ -540,6 +542,29 @@ describe('the client path of a converted case', () => {
   ])('tells promptfoo never to retry %s', async (_shape, replies) => {
     const { response } = await scripted('single-read-en', replies)
     expect(response.metadata).toEqual({ rateLimitRetryable: false })
+  })
+})
+
+describe('the provider of the core set', () => {
+  // One return statement gives the precondition result and the result of a failed turn, so this result covers both.
+  it('tells promptfoo never to retry an attempt without a gradable answer', async () => {
+    const api = vi.fn()
+    vi.stubGlobal('fetch', api)
+    const error = 'Precondition unavailable: Fixture reset failed.'
+    expect(await new OrbitChatStreamProvider().callApi('', { vars: { preconditionFailure: 'Fixture reset failed.' } })).toEqual({
+      error, output: { unavailable: true, error }, metadata: { rateLimitRetryable: false } })
+    expect(api).not.toHaveBeenCalled()
+  })
+})
+
+describe('the provider of POST /api/chat', () => {
+  it('tells promptfoo never to retry the precondition result of a case without an outcome', async () => {
+    const api = vi.fn()
+    vi.stubGlobal('fetch', api)
+    expect(await new AstraHttpProvider({ config: {} }).callApi('', { vars: { preconditionFailure: 'Fixture reset failed.' } })).toEqual({
+      error: 'Precondition unavailable: Fixture reset failed.',
+      metadata: { astraPreconditionFailure: true, astraPreconditionReason: 'Fixture reset failed.', rateLimitRetryable: false } })
+    expect(api).not.toHaveBeenCalled()
   })
 })
 
