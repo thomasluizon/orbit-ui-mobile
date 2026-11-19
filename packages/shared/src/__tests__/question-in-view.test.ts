@@ -19,6 +19,15 @@ describe('the one question a block shows', () => {
     expect(followQuestionInView(atEnd, questions, state({ answers: { reminder: { questionId: 'reminder', boolean: false } } })).index).toBe(questions.length - 1)
   })
 
+  it.each([true, false])('moves to the next question after a yes or no question that is not the last answers %s', (boolean) => {
+    const yesNo = questions.find((question) => question.type === 'yesNo')!
+    const next = questions.find((question) => question.type === 'singleChoice')!
+    const pair = [yesNo, next]
+    const start = startQuestionInView(pair, state())
+    const answered = state({ answers: { [yesNo.id]: { questionId: yesNo.id, boolean } } })
+    expect(followQuestionInView(start, pair, answered).index).toBe(pair.indexOf(next))
+  })
+
   it('stays on the question while the person types the free path or picks several answers', () => {
     const start = startQuestionInView(questions, state())
     expect(followQuestionInView(start, questions, state({ answers: { time: { questionId: 'time', freeText: 'After lunch' } } })).index).toBe(0)
