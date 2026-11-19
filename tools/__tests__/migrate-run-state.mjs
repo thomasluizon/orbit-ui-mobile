@@ -1,6 +1,7 @@
 import { chmodSync, mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
+import { escapeRegex } from "../lib/escape-regex.mjs"
 import { readRunState } from "../lib/run-state.mjs"
 
 import { T, check, realOrchestratorConfig, root, stage, stageWithConfig } from "./_harness.mjs"
@@ -39,7 +40,7 @@ export const cases = () => {
   const decision = stage("migrate-run-state/decision.md", "Batch the notes of one round into one comment.\n")
   const applyManifest = stage("migrate-run-state/apply.json", JSON.stringify([{ kind: "decision", file: decision, issue: 2152 }]))
   const applied = (label, failing, message) => check(TOOL, label, ["--apply", "--run-state", runState, "--manifest", applyManifest],
-    { status: 1, stderr: new RegExp(message.replace(/[()]/g, "\\$&")) }, { path: staged.path, env: { GH_BIN: stubGh(failing, message) } })
+    { status: 1, stderr: new RegExp(escapeRegex(message)) }, { path: staged.path, env: { GH_BIN: stubGh(failing, message) } })
   // A failed GitHub write is exit 1, whatever words its message holds: the exit code reads the error class, never the text.
   applied("a comment that GitHub refuses for a missing token exits 1, not 2", "comment", "needs a token")
   applied("a refused write that says \"must be\" exits 1", "create", "Validation Failed: title must be shorter (HTTP 422)")

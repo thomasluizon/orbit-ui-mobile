@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 import yaml from "js-yaml"
+import { escapeRegex } from "../lib/escape-regex.mjs"
 import { guardGroups } from "./_guard-groups.mjs"
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
@@ -167,7 +168,7 @@ test("handoff-size: the step fails an oversized or machine-bound changed relay d
       const guarded = spawnSync("bash", ["-e", "-c", gate.run], { cwd: directory, env: environment, encoding: "utf8" })
       // WHY: GNU xargs reports a failed child as 123 and BSD xargs as 1; the step only has to fail (https://github.com/thomasluizon/orbit-tickets/issues/2064).
       assert.equal(guarded.status === 0, passes, `${label}: exit ${guarded.status} ${guarded.stdout}${guarded.stderr}`)
-      if (!passes) assert.match(guarded.stderr, new RegExp(`\`${Object.keys(changes)[0].replaceAll(".", "\\.")}\` (?:within \\d+ B \\(it is \\d+ B\\)|without )`))
+      if (!passes) assert.match(guarded.stderr, new RegExp(`\`${escapeRegex(Object.keys(changes)[0])}\` (?:within \\d+ B \\(it is \\d+ B\\)|without )`))
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }
