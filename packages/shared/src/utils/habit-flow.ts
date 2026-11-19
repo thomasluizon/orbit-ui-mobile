@@ -1,0 +1,265 @@
+import { buildHabitUnderstandingSentence } from './habit-form-helpers'
+import { habitPhraseRepeats, type HabitPhraseRead } from './habit-phrase-parser'
+import { formatLocaleDate } from './locale-format'
+
+/** The steps of the guided habit flow, in the order a person meets them. */
+export type HabitFlowStepId = 'what' | 'when' | 'time' | 'reminder' | 'summary'
+
+export interface HabitFlowAnswers {
+  /** The person answered the "when" step, with a quick option, the free path or the calendar, or set the repeat on the repeat step. */
+  when: boolean
+  /** The person answered the "time" step, including "no set time", or typed the time in the words of the "when" step. */
+  time: boolean
+}
+
+export interface RemainingHabitFlowStepsInput {
+  mode: 'create' | 'edit'
+  /** The phrase, the route parameters or the draft already hold a date or a repetition. */
+  hasDateOrRepeat: boolean
+  /** A time exists on the draft. */
+  hasTime: boolean
+  /** The phrase read a time. */
+  phraseGaveTime: boolean
+  /** The parent is General, so the item stays undated and the date question never shows. */
+  whenLocked: boolean
+  /** The item has no date and lives in General. An undated item has no time, so the time question never shows. */
+  undated?: boolean
+  answers: HabitFlowAnswers
+}
+
+/**
+ * The steps of this draft. Edit opens on the summary alone. A step whose value the phrase, the route or
+ * the draft already gave does not show. A step the person answered stays in the list, so the progress
+ * moves forward as the person answers and its total never shrinks under them.
+ */
+export function remainingHabitFlowSteps(input: RemainingHabitFlowStepsInput): HabitFlowStepId[] {
+  if (input.mode === 'edit') return ['summary']
+  const steps: HabitFlowStepId[] = ['what']
+  const whenGiven = (input.hasDateOrRepeat && !input.answers.when) || input.whenLocked
+  if (!whenGiven) steps.push('when')
+  const timeGiven = input.phraseGaveTime || input.whenLocked || (input.undated === true && !input.answers.time)
+  if (input.answers.time || !timeGiven) steps.push('time')
+  if (input.hasTime) steps.push('reminder')
+  steps.push('summary')
+  return steps
+}
+
+export interface PhraseCoverage {
+  coversDateOrRepeat: boolean
+  coversTime: boolean
+}
+
+/** What a local read of the phrase covers. The `consumed` ranges tell which words the device read. */
+export function readPhraseCoverage(read: HabitPhraseRead, hasPhraseDate: boolean): PhraseCoverage {
+  return {
+    coversDateOrRepeat: hasPhraseDate || habitPhraseRepeats(read),
+    coversTime: read.dueTime !== null,
+  }
+}
+
+/**
+ * When the person edits the phrase after later steps have answers, the answers that the new phrase
+ * covers reset. The other answers stay.
+ */
+export function resetCoveredAnswers(answers: HabitFlowAnswers, coverage: PhraseCoverage): HabitFlowAnswers {
+  return {
+    when: coverage.coversDateOrRepeat ? false : answers.when,
+    time: coverage.coversTime ? false : answers.time,
+  }
+}
+
+/** The local read left cadence, date or time words unread, so the AI read can help once. */
+export function phraseLeavesWordsUnread(phrase: string, read: HabitPhraseRead, hasPhraseDate: boolean): boolean {
+  const text = phrase.trim()
+  if (text.length === 0) return false
+  const coverage = readPhraseCoverage(read, hasPhraseDate)
+  return !coverage.coversDateOrRepeat || !coverage.coversTime
+}
+
+export type HabitResultItem = {
+  itemType: 'task' | 'habit'
+  isGeneral: boolean
+  dueDate: string | null
+  dueTime: string | null
+  frequencyUnit: 'Day' | 'Week' | 'Month' | 'Year' | null
+  frequencyQuantity: number | null
+  isFlexible?: boolean
+  /** The weekdays of a repeat on chosen days. */
+  days?: readonly string[] | null
+  /** The days of the month of a monthly repeat on chosen days. */
+  monthDays?: readonly number[] | null
+  intervalWeeks?: number | null
+}
+
+/** The facts a draft saves, for a create that a queue holds until the server record exists. */
+export function optimisticHabitResult(values: {
+  itemType?: 'task' | 'habit' | null | undefined
+  isGeneral?: boolean | undefined
+  dueDate?: string | null | undefined
+  dueTime?: string | null | undefined
+  frequencyUnit?: HabitResultItem['frequencyUnit'] | undefined
+  frequencyQuantity?: number | null | undefined
+  isFlexible?: boolean | undefined
+  days?: readonly string[] | null | undefined
+  monthDays?: readonly number[] | null | undefined
+  intervalWeeks?: number | null | undefined
+}): HabitResultItem {
+  return {
+    itemType: values.itemType === 'habit' ? 'habit' : 'task',
+    isGeneral: values.isGeneral ?? false,
+    dueDate: values.dueDate || null,
+    dueTime: values.dueTime || null,
+    frequencyUnit: values.frequencyUnit ?? null,
+    frequencyQuantity: values.frequencyQuantity ?? null,
+    isFlexible: values.isFlexible ?? false,
+    days: values.days ?? [],
+    monthDays: values.monthDays ?? [],
+    intervalWeeks: values.intervalWeeks ?? null,
+  }
+}
+
+export type HabitResultSentenceKey =
+  | 'result.task.dated'
+  | 'result.task.datedTimed'
+  | 'result.task.undated'
+  | 'result.habit.repeat'
+  | 'result.habit.repeatTimed'
+  | 'result.habit.updated'
+
+export interface HabitResultSentence {
+  key: HabitResultSentenceKey
+  needsDate: boolean
+  needsTime: boolean
+  /** The schedule of a habit, when the sentence names a cadence. `formatHabitCadence` gives its words. */
+  cadence: HabitResultCadence | null
+}
+
+/** The whole schedule of a habit: the unit and the count, and the chosen weekdays, month days or flexible count. */
+export interface HabitResultCadence {
+  key: 'result.cadence.day' | 'result.cadence.week' | 'result.cadence.month' | 'result.cadence.year'
+  unit: NonNullable<HabitResultItem['frequencyUnit']>
+  count: number
+  isFlexible: boolean
+  days: readonly string[]
+  monthDays: readonly number[]
+  intervalWeeks: number
+}
+
+type CadenceTranslator = (key: string, values?: Record<string, string | number>) => string
+
+const WEEKDAY_OPTIONS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value }))
+
+const CADENCE_KEYS = {
+  Day: 'result.cadence.day',
+  Week: 'result.cadence.week',
+  Month: 'result.cadence.month',
+  Year: 'result.cadence.year',
+} as const
+
+/**
+ * Picks the one full templated sentence for a saved record. The caller formats the date and the time
+ * with `Intl`, the clock setting and the account time zone, and passes them as values. The record is
+ * the saved one, read back from the query cache, never the draft.
+ */
+export function describeHabitResult(item: HabitResultItem, change: 'created' | 'updated'): HabitResultSentence {
+  if (change === 'updated') {
+    return { key: 'result.habit.updated', needsDate: false, needsTime: false, cadence: null }
+  }
+  if (item.itemType === 'habit' && item.frequencyUnit) {
+    const cadence: HabitResultCadence = {
+      key: CADENCE_KEYS[item.frequencyUnit],
+      unit: item.frequencyUnit,
+      count: item.frequencyQuantity ?? 1,
+      isFlexible: item.isFlexible ?? false,
+      days: item.days ?? [],
+      monthDays: item.monthDays ?? [],
+      intervalWeeks: item.intervalWeeks ?? 1,
+    }
+    const timed = item.dueTime !== null
+    return { key: timed ? 'result.habit.repeatTimed' : 'result.habit.repeat', needsDate: true, needsTime: timed, cadence }
+  }
+  if (item.isGeneral || item.dueDate === null) {
+    return { key: 'result.task.undated', needsDate: false, needsTime: false, cadence: null }
+  }
+  const timed = item.dueTime !== null
+  return { key: timed ? 'result.task.datedTimed' : 'result.task.dated', needsDate: true, needsTime: timed, cadence: null }
+}
+
+/**
+ * The words of a habit schedule, without the time, for the summary and the result sentence. The unit and the count
+ * alone call a repeat on Monday "every day", so a flexible count, chosen weekdays and chosen month days take the
+ * words of the phrase step.
+ */
+export function formatHabitCadence(cadence: HabitResultCadence, locale: string, translate: CadenceTranslator): string {
+  const { unit } = cadence
+  const chosen = cadence.isFlexible || cadence.days.length > 0 || (unit === 'Month' && cadence.monthDays.length > 0)
+  const words = chosen
+    ? buildHabitUnderstandingSentence([...cadence.days], WEEKDAY_OPTIONS, cadence.isFlexible, unit, cadence.count, '', locale, translate, cadence.intervalWeeks, cadence.monthDays)
+    : null
+  if (!words) return translate(cadence.key, { count: cadence.count })
+  return `${words.charAt(0).toLocaleLowerCase(locale)}${words.slice(1)}`
+}
+
+/** The filled action of the result dialog: Today when the item shows on today's list, else Calendar. */
+export function resolveResultDestination(item: Pick<HabitResultItem, 'dueDate' | 'isGeneral'>, today: string): 'today' | 'calendar' {
+  if (item.isGeneral) return 'today'
+  if (item.dueDate === null) return 'today'
+  return item.dueDate <= today ? 'today' : 'calendar'
+}
+
+/** The words a flow summary needs from the platform: the translator, the locale and the clock of the person. */
+export interface FlowValueFormat {
+  translate: CadenceTranslator
+  locale: string
+  displayTime: (time: string | null | undefined) => string
+}
+
+/** The form values the summary of the guided habit flow reads. */
+export interface HabitFlowSummaryInput {
+  itemType?: 'task' | 'habit' | null
+  frequencyUnit?: HabitResultItem['frequencyUnit']
+  frequencyQuantity?: number | null
+  isFlexible?: boolean
+  days?: readonly string[] | null
+  monthDays?: readonly number[] | null
+  intervalWeeks?: number | null
+  dueDate?: string | null
+  dueTime?: string | null
+  dueEndTime?: string | null
+  reminderEnabled?: boolean
+  isGeneral: boolean
+}
+
+/** The value of each summary row, and whether the item has a time, which shows the length row. */
+export interface HabitFlowSummaryValues {
+  type: string
+  when: string
+  time: string
+  duration: string
+  reminder: string
+  timed: boolean
+}
+
+/**
+ * The value of each summary row of the guided habit flow. The When row states the repeat, else the date of a dated
+ * item, else that the item has no date. An undated item states no date even when the form still holds one.
+ */
+export function describeHabitFlowSummary(values: HabitFlowSummaryInput, { translate, locale, displayTime }: FlowValueFormat): HabitFlowSummaryValues {
+  const dueDate = values.dueDate ?? ''
+  const dueTime = values.dueTime ?? ''
+  const dueEndTime = values.dueEndTime ?? ''
+  const dated = !values.isGeneral && dueDate !== ''
+  const schedule = describeHabitResult(optimisticHabitResult({
+    itemType: values.itemType, frequencyUnit: values.frequencyUnit, frequencyQuantity: values.frequencyQuantity,
+    isFlexible: values.isFlexible, days: values.days, monthDays: values.monthDays, intervalWeeks: values.intervalWeeks,
+  }), 'created').cadence
+  const cadence = schedule ? formatHabitCadence(schedule, locale, translate) : null
+  return {
+    type: values.itemType === 'task' ? translate('habits.form.typeTask') : translate('habits.form.typeHabit'),
+    when: cadence ?? (dated ? formatLocaleDate(dueDate, locale) : translate('habits.flow.summary.noDate')),
+    time: dueTime ? displayTime(dueTime) : translate('habits.flow.summary.noTime'),
+    duration: dueEndTime ? translate('habits.flow.summary.until', { time: displayTime(dueEndTime) }) : translate('habits.flow.summary.noDuration'),
+    reminder: values.reminderEnabled ? translate('habits.flow.summary.withReminder') : translate('habits.flow.summary.noReminder'),
+    timed: dueTime !== '',
+  }
+}

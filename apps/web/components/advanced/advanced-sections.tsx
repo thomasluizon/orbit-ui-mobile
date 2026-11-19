@@ -15,7 +15,7 @@ export function WidgetInfoOverlay({
   const copy = getWidgetCopy('web')
 
   return (
-    <Sheet open onClose={() => onOpenChange(false)} title={t(copy.titleKey)}>
+    <Sheet open onClose={() => onOpenChange(false)} title={t('profile.widgetQuestion')}>
       <div className="flex flex-col gap-4">
         <div>
           <h3 className="mb-2 font-sans text-[16px] font-medium text-[var(--fg-1)]">

@@ -8,7 +8,7 @@ import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 
-export function HabitTypeField({ formHelpers, lockedGeneral, onChange }: Readonly<{ formHelpers: HabitFormHelpers; lockedGeneral: boolean | null; onChange: () => void }>) {
+export function HabitTypeField({ formHelpers, lockedGeneral, onChange }: Readonly<{ formHelpers: HabitFormHelpers; lockedGeneral: boolean | null; onChange: (type: 'task' | 'habit') => void }>) {
   const { disabled, guard } = useHabitFormInteraction()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -16,7 +16,7 @@ export function HabitTypeField({ formHelpers, lockedGeneral, onChange }: Readonl
   const itemType = useWatch({ control: formHelpers.form.control, name: 'itemType' })
   const errors = formHelpers.form.formState.errors
   const recurrenceMismatch = errors.datePhrase?.message === 'habits.form.recurrenceRequiresHabit' || errors.datePhrase?.message === 'errors.api.generalMismatchWithParent'
-  const choose = guard((type: 'task' | 'habit') => { onChange(); formHelpers.chooseItemType(type) })
+  const choose = guard((type: 'task' | 'habit') => { onChange(type); formHelpers.chooseItemType(type) })
   return (
       <View style={{ minWidth: 0, gap: 8 }}>
         <Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{t('habits.form.itemType')}</Text>

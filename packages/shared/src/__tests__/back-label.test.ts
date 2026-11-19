@@ -18,7 +18,7 @@ const approvedLabels = [
   ['/calendar', 'Back to Calendar', 'Voltar para Calendário'],
   ['/calendar-sync', 'Back to Calendar', 'Voltar para Calendário'],
   ['/progress', 'Back to Progress', 'Voltar para Progresso'],
-  ['/profile/astra', 'Back to Orbit', 'Voltar para o Orbit'],
+  ['/profile/ai', 'Back to Orbit', 'Voltar para o Orbit'],
   ['/profile/account', 'Back to Account', 'Voltar para Conta'],
   ['/profile/preferences', 'Back to Preferences', 'Voltar para Preferências'],
   ['/profile/notifications', 'Back to Notifications', 'Voltar para Notificações'],
@@ -67,7 +67,7 @@ describe.each([en, ptBR])('back label', (messages) => {
     ['/terms', messages.common.backToDestination.replace('{destination}', messages.terms.title)],
     ['/upgrade', messages.common.backToDestination.replace('{destination}', messages.upgrade.pitchTitle)],
     ['/chat', messages.common.backToOrbit],
-    ['/profile/astra', messages.common.backToOrbit],
+    ['/profile/ai', messages.common.backToOrbit],
     ['/about#links', messages.common.backToDestination.replace('{destination}', messages.about.title)],
     ['/support', messages.common.backToDestination.replace('{destination}', messages.profile.support.title)],
   ])('names %s', (route, expected) => {

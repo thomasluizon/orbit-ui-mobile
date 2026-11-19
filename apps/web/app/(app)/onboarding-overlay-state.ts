@@ -13,7 +13,7 @@ export function isCalendarPromptCriteriaMet(
   )
 }
 
-/** Whether the Astra import prompt is eligible, deferring to the calendar prompt and to any unflushed onboarding draft. */
+/** Whether the Orbit import prompt is eligible, deferring to the calendar prompt and to any unflushed onboarding draft. */
 export function isImportPromptCriteriaMet(
   profile: Profile | null | undefined,
   context: Readonly<{

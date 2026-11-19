@@ -18,6 +18,7 @@ afterEach(() => {
 })
 
 vi.mock('@/hooks/use-shell-notice-slot', () => ({ useShellNoticeSlot: vi.fn() }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 const preferenceLocale = vi.hoisted((): { value: 'en' | 'pt-BR' | undefined } => ({ value: undefined }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({

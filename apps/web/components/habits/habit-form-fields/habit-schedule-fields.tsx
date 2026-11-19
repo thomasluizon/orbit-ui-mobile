@@ -9,7 +9,7 @@ import { RadioGroup } from '@/components/ui/radio-group'
 import { FormSectionLabel } from './form-section-label'
 import { RadioRow } from '@/components/ui/select-check'
 
-export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChange, onModeChange, proposed = false, hidden = false }: Readonly<HabitScheduleFieldsProps>) {
+export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChange, onModeChange, proposed = false, hidden = false, hideMode = false }: Readonly<HabitScheduleFieldsProps>) {
   const t = useTranslations()
   const availability = disabled ? { disabled: true as const, reason: t('common.locked') } : { disabled: false as const }
   const invalid = Boolean(unit) && (quantity === null || !Number.isInteger(quantity) || quantity < 1)
@@ -19,7 +19,7 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
   if (hidden) return null
   return (
     <section data-schedule-questions="" className="flex min-w-0 flex-col gap-6">
-      <div className="flex min-w-0 flex-col gap-2">
+      {hideMode ? null : <div className="flex min-w-0 flex-col gap-2">
       <FormSectionLabel>{t('habits.form.frequency')}</FormSectionLabel>
       <RadioGroup aria-label={t('habits.form.frequency')}>
         <Proposed keepMounted inset proposed={proposed && (Boolean(unit) && !flexible)} scope="row" label={t('habits.detail.proposed')}>
@@ -29,7 +29,7 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
           <RadioRow proposed={proposed && flexible} label={t('habits.form.timesPerUnit')} selected={flexible} {...availability} onSelect={() => { if (!disabled) onModeChange(true) }} />
         </Proposed>
       </RadioGroup>
-      </div>
+      </div>}
       <Proposed keepMounted inset proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         <Input
           proposed={proposed}

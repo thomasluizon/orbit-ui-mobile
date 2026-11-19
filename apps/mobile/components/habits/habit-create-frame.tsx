@@ -1,10 +1,11 @@
 import { SPACING } from '@orbit/shared/theme'
 import { HABIT_CREATE_OVERLAY_ID } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
-import { useLayoutEffect, type ComponentProps, type ComponentType } from 'react'
+import { useLayoutEffect, type ComponentProps, type ComponentType, type ReactNode } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '@/components/ui/sheet'
+import { FlowScreen } from '@/components/ui/flow-screen'
 import { AppBar } from '@/components/ui/app-bar'
 import { Shell412 } from '@/components/shell/shell-412'
 import { KeyboardAwareScrollView, KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
@@ -15,10 +16,14 @@ type HabitCreateFrameProps = ComponentProps<typeof Sheet> & {
   presentation: 'sheet' | 'screen'
   fromConversation: boolean
   leaving: boolean
+  guided?: boolean
+  discardSheet?: ReactNode
+  result?: ReactNode
   leaveGuard?: ComponentType<{ leaving: boolean; requestLeave: () => void }>
 }
 
-export function HabitCreateFrame({ presentation, fromConversation, leaving, leaveGuard, ...props }: Readonly<HabitCreateFrameProps>) {
+export function HabitCreateFrame({ presentation, fromConversation, leaving, guided = false, discardSheet, result, leaveGuard, ...props }: Readonly<HabitCreateFrameProps>) {
+  if (guided) return <GuidedCreateFrame presentation={presentation} leaving={leaving} leaveGuard={leaveGuard} title={props.title} discardSheet={discardSheet} result={result} onAttemptDismiss={props.onAttemptDismiss}>{props.children}</GuidedCreateFrame>
   if (presentation === 'sheet') return <Sheet {...props} />
   return <HabitCreateScreenFrame {...props} fromConversation={fromConversation} leaving={leaving} leaveGuard={leaveGuard} />
 }
@@ -41,6 +46,21 @@ function HabitCreateScreenFrame({ fromConversation, leaving, leaveGuard: LeaveGu
     {props.children}
     </KeyboardAwareScrollView>
   </Shell412></KeyboardAwareView>
+}
+
+function GuidedCreateFrame({ presentation, leaving, leaveGuard: LeaveGuard, title, children, discardSheet, result, onAttemptDismiss }: Readonly<Pick<HabitCreateFrameProps, 'presentation' | 'leaving' | 'leaveGuard' | 'title' | 'children' | 'discardSheet' | 'result' | 'onAttemptDismiss'>>) {
+  useLayoutEffect(() => {
+    if (presentation !== 'screen') return undefined
+    useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+    return () => useUIStore.getState().unregisterOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+  }, [presentation])
+  const dismiss = () => onAttemptDismiss?.()
+  if (presentation === 'sheet') return <FlowScreen label={title ?? ''} onDismiss={dismiss} result={result}>{children}{discardSheet}</FlowScreen>
+  return <FlowScreen presentation="route" label={title ?? ''} onDismiss={dismiss} result={result}>
+    {LeaveGuard ? <LeaveGuard leaving={leaving} requestLeave={dismiss} /> : null}
+    {children}
+    {discardSheet}
+  </FlowScreen>
 }
 
 const styles = StyleSheet.create({

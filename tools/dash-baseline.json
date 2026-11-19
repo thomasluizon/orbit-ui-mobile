@@ -1,6 +1,5 @@
 {
   "apps/mobile/CLAUDE.md": 8,
-  "apps/mobile/components/goals/goal-detail-drawer/use-goal-status-actions.ts": 2,
   "apps/mobile/components/marketing-consent/marketing-consent-prompt.tsx": 1,
   "apps/mobile/components/ui/select-check.tsx": 1,
   "apps/mobile/components/ui/status-dot-fill.ts": 1,
@@ -16,7 +15,6 @@
   "apps/mobile/scripts/fix-hoisting.js": 1,
   "apps/web/app/globals.css": 4,
   "apps/web/CLAUDE.md": 7,
-  "apps/web/components/goals/goal-detail-drawer/use-goal-status-actions.ts": 2,
   "apps/web/components/marketing-consent/marketing-consent-prompt.tsx": 1,
   "apps/web/components/ui/select-check.tsx": 1,
   "apps/web/components/ui/status-dot-fill.ts": 1,

@@ -23,7 +23,7 @@ export function getBackLabel(route: string | undefined, translate: BackLabelTran
   const pathname = route?.split(/[?#]/)[0]
   if (pathname === '/' || pathname === '/(tabs)') return translate('common.backToToday')
   if (pathname === '/profile') return translate('common.backToProfile')
-  if (pathname === '/profile/astra' || pathname === '/chat') return translate('common.backToOrbit')
+  if (pathname === '/profile/ai' || pathname === '/chat') return translate('common.backToOrbit')
   if (pathname?.startsWith('/habits/') && !BACK_DESTINATION_KEYS[pathname]) return translate('common.backToHabit')
   const destinationKey = BACK_DESTINATION_KEYS[pathname ?? '']
   return destinationKey

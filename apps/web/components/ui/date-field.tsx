@@ -32,6 +32,7 @@ interface DateFieldProps {
   focusRequest?: number
   appearance?: 'normal' | 'proposed'
   disabled?: boolean
+  minDate?: string
 }
 
 function dateValueClassName(displayValue: string, appearance: DateFieldProps['appearance']): string | undefined {
@@ -47,6 +48,7 @@ export function DateField({
   focusRequest,
   appearance = 'normal',
   disabled = false,
+  minDate,
 }: Readonly<DateFieldProps>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -266,6 +268,7 @@ export function DateField({
                           data-day={format(day, 'yyyy-MM-dd')}
                           style={{ width: '100%' }}
                           tabIndex={isRoving ? 0 : -1}
+                          disabled={minDate !== undefined && format(day, 'yyyy-MM-dd') < minDate}
                           aria-label={formatLocaleDate(day, locale, {
                             month: 'long',
                             day: 'numeric',

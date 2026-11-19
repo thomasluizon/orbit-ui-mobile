@@ -435,6 +435,28 @@ it('stops a waiting automatic run and gives two runs again when the form asks fo
   expect(onStateChange).toHaveBeenLastCalledWith('failed')
 })
 
+it('draws the wait as a skeleton in the box of the check, with its sentence kept, and never as text alone', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'waiting-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  const { container } = render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading'))
+  const wait = container.querySelector<HTMLElement>('[data-turnstile-wait]')!
+  expect(wait.style.height).toBe(`${TURNSTILE_CHALLENGE_HEIGHT}px`)
+  expect(wait.querySelector('[data-slot="skeleton-face"] [data-variant="fill"]')).not.toBeNull()
+  expect(wait).toContainElement(screen.getByRole('status'))
+  expect(container.querySelector('.animate-spin')).toBeNull()
+
+  const callbacks = renderWidget.mock.calls[0]![1] as ChallengeCallbacks
+  act(() => callbacks['before-interactive-callback']())
+  expect(container.querySelector('[data-turnstile-wait]'), 'the challenge takes the box, so the wait leaves it').toBeNull()
+  expect(screen.getByRole('status')).toHaveTextContent('')
+  act(() => callbacks['after-interactive-callback']())
+  expect(container.querySelector('[data-turnstile-wait] [data-slot="skeleton-face"]'), 'the run after the tap waits in the same skeleton').not.toBeNull()
+
+  act(() => callbacks.callback('fresh-token'))
+  expect(container.querySelector('[data-slot="skeleton-face"]')).toBeNull()
+})
+
 function reportedFailures() {
   return vi.mocked(captureMessage).mock.calls.map(([message, context]) => {
     const { tags, fingerprint } = context as { tags: Record<string, unknown>; fingerprint: string[] }

@@ -86,3 +86,57 @@ export function buildProfilePickerLabels(translate: (key: string) => string): Pr
     timeZoneShowMoreLabel: translate('profile.timezonePicker.showMore'),
   }
 }
+
+/** The time zone matches one page shows. More matches stay behind the show-more action. */
+export const TIME_ZONE_PAGE_SIZE = 20
+
+export interface GuidedTimeZoneInput {
+  zones: readonly string[]
+  /** The time zone the account holds. */
+  selected: string | null | undefined
+  /** The time zone of the device, when the device reports one. */
+  deviceTimeZone: string | null
+  /** The words the person typed in the search. */
+  query: string
+  visibleCount: number
+}
+
+export interface GuidedTimeZoneOptions {
+  /** The quick options: the stored time zone, then the time zone of the device. */
+  quick: string[]
+  /** True once the person typed a search. Matches show only then. */
+  searched: boolean
+  /** The matches of the search on this page. */
+  visible: string[]
+  hasMore: boolean
+}
+
+function foldSearchText(text: string): string {
+  return text.normalize('NFD').replaceAll(/\p{M}/gu, '').toLocaleLowerCase()
+}
+
+function timeZoneSearchTerm(query: string): string {
+  return foldSearchText(query.trim()).replaceAll(/\s+/g, '_')
+}
+
+/**
+ * The time zones that match the words of the person: a space matches the underscore of a time zone name, and
+ * accents fold away on both sides, so "São Paulo" finds `America/Sao_Paulo`. No words keep every time zone.
+ */
+export function filterTimeZones(zones: readonly string[], query: string): string[] {
+  const term = timeZoneSearchTerm(query)
+  return term ? zones.filter((zone) => foldSearchText(zone).includes(term)) : [...zones]
+}
+
+/**
+ * The time zone question in the guided pattern: the stored time zone and the time zone of the device are the
+ * quick options, and every other time zone stays behind the search (`filterTimeZones`).
+ */
+export function buildGuidedTimeZoneOptions(input: GuidedTimeZoneInput): GuidedTimeZoneOptions {
+  const device = input.deviceTimeZone && input.zones.includes(input.deviceTimeZone) ? input.deviceTimeZone : null
+  const quick = [...new Set([input.selected, device].filter((zone): zone is string => Boolean(zone)))]
+  const searched = timeZoneSearchTerm(input.query).length > 0
+  const matches = searched ? filterTimeZones(input.zones, input.query) : []
+  return { quick, searched, visible: matches.slice(0, input.visibleCount), hasMore: matches.length > input.visibleCount }
+}
+

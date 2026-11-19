@@ -6,6 +6,8 @@ export type HabitPhraseCadence = 'daily' | 'fixed' | 'flexible' | 'monthly'
 export type HabitPhraseTokenKind = 'daily' | 'weekday' | 'count' | 'time' | 'interval' | 'monthDay'
 
 export interface HabitPhraseToken { start: number; end: number; kind: HabitPhraseTokenKind }
+/** A range of the phrase, by character, with no kind. */
+export type HabitPhraseSpan = Pick<HabitPhraseToken, 'start' | 'end'>
 export interface HabitPhraseRead {
   cadence: HabitPhraseCadence | null
   days: string[]
@@ -538,6 +540,16 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
     dueTime,
     consumed,
   }
+}
+
+/** The one rule for a repeat in the words: a cadence, or a bare interval such as "every 2 weeks". The guided flow and onboarding both read it here. */
+export function habitPhraseRepeats(read: Pick<HabitPhraseRead, 'cadence' | 'intervalWeeks'>): boolean {
+  return read.cadence !== null || read.intervalWeeks !== null
+}
+
+/** The repeat a habit form takes from the words. Only the guided flow takes a bare interval; the full form applies a cadence alone and keeps the interval words in the title. */
+export function habitPhraseFormRepeats(read: Pick<HabitPhraseRead, 'cadence' | 'intervalWeeks'>, readsBareInterval: boolean): boolean {
+  return readsBareInterval ? habitPhraseRepeats(read) : read.cadence !== null
 }
 
 export function segmentHabitPhrase(text: string, consumed: readonly HabitPhraseToken[]): HabitPhraseSegment[] {

@@ -5,11 +5,14 @@ import {
   ORBIT_SMALL_FACES,
   isOrbitMascotSmallSize,
   orbitBlinkMatrix,
+  orbitEyeOffset,
   orbitMascotDrawnFrame,
   orbitMascotHeight,
   orbitMascotSizeFor,
   orbitOutlineCutout,
+  orbitRingTurnProgress,
   orbitSmallFaceFrame,
+  resolveOrbitShownState,
   type OrbitEyeShape,
   type OrbitLiveRole,
   type OrbitMascotFrame,
@@ -95,6 +98,27 @@ function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: RefO
   return { clock: candidate ? clock : 0, running }
 }
 
+function useRingTurn(turnKey: string | number | undefined, enabled: boolean): number {
+  const [progress, setProgress] = useState(0)
+  const seen = useRef(turnKey)
+  useEffect(() => {
+    if (seen.current === turnKey) return undefined
+    seen.current = turnKey
+    if (!enabled) return undefined
+    let frame = 0
+    let start: number | null = null
+    const step = (now: number) => {
+      start ??= now
+      const next = orbitRingTurnProgress(now - start, mascotMotion.ringTurn)
+      setProgress(next >= 1 ? 0 : next)
+      if (now - start < mascotMotion.ringTurn) frame = requestAnimationFrame(step)
+    }
+    frame = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frame)
+  }, [turnKey, enabled])
+  return progress
+}
+
 function useOrbitReadClock(reading: boolean) {
   const motionAllowed = useOrbitReadMotionAllowed()
   const running = reading && motionAllowed
@@ -139,7 +163,7 @@ function Planet({ viewBox, outline, outlineTransform, clipId, children }: Readon
   )
 }
 
-function Rig({ state, frame, palette, clipId }: Readonly<{ state: NonNullable<OrbitMascotProps['state']>; frame: OrbitMascotFrame; palette: Palette; clipId: string }>) {
+function Rig({ state, frame, palette, clipId, eyeOffset }: Readonly<{ state: NonNullable<OrbitMascotProps['state']>; frame: OrbitMascotFrame; palette: Palette; clipId: string; eyeOffset: { readonly x: number; readonly y: number } }>) {
   const face = ORBIT_MASCOT_FACES[state]
   const blink = face.blinkCentreY === null ? undefined : orbitBlinkMatrix(frame.blinkScale, face.blinkCentreY)
   return (
@@ -148,9 +172,11 @@ function Rig({ state, frame, palette, clipId }: Readonly<{ state: NonNullable<Or
       {frame.moon.front ? null : <Moon frame={frame} palette={palette} />}
       <Planet viewBox={ORBIT_MASCOT_VIEW_BOX} outline={frame.ringOutline} clipId={clipId}>
         <Circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} fill="currentColor" />
-        {face.eyes.map((shape) => (
-          <Eye key={shape.d} shape={shape} palette={palette} blink={blink} />
-        ))}
+        <G transform={`translate(${eyeOffset.x} ${eyeOffset.y})${frame.eyeWiden === 1 ? '' : ` scale(${frame.eyeWiden} 1)`}`}>
+          {face.eyes.map((shape) => (
+            <Eye key={shape.d} shape={shape} palette={palette} blink={blink} />
+          ))}
+        </G>
       </Planet>
       <Path d={frame.ringFront} fill="currentColor" />
       {frame.moon.front ? <Moon frame={frame} palette={palette} /> : null}
@@ -196,16 +222,19 @@ function ThemedOrbitMascot(props: Readonly<OrbitMascotProps>) {
   return <OrbitMascotDrawing {...props} tokens={tokens} />
 }
 
-function OrbitMascotDrawing({ size, state = 'parado', still = false, reading = false, color, live = 'single', tokens }: Readonly<OrbitMascotProps & { tokens: AppTokensV2 }>) {
+function OrbitMascotDrawing({ size, state = 'parado', still = false, reading = false, color, live = 'single', lookAt = null, turnKey, tokens }: Readonly<OrbitMascotProps & { tokens: AppTokensV2 }>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<Svg | null>(null)
   const small = isOrbitMascotSmallSize(size)
   const { clock, running: looping } = useOrbitLoopClock(!small && !still, live, svgRef)
-  const frame = orbitMascotDrawnFrame(clock, mascotMotion, looping)
+  const reducedMotion = usePrefersReducedMotion()
+  const turn = useRingTurn(turnKey, !small && !still && !reducedMotion)
+  const frame = orbitMascotDrawnFrame(clock, mascotMotion, looping, turn)
   const read = useOrbitReadClock(small && reading)
   const smallMotion = small && read.running ? orbitSmallFaceFrame(read.clock, size, mascotMotion) : undefined
   const running = looping || read.running
   const palette = paletteFrom(tokens)
+  const eyeOffset = orbitEyeOffset(lookAt, reducedMotion || still)
 
   return (
     <Svg
@@ -218,14 +247,15 @@ function OrbitMascotDrawing({ size, state = 'parado', still = false, reading = f
       accessible={false}
       importantForAccessibility="no-hide-descendants"
       testID="orbit-mascot"
-      data-orbit-state={state}
+      data-orbit-state={small ? state : resolveOrbitShownState(state, lookAt)}
       data-orbit-face={small ? 'small' : 'rig'}
       data-orbit-loop={running ? 'running' : 'still'}
+      data-orbit-turn={turn > 0 ? 'turning' : 'rest'}
     >
       {small ? (
         <SmallFace size={size} palette={palette} clipId={clipId} motion={smallMotion} />
       ) : (
-        <Rig state={state} frame={frame} palette={palette} clipId={clipId} />
+        <Rig state={state} frame={frame} palette={palette} clipId={clipId} eyeOffset={eyeOffset} />
       )}
     </Svg>
   )
