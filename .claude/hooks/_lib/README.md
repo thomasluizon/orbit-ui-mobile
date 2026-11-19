@@ -109,8 +109,8 @@ The reader is an allow list in each class:
 - A command word must be in `KNOWN_COMMAND_WORDS`: the wrappers that do not change the user, the allowed builtins, the allowed
   programs and the POSIX shells. Each other command word is refused. A path is judged by its last part, so `/usr/bin/git` is `git`, and
   `./run.sh` is refused. The refusal lists the known words.
-- `adb` and `emulator` run no git and no host shell, and `forbid-worker-browser` refuses both for each launched worker that is not a device
-  proof. `xcrun` is allowed only with `simctl` as its first word, because `xcrun` resolves any developer tool by name. `tar` is allowed only with
+- `adb`, `emulator` and `xcrun` run no git and no host shell, and `forbid-worker-browser` refuses all three for each launched worker that is not a
+  device proof. `xcrun` is allowed only with `simctl` as its first word, because `xcrun` resolves any developer tool by name. `tar` is allowed only with
   the options that list or extract (`TAR_LETTERS`, `TAR_FLAGS` and `TAR_VALUE_OPTIONS` in `shell-subset.mjs`), because `-I`,
   `--use-compress-program`, `--to-command`, `--checkpoint-action` and `--info-script` run a program. `git archive` is allowed without
   `--exec` and `--remote`. A read-only review and a device proof need these commands for their own orders.

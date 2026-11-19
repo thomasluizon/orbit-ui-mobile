@@ -1151,6 +1151,12 @@ for (const command of ["npm run dev", "next dev --port 3920", "pnpm dev", "expo 
   T(`worker-browser: ${command} blocks`, blocks(worker(command)), true)
 }
 T("worker-browser: the refusal says who owes the visual check", worker("npm run dev")?.message.includes("owed by a HUMAN"), true)
+// `xcrun simctl` drives a simulator as `adb` drives an emulator, so only a device proof may run it (thread eIVK).
+for (const [kind, env] of [["ticket", { ORBIT_LAUNCH_WORKER: "1" }], ["review", { ORBIT_LAUNCH_WORKER: "1", ORBIT_READ_ONLY_RUN: "1" }]]) {
+  for (const command of ["xcrun simctl boot 'iPhone 17'", "xcrun simctl erase all", "xcrun simctl io booted screenshot /tmp/a.png"]) {
+    T(`worker-browser: a ${kind} worker may not run ${command} (thread eIVK)`, blocks(checkWorkerBrowser(command, { env, cwd: repoRoot, repoRoots: [] })), true)
+  }
+}
 // A device proof worker (launch-worker.mjs --proof) drives a device, but never the owner's emulator,
 // and every other worker ban still holds for it.
 const PROOF_PIN = { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "1", ANDROID_SERIAL: "emulator-5594", ORBIT_PROOF_EMULATOR_PORT: "5594" }

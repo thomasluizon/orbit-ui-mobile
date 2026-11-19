@@ -11,7 +11,7 @@ import { insideLinkedWorktree } from "./repo-roots.mjs"
 const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
 /** `launch-worker.mjs --proof` adds this, so a device proof worker may drive a device. A typed assignment never sets it. */
 const DEVICE_PROOF_MARKER = "ORBIT_DEVICE_PROOF"
-const DEVICE_DRIVERS = new Set(["adb", "emulator"])
+const DEVICE_DRIVERS = new Set(["adb", "emulator", "xcrun"])
 /** The owner's own emulator. A proof uses a named simulator or a throwaway AVD, never this one. */
 const OWNER_EMULATOR = "Orbit_Pixel_9_API_35"
 /** The launcher pins a proof's throwaway emulator: adb's default serial and the emulator console port. */
@@ -44,7 +44,7 @@ const GH_API_VALUE_FLAGS = new Set(["-X", "--method", "-f", "-F", "--field", "--
 const GH_API_BODY_FLAGS = new Set(["-f", "-F", "--field", "--raw-field", "--input"])
 
 /** Binaries whose arguments are PROSE. A commit message naming `npm run dev` is not a dev server. */
-const BROWSER_DRIVERS = new Set(["playwright", "maestro", "cypress", "puppeteer", "chromedriver", "geckodriver", "webdriver", "adb", "emulator"])
+const BROWSER_DRIVERS = new Set(["playwright", "maestro", "cypress", "puppeteer", "chromedriver", "geckodriver", "webdriver", "adb", "emulator", "xcrun"])
 /** Package runners that front another program. The real invocation is whatever follows them. The shell wrappers are the `WRAPPERS` of `shell-subset.mjs`. */
 const RUNNER_PREFIXES = new Set(["npx", "bunx"])
 const RUNNER_SUBCOMMANDS = new Map([
