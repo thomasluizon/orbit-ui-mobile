@@ -138,11 +138,37 @@ const unitResultsRestore = (job) => ({
 const unitResultsLookup = (job) => ({
   step: {
     id: `${job}-unit`,
-    if: "github.event_name == 'pull_request'",
     uses: "actions/cache/restore@v6",
     with: { key: `\${{ steps.plan.outputs.${job}-unit-key }}`, "lookup-only": true, path: `\${{ env.${job.toUpperCase()}_UNIT_RESULTS }}` },
   },
   calls: [],
+})
+// The call of .github/actions/merged-unit-results, which leads to the lookups after the save of a merged pull request result.
+const MERGED_RESULTS_CALL = {
+  id: "merged",
+  if: "github.event_name != 'pull_request' && (steps.web-unit.outputs.cache-hit != 'true' || steps.mobile-unit.outputs.cache-hit != 'true' || steps.workspace-unit.outputs.cache-hit != 'true')",
+  uses: "./.github/actions/merged-unit-results",
+  with: {
+    "web-hit": "${{ steps.web-unit.outputs.cache-hit }}",
+    "web-key": "${{ steps.plan.outputs.web-unit-key }}",
+    "web-path": "${{ env.WEB_UNIT_RESULTS }}",
+    "mobile-hit": "${{ steps.mobile-unit.outputs.cache-hit }}",
+    "mobile-key": "${{ steps.plan.outputs.mobile-unit-key }}",
+    "mobile-path": "${{ env.MOBILE_UNIT_RESULTS }}",
+    "workspace-hit": "${{ steps.workspace-unit.outputs.cache-hit }}",
+    "workspace-key": "${{ steps.plan.outputs.workspace-unit-key }}",
+    "workspace-path": "${{ env.WORKSPACE_UNIT_RESULTS }}",
+  },
+}
+// The lookup after the save of a merged pull request result: the group counts as cached only when the saved entry exists.
+const mergedUnitResultsLookup = (job, calls = [MERGED_RESULTS_CALL]) => ({
+  step: {
+    id: `${job}-unit-merged`,
+    if: `inputs.${job}-hit != 'true' && steps.adopt.outputs.${job}-unit == 'true'`,
+    uses: "actions/cache/restore@v6",
+    with: { key: `\${{ inputs.${job}-key }}`, "lookup-only": true, path: `\${{ inputs.${job}-path }}` },
+  },
+  calls,
 })
 
 // The rules "npm" and "the key of an exact restore" bound an entry because the save after a key miss holds only what the
@@ -206,7 +232,11 @@ const REVIEWED_RESTORES = {
     unitResultsLookup("web"),
     unitResultsLookup("mobile"),
     unitResultsLookup("workspace"),
+    mergedUnitResultsLookup("web"),
+    mergedUnitResultsLookup("mobile"),
+    mergedUnitResultsLookup("workspace"),
   ],
+  "merged-unit-results/action.yml": [mergedUnitResultsLookup("web", []), mergedUnitResultsLookup("mobile", []), mergedUnitResultsLookup("workspace", [])],
   "test.yml: unit-tests": [npmActionRestore({}), unitResultsRestore("web"), unitResultsRestore("mobile"), unitResultsRestore("workspace")],
 }
 
@@ -1045,7 +1075,6 @@ const typeCheckToolStep = (step) => ({ ...newAction("setup-tools", step), ...typ
 const NEXT_SAVE = "      - name: Save the Next compiler cache\n        if: github.event_name != 'pull_request' && steps.next-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v6\n"
 const WEB_UNIT_LOOKUP = `      - name: Look up cached web unit results
         id: web-unit
-        if: github.event_name == 'pull_request'
         uses: actions/cache/restore@v6
         with:
           path: \${{ env.WEB_UNIT_RESULTS }}
