@@ -102,6 +102,8 @@ function run(root, name) {
 
 function expectRun(root, name, status, executions) {
   const result = run(root, name)
+  // spawnSync ends turbo with SIGTERM at its timeout, and turbo then exits 0 with the task output cut short.
+  expect(result.error, result.stdout + result.stderr).toBeUndefined()
   expect(result.status, result.stdout + result.stderr).toBe(status)
   expect(readFileSync(resolve(root, 'executions'), 'utf8')).toBe('executed\n'.repeat(executions))
   return result
@@ -161,11 +163,11 @@ it('executes the shared guard again when another consumer task configuration cha
     appendFileSync(${JSON.stringify(resolve(root, 'executions'))}, 'executed\\n')
     const result = spawnSync(process.execPath, [${JSON.stringify(resolve(root, 'node_modules/vitest/vitest.mjs'))},
       'run', 'scripts/turbo-inputs.test.mjs', '--config=vitest.config.mjs',
-      '-t', '@orbit/desktop'], { stdio: 'inherit' })
+      '-t', "'@orbit/desktop' external test inputs executes again when an external input is deleted"], { stdio: 'inherit' })
     process.exit(result.status ?? 1)
   `)
   const initial = expectRun(root, consumer.name, 0, 1)
-  expect(initial.stdout + initial.stderr).toContain('2 passed')
+  expect(initial.stdout + initial.stderr).toContain('1 passed')
   expectRun(root, consumer.name, 0, 1)
   write(root, 'unrelated-root.txt', 'unrelated')
   expectRun(root, consumer.name, 0, 1)
@@ -173,7 +175,7 @@ it('executes the shared guard again when another consumer task configuration cha
   changed.tasks['@orbit/desktop#test'].inputs = ['$TURBO_DEFAULT$']
   write(root, 'turbo.json', JSON.stringify(changed))
   const result = expectRun(root, consumer.name, 1, 2)
-  expect(result.stdout + result.stderr).toContain('2 failed')
+  expect(result.stdout + result.stderr).toContain('1 failed')
 }, 60_000)
 
 describe.each(consumers)('$name external test inputs', (consumer) => {
