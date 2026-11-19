@@ -5,9 +5,6 @@ import { parse } from 'yaml'
 import { seedOfferFixture } from '../fixtures/offers.mjs'
 import { configureOffers } from '../offer-context.mjs'
 import { proactiveOffers } from '../proactive-offers.mjs'
-import { behavior } from '../assertions.mjs'
-import parseResponse from '../response.mjs'
-import { chatResponse, toolCall } from './fixtures/producer.mjs'
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
@@ -39,53 +36,43 @@ async function seeded(locale) {
   return { test, goal }
 }
 
-// Producer: QueryGoalsTool filter, GoalListCardBuilder.BuildItem and GoalListCardItem.
-function answer(test, goal, arguments_ = { include_completed: true }) {
+// Producer: GoalListCardBuilder.BuildItem and GoalListCardItem.
+function answer(test, goal) {
   const item = { id: goal.id, title: goal.title, current: goal.currentValue, target: goal.targetValue,
     unit: goal.unit, deadline: goal.deadline, trackingStatus: null, progressPercentage: null,
     projectedCompletionDate: null, daysToDeadline: null, status: 'Completed', linkedHabits: [] }
-  const call = toolCall('query_goals', arguments_, 'Succeeded', 'goals-read', test.vars.clientContext)
-  call.result.payload = { items: [item], totalCount: 1, sourceRevision: 'offline-revision' }
-  const response = { ...chatResponse('offline-request', [call]), aiMessage: null,
-    parts: [{ type: 'block', kind: 'goalList', block: { items: [item], read } }] }
-  const output = parseResponse(response, '', { response: { headers: { 'x-orbit-request-id': 'offline-request' } } })
-  output.offerReadback = { pass: true }
+  const output = { answer: '', composition: { aiMessage: null, parts: [{ type: 'block', kind: 'goalList', block: { items: [item], read } }] },
+    offerReadback: { pass: true } }
   return { output, context: { vars: { ...test.vars, evalRequestId: 'offline-request' } } }
 }
 
 it.each(['en', 'pt-BR'])('asks for completed goals explicitly and grades the seeded completed goal in %s', async (locale) => {
   const { test, goal } = await seeded(locale)
   expect(test.vars.input).toMatch(locale === 'en' ? /completed/iu : /concluídas/iu)
-  for (const arguments_ of [{ include_completed: true }, { status: 'Completed' }]) {
-    const { output, context } = answer(test, goal, arguments_)
-    expect(behavior(output, context).pass).toBe(true)
-    expect(proactiveOffers(output, context).pass).toBe(true)
-  }
-  const { output, context } = answer(test, goal, { status: 'Active', include_completed: true })
-  expect(behavior(output, context).pass).toBe(false)
+  expect(test.vars.expectations).toBeUndefined()
+  const { output, context } = answer(test, goal)
+  expect(proactiveOffers(output, context)).toMatchObject({ pass: true })
 })
 
 it.each(['en', 'pt-BR'])('rejects an empty active-goal answer after successful completed-goal setup in %s', async (locale) => {
   const { test, goal } = await seeded(locale)
-  const { output, context } = answer(test, goal, {})
-  output.trace.calls[0].result.payload.items = []
+  const { output, context } = answer(test, goal)
   output.composition.parts[0].block.items = []
-  expect({ tools: behavior(output, context).pass, offers: proactiveOffers(output, context).pass })
-    .toEqual({ tools: false, offers: false })
+  expect(proactiveOffers(output, context)).toMatchObject({ pass: false,
+    reason: 'Completed-goal exclusion requires its seeded goal in the displayed goalList.' })
 })
 
-it.each(['no-call', 'failed-call', 'wrong-filter', 'missing-result', 'wrong-result', 'missing-block', 'wrong-block', 'wrong-status'])(
-  'requires the completed goal in the successful query and displayed goalList: %s', async (fault) => {
+it.each(['missing-block', 'wrong-block', 'wrong-status', 'wrong-progress', 'wrong-target', 'wrong-deadline'])(
+  'requires the seeded completed goal with its figures in the displayed goalList: %s', async (fault) => {
     const { test, goal } = await seeded('en')
     const { output, context } = answer(test, goal)
-    if (fault === 'no-call') output.trace.calls = []
-    if (fault === 'failed-call') output.trace.calls[0].resultStatus = 'Failed'
-    if (fault === 'wrong-filter') output.trace.calls[0].arguments.status = 'Active'
-    if (fault === 'missing-result') output.trace.calls[0].result.payload.items = []
-    if (fault === 'wrong-result') output.trace.calls[0].result.payload.items = [{ ...output.trace.calls[0].result.payload.items[0], id: read.queryId }]
+    const row = output.composition.parts[0].block.items[0]
     if (fault === 'missing-block') output.composition.parts = []
-    if (fault === 'wrong-block') output.composition.parts[0].block.items = [{ ...output.composition.parts[0].block.items[0], id: read.queryId }]
-    if (fault === 'wrong-status') output.composition.parts[0].block.items[0].status = 'Active'
+    if (fault === 'wrong-block') row.id = read.queryId
+    if (fault === 'wrong-status') row.status = 'Active'
+    if (fault === 'wrong-progress') row.current = goal.currentValue + 1
+    if (fault === 'wrong-target') row.target = goal.targetValue + 1
+    if (fault === 'wrong-deadline') row.deadline = '2031-01-01'
     expect(proactiveOffers(output, context).pass).toBe(false)
   },
 )

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { parse } from 'yaml'
 import { afterEach, expect, it, vi } from 'vitest'
 import { beforeEach } from '../hooks.mjs'
+import { sentTurn, streamedTurn } from './fixtures/offer-stream.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
@@ -110,11 +111,10 @@ it.each(['valid', 'no-reminder', 'malformed-removal'])(
       if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
       if (path === '/api/auth/refresh') return refreshResponse()
       if (path === '/api/eval/snapshot') return Response.json(evalSnapshot({ habits: [], goals: [], tags: [], checklistTemplates: [] }))
-      expect(path).toBe('/api/chat')
+      expect(path).toBe('/api/chat/stream')
       chats++
-      const request = new Request(url, options)
-      requestId = request.headers.get('x-orbit-request-id')
-      const client = JSON.parse((await request.formData()).get('clientContext'))
+      const sent = await sentTurn(url, options)
+      requestId = sent.requestId
       const pending = preview('Drink water person@example.invalid offline-refresh')
       const base = pending.items[0].fields[0]
       pending.items[0].fields = [{ ...base, field: 'title', newValue: 'Drink water', proposedValue: 'Drink water', provenance: 'requested' }]
@@ -122,9 +122,8 @@ it.each(['valid', 'no-reminder', 'malformed-removal'])(
         proposedValue: [{ when: 'same_day', time: '09:00' }], provenance: 'suggested',
         removal: { offerKey: 'preview:scheduled_reminders', field: 'scheduled_reminders',
           fields: fault === 'malformed-removal' ? ['title'] : ['scheduled_reminders'] } })
-      const response = { ...chatResponse(requestId, [toolCall('create_habit', { title: 'Drink water' }, 'PendingConfirmation', 'setup-write', client)]),
-        aiMessage: null, parts: [], pendingOperations: [pending] }
-      return Response.json(response, { headers: { 'x-orbit-request-id': requestId } })
+      return streamedTurn({ ...chatResponse(requestId, [toolCall('create_habit', { title: 'Drink water' }, 'PendingConfirmation', 'setup-write', sent.clientContext)]),
+        aiMessage: null, parts: [], pendingOperations: [pending] }, requestId)
     })
     const prepared = (await beforeEach({ test: source })).test
     if (fault === 'valid') {
