@@ -208,7 +208,12 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   check(TOOL, "refuses an unknown option before reading anything", ["--issue", "ORB-124", "--force"], { status: 2, stderr: /unknown option\(s\): --force/ })
   const absent = stageTeardownWorktree("no-ticket-name")
   pointConfigAt(absent)
-  check(TOOL, "refuses an issue with no matching worktree name", ["--issue", "ORB-124"], { status: 1, stderr: /no active Git worktree name matches ticket 124/ }, { env: orcaEnv([]) })
+  check(TOOL, "refuses an open ticket with no matching worktree name", ["--issue", "ORB-124"], { status: 1, stderr: /no active Git worktree name matches ticket 124/ }, { env: { ...orcaEnv([]), ORBIT_TICKET_STATE: "OPEN" } })
+  check(TOOL, "refuses a closed ticket that is not Done and has no matching worktree name", ["--issue", "ORB-124"], { status: 1, stderr: /no active Git worktree name matches ticket 124/ }, { env: { ...orcaEnv([]), ORBIT_TICKET_STATUS: "In Progress" } })
+  const alreadyRemoved = check(TOOL, "a closed and Done ticket with no worktree is already removed, with its own exit status", ["--issue", "ORB-124"], { status: 4, stdout: /^ALREADY REMOVED no worktree is registered for ticket 124; the ticket is CLOSED and Done$/m }, { env: orcaEnv([]) })
+  T(`${TOOL}: an already removed ticket prints no REMOVED line`, !/^REMOVED /m.test(alreadyRemoved.stdout) && alreadyRemoved.stderr === "", alreadyRemoved.stdout + alreadyRemoved.stderr)
+  const standingRemoved = check(TOOL, "an open standing ticket with no worktree is already removed, with its own exit status", ["--issue", "#556"], { status: 4, stdout: /^ALREADY REMOVED no worktree is registered for ticket 556; the ticket is a standing ticket$/m }, { env: { ...orcaEnv([]), ORBIT_TICKET_STATUS: "In Progress", ORBIT_TICKET_STATE: "OPEN" } })
+  T(`${TOOL}: an already removed standing ticket prints no REMOVED line`, !/^REMOVED /m.test(standingRemoved.stdout) && standingRemoved.stderr === "", standingRemoved.stdout + standingRemoved.stderr)
 
   const unreadableGitState = stageTeardownWorktree("unreadable-git-state")
   pointConfigAt(unreadableGitState)
