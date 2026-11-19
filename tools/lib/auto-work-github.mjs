@@ -31,15 +31,16 @@ export const PULL_REQUEST_CLASSES = {
   unexpectedAuthor: { actions: ["reported"], refusal: "a pull request from an unexpected author is never merged, fixed or closed; report it to the owner" },
   otherRun: { actions: [], refusal: "another live run drives this pull request, or the live runs could not be read; skip it" },
   unread: { actions: [], refusal: "the tickets of this pull request could not be read; skip it until the next collection reads them" },
+  draft: { actions: [], refusal: "a draft pull request is not offered for review; skip it until the owner marks it ready" },
   closedTickets: { actions: ["closed", "reported"], refusal: "a pull request whose tickets are closed is never merged or fixed; close it as superseded or report it to the owner" },
   configured: { actions: ["merged", "fix", "closed"], refusal: "only a pull request from an unexpected author or with closed tickets is reported" },
 }
 
 /**
  * The class of one open pull request: an unexpected author, an owner pull request whose ticket read failed, an owner pull
- * request of another live run, an owner pull request whose tickets are all closed, or a configured author.
+ * request of another live run, a draft, an owner pull request whose tickets are all closed, or a configured author.
  */
-export const pullRequestClass = (pull) => pull.unexpectedAuthor ? "unexpectedAuthor" : pull.unread ? "unread" : pull.otherRun ? "otherRun" : pull.closedTickets ? "closedTickets" : "configured"
+export const pullRequestClass = (pull) => pull.unexpectedAuthor ? "unexpectedAuthor" : pull.unread ? "unread" : pull.otherRun ? "otherRun" : pull.draft ? "draft" : pull.closedTickets ? "closedTickets" : "configured"
 
 /*
  * Each projection prints one JSON line per item across every page. The fields come from live reads;

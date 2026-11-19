@@ -22,7 +22,7 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                repository or the repository owner, and that have no reported mark. pullRequests also adds ticketClosed: the owner pull requests
                with no mark that holds at their head whose every named ticket (ticket-<N>-, (#N) or
                ORB-N in the branch or the title) is closed, each with closedTickets
-               [{number, stateReason}]. Neither list is pending. A reported mark holds at
+               [{number, stateReason}]. Neither list is pending, and a draft is not pending until it is ready. A reported mark holds at
                every head; collect drops it when the closed tickets or a close reason change. A pull request whose ticket
                read failed is named in failures with its key; it is not pending and takes no mark, and the other pull requests of its repository are listed. alerts adds ticketClosed: the
                open alerts whose carrying ticket is closed, each with its ticket, its
@@ -40,7 +40,7 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                  the current head. reported is the only action for an unexpected author. A
                  pull request in ticketClosed takes only closed or reported, and its reported mark
                  keeps its closedTickets. No other pull request is reported. A pull request in
-                 otherRun takes no mark.
+                 otherRun takes no mark, and neither does a draft until the owner marks it ready.
                alerts {key, action: ticket|reported, ticket?, cause?}
                  ticket needs ticket and cause. reported is the only action for an alert in
                  ticketClosed whose stateReason is NOT_PLANNED or null, and for a secret scanning

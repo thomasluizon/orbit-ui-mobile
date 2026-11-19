@@ -445,7 +445,7 @@ const exportCases = () => {
 /** One table row names the actions of each pull request class, and markItem permits exactly those actions. */
 const permissionCases = ({ pullListing }) => {
   T("github: the pull request permission table has one row of actions for each class", JSON.stringify(Object.fromEntries(Object.entries(PULL_REQUEST_CLASSES)
-    .map(([name, row]) => [name, row.actions]))) === JSON.stringify({ unexpectedAuthor: ["reported"], otherRun: [], unread: [], closedTickets: ["closed", "reported"], configured: ["merged", "fix", "closed"] }),
+    .map(([name, row]) => [name, row.actions]))) === JSON.stringify({ unexpectedAuthor: ["reported"], otherRun: [], unread: [], draft: [], closedTickets: ["closed", "reported"], configured: ["merged", "fix", "closed"] }),
   JSON.stringify(PULL_REQUEST_CLASSES))
   const checkout = fresh("permissions")
   const otherRuns = { claims: (pull) => pull.key === "ui#2473" }
@@ -456,8 +456,25 @@ const permissionCases = ({ pullListing }) => {
   const permitted = Object.fromEntries(["landing#20", "ui#2473", "ui#2462", "api#1115", "api#1106"].map((key) => [pullRequestClass(pulls.open[key]),
     ["merged", "fix", "closed", "reported"].filter((action) => refusal(() => markItem("pullRequests", { key, head: pulls.open[key].head, action, ticket: TICKET, reason: "Superseded." },
       checkout)) === "")]))
+  // The listing has no draft; draftCases checks the actions of that row.
   T("github: markItem permits exactly the actions of each pull request class", JSON.stringify(permitted) ===
-    JSON.stringify(Object.fromEntries(Object.entries(PULL_REQUEST_CLASSES).map(([name, row]) => [name, row.actions]))), JSON.stringify(permitted))
+    JSON.stringify(Object.fromEntries(Object.entries(PULL_REQUEST_CLASSES).filter(([name]) => name !== "draft").map(([name, row]) => [name, row.actions]))), JSON.stringify(permitted))
+}
+
+/* A draft owner pull request is one the owner has not offered for review: step 7 skips it, and the same head is pending again once it is ready. */
+const draftCases = async () => {
+  const listingOf = async (draft) => listOpenPullRequests({ repositories: REPOSITORIES, readTicketState: routedTickets,
+    readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": [{ ...OWNER_PULL, draft }] }).readPages })
+  const checkout = fresh("draft")
+  const drafted = recordListing("pullRequests", await listingOf(true), checkout, NO_OTHER_RUN)
+  const actions = ["merged", "fix", "closed", "reported"].map((action) => refusal(() => markItem("pullRequests", { key: "ui#2473", head: OWNER_PULL.head, action, ticket: TICKET,
+    reason: "Superseded." }, checkout)))
+  T("github: a draft owner pull request is never pending and takes no mark", pullRequestClass(drafted.open["ui#2473"]) === "draft" &&
+    !pendingItems("pullRequests", drafted).some((pull) => pull.key === "ui#2473") && actions.every((message) => message === PULL_REQUEST_CLASSES.draft.refusal),
+  JSON.stringify({ open: drafted.open["ui#2473"], actions }))
+  const ready = recordListing("pullRequests", await listingOf(false), checkout, NO_OTHER_RUN)
+  T("github: the same head is pending once the owner marks the pull request ready", ready.open["ui#2473"].head === OWNER_PULL.head &&
+    pendingItems("pullRequests", ready).some((pull) => pull.key === "ui#2473"), JSON.stringify(ready.open["ui#2473"]))
 }
 
 /* The same failure wakes the model once: a read that fails keeps its seen keys, so its recovery is not new. */
@@ -828,6 +845,7 @@ export const cases = async () => {
   await liveRunCases(listings)
   exportCases()
   permissionCases(listings)
+  await draftCases()
   await failedReadCases()
   skillCases()
   await baseCheckCases()
