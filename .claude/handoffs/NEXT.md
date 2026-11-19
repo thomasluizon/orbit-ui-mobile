@@ -8,7 +8,7 @@ Scratchpad (S): run `node $HOME/.orbit-run-carry/carry-lean.mjs <new full id> <p
 
 Models (owner order): the coordinator and Pullfrog run Opus 5.5; every worker tier runs `claude-sonnet-5-5`. Confirm all four tiers in `.claude/orchestrator.json`; never change or ask about a model unless the owner orders it in chat. A worker that stops at a usage limit is reported to the owner at once. Sentry is connected; Gmail, Orbit and Chrome are not. The Render MCP has no workspace selected: never pick one.
 
-Owner orders (spec standing rules): run tooling (Batch T, Batch 0b) first; under crank never hold ready work; `/progress` reports merged and built work in product terms, no numbers. The owner asked why the harness speed work is late and ordered "go faster": ui#2486 merged (owner told); tell him at once when ui#2502 or ui#2498 merges.
+Owner orders (spec standing rules): run tooling (Batch T, Batch 0b) first; under crank never hold ready work; `/progress` reports merged and built work in product terms, no numbers. The owner asked why the harness speed work is late and ordered "go faster": ui#2486 merged (owner told); tell him at once when ui#2498 merges.
 
 Speed rules: a review order names the new commits only and labels each finding BLOCKING or NOTE. Push on CLEAN or NOTES; file each note once on its ticket (`node S/ticket-ops.mjs <ticket> <key>`, then `tools/comment-ticket.mjs`), but fix a cheap code NOTE (format, an unused import, a stale sentence) in the coordinator before the push, because Pullfrog flags it and costs a round; a worker round fixes only BLOCKING findings (rule 14) and main caps rounds at 3 per branch. A regression of the pull request or a failed acceptance probe starts a fix round. The coordinator corrects a false body statement before the push. Workers run focused tests only. A body stays under 60,000 characters. A Pullfrog review that fails with no thread names its blocker in the review body: `node S/save-frog.mjs <key> <pr>` saves it to S `pf-<pr>-last.md`; put that item in the round note.
 
@@ -22,11 +22,11 @@ Finish the spec: an empty board except `#33`, verified releases, the assistant f
 
 ## In flight
 
-UI `main` `10968d893` (ui#2486 merged); API `main` and production `70c66e7be`; landing `main` `20c1b0a90`; web production `2263a8b67`. Owner question queue: empty. No stash. The relay checkout holds `origin/main`. Start a waiter for every pushed head at once (S task-map relay block).
+UI `main` `2e2b7363c` (ui#2486 and ui#2502 merged); API `main` and production `70c66e7be`; landing `main` `20c1b0a90`; web production `2263a8b67`. Owner question queue: empty. No stash. The relay checkout holds `origin/main`. Start a waiter for every pushed head at once (S task-map relay block).
 
 | Item | Disposition |
 | --- | --- |
-| FIRST: ui#2502 (Windows CI) 3d806b98b | Pushed after the main merge, Pullfrog asked: merge at the bar, tell the owner, then merge main into ui#2451. |
+| FIRST: ui#2451 | ui#2502 (Windows CI) merged as 2e2b7363c (owner told): merge main into ui#2451, push, re-ask. Every head is behind main: merge it before the next push. |
 | ui#2498 (relay without a drain) | Review 2498-m2 ran over 95baa7186 and merge 66195b15d: on CLEAN or NOTES push `body-2498-m2.md`. Merge also needs proofs A and B (S `body-2498-main1.md` lines 35 to 55) at a real relay with the branch code. |
 | Pullfrog failed, one round each (make-frog-note, launch-review-round) | ui#2499 d79e863e8 (1 thread), landing#137 64a5822ca. |
 | Reviews done | 2501-r7 (base is the ui#2492 branch), 2488-r8: read S `review-<key>-local.md`, push each on CLEAN or NOTES. |
@@ -35,7 +35,7 @@ UI `main` `10968d893` (ui#2486 merged); API `main` and production `70c66e7be`; l
 | ui#2492 b5fa7bd9e approved | Base is the ui#2480 branch. After ui#2480 merges: merge main into it, push, re-ask; then ui#2500 and ui#2501 merge the new ui#2492 head and push once. |
 | ui#2491, ui#2494; api#1120, api#1121, api#1124 to api#1128 | Wait on api#1124 and on the `#2135` core set gate after ui#2480 merges. |
 | `#2156` ORBIT-WEB-1H | Resolve after the run state's `resolveAfter` of ORBIT-WEB-1H (`intake.sentry`) if no event is newer than its `lastEventAt`, then close `#2156`. |
-| `#2176`, `#2146` | `#2176` after `#2122`; `#2146` web check through `claude-in-chrome` once connected, the mobile pair after ui#2499 merges. |
+| `#2176`, `#2146` | `#2176` after `#2122`; `#2146` web check through `claude-in-chrome`, the mobile pair after ui#2499 merges. |
 
 ## Then, in this order
 
@@ -54,6 +54,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 ## Previous prompt, disposition
 
 - Done: ui#2486 merged (10968d893); web production 2263a8b67 released (run 44421924037); rounds and reviews of ui#2499, ui#2476 r12, ui#2483, ui#2480, ui#2492, ui#2500, ui#2501, ui#2453, landing#137 pushed; ui#2488 retargeted to main by GitHub.
-- Carried: ui#2502, ui#2498 proofs, ui#2451, the held api and ui rows, `#2176`, `#2146`, every standing order above.
+- Done also: ui#2502 merged (2e2b7363c).
+- Carried: ui#2498 proofs, ui#2451, the held api and ui rows, `#2176`, `#2146`, every standing order above.
 
 Treat every identifier here as a lead to verify.
