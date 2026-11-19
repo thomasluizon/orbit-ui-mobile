@@ -23,10 +23,12 @@ import { KeyboardAwareFlatList } from '@/components/ui/keyboard-aware-scroll-vie
 import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 
-const { CreateHabitModal, useGoalHabitCreation } = createGoalHabitPicker({
+/** The habit list and the lazy habit form of a goal. The guided goal flow shares this one instance. */
+export const goalHabitPicker = createGoalHabitPicker({
   useState: useAccountScopedState, getAccountGeneration, useHabits: () => useHabits({}),
   loadModule: () => import('@/components/habits/create-habit-modal'), lazy,
 })
+const { CreateHabitModal, useGoalHabitCreation } = goalHabitPicker
 
 function GoalHabitRow({ habit, selectedIds, onChange, disabled }: Readonly<GoalHabitsFieldProps & { habit: NormalizedHabit }>) {
   const tokens = useThemeTokens()

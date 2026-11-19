@@ -1,26 +1,30 @@
 'use client'
 
-import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/utils'
+import { getPendingAuthProvider, getAuthCallbackErrorKey, showsAuthCallbackLine } from '@orbit/shared/utils'
+import type { AuthCallbackState } from '@orbit/shared/utils/auth-callback-failure'
 
 import { useState } from 'react'
 import { LazyMotion, domMin } from 'motion/react'
 import { AuthPagePanel } from '@/components/auth/auth-page-panel'
+import { useGuidedSignIn } from '@/components/auth/guided-sign-in'
 import { Lockup } from '@/components/ui/lockup'
 import { PillButton } from '@/components/ui/pill-button'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
+import { GuidedAccountBack, GuidedLogin, useSignInCompletion } from './guided-login'
 import { useLoginFlow } from './use-login-flow'
 import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } from './login-sections'
 
 export interface LoginCallback {
   provider?: 'apple' | 'google'
-  state: 'pending' | 'failed' | 'account'
+  state: AuthCallbackState
   onContinue: () => void
   loading?: boolean
 }
 
 export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
+  const guided = useGuidedSignIn()
   const flow = useLoginFlow(Boolean(callback))
   const { t } = flow
   const [callbackDismissed, setCallbackDismissed] = useState(false)
@@ -29,10 +33,20 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
     else void flow.continueAccount()
   }
   const account = Boolean(flow.accountBack) || callback?.state === 'account'
+  useSignInCompletion(guided && (account || flow.signedIn))
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
   const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
     ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
     : null
+  if (guided) return (
+    <LazyMotion features={domMin}>
+      <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{flow.successMessage}</p>
+      {account
+        ? <GuidedAccountBack t={t} loading={flow.isSubmitting || callback?.loading} continueAccount={continueAccount} errorMessage={flow.errorMessage} />
+        : <GuidedLogin flow={flow} callback={callback} callbackDismissed={callbackDismissed} onDismissCallback={() => setCallbackDismissed(true)}
+          canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget} />}
+    </LazyMotion>
+  )
   return (
     <LazyMotion features={domMin}>
     <AuthPagePanel>
@@ -65,13 +79,13 @@ function LoginEmailStep({ flow, callback, callbackDismissed, onDismissCallback, 
   const { t } = flow
   const pendingProvider = getPendingAuthProvider(callback)
   const callbackErrorKey = getAuthCallbackErrorKey(callback?.provider)
-  const providerCallbackFailed = callback?.state === 'failed' && !callbackDismissed
+  const providerCallbackFailed = showsAuthCallbackLine(callback) && !callbackDismissed
   return <EmailStep email={flow.email} onEmailChange={(email) => { onDismissCallback(); flow.setEmail(email) }}
     isSubmitting={flow.isSubmitting} isGoogleLoading={flow.isGoogleLoading || pendingProvider === 'google'}
     isAppleLoading={flow.isAppleLoading || pendingProvider === 'apple'}
     errorKey={providerCallbackFailed ? callbackErrorKey : flow.errorKey}
     fieldError={flow.emailFieldError}
-    errorMessage={providerCallbackFailed ? callback.provider === 'apple' ? t('auth.errors.appleError') : t('auth.errors.googleError') : flow.errorMessage}
+    errorMessage={providerCallbackFailed ? callback?.provider === 'apple' ? t('auth.errors.appleError') : t('auth.errors.googleError') : flow.errorMessage}
     isOnline={flow.isOnline} t={t} emailFocusRequest={flow.emailFocusRequest}
     canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
     onSendCode={() => { onDismissCallback(); void flow.sendCode() }}

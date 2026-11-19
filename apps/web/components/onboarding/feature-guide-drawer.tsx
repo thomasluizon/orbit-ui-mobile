@@ -121,7 +121,7 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
   const items = activeSection === 'widget' ? buildWidgetItems(getWidgetCopy('web')) : sectionItems[activeSection]
 
   return (
-    open ? (<Sheet open onClose={() => (onOpenChange)(false)} title={t('onboarding.featureGuide.title')} titleTranslate="no">
+    open ? (<Sheet open onClose={() => (onOpenChange)(false)} title={t('onboarding.featureGuide.question')}>
       <div>
         <div
           role="tablist"

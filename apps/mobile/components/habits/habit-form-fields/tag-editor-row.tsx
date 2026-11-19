@@ -6,10 +6,9 @@ import type { TextInput } from 'react-native'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { View, Text, } from "react-native";
 import { X } from "@/components/ui/icons";
+import { PillButton } from "@/components/ui/pill-button";
 import { MAX_TAG_NAME_LENGTH } from "@orbit/shared/validation";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
-import { SkeletonFace } from "@/components/ui/skeleton";
-import { waitingFaceStyle, waitingTextColor } from "@/components/ui/pill-button";
 import { type AppTokens, createStyles } from "./styles";
 
 interface TagEditorRowProps {
@@ -21,7 +20,7 @@ interface TagEditorRowProps {
   inputAriaLabel: string;
   actionLabel: string;
   cancelAriaLabel: string;
-  disabled: boolean;
+  disabled?: boolean;
   pending?: boolean;
   onChange: (value: string) => void;
   onCommit: () => void;
@@ -39,7 +38,7 @@ export function TagEditorRow({
   inputAriaLabel,
   actionLabel,
   cancelAriaLabel,
-  disabled: formDisabled,
+  disabled: formDisabled = false,
   pending = false,
   onChange,
   onCommit,
@@ -71,23 +70,7 @@ export function TagEditorRow({
         onChangeText={onChange}
         onSubmitEditing={commit}
       />
-      <Pressable
-        style={({ pressed }) => [
-          styles.tagFormSave,
-          pending && waitingFaceStyle('primary', 0),
-          formDisabled && !pending && { opacity: 0.45 },
-          pressed && !pending && { backgroundColor: tokens.primaryPressed },
-        ]}
-
-        accessibilityRole="button"
-        accessibilityLabel={actionLabel}
-        accessibilityState={{ disabled, busy: pending }}
-        disabled={disabled}
-        onPress={commit}
-      >
-        {pending ? <SkeletonFace tokens={tokens} /> : null}
-        <Text style={[styles.tagFormSaveText, pending && { color: waitingTextColor(tokens, 'primary', false) }]}>{actionLabel}</Text>
-      </Pressable>
+      <PillButton size="sm" minimumHeight={48} accessibleName={actionLabel} disabled={formDisabled} loading={pending} onClick={commit}>{actionLabel}</PillButton>
       <Pressable
         style={({ pressed }) => [
           styles.tagFormCancel,

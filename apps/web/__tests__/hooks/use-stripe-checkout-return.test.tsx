@@ -28,7 +28,7 @@ function mount(mockInvalidation = true) {
   return { client, invalidate, fetch, wrapper }
 }
 describe('Stripe return', () => {
-  it.each(['/upgrade', '/profile/astra'])('preserves an offline return on %s until the resumed entitlement read succeeds, then settles once', async (route) => {
+  it.each(['/upgrade', '/profile/ai'])('preserves an offline return on %s until the resumed entitlement read succeeds, then settles once', async (route) => {
     history.replaceState({}, '', `${route}?subscription=success&keep=1`)
     const { client, wrapper } = mount(false)
     const free = createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: false })

@@ -29,6 +29,7 @@ const TestRenderer: TestRendererApi = require('react-test-renderer')
 vi.mock('@/components/onboarding/onboarding-flow', () => ({
   OnboardingFlow: 'OnboardingFlow',
 }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
   OnboardingActionsProvider: 'OnboardingActionsProvider',
 }))
@@ -145,6 +146,7 @@ describe('OverlayLayer gates', () => {
     const instance = await renderLayer({ hasCompletedOnboarding: true, showPendingPro: true })
     expect(instance.root.findAll((node) => node.type === 'OnboardingFlow')).toHaveLength(1)
     expect(instance.root.findAll((node) => node.type === 'OnboardingFlow')[0]!.props.finalStepOnly).toBe(true)
+    expect(instance.root.findAll((node) => node.type === 'OnboardingFlow')[0]!.props.guided).toBe(true)
     for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS, 'TrialExpiredModal']) {
       expect(suppression(instance, overlay)).toBe(true)
     }

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { utf16Length } from './utf16-length'
 import { MAX_API_KEY_NAME_LENGTH } from './constants'
+import { getAccountDay, millisecondsUntilNextDay } from '../utils/dates'
 
 const apiKeyNameSchema = z.string().trim().check(utf16Length('min', 1, 'orbitMcp.keyNameRequired')).check(utf16Length('max', MAX_API_KEY_NAME_LENGTH, 'orbitMcp.keyNameMaxLength'))
 
@@ -35,6 +36,33 @@ export function validateApiKeyExpiry(value: string, now = Date.now()): ApiKeyExp
   const parsed = parseApiKeyExpiryUtc(value)
   if (!parsed || parsed.getTime() <= now) return { valid: false }
   return { valid: true, expiresAtUtc: parsed.toISOString() }
+}
+
+const TWELVE_HOURS = 12 * 60 * 60 * 1000
+
+function expiryZone(timeZone: string | null | undefined): string | undefined {
+  return timeZone || undefined
+}
+
+/** The day of an expiry draft in the account zone, as `yyyy-MM-dd`, for the date picker. Empty for a key that never expires and for a draft the parser cannot read. */
+export function apiKeyExpiryDay(value: string, timeZone?: string | null): string {
+  const expiry = parseApiKeyExpiryUtc(value)
+  return expiry ? getAccountDay(expiry, expiryZone(timeZone)) : ''
+}
+
+/** The expiry draft of a day picked in the account zone: the last second of that day there, as UTC in the form `validateApiKeyExpiry` reads. No day is a key that never expires. */
+export function apiKeyExpiryFromDay(day: string, timeZone?: string | null): string {
+  if (!day) return API_KEY_EXPIRY_DEFAULT
+  const zone = expiryZone(timeZone)
+  const noon = Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)), 12)
+  const inside = getAccountDay(new Date(noon), zone) > day ? noon - TWELVE_HOURS : noon
+  const lastSecond = inside + millisecondsUntilNextDay(new Date(inside), zone) - 1000
+  return new Date(lastSecond).toISOString().slice(0, 19)
+}
+
+/** The first day a key can expire on: today in the account zone, whose last second is still ahead. */
+export function apiKeyExpiryFirstDay(timeZone?: string | null, now = Date.now()): string {
+  return getAccountDay(new Date(now), expiryZone(timeZone))
 }
 
 /**

@@ -884,6 +884,89 @@ select[aria-hidden="true"] {
   }
 }
 
+.orbit-sheet-viewport[data-centred="true"] {
+  align-items: center;
+  padding: var(--orbit-space-16);
+}
+
+.orbit-sheet-panel[data-centred="true"] {
+  max-width: 420px;
+  border-radius: 20px;
+  background: var(--bg-elev);
+  box-shadow: var(--shadow-3);
+}
+
+.orbit-sheet-panel[data-centred="true"] .orbit-sheet-grabber-target {
+  display: none;
+}
+
+.orbit-flow-question:focus {
+  outline: none;
+}
+
+.orbit-option-card {
+  display: flex;
+  width: 100%;
+  min-height: 72px;
+  align-items: center;
+  justify-content: center;
+  padding: var(--orbit-space-12) var(--orbit-space-16);
+  border-radius: 20px;
+  background: var(--bg-card);
+  color: var(--fg-1);
+  font-size: 17px;
+  line-height: 24px;
+  text-align: center;
+  outline: none;
+  /* The press hit layer draws the focus ring while a key holds the card, on the line of the inset focus ring. */
+  outline-offset: -2px;
+  transition: background-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-press) var(--ease-out);
+}
+
+.orbit-option-card[data-selected] {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.orbit-option-card:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--fg-1);
+}
+
+/* A selected card keeps its ring under focus, directly inside the focus ring, as every selection control does. */
+.orbit-option-card[data-selected]:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--fg-1), inset 0 0 0 4px var(--primary);
+}
+
+.orbit-option-card:active {
+  background: var(--bg-hover);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .orbit-option-card.press-hit-layer:active {
+    transform: scale(0.96);
+  }
+
+  /* The unscaled hit layer draws the focus ring of a pressed card, so the scaled card draws none. */
+  .orbit-option-card.press-hit-layer:focus-visible:active {
+    box-shadow: none;
+  }
+}
+
+.orbit-option-card:disabled {
+  opacity: 0.5;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-option-card:not(:disabled):hover {
+    background: var(--bg-hover);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-option-card {
+    transition: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .orbit-sheet-backdrop,
   .orbit-sheet-panel,

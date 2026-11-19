@@ -28,5 +28,28 @@ The existing create form is reused across these entries; editing remains the sec
 The sheet primitive owns padding, scrolling, dismissal and focus. The footer keeps trailing ghost Cancelar
 and the filled create action outside the scrolling body.
 
+## Guided goal flows (#2121)
+
+With `orbit_guided_flows` on, `CreateGoalSheet` and `EditGoalModal` render the guided flow from
+`components/goals/guided/` in `FlowScreen` on both platforms. With the flag off, they render the sheet
+and the modal above, unchanged. The draft stays in `useGoalCreation`, so the create request equals the
+request of the sheet for the same values. Edit sends the same update request as the modal.
+
+| Step | Question | Quick options | Free path |
+| --- | --- | --- | --- |
+| What | O que você quer alcançar? | none | one text field, 200 characters |
+| How to track | Como você quer acompanhar? | Progresso, Sequência | none |
+| How much | Quanto? and De quê?; for a streak, Quantos dias seguidos? | none | the number and the unit, or the number of days |
+| By when | Até quando? | Sem prazo, Fim do mês, Fim do ano | the person's words through `parseDatePhrase`, and the date picker |
+| Which habits | Quais hábitos contam para essa meta? | the person's habits | search, and create a habit from the step |
+| Summary | É isso? | none | each value is a control that opens its step and returns |
+
+Fim do mês and Fim do ano resolve in the account time zone through
+`packages/shared/src/utils/goal-deadline-options.ts`. A goal that starts from a habit skips Which
+habits and shows the habit on the summary. Edit opens on the summary with the stored values; an
+unchanged edit closes with no discard prompt. A save error stays on the summary. A save ends in the
+result dialog, whose sentence states the goal and its deadline, or that it has no deadline. Its filled
+action opens the goal, and its ghost action starts another goal.
+
 Visual inspection of the app and rendered screenshots require a separate runner. The worker uses
 Vitest compositions and the existing geometry suites without starting an app server or emulator.

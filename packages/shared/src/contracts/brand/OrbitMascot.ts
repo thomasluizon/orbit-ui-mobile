@@ -10,6 +10,12 @@ export type OrbitLiveRole = 'lead' | 'withLead' | 'single'
 export const ORBIT_MASCOT_LIVE_SIZES: readonly OrbitMascotLiveSize[] = [48, 96, 128]
 export const ORBIT_MASCOT_SMALL_SIZES: readonly OrbitMascotSmallSize[] = [16, 20, 24]
 
+/** Where Orbit looks, each axis from -1 to 1 across the control in focus. */
+export interface OrbitLookTarget {
+  readonly x: number
+  readonly y: number
+}
+
 export interface OrbitMascotProps {
   /** The drawn width. The height follows the 7:5 box of the rig or the 4:3 box of the small face. */
   size: OrbitMascotSize
@@ -23,6 +29,10 @@ export interface OrbitMascotProps {
   reading?: boolean
   /** The planet and the ring. Defaults to the foreground token. */
   color?: string
+  /** The control in focus. Orbit shows Olhando: the pill eyes move toward it. It never changes a state other than parado, and reduced motion keeps the eyes still. */
+  lookAt?: OrbitLookTarget | null
+  /** A change of this value, caused by the person (a step change, a page change), makes the ring turn once and widens the eyes through the turn. A new value retargets the turn and turns never queue. Reduced motion, a still face and the first value draw no turn. */
+  turnKey?: string | number
   /** Defaults to `single`. On a view that shows the conversation entry (`lead`), the entry and every Orbit line of that view
    *  (`withLead`) run the loop together on one shared clock, and every other Orbit in that view is still. Without the entry,
    *  an Orbit line is still, and the first `single` Orbit in view runs the loop. */

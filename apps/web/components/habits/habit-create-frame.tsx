@@ -7,6 +7,7 @@ import { useLayoutEffect, type ComponentProps } from 'react'
 import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
 import { useTranslations } from 'next-intl'
 import { Sheet } from '@/components/ui/sheet'
+import { FlowScreen } from '@/components/ui/flow-screen'
 import { AppBar } from '@/components/ui/app-bar'
 import { useShellComposerSlot } from '@/components/shell/destination-shell'
 import { ShellHeader, useHasShellHeaderHost } from '@/components/shell/shell-header'
@@ -17,11 +18,13 @@ type HabitCreateFrameProps = ComponentProps<typeof Sheet> & {
   fromConversation: boolean
   actionRefreshKey: string
   leaving: boolean
+  guided?: boolean
   onNavigate: (action: () => void) => void
   onReturn: () => void
 }
 
-export function HabitCreateFrame({ presentation, fromConversation, actionRefreshKey, leaving, onNavigate, onReturn, ...props }: Readonly<HabitCreateFrameProps>) {
+export function HabitCreateFrame({ presentation, fromConversation, actionRefreshKey, leaving, guided = false, onNavigate, onReturn, ...props }: Readonly<HabitCreateFrameProps>) {
+  if (guided) return <GuidedCreateFrame presentation={presentation} leaving={leaving} onNavigate={onNavigate} onReturn={onReturn} title={props.title} onClose={props.onClose} onAttemptDismiss={props.onAttemptDismiss}>{props.children}</GuidedCreateFrame>
   if (presentation === 'sheet') return <Sheet {...props} />
   return <HabitCreateScreenFrame {...props} fromConversation={fromConversation} actionRefreshKey={actionRefreshKey} leaving={leaving} onNavigate={onNavigate} onReturn={onReturn} />
 }
@@ -46,4 +49,20 @@ function HabitCreateScreenFrame({ children, actions, title, onAttemptDismiss, on
     </div>
     {!hosted ? footer : null}
   </>
+}
+
+function GuidedCreateFrame({ presentation, children, title, leaving, onAttemptDismiss, onNavigate, onReturn, onClose }: Readonly<Pick<HabitCreateFrameProps, 'presentation' | 'children' | 'title' | 'leaving' | 'onClose' | 'onAttemptDismiss' | 'onNavigate' | 'onReturn'>>) {
+  const label = title ?? ''
+  const dismiss = () => onAttemptDismiss?.()
+  if (presentation === 'sheet') return <FlowScreen label={label} onDismiss={dismiss}>{children}</FlowScreen>
+  return <GuidedCreateScreen leaving={leaving} dirty={!onClose} onNavigate={onNavigate} onReturn={onReturn}><FlowScreen presentation="route" label={label} onDismiss={dismiss}>{children}</FlowScreen></GuidedCreateScreen>
+}
+
+function GuidedCreateScreen({ children, leaving, dirty, onNavigate, onReturn }: Readonly<{ children: React.ReactNode; leaving: boolean; dirty: boolean; onNavigate: (action: () => void) => void; onReturn: () => void }>) {
+  useLayoutEffect(() => {
+    useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+    return () => useUIStore.getState().unregisterOpenOverlay(HABIT_CREATE_OVERLAY_ID)
+  }, [])
+  useHabitCreateNavigationGuard({ active: true, dirty, leaving, onNavigate, onReturn })
+  return <div data-habit-create-screen="" data-guided="" className="flex min-h-0 w-full flex-1 flex-col">{children}</div>
 }

@@ -565,7 +565,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -585,7 +584,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -605,7 +603,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -625,7 +622,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -645,7 +641,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -665,7 +660,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -685,7 +679,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -705,7 +698,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -767,52 +759,52 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "route-profile-astra",
+      "surfaceId": "route-profile-ai",
       "platform": "web",
       "kind": "route",
-      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
-      "href": "/profile/astra",
+      "sourceFile": "apps/web/app/(app)/profile/ai/page.tsx",
+      "href": "/profile/ai",
       "ownedFiles": [
-        "apps/web/app/(app)/profile/astra/page.tsx"
+        "apps/web/app/(app)/profile/ai/page.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1525,6 +1517,7 @@
       "sourceFile": "apps/web/app/(app)/support/page.tsx",
       "href": "/support",
       "ownedFiles": [
+        "apps/web/app/(app)/support/_components/support-flow.tsx",
         "apps/web/app/(app)/support/_components/support-form.tsx",
         "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
@@ -1543,6 +1536,7 @@
       "sourceFile": "apps/web/app/(app)/support/page.tsx",
       "href": "/support",
       "ownedFiles": [
+        "apps/web/app/(app)/support/_components/support-flow.tsx",
         "apps/web/app/(app)/support/_components/support-form.tsx",
         "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
@@ -1561,6 +1555,7 @@
       "sourceFile": "apps/web/app/(app)/support/page.tsx",
       "href": "/support",
       "ownedFiles": [
+        "apps/web/app/(app)/support/_components/support-flow.tsx",
         "apps/web/app/(app)/support/_components/support-form.tsx",
         "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
@@ -1579,6 +1574,7 @@
       "sourceFile": "apps/web/app/(app)/support/page.tsx",
       "href": "/support",
       "ownedFiles": [
+        "apps/web/app/(app)/support/_components/support-flow.tsx",
         "apps/web/app/(app)/support/_components/support-form.tsx",
         "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
@@ -1694,8 +1690,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1713,8 +1708,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1732,8 +1726,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1751,8 +1744,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
-        "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx"
+        "apps/web/components/ui/columns.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -2253,6 +2245,7 @@
       "sourceFile": "apps/web/app/step-up/page.tsx",
       "href": "/step-up",
       "ownedFiles": [
+        "apps/web/app/step-up/guided-step-up.tsx",
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx",
         "apps/web/components/ui/quiet-link.tsx"
@@ -2268,6 +2261,7 @@
       "sourceFile": "apps/web/app/step-up/page.tsx",
       "href": "/step-up",
       "ownedFiles": [
+        "apps/web/app/step-up/guided-step-up.tsx",
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx",
         "apps/web/components/ui/quiet-link.tsx"
@@ -2283,6 +2277,7 @@
       "sourceFile": "apps/web/app/step-up/page.tsx",
       "href": "/step-up",
       "ownedFiles": [
+        "apps/web/app/step-up/guided-step-up.tsx",
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx",
         "apps/web/components/ui/quiet-link.tsx"
@@ -2298,6 +2293,7 @@
       "sourceFile": "apps/web/app/step-up/page.tsx",
       "href": "/step-up",
       "ownedFiles": [
+        "apps/web/app/step-up/guided-step-up.tsx",
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx",
         "apps/web/components/ui/quiet-link.tsx"
@@ -6175,6 +6171,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-goals-goals-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goals-goals-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goals-goals-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goals-goals-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-components-progress-content",
       "platform": "web",
       "kind": "overlay",
@@ -7059,6 +7107,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-guided-goal-flow-steps",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-goal-flow-steps",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-guided-goal-flow-steps",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-goal-flow-steps",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-habits-checklist-templates",
       "platform": "web",
       "kind": "overlay",
@@ -7527,6 +7627,162 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-guided-guided-detail-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-detail-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-detail-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-detail-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-detail-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-detail-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-detail-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-detail-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-step-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-step-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-step-views.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-step-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-step-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-step-views.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-step-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-step-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-step-views.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-guided-guided-step-views",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/guided/guided-step-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/guided/guided-step-views.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-habits-habit-create-frame",
       "platform": "web",
       "kind": "overlay",
@@ -7683,106 +7939,54 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-habits-habit-form-fields",
+      "surfaceId": "overlay-habit-form-fields-end-date-editor",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/end-date-editor.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
+        "apps/web/components/habits/habit-form-fields/end-date-editor.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "overlay-habits-habit-form-fields",
+      "surfaceId": "overlay-habit-form-fields-end-date-editor",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/end-date-editor.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
+        "apps/web/components/habits/habit-form-fields/end-date-editor.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-habits-habit-form-fields",
+      "surfaceId": "overlay-habit-form-fields-end-date-editor",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/end-date-editor.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
+        "apps/web/components/habits/habit-form-fields/end-date-editor.tsx"
       ],
       "state": "default",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "overlay-habits-habit-form-fields",
+      "surfaceId": "overlay-habit-form-fields-end-date-editor",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/end-date-editor.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
+        "apps/web/components/habits/habit-form-fields/end-date-editor.tsx"
       ],
       "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-form-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
-      ],
-      "state": "empty",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-form-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
-      ],
-      "state": "empty",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-form-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
-      ],
-      "state": "empty",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-form-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
-      ],
-      "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -8671,6 +8875,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-onboarding-guided-onboarding-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-onboarding-guided-onboarding-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-onboarding-guided-onboarding-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-onboarding-guided-onboarding-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-onboarding-onboarding-create-habit",
       "platform": "web",
       "kind": "overlay",
@@ -8717,6 +8973,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/onboarding/onboarding-create-habit.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-profile-api-key-create-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-api-key-create-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-profile-api-key-create-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-api-key-create-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/api-key-create-flow.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -9451,6 +9759,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-ui-result-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-result-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-result-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-result-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-segmented-control",
       "platform": "web",
       "kind": "overlay",
@@ -9948,7 +10308,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -9999,7 +10358,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10050,7 +10408,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10101,7 +10458,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10152,7 +10508,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10203,7 +10558,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10254,7 +10608,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -10305,7 +10658,6 @@
         "apps/mobile/components/today/habit-view-switch.tsx",
         "apps/mobile/components/today/setup-checklist-card.tsx",
         "apps/mobile/components/today/today-ai-summary.tsx",
-        "apps/mobile/components/today/today-astra-line.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/today/today-launch-content.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
@@ -11203,6 +11555,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-ai",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/ai.tsx",
+      "href": "/profile/ai",
+      "ownedFiles": [
+        "apps/mobile/app/profile/ai.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-route-profile-astra",
       "platform": "mobile",
       "kind": "route",
@@ -11789,7 +12193,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/components/auth/guided-step-up.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -11802,7 +12207,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/components/auth/guided-step-up.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -11815,7 +12221,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/components/auth/guided-step-up.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -11828,7 +12235,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/components/auth/guided-step-up.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -11842,6 +12250,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-flow.tsx",
         "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
@@ -11856,6 +12265,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-flow.tsx",
         "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
@@ -11870,6 +12280,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-flow.tsx",
         "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
@@ -11884,6 +12295,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-flow.tsx",
         "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
@@ -12036,7 +12448,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12055,7 +12466,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12074,7 +12484,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12093,7 +12502,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -16427,6 +16835,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-guided-goal-flow-steps",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-goal-flow-steps",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-guided-goal-flow-steps",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-goal-flow-steps",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/goals/guided/goal-flow-steps.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/goals/guided/goal-flow-steps.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-habit-list-confirm-dialogs",
       "platform": "mobile",
       "kind": "overlay",
@@ -16999,6 +17459,162 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-guided-guided-detail-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-detail-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-detail-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-detail-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-detail-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-detail-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-detail-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-detail-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-detail-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-detail-views.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-step-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-step-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-step-views.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-step-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-step-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-step-views.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-step-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-step-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-step-views.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-guided-guided-step-views",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/guided/guided-step-views.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/guided/guided-step-views.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-habits-habit-create-frame",
       "platform": "mobile",
       "kind": "overlay",
@@ -17155,106 +17771,54 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-habits-habit-form-fields",
+      "surfaceId": "m-overlay-habit-form-fields-end-date-editor",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/habits/habit-form-fields.tsx",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/end-date-editor.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
+        "apps/mobile/components/habits/habit-form-fields/end-date-editor.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "m-overlay-habits-habit-form-fields",
+      "surfaceId": "m-overlay-habit-form-fields-end-date-editor",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/habits/habit-form-fields.tsx",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/end-date-editor.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
+        "apps/mobile/components/habits/habit-form-fields/end-date-editor.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-habits-habit-form-fields",
+      "surfaceId": "m-overlay-habit-form-fields-end-date-editor",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/habits/habit-form-fields.tsx",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/end-date-editor.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
+        "apps/mobile/components/habits/habit-form-fields/end-date-editor.tsx"
       ],
       "state": "default",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "m-overlay-habits-habit-form-fields",
+      "surfaceId": "m-overlay-habit-form-fields-end-date-editor",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/habits/habit-form-fields.tsx",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/end-date-editor.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
+        "apps/mobile/components/habits/habit-form-fields/end-date-editor.tsx"
       ],
       "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-habits-habit-form-fields",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
-      ],
-      "state": "empty",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-habits-habit-form-fields",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
-      ],
-      "state": "empty",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-habits-habit-form-fields",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
-      ],
-      "state": "empty",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-habits-habit-form-fields",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/habits/habit-form-fields.tsx"
-      ],
-      "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -18251,6 +18815,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-onboarding-guided-onboarding-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-onboarding-guided-onboarding-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-onboarding-guided-onboarding-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-onboarding-guided-onboarding-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/guided-onboarding-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/guided-onboarding-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-onboarding-onboarding-create-habit",
       "platform": "mobile",
       "kind": "overlay",
@@ -18401,6 +19017,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/profile/advanced-sections.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-profile-api-key-create-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-profile-api-key-create-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-profile-api-key-create-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-profile-api-key-create-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/api-key-create-flow.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -18609,6 +19277,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/profile/profile-mcp-guide.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-goals-goals-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-goals-goals-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-goals-goals-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/goals/goals-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-goals-goals-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/goals/goals-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/goals/goals-section.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -19451,6 +20171,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-ui-flow-screen",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/flow-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/flow-screen.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-flow-screen",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/flow-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/flow-screen.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-flow-screen",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/flow-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/flow-screen.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-flow-screen",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/flow-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/flow-screen.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-ui-native-window-host",
       "platform": "mobile",
       "kind": "overlay",
@@ -19549,6 +20321,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-result-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-result-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-result-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/result-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-result-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/result-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/result-dialog.tsx"
       ],
       "state": "default",
       "theme": "dark",

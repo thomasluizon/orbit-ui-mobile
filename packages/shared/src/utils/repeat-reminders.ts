@@ -1,4 +1,10 @@
+import type { RepeatReminderOptions } from '../types/habit'
 import { getAccountDateTime } from './dates'
+
+/** The repeat reminder a person starts from: every 30 minutes, from now, all day. */
+export function startRepeatReminder(now: Date = new Date()): RepeatReminderOptions {
+  return { intervalMinutes: 30, startAtUtc: now.toISOString() }
+}
 
 export const REPEAT_REMINDER_INTERVALS: readonly number[] = [15, 20, 30, 45, ...Array.from({ length: 23 }, (_, index) => (index + 1) * 60)]
 

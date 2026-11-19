@@ -36,7 +36,7 @@ export function WidgetInfoSheet({
   const copy = getWidgetCopy(Platform.OS)
 
   return (
-    <Sheet open onClose={onClose} title={t(copy.titleKey)} key="widget-info">
+    <Sheet open onClose={onClose} title={t('profile.widgetQuestion')} key="widget-info">
       <View style={styles.widgetSheetContent}>
         <Text style={[styles.widgetHeading, { color: tokens.fg1 }]}>
           {t('profile.widgetHow.title')}

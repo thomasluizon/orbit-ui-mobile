@@ -13,8 +13,8 @@ const mocks = vi.hoisted(() => ({ wide: false }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ action, children, nav, notice }: { action?: ReactNode; children: ReactNode; nav: false; notice?: ReactNode }) => (
-    <div data-testid="wide-flow" data-nav={String(nav)}>{children}<div data-shell-notice="">{notice}</div>{action}</div>
+  ShellWide: ({ action, children, landmark, nav, notice }: { action?: ReactNode; children: ReactNode; landmark?: false; nav: false; notice?: ReactNode }) => (
+    <div data-testid="wide-flow" data-nav={String(nav)} data-landmark={String(landmark !== false)}>{children}<div data-shell-notice="">{notice}</div>{action}</div>
   ),
 }))
 
@@ -92,20 +92,38 @@ describe('FlowShell', () => {
     expect(screen.getByRole('button', { name: 'Continue' }).closest('[data-flow-action]')).toHaveClass('md:[&_button]:w-auto')
   })
 
-  it('gives chat a full-width definite-height flow instead of the card', () => {
-    render(<FlowShell mode="full"><main>Conversation</main></FlowShell>)
+  it('gives a full-width definite-height flow instead of the card', () => {
+    render(<FlowShell mode="full"><section>Conversation</section></FlowShell>)
 
-    expect(screen.getByText('Conversation').parentElement).toHaveAttribute('data-flow-mode', 'full')
+    expect(screen.getByText('Conversation').closest('[data-shell="flow"]')).toHaveAttribute('data-flow-mode', 'full')
     expect(screen.queryByTestId('wide-flow')).not.toBeInTheDocument()
   })
 
-  it('keeps feedback reachable in the shell-free full flow', async () => {
-    const view = render(<FlowShell mode="full"><main>Conversation</main></FlowShell>)
+  it('lets a host inside a modal dialog turn the main landmark of the wide shell off', () => {
+    const { rerender } = render(<FlowShell mode="onboarding"><h1>Onboarding</h1></FlowShell>)
+    expect(screen.getByTestId('wide-flow')).toHaveAttribute('data-landmark', 'true')
+
+    rerender(<FlowShell mode="onboarding" landmark={false}><h1>Onboarding</h1></FlowShell>)
+    expect(screen.getByTestId('wide-flow')).toHaveAttribute('data-landmark', 'false')
+  })
+
+  it('owns the one main landmark of the full flow, so a host that mounts a question flow in it needs none of its own', () => {
+    render(<FlowShell mode="full"><section>Conversation</section></FlowShell>)
+
+    const landmarks = screen.queryAllByRole('main')
+    expect(landmarks).toHaveLength(1)
+    expect(landmarks[0]).toContainElement(screen.getByText('Conversation'))
+    expect(landmarks[0]?.parentElement).toHaveAttribute('data-flow-mode', 'full')
+  })
+
+  it('keeps feedback reachable in the shell-free full flow, outside the main landmark', async () => {
+    const view = render(<FlowShell mode="full"><section>Conversation</section></FlowShell>)
     act(() => { useAppToastStore.getState().showError('Connection failed') })
     await act(async () => { await vi.dynamicImportSettled() })
 
-    expect(view.container.querySelector('[data-flow-mode="full"] [data-toast-page-host] [data-kind="neutral"]'))
-      .toBeInTheDocument()
+    const toast = view.container.querySelector('[data-flow-mode="full"] [data-toast-page-host] [data-kind="neutral"]')
+    expect(toast).toBeInTheDocument()
+    expect(screen.getByRole('main')).not.toContainElement(toast as HTMLElement)
   })
 
   it('provides registration to the full flow without claiming scroll ownership', () => {

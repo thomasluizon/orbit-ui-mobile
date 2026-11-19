@@ -5,12 +5,12 @@ import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 
-export function HabitTypeField({ formHelpers, lockedGeneral, onChange }: Readonly<{ formHelpers: HabitFormHelpers; lockedGeneral: boolean | null; onChange: () => void }>) {
+export function HabitTypeField({ formHelpers, lockedGeneral, onChange }: Readonly<{ formHelpers: HabitFormHelpers; lockedGeneral: boolean | null; onChange: (type: 'task' | 'habit') => void }>) {
   const t = useTranslations()
   const itemType = formHelpers.form.watch('itemType')
   const errors = formHelpers.form.formState.errors
   const recurrenceMismatch = errors.datePhrase?.message === 'habits.form.recurrenceRequiresHabit' || errors.datePhrase?.message === 'errors.api.generalMismatchWithParent'
-  const choose = (type: 'task' | 'habit') => { onChange(); formHelpers.chooseItemType(type) }
+  const choose = (type: 'task' | 'habit') => { onChange(type); formHelpers.chooseItemType(type) }
   return (
       <div className="flex min-w-0 flex-col gap-2">
         <span className="form-label">{t('habits.form.itemType')}</span>

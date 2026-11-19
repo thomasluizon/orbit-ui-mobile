@@ -34,6 +34,9 @@ import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { SupportSuccessState } from './_components/support-success-state'
 import { SupportForm } from './_components/support-form'
 import { getAppVersion } from '@/lib/app-version'
+import { useFlag } from '@/hooks/use-flag'
+import { captureGuidedFlowCompleted } from '@/lib/posthog'
+import { SupportGuided } from './_components/support-flow'
 
 interface SupportDraft {
   subject: SupportSubjectId | null
@@ -76,6 +79,8 @@ export default function SupportPage() {
   const [messageError, setMessageError] = useState<string | null>(null)
   const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
   const [messageFocusRequest, setMessageFocusRequest] = useState(0)
+  const guided = useFlag('orbit_guided_flows')
+  const [step, setStep] = useState<'subject' | 'message'>(initialDraft.subject ? 'message' : 'subject')
 
   useResetOnAccountChange(() => {
     draftRef.current = { subject: null, message: '' }
@@ -87,6 +92,7 @@ export default function SupportPage() {
     setValidationMessage(null)
     setSubjectError(null)
     setMessageError(null)
+    setStep('subject')
   })
 
   const resolvedEmail = profile?.email || ''
@@ -150,6 +156,10 @@ export default function SupportPage() {
         return
       }
       setSuccess(true)
+      if (guided) {
+        captureGuidedFlowCompleted('support_request', 2, false)
+        setStep('subject')
+      }
       draftRef.current = { subject: null, message: '' }
       setSubject(null)
       setMessage('')
@@ -172,7 +182,7 @@ export default function SupportPage() {
     } finally {
       setIsSending(false)
     }
-  }, [appVersion, isOnline, isSending, message, profile, subject, t, validateFields])
+  }, [appVersion, guided, isOnline, isSending, message, profile, subject, t, validateFields])
 
   const disabled = isSending || !isOnline
 
@@ -188,7 +198,46 @@ export default function SupportPage() {
           <p role="status" aria-live="polite" className="sr-only">
             {success ? t('profile.support.success') : ''}
           </p>
-          {success ? (
+          {guided ? (
+            <SupportGuided
+              sent={success}
+              onOpenAbout={() => router.push('/about')}
+              onDismissResult={() => setSuccess(false)}
+              step={step}
+              email={resolvedEmail}
+              subject={subject}
+              message={message}
+              appVersion={appVersion}
+              messageMaxLength={messageMaxLength}
+              messageOverLimitHint={messageOverLimitHint}
+              validationMessage={validationMessage}
+              error={error}
+              subjectError={subjectError}
+              messageError={messageError}
+              isSending={isSending}
+              isOnline={isOnline}
+              disabledReason={disabledReason}
+              messageFocusRequest={messageFocusRequest}
+              onSubjectSelect={(next) => {
+                setSubject(next)
+                setSubjectError(null)
+                setMessageAsked(true)
+                persistDraft({ subject: next })
+                setStep('message')
+              }}
+              onMessageChange={(next) => {
+                setMessage(next)
+                setMessageError(null)
+                persistDraft({ message: next })
+              }}
+              onMessageBlur={() => {
+                if (!message.trim()) setMessageError(t('profile.support.messageRequired'))
+              }}
+              onSend={() => void handleSend()}
+              onBack={() => setStep('subject')}
+              onClose={() => goBackOrFallback('/profile')}
+            />
+          ) : success ? (
             <SupportSuccessState
               email={resolvedEmail}
               onBack={() => router.push('/about')}
