@@ -2,7 +2,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { PADDING, SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, Animated, StyleSheet, View, type Text } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -14,6 +14,7 @@ import { plural } from '@/lib/plural'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habit-queries'
 import { useUIStore } from '@/stores/ui-store'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
+import { HabitListSkeleton } from '@/components/habit-list/habit-list-skeleton'
 import { useOpenHabit } from '@/hooks/use-open-habit'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
@@ -89,9 +90,9 @@ export default function TodayScreen() {
   const { profile, isError, refetch } = useProfile()
   const todayResetVersion = useUIStore((state) => state.todayResetVersion)
   const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
-  useEffect(() => () => setTodayFabHidden(true, true), [setTodayFabHidden])
+  useEffect(() => () => setTodayFabHidden(false), [setTodayFabHidden])
   useEffect(() => {
-    if (!profile) setTodayFabHidden(true, !isError)
+    if (!profile) setTodayFabHidden(isError)
   }, [isError, profile, setTodayFabHidden])
   const { requestFirstUsePermission } = usePushNotifications()
   const readyForNotifications = profile?.hasCompletedOnboarding === true
@@ -106,11 +107,7 @@ export default function TodayScreen() {
       ? <><ScreenReaderHeading title={t('nav.today')} /><ErrorState fullSurface message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /></>
       : <><ScreenReaderHeading title={t('nav.today')} /><View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
           <Skeleton variant="settings" grouped />
-          <View style={styles.profileLoadingHabits}>
-            <Skeleton variant="habit-row" grouped />
-            <Skeleton variant="habit-row" grouped />
-            <Skeleton variant="habit-row" grouped />
-          </View>
+          <HabitListSkeleton grouped />
         </View></>
   }
   return <TodayScreenContent key={todayResetVersion} />
@@ -231,10 +228,10 @@ function TodayScreenContent() {
     }, [accountId, clearSelection]),
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const hidden = isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen ||
-      !habitsQuery.data || habitsById.size === 0
-    setTodayFabHidden(hidden, !habitsQuery.data && !habitsQuery.isError)
+      (habitsQuery.data === undefined ? habitsQuery.isError : habitsById.size === 0)
+    setTodayFabHidden(hidden)
   }, [
     editHabit,
     habitsById.size,
@@ -360,9 +357,6 @@ function TodayScreenContent() {
       </Animated.View>
 
       <TodayModals
-        showCreateModal={showCreateModal}
-        onCloseCreateModal={() => setShowCreateModal(false)}
-        createInitialDate={activeView === 'today' ? date.dateStr : null}
         editHabit={editHabit}
         editHabitParentIsGeneral={editHabit?.parentId ? (habitsById.get(editHabit.parentId)?.isGeneral ?? null) : null}
         onCloseEdit={() => {
@@ -384,7 +378,6 @@ function TodayScreenContent() {
 const styles = StyleSheet.create({
   screen: { alignSelf: 'center', flex: 1, maxWidth: 740, width: '100%' },
   profileLoading: { gap: 24, padding: SPACING.s16 },
-  profileLoadingHabits: { gap: 12 },
   listBand: { flex: 1 },
   viewHeader: { gap: PADDING.sectionGap },
   header: { gap: PADDING.sectionGap, paddingBottom: PADDING.sectionGap },

@@ -1,6 +1,6 @@
 vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { beforeEach, expect, it, vi } from 'vitest'
-import { useLayoutEffect } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
 import { render, screen } from '@testing-library/react'
 import { useTodayPage } from '@/app/(app)/use-today-page'
 import { DestinationShell } from '@/components/shell/destination-shell'
@@ -69,9 +69,19 @@ it('retains the create FAB and Astra entry through a pending habits refresh', ()
 
 it.each([
   { hasFetched: false, habitsCount: 0, isFetching: true, showLoadError: false },
+  { hasFetched: false, habitsCount: 3, isFetching: true, showLoadError: false },
+])('draws the create FAB on the first frame while every Today query is pending: %j', (habits) => {
+  state.habits = habits
+  render(<TodayShell />)
+  expect(state.paints).toEqual([true])
+  expect(document.querySelector('[data-shell-fab] [data-fab]')).not.toBeNull()
+  expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBeVisible()
+})
+
+it.each([
   { hasFetched: false, habitsCount: 0, isFetching: false, showLoadError: true },
   { hasFetched: true, habitsCount: 0, isFetching: false, showLoadError: false },
-])('hides the FAB until a nonempty list is available: %j', (habits) => {
+])('hides the FAB once the settled Today has an error or an empty list: %j', (habits) => {
   state.habits = habits
   render(<TodayShell />)
   expect(document.querySelector('[data-shell-fab] [data-fab]')).toBeNull()
@@ -79,19 +89,55 @@ it.each([
   expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBeVisible()
 })
 
-it('never paints the FAB while loading an empty Today, including after returning', () => {
+it('keeps the pending FAB in place when the list arrives and again after returning to Today', () => {
   state.habits = { hasFetched: false, habitsCount: 0, isFetching: true, showLoadError: false }
   const view = render(<TodayShell />)
-  expect(state.paints).toEqual([false])
-  state.habits = { ...state.habits, hasFetched: true, isFetching: false }
+  const fab = document.querySelector('[data-shell-fab] [data-fab]')
+  expect(fab).not.toBeNull()
+  state.habits = { hasFetched: true, habitsCount: 2, isFetching: false, showLoadError: false }
   view.rerender(<TodayShell />)
-  expect(document.querySelector('[data-shell-fab] [data-fab]')).toBeNull()
+  expect(document.querySelector('[data-shell-fab] [data-fab]')).toBe(fab)
+  state.paints = []
   view.rerender(<TodayShell mounted={false} />)
   view.rerender(<TodayShell />)
-  expect(state.paints.every((visible) => !visible)).toBe(true)
+  expect(state.paints.every(Boolean)).toBe(true)
 })
 
-it('shows a populated Today once without toggling during refresh', () => {
+it('commits the FAB hidden by the end of the first layout phase when Today returns over a list cached empty', () => {
+  state.habits = { hasFetched: true, habitsCount: 0, isFetching: false, showLoadError: false }
+  const atLayoutEnd: boolean[] = []
+  function AfterToday() {
+    useLayoutEffect(() => { atLayoutEnd.push(useUIStore.getState().todayFabHidden) })
+    return null
+  }
+  function ReturningToday() {
+    const setTodayFabHidden = useUIStore((store) => store.setTodayFabHidden)
+    useEffect(() => () => setTodayFabHidden(false), [setTodayFabHidden])
+    return <TodayPage />
+  }
+  function ReturnShell({ mounted }: { mounted: boolean }) {
+    const todayFabHidden = useUIStore((store) => store.todayFabHidden)
+    return <DestinationShell todayFabHidden={todayFabHidden} onCreate={() => {}}>{mounted ? <ReturningToday /> : null}<AfterToday /></DestinationShell>
+  }
+  const view = render(<ReturnShell mounted />)
+  view.rerender(<ReturnShell mounted={false} />)
+  expect(useUIStore.getState().todayFabHidden).toBe(false)
+  atLayoutEnd.length = 0
+  view.rerender(<ReturnShell mounted />)
+  expect(atLayoutEnd[0]).toBe(true)
+  expect(document.querySelector('[data-shell-fab]')).toBeNull()
+})
+
+it.each([412, 1280])('draws the whole shell, including the create control, at %i with every query pending', (width) => {
+  state.width = width
+  state.habits = { hasFetched: false, habitsCount: 0, isFetching: true, showLoadError: false }
+  const view = render(<TodayShell />)
+  expect(screen.getAllByRole('button', { name: 'nav.createHabit' }).length).toBeGreaterThan(0)
+  expect(view.container.querySelector('[data-shell-sidebar]')).not.toBeNull()
+  expect(view.container.querySelector('[data-shell-tab-bar]')).not.toBeNull()
+})
+
+it('never toggles the FAB visibility for a populated Today, including during refresh', () => {
   const visibility: boolean[] = []
   const unsubscribe = useUIStore.subscribe((next, previous) => {
     if (next.todayFabHidden !== previous.todayFabHidden) visibility.push(!next.todayFabHidden)
@@ -102,7 +148,7 @@ it('shows a populated Today once without toggling during refresh', () => {
     view.rerender(<TodayShell />)
     state.habits = { ...state.habits, isFetching: false }
     view.rerender(<TodayShell />)
-    expect(visibility).toEqual([true])
+    expect(visibility).toEqual([])
     expect(document.querySelector('[data-shell-fab] [data-fab]')).not.toBeNull()
   } finally { unsubscribe() }
 })
@@ -125,24 +171,10 @@ it.each([412, 1280].flatMap(width => [false, true].map(showLoadError => ({ width
   },
 )
 
-it('reserves the pending viewport without a FAB slot and retains it when populated', () => {
-  state.habits = { hasFetched: false, habitsCount: 0, isFetching: true, showLoadError: false }
-  const view = render(<TodayShell />)
-  const bottomViewport = view.container.querySelector('[data-shell-bottom-viewport]')
-  expect(bottomViewport).toHaveAttribute('data-floating', 'true')
-  expect(view.container.querySelector('[data-shell-fab]')).toBeNull()
-  state.habits = { hasFetched: true, habitsCount: 1, isFetching: false, showLoadError: false }
-  view.rerender(<TodayShell />)
-  expect(view.container.querySelector('[data-shell-bottom-viewport]')).toBe(bottomViewport)
-  expect(bottomViewport).toHaveAttribute('data-floating', 'true')
-  expect(view.container.querySelector('[data-shell-fab] [data-fab]')).not.toBeNull()
-})
-
 it.each(['/calendar', '/progress', '/profile', '/habits/habit-1'])(
   'uses its own chrome on %s while Today is pending', (pathname) => {
     state.pathname = pathname
     const view = render(<TodayShell mounted={false} />)
-    expect(useUIStore.getState().todayFabPending).toBe(true)
     expect(view.container.querySelector('[data-shell-fab]')).toBeNull()
     expect(view.container.querySelector('[data-shell-bottom-viewport]')).toHaveAttribute('data-floating', 'false')
     expect(view.container.querySelector('[data-shell-destination-viewport]')).toHaveAttribute('data-floating', 'false')

@@ -158,13 +158,22 @@ describe('Today day cache', () => {
     expect(requests.read).toHaveBeenCalledTimes(1)
   })
 
-  it('shows loading only after 300 ms and resets that delay on a new day', async () => {
+  it('keeps a visible loading state when the day changes while the first day is still pending', async () => {
     renderDay(today)
-    expect(current.showLoading).toBe(false)
-    await advance(299)
-    expect(current.showLoading).toBe(false)
-    await advance(1)
     expect(current.showLoading).toBe(true)
+    await advance(300)
+    renderDay('2026-09-01')
+    expect(current.showLoading).toBe(true)
+    expect(current.data).toBeUndefined()
+    await advance(3_010)
+    expect(current.showLoading).toBe(false)
+  })
+
+  it('shows loading on the first frame of the first day and only after 300 ms on a new day after it settled', async () => {
+    renderDay(today)
+    expect(current.showLoading).toBe(true)
+    await advance(3_010)
+    expect(current.showLoading).toBe(false)
     renderDay('2026-09-01')
     expect(current.showLoading).toBe(false)
     expect(current.data).toBeUndefined()
