@@ -63,6 +63,17 @@ describe('the must-pass run through the real promptfoo CLI', () => {
     expect(evidence.heldChanges.map(({ kind }) => kind)).toEqual(['delete', 'delete', 'update', 'update', 'update', 'update'])
   })
 
+  // The baseline card of the grader-limit case owner-water-request-en-1 asks about both halves. The grader of the run is the one
+  // that answers only the prompts of the live reads (recorded-halves.mjs), so the case reaches its preview only when the read
+  // of the real prompt is the half that the live read gave.
+  it('passes pass^3 for the baseline card that asks about both halves, with the answer of the live read', () => {
+    const question = 'Six found, not seven. Which two to delete and which four to rename?'
+    const { run, summary } = runGate('complete', 'owner-water-request-en-1', { CORE_TEST_QUESTION: question })
+    expect(run.status, run.stdout + run.stderr).toBe(0)
+    expect(summary.cases[0]).toMatchObject({ id: 'owner-water-request-en-1', attempts: 3, passed: 3, graderLimits: 0, passK: 'pass',
+      questionsBeforePreview: [1, 1, 1], reasons: [] })
+  })
+
   it('runs one attempt of each must-pass case when the run names ORBIT_EVAL_MUST_PASS_K=1, and states k=1', () => {
     const { run, directory, summary } = runGate('complete', requestId, { ORBIT_EVAL_MUST_PASS_K: '1' })
     expect(run.status, run.stdout + run.stderr).toBe(0)

@@ -7,6 +7,7 @@ import { beforeAll as preflight, beforeEach as prepareAttempt } from '../hooks.m
 import { resetFixture, runReset } from '../fixtures/reset.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
+import { offlineGrader } from './fixtures/grader.mjs'
 import { CHAT_BLOCK_KINDS } from '../../../packages/shared/src/chat/block-kinds.ts'
 import { summarize } from '../report.mjs'
 import { behavior } from '../assertions.mjs'
@@ -351,7 +352,7 @@ it('drives refresh, default reset, independent readback and ID substitution thro
 
 it('lets an exhausted exempt ordinary fixture reach chat after one preflight config read', async () => {
   exhausted = true
-  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
   const source = scenario('pro')
   const intercepted = globalThis.fetch
   vi.stubGlobal('fetch', async (url, options) => {
@@ -400,7 +401,7 @@ it.each(['free-at-limit', 'budget-exhausted'])('keeps the metered %s fixture pat
   pro = fixture !== 'free-at-limit'
   exhausted = fixture === 'budget-exhausted'
   capacity = 7
-  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
   const source = scenario(fixture)
   await preflight({ suite: { tests: [source] } })
   const { test } = await prepareAttempt({ test: source })
@@ -587,7 +588,7 @@ it.each(['en', 'pt-BR'])('grades only the independently verified stale retrospec
 })
 it('marks the Free capacity case incomplete before chat when its daily window is already used', async () => {
   pro = false; unmetered = false
-  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
   await preflight({ suite: { tests: [scenario('free-at-limit')] } })
   const intercepted = globalThis.fetch
   vi.stubGlobal('fetch', async (url, options) => new URL(url).pathname === '/api/profile'
@@ -682,7 +683,7 @@ it('preserves weekday positions when comparing the seeded cached metrics', async
 
 it('requires a fresh Free window once and permits calls until its message allowance is exhausted', async () => {
   pro = false; unmetered = false
-  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
   const source = scenario('free-at-limit')
   await preflight({ suite: { tests: [source] } })
   const intercepted = globalThis.fetch

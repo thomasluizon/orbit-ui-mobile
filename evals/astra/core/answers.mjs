@@ -86,7 +86,7 @@ function pickOnList(card, trace, recordId, locale) {
 // can hold the decision of the case, and type the decision when it cannot. A same-title card that cannot hold the decision fails
 // the case, because the person cannot answer it. runCase answers only a question past the typed messages that the case
 // allows, and each situation that allows one holds the answer of the person (core-corpus.test.mjs).
-export function answerQuestion(turn, vars) {
+export async function answerQuestion(turn, vars) {
   const { answer, records } = vars.core
   const locale = vars.clientContext.locale
   const cards = questionCards(turn.response)
@@ -98,10 +98,10 @@ export function answerQuestion(turn, vars) {
     return { pass: false, unavailable: true, reason: 'The card answer needs the eval trace of the turn, and the turn returned none.' }
   }
   if (answer.sameTitle) {
-    const sameTitle = sameTitleCard({ composition: turn.response, trace: turn.trace }, { clientContext: vars.clientContext,
+    const retitle = vars.core.expected.changes.find((change) => change.kind === 'update')?.fields?.title
+    return sameTitleCard({ composition: turn.response, trace: turn.trace }, { clientContext: vars.clientContext,
       sameTitleBaseline: { children: records.children.map((id) => ({ id })) },
-      sameTitleSet: { answer: { ...answer.sameTitle, text: answer.text[locale] } } })
-    return sameTitle.pass ? sameTitle : { ...sameTitle, graderLimit: sameTitle.reason.startsWith('The grader cannot') }
+      sameTitleSet: { answer: { ...answer.sameTitle, text: answer.text[locale] }, renamed: { title: retitle } } })
   }
   const recordId = pickedRecord(answer.pick, records)
   const selection = card.kind === 'pickList' ? pickOnList(card, turn.trace, recordId, locale) : pickOnCard(card, turn.trace, recordId, locale)
