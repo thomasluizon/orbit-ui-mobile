@@ -787,11 +787,89 @@ const skillCases = () => {
     completedKind("Secret scanning").includes("--revoke") && completedKind("Secret scanning").includes("Never write a new ticket") &&
     completedKind("Dependabot").includes("wait") && completedKind("Dependabot").includes("dependency graph") && !completedKind("Dependabot").includes("scannedCommit"),
     reasonRule("COMPLETED"))
+  const gitCommands = steps.match(/`git [^`]+`/g) ?? []
+  const ghCommands = steps.match(/`gh (?:pr|api)[^`]+`/g) ?? []
+  T("github skill: every git command of steps 7 and 8 names its checkout and every gh command names its repository",
+    gitCommands.length >= 5 && gitCommands.every((command) => command.startsWith("`git -C <checkout> ")) && ghCommands.length > 0 &&
+    ghCommands.every((command) => command.includes("--repo ")), JSON.stringify({ gitCommands, ghCommands }))
+  const scanRule = completedKind("Code scanning").replace(/\s+/g, " ")
+  T("github skill: the code scanning rule names the checkout of the alert's repository and the outcome of exit 1, exit 0 and every other exit",
+    scanRule.includes("in `repos` of `.claude/orchestrator.json`") && scanRule.includes("Exit 1 means the category did not analyze the merge yet") &&
+    scanRule.includes("Exit 0 means the fix did not remove the alert") && scanRule.includes("Any other exit (128") && scanRule.includes("failed read") &&
+    scanRule.includes("keep the alert pending and retry next cycle") && scanRule.includes("Never read it as \"not analyzed yet\""), scanRule)
+  const dependabotRule = completedKind("Dependabot").replace(/\s+/g, " ")
+  T("github skill: the Dependabot rule waits until the overdue deadline, then re-tickets the alert",
+    dependabotRule.includes("`overdue: true`") && dependabotRule.includes("24 hours") && dependabotRule.includes("`closedAt`") && dependabotRule.includes("waiter wakes the model once") &&
+    dependabotRule.includes("Reopen the ticket or write a new one") && dependabotRule.includes("action: ticket"), dependabotRule)
   T("github skill: step 8 no longer says that every alert closes on the next scan", !skill.includes("the next scan shows it as") && !skill.includes("newest scan"))
   T("github skill: step 8 re-marks a duplicate and asks the owner once otherwise",
     reasonRule("DUPLICATE").includes("ticket that survives") && !reasonRule("DUPLICATE").includes("scannedCommit") &&
     reasonRule("NOT_PLANNED").includes("never reopen the ticket and never write a new one") && reasonRule("NOT_PLANNED").includes("`/questions`") &&
     reasonRule("NOT_PLANNED").includes("action: reported") && !reasonRule("NOT_PLANNED").includes("scannedCommit"), closedAlertRule)
+}
+
+/**
+ * A Dependabot alert whose ticket closed as completed waits for the dependency graph for 24 hours. After that the fix left a vulnerable version, so
+ * the collection gives the alert `overdue`, its waiter key gains `overdue` once, and a new mark ends the state. The clock is an argument.
+ */
+const dependabotDeadlineCases = async () => {
+  const closedAt = "2026-11-19T00:00:00Z"
+  const hoursAfterClose = (hours) => () => Date.parse(closedAt) + hours * 60 * 60 * 1000
+  const reader = fakeReader({ "repos/thomasluizon/orbit-ui-mobile/dependabot": [DEPENDABOT_ALERT], "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT] })
+  const listing = await listOpenAlerts({ repositories: REPOSITORIES, readPages: reader.readPages })
+  const open = Object.fromEntries(listing.items.map((alert) => [alert.key, alert]))
+  const dependabotKey = "ui dependabot 186"
+  const codeKey = "api code-scanning 28"
+  const cause = "The lockfile pins the vulnerable version."
+  const marks = { [dependabotKey]: { action: "ticket", ticket: TICKET, cause }, [codeKey]: { action: "ticket", ticket: TICKET, cause } }
+  const closedBy = (stateReason) => async (number) => ({ number, state: "CLOSED", stateReason, closedAt })
+  const overdueAfter = async (hours, stateReason = "COMPLETED") => {
+    const closed = await alertsWithClosedTickets({ open, marks }, { readTicketState: closedBy(stateReason), now: hoursAfterClose(hours) })
+    return Object.fromEntries(closed.items.map((alert) => [alert.key, alert.overdue ?? false]))
+  }
+  const before = await overdueAfter(23)
+  const at = await overdueAfter(24)
+  const notPlanned = await overdueAfter(25, "NOT_PLANNED")
+  T("github: a Dependabot alert of a ticket closed 23 hours ago is not overdue, and at 24 hours it is",
+    JSON.stringify(before) === JSON.stringify({ [dependabotKey]: false, [codeKey]: false }) && at[dependabotKey] === true, JSON.stringify({ before, at }))
+  T("github: a code scanning alert of the same age and a Dependabot alert of a ticket closed as not planned are never overdue",
+    at[codeKey] === false && notPlanned[dependabotKey] === false && notPlanned[codeKey] === false, JSON.stringify({ at, notPlanned }))
+
+  let hours = 23
+  const check = { source: "alerts", run: alertCheck({ list: async () => ({ ...listing, items: listing.items.filter((alert) => alert.key === dependabotKey) }),
+    readIntakeMarks: () => ({ alerts: { marks } }), readTicketState: closedBy("COMPLETED"), now: () => hoursAfterClose(hours)() }) }
+  let waiterMarks = { seen: { alerts: [dependabotKey] }, failures: {}, sentryListedAt: new Date(0).toISOString() }
+  const interval = async () => {
+    const evaluated = evaluateChecks([check], await Promise.allSettled([check.run()]), waiterMarks, 0)
+    waiterMarks = evaluated.marks
+    return evaluated.wakes
+  }
+  const first = await interval()
+  hours = 24
+  const deadline = await interval()
+  hours = 25
+  const later = await interval()
+  T("github: the waiter wakes once at the deadline of a Dependabot alert, with a new key, and never again for it",
+    JSON.stringify(first) === JSON.stringify([{ source: "alerts", kind: "new", items: [`${dependabotKey} ticket-closed`] }]) &&
+    JSON.stringify(deadline) === JSON.stringify([{ source: "alerts", kind: "new", items: [`${dependabotKey} ticket-closed overdue`] }]) && later.length === 0,
+    JSON.stringify({ first, deadline, later }))
+
+  const checkout = fresh("dependabot-deadline")
+  recordListing("alerts", listing, checkout)
+  for (const key of [dependabotKey, codeKey]) markItem("alerts", { key, action: "ticket", ticket: TICKET, cause }, checkout)
+  const overdue = await alertsWithClosedTickets(readIntake(checkout).alerts, { readTicketState: closedBy("COMPLETED"), now: hoursAfterClose(24) })
+  recordTicketClosedAlerts(overdue.items, checkout)
+  const recorded = readIntake(checkout)
+  T("github: the recorded overdue key is listed, so the waiter does not wake for it again",
+    recorded.alerts.ticketClosed.includes(`${dependabotKey} ticket-closed overdue`) && listedWakeKeys(recorded).alerts.includes(`${dependabotKey} ticket-closed overdue`),
+    JSON.stringify(recorded.alerts.ticketClosed))
+  const second = TICKET.replace("2149", "2150")
+  const remarked = refusal(() => markItem("alerts", { key: dependabotKey, action: "ticket", ticket: second, cause: "The nested lockfile still pins the vulnerable version." }, checkout))
+  const reopened = await alertsWithClosedTickets(readIntake(checkout).alerts, { readTicketState: async (number) => ({ number, state: "OPEN", stateReason: null, closedAt: null }), now: hoursAfterClose(48) })
+  T("github: an overdue alert takes a new ticket mark, and its open ticket ends the closed-ticket state",
+    remarked === "" && readIntake(checkout).alerts.marks[dependabotKey].ticket === second && reopened.items.length === 0, JSON.stringify({ remarked, reopened }))
+  const usage = spawnSync(process.execPath, [join(TOOLS_DIR, "auto-work-github.mjs"), "--help"], { encoding: "utf8" }).stdout
+  T("github: the usage text names the overdue field and its 24 hour deadline", usage.includes("overdue") && usage.includes("24 hours") && usage.includes("closedAt"), usage)
 }
 
 /*
@@ -971,6 +1049,7 @@ export const cases = async () => {
   await closedTicketAlertWakeCases()
   await notPlannedAlertWakeCases()
   await missingTicketAlertCases()
+  await dependabotDeadlineCases()
   await failedReadCases()
   skillCases()
   await baseCheckCases()

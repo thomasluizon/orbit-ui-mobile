@@ -258,20 +258,30 @@ file for the successor.
    - `COMPLETED`, by alert kind:
      - Code scanning: the alert closes when an analysis of its own category no longer finds it.
        `scannedCommit` names the commit that the alert's own category analyzed last, never
-       another category's. Run `git fetch origin main`, then
-       `git merge-base --is-ancestor <merge of the fix> <scannedCommit>`. When it exits 1, the
-       category did not analyze the merge yet: do nothing more for that alert in this cycle. Its
-       next analysis changes the waiter key and wakes the model again. When it exits 0, the fix
-       did not remove the alert: reopen the ticket or write a new one with the alert, and mark
-       the alert again.
+       another category's. Run each git command in the checkout of the alert's repository:
+       `<checkout>` is the path of its key (`ui`, `api` or `landing`) in `repos` of
+       `.claude/orchestrator.json`, as step 7 uses it. Run `git -C <checkout> fetch origin main`,
+       then `git -C <checkout> merge-base --is-ancestor <merge of the fix> <scannedCommit>`.
+       Exit 1 means the category did not analyze the merge yet: do nothing more for that alert
+       in this cycle. Its next analysis changes the waiter key and wakes the model again.
+       Exit 0 means the fix did not remove the alert: reopen the ticket or write a new one with
+       the alert, and mark the alert again. Any other exit (128 for a commit that the checkout
+       does not hold), and a failed fetch, is a failed read: log it as a source failure with its
+       stderr, keep the alert pending and retry next cycle. Never read it as "not analyzed yet".
      - Secret scanning: GitHub never closes the alert when the secret leaves the repository.
        Put it to the owner through `/questions` and ask whether the credential is rotated.
        Record `{key, action: reported}`. After the owner confirms, run
        `node tools/auto-work-github.mjs --revoke` with `{key, ticket, reason}` on stdin, where
        `reason` holds the owner's confirmation. The tool resolves the alert as revoked on GitHub
        and records the mark in one step. Never write a new ticket for it.
-     - Dependabot: wait. The alert closes when the dependency graph reads the merged manifest.
-       Mark nothing, write no ticket and put nothing to the owner.
+     - Dependabot: wait. The alert closes when the dependency graph reads the merged manifest,
+       which GitHub does on each push to the default branch. While the entry has no `overdue`
+       field, mark nothing, write no ticket and put nothing to the owner. The entry gets
+       `overdue: true` when 24 hours or more passed since its ticket closed (`closedAt` of the
+       ticket read), and the waiter wakes the model once at that time. An overdue alert means
+       the fix left a vulnerable version (a second lockfile, a transitive range). Reopen the
+       ticket or write a new one with the alert, the manifest path and the version that stays
+       vulnerable, admit its worker, and mark the alert again with `{key, action: ticket, ticket, cause}`.
    - `DUPLICATE`: find the ticket that survives, and mark the alert again with it and the cause.
      Do not reopen the duplicate and do not write a new ticket.
    - `NOT_PLANNED`, no reason, or a carrying ticket that no longer exists (404 or 410):

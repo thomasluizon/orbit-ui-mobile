@@ -108,7 +108,7 @@ const parseGhJson = (command, stdout) => {
   }
 }
 
-const REST_ISSUE_FILTER = "{number,html_url,title,body,state:(.state|ascii_upcase),state_reason:(if .state_reason==null then null else (.state_reason|ascii_upcase) end),labels:[.labels[]|{name}]}"
+const REST_ISSUE_FILTER = "{number,html_url,title,body,state:(.state|ascii_upcase),state_reason:(if .state_reason==null then null else (.state_reason|ascii_upcase) end),closed_at,labels:[.labels[]|{name}]}"
 
 const issueArgs = (number, repository) => ["api", `repos/${repository}/issues/${number}`, "--jq", REST_ISSUE_FILTER]
 
@@ -359,16 +359,21 @@ export const readTicket = async (number, { withProjectItem = true } = {}) => {
 }
 
 /**
- * The state, close reason and labels of one ticket from its issue alone: one `gh` call, with no dependency lists and no project item.
- * A caller that reads only these fields uses this reader, so its cost does not triple with each ticket.
+ * The state, close reason, close time and labels of one ticket from its issue alone: one `gh` call, with no dependency lists and no project item.
+ * `closedAt` is the ISO time that GitHub gave the close (`closed_at`), and null while the ticket is open. A caller that reads only these fields
+ * uses this reader, so its cost does not triple with each ticket.
  */
 export const readTicketState = async (number) => {
   positiveIssueNumber(number)
   const args = issueArgs(number, ticketConfiguration().repository)
   const response = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
   if (response === null || typeof response !== "object" || Array.isArray(response)) throw new Error("gh issue output was not an object")
-  return { number: positiveIssueNumber(response.number),
-    ...checkedStateFields({ labels: response.labels, state: response.state, stateReason: response.state_reason }, number) }
+  const fields = checkedStateFields({ labels: response.labels, state: response.state, stateReason: response.state_reason }, number)
+  const closedAt = response.closed_at ?? null
+  if (fields.state === "CLOSED" && Number.isNaN(Date.parse(closedAt))) {
+    throw new Error(`gh issue output for #${number} carried invalid closed_at ${JSON.stringify(closedAt)} for a closed ticket`)
+  }
+  return { number: positiveIssueNumber(response.number), ...fields, closedAt }
 }
 
 /** Bulk callers share one snapshot of the open project items while retaining the ordinary issue response. */

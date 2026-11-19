@@ -198,7 +198,7 @@ export const cases = async () => {
     )
 
     const stateOnlyRead = stage("github-issues/state-only-read", "must remain")
-    const [issueRead, ...dependencyReads] = githubIssueReadPlan(issue({ stateReason: "COMPLETED", state: "CLOSED" }))
+    const [issueRead, ...dependencyReads] = githubIssueReadPlan(issue({ stateReason: "COMPLETED", state: "CLOSED", closedAt: "2026-11-19T09:52:35Z" }))
     applyEnvironment(
       orcaEnv([
         issueRead,
@@ -210,9 +210,19 @@ export const cases = async () => {
     const stateOnly = await (await freshGithubIssues()).readTicketState(221)
     T(
       `${TOOL}: readTicketState reads the issue alone, with no dependency list and no project item`,
-      existsSync(stateOnlyRead) && JSON.stringify(stateOnly) === JSON.stringify({ number: 221, state: "CLOSED", stateReason: "COMPLETED", labels: [{ name: "repo:ui" }, { name: "harness" }] }),
+      existsSync(stateOnlyRead) && JSON.stringify(stateOnly) === JSON.stringify({ number: 221, state: "CLOSED", stateReason: "COMPLETED", labels: [{ name: "repo:ui" }, { name: "harness" }], closedAt: "2026-11-19T09:52:35Z" }),
       JSON.stringify(stateOnly),
     )
+    applyEnvironment(orcaEnv(githubIssueReadPlan(issue({ state: "CLOSED", stateReason: "COMPLETED" })).slice(0, 1)))
+    const unclosed = await messageOf(async () => (await freshGithubIssues()).readTicketState(221))
+    T(
+      `${TOOL}: readTicketState names a closed ticket whose close time is missing`,
+      /carried invalid closed_at null for a closed ticket/.test(unclosed ?? ""),
+      String(unclosed),
+    )
+    applyEnvironment(orcaEnv(githubIssueReadPlan(issue()).slice(0, 1)))
+    const openState = await (await freshGithubIssues()).readTicketState(221)
+    T(`${TOOL}: readTicketState returns a null closedAt for an open ticket`, openState.state === "OPEN" && openState.closedAt === null, JSON.stringify(openState))
 
     const retryIssues = await freshGithubIssues()
     applyEnvironment(

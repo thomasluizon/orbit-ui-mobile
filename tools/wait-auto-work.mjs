@@ -14,7 +14,7 @@ owns (one key per pull request and head, and one key per pull request from an un
 with a reported mark) and the open code scanning, secret scanning and Dependabot alerts of the ui, api
 and landing repositories (tools/lib/auto-work-github.mjs) are checked. An open alert whose carrying
 ticket is closed has a second key, which for code scanning names the commit that the alert's own
-category analyzed last. A key absent from intake.wake.seen (run-state/intake.json in the
+category analyzed last, and which for a Dependabot alert gains "overdue" once, 24 hours after that ticket closed. A key absent from intake.wake.seen (run-state/intake.json in the
 tickets repository) is new.
 Exit only for a new item, a source failure with a new signature, the hourly Sentry MCP listing
 (no read-only Sentry token exists, so sentryMode is mcp-hourly) or a change of the owning mode.

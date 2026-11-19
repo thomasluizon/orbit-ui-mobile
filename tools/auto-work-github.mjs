@@ -27,8 +27,10 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                read failed is named in failures with its key; it is not pending and takes no mark, and the other pull requests of its repository are listed. alerts adds ticketClosed: the
                open alerts whose carrying ticket is closed, each with its ticket, its
                stateReason and, for code scanning of a ticket closed as COMPLETED,
-               scannedCommit (the commit that the alert's own category analyzed last); they are
-               pending again. A reported alert stays out of ticketClosed while its ticket stays
+               scannedCommit (the commit that the alert's own category analyzed last) and, for a
+               Dependabot alert of a ticket closed as COMPLETED, overdue: true once 24 hours or more
+               passed since that ticket closed (closedAt of the ticket read), because the fix then left
+               a vulnerable version; they are pending again. A reported alert stays out of ticketClosed while its ticket stays
                closed with the reported stateReason. A failed read, also a failed ticket read,
                is named in failures; a failed list read keeps its previous items, and it is never
                an empty source.

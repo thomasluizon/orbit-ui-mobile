@@ -10,7 +10,7 @@ const CLOSED_TICKET_URL = "https://github.com/thomasluizon/orbit-tickets/issues/
 /** The ticket that survives a duplicate close; no collection reads it. */
 const TICKET_2149_URL = "https://github.com/thomasluizon/orbit-tickets/issues/2149"
 /** The live output of the REST issue filter in tools/lib/github-issues.mjs for a closed ticket, with its body left out. */
-const ISSUE_2140 = { body: "", html_url: CLOSED_TICKET_URL, labels: [{ name: "repo:ui" }, { name: "Improvement" }, { name: "parity:no" }, { name: "needs:no-conversation" }],
+const ISSUE_2140 = { body: "", closed_at: "2026-11-16T18:10:51Z", html_url: CLOSED_TICKET_URL, labels: [{ name: "repo:ui" }, { name: "Improvement" }, { name: "parity:no" }, { name: "needs:no-conversation" }],
   number: 2140, state: "CLOSED", state_reason: "COMPLETED", title: "Lay out borders in the mobile Yoga test helpers, so a geometry test sees the device size" }
 /** An owner pull request from an earlier run whose branch and title name ticket #2140 (label repo:ui), projected from the live ui#1115 with its repository, branch and title changed. */
 const CLOSED_TICKET_PULL = { number: 1115, author: "thomasluizon", authorType: "User", head: "fcfcc2d215a0eca16b43935efd77635bec167183", branch: "fix/ticket-2140-part-2", base: "main",

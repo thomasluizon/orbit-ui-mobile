@@ -58,16 +58,19 @@ const ALERT_READS = [
 ]
 
 /**
- * What the run does with an open alert whose carrying ticket closed as COMPLETED, for each alert kind, because GitHub closes the alerts of
- * each kind on its own terms. `scan`: a code scanning alert closes when an analysis of its own category no longer finds it, so the run
- * compares the commit of that analysis with the merge of the fix. `owner`: a secret scanning alert never closes by itself, so the owner
- * confirms the rotation and the run resolves it as revoked. `wait`: a Dependabot alert closes when the dependency graph reads the merged manifest.
+ * What the run does with an open alert whose ticket closed as COMPLETED, by alert kind, because GitHub closes each kind on its own terms.
+ * `scan`: code scanning closes when an analysis of its own category no longer finds it; the run compares that analysis with the fix.
+ * `owner`: secret scanning never closes by itself; the owner confirms the rotation and the run resolves it as revoked.
+ * `deadline`: Dependabot closes when the dependency graph reads the merged manifest; the run waits a day, then marks it `overdue`.
  */
 const ALERT_KINDS = {
   "code-scanning": { completed: "scan" },
   "secret-scanning": { completed: "owner" },
-  dependabot: { completed: "wait" },
+  dependabot: { completed: "deadline" },
 }
+
+/** The dependency graph reads the default branch on each push to it, so a Dependabot alert still open this long after its fix ticket closed names a vulnerable version that the fix left. */
+const DEPENDENCY_GRAPH_DEADLINE_MILLISECONDS = 24 * 60 * 60 * 1000
 
 const lastLine = (text) => String(text ?? "").trim().split("\n").at(-1)?.trim() ?? ""
 
@@ -290,23 +293,23 @@ export const pullRequestCheck = ({ list, readState, readIntakeMarks, readOtherRu
 }
 
 /**
- * The waiter key of an open alert whose carrying ticket is closed. For code scanning of a ticket closed
- * as completed it carries the commit that the alert's own category analyzed last (`scannedCommit`), so
- * the key changes when that category analyzes again and never when another category does. No other
- * kind or close reason compares scans.
+ * The waiter key of an open alert whose carrying ticket is closed. For code scanning of a ticket closed as completed it
+ * carries the commit that the alert's own category analyzed last (`scannedCommit`), so the key changes when that category
+ * analyzes again and never when another category does. No other kind or close reason compares scans. A Dependabot alert
+ * past its deadline adds `overdue`, so its key changes once.
  */
-const ticketClosedWakeKey = (alert) => `${alert.key} ticket-closed${alert.scannedCommit ? ` ${alert.scannedCommit}` : ""}`
+const ticketClosedWakeKey = (alert) => `${alert.key} ticket-closed${alert.scannedCommit ? ` ${alert.scannedCommit}` : ""}${alert.overdue ? " overdue" : ""}`
 
 /**
  * Keys each open alert, and each open alert whose carrying ticket is closed a second time, so the
  * close of that ticket wakes the model. An alert whose ticket read failed keeps its seen key.
  */
-export const alertCheck = ({ list, readIntakeMarks = () => ({}), readTicketState }) => async () => {
+export const alertCheck = ({ list, readIntakeMarks = () => ({}), readTicketState, now }) => async () => {
   const listing = await list()
   const marks = readIntakeMarks()?.alerts?.marks ?? {}
   const checked = wakeKeys(listing, (alert) => alert.key, (read) => `${read} `)
   if (!Object.values(marks).some((mark) => TICKETED_ALERT_ACTIONS.includes(mark?.action))) return checked
-  const closed = await alertsWithClosedTickets({ open: Object.fromEntries(listing.items.map((alert) => [alert.key, alert])), marks }, { readTicketState })
+  const closed = await alertsWithClosedTickets({ open: Object.fromEntries(listing.items.map((alert) => [alert.key, alert])), marks }, { readTicketState, now })
   const failure = [checked.failure, ...closed.failures.map((entry) => entry.message)].filter(Boolean).join("; ")
   const unreadPrefixes = [...(checked.unreadPrefixes ?? []), ...closed.unreadKeys.map((key) => `${key} ticket-closed`)]
   return { keys: [...checked.keys, ...closed.items.map(ticketClosedWakeKey)], ...(failure ? { failure, unreadPrefixes } : {}) }
@@ -412,12 +415,12 @@ const ownerDecidesAlert = (alert) => {
 }
 
 /**
- * The open alerts whose carrying ticket is closed, each with the close reason of its ticket. Code scanning
- * of a completed ticket carries the commit that its own category analyzed last, which the listing already
- * holds. A reported mark holds while its ticket stays closed with that reason. A failed ticket read is a
- * named failure; its alerts stay quiet.
+ * The open alerts whose carrying ticket is closed, each with the close reason of its ticket. Code scanning of a completed
+ * ticket carries the commit that its own category analyzed last, which the listing already holds. A Dependabot alert of a
+ * completed ticket is `overdue` once DEPENDENCY_GRAPH_DEADLINE_MILLISECONDS passed since `closedAt`, against `now`. A
+ * reported mark holds while its ticket stays closed with that reason. A failed ticket read is a named failure; its alerts stay quiet.
  */
-export const alertsWithClosedTickets = async (contents, { readTicketState }) => {
+export const alertsWithClosedTickets = async (contents, { readTicketState, now = Date.now }) => {
   const marked = Object.values(contents.open).filter((alert) => TICKETED_ALERT_ACTIONS.includes(contents.marks[alert.key]?.action))
   const tickets = await readTicketStates(marked.map((alert) => ticketNumberOfUrl(contents.marks[alert.key].ticket)), readTicketState)
   const unreadTicket = new Set(tickets.failures.map((failure) => failure.number))
@@ -426,9 +429,11 @@ export const alertsWithClosedTickets = async (contents, { readTicketState }) => 
   const decided = (alert) => contents.marks[alert.key].action === "reported" && (contents.marks[alert.key].stateReason ?? null) === reasonOf(alert)
   const closed = marked.filter((alert) => ticketOf(alert)?.state === "CLOSED" && !decided(alert))
   const comparesScan = (alert) => ALERT_KINDS[alert.kind].completed === "scan" && reasonOf(alert) === "COMPLETED"
+  const overdue = (alert) => ALERT_KINDS[alert.kind].completed === "deadline" && reasonOf(alert) === "COMPLETED" &&
+    now() - Date.parse(ticketOf(alert).closedAt) >= DEPENDENCY_GRAPH_DEADLINE_MILLISECONDS
   return {
     items: closed.map((alert) => ({ ...alert, ticket: contents.marks[alert.key].ticket, stateReason: reasonOf(alert),
-      ...(comparesScan(alert) && alert.commit ? { scannedCommit: alert.commit } : {}) })),
+      ...(comparesScan(alert) && alert.commit ? { scannedCommit: alert.commit } : {}), ...(overdue(alert) ? { overdue: true } : {}) })),
     failures: tickets.failures.map(({ read, message }) => ({ read, message })),
     unreadKeys: marked.filter((alert) => unreadTicket.has(ticketNumberOfUrl(contents.marks[alert.key].ticket))).map((alert) => alert.key),
   }
