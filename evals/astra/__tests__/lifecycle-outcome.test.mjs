@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { outcome } from '../client-path.mjs'
 import { composition } from '../composition.mjs'
 import { askGrader } from '../grader-provider.mjs'
 import { TOOL_NAME_KEYS, corpusTests, gradedByOutcome } from '../grade-method.mjs'
@@ -167,7 +168,17 @@ describe('a same-title case', () => {
 // Producer: PendingOperationChangePreviewer.AddProposedFields. A write that names a field the habit already holds shows a row
 // whose old and new value are the proposed value, and the restart keeps such a habit where it is.
 const restartIds = Array.from({ length: 6 }, (_, index) => `11111111-1111-4111-8111-11111111111${index}`)
-const restartHabits = restartIds.map((id, index) => storedHabit(id, `Habit ${index}`, { dueDate: index < 4 ? addDays(-2) : accountDate }))
+// Producer: fixtures/restart.mjs seedRestart logs each habit once, on the sixth day before the account date.
+const pastLog = { date: addDays(-6), value: 1, note: null, createdAtUtc: '2026-11-07T08:00:00Z' }
+const restartHabits = restartIds.map((id, index) => storedHabit(id, `Habit ${index}`, { dueDate: index < 4 ? addDays(-2) : accountDate, logs: [pastLog] }))
+const logHistoryChanges = {
+  'removes the past log of every habit': (habits) => habits.forEach((habit) => { habit.logs = [] }),
+  'removes the past log of one habit': (habits) => { habits[5].logs = [] },
+  'adds a past log to one habit': (habits) => habits[2].logs.push({ ...pastLog, date: addDays(-3) }),
+  'changes the value of a past log': (habits) => { habits[0].logs[0].value = 2 },
+  'changes the note of a past log': (habits) => { habits[4].logs[0].note = 'Edited' },
+}
+const restartDecisions = ['composition-restart-approve-en', 'composition-restart-reject-en']
 const restartPreview = (dates, extra = {}) => [previewOf('rescheduleHabits', restartIds.map((id, index) => itemOf(id, `Habit ${index}`,
   { due_date: [restartHabits[index].dueDate, dates[index], 'date'], ...(extra[index] ?? {}) })))]
 const todayCount = (todays) => restartIds.map((_, index) => index >= 6 - todays ? accountDate : addDays(1))
@@ -240,6 +251,26 @@ describe('a restart case', () => {
 
   it('runs the same case in pt-BR over the same preview', async () => {
     expect((await heldRestart('composition-restart-approve-pt-BR', todayCount(3))).verdict.pass).toBe(true)
+  })
+
+  // The restart keeps the past log history of each habit: the approval moves dates, and the rejection moves nothing.
+  describe.each(restartDecisions)('%s and the past log history', (id) => {
+    it.each(Object.entries(logHistoryChanges))('fails a decision that %s', async (_name, change) => {
+      const { verdict } = await heldRestart(id, todayCount(3), { afterDecision: change })
+      expect(verdict.pass).toBe(false)
+      expect(verdict.reason).toMatch(/^The (approved|rejected) preview changed the past log history of Habit \d\.$/u)
+    })
+
+    it.each(Object.entries(logHistoryChanges))('fails a held preview that %s before the decision', async (_name, change) => {
+      const moved = structuredClone(restartHabits)
+      change(moved)
+      const { verdict } = await heldRestart(id, todayCount(3), { accountHabits: moved })
+      expect(verdict).toMatchObject({ pass: false, reason: 'The held preview changed the account before its approval.' })
+    })
+
+    it('passes a decision that leaves each past log as it was', async () => {
+      expect((await heldRestart(id, todayCount(3))).verdict.pass).toBe(true)
+    })
   })
 
   // The account approves the preview as shown. A write that saves another value than the one the person saw is no approval of it.
@@ -554,13 +585,17 @@ describe('the question turn of a case that asks first', () => {
 // The carriers of the checks of the deleted lifecycle modules that no row of a case names: the account that the held preview
 // changed before the approval, the failed gate that stops the approval, and the conversation that the approval runs in. Each
 // row drives the real case through the provider path.
+const restartTurn = (todays) => ({ replies: [turnOf({ pendingOperations: restartPreview(todayCount(todays)) })], habits: restartHabits, records: { habits: restartIds } })
 const heldChangedAccount = {
+  'composition-restart-approve-en': { ...restartTurn(3), accountHabits: restartHabits.map((habit, index) => index === 0 ? { ...habit, title: 'Changed before approval' } : habit) },
   'same-title-card-en': { replies: answered, habits: sameTitleHabits, records: sameTitleRecords,
     accountHabits: sameTitleHabits.map((habit, index) => index === 2 ? { ...habit, title: 'Water - 1.18L' } : habit) },
   'brain-dump-mixed-en': { replies: [turnOf({ pendingOperations: [previewOf('createHabits', [dentist, stretch])] })], habits: brainHabits,
     records: { water }, accountHabits: [...brainHabits, storedHabit('44444444-4444-4444-8444-444444444444', 'Call the dentist')] },
 }
 const failedGate = {
+  'composition-restart-approve-en': restartTurn(6),
+  'composition-restart-reject-en': restartTurn(0),
   'same-title-whole-en': { replies: [withPreview(combined(renames.map((item) => itemOf(item.entityId, item.entityName, { title: [item.entityName, 'Water - 1L'] }))))],
     habits: sameTitleHabits, records: sameTitleRecords },
   'brain-dump-mixed-en': { replies: [turnOf({ pendingOperations: [previewOf('createHabits', [dentist])] })], habits: brainHabits, records: { water } },
@@ -589,5 +624,83 @@ describe('the carriers of the deleted checks of the lifecycle modules', () => {
     const execute = fixture.calls.find((call) => call.path.endsWith('/execute'))
     expect(conversationIds[0]).not.toBe(setup.replies.at(-1).conversationId)
     expect(execute.body.clientContext.conversationId).toBe(setup.replies.at(-1).conversationId)
+  })
+})
+
+// The failure rows of the deleted tests of the restart, brain dump and approval modules that the outcome grade keeps. Each row
+// drives the real case through the provider path, with the preview or the server defect that the deleted row built.
+const brainDumpMixed = (options) => brainDump('brain-dump-mixed-en', [dentist, stretch], options)
+const confirmFails = () => { throw Object.assign(new Error('Fixture API POST ai/pending-operations/{id}/confirm failed: HTTP 503 (errorCode: none).'), { status: 503 }) }
+const confirmWithoutToken = (id) => ({ status: 200, payload: { pendingOperationId: id } })
+
+describe('the preview rows of the deleted restart and brain dump tests', () => {
+  const [restartHeld] = restartPreview(todayCount(3))
+  const withItems = (items) => [{ ...restartHeld, items }]
+  it.each([
+    ['a duplicate target', withItems([restartHeld.items[0], restartHeld.items[0], ...restartHeld.items.slice(2)])],
+    ['a foreign target', withItems([{ ...restartHeld.items[0], entityId: '99999999-9999-4999-8999-999999999999' }, ...restartHeld.items.slice(1)])],
+  ])('fails a restart with %s', async (_name, pendingOperations) => {
+    const { verdict } = await attempt('composition-restart-preview-en', { replies: [turnOf({ pendingOperations })], habits: restartHabits, records: { habits: restartIds } })
+    expect(verdict.pass).toBe(false)
+  })
+
+  it.each([['a restart', 'composition-restart-preview-en', { habits: restartHabits, records: { habits: restartIds } }],
+    ['a brain dump', 'brain-dump-mixed-en', { habits: brainHabits, records: { water } }],
+  ])('fails %s with no preview, and one whose write was saved where the case holds a preview', async (_name, id, setup) => {
+    const none = 'The reply holds no preview and no question card.'
+    expect((await attempt(id, { replies: [turnOf({})], held: [], ...setup })).verdict).toMatchObject({ pass: false, reason: none })
+    const operations = [{ operationId: 'bulk_create_habits', status: 'Succeeded' }]
+    expect((await attempt(id, { replies: [turnOf({ operations })], held: [], ...setup })).verdict).toMatchObject({ pass: false, reason: none })
+  })
+
+  it('fails a brain dump that misses the task, and one that splits its items over two previews', async () => {
+    expect((await brainDump('brain-dump-mixed-en', [stretch])).verdict.pass).toBe(false)
+    const split = await attempt('brain-dump-mixed-en', { replies: [turnOf({ pendingOperations: [previewOf('createHabits', [dentist]),
+      previewOf('createHabits', [stretch], '22222222-2222-4222-8222-222222222223')] })], habits: brainHabits, records: { water } })
+    expect(await composition(split.response.output, { vars: split.vars })).toMatchObject({ pass: false, reason: 'Missing batch preview.' })
+  })
+})
+
+describe('the saved state rows of the deleted approval tests', () => {
+  const approvals = [
+    ['a restart', (options) => heldRestart('composition-restart-approve-en', todayCount(3), options)],
+    ['a brain dump', brainDumpMixed],
+  ]
+  const defects = {
+    'a write that saves nothing': { savesNothing: true },
+    'a saved date of another day': { afterDecision: (state) => { state.at(-2).dueDate = '2026-12-01' } },
+    'a saved schedule of another kind': { afterDecision: (state) => { state.at(-2).frequencyUnit = 'Day' } },
+    'a saved time of another hour': { afterDecision: (state) => { state.at(-1).dueTime = '23:00:00' } },
+    'a second record for one request': { afterDecision: (state) => { state.push({ ...state.at(-1), id: '55555555-5555-4555-8555-555555555555' }) } },
+  }
+  it.each([['a restart', approvals[0][1], 'a write that saves nothing'],
+    ...Object.keys(defects).map((defect) => ['a brain dump', brainDumpMixed, defect])])('fails %s after %s', async (_name, run, defect) => {
+    const { verdict } = await run(defects[defect])
+    expect(verdict.pass).toBe(false)
+    expect(verdict.reason).not.toBe('The saved state matches the approved changes.')
+  })
+
+  it.each(approvals)('names the failed confirmation of %s and never executes', async (_name, run) => {
+    const { verdict, fixture } = await run({ confirmReply: confirmFails })
+    expect(verdict).toMatchObject({ pass: false, reason: expect.stringContaining('Approval or the saved state readback failed') })
+    expect(verdict.reason).toContain('HTTP 503')
+    expect(approvedPaths(fixture)).toEqual(['confirm'])
+  })
+
+  it.each(approvals)('never executes %s when the confirmation holds no token', async (_name, run) => {
+    const { verdict, fixture } = await run({ confirmReply: confirmWithoutToken })
+    expect(verdict).toMatchObject({ pass: false, reason: expect.stringContaining('Approval confirmation lacks its bound token.') })
+    expect(approvedPaths(fixture)).toEqual(['confirm'])
+  })
+
+  it.each([
+    ['composition-restart-approve-en', { replies: [turnOf({ pendingOperations: restartPreview(todayCount(3)) })], habits: restartHabits, records: { habits: restartIds } }],
+    ['composition-restart-reject-en', { replies: [turnOf({ pendingOperations: restartPreview(todayCount(3)) })], habits: restartHabits, records: { habits: restartIds } }],
+    ['brain-dump-mixed-en', { replies: [turnOf({ pendingOperations: [previewOf('createHabits', [dentist, stretch])] })], habits: brainHabits, records: { water } }],
+    ['same-title-card-en', { replies: answered, habits: sameTitleHabits, records: sameTitleRecords }],
+  ])('fails %s that has no saved state readback', async (id, setup) => {
+    const { vars, response } = await attempt(id, setup)
+    delete response.output.readback
+    expect(outcome(response.output, { vars })).toMatchObject({ pass: false, reason: 'The approved preview has no saved state readback.' })
   })
 })

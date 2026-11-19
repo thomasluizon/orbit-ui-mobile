@@ -621,7 +621,7 @@ at most. The change list holds one `create` for each item of the request, and ea
 request. An ideas case states one more `create` with `frequency_unit: Day`: the idea joins the same preview. It also
 states `distinctTitles: true`, so two creates with one title fail. The grade does not compare that idea with the
 suggestion draft. The outcome grade then approves the preview through the existing confirmation gateway and reads the
-saved items back: title, schedule and time. Existing fixture habits must remain unchanged and appear only once.
+saved items back: title, schedule and time. Each fixture habit must keep its id, title, frequency and its log of the day, and appear only once. The grade does not read the due time of a fixture habit (the snapshot row holds none) or the count of pending operations.
 Offline tests do not replace the live gate.
 
 Refine cases first run a real suggestion setup turn on the client path. The setup states `outcome: { read: true }` and its
@@ -1077,10 +1077,14 @@ habit may stay on its date (`mayStay`), and `dueToday`, the number of habits tha
 set stays today (`dueToday: 2` for the preference cases, 1 to 5 for the others) and the rest falls within seven days. The
 response holds the `rescheduleHabits` preview and nothing else: no note, block, follow-up, action, policy denial or failed
 operation (`composition.previewOnly: true`). `restart-approve` holds `decision: approve`: the outcome grade
-approves the preview through confirm then execute and reads each habit and its history back. Each saved value must equal
-the value that the preview showed, and each field that the preview showed for a habit still holds its baseline value before
-the approval. `restart-reject` holds `decision: reject`: the preview is revised to an empty item list, confirmation
-returns 404, and each habit keeps its baseline.
+approves the preview through confirm then execute and reads each habit back: its title, its frequency, whether it is logged
+on the account date, and each log dated before the account date (the fixture seeds one on the sixth day before). Each saved
+value must equal the value that the preview showed. Each field that the preview showed for a habit, and each past log, still
+holds its baseline value before the approval, and the approval leaves each past log as it was (`movedHistory` in
+`core/outcome.mjs`, read only for a case that states a `decision`). `restart-reject` holds `decision: reject`: the preview is
+revised to an empty item list, confirmation returns 404, and each habit keeps its baseline, past logs included. The grade does
+not read the other fields of the habit detail that the restart fixture preserves (`preserved` in `fixtures/restart.mjs`:
+description, days, interval weeks, due times, reminders, slip alert, flags, end date and emoji).
 
 | Key | Purpose |
 |---|---|

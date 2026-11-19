@@ -222,6 +222,17 @@ function movedField({ target, fields, kept = {} }, habits, baseline) {
     && comparable(field, savedField[field](habit)) !== comparable(field, savedField[field](before))) ?? null
 }
 
+// The first baseline record that the account still holds with another log history before the account date. A log of the
+// account date is the one that an approved log writes, and savedRecords reads it. Only a case that states a decision reads this:
+// the core set approves with no decision and keeps its verdicts.
+function movedHistory(habits, baseline, accountDate) {
+  const past = (habit) => JSON.stringify(habit.logs.filter((log) => log.date < accountDate).map((log) => JSON.stringify(log)).toSorted())
+  return baseline.find((before) => {
+    const saved = habits.find((habit) => habit.id === before.id)
+    return saved && past(saved) !== past(before)
+  })
+}
+
 // The first field that the request names and the saved record holds with another value. A field that no saved record
 // names (the parent of a create: the snapshot row holds none) is graded on the preview alone: the core set refuses such a
 // field when it loads, and the launch corpus states it and skips it here.
@@ -253,9 +264,10 @@ function gradeCreated(creates, created, drafts, accountDate) {
 
 // The saved state after approval, read back from the account: each deleted record is gone, each log is saved, each
 // updated and each created record holds each field the request names that a saved record can show (the launch corpus
-// states fields that the preview alone grades), and every other record is as it was. The person approves the preview as
-// shown: an updated record holds each value that its rows show, requested, offered or derived (AddChanges writes them in
-// the stored format), and each draft that the preview offers is a new record.
+// states fields that the preview alone grades), and every other record is as it was. A case that states a decision also
+// keeps each log of a stored record before the account date, in the held state and after the decision (movedHistory).
+// The person approves the preview as shown: an updated record holds each value that its rows show, requested, offered or
+// derived (AddChanges writes them in the stored format), and each draft that the preview offers is a new record.
 function gradeSavedState(readback, matched, vars) {
   if (!readback) return verdict(false, 'The approved preview has no saved state readback.')
   if (readback.error) return verdict(false, readback.error, readback.unavailable ? { unavailable: true } : {})
@@ -263,13 +275,17 @@ function gradeSavedState(readback, matched, vars) {
   const before = savedRecords(readback.baseline, date)
   const named = matched.flatMap(({ expected, held }) => held.map((change) => ({ ...change, expected })))
     .filter(({ expected }) => expected.kind === 'update')
+  const decided = vars.core.decision !== undefined
   if (JSON.stringify(savedRecords(readback.held, date)) !== JSON.stringify(before)
-    || named.some((change) => movedField(change, readback.held, readback.baseline))) {
+    || named.some((change) => movedField(change, readback.held, readback.baseline))
+    || (decided && movedHistory(readback.held, readback.baseline, date))) {
     return verdict(false, 'The held preview changed the account before its approval.')
   }
   const rejected = vars.core.decision === 'reject'
   const moved = rejected ? named.map((change) => movedField(change, readback.after, readback.baseline)).find(Boolean) : null
   if (moved) return verdict(false, `The rejected preview changed the account: it saved ${moved}.`)
+  const rewritten = decided ? movedHistory(readback.after, readback.baseline, date) : null
+  if (rewritten) return verdict(false, `The ${rejected ? 'rejected' : 'approved'} preview changed the past log history of ${rewritten.title}.`)
   const differ = verdict(false, 'The saved records differ from the approved changes.')
   const changes = rejected ? [] : matched.flatMap(({ expected, held }) => held.map((change) => ({ ...change, expected })))
   const wanted = new Map(before.map((habit) => [habit.id, { ...habit }]))

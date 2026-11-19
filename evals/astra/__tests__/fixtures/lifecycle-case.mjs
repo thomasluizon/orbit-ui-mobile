@@ -34,8 +34,10 @@ const unit = (value) => value === 'OneTime' ? null : value
 // The fixture API of one account. Approval saves what the held previews show, as the recorded execute did: a `delete`
 // action removes the record, a field that the preview shows sets the stored value, and an item with no record creates
 // one. A rejected preview, revised to hold no item, refuses confirmation unless `confirmsAfterRevise`. A defective server
-// saves the held items when the preview is revised (`savesOnRevise`).
-export function account(habits, held, { confirmsAfterRevise = false, savesOnRevise = false } = {}) {
+// saves the held items when the preview is revised (`savesOnRevise`). `afterDecision` changes the stored habits when the
+// person has decided (a revise or an execute), as a server that writes more than the preview shows. `savesNothing` is an
+// execute that writes nothing. `confirmReply` replaces the reply to a confirm: a thrown error is a failed request.
+export function account(habits, held, { confirmsAfterRevise = false, savesOnRevise = false, afterDecision, savesNothing = false, confirmReply } = {}) {
   const state = structuredClone(habits)
   const calls = []
   let revised = false
@@ -64,11 +66,13 @@ export function account(habits, held, { confirmsAfterRevise = false, savesOnRevi
     if (action === 'revise') {
       revised = true
       if (savesOnRevise) for (const item of held.find((candidate) => candidate.id === id).items) apply(item)
+      afterDecision?.(state)
       return { status: 200, payload: {} }
     }
     if (action === 'confirm' && revised && !confirmsAfterRevise) return { status: 404, payload: null }
-    if (action === 'confirm') return { status: 200, payload: { pendingOperationId: id, confirmationToken: 'offline-confirmation' } }
-    for (const item of held.find((candidate) => candidate.id === id).items) apply(item)
+    if (action === 'confirm') return confirmReply?.(id) ?? { status: 200, payload: { pendingOperationId: id, confirmationToken: 'offline-confirmation' } }
+    if (!savesNothing) for (const item of held.find((candidate) => candidate.id === id).items) apply(item)
+    afterDecision?.(state)
     return { status: 200, payload: {} }
   }
   return { api, calls, state }
@@ -82,9 +86,9 @@ export const turnOf = (fields) => ({ aiMessage: '', actions: [], operations: [],
 // habits that the reset left (a server that wrote before the approval). Returns the output of the attempt, the requests that
 // the account saw, the conversation id that each request carried, and the verdict.
 export async function attempt(id, { replies, held = replies.at(-1).pendingOperations ?? [], habits, accountHabits = habits, records,
-  confirmsAfterRevise, savesOnRevise, ...extra }) {
+  confirmsAfterRevise, savesOnRevise, afterDecision, savesNothing, confirmReply, ...extra }) {
   const vars = preparedCase(id, { records, habits, ...extra })
-  const fixture = account(accountHabits, held, { confirmsAfterRevise, savesOnRevise })
+  const fixture = account(accountHabits, held, { confirmsAfterRevise, savesOnRevise, afterDecision, savesNothing, confirmReply })
   const sent = []
   const conversationIds = []
   let turn = 0

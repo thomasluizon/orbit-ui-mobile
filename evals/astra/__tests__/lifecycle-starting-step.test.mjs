@@ -252,6 +252,65 @@ describe.each(['en', 'pt-BR'])('a save case of a starting step in %s', (locale) 
     const held = checklistPreview(itemsWith(block.suggestion.step, change))
     expect(await graded(vars, held)).toMatchObject({ pass: false, reason: expect.stringContaining('gives checklist_items the value') })
   })
+
+  // The failure rows of the deleted step-persistence test: the account saves something other than the held preview, the
+  // readback is missing, or the turn holds no single preview to approve.
+  const savedTaskDefects = {
+    'saves nothing': { savesNothing: true },
+    'saves another title': { afterDecision: (state) => { state.at(-1).title = 'Wrong title' } },
+    'saves a repeating habit': { afterDecision: (state) => { state.at(-1).frequencyUnit = 'Day' } },
+    'saves a second record': { afterDecision: (state) => { state.push({ ...state.at(-1), id: '55555555-5555-4555-8555-555555555555' }) } },
+    'changes a stored habit': { afterDecision: (state) => { state[0].title = 'Unrequested change' } },
+  }
+  const savedChecklistDefects = {
+    'loses an item': { afterDecision: (state) => { state[0].checklistItems.shift() } },
+    'unchecks an item': { afterDecision: (state) => { state[0].checklistItems[0].isChecked = false } },
+    'reverses the items': { afterDecision: (state) => { state[0].checklistItems.reverse() } },
+  }
+  const approved = async (id, held, options) => {
+    const { vars } = await prepare(id)
+    const fixture = account(habits, held, options)
+    const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: held })), api: fixture.api })
+    return { vars, response, fixture, verdict: outcome(response.output, { vars }) }
+  }
+  const savedPaths = (fixture) => fixture.calls.map((call) => call.path.split('/').at(-1)).filter((path) => ['confirm', 'execute'].includes(path))
+
+  it.each(Object.entries(savedTaskDefects))('fails a saved task of an approval that %s', async (_name, options) => {
+    const { block } = await prepare(saveTask)
+    const { verdict } = await approved(saveTask, taskHeld(block.suggestion.step), options)
+    expect(verdict.pass).toBe(false)
+    expect(verdict.reason).not.toBe('The saved state matches the approved changes.')
+  })
+
+  it.each(Object.entries(savedChecklistDefects))('fails a saved checklist of an approval that %s', async (_name, options) => {
+    const { block } = await prepare(saveChecklist)
+    const { verdict } = await approved(saveChecklist, checklistPreview(itemsWith(block.suggestion.step)), options)
+    expect(verdict.pass).toBe(false)
+    expect(verdict.reason).not.toBe('The saved state matches the approved changes.')
+  })
+
+  it.each([['save-task', saveTask], ['save-checklist', saveChecklist]])('fails the %s case that has no saved state readback', async (_name, id) => {
+    const { block } = await prepare(id)
+    const held = id === saveTask ? taskHeld(block.suggestion.step) : checklistPreview(itemsWith(block.suggestion.step))
+    const { vars, response } = await approved(id, held)
+    delete response.output.readback
+    expect(outcome(response.output, { vars })).toMatchObject({ pass: false, reason: 'The approved preview has no saved state readback.' })
+  })
+
+  const none = 'The reply holds no preview and no question card.'
+  const twoPreviews = (step) => [...taskHeld(step), ...taskHeld(step).map((preview) => ({ ...preview, id: '22222222-2222-4222-8222-222222222223' }))]
+  it.each([
+    ['a write that was saved', () => ({ operations: [{ operationId: 'create_habit', status: 'Succeeded' }] }), none],
+    ['no preview', () => ({}), none],
+    ['two previews', (step) => ({ pendingOperations: twoPreviews(step) }), expect.any(String)],
+  ])('approves nothing of a save-task turn with %s', async (_name, fields, reason) => {
+    const { vars, block } = await prepare(saveTask)
+    const fixture = account(habits, taskHeld(block.suggestion.step))
+    const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf(fields(block.suggestion.step))), api: fixture.api })
+    expect(outcome(response.output, { vars })).toMatchObject({ pass: false, reason })
+    expect(savedPaths(fixture)).toEqual([])
+    expect(fixture.state).toHaveLength(habits.length)
+  })
 })
 
 describe('a read case of a starting step', () => {
