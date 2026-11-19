@@ -17,6 +17,9 @@ async function recordedEvents(turn) {
   const { habits } = await (await fixture('GET', 'eval/snapshot')).json()
   const children = habits.filter((habit) => habit.title === 'Water - 710ml').map((habit) => habit.id)
   const events = JSON.parse(capture.children.reduce((text, id, index) => text.replaceAll(id, children[index]), JSON.stringify(capture.turns[turn])))
+  // CORE_TEST_QUESTION gives the question card of the first turn another question text, as a card of another capture asks it.
+  const question = process.env.CORE_TEST_QUESTION
+  if (question && turn === 0) for (const part of events.at(-1).response.parts) for (const item of part.block?.questions ?? []) item.prompt = question
   const actionKey = process.env.CORE_TEST_ACTION_KEY
   if (actionKey) for (const preview of events.at(-1).response.pendingOperations) preview.actionKey = actionKey
   return JSON.stringify(events)

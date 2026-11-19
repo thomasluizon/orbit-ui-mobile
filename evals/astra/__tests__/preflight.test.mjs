@@ -1,9 +1,12 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import { beforeAll } from '../hooks.mjs'
+import { beforeAll as beforeCoreRun } from '../core/hooks.mjs'
 import { credentialKeys } from '../credentials.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
+import { offlineGrader } from './fixtures/grader.mjs'
 
 const { apiCommit } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
 
@@ -25,7 +28,7 @@ function preflightResponse(flag = { enabled: true, planRequirement: null }) {
 
 function requestsFor(configForAccount = (index) => preflightResponse({ enabled: index === 0, planRequirement: null }), servedCommit = apiCommit) {
   offlineCredentials()
-  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
   let accountIndex = -1
   const requests = vi.fn(async (url, options) => {
     const path = new URL(url).pathname
@@ -90,4 +93,56 @@ it.each([
   const pending = Promise.resolve().then(() => beforeAll(suiteFor([credentialKeys[1]])))
   await expect(pending).rejects.toThrow(`turn off astra_eval_unmetered for ${credentialKeys[1]} through /flag on staging, then verify /api/config and retry. ${cause}`)
   await expect(pending).rejects.not.toThrow('PRIVATE')
+})
+
+// A grader that cannot grade turns every graded attempt incomplete after its chat turn spends, so each graded run sends one
+// small rubric through the configured grader first. Producer: claude-grader.mjs fails closed without the worker account.
+const claudeGrader = `file://${fileURLToPath(new URL('../claude-grader.mjs', import.meta.url))}`
+const coreSuite = { suite: { tests: [{ metadata: { id: 'read-en', mustPass: true },
+  vars: { credentialKey: 'ORBIT_EVAL_TOKEN', rubric: 'Describe Water only.' } }] } }
+
+it.each([
+  ['without the worker account', claudeGrader, 'Claude grading failed: ORBIT_WORKER_CLAUDE_CONFIG_DIR is not set.'],
+  ['with an unknown provider', 'offline', 'Could not identify provider'],
+])('stops the full corpus run before an account check when the configured grader cannot grade: %s', async (_name, grader, cause) => {
+  const requests = requestsFor()
+  vi.stubEnv('ORBIT_EVAL_GRADER', grader)
+  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', '')
+  vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  await expect(beforeAll(suiteFor(credentialKeys))).rejects.toThrow(cause)
+  expect(requests.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/health'])
+})
+
+// A same-title card question is read through the configured grader (ORBIT_EVAL_GRADER), so a core run of a card case needs it as a rubric does.
+const cardSuite = { suite: { tests: [{ metadata: { id: 'owner-water-request-en', mustPass: true },
+  vars: { credentialKey: 'ORBIT_EVAL_TOKEN', core: { answer: { sameTitle: { deleted: [4, 5], renamed: [0, 1, 2, 3] } } } } }] } }
+
+it.each([['a rubric', coreSuite], ['a same-title card answer', cardSuite]])('stops a core run with %s before an account check when the configured grader cannot grade', async (_name, suite) => {
+  const requests = requestsFor()
+  vi.stubEnv('ORBIT_EVAL_GRADER', claudeGrader)
+  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', '')
+  vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  await expect(beforeCoreRun(suite)).rejects.toThrow('The configured grader cannot grade, so the run stops before any chat '
+    + 'turn spends: Claude grading failed: ORBIT_WORKER_CLAUDE_CONFIG_DIR is not set.')
+  expect(requests.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/health'])
+})
+
+// Promptfoo resolves a relative file:// grader from the folder of the run's config (core/ for the core set), so the check
+// loads the grader from that folder too: a reference the rubric could not load stops the run. A core run that passes the
+// check stops at the trace flag, which this config response lacks, before it writes a report.
+it.each([
+  ['the full corpus', () => beforeAll(suiteFor(credentialKeys)), 'file://__tests__/fixtures/grader.mjs',
+    'file://../evals/astra/__tests__/fixtures/grader.mjs', undefined],
+  ['the core set', () => beforeCoreRun(coreSuite), 'file://../__tests__/fixtures/grader.mjs',
+    'file://__tests__/fixtures/grader.mjs', 'turn on astra_eval_trace for ORBIT_EVAL_TOKEN'],
+])('loads a relative grader of %s from the folder of its config', async (_name, start, loads, fails, nextStop) => {
+  const refused = requestsFor()
+  vi.stubEnv('ORBIT_EVAL_GRADER', fails)
+  await expect(start()).rejects.toThrow('ENOENT')
+  expect(refused.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/health'])
+  const accepted = requestsFor()
+  vi.stubEnv('ORBIT_EVAL_GRADER', loads)
+  if (nextStop) await expect(start()).rejects.toThrow(nextStop)
+  else await expect(start()).resolves.toBeUndefined()
+  expect(accepted.mock.calls.map(([url]) => new URL(url).pathname)).toContain('/api/config')
 })
