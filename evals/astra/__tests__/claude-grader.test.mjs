@@ -30,6 +30,9 @@ import { assertions, loadApiProvider } from 'promptfoo'
 const recordedResult = fileURLToPath(new URL('./fixtures/claude-grader-result.json', import.meta.url))
 const recordedError = fileURLToPath(new URL('./fixtures/claude-grader-error.json', import.meta.url))
 const schemaText = readFileSync(new URL('../grader-schema.json', import.meta.url), 'utf8')
+// The CLI result of one real card question read (the half schema), recorded by the live reads of the card questions.
+const recordedReads = JSON.parse(readFileSync(new URL('./fixtures/claude-grader-half-results.json', import.meta.url), 'utf8'))
+const [{ result: recordedHalf }] = recordedReads
 
 let directory, provider, workerDirectory
 const providerPath = fileURLToPath(new URL('../claude-grader.mjs', import.meta.url))
@@ -62,6 +65,7 @@ const result = JSON.parse(fs.readFileSync(process.env.TEST_CLAUDE_RESULT, 'utf8'
 const grade = result.structured_output
 if (mode === 'fail') Object.assign(grade, { pass: false, score: 0, reason: 'Offline rubric control.' })
 if (mode === 'bad-score') grade.score = 2
+if (mode === 'bad-half' || (mode === 'bad-half-once' && attempts === 1)) grade.half = 'delete'
 if (mode === 'bad-pass') grade.pass = 'true'
 if (mode === 'empty-reason') grade.reason = ''
 if (mode === 'extra-key') grade.extra = 'untrusted'
@@ -74,6 +78,7 @@ process.stdout.write(JSON.stringify(result))
 `, { mode: 0o700 })
   vi.stubEnv('PATH', `${directory}:${process.env.PATH}`)
   vi.stubEnv('TEST_CLAUDE_RECORD', join(directory, 'record.json'))
+  writeFileSync(join(directory, 'half-result.json'), JSON.stringify(recordedHalf))
   vi.stubEnv('TEST_CLAUDE_RESULT', recordedResult)
   vi.stubEnv('TEST_CLAUDE_ERROR', recordedError)
   vi.stubEnv('TEST_CLAUDE_MODE', 'pass')
@@ -124,14 +129,27 @@ it('loads through promptfoo, runs print mode on the worker account and returns t
 // so it takes the CLI path of the rubric: the same flags, worker account, environment and time limit, with its own schema.
 it('answers the card question read with the half schema when the provider reference names it, and the rubric otherwise', async () => {
   const half = await loadApiProvider(`file://${providerPath}`, { options: { config: { schema: 'half' } } })
-  const recorded = JSON.parse(readFileSync(recordedResult, 'utf8'))
-  expect(await half.callApi('Which half?')).toEqual({ output: JSON.stringify(recorded.structured_output) })
+  vi.stubEnv('TEST_CLAUDE_RESULT', join(directory, 'half-result.json'))
+  expect(await half.callApi('Which half?')).toEqual({ output: JSON.stringify(recordedHalf.structured_output) })
   const { args } = record()
   expect(JSON.parse(args[args.indexOf('--json-schema') + 1])).toEqual({ type: 'object', additionalProperties: false,
     properties: { half: { type: 'string' } }, required: ['half'] })
   await provider.callApi('Grade this.')
   const rubric = record().args
   expect(rubric[rubric.indexOf('--json-schema') + 1]).toBe(schemaText)
+})
+
+// The live reads of the card questions called the CLI as this provider does: the argument list of the rubric call with the half
+// schema, one answer of the exact half shape, no error, and the model of the grader.
+it('holds the recorded live reads of the card questions to the call that this provider makes', () => {
+  const halfSchema = JSON.stringify({ type: 'object', additionalProperties: false, properties: { half: { type: 'string' } }, required: ['half'] })
+  expect(recordedReads).toHaveLength(3)
+  for (const { invocation, result } of recordedReads) {
+    expect(invocation.args).toEqual(['-p', '--model', 'claude-opus-5-5', '--output-format', 'json', '--json-schema', halfSchema,
+      '--tools', '', '--strict-mcp-config', '--safe-mode', '--no-session-persistence'])
+    expect(result).toMatchObject({ type: 'result', subtype: 'success', is_error: false, structured_output: { half: 'deleted' } })
+    expect(Object.keys(result.modelUsage)).toEqual(['claude-opus-5-5'])
+  }
 })
 
 it('runs no CLI call for a provider reference that names an unknown schema', async () => {
@@ -143,9 +161,9 @@ it('runs no CLI call for a provider reference that names an unknown schema', asy
 it('asks the card question read on the CLI path of the rubric, with the half schema', async () => {
   vi.stubEnv('CLAUDE_CODE_DISABLE_ATTACHMENTS', '0')
   const half = new ClaudeGrader({ config: { schema: 'half' } })
-  const recorded = JSON.parse(readFileSync(recordedResult, 'utf8'))
+  vi.stubEnv('TEST_CLAUDE_RESULT', join(directory, 'half-result.json'))
   vi.mocked(execFile).mockClear()
-  expect(await half.callApi('Which half does the question ask about?')).toEqual({ output: JSON.stringify(recorded.structured_output) })
+  expect(await half.callApi('Which half does the question ask about?')).toEqual({ output: JSON.stringify(recordedHalf.structured_output) })
   const call = record()
   const schema = call.args[call.args.indexOf('--json-schema') + 1]
   expect(JSON.parse(schema)).toEqual({ type: 'object', additionalProperties: false, properties: { half: { type: 'string' } }, required: ['half'] })
@@ -164,6 +182,22 @@ it('gives no output for an answer that its own check refuses, and retries the ca
   const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
   vi.stubEnv('TEST_CLAUDE_MODE', 'bad-score')
   expect(await provider.callApi('Grade this.')).toEqual({ error: 'Claude grading failed: grade schema invalid.' })
+  expect(attempts()).toBe(2)
+  errors.mockRestore()
+})
+
+// The card question read asks for exactly {"half": deleted | renamed | unclear}. An answer of another shape is a malformed
+// grade: the call is retried once, as a malformed rubric grade is, and a second malformed answer is a named failure.
+it('retries a malformed card question answer once, and names the failure when the retry is malformed too', async () => {
+  const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  const half = new ClaudeGrader({ config: { schema: 'half' } })
+  vi.stubEnv('TEST_CLAUDE_RESULT', join(directory, 'half-result.json'))
+  vi.stubEnv('TEST_CLAUDE_MODE', 'bad-half-once')
+  expect(await half.callApi('Which half?')).toEqual({ output: JSON.stringify(recordedHalf.structured_output) })
+  expect(attempts()).toBe(2)
+  rmSync(`${process.env.TEST_CLAUDE_RECORD}.attempts`)
+  vi.stubEnv('TEST_CLAUDE_MODE', 'bad-half')
+  expect(await half.callApi('Which half?')).toEqual({ error: 'Claude grading failed: grade schema invalid.' })
   expect(attempts()).toBe(2)
   errors.mockRestore()
 })

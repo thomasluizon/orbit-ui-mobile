@@ -7,8 +7,9 @@ import { approvePendingOperation, publicApi } from '../fixtures/api.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { safeFailureMessage } from '../credentials.mjs'
 
-// In a conversation, only a throttle, a spend ceiling, or a card or preview turn whose grading needs the eval trace and
-// that returned none is no evidence of the build (`noEvidenceKinds` in core/report.mjs names every kind): the case stays
+// In a conversation, only a throttle, a spend ceiling, a failed call of the grader that reads a card question, or a card or
+// preview turn whose grading needs the eval trace and that returned none is no evidence of the build (`noEvidenceKinds` in
+// core/report.mjs names every kind): the case stays
 // incomplete and continues in a later window. Each other failure is the build under test failing the person: an HTTP
 // 5xx, a stream that stops or ends without a final event, a failed approval. It fails the attempt, so no later window
 // runs the case again.

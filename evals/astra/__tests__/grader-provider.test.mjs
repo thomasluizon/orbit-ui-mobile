@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { askGrader, useConfigFolder } from '../grader-provider.mjs'
+import { askGrader, recordConfigFolder } from '../grader-provider.mjs'
 import { requireGrader } from '../grader-preflight.mjs'
 import { recordingGrader } from './fixtures/recording-grader.mjs'
 
@@ -14,7 +14,7 @@ beforeEach(() => {
   vi.stubEnv('TEST_GRADER_RECORD', join(directory, 'calls.jsonl'))
   vi.stubEnv('ORBIT_EVAL_GRADER', recordingGrader)
 })
-afterEach(() => { useConfigFolder(undefined); vi.unstubAllEnvs(); rmSync(directory, { recursive: true, force: true }) })
+afterEach(() => { recordConfigFolder(undefined); vi.unstubAllEnvs(); rmSync(directory, { recursive: true, force: true }) })
 
 // Contract: loadApiProvider of promptfoo hands options.config of the reference to the class of a file:// provider.
 it('asks the provider that ORBIT_EVAL_GRADER names, with the schema that the question names, and parses its JSON answer', async () => {

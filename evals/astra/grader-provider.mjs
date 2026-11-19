@@ -6,7 +6,7 @@ import { loadApiProvider } from 'promptfoo'
 // read resolves from it, never from another folder.
 let configFolder
 
-export function useConfigFolder(folder) { configFolder = folder }
+export function recordConfigFolder(folder) { configFolder = folder }
 
 // `config` reaches the class of a file:// provider as options.config (claude-grader.mjs names the keys it reads).
 export function loadGrader(folder, config) {

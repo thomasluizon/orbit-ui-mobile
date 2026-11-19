@@ -22,6 +22,8 @@ import { fixtureFetch } from './fixtures/public-api.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { streams } from './fixtures/same-title-streams.mjs'
 import { recordingGrader } from './fixtures/recording-grader.mjs'
+import { recordedAskGrader } from './fixtures/recorded-halves.mjs'
+import { unavailableAssertion } from '../evidence.mjs'
 
 vi.mock('../grader-provider.mjs', async (original) => ({ ...await original(), askGrader: vi.fn() }))
 
@@ -382,17 +384,17 @@ const halves = { deleted: deletedHalf, renamed: renamedHalf }
 
 // A record card lets the person select either half of the decision, so the selection is the half that the read names.
 // The wording of the question never decides: a question whose words point at one half is answered with the other half
-// when the read says so, and a title word, a keep word or a negation changes nothing.
+// when the read says so, and a title word, a keep word or a negation changes nothing. The read is stubbed in these rows, so
+// they prove the selection that follows a read and nothing about what the production prompt makes the grader answer. The
+// prompt is proved by the rows that follow them, which take the answers of the live reads (recorded-halves.mjs).
 it.each([
-  ['the completed records card', 'en', 'Which two should I delete and which four should I rename?', 'deleted'],
   ['the completed records card', 'en', 'Which of the same-title habits should I delete?', 'deleted'],
   ['the completed records card', 'en', 'Which ones should I keep? The other two get deleted.', 'renamed'],
   ['the completed records card', 'pt-BR', 'Quais eu mantenho? Os outros dois serão excluídos.', 'renamed'],
   ['the completed records card', 'pt-BR', 'Mantendo quatro, qual é o par que eu apago?', 'deleted'],
   ['the completed records card', 'pt-BR', 'Quais eu não apago, e sim renomeio?', 'renamed'],
   ['the completed records card', 'en', 'Which two should I delete?', 'renamed'],
-  ['the model records card', 'pt-BR', streams.run3.card.block.question, 'deleted'],
-  ['the model records card', 'en', 'Which four get the title Water - 1.18L, and which two should I delete?', 'renamed'],
+  ['the model records card', 'en', 'Which four get the title Water - 1.18L?', 'renamed'],
 ])('answers %s in %s with the half of the Claude read, whatever the wording: %s -> %s', async (shape, locale, prompt, half) => {
   readsAs(half)
   const card = shape === 'the completed records card' ? completedRecordsCard(prompt, locale) : modelRecordsCard(prompt)
@@ -403,14 +405,36 @@ it.each([
 })
 
 it.each([
-  ['en', 'Which two should I delete and which four should I rename?', 'deleted', 'lastTwo'],
-  ['pt-BR', 'Quais quatro eu renomeio e quais dois eu apago?', 'renamed', 'firstFour'],
-])('answers the set options card in %s with the option of the half of the Claude read', async (locale, prompt, half, option) => {
+  ['pt-BR', 'Quais quatro eu renomeio?', 'renamed', 'firstFour'],
+])('answers the set options card in %s with the option of the half of a stubbed read', async (locale, prompt, half, option) => {
   readsAs(half)
   const { card, trace } = setOptionsCard(prompt)
   const answer = await sameTitleCard(shown(card, trace), cardVars(ids, locale))
   expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
   expect(sentBy(answer)).toEqual(await clientAnswer(card, [option], locale))
+})
+
+// The prompt of the card question read, proved by live reads: sameTitleCard sends the real prompt to a grader that answers only
+// the exact prompt that a live read of Opus 5.5 answered (recorded-halves.mjs), so each row fails when halfPrompt drifts from
+// the recorded prompt, and the answer of each row is what the live read returned: a question that asks about both halves
+// (the baseline card, and the run 3 card) is read as the half that it asks the person to select first.
+const deletedSelection = (card) => card.kind === 'choice' ? ['lastTwo'] : { [card.block.questions[0].id]: deletedHalf }
+it.each([
+  ['the completed records card with the baseline question that asks about both halves', 'en',
+    () => ({ card: completedRecordsCard('Six found, not seven. Which two to delete and which four to rename?', 'en'), trace: { calls: [] } })],
+  ['the model records card with the run 3 question that asks about both halves', 'pt-BR',
+    () => ({ card: modelRecordsCard(streams.run3.card.block.question), trace: { calls: [] } })],
+  ['the completed records card with the question that asks about one half', 'pt-BR',
+    () => ({ card: completedRecordsCard('Quais dois hábitos Water - 710ml você quer excluir?', 'pt-BR'), trace: { calls: [] } })],
+  ['the set options card with the baseline question that asks about both halves', 'en',
+    () => setOptionsCard('Six found, not seven. Which two to delete and which four to rename?')],
+])('answers %s with the half of the live read', async (_name, locale, cardOf) => {
+  vi.mocked(askGrader).mockReset().mockImplementation(recordedAskGrader)
+  const { card, trace } = cardOf()
+  const answer = await sameTitleCard(shown(card, trace), cardVars(ids, locale))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, deletedSelection(card), locale))
+  expect(askGrader).toHaveBeenCalledTimes(1)
 })
 
 // An unclear read is a grader limit, never a model fault: the case has no verdict on a question the grader cannot read.
@@ -446,10 +470,43 @@ it.each([
   expect(await sameTitleCard(shown(completedRecordsCard(prompt, 'en')), cardVars(ids, 'en'))).toEqual(limitOf(prompt))
 })
 
-it('reads a failed call of the grader as unclear', async () => {
+// A failed call of the grader is no evidence of the build: neither a grader limit (which closes its case on its build) nor a
+// model fault. An unclear answer of a call that succeeded stays a grader limit (the rows above).
+const failedCall = 'Claude grading failed: process exited with code 1.'
+const noEvidenceOf = (prompt) => ({ pass: false, score: 0, unavailable: true,
+  reason: `The grader call that reads the card question failed (${failedCall}): ${prompt}` })
+
+it('gives a failed call of the grader that reads a list question no evidence, never a grader limit', async () => {
   const prompt = 'Which two should I delete?'
-  vi.mocked(askGrader).mockResolvedValueOnce({ error: 'Claude grading failed: process exited with code 1.' })
-  expect(await sameTitleCard(shown(completedRecordsCard(prompt, 'en')), cardVars(ids, 'en'))).toEqual(limitOf(prompt))
+  vi.mocked(askGrader).mockResolvedValueOnce({ error: failedCall })
+  expect(await sameTitleCard(shown(completedRecordsCard(prompt, 'en')), cardVars(ids, 'en'))).toEqual(noEvidenceOf(prompt))
+})
+
+it.each([
+  ['a read of the list that succeeded', ['deleted']],
+  ['a read of the list that is unclear', ['unclear']],
+])('gives a failed call that reads a yes or no question no evidence after %s', async (_name, reads) => {
+  const confirm = 'Rename the other four to Water - 1.18L?'
+  readsAs(...reads)
+  vi.mocked(askGrader).mockResolvedValueOnce({ error: failedCall })
+  const card = withQuestion(questionCard(ids, 'Which two should I delete?'), { type: 'yesNo', prompt: confirm })
+  expect(await sameTitleCard(shown(card), cardVars(ids, 'en'))).toEqual(noEvidenceOf(confirm))
+})
+
+// A full-corpus case has no grader limit: its card read fails as an unavailable assertion, which the report counts as no
+// evidence, never as a behavior failure of the build. No answer turn is sent and no write is approved.
+it('gives a failed card question read of the full corpus an unavailable assertion and sends no answer turn', async () => {
+  boundary()
+  vi.mocked(askGrader).mockReset().mockResolvedValue({ error: failedCall })
+  const prompt = 'Which two do you want to delete?'
+  const { policy, answered, response } = await cardAttempt((children) => respond([], { parts: [questionCard(children, prompt)] }),
+    () => { throw new Error('A card whose question could not be read sent an answer turn.') })
+  expect(response.error).toBeUndefined()
+  expect(answered).toHaveLength(0)
+  const verdict = behavior(response.output, { vars: policy })
+  expect(verdict).toEqual({ pass: false, score: 0, reason: noEvidenceOf(prompt).reason, metadata: { unavailable: true } })
+  expect(unavailableAssertion(verdict)).toBe(true)
+  expect(aiWrites()).toEqual([])
 })
 
 // The card question read is one more call of the configured grader, the provider that ORBIT_EVAL_GRADER names, never a call of

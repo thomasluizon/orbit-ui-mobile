@@ -562,7 +562,7 @@ No rerun on the same build replaces a failure. An attempt that fails, fails its 
 a wrong preview, a reply without a preview and without a question card, HTTP 5xx, a stream that ends
 without a final event, or a failed approval. Only a throttle (HTTP 429), a spend ceiling
 (`AI_DAILY_BUDGET_EXCEEDED` or `AI_PROVIDER_QUOTA_EXHAUSTED`), a failed precondition, a failed rubric
-grader, a card turn without the trace that its answer needs and a preview turn without the trace that
+grader, a failed card question read, a card turn without the trace that its answer needs and a preview turn without the trace that
 shows a `stored` field are no evidence. Such an attempt leaves its case incomplete, and only such a
 case may appear again in a later window of the same build. The merge refuses a second result on one
 build for a case that passed, failed or holds a grader limit, an ordinary window of another API commit,
@@ -839,9 +839,16 @@ grader, the provider that `ORBIT_EVAL_GRADER` names, reads the question as the r
 `claude-grader.mjs` that is the same CLI, model, worker account, environment and time limit as the rubric. The prompt
 holds the question text as one quoted string, its type (a list or `yesNo`), and both halves of the
 decision by count and title. The answer is the JSON `{"half":"deleted"}`, `{"half":"renamed"}` or `{"half":"unclear"}`:
-the half that a list question asks the person to select, or that a yes to a `yesNo` question agrees to. No word list or
-regular expression reads the question. Any other answer, a malformed answer and a failed call are `unclear`. An `unclear`
-read fails the case with a grader-limit message, never a model fault, and the report names the question. A `yesNo`
+the half that a list question asks the person to select, or that a yes to a `yesNo` question agrees to. One selection of
+a list states one half, so a list question that asks about both halves is read as the half that it asks the person to select
+first (`Which two to delete and which four to rename?` is `deleted`). `unclear` stays for a question that gives no
+direction, or that names a half only by a negation or an alternative. No word list or regular expression reads the question.
+The strict shape is one key, `half`, with one of the three names: `claude-grader.mjs` retries a call whose answer has
+another shape once, as it retries a malformed rubric grade, and any other answer of a call that succeeded is `unclear`. An
+`unclear` read fails the case with a grader-limit message, never a model fault, and the report names the question. A failed
+call of the grader, or a malformed answer after its retry, gives no evidence of the build, as a failed rubric grader does: the
+core set records the attempt as `unavailable` (the kind `a failed card question read`), the full corpus records an
+unavailable assertion, and the case is neither a grader limit nor a behavior failure, so a later window runs it again. A `yesNo`
 question is answered yes only when its read is the half that the lists leave out; a read of the half that the lists state
 is a grader limit. Every `scale` or `slider` question also fails the case with a grader-limit message, with no read. The
 model-fault message stays for a card whose every question the grader reads. A run with a card case needs the grader before
@@ -1085,8 +1092,13 @@ CLI (`__tests__/fixtures/claude-grader-result.json` and `claude-grader-error.jso
 configured grader, as the rubric does: `ClaudeGrader` answers with the half schema when the provider reference carries
 `config: { schema: 'half' }` and with the rubric schema otherwise (see the card case of the same-title family), so each
 rule above holds for it: the worker account, the environment, the time limit and the retry. The offline fixture grader
-(`__tests__/fixtures/grader.mjs`) answers that read from a table keyed by the card question text of the recorded captures,
-and answers `unclear` for any other question.
+(`__tests__/fixtures/grader.mjs`) answers that read with the live answer that `__tests__/fixtures/claude-grader-half-results.json`
+records for the exact prompt (three reads of Opus 5.5 through the real CLI path on 19 November 2026: the baseline card and
+the run 3 card, which ask about both halves, and a one-action control; each entry holds the argument list, the prompt and the
+complete CLI result), from a table keyed by the question text for one other recorded one-action question, and answers
+`unclear` for any other question. A test that depends on the read of a question that asks about both halves takes the
+recorded answer (`recordedAskGrader`), which answers only the exact recorded prompt, so it fails when the prompt drifts.
+Record the three reads again after any change to `halfPrompt`.
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
 natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.

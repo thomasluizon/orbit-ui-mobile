@@ -1,4 +1,4 @@
-import { loadGrader, useConfigFolder } from './grader-provider.mjs'
+import { loadGrader, recordConfigFolder } from './grader-provider.mjs'
 
 const probe = 'Grade the answer against the rubric.\nAnswer: Water is ready.\nRubric: The answer names Water.'
 
@@ -8,7 +8,7 @@ const probe = 'Grade the answer against the rubric.\nAnswer: Water is ready.\nRu
 // resolves a relative file:// grader from there; the card question read resolves from the same folder. The grade itself
 // does not matter, only that one came back.
 export async function requireGrader(configFolder) {
-  useConfigFolder(configFolder)
+  recordConfigFolder(configFolder)
   const provider = await loadGrader(configFolder)
   const response = await provider.callApi(probe)
   if (response?.error || response?.output === undefined) {

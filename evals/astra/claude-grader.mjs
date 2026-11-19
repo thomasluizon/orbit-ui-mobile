@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { isHalfAnswer } from './half-answer.mjs'
 
 const GRADER_MODEL = 'claude-opus-5-5'
 const GRADER_TIMEOUT_MILLISECONDS = 120000
@@ -9,7 +10,7 @@ const GRADER_TIMEOUT_MILLISECONDS = 120000
 // tools/launch-worker.mjs reads. claude-grader.test.mjs holds the two names equal.
 export const WORKER_CONFIG_VARIABLE = 'ORBIT_WORKER_CLAUDE_CONFIG_DIR'
 const rubricSchema = readFileSync(new URL('./grader-schema.json', import.meta.url), 'utf8')
-// The card question read of same-title-card.mjs asks for one key, `half`, and checks the strict shape itself.
+// The card question read of same-title-card.mjs asks for one key, `half`; isHalfAnswer checks the strict shape.
 const halfSchema = JSON.stringify({ type: 'object', additionalProperties: false, properties: { half: { type: 'string' } }, required: ['half'] })
 // Each variable that the CLI selects ahead of the sign-in in its config directory starts with one of these names. The
 // worker launch removes the same variables through workerAccountEnvironment of tools/lib/orchestrator-config.mjs, and
@@ -93,7 +94,7 @@ async function askClaude(prompt, { schema, accepts, signal }) {
 // The answers that the provider gives. promptfoo passes the `config` of a provider reference to the class constructor as
 // options.config (createApiProvider, then the javascript provider factory of providers-*.js), so a caller names its answer
 // with `config: { schema: 'half' }` and a rubric call names none.
-const answers = { rubric: { schema: rubricSchema, accepts: isGrade }, half: { schema: halfSchema, accepts: () => true } }
+const answers = { rubric: { schema: rubricSchema, accepts: isGrade }, half: { schema: halfSchema, accepts: isHalfAnswer } }
 
 // A promptfoo provider for llm-rubric and for the card question read: ORBIT_EVAL_GRADER=file://<absolute path>/claude-grader.mjs.
 // It returns { output: "<JSON answer>" }, or { error } that promptfoo keeps as a grader error, so a failed call is no
