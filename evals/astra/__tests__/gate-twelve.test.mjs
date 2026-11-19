@@ -27,12 +27,11 @@ it('requires a typed prerequisite for ask and excludes it from the legacy catalo
 // Producer: AskTool.BuildFormSchema and RecordToolRound retain the model's input wrapper in the trace.
 it.each(['en', 'pt-BR'])('validates the declared choice input and rejects flat ask arguments in %s', async (locale) => {
   const clientContext = buildChatClientContext({ platform: 'web', locale })
-  const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
-  const test = corpus.find((entry) => entry.metadata.id === `composition-choice-${locale}`)
+  const expectations = { required: [{ name: 'ask', arguments: { input: { form: 'choice' } } }], allowed: ['query_habits', 'ask'] }
   const input = { form: 'choice', missing_input: 'record_selection', question: locale === 'en' ? 'Which habit?' : 'Qual hábito?',
     options: [{ id: 'water', label: 'Water', description: null }, { id: 'walk', label: 'Walk', description: null }],
     multiSelect: false, allowFreeText: true }
-  const context = { vars: { ...test.vars, clientContext, evalRequestId: 'request' }, test: { vars: {} } }
+  const context = { vars: { expectations, clientContext, evalRequestId: 'request' }, test: { vars: {} } }
   for (const arguments_ of [{ input }, input]) {
     const output = parseResponse(chatResponse('request', [habitAccountRead(true, 'read', clientContext),
       toolCall('ask', arguments_, 'Succeeded', 'call-1', clientContext)]), '',

@@ -1,29 +1,24 @@
 import { expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { parse } from 'yaml'
-import { behavior } from '../assertions.mjs'
-import { matchesArguments, matchesOperation } from '../operation-matcher.mjs'
+import { outcome } from '../client-path.mjs'
+import { readCorpus } from '../grade-method.mjs'
 import { dateOffset } from '../fixtures/reset.mjs'
-import parseResponse from '../response.mjs'
-import { toolCall, chatResponse } from './fixtures/producer.mjs'
+import { createPreview } from './fixtures/producer.mjs'
 
-const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
+const corpus = readCorpus()
 const captured = JSON.parse(readFileSync(new URL('./fixtures/medical-titles.json', import.meta.url), 'utf8'))
 const scenario = corpus.find((entry) => entry.metadata.id === 'composition-medical-batch-pt-BR')
-const expectations = JSON.parse(JSON.stringify(scenario.vars.expectations).replace(/\{accountDate([+]\d+)\}/g,
-  (_, offset) => dateOffset('2026-10-29', Number(offset))))
-const operation = expectations.required[0]
-const grade = (arguments_) => behavior(parseResponse(chatResponse('request', [
-  toolCall(captured.name, arguments_, captured.resultStatus),
-]), '', { response: { status: 200, headers: { 'x-orbit-request-id': 'request' } } }),
-{ vars: { ...scenario.vars, expectations, evalRequestId: 'request' } })
+const vars = { ...JSON.parse(JSON.stringify(scenario.vars).replace(/\{accountDate([+]\d+)\}/g,
+  (_, offset) => dateOffset('2026-10-29', Number(offset)))), accountDate: '2026-10-29' }
 
-it('accepts the captured medical batch with the person\'s pt-BR titles through the behavior gate', () => {
-  expect(grade(captured.arguments)).toMatchObject({ pass: true })
+const grade = (arguments_) => outcome({ turns: 1, questionsBeforePreview: 0, previews: [createPreview(arguments_.habits)], asked: false, written: [] }, { vars })
+
+it('accepts the captured medical batch with the person\'s pt-BR titles through the outcome grade', () => {
+  expect(grade(captured.arguments)).toMatchObject({ pass: true, reason: 'The held previews hold exactly the requested changes.' })
 })
 
 it.each(['Não ir pro Muay Thai', 'Não ir para o Muay Thai', 'Não ir ao Muay Thai'])(
-  'accepts %s in every flat and nested matcher and correction setup', (title) => {
+  'accepts %s in the flat and the nested preview and in the correction setup', (title) => {
     const flat = structuredClone(captured.arguments)
     flat.habits[3].title = title
     const nested = structuredClone(flat)
@@ -31,21 +26,15 @@ it.each(['Não ir pro Muay Thai', 'Não ir para o Muay Thai', 'Não ir ao Muay T
     for (const vitamin of ['Parar com multivitamínico', 'Não tomar multivitamínico']) {
       flat.habits[2].title = vitamin
       nested.habits[1].sub_habits[0].title = vitamin
-      expect(matchesArguments(flat, operation.arguments)).toBe(true)
-      expect(matchesArguments(flat, operation.argumentsAnyOf[0])).toBe(true)
-      expect(matchesArguments(nested, operation.argumentsAnyOf[1])).toBe(true)
-      for (const arguments_ of [flat, nested]) {
-        expect(matchesOperation({ ...captured, arguments: arguments_ }, operation)).toBe(true)
-        expect(grade(arguments_).pass).toBe(true)
-      }
+      for (const arguments_ of [flat, nested]) expect(grade(arguments_)).toMatchObject({ pass: true })
     }
     const correction = corpus.find((entry) => entry.metadata.id === 'composition-medical-correction-pt-BR')
-    expect(correction.vars.setup.expectations).toEqual(scenario.vars.expectations)
-    expect(scenario.vars.rubric).toContain('Não ir pro Muay Thai')
+    expect(correction.vars.setup.outcome).toEqual(scenario.vars.outcome)
   },
 )
 
-it.each(['wrong title', 'reversed instruction', 'vitamin title', 'start date', 'end date', 'cadence', 'avoid habit', 'exam time', 'fasting time'])(
+it.each(['wrong title', 'reversed instruction', 'vitamin title', 'start date', 'end date', 'cadence', 'avoid habit', 'exam time', 'fasting time',
+  'one more record', 'one record less'])(
   'rejects %s with otherwise accepted medical titles', (failure) => {
     const changed = structuredClone(captured.arguments)
     if (failure === 'wrong title') changed.habits[3].title = 'Não ir pro futebol'
@@ -57,6 +46,8 @@ it.each(['wrong title', 'reversed instruction', 'vitamin title', 'start date', '
     if (failure === 'avoid habit') changed.habits[3].is_bad_habit = true
     if (failure === 'exam time') changed.habits[0].due_time = '16:50'
     if (failure === 'fasting time') changed.habits[4].due_end_time = '14:30'
+    if (failure === 'one more record') changed.habits.push({ ...changed.habits[0], title: 'Beber água' })
+    if (failure === 'one record less') changed.habits.pop()
     expect(grade(changed).pass).toBe(false)
   },
 )

@@ -51,12 +51,33 @@ function schemaArguments(schema, root = schema) {
   return type === 'string' ? 'first' : type === 'boolean' ? true : 1
 }
 
+// The tool-name expectations that five cases of the first group held before they got an outcome. The tool-name grade
+// still serves the lifecycle cases and the offers, so its behavior on these shapes stays under test.
+const todayHabitArguments = [
+  { relative_period: 'today', date: { optional: '{accountDate}' } }, { relative_period: 'today', date: 'today' },
+  { date: 'today', relative_period: { optional: null } }, { date: '{accountDate}', relative_period: { optional: null } }]
+const oneHabit = (single, bulk, habitId) => ({ anyOf: [{ name: single, arguments: { habit_id: habitId } },
+  { name: bulk, argumentsAnyOf: [{ habit_ids: [habitId] }, { filter: { habit_ids: [habitId] } }] }] })
+const meditar = { title: { textContains: 'meditar' }, frequency_unit: 'Day', frequency_quantity: 1 }
+const former = {
+  'voice-en': { required: [oneHabit('log_habit', 'bulk_log_habits', '{habitId}')] },
+  'voice-pt': { required: [oneHabit('skip_habit', 'bulk_skip_habits', '{secondHabitId}')],
+    forbidden: ['log_habit', 'bulk_log_habits', 'delete_habit', 'bulk_delete_habits'] },
+  'single-read-en': { required: [{ anyOf: [{ name: 'query_habits', argumentsAnyOf: todayHabitArguments },
+    { name: 'get_daily_summary', arguments: { date_from: { optional: '{accountDate}' }, date_to: { optional: '{accountDate}' } } }] }],
+  allowed: ['query_habits', 'get_daily_summary'], forbidden: ['create_habit', 'log_habit', 'skip_habit'] },
+  'single-create-pt': { required: [{ anyOf: [{ name: 'create_habit', arguments: meditar }, { name: 'bulk_create_habits', arguments: { habits: [meditar] } }] }] },
+  'edge-free-limit-en': { allowed: ['create_habit', 'query_habits'], required: [{ name: 'create_habit',
+    arguments: { title: { textContains: 'stretch' }, frequency_unit: 'Day' }, resultStatus: 'Failed',
+    result: { success: false, payload: { errorCode: 'HABIT_LIMIT_REACHED', arguments: [1000] } } }] },
+}
+
 describe('production scenario mutation scope', () => {
   it.each([
     ['voice-en', 'bulk_log_habits', '{habitId}'],
     ['voice-pt', 'bulk_skip_habits', '{secondHabitId}'],
   ])('%s accepts one approved bulk preview for only its requested target', (id, name, habitId) => {
-    const { expectations } = scenarios.find((scenario) => scenario.metadata.id === id).vars
+    const expectations = former[id]
     for (const arguments_ of [{ habit_ids: [habitId] }, { filter: { habit_ids: [habitId] } }]) {
       expect(behavior(envelope([call(name, arguments_)]), context(expectations)).pass).toBe(true)
     }
@@ -66,7 +87,7 @@ describe('production scenario mutation scope', () => {
     expect(behavior(envelope([single, call(name, { habit_ids: [habitId] })]), context(expectations)).pass).toBe(false)
   })
   it('accepts only the named today reads, including daily summary defaults', () => {
-    const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'single-read-en').vars
+    const expectations = former['single-read-en']
     for (const [name, arguments_] of [
       ['get_daily_summary', {}], ['query_habits', { date: 'today' }], ['query_habits', { date: '{accountDate}' }], ['get_daily_summary', { date_from: null, date_to: null }],
       ['get_daily_summary', { date_from: '{accountDate}', date_to: '{accountDate}', generate_narrative: false }],
@@ -79,7 +100,7 @@ describe('production scenario mutation scope', () => {
   })
 
   it('accepts one Meditar create through either tool and rejects extra targets or calls', () => {
-    const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'single-create-pt').vars
+    const expectations = former['single-create-pt']
     const habit = { title: 'Meditar', frequency_unit: 'Day', frequency_quantity: 1 }
     const single = call('create_habit', habit)
     const bulk = call('bulk_create_habits', { habits: [habit] })
@@ -96,7 +117,7 @@ describe('production scenario mutation scope', () => {
     for (const tool of catalog) expect(typeof tool.writes, tool.function.name).toBe('boolean')
   })
 
-  it.each(scenarios.filter((scenario) => !scenario.vars.refine && !scenario.metadata.family?.startsWith('offers-')).map((scenario) => [scenario.metadata.id, scenario.vars]))(
+  it.each(scenarios.filter((scenario) => scenario.vars.expectations && !scenario.vars.refine && !scenario.metadata.family?.startsWith('offers-')).map((scenario) => [scenario.metadata.id, scenario.vars]))(
     '%s accepts its operations and rejects an extra valid write', async (id, vars) => {
       const retrospective = retrospectiveResponse(true)
       vars = JSON.parse(JSON.stringify(vars).replaceAll('{accountDate}', retrospective.dateTo)
@@ -126,7 +147,7 @@ describe('production scenario mutation scope', () => {
   )
 
   it('rejects every catalog mutation in a production read scenario', async () => {
-    const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'single-read-en').vars
+    const expectations = former['single-read-en']
     for (const tool of catalog.filter((tool) => tool.writes)) {
       const arguments_ = ['bulk_log_habits', 'bulk_skip_habits', 'bulk_delete_habits'].includes(tool.function.name)
         ? { habit_ids: ['other'] } : schemaArguments(tool.function.parameters)
@@ -144,7 +165,7 @@ describe('production scenario mutation scope', () => {
   })
 
   it('requires the typed free-limit refusal and rejects a held preview or extra target', () => {
-    const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'edge-free-limit-en').vars
+    const expectations = former['edge-free-limit-en']
     const failure = call('create_habit', { title: 'Stretch', frequency_unit: 'Day' }, { resultStatus: 'Failed' })
     failure.result = { ...capacityFailureCall().result, id: failure.id }
     expect(behavior(envelope([]), context(expectations)).pass).toBe(false)
