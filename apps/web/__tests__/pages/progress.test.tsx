@@ -1169,7 +1169,7 @@ describe('ProgressContent', () => {
     expect(screen.getAllByTestId('progress-locked-card')).toHaveLength(1)
     const card = screen.getByTestId('progress-locked-card')
     expect(within(card).getAllByRole('link')).toHaveLength(1)
-    expect(within(card).getByRole('link')).toHaveAttribute('href', '/upgrade')
+    expect(within(card).getByRole('link')).toHaveAttribute('href', '/upgrade?from=%2Fprogress')
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)

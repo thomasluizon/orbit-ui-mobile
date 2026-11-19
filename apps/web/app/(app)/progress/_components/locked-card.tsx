@@ -15,7 +15,7 @@ export function LockedCard({ title, body, action }: Readonly<{ title: string; bo
         <p className="text-[16px] font-medium text-[var(--fg-1)]">{title}</p>
         <p className="text-[14px] text-[var(--fg-3)]">{body}</p>
       </div>
-      <PillLink href="/upgrade" variant="ghost" size="sm">{action}</PillLink>
+      <PillLink href="/upgrade?from=%2Fprogress" variant="ghost" size="sm">{action}</PillLink>
     </div>
   )
 }

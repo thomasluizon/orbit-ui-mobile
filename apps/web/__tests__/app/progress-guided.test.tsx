@@ -176,7 +176,7 @@ describe('Progresso root with orbit_guided_flows on', () => {
     mocks.retrospective = { isLoading: false, isError: true, error: createApiClientError(403, { errorCode: 'PAY_GATE' }, 'Pro') }
     const { container } = renderIn('en', <ProgressContent />)
     expect(screen.getByTestId('progress-locked-card')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: en.progressScreen.window.lockedAction })).toHaveAttribute('href', '/upgrade')
+    expect(screen.getByRole('link', { name: en.progressScreen.window.lockedAction })).toHaveAttribute('href', '/upgrade?from=%2Fprogress')
     expect(orbitLine(container)).toBeNull()
     expect(container.querySelector('[data-orbit-state="feliz"]')).toBeNull()
   })
@@ -387,7 +387,7 @@ describe('Sequência with orbit_guided_flows on', () => {
     mocks.canView = false
     const { container } = renderIn('en', <ProgressContent screen="streak" />)
     expect(screen.getByTestId('progress-locked-card')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: en.progressScreen.streak.lockedAction })).toHaveAttribute('href', '/upgrade')
+    expect(screen.getByRole('link', { name: en.progressScreen.streak.lockedAction })).toHaveAttribute('href', '/upgrade?from=%2Fprogress')
     expect(container.querySelector('[data-orbit-state="feliz"]')).toBeNull()
     expect(container.querySelector('[data-streak-orbit-line]')).toBeNull()
   })
