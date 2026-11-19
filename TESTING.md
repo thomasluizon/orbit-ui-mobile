@@ -1100,12 +1100,12 @@ complete CLI result), from a table keyed by the question text for one other reco
 recorded answer (`recordedAskGrader`), which answers only the exact recorded prompt, so it fails when the prompt drifts.
 Record the three reads again after any change to `halfPrompt`.
 
-The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
-natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.
+The budget case (`budget-cap-en`) expects HTTP 403 with the verified `PAY_GATE` error code and ends
+with `outcome: { refusal: true }`, so its outcome grade checks the status and the code of the refusal. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.
 The HTTP provider wrapper removes transport status from promptfoo's run-wide abort check for every
 response, retaining it as `metadata.astraHttpStatus` and in the private attempt report. HTTP errors
 fail their own attempts while later cases continue. Rate-limit responses disable scheduler retries.
-Only an expected, request-bound `PAY_GATE` refusal can pass the budget assertions.
+Only the expected `PAY_GATE` refusal passes the budget case.
 A block-only answer may omit `aiMessage` or return it empty.
 Authentication errors, unrelated refusals, throttling, and transport failures cannot pass as a
 budget refusal. The corpus does not infer a successful mutation from a plausible answer.
@@ -1188,7 +1188,7 @@ bulk calls and loops over single-entity tools. Each catalog entry declares `writ
 write must match a `required` operation's tool name and arguments, including its target.
 Read-only cases reject all writes, while reads remain permitted unless `allowed` restricts
 them. `permittedMutations` declares optional writes with the same argument matching, such as
-the capacity case's Stretch proposal; allowing a tool name alone never authorizes a write. Each
+the delete and update writes that `same-title-card-en` permits; allowing a tool name alone never authorizes a write. Each
 declared operation permits one call; duplicate writes fail even without a `counts` entry.
 `argumentsAnyOf` accepts verified alternative argument forms, such as the bulk tools'
 `habit_ids` and `filter.habit_ids` inputs. Their catalog schemas require exactly one non-null

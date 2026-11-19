@@ -430,6 +430,10 @@ describe('the kinds that the change list gained', () => {
       expect(grade(wrapped([water, walk], [edit, {}]))).toMatchObject({ pass: false })
     })
 
+    it('skips a reused parent on the core path, as before, even when the wrapper edits it', () => {
+      expect(changeList([wrapped([water, walk], [{ emoji: '💊' }, {}])], []).changes).toEqual([])
+    })
+
     it('fails an edit of the second reused parent', () => {
       expect(grade(wrapped([water, walk], [{}, { emoji: '💊' }]))).toMatchObject({ pass: false })
     })
