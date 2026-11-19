@@ -210,15 +210,20 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    `tools/lib/readiness-receipt.mjs` states. Any other conclusion fails, and `CANCELLED` and `TIMED_OUT`
    are included. A check that ran more than once at the same head, as `PR Metadata` does after an
    edit or a label, keeps every run in the rollup: read only the newest entry of each `name` by
-   `startedAt`, as `newestChecks` in that file does. Read the checks that the own base branch
-   requires with `gh api repos/<owner>/<repo>/branches/<baseRefName>/protection/required_status_checks`.
-   Each `checks[].context` is a required `name`. A required check has no entry when no newest entry
-   carries its `name`. A retarget does not start the full checks: they run on the first push after it.
-   When this read fails, say that the required checks could not be read. Those newest entries,
-   `isDraft` and the required checks say what holds the work. For the stacked row, run the base-chain walk of step 3 from the own `baseRefName`
-   of that pull request. A walk that ends at that same branch means the pull request is not stacked.
-   A walk that cannot resolve is not a wait: a parent that closed with nothing merged never merges, so
-   say the work needs a new base, and a cycle or two open rows is the ambiguity that step 3 names.
+   `startedAt`, as `newestChecks` in that file does. For the stacked row, run the base-chain walk
+   of step 3 from the own `baseRefName` of that pull request. A walk that ends at that same branch
+   means the pull request is not stacked. A walk that cannot resolve is not a wait:
+   a parent that closed with nothing merged never merges, so say the work needs a new base, and a
+   cycle or two open rows is the ambiguity that step 3 names. Only for a pull request that is not stacked, read
+   the checks that its base branch requires with
+   `gh api repos/<owner>/<repo>/branches/<baseRefName>/protection/required_status_checks`, where
+   `<owner>/<repo>` is the entry of `repos` in `.claude/orchestrator.json`. A stacked base has no
+   branch protection, so this read answers 404 for it: a stacked row skips the read, because its
+   row already says what holds it. Each `checks[].context` is a required `name`. A required check
+   has no entry when no newest entry carries its `name`. A retarget does not start the full checks:
+   they run on the first push after it. When the read fails for a pull request that is not stacked,
+   say that the required checks could not be read. Those newest entries, `isDraft` and the required
+   checks say what holds the work.
    Use the first row that applies:
 
    | the row shows | what holds the work |
