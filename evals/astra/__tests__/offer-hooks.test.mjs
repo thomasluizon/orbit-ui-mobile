@@ -6,6 +6,7 @@ import { parse } from 'yaml'
 import { beforeAll, beforeEach } from '../hooks.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
+import { offlineGrader } from './fixtures/grader.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 
@@ -118,7 +119,7 @@ it.each(['valid', 'wrong-trace', 'wrong-offer', 'dismiss-failed', 'fixture-faile
 
 it('stops an offer run before HTTP when the committed catalog lacks producer variants', async () => {
   offlineCredentials()
-  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
   const fetch = vi.fn()
   catalogFault.missing = true
   vi.stubGlobal('fetch', fetch)
