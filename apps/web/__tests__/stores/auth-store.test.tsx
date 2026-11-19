@@ -19,7 +19,7 @@ import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
 import { SUPPORT_DRAFT_STORAGE_KEY } from '@/lib/support-draft-storage'
 import {
-  getFailedNotificationDeleteIdsSnapshot,
+  getNotificationDeleteNoticeSnapshot,
   getPendingNotificationDeleteIdsSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
@@ -723,12 +723,12 @@ describe('auth store', () => {
       useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
       queuePendingNotificationDelete('account-a-notification', executeDelete)
       vi.advanceTimersByTime(5000)
-      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['account-a-notification'])
+      expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'account-a-notification' })
 
       await useAuthStore.getState().logout()
       useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b' }))
 
-      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(getNotificationDeleteNoticeSnapshot()?.kind).not.toBe('failed')
       expect(retryFailedNotificationDelete('account-a-notification')).toBe(false)
       expect(executeDelete).toHaveBeenCalledTimes(1)
     } finally {

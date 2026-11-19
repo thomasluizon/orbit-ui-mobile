@@ -21,7 +21,7 @@ import { getAuthReturnUrlAttempt, getStoredAuthReturnUrl, getStoredReferralCode 
 import RootLayout from '@/app/_layout'
 import { Shell412 } from '@/components/shell/shell-412'
 import {
-  getFailedNotificationDeleteIdsSnapshot,
+  getNotificationDeleteNoticeSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
   subscribePendingNotificationDeleteIds,
@@ -163,16 +163,14 @@ vi.mock('@/components/onboarding/onboarding-actions-context', async (importOrigi
 }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({
   NotificationDeleteNotice: () => {
-    const failedIds = useSyncExternalStore(
+    const notice = useSyncExternalStore(
       subscribePendingNotificationDeleteIds,
-      getFailedNotificationDeleteIdsSnapshot,
-      getFailedNotificationDeleteIdsSnapshot,
+      getNotificationDeleteNoticeSnapshot,
+      getNotificationDeleteNoticeSnapshot,
     )
-    return failedIds.map((id) => React.createElement(
-      Text,
-      { key: id },
-      "Couldn't delete that alert. Try again.",
-    ))
+    return notice?.kind === 'failed'
+      ? React.createElement(Text, null, "Couldn't delete that alert. Try again.")
+      : null
   },
 }))
 vi.mock('@/components/navigation/destination-tab-bar', () => ({

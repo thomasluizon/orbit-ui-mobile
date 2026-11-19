@@ -14,7 +14,8 @@ import TodayScreen from '@/app/(tabs)/index'
 import RootLayout from '@/app/_layout'
 import { Shell412 } from '@/components/shell/shell-412'
 import {
-  getFailedNotificationDeleteIdsSnapshot,
+  dismissNotificationDeleteNotices,
+  getNotificationDeleteNoticeSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
   subscribePendingNotificationDeleteIds,
@@ -218,16 +219,14 @@ vi.mock('@/hooks/use-retained-onboarding-guard', () => ({
 
 vi.mock('@/components/navigation/notification-delete-notice', () => ({
   NotificationDeleteNotice: () => {
-    const failedIds = useSyncExternalStore(
+    const notice = useSyncExternalStore(
       subscribePendingNotificationDeleteIds,
-      getFailedNotificationDeleteIdsSnapshot,
-      getFailedNotificationDeleteIdsSnapshot,
+      getNotificationDeleteNoticeSnapshot,
+      getNotificationDeleteNoticeSnapshot,
     )
-    return failedIds.map((id) => React.createElement(
-      Text,
-      { key: id },
-      "Couldn't delete that alert. Try again.",
-    ))
+    return notice?.kind === 'failed'
+      ? React.createElement(Text, null, "Couldn't delete that alert. Try again.")
+      : null
   },
 }))
 vi.mock('@/components/navigation/destination-tab-bar', () => ({
@@ -689,6 +688,18 @@ describe('Wrapped root shell', () => {
     const tree = await renderRoot()
 
     expect(findByTestId(tree, 'shell-bottom')).toHaveLength(0)
+    expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
+  })
+
+  it('mounts the delete notice only while a delete owns the toast', async () => {
+    routeState.pathname = '/chat'
+    routeState.segments = ['chat']
+    const tree = await renderRoot()
+    await TestRenderer.act(() => { queuePendingNotificationDelete('notif-1', () => {}) })
+    expect(findByTestId(tree, 'shell-notice')).toHaveLength(1)
+
+    await TestRenderer.act(() => { dismissNotificationDeleteNotices() })
+
     expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
   })
 
