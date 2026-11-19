@@ -96,4 +96,14 @@ describe('notification delete notice', () => {
     expect(toastCount()).toBe(1)
     expect(tree.root.findAllByProps({ accessibilityLabel: 'notifications.deleteUndo' }).length).toBeGreaterThan(0)
   })
+  it('does not bring an older failed delete back when the newer undo ends', async () => {
+    queue('failing', vi.fn().mockRejectedValue(new Error('Unavailable')))
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(toastCount()).toBe(1)
+
+    queue('newest', vi.fn())
+    press('notifications.deleteUndo')
+
+    expect(toastCount()).toBe(0)
+  })
 })

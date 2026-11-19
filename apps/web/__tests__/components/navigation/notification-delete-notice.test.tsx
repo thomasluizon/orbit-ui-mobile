@@ -99,4 +99,15 @@ describe('notification delete notice', () => {
     expect(screen.getAllByRole('group')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'notifications.deleteUndo' })).toBeInTheDocument()
   })
+  it('does not bring an older failed delete back when the newer undo ends', async () => {
+    await renderNotice()
+    act(() => { queuePendingNotificationDelete('failing', vi.fn().mockRejectedValue(new Error('Unavailable'))) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(screen.getByRole('button', { name: 'common.retry' })).toBeInTheDocument()
+
+    act(() => { queuePendingNotificationDelete('newest', vi.fn()) })
+    fireEvent.click(screen.getByRole('button', { name: 'notifications.deleteUndo' }))
+
+    expect(screen.queryByRole('group')).toBeNull()
+  })
 })

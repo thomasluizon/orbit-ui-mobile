@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  FAILED_DELETE_NOTICE_LIFE_MS,
   cancelPendingNotificationDelete,
   clearPendingNotificationDeletes,
   clearFailedNotificationDeletes,
@@ -178,7 +179,7 @@ describe('pending notification deletes', () => {
     expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['notif-1'])
     const unsubscribe = subscribePendingNotificationDeleteIds(subscriber)
 
-    await vi.advanceTimersByTimeAsync(60000)
+    await vi.advanceTimersByTimeAsync(FAILED_DELETE_NOTICE_LIFE_MS - 1)
     expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['notif-1'])
 
     expect(dismissFailedNotificationDelete('notif-1')).toBe(true)
@@ -248,17 +249,62 @@ describe('pending notification deletes', () => {
     expect(getNotificationDeleteNoticeSnapshot()).toBeNull()
   })
 
-  it('keeps only the newest failed delete and shows it after the pending notice ends', () => {
-    queuePendingNotificationDelete('first', () => { throw new Error('boom') })
-    queuePendingNotificationDelete('second', () => { throw new Error('boom') })
+  it('never gives the toast back to an older failed delete when a newer delete ends', () => {
+    queuePendingNotificationDelete('a', () => { throw new Error('boom') })
     vi.advanceTimersByTime(5000)
-    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['second'])
-    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'second' })
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'a' })
 
-    queuePendingNotificationDelete('third', vi.fn())
-    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'third' })
-    cancelPendingNotificationDelete('third')
-    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'second' })
+    queuePendingNotificationDelete('b', vi.fn())
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'b' })
+    cancelPendingNotificationDelete('b')
+    expect(getNotificationDeleteNoticeSnapshot()).toBeNull()
+
+    queuePendingNotificationDelete('c', vi.fn())
+    vi.advanceTimersByTime(5000)
+    expect(getNotificationDeleteNoticeSnapshot()).toBeNull()
   })
 
+  it('shows the newest failed delete when two deletes fail', () => {
+    queuePendingNotificationDelete('a', () => { throw new Error('boom') })
+    queuePendingNotificationDelete('b', () => { throw new Error('boom') })
+    vi.advanceTimersByTime(5000)
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['a', 'b'])
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'b' })
+    expect(retryFailedNotificationDelete('b')).toBe(true)
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'b' })
+  })
+
+  it('keeps a pending undo when an older delete fails behind it', () => {
+    queuePendingNotificationDelete('a', () => { throw new Error('boom') })
+    vi.advanceTimersByTime(3000)
+    queuePendingNotificationDelete('b', vi.fn())
+    vi.advanceTimersByTime(2000)
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['a'])
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'b' })
+  })
+
+  it('ends a failed delete whose toast was replaced when its own life is over', () => {
+    queuePendingNotificationDelete('a', () => { throw new Error('boom') })
+    vi.advanceTimersByTime(5000)
+    queuePendingNotificationDelete('b', vi.fn())
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['a'])
+
+    vi.advanceTimersByTime(FAILED_DELETE_NOTICE_LIFE_MS - 1)
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['a'])
+    vi.advanceTimersByTime(1)
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+    expect(retryFailedNotificationDelete('a')).toBe(false)
+  })
+
+  it('leaves the life of the failed toast to the toast and ends it when it loses the toast', () => {
+    queuePendingNotificationDelete('a', () => { throw new Error('boom') })
+    vi.advanceTimersByTime(5000)
+    vi.advanceTimersByTime(FAILED_DELETE_NOTICE_LIFE_MS * 2)
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'a' })
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['a'])
+
+    queuePendingNotificationDelete('b', vi.fn())
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'b' })
+  })
 })
