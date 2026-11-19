@@ -500,3 +500,78 @@ describe('the brain dump previews that repeat or reuse a record', () => {
       expect((await brainDump(id, [...items, reused], { outcome: withoutKey(id, 'reuses') })).verdict.pass, 'without reuses').toBe(true)
     })
 })
+
+// The question turn of a case that asks first is not the turn that holds the preview, so the grade of its layout reads the
+// question turns that the conversation recorded. The eight cases that state `allowQuestion` are the cases that ask.
+const askingCases = corpus.filter((entry) => entry.vars.composition?.allowQuestion === true).map((entry) => entry.metadata.id)
+const asksWithCard = (id) => id.includes('-card-')
+const questionTurn = (id) => asksWithCard(id) ? answered[0] : recordsCard(recordsQuestion(children))
+const previewTurn = (id) => asksWithCard(id) ? answered[1] : thirdRename
+const habitListPart = { type: 'block', kind: 'habitList', block: { scope: 'today', totalCount: 1,
+  items: [{ id: 'water', title: 'Water', emoji: null, depth: 0, isBadHabit: false, status: 'today' }] } }
+const besideTheCard = [
+  ['a second block', (turn) => ({ ...turn, parts: [...turn.parts, habitListPart] })],
+  ['two lines of prose', (turn) => ({ ...turn, aiMessage: 'First line.\nSecond line.', parts: [{ type: 'text', text: 'First line.\nSecond line.' }, ...turn.parts] })],
+]
+
+describe('the question turn of a case that asks first', () => {
+  it('is each of the eight same-title cases that ask, in both locales', () => {
+    expect(askingCases).toHaveLength(8)
+    expect(askingCases.every((id) => lifecycle.some((entry) => entry.metadata.id === id))).toBe(true)
+  })
+
+  it.each(askingCases)('passes %s when its question is one card', async (id) => {
+    const { vars, response } = await attempt(id, { replies: [questionTurn(id), previewTurn(id)], habits: sameTitleHabits, records: sameTitleRecords })
+    expect(await composition(response.output, { vars })).toMatchObject({ pass: true })
+  })
+
+  it.each(askingCases.flatMap((id) => besideTheCard.map(([name, change]) => [id, name, change])))(
+    'fails %s for a question turn with %s beside the card, and passes once the case allows no question', async (id, _name, change) => {
+      const { vars, response } = await attempt(id, { replies: [change(questionTurn(id)), previewTurn(id)], habits: sameTitleHabits, records: sameTitleRecords })
+      expect(await composition(response.output, { vars })).toMatchObject({ pass: false,
+        reason: 'The question before the preview: A question before the preview must be one choice or question card, or one to three short lines.' })
+      const silent = structuredClone(vars)
+      delete silent.composition.allowQuestion
+      expect((await composition(response.output, { vars: silent })).pass, 'without allowQuestion').toBe(true)
+    })
+})
+
+// The carriers of the checks of the deleted lifecycle modules that no row of a case names: the account that the held preview
+// changed before the approval, the failed gate that stops the approval, and the conversation that the approval runs in. Each
+// row drives the real case through the provider path.
+const heldChangedAccount = {
+  'same-title-card-en': { replies: answered, habits: sameTitleHabits, records: sameTitleRecords,
+    accountHabits: sameTitleHabits.map((habit, index) => index === 2 ? { ...habit, title: 'Water - 1.18L' } : habit) },
+  'brain-dump-mixed-en': { replies: [turnOf({ pendingOperations: [previewOf('createHabits', [dentist, stretch])] })], habits: brainHabits,
+    records: { water }, accountHabits: [...brainHabits, storedHabit('44444444-4444-4444-8444-444444444444', 'Call the dentist')] },
+}
+const failedGate = {
+  'same-title-whole-en': { replies: [withPreview(combined(renames.map((item) => itemOf(item.entityId, item.entityName, { title: [item.entityName, 'Water - 1L'] }))))],
+    habits: sameTitleHabits, records: sameTitleRecords },
+  'brain-dump-mixed-en': { replies: [turnOf({ pendingOperations: [previewOf('createHabits', [dentist])] })], habits: brainHabits, records: { water } },
+}
+const approvedPaths = (fixture) => fixture.calls.map((call) => call.path.split('/').at(-1)).filter((path) => ['confirm', 'execute'].includes(path))
+
+describe('the carriers of the deleted checks of the lifecycle modules', () => {
+  it.each(Object.entries(heldChangedAccount))('fails %s when the held preview changed the account, and approves nothing', async (id, setup) => {
+    const { verdict, fixture } = await attempt(id, setup)
+    expect(verdict).toMatchObject({ pass: false, reason: 'The held preview changed the account before its approval.' })
+    expect(approvedPaths(fixture)).toEqual([])
+  })
+
+  it.each(Object.entries(failedGate))('stops %s at its failed preview grade before any approval', async (id, setup) => {
+    const { verdict, fixture } = await attempt(id, setup)
+    expect(verdict.pass).toBe(false)
+    expect(verdict.reason).not.toBe('The saved state matches the approved changes.')
+    expect(approvedPaths(fixture)).toEqual([])
+  })
+
+  it.each([['same-title-card-en', { replies: answered, habits: sameTitleHabits, records: sameTitleRecords }],
+    ['brain-dump-mixed-en', { replies: [turnOf({ pendingOperations: [previewOf('createHabits', [dentist, stretch])] })], habits: brainHabits, records: { water } }],
+  ])('approves %s in the conversation of its first response', async (id, setup) => {
+    const { fixture, conversations } = await attempt(id, setup)
+    const execute = fixture.calls.find((call) => call.path.endsWith('/execute'))
+    expect(conversations[0].conversationId).toEqual(expect.any(String))
+    expect(execute.body.clientContext.conversationId).toBe(conversations[0].conversationId)
+  })
+})

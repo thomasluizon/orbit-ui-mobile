@@ -131,7 +131,7 @@ local run is the only live run of the corpus. A case holds one grade method (`gr
 A case with `vars.outcome` runs on the client path (`POST /api/chat/stream`, with a conversation id) and gets the outcome
 grade of the core set: no tool name is graded. A case with `vars.expectations` runs on `POST /api/chat` and grades
 request-bound tool evidence against `catalog.yaml`. No case of the launch corpus holds `expectations` now, and the
-tool-name functions stay until the old assistant path is deleted. Every family holds an `outcome` on the client path. Merge its
+tool-name functions stay until the old assistant path is deleted. Every family holds an `outcome` on the client path, except that the two `suggestions-refine` cases hold it in `setup.outcome` only: `refineResult` grades their refine turn. Merge its
 window summaries in chronological order with `node merge-reports.mjs`; a continuation replaces only incomplete case
 entries. `--rerun` declares the single permitted rerun of a failed case after a fix; a rerun on the same build never
 replaces a failure. Follow `TESTING.md` `### Daily windows and combined report` for the exact commands.

@@ -211,7 +211,18 @@ export function composition(output, context) {
       && context.vars.clientContext?.supportsParts !== true && shortLines(response.aiMessage, 3, false)
       ? result(true, 'Verified concise legacy moderation refusal.') : result(false, 'Unexpected moderation refusal.')
   }
-  return partsComposition(parsed, expected, context.vars)
+  return questionTurnFailure(parsed, expected, context.vars) ?? partsComposition(parsed, expected, context.vars)
+}
+
+// The layout of each question turn that a conversation held before the preview of a case that allows one question first:
+// `runCase` (core/conversation.mjs) keeps the response of each such turn, as the final turn holds the preview alone.
+function questionTurnFailure(parsed, expected, vars) {
+  if (expected.mode !== 'preview' || expected.allowQuestion !== true) return null
+  for (const response of parsed.questionResponses ?? []) {
+    const asked = partsComposition({ ...parsed, composition: response }, expected, vars)
+    if (!asked.pass) return { ...asked, reason: `The question before the preview: ${asked.reason}` }
+  }
+  return null
 }
 
 // The ordered parts of an answer: their blocks, their prose, and the layout that the scenario's mode expects.
@@ -247,7 +258,8 @@ function partsComposition(parsed, expected, vars) {
   }
   const outcome = (response.actions?.length ?? 0) > 0 || (response.policyDenials?.length ?? 0) > 0
     || (response.operations ?? []).some((operation) => ['Failed', 'Denied', 'UnsupportedByPolicy'].includes(operation.status))
-  // A preview case may allow one question first; the HTTP provider answers it and grades the answer turn's preview.
+  // A preview case may allow one question first. On the client path the turn that holds the preview is the final turn, and
+  // `questionTurnFailure` grades each earlier question turn; this branch grades a case whose last turn is still a question.
   if (expected.mode === 'preview' && expected.allowQuestion === true && !pending.length && !outcome) {
     const question = blocks.length ? blocks.length === 1 && ['choice', 'question'].includes(blocks[0].kind) && (!external || shortLines(external, 1, false))
       : shortLines(response.aiMessage, 3, false)

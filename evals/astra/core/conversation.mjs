@@ -104,6 +104,9 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
     const question = questionOf(turn, expected)
     if (!question.pass) { output.answerFailure = question.reason; break }
     output.questionsBeforePreview++
+    // The final turn holds the preview, so each question turn keeps its response for the layout grade of composition.mjs.
+    output.questionResponses ??= []
+    output.questionResponses.push(turn.response)
     if (output.questionsBeforePreview > maxQuestions) break
     if (output.turns < typed.length) { attempted = typedMessage(output.turns); continue }
     const answer = await answerQuestion(turn, vars)

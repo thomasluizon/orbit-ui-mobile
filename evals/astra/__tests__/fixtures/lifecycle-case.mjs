@@ -86,13 +86,15 @@ export async function attempt(id, { replies, held = replies.at(-1).pendingOperat
   const vars = preparedCase(id, { records, habits, ...extra })
   const fixture = account(accountHabits, held, { confirmsAfterRevise, savesOnRevise })
   const sent = []
+  const conversations = []
   let turn = 0
-  const send = async (_conversation, attempted) => {
+  const send = async (conversation, attempted) => {
     sent.push(attempted)
+    conversations.push(conversation)
     return { kind: 'final', response: replies[turn++], requestId, responseRequestId: requestId, trace: null }
   }
   const response = await runOutcomeCase(vars, { send, api: fixture.api })
-  return { vars, sent, response, fixture, verdict: response.output ? outcome(response.output, { vars }) : { pass: false, reason: response.error } }
+  return { vars, sent, conversations, response, fixture, verdict: response.output ? outcome(response.output, { vars }) : { pass: false, reason: response.error } }
 }
 
 // Producer: orbit-api PendingOperationChangePreviewer. A bulk write previews each record as one item, with one row for

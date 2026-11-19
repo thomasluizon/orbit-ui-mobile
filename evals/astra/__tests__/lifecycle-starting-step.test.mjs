@@ -210,6 +210,18 @@ describe.each(['en', 'pt-BR'])('a save case of a starting step in %s', (locale) 
     expect(outcome(response.output, { vars }).pass).toBe(false)
   })
 
+  it.each([['save-task', saveTask], ['save-checklist', saveChecklist]])('fails the %s approval when the held preview changed the account, and approves nothing', async (_name, id) => {
+    const { vars, block } = await prepare(id)
+    const step = block.suggestion.step
+    const held = id === saveTask ? taskHeld(step) : [previewOf('updateChecklist', [itemOf(water, 'Water', { habit_id: [null, water],
+      checklist_items: [JSON.stringify(checklist.map(({ text, isChecked }) => ({ text, is_checked: isChecked }))),
+        JSON.stringify([...checklist.map(({ text, isChecked }) => ({ text, is_checked: isChecked })), { text: step, is_checked: false }]), 'array'] })])]
+    const fixture = account([...habits, storedHabit('44444444-4444-4444-8444-444444444444', 'Written before the approval')], held)
+    const response = await runOutcomeCase(vars, { send: asSent({ vars }, turnOf({ pendingOperations: held })), api: fixture.api })
+    expect(outcome(response.output, { vars })).toMatchObject({ pass: false, reason: 'The held preview changed the account before its approval.' })
+    expect(fixture.calls.map((call) => call.path.split('/').at(-1))).not.toContain('execute')
+  })
+
   // Producer: PreviewChecklistAppendAsync merges the added item into checklist_items, and AgentArgumentPreview.Build gives
   // the row the canonical JSON of the full list and the habit_id row.
   const checklistPreview = (items) => [previewOf('updateChecklist', [itemOf(water, 'Water', { habit_id: [null, water],

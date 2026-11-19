@@ -1019,7 +1019,10 @@ then approves the preview and reads the set back. The persisted children must sh
 ones retitled and the rest unchanged. A case with no `questions` form allows no question before the preview.
 
 A card case adds `answer.sameTitle` (the decided `deleted` and `renamed` positions) and `answer.text` (the typed answer
-in each locale), with `outcome.questions` and `composition.allowQuestion`. When the first turn asks, each option stands for the records its `ask` call declares
+in each locale), with `outcome.questions` and `composition.allowQuestion`. `composition.allowQuestion` grades the layout of each
+question turn that the conversation held before the preview (one `choice` or `question` card, or one to three short lines):
+`core/conversation.mjs` keeps each such response in `questionResponses`, because the final turn holds the preview alone.
+When the first turn asks, each option stands for the records its `ask` call declares
 in `target_ids`. An option that declares none stands for its own id when that id is a nonempty GUID, in the order of
 the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
 and one selection the card allows must state the whole decision. A list that can hold only one half is answered with that
@@ -1608,8 +1611,9 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    one `choice` or `question` card. The API sends a `question` card for the same intent: it folds only one short
    `singleChoice` question into a choice, and it sends a record card over more than four records as a
    question. Other block kinds, multiple blocks and pending writes fail this policy. A case with
-   `answer.sameTitle` also needs its card to offer each stored child as a separate option, and the outcome grade reads
-   that rule (`same-title-card.mjs`).
+   `answer.sameTitle` also needs its card to hold the answer, through a record option or a set option for each stored child
+   (`same-title-card.mjs`). The rule that a card offers each child as a separate option is `answer.separate: children`, which
+   `core/answers.mjs` reads.
 3. Regenerate `catalog.yaml` from a settled API checkout with
    `node evals/astra/generate-catalog.mjs <orbit-api checkout>`. This requires the API's .NET SDK
    and restored package access. The exporter builds into a private temporary artifacts directory,
