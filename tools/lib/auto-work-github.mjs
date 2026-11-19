@@ -575,9 +575,11 @@ export const CLOSING_FLAGS = Object.fromEntries(Object.entries(CLOSINGS).map(([a
 
 /**
  * Closes an open alert on GitHub with the request of its receipt action and kind, then records its mark. A failed write records nothing.
+ * Only the active auto-work run closes an alert: intakeRun refuses any other session before the GitHub write.
  * The comment names the ticket that holds the analysis or the confirmation; it stays below the 280-character limit.
  */
 export const closeAlert = async (action, receipt, { repositories, write, repoRoot = REPO_ROOT }) => {
+  intakeRun(repoRoot)
   const closing = { ...receipt, action }
   const alert = receiptItem("alerts", sourceOf(readIntake(repoRoot), "alerts"), closing)
   const slug = repositories.find((repository) => repository.key === alert.repository)?.slug

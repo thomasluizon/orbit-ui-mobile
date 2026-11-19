@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { readIntake } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
@@ -279,4 +279,20 @@ esac
 
   const foreign = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, CLAUDE_CODE_SESSION_ID: "foreign" } })
   T("github cli: another session cannot write the intake", foreign.status === 1 && foreign.stderr.includes("No matching active auto-work run"), foreign.stderr)
+
+  /* Another session refuses each closing before its GitHub write: no patch file appears for the alert it names. */
+  const open = readIntake(installation.base)
+  seedIntake(installation.base, { ...open, alerts: { ...open.alerts,
+    open: { ...open.alerts.open,
+      "ui code-scanning 77": { key: "ui code-scanning 77", read: "ui code-scanning", repository: "ui", kind: "code-scanning", number: 77 },
+      "landing secret-scanning 5": { key: "landing secret-scanning 5", read: "landing secret-scanning", repository: "landing", kind: "secret-scanning", number: 5 } },
+    marks: { ...open.alerts.marks, "landing secret-scanning 5": { action: "reported", ticket: CLOSED_TICKET_URL, stateReason: "COMPLETED" } } } })
+  const foreignClosings = [["--dismiss", "ui code-scanning 77", "repos_thomasluizon_orbit-ui-mobile_code-scanning_alerts_77"],
+    ["--revoke", "landing secret-scanning 5", "repos_thomasluizon_orbit-landing-page_secret-scanning_alerts_5"]].map(([flag, key, patch]) => {
+    const closed = run("auto-work-github.mjs", [flag], { path: installation.path, env: { ...env, CLAUDE_CODE_SESSION_ID: "foreign" },
+      input: JSON.stringify({ key, ticket: CLOSED_TICKET_URL, reason: "Another session tries to close it." }) })
+    return { flag, status: closed.status, refused: closed.stderr.includes("No matching active auto-work run"), patched: existsSync(join(installation.base, `patch-${patch}.json`)) }
+  })
+  T("github cli: another session cannot dismiss or revoke an alert, and sends no GitHub write",
+    foreignClosings.every((closing) => closing.status === 1 && closing.refused && !closing.patched), JSON.stringify(foreignClosings))
 }
