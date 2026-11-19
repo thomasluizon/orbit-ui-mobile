@@ -55,8 +55,9 @@ for (const width of [1024, 1352]) {
               if (collapsed) {
                 expect(geometry.bell.top - geometry.toggle.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
                 expect(geometry.bell.left).toBe(geometry.toggle.left)
+                expect(geometry.toggle.top - geometry.theme.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+                expect(geometry.theme.left).toBe(geometry.toggle.left)
               } else {
-                expect(geometry.theme.left - geometry.sidebar.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
                 expect(Math.abs(geometry.theme.left - geometry.lockup.left)).toBeLessThanOrEqual(1)
                 expect(geometry.toggle.top).toBe(geometry.theme.top)
                 expect(geometry.toggle.left - geometry.theme.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
