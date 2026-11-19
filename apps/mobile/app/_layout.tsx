@@ -61,8 +61,7 @@ import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import {
-  getFailedNotificationDeleteIdsSnapshot,
-  getPendingNotificationDeleteIdsSnapshot,
+  getNotificationDeleteNoticeSnapshot,
   subscribePendingNotificationDeleteIds,
 } from '@/lib/pending-notification-deletes'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
@@ -198,20 +197,12 @@ function RootLayoutNav() {
     topSegment === 'r'
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome
-  const pendingNotificationDeleteIds = useSyncExternalStore(
+  const notificationDeleteNoticeOwner = useSyncExternalStore(
     subscribePendingNotificationDeleteIds,
-    getPendingNotificationDeleteIdsSnapshot,
-    getPendingNotificationDeleteIdsSnapshot,
+    getNotificationDeleteNoticeSnapshot,
+    getNotificationDeleteNoticeSnapshot,
   )
-  const failedNotificationDeleteIds = useSyncExternalStore(
-    subscribePendingNotificationDeleteIds,
-    getFailedNotificationDeleteIdsSnapshot,
-    getFailedNotificationDeleteIdsSnapshot,
-  )
-  const notificationDeleteNotice = pendingNotificationDeleteIds.length > 0
-    || failedNotificationDeleteIds.length > 0
-    ? <NotificationDeleteNotice />
-    : null
+  const notificationDeleteNotice = notificationDeleteNoticeOwner === null ? null : <NotificationDeleteNotice />
   const conversation = {
     conversation: <AstraConversation chat={chat} />,
     conversationOpen: astraConversationOpen,

@@ -9,7 +9,7 @@ import { NotificationBell } from '@/components/navigation/notification-bell'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { apiClient } from '@/lib/api-client'
-import { getFailedNotificationDeleteIdsSnapshot, resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
+import { getNotificationDeleteNoticeSnapshot, resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { i18n } from '@/lib/i18n'
 
@@ -186,7 +186,7 @@ it('runs out the delayed delete failure and holds it while a pointer rests on it
   await advance(5000)
   deferred.reject()
   await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })
-  expect(getFailedNotificationDeleteIdsSnapshot()).toHaveLength(1)
+  expect(getNotificationDeleteNoticeSnapshot()?.kind).toBe('failed')
   expect(tree?.root.findAll((node) => node.type === 'Pressable'
     && typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith('Reminder. unread'))).toHaveLength(1)
   expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
@@ -194,12 +194,12 @@ it('runs out the delayed delete failure and holds it while a pointer rests on it
 
   TestRenderer.act(() => notice.props.onPointerEnter())
   await advance(30000)
-  expect(getFailedNotificationDeleteIdsSnapshot()).toHaveLength(1)
+  expect(getNotificationDeleteNoticeSnapshot()?.kind).toBe('failed')
 
   TestRenderer.act(() => notice.props.onPointerLeave())
   await advance(10000)
 
-  expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+  expect(getNotificationDeleteNoticeSnapshot()?.kind).not.toBe('failed')
 })
 
 it('shares one poll and the app AppState bridge between the retained bell and pushed inbox until the last unmount', async () => {

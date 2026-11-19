@@ -1429,6 +1429,8 @@ Per worktree, only after `gh pr view <n> --json state` reads `MERGED`:
 node tools/teardown-worktree.mjs --issue "<ticket-ref>" --repo <key>
 ```
 
+Exit 4 and the line `ALREADY REMOVED` mean the unattended stale-file cleanup removed the clean worktree of the merged ticket. Treat exit 4 as done. Any other non-zero exit is a failure.
+
 Never tear down an unmerged worktree. The branch and its work are the only copy. In a queue this
 runs for merged tickets only, including those merged under D88/D90 standing authority.
 

@@ -21,39 +21,34 @@ for (const width of [412, 1352]) {
     test.describe(`Notice stack at ${width}px in ${locale}`, () => {
       test.use({ viewport: { width, height: 915 }, appLocale: locale, contextOptions: { reducedMotion: 'reduce' } })
 
-      test('separates two and three deletes and centres each undo label', async ({ page, context }) => {
+      test('shows one delete toast after three deletes, centres its undo label and restores the newest', async ({ page, context }) => {
         await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
         await page.goto('/notifications')
         await page.evaluate(() => document.fonts.ready)
         const slot = page.locator('[data-shell-notice-content]')
         const toasts = slot.locator('[data-kind]').filter({ hasText: words.notifications.deleteQueued })
-        let singleHeight = 0
         for (const [index, notification] of notifications.items.entries()) {
           await page.getByRole('button', {
             name: words.notifications.deleteNotification.replace('{title}', notification.title), exact: true,
           }).click()
-          await expect(toasts).toHaveCount(index + 1)
+          await expect(toasts).toHaveCount(1)
           if (index === 0) await page.clock.pauseAt(new Date(LAYOUT_FIXED_TIME))
           await expect(async () => {
             const measured = await slot.evaluate(measureToastStack)
-            expect(measured).toHaveLength(index + 1)
+            expect(measured).toHaveLength(1)
             expect(measured[0]!.topInset).toBe(0)
-            expect(measured.at(-1)!.bottomInset).toBe(0)
-            if (index === 0) singleHeight = measured[0]!.height
-            for (const [position, toast] of measured.entries()) {
-              expect(toast.height).toBe(singleHeight)
-              if (position) expect(toast.gap).toBe(12)
-              expect(toast.actionOffset).not.toBeNull()
-              expect(Math.abs(toast.actionOffset!)).toBeLessThanOrEqual(1)
-              expect(Math.abs(toast.closeOffset)).toBeLessThanOrEqual(1)
-            }
+            expect(measured[0]!.bottomInset).toBe(0)
+            expect(measured[0]!.actionOffset).not.toBeNull()
+            expect(Math.abs(measured[0]!.actionOffset!)).toBeLessThanOrEqual(1)
+            expect(Math.abs(measured[0]!.closeOffset)).toBeLessThanOrEqual(1)
           }).toPass({ timeout: 3000 })
         }
-        for (const notification of notifications.items) {
-          await toasts.first().getByRole('button', { name: words.notifications.deleteUndo, exact: true }).click()
-          await expect(page.getByText(notification.title, { exact: true })).toBeVisible()
-        }
+        await toasts.getByRole('button', { name: words.notifications.deleteUndo, exact: true }).click()
         await expect(toasts).toHaveCount(0)
+        const [first, second, third] = notifications.items
+        await expect(page.getByText(third!.title, { exact: true })).toBeVisible()
+        await expect(page.getByText(first!.title, { exact: true })).toHaveCount(0)
+        await expect(page.getByText(second!.title, { exact: true })).toHaveCount(0)
       })
     })
   }

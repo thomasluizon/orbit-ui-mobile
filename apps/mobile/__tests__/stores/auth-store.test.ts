@@ -37,7 +37,7 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useDeleteNotification } from '@/hooks/use-notifications'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import {
-  getFailedNotificationDeleteIdsSnapshot,
+  getNotificationDeleteNoticeSnapshot,
   getPendingNotificationDeleteIdsSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
@@ -2735,11 +2735,11 @@ describe('mobile auth store security paths', () => {
         name: 'Account A',
       })
       setQueryDataMock(notificationKeys.lists(), accountANotifications)
-      queuePendingNotificationDelete('failed-notification', failedDelete)
       queuePendingNotificationDelete('active-notification', executeActiveDelete)
+      queuePendingNotificationDelete('failed-notification', failedDelete)
       await vi.advanceTimersByTimeAsync(5000)
+      expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'failed-notification' })
       queuePendingNotificationDelete('pending-notification', pendingDelete)
-      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['failed-notification'])
 
       await useAuthStore.getState().logout()
       await useAuthStore.getState().login('account-b-token', null, {
@@ -2756,7 +2756,7 @@ describe('mobile auth store security paths', () => {
       await vi.advanceTimersByTimeAsync(5000)
 
       expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
-      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(getNotificationDeleteNoticeSnapshot()?.kind).not.toBe('failed')
       expect(retryFailedNotificationDelete('failed-notification')).toBe(false)
       expect(retryFailedNotificationDelete('active-notification')).toBe(false)
       expect(failedDelete).toHaveBeenCalledTimes(1)
@@ -2764,6 +2764,38 @@ describe('mobile auth store security paths', () => {
       expect(getQueryDataMock(notificationKeys.lists())).toEqual(accountBNotifications)
       expect(setQueryDataMock).not.toHaveBeenCalled()
       expect(invalidateQueriesMock).not.toHaveBeenCalled()
+    } finally {
+      resetPendingNotificationDeletesForTests()
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not carry a failed notification delete into a replacement account', async () => {
+    vi.useFakeTimers()
+    const executeDelete = vi.fn(() => { throw new Error('Server error') })
+    try {
+      await useAuthStore.getState().login('account-a-token', null, {
+        userId: 'account-a',
+        email: 'account-a@example.com',
+        name: 'Account A',
+      })
+      queuePendingNotificationDelete('account-a-notification', executeDelete)
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'account-a-notification' })
+
+      await useAuthStore.getState().logout()
+
+      expect(getNotificationDeleteNoticeSnapshot()?.kind).not.toBe('failed')
+      expect(retryFailedNotificationDelete('account-a-notification')).toBe(false)
+
+      await useAuthStore.getState().login('account-b-token', null, {
+        userId: 'account-b',
+        email: 'account-b@example.com',
+        name: 'Account B',
+      })
+
+      expect(getNotificationDeleteNoticeSnapshot()?.kind).not.toBe('failed')
+      expect(executeDelete).toHaveBeenCalledTimes(1)
     } finally {
       resetPendingNotificationDeletesForTests()
       vi.useRealTimers()

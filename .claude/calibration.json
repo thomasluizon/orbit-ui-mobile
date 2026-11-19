@@ -263,14 +263,14 @@
     ".claude/skills/merge-prs/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "81d0414194be2b7f",
-      "calibratedAt": "2026-11-18",
+      "digest": "1ba3abf3816176e5",
+      "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth."
     },
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "39dddd8d45d48794",
+      "digest": "7c1779b558a98ce1",
       "calibratedAt": "2026-11-19",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
