@@ -140,7 +140,7 @@ const mergeBarOf = (pull, { repositoryKey, slug, openBranches, defaultBranch, re
   const approval = reviewCheck ? reviewCheck.conclusion ?? reviewCheck.status : null
   const required = requiredChecksOf({ checks: (pull.baseRef?.branchProtectionRule?.requiredStatusChecks ?? [])
     .map((check) => ({ context: check?.context, app_id: check?.app?.databaseId ?? null })) })
-  const restHolds = pull.state === "OPEN" && !pull.isDraft && /^[0-9a-f]{40}$/.test(pull.headRefOid) && defaultBranch !== null && !openBranches.includes(pull.baseRefName) &&
+  const restHolds = pull.state === "OPEN" && !pull.isDraft && /^[0-9a-f]{40}$/.test(pull.headRefOid) && defaultBranch !== null && (pull.baseRefName === defaultBranch || !openBranches.includes(pull.baseRefName)) &&
     approval === "SUCCESS" && required !== null && readinessCiIsGreen(rollup, reviewChecksFor(required)) &&
     pull.statusCheckRollup.contexts.pageInfo?.hasNextPage === false && pull.reviewThreads.pageInfo.hasNextPage === false &&
     pull.reviewThreads.nodes.every((thread) => thread.isResolved)

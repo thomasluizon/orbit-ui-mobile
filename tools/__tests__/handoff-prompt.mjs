@@ -136,6 +136,9 @@ export const cases = () => {
     ["a merge of a bare ticket before a user interface item after an API item that deployed", "- api#412 deployed, then merge #2486 before ui#2488", "api#412 deployed, then merge #2486 before ui#2488"],
     ["an item named FIRST before a sentence about a finished release", "- ui#2486 FIRST. The release of ui#2480 is done.", "ui#2486 FIRST"],
     ["a merge order that names the cap", "- Queue order under the cap: merge ui#2486 first, then ui#2488", "Queue order under the cap: merge ui#2486 first"],
+    ["an item named FIRST after a ticket note", "- ui#2486 (#2074) FIRST, then the other approved pull requests", "ui#2486 (#2074) FIRST"],
+    ["an item named FIRST after a ticket note at the end of a clause", "- merge at the bar, ui#2486 (#2074) FIRST", "merge at the bar, ui#2486 (#2074) FIRST"],
+    ["an item named first after a ticket note that names the ticket", "- ui#2486 (ticket #2074) first, then ui#2488", "ui#2486 (ticket #2074) first"],
     ["an item named FIRST before a sentence that names the cap", "- ui#2486 FIRST. Keep the pool full under the cap.", "ui#2486 FIRST"],
   ]) {
     const refused = holdsOf(line)
@@ -168,6 +171,7 @@ export const cases = () => {
     ["an API merge first, then a landing merge", "- Merge api#412 first, then landing#31"],
     ["an API item named FIRST before a user interface item with a ticket after it", "- api#412 FIRST, then ui#2488 (#2171)"],
     ["an API item named FIRST with a ticket before the user interface item", "- api#412 FIRST (ticket #2171), then ui#2488"],
+    ["an API item with a ticket note named FIRST before a user interface item", "- api#412 (#2171) FIRST, then ui#2488"],
     ["an API merge with a ticket before a user interface merge", "- Merge api#412 (#2171) before ui#2488"],
     ["an API merge and deploy with a ticket before a user interface merge", "- api#412 (#2171) merges and deploys before ui#2490"],
     ["a user interface hold with a ticket until its API merge", "- Hold ui#2488 (#2172) until api#412 is merged and deployed"],

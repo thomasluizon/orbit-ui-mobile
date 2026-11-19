@@ -107,7 +107,7 @@ const promptOpening = (lines) => {
 export const openingSpecPaths = (text) => [...new Set(promptOpening(String(text ?? "").split("\n")).match(SPEC_PATH) ?? [])]
 
 const WORK_REFERENCE = /(?:\b[\w-]+)?#\d+\b/g
-const NAMED_FIRST = /(?:\b[\w-]+)?#\d+\b(?:\s+[\w-]+){0,3}?\s+(?:FIRST\b|first\b(?=\s*(?:$|[,:)!\]]|then\b|and\b)))/
+const NAMED_FIRST = /(?:\b[\w-]+)?#\d+\b(?:\s*\([^)]*\))?(?:\s+[\w-]+){0,3}?\s+(?:FIRST\b|first\b(?=\s*(?:$|[,:)!\]]|then\b|and\b)))/
 // `landing` is a repository key and a page name here, so it never counts as an order.
 const MERGE_ORDER = /\b(?:merge|merges|merging|land|lands|ship|ships|hold|holds)\b/i
 const AHEAD_WORD = /\b(?:before|ahead of)\b/i

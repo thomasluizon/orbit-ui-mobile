@@ -597,6 +597,9 @@ const mergeBarCases = async () => {
   T("run-status: an owner pull request outside the run below the bar gets no action", report.nextActions.length === 1 && report.nextActions[0].type === "NO_ACTION", JSON.stringify(report.nextActions))
   report = await snapshot({ [number]: atBar() }, { rows: [], openNodes: [{ ...listed(number)[0], author: { login: "dependabot" } }] })
   T("run-status: an open pull request of another account costs no second query and gets no action", JSON.stringify(reads) === "[[]]" && report.nextActions[0].type === "NO_ACTION", JSON.stringify(reads))
+  report = await snapshot({ [number]: atBar() }, { openNodes: [...listed(number), { number: 9999, headRefName: recordedDefaultBranch.name, author: { login: "someone" } }] })
+  same("run-status: an open pull request whose head branch is named like the default branch leaves the merge of a pull request on the default branch", report.nextActions,
+    [{ type: "MERGE_NOW", pr: `ui#${number}`, command: `gh pr merge ${number} --repo '${slug}' --squash --match-head-commit ${head}` }])
   failingRead = number
   report = await snapshot({ 2491: structuredClone(recorded.pr2491), [number]: atBar() }, { rows: [2491] })
   T("run-status: a failed second query keeps the run rows and names the error", report.repositories[0].status === "OK" && report.repositories[0].error?.includes("HTTP 502") &&
