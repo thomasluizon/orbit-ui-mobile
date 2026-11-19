@@ -61,12 +61,12 @@ import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import {
-  getFailedNotificationDeleteIdsSnapshot,
-  getPendingNotificationDeleteIdsSnapshot,
+  getNotificationDeleteNoticeSnapshot,
   subscribePendingNotificationDeleteIds,
 } from '@/lib/pending-notification-deletes'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { Shell412 } from '@/components/shell/shell-412'
+import { PushHabitCreate } from '@/components/shell/push-habit-create'
 import { Fab } from '@/components/ui/fab'
 import { Plus } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
@@ -110,6 +110,11 @@ function getComposerSelectedDate(date: string | string[] | undefined): string | 
   return typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined
 }
 
+function getCreateDate(activeView: string, pathname: string, date: string | string[] | undefined, today: string): string | null {
+  if (activeView !== 'today' || pathname !== '/') return null
+  return getComposerSelectedDate(date) ?? today
+}
+
 function useComposerGeneralPreference(pathname: string): boolean {
   const accountId = useAccountId()
   const [snapshot, setSnapshot] = useState({ accountId, value: false })
@@ -150,8 +155,8 @@ function RootLayoutNav() {
   const { currentTheme, currentScheme } = useAppTheme()
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const lastDestination = useUIStore((s) => s.lastDestination)
+  const activeView = useUIStore((s) => s.activeView)
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
-  const todayFabPending = useUIStore((state) => state.todayFabPending)
   const setLastDestination = useUIStore((s) => s.setLastDestination)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
   const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
@@ -192,20 +197,12 @@ function RootLayoutNav() {
     topSegment === 'r'
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome
-  const pendingNotificationDeleteIds = useSyncExternalStore(
+  const notificationDeleteNoticeOwner = useSyncExternalStore(
     subscribePendingNotificationDeleteIds,
-    getPendingNotificationDeleteIdsSnapshot,
-    getPendingNotificationDeleteIdsSnapshot,
+    getNotificationDeleteNoticeSnapshot,
+    getNotificationDeleteNoticeSnapshot,
   )
-  const failedNotificationDeleteIds = useSyncExternalStore(
-    subscribePendingNotificationDeleteIds,
-    getFailedNotificationDeleteIdsSnapshot,
-    getFailedNotificationDeleteIdsSnapshot,
-  )
-  const notificationDeleteNotice = pendingNotificationDeleteIds.length > 0
-    || failedNotificationDeleteIds.length > 0
-    ? <NotificationDeleteNotice />
-    : null
+  const notificationDeleteNotice = notificationDeleteNoticeOwner === null ? null : <NotificationDeleteNotice />
   const conversation = {
     conversation: <AstraConversation chat={chat} />,
     conversationOpen: astraConversationOpen,
@@ -297,7 +294,6 @@ function RootLayoutNav() {
               ? <AppCreateFab onCreate={handleCreate} />
               : undefined}
             astraButton={pathname === '/' && !isNotFound}
-            fabPending={pathname === '/' && todayFabPending}
           >
             <RootStackScreens />
           </Shell412>
@@ -324,6 +320,7 @@ function RootLayoutNav() {
         ) : null}
       </View>
 
+      {isAuthenticated ? <PushHabitCreate pathname={pathname} date={getCreateDate(activeView, pathname, date, today)} /> : null}
       {isAuthenticated ? <AccountAutomaticEffects profile={profile} /> : null}
       <GlobalOverlays profile={profile} signedIn={isAuthenticated} />
       {!isAuthenticated ? <AppToast /> : null}

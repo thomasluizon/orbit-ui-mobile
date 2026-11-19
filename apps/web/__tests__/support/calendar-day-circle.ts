@@ -57,6 +57,13 @@ export async function expectDayCircle(slot: Locator, status = true, todayRing = 
   }).toPass({ timeout: 1000 })
 }
 
+async function waitForMovingSelectionToLand(circle: Locator) {
+  await expect.poll(() => circle.evaluate((element) => {
+    const indicator = element.querySelector('[data-selection-motion]')
+    return indicator ? getComputedStyle(indicator).transform : 'none'
+  })).toBe('none')
+}
+
 export async function expectDayCircleHover(button: Locator) {
   const slot = button.locator('..')
   await button.hover()
@@ -71,6 +78,7 @@ export async function expectDayCircleHover(button: Locator) {
       probe.remove()
       return getComputedStyle(element).backgroundColor === selected
     })).toBe(true)
+    await waitForMovingSelectionToLand(circle)
     await expectDayCircle(slot, true, true, true)
     return
   }

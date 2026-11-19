@@ -54,7 +54,7 @@ No rerun on the same build replaces a failure. A failed attempt fails its case f
 a second result for a case that passed or failed. A failure of the build is a failed attempt: a wrong preview, a reply
 without a preview and without a choice, question or fitting list card (a question in text is never a valid ask), HTTP
 5xx, a stream without a final event, a failed approval. Only a throttle, a spend ceiling, a failed precondition, a
-failed rubric grader, a card turn without the trace that its answer needs, or a preview turn without the trace that
+failed rubric grader, a failed card question read, a card turn without the trace that its answer needs, or a preview turn without the trace that
 shows a `stored` field is no evidence; it leaves the case incomplete, and only such a case continues in a later window.
 A turn that gives no evidence adds no counted model calls.
 

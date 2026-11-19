@@ -157,6 +157,9 @@ const removeStaleReclaim = (path) => {
 let ownProcessStartIdentity = null
 const ownProcessIdentity = () => (ownProcessStartIdentity ??= processStartIdentity(process.pid))
 
+/** `acquireRelayLock` throws it when a live or unproven owner holds the lock. A caller that waits tests for this class, never the message. */
+export class RelayLockHeld extends Error {}
+
 /** The directory is only a container; a complete, exclusive owner file is the lock. */
 export const acquireRelayLock = (repoRoot = REPO_ROOT, lockName = "orbit-relay-lock") => {
   const directory = join(gitDirectoryOf(repoRoot), lockName)
@@ -166,7 +169,7 @@ export const acquireRelayLock = (repoRoot = REPO_ROOT, lockName = "orbit-relay-l
   const identity = ownProcessIdentity()
   if (identity === null) throw new Error("cannot prove relay lock owner identity")
   const owner = { pid: process.pid, processStartIdentity: identity, claimId: randomUUID() }
-  const occupied = () => { throw new Error("EEXIST: relay lock has a live or unproven owner") }
+  const occupied = () => { throw new RelayLockHeld("EEXIST: relay lock has a live or unproven owner") }
   for (let attempt = 0; attempt < 3; attempt++) {
     if (existsSync(reclaimPath) && !removeStaleReclaim(reclaimPath)) occupied()
     const claim = claimLaunchFile(path, owner)
@@ -191,7 +194,10 @@ export const acquireRelayLock = (repoRoot = REPO_ROOT, lockName = "orbit-relay-l
   occupied()
 }
 
-/** Each exact slot name can be claimed once, so no read-then-decide race can exceed the cap. */
+/**
+ * Each exact slot name can be claimed once, so no read-then-decide race can exceed the cap. A null
+ * cap claims the worktree only: a read-only review or proof holds no branch slot.
+ */
 export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   const directory = workerLaunchDirectory(repoRoot)
   try {
@@ -263,6 +269,7 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
     }
     if (!claimed) return { allowed: false, occupiedLauncherPid: null, earlierLaunches: [], recorded: false }
   }
+  if (cap === null) return { allowed: true, earlierLaunches: [], recorded: false }
   const branchKey = createHash("sha256").update(`${launch.repositoryKey}\0${launch.branch}`).digest("hex")
   const slotPaths = Array.from({ length: cap }, (_, index) => join(directory, `${branchKey}-slot-${index + 1}.json`))
   for (let index = 0; index < slotPaths.length; index++) {
@@ -283,6 +290,75 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   const override = claimLaunchFile(overridePath, launch)
   return { allowed: true, earlierLaunches, recorded: override.recorded }
 }
+
+const fixRoundDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-fix-rounds")
+export const FIX_ROUND_KINDS = ["local", "pullfrog"]
+/** compose-prompt.mjs writes this line into a review batch order; launch-worker.mjs then requires --fix-round. */
+export const REVIEW_BATCH_ORDER_MARKER = "<!-- orbit-order: review-batch -->"
+const FIX_ROUND_FILE = /^([0-9a-f]{64})-round-(\d+)\.json$/
+const fixRoundBranchKey = (branch) => createHash("sha256").update(branch).digest("hex")
+
+/** The fix rounds of one branch in this checkout, oldest first. */
+export const readFixRounds = (branch, repoRoot = REPO_ROOT) => {
+  const directory = fixRoundDirectory(repoRoot)
+  const key = fixRoundBranchKey(branch)
+  let names
+  try { names = readdirSync(directory) } catch { return [] }
+  return names
+    .map((name) => FIX_ROUND_FILE.exec(name))
+    .filter((match) => match && match[1] === key)
+    .sort((left, right) => Number(left[2]) - Number(right[2]))
+    .flatMap((match) => readLaunchFiles([join(directory, match[0])]))
+}
+
+/** The written design change that lets one fix round pass the cap: its path, digest and first line. */
+export const readDesignChange = (path) => {
+  const text = readFileSync(path, "utf8")
+  if (text.trim() === "") throw new Error(`design change file is empty: ${path}`)
+  return { path: resolve(path), sha256: createHash("sha256").update(text).digest("hex"), summary: text.trim().split("\n")[0].slice(0, 200) }
+}
+
+/**
+ * Why the next fix round after `rounds` may not start, or null when it may. At `cap` rounds or more,
+ * the round needs a design change whose digest no earlier round used: one file allows one round.
+ * `spentBy` is the earlier round that used the same design change, or null when none was given.
+ */
+export const fixRoundRefusal = (rounds, cap, designChange) => {
+  if (rounds.length < cap) return null
+  if (designChange === null) return { spentBy: null }
+  const spentBy = rounds.find((round) => round.designChange?.sha256 === designChange.sha256)
+  return spentBy === undefined ? null : { spentBy }
+}
+
+/** The first sentence of every fix round refusal; each caller adds its own next step. */
+export const fixRoundRefusalReason = (refusal, { cap, branch, designChange }) => refusal.spentBy
+  ? `design change ${designChange.path} already allowed fix round ${refusal.spentBy.number} on branch ${branch}: one file allows one round`
+  : `fix round cap ${cap} reached for branch ${branch}`
+
+/**
+ * Spends the next fix round of `round.branch`. Each round number is one exclusive file, so two
+ * writers cannot spend the same round. A round above `cap` needs a `round.designChange` that no
+ * earlier round of the branch used: one file allows one round.
+ */
+export const recordFixRound = (round, cap, repoRoot = REPO_ROOT) => {
+  const directory = fixRoundDirectory(repoRoot)
+  mkdirSync(directory, { recursive: true })
+  const key = fixRoundBranchKey(round.branch)
+  for (let number = 1; ; number++) {
+    if (number > cap) {
+      const rounds = readFixRounds(round.branch, repoRoot)
+      const refusal = fixRoundRefusal(rounds, cap, round.designChange)
+      if (refusal !== null) return { allowed: false, number, rounds, refusal }
+    }
+    const claim = claimLaunchFile(join(directory, `${key}-round-${number}.json`), { ...round, number })
+    if (claim.claimed) return { allowed: true, number, rounds: readFixRounds(round.branch, repoRoot) }
+    if (!claim.contended) throw new Error(`cannot record fix round ${number} in ${directory}`)
+  }
+}
+
+/** Gives back the fix round that a launch claimed and ended without a commit, so its relaunch spends the same round. */
+export const releaseFixRound = (branch, number, repoRoot = REPO_ROOT) =>
+  rmSync(join(fixRoundDirectory(repoRoot), `${fixRoundBranchKey(branch)}-round-${number}.json`), { force: true })
 
 export const recordReservedWorkerPid = (launcherPid, workerPid, repoRoot = REPO_ROOT) => {
   const path = occupiedWorktreePath(repoRoot)
@@ -503,7 +579,7 @@ const withRunStateLock = (repoRoot, action) => {
   let release
   while (!release) {
     try { release = acquireRelayLock(repoRoot, "orbit-run-state-lock") } catch (error) {
-      if (!error.message.startsWith("EEXIST:")) throw error
+      if (!(error instanceof RelayLockHeld)) throw error
       if (Date.now() >= deadline) throw new Error(`run state lock stayed held for ${RUN_STATE_LOCK_WAIT_MILLISECONDS} ms`, { cause: error })
       Atomics.wait(lockPause, 0, 0, RUN_STATE_LOCK_RETRY_MILLISECONDS)
     }
@@ -600,6 +676,7 @@ const publishRunState = (state, repoRoot) => {
   const pullRequests = relaySuccessor
     ? [...new Map([...(previous.pullRequests ?? []), ...(state.pullRequests ?? [])].map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
     : state.pullRequests
+  // WHY: an older run record still holds intake marks until tools/migrate-run-state.mjs copies them to GitHub (thomasluizon/orbit-tickets#2152).
   const inherited = preserveLedger
     ? Object.fromEntries(["autoWork", "intake"].filter((key) => previous[key] !== undefined).map((key) => [key, previous[key]]))
     : {}

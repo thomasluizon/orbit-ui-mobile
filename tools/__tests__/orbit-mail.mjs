@@ -1,10 +1,11 @@
+import { createHash } from "node:crypto"
 import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { collectMail, draftReply, replyToMail, unseenMailIds } from "../orbit-mail.mjs"
 import { gmailClient } from "../lib/auto-work-google.mjs"
 import { acknowledgeIntake, intakeSource } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
-import { T, root } from "./_harness.mjs"
+import { T, root, seedIntake } from "./_harness.mjs"
 
 export const cases = async () => {
   const checkout = join(root, "mail-intake")
@@ -36,11 +37,13 @@ export const cases = async () => {
   const client = gmailClient("access", request)
   let refused = false
   try { await collectMail(client, checkout) } catch { refused = true }
-  T("mail: a failed page retains the earlier message for retry", refused && intakeSource("gmail", checkout).pending.m1.bodies[0].text === "Oi")
+  T("mail: a failed page retains the earlier message for retry", refused && intakeSource("gmail", checkout).pending.m1.bodiesComplete === true)
   failSecondPage = false
   writeRunState({ sessionId: "mail-child", sleep: true, relay: { from: "mail-parent" } }, checkout)
   const pending = await collectMail(client, checkout)
-  T("mail: relay retry paginates and fetches each new message once", pending.length === 2 && calls.filter(({ url }) => url.pathname.endsWith("/messages/m1")).length === 1)
+  T("mail: relay retry paginates and reads each message that is not completed once per collection", pending.length === 2 &&
+    pending.every((item) => item.bodies[0].text === "Oi" && item.subject === "Uma dúvida") &&
+    calls.filter(({ url }) => url.pathname.endsWith("/messages/m1")).length === 2 && calls.filter(({ url }) => url.pathname.endsWith("/messages/m2")).length === 1)
   T("mail: collection includes every received label without an age cutoff", calls.filter(({ url }) => url.pathname.endsWith("/messages")).every(({ url }) =>
     url.searchParams.get("includeSpamTrash") === "true" && url.searchParams.get("q") === "-in:sent -in:drafts"))
   const draft = await draftReply(client, { id: "m1", text: "Olá, vamos verificar." }, checkout)
@@ -53,14 +56,15 @@ export const cases = async () => {
   T("mail: repeated drafting creates no duplicate", calls.filter(({ options }) => options.method === "POST").length === 1)
   const state = intakeSource("gmail", checkout)
   delete state.pending.m1.draftId
-  writeRunState({ sessionId: "mail-child", sleep: true, intake: { gmail: state } }, checkout)
+  writeRunState({ sessionId: "mail-child", sleep: true }, checkout)
+  seedIntake(checkout, { gmail: state })
   await draftReply(client, { id: "m1", text: "Olá" }, checkout)
   T("mail: recovery after a lost draft receipt finds the existing Message-ID", calls.filter(({ options }) => options.method === "POST").length === 1 && intakeSource("gmail", checkout).pending.m1.draftId === "draft-1")
   const listed = calls.length
   const unseenCheckout = join(root, "mail-unseen")
   mkdirSync(join(unseenCheckout, ".git"), { recursive: true })
-  writeRunState({ sessionId: "unseen-mail", sleep: true, autoWork: true,
-    intake: { gmail: { completed: { m1: { id: "m1" } }, pending: {}, highWater: "m1" } } }, unseenCheckout)
+  writeRunState({ sessionId: "unseen-mail", sleep: true, autoWork: true }, unseenCheckout)
+  seedIntake(unseenCheckout, { gmail: { completed: { m1: { id: "m1" } }, pending: {}, highWater: "m1" } })
   const unseen = await unseenMailIds(client, unseenCheckout)
   const unseenCalls = calls.slice(listed)
   T("mail: the unseen listing returns ids absent from completed and pending state", JSON.stringify(unseen) === JSON.stringify(["m2"]))
@@ -69,15 +73,14 @@ export const cases = async () => {
       url.searchParams.get("includeSpamTrash") === "true") && unseenCalls[1].url.searchParams.get("pageToken") === "page-2")
   T("mail: ids already pending are not unseen", (await unseenMailIds(client, checkout)).length === 0)
   const before = calls.length
-  await collectMail(client, checkout)
-  T("mail: cached pending messages are not read again", calls.slice(before).every(({ url }) => url.pathname.endsWith("/messages")))
+  const reread = await collectMail(client, checkout)
+  T("mail: a pending message is read again from Gmail for its content", reread.length === 2 && reread.every((item) => item.bodies[0].text === "Oi") &&
+    calls.slice(before).filter(({ url }) => url.pathname.endsWith("/messages/m1")).length === 1)
   T("mail: no operation calls messages.send or drafts.send", calls.every(({ url }) => !/\/(messages|drafts)\/send$/.test(url.pathname)))
-  const unsafe = intakeSource("gmail", checkout)
-  unsafe.pending.m2.replyTo = "person@example.org\r\nBcc: someone@example.org"
-  writeRunState({ sessionId: "mail-child", sleep: true, intake: { gmail: unsafe } }, checkout)
   let unsafePost = false
   let unsafeRefused = false
-  try { await draftReply({ listDrafts: async () => ({}), createDraft: async () => { unsafePost = true } }, { id: "m2", text: "Reply" }, checkout) } catch { unsafeRefused = true }
+  const injected = { id: "m2", threadId: "t2", payload: { headers: [{ name: "Reply-To", value: "person@example.org\r\nBcc: someone@example.org" }, { name: "Subject", value: "Oi" }] } }
+  try { await draftReply({ listDrafts: async () => ({}), read: async () => injected, createDraft: async () => { unsafePost = true } }, { id: "m2", text: "Reply" }, checkout) } catch { unsafeRefused = true }
   T("mail: an injected header is refused before draft creation", unsafeRefused && !unsafePost)
   let sends = 0
   let sentVisible = false
@@ -96,11 +99,13 @@ export const cases = async () => {
   T("mail: sending replaces an old draft with the exact classified reply", sentMessage?.threadId === "t1" && Buffer.from(sentMime.split("\r\n\r\n")[1] ?? "", "base64").toString("utf8") === simple.text)
   const lost = intakeSource("gmail", checkout)
   delete lost.pending.m1.sentId
-  writeRunState({ sessionId: "mail-child", sleep: true, intake: { gmail: lost } }, checkout)
+  writeRunState({ sessionId: "mail-child", sleep: true }, checkout)
+  seedIntake(checkout, { gmail: lost })
   await replyToMail(sendingClient, simple, checkout)
   T("mail: a lost send receipt recovers through the deterministic sent Message-ID", sends === 1 && intakeSource("gmail", checkout).pending.m1.sentId === "sent-1")
   delete lost.pending.m1.sentId
-  writeRunState({ sessionId: "mail-child", sleep: true, intake: { gmail: lost } }, checkout)
+  writeRunState({ sessionId: "mail-child", sleep: true }, checkout)
+  seedIntake(checkout, { gmail: lost })
   sentVisible = false
   let ambiguous = false
   try { await replyToMail(sendingClient, simple, checkout) } catch { ambiguous = true }
@@ -108,6 +113,34 @@ export const cases = async () => {
   const sensitive = { ...simple, concerns: ["refund"] }
   const held = await replyToMail(sendingClient, sensitive, checkout)
   T("mail: a sensitive reply stays in Gmail drafts", held.disposition === "draft" && sends === 1)
+
+  const contentCheckout = join(root, "mail-content")
+  mkdirSync(join(contentCheckout, ".git"), { recursive: true })
+  writeRunState({ sessionId: "content-mail", sleep: true, autoWork: true }, contentCheckout)
+  const intakePath = join(contentCheckout, ".git", "orbit-test-run-files", "run-state", "intake.json")
+  const intakeSha = () => { try { return createHash("sha1").update(readFileSync(intakePath)).digest("hex") } catch { return null } }
+  const shaAtRead = []
+  const contentClient = gmailClient("access", async (address) => {
+    const url = new URL(address)
+    if (url.pathname.endsWith("/messages")) return Response.json({ messages: ["c1", "c2", "c3"].map((id) => ({ id, threadId: `t-${id}` })) })
+    const id = url.pathname.split("/").at(-1)
+    shaAtRead.push(intakeSha())
+    return Response.json({ id, threadId: `t-${id}`, internalDate: "1234567890000", snippet: "SECRET snippet",
+      payload: { mimeType: "text/plain", headers: [{ name: "From", value: "SECRET sender <sender@example.org>" }, { name: "Reply-To", value: "secret-reply@example.org" },
+        { name: "Subject", value: "SECRET subject" }, { name: "Message-ID", value: `<${id}@example.org>` }, { name: "References", value: "<secret-reference@example.org>" }],
+      body: { size: 11, data: Buffer.from("SECRET body").toString("base64url") } } })
+  })
+  const contentItems = await collectMail(contentClient, contentCheckout)
+  const committed = readFileSync(intakePath, "utf8")
+  const committedShaAfter = intakeSha()
+  T("mail: the committed intake text holds no body, snippet, sender, subject or header", !/SECRET|secret|example\.org|1234567890000/.test(committed), committed)
+  T("mail: the intake marks hold identity and state only", JSON.stringify(Object.keys(intakeSource("gmail", contentCheckout).pending.c1).sort()) === JSON.stringify(["bodiesComplete", "id", "threadId"]))
+  T("mail: a collection still prints the content of each message for triage", contentItems.length === 3 &&
+    contentItems.every((item) => item.bodies[0].text === "SECRET body" && item.snippet === "SECRET snippet" && item.from.startsWith("SECRET sender") && item.subject === "SECRET subject" &&
+      item.replyTo === "secret-reply@example.org" && item.references === "<secret-reference@example.org>"))
+  T("mail: one collection page writes the intake file once", shaAtRead.length === 3 && new Set(shaAtRead).size === 1 && shaAtRead[0] === null && committedShaAfter !== null)
+  await collectMail(contentClient, contentCheckout)
+  T("mail: a collection whose marks did not change writes no intake file", intakeSha() === committedShaAfter)
 
   const limitedCheckout = join(root, "mail-rate-limit")
   mkdirSync(join(limitedCheckout, ".git"), { recursive: true })

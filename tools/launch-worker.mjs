@@ -1,19 +1,22 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { assertOutsideRepository, researchEnvironment, researchInvocation, researchPaths, researchPrompt } from "./lib/research-run.mjs"
+import { researchLaunch } from "./lib/research-run.mjs"
+import { readOnlyLaunch } from "./lib/review-run.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
+import { passLaunchGate } from "./lib/launch-gate.mjs"
+import { orderSealProblem, runNotesIn } from "./lib/run-notes.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
 import { checkoutIdentity, resolveOnPath } from "./lib/cloud-worker.mjs"
-import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
+import { clearWakeSource, clearWorkerLaunchReservation, FIX_ROUND_KINDS, fixRoundRefusal, fixRoundRefusalReason, readDesignChange, readFixRounds, recordFixRound, recordReservedWorkerPid, releaseFixRound, registerWakeSource, reserveWorkerLaunch, readRunState, REVIEW_BATCH_ORDER_MARKER, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -22,12 +25,45 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --order <file>     non-empty research order outside every repository
   --out <file>       new findings file in an existing scratchpad directory outside every repository
                      Engine output is published only on successful completion. Uses the same
-                     session load and launch-spacing gate as ticket work
+                     machine load and launch spacing gate as ticket work
+
+  Read-only: launch-worker.mjs --review|--proof --order <file> --out <scratchpad file> --directory <path>
+                     [--tier <t>] [--hard-ceiling-minutes <n>] [--measurement] [--dry-run]
+  --review           a pre-push or fix-round review (tools/compose-prompt.mjs --review composes the order)
+  --proof            a device proof (tools/compose-prompt.mjs --proof composes the order). The worker
+                     gets ORBIT_DEVICE_PROOF=1, which lets the worker hook allow adb, emulator and xcrun, and
+                     a free emulator port pair from 5560: ORBIT_PROOF_EMULATOR_PORT=<port> and
+                     ANDROID_SERIAL=emulator-<port>. The launcher claims the port in
+                     <git common dir>/orbit-proof-ports/<port>.json until it exits, so two proofs
+                     never share it. The hook refuses each adb or emulator command that names
+                     another device or port
+  --directory <path> the directory the worker runs in: the root of a detached worktree at the head, or
+                     a copy outside every repository. A branch worktree, the checkout of a
+                     configured repository, a directory inside a git directory, and a copy that
+                     sits inside a protected directory are refused
+                     A read-only run uses the full tool set of its tier on the worker account, takes no
+                     ticket admission and no branch launch slot, claims a git run directory against a
+                     second launch, registers a wake source and keeps both clocks and the CPU probe.
+                     It runs only on macOS, under sandbox-exec. The write profile refuses each write
+                     to the directory that holds each configured repository, to each worktree of a
+                     configured repository or of the run directory's repository, to each hygiene root,
+                     to each git directory under the home directory and to the run directory's .git,
+                     and it refuses each git network transport (git-remote-* and ssh). Only the run
+                     directory and paths outside those stay writable. The claude worker loads only its
+                     user settings and this checkout's .claude/settings.json (--setting-sources user
+                     --settings), so the hooks come from this checkout, never from the head under
+                     review. Another engine has no such hooks and is refused. A before and after status of the
+                     run directory finds a commit or a changed tracked file there. The worker writes
+                     its result to a file the launcher names; the launcher publishes it to --out only
+                     when the worker exits 0, the run directory holds no write, and the first line is
+                     the mode's verdict line (VERDICT: CLEAN or VERDICT: DEFECTS (<n>), PROOF: PASS or
+                     PROOF: FAIL (<n> defects))
 
   --issue <reference> migrated ORB identifier or GitHub issue reference (required)
   --worktree <path>  the existing worktree the worker runs in (required)
-  --prompt <file>    the composed work order. MUST live outside the worktree, or the worker commits
-                     it. Only its path is handed to the worker, never its text (required)
+  --prompt <file>    the work order that tools/compose-prompt.mjs wrote. MUST live outside the worktree,
+                     or the worker commits it. Only its path is handed to the worker, never its text.
+                     An order without the compose seal, or with text added after it, exits 2 (required)
   --measurement      this ticket's work IS measurement (Lighthouse, a benchmark, a profile), so it
                      legitimately writes no file for long stretches. Uses
                      timeouts.measurementNoProgressMinutes instead of noProgressMinutes. The hard
@@ -39,9 +75,25 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      worker profile for this order (default: default)
   --relaunch-reason <text>
                      deliberate reason for launching after this branch reaches its configured cap
+  --fix-round <local|pullfrog>
+                     this order answers a review: claim the next caps.reviewFixAttempts round of
+                     the branch in the fix-rounds.mjs ledger. A launch that ends with no commit
+                     gives the round back, so its relaunch spends the same round. Required for an
+                     order that compose-prompt.mjs --review-batch wrote. --relaunch-reason never
+                     passes this cap.
+                     The order must quote a round note for the worktree's head, posted to the ticket
+                     with tools/post-run-note.mjs --kind round-note before the order was composed
+  --design-change <file>
+                     the written design change that allows one fix round above caps.reviewFixAttempts
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing. The plan names
-                     account and configDirectory, the account a claude worker runs under
+                     account and configDirectory, the account a claude worker runs under. A dry run
+                     never waits at the launch gate
   --help, -h         print this usage and exit 0
+
+Before admission, every launch waits at the launch gate: until the one-minute load is under
+launchGate.loadMax and launchGate.spacingSeconds have passed since the previous launch from this
+checkout (.claude/orchestrator.json). The check and the launch record share one lock, so start each
+launch in its own background command and never gate a launch by hand
 
 Prints one JSON object on stdout when the worker is gone: issue, engine, tier, account, pid,
 logFile, startedAt, endedAt, exitCode, outcome, usageLimitReached, authenticationFailed, resultError
@@ -57,14 +109,25 @@ outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY, 
 A SIGINT or SIGTERM to this launcher ends the worker process tree, then publishes the result with STOPPED.
 Research prints research, outputFile, published, engine, model, account, pid, logFile, startedAt, endedAt,
 exitCode, outcome, authenticationFailed and resultError. It publishes only a non-empty final response from an engine that exits 0.
+A read-only run prints mode, outputFile, published, verdict, writes, runDirectory, engine, tier, model,
+account, configDirectory, pid, logFile, startedAt, endedAt, exitCode, outcome, usageLimitReached,
+authenticationFailed, resultError and attempts. writes lists each write found in the run directory,
+with kind (commit or tracked-change), directory and detail. A read-only dry run also prints
+writeSandbox, the protected directories, and proofEmulatorPort.
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
             2 usage or config error, including a worker account directory that does not exist,
+              a launch cap or a fix round cap that is reached,
             3 the worker executable could not be resolved,
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
             8 admission refused new ticket work before reservation,
             130 stopped by SIGINT, 143 stopped by SIGTERM
-Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.`
+Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.
+A read-only run exits 0 only after publishing its result, 5 when it found a write, 1 on any other
+engine, supervision or publication failure, 2 on a usage error, a held run directory or a platform with
+no write sandbox, a run directory on a branch, inside a git directory or outside git inside a protected
+directory, or another engine than claude, 3 when no emulator port is free for a proof, or 130 or 143
+when stopped.`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -81,16 +144,12 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
-const research = process.argv.includes("--research")
-const orderArgument = argOf("--order")
-const outputArgument = argOf("--out")
-const issueArgument = argOf("--issue")
-const worktreeArg = argOf("--worktree")
-const promptArg = argOf("--prompt")
 const hardCeilingArg = argOf("--hard-ceiling-minutes")
 const tierValue = argOf("--tier")
 const tierArgument = tierValue ?? "default"
 const relaunchReasonArgument = argOf("--relaunch-reason")
+const fixRoundArgument = argOf("--fix-round")
+const designChangeArgument = argOf("--design-change")
 const measurement = process.argv.includes("--measurement")
 const dryRun = process.argv.includes("--dry-run")
 
@@ -100,38 +159,135 @@ if ((process.argv.includes("--tier") && typeof tierValue !== "string") || !new S
 if (process.argv.includes("--relaunch-reason") && (typeof relaunchReasonArgument !== "string" || relaunchReasonArgument.startsWith("--") || relaunchReasonArgument.trim() === "")) {
   fail(2, `${USAGE}\n\n--relaunch-reason must be non-empty text`)
 }
+if (process.argv.includes("--fix-round") && !FIX_ROUND_KINDS.includes(fixRoundArgument)) {
+  fail(2, `${USAGE}\n\n--fix-round must be ${FIX_ROUND_KINDS.join(" or ")}, got "${fixRoundArgument}"`)
+}
+if (process.argv.includes("--design-change") && (fixRoundArgument === null || typeof designChangeArgument !== "string" || designChangeArgument.startsWith("--"))) {
+  fail(2, `${USAGE}\n\n--design-change <file> requires --fix-round`)
+}
 
-let researchPlan = null
-if (research) {
-  const allowed = new Set(["--research", "--order", "--out", "--dry-run"])
-  for (let index = 2; index < process.argv.length; index++) {
-    const flag = process.argv[index]
-    if (!allowed.has(flag)) fail(2, `unsupported research option: ${flag}`)
-    if (["--order", "--out"].includes(flag)) index++
-  }
-  try { researchPlan = researchPaths(orderArgument, outputArgument) } catch (error) { fail(2, error.message) }
-} else {
-  if (orderArgument !== null || outputArgument !== null) fail(2, "--order and --out require --research")
-  const valueFlags = new Set(["--issue", "--worktree", "--prompt", "--hard-ceiling-minutes", "--tier", "--relaunch-reason"])
+const gitOutput = (directory, args) => {
+  const result = spawnSync("git", ["-C", directory, ...args], { encoding: "utf8", windowsHide: true })
+  return result.status === 0 ? result.stdout.trim() : ""
+}
+
+/**
+ * The launch mode of ticket work, with the values and steps named at `launchMode` below. It takes
+ * GitHub admission, holds a branch launch slot, and reports the commits that the run left in the worktree.
+ */
+const ticketLaunch = () => {
+  if (argOf("--order") !== null || argOf("--out") !== null) fail(2, "--order and --out require --research, --review or --proof")
+  if (argOf("--directory") !== null) fail(2, "--directory requires --review or --proof")
+  const valueFlags = new Set(["--issue", "--worktree", "--prompt", "--hard-ceiling-minutes", "--tier", "--relaunch-reason", "--fix-round", "--design-change"])
   const switches = new Set(["--measurement", "--dry-run"])
   for (let index = 2; index < process.argv.length; index++) {
     const flag = process.argv[index]
     if (valueFlags.has(flag)) index++
     else if (!switches.has(flag)) fail(2, `${USAGE}\n\nunsupported option: ${flag}`)
   }
-}
-
-let issue = research ? "research" : null
-if (!research) {
+  let issue
   try {
-    const resolvedTicket = resolveTicket(issueArgument)
+    const resolvedTicket = resolveTicket(argOf("--issue"))
     issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
   } catch (error) {
     fail(2, `${USAGE}\n\n--issue must be ORB-N, #N, or N: ${error.message}`)
   }
+  const worktreeArg = argOf("--worktree")
+  const promptArg = argOf("--prompt")
+  if (!worktreeArg || worktreeArg.startsWith("--")) fail(2, `${USAGE}\n\n--worktree is required`)
+  if (!promptArg || promptArg.startsWith("--")) fail(2, `${USAGE}\n\n--prompt is required`)
+  const runDirectory = resolve(worktreeArg)
+  const promptFile = resolve(promptArg)
+  const workerPointer = (branch) =>
+    `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${runDirectory}. Do not summarise the file back to me, start the work now.`
+  let admission = { admitted: true, reservationId: null }
+  let continuationArguments = null
+  const launch = {
+    label: issue,
+    runDirectory,
+    promptFile,
+    wake: { what: `worker ${issue}`, research: false, review: false },
+    reservation: null,
+    repositoryKey: null,
+    fixRounds: true,
+    sealedOrder: true,
+    clearsClaimsOnExit: false,
+    inheritedDescriptors: [],
+    plan: { issue, research: false, mode: null, outputFile: null, writeSandbox: null, proofEmulatorPort: null },
+    workerArguments: null,
+    environment: null,
+    checkRunDirectory: ({ config, branch }) => {
+      if (!branch) fail(2, `${runDirectory} is not a git worktree`)
+      launch.reservation = { branchCap: config.caps.workerLaunchesPerBranch }
+    },
+    prepare: ({ invocation, scriptArgs, branch }) => {
+      launch.workerArguments = [...scriptArgs, ...invocation.args, workerPointer(branch)]
+      // The relaunch after a usage-limit stop continues a run that may already hold commits.
+      continuationArguments = [...scriptArgs, ...invocation.args, `${workerPointer(branch)} An earlier worker on this branch stopped at its account's usage limit before it finished. Read git log and git status first, keep the work it already did, and finish the order.`]
+    },
+    admit: async ({ config, branch, launched }) => {
+      const repositoryIdentity = checkoutIdentity(runDirectory)
+      if (!repositoryIdentity) fail(2, `could not resolve the Git repository identity for ${runDirectory}`)
+      // A configured repository that is not cloned on this machine has no identity, so it is not the one that holds the run directory.
+      launch.repositoryKey = Object.entries(config.repos ?? {}).find(([, repository]) =>
+        typeof repository === "string" && checkoutIdentity(repository) === repositoryIdentity)?.[0] ?? null
+      if (!launch.repositoryKey) fail(2, `${runDirectory} does not belong to a repository configured in .claude/orchestrator.json`)
+      let githubAuth
+      try {
+        githubAuth = await githubEnvironment(runDirectory)
+      } catch (error) {
+        const result = { admitted: false, reason: "ADMISSION_REFUSED", counts: { openPullRequests: null, queuedRuns: null }, limits: { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }, error: redactSecrets(error.message) }
+        console.log(JSON.stringify(result))
+        process.exit(ADMISSION_REFUSED_EXIT)
+      }
+      admission = await checkAdmission({ config, repositoryKey: launch.repositoryKey, branch, environment: githubAuth.environment, worktree: runDirectory })
+      if (!admission.admitted) {
+        console.log(JSON.stringify({ ...admission, error: admission.error ? redactSecrets(admission.error, githubAuth.secrets) : null }))
+        process.exit(ADMISSION_REFUSED_EXIT)
+      }
+      launch.environment = launched(githubAuth.environment)
+    },
+    begin: () => {},
+    spawn: (executable, args) => ({ executable, args }),
+    relaunchArguments: () => continuationArguments,
+    /** Retains the result under the launcher checkout's Git directory. Exit 4 marks a killed run whose tree holds commits. */
+    finish: ({ attempts, startedAt, sessionId, branch, startHead, engine, tier, model, measurement, noProgressMinutes, hardCeilingMinutes }) => {
+      const last = attempts.at(-1)
+      const { outcome, exitCode } = last
+      releaseAdmission(admission.reservationId)
+      const commits = startHead ? gitOutput(runDirectory, ["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
+      const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
+      const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
+      const result = { launcherPid: process.pid, sessionId, repositoryKey: launch.repositoryKey, runDirectory, branch, issue, engine, tier, model, account: last.account, configDirectory: last.configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, usageLimitReached: last.usageLimitReached, authenticationFailed: last.authenticationFailed, resultError: last.resultError, attempts, commitsSinceLaunch: commits.length, commits, treeClean }
+      const directory = join(workerLaunchDirectory(), "results")
+      mkdirSync(directory, { recursive: true })
+      const resultPath = join(directory, `${process.pid}.json`)
+      const unpublished = `${resultPath}.unpublished`
+      writeFileSync(unpublished, `${JSON.stringify(result)}\n`, { flag: "wx" })
+      renameSync(unpublished, resultPath)
+      console.log(JSON.stringify(result, null, 2))
+      return outcome === "EXITED" ? 0 : commits.length > 0 ? 4 : 1
+    },
+    release: () => releaseAdmission(admission.reservationId),
+  }
+  return launch
 }
-if (!research && (!worktreeArg || worktreeArg.startsWith("--"))) fail(2, `${USAGE}\n\n--worktree is required`)
-if (!research && (!promptArg || promptArg.startsWith("--"))) fail(2, `${USAGE}\n\n--prompt is required`)
+
+const researchFlag = process.argv.includes("--research")
+const readOnlyFlags = ["--review", "--proof"].filter((flag) => process.argv.includes(flag))
+if (readOnlyFlags.length > 1 || (researchFlag && readOnlyFlags.length > 0)) fail(2, `${USAGE}\n\nchoose one of --research, --review and --proof`)
+/**
+ * The one choice between ticket work, research and a read-only run. Each mode owns its arguments and
+ * everything else that differs. The flow below reads its values (label, runDirectory, promptFile, plan,
+ * workerArguments, environment, reservation, repositoryKey, wake, sealedOrder, clearsClaimsOnExit, inheritedDescriptors)
+ * and calls its steps in this order: checkRunDirectory, prepare, admit, begin, spawn, relaunchArguments, finish.
+ */
+const cli = { argv: process.argv, argOf, fail }
+const launchMode = researchFlag ? researchLaunch(cli) : readOnlyFlags.length > 0 ? readOnlyLaunch(readOnlyFlags[0].slice(2), cli) : ticketLaunch()
+// Each exit removes what the mode itself made.
+process.on("exit", () => launchMode.release())
+/** The ticket of ticket work; another mode names itself. Each log line, log file and kill message carries it. */
+const issue = launchMode.label
 
 let config
 try {
@@ -146,15 +302,11 @@ if (config.relay.enabled && launchRunState?.relay?.pending === true) {
   process.exit(ADMISSION_REFUSED_EXIT)
 }
 
-const researchStorage = research ? mkdtempSync(join(tmpdir(), "orbit-research-")) : null
-const runDirectory = research ? join(researchStorage, "workspace") : resolve(worktreeArg)
-if (research) {
-  mkdirSync(runDirectory)
-  process.on("exit", () => rmSync(researchStorage, { recursive: true, force: true }))
-  try { assertOutsideRepository(runDirectory, "research directory") } catch (error) { fail(2, error.message) }
-}
+/** The checkout this launcher runs from. A read-only worker takes its hooks and its emulator tool from here. */
+const launcherRoot = realpathSync(fileURLToPath(new URL("..", import.meta.url)))
+
+const { runDirectory, promptFile } = launchMode
 if (!existsSync(runDirectory)) fail(2, `worktree not found: ${runDirectory}`)
-const promptFile = research ? researchPlan.orderFile : resolve(promptArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
 if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile}`)
 
@@ -162,17 +314,38 @@ const normalize = (path) => path.replaceAll("\\", "/").replace(/\/+$/, "").toLow
 if (normalize(promptFile).startsWith(`${normalize(runDirectory)}/`)) {
   fail(2, `prompt file lives inside ${runDirectory}; a work order written into a repository gets committed. Write it to the session scratchpad instead`)
 }
-
-const gitIn = (args) => {
-  if (research) return ""
-  const result = spawnSync("git", ["-C", runDirectory, ...args], { encoding: "utf8", windowsHide: true })
-  return result.status === 0 ? result.stdout.trim() : ""
+const orderText = launchMode.sealedOrder ? readFileSync(promptFile, "utf8") : null
+const sealProblem = launchMode.sealedOrder ? orderSealProblem(orderText) : null
+if (sealProblem) {
+  fail(2, `${promptFile} is not a composed order: ${sealProblem}. Build every worker order with node tools/compose-prompt.mjs; a fix round's note goes to the ticket first with node tools/post-run-note.mjs --kind round-note`)
 }
+
+/** A run directory outside git reads as the empty text. */
+const gitIn = (args) => gitOutput(runDirectory, args)
 const branch = gitIn(["rev-parse", "--abbrev-ref", "HEAD"])
-if (!research && !branch) fail(2, `${runDirectory} is not a git worktree`)
+// The mode refuses a run directory that it cannot use.
+launchMode.checkRunDirectory({ config, branch })
 /** Where the worker starts from, so a kill can report what the run added rather than make the
  * orchestrator re-derive it from git on every exit. */
 const startHead = gitIn(["rev-parse", "HEAD"])
+let designChange = null
+if (designChangeArgument !== null) {
+  try { designChange = readDesignChange(designChangeArgument) } catch (error) { fail(2, error.message) }
+}
+if (launchMode.fixRounds === true && fixRoundArgument === null && orderText.includes(REVIEW_BATCH_ORDER_MARKER)) {
+  fail(2, `${promptFile} is a review batch order, which is a fix round: pass --fix-round <local|pullfrog>`)
+}
+if (launchMode.fixRounds === true && fixRoundArgument !== null && !runNotesIn(orderText).some((note) => note.kind === "round-note" && note.head === startHead)) {
+  fail(2, `${promptFile} quotes no round note for head ${startHead}. Post the round's note to the ticket with node tools/post-run-note.mjs --kind round-note --issue ${issue} --round <n> --head ${startHead} --body-file <file>, then compose the order again`)
+}
+const fixRoundContext = { cap: config.caps.reviewFixAttempts, branch, designChange }
+/** Read before the launch slot is claimed, so a refused fix round never spends a launch. */
+const fixRoundsSpent = fixRoundArgument === null ? [] : readFixRounds(branch, runDirectory)
+const earlyFixRoundRefusal = fixRoundArgument === null ? null : fixRoundRefusal(fixRoundsSpent, config.caps.reviewFixAttempts, designChange)
+if (earlyFixRoundRefusal !== null) {
+  const nextStep = earlyFixRoundRefusal.spentBy ? "write the next design change in a new file" : "push the head that meets the acceptance and file the rest, or pass --design-change <file>"
+  fail(2, `${fixRoundRefusalReason(earlyFixRoundRefusal, fixRoundContext)} (node tools/fix-rounds.mjs --worktree ${runDirectory} lists them). --relaunch-reason does not pass it: ${nextStep}.`)
+}
 const engineName = config.worker
 const engine = config.workers[engineName]
 if (!engine.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
@@ -232,12 +405,6 @@ const acknowledgeSupervisionSample = () => {
   publishSupervisionMarker(`${supervisionClockPath}.sampled-${supervisionSample.byteLength}`, String(supervisionSample.sampledTime))
 }
 
-const workerPointer = (worktreePath, branch) =>
-  `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
-/** The relaunch after a usage-limit stop continues a run that may already hold commits. */
-const continuationPointer = (worktreePath, branch) =>
-  `${workerPointer(worktreePath, branch)} An earlier worker on this branch stopped at its account's usage limit before it finished. Read git log and git status first, keep the work it already did, and finish the order.`
-
 const NPM_SHIM_SCRIPT = /"%dp0%\\+([^"]+\.js)"/i
 const headlessInvocation = () => {
   const resolved = resolveOnPath(engine.command)
@@ -263,7 +430,6 @@ const headlessInvocation = () => {
 }
 
 const { executable, scriptArgs } = headlessInvocation()
-const workerArgs = research ? null : [...scriptArgs, ...invocation.args, workerPointer(runDirectory, branch)]
 /**
  * A claude worker starts on the first account. With a worker account configured, the one relaunch
  * after a usage limit runs on the main account, the orchestrator's default Claude config. In
@@ -277,42 +443,26 @@ mkdirSync(logDirectory, { recursive: true })
 /** Each log names the account its worker ran under. */
 const logFileFor = (account) => join(logDirectory, `${issue}-${process.pid}-${Date.now()}${account === null ? "" : `-${account.name}-account`}.log`)
 const logFile = logFileFor(primaryAccount)
-const reportFile = research ? join(researchStorage, "findings.txt") : null
-let researchArgs = null
-if (research) {
-  try { researchArgs = [...scriptArgs, ...researchInvocation(engineName, invocation, reportFile)] } catch (error) { fail(2, error.message) }
-}
+// The mode sets its worker arguments and its fields of the dry-run plan.
+await launchMode.prepare({ config, launcherRoot, engineName, invocation, scriptArgs, branch })
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue: research ? null : issue, research, outputFile: researchPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
+  const fixRound = fixRoundArgument === null ? null : { kind: fixRoundArgument, number: fixRoundsSpent.length + 1, cap: config.caps.reviewFixAttempts, designChange }
+  console.log(JSON.stringify({ ...launchMode.plan, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: launchMode.workerArguments, logFile, fixRound, dryRun: true }, null, 2))
   process.exit(0)
 }
 
-let repositoryKey = null
-let githubAuth = { environment: researchEnvironment(), secrets: [] }
-let admission = { admitted: true, reservationId: null }
-if (!research) {
-  const repositoryIdentity = checkoutIdentity(runDirectory)
-  if (!repositoryIdentity) fail(2, `could not resolve the Git repository identity for ${runDirectory}`)
-  // A configured repository that is not cloned on this machine has no identity, so it is not the one that holds the run directory.
-  repositoryKey = Object.entries(config.repos ?? {}).find(([, repository]) =>
-    typeof repository === "string" && checkoutIdentity(repository) === repositoryIdentity)?.[0]
-  if (!repositoryKey) fail(2, `${runDirectory} does not belong to a repository configured in .claude/orchestrator.json`)
-
-  try {
-    githubAuth = await githubEnvironment(runDirectory)
-  } catch (error) {
-    const result = { admitted: false, reason: "ADMISSION_REFUSED", counts: { openPullRequests: null, queuedRuns: null }, limits: { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }, error: redactSecrets(error.message) }
-    console.log(JSON.stringify(result))
-    process.exit(ADMISSION_REFUSED_EXIT)
-  }
-  admission = await checkAdmission({ config, repositoryKey, branch, environment: githubAuth.environment, worktree: runDirectory })
-  if (!admission.admitted) {
-    console.log(JSON.stringify({ ...admission, error: admission.error ? redactSecrets(admission.error, githubAuth.secrets) : null }))
-    process.exit(ADMISSION_REFUSED_EXIT)
-  }
+/** The markers of a worker that this launcher started. The worker hooks read the first one. */
+const launched = (environment) => ({ ...environment, ORBIT_LAUNCH_WORKER: "1", ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca" })
+const gate = await passLaunchGate(config.launchGate)
+console.error(`${issue} passed the launch gate at load ${gate.load.toFixed(2)} after ${Math.round(gate.waitedMs / 1000)} s`)
+try { launchRunState = readRunState() } catch (error) { fail(2, error.message) }
+if (config.relay.enabled && launchRunState?.relay?.pending === true) {
+  console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", refusalReason: "RELAY_DRAIN", error: "RELAY_DRAIN" }))
+  process.exit(ADMISSION_REFUSED_EXIT)
 }
-process.on("exit", () => { if (!research) releaseAdmission(admission.reservationId) })
+// The network step of the mode: it sets the worker environment, and it may refuse the launch.
+await launchMode.admit({ config, branch, launched })
 /** Set while an attempt runs. It stops that attempt's whole group and returns false when a clock already did. */
 let stopActiveAttempt = null
 let stopExitCode = null
@@ -322,7 +472,6 @@ for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
       if (stopActiveAttempt(`${issue} received ${signal}; killing the worker process tree`)) stopExitCode ??= exitCode
       return
     }
-    if (!research) releaseAdmission(admission.reservationId)
     process.exit(exitCode)
   })
 }
@@ -330,7 +479,10 @@ for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
 const timestamp = new Date().toISOString()
 let launchSessionId
 try { launchSessionId = readRunState()?.sessionId ?? null } catch (error) { fail(2, error.message) }
-const reservation = research ? { allowed: true } : reserveWorkerLaunch({
+/** The claim of the run directory against a second launch, or null for none. A null branch cap claims it without a branch slot. */
+const claim = launchMode.reservation
+const { repositoryKey } = launchMode
+const reservation = claim === null ? { allowed: true } : reserveWorkerLaunch({
   launcherPid: process.pid,
   sessionId: launchSessionId,
   issue,
@@ -341,13 +493,28 @@ const reservation = research ? { allowed: true } : reserveWorkerLaunch({
   tier: invocation.tier,
   timestamp,
   relaunchReason: relaunchReasonArgument,
-}, config.caps.workerLaunchesPerBranch, runDirectory)
+}, claim.branchCap, runDirectory)
 if (!reservation.allowed) {
   if (reservation.occupiedWorkerPid) fail(2, `worktree ${runDirectory} already has a live worker pid ${reservation.occupiedWorkerPid}`)
   if (reservation.occupiedLauncherPid !== undefined) fail(2, `worktree ${runDirectory} already has a launcher pid ${reservation.occupiedLauncherPid ?? "unknown"}`)
   const earlier = reservation.earlierLaunches.map((launch, index) =>
     `  ${index + 1}. ${launch.timestamp} tier=${launch.tier} head=${launch.headSha}`).join("\n")
-  fail(2, `worker launch cap ${config.caps.workerLaunchesPerBranch} reached for ${repositoryKey} branch ${branch}. Earlier launches:\n${earlier}\nPass --relaunch-reason "<text>" to record and allow another launch.`)
+  fail(2, `worker launch cap ${claim.branchCap} reached for ${repositoryKey} branch ${branch}. Earlier launches:\n${earlier}\nPass --relaunch-reason "<text>" to record and allow another launch.`)
+}
+if (fixRoundArgument !== null) {
+  const fixRound = recordFixRound({ branch, kind: fixRoundArgument, headSha: startHead, timestamp, designChange, issue }, config.caps.reviewFixAttempts, runDirectory)
+  if (!fixRound.allowed) {
+    clearWorkerLaunchReservation(process.pid, runDirectory)
+    fail(2, `${fixRoundRefusalReason(fixRound.refusal, fixRoundContext)}, while this launch started; --relaunch-reason does not pass it`)
+  }
+  console.error(`${issue} spends fix round ${fixRound.number} of ${config.caps.reviewFixAttempts} on ${branch}`)
+  // Only a commit spends the round. A launch that ends with no commit gives the round back on every exit path, so the
+  // relaunch of that order spends the same round. A count that git cannot read keeps the round.
+  process.on("exit", () => {
+    if (startHead === "" || gitIn(["rev-list", "--count", `${startHead}..HEAD`]) !== "0") return
+    releaseFixRound(branch, fixRound.number, runDirectory)
+    console.error(`${issue} wrote no commit: fix round ${fixRound.number} on ${branch} is not spent`)
+  })
 }
 
 const accountLabel = (account) => account === null ? "" : ` on the ${account.name} account${account.configDirectory === null ? " (default Claude config)" : ` (${account.configDirectory})`}`
@@ -357,18 +524,21 @@ const startedAt = new Date().toISOString()
  * a Stop in that launch window can observe the live launcher. The reader expires this pending form
  * after 45 seconds, while the process identity still proves that the launcher itself really began.
  */
-if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt })) {
-  if (!research) clearWorkerLaunchReservation(process.pid, runDirectory)
+if (!registerWakeSource({ pid: process.pid, ...launchMode.wake, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt })) {
+  if (claim !== null) clearWorkerLaunchReservation(process.pid, runDirectory)
   fail(3, "could not register the pending launcher wake source")
 }
-const reportFd = research && engineName === "claude" ? openSync(reportFile, "wx") : null
-process.on("exit", () => { if (research) clearWakeSource(process.pid) })
+// A mode chooses whether an exit before the finish step clears its wake source and its claim.
+process.on("exit", () => {
+  if (!launchMode.clearsClaimsOnExit) return
+  clearWakeSource(process.pid)
+  if (claim !== null) clearWorkerLaunchReservation(process.pid, runDirectory)
+})
+// The last step of the mode before the first attempt.
+launchMode.begin()
 const gatePath = fileURLToPath(new URL("./lib/worker-gate.cjs", import.meta.url))
-const launchEnvironment = research ? githubAuth.environment : {
-  ...githubAuth.environment,
-  ORBIT_LAUNCH_WORKER: "1",
-  ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca",
-}
+/** The gate's own descriptors are 0 to 3, so the first descriptor that a mode hands down is 4. */
+const FIRST_INHERITED_DESCRIPTOR = 4
 
 /** The worker spawns its own children (git, npm, subagents), and killing the parent alone leaves
  * them running against the worktree this launch is about to hand back. */
@@ -574,23 +744,23 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
   const logFd = openSync(attemptLogFile, "a")
   const attemptChild = spawn(process.execPath, [gatePath], {
     cwd: tmpdir(),
-    stdio: ["ignore", logFd, logFd, "ipc", ...(reportFd === null ? [] : [reportFd])],
+    stdio: ["ignore", logFd, logFd, "ipc", ...launchMode.inheritedDescriptors],
     windowsHide: true,
     // POSIX only, and it is what makes killTree's `process.kill(-pid)` reach anything at all: the
     // child becomes a process-group leader, so the group exists to be signalled. Windows needs the
     // opposite, since detached there spawns a console window; taskkill /T already walks that tree.
     detached: process.platform !== "win32",
-    env: workerAccountEnvironment(launchEnvironment, account),
+    env: workerAccountEnvironment(launchMode.environment, account),
   })
-  if (!attemptChild.pid || (!research && !recordReservedWorkerPid(process.pid, attemptChild.pid, runDirectory))) {
+  if (!attemptChild.pid || (claim !== null && !recordReservedWorkerPid(process.pid, attemptChild.pid, runDirectory))) {
     attemptChild.kill()
     fail(3, "could not publish the worker pid in the worktree reservation")
   }
-  if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: attemptChild.pid, logFile: attemptLogFile, startedAt })) {
+  if (!registerWakeSource({ pid: process.pid, ...launchMode.wake, workerPid: attemptChild.pid, logFile: attemptLogFile, startedAt })) {
     attemptChild.kill()
     fail(3, "could not publish the worker pid in the wake source")
   }
-  attemptChild.send({ executable, args: attemptArgs, directory: runDirectory, ...(research ? { input: researchPrompt(promptFile), reportDescriptor: reportFd === null ? null : 4 } : {}) })
+  attemptChild.send({ ...launchMode.spawn(executable, attemptArgs, FIRST_INHERITED_DESCRIPTOR), directory: runDirectory })
   const supervisor = superviseAttempt(attemptChild.pid, attemptLogFile)
   stopActiveAttempt = (message) => supervisor.kill("STOPPED", message)
   let settled = false
@@ -619,47 +789,19 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
   })
 })
 
+/** Clears both claims, then lets the mode print its result. A stopped launch exits with the code of its signal. */
 const finish = (attempts) => {
-  const last = attempts.at(-1)
-  const { outcome, exitCode } = last
-  if (!research) releaseAdmission(admission.reservationId)
   clearWakeSource(process.pid)
-  if (!research) clearWorkerLaunchReservation(process.pid, runDirectory)
-  if (reportFd !== null) closeSync(reportFd)
-  if (research) {
-    let published = false
-    if (outcome === "EXITED" && exitCode === 0) {
-      try {
-        const findings = readFileSync(reportFile, "utf8")
-        if (!findings.trim()) throw new Error("research returned no findings")
-        const checked = researchPaths(promptFile, researchPlan.outputFile)
-        writeFileSync(checked.outputFile, findings, { flag: "wx", mode: 0o600 })
-        published = true
-      } catch (error) { console.error(`could not publish research findings: ${error.message}`) }
-    }
-    console.log(JSON.stringify({ research: true, outputFile: researchPlan.outputFile, published, engine: engineName, model: invocation.model, account: last.account, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, authenticationFailed: last.authenticationFailed, resultError: last.resultError }, null, 2))
-    process.exit(outcome === "STOPPED" ? stopExitCode : published ? 0 : 1)
-  }
-  const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
-  const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
-  const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
-  const result = { launcherPid: process.pid, sessionId: launchSessionId, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: invocation.model, account: last.account, configDirectory: last.configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, usageLimitReached: last.usageLimitReached, authenticationFailed: last.authenticationFailed, resultError: last.resultError, attempts, commitsSinceLaunch: commits.length, commits, treeClean }
-  const directory = join(workerLaunchDirectory(), "results")
-  mkdirSync(directory, { recursive: true })
-  const resultPath = join(directory, `${process.pid}.json`)
-  const unpublished = `${resultPath}.unpublished`
-  writeFileSync(unpublished, `${JSON.stringify(result)}\n`, { flag: "wx" })
-  renameSync(unpublished, resultPath)
-  console.log(JSON.stringify(result, null, 2))
-  if (outcome === "EXITED") process.exit(0)
-  if (outcome === "STOPPED") process.exit(stopExitCode)
-  process.exit(commits.length > 0 ? 4 : 1)
+  if (claim !== null) clearWorkerLaunchReservation(process.pid, runDirectory)
+  const exitCode = launchMode.finish({ attempts, startedAt, sessionId: launchSessionId, branch, startHead, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes })
+  process.exit(attempts.at(-1).outcome === "STOPPED" ? stopExitCode : exitCode)
 }
 
-const attempts = [await runAttempt(primaryAccount, logFile, researchArgs ?? workerArgs)]
-// Ticket work only: research publishes one report file, and its order is rerun whole. A stopped launch never relaunches, because only an EXITED attempt reads a usage limit.
-if (!research && attempts[0].usageLimitReached && fallbackAccount !== null) {
+const attempts = [await runAttempt(primaryAccount, logFile, launchMode.workerArguments)]
+// A stopped launch never relaunches, because only an EXITED attempt reads a usage limit. A mode with no relaunch returns null.
+const relaunchArguments = attempts[0].usageLimitReached && fallbackAccount !== null ? launchMode.relaunchArguments() : null
+if (relaunchArguments !== null) {
   console.error(`${issue} stopped at the ${primaryAccount.name} account's usage limit; relaunching it once on the ${fallbackAccount.name} account`)
-  attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), [...scriptArgs, ...invocation.args, continuationPointer(runDirectory, branch)]))
+  attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), relaunchArguments))
 }
 finish(attempts)

@@ -89,6 +89,32 @@ export const cases = () => {
   T(`${UNIT}: any oversized version of the spec is refused`, sizeIssues(validateHandoffPrompt(sleepPrompt, { sleep: true, specVersions: () => ["small", "x".repeat(40961)] })).length === 1)
   T(`${UNIT}: the ceiling counts bytes, not characters`, handoff.relayDocumentOversize(handoff.HANDOFF_PROMPT_PATH, "\u00e9".repeat(4097))?.includes("(it is 8194 B)") === true)
   T(`${UNIT}: a document outside the relay paths has no ceiling`, handoff.relayDocumentLimit("docs/notes.md") === null && handoff.relayDocumentLimit(".claude/specs/nested/a.md") === null)
+  const localIssues = (missing) => missing.filter((item) => item.includes("` without "))
+  const carryDirectory = [".orbit-", "run-carry"].join("")
+  for (const [label, reference] of [
+    ["a scratchpad file", "Read `scratchpad/note-2469-r20.md` first."],
+    ["a scratchpad paragraph", "Scratchpad: copy the predecessor files."],
+    ["an `S` file reference", "| `ui#2469` | `S note-2469-r20.md` |"],
+    ["an `S` tool reference", "Run `S usage-guard.mjs` at each wake."],
+    ["a system temporary directory path", `Logs are in ${["/private", "/tmp/orbit-workers"].join("")}.`],
+    ["the old run carry", `Run \`$HOME/${carryDirectory}/carry-from-predecessor.sh\`.`],
+    ["a home directory path", "Read `~/notes/run.md`."],
+    ["a home variable path", "Read `${HOME}/notes/run.md`."],
+    ["a macOS home path", `Read ${["/", "Users/alex/run.md"].join("")}.`],
+  ]) {
+    const prompt = validateHandoffPrompt(`${sleepPrompt}\n${reference}\n`, { sleep: true })
+    T(`${UNIT}: a prompt that names ${label} is refused`, localIssues(prompt).length >= 1 && localIssues(prompt)[0].startsWith("`.claude/handoffs/NEXT.md` without "), JSON.stringify(prompt))
+    const spec = validateHandoffPrompt(sleepPrompt, { sleep: true, specVersions: () => [`# Spec\n\n${reference}\n`] })
+    T(`${UNIT}: a spec that names ${label} is refused`, localIssues(spec).length >= 1 && localIssues(spec)[0].startsWith("`.claude/specs/example.md` without "), JSON.stringify(spec))
+  }
+  for (const [label, text] of [
+    ["a repository path", "Read `tools/lib/run-state.mjs` and `.claude/skills/handoff/SKILL.md`."],
+    ["a ticket comment link", "The round note is https://github.com/thomasluizon/orbit-tickets/issues/2152#issuecomment-1."],
+    ["a capital S word", "S is not a file, and Sentry has no extension."],
+  ]) {
+    T(`${UNIT}: a prompt that names ${label} passes the local reference check`, localIssues(validateHandoffPrompt(`${sleepPrompt}\n${text}\n`, { sleep: true })).length === 0)
+  }
+  T(`${UNIT}: a document outside the relay paths has no local reference check`, handoff.relayDocumentLocalReferences("docs/notes.md", "Read `S note.md`.").length === 0)
   const specRoot = join(root, "handoff-prompt", "spec-checkout")
   mkdirSync(join(specRoot, ".claude", "specs"), { recursive: true })
   writeFileSync(join(specRoot, ".claude", "specs", "example.md"), "x".repeat(41984))
@@ -112,6 +138,76 @@ export const cases = () => {
   T(`${UNIT}: crank implies the literal sleep first line`, validateHandoffPrompt(crankPrompt.replace("/sleep\n", "# Next\n"), { sleep: false, crank: true }).some((item) => item.includes("first line")))
   T(`${UNIT}: crank implies the sleep section`, validateHandoffPrompt(crankPrompt.replace("## Sleep", "## Attended"), { crank: true }).some((item) => item.includes("## Sleep")))
   T(`${UNIT}: disabled crank permits an ordinary sleep prompt`, validateHandoffPrompt(sleepPrompt, { sleep: true, crank: false }).length === 0)
+
+  const withInFlight = (line) => crankPrompt.replace("## In flight\n\nnone", `## In flight\n\n${line}`)
+  const holdsOf = (line, modes = { crank: true }) => validateHandoffPrompt(withInFlight(line), modes).filter((item) => item.includes("ordering hold"))
+  for (const [label, line, quoted] of [
+    ["an item named FIRST", "- ui#2486 FIRST, then the other approved pull requests", "ui#2486 FIRST"],
+    ["a lower-case first at the end of a clause", "- merge ui#2486 first, then ui#2488", "merge ui#2486 first"],
+    ["a merge before another item", "- Merge ui#2486 before ui#2488.", "Merge ui#2486 before ui#2488"],
+    ["a merge held until another item", "- Do not merge ui#2488 until ui#2486 merges", "Do not merge ui#2488 until ui#2486 merges"],
+    ["a merge after another item", "- Merge ui#2488 after ui#2486", "Merge ui#2488 after ui#2486"],
+    ["a wait for one merge, then a merge", "- Wait for ui#2486 to merge, then merge ui#2488", "Wait for ui#2486 to merge, then merge ui#2488"],
+    ["a merge once another item is in main", "- Merge ui#2488 only once ui#2486 is in main", "Merge ui#2488 only once ui#2486 is in main"],
+    ["an item that lands ahead of another", "- ui#2487 must land ahead of ui#2488", "ui#2487 must land ahead of ui#2488"],
+    ["a user interface merge before the API merge it depends on", "- Merge ui#2488 before api#412", "Merge ui#2488 before api#412"],
+    ["a merge of a bare ticket before another bare ticket", "- Merge #2486 before #2488", "Merge #2486 before #2488"],
+    ["a hold behind another item", "- Hold ui#2488 until ui#2486 is in main, then merge", "Hold ui#2488 until ui#2486 is in main, then merge"],
+    ["a merge order whose condition ends with done", "- Merge ui#2486 before ui#2488 once its CI is done", "Merge ui#2486 before ui#2488 once its CI is done"],
+    ["a user interface item named FIRST before an API item", "- ui#2488 FIRST, then api#412", "ui#2488 FIRST"],
+    ["an API item named FIRST with no user interface item after it", "- api#412 FIRST", "api#412 FIRST"],
+    ["an API item named FIRST before another API item", "- api#412 FIRST, then api#413", "api#412 FIRST"],
+    ["an API item named FIRST before an API item that precedes a user interface item", "- api#412 FIRST, then api#413 and ui#2488", "api#412 FIRST"],
+    ["a merge of a bare ticket before a user interface item after an API item that is green", "- api#412 is green, merge #2486 before ui#2488", "api#412 is green, merge #2486 before ui#2488"],
+    ["a merge of a bare ticket before a user interface item after an API item that deployed", "- api#412 deployed, then merge #2486 before ui#2488", "api#412 deployed, then merge #2486 before ui#2488"],
+    ["an item named FIRST before a sentence about a finished release", "- ui#2486 FIRST. The release of ui#2480 is done.", "ui#2486 FIRST"],
+    ["a merge order that names the cap", "- Queue order under the cap: merge ui#2486 first, then ui#2488", "Queue order under the cap: merge ui#2486 first"],
+    ["an item named FIRST after a ticket note", "- ui#2486 (#2074) FIRST, then the other approved pull requests", "ui#2486 (#2074) FIRST"],
+    ["an item named FIRST after a ticket note at the end of a clause", "- merge at the bar, ui#2486 (#2074) FIRST", "merge at the bar, ui#2486 (#2074) FIRST"],
+    ["an item named first after a ticket note that names the ticket", "- ui#2486 (ticket #2074) first, then ui#2488", "ui#2486 (ticket #2074) first"],
+    ["an item named FIRST before a sentence that names the cap", "- ui#2486 FIRST. Keep the pool full under the cap.", "ui#2486 FIRST"],
+  ]) {
+    const refused = holdsOf(line)
+    T(`${UNIT}: crank refuses ${label}`, refused.length === 1 && refused[0].includes(`\`${quoted}\``) && refused[0].includes("MERGE_NOW"), JSON.stringify(refused))
+    T(`${UNIT}: the same prompt with ${label} passes without crank`, validateHandoffPrompt(withInFlight(line), { sleep: true, crank: false }).length === 0 && holdsOf(line, { sleep: true }).length === 0)
+  }
+  T(`${UNIT}: crank accepts the prompt once the ordering hold is gone`, validateHandoffPrompt(withInFlight("- ui#2486: approved, CI green\n- ui#2488: approved, CI green"), { crank: true }).length === 0)
+  T(`${UNIT}: crank names each ordering hold once per line`, holdsOf("- ui#2486 FIRST\n- merge ui#2490 before ui#2491").length === 2)
+  for (const [label, line] of [
+    ["an ordinal that is not an order", "- ui#2486 is the first of three pull requests of #2074"],
+    ["a first line of a ticket", "- ui#2486: the first review round ended"],
+    ["a retarget before the parent branch is deleted", "- Retarget ui#2488 to main before the branch of ui#2486 is deleted"],
+    ["a fact about a later round", "- ui#2484: review round 2 after the fix of #2146"],
+    ["a past merge", "- ui#2486 merged before ui#2488 was approved"],
+    ["a superseded order", "- `ui#2486 FIRST`: superseded, crank holds no ready work"],
+    ["a finished order", "- merge ui#2486 before ui#2488: done, both merged"],
+    ["a superseded label before the quoted order", "- Superseded: \"ui#2486 FIRST\", crank holds no ready work"],
+    ["a finished hold", "- Hold ui#2488 until ui#2486 is in main, then merge (done)"],
+    ["a start order under the cap", "- Queue order under the cap: #2171 first, then #2172"],
+    ["a past merge, then a status", "- ui#2486 merged, then ui#2488 was behind main"],
+    ["a merge bar wait", "- ui#2488: wait for the review check, then merge"],
+    ["a pull request named with its ticket", "- ui#2484 (#2146): wait for CI before the merge"],
+    ["an API item that lands ahead of a user interface item", "- api#412 must land ahead of ui#2488"],
+    ["an API merge and deploy before a user interface merge", "- api#88 merges and deploys before ui#2490 (deploy-API-first)"],
+    ["a user interface merge after its API merge", "- Merge ui#2488 after api#412"],
+    ["a wait for the API merge, then the landing merge", "- Wait for api#412 to merge, then merge landing#31"],
+    ["a user interface merge held until its API merge", "- Hold ui#2488 until api#412 is merged and deployed"],
+    ["an API merge and deploy first, then a user interface merge", "- api#412 merges and deploys first, then ui#2488"],
+    ["an API item named FIRST before a user interface item", "- api#412 FIRST, then ui#2488"],
+    ["an API merge first, then a landing merge", "- Merge api#412 first, then landing#31"],
+    ["an API item named FIRST before a user interface item with a ticket after it", "- api#412 FIRST, then ui#2488 (#2171)"],
+    ["an API item named FIRST with a ticket before the user interface item", "- api#412 FIRST (ticket #2171), then ui#2488"],
+    ["an API item with a ticket note named FIRST before a user interface item", "- api#412 (#2171) FIRST, then ui#2488"],
+    ["an API merge with a ticket before a user interface merge", "- Merge api#412 (#2171) before ui#2488"],
+    ["an API merge and deploy with a ticket before a user interface merge", "- api#412 (#2171) merges and deploys before ui#2490"],
+    ["a user interface hold with a ticket until its API merge", "- Hold ui#2488 (#2172) until api#412 is merged and deployed"],
+    ["a user interface merge with a ticket after its API merge", "- Merge ui#2488 (#2172) after api#412"],
+    ["a wait for an API merge with a ticket, then a user interface merge", "- Wait for api#412 (#2171) to merge, then merge ui#2488"],
+    ["an API merge and deploy first with a ticket, then a user interface merge", "- api#412 merges and deploys first (#2171), then ui#2488"],
+    ["a ticket that stays open until its pull request merges", "- `#1628` stays open until `ui#1959` merges and a later build carries it"],
+  ]) {
+    T(`${UNIT}: crank accepts ${label}`, holdsOf(line).length === 0, JSON.stringify(holdsOf(line)))
+  }
 
   const repoRoot = join(root, "handoff-prompt", "checkout")
   mkdirSync(join(repoRoot, ".git"), { recursive: true })

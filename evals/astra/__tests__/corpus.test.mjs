@@ -14,15 +14,19 @@ it('includes every scenario identity in the launch corpus', () => {
   expect(scenarios).toHaveLength(51)
   expect(new Set([...corpus, ...scenarios].map((entry) => entry.metadata.id)).size).toBe(235)
 })
-it('names the corpus files in one module, and the merge and the reset read the same descriptors', async () => {
+// The merge (merge-reports.mjs) and the reset (fixtures/reset.mjs) take the corpus from readCorpus, so a module that names a
+// corpus file by itself, in any quote and in any folder of the eval or of tools, is a second reader that can drift.
+it('names the corpus files in one module, which the merge and the reset read', async () => {
   const { readdirSync } = await import('node:fs')
-  const sources = ['.', 'core', 'fixtures'].flatMap((folder) => readdirSync(new URL(`../${folder}/`, import.meta.url))
-    .filter((name) => name.endsWith('.mjs')).map((name) => `${folder}/${name}`))
-  expect(sources.filter((path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8').includes("'composition-scenarios.yaml'")))
-    .toEqual(['./grade-method.mjs'])
-  const { descriptors } = await import('../merge-reports.mjs')
-  const { describeCase } = await import('../latency.mjs')
-  expect(descriptors).toEqual(readCorpus().map(describeCase))
+  const { join, relative } = await import('node:path')
+  const { fileURLToPath } = await import('node:url')
+  const evals = fileURLToPath(new URL('..', import.meta.url))
+  const modules = (folder) => readdirSync(folder, { withFileTypes: true }).flatMap((entry) => entry.isDirectory()
+    ? ['__tests__', 'node_modules'].includes(entry.name) ? [] : modules(join(folder, entry.name))
+    : entry.name.endsWith('.mjs') ? [join(folder, entry.name)] : [])
+  const naming = [...modules(evals), ...modules(fileURLToPath(new URL('../../../tools', import.meta.url)))]
+    .filter((path) => readFileSync(path, 'utf8').includes('scenarios.yaml'))
+  expect(naming.map((path) => relative(evals, path))).toEqual(['grade-method.mjs'])
 })
 it.each([
   ['goal-behind', ['at_risk', 'behind']],
