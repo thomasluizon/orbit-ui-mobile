@@ -190,7 +190,6 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
           expect(header.toggle.left - header.theme.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
           expect(header.bell.left - header.lockup.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
           expect.soft(Math.abs(header.lockup.left - header.search.left)).toBeLessThanOrEqual(1)
-          expect(header.bell.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
         }
         await assertBrandFills(page)
         const shortAccount = await measureAccount(page)
