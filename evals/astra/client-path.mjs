@@ -53,7 +53,8 @@ const refusal = ({ error: _error, unavailable: _unavailable, ...output }, turn) 
 
 // Sends the turns of one case on the client path (POST /api/chat/stream, in one conversation) and holds its preview.
 // Nothing is approved, unless the case states what the person decides (`decision`: approve, or reject): the case then
-// decides the preview and reads the saved state back. A turn that the server refuses is the answer of a case that expects a refusal. An HTTP 400 with
+// decides the preview and reads the saved state back. `decision: hold` decides nothing and reads the account after the
+// preview, to prove that the held preview wrote nothing. A turn that the server refuses is the answer of a case that expects a refusal. An HTTP 400 with
 // AI_UNAVAILABLE is an outage of the model provider and no evidence of the build, for each form of case: the attempt
 // stays incomplete with its typed error, as on POST /api/chat, and a later window can complete the case.
 export async function holdCase(vars, { send = sendTurn, api, conversation = vars.conversation ?? openCaseConversation(vars) } = {}) {

@@ -48,13 +48,15 @@ async function decide(preview, conversation, vars, api) {
 
 // Decides each held preview, then reads the saved state back. Nothing is decided when the held records already differ from
 // the baseline in id, title, frequency or the log of the day (savedRecords); a field that only a named update moves, and
-// each log before the account date (movedHistory), is graded afterwards by gradeSavedState.
+// each log before the account date (movedHistory), is graded afterwards by gradeSavedState. A case that holds its preview
+// (`decision: hold`) decides nothing and reads the held state only.
 async function approveAndReadBack(previews, conversation, vars, api) {
   try {
     const held = await readHabits(api)
     const unchanged = JSON.stringify(savedRecords(held, vars.accountDate)) === JSON.stringify(savedRecords(vars.core.baseline, vars.accountDate))
-    if (unchanged) for (const preview of previews) await decide(preview, conversation, vars, api)
-    return { baseline: vars.core.baseline, held, after: unchanged ? await readSaved(api, vars.core) : held }
+    const decides = unchanged && vars.core.decision !== 'hold'
+    if (decides) for (const preview of previews) await decide(preview, conversation, vars, api)
+    return { baseline: vars.core.baseline, held, after: decides ? await readSaved(api, vars.core) : held }
   } catch (error) {
     return requestFailure(error, 'Approval or the saved state readback')
   }

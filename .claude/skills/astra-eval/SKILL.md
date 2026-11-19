@@ -170,7 +170,8 @@ A launch corpus case states its `outcome` in one of four forms: `read: true` (no
 `question: true` (a card that asks, which is a `choice`, `question` or `pickList` card, and no preview; plain text fails), `refusal: true` (the status and the error code of
 the case) or `changes` (the change list of the held previews, with each record by its fixture name and never by its id).
 A `changes` case holds no rubric, and it grades a bulk write and a single write the same way. A case with `decision: approve | reject`
-approves or rejects the held preview and reads the saved state back. A brain dump case also holds
+approves or rejects the held preview and reads the saved state back. A case with `decision: hold` decides nothing and reads
+the account after the preview, so a held preview that already changed it fails. A brain dump case also holds
 `composition.previewNote: plain` (one sentence without a figure beside the preview) and `previewOnly: true` (the
 preview and its note alone). An ideas case also holds `outcome.distinctTitles: true`, and a mixed or an ideas case holds
 `outcome.reuses: true`. A same-title case with a singular request holds `answer.separate: children`: its card must offer each

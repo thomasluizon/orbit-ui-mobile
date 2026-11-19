@@ -265,9 +265,9 @@ function gradeCreated(creates, created, drafts, accountDate) {
 // The saved state after approval, read back from the account: each deleted record is gone, each log is saved, each
 // updated and each created record holds each field the request names that a saved record can show (the launch corpus
 // states fields that the preview alone grades), and every other record is as it was. A case that states a decision also
-// keeps each log of a stored record before the account date, in the held state and after the decision (movedHistory).
-// The person approves the preview as shown: an updated record holds each value that its rows show, requested, offered or
-// derived (AddChanges writes them in the stored format), and each draft that the preview offers is a new record.
+// keeps each log before the account date (movedHistory), and `decision: hold` grades the held state alone. The person
+// approves the preview as shown: an updated record holds each value that its rows show, requested, offered or derived
+// (AddChanges writes them in the stored format), and each draft that the preview offers is a new record.
 function gradeSavedState(readback, matched, vars) {
   if (!readback) return verdict(false, 'The approved preview has no saved state readback.')
   if (readback.error) return verdict(false, readback.error, readback.unavailable ? { unavailable: true } : {})
@@ -281,6 +281,7 @@ function gradeSavedState(readback, matched, vars) {
     || (decided && movedHistory(readback.held, readback.baseline, date))) {
     return verdict(false, 'The held preview changed the account before its approval.')
   }
+  if (vars.core.decision === 'hold') return verdict(true, 'The held previews left the account as it was.')
   const rejected = vars.core.decision === 'reject'
   const moved = rejected ? named.map((change) => movedField(change, readback.after, readback.baseline)).find(Boolean) : null
   if (moved) return verdict(false, `The rejected preview changed the account: it saved ${moved}.`)

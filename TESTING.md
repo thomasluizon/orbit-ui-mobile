@@ -1082,7 +1082,10 @@ on the account date, and each log dated before the account date (the fixture see
 value must equal the value that the preview showed. Each field that the preview showed for a habit, and each past log, still
 holds its baseline value before the approval, and the approval leaves each past log as it was (`movedHistory` in
 `core/outcome.mjs`, read only for a case that states a `decision`). `restart-reject` holds `decision: reject`: the preview is
-revised to an empty item list, confirmation returns 404, and each habit keeps its baseline, past logs included. The grade does
+revised to an empty item list, confirmation returns 404, and each habit keeps its baseline, past logs included. `restart-preview`
+and `restart-preference` hold `decision: hold`: the case approves nothing and rejects nothing, reads the account once after the
+preview, and fails when the held preview already changed a stored habit (its title, its frequency, its log of the day, a field
+that the preview names, or a log before the account date). It sends no confirm and no execute call. The grade does
 not read the other fields of the habit detail that the restart fixture preserves (`preserved` in `fixtures/restart.mjs`:
 description, days, interval weeks, due times, reminders, slip alert, flags, end date and emoji).
 

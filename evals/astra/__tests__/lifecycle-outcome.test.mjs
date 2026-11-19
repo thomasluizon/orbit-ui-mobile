@@ -167,6 +167,10 @@ const logHistoryChanges = {
   'changes the note of a past log': (habits) => { habits[4].logs[0].note = 'Edited' },
 }
 const restartDecisions = ['composition-restart-approve-en', 'composition-restart-reject-en']
+// The four restart cases that hold a preview and decide nothing state `decision: hold`: they read the account after the preview.
+const restartHolds = ['preview', 'preference'].flatMap((family) => ['en', 'pt-BR'].map((locale) => `composition-restart-${family}-${locale}`))
+const restartReads = [...restartDecisions, ...restartHolds]
+const keepsOf = (id) => id.includes('-preference-') ? 2 : 3
 const restartPreview = (dates, extra = {}) => [previewOf('rescheduleHabits', restartIds.map((id, index) => itemOf(id, `Habit ${index}`,
   { due_date: [restartHabits[index].dueDate, dates[index], 'date'], ...(extra[index] ?? {}) })))]
 const todayCount = (todays) => restartIds.map((_, index) => index >= 6 - todays ? accountDate : addDays(1))
@@ -178,7 +182,7 @@ const heldRestart = (id, dates, options = {}) => {
 describe('a restart case', () => {
   it('previews a smaller set today, with the habits that stay due today kept where they are', async () => {
     const { verdict } = await heldRestart('composition-restart-preview-en', todayCount(3))
-    expect(verdict).toMatchObject({ pass: true, reason: 'The held previews hold exactly the requested changes.' })
+    expect(verdict).toMatchObject({ pass: true, reason: 'The held previews left the account as it was.' })
   })
 
   it('approves the preview and reads the saved dates back', async () => {
@@ -231,9 +235,9 @@ describe('a restart case', () => {
     expect(verdict).toMatchObject({ pass: false, reason: expect.stringContaining('due_date') })
   })
 
-  it.each(['composition-restart-approve-en', 'composition-restart-reject-en'])('fails %s when the account held the dates before the decision', async (id) => {
-    const moved = restartHabits.map((habit, index) => ({ ...habit, dueDate: todayCount(3)[index] }))
-    const { verdict } = await heldRestart(id, todayCount(3), { accountHabits: moved })
+  it.each(restartReads)('fails %s when the account held the dates before the decision', async (id) => {
+    const moved = restartHabits.map((habit, index) => ({ ...habit, dueDate: todayCount(keepsOf(id))[index] }))
+    const { verdict } = await heldRestart(id, todayCount(keepsOf(id)), { accountHabits: moved })
     expect(verdict).toMatchObject({ pass: false, reason: 'The held preview changed the account before its approval.' })
   })
 
@@ -248,16 +252,40 @@ describe('a restart case', () => {
       expect(verdict.pass).toBe(false)
       expect(verdict.reason).toMatch(/^The (approved|rejected) preview changed the past log history of Habit \d\.$/u)
     })
+  })
 
+  describe.each(restartReads)('%s and the account before the decision', (id) => {
     it.each(Object.entries(logHistoryChanges))('fails a held preview that %s before the decision', async (_name, change) => {
       const moved = structuredClone(restartHabits)
       change(moved)
-      const { verdict } = await heldRestart(id, todayCount(3), { accountHabits: moved })
+      const { verdict } = await heldRestart(id, todayCount(keepsOf(id)), { accountHabits: moved })
       expect(verdict).toMatchObject({ pass: false, reason: 'The held preview changed the account before its approval.' })
     })
 
     it('passes a decision that leaves each past log as it was', async () => {
-      expect((await heldRestart(id, todayCount(3))).verdict.pass).toBe(true)
+      expect((await heldRestart(id, todayCount(keepsOf(id)))).verdict.pass).toBe(true)
+    })
+  })
+
+  // A hold reads the account once after the preview, runs the held checks of the saved state and sends no confirm and no execute call.
+  describe.each(restartHolds)('%s, which holds its preview and decides nothing', (id) => {
+    const dates = todayCount(keepsOf(id))
+    const heldWrites = {
+      'the due dates of the preview': restartHabits.map((habit, index) => ({ ...habit, dueDate: dates[index] })),
+      'the title of one habit': restartHabits.map((habit, index) => index === 3 ? { ...habit, title: 'Changed while held' } : habit),
+    }
+
+    it('reads the account after the preview, sends no confirm and no execute call, and leaves the account as it was', async () => {
+      const { verdict, fixture } = await heldRestart(id, dates)
+      expect(verdict).toMatchObject({ pass: true, reason: 'The held previews left the account as it was.' })
+      expect(fixture.calls.map((call) => call.path.split('/').at(-1))).toEqual(['snapshot'])
+      expect(fixture.state).toEqual(restartHabits)
+    })
+
+    it.each(Object.entries(heldWrites))('fails a held preview that wrote %s', async (_name, accountHabits) => {
+      const { verdict, fixture } = await heldRestart(id, dates, { accountHabits })
+      expect(verdict).toMatchObject({ pass: false, reason: 'The held preview changed the account before its approval.' })
+      expect(approvedPaths(fixture)).toEqual([])
     })
   })
 
@@ -290,8 +318,8 @@ describe.each(['preview', 'approve', 'reject', 'preference'].flatMap((family) =>
       expect(paths).toContain('revise')
       expect(fixture.state.map((habit) => habit.dueDate)).toEqual(restartHabits.map((habit) => habit.dueDate))
     } else {
-      expect(verdict).toMatchObject({ pass: true, reason: 'The held previews hold exactly the requested changes.' })
-      expect(paths).toEqual([])
+      expect(verdict).toMatchObject({ pass: true, reason: 'The held previews left the account as it was.' })
+      expect(paths).toEqual(['snapshot'])
     }
   })
 
@@ -300,7 +328,7 @@ describe.each(['preview', 'approve', 'reject', 'preference'].flatMap((family) =>
     expect(Object.keys(outcome.changes[0].fields)).toEqual(['due_date'])
     expect(outcome.changes[0].fields.due_date).toEqual({ withinDays: [0, 7], mayStay: true })
     expect(outcome.changes[0].dueToday).toEqual(family === 'preference' ? 2 : { min: 1, max: 5 })
-    expect(outcome.decision).toBe({ approve: 'approve', reject: 'reject' }[family])
+    expect(outcome.decision).toBe({ preview: 'hold', preference: 'hold', approve: 'approve', reject: 'reject' }[family])
   })
 
   it('holds the answer to its preview alone', () => {
@@ -575,7 +603,8 @@ describe('the question turn of a case that asks first', () => {
 // row drives the real case through the provider path.
 const restartTurn = (todays) => ({ replies: [turnOf({ pendingOperations: restartPreview(todayCount(todays)) })], habits: restartHabits, records: { habits: restartIds } })
 const heldChangedAccount = {
-  'composition-restart-approve-en': { ...restartTurn(3), accountHabits: restartHabits.map((habit, index) => index === 0 ? { ...habit, title: 'Changed before approval' } : habit) },
+  ...Object.fromEntries(restartReads.map((id) => [id, { ...restartTurn(keepsOf(id)),
+    accountHabits: restartHabits.map((habit, index) => index === 0 ? { ...habit, title: 'Changed before approval' } : habit) }])),
   'same-title-card-en': { replies: answered, habits: sameTitleHabits, records: sameTitleRecords,
     accountHabits: sameTitleHabits.map((habit, index) => index === 2 ? { ...habit, title: 'Water - 1.18L' } : habit) },
   'brain-dump-mixed-en': { replies: [turnOf({ pendingOperations: [previewOf('createHabits', [dentist, stretch])] })], habits: brainHabits,
@@ -633,8 +662,9 @@ describe('the preview rows of the deleted restart and brain dump tests', () => {
     expect(verdict.pass).toBe(false)
   })
 
-  it.each([['a restart', 'composition-restart-preview-en', { habits: restartHabits, records: { habits: restartIds } }],
-    ['a brain dump', 'brain-dump-mixed-en', { habits: brainHabits, records: { water } }],
+  it.each([
+    ...['preview', 'approve', 'reject', 'preference'].map((family) => ['a restart', `composition-restart-${family}-en`, { habits: restartHabits, records: { habits: restartIds } }]),
+    ...['mixed', 'reuse', 'ideas'].map((family) => ['a brain dump', `brain-dump-${family}-en`, { habits: brainHabits, records: { first: water, water, second: water, walk: water } }]),
   ])('fails %s with no preview, and one whose write was saved where the case holds a preview', async (_name, id, setup) => {
     const none = 'The reply holds no preview and no question card.'
     expect((await attempt(id, { replies: [turnOf({})], held: [], ...setup })).verdict).toMatchObject({ pass: false, reason: none })
@@ -685,8 +715,7 @@ describe('the saved state rows of the deleted approval tests', () => {
   })
 
   it.each([
-    ['composition-restart-approve-en', { replies: [turnOf({ pendingOperations: restartPreview(todayCount(3)) })], habits: restartHabits, records: { habits: restartIds } }],
-    ['composition-restart-reject-en', { replies: [turnOf({ pendingOperations: restartPreview(todayCount(3)) })], habits: restartHabits, records: { habits: restartIds } }],
+    ...restartReads.map((id) => [id, restartTurn(keepsOf(id))]),
     ['brain-dump-mixed-en', { replies: [turnOf({ pendingOperations: [previewOf('createHabits', [dentist, stretch])] })], habits: brainHabits, records: { water } }],
     ['same-title-card-en', { replies: answered, habits: sameTitleHabits, records: sameTitleRecords }],
   ])('fails %s that has no saved state readback', async (id, setup) => {

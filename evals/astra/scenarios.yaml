@@ -4,7 +4,8 @@
 # code of the case. changes: the change list of the held previews, with each record by its fixture name (water, walk,
 # first, second, or the set of a fixture: children, habits), `previews` (default 1) and `questions` (default none). A
 # changes case holds no rubric. `decision: approve` or `reject` is what the person does with the held preview: the case
-# then reads the saved state back. `answer` is what the person decides when the assistant asks (core/answers.mjs). A
+# then reads the saved state back. `decision: hold` decides nothing: the case reads the account after the preview and fails
+# a held preview that already changed it. `answer` is what the person decides when the assistant asks (core/answers.mjs). A
 # case with `expectations` keeps the tool-name grade on POST /api/chat. A case with `refine` grades the revised draft
 # of the refine route.
 #

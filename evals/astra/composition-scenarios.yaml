@@ -2513,6 +2513,7 @@
       previews: 1
       previewOnly: true
     outcome:
+      decision: hold
       changes:
         - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: { min: 1, max: 5 } }
 - description: restart-approve in en
@@ -2629,6 +2630,7 @@
       previews: 1
       previewOnly: true
     outcome:
+      decision: hold
       changes:
         - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: 2 }
 - description: restart-preview in pt-BR
@@ -2667,6 +2669,7 @@
       previews: 1
       previewOnly: true
     outcome:
+      decision: hold
       changes:
         - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: { min: 1, max: 5 } }
 - description: restart-approve in pt-BR
@@ -2783,6 +2786,7 @@
       previews: 1
       previewOnly: true
     outcome:
+      decision: hold
       changes:
         - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: 2 }
 
