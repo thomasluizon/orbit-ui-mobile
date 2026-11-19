@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs"
+import { mkdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { intakeSource, readIntake, updateIntakeSource } from "../lib/auto-work-intake.mjs"
 import { boardCheck, evaluateChecks, initialWakeMarks, mailCheck, reviewCheck, saveWakeMarks, SENTRY_DETAIL, watchIntake } from "../lib/auto-work-wake.mjs"
@@ -119,6 +119,13 @@ const stateCases = () => {
   saveWakeMarks(marks, checkout)
   T("wake: marks persist in intake.wake beside the source state", JSON.stringify(readIntake(checkout).wake) === JSON.stringify(marks) &&
     intakeSource("play", checkout).pending.r1.id === "r1")
+  const intakePath = join(checkout, ".git", "orbit-test-run-files", "run-state", "intake.json")
+  const inodeBefore = statSync(intakePath, { bigint: true }).ino
+  saveWakeMarks(marks, checkout)
+  T("wake: saving the marks the intake file already holds replaces no file", statSync(intakePath, { bigint: true }).ino === inodeBefore)
+  saveWakeMarks({ ...marks, sentryListedAt: "2026-11-09T00:00:00.000Z" }, checkout)
+  T("wake: saving changed marks replaces the intake file", statSync(intakePath, { bigint: true }).ino !== inodeBefore)
+  saveWakeMarks(marks, checkout)
   writeRunState({ ...readRunState(checkout), sessionId: "child", relay: { from: "wake" } }, checkout)
   T("wake: a relay reads the same wake marks from the intake file", JSON.stringify(initialWakeMarks(readIntake(checkout), Date.now())) === JSON.stringify(marks))
 }

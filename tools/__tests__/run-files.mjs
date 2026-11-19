@@ -98,7 +98,12 @@ export const cases = () => {
   }, "intake", store)
   T(`${UNIT}: an update that loses the race reads again and keeps the other writer's change`, raced.gmail.highWater === "m2" && raced.play.round === 2 && racer === 3, JSON.stringify(raced))
   same(`${UNIT}: an update that returns undefined writes nothing`, updateRunJson("run-state/intake.json", () => undefined, "intake", store), raced)
+  const counted = { ...store, write: (...parameters) => { counted.writes++; return store.write(...parameters) }, writes: 0 }
+  same(`${UNIT}: an update that returns the value it read returns it`, updateRunJson("run-state/intake.json", (value) => structuredClone(value), "intake", counted), raced)
+  T(`${UNIT}: an update that returns the value it read sends no write`, counted.writes === 0, String(counted.writes))
+  updateRunJson("run-state/intake.json", (value) => ({ ...value, gmail: { highWater: "m3" } }), "intake", counted)
+  T(`${UNIT}: an update that changes the value sends one write`, counted.writes === 1, String(counted.writes))
   let endless
-  try { updateRunJson("run-state/intake.json", (value) => { store.write("run-state/intake.json", JSON.stringify({ ...value, n: Math.random() }), readRunJson("run-state/intake.json", store).sha); return value }, "intake", store) } catch (error) { endless = error.message }
+  try { updateRunJson("run-state/intake.json", (value) => { store.write("run-state/intake.json", JSON.stringify({ ...value, n: Math.random() }), readRunJson("run-state/intake.json", store).sha); return { ...value, gmail: { highWater: "m4" } } }, "intake", store) } catch (error) { endless = error.message }
   T(`${UNIT}: an update stops after five lost races`, /kept changing: 5 writes lost the race/.test(endless ?? ""), endless)
 }

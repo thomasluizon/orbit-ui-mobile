@@ -111,13 +111,14 @@ export const readRunJson = (path, store = runFiles()) => {
 
 /**
  * One read-change-write of a JSON run file. `change` receives the current value (null when absent) and may run again
- * after a conflict, so it must derive everything from its argument. Returns the value that was written.
+ * after a conflict, so it must derive everything from its argument. Returns the value that was written, or the value it
+ * read when `change` returns undefined or a value equal to it: that sends no write, because each write is a commit to the tickets repository.
  */
 export const updateRunJson = (path, change, message, store = runFiles()) => {
   for (let attempt = 0; attempt < WRITE_ATTEMPTS; attempt++) {
     const { value, sha } = readRunJson(path, store)
     const next = change(value)
-    if (next === undefined) return value
+    if (next === undefined || JSON.stringify(next) === JSON.stringify(value)) return value
     try {
       store.write(path, `${JSON.stringify(next, null, 2)}\n`, sha, message)
       return next
