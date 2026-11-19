@@ -1,5 +1,6 @@
 import { extractBackendErrorCode } from './error-utils'
 import { isValidEmail } from './email'
+import type { AuthCallbackState } from './auth-callback-failure'
 
 export const VERIFICATION_CODE_LENGTH = 6
 
@@ -179,6 +180,21 @@ export function formatLoginCountdown(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
 
+type LoginTranslate = (key: string, values?: Record<string, string>) => string
+
+/** The reason a sign-in step cannot send yet: no connection, then the human check that has not passed. Absent when the step can send. */
+export function loginRefusalHint(translate: LoginTranslate, isOnline: boolean, canSubmitTurnstile: boolean): string | undefined {
+  if (!isOnline) return translate('auth.errors.offline')
+  return canSubmitTurnstile ? undefined : translate('auth.turnstileLabel')
+}
+
+/** The line of the code step: the wait of a locked code, an expired code, or the address the code went to. */
+export function loginCodeLine(translate: LoginTranslate, { waiting, codeFailure, lockCountdown, email }: { waiting: boolean; codeFailure: LoginCodeFailure; lockCountdown: number; email: string }): string {
+  if (waiting) return translate('auth.line.codeLocked', { time: formatLoginCountdown(lockCountdown) })
+  if (codeFailure === 'expired') return translate('auth.line.codeExpired')
+  return translate('auth.line.codeSent', { email })
+}
+
 export function isValidVerificationCode(value: string | null | undefined): value is string {
   return typeof value === 'string' && /^\d{6}$/.test(value)
 }
@@ -217,11 +233,26 @@ export function isVerificationCodeComplete(
   return digits.join('').length === codeLength
 }
 
-export function getPendingAuthProvider(callback: { state: 'pending' | 'failed' | 'account'; provider?: 'apple' | 'google' } | undefined): 'apple' | 'google' | null {
+export function getPendingAuthProvider(callback: { state: AuthCallbackState; provider?: 'apple' | 'google' } | undefined): 'apple' | 'google' | null {
   if (callback?.state !== 'pending') return null
   return callback.provider ?? 'google'
 }
 
+/** Whether the current sign-in surface shows the provider line of a callback: after a failure, and after a cancel. */
+export function showsAuthCallbackLine(callback: { state: AuthCallbackState } | undefined): boolean {
+  return callback?.state === 'failed' || callback?.state === 'cancelled'
+}
+
 export function getAuthCallbackErrorKey(provider: 'apple' | 'google' | undefined): string {
   return provider === 'apple' ? 'auth.errors.appleError' : 'auth.errors.googleError'
+}
+
+/** Where each failure of the email step shows: beside the field, under the provider actions, or beside the continue action. Offline shows none, because the offline notice names the state. */
+export function deriveLoginEmailErrors({ isOnline, fieldError, errorKey, errorMessage }: {
+  isOnline: boolean; fieldError: string | undefined; errorKey: string | null; errorMessage: string | null
+}): { field: string | null; provider: string | null; send: string | null } {
+  if (!isOnline) return { field: null, provider: null, send: null }
+  const field = fieldError || (errorKey === 'auth.errors.invalidEmail' ? errorMessage : null)
+  const provider = errorKey === 'auth.errors.googleError' || errorKey === 'auth.errors.appleError' ? errorMessage : null
+  return { field, provider, send: errorMessage && !field && !provider ? errorMessage : null }
 }

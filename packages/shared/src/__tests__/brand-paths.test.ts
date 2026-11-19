@@ -14,6 +14,7 @@ import {
   ORBIT_SMALL_FACE_BOX_RATIO,
   ORBIT_SMALL_FACES,
   isOrbitMascotSmallSize,
+  orbitBlinkMatrix,
   orbitMascotDrawnFrame,
   orbitMascotFrame,
   orbitMascotHeight,
@@ -95,6 +96,14 @@ describe('the rest frame', () => {
     const inBlink = mascotMotion.blinkInterval * 0.96
     expect(orbitMascotDrawnFrame(inBlink, mascotMotion, true)).toEqual(orbitMascotFrame(inBlink, mascotMotion))
     expect(orbitMascotDrawnFrame(inBlink, mascotMotion, false)).toEqual({ ...orbitMascotFrame(inBlink, mascotMotion), blinkScale: 1 })
+    expect(orbitMascotDrawnFrame(inBlink, mascotMotion, false, 0.5)).toEqual({ ...orbitMascotFrame(inBlink, mascotMotion, 0.5), blinkScale: 1 })
+  })
+
+  it('closes an eye about its own centre line, so the line stays where it was', () => {
+    expect(orbitBlinkMatrix(1, -30)).toBe('matrix(1 0 0 1.000 0 0.000)')
+    expect(orbitBlinkMatrix(0.1, -30)).toBe('matrix(1 0 0 0.100 0 -27.000)')
+    const [, , , scaleY, , shiftY] = /matrix\((\S+) (\S+) (\S+) (\S+) (\S+) (\S+)\)/.exec(orbitBlinkMatrix(0.1, -42))!.slice(1).map(Number)
+    expect(-42 * scaleY! + shiftY!, 'the centre line maps to itself').toBeCloseTo(-42)
   })
 })
 

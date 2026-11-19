@@ -119,7 +119,7 @@ for (const width of [412, 1352]) {
         '/progress/achievements': '[data-testid="progress-xp-summary"]',
         '/profile/account': '[data-testid="profile-settings-group-account"] [data-slot="list-row-title"]',
         '/profile/preferences': '[data-testid="profile-settings-group-preferences"] [data-slot="list-row-title"]',
-        '/profile/astra': '[data-testid="profile-api-keys"]',
+        '/profile/ai': '[data-testid="profile-api-keys"]',
         '/profile/notifications': '[role="switch"]',
         '/habits/new': '[data-habit-create-screen] form',
         '/upgrade': '.orbit-pill-action',
@@ -128,7 +128,7 @@ for (const width of [412, 1352]) {
         '/support': 'form .orbit-pill-action',
       }
 
-      for (const route of ['/', '/progress', '/progress/goals', '/progress/streak', '/progress/achievements', '/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications', '/habits/new', `/habits/${habitId}`, '/upgrade', '/notifications', '/about', '/support']) {
+      for (const route of ['/', '/progress', '/progress/goals', '/progress/streak', '/progress/achievements', '/profile/account', '/profile/preferences', '/profile/ai', '/profile/notifications', '/habits/new', `/habits/${habitId}`, '/upgrade', '/notifications', '/about', '/support']) {
         test(`${route} keeps adjacent pills in one size with sufficient clearance`, async ({ page }) => {
           if (route === '/progress/streak') {
             await page.addLocatorHandler(page.getByRole('dialog', { name: messages.marketingConsent.prompt.title }), async (dialog) => {

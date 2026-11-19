@@ -99,6 +99,12 @@ it.each(['connect', 'choosePages', 'reconnect'] as const)('opens the %s URL afte
   expect(opened).toHaveBeenCalledExactlyOnceWith(createNotionAuthorization().authorizeUrl)
   sheetTestControls.defer(false)
 })
+it('names the Notion sheet with its question, never the bare product noun', async () => {
+  mount(); await openNotion()
+  const titles = tree.root.findAll((node: { props: Record<string, unknown> }) => typeof node.props.title === 'string' && 'open' in node.props).map((node: { props: { title: string } }) => node.props.title)
+  expect(titles).toContain(en.profile.connections.notionQuestion)
+  expect(titles).not.toContain(en.profile.connections.notion)
+})
 it.each([
   ['the feature flag turns off', (): void => { mocks.enabled = false }, true],
   ['Pro access ends', (): void => undefined, false],
@@ -126,6 +132,7 @@ it('shows the workspace and last sync, then deletes only after confirmation', as
   })
   mount(); await openNotion()
   expect(text()).toContain('Shared tasks'); expect(text()).toContain('Last sync:')
+  expect(text(), 'the connected sheet answers its question too').toContain(en.profile.connections.description)
   expect(action(en.profile.connections.choosePages).props.disabled).toBe(false)
   TestRenderer.act(() => action(en.profile.connections.disconnect).props.onClick())
   const confirmation = tree.root.findByType(ConfirmSheet)
@@ -168,4 +175,15 @@ it('shows an authorization failure and allows another attempt', async () => {
   TestRenderer.act(() => action(en.profile.connections.connect).props.onClick()); await settle()
   expect(text()).toContain(en.profile.connections.error)
   expect(action(en.profile.connections.connect).props.disabled).toBe(false)
+})
+it('draws a skeleton and no spinner while the Notion connection loads', () => {
+  mocks.api.mockReturnValue(new Promise(() => {}))
+  function Harness() {
+    const controller = useNotionConnectionController(true)
+    return <NotionConnectionSheet callbackFailed={false} controller={controller} onClose={vi.fn()} onAuthorize={vi.fn()} onOpenUrl={vi.fn()} />
+  }
+  mount(true, <Harness />)
+  const hosts = tree.root.findAll((node: { type: unknown }) => typeof node.type === 'string')
+  expect(hosts.some((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) => node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === en.common.loading)).toBe(true)
+  expect(hosts.some((node: { type: unknown }) => node.type === 'ActivityIndicator')).toBe(false)
 })

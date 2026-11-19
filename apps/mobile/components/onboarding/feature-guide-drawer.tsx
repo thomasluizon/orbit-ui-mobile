@@ -139,7 +139,7 @@ export function FeatureGuideDrawer({
     open ? (<Sheet
       open
       onClose={onClose}
-      title={t('onboarding.featureGuide.title')}
+      title={t('onboarding.featureGuide.question')}
     >
       <View style={styles.tabBarWrap}>
         <ScrollView

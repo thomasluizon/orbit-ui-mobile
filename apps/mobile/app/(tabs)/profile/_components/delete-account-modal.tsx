@@ -6,7 +6,8 @@ import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
 import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
 import { API } from '@orbit/shared/api'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage, markGuidedFlowCompleted } from '@orbit/shared/utils'
+import { getDeleteAccountWarningKeys } from '@orbit/shared/utils/delete-account'
 import { apiClient } from '@/lib/api-client'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { useOffline } from '@/hooks/use-offline'
@@ -19,17 +20,20 @@ import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
 import { TriangleAlert } from '@/components/ui/icons'
 import { ErrorState } from '@/components/ui/error-state'
+import { DeleteAccountFlow } from './delete-account-flow'
 
 interface DeleteAccountModalProps {
   open: boolean
   onClose: () => void
   profile: Profile | undefined
+  guided?: boolean
 }
 
 export function DeleteAccountModal({
   open,
   onClose,
   profile,
+  guided = false,
 }: Readonly<DeleteAccountModalProps>) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -42,24 +46,15 @@ export function DeleteAccountModal({
   const requestPending = useRef(false)
   const [error, setError] = useState('')
 
-  const warningMessage = (() => {
-    // WHY: Mirrors https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Application/Auth/Commands/ConfirmAccountDeletionCommand.cs#L31-L33.
-    if (
-      profile?.hasProAccess &&
-      profile.planExpiresAt !== null &&
-      new Date(profile.planExpiresAt) > new Date()
-    ) {
-      return t('profile.deleteAccount.warningPro')
-    }
-    return t('profile.deleteAccount.warningFree')
-  })()
-
-  const storeCancellationNotice = (profile?.billingProvider ?? profile?.subscriptionSource) === 'app_store'
-    ? t('profile.deleteAccount.warningAppStore') : ''
+  const warningKeys = getDeleteAccountWarningKeys(profile, new Date())
+  const warningMessage = t(warningKeys.plan)
+  const storeCancellationNotice = warningKeys.store ? t(warningKeys.store) : ''
+  const [step, setStep] = useState<'warning' | 'send'>('warning')
 
   function handleClose() {
     setLoading(false)
     setError('')
+    setStep('warning')
     onClose()
   }
 
@@ -81,6 +76,7 @@ export function DeleteAccountModal({
       if (!ownsAccount()) return
       closeSheet(() => {
         if (!ownsAccount()) return
+        markGuidedFlowCompleted('delete_account')
         handleClose()
         router.push('/step-up?operation=delete')
       })
@@ -102,6 +98,23 @@ export function DeleteAccountModal({
   }
 
   if (!open) return null
+  if (guided) {
+    return (
+      <DeleteAccountFlow
+        step={step}
+        warnings={[t('profile.deleteAccount.warning'), [warningMessage, storeCancellationNotice].filter(Boolean).join(' '), t('profile.deleteAccount.warningDetail')]}
+        email={profile?.email ?? null}
+        offline={!isOnline}
+        loading={loading}
+        error={error}
+        canSend={accountId !== null}
+        onContinue={() => setStep('send')}
+        onBack={() => { setError(''); setStep('warning') }}
+        onClose={handleClose}
+        onSend={() => { void handleRequestDeletion() }}
+      />
+    )
+  }
 
   return (
     <Sheet

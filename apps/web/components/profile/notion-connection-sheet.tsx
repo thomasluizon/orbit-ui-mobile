@@ -30,6 +30,7 @@ function NotionConnectionDetails({ controller, reconnect, hasConnection }: Reado
   const current = connection.data
   return <>{connection.isLoading ? <NotionDetailsSkeleton label={t('common.loading')} /> : hasConnection ? <>
           {current?.workspaceName ? <PersonalTextDetails textStyle={{ fontSize: '1rem', lineHeight: 1.5 }}>{current.workspaceName}</PersonalTextDetails> : null}
+          <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.description')}</p>
           {current?.lastPollAtUtc ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.lastSync', { time: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(current.lastPollAtUtc)) })}</p> : <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.awaitingSync')}</p>}
           {reconnect ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.renew')}</p> : null}
         </> : <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.description')}</p>}</>
@@ -59,7 +60,7 @@ export function NotionConnectionSheet({ callbackFailed, controller, onClose, onA
       : <PillButton disabled={disabled} loading={authorize.isPending || leaving} onClick={connect}>{t(`profile.connections.${actionKey}`)}</PillButton>}
   </>
   return <>
-    <Sheet ref={sheetRef} title={t('profile.connections.notion')} titleTranslate="no" onClose={onClose} actions={actions}>
+    <Sheet ref={sheetRef} title={t('profile.connections.notionQuestion')} onClose={onClose} actions={actions}>
       <div className="flex min-w-0 flex-col" style={{ gap: 16 }}>
         <NotionConnectionDetails controller={controller} reconnect={reconnect} hasConnection={hasConnection} />
         <p role="status" className="text-sm text-[var(--status-bad-text)]">{error ? t('profile.connections.error') : ''}</p>

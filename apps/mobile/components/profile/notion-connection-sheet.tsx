@@ -33,6 +33,7 @@ function NotionConnectionDetails({ controller, reconnect, hasConnection }: Reado
   const current = connection.data
   return <>{connection.isLoading ? <NotionDetailsSkeleton label={t('common.loading')} /> : hasConnection ? <>
           {current?.workspaceName ? <PersonalTextDetails textStyle={styles.workspace}>{current.workspaceName}</PersonalTextDetails> : null}
+          <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.description')}</Text>
           {current?.lastPollAtUtc ? <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.lastSync', { time: new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(current.lastPollAtUtc)) })}</Text> : <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.awaitingSync')}</Text>}
           {reconnect ? <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.renew')}</Text> : null}
         </> : <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.description')}</Text>}</>
@@ -64,7 +65,7 @@ export function NotionConnectionSheet({ callbackFailed, controller, onClose, onA
       : <PillButton disabled={disabled} loading={authorize.isPending || leaving} onClick={connect}>{t(`profile.connections.${actionKey}`)}</PillButton>}
   </>
   return <>
-    <Sheet ref={sheetRef} title={t('profile.connections.notion')}  onClose={onClose} actions={actions}>
+    <Sheet ref={sheetRef} title={t('profile.connections.notionQuestion')}  onClose={onClose} actions={actions}>
       <View style={{ gap: 16 }}>
         <NotionConnectionDetails controller={controller} reconnect={reconnect} hasConnection={hasConnection} />
         <Text accessibilityLiveRegion="polite" style={[styles.body, { color: tokens.statusBadText }]}>{error ? t('profile.connections.error') : ''}</Text>

@@ -11,7 +11,10 @@ and Android. The Progresso amendment in `DESIGN.md` and `design/canvas/README.md
 | Conquistas, `/progress/achievements` | `apps/web/app/(app)/progress/achievements/page.tsx` | `apps/mobile/app/progress/achievements.tsx` | Level, title, XP and next-level bar, visible achievement categories, earned states and individual progress; social categories remain hidden |
 
 The implementation lives in each platform's `progress-content.tsx`, with a `progress-subscreen.tsx`
-frame for pushed details. The shared `progress-navigation.ts` defines the three entries.
+frame for pushed details. The Metas functions live in the `goals/` folder beside it (web
+`app/(app)/progress/_components/goals/`, Android `components/progress/goals/`). With
+`orbit_guided_flows` on, the empty Metas list shows Orbit at rest, and a goal whose value changed since
+the last visit sweeps its ring once. The shared `progress-navigation.ts` defines the three entries.
 Each entry is one tap from the overview, including while its summary is unavailable. The
 Conquistas row names level and XP in its supporting line. No additional settings or explanatory
 controls live on the overview.

@@ -5,6 +5,7 @@ import {
   ONBOARDING_DRAFT_STORAGE_VERSION,
   createOnboardingDraftState,
   getPersistedOnboardingDraft,
+  mergeOnboardingDraft,
   migrateOnboardingDraft,
   type OnboardingDraftState,
   type PersistedOnboardingDraft,
@@ -31,17 +32,7 @@ export const useOnboardingDraftStore = create<OnboardingDraftStore>()(
       storage: createJSONStorage<PersistedOnboardingDraft>(() => AsyncStorage),
       migrate: migrateOnboardingDraft,
       partialize: getPersistedOnboardingDraft,
-      merge: (persisted, current) => {
-        const draft = migrateOnboardingDraft(persisted)
-        const accountId = getAccountId()
-        return {
-          ...current,
-          ...(accountId !== null && draft.accountKey !== accountId
-            ? migrateOnboardingDraft(null)
-            : draft),
-          onboardingLocallyDone: current.onboardingLocallyDone || draft.onboardingLocallyDone || accountId !== null,
-        }
-      },
+      merge: (persisted, current) => ({ ...current, ...mergeOnboardingDraft(persisted, current, getAccountId()) }),
       onRehydrateStorage: () => () => {
         useOnboardingDraftStore.setState({ _hasHydrated: true })
       },

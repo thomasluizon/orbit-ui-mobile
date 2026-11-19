@@ -1,5 +1,6 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
+import { SkeletonFace } from '@/components/ui/skeleton'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +11,8 @@ import {
 } from '@orbit/shared/hooks/turnstile-token-core'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import type { WebViewErrorEvent, WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes'
-import { createTokensV2 } from '@/lib/theme'
+import { SPACING } from '@orbit/shared/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 import { shouldLoadTurnstileFrame, TURNSTILE_ORIGIN_ALLOWLIST, urlHost } from '@/lib/turnstile-frames'
@@ -218,8 +220,12 @@ export function TurnstileWidget({
           />}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <View accessibilityLiveRegion="polite" style={{ flexShrink: 1 }}>
-          {state === 'loading' && <Text style={{ color: tokens.fg2, textAlign: 'center' }}>{t('auth.turnstileLoading')}</Text>}
+        <View accessibilityLiveRegion="polite" style={{ flexShrink: 1, flexGrow: state === 'loading' ? 1 : 0 }}>
+          {state === 'loading' && <View testID="turnstile-wait" style={{ height: TURNSTILE_CHALLENGE_HEIGHT, alignItems: 'center', justifyContent: 'center',
+            paddingHorizontal: SPACING.s16, borderRadius: radius.md, overflow: 'hidden' }}>
+            <SkeletonFace tokens={tokens} />
+            <Text style={{ color: tokens.fg2, textAlign: 'center' }}>{t('auth.turnstileLoading')}</Text>
+          </View>}
           {stopped &&
             <Text style={{ color: tokens.statusBadText, textAlign: 'center' }} accessibilityRole="alert">
               {t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired')}

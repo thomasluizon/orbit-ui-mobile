@@ -73,7 +73,7 @@ export function AstraAllowancePanel({
       </div>
       {!profile.isLifetimePro ? (
         <div className="flex">
-          <PillLink href="/upgrade?from=%2Fprofile%2Fastra" variant="ghost" size="sm">{actionLabel}</PillLink>
+          <PillLink href="/upgrade?from=%2Fprofile%2Fai" variant="ghost" size="sm">{actionLabel}</PillLink>
         </div>
       ) : null}
     </div>

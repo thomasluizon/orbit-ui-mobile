@@ -30,6 +30,9 @@ import { createTokensV2, radius } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 import { SupportReplyEmail } from '@/components/support-reply-email'
+import { SupportGuided } from '@/components/support-flow'
+import { useFlag } from '@/hooks/use-flag'
+import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { Input } from '@/components/ui/input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
@@ -266,6 +269,8 @@ export default function SupportScreen() {
   const [messageError, setMessageError] = useState<string | null>(null)
   const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
   const [messageFocusRequest, setMessageFocusRequest] = useState(0)
+  const guided = useFlag('orbit_guided_flows')
+  const [step, setStep] = useState<'subject' | 'message'>('subject')
   const resolvedEmail = profile?.email || ''
   const hasSubject = subject !== null
   const hasMessage = Boolean(message.trim())
@@ -299,6 +304,7 @@ export default function SupportScreen() {
           setSubject(restoredDraft.subject)
           setMessage(restoredDraft.message)
           setMessageAsked(restoredDraft.subject !== null || restoredDraft.message !== '')
+          setStep(restoredDraft.subject === null ? 'subject' : 'message')
         } catch {
           void forgetStoredSupportDraft()
         }
@@ -350,7 +356,10 @@ export default function SupportScreen() {
         ),
       })
       setSuccess(true)
-      AccessibilityInfo.announceForAccessibility(t('profile.support.success'))
+      if (guided) {
+        captureGuidedFlowCompleted('support_request', 2, false)
+        setStep('subject')
+      } else AccessibilityInfo.announceForAccessibility(t('profile.support.success'))
       draftRef.current = { subject: null, message: '' }
       setSubject(null)
       setMessage('')
@@ -379,6 +388,51 @@ export default function SupportScreen() {
   }
 
   const canSend = isOnline && !sending
+  const onSubjectChange = (next: SupportSubjectId) => {
+    setSubject(next)
+    setSubjectError(null)
+    setMessageAsked(true)
+    persistDraft({ subject: next })
+  }
+  const onMessageChange = (next: string) => {
+    setMessage(next)
+    setMessageError(null)
+    persistDraft({ message: next })
+  }
+  const onMessageBlur = () => {
+    if (!message.trim()) setMessageError(t('profile.support.messageRequired'))
+  }
+
+  if (guided) {
+    return (
+      <SupportGuided
+        sent={success}
+        onOpenAbout={() => router.push('/about')}
+        onDismissResult={() => setSuccess(false)}
+        step={step}
+        email={resolvedEmail}
+        subject={subject}
+        message={message}
+        appVersion={appVersion}
+        messageMaxLength={messageMaxLength}
+        messageOverLimitHint={messageOverLimitHint}
+        validationMessage={validationMessage}
+        error={error}
+        subjectError={subjectError}
+        messageError={messageError}
+        isSending={sending}
+        isOnline={isOnline}
+        disabledReason={disabledReason}
+        messageFocusRequest={messageFocusRequest}
+        onSubjectSelect={(next) => { onSubjectChange(next); setStep('message') }}
+        onMessageChange={onMessageChange}
+        onMessageBlur={onMessageBlur}
+        onSend={() => { void handleSend() }}
+        onBack={() => setStep('subject')}
+        onClose={() => goBackOrFallback('/profile')}
+      />
+    )
+  }
 
   return (
     <SafeAreaView
@@ -424,23 +478,12 @@ export default function SupportScreen() {
             disabledReason={disabledReason}
             subjectFocusRequest={subjectFocusRequest}
             messageFocusRequest={messageFocusRequest}
-            onChangeSubject={(next) => {
-              setSubject(next)
-              setSubjectError(null)
-              setMessageAsked(true)
-              persistDraft({ subject: next })
-            }}
+            onChangeSubject={onSubjectChange}
             onSubjectBlur={() => {
               if (!subject) setSubjectError(t('profile.support.subjectRequired'))
             }}
-            onChangeMessage={(next) => {
-              setMessage(next)
-              setMessageError(null)
-              persistDraft({ message: next })
-            }}
-            onMessageBlur={() => {
-              if (!message.trim()) setMessageError(t('profile.support.messageRequired'))
-            }}
+            onChangeMessage={onMessageChange}
+            onMessageBlur={onMessageBlur}
             onSend={() => {
               void handleSend()
             }}

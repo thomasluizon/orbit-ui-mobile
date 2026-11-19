@@ -120,6 +120,44 @@ describe('habit tag suggestions', () => {
     expect(screen.getByLabelText('Selected tags')).toHaveTextContent('tag-created')
   })
 
+  function collapseAndReopenDetails() {
+    const details = screen.getByRole('button', { name: 'habits.form.moreDetails', hidden: true })
+    const region = document.getElementById(details.getAttribute('aria-controls')!)!
+    fireEvent.click(details)
+    const transitionEnd = new Event('transitionend', { bubbles: true })
+    Object.defineProperty(transitionEnd, 'propertyName', { value: 'opacity' })
+    fireEvent(region, transitionEnd)
+    expect(region).not.toBeInTheDocument()
+    fireEvent.click(details)
+    fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
+  }
+
+  it('keeps fetched suggestions when More details collapses and opens again, with no second request', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [{ name: 'Outdoors', color: '#7c3aed', isExisting: false, id: null }] })
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    expect(await screen.findByRole('button', { name: 'Outdoors', pressed: false })).toBeEnabled()
+    collapseAndReopenDetails()
+    expect(within(screen.getByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Outdoors', pressed: false })).toBeEnabled()
+    expect(tagMutations.suggest).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the tag Add hold when More details collapses and opens again during the request', async () => {
+    const request = deferred()
+    tagMutations.create.mockReturnValue(request.promise)
+    renderTagForm('Read')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.newTag' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.tagName' }), { target: { value: 'Health' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
+    collapseAndReopenDetails()
+    const add = screen.getByRole('button', { name: 'common.add' })
+    expectWaiting(add, 'common.add')
+    fireEvent.click(add)
+    expect(tagMutations.create).toHaveBeenCalledOnce()
+    await act(async () => { request.settle().resolve({ id: 'tag-created' }) })
+    expect(screen.getByLabelText('Selected tags')).toHaveTextContent('tag-created')
+  })
+
   it('ends the tag Add waiting face when the request fails, and the next press sends again', async () => {
     const request = deferred()
     tagMutations.create.mockReturnValue(request.promise)

@@ -19,6 +19,8 @@ export type OrbitMascotTypeContract = [
   Assert<IsExact<{ size: 48; live: 'withLead' }, OrbitMascotProps>>,
   // @ts-expect-error one prop carries the live role, so an Orbit cannot be the entry and an Orbit line at once
   Assert<IsExact<{ size: 48; lead: true; withLead: true }, OrbitMascotProps>>,
+  Assert<IsExactWidth<OrbitMascotProps['lookAt'], { readonly x: number; readonly y: number } | null | undefined>>,
+  Assert<IsExactWidth<OrbitMascotProps['turnKey'], string | number | undefined>>,
   Assert<IsExact<{ size: 96; state: 'feliz' }, OrbitMascotProps>>,
   // @ts-expect-error the size is required
   Assert<IsExact<{ state: 'parado' }, OrbitMascotProps>>,

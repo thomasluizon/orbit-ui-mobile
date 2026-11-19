@@ -122,7 +122,7 @@ async function mountNavigator() {
   })
   return tree
 }
-const settingsRoutes = ['auth-callback/notion', 'profile/account', 'profile/preferences', 'profile/astra', 'profile/notifications', 'progress/streak', 'progress/goals', 'progress/achievements']
+const settingsRoutes = ['auth-callback/notion', 'profile/account', 'profile/preferences', 'profile/ai', 'profile/notifications', 'progress/streak', 'progress/goals', 'progress/achievements']
 const legacyLinks = [
   '/preferences', '/advanced', 'orbit://ai-settings',
   'orbit://profile#notifications', 'https://app.useorbit.org/profile#ending',

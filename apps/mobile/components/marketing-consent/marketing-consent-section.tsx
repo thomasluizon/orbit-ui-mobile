@@ -10,6 +10,7 @@ import { API } from '@orbit/shared/api'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
+import { OptionCard } from '@/components/ui/option-card'
 import { RowList } from '@/components/ui/row-list'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -21,6 +22,7 @@ type MarketingConsentStyles = ReturnType<typeof createStyles>
 
 interface MarketingConsentContentProps {
   contained: boolean
+  guided: boolean
   consent: boolean | null | undefined
   enabled: boolean
   isPending: boolean
@@ -31,6 +33,7 @@ interface MarketingConsentContentProps {
 
 function MarketingConsentContent({
   contained,
+  guided,
   consent,
   enabled,
   isPending,
@@ -47,7 +50,12 @@ function MarketingConsentContent({
         <Text style={styles.questionDescription}>
           {t('profile.marketingEmails.questionDescription')}
         </Text>
-        <View style={styles.answers} pointerEvents={isPending ? 'none' : 'auto'}><ActionRow>
+        {guided ? (
+          <View accessibilityRole="radiogroup" accessibilityLabel={t('profile.marketingEmails.question')} style={styles.options}>
+            <OptionCard label={t('profile.marketingEmails.decline')} disabled={isPending} onSelect={() => onChange(false)} />
+            <OptionCard label={t('profile.marketingEmails.accept')} disabled={isPending} onSelect={() => onChange(true)} />
+          </View>
+        ) : <View style={styles.answers} pointerEvents={isPending ? 'none' : 'auto'}><ActionRow>
           <PillButton
             size="sm"
             variant="ghost"
@@ -60,7 +68,7 @@ function MarketingConsentContent({
           <PillButton size="sm" disabled={isPending} onClick={() => onChange(true)}>
             {t('profile.marketingEmails.accept')}
           </PillButton>
-        </ActionRow></View>
+        </ActionRow></View>}
       </View>
     )
   }
@@ -75,7 +83,8 @@ export function MarketingConsentSection({
   showSectionLabel = true,
   contained = false,
   trailingRow,
-}: Readonly<{ showSectionLabel?: boolean; contained?: boolean; trailingRow?: ReactNode }>) {
+  guided = false,
+}: Readonly<{ showSectionLabel?: boolean; contained?: boolean; trailingRow?: ReactNode; guided?: boolean }>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -110,6 +119,7 @@ export function MarketingConsentSection({
   })
   const content = (
     <MarketingConsentContent
+      guided={guided}
       contained={contained}
       consent={profile?.marketingEmailConsent}
       enabled={enabled}
@@ -157,6 +167,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontSize: 14,
       lineHeight: 21.7,
     },
+    options: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
     answers: {
       alignItems: 'center',
       flexDirection: 'row',

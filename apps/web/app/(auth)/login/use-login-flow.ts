@@ -24,7 +24,7 @@ export function useLoginFlow(isAuthCallback = false) {
   const searchParams = useSearchParams()
   const t = useTranslations()
   const locale = useLocale()
-  const { setAuth } = useAuthStore()
+  const { setAuth, isAuthenticated: signedIn } = useAuthStore()
   const { isOnline } = useOffline()
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
   const {
@@ -209,6 +209,11 @@ export function useLoginFlow(isAuthCallback = false) {
     } catch (error: unknown) {
       if (isCurrent() && !reportValidationFailure(error)) setErrorKey(resolveLoginErrorState(error, t, 'send').key)
     } finally { busy.current = false; setIsSubmitting(false) }
+  }
+
+  function refuseEmptyEmail() {
+    setErrorKey('auth.errors.invalidEmail')
+    setEmailFocusRequest((request) => request + 1)
   }
 
   function reportValidationFailure(error: unknown): boolean {
@@ -397,7 +402,7 @@ export function useLoginFlow(isAuthCallback = false) {
     setErrorKey(null)
   }
 
-  return { t, step, email, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, isAppleLoading, errorKey,
+  return { t, step, email, signedIn, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, isAppleLoading, errorKey,
     emailFieldError: getBackendFieldError(validationError, 'Email'),
     codeFieldError: getBackendFieldError(validationError, 'Code'),
     codeFocusRequest,
@@ -408,5 +413,5 @@ export function useLoginFlow(isAuthCallback = false) {
     errorMessage: errorKey ? t(errorKey) : null, successMessage, referralCode, fromOnboarding,
     turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
     pendingHabitCount, isOnline, authStepMotion, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
-    sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, signInWithApple, continueAccount }
+    sendCode, refuseEmptyEmail, verifyCode, resendCode, backToEmail, signInWithGoogle, signInWithApple, continueAccount }
 }

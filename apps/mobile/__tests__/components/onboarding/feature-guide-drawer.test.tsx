@@ -62,6 +62,13 @@ function getTabLabels(tree: RenderedTree) {
 }
 
 describe('FeatureGuideDrawer (mobile)', () => {
+  it('names the sheet with its question, never the bare guide noun', () => {
+    let tree: RenderedTree
+    TestRenderer.act(() => { tree = TestRenderer.create(<FeatureGuideDrawer open onClose={vi.fn()} />) })
+    const titles = tree!.root.findAll((node) => typeof node.props.title === 'string' && 'open' in node.props).map((node) => node.props.title)
+    expect([...new Set(titles)]).toEqual(['onboarding.featureGuide.question'])
+  })
+
   it('omits internal habit type entries from the habits guide', () => {
     let tree: RenderedTree
     TestRenderer.act(() => { tree = TestRenderer.create(<FeatureGuideDrawer open onClose={vi.fn()} />) })

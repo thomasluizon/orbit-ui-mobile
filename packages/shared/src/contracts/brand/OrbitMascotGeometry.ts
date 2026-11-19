@@ -90,6 +90,17 @@ export interface OrbitMascotFrame {
   readonly moon: { readonly x: number; readonly y: number; readonly radius: number; readonly front: boolean }
   /** 1 is open and 0.1 is the closed point of a blink. */
   readonly blinkScale: number
+  /** The width of the eyes through a ring turn. 1 at rest. */
+  readonly eyeWiden: number
+}
+
+/** The widest the eyes get through the middle of a ring turn, as a factor of their rest width. */
+export const ORBIT_MASCOT_TURN_EYE_WIDEN = 1.2
+
+/** How far a ring turn has gone, from 0 to 1, `elapsed` milliseconds after it started. It eases in and out. */
+export function orbitRingTurnProgress(elapsed: number, duration: number): number {
+  const linear = Math.min(Math.max(elapsed / duration, 0), 1)
+  return linear < 0.5 ? 2 * linear * linear : 1 - (-2 * linear + 2) ** 2 / 2
 }
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180
@@ -153,9 +164,9 @@ function moonAt(milliseconds: number, moonPeriod: number, tilt: number): { x: nu
   }
 }
 
-/** The frame at `milliseconds` of the idle loop. Zero is the rest frame every still face draws. */
-export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimings): OrbitMascotFrame {
-  const tilt = ringTiltAt(milliseconds, timings.tiltPeriod)
+/** The frame at `milliseconds` of the idle loop. Zero is the rest frame every still face draws. `turn` is the progress of a ring turn from 0 to 1: the ring and the moon make one full turn about the planet and the eyes widen through it. */
+export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimings, turn = 0): OrbitMascotFrame {
+  const tilt = ringTiltAt(milliseconds, timings.tiltPeriod) + turn * Math.PI * 2
   const moon = moonAt(milliseconds, timings.moonPeriod, tilt)
   const blinkPhase = (milliseconds % timings.blinkInterval) / timings.blinkInterval
   return {
@@ -169,13 +180,14 @@ export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimin
       front: moon.depth >= 0,
     },
     blinkScale: blinkScaleAt(blinkPhase),
+    eyeWiden: Number((1 + (ORBIT_MASCOT_TURN_EYE_WIDEN - 1) * Math.sin(turn * Math.PI)).toFixed(3)),
   }
 }
 
 /** The frame an Orbit draws at `milliseconds`. A stopped Orbit keeps its pose with its eyes open, so no Orbit stops in a
- *  blink. */
-export function orbitMascotDrawnFrame(milliseconds: number, timings: OrbitMascotTimings, running: boolean): OrbitMascotFrame {
-  const frame = orbitMascotFrame(milliseconds, timings)
+ *  blink. `turn` is the progress of a ring turn from 0 to 1. */
+export function orbitMascotDrawnFrame(milliseconds: number, timings: OrbitMascotTimings, running: boolean, turn = 0): OrbitMascotFrame {
+  const frame = orbitMascotFrame(milliseconds, timings, turn)
   return running ? frame : { ...frame, blinkScale: 1 }
 }
 
@@ -323,5 +335,42 @@ export function orbitSmallFaceFrame(milliseconds: number, size: OrbitMascotSmall
     moon: matrix(1, 0, 0, 1, orbitX + offsetX * inside - drawn.x, orbitY + offsetY * inside - drawn.y),
     moonFront: moon.depth >= 0,
     eyes: matrix(1, 0, 0, blink, 0, ORBIT_SMALL_FACE_EYE_CENTRE_Y[size] * (1 - blink)),
+  }
+}
+
+/** The most the eyes travel toward a control, in rig units. The planet radius is 100, so the pills stay inside it. */
+export const ORBIT_EYE_TRAVEL = { x: 14, y: 9 } as const
+
+export type OrbitShownState = 'parado' | 'olhando' | 'pensando' | 'feliz' | 'descansando'
+
+/** The state `data-orbit-state` exposes. Priority: descansando, pensando, feliz, olhando, parado. */
+export function resolveOrbitShownState(
+  state: 'parado' | 'pensando' | 'feliz' | 'descansando',
+  lookAt: { readonly x: number; readonly y: number } | null | undefined,
+): OrbitShownState {
+  return state === 'parado' && lookAt ? 'olhando' : state
+}
+
+/** The eye shift toward the target. Reduced motion draws no eye travel. */
+export function orbitEyeOffset(
+  lookAt: { readonly x: number; readonly y: number } | null | undefined,
+  reducedMotion: boolean,
+): { readonly x: number; readonly y: number } {
+  if (!lookAt || reducedMotion) return { x: 0, y: 0 }
+  const clamp = (value: number) => Math.max(-1, Math.min(1, value))
+  return { x: clamp(lookAt.x) * ORBIT_EYE_TRAVEL.x, y: clamp(lookAt.y) * ORBIT_EYE_TRAVEL.y }
+}
+
+const ORBIT_LOOK_REACH = 160
+
+/** The look vector from the mascot centre to a control centre, each axis from -1 to 1. */
+export function orbitLookVector(
+  mascotCentre: { readonly x: number; readonly y: number },
+  targetCentre: { readonly x: number; readonly y: number },
+): { readonly x: number; readonly y: number } {
+  const clamp = (value: number) => Math.max(-1, Math.min(1, value))
+  return {
+    x: clamp((targetCentre.x - mascotCentre.x) / ORBIT_LOOK_REACH),
+    y: clamp((targetCentre.y - mascotCentre.y) / ORBIT_LOOK_REACH),
   }
 }

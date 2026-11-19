@@ -4,6 +4,8 @@ import type {
   CreateHabitRequest,
   HabitSetupSuggestion,
   HabitSetupSuggestionRequest,
+  HabitPhraseReadRequest,
+  HabitPhraseReadResponse,
   UpdateHabitRequest,
   LogHabitRequest,
   SkipHabitRequest,
@@ -24,6 +26,7 @@ import type {
 } from '@orbit/shared'
 import {
   habitSetupSuggestionSchema,
+  habitPhraseReadSchema,
   logHabitResponseSchema,
   bulkCreateResponseSchema,
   bulkDeleteResponseSchema,
@@ -52,6 +55,21 @@ export async function createHabit(
       body: JSON.stringify(request),
     }, intendedAccountId)
   })
+}
+
+export async function readHabitPhrase(
+  data: HabitPhraseReadRequest,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<HabitPhraseReadResponse>> {
+  return wrapServerAction(() => serverAuthMutate(
+    API.habits.readPhrase,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    },
+    intendedAccountId,
+    habitPhraseReadSchema,
+  ))
 }
 
 export async function suggestHabitSetup(
