@@ -36,7 +36,7 @@ UI `main` `4233ee558`; API `main`, production and staging `70c66e7be`; landing `
 
 1. Answer any owner message first. Give each order a ticket or a rescope before the turn ends.
 2. Drive the In flight rows, one worker at a time: merges first, then reviews and rounds, then launches.
-3. Intake each cycle (Sentry hourly, last listed 19:17Z; mail, reviews, open pull requests and alerts, then the board), then the spec's `## The order`.
+3. Intake each cycle (Sentry hourly, last listed 20:29Z; mail, reviews, open pull requests and alerts, then the board), then the spec's `## The order`.
 
 ## Sleep
 
