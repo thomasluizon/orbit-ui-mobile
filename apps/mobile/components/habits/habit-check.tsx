@@ -7,7 +7,7 @@ import { toCssTransition, usePrefersReducedMotion } from '@/lib/motion'
 import { StyleSheet, View } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 import { Check } from '@/components/ui/icons'
-import { useListScope } from '@/components/motion/list-scope'
+import { useListBulk, useListScope } from '@/components/motion/list-scope'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -21,11 +21,12 @@ interface HabitCheckProps {
 
 function useCompletionSettle(done: boolean, reduced: boolean) {
   const scope = useListScope()
+  const bulk = useListBulk()
   const [previous, setPrevious] = useState({ done, scope })
   const [logged, setLogged] = useState(false)
   if (done !== previous.done || scope !== previous.scope) {
     setPrevious({ done, scope })
-    setLogged(done && scope === previous.scope)
+    setLogged(done && scope === previous.scope && !bulk)
   }
   const settleScale = useSharedValue(1)
   const settleStyle = useAnimatedStyle(() => ({ transform: [{ scale: settleScale.value }] }))
@@ -79,6 +80,6 @@ function CompletedCheck({ feedback, fill, color }: Readonly<{ feedback: boolean;
   return <>
     {feedback ? <View testID="habit-check-feedback" pointerEvents="none" accessible={false}
       style={[StyleSheet.absoluteFill, { borderRadius: 12, backgroundColor: fill }]} /> : null}
-    <Check size={16} strokeWidth={3} color={color} />
+    <Check size={16} strokeWidth={2.5} color={color} />
   </>
 }

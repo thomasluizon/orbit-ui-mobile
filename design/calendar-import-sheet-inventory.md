@@ -14,6 +14,7 @@ that inset. The import rules and per-event issue slot remain owned by the shared
 | Event list | `components/calendar-sync/calendar-import-content.tsx` | Same relative component | Loading, empty, error, offline, review suggestions, select all, paginated |
 | Event row | `components/calendar-sync/calendar-sync-event-row.tsx` | Same relative component | Selected, unselected, import issue, collapsed, expanded, suggestion dismissal |
 | Import result | `components/calendar-sync/calendar-import-content.tsx` | Same relative component | Importing, success, partial failure, failure with retry |
+| Import result dialog | `app/(app)/calendar/_components/calendar-import-result.tsx` | `app/(tabs)/calendar/_components/calendar-import-result.tsx` | With `orbit_guided_flows` on, a full success closes the sheet into the result dialog with the server count and Hoje as the filled action; a partial failure stays in the sheet |
 | Pinned footer | `app/(app)/calendar/page.tsx` | `app/(tabs)/calendar.tsx` | Import selected, zero selected, offline |
 
 ## Removal

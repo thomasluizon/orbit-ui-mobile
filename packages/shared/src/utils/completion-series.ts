@@ -1,7 +1,7 @@
 import type { BarChartPoint } from '../contracts/display'
 import type { CompletionSeries } from '../types/gamification'
 
-function localCalendarDate(dateOnly: string): Date {
+export function localCalendarDate(dateOnly: string): Date {
   return new Date(Number(dateOnly.slice(0, 4)), Number(dateOnly.slice(5, 7)) - 1, Number(dateOnly.slice(8, 10)))
 }
 

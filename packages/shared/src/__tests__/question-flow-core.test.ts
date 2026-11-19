@@ -5,7 +5,7 @@ import { createQuestionFlowHooks } from '../hooks/question-flow-core'
 import { markGuidedFlowCompleted, takeGuidedFlowCompleted, type GuidedFlowEvent } from '../utils/guided-flow-events'
 
 const events: GuidedFlowEvent[] = []
-const { useFlowAnnouncement, useGuidedFlowTracking } = createQuestionFlowHooks({ useState, useEffect, useRef, capture: (event) => events.push(event) })
+const { useFlowAnnouncement, useLineAfterArrival, useGuidedFlowTracking } = createQuestionFlowHooks({ useState, useEffect, useRef, capture: (event) => events.push(event) })
 
 function mountAnnouncement(line: string | null, stepKey: string) {
   let announced = ''
@@ -18,6 +18,22 @@ function mountAnnouncement(line: string | null, stepKey: string) {
   return {
     get announced() { return announced },
     update: (nextLine: string | null, nextStep: string) => { void act(() => tree.update(createElement(AnnouncementProbe, { line: nextLine, stepKey: nextStep }))) },
+    wait: (ms: number) => { void act(() => { vi.advanceTimersByTime(ms) }) },
+    unmount: () => { void act(() => tree.unmount()) },
+  }
+}
+
+function mountArrival(line: string | null, carried: boolean) {
+  let announced = ''
+  function ArrivalProbe(props: { line: string | null }) {
+    announced = useFlowAnnouncement(useLineAfterArrival(props.line, carried), 'plan')
+    return null
+  }
+  let tree!: ReturnType<typeof create>
+  void act(() => { tree = create(createElement(ArrivalProbe, { line })) })
+  return {
+    get announced() { return announced },
+    update: (nextLine: string | null) => { void act(() => tree.update(createElement(ArrivalProbe, { line: nextLine }))) },
     wait: (ms: number) => { void act(() => { vi.advanceTimersByTime(ms) }) },
     unmount: () => { void act(() => tree.unmount()) },
   }
@@ -88,6 +104,45 @@ describe('shared question flow announcement', () => {
     expect(vi.getTimerCount()).toBe(1)
     closed.unmount()
     expect(vi.getTimerCount()).toBe(0)
+  })
+})
+
+describe('the line of a question that takes focus when it arrives', () => {
+  beforeEach(() => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('announces nothing for the line that the focused question carries, then announces each later line, the first one again too', () => {
+    const plan = mountArrival('I am offline right now.', true)
+    plan.wait(5000)
+    expect(plan.announced).toBe('')
+    plan.update('You used 3 of 5 AI messages.')
+    plan.wait(1000)
+    expect(plan.announced).toBe('You used 3 of 5 AI messages.')
+    plan.update('I am offline right now.')
+    plan.wait(1000)
+    expect(plan.announced).toBe('I am offline right now.')
+    plan.unmount()
+  })
+
+  it('announces the first line when no question carries it', () => {
+    const plan = mountArrival('You used 3 of 5 AI messages.', false)
+    plan.wait(1000)
+    expect(plan.announced).toBe('You used 3 of 5 AI messages.')
+    plan.unmount()
+  })
+
+  it('announces a line that comes after an arrival with no line', () => {
+    const plan = mountArrival(null, true)
+    plan.update('I could not fetch the amounts.')
+    plan.wait(1000)
+    expect(plan.announced).toBe('I could not fetch the amounts.')
+    plan.unmount()
   })
 })
 

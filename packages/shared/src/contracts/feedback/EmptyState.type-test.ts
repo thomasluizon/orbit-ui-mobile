@@ -14,6 +14,7 @@ declare const _actions: React.ReactElement[]
 
 export type EmptyStateTypeContract = [
   Assert<IsExactWidth<EmptyStateProps['title'], string>>,
+  Assert<IsExactWidth<EmptyStateProps['line'], string | undefined>>,
   Assert<IsExactWidth<EmptyStateProps['action'], React.ReactElement | undefined>>,
   Assert<IsExactWidth<EmptyStateProps['disclosure'], React.ReactElement | undefined>>,
   Assert<IsExactWidth<EmptyStateProps['mascotState'], 'parado' | 'descansando' | undefined>>,

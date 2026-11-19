@@ -1,8 +1,13 @@
-import { beforeEach, vi } from 'vitest'
+import { afterEach, beforeEach, vi } from 'vitest'
+import { resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import React from 'react'
 import { guardTestNetwork } from '@orbit/shared/test-support/network-guard'
 
 guardTestNetwork()
+
+vi.mock('@/hooks/use-flag', async () => ({ useFlag: (await import('@orbit/shared/test-support/flag-state')).readTestFlag }))
+
+afterEach(resetTestFlags)
 
 beforeEach(() => {
   vi.stubGlobal('requestAnimationFrame', (callback: (timestamp: number) => void) => setTimeout(() => callback(performance.now()), 0))

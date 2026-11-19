@@ -18,7 +18,7 @@ export {
   resolveBarChartGeometry,
   stepSelection,
 } from './BarChart'
-export type { BarChartPoint, BarGeometry } from './BarChart'
+export type { BarChartPoint, BarChartSelectionSource, BarGeometry } from './BarChart'
 export type {
   FreezeBankProps,
   FreezeBankProtectedDay,

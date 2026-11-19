@@ -5,17 +5,27 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { expectPressFill } from '@/__tests__/support/press-feedback'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { createTokensV2 } from '@/lib/theme'
+import { useUIStore } from '@/stores/ui-store'
+import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import {
   HabitListEmptyState,
   HabitListAllDone,
 } from '@/components/habit-list/empty-state'
 
 const translations = vi.hoisted<{ labels: Record<string, string> }>(() => ({ labels: {} }))
-afterEach(() => { translations.labels = {} })
+const motion = vi.hoisted(() => ({ reduced: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motion.reduced }))
+afterEach(() => {
+  translations.labels = {}
+  motion.reduced = false
+  __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
+  TestRenderer.act(() => { useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] }) })
+})
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -67,15 +77,18 @@ function pressableWithLabel(tree: TestTree, label: string): TestNode | undefined
 }
 
 describe('HabitListEmptyState', () => {
-  it.each([320, 360, 384, 412, 740, 1440])('centres the normal Orbit logo, copy and action at %s', (width) => {
+  it.each([320, 360, 384, 412, 740, 1024, 1440])('centres the normal Orbit logo, copy and action at %s', (width) => {
+    enableTestFlags('orbit_guided_flows')
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    const size = width >= 1024 ? 128 : 96
     const tree = render(<HabitListAllDone onSeeUpcoming={vi.fn()} />)
     const finish = tree.root.findAll(node => node.props.testID === 'habit-list-all-done')[0]!
     expect(StyleSheet.flatten(finish.props.style as StyleProp<TextStyle>).alignItems).toBe('center')
     const mark = tree.root.findAllByType(OrbitMascot)[0]
     expect(mark).toBeDefined()
-    expect(mark!.props).toMatchObject({ size: 96, state: 'feliz' })
+    expect(mark!.props).toMatchObject({ size, state: 'feliz' })
     const ring = tree.root.findAll(node => node.props.testID === 'completed-day-mark')[0]!
-    expect(StyleSheet.flatten(ring.props.style as StyleProp<TextStyle>)).toMatchObject({ width: 96, height: orbitMascotHeight(96) })
+    expect(StyleSheet.flatten(ring.props.style as StyleProp<TextStyle>)).toMatchObject({ width: size, height: orbitMascotHeight(size) })
     for (const words of [en, ptBR]) {
       const labels = [words.habits.allDoneToday, words.habits.allDoneHint, words.habits.seeUpcoming]
       translations.labels = {
@@ -87,7 +100,7 @@ describe('HabitListEmptyState', () => {
       const host = localized.toJSON() as GeometryHost
       const measured = measureProfileRow(host, Math.min(width - 32, 708), 1)
       const identity = measured.boxes.find(box => box.testID === 'completed-day-mark')!
-      expect(identity.width).toBe(96)
+      expect(identity.width).toBe(size)
       expect(identity.left + identity.width / 2).toBeCloseTo(Math.min(width - 32, 708) / 2)
       expect(measured.texts[0]!.top - identity.bottom).toBeCloseTo(24)
       for (const label of labels) {
@@ -98,7 +111,32 @@ describe('HabitListEmptyState', () => {
         expect(text.right).toBeLessThanOrEqual(Math.min(width - 32, 708) - 24)
       }
     }
-    expect(tree.root.findAllByType('AnimatedView')).toHaveLength(0)
+    expect(tree.root.findAllByType('AnimatedView').map(node => node.props['data-orbit-hop'])).toEqual(['still'])
+  })
+  it.each([412, 1440])('draws the base Orbit at 96 with no hop at %s while the flag is off, even when the completed day celebration is active', (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    TestRenderer.act(() => { useUIStore.getState().enqueueCelebration('all-done', { count: 3 }) })
+    const tree = render(<HabitListAllDone />)
+    expect(tree.root.findAllByType(OrbitMascot)[0]!.props).toMatchObject({ size: 96, state: 'feliz' })
+    const mark = tree.root.findAll(node => node.props.testID === 'completed-day-mark')[0]!
+    expect(StyleSheet.flatten(mark.props.style as StyleProp<TextStyle>)).toMatchObject({ width: 96, height: orbitMascotHeight(96) })
+    expect(tree.root.findAll(node => node.props.testID === 'completed-day-hop')).toHaveLength(0)
+    expect(tree.root.findAllByType('AnimatedView').map(node => node.props['data-orbit-hop'])).toEqual([])
+  })
+  it('hops once when everything due today is done, and stays still for another celebration, on a later visit and under reduced motion', () => {
+    enableTestFlags('orbit_guided_flows')
+    const hop = (tree: TestTree) => tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'completed-day-hop')[0]!.props['data-orbit-hop']
+    const tree = render(<HabitListAllDone />)
+    expect(hop(tree)).toBe('still')
+    TestRenderer.act(() => { useUIStore.getState().enqueueCelebration('all-done', { count: 3 }) })
+    expect(hop(tree)).toBe('play')
+    TestRenderer.act(() => { useUIStore.getState().completeActiveCelebration() })
+    expect(hop(render(<HabitListAllDone />))).toBe('still')
+    TestRenderer.act(() => { useUIStore.getState().enqueueCelebration('level-up', { level: 2 }) })
+    expect(hop(render(<HabitListAllDone />))).toBe('still')
+    TestRenderer.act(() => { useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] }); useUIStore.getState().enqueueCelebration('all-done', { count: 3 }) })
+    motion.reduced = true
+    expect(hop(render(<HabitListAllDone />))).toBe('still')
   })
   it('keeps completion text paired and separates the upcoming action', () => {
     const onSeeUpcoming = vi.fn()

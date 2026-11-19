@@ -336,7 +336,8 @@ describe('ProgressContent', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const column = page.locator(`[data-progress-screen="${destination}"]`).last()
         const measured = await column.evaluate((element) => {
-          const body = element.lastElementChild!
+          const content = element.querySelector(':scope > [data-progress-layer]') ? element.firstElementChild! : element
+          const body = content.lastElementChild!
           const bounds = element.getBoundingClientRect()
           const section = body.querySelector('section')!
           return { gutter: section.getBoundingClientRect().left - bounds.left,
@@ -482,7 +483,7 @@ describe('ProgressContent', () => {
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         const { container } = render(
-          <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="progresso" navLabel="Navigation"
+          <ShellWide astraRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="progresso" navLabel="Navigation"
             conversation={<button>Conversation</button>}
             conversationOpen={panelOpen} conversationLabel="Conversation">
             <ProgressPage />
@@ -957,7 +958,7 @@ describe('ProgressContent', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
-  it('keeps an unsent Astra draft when starting a goal', () => {
+  it('keeps an unsent conversation draft when starting a goal', () => {
     useChatStore.getState().setDraft('Unsent note')
     const { rerender } = render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
 
@@ -1168,7 +1169,7 @@ describe('ProgressContent', () => {
     expect(screen.getAllByTestId('progress-locked-card')).toHaveLength(1)
     const card = screen.getByTestId('progress-locked-card')
     expect(within(card).getAllByRole('link')).toHaveLength(1)
-    expect(within(card).getByRole('link')).toHaveAttribute('href', '/upgrade')
+    expect(within(card).getByRole('link')).toHaveAttribute('href', '/upgrade?from=%2Fprogress')
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)

@@ -12,6 +12,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { Time24 } from '@orbit/shared/contracts/forms'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createApiClientError, formatAPIDate, formatLocaleDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -102,7 +103,6 @@ vi.mock('next-intl', () => ({
     if (mocks.realChildStatusCopy && key === 'habits.form.typeHabit') return ptBR.habits.form.typeHabit
     if (mocks.realChildStatusCopy && key === 'habits.statusDot.skip') return ptBR.habits.statusDot.skip
     if (mocks.realChildStatusCopy && key === 'calendar.dayCell.notScheduled') return ptBR.calendar.dayCell.notScheduled
-    if (key === 'habits.detail.slippingLine') return `${key}:${values?.days}:${values?.streak}:${values?.limit}`
     if (key === 'loggedAt') return `${values?.date}, logged at ${values?.time}`
     if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
     if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
@@ -202,14 +202,15 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
   useRescheduleSuggestion: (options: { enabled: boolean }) => {
     mocks.rescheduleOptions.push(options)
     const settled = mocks.suggestion !== null || mocks.rescheduleError !== null
-    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isFetching: mocks.rescheduleRefetching || (!settled && !mocks.reschedulePaused), isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
+    const fetching = !settled && !mocks.reschedulePaused
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isLoading: fetching, isFetching: mocks.rescheduleRefetching || fetching, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
   },
 }))
 
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) => <main>{header}{children}</main>,
 }))
-vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size, state, reading }: { size: number; state?: string; reading?: boolean }) => <svg data-testid="orbit-mascot" data-size={size} data-state={state} data-reading={reading || undefined} aria-hidden="true" /> }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ useStateMascotSize: () => 96, OrbitMascot: ({ size, state, reading }: { size: number; state?: string; reading?: boolean }) => <svg data-testid="orbit-mascot" data-size={size} data-state={state} data-reading={reading || undefined} aria-hidden="true" /> }))
 vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
@@ -662,6 +663,29 @@ describe('HabitDetailScreen', () => {
     expect(status).toHaveTextContent('shell.composer.offline.reason')
   })
 
+  it('gives the offline reason with no second Orbit while the rescue request waits offline in the guided surface', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    mocks.reschedulePaused = true
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')
+    expect(status).toHaveTextContent('shell.composer.offline.reason')
+    expect(within(status).queryByTestId('orbit-mascot')).not.toBeInTheDocument()
+    const line = document.querySelector<HTMLElement>('[data-today-astra-slot]')!
+    expect(screen.getAllByTestId('orbit-mascot')).toEqual([within(line).getByTestId('orbit-mascot')])
+  })
+
+  it('keeps Pensando on the Orbit line alone while the reschedule suggestion loads in the guided surface', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const wait = within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByTestId('rescue-loading-skeleton')
+    expect(within(wait).queryByTestId('orbit-mascot')).not.toBeInTheDocument()
+    expect(Array.from(wait.querySelectorAll('[data-variant]')).map((block) => [block.getAttribute('data-variant'), block.textContent])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', '']])
+    const line = document.querySelector<HTMLElement>('[data-today-astra-slot]')!
+    expect(screen.getAllByTestId('orbit-mascot').filter((mascot) => mascot.getAttribute('data-state') === 'pensando')).toEqual([within(line).getByTestId('orbit-mascot')])
+  })
+
   it('shows a rescue only for an older overdue habit and handles request states', () => {
     openRescueGate()
     const view = render(<HabitDetailScreen habitId="habit-1" />)
@@ -688,7 +712,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.detail.rescheduleError')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
   })
 
   it.each([
@@ -712,6 +736,23 @@ describe('HabitDetailScreen', () => {
     expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
   })
 
+  it('writes the slipping line in the first person while the guided flows are on', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    render(<HabitDetailScreen habitId="habit-1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
+    expect(screen.getByText('habits.detail.orbit.slippingLine')).toBeVisible()
+    expect(screen.queryByText('habits.detail.slippingLine')).not.toBeInTheDocument()
+  })
+
+  it('writes the load error in the first person while the guided flows are on', () => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.detailError = true
+    render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.orbit.loadError')
+    expect(screen.queryByText('habits.detail.loadError')).not.toBeInTheDocument()
+  })
+
   it.each(['initial request', 'retry'])('dismisses a pending proposal during %s for this visit', (requestState) => {
     openRescueGate()
     if (requestState === 'retry') mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
@@ -728,8 +769,8 @@ describe('HabitDetailScreen', () => {
     notNow.focus()
     fireEvent.click(notNow)
     expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50').closest('section')).toHaveFocus()
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine').closest('section')).toHaveFocus()
     mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
     expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
@@ -752,7 +793,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]]))
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />)
     expect(mocks.scopedRequests).toContainEqual({ dateFrom: '2026-08-29', includeOverdue: true })
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
     expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
 
     mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
@@ -779,14 +820,14 @@ describe('HabitDetailScreen', () => {
     ])
     expect(within(proposal).getAllByRole('button').map((button) => [button.dataset.variant, button.dataset.size])).toEqual([['ghost', 'sm'], ['primary', 'sm']])
     expect(screen.queryByText('habits.detail.slipping')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
 
     const notNow = within(proposal).getByRole('button', { name: 'habits.reschedule.dismiss' })
     notNow.focus()
     fireEvent.click(notNow)
     expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
-    expect(document.activeElement).toBe(screen.getByText('habits.detail.slippingLine:9:0:50').closest('section'))
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
+    expect(document.activeElement).toBe(screen.getByText('habits.detail.slippingLine').closest('section'))
 
     mocks.detail = { ...makeDetail(), id: 'habit-2' }
     mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])
@@ -878,7 +919,7 @@ describe('HabitDetailScreen', () => {
 
     fireEvent.click(within(card).getByRole('button', { name: 'habits.reschedule.dismiss' }))
     expect(screen.queryByText('habits.reschedule.freePrompt')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
+    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
   })
 
   it('uses a primary action on narrow web and secondary on wide web', () => {
@@ -1765,6 +1806,23 @@ describe('HabitDetailScreen', () => {
     await act(async () => Promise.resolve())
 
     expect(mocks.deleteHabit).toHaveBeenCalledWith('habit-1')
+    expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
+  })
+
+  it('shows the deleted result dialog when the delete has already removed the detail query, with the guided flows on', async () => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.deleteHabit.mockImplementationOnce(() => { mocks.detail = null; return Promise.resolve() })
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.delete' }))
+    fireEvent.click(screen.getByTestId('confirm-habits.deleteConfirmTitle'))
+    await act(async () => Promise.resolve())
+
+    const dialog = screen.getByRole('dialog', { name: 'result.title' })
+    expect(dialog).toHaveAccessibleDescription('result.habit.deleted')
+    expect(screen.queryByText('habits.detail.loadError')).not.toBeInTheDocument()
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'result.seeToday' }))
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
   })
 

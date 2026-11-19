@@ -10,6 +10,8 @@ export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'center',
     },
     countMarker: { flexShrink: 0 },
+    countClip: { borderRadius: 8, backgroundColor: tokens.fg1, overflow: 'hidden' },
+    rollingCount: { backgroundColor: 'transparent' },
     bellCount: {
       minWidth: 20, minHeight: 20, paddingHorizontal: SPACING.s4, borderRadius: 8,
       backgroundColor: tokens.fg1, color: tokens.bg,

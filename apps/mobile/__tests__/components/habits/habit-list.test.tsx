@@ -534,6 +534,8 @@ vi.mock('@/stores/ui-store', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/stores/ui-store')>()
   const getState = () => ({
       checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration,
+      beginBulkMotion: actual.useUIStore.getState().beginBulkMotion,
+      endBulkMotion: actual.useUIStore.getState().endBulkMotion,
       setFilters: setFrequencyFilters,
       toggleSelectMode,
       toggleSelectionCascade,

@@ -283,6 +283,12 @@ field/picker geometry cases extend the existing radio-text Chromium owner. Froze
 rendering, installed Android fonts and assistive technology, and staging combined write/readback
 remain separate acceptance boundaries.
 
+Every edit entry of Hoje and habit detail opens the guided flow with `orbit_guided_flows` on: the Edit
+item of the row menu (on Android, through the TodayModals edit host), the detail pencil, and Add
+sub-habit from the row menu and from detail. Each entry mounts `EditHabitModal` or `CreateHabitModal`,
+and that owner renders the guided flow, on its summary for an edit. `habit-edit-entries.test.tsx` on
+each platform reaches each entry and proves the guided flow, and the current form with the flag off.
+
 ## Repeat reminder
 
 `habit-form-fields/repeat-reminder-section.tsx` on web and Android owns the Repeat every choice,

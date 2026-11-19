@@ -7,6 +7,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { createMockGoal, createMockProfile, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { createApiClientError } from '@orbit/shared'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { buildCalendarDayMap, buildChildrenIndex, buildHabitHistoryMonth, formatAPIDate, getAccountDay, getAllDoneOnDate, hasHabitScheduleOnDate, isHabitCompletedOnDate, normalizeHabits } from '@orbit/shared/utils'
 import enMessages from '@orbit/shared/i18n/en.json'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, resetAccountQueries, tagKeys } from '@orbit/shared/query'
@@ -2319,6 +2320,21 @@ describe('mobile habit hooks', () => {
     expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     expect(mocks.checkAllDoneCelebration).not.toHaveBeenCalled()
     expect(mocks.showInfo).toHaveBeenCalledWith('todayAstra.offlineLog')
+  })
+
+  it('says the offline save in the first person only while the guided flows are on', () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+    const queued = { queued: true, queuedMutationId: 'm-1' }
+    const variables: LogHabitVariables = { habitId: 'habit-1', intent: 'log' }
+    const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+
+    mutation.onSuccess?.(queued, variables, undefined)
+    expect(mocks.showInfo).toHaveBeenLastCalledWith('todayAstra.offlineLog')
+
+    enableTestFlags('orbit_guided_flows')
+    const guidedMutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+    guidedMutation.onSuccess?.(queued, variables, undefined)
+    expect(mocks.showInfo).toHaveBeenLastCalledWith('todayAstra.guided.offlineLog')
   })
 
   it('updates a dated calendar row immediately and restores it when logging fails', async () => {

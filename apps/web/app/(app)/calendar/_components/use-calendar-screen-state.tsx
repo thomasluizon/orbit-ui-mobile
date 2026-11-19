@@ -26,6 +26,8 @@ import { useOffline } from '@/hooks/use-offline'
 import { useToday } from '../../today-provider'
 import { useAccountClockSeed } from '@/lib/account-clock'
 import { CalendarHeader } from './calendar-shell'
+import { CalendarOrbitLine } from './calendar-orbit-line'
+import { useFlag } from '@/hooks/use-flag'
 import { useCalendarNavigation,type CalendarView } from '@/hooks/use-calendar-navigation'
 
 type MonthSlide = CalendarSlideDirection | null
@@ -235,6 +237,14 @@ function useCalendarEntryState({ selectedDay, activeDayMap, monthQuery, hasProAc
   return { monthDayEntries, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, selectedEntries }
 }
 
+function calendarStatTiles(stats: { bestStreak: number; totalLogs: number; missed: number }, t: ReturnType<typeof useTranslations>) {
+  return [
+    { key: 'bestStreak', value: stats.bestStreak, label: t('calendar.bestStreak') },
+    { key: 'totalLogs', value: stats.totalLogs, label: t('calendar.totalLogs') },
+    { key: 'missed', value: stats.missed, label: t('calendar.missedCount') },
+  ] as const
+}
+
 type CalendarViewModelInputs = Pick<CalendarPageContentProps, 'selectedDay' | 'currentMonth'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'locale' | 'todayKey' | 't' | 'weekStartsOn'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'displayMonthDayMap' | 'displayRangeDayMap'> & Pick<ReturnType<typeof useCalendarRangeState>, 'isLoading' | 'rangeEnd'>
 
 function useCalendarViewModel({ selectedDay, locale, todayKey, t, currentMonth, displayMonthDayMap, weekStartsOn, isLoading, rangeEnd, displayRangeDayMap }: CalendarViewModelInputs) {
@@ -263,23 +273,8 @@ function useCalendarViewModel({ selectedDay, locale, todayKey, t, currentMonth, 
 
   const rangeLabel = t('calendar.range.label', formatCalendarSpanEnds(rangeModel.start, rangeModel.end, locale))
 
-  const monthStatTiles = useMemo(
-    () => [
-      { key: 'bestStreak', value: monthStats.bestStreak, label: t('calendar.bestStreak') },
-      { key: 'totalLogs', value: monthStats.totalLogs, label: t('calendar.totalLogs') },
-      { key: 'missed', value: monthStats.missed, label: t('calendar.missedCount') },
-    ] as const,
-    [monthStats, t],
-  )
-
-  const rangeStatTiles = useMemo(
-    () => [
-      { key: 'bestStreak', value: rangeModel.stats.bestStreak, label: t('calendar.bestStreak') },
-      { key: 'totalLogs', value: rangeModel.stats.totalLogs, label: t('calendar.totalLogs') },
-      { key: 'missed', value: rangeModel.stats.missed, label: t('calendar.missedCount') },
-    ] as const,
-    [rangeModel.stats, t],
-  )
+  const monthStatTiles = useMemo(() => calendarStatTiles(monthStats, t), [monthStats, t])
+  const rangeStatTiles = useMemo(() => calendarStatTiles(rangeModel.stats, t), [rangeModel.stats, t])
 
   const viewOptions = useMemo(
     () => [
@@ -327,9 +322,10 @@ function useCalendarMonthSwipe({ nextMonth, prevMonth, isOnline, setShowCreateRe
   return { handleTouchStart, handleTouchEnd, openHabitCreation }
 }
 
-type CalendarHeaderStateInputs = Pick<ReturnType<typeof useCalendarViewModel>, 'viewOptions' | 'rangeLabel'> & Pick<CalendarPageContentProps, 'view' | 'setView' | 'currentMonth' | 'selectedDay' | 'profile' | 'profileError'> & Pick<ReturnType<typeof useCalendarScreenSession>, 't' | 'todayKey' | 'weekStartsOn' | 'rangeOffset' | 'agendaOffset' | 'locale' | 'setRangeOffset' | 'setAgendaOffset'> & Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'agendaStart' | 'agendaEnd'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'weekLabel' | 'activeError'> & Pick<ReturnType<typeof useCalendarDateActions>, 'prevWeek' | 'nextWeek' | 'goToCurrentWeek' | 'previousRange' | 'nextRange' | 'prevMonth' | 'nextMonth' | 'goToCurrentMonth' | 'selectMonth'>
+type CalendarHeaderStateInputs = { orbitLine: ReactNode } & Pick<ReturnType<typeof useCalendarViewModel>, 'viewOptions' | 'rangeLabel'> & Pick<CalendarPageContentProps, 'view' | 'setView' | 'currentMonth' | 'selectedDay' | 'profile' | 'profileError'> & Pick<ReturnType<typeof useCalendarScreenSession>, 't' | 'todayKey' | 'weekStartsOn' | 'rangeOffset' | 'agendaOffset' | 'locale' | 'setRangeOffset' | 'setAgendaOffset'> & Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'agendaStart' | 'agendaEnd'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'weekLabel' | 'activeError'> & Pick<ReturnType<typeof useCalendarDateActions>, 'prevWeek' | 'nextWeek' | 'goToCurrentWeek' | 'previousRange' | 'nextRange' | 'prevMonth' | 'nextMonth' | 'goToCurrentMonth' | 'selectMonth' | 'selectDate'>
 
-function useCalendarHeaderState({ viewOptions, view, setView, t, currentMonth, todayKey, selectedDay, weekStart, weekStartsOn, rangeOffset, agendaOffset, weekLabel, rangeLabel, agendaStart, agendaEnd, locale, prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, setRangeOffset, setAgendaOffset, prevMonth, nextMonth, goToCurrentMonth, selectMonth, profile, profileError, activeError }: CalendarHeaderStateInputs) {
+function useCalendarHeaderState({ orbitLine, selectDate, viewOptions, view, setView, t, currentMonth, todayKey, selectedDay, weekStart, weekStartsOn, rangeOffset, agendaOffset, weekLabel, rangeLabel, agendaStart, agendaEnd, locale, prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, setRangeOffset, setAgendaOffset, prevMonth, nextMonth, goToCurrentMonth, selectMonth, profile, profileError, activeError }: CalendarHeaderStateInputs) {
+  const guided = useFlag('orbit_guided_flows')
   const viewSelector = (
     <SegmentedControl<CalendarView> fullWidth
       options={viewOptions}
@@ -354,6 +350,7 @@ function useCalendarHeaderState({ viewOptions, view, setView, t, currentMonth, t
       onCurrentMonth={goToCurrentMonth}
       onSelectMonth={selectMonth}
       viewSelector={viewSelector}
+      orbitLine={orbitLine} guided={guided} onSelectDate={selectDate}
     />
   )
 
@@ -370,7 +367,8 @@ export function useCalendarScreenState(props: Readonly<CalendarPageContentProps>
   const calendarEntryState = useCalendarEntryState({ ...props, ...calendarDisplayState, ...calendarScreenSession, ...calendarEventState })
   const calendarViewModel = useCalendarViewModel({ ...props, ...calendarScreenSession, ...calendarDisplayState, ...calendarRangeState })
   const calendarMonthSwipe = useCalendarMonthSwipe({ ...calendarDateActions, ...calendarScreenSession })
-  const calendarHeaderState = useCalendarHeaderState({ ...calendarViewModel, ...props, ...calendarScreenSession, ...calendarRangeState, ...calendarDisplayState, ...calendarDateActions })
+  const orbitLine = <CalendarOrbitLine {...props} {...calendarScreenSession} {...calendarRangeState} {...calendarDisplayState} {...calendarViewModel} />
+  const calendarHeaderState = useCalendarHeaderState({ ...calendarViewModel, ...props, ...calendarScreenSession, ...calendarRangeState, ...calendarDisplayState, ...calendarDateActions, orbitLine })
   return { ...props, ...calendarScreenSession, ...calendarEventState, ...calendarRangeState, ...calendarDisplayState, ...calendarDateActions, ...calendarEntryState, ...calendarViewModel, ...calendarMonthSwipe, ...calendarHeaderState }
 }
 

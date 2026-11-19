@@ -59,6 +59,7 @@ import { reportsAccountChanged } from '@/app/actions/action-result'
 import { OnboardingProStep, type OnboardingProExit } from './onboarding-pro-step'
 import { setOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
 import { getAccountGeneration } from '@/lib/session-epoch'
+import { buildConversationEntryHref } from '@/lib/conversation-entry-query'
 import { OnboardingComplete } from './onboarding-complete'
 import { OnboardingStepStage } from './onboarding-step-stage'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
@@ -86,7 +87,7 @@ function FlowActions({ primary, secondary, reason }: Readonly<{ primary: ReactNo
   return <div className="flex w-full flex-col gap-2"><ActionRow>{secondary}{primary}</ActionRow>{reason}</div>
 }
 
-const DONE_TAB_ROUTES: Record<string, string> = { astra: '/?astra=open', ...SHELL_DESTINATION_PATHS }
+const DONE_TAB_ROUTES: Record<string, string> = { astra: buildConversationEntryHref('open'), ...SHELL_DESTINATION_PATHS }
 
 function DoneShell({ onSelect, children, modalId, loginHref }: Readonly<{ onSelect: (id: string) => void; children: ReactNode; modalId: string; loginHref?: string }>) {
   const t = useTranslations()

@@ -180,12 +180,14 @@ it('starts Google sign in through the BFF and preserves the destination', async 
   expect(sessionStorage.getItem('auth_return_url')).toBe('/habits/new?title=Beber%20%C3%A1gua')
 })
 
-it('keeps the Astra query from the anonymous notification redirect through Google sign-in', () => {
+it.each([
+  ['orbit', 'open'], ['orbit', 'proactive'], ['astra', 'open'], ['astra', 'proactive'],
+] as const)('keeps the conversation entry %s=%s from the anonymous notification redirect through Google sign-in, written as the orbit form', (name, entry) => {
   vi.stubGlobal('location', { assign: mocks.assign })
-  mocks.search = 'astra=open&returnUrl=%2F'
+  mocks.search = `${name}=${entry}&returnUrl=%2F`
   const { result } = renderHook(() => useLoginFlow())
   act(() => { result.current.signInWithGoogle() })
-  expect(sessionStorage.getItem('auth_return_url')).toBe('/?astra=open')
+  expect(sessionStorage.getItem('auth_return_url')).toBe(`/?orbit=${entry}`)
 })
 
 it.each(['/profile', '/chat'])('carries the destination of a notification clicked while signed out through Google sign in (%s)', (url) => {
@@ -195,7 +197,7 @@ it.each(['/profile', '/chat'])('carries the destination of a notification clicke
 
   act(() => { result.current.signInWithGoogle() })
 
-  expect(sessionStorage.getItem('auth_return_url')).toBe(url === '/chat' ? '/?astra=proactive' : url)
+  expect(sessionStorage.getItem('auth_return_url')).toBe(url === '/chat' ? '/?orbit=proactive' : url)
 })
 
 afterEach(() => {
@@ -208,13 +210,13 @@ it('carries an anonymous onboarding push through the proxy and code login return
   window.history.replaceState(null, '', '/onboarding?notificationUrl=%2Fchat')
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const bridge = render(React.createElement(QueryClientProvider, { client }, React.createElement(ServiceWorkerBridge)))
-  expect(mocks.push).toHaveBeenCalledWith('/?astra=proactive')
+  expect(mocks.push).toHaveBeenCalledWith('/?orbit=proactive')
   expect(mocks.currentProactive).not.toHaveBeenCalled()
   const destination = mocks.push.mock.calls[0]![0] as string
   const response = await proxy(new NextRequest(new URL(destination, 'https://app.useorbit.org')))
   const login = new URL(response.headers.get('location')!)
   expect(login.pathname).toBe('/login')
-  expect(login.searchParams.get('returnUrl')).toBe('/?astra=proactive')
+  expect(login.searchParams.get('returnUrl')).toBe('/?orbit=proactive')
   bridge.unmount()
   mocks.push.mockClear()
   mocks.search = login.searchParams.toString()
@@ -222,7 +224,7 @@ it('carries an anonymous onboarding push through the proxy and code login return
   await advanceToCodeStep(result)
   await act(async () => { await result.current.verifyCode('123456') })
   expect(mocks.setAuth).toHaveBeenCalledWith(loginResponse)
-  expect(mocks.push).toHaveBeenCalledWith('/?astra=proactive')
+  expect(mocks.push).toHaveBeenCalledWith('/?orbit=proactive')
   expect(mocks.currentProactive).not.toHaveBeenCalled()
   client.clear()
   window.history.replaceState(null, '', '/')
@@ -318,12 +320,14 @@ describe('useLoginFlow verify-code success', () => {
     expect(result.current.isSubmitting).toBe(false)
   })
 
-  it('keeps the Astra query from the anonymous notification redirect after code verification', async () => {
-    mocks.search = 'astra=open&returnUrl=%2F'
+  it.each([
+    ['orbit', 'open'], ['orbit', 'proactive'], ['astra', 'open'], ['astra', 'proactive'],
+  ] as const)('keeps the conversation entry %s=%s from the anonymous notification redirect after code verification, written as the orbit form', async (name, entry) => {
+    mocks.search = `${name}=${entry}&returnUrl=%2F`
     const { result } = renderHook(() => useLoginFlow())
     await advanceToCodeStep(result)
     await act(async () => { await result.current.verifyCode('123456') })
-    expect(mocks.push).toHaveBeenCalledWith('/?astra=open')
+    expect(mocks.push).toHaveBeenCalledWith(`/?orbit=${entry}`)
   })
 
   it('returns to the destination of a notification clicked while signed out', async () => {

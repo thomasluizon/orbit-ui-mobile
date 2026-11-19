@@ -293,7 +293,7 @@ it('opens the account menu from Astra without navigating and returns focus on Es
   expect(trigger).toHaveFocus()
 })
 
-it.each([false, true])('owns one conversation row labeled like the compact entry before the four destinations with collapsed=%s', (collapsed) => {
+it.each([false, true])('owns one conversation entry row, named by its action, before the four destinations with collapsed=%s', (collapsed) => {
   useShellStore.setState({ sidebarCollapsed: collapsed })
   render(<App />)
   const sidebar = document.querySelector<HTMLElement>('[data-shell-sidebar]')!

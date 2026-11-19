@@ -995,6 +995,7 @@ describe('DestinationShell', () => {
     const [row, ...others] = screen.getAllByRole('button', { name: 'shell.astraButton.open' })
     expect(others).toEqual([])
     expect(row).toHaveAttribute('data-shell-astra-row')
+    expect(row).toHaveTextContent('shell.astraButton.open')
     fireEvent.click(row!)
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     useUIStore.getState().setAstraConversationOpen(false)

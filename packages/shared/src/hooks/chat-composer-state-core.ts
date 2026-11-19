@@ -2,7 +2,7 @@ import { BlockAnswerSubmission,ChatTurnReconciliation } from '../chat'
 import { createChatThreadScroll } from './chat-thread-scroll-core'
 import type { StateSetter } from './state-adapter'
 import { hasComposerContent,toComposerSuggestions,type ComposerProps,type ComposerAttachment } from '../contracts/composer'
-import { buildComposerChips,resolveComposerChipStatus,AI_MESSAGE_COUNTER_THRESHOLD,type ComposerChipSurface } from '../chat'
+import { buildComposerChips,resolveAiMessagesLimit,resolveComposerChipStatus,AI_MESSAGE_COUNTER_THRESHOLD,type ComposerChipSurface } from '../chat'
 import type { ChatStoreState } from '../stores/chat-store'
 import type { Profile } from '../types/profile'
 import type { HabitDetail,NormalizedHabit } from '../types/habit'
@@ -22,7 +22,7 @@ type ComposerAvailabilityInputs = Pick<ChatStoreState, 'replyActive' | 'isTyping
 export function buildComposerAvailability({ profile, dailyBudgetDate, today, replyActive, isTyping, streamingMessageId, messages, input, isOnline, attachments }: ComposerAvailabilityInputs) {
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
-  const aiMessagesLimit = profile?.aiMessagesLimit ?? (hasProAccess ? 50 : 5)
+  const aiMessagesLimit = resolveAiMessagesLimit(profile)
   const dailyBudgetReached = dailyBudgetDate === today
   const atMessageLimit = dailyBudgetReached || aiMessagesUsed >= aiMessagesLimit
   const isSending = replyActive || isTyping || streamingMessageId !== null

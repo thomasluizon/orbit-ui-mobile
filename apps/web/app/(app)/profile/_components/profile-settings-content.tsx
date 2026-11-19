@@ -43,7 +43,7 @@ interface RowContext {
 function buildMoreRows({ profile, t }: RowContext, openWidget: () => void) {
   const navigationRows = PROFILE_NAV_ITEMS.flatMap((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
-    const href = redirectsToUpgrade ? '/upgrade' : item.route ?? undefined
+    const href = redirectsToUpgrade ? '/upgrade?from=%2Fprofile' : item.route ?? undefined
     const navigationRow = (
       <ListRow
         key={item.id}

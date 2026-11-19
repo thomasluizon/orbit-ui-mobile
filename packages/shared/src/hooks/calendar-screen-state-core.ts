@@ -171,6 +171,11 @@ export function createCalendarDateActions({ setMonthSlide, currentMonth, setSele
     setSelectedDay(todayKey)
   })
 
+  const selectDate = ((date: string) => {
+    setMonthSlide(null)
+    setSelectedDay(date)
+  })
+
   const prevWeek = (() => {
     setWeekSlide('left')
     setWeekAnchor((a) => subWeeks(a ?? parseAPIDate(todayKey), 1))
@@ -197,5 +202,5 @@ export function createCalendarDateActions({ setMonthSlide, currentMonth, setSele
   const nextRange = (() => {
     setRangeOffset((offset) => Math.min(0, offset + 1))
   })
-  return { nextMonth, prevMonth, prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, goToCurrentMonth, selectMonth, openDay }
+  return { nextMonth, prevMonth, prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, goToCurrentMonth, selectMonth, selectDate, openDay }
 }

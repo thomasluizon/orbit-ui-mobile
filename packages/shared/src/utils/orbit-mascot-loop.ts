@@ -25,6 +25,7 @@ const liveClaims: LiveClaim[] = []
 const openOverlays: OpenOverlay[] = []
 let motionEnabled = true
 let version = 0
+let pageTurns = 0
 
 function notify() {
   version += 1
@@ -162,4 +163,14 @@ export function runOrbitReadClock(scheduler: OrbitFrameScheduler, draw: (time: n
     start ??= now
     draw(Math.floor((now - start) / mascotMotion.frameInterval) * mascotMotion.frameInterval)
   })
+}
+
+/** The person changed a page: a day, a week or a month. The live Orbit of the view turns its ring once for each change. */
+export function turnOrbitPage(): void {
+  pageTurns += 1
+  notify()
+}
+
+export function getOrbitPageTurns(): number {
+  return pageTurns
 }

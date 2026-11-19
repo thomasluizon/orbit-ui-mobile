@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
   router: { prefetch: vi.fn(), replace: vi.fn(), push: vi.fn() },
   validateHabit: vi.fn(),
+  openCurrentProactiveItem: vi.fn(),
 }))
 function QueryAppLayout({ children }: { children: import('react').ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }))
@@ -52,6 +53,7 @@ vi.mock('next/navigation', () => ({
     return mocks.searchParams
   },
 }))
+vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: mocks.openCurrentProactiveItem }))
 vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
 vi.mock('@/components/navigation/navigation-history-tracker', () => ({ NavigationHistoryTracker: () => null }))
 vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }))
@@ -141,6 +143,7 @@ beforeEach(() => {
   mocks.searchPending = false
   mocks.searchParams = new URLSearchParams()
   mocks.validateHabit.mockReset()
+  mocks.openCurrentProactiveItem.mockClear()
   mocks.router.replace.mockClear()
   mocks.router.push.mockClear()
   mocks.fetch.mockReset()
@@ -206,13 +209,17 @@ it('keeps the Today shell and content in server markup while search parameters a
   expect(html).toContain('Today content')
 })
 
-it('opens an Astra deep link once while the shell rerenders', () => {
+it.each([
+  ['orbit', 'open'], ['orbit', 'proactive'], ['astra', 'open'], ['astra', 'proactive'],
+] as const)('opens the conversation entry %s=%s once while the shell rerenders and clears the query', (name, entry) => {
   mocks.pathname = '/'
-  mocks.searchParams = new URLSearchParams({ astra: 'open' })
+  mocks.searchParams = new URLSearchParams({ [name]: entry })
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
 
   render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
 
+  if (entry === 'open') expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  else expect(mocks.openCurrentProactiveItem).toHaveBeenCalledOnce()
   expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith('/')
 })
 

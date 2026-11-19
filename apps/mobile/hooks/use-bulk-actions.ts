@@ -7,6 +7,7 @@ import { useBulkLogHabits } from '@/hooks/use-bulk-log-habits'
 import { useBulkSkipHabits } from '@/hooks/use-bulk-skip-habits'
 import { useBulkMoveHabitParent } from '@/hooks/use-bulk-move-habit-parent'
 import { getAccountGeneration } from '@/lib/session-epoch'
+import { useUIStore } from '@/stores/ui-store'
 import { useAppToast } from '@/hooks/use-app-toast'
 
 interface BulkActionOutcome {
@@ -82,10 +83,15 @@ export function useBulkActions({
 
   async function executeDelete(ids: string[], retainedIds: string[] = []) {
     if (ids.length === 0) return
-    const result: BulkActionOutcome = await bulkDelete.mutateAsync(ids)
-    finish(result, (failedIds, untouchedIds) => void executeDelete(failedIds, untouchedIds), retainedIds)
-    if (!result.offlineFailureIds?.length && retainedIds.length === 0) {
-      setShowBulkDeleteConfirm(false)
+    useUIStore.getState().beginBulkMotion()
+    try {
+      const result: BulkActionOutcome = await bulkDelete.mutateAsync(ids)
+      finish(result, (failedIds, untouchedIds) => void executeDelete(failedIds, untouchedIds), retainedIds)
+      if (!result.offlineFailureIds?.length && retainedIds.length === 0) {
+        setShowBulkDeleteConfirm(false)
+      }
+    } finally {
+      useUIStore.getState().endBulkMotion()
     }
   }
 
@@ -95,13 +101,18 @@ export function useBulkActions({
     const date = selectedDateStr
     const accountGeneration = getAccountGeneration()
     const items = ids.map((habitId) => ({ habitId, date }))
-    const result = await (mode === 'log' ? bulkLog : bulkSkip).mutateAsync(
-      retryChunks.length ? { items, retryChunks } : items,
-    )
-    if (getAccountGeneration() !== accountGeneration) return
-    applyBulkMutationSuccesses(result.results, mode, date, result.queuedIds)
-    if (currentPermission.current.selectedDateStr !== date) return
-    finish(result, (failedIds, untouchedIds) => getAccountGeneration() === accountGeneration && void executeCompletion(failedIds, mode, untouchedIds, result.retryChunks), retainedIds, true)
+    useUIStore.getState().beginBulkMotion()
+    try {
+      const result = await (mode === 'log' ? bulkLog : bulkSkip).mutateAsync(
+        retryChunks.length ? { items, retryChunks } : items,
+      )
+      if (getAccountGeneration() !== accountGeneration) return
+      applyBulkMutationSuccesses(result.results, mode, date, result.queuedIds)
+      if (currentPermission.current.selectedDateStr !== date) return
+      finish(result, (failedIds, untouchedIds) => getAccountGeneration() === accountGeneration && void executeCompletion(failedIds, mode, untouchedIds, result.retryChunks), retainedIds, true)
+    } finally {
+      useUIStore.getState().endBulkMotion()
+    }
   }
 
   return {
@@ -111,8 +122,13 @@ export function useBulkActions({
     confirmBulkDelete: () => executeDelete(Array.from(selectedHabitIds)),
     confirmBulkLog: () => executeCompletion(Array.from(selectedHabitIds), 'log'),
     confirmBulkSkip: () => executeCompletion(skippableHabitIds, 'skip'),
-    confirmBulkMove: (habitIds: string[], parentId: string | null) => executeBulkMoveParent(habitIds, parentId, {
-      mutate: bulkMove.mutateAsync, getAccountGeneration, onSuccess, onPartialFailure,
-    }),
+    confirmBulkMove: async (habitIds: string[], parentId: string | null) => {
+      useUIStore.getState().beginBulkMotion()
+      try {
+        return await executeBulkMoveParent(habitIds, parentId, { mutate: bulkMove.mutateAsync, getAccountGeneration, onSuccess, onPartialFailure })
+      } finally {
+        useUIStore.getState().endBulkMotion()
+      }
+    },
   }
 }
