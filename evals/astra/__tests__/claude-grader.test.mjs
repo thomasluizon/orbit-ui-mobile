@@ -11,6 +11,7 @@ import ClaudeGrader, { WORKER_CONFIG_VARIABLE, graderEnvironment } from '../clau
 import { WORKER_ACCOUNT, workerAccountEnvironment } from '../../../tools/lib/orchestrator-config.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, turnTiming } from './fixtures/producer.mjs'
+import { recordedReads } from './fixtures/recorded-halves.mjs'
 import parseResponse from '../response.mjs'
 
 vi.mock('../fixtures/reset.mjs', async (original) => ({ ...await original(), resetFixture: vi.fn() }))
@@ -31,7 +32,6 @@ const recordedResult = fileURLToPath(new URL('./fixtures/claude-grader-result.js
 const recordedError = fileURLToPath(new URL('./fixtures/claude-grader-error.json', import.meta.url))
 const schemaText = readFileSync(new URL('../grader-schema.json', import.meta.url), 'utf8')
 // The CLI result of one real card question read (the half schema), recorded by the live reads of the card questions.
-const recordedReads = JSON.parse(readFileSync(new URL('./fixtures/claude-grader-half-results.json', import.meta.url), 'utf8'))
 const [{ result: recordedHalf }] = recordedReads
 
 let directory, provider, workerDirectory
