@@ -276,6 +276,10 @@ function modeLayout(expected, { response, parts, blocks, pending, outcome, exter
   if (expected.mode === 'clarification' && (blocks.length !== 1 || !['choice', 'question'].includes(blocks[0].kind) || pending.length || outcome)) {
     return result(false, 'Clarification requires plain text without a block or exactly one choice or question card without a write.')
   }
+  if (expected.mode === 'preview' && expected.previewOnly === true && (blocks.length || outcome
+    || ['followUps', 'followUpContext'].some((key) => response[key]?.length))) {
+    return result(false, 'A preview case allows only the preview and its note.')
+  }
   const plainNote = expected.previewNote === 'plain'
   if (expected.mode === 'preview' && external && expected.allowPreviewNote !== true && !plainNote) return result(false, 'Preview must be the entire answer.')
   if (expected.mode === 'preview' && plainNote && external && !plainSentence(external)) {

@@ -11,6 +11,10 @@
 # Forms that a field or a change takes beyond the core set (core/outcome.mjs): a field with `withinDays: [from, to]` is a
 # date counted from the account date, and with `mayStay` it may stay where it is; `dueToday` counts the changes that leave
 # a habit due on the account date; `checklist` is a whole checklist; kind `reuse` is a create that reuses a stored habit.
+#
+# Composition options beside a preview (composition.mjs): `previewNote: plain` holds the note to one sentence without a
+# figure; `allowPreviewNote: true` allows any one-line note; `previewOnly: true` allows the preview and its note alone, with
+# no block, follow-up, action, policy denial or failed operation.
 
 - description: Read today's habits in English
   metadata: { id: single-read-en, category: single, family: single, locale: en, platform: web, fixture: pro }

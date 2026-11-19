@@ -387,8 +387,8 @@ describe.each([
       .toEqual(role === 'reuse' ? [] : Object.keys(rowViolations[role]).toSorted()))
   })
 
-  it('holds the note beside its preview to one plain sentence', () => {
-    expect(caseOf(id).vars.composition).toEqual({ mode: 'preview', previewNote: 'plain' })
+  it('holds the answer to its preview and one plain sentence of note', () => {
+    expect(caseOf(id).vars.composition).toEqual({ mode: 'preview', previewNote: 'plain', previewOnly: true })
   })
 
   it('passes the preview that holds every row, approves it and reads the saved records back', async () => {

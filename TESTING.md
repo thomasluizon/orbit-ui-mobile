@@ -509,29 +509,30 @@ without action prompts. The typed answer has one block, the three server labels 
 Follow-ups send the returned action's complete `message` with verified setup history and the setup response's
 `conversationId`; the legacy client predates that id and sends none. The smaller
 rubric receives the original activity and step to compare effort semantically, allowing equivalent
-activity wording. Save cases derive their required tool arguments from that same returned step.
+activity wording. A save case names the returned step in its change list (`previousStep: true` for a task title,
+`appendsPreviousStep: true` for a checklist).
 
-The HTTP provider checks tool structure, behavior and composition before approving saved steps,
-then completes approval and independent readback before returning to the next fixture reset.
-The `savedStep` assertion grades only the stored verdict and fails if it is missing.
-An independent export must still match the baseline before confirmation and execution. Task readback
-requires exactly one new one-time task with the step as title and no changes to existing habits.
-Checklist readback requires every existing item and checked state in order, with the new step appended
-once as unchecked and no other habit changes. Private attempt artifacts retain the sanitized `savedStep`
-readback from assertion metadata. Confirmation tokens and execution response bodies are never evidence.
-These offline tests do not replace the app-launch gate on the matching API commit.
+A save case holds `decision: approve`. The outcome grade checks the composition and the held change list, then
+approves the preview through the confirmation gateway and reads the saved state back (`core/outcome.mjs`). A task
+save is one `create` with a one-time frequency, no frequency quantity and the rows `days`, `is_bad_habit`,
+`is_general` and `parent_habit_id` as exact preview text when the preview shows them. The readback reads the title and
+the schedule fields only, so the preview grades those four rows. A checklist save is one `update` of the stored habit:
+every existing item and checked state stays in order, and the new step is appended once as unchecked. The `savedStep`
+assertion stays in the configuration and passes for every case. Confirmation tokens and execution response bodies are
+never evidence. These offline tests do not replace the app-launch gate on the matching API commit.
 
 Brain dump cases cover mixed tasks and habits, existing activity reuse and requested ideas in
-en and pt-BR. Each attempt uses the isolated fixture reset, snapshots stored habits before chat,
-including full habit details omitted from exports, and checks one `bulk_create_habits` preview
-with `Task` and `Habit` item types. The harness refuses
-approval unless tool structure, mutation scope and preview checks pass. It verifies unchanged
-storage before confirmation, executes through the existing approval gateway, and independently
-reads every saved item's schedule and time. Existing fixture habits must remain unchanged and
-appear only once. Requested ideas must retain the actual suggestion draft fields in that same
-preview. Pending operations are cancelled and their empty readback verified after each attempt.
-Private attempt evidence includes the approval verdict and persisted schedules, while the final
-answer grader still sees only the original held preview. Offline tests do not replace the live gate.
+en and pt-BR. Each attempt uses the isolated fixture reset and snapshots stored habits before chat. Each case holds
+`composition: { mode: preview, previewNote: plain, previewOnly: true }` and `decision: approve`. `previewOnly` allows
+the preview and its note and nothing else: no block, follow-up, action, policy denial or failed operation.
+`previewNote: plain` holds the note beside the preview to one sentence without a figure, on one line of 180 characters
+at most. The change list holds one `create` for each item of the request, and each create states
+`parent_habit_id: No parent`, so a create that the preview files under a stored habit fails. A reuse case states a
+`reuse` change for the stored habit, so a preview that leaves it out fails. An ideas case states one more `create`
+with `frequency_unit: Day`: the idea joins the same preview. The grade does not compare that idea with the
+suggestion draft. The outcome grade then approves the preview through the existing confirmation gateway and reads the
+saved items back: title, schedule and time. Existing fixture habits must remain unchanged and appear only once.
+Offline tests do not replace the live gate.
 
 Refine cases first verify a real suggestion setup turn with the tool and composition gates, then
 send one of those drafts, the instruction and language as JSON to
@@ -901,37 +902,31 @@ Water with six children titled Water - 710ml (fixture `same-title-children`). Ea
 
 The `same-title-control` family runs a singular request with an unrelated set word (`thanks for all the help`,
 `obrigado por tudo`) or an order word in a time phrase (`in the last two weeks`, `nas últimas duas semanas`) over
-the same six children. It expects one question and no write. The API settles a title group only when it has two
+the same six children. It expects one question. The person then picks the third child, and the case approves the one
+rename. The API settles a title group only when it has two
 or more records, so a control over distinct titles cannot reach the set and order classifier.
 
-The two singular cases and the four control cases use `composition.mode: clarification`. When the question has a card,
-the card must offer each of the six children as a separate option, because a singular request means one child. The
-API completes a record card that offers more than four records as one `question` block with one `records` question,
-because a choice holds four options at most. Its options are the record ids in read order, labelled
-`Water - 710ml (1 of 6)` or `Water - 710ml (1º de 6)`.
+The two singular cases and the four control cases state `outcome.questions: { min: 1, max: 1 }`, then the pick of the
+third child in `answer.pick`. When the question has a card, the card must offer each of the six children as a separate
+option, because a singular request means one child. The API completes a record card that offers more than four records
+as one `question` block with one `records` question, because a choice holds four options at most. Its options are the
+record ids in read order, labelled `Water - 710ml (1 of 6)` or `Water - 710ml (1º de 6)`.
 
-`composition` grades only the generic rule of the mode: one choice or question card and no write. `behavior`
-grades the options of the card through `sameTitleProposal`, as `sameTitleCard` does for the card cases. A choice
-card for these cases fails `behavior`, because it offers some of the children or offers them only in sets. A
-question card that offers fewer children also fails `behavior`, and the reason names how many children it offers.
-The lifecycle then stops before the readback. The rubric of each of these cases states this rule in the same words.
+`composition` grades the generic rule of the mode. The outcome grade of a case that asks needs a card that asks. A card
+that offers some of the children, or offers them only in sets, cannot hold the answer of the person, so the case fails
+and the reason names how many children the card offers. A case that stops at a failed first turn reads no answer and
+approves nothing.
 
-When the first turn fails `structural`, `behavior` or `composition`, the lifecycle stops before the answer turn and
-the readback. `behavior` then names that gate and its reason, so it never reads as a lost answer turn or as a
-change to the stored children. The restart lifecycle reports a stopped first turn in the same way.
+The split cases state one `delete` change and one `update` change over the children, each with a `count` or with
+`positions` matched by baseline order, and `fields: { title: <new title> }`. The API combines a bulk deletion and a
+bulk rename of one turn into one `applyAccountChanges` operation, and a lone action keeps `deleteHabits` or
+`updateHabits`. The change list classifies each item by its field, never by the member index. The grade requires one
+change for each action, every record a stored child, no record in two changes, and never the parent. The outcome grade
+then approves the preview and reads the set back. The persisted children must show the deleted ones gone, the renamed
+ones retitled and the rest unchanged. A case with no `questions` form allows no question before the preview.
 
-A `sameTitleSet` policy declares `deleted` and `renamed`, each with a `count` and optional `positions`, and
-`renamed.title`. `behavior` grades the one held preview. The API combines a bulk deletion and a bulk rename of one
-turn into one `applyAccountChanges` operation, whose item ids carry the member index in tool-call order. A lone
-action keeps `deleteHabits` or `updateHabits`. The grader classifies each item by its field (`delete` with value
-type `action`, or `title` with the requested new value), never by the member index. It requires one member per
-action, every item a stored child, no habit in two actions, never the parent, and `positions` matched by baseline
-order. The HTTP provider then reads the set back, approves the preview through `approvePendingOperation`, and
-reads it back again. The persisted children must show the deleted ones gone, the renamed ones retitled and the
-rest unchanged. A preview case forbids `ask`, so a question before the preview fails it.
-
-A card case adds `sameTitleSet.answer` (the decided `deleted` and `renamed` positions and a typed `text`) and
-`composition.allowQuestion`. When the first turn asks, each option stands for the records its `ask` call declares
+A card case adds `answer.sameTitle` (the decided `deleted` and `renamed` positions) and `answer.text` (the typed answer
+in each locale), with `outcome.questions` and `composition.allowQuestion`. When the first turn asks, each option stands for the records its `ask` call declares
 in `target_ids`. An option that declares none stands for its own id when that id is a nonempty GUID, in the order of
 the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
 and one selection the card allows must state the whole decision. A list that can hold only one half is answered with that
@@ -949,18 +944,17 @@ The strict shape is one key, `half`, with one of the three names: `claude-grader
 another shape once, as it retries a malformed rubric grade, and any other answer of a call that succeeded is `unclear`. An
 `unclear` read fails the case with a grader-limit message, never a model fault, and the report names the question. A failed
 call of the grader, or a malformed answer after its retry, gives no evidence of the build, as a failed rubric grader does: the
-core set records the attempt as `unavailable` (the kind `a failed card question read`), the full corpus records an
-unavailable assertion, and the case is neither a grader limit nor a behavior failure, so a later window runs it again. A `yesNo`
+conversation records the attempt as `unavailable` (the kind `a failed card question read`), in the core set and in
+the launch corpus, and the case is neither a grader limit nor a behavior failure, so a later window runs it again. A `yesNo`
 question is answered yes only when its read is the half that the lists leave out; a read of the half that the lists state
 is a grader limit. Every `scale` or `slider` question also fails the case with a grader-limit message, with no read. The
 model-fault message stays for a card whose every question the grader reads. A run with a card case needs the grader before
-its first chat turn, as a run with a rubric does (`requireGrader`). The provider sends that selection as `blockAnswer`, with the message
+its first chat turn, as a run with a rubric does (`requireGrader`). The conversation sends that selection as `blockAnswer`, with the message
 and the history the web client sends. As the client does, the answer turn, confirm and execute send the first
 response's `conversationId` in `clientContext`, so the API reads the stored conversation.
 The shared client functions build the message: the selected labels for a choice card, and each question prompt with
-its selected labels or the client's yes word for a question card. When the question has no card, the provider sends
-the typed text. The lifecycle runs in `attempt()` around the
-single request of `chat()`, as the offer lifecycle does, so the answer turn cannot start the lifecycle again. The
+its selected labels or the client's yes word for a question card. When the question has no card, the conversation sends
+the typed text. The
 answer turn must hold one preview with both actions on the decided positions and no further question.
 `composition.allowPreviewNote` permits one short line beside the preview for the production request, the count case
 and the card case.
@@ -982,14 +976,14 @@ Resetting stable roots also restores their start date, so a previous future-date
 cannot carry into the next case. Before a restart attempt, a dated public habit read with
 `includeOverdue=true` and `isCompleted=false` must return all six distinct fixture IDs,
 with no logged or skipped item. A mismatch makes the precondition incomplete before chat.
-The tool grader requires the remaining-work read, every page before the write, and one held
-`bulk_reschedule_habits` call with complete per-habit `revised_items`. A smaller set stays today
-and the rest falls within seven days. The response contains only the `rescheduleHabits` preview.
-Every attempt reads each habit independently through `GET /api/habits/{id}` and its complete
-history through `GET /api/profile/export`, before any approval and after the decision. Approval
-uses confirm then execute; rejection revises to an empty item list and verifies confirmation
-returns 404. The grader compares proposed dates and preserves titles, cadence, times, reminders,
-checklists and logs. Attempt evidence retains sanitized proposed dates and both readbacks.
+The restart cases state one `update` change over the six habits: `due_date` within 0 to 7 days of the account date, where a
+habit may stay on its date (`mayStay`), and `dueToday`, the number of habits that are due on the account date. A smaller
+set stays today (`dueToday: 2` for the preference cases, 1 to 5 for the others) and the rest falls within seven days. The
+response contains only the `rescheduleHabits` preview. `restart-approve` holds `decision: approve`: the outcome grade
+approves the preview through confirm then execute and reads each habit and its history back. Each saved value must equal
+the value that the preview showed, and each field that the preview showed for a habit still holds its baseline value before
+the approval. `restart-reject` holds `decision: reject`: the preview is revised to an empty item list, confirmation
+returns 404, and each habit keeps its baseline.
 
 | Key | Purpose |
 |---|---|
@@ -1341,7 +1335,7 @@ Failed creates with `success=false`, a null payload and an error do not consume 
 Only a later successful held create for the same targets can recover their outcome. Without
 that preview the attempt still fails, and every failed call remains in its evidence. Duplicate
 previews, unallowed tools and successful unsolicited writes continue to fail for the cases that
-still hold a tool-name grade. The `offers-*` cases hold none: a selected small-step offer shows one
+hold a tool-name grade. No case of the launch corpus holds one now: a selected small-step offer shows one
 `oneSmallStep` block, and subsequent saves still require the existing approval and readback.
 
 Feature-help rubrics permit one short documentation-gap line only when no step in the successful
@@ -1499,8 +1493,8 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    `refusal: true` gives the `expectedHttpStatus` and
    `expectedErrorCode` of the case. `changes` lists the held changes by kind, with each record by its fixture name
    (`water`, `walk`, `first`, `second`) and never by its id. A `changes` case holds no rubric. A case that reads
-   an answer holds a final-answer rubric. The lifecycle families keep `expectations` until their ticket converts them. The
-   `offers-*` cases hold an `outcome` and no `expectations`.
+   an answer holds a final-answer rubric. No case of the launch corpus holds `expectations` now. The tool-name functions stay until the old
+   assistant path is deleted.
    Composition cases also declare `metadata.family`, `metadata.locale`, `vars.clientContext` and
    `vars.composition`. Add every family in both `en` and `pt-BR`.
    `{habitId}`, `{secondHabitId}`, `{overdueDate}`, rolling analytics date tokens and their localized variants are substituted in inputs and expected
@@ -1517,9 +1511,9 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    Use `composition.mode: clarification` to accept either one to three short plain-text lines without a block or exactly
    one `choice` or `question` card. The API sends a `question` card for the same intent: it folds only one short
    `singleChoice` question into a choice, and it sends a record card over more than four records as a
-   question. Other block kinds, multiple blocks and pending writes fail this policy. A case that
-   declares `sameTitleSet` also needs its card to offer each stored child as a separate option, and
-   `behavior` grades that rule.
+   question. Other block kinds, multiple blocks and pending writes fail this policy. A case with
+   `answer.sameTitle` also needs its card to offer each stored child as a separate option, and the outcome grade reads
+   that rule (`same-title-card.mjs`).
 3. Regenerate `catalog.yaml` from a settled API checkout with
    `node evals/astra/generate-catalog.mjs <orbit-api checkout>`. This requires the API's .NET SDK
    and restored package access. The exporter builds into a private temporary artifacts directory,

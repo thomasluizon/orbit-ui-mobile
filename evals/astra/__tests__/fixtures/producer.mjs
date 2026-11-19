@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
-import { completionControls, nullableSchema, resolveSchema, schemaVariants } from '../../tool-schema.mjs'
+import { nullableSchema, resolveSchema, schemaVariants } from '../../tool-schema.mjs'
 
 const { tools, legacyTools, postReadTools, offerTools, offerPostReadTools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
+const completionControls = (schema) => ['orbit_read_complete', 'orbit_write_complete']
+  .filter((name) => Object.hasOwn(resolveSchema(schema)?.properties ?? {}, name))
 const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
 
 // StrictToolSchema requires nullable properties; composition reads require completion; traces omit marked fields.
