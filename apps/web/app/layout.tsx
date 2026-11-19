@@ -20,6 +20,8 @@ import { DesktopWindowBar } from '@/components/desktop-window-bar'
 import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
 import { PublicSessionBootstrap } from '@/lib/public-session-bootstrap'
 import { SessionCookieProvider } from '@/lib/session-cookie-provider'
+import { SidebarPreferenceProvider } from '@/components/shell/sidebar-preference-provider'
+import { SIDEBAR_COLLAPSED_COOKIE, parseSidebarCollapsed } from '@/lib/sidebar-preference'
 import { KeyboardPlatformProvider } from '@/components/shell/keyboard-platform-provider'
 import { AccountClock } from '@/lib/account-clock'
 import { NotificationsPreload } from '@/lib/notifications-preload'
@@ -133,9 +135,11 @@ export default async function RootLayout({
               </Suspense>
               <SessionCookieProvider hasSessionCookie={hasSessionCookie}>
                 <KeyboardPlatformProvider applePlatform={applePlatform}>
-                  <NotificationsPreload initialNotifications={initialNotifications}>
-                    <AccountClock now={initialNow} timeZone={initialAccount.timeZone}>{children}</AccountClock>
-                  </NotificationsPreload>
+                  <SidebarPreferenceProvider initialCollapsed={parseSidebarCollapsed(cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value)}>
+                    <NotificationsPreload initialNotifications={initialNotifications}>
+                      <AccountClock now={initialNow} timeZone={initialAccount.timeZone}>{children}</AccountClock>
+                    </NotificationsPreload>
+                  </SidebarPreferenceProvider>
                 </KeyboardPlatformProvider>
               </SessionCookieProvider>
               <ThrottleScreen />
