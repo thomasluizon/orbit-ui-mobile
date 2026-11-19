@@ -202,11 +202,11 @@ it('retries a malformed card question answer once, and names the failure when th
   errors.mockRestore()
 })
 
-it('never runs the CLI for a card question read when the worker account directory is unset', async () => {
-  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', '')
+it('never runs the CLI for a card question read when the worker account directory does not exist', async () => {
+  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', join(directory, 'missing-account'))
   const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
   const half = new ClaudeGrader({ config: { schema: 'half' } })
-  expect(await half.callApi('Which half?')).toEqual({ error: 'Claude grading failed: ORBIT_WORKER_CLAUDE_CONFIG_DIR is not set.' })
+  expect(await half.callApi('Which half?')).toEqual({ error: 'Claude grading failed: ORBIT_WORKER_CLAUDE_CONFIG_DIR names no existing directory.' })
   expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(false)
   errors.mockRestore()
 })
@@ -228,6 +228,12 @@ it('reads the worker account variable and removes every credential override that
     CLAUDE_CONFIG_DIR: join(directory, 'main-account'), ORBIT_EVAL_TOKEN: 'PRIVATE_SENTINEL' }
   const { ORBIT_EVAL_TOKEN: _evalSecret, ...launchEnvironment } = workerAccountEnvironment(environment, account)
   expect(graderEnvironment(environment)).toEqual({ ...launchEnvironment, CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' })
+  // The main account: the launch removes CLAUDE_CONFIG_DIR, and the grader does the same when the variable is empty.
+  const mainAccount = { name: 'main', configDirectory: null }
+  const mainAccountEnvironment = { ...environment, [WORKER_CONFIG_VARIABLE]: '' }
+  const { ORBIT_EVAL_TOKEN: _mainSecret, ...mainLaunchEnvironment } = workerAccountEnvironment(mainAccountEnvironment, mainAccount)
+  expect(mainLaunchEnvironment).not.toHaveProperty('CLAUDE_CONFIG_DIR')
+  expect(graderEnvironment(mainAccountEnvironment)).toEqual({ ...mainLaunchEnvironment, CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' })
 })
 
 // The rubric prompt holds Astra's answer, untrusted model output, and the CLI expands an @/path mention in a -p prompt
@@ -247,13 +253,35 @@ it.each(['pass', 'fail'])('the real llm-rubric consumes the provider grade: %s',
   expect(record().prompt).toContain('Water is ready.')
 })
 
-it.each([
-  ['unset', '', 'ORBIT_WORKER_CLAUDE_CONFIG_DIR is not set'],
-  ['a missing directory', 'missing-account', 'ORBIT_WORKER_CLAUDE_CONFIG_DIR names no existing directory'],
-])('fails closed and never runs the CLI when the worker account directory is %s', async (_name, value, failure) => {
-  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', value && join(directory, value))
-  expect(await provider.callApi('Offline rubric control.')).toEqual({ error: `Claude grading failed: ${failure}.` })
+it('fails closed and never runs the CLI when the worker account directory does not exist', async () => {
+  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', join(directory, 'missing-account'))
+  expect(await provider.callApi('Offline rubric control.')).toEqual({
+    error: 'Claude grading failed: ORBIT_WORKER_CLAUDE_CONFIG_DIR names no existing directory.',
+  })
   expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(false)
+})
+
+// With no worker account directory the grader child runs on the main account, as a worker launch does in single-account mode
+// (workerAccounts of tools/lib/orchestrator-config.mjs): CLAUDE_CONFIG_DIR is removed, also when the parent holds one, so the
+// CLI reads its default config. The parent of every test here holds one (beforeEach), so a grader that passes it on fails this.
+it.each([['unset', undefined], ['empty', ''], ['blank', '  ']])('runs the grader child on the main account when the worker account directory is %s', async (_name, value) => {
+  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', value)
+  expect(process.env.CLAUDE_CONFIG_DIR).toBe(join(directory, 'main-account'))
+  const recorded = JSON.parse(readFileSync(recordedResult, 'utf8'))
+  expect(await provider.callApi('Grade this answer.')).toEqual({ output: JSON.stringify(recorded.structured_output) })
+  const call = record()
+  expect(call.configDirectory).toBeNull()
+  expect(call.attachments).toBe('1')
+  expect(call.apiKey).toBe(false)
+  expect(call.leaked).toEqual([])
+})
+
+it('runs the card question read on the main account when the worker account directory is empty', async () => {
+  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', '')
+  vi.stubEnv('TEST_CLAUDE_RESULT', join(directory, 'half-result.json'))
+  const half = new ClaudeGrader({ config: { schema: 'half' } })
+  expect(await half.callApi('Which half?')).toEqual({ output: JSON.stringify(recordedHalf.structured_output) })
+  expect(record().configDirectory).toBeNull()
 })
 
 it('fails closed when PATH has no installed CLI', async () => {
