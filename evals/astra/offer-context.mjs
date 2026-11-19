@@ -1,11 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
-import { toolWrites } from './trace-policy.mjs'
 
 const { buildChatClientContext } = await tsImport('../../packages/shared/src/chat/client-context.ts', import.meta.url)
-
-const pendingWrites = (allowed) => allowed.filter((name) => toolWrites.get(name) === true)
-  .map((name) => ({ name, resultStatus: 'PendingConfirmation' }))
 
 export function freshConversation(vars) {
   if (!vars.clientContext?.conversationId) return
@@ -35,22 +31,5 @@ export function configureOffers(test) {
   for (const turn of [vars, vars.setup].filter(Boolean)) {
     turn.clientContext = { ...buildChatClientContext({ platform: test.metadata.platform ?? 'web',
       locale: test.metadata.locale ?? 'en' }), ...turn.clientContext }
-  }
-  vars.expectations ??= {}
-  if (vars.offerFamily === 'action-lifecycle') {
-    vars.expectations = { required: [{ name: 'suggest_breakdown',
-      arguments: { one_small_step: true, language: test.metadata.locale }, resultStatus: 'Succeeded' }],
-    allowed: ['suggest_breakdown'], counts: { suggest_breakdown: 1 } }
-  }
-  if (vars.composition.mode === 'preview' && !vars.expectations.required) {
-    vars.expectations.permittedMutations = pendingWrites(vars.expectations.allowed ?? [])
-  }
-  if (vars.setup) {
-    vars.setup.expectations ??= { allowed: ['get_daily_summary', 'query_habits', 'query_goals'] }
-    if (vars.setup.composition.mode === 'preview') {
-      const allowed = ['query_habits', 'query_goals', 'list_tags', 'get_checklist_templates',
-        'create_habit', 'create_sub_habit', 'bulk_create_habits', 'update_habit', 'bulk_update_habits']
-      vars.setup.expectations = { allowed, permittedMutations: pendingWrites(allowed) }
-    }
   }
 }

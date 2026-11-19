@@ -738,12 +738,17 @@ at the configured `k`, runs the per-case hook with intercepted public API calls,
 tracking and offer exclusions in both locales. Behind cases retain the timezone transition and
 restoration checks at every UTC hour.
 
-The completed-goal cases explicitly request completed goals. They require a successful
-`query_goals` with `status=Completed` or `include_completed=true` without an active-only status
-filter, plus the seeded completed goal in both the tool result and the displayed `goalList`.
-An empty active-goal list cannot prove the exclusion of behind-goal actions. Recorded attempts
-that only queried active goals lose that coverage pass during offline replay; the audit retains
-the reason and exits nonzero for a formerly passing case.
+Each `offers-*` case runs on the client path (`POST /api/chat/stream`, in one conversation with the
+case's conversation id) and states its `outcome` in the corpus file. No `offers-*` case holds a tool-name
+key (`required`, `allowed`, `forbidden`, `counts` or `permittedMutations`), in the file or from the run: the
+offline suite fails a case that does. Three graders read each attempt: `outcome` (the held previews against the
+expected change list, and the questions before the preview), `composition` and `proactiveOffers`. A case with a
+`rubric` (a read answer) also gets the `llm-rubric`; a write case holds none.
+
+The completed-goal cases explicitly request completed goals. They require the seeded completed goal in the
+displayed `goalList`, with the stored target, current value, unit and deadline. An empty active-goal list
+cannot prove the exclusion of behind-goal actions. The case names no tool, so the same check holds on the
+old path and on the flag path.
 
 A fresh conversation UUID replaces every
 case seed before setup; setup, revisions, selection,
@@ -751,13 +756,16 @@ reload and device changes keep that attempt's UUID. Request trace UUIDs remain i
 for each HTTP turn. No seed conversation ID reaches the API.
 Offer requests and their setup turns inherit capabilities, including every part kind, from the shared
 `buildChatClientContext`. A case testing a narrower client must explicitly override and describe that
-capability restriction. Prerequisite account reads must succeed; only catalog-classified writes enter
-the pending-mutation scope. An HTTP 400 retains its `errorCode`, `error` and response-header request
-identity in the sanitized attempt artifact, including unexpected errors that fail grading.
-Failed create argument checks may be repaired by a later matching held preview in the same turn.
-The matcher preserves the producer's supplied target names, IDs, actions, filters and nested target
-order. A changed target, an unrecovered failure or duplicate held previews still fail; every failed
-call remains in the attempt evidence even when only its repair consumes the mutation scope.
+capability restriction. Prerequisite account reads must succeed. An HTTP 400 retains its `errorCode`,
+`error` and response-header request identity in the sanitized attempt artifact, including unexpected errors
+that fail grading. A write case grades the change list of its held previews: a record outside the request, a
+second preview or a field of another value fails it. A preview whose action key the grader does not
+classify is a grader limit, not a failure of the assistant.
+Three requirements that an `outcome` cannot state have their own typed vars and checks in `proactiveOffers`:
+`checklistSteps` (the checklist holds each requested step and no other), `requestedDays` (the non-suggested
+`days` row names the requested weekday; the producer allows weekdays only on `Day` with quantity 1, so the
+`offers-unsupported-schedule` outcome states `Day`/`1`) and `childDrafts` (the non-suggested `sub_habits` row
+holds the requested drafts and no other). The `offers-ordinary-reading` cases fail a non-suggested `end_date`.
 The final-answer rubric grades the visible turn only. Restart actions refer to today while skip
 actions refer to their actual occurrence when known; typed checks bind hidden dates and targets.
 Repeat intervals are required, with active hours optional as a pair. A requested dated draft may
@@ -769,14 +777,16 @@ The producer is `orbit-api#1031`. Keep this harness merge held until that change
 production API and the app-launch gate passes every configured attempt of these cases.
 Regenerate the catalog against that production commit before running. The exporter captures
 `offerTools`, `offerPostReadTools` and bound `offerHabitSetupTools` through the producer's offer-enabled request builders, including
-`suggested_fields` and removal arguments. A missing offer catalog fails structural validation;
-the harness never accepts these arguments against a hand-written schema. Existing clients keep their
+`suggested_fields` and removal arguments. The `offers-*` cases do not run the `structural` assertion, so
+they run no catalog preflight; the outcome grader reads the held previews and no tool name. Existing clients keep their
 existing catalogs. Authenticated traces remain request-opt-in and retain independent identity checks.
 
 The `proactiveOffers` assertion validates `block.read.nextAction` and pending-preview `nextAction`,
 including action kind, label, prompt or surface, owned targets, occurrence dates and complete/current
 read metadata. It rejects multiple global offers, external follow-ups, resolved/avoid log targets,
-unsupported-client metadata, successful unsolicited mutations and missing persisted-state evidence.
+unsupported-client metadata, an unrequested write and missing persisted-state evidence. The unrequested-write
+check reads the persisted-state readback, the pending previews of a read turn and the unselected `oneSmallStep`
+block, never a tool call.
 Suggestion-bearing preview fields must identify `requested`, `stored` or `suggested` provenance.
 Requested-only previews without suggestion metadata retain the producer's existing unannotated shape. Suggestions must be
 editable and carry their entire removal group. Slash-separated child paths stay local to their child;
@@ -791,11 +801,12 @@ message pattern or selector judgement supplies missing intent. The ordinary-read
 no aim, so a preview offering goal planning fails even when its other fields are correct.
 Metadata cases require at least one fitting emoji or tag suggestion, with each suggestion independently
 removable. Neither category is mandatory by itself; irrelevant options are omitted, and tags are
-optional on the empty fixture. Relevance remains part of the final-answer rubric.
+optional on the empty fixture. The `proactiveOffers` family check grades only that one emoji or tag suggestion exists.
+No grader reads the relevance of that suggestion, because the write cases of the offers hold no rubric.
 
 Crisis cases use the existing plain-text safety response, including its localized support resource.
 The producer omits ordered parts on that path. The explicit `crisis` policy accepts this shape only
-for the crisis family, requires an independently bound empty tool trace and unchanged persisted state,
+for the crisis family, requires the plain text answer and unchanged persisted state, reads no tool trace,
 and rejects actions, previews, operations, related screens, follow-ups and every legacy card the shared
 client renderer can display. Response evidence retains the shared response schema's fields, including
 legacy cards when ordered parts are absent or empty. Both crisis assertions use the same surface check.
@@ -831,8 +842,9 @@ Connected and locked states require an already connected or locked disposable ac
 APIs cannot synthesize Google OAuth consent or an entitlement. Offline HTTP replays cover all three
 availability states without inventing a connection in a live response.
 
-Lifecycle work finishes inside the provider before an attempt returns. Later turns retain the rendered
-main answer in their history. Every offer turn compares
+Lifecycle work finishes inside the provider before an attempt returns. Each later turn runs in the same
+client-path conversation (a reload opens the same conversation id with no messages) and sends the history that
+the shared history builder produces, which leaves out a preview-only reply. Every offer turn compares
 independent exports and habit detail reads before and after to catch an unrequested persisted write.
 Snapshots exclude the computed `nextReminderAtUtc` delivery clock while retaining reminder settings. Preview cases remove a
 suggested group, revise an unrelated emoji, verify preservation, reject and prove unchanged storage.
@@ -859,8 +871,8 @@ General (`Geral`, `Sem data`, `is_general=true`, `isGeneral=true`, `Schedule: 3`
 task with no date. Logging completes it permanently; a second log must receive the completed
 one-time error, and unlogging reopens it. Reads use stored `isCompleted` across day boundaries.
 Repeat reminders stop after completion until unlogged; their interval creates neither recurrence
-nor a daily target. The shared rubric applies these rules to both locales and every client mode;
-the repeat-offer cases state them explicitly. Historical response recordings and the generated
+nor a daily target. The shared rubric of the read cases applies these rules to both locales and every client mode.
+The repeat-offer write cases hold no rubric. The `proactiveOffers` family check grades their interval, their active hours and their daily target. Historical response recordings and the generated
 catalog remain evidence of their producer rather than being rewritten to resemble a newer API.
 The overdue fixture restores its start date to `ORBIT_EVAL_OVERDUE_DATE` (yesterday by default)
 while preserving the stable habit IDs; the history anchor used by other fixtures must not replace it.
@@ -1328,16 +1340,16 @@ selected choice, pickList or question branch instead of a different branch's req
 Failed creates with `success=false`, a null payload and an error do not consume mutation scope.
 Only a later successful held create for the same targets can recover their outcome. Without
 that preview the attempt still fails, and every failed call remains in its evidence. Duplicate
-previews, unallowed tools and successful unsolicited writes continue to fail. A selected
-small-step offer explicitly permits one successful `suggest_breakdown` with `one_small_step=true`
-in the person's language; subsequent saves still require the existing approval and readback.
+previews, unallowed tools and successful unsolicited writes continue to fail for the cases that
+still hold a tool-name grade. The `offers-*` cases hold none: a selected small-step offer shows one
+`oneSmallStep` block, and subsequent saves still require the existing approval and readback.
 
 Feature-help rubrics permit one short documentation-gap line only when no step in the successful
 `describe_feature` result's `markdown` or `app_surfaces` answers the question. A nonempty destination
 list does not establish an editing step. Invented navigation or setting locations still fail.
 
 Offer attempt evidence retains sanitized `issuedOffer`, `selectedOfferKey` and `mutationScope`
-(`required` and `permittedMutations`), including failed lifecycle attempts. Missing setup is
+(`required` and `permittedMutations`, both empty for an `offers-*` case), including failed lifecycle attempts. Missing setup is
 explicitly null. Offer context identifiers, credentials, refresh tokens, revisions and preview
 fingerprints are redacted before persistence, including their echoes elsewhere in the attempt.
 Offer continuation evidence is captured before verification, including failing turns. Each
@@ -1458,7 +1470,8 @@ exams and the bounded preparation commitments as creates. Avoid cases require Fu
 parent, weekly vitamin D and daily rosuvastatin, without duplicate roots or questions. A wrapper that also edits a stored
 parent holds an update of that parent, and the outcome fails it as a change outside the request.
 
-Only medical correction cases declare `vars.setup`. After fixture reset, the hook sends that original request on the
+The medical correction cases declare `vars.setup`. The `offers-dismissal`, `offers-preview-rejection` and
+`offers-action-lifecycle` cases declare one too, and `prepareHeldPreview` sends each setup the same way. After fixture reset, the hook sends that original request on the
 client path, in the conversation of the case, with a separate fresh request identity. The setup grades its held preview
 by its own `outcome`, and the preview stays held. The actual preview becomes the comparison baseline, and the
 correction turn runs in the same conversation. The correction requires 16:00 and preserves every other
@@ -1486,8 +1499,8 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    `refusal: true` gives the `expectedHttpStatus` and
    `expectedErrorCode` of the case. `changes` lists the held changes by kind, with each record by its fixture name
    (`water`, `walk`, `first`, `second`) and never by its id. A `changes` case holds no rubric. A case that reads
-   an answer holds a final-answer rubric. The lifecycle families and the offers keep `expectations` until their own
-   tickets convert them.
+   an answer holds a final-answer rubric. The lifecycle families keep `expectations` until their ticket converts them. The
+   `offers-*` cases hold an `outcome` and no `expectations`.
    Composition cases also declare `metadata.family`, `metadata.locale`, `vars.clientContext` and
    `vars.composition`. Add every family in both `en` and `pt-BR`.
    `{habitId}`, `{secondHabitId}`, `{overdueDate}`, rolling analytics date tokens and their localized variants are substituted in inputs and expected
