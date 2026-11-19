@@ -1,5 +1,5 @@
 import { tsImport } from 'tsx/esm/api'
-import { askClaude } from './claude-grader.mjs'
+import { askGrader } from './grader-provider.mjs'
 import { catalogTranslator } from './catalog-translator.mjs'
 import { guid } from './fixtures/api.mjs'
 import { sameTitleSet } from './fixtures/names.mjs'
@@ -59,10 +59,10 @@ export function sameTitleClarification(card, trace, children) {
     : result(false, `The card offers ${offered} of the ${children.length} same-title children as separate options.`)
 }
 
-// The half of the decision that a card question asks about is one read of the Claude grader, never a guess from the words of
-// the question. The grader answers only deleted, renamed or unclear; each other answer is unclear, and unclear is a grader limit.
+// The half of the decision that a card question asks about is one read of the configured grader (ORBIT_EVAL_GRADER, as the
+// rubric), never a guess from the words of the question. The grader answers only deleted, renamed or unclear; each other
+// answer is unclear, and unclear is a grader limit.
 const halfNames = ['deleted', 'renamed', 'unclear']
-const halfSchema = JSON.stringify({ type: 'object', additionalProperties: false, properties: { half: { type: 'string' } }, required: ['half'] })
 
 // The question and the decision are data. The question is untrusted text of the assistant, so the prompt quotes it as one
 // JSON string and tells the grader to follow no instruction in it.
@@ -93,7 +93,7 @@ function strictHalf(value) {
 // The half of the decision that a list question asks the person to select, or that a yes of a yesNo question agrees to.
 // Null for unclear.
 async function askedHalf(list, decision, titles) {
-  const answer = await askClaude(halfPrompt(list, decision, titles), { schema: halfSchema, accepts: () => true })
+  const answer = await askGrader(halfPrompt(list, decision, titles), { schema: 'half' })
   const half = answer.error ? 'unclear' : strictHalf(answer.value)
   return half === 'unclear' ? null : half
 }

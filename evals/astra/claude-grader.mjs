@@ -9,6 +9,8 @@ const GRADER_TIMEOUT_MILLISECONDS = 120000
 // tools/launch-worker.mjs reads. claude-grader.test.mjs holds the two names equal.
 export const WORKER_CONFIG_VARIABLE = 'ORBIT_WORKER_CLAUDE_CONFIG_DIR'
 const rubricSchema = readFileSync(new URL('./grader-schema.json', import.meta.url), 'utf8')
+// The card question read of same-title-card.mjs asks for one key, `half`, and checks the strict shape itself.
+const halfSchema = JSON.stringify({ type: 'object', additionalProperties: false, properties: { half: { type: 'string' } }, required: ['half'] })
 // Each variable that the CLI selects ahead of the sign-in in its config directory starts with one of these names. The
 // worker launch removes the same variables through workerAccountEnvironment of tools/lib/orchestrator-config.mjs, and
 // claude-grader.test.mjs holds the grader equal to that function.
@@ -88,14 +90,22 @@ export async function askClaude(prompt, { schema, accepts, signal }) {
   return first.error && !signal?.aborted ? attempt(prompt, schema, accepts, signal) : first
 }
 
-// A promptfoo provider for llm-rubric: ORBIT_EVAL_GRADER=file://<absolute path>/claude-grader.mjs. It returns
-// { output: "<JSON grade>" }, or { error } that promptfoo keeps as a grader error, so a failed call is no verdict and never
-// a pass.
+// The answers that the provider gives. promptfoo passes the `config` of a provider reference to the class constructor as
+// options.config (createApiProvider, then the javascript provider factory of providers-*.js), so a caller names its answer
+// with `config: { schema: 'half' }` and a rubric call names none.
+const answers = { rubric: { schema: rubricSchema, accepts: isGrade }, half: { schema: halfSchema, accepts: () => true } }
+
+// A promptfoo provider for llm-rubric and for the card question read: ORBIT_EVAL_GRADER=file://<absolute path>/claude-grader.mjs.
+// It returns { output: "<JSON answer>" }, or { error } that promptfoo keeps as a grader error, so a failed call is no
+// verdict and never a pass.
 export default class ClaudeGrader {
+  constructor(options) { this.answer = answers[options?.config?.schema ?? 'rubric'] }
+
   id() { return 'astra-claude-grader' }
 
   async callApi(prompt, _context, options) {
-    const { value, error } = await askClaude(prompt, { schema: rubricSchema, accepts: isGrade, signal: options?.abortSignal })
+    if (!this.answer) return { error: 'Claude grading failed: the provider config names an unknown schema.' }
+    const { value, error } = await askClaude(prompt, { ...this.answer, signal: options?.abortSignal })
     return error ? { error } : { output: JSON.stringify(value) }
   }
 }

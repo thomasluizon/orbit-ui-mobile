@@ -120,9 +120,27 @@ it('loads through promptfoo, runs print mode on the worker account and returns t
   expect(existsSync(call.cwd)).toBe(false)
 })
 
-// The card question read of same-title-card.mjs calls askClaude, so it takes the CLI path of the rubric: the same flags,
-// worker account, environment and time limit, with its own schema and its own check of the structured output.
-it('asks the card question read through the same CLI path as the rubric, with its own schema', async () => {
+// The card question read of same-title-card.mjs reaches this provider through ORBIT_EVAL_GRADER with `config: { schema: 'half' }`,
+// so it takes the CLI path of the rubric: the same flags, worker account, environment and time limit, with its own schema.
+it('answers the card question read with the half schema when the provider reference names it, and the rubric otherwise', async () => {
+  const half = await loadApiProvider(`file://${providerPath}`, { options: { config: { schema: 'half' } } })
+  const recorded = JSON.parse(readFileSync(recordedResult, 'utf8'))
+  expect(await half.callApi('Which half?')).toEqual({ output: JSON.stringify(recorded.structured_output) })
+  const { args } = record()
+  expect(JSON.parse(args[args.indexOf('--json-schema') + 1])).toEqual({ type: 'object', additionalProperties: false,
+    properties: { half: { type: 'string' } }, required: ['half'] })
+  await provider.callApi('Grade this.')
+  const rubric = record().args
+  expect(rubric[rubric.indexOf('--json-schema') + 1]).toBe(schemaText)
+})
+
+it('runs no CLI call for a provider reference that names an unknown schema', async () => {
+  const unknown = await loadApiProvider(`file://${providerPath}`, { options: { config: { schema: 'other' } } })
+  expect(await unknown.callApi('Which half?')).toEqual({ error: 'Claude grading failed: the provider config names an unknown schema.' })
+  expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(false)
+})
+
+it('asks the same CLI path as the rubric with a schema and a check of its own', async () => {
   vi.stubEnv('CLAUDE_CODE_DISABLE_ATTACHMENTS', '0')
   const schema = JSON.stringify({ type: 'object', properties: { half: { type: 'string' } }, required: ['half'] })
   const recorded = JSON.parse(readFileSync(recordedResult, 'utf8'))

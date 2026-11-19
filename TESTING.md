@@ -834,8 +834,9 @@ in `target_ids`. An option that declares none stands for its own id when that id
 the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
 and one selection the card allows must state the whole decision. A list that can hold only one half is answered with that
 half and needs no read. When a list can hold both halves, and for each `yesNo` question, one call of the Claude grader
-reads the question (`askClaude` of `claude-grader.mjs`, the same CLI, model, worker account, environment and time limit as
-the rubric). The prompt holds the question text as one quoted string, its type (a list or `yesNo`), and both halves of the
+reads the question through the configured grader, the provider that `ORBIT_EVAL_GRADER` names, as the rubric does (`askGrader`
+of `grader-provider.mjs` loads it with `config: { schema: 'half' }` from the folder of the run's config). With
+`claude-grader.mjs` that is the same CLI, model, worker account, environment and time limit as the rubric. The prompt holds the question text as one quoted string, its type (a list or `yesNo`), and both halves of the
 decision by count and title. The answer is the JSON `{"half":"deleted"}`, `{"half":"renamed"}` or `{"half":"unclear"}`:
 the half that a list question asks the person to select, or that a yes to a `yesNo` question agrees to. No word list or
 regular expression reads the question. Any other answer, a malformed answer and a failed call are `unclear`. An `unclear`
@@ -1079,9 +1080,12 @@ limit. A missing CLI, a non-zero exit, an error result, a malformed grade, a tim
 sanitized provider error that names the failure. A cancellation gets no retry. Any other failure gets one retry, and
 then it stays a grader error: the attempt gives no evidence, and it never becomes a passing rubric. Promptfoo continues to pass only the final rendered answer projection
 to the rubric. The offline test drives a fake executable with responses recorded from one real call of the installed
-CLI (`__tests__/fixtures/claude-grader-result.json` and `claude-grader-error.json`). The same-title card read calls the
-same function, `askClaude`, with its own schema and its own check of the answer (see the card case of the same-title
-family), so each rule above holds for it: the worker account, the environment, the time limit and the retry.
+CLI (`__tests__/fixtures/claude-grader-result.json` and `claude-grader-error.json`). The same-title card read uses the
+configured grader, as the rubric does: `ClaudeGrader` answers with the half schema when the provider reference carries
+`config: { schema: 'half' }` and with the rubric schema otherwise (see the card case of the same-title family), so each
+rule above holds for it: the worker account, the environment, the time limit and the retry. The offline fixture grader
+(`__tests__/fixtures/grader.mjs`) answers that read from a table keyed by the card question text of the recorded captures,
+and answers `unclear` for any other question.
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
 natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.
