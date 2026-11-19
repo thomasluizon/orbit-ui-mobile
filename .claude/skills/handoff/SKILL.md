@@ -34,13 +34,14 @@ standalone `/crank` while preparing this handoff.
 
 If `handoffAutoWork` from `tools/lib/handoff-prompt.mjs` resolves the matching run to true,
 the unattended prompt starts with exactly `/auto-work` instead of `/sleep`. Retain the Sleep
-section and the existing relay procedure. Carry `intake` source marks, pending items and any
-review workflow identity through run-state adoption; never copy or reset them in the prompt.
+section and the existing relay procedure. The intake source marks, pending items and the review
+workflow identity live in `run-state/intake.json` in the tickets repository, so the successor reads
+them there; never copy or reset them in the prompt.
 The successor enters `/sleep` through the auto-work skill. Crank remains independently inherited.
-For an owner-started handoff, `relay-session.mjs --close-chain` prepares a durable intake carry
+For an owner-started handoff, `relay-session.mjs --close-chain` prepares a durable adoption record
 even without an open reporting chain. It binds the current predecessor to the exact committed
 `NEXT.md` contents. The successor's `/sleep` entry calls `adoptOwnerHandoffRun` with its actual
-incoming prompt before any ordinary state write. The carry can be consumed once; changed
+incoming prompt before any ordinary state write. The record can be consumed once; changed
 prompts, unrelated runs and disabled auto-work cannot inherit it. Keep intake out of tracked text.
 
 `--relay` is the unattended context transition requested by `relay-at-threshold.mjs`.
@@ -60,8 +61,9 @@ until it exits; a plain shell polling loop does not.
 Relay mode waits for every live background Workflow run and background subagent to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.
 
 Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs`, using this
-session's exact id. Carry every chain entry's complete decisions, along with the current
-decision log.
+session's exact id. Decisions are not copied: each decision is a run note comment on its ticket, and
+a run-wide decision is a comment on the "Orbit run record" issue
+(`node tools/post-run-note.mjs --kind decision`). Post each decision of this session there before the handoff.
 
 With `--relay`, invoke `/questions --relay` before writing the spec or the prompt. It answers or
 decides every queued question the run can settle, and it records each disposition where the work
@@ -79,7 +81,7 @@ only when a filter or the owner settled it. Keep the owner-only steps and the se
 the section also holds.
 
 Add this one timeless line to the spec: `The session chain ledger lives untracked at .git/orbit-session-chain.json.`
-Keep session ids, timestamps, terminal handles and timed decision logs in that ledger.
+Keep session ids, timestamps and terminal handles in that ledger.
 
 After committing and pushing both files in the orchestrating checkout, run
 `node tools/relay-session.mjs`. It remeasures the transcript and checks the actual launchers,
@@ -105,7 +107,12 @@ Two outputs, both committed files in this repo:
 | `.claude/handoffs/NEXT.md` | the prompt for the next session. **Exactly one, always at this path.** |
 
 Both outputs are timeless tracked text: no session IDs, dated run sections, attributed quotes,
-personal machine paths or anecdote histories. Keep timed decision logs in the session scratchpad.
+personal machine paths or anecdote histories. Name no file on one computer: no scratchpad file, no
+`S <file>` reference, no system temporary directory and no home directory path. `validateHandoffPrompt`
+and the `Handoff Size` step refuse each one. A successor on any computer reads its state from GitHub:
+the round notes, reviews, reports and decisions are ticket comments, the run-wide decisions are on the
+run record issue, and `node tools/run-status.mjs` rebuilds the in-flight set. The successor's
+scratchpad starts empty, and nothing copies from the predecessor's.
 
 ## `/handoff` ENDS the session. Nothing more gets done in it.
 
@@ -272,7 +279,7 @@ the easiest to lose, because the repo you are in looks finished.
 | branches with no pull request | compare branches against `gh pr list` | |
 | commits on a detached HEAD | `git worktree list`, then `git log` where HEAD is detached | reachable from no branch and no remote, so they are garbage collected and gone |
 | stashes | `git stash list` | a stash leaves the worktree clean, so nothing else here reveals it |
-| work under ignored paths | `git status --ignored` and this session's scratchpad | a gitignored file crosses no boundary at all. A decision log, a generated map, a run state file or anything else there is gone the moment the session ends. Copy what is durable into the spec, or commit it |
+| work under ignored paths | `git status --ignored` and this session's scratchpad | a gitignored file crosses no boundary at all, and the scratchpad is never carried. Post a round note, review, report or decision to its ticket (`node tools/post-run-note.mjs`), a body or reply to its pull request, and anything else durable to the spec, or commit it |
 | running workers | the harness's own worker list | its result arrives after you hand over and lands nowhere durable |
 
 Every item leaves with a disposition: drive it, merge it, close it, or explicitly leave it and why.
@@ -328,6 +335,19 @@ records the mode from the owner's own `/handoff` or `/wrap-up` prompt, and `git 
 8. Under `--crank`, or when the current run state has `crank: true`, a `## Crank` section
    whose body invokes `/crank` immediately after `/sleep` entry. This also requires every
    `--sleep` prompt rule. Context relays preserve the same flags.
+   A cranked prompt orders no hold of ready work. `validateHandoffPrompt` refuses `X FIRST`, a
+   merge of one item before, ahead of, after or once another, and a hold of one item until another,
+   and its message quotes the clause. It is a tripwire for these phrasings, not the guarantee: write
+   no hold in any wording. Why: the successor obeys the prompt, so one such line keeps every
+   pull request at the merge bar waiting for the named one, and crank permits no wait except the
+   merge bar, the admission caps, the load gate and a relay drain. Say what state each item is in
+   and let `run-status.mjs` report `MERGE_NOW`. A real dependency is a ticket relation or a
+   stacked base. Deploy-API-first is one: an API item that merges before a UI or landing item
+   is stated and accepted. An earlier order that is finished or replaced keeps its disposition
+   word, `done` or `superseded`, after the order as its label (`: done`, `(superseded)`), or a
+   leading `Superseded:`. The word elsewhere on the line, such as a finished CI, does not settle
+   the order. A start order that names the cap, such as `Queue order under the cap: #2171 first,
+   then #2172`, holds no ready work and is accepted; the same line with a merge word is refused.
 9. One line: every identifier here came from a previous session, treat each as a lead to verify.
 
 **Always name the entry point. Never restate what it does.** A session that does not know its entry
@@ -394,7 +414,10 @@ when the branch needs a merge, since Git refuses a merge over a changed index.
 **Always commit both files, by path, in their own commit**, whatever else is in the tree:
 `git commit -- .claude/specs/<slug>.md .claude/handoffs/NEXT.md`. A pathspec commit takes only
 those two, so unrelated work is untouched and nothing has to be stashed. Push if the branch has a
-remote. If a hook rejects the commit, fix what it names and commit again; never bypass it and never
+remote. Never write a GitHub skip instruction into the message: a squash merge copies every commit
+message to `main`, and the marker would stop the `main` push workflows that a release requires. A
+pull request whose whole diff is `.claude/handoffs/NEXT.md` and specs skips the tool test shards
+through the `PR Tests` plan job. If a hook rejects the commit, fix what it names and commit again; never bypass it and never
 leave the files uncommitted.
 
 Leaving them staged hands nothing over. A staged file lives in one worktree's index, so a session

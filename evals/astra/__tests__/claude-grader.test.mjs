@@ -11,6 +11,7 @@ import ClaudeGrader, { WORKER_CONFIG_VARIABLE, graderEnvironment } from '../clau
 import { WORKER_ACCOUNT, workerAccountEnvironment } from '../../../tools/lib/orchestrator-config.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, turnTiming } from './fixtures/producer.mjs'
+import { recordedReads } from './fixtures/recorded-halves.mjs'
 import parseResponse from '../response.mjs'
 
 vi.mock('../fixtures/reset.mjs', async (original) => ({ ...await original(), resetFixture: vi.fn() }))
@@ -30,6 +31,8 @@ import { assertions, loadApiProvider } from 'promptfoo'
 const recordedResult = fileURLToPath(new URL('./fixtures/claude-grader-result.json', import.meta.url))
 const recordedError = fileURLToPath(new URL('./fixtures/claude-grader-error.json', import.meta.url))
 const schemaText = readFileSync(new URL('../grader-schema.json', import.meta.url), 'utf8')
+// The CLI result of one real card question read (the half schema), recorded by the live reads of the card questions.
+const [{ result: recordedHalf }] = recordedReads
 
 let directory, provider, workerDirectory
 const providerPath = fileURLToPath(new URL('../claude-grader.mjs', import.meta.url))
@@ -62,6 +65,7 @@ const result = JSON.parse(fs.readFileSync(process.env.TEST_CLAUDE_RESULT, 'utf8'
 const grade = result.structured_output
 if (mode === 'fail') Object.assign(grade, { pass: false, score: 0, reason: 'Offline rubric control.' })
 if (mode === 'bad-score') grade.score = 2
+if (mode === 'bad-half' || (mode === 'bad-half-once' && attempts === 1)) grade.half = 'delete'
 if (mode === 'bad-pass') grade.pass = 'true'
 if (mode === 'empty-reason') grade.reason = ''
 if (mode === 'extra-key') grade.extra = 'untrusted'
@@ -74,6 +78,7 @@ process.stdout.write(JSON.stringify(result))
 `, { mode: 0o700 })
   vi.stubEnv('PATH', `${directory}:${process.env.PATH}`)
   vi.stubEnv('TEST_CLAUDE_RECORD', join(directory, 'record.json'))
+  writeFileSync(join(directory, 'half-result.json'), JSON.stringify(recordedHalf))
   vi.stubEnv('TEST_CLAUDE_RESULT', recordedResult)
   vi.stubEnv('TEST_CLAUDE_ERROR', recordedError)
   vi.stubEnv('TEST_CLAUDE_MODE', 'pass')
@@ -120,6 +125,92 @@ it('loads through promptfoo, runs print mode on the worker account and returns t
   expect(existsSync(call.cwd)).toBe(false)
 })
 
+// The card question read of same-title-card.mjs reaches this provider through ORBIT_EVAL_GRADER with `config: { schema: 'half' }`,
+// so it takes the CLI path of the rubric: the same flags, worker account, environment and time limit, with its own schema.
+it('answers the card question read with the half schema when the provider reference names it, and the rubric otherwise', async () => {
+  const half = await loadApiProvider(`file://${providerPath}`, { options: { config: { schema: 'half' } } })
+  vi.stubEnv('TEST_CLAUDE_RESULT', join(directory, 'half-result.json'))
+  expect(await half.callApi('Which half?')).toEqual({ output: JSON.stringify(recordedHalf.structured_output) })
+  const { args } = record()
+  expect(JSON.parse(args[args.indexOf('--json-schema') + 1])).toEqual({ type: 'object', additionalProperties: false,
+    properties: { half: { type: 'string' } }, required: ['half'] })
+  await provider.callApi('Grade this.')
+  const rubric = record().args
+  expect(rubric[rubric.indexOf('--json-schema') + 1]).toBe(schemaText)
+})
+
+// The live reads of the card questions called the CLI as this provider does: the argument list of the rubric call with the half
+// schema, one answer of the exact half shape, no error, and the model of the grader.
+it('holds the recorded live reads of the card questions to the call that this provider makes', () => {
+  const halfSchema = JSON.stringify({ type: 'object', additionalProperties: false, properties: { half: { type: 'string' } }, required: ['half'] })
+  expect(recordedReads).toHaveLength(3)
+  for (const { invocation, result } of recordedReads) {
+    expect(invocation.args).toEqual(['-p', '--model', 'claude-opus-5-5', '--output-format', 'json', '--json-schema', halfSchema,
+      '--tools', '', '--strict-mcp-config', '--safe-mode', '--no-session-persistence'])
+    expect(result).toMatchObject({ type: 'result', subtype: 'success', is_error: false, structured_output: { half: 'deleted' } })
+    expect(Object.keys(result.modelUsage)).toEqual(['claude-opus-5-5'])
+  }
+})
+
+it('runs no CLI call for a provider reference that names an unknown schema', async () => {
+  const unknown = await loadApiProvider(`file://${providerPath}`, { options: { config: { schema: 'other' } } })
+  expect(await unknown.callApi('Which half?')).toEqual({ error: 'Claude grading failed: the provider config names an unknown schema.' })
+  expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(false)
+})
+
+it('asks the card question read on the CLI path of the rubric, with the half schema', async () => {
+  vi.stubEnv('CLAUDE_CODE_DISABLE_ATTACHMENTS', '0')
+  const half = new ClaudeGrader({ config: { schema: 'half' } })
+  vi.stubEnv('TEST_CLAUDE_RESULT', join(directory, 'half-result.json'))
+  vi.mocked(execFile).mockClear()
+  expect(await half.callApi('Which half does the question ask about?')).toEqual({ output: JSON.stringify(recordedHalf.structured_output) })
+  const call = record()
+  const schema = call.args[call.args.indexOf('--json-schema') + 1]
+  expect(JSON.parse(schema)).toEqual({ type: 'object', additionalProperties: false, properties: { half: { type: 'string' } }, required: ['half'] })
+  expect(call.args).toEqual(['-p', '--model', 'claude-opus-5-5', '--output-format', 'json', '--json-schema', schema,
+    '--tools', '', '--strict-mcp-config', '--safe-mode', '--no-session-persistence'])
+  expect(call.prompt).toBe('Which half does the question ask about?')
+  expect(call.configDirectory).toBe(workerDirectory)
+  expect(call.attachments).toBe('1')
+  expect(call.apiKey).toBe(false)
+  expect(call.leaked).toEqual([])
+  expect(existsSync(call.cwd)).toBe(false)
+  expect(vi.mocked(execFile).mock.calls.map(([, , options]) => options.timeout)).toEqual([120000])
+})
+
+it('gives no output for an answer that its own check refuses, and retries the call once', async () => {
+  const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  vi.stubEnv('TEST_CLAUDE_MODE', 'bad-score')
+  expect(await provider.callApi('Grade this.')).toEqual({ error: 'Claude grading failed: grade schema invalid.' })
+  expect(attempts()).toBe(2)
+  errors.mockRestore()
+})
+
+// The card question read asks for exactly {"half": deleted | renamed | unclear}. An answer of another shape is a malformed
+// grade: the call is retried once, as a malformed rubric grade is, and a second malformed answer is a named failure.
+it('retries a malformed card question answer once, and names the failure when the retry is malformed too', async () => {
+  const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  const half = new ClaudeGrader({ config: { schema: 'half' } })
+  vi.stubEnv('TEST_CLAUDE_RESULT', join(directory, 'half-result.json'))
+  vi.stubEnv('TEST_CLAUDE_MODE', 'bad-half-once')
+  expect(await half.callApi('Which half?')).toEqual({ output: JSON.stringify(recordedHalf.structured_output) })
+  expect(attempts()).toBe(2)
+  rmSync(`${process.env.TEST_CLAUDE_RECORD}.attempts`)
+  vi.stubEnv('TEST_CLAUDE_MODE', 'bad-half')
+  expect(await half.callApi('Which half?')).toEqual({ error: 'Claude grading failed: grade schema invalid.' })
+  expect(attempts()).toBe(2)
+  errors.mockRestore()
+})
+
+it('never runs the CLI for a card question read when the worker account directory is unset', async () => {
+  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', '')
+  const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  const half = new ClaudeGrader({ config: { schema: 'half' } })
+  expect(await half.callApi('Which half?')).toEqual({ error: 'Claude grading failed: ORBIT_WORKER_CLAUDE_CONFIG_DIR is not set.' })
+  expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(false)
+  errors.mockRestore()
+})
+
 // The eval package installs without the harness (install.test.mjs), so the grader names the worker account variable and
 // the credential overrides itself. This check holds them equal to the worker launch through workerAccountEnvironment, the
 // function that the launch calls. The override list of that function is private, so the test reads its keys from the source
@@ -161,14 +252,14 @@ it.each([
   ['a missing directory', 'missing-account', 'ORBIT_WORKER_CLAUDE_CONFIG_DIR names no existing directory'],
 ])('fails closed and never runs the CLI when the worker account directory is %s', async (_name, value, failure) => {
   vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', value && join(directory, value))
-  expect(await provider.callApi('Offline rubric control.')).toEqual({ error: `Claude rubric grading failed: ${failure}.` })
+  expect(await provider.callApi('Offline rubric control.')).toEqual({ error: `Claude grading failed: ${failure}.` })
   expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(false)
 })
 
 it('fails closed when PATH has no installed CLI', async () => {
   vi.stubEnv('PATH', join(directory, 'missing'))
   expect(await provider.callApi('Offline rubric control.')).toEqual({
-    error: 'Claude rubric grading failed: installed executable unavailable (ENOENT).',
+    error: 'Claude grading failed: installed executable unavailable (ENOENT).',
   })
 })
 
@@ -188,7 +279,7 @@ it.each([
 ])('fails closed, names the failure and cleans private files: %s', async (mode, failure) => {
   vi.stubEnv('TEST_CLAUDE_MODE', mode)
   const response = await provider.callApi('PRIVATE_SENTINEL')
-  expect(response).toEqual({ error: `Claude rubric grading failed: ${failure}.` })
+  expect(response).toEqual({ error: `Claude grading failed: ${failure}.` })
   expect(JSON.stringify(response)).not.toContain('PRIVATE_SENTINEL')
   expect(attempts()).toBe(2)
   expect(existsSync(record().cwd)).toBe(false)
@@ -202,9 +293,9 @@ it('stops a call that the caller cancels, gives no verdict and does not retry it
   const pending = provider.callApi('Offline rubric control.', undefined, { abortSignal: controller.signal })
   await vi.waitFor(() => expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(true))
   controller.abort()
-  const error = 'Claude rubric grading failed: process interrupted by timeout or cancellation.'
+  const error = 'Claude grading failed: process interrupted by timeout or cancellation.'
   expect(await pending).toEqual({ error })
-  expect(errors.mock.calls.filter(([line]) => String(line).startsWith('Claude rubric grading failed'))).toEqual([[`${error}\n`]])
+  expect(errors.mock.calls.filter(([line]) => String(line).startsWith('Claude grading failed'))).toEqual([[`${error}\n`]])
   expect(attempts()).toBe(1)
   errors.mockRestore()
 })
@@ -215,7 +306,7 @@ it('ends a hung call at the two-minute limit, gives no verdict and retries it on
   vi.stubEnv('TEST_CLAUDE_MODE', 'hang')
   vi.mocked(execFile).mockClear()
   const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-  const error = 'Claude rubric grading failed: process interrupted by timeout or cancellation.'
+  const error = 'Claude grading failed: process interrupted by timeout or cancellation.'
   expect(await new ClaudeGrader().callApi('Offline rubric control.')).toEqual({ error })
   expect(vi.mocked(execFile).mock.calls.map(([, , options]) => options.timeout)).toEqual([120000, 120000])
   errors.mockRestore()
@@ -248,7 +339,7 @@ it.each([false, true])('keeps exhausted rubric evidence unavailable with product
   const summary = summarize(attemptResults, [testCase.metadata])
   expect(summary.cases[0]).toMatchObject({ unavailable: ATTEMPTS_PER_CASE, passed: 0,
     allAttemptsPass: productFailure ? 'fail' : 'incomplete',
-    unavailableReasons: ['Claude rubric grading failed: process exited with code 1.'] })
+    unavailableReasons: ['Claude grading failed: process exited with code 1.'] })
   expect(summarize(attemptResults, [{ ...testCase.metadata, readLatency: true }]).status).toBe(productFailure ? 'fail' : 'incomplete')
   const malformedTiming = structuredClone(attemptResults)
   malformedTiming[0].response.output.trace.timing = null
@@ -260,5 +351,5 @@ it.each([false, true])('keeps exhausted rubric evidence unavailable with product
   writeResults(attemptResults, directory)
   const evidence = JSON.parse(readFileSync(join(directory, 'attempts/grader-outage-r1.json'), 'utf8'))
   expect(evidence).toMatchObject({ pass: false, unavailable: true, assertions: [{ metric: 'finalAnswer', pass: false, unavailable: true }, {}] })
-  expect(writeReport(summary, directory)).toContain('Claude rubric grading failed')
+  expect(writeReport(summary, directory)).toContain('Claude grading failed')
 })

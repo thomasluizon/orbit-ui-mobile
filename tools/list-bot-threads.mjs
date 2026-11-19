@@ -10,7 +10,7 @@ import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifie
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { REVIEW_APP_ID, headActivityArgv, headActivityBoundary, headReplacement, newestChecks } from "./lib/readiness-receipt.mjs"
-import { acquireRelayLock, gitDirectoryOf } from "./lib/run-state.mjs"
+import { acquireRelayLock, gitDirectoryOf, RelayLockHeld } from "./lib/run-state.mjs"
 
 const BOT_LOGIN = "pullfrog"
 
@@ -462,7 +462,7 @@ const acquireRequestLock = async () => {
     try {
       return acquireRelayLock(githubCwd, REQUEST_LOCK_NAME)
     } catch (error) {
-      if (!error.message.startsWith("EEXIST:")) fail(2, `the review request lock failed: ${error.message}`)
+      if (!(error instanceof RelayLockHeld)) fail(2, `the review request lock failed: ${error.message}`)
       await sleep(LOCK_POLL_SECONDS)
     }
   }

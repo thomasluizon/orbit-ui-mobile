@@ -15,8 +15,10 @@ concurrency:
 permissions:
   contents: read
 
-# Unit test results cached by the Turbo hash of their inputs. A push or a dispatch saves them; a pull request
-# whose inputs match main restores them instead of starting the test jobs. Pull requests save no cache.
+# Unit test results cached by the Turbo hash of their inputs. Every event looks up the key of each test group and starts
+# no test job for a group whose key is cached. A push or a dispatch saves the results that its test jobs produce; pull
+# requests save no cache. A push or a dispatch on main that misses the cache also takes the results of the pull request
+# that merged its commit when the keys are equal, saves them, and starts no test job for that group.
 env:
   WEB_UNIT_RESULTS: apps/web/coverage/lcov.info
   MOBILE_UNIT_RESULTS: apps/mobile/coverage/lcov.info
@@ -26,21 +28,28 @@ env:
     eslint-rules/coverage/lcov.info
 
 jobs:
-  # Pull requests skip a job whose inputs did not change; every other event runs every job.
+  # Pull requests skip a job whose inputs did not change; every other event runs every path scope. Every event skips a
+  # unit group whose key is cached or whose result the merged pull request stored at the same key.
   plan:
     name: Plan
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    # actions and pull-requests: read the merged pull request, its PR Tests run and its unit-test-coverage artifact.
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     outputs:
       web: ${{ steps.plan.outputs.web }}
       type-check: ${{ steps.plan.outputs.type-check }}
       lint: ${{ steps.plan.outputs.lint }}
+      tools: ${{ steps.plan.outputs.tools }}
       web-unit-key: ${{ steps.plan.outputs.web-unit-key }}
       mobile-unit-key: ${{ steps.plan.outputs.mobile-unit-key }}
       workspace-unit-key: ${{ steps.plan.outputs.workspace-unit-key }}
-      web-unit-hit: ${{ steps.web-unit.outputs.cache-hit }}
-      mobile-unit-hit: ${{ steps.mobile-unit.outputs.cache-hit }}
-      workspace-unit-hit: ${{ steps.workspace-unit.outputs.cache-hit }}
+      web-unit-hit: ${{ steps.web-unit.outputs.cache-hit == 'true' || steps.merged.outputs.web-unit-hit == 'true' }}
+      mobile-unit-hit: ${{ steps.mobile-unit.outputs.cache-hit == 'true' || steps.merged.outputs.mobile-unit-hit == 'true' }}
+      workspace-unit-hit: ${{ steps.workspace-unit.outputs.cache-hit == 'true' || steps.merged.outputs.workspace-unit-hit == 'true' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -86,7 +95,6 @@ jobs:
 
       - name: Look up cached web unit results
         id: web-unit
-        if: github.event_name == 'pull_request'
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.WEB_UNIT_RESULTS }}
@@ -95,7 +103,6 @@ jobs:
 
       - name: Look up cached mobile unit results
         id: mobile-unit
-        if: github.event_name == 'pull_request'
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.MOBILE_UNIT_RESULTS }}
@@ -104,12 +111,29 @@ jobs:
 
       - name: Look up cached workspace unit results
         id: workspace-unit
-        if: github.event_name == 'pull_request'
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.WORKSPACE_UNIT_RESULTS }}
           key: ${{ steps.plan.outputs.workspace-unit-key }}
           lookup-only: true
+
+      # The action takes the unit results of the merged pull request when its keys equal the keys of this run.
+      - name: Reuse the unit results of the merged pull request
+        id: merged
+        if: >-
+          github.event_name != 'pull_request' && (steps.web-unit.outputs.cache-hit != 'true' ||
+          steps.mobile-unit.outputs.cache-hit != 'true' || steps.workspace-unit.outputs.cache-hit != 'true')
+        uses: ./.github/actions/merged-unit-results
+        with:
+          web-key: ${{ steps.plan.outputs.web-unit-key }}
+          mobile-key: ${{ steps.plan.outputs.mobile-unit-key }}
+          workspace-key: ${{ steps.plan.outputs.workspace-unit-key }}
+          web-path: ${{ env.WEB_UNIT_RESULTS }}
+          mobile-path: ${{ env.MOBILE_UNIT_RESULTS }}
+          workspace-path: ${{ env.WORKSPACE_UNIT_RESULTS }}
+          web-hit: ${{ steps.web-unit.outputs.cache-hit }}
+          mobile-hit: ${{ steps.mobile-unit.outputs.cache-hit }}
+          workspace-hit: ${{ steps.workspace-unit.outputs.cache-hit }}
 
   # One hermetic web build serves the required Build check, the layout shards and the Lighthouse budget.
   build:
@@ -208,13 +232,19 @@ jobs:
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
   # Each shard runs a deterministic share of the tools harness case modules.
-  # tools/test-tools-timings.json holds CI seconds per module from the run in its sourceRun field, and the tools
-  # harness fails when that snapshot projects the slowest shard past its budget. timeout-minutes is the live guard.
-  # Regenerate the snapshot with node tools/record-tool-timings.mjs <run-id>. Tool and Hook Tests below keeps the required check name.
+  # tools/test-tools-timings.json holds the median CI seconds per module over the runs in its sourceRuns field, and the
+  # tools harness fails when that snapshot projects the slowest shard past its budget. timeout-minutes is the live guard.
+  # Regenerate the snapshot with node tools/record-tool-timings.mjs <run-id>.... Tool and Hook Tests below keeps the required check name.
   # Run 42961275542 (four shards) took 4:31 to 5:25 end to end per shard, and the harness step took 215 to 260 s.
   # The 8 minute limit is about 1.5 times the slowest end to end time of 325 s.
+  # npm ci with --prefer-offline --no-audit took 27 to 48 s in the layout shards of runs 44216168902 and 44221130214;
+  # plain npm ci took 90 to 168 s in these shards, and pushed shard 2 of runs 44217309946 and 44149853753 past the limit.
+  # A pull request whose whole diff is the relay record skips the shards; no commit message carries a skip marker,
+  # because a squash merge copies every message to main and the marker would stop the main push workflows.
   tool-tests:
     name: Tool tests (${{ matrix.shard }}/${{ matrix.total }})
+    needs: plan
+    if: needs.plan.outputs.tools == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     strategy:
@@ -235,7 +265,7 @@ jobs:
       - name: Use the repository npm version
         run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
 
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --fund=false
 
       - name: Run tools harness shard
         run: node tools/test-tools.mjs --shard ${{ matrix.shard }}/${{ matrix.total }}
@@ -259,7 +289,7 @@ jobs:
       - name: Use the repository npm version
         run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
 
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --fund=false
 
       - name: Validate the dependency tree
         env:
@@ -272,7 +302,7 @@ jobs:
           fi
 
       - name: Test CI workflow behavior
-        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/check-critical-production-cves.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs .github/scripts/write-locked-package.test.mjs
+        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/check-critical-production-cves.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs .github/scripts/write-locked-package.test.mjs .github/scripts/plan-layout-shards.test.mjs .github/scripts/merged-unit-results.test.mjs
 
       # This step owns the full-tree graphic floor assertion outside cached unit shards.
       # Other findings stay advisory; graphic floor findings and scanner errors fail.
@@ -287,16 +317,22 @@ jobs:
   tool-hook-tests:
     name: Tool and Hook Tests
     if: ${{ !cancelled() }}
-    needs: [tool-tests, hook-tests]
+    needs: [plan, tool-tests, hook-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Require every tool shard and the hook tests
         env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          TOOLS_PLANNED: ${{ needs.plan.outputs.tools }}
           TOOL_RESULT: ${{ needs.tool-tests.result }}
           HOOK_RESULT: ${{ needs.hook-tests.result }}
         run: |
-          test "$TOOL_RESULT" = success
+          test "$PLAN_RESULT" = success
+          if [ "$TOOL_RESULT" != success ] && { [ "$TOOL_RESULT" != skipped ] || [ "$TOOLS_PLANNED" != false ]; }; then
+            echo "::error::The tool test shards ended $TOOL_RESULT and the plan did not skip them."
+            exit 1
+          fi
           test "$HOOK_RESULT" = success
 
   # The required check: every test group passed here or has a cached result at the same inputs.
@@ -463,6 +499,14 @@ jobs:
           test -s packages/shared/coverage/lcov.info
           test -s eslint-rules/coverage/lcov.info
 
+      # A push to main that merges this head reads these keys to reuse the coverage below instead of running the tests.
+      - name: Record the unit result keys
+        env:
+          WEB_UNIT_KEY: ${{ needs.plan.outputs.web-unit-key }}
+          MOBILE_UNIT_KEY: ${{ needs.plan.outputs.mobile-unit-key }}
+          WORKSPACE_UNIT_KEY: ${{ needs.plan.outputs.workspace-unit-key }}
+        run: node .github/scripts/merged-unit-results.mjs record > unit-test-keys.json
+
       - name: Upload coverage reports
         uses: actions/upload-artifact@v7
         with:
@@ -473,6 +517,7 @@ jobs:
             apps/desktop/coverage/lcov.info
             packages/shared/coverage/lcov.info
             eslint-rules/coverage/lcov.info
+            unit-test-keys.json
           if-no-files-found: error
 
       - name: Save web unit results
@@ -786,9 +831,10 @@ jobs:
     needs: [plan, build]
     if: github.event_name == 'pull_request' && needs.plan.outputs.web == 'true'
     runs-on: ubuntu-24.04
-    # Shard 4 holds most of interaction-fill-clearance.spec.ts and took up to 912 s in the last 5 pull request runs.
-    # The limit is 1.5 times that.
-    timeout-minutes: 23
+    # Each shard runs one test list that plan-layout-shards.mjs balances from .github/layout-shard-timings.json.
+    # Run 44216168902 summed 7032 s of layout tests, so each shard holds about 879 s on 2 workers (440 s).
+    # The limit is about 1.5 times that projection plus the 120 s setup the shards share.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -829,8 +875,25 @@ jobs:
       - name: Install lockfile-pinned Playwright Chromium
         run: ./node_modules/.bin/playwright install chromium
 
+      - name: Plan the balanced layout shard lists
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/layout-list.json
+        run: |
+          npm run test:layout -w apps/web -- --list --reporter=json
+          node .github/scripts/plan-layout-shards.mjs --list "$RUNNER_TEMP/layout-list.json" \
+            --timings .github/layout-shard-timings.json --shards 8 --out-dir "$RUNNER_TEMP/layout-shards"
+
       - name: Check upgrade layout
-        run: npm run test:layout -w apps/web -- --shard=${{ matrix.shard }}/8
+        run: npm run test:layout -w apps/web -- --test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt"
+
+      - name: Upload layout test timings
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: layout-timings-${{ matrix.shard }}
+          path: apps/web/.artifacts/layout/layout-report.json
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload failure diagnostics
         if: failure()

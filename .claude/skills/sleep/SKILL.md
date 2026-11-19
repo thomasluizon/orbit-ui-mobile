@@ -1,12 +1,13 @@
 ---
 name: sleep
-description: Put /orchestrate in --sleep mode with a decision log; unattended continuation exists only through that orchestrator lifecycle. Take every decision yourself, always the best approach and never the easiest, write each decision to a log, and keep shipping until he says stop. On stop, report every decision and everything that shipped. Use when he says /sleep, I am going to sleep, keep working while I sleep, or good night.
+description: Put /orchestrate in --sleep mode with every decision posted to GitHub; unattended continuation exists only through that orchestrator lifecycle. Take every decision yourself, always the best approach and never the easiest, post each decision to its ticket or the run record, and keep shipping until he says stop. On stop, report every decision and everything that shipped. Use when he says /sleep, I am going to sleep, keep working while I sleep, or good night.
 argument-hint: [optional focus, for example "finish 814 then groundwork tickets"]
 ---
 
 # Sleep mode
 
-The timed decision log lives in this session's scratchpad outside every repository. Tracked specs,
+Each timed decision is a run note comment on GitHub: on its ticket, or on the closed "Orbit run
+record" issue for a run-wide decision, so a successor on any computer reads it. Tracked specs,
 prompts and lessons retain only current rules and state, without log entries or session IDs.
 
 **At a glance:** the owner is asleep. Nobody answers a question tonight. You decide, you record, you
@@ -55,9 +56,8 @@ An unrelated session starts with its own ledger. Its first write also carries th
 else holds that run. The carry has two more conditions: the first write sets no
 `openOwnerQuestions` of its own, and this session finds its own Claude session record.
 
-Write the decision log to `sleep-decisions.md` in this session's scratchpad directory, the one named
-in your system prompt. Keep it outside every repository, so no gate and no commit ever sees it.
-Write its exact path to `decisionLogPath` once the file exists. Keep every
+Post each decision with `node tools/post-run-note.mjs --kind decision` `--issue <ref>` for a decision about one ticket, or
+`--run-record` for a decision about the whole run, with the body on stdin (`--body-file -`). Keep every
 unresolved owner question in `openOwnerQuestions` as a `{ question, blocks }` row, and ask it in plain
 reply text: while `sleep: true`, `.claude/hooks/forbid-approval-prompt.mjs` refuses `AskUserQuestion`,
 because that tool waits for an answer with no limit. Make each of these
@@ -65,15 +65,15 @@ partial changes through `updateRunState` in `tools/lib/run-state.mjs`, which rea
 record under one lock; `writeRunState` stays for the whole-record first write above.
 `updateRunState` refuses the change from a superseded session with
 `session is superseded; run state write refused`, so the read-back then shows the successor's record unchanged.
-A relay copies the log in full. It filters those questions through `/questions --relay`, and the
-successor inherits only the rows that survive.
+A relay copies nothing: the successor reads the decisions from GitHub. It filters those questions
+through `/questions --relay`, and the successor inherits only the rows that survive.
 
-Start it with the wake time, the head of `main`, and every open pull request with its state.
-That header is what tells you later what changed while he slept.
+Post the first run-record decision of the session with the wake time, the head of `main`, and every
+open pull request with its state. That header is what tells you later what changed while he slept.
 
-**Append to the log the moment a decision is made, never in a batch at the end.** Context gets
-summarized on a long run. The file survives that; your memory of it does not. Re-read the file before
-you write the wake report.
+**Post a decision the moment it is made, never in a batch at the end.** Context gets summarized on a
+long run. The comment survives that, and your memory of it does not. Read the decisions back with
+`node tools/progress-window.mjs` (each entry's `decisionNotes`) before you write the wake report.
 
 One entry per decision, in this shape:
 
@@ -91,7 +91,7 @@ focus, use its `--auto` queue selection. Apply `--cloud --parallel` only when `c
 and only for the repository bound by `cloud.repositoryKey`. No command-line option overrides a false
 flag. Do not run a separate loop from this document. If the runtime cannot execute
 that lifecycle with a background task that re-invokes this session, report that unattended
-continuation is unavailable. A decision log or a run record alone never establishes a working
+continuation is unavailable. A decision comment or a run record alone never establishes a working
 sleep run.
 
 ## 2. What counts as a decision
@@ -250,7 +250,7 @@ Use `tools/compose-prompt.mjs` for local orders. Only pass `--cloud` for Cloud o
 `.claude/orchestrator.json` has `cloud.enabled: true`. Do not append push-and-stop text to every
 order: the canonical generator selects one consistent contract.
 
-**Local order:** compile and run focused tests, commit, run broader verification, push and open or
+**Local order:** compile and run focused tests, commit, push and open or
 update exactly one non-draft pull request against the supplied base. Report its URL and tests, then
 stop. Do not wait on CI or poll GitHub Actions; the orchestrator owns CI waiting and readiness.
 Opening the pull request remains part of the worker's job.
@@ -267,8 +267,8 @@ any edit/test bullet, as encoded by `CLOUD_FINISHING_CONTRACT` in `tools/lib/clo
 
 > Commit the implementation. Without a commit there is no diff and the work is lost.
 
-Then edit, compile and run focused tests in the container, stage named paths and commit before
-broader verification. Never bypass a rejecting hook; report its exact output. Never push, create
+Then edit, compile and run focused tests in the container, stage named paths and commit. CI
+runs every full suite, so run no broader suite. Never bypass a rejecting hook; report its exact output. Never push, create
 a branch or open a pull request. Report the commit and test results, then stop without waiting on
 CI. The orchestrator owns materialization, local delivery and CI waiting. The submitter reuses the
 same contract without duplicating it. Never send a locally composed order to the Cloud submitter.
@@ -291,8 +291,8 @@ That is why both modes hand CI waiting back to the orchestrator.
 A blocked item is not a reason to stop the session. Log it, leave the tree in a state the owner can read,
 and take the next item.
 
-Write blocked items under a `## Blocked, needs owner decision` heading in the same log, so the wake report can
-lift them straight out.
+Post each blocked item as a decision whose first line starts `Blocked, needs owner decision:`, on its
+ticket or on the run record, so the wake report can lift them straight out.
 
 ## 10. Watch the allowance
 

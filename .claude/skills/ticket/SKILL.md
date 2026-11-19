@@ -8,7 +8,7 @@ effort: high
 # /ticket: anything in, 1..N GitHub tickets out
 
 When writing repository prose, state the current requirement without dated incidents, attributed
-quotes, session IDs or personal machine paths. Keep timed evidence in the scratchpad.
+quotes, session IDs or personal machine paths. Post timed evidence as a run note on its ticket or the run record issue (`node tools/post-run-note.mjs`).
 
 The ticket is the prompt (D2): a ticket a fresh agent with no session history cannot execute is a
 defective ticket. This skill makes defective tickets impossible to create.

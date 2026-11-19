@@ -2,6 +2,8 @@ import { isDeepStrictEqual } from 'node:util'
 import { sameTitleClarification, shownCards } from './same-title-card.mjs'
 
 const result = (pass, reason) => ({ pass, score: pass ? 1 : 0, reason })
+// A held preview that no read could prove gives no evidence of the build: the assertion carries metadata.unavailable.
+const failedHeld = (held) => held.unavailable ? { ...result(false, held.failure), metadata: { unavailable: true } } : result(false, held.failure)
 const actionKeys = { deleted: 'deleteHabits', renamed: 'updateHabits' }
 // Producer: orbit-api ProcessUserChatCommand.ChangeSet.cs combines the turn's held bulk delete and bulk rename into one
 // apply_account_changes operation (PendingOperationActionKeys: applyAccountChanges); AccountChangeSet.PreviewAsync prefixes
@@ -40,7 +42,9 @@ function heldPreview(output, vars) {
   const stopped = output.sameTitleReadback?.stopped
   if (!answer) return { failure: stopped ? `The first turn failed ${stopped.metric}, so no question was answered: ${stopped.reason}`
     : 'The question turn lacks its answered preview.' }
-  if (answer.card?.pass !== true) return { failure: answer.card?.reason ?? 'The question card could not hold the answer.' }
+  if (answer.card?.pass !== true) {
+    return { failure: answer.card?.reason ?? 'The question card could not hold the answer.', unavailable: answer.card?.unavailable === true }
+  }
   const failed = (answer.checks ?? []).find((check) => check.pass !== true)
   if (failed || !answer.checks?.length) return { failure: `The answer turn failed ${failed?.metric ?? 'its checks'}: ${failed?.reason ?? 'missing'}` }
   return { pending: answer.composition?.pendingOperations ?? [], answered: true }
@@ -58,7 +62,7 @@ export function sameTitleProposal(output, vars) {
   const baseline = vars.sameTitleBaseline
   if (!baseline?.children?.length || !policy) return result(false, 'The same-title scenario lacks its fixture baseline or policy.')
   const held = heldPreview(output, vars)
-  if (held.failure) return result(false, held.failure)
+  if (held.failure) return failedHeld(held)
   const known = baseline.children.map((child) => child.id)
   const actions = expectedActions(policy, baseline, held.answered)
   // A singular request asks which child it means. composition grades the card's layout; this grades whether its options
@@ -100,7 +104,7 @@ export function sameTitleReadback(output, vars) {
     return result(false, 'Independent readback must prove the held preview changed nothing.')
   }
   const held = heldPreview(output, vars)
-  if (held.failure) return result(false, held.failure)
+  if (held.failure) return failedHeld(held)
   const approved = heldChanges(held.pending, policy)
   const { parent, children } = evidence.after ?? {}
   if (!isDeepStrictEqual(parent, baseline.parent)) return result(false, 'The parent habit changed or is missing after approval.')

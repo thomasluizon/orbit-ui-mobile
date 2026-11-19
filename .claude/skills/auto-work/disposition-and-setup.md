@@ -36,7 +36,7 @@ Its deterministic Message-ID recovers created drafts and confirmed sends after a
 receipt write. An unconfirmed send attempt stays pending for inspection; never resend blindly.
 Gmail drafts for owner review remain in `contact@useorbit.org`.
 
-For a review, retain the reply in the decision log and receipt's `reply` field. For a simple
+For a review, retain the reply in the receipt's `reply` field, which the intake file on GitHub keeps. For a simple
 case, pass the receipt plus `source: "play"` or `"appStore"` to
 `node tools/orbit-review-replies.mjs --prepare` on stdin. This retains a prepared request in
 the pending source item and prints a batch. Save that JSON in a private scratchpad file and
@@ -58,7 +58,7 @@ After ticketing and confirming the required send or draft, acknowledge through `
 reviews also include `reply`. Include the same reply policy fields used for disposition.
 The tool requires the carrying ticket for bugs and requests and a saved reply for a person;
 a simple reply also requires durable send confirmation. Receipts, pending items and high-water marks live in the
-untracked run state's `intake`. Never clear completed ids to shorten a relay.
+intake file on GitHub. Never clear completed ids to shorten a relay.
 
 ## One-time mailbox setup, after merge
 

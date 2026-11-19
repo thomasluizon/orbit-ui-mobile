@@ -277,8 +277,8 @@ export const cases = async () => {
   T(`${TOOL}: the lock is released after a refused nested write`, readRunState(nested).crank === false)
   const adopted = (label) => {
     const repoRoot = stageCheckout(label)
-    writeRunState({ sessionId: "relay-p", sleep: true, crank: false, decisionLogPath: "/decisions/p.md" }, repoRoot)
-    writeRunState({ sessionId: "relay-s", sleep: true, crank: false, decisionLogPath: "/decisions/s.md", relay: { from: "relay-p", pending: false } }, repoRoot)
+    writeRunState({ sessionId: "relay-p", sleep: true, crank: false, transcriptPath: "/transcripts/p.jsonl" }, repoRoot)
+    writeRunState({ sessionId: "relay-s", sleep: true, crank: false, transcriptPath: "/transcripts/s.jsonl", relay: { from: "relay-p", pending: false } }, repoRoot)
     return repoRoot
   }
   const withCallerEnvironment = (sessionId, action) => {
@@ -292,20 +292,20 @@ export const cases = async () => {
   }
   const predecessorRun = adopted("superseded-environment")
   const crankRefusal = withCallerEnvironment("relay-p", () => updateRunState((state) => ({ ...state, crank: true }), predecessorRun))
-  const logRefusal = withCallerEnvironment("relay-p", () => updateRunState((state) => ({ ...state, decisionLogPath: "/decisions/p.md" }), predecessorRun))
+  const logRefusal = withCallerEnvironment("relay-p", () => updateRunState((state) => ({ ...state, transcriptPath: "/transcripts/p.jsonl" }), predecessorRun))
   const afterRefusal = readRunState(predecessorRun)
   T(`${TOOL}: a superseded session named by CLAUDE_CODE_SESSION_ID cannot spread its update into the successor's run`,
     crankRefusal?.message === "session is superseded; run state write refused" && logRefusal?.message === crankRefusal.message &&
-      afterRefusal.sessionId === "relay-s" && afterRefusal.crank === false && afterRefusal.decisionLogPath === "/decisions/s.md",
+      afterRefusal.sessionId === "relay-s" && afterRefusal.crank === false && afterRefusal.transcriptPath === "/transcripts/s.jsonl",
     JSON.stringify({ crankRefusal: crankRefusal?.message, logRefusal: logRefusal?.message, afterRefusal }))
   const explicitRun = adopted("superseded-option")
   const explicitRefusal = withCallerEnvironment("relay-s", () => updateRunState((state) => ({ ...state, crank: true }), explicitRun, { sessionId: "relay-p" }))
   T(`${TOOL}: an explicit superseded sessionId option wins over the environment and is refused`,
     explicitRefusal?.message === "session is superseded; run state write refused" && readRunState(explicitRun).crank === false,
     JSON.stringify({ explicitRefusal: explicitRefusal?.message, after: readRunState(explicitRun) }))
-  const successorWrite = withCallerEnvironment("relay-s", () => updateRunState((state) => ({ ...state, crank: true, decisionLogPath: "/decisions/s2.md" }), adopted("successor-update")))
+  const successorWrite = withCallerEnvironment("relay-s", () => updateRunState((state) => ({ ...state, crank: true, transcriptPath: "/transcripts/s2.jsonl" }), adopted("successor-update")))
   T(`${TOOL}: the successor itself can still update its run`,
-    successorWrite?.sessionId === "relay-s" && successorWrite.crank === true && successorWrite.decisionLogPath === "/decisions/s2.md", JSON.stringify(successorWrite))
+    successorWrite?.sessionId === "relay-s" && successorWrite.crank === true && successorWrite.transcriptPath === "/transcripts/s2.jsonl", JSON.stringify(successorWrite))
   const anonymousWrite = withCallerEnvironment(undefined, () => updateRunState((state) => ({ ...state, crank: true }), adopted("anonymous-update")))
   T(`${TOOL}: an update with no caller id keeps the unchecked behaviour`,
     anonymousWrite?.sessionId === "relay-s" && anonymousWrite.crank === true, JSON.stringify(anonymousWrite?.message ?? anonymousWrite))
@@ -595,3 +595,8 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
   T(`${TOOL}: a real launcher refuses an unrecordable worktree claim`, unsafeAdmission.allowed === false,
     JSON.stringify(unsafeAdmission))
 }
+
+/** No formatter covers tools/, so a merge that drops a space after an assignment stays unless a test reads the source. */
+const runStateSource = readFileSync(join(TOOLS_DIR, TOOL), "utf8")
+const unspacedAssignments = [...runStateSource.matchAll(/^(?:export )?const \w+ =\S.*$/gm)].map((match) => match[0])
+T(`${TOOL}: every top-level const has a space after its =`, unspacedAssignments.length === 0, JSON.stringify(unspacedAssignments))

@@ -7,6 +7,8 @@ import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
 import { parityExemptTerms } from "./lib/parity-scope.mjs"
+import { REVIEW_BATCH_ORDER_MARKER } from "./lib/run-state.mjs"
+import { sealOrder } from "./lib/run-notes.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
 
@@ -17,9 +19,14 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
   --branch <name>   branch already checked out for the worker
   --base <ref>      base branch the pull request targets (default: main)
   --layout-guard    allow editing only apps/web/e2e/layout/ among e2e files; never run it (ui only)
-  --review-batch    stop a local review fix after a tested commit
+  --review-batch    stop a local review fix after a tested commit. The order carries the review batch
+                    marker, so launch-worker.mjs requires --fix-round for it
   --cloud          compose the container contract instead of local PR delivery
   --help, -h        print this usage and exit 0
+
+A local order ends with a seal line. tools/launch-worker.mjs refuses an order without it, or one whose text
+changed after it, so a fix round's note reaches a worker only as a ticket comment
+(node tools/post-run-note.mjs --kind round-note) that this tool reads.
 
 Prints the output path on stdout.
 exit codes: 0 prompt written, 2 usage or ticket read error`
@@ -126,7 +133,7 @@ one of these exact terms: ${parityExemptTerms.join(", ")}. Write the term itself
   : ""
 
 const vitestEvidence = repoKey === "ui"
-  ? ` The repository's own Vitest suites are required evidence: run them in full, including any headless Chromium geometry tests they launch. That Chromium use is permitted within Vitest.`
+  ? ` The focused Vitest tests of your change are required evidence, including any headless Chromium geometry test they launch. That Chromium use is permitted within Vitest.`
   : ""
 
 const browserBan = layoutGuard ? `
@@ -145,6 +152,31 @@ and it OVERRIDES the ticket's own Evidence section.**${vitestEvidence} No \`npm 
 Playwright, Maestro or Cypress, nothing under \`e2e/\`, no layout guard, no navigating to localhost
 on any port, no logging in to the app. If the ticket says screenshots are required, do not gather
 them in this worker. A fresh worktree has no seeded session.`
+
+/** CI runs every full suite on the pull request, so a worker spends its time on the checks its change can break. */
+const focusedVerification = `
+
+**Run only the focused checks of your change; CI runs every full suite.** Judge each check by its exit code:
+- Vitest: \`npx vitest related <changed source files> --run\` in each changed workspace. Never start Vitest without a file name.
+- Tools: \`node tools/test-tools.mjs --only <case module>\` for each case module that covers a changed tool or reads a changed file (\`grep -rl <file name> tools/__tests__\` finds the readers; repeat \`--only\`; \`--list\` prints the names). Never run the complete tools suite.
+- Hooks: \`node .claude/hooks/test-hooks.mjs\` after a change to \`.claude/**\`, a tracked \`*.md\` file, or another file the harness reads or imports (\`grep -n <file name> .claude/hooks/test-hooks.mjs\`). It checks the wiring in \`.claude/settings.json\` and scans every tracked doc.
+- The type check and the lint of each changed workspace or project, and the focused tests of a changed project in a repository without Vitest.
+
+CI runs the full web and mobile Vitest suites, the complete tools suite and the layout tests on the pull request. Do not run them. To reproduce a flake, run the affected file again or in parallel instances. Spend at most 25 minutes of wall time on verification after your commit, and report each command with its exit code.`
+
+/**
+ * The standing rules of every local worker in an unattended run. They lived in a scratchpad file that each launch
+ * script appended; now they are part of every composed order, so no order can miss them (thomasluizon/orbit-tickets#2152).
+ */
+const unattendedRules = cloud ? "" : `
+
+**Nobody answers an approval prompt.** The owner is away, and a held command stalls the run for hours.
+- Never run a command that Claude Code can hold for approval: \`rm\` (delete with Node, \`node -e "require('node:fs').rmSync('<literal absolute path>', { recursive: true, force: true })"\`, only inside your own worktree or temporary directory), \`sudo\`, \`chmod -R\`, \`git push --force\`, or \`git reset --hard\` on a branch you did not create. Never write outside your worktree and the system temporary directory.
+- Keep each shell command plain. Never put \`$(\`, a backtick, \`eval\` or a variable in a path, a redirect or a grep pattern. For a longer search or text check, write a \`.mjs\` file in the system temporary directory and run it with \`node\`.
+- Never comment on GitHub, resolve a review thread, or close a pull request or an issue unless this order says so in words.
+- Copy every GitHub identifier (pull request number, SHA, thread id) from command output of this run, never from memory.
+- Commit with a plain conventional message: no attribution line and no co-author line.
+- ${reviewBatch ? "Your final report is the batch's handoff: the commit SHA, then the complete `## Test evidence`, `## Assumptions` and `## Manual steps` sections of the finishing contract." : "Your final message is at most 12 lines: the verdict, the commit SHAs, each test command with its pass count, and the pull request URL when you opened one. The pull request body carries the full report."}`
 
 /**
  * The approval hook loads only in a checkout that holds it. A worker in another repository gets the same rule
@@ -190,13 +222,14 @@ ${baseInstruction}
 review information, never delivery gates. Keep one atomic behaviour complete: migrations with their
 model change, generated Designer or contract output with its source/schema, and required lockfiles
 or codemod output in this pull request. Do not split required generated output away to make the diff look smaller, and
-do not deliver partial behaviour silently.${browserBan}
+do not deliver partial behaviour silently.${browserBan}${focusedVerification}${unattendedRules}
 
 **Output.** ${outputInstruction}${localUiParityDelivery}
 
 **Boundaries.** Never merge, in any shape: no gh pr merge, no PUT /repos/{owner}/{repo}/pulls/N/merge,
 no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. Never --no-verify or
---no-gpg-sign. Do not edit the ticket. Do not touch a second repository: cross-repo work is
+--no-gpg-sign. Do not edit the ticket. Public pull request bodies reference a ticket with Tracks, never an
+automatic closing keyword: the orchestrator closes tickets. Do not touch a second repository: cross-repo work is
 two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.
 
 **Dependencies.** Never edit installed files by hand inside \`node_modules\`, under any path, in any
@@ -248,9 +281,9 @@ const finishing = `## Finishing contract
 
 You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage or commit \`architecture.json\`, \`architecture.html\` or \`architecture.mmd\`.
 
-For each piece, compile and run focused tests, then commit before broader verification.
+For each piece, compile and run the focused tests of the piece, then commit.
 
-Then, in order: run the broader suite, push, and open or update exactly one pull request. Stop there
+Then, in order: push, and open or update exactly one pull request. Stop there
 and report its URL and test results. Do not wait on CI or poll GitHub Actions. The orchestrator owns
 CI waiting, review fixes and final readiness verification. You do not merge or wait for review.
 
@@ -276,11 +309,13 @@ migration or backfill), each naming the exact key, the exact console or screen, 
 took effect. The harness reads both sections mechanically at handover; prose elsewhere in the body
 does not reach it.`
 
-const reviewBatchFinishing = `## Finishing contract
+const reviewBatchFinishing = `${REVIEW_BATCH_ORDER_MARKER}
+
+## Finishing contract
 
 You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage or commit \`architecture.json\`, \`architecture.html\` or \`architecture.mmd\`.
 
-**Commit as soon as the code compiles and the focused tests pass. Run the broader suite after.**
+**Commit as soon as the code compiles and the focused tests pass.** CI runs the full suites after the push.
 
 Stop after the tested commit. Do not push or open a pull request. Report the commit SHA, then end
 your final report with these literal sections, each one present even when it is empty:
@@ -297,5 +332,7 @@ const finishingContract = cloud
   : reviewBatch ? reviewBatchFinishing : finishing
 
 const order = cloud ? `${brief}\n\n---\n\n${finishingContract}` : `${finishingContract}\n\n---\n\n${brief}`
-writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${order}\n`, "utf8")
+const composed = `${ticket.replace(/\s*$/, "")}\n\n---\n\n${order}\n`
+// A Cloud order goes to tools/submit-cloud-worker.mjs, which appends its own contract; only a local launch checks the seal.
+writeFileSync(resolve(out), cloud ? composed : sealOrder(composed), "utf8")
 console.log(resolve(out))
