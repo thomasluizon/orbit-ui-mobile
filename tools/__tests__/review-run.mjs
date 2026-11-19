@@ -307,6 +307,12 @@ const orderCases = () => {
       /`VERDICT: DEFECTS \(<n>\)`, where n counts the BLOCKING findings only/.test(contract) &&
       /A NOTE and a\s+`## Body` line never change the verdict/.test(contract) &&
       !/no\s+body line is wrong|and the wrong body lines/.test(contract), contract)
+  const fixRoundReview = reviewOrder({ brief: "Read the diff.", slug: "owner/name", pullRequest: "7", head: "abc1234", since: "def5678" })
+  T(`${UNIT}: a fix-round review reads the whole diff against the merge base and checks each fix against the new commits`,
+    fixRoundReview.includes("git diff origin/main...abc1234") && fixRoundReview.includes("git diff def5678..abc1234") &&
+      fixRoundReview.includes("Read the whole diff again, as\nthe GitHub reviewer does") && !/Read only the new commits/.test(fixRoundReview), fixRoundReview)
+  T(`${UNIT}: every review order asks for each defect class once with every instance as path:line`,
+    [review, fixRoundReview].every((order) => /name the class\s+one time and list every instance in the changed lines, one \`path:line\` each/.test(order)), review)
   T(`${UNIT}: the proof result names its head on the second line, for the decision note (thread b_s2)`,
     /Its second line is\s+`HEAD: abc1234`/.test(proof), proof)
   same(`${UNIT}: the proof order promises exactly the proof verdict lines`, promised(proof).map((line) => resultVerdict(line, "proof")), ["PROOF: PASS", "PROOF: FAIL (2 defects)"])

@@ -68,8 +68,11 @@ const readOnlyCases = () => {
   const fixRoundPath = join(directory, "fix-round.md")
   check(TOOL, "--review --since composes a fix-round order", ["--review", ...base, "--since", REVIEWED, "--base", "release", "--out", fixRoundPath], { status: 0 }, options)
   const fixRound = composed(fixRoundPath)
-  T(`${TOOL}: a fix-round order reads only the commits after the reviewed head`,
-    fixRound.includes(`git diff ${REVIEWED}..${HEAD}`) && !fixRound.includes("git merge-base"), fixRound)
+  T(`${TOOL}: a fix-round order reads the whole diff and checks each fix against the commits after the reviewed head`,
+    fixRound.includes("git diff origin/release...") && fixRound.includes(`git diff ${REVIEWED}..${HEAD}`) && fixRound.includes("Read the whole diff again") &&
+      !fixRound.includes("Read only the new commits") && !fixRound.includes("git merge-base"), fixRound)
+  T(`${TOOL}: a review order asks for every instance of each defect class`,
+    [review, fixRound].every((order) => order.includes("For each defect class, name the class one time and list every instance in the changed lines")), review)
 
   writeFileSync(playbook, readFileSync(playbook, "utf8").replace("The lenses:", "The lenses, edited in the playbook only:"))
   const editedPath = join(directory, "edited.md")
@@ -342,6 +345,14 @@ export const cases = () => {
     reviewPrompt,
   )
   T(
+    `${TOOL}: the review batch order tells the worker to fix every instance of each class, never to search for no other case`,
+    reviewPrompt.includes("**Fix every instance of each defect class in one commit.**") &&
+      reviewPrompt.includes("give each instance a test that you proved red with its guard removed") &&
+      reviewPrompt.includes("replace the guess with a\nstructured input or delete it. Never add one more pattern.") &&
+      !/no other change|search for no other case/i.test(reviewPrompt) && !prompt.includes("**Fix every instance of each defect class in one commit.**"),
+    reviewPrompt,
+  )
+  T(
     `${TOOL}: only the review batch order carries the marker that makes launch-worker.mjs spend a fix round`,
     reviewPrompt.includes(REVIEW_BATCH_ORDER_MARKER) && !prompt.includes(REVIEW_BATCH_ORDER_MARKER),
     reviewPrompt.slice(0, 400),
@@ -521,6 +532,49 @@ export const cases = () => {
     `${TOOL}: the skill makes every unattended agent brief point at the approval hook`,
     /Every agent brief in an unattended run forbids commands that ask for an approval/.test(orchestrateSkill) &&
       orchestrateSkill.includes(".claude/hooks/forbid-approval-prompt.mjs") && orchestrateSkill.includes("node tools/wait-background-runs.mjs"),
+  )
+  const rule14 = readFileSync(join(REPO_ROOT, ".claude", "playbooks", "review-and-audit.md"), "utf8")
+  const rule14Body = rule14.slice(rule14.indexOf("**BLOCKING and NOTE.**"), rule14.indexOf("**The body is evidence, not code.**"))
+  const rule14Brief = rule14.slice(rule14.indexOf("#### The review brief"))
+  T(
+    `${TOOL}: rule 14 makes every confirmed defect in the changed lines BLOCKING, and a NOTE only taste or an older defect`,
+    /Every confirmed defect in the changed lines is BLOCKING/.test(rule14Body) && /A test or a guard that passes with the code it guards removed/.test(rule14Body) &&
+      /A comment or a doc that contradicts the code/.test(rule14Body) && /An unused export/.test(rule14Body) &&
+      /A NOTE is a matter of taste with no wrong result/.test(rule14Body) && /older defect that the diff did not make is also a NOTE/.test(rule14Body) &&
+      /false statement in the pull request body goes under `## Body`, and the coordinator fixes it/.test(rule14Body) &&
+      !/only when one of these is true|failing probe against the acceptance|No open search|at most one finding|new spelling/.test(rule14),
+    rule14Body,
+  )
+  T(
+    `${TOOL}: rule 14 reads the whole diff on every pass and lists every instance of each class`,
+    /A review pass, a fix-round pass included, reads the whole diff of the pull request against its merge base/.test(rule14Body) &&
+      /names the class one time and then lists every instance in the changed lines, one `path:line` each/.test(rule14Body) &&
+      /fixes every instance of each class in one commit/.test(rule14Body) && /proven red with the guard removed/.test(rule14Body) &&
+      !/reads only the new commits|narrows this to the new commits|do not search for new forms of a class/.test(rule14),
+    rule14Body,
+  )
+  T(
+    `${TOOL}: rule 14 fixes a free-text guess with a structured input or a deletion, in the rule, the brief lenses and the fix round`,
+    /A defect class that comes from guessing at free text \(a word list, or a regex that reads prose\) is fixed with a structured input or with a deletion, never with one more pattern/.test(rule14Body) &&
+      /A guess at free text: a word list or a regex that reads prose\. It is BLOCKING\. The fix is a structured input or a deletion, never one more pattern/.test(rule14Brief) &&
+      /structured input or a deletion/.test(readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")),
+    rule14Brief,
+  )
+  T(
+    `${TOOL}: the review brief lists each class with every instance as path:line`,
+    /name the class one time and list every instance in the changed lines, one \`path:line\` each/.test(rule14Brief) &&
+      /one numbered item for each class, with the rank, the class, every instance as \`path:line\`/.test(rule14Brief) &&
+      !/at most one finding|do not search for new forms/.test(rule14Brief),
+    rule14Brief,
+  )
+  T(
+    `${TOOL}: orchestration step 8 and the finding split state the same BLOCKING and NOTE rule as rule 14`,
+    /FIX every BLOCKING finding, every instance of its class in one commit/.test(orchestrateSkill) &&
+      /a confirmed defect in the changed lines/.test(orchestrateSkill) && /Fix every instance of its class in one commit, with a\s+test for each instance proven red with the guard removed/.test(orchestrateSkill) &&
+      /a matter of taste with no wrong result, or an older defect that this\s+diff did not make/.test(orchestrateSkill) &&
+      /It never says "add no other change" or "search for no other\s+case"/.test(orchestrateSkill) &&
+      !/a failing probe against the acceptance|a regression this pull request made|regression that this pull request made/.test(orchestrateSkill),
+    orchestrateSkill,
   )
   T(
     `${TOOL}: orchestration resolves review batch threads before its single push`,

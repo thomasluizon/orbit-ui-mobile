@@ -457,12 +457,14 @@ The hooks of this run come from the orchestrating checkout, not from the head.`
 const FINAL_MESSAGE = `**Your final message has at most 12 lines:** the verdict line, the result file path, and one line for
 each of the most severe findings. The orchestrator reads the result file, not your message.`
 
-/** The order of a pre-push review, or with `since` of a fix-round review that reads only the newer commits. */
+/** The order of a pre-push review. With `since` it also names the new commits, so a fix-round review checks each fix. It reads the whole diff either way. */
 export const reviewOrder = ({ brief, slug, pullRequest, head, since = null, baseBranch = "main" }) => {
+  const whole = `Read the whole diff against its merge base: \`git diff origin/${baseBranch}...${head}\`.`
   const scope = since === null
-    ? `Read the whole diff against its merge base: \`git diff origin/${baseBranch}...${head}\`.`
-    : `This is a fix round. The previous review read \`${since}\`. Read only the new commits,
-\`git diff ${since}..${head}\`, and the code around each hunk.`
+    ? whole
+    : `${whole} This is a fix round. The previous review read \`${since}\`. Read the whole diff again, as
+the GitHub reviewer does, and use \`git diff ${since}..${head}\` to check each fix. A defect outside the new commits is
+BLOCKING when the diff made it.`
   return `# Read-only review of ${slug} pull request #${pullRequest}
 
 ${brief}
@@ -482,7 +484,8 @@ ${NO_WRITES}
 **Your result.** Write the complete report to the result file that the launch instruction names, and
 to no other file. Its first line is exactly \`VERDICT: CLEAN\` when you confirmed no BLOCKING finding.
 Otherwise it is \`VERDICT: DEFECTS (<n>)\`, where n counts the BLOCKING findings only. A NOTE and a
-\`## Body\` line never change the verdict: keep them in the report. Then write the report that the brief
+\`## Body\` line never change the verdict: keep them in the report. For each defect class, name the class
+one time and list every instance in the changed lines, one \`path:line\` each. Then write the report that the brief
 describes: \`HEAD: <sha>\`, \`FILES READ: <n of m>\`, \`## Findings\`, \`## Body\` and \`## Not confirmed\`.
 
 ${FINAL_MESSAGE}

@@ -184,12 +184,15 @@ no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detail
                      left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
                      A SALVAGED PR RE-ENTERS HERE and runs 7, 8 and 9 like any other.
  8  CLEAR PULLFROG   Pullfrog reviews only on request. The request goes out at the push, beside CI.
-                     LOCAL REVIEW before every push: review-and-audit.md rule 14, two passes, no third
+                     LOCAL REVIEW before every push: review-and-audit.md rule 14, two passes, no third;
+                     each pass reads the whole diff and lists every instance of each defect class
                      node tools/list-bot-threads.mjs --pr <n> --repo <key> -> threads[] AND reviewBody
                      then wait-ci --require-check pullfrog-approval in the background
-                     FIX every BLOCKING finding: a failing probe against the acceptance, or a
-                     regression this pull request made
-                     FILE every NOTE one time as an orbit-tickets issue; fix a false body line yourself
+                     FIX every BLOCKING finding, every instance of its class in one commit: wrong
+                     behaviour, a missed edge case, a guard that passes without its code, a comment
+                     that contradicts the code, an unused export
+                     FILE every NOTE (taste, or an older defect) one time as an orbit-tickets issue;
+                     fix a false body line yourself
                      REPLY AND RESOLVE every thread you filed, with resolve-bot-thread.mjs
                      resolve FIRST, then local review, then push. Right after the push, the
                      same command asks for the re-review of both together.
@@ -1089,10 +1092,14 @@ push asks for its review.
 **Split every unresolved finding two ways, and act on both halves.** The bar is the one
 `review-and-audit.md` rule 14 sets for the local review:
 
-- **FIX it in this pull request** when it is BLOCKING: it has a failing probe against the acceptance
-  of the ticket, or it is a regression that this pull request made (behaviour, security or data
-  integrity that passed on `main` or on the earlier head). Such a finding is never closed by a ticket.
-- **FILE it** otherwise, as a NOTE: file its class one time on the ticket that owns the area, or as
+- **FIX it in this pull request** when it is BLOCKING: a confirmed defect in the changed lines, such
+  as wrong behaviour, a missed edge case, a test that passes with its guard removed, a comment or doc
+  that contradicts the code, or an unused export. Fix every instance of its class in one commit, with a
+  test for each instance proven red with the guard removed. A class that comes from guessing at free
+  text (a word list or a regex that reads prose) is fixed with a structured input or a deletion, never
+  with one more pattern. Such a finding is never closed by a ticket.
+- **FILE it** otherwise, as a NOTE: a matter of taste with no wrong result, or an older defect that this
+  diff did not make. File its class one time on the ticket that owns the area, or as
   a new `orbit-tickets` issue when no ticket owns it, name that ticket in the reply, and drop it
   from this run. File a security NOTE as a `Bug`. One class gets one ticket, never one for each member.
 - **A false statement in the body or a reply is yours to correct, and it starts no round.** Correct
@@ -1125,6 +1132,12 @@ the launcher gives it back when the launch ends with no commit, so the relaunch 
 the same round; a fix the orchestrator writes spends it with `node tools/fix-rounds.mjs --worktree <p> --record
 pullfrog` before its commit. If the batch has only FILE or not-applicable findings, perform their existing reply,
 resolve and same-head re-review transitions without launching a worker or inventing a commit.
+
+The round note of a batch names each defect class one time and lists every instance in the changed lines,
+one `path:line` each. It tells the worker to fix every instance of each class in one commit, with a test
+for each instance proven red with its guard removed, and to fix a class that comes from guessing at free
+text with a structured input or a deletion. It never says "add no other change" or "search for no other
+case": the next review reads the whole diff, so an instance left behind costs the next round.
 
 When the batch needs a worker, compose its order with `--review-batch`. The worker commits, runs the
 focused tests of its change, reports the commit SHA and stops without pushing. **Its final report is the batch's

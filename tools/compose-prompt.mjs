@@ -29,16 +29,18 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
   --help, -h        print this usage and exit 0
 
   Read-only orders for node tools/launch-worker.mjs --review or --proof. Neither reads the ticket.
-  --review          a pre-push review of pull request --pr at --head, or with --since a fix-round
-                    review of only the commits after the reviewed head. Embeds the review brief of
-                    .claude/playbooks/review-and-audit.md rule 14. The result opens with
+  --review          a pre-push review of pull request --pr at --head. It reads the whole diff against
+                    the merge base on every pass. With --since, a fix-round review also reads the
+                    commits after the reviewed head, to check each fix. Embeds the review brief of
+                    .claude/playbooks/review-and-audit.md rule 14: every confirmed defect is BLOCKING,
+                    and each class lists every instance. The result opens with
                     VERDICT: CLEAN (no BLOCKING finding) or VERDICT: DEFECTS (<n>), where n counts
                     BLOCKING findings only. A NOTE and a body line never change it
   --proof           a device proof of pull request --pr at --head. The result opens with
                     PROOF: PASS or PROOF: FAIL (<n> defects)
   --pr <n>          the pull request number
   --head <sha>      the commit under review or proof, 7 to 40 hex characters copied from git
-  --since <sha>     the head that the previous review read (--review only)
+  --since <sha>     the head that the previous review read, for the fix check (--review only)
   --plan <file>     the proof steps and the expected result of each, non-empty (--proof only)
   --devices <names> the comma-separated simulators and AVDs the proof may use (--proof only)
   --evidence <dir>  absolute directory outside every repository for screenshots and logs, created
@@ -380,6 +382,12 @@ const reviewBatchFinishing = `${REVIEW_BATCH_ORDER_MARKER}
 ## Finishing contract
 
 You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage or commit \`architecture.json\`, \`architecture.html\` or \`architecture.mmd\`.
+
+**Fix every instance of each defect class in one commit.** The round note lists each class and each instance.
+Fix every one of them, and give each instance a test that you proved red with its guard removed. Do not stop at the
+first instance of a class, and do not leave one for the next review: the next review reads the whole diff. When a
+class comes from guessing at free text (a word list or a regex that reads prose), replace the guess with a
+structured input or delete it. Never add one more pattern.
 
 **Commit as soon as the code compiles and the focused tests pass.** CI runs the full suites after the push.
 
