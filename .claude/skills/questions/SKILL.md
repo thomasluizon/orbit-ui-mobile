@@ -8,7 +8,7 @@ effort: high
 # Questions
 
 Write decisions in tracked specs as current rules without dates, attributed quotes or session IDs.
-Keep timed decision evidence in the session scratchpad outside the repository.
+Post timed decision evidence as a decision run note on its ticket or the run record issue.
 
 **At a glance:** most questions are not his. Answer them yourself, then ask what is left, all at
 once, with a recommendation on each.
@@ -117,7 +117,7 @@ In this mode `queued` replaces **asked**. Each row from `--list` leaves with exa
 | `duplicate` | another row asks the same question in other words; `of` names the `id` of that row |
 | `queued` | the question passed the whole filter, so it is his |
 
-Write each answer and each decision first: a ticket comment, the spec, or the decision log, whichever
+Write each answer and each decision first: a ticket comment, the spec, or a run record decision, whichever
 the work reads. Add a question from another source to `openOwnerQuestions` first, so `--list`
 prints it. Then pipe one JSON row per candidate to `node tools/owner-questions.mjs --record`, as
 `{ id, disposition, record, of, blocks }`, or `[]` when there is no candidate. `blocks` adds what a
@@ -167,7 +167,7 @@ them.
 
 Read the same sources as for questions, plus every "waiting on the owner", "owner's click", "manual
 step" or blocker note in the spec, the tickets, the pull request bodies' `## Manual steps` and the
-session's decision log. A step you never wrote down cannot be filtered or handed over.
+decision run notes on the tickets and the run record. A step you never wrote down cannot be filtered or handed over.
 
 ### The gate: only what you ABSOLUTELY cannot do
 
