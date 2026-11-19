@@ -21,8 +21,7 @@ let pendingDeleteSnapshot: string[] = []
 let failedDeleteSnapshot: string[] = []
 let noticeOwner: NotificationDeleteNoticeState | null = null
 
-/** The delete that owns the one delete toast. */
-export type NotificationDeleteNoticeState = { kind: 'pending' | 'failed'; id: string }
+type NotificationDeleteNoticeState = { kind: 'pending' | 'failed'; id: string }
 
 function ownerIsAlive(): boolean {
   if (!noticeOwner) return false
@@ -121,7 +120,6 @@ export function queuePendingNotificationDelete(notificationId: string, execute: 
     return false
   }
 
-  takeFailedDelete(notificationId)
   activeDeleteAttempts.delete(notificationId)
 
   const timer = setTimeout(() => {

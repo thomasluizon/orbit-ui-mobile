@@ -2735,11 +2735,11 @@ describe('mobile auth store security paths', () => {
         name: 'Account A',
       })
       setQueryDataMock(notificationKeys.lists(), accountANotifications)
-      queuePendingNotificationDelete('failed-notification', failedDelete)
       queuePendingNotificationDelete('active-notification', executeActiveDelete)
+      queuePendingNotificationDelete('failed-notification', failedDelete)
       await vi.advanceTimersByTimeAsync(5000)
-      queuePendingNotificationDelete('pending-notification', pendingDelete)
       expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['failed-notification'])
+      queuePendingNotificationDelete('pending-notification', pendingDelete)
 
       await useAuthStore.getState().logout()
       await useAuthStore.getState().login('account-b-token', null, {

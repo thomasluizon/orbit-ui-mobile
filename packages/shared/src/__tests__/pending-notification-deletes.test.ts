@@ -439,6 +439,22 @@ describe('pending notification deletes', () => {
     expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'a' })
   })
 
+  it('keeps a re-queued delete out of the failed list when its undo closes before the first attempt fails', async () => {
+    let rejectFirstAttempt!: (error: Error) => void
+    const firstAttempt = new Promise<never>((_resolve, reject) => { rejectFirstAttempt = reject })
+    queuePendingNotificationDelete('a', () => firstAttempt)
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(queuePendingNotificationDelete('a', vi.fn())).toBe(true)
+    dismissPendingNotificationDeleteNotice('a')
+    rejectFirstAttempt(new Error('late failure'))
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+    expect(getNotificationDeleteNoticeSnapshot()).toBeNull()
+  })
+
   const failA = () => {
     queuePendingNotificationDelete('a', () => { throw new Error('boom') })
     vi.advanceTimersByTime(5000)

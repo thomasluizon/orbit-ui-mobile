@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import {
+  FAILED_DELETE_NOTICE_LIFE_MS,
   getNotificationDeleteNoticeSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
@@ -111,5 +112,23 @@ describe('notification delete notice', () => {
     fireEvent.click(screen.getByRole('button', { name: 'notifications.deleteUndo' }))
 
     expect(screen.queryByRole('group')).toBeNull()
+  })
+
+  it('gives a failed delete that replaces another failed toast its own full life', async () => {
+    const failing = () => vi.fn().mockRejectedValue(new Error('Unavailable'))
+    await renderNotice()
+    act(() => { queuePendingNotificationDelete('first', failing()) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    act(() => { queuePendingNotificationDelete('second', failing()) })
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'first' })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'second' })
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(FAILED_DELETE_NOTICE_LIFE_MS - 500) })
+
+    expect(screen.getByRole('button', { name: 'common.retry' })).toBeInTheDocument()
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'second' })
   })
 })
