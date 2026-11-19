@@ -24,8 +24,9 @@ buggy. being totally honest, i dont want it floating anymore. fuck it just put i
 icon to create habit, and we're good". The button is fixed in the create FAB's trailing column,
 directly above the create FAB and centred on it, with `ASTRA_BUTTON_GAP` between the two circles.
 It has no drag, no move action and no stored position. When the create FAB is hidden, the button
-takes the create FAB's position. While the create FAB loads, the column holds its slot. The
-button uses the lifted-surface treatment, not the canvas ring. `DESIGN.md` Information
+takes the create FAB's position. The create FAB draws on the first frame, before Hoje has
+loaded, and leaves only when Hoje settles empty or with a load error, or while a surface is
+open. The button uses the lifted-surface treatment, not the canvas ring. `DESIGN.md` Information
 architecture item 1 (the front door) and `### The shell` specify the geometry and the end
 clearance. Habit detail and the conversation keep the shared composer. This amendment supersedes
 the Hoje dock in the drawing and every drawing note that places a floating or draggable Orbit
@@ -249,7 +250,7 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
-| #1881, #1905, #1927 | The sidebar lockup shares its row with the trailing theme action, centred vertically; the bell starts the control row below at the lockup's leading edge, with theme and collapse aligned at the trailing edge; the collapsed rail stacks bell, collapse and theme. Compact web and Android place theme immediately before the bell on all four tabs. The icon shows the target mode; Perfil has no theme selector. | Reuses IconButton, its 44px paint and 48px transparent target, and the existing theme preference path. |
+| #1881, #1905, #1927, #2178 | The sidebar lockup shares its row with the trailing bell, centred vertically; theme starts the control row below at the lockup's leading edge, with the bell and collapse aligned at the trailing edge; the collapsed rail stacks theme, collapse and the bell. Compact web and Android place theme immediately before the bell on all four tabs. The icon shows the target mode; Perfil has no theme selector. | Reuses IconButton, its 44px paint and 48px transparent target, and the existing theme preference path. |
 | #1828 | Orbit question blocks reuse the conversation BlockFrame and existing choice, checkbox and Input controls. A five-option radio scale and primitive slider use the existing tokens. Prompts, supplied option labels and end labels wrap in growing rows; required omissions show inline hints and focus the first question. Supplied progress and local answered count remain separate; acting, error, offline, limit, closed and answered states follow the existing answer lifecycle. | The issued question contract needs typed single and multiple choices, scale, slider and yes or no in one answer turn. No drawing covers the two numeric controls. |
 | #1613 | Habit Create's When field routes the five recurrence-only weekly equivalents to fixed Week 1 for a deliberate dated Habit, retaining its chosen date and source words. Task retains one inline recovery to the existing Habit choice; blocked Submit focuses that group. Choosing Habit overrides an older General draft using the current Task date; inherited General locks retain parent mismatch guidance and block Submit. Manual corrections and reopened drafts win | Local recurrence is separate from calendar interpretation. It adds no summary, proposal, model call or schedule capability. |
 | #1607 | Balanced type choices, compact growing name, description immediately after name, natural-date prompt and canonical Orbit identification on real request/entry targets | Explicit form presentation and action attribution order; request, acceptance, draft and save owners remain unchanged. |
