@@ -71,8 +71,14 @@ const readOnlyCases = () => {
   T(`${TOOL}: a fix-round order reads the whole diff and checks each fix against the commits after the reviewed head`,
     fixRound.includes("git diff origin/release...") && fixRound.includes(`git diff ${REVIEWED}..${HEAD}`) && fixRound.includes("Read the whole diff again") &&
       !fixRound.includes("Read only the new commits") && !fixRound.includes("git merge-base"), fixRound)
-  T(`${TOOL}: a review order asks for every instance of each defect class`,
-    [review, fixRound].every((order) => order.includes("For each defect class, name the class one time and list every instance in the changed lines")), review)
+  T(`${TOOL}: a review order asks for every instance of each defect class, from the brief alone`,
+    [review, fixRound].every((order) => order.includes("For each defect class, name the class one time and list every instance in the changed lines") &&
+      order.split("name the class one time and list every instance").length === 2), review)
+  T(`${TOOL}: a review order carries the BLOCKING and NOTE definition that its brief ranks by`,
+    [review, fixRound].every((order) => order.includes("BLOCKING is every confirmed defect in the changed lines") &&
+      order.includes("an unused export, prop, branch or helper that the diff leaves") &&
+      order.includes("NOTE is a matter of taste with no wrong result, or an older defect that the diff did not make") &&
+      !order.includes("as rule 14 defines them")), review)
 
   writeFileSync(playbook, readFileSync(playbook, "utf8").replace("The lenses:", "The lenses, edited in the playbook only:"))
   const editedPath = join(directory, "edited.md")
@@ -347,7 +353,9 @@ export const cases = () => {
   T(
     `${TOOL}: the review batch order tells the worker to fix every instance of each class, never to search for no other case`,
     reviewPrompt.includes("**Fix every instance of each defect class in one commit.**") &&
-      reviewPrompt.includes("give each instance a test that you proved red with its guard removed") &&
+      reviewPrompt.includes("Give each instance that a test can see (wrong behaviour, a missed edge case, a test or a guard that passes without its code) a test that you proved red with its guard removed") &&
+      reviewPrompt.includes("An instance of a comment, a doc or an unused export has no guard: make the edit and name it in your report") &&
+      !reviewPrompt.includes("give each instance a test that you proved red") &&
       reviewPrompt.includes("replace the guess with a\nstructured input or delete it. Never add one more pattern.") &&
       !/no other change|search for no other case/i.test(reviewPrompt) && !prompt.includes("**Fix every instance of each defect class in one commit.**"),
     reviewPrompt,
@@ -549,7 +557,10 @@ export const cases = () => {
     `${TOOL}: rule 14 reads the whole diff on every pass and lists every instance of each class`,
     /A review pass, a fix-round pass included, reads the whole diff of the pull request against its merge base/.test(rule14Body) &&
       /names the class one time and then lists every instance in the changed lines, one `path:line` each/.test(rule14Body) &&
-      /fixes every instance of each class in one commit/.test(rule14Body) && /proven red with the guard removed/.test(rule14Body) &&
+      /fixes every instance of each class in one commit/.test(rule14Body) &&
+      /Each instance that a test can see \(wrong behaviour, a missed edge case, a test or a guard that passes without its code\) gets a row in one table test, proven red with the guard removed/.test(rule14Body) &&
+      /An instance of a comment, a doc or an unused export has no guard to remove: it needs only the edit, and the report names it/.test(rule14Body) &&
+      !/each class gets one table test with a row for each instance, proven red/.test(rule14Body) &&
       !/reads only the new commits|narrows this to the new commits|do not search for new forms of a class/.test(rule14),
     rule14Body,
   )
@@ -570,7 +581,9 @@ export const cases = () => {
   T(
     `${TOOL}: orchestration step 8 and the finding split state the same BLOCKING and NOTE rule as rule 14`,
     /FIX every BLOCKING finding, every instance of its class in one commit/.test(orchestrateSkill) &&
-      /a confirmed defect in the changed lines/.test(orchestrateSkill) && /Fix every instance of its class in one commit, with a\s+test for each instance proven red with the guard removed/.test(orchestrateSkill) &&
+      /a confirmed defect in the changed lines/.test(orchestrateSkill) && /Fix every instance of its class in one commit\. Each instance that a test can see gets a\s+test proven red with the guard removed; a comment, doc or unused-export instance needs only the edit/.test(orchestrateSkill) &&
+      /with a test\s+proven red with its guard removed for each instance that a test can see \(a comment, doc or unused-export instance needs only the edit\)/.test(orchestrateSkill) &&
+      !/with a test for each instance proven red|with a\s+test for each instance proven red/.test(orchestrateSkill) &&
       /a matter of taste with no wrong result, or an older defect that this\s+diff did not make/.test(orchestrateSkill) &&
       /It never says "add no other change" or "search for no other\s+case"/.test(orchestrateSkill) &&
       !/a failing probe against the acceptance|a regression this pull request made|regression that this pull request made/.test(orchestrateSkill),

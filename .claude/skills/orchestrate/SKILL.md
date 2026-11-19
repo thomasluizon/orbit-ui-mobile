@@ -1094,8 +1094,8 @@ push asks for its review.
 
 - **FIX it in this pull request** when it is BLOCKING: a confirmed defect in the changed lines, such
   as wrong behaviour, a missed edge case, a test that passes with its guard removed, a comment or doc
-  that contradicts the code, or an unused export. Fix every instance of its class in one commit, with a
-  test for each instance proven red with the guard removed. A class that comes from guessing at free
+  that contradicts the code, or an unused export. Fix every instance of its class in one commit. Each instance that a test can see gets a
+  test proven red with the guard removed; a comment, doc or unused-export instance needs only the edit. A class that comes from guessing at free
   text (a word list or a regex that reads prose) is fixed with a structured input or a deletion, never
   with one more pattern. Such a finding is never closed by a ticket.
 - **FILE it** otherwise, as a NOTE: a matter of taste with no wrong result, or an older defect that this
@@ -1135,7 +1135,7 @@ resolve and same-head re-review transitions without launching a worker or invent
 
 The round note of a batch names each defect class one time and lists every instance in the changed lines,
 one `path:line` each. It tells the worker to fix every instance of each class in one commit, with a test
-for each instance proven red with its guard removed, and to fix a class that comes from guessing at free
+proven red with its guard removed for each instance that a test can see (a comment, doc or unused-export instance needs only the edit), and to fix a class that comes from guessing at free
 text with a structured input or a deletion. It never says "add no other change" or "search for no other
 case": the next review reads the whole diff, so an instance left behind costs the next round.
 

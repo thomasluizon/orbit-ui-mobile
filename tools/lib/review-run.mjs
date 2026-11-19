@@ -484,8 +484,7 @@ ${NO_WRITES}
 **Your result.** Write the complete report to the result file that the launch instruction names, and
 to no other file. Its first line is exactly \`VERDICT: CLEAN\` when you confirmed no BLOCKING finding.
 Otherwise it is \`VERDICT: DEFECTS (<n>)\`, where n counts the BLOCKING findings only. A NOTE and a
-\`## Body\` line never change the verdict: keep them in the report. For each defect class, name the class
-one time and list every instance in the changed lines, one \`path:line\` each. Then write the report that the brief
+\`## Body\` line never change the verdict: keep them in the report. Then write the report that the brief
 describes: \`HEAD: <sha>\`, \`FILES READ: <n of m>\`, \`## Findings\`, \`## Body\` and \`## Not confirmed\`.
 
 ${FINAL_MESSAGE}
