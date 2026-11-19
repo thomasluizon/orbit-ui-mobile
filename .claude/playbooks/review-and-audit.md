@@ -86,13 +86,20 @@ Redact before you paste. Never include a token, key, cookie or credential, and r
 ## Before every push of a pull request head
 
 ### 14. Review the whole diff locally before every push
-Pullfrog reviews a head as soon as it is asked, with no CI wait, so each push costs one review round. This gate makes the first review of a head able to approve, and it keeps a head that fails CI from costing a review. Do these steps before you push a pull request head, and before you ask for the review of a head that a worker pushed. A worker does not run this gate, because it cannot start a review agent; the orchestrator runs it before it asks for the review of the worker's head.
+Pullfrog reviews a head as soon as it is asked, with no CI wait, so each push costs one review round. This gate makes the first review of a head able to approve, and it keeps a head that fails CI from costing a review. Do these steps before you push a pull request head, and before you ask for the review of a head that a worker pushed. A ticket worker does not run this gate; the orchestrator runs it before it asks for the review of the worker's head. No hook and no receipt enforce this gate.
 
-1. Start one read-only review agent on Opus. Give it the brief below and the head SHA. It reads the whole diff of the pull request against its merge base.
-2. Fix every BLOCKING finding in one fix round. All the fixes go in one commit. Before the fix commit, spend the round with `node tools/fix-rounds.mjs --worktree <path> --record local`, or launch the fix worker with `--fix-round local`.
-3. Run the local checks that the change affects: lint, type check, and the focused tests of each changed workspace or tool. Each one must pass.
-4. Start a second agent with the same brief. It reads only the new commits (`git diff <reviewed head>..<new head>`). Fix its BLOCKING findings in one more round, and run the affected checks again.
-5. Push. Then ask for the review as `orchestrate/SKILL.md` step 8 says.
+The review runs on a read-only worker, never on an in-session subagent. A worker runs on the worker account, so the main account stays free for the orchestrator. Its launcher is a wake source, and a relay can carry it.
+
+1. Make a detached worktree at the head: `git -C <repo> worktree add --detach <scratchpad>/review-<pr>-<short sha> <head>`.
+2. Compose the order: `node tools/compose-prompt.mjs --review --repo <key> --pr <n> --head <head> --out <scratchpad>/review-<pr>-order.md`. It embeds the brief below.
+3. Start the worker in the background: `node tools/launch-worker.mjs --review --order <order> --out <scratchpad>/review-<pr>-<short sha>.md --directory <worktree>`. It takes no admission and no branch launch slot.
+4. Read the result file when the launcher exits 0. Its first line is `VERDICT: CLEAN` (no BLOCKING finding) or `VERDICT: DEFECTS (<n>)` (<n> BLOCKING findings). A NOTE and a `## Body` line stay in the report and never change the verdict. Post the result to the pull request's ticket as the review run note, so a successor on any computer reads it from GitHub: `node tools/post-run-note.mjs --kind review --issue <ticket> --head <full sha> --body-file <result>`. Exit 5 means the worker changed a tracked file or moved HEAD in its own detached worktree, the only worktree that its write sandbox lets it write: remove that worktree and do steps 1 to 4 again. Exit 1 means the run failed: read `logFile` and start it again. Exit 2 with "needs the macOS write sandbox" means this machine cannot run a read-only worker: stop and tell the owner.
+5. When the verdict is `VERDICT: CLEAN`, the gate ends: go to step 8. Otherwise fix every BLOCKING finding in one fix round. All the fixes go in one commit. Before the fix commit, spend the round with `node tools/fix-rounds.mjs --worktree <path> --record local`, or launch the fix worker with `--fix-round local`.
+6. Run the local checks that the change affects: lint, type check, and the focused tests of each changed workspace or tool. Each one must pass.
+7. After a fix round, do steps 1 to 4 again with `--since <reviewed head>` in step 2, at the new head. That worker reads only the new commits (`git diff <reviewed head>..<new head>`). Fix its BLOCKING findings in one more round, and run the affected checks again.
+8. Push. Then ask for the review as `orchestrate/SKILL.md` step 8 says. Remove each review worktree with `git -C <repo> worktree remove <worktree>`; it holds no work of its own. The repository `.gitignore` ignores a `node_modules` link, so a worktree with linked dependencies is removed without `--force`.
+
+The launcher runs the worker under a macOS `sandbox-exec` write profile (`tools/lib/review-run.mjs`). The profile refuses each write to the directory that holds each configured repository, to each worktree, to each hygiene root and to each git directory under the home directory, and it refuses each git network transport. Your own edits, commits and pushes in other worktrees never fail the run. The launcher leaves `GH_TOKEN` and `GITHUB_TOKEN` out of the worker's environment, so `echo $GH_TOKEN`, `printenv` and `env` print no token, and it refuses the launch when the `gh` sign-in of the keyring is not the repository owner. The worker still reaches the sign-in in the login keychain, because the keychain serves it and the worker's own Claude login together: a hook refuses each `gh` write and each credential read by command text, and a script that calls GitHub itself passes that hook.
 
 The local review ends after these two passes. Never start a third local pass, and never loop "fix, review, repeat until clean". A pass that finds no BLOCKING finding ends the gate early: push.
 
@@ -117,7 +124,7 @@ You review ONE open pull request before its next push. Find each BLOCKING findin
 
 What to read:
 
-1. The whole diff of the pull request against its merge base (`git diff <base>...<head>` at the head SHA that your order names). When another agent edits the worktree at the same time, read with `git show <head>:<path>`. Read the hunks of every changed file and the code around each one. For a diff above 60 files, read the source and test files in full and scan the generated and data files; say which files you scanned.
+1. The whole diff of the pull request against its merge base (`git diff <base>...<head>` at the head SHA that your order names). A fix-round order narrows this to the new commits. When another agent edits the worktree at the same time, read with `git show <head>:<path>`. Read the hunks of every changed file and the code around each one. For a diff above 60 files, read the source and test files in full and scan the generated and data files; say which files you scanned.
 2. The pull request body (`gh pr view <n> --repo <slug> --json body --jq .body`). Every claim in it must be true at the head.
 3. The `CLAUDE.md` of the repository. For a UI diff, also `DESIGN.md` `## Bans` and `BRAND.md`.
 4. The earlier review threads (`gh api "repos/<slug>/pulls/<n>/comments?per_page=100" --jq '.[]|[.path,.line,(.body|.[0:160])]|@tsv'`). They show what this reviewer looks for. Do not report a finding that an earlier thread settled, unless the head breaks it again.
@@ -139,7 +146,7 @@ The lenses:
 
 What a finding is: something you confirmed in the code at the head, with `path:line`, the concrete failure (the inputs or state, then the wrong result), and the smallest correct fix. Rank each one BLOCKING or NOTE as rule 14 defines them. A BLOCKING finding names its failing probe against the acceptance of the ticket, or the case that passed on `main` or on the earlier head. Report at most one finding for each root cause, and do not search for new forms of a class. Do not pad: a finding you could not confirm goes under `## Not confirmed`, with what would confirm it. Zero findings is a valid result: say "NO FINDINGS" and name what you read.
 
-Your final message, at most 60 lines, with repository-relative paths only:
+Your report, with repository-relative paths only:
 
 - `HEAD: <sha you reviewed>`, `FILES READ: <n of m>`.
 - `## Findings`: one numbered item each, with the rank, `path:line`, the failure in one or two sentences, the probe for a BLOCKING finding, and the fix in one sentence.

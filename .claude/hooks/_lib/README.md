@@ -109,6 +109,18 @@ The reader is an allow list in each class:
 - A command word must be in `KNOWN_COMMAND_WORDS`: the wrappers that do not change the user, the allowed builtins, the allowed
   programs and the POSIX shells. Each other command word is refused. A path is judged by its last part, so `/usr/bin/git` is `git`, and
   `./run.sh` is refused. The refusal lists the known words.
+- `adb`, `emulator` and `xcrun` run no git and no host shell, and `forbid-worker-browser` refuses all three for each launched worker that is not a
+  device proof. `xcrun` is allowed only with `simctl` as its first word, because `xcrun` resolves any developer tool by name. `tar` is allowed only with
+  the options that list or extract (`TAR_LETTERS`, `TAR_FLAGS` and `TAR_VALUE_OPTIONS` in `shell-subset.mjs`), because `-I`,
+  `--use-compress-program`, `--to-command`, `--checkpoint-action` and `--info-script` run a program. `git archive` is allowed without
+  `--exec` and `--remote`. A read-only review and a device proof need these commands for their own orders.
+- `rules-worker.mjs` keeps no list of wrappers, reserved words or redirect forms. It judges the program and the arguments that
+  `readCommand` and `invocationsOf` find, so a wrapper that the reader passes through never hides a `gh` write or an `adb` serial.
+  For a command outside the subset, the read-only rule and the device proof refuse it, and the browser rule of another worker reads the text
+  segments with `invocationsOf` and `LIST_START_WORDS`. Two rules read what a program takes in the same word as its option, so each is an
+  allow list: a proof lets only `-s <pinned serial>` lead an `adb` call and boots only the AVD `orbit-proof-<pinned port>`, and a read-only
+  run refuses each `curl` call to a GitHub host. A `for` loop that binds a pinned name, and an `xargs` that runs `gh`, `curl`, `adb`,
+  `emulator` or the boot tool, are refused, because the loop and the standard input decide the value that no word on the line shows. A word that the walk cannot resolve (it tracks lower-case names only: `M=-XPOST; gh api … $M`, `T=-t1; adb $T shell …`) refuses the call to `gh`, `curl`, `wget`, `adb`, `emulator` or the boot tool, in a read-only run and in a proof, with one exception: a proof reads `$ANDROID_SERIAL` and `$ORBIT_PROOF_EMULATOR_PORT` (bare or braced, with no modifier) as their pinned values.
 - The allowed builtins are `cd`, `echo`, `printf`, `test`, `[`, `true`, `false`, `:`, `pwd`, `export`, `local`, `readonly`,
   `declare`, `typeset`, `unset`, `set`, `exit`, `type` and `kill`. `cd` is followed. `set` takes only `-e`, `-u` and `-x`.
   `printf` takes no `-v`. `export`, `local`, `readonly`, `declare`, `typeset` and `unset` take only a name and `NAME=value`,
