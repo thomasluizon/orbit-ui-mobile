@@ -1094,7 +1094,7 @@ push asks for its review.
   request causes in code it did not touch gets the BLOCKING rank too. Fix it as the paragraph "Fix
   every instance of a class" of rule 14 says, and fix a free-text guess as its lens in the review
   brief says. Such a finding is never closed by a ticket.
-- **FILE it** when rule 14 ranks it a NOTE. File its class one time on the ticket that owns the area, or as
+- **FILE it** otherwise, when rule 14 ranks it a NOTE. File its class one time on the ticket that owns the area, or as
   a new `orbit-tickets` issue when no ticket owns it, name that ticket in the reply, and drop it
   from this run. File a security NOTE as a `Bug`. One class gets one ticket, never one for each member.
 - **A false statement in the body or a reply is yours to correct, and it starts no round.** Correct

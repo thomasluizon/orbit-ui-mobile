@@ -77,7 +77,8 @@ const readOnlyCases = () => {
   T(`${TOOL}: a review order carries the BLOCKING and NOTE definition that its brief ranks by`,
     [review, fixRound].every((order) => order.includes("BLOCKING is every confirmed finding under a lens above that this diff makes, in the changed lines or in code they break") &&
       order.includes("a case that passed on `main` or on the earlier head fails at this head, such as an unchanged caller of a renamed export") &&
-            order.includes("NOTE is a matter of taste with no wrong result, or a defect that the diff did not make") &&
+      order.includes("NOTE is every other confirmed finding, such as a matter of taste with no wrong result or a defect that the diff did not make") &&
+      order.includes("- A broken repository rule: a rule of the repository's `CLAUDE.md`, of `DESIGN.md` `## Bans` or of `BRAND.md` that this diff breaks.") &&
       !order.includes("as rule 14 defines them")), review)
 
   writeFileSync(playbook, readFileSync(playbook, "utf8").replace("The lenses:", "The lenses, edited in the playbook only:"))
@@ -565,8 +566,8 @@ export const cases = () => {
   )
   T(
     `${TOOL}: the review brief ranks by cause, so a regression outside the changed lines is BLOCKING and an older defect is a NOTE`,
-    /BLOCKING is every confirmed finding under a lens above that this diff makes, in the changed lines or in code they break \(a case that passed on \`main\` or on the earlier head fails at this head, such as an unchanged caller of a renamed export\)\. NOTE is a matter of taste with no wrong result, or a defect that the diff did not make/.test(rule14Brief) &&
-      /NOTE is a matter of taste with no wrong result, or a defect that the diff did not make/.test(rule14Brief) &&
+    /BLOCKING is every confirmed finding under a lens above that this diff makes, in the changed lines or in code they break \(a case that passed on \`main\` or on the earlier head fails at this head, such as an unchanged caller of a renamed export\)\. NOTE is every other confirmed finding, such as a matter of taste with no wrong result or a defect that the diff did not make/.test(rule14Brief) &&
+      /- A broken repository rule: a rule of the repository's `CLAUDE\.md`, of `DESIGN\.md` `## Bans` or of `BRAND\.md` that this diff breaks\./.test(rule14Brief) &&
       /list every instance, one \`path:line\` each, including an instance outside the changed lines that the diff caused/.test(rule14Brief),
     rule14Brief,
   )
@@ -601,7 +602,7 @@ export const cases = () => {
     /FIX every BLOCKING finding, every instance of its class in one commit/.test(orchestrateSkill) &&
       /\*\*FIX it in this pull request\*\* when rule 14 ranks it BLOCKING\. A thread on a regression that this pull\s+request causes in code it did not touch gets the BLOCKING rank too\. Fix it as the paragraph "Fix\s+every instance of a class" of rule 14 says/.test(orchestrateSkill) &&
       /The round note of a batch names each defect class one time and lists every instance, one `path:line` each,\s+including an instance outside the changed lines that the pull request caused\. The next review reads\s+the whole diff/.test(orchestrateSkill) &&
-      /\*\*FILE it\*\* when rule 14 ranks it a NOTE\. File its class one time/.test(orchestrateSkill) &&
+      /\*\*FILE it\*\* otherwise, when rule 14 ranks it a NOTE\. File its class one time/.test(orchestrateSkill) &&
       /A thread on a regression that this pull\s+request causes in code it did not touch gets the BLOCKING rank too/.test(orchestrateSkill) &&
       !/a failing probe against the acceptance/.test(orchestrateSkill),
     orchestrateSkill,
