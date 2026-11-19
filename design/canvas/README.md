@@ -26,7 +26,7 @@ directly above the create FAB and centred on it, with `ASTRA_BUTTON_GAP` between
 It has no drag, no move action and no stored position. When the create FAB is hidden, the button
 takes the create FAB's position. The create FAB draws on the first frame, before Hoje has
 loaded, and leaves only when Hoje settles empty or with a load error, or while a surface is
-open. The button then takes its position. The button uses the lifted-surface treatment, not the canvas ring. `DESIGN.md` Information
+open. The button uses the lifted-surface treatment, not the canvas ring. `DESIGN.md` Information
 architecture item 1 (the front door) and `### The shell` specify the geometry and the end
 clearance. Habit detail and the conversation keep the shared composer. This amendment supersedes
 the Hoje dock in the drawing and every drawing note that places a floating or draggable Orbit
