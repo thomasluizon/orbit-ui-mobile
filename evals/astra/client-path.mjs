@@ -27,12 +27,12 @@ function coreVars(vars) {
 }
 
 // The conversation of one case on a shipped client: the client context that the case states, and its recorded history
-// as the messages that the client already holds. A conversation id makes the shared builder turn offers on, and a
-// converted case grades no offer, so a client with parts keeps offers off, as hooks.mjs builds the context that grades it.
+// as the messages that the client already holds. A conversation id makes the shared builder turn offers on, so a client
+// with parts sends the offers setting that the case file states: an offers case keeps offers on, any other case keeps them off.
 export const openCaseConversation = (vars) => openConversation({ platform: vars.clientContext.platform, locale: vars.clientContext.locale,
   credentialKey: vars.credentialKey, timeZone: vars.accountTimeZone, uses24HourClock: vars.uses24HourClock,
   messages: vars.history ?? [],
-  context: vars.clientContext.supportsParts === true ? { ...vars.clientContext, supportsProactiveOffers: false } : vars.clientContext })
+  context: vars.clientContext.supportsParts === true ? { ...vars.clientContext, supportsProactiveOffers: vars.clientContext.supportsProactiveOffers === true } : vars.clientContext })
 
 // The typed error of a turn that the server ended, as the answer of POST /api/chat keeps it (response.mjs): an HTTP 400
 // names the response that carried it.
@@ -70,6 +70,14 @@ export async function runOutcomeCase(vars, dependencies) {
   const output = await holdCase(vars, dependencies)
   const metadata = { rateLimitRetryable: false }
   return output.error ? { error: output.error, output, metadata } : { output, metadata }
+}
+
+// The turns that an offers case sends after its first, for its lifecycle: in the conversation of the case, or after a
+// reload in a conversation with the same id and none of its messages. Each turn is graded by the outcome of its own policy.
+export const offerTurns = (conversation, dependencies) => (next, reload) => {
+  const turnConversation = reload ? { ...openCaseConversation(next), conversationId: conversation.conversationId } : conversation
+  turnConversation.context = next.clientContext
+  return runOutcomeCase(next, { ...dependencies, conversation: turnConversation })
 }
 
 // promptfoo assertion: the outcome of one attempt of a launch corpus case, before any approval. A preview that the

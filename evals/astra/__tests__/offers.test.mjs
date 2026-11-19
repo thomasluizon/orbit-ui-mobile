@@ -18,7 +18,7 @@ const clientContext = { supportsParts: true, supportsProactiveOffers: true, loca
 function sample() {
   return { composition: { aiMessage: null, parts: [{ ...structuredClone(habitBlock), block: {
     ...structuredClone(habitBlock.block), items: [{ ...habitBlock.block.items[0], id: habitId }], read: structuredClone(read),
-  } }] }, trace: { calls: [] } }
+  } }] } }
 }
 const vars = { offerFamily: 'due-log', accountDate: today, clientContext,
   composition: { mode: 'data' }, fixtureEvidence: { habits: [{ id: habitId, isBadHabit: false, logs: [] }] } }
@@ -109,8 +109,12 @@ it('rejects a missing action, multiple offers, unrequested execution and unsuppo
   const multiple = sample()
   multiple.composition.parts.push(structuredClone(multiple.composition.parts[0]))
   expect(proactiveOffers(multiple, { vars }).pass).toBe(false)
-  const written = sample()
-  written.trace.calls.push({ name: 'log_habit', resultStatus: 'Succeeded' })
-  expect(proactiveOffers(written, { vars }).pass).toBe(false)
+  const prepared = sample()
+  prepared.composition.pendingOperations = [preview()]
+  expect(proactiveOffers(prepared, { vars })).toMatchObject({ pass: false, reason: 'A read answer prepared an unsolicited write.' })
+  // The turn shows a starting step that no person selected: the answer names no tool, so the block is the evidence.
+  const stepped = sample()
+  stepped.composition.parts.push({ type: 'block', kind: 'oneSmallStep', block: { read: { ...structuredClone(read), nextAction: null } } })
+  expect(proactiveOffers(stepped, { vars })).toMatchObject({ pass: false, reason: 'Unsolicited starting step shown.' })
   expect(proactiveOffers(sample(), { vars: { ...vars, clientContext: { ...clientContext, supportsProactiveOffers: false } } }).pass).toBe(false)
 })

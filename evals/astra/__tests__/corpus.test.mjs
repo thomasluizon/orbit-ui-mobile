@@ -3,7 +3,8 @@ import { expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { summarize } from '../report.mjs'
-import { TOOL_NAME_KEYS, gradedByOutcome, readCorpus } from '../grade-method.mjs'
+import { TOOL_NAME_KEYS, corpusTests, gradedByOutcome, readCorpus } from '../grade-method.mjs'
+import { configureOffers } from '../offer-context.mjs'
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
@@ -43,8 +44,7 @@ it.each([
       const { offerState: _selected, rubric: _grading, ...variant } = entry.vars
       expect(variant).toEqual(family === 'goal-on-track' && entry.vars.offerState === 'completed' ? {
         ...original, input: locale === 'en' ? 'Show my completed goals and their progress.' : 'Mostre minhas metas concluídas e o progresso delas.',
-        composition: { mode: 'data', kinds: ['goalList'] }, expectations: { allowed: ['query_goals'], required: [{ name: 'query_goals',
-          argumentsAnyOf: [{ status: 'Completed' }, { status: { optional: null }, include_completed: true }], resultStatus: 'Succeeded' }] },
+        composition: { mode: 'data', kinds: ['goalList'] },
       } : original)
     }
   }
@@ -107,13 +107,52 @@ it.each(firstGroupIds)('grades %s by its outcome and by no tool name', (id) => {
 })
 it('counts the cases of each outcome form', () => {
   const forms = Object.groupBy(everyCase.filter((entry) => gradedByOutcome(entry.vars)), (entry) => outcomeForm(entry.vars)[0])
-  expect(Object.fromEntries(Object.entries(forms).map(([form, entries]) => [form, entries.length]))).toEqual({ read: 74, changes: 19, question: 6, refusal: 4 })
+  expect(Object.fromEntries(Object.entries(forms).map(([form, entries]) => [form, entries.length]))).toEqual({ read: 114, changes: 49, question: 6, refusal: 4 })
 })
 it('gives each case one grade method', () => {
   for (const { metadata, vars } of everyCase) {
-    const toolNames = vars.expectations !== undefined || metadata.family.startsWith('offers-')
-    expect(gradedByOutcome(vars) !== toolNames, metadata.id).toBe(true)
+    expect(gradedByOutcome(vars) !== (vars.expectations !== undefined), metadata.id).toBe(true)
   }
+})
+// The offers: each case states its expected outcome and holds no tool-name grade, in the file and from the run. The run
+// adds nothing to a case (configureOffers), so the 36 cases that hold no expectation in the file still hold none.
+const offerCases = everyCase.filter((entry) => entry.metadata.family.startsWith('offers-'))
+const offerFamilySizes = { 'goal-on-track': 6, 'goal-behind': 4, 'goal-gap': 4, missed: 4, 'reminder-gap': 4 }
+const offerFamilies = Object.groupBy(offerCases, (entry) => entry.metadata.family.slice('offers-'.length))
+const toolNameKeys = (value) => heldKeys(value).filter((key) => key === 'expectations' || TOOL_NAME_KEYS.includes(key))
+
+it('keeps each case of the offers, in 29 families', () => {
+  expect(offerCases).toHaveLength(70)
+  expect(Object.keys(offerFamilies)).toHaveLength(29)
+  for (const [family, entries] of Object.entries(offerFamilies)) expect(entries, family).toHaveLength(offerFamilySizes[family] ?? 2)
+  for (const entries of Object.values(offerFamilies)) {
+    for (const locale of ['en', 'pt-BR']) expect(entries.some((entry) => entry.metadata.locale === locale)).toBe(true)
+  }
+})
+it.each(offerCases.map((entry) => entry.metadata.id))('grades %s by its outcome and by no tool name, in the file and from the run', (id) => {
+  const entry = structuredClone(offerCases.find((candidate) => candidate.metadata.id === id))
+  expect(gradedByOutcome(entry.vars)).toBe(true)
+  expect(outcomeForm(entry.vars)).toHaveLength(1)
+  expect(toolNameKeys(entry.vars)).toEqual([])
+  configureOffers(entry)
+  expect(toolNameKeys(entry.vars)).toEqual([])
+  expect(heldKeys(entry.vars.outcome).filter((key) => /Id$/u.test(key))).toEqual([])
+  expect(JSON.stringify(entry.vars.outcome)).not.toMatch(/\{(?:habitId|secondHabitId)\}|[0-9a-f]{8}-[0-9a-f]{4}-/u)
+  const test = corpusTests().find((candidate) => candidate.metadata.id === id)
+  expect(test.assert.map((assertion) => assertion.metric)).toEqual(['outcome', 'composition', 'proactiveOffers',
+    ...(entry.vars.rubric ? ['finalAnswer'] : [])])
+})
+it('gives the offers 30 write cases and 40 read cases, and a setup that states its outcome', () => {
+  expect(Object.fromEntries(Object.entries(Object.groupBy(offerCases, (entry) => outcomeForm(entry.vars)[0])).map(([form, entries]) => [form, entries.length])))
+    .toEqual({ changes: 30, read: 40 })
+  for (const { vars } of offerCases.filter((entry) => entry.vars.setup)) expect(outcomeForm(vars.setup)).toHaveLength(1)
+})
+it('runs no tool-name expectation of a case whose file holds none', () => {
+  const entry = structuredClone(offerCases.find((candidate) => candidate.metadata.id === 'offers-missed-en'))
+  expect(entry.vars.expectations).toBeUndefined()
+  configureOffers(entry)
+  expect(entry.vars.expectations).toBeUndefined()
+  expect(entry.vars.offerFamily).toBe('missed')
 })
 it('keeps the rubric of each case but a write case, whose held preview no model grades', () => {
   for (const { metadata, vars } of everyCase) expect(Boolean(vars.rubric), metadata.id).toBe(!vars.outcome?.changes)
