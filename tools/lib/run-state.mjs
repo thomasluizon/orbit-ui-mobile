@@ -194,7 +194,10 @@ export const acquireRelayLock = (repoRoot = REPO_ROOT, lockName = "orbit-relay-l
   occupied()
 }
 
-/** Each exact slot name can be claimed once, so no read-then-decide race can exceed the cap. */
+/**
+ * Each exact slot name can be claimed once, so no read-then-decide race can exceed the cap. A null
+ * cap claims the worktree only: a read-only review or proof holds no branch slot.
+ */
 export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   const directory = workerLaunchDirectory(repoRoot)
   try {
@@ -266,6 +269,7 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
     }
     if (!claimed) return { allowed: false, occupiedLauncherPid: null, earlierLaunches: [], recorded: false }
   }
+  if (cap === null) return { allowed: true, earlierLaunches: [], recorded: false }
   const branchKey = createHash("sha256").update(`${launch.repositoryKey}\0${launch.branch}`).digest("hex")
   const slotPaths = Array.from({ length: cap }, (_, index) => join(directory, `${branchKey}-slot-${index + 1}.json`))
   for (let index = 0; index < slotPaths.length; index++) {
