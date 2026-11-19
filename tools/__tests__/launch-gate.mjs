@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { launchGateStampPath, passLaunchGate } from "../lib/launch-gate.mjs"
-import { processStartIdentity } from "../lib/run-state.mjs"
+import { acquireRelayLock, processStartIdentity, RelayLockHeld } from "../lib/run-state.mjs"
 
 import { T, root, same } from "./_harness.mjs"
 
@@ -43,6 +43,9 @@ export const cases = async () => {
   // A live owner holds the lock: this test process itself, with its real start identity.
   const owner = join(held, ".git", "orbit-launch-gate-lock", "owner.json")
   writeFileSync(owner, JSON.stringify({ pid: process.pid, processStartIdentity: processStartIdentity(process.pid), claimId: "other launcher" }))
+  let refused = null
+  try { acquireRelayLock(held, "orbit-launch-gate-lock") } catch (error) { refused = error }
+  T(`${UNIT}: a lock that a live owner holds throws RelayLockHeld, the class that every waiting caller tests`, refused instanceof RelayLockHeld, String(refused))
   const waiting = machine([3])
   let released = false
   const blocked = passLaunchGate({ loadMax: 60, spacingSeconds: 0, repoRoot: held, ...waiting,

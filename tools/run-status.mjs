@@ -134,6 +134,9 @@ const validPull = (pull, number) => pull?.number === number &&
   pull.reviewThreads.nodes.every((thread) => thread && typeof thread.isResolved === "boolean" && Array.isArray(thread.comments?.nodes)) &&
   (pull.statusCheckRollup === null || (Array.isArray(pull.statusCheckRollup?.contexts?.nodes) && pull.statusCheckRollup.contexts.nodes.every((check) => check.__typename === "CheckRun" ? typeof check.name === "string" && typeof check.status === "string" : check.__typename === "StatusContext" && typeof check.context === "string" && typeof check.state === "string") && typeof pull.statusCheckRollup.contexts.pageInfo?.hasNextPage === "boolean"))
 
+/** What the merge bar reads from one repository snapshot. Every caller of `observePull` and `mergeBarOf` takes it from here, so one cannot omit a field. */
+const mergeBarContext = (repository, snapshot) => ({ slug: repository.slug, openBranches: snapshot.openBranches, defaultBranch: snapshot.defaultBranch, retiredBases: snapshot.retiredBases })
+
 /**
  * The merge bar of one open pull request, from the GitHub response alone. A fact that the response
  * does not confirm yields no action. A base that is the head of a merged or closed pull request gets
@@ -390,7 +393,7 @@ const coldStart = async ({ repoRoot, config, runner, authenticate, now, reads })
     const pull = snapshot.pulls[`pr${row.prNumber}`]
     const repository = repositories.find((entry) => entry.key === row.repositoryKey)
     const worktree = repository.worktrees.get(pull?.headRefName)
-    const observed = observePull({ ...row, worktree, commandRoot: repoRoot, slug: repository.slug, openBranches: snapshot.openBranches, defaultBranch: snapshot.defaultBranch, retiredBases: snapshot.retiredBases }, pull, [], wakes)
+    const observed = observePull({ ...row, worktree, commandRoot: repoRoot, ...mergeBarContext(repository, snapshot) }, pull, [], wakes)
     pullRequests.push({ ...observed.observation, issue: row.issue })
     if (!worktree && observed.actions.some((entry) => WORKTREE_ACTIONS.has(entry.type))) nextActions.push(createWorktreeAction(row, pull, repository.path))
     nextActions.push(...observed.actions)
@@ -466,13 +469,13 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
     const pull = snapshot.pulls[`pr${row.prNumber}`]
     const repository = repositories.find((entry) => entry.key === row.repositoryKey)
     const worktree = row.worktree ?? repository.worktrees.get(pull?.headRefName)
-    const observed = observePull({ ...row, worktree, commandRoot: repoRoot, slug: repository.slug, openBranches: snapshot.openBranches, defaultBranch: snapshot.defaultBranch, retiredBases: snapshot.retiredBases }, pull, launches, wakes)
+    const observed = observePull({ ...row, worktree, commandRoot: repoRoot, ...mergeBarContext(repository, snapshot) }, pull, launches, wakes)
     observations.push(observed.observation)
     nextActions.push(...observed.actions)
   }
   for (const [index, snapshot] of snapshots.entries()) {
     for (const pull of snapshot.ownerPulls) {
-      const bar = mergeBarOf(pull, { repositoryKey: snapshot.repositoryKey, slug: repositories[index].slug, openBranches: snapshot.openBranches, defaultBranch: snapshot.defaultBranch, retiredBases: snapshot.retiredBases })
+      const bar = mergeBarOf(pull, { repositoryKey: snapshot.repositoryKey, ...mergeBarContext(repositories[index], snapshot) })
       if (bar.action) nextActions.push(bar.action)
     }
   }

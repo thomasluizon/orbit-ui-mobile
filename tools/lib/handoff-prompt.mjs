@@ -102,7 +102,7 @@ export const relayDocumentOversize = (path, text) => {
 const LOCAL_REFERENCES = [
   ["a scratchpad file", /(?:^|[^\w-])scratchpad\/|\.claude-tmp\/|^Scratchpad:/im],
   ["an `S` file reference", /(?:^|[\s`(|])S [\w.-]+\.(?:md|mjs|js|sh|json|txt|log|ndjson)\b/m],
-  ["a system temporary directory path",/\/private\/(?:tmp|var)\b|\/var\/folders\//],
+  ["a system temporary directory path", /\/private\/(?:tmp|var)\b|\/var\/folders\//],
   ["the old run carry directory", new RegExp("\\.orbit-" + "run-carry\\b")],
   ["a home directory path", /\/Users\/[^/\s`]+\/|(?:^|[\s'"`=(])\/home\/[^/\s`]+\/|[A-Za-z]:\\+Users\\|(?:^|[\s'"`=(])~\/|\$HOME\b|\$\{HOME\}/m],
 ]

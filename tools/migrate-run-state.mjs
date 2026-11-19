@@ -9,7 +9,7 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { addComment, createRunRecord, findRunRecord } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { runFiles } from "./lib/run-files.mjs"
-import { MANIFEST_KINDS, migrateRunState } from "./lib/run-migration.mjs"
+import { ManifestError, MANIFEST_KINDS, migrateRunState } from "./lib/run-migration.mjs"
 import { REPO_ROOT, runStatePath, updateRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: migrate-run-state.mjs [--apply] [--manifest <file>] [--run-state <file>]
@@ -31,7 +31,9 @@ const USAGE = `usage: migrate-run-state.mjs [--apply] [--manifest <file>] [--run
                       run-state/intake.json in the tickets repository (a mark already there wins), post every
                       manifest item (a note to its ticket or the run record, a body to its pull request, a
                       reply through tools/resolve-bot-thread.mjs), then clear the intake marks of the local run
-                      record so nothing carries them again
+                      record so nothing carries them again. Each posted item is recorded in
+                      run-state/migration.json as it posts, so a rerun after a failure posts only the items that
+                      did not post
   --help, -h          print this usage and exit 0
 
 Prints one JSON object: apply, runRecord, intake, items, and with --apply the items posted.
@@ -73,7 +75,7 @@ if (!Array.isArray(manifest)) fail(2, "migrate-run-state: the manifest must be a
 let config
 try { config = readOrchestratorConfig() } catch (error) { fail(2, error.message) }
 const repositoryOf = (key) => {
-  if (typeof config.repos[key] !== "string") throw new Error(`unknown repo key ${key}`)
+  if (typeof config.repos[key] !== "string") throw new ManifestError(`unknown repo key ${key}`)
   return { path: config.repos[key], slug: configuredRepositorySlug(config.repos[key], repositorySlug(REPO_ROOT).split("/")[0]) }
 }
 const runChild = async (file, args, { input, environment }) => {
@@ -95,12 +97,17 @@ const actions = {
   },
 }
 
+// An unknown repo key stops here, before the first write, as an invalid manifest item.
+try {
+  for (const item of manifest) if (typeof item?.repo === "string") repositoryOf(item.repo)
+} catch (error) {
+  fail(error instanceof ManifestError ? 2 : 1, `migrate-run-state: ${redactSecrets(error.message)}`)
+}
 let result
 try {
   result = await migrateRunState({ localIntake: runState?.intake ?? {}, manifest, apply: options.apply, actions, store: runFiles() })
 } catch (error) {
-  const invalid = /manifest kind|needs|must be|is empty|only a decision|run note|VERDICT|ENOENT/.test(error.message)
-  fail(invalid ? 2 : 1, `migrate-run-state: ${redactSecrets(error.message)}`)
+  fail(error instanceof ManifestError ? 2 : 1, `migrate-run-state: ${redactSecrets(error.message)}`)
 }
 if (options.apply && runState?.intake !== undefined) {
   // The marks now live on GitHub. A same-session write inherits the old key, so null replaces it instead of a delete.

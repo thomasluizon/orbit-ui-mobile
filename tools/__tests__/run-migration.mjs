@@ -3,7 +3,7 @@ import { join } from "node:path"
 
 import { intakeSource, readIntake } from "../lib/auto-work-intake.mjs"
 import { runFiles } from "../lib/run-files.mjs"
-import { mergeIntake, migrateRunState, planItem } from "../lib/run-migration.mjs"
+import { ManifestError, mergeIntake, migrateRunState, planItem } from "../lib/run-migration.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
 import { unseenMailIds } from "../orbit-mail.mjs"
 import { importPlayReviews, PLAY_PACKAGES } from "../orbit-play-reviews.mjs"
@@ -60,14 +60,17 @@ const planCases = () => {
     ["an unknown kind", { kind: "note", file: "round.md" }, /manifest kind/],
     ["a review without a verdict", { kind: "review", file: "round.md", issue: 2152, head: HEAD }, /VERDICT/],
     ["an empty file", { kind: "decision", file: "empty.md", issue: 2152 }, /is empty/],
-    ["a missing file", { kind: "decision", file: "gone.md", issue: 2152 }, /ENOENT/],
+    ["a missing file", { kind: "decision", file: "gone.md", issue: 2152 }, /gone\.md cannot be read: ENOENT/],
+    ["a round note without its head", { kind: "round-note", file: "round.md", issue: 2152, round: 2 }, /round note needs --head/],
+    ["a pull request number that is not positive", { kind: "body", file: "body.md", repo: "ui", pr: 0 }, /pr must be a positive integer/],
     ["a reply without its thread", { kind: "reply", file: "body.md", repo: "ui", pr: 2486 }, /PRRT_/],
     ["a review sent to the run record", { kind: "review", file: "review.md", head: HEAD, runRecord: true }, /only a decision/],
     ["a note without its ticket", { kind: "decision", file: "round.md" }, /issue must be a positive integer/],
   ]) {
     let error = null
-    try { planItem(item, { readText }) } catch (caught) { error = caught.message }
-    T(`${UNIT}: ${label} is refused before any write`, message.test(error ?? ""), error)
+    try { planItem(item, { readText }) } catch (caught) { error = caught }
+    T(`${UNIT}: ${label} is refused before any write`, message.test(error?.message ?? ""), error?.message)
+    T(`${UNIT}: ${label} throws a ManifestError, the structured input of the exit code`, error instanceof ManifestError, String(error?.constructor?.name))
   }
 }
 
@@ -130,8 +133,38 @@ const migrationCases = async () => {
   T(`${UNIT}: one invalid item stops the migration before any write`, /VERDICT/.test(refusal ?? "") && invalid.writes.length === 0, JSON.stringify({ refusal, writes: invalid.writes }))
 }
 
+const rerunCases = async () => {
+  const directory = join(root, "run-migration", "rerun")
+  mkdirSync(directory, { recursive: true })
+  for (const [name, text] of [["one.md", "First decision.\n"], ["two.md", "Second decision.\n"], ["three.md", "Third decision.\n"]]) writeFileSync(join(directory, name), text)
+  const manifest = ["one", "two", "three"].map((name) => ({ kind: "decision", file: join(directory, `${name}.md`), issue: 2152 }))
+  const checkout = checkoutOf("rerun")
+  const store = runFiles(checkout)
+  const posted = []
+  let failSecond = true
+  const actions = { ...recordingActions().actions, postComment: async (number, body) => {
+    if (failSecond && posted.length === 1) throw new Error("gh issue comment failed: needs a token")
+    posted.push([number, body])
+  } }
+  let failure = null
+  try { await migrateRunState({ localIntake: LOCAL_INTAKE, manifest, apply: true, actions, store }) } catch (error) { failure = error }
+  T(`${UNIT}: a GitHub write that fails midway is not a ManifestError`, failure !== null && !(failure instanceof ManifestError) && /needs a token/.test(failure.message), String(failure))
+  same(`${UNIT}: the failed run posted the first item only`, posted.map(([, body]) => /First/.test(body)), [true])
+  failSecond = false
+  const dry = await migrateRunState({ localIntake: LOCAL_INTAKE, manifest, actions, store })
+  same(`${UNIT}: a dry run after the failure names the item that already posted`, dry.items.map((item) => item.alreadyPosted), [true, false, false])
+  const rerun = await migrateRunState({ localIntake: LOCAL_INTAKE, manifest, apply: true, actions, store })
+  same(`${UNIT}: the rerun posts only the two items that did not post`, rerun.posted.map((item) => item.file.split("/").pop()), ["two.md", "three.md"])
+  same(`${UNIT}: each item is posted exactly once across both runs`, posted.map(([, body]) => /(First|Second|Third) decision\./.exec(body)?.[1]), ["First", "Second", "Third"])
+  const third = await migrateRunState({ localIntake: LOCAL_INTAKE, manifest, apply: true, actions, store })
+  T(`${UNIT}: a third run posts nothing`, third.posted.length === 0 && posted.length === 3, JSON.stringify(third.posted))
+  const record = readFileSync(join(checkout, ".git", "orbit-test-run-files", "run-state", "migration.json"), "utf8")
+  T(`${UNIT}: the record of posted items names no local file`, !record.includes(directory) && Object.keys(JSON.parse(record).posted).length === 3, record)
+}
+
 export const cases = async () => {
   mergeCases()
   planCases()
   await migrationCases()
+  await rerunCases()
 }

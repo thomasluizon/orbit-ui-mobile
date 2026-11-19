@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { loadavg } from "node:os"
 import { join } from "node:path"
 
-import { acquireRelayLock, gitDirectoryOf, REPO_ROOT } from "./run-state.mjs"
+import { acquireRelayLock, gitDirectoryOf, RelayLockHeld, REPO_ROOT } from "./run-state.mjs"
 
 const LOCK_NAME = "orbit-launch-gate-lock"
 const LAUNCH_GATE_POLL_MS = 5000
@@ -32,7 +32,7 @@ const claimLock = (repoRoot) => {
   try {
     return acquireRelayLock(repoRoot, LOCK_NAME)
   } catch (error) {
-    if (String(error.message).startsWith("EEXIST")) return null
+    if (error instanceof RelayLockHeld) return null
     throw error
   }
 }
