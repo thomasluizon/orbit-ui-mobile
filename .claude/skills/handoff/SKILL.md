@@ -407,7 +407,10 @@ when the branch needs a merge, since Git refuses a merge over a changed index.
 **Always commit both files, by path, in their own commit**, whatever else is in the tree:
 `git commit -- .claude/specs/<slug>.md .claude/handoffs/NEXT.md`. A pathspec commit takes only
 those two, so unrelated work is untouched and nothing has to be stashed. Push if the branch has a
-remote. If a hook rejects the commit, fix what it names and commit again; never bypass it and never
+remote. Never write a GitHub skip instruction into the message: a squash merge copies every commit
+message to `main`, and the marker would stop the `main` push workflows that a release requires. A
+pull request whose whole diff is `.claude/handoffs/NEXT.md` and specs skips the tool test shards
+through the `PR Tests` plan job. If a hook rejects the commit, fix what it names and commit again; never bypass it and never
 leave the files uncommitted.
 
 Leaving them staged hands nothing over. A staged file lives in one worktree's index, so a session

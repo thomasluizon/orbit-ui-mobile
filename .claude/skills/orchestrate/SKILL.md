@@ -154,15 +154,16 @@ no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detail
                      left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
                      A SALVAGED PR RE-ENTERS HERE and runs 7, 8 and 9 like any other.
  8  CLEAR PULLFROG   Pullfrog reviews only on request. The request goes out at the push, beside CI.
-                     LOCAL REVIEW before every push: review-and-audit.md rule 14
+                     LOCAL REVIEW before every push: review-and-audit.md rule 14, two passes, no third
                      node tools/list-bot-threads.mjs --pr <n> --repo <key> -> threads[] AND reviewBody
                      then wait-ci --require-check pullfrog-approval in the background
-                     FIX every finding that breaks behaviour, security or data integrity
-                     FILE every other finding as an orbit-tickets issue
+                     FIX every BLOCKING finding: a failing probe against the acceptance, or a
+                     regression this pull request made
+                     FILE every NOTE one time as an orbit-tickets issue; fix a false body line yourself
                      REPLY AND RESOLVE every thread you filed, with resolve-bot-thread.mjs
                      resolve FIRST, then local review, then push. Right after the push, the
                      same command asks for the re-review of both together.
-                     bound: caps.reviewFixAttempts commits
+                     bound: caps.reviewFixAttempts fix rounds, local and Pullfrog, in fix-rounds.mjs
  9  READINESS LOOP   wait CI, the review verdict admissible on that base included · fix genuine
                      failures · merge main into branch when behind · rerun invalidated receipts
                      · synchronize the ticket
@@ -191,13 +192,14 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format mar
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--layout-guard] [--review-batch] [--cloud]
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>] [--fix-round <local|pullfrog> [--design-change <file>]]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
 node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
 node tools/materialize-cloud-result.mjs --receipt <f> [--allow-abandoned]
 node tools/verify-delivery.mjs   --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>]
+node tools/fix-rounds.mjs        --worktree <p> [--record <local|pullfrog> [--design-change <file>]]
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--head <sha>] [--wait-seconds <s>]
 node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key> --pr <number>   # reply body on stdin
 node tools/salvage-worker.mjs    --issue "<ticket-ref>" --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
@@ -569,16 +571,18 @@ server, emulator or Playwright command. The worker never runs the guard; the `La
 
 1. The ticket body VERBATIM plus every chronological comment.
 2. **The orchestrator's brief:** target repo and its absolute path, the branch already checked out,
-   the base branch, the affected-file list from step 2, and the scope boundary as a hard limit.
-3. **The mode-specific finishing contract:** compile and run focused tests; commit before broader
-   verification. Local workers then push and open or update exactly one non-draft PR against the
+   the base branch, the affected-file list from step 2, and the scope boundary as a hard limit. It
+   asks for the focused checks of the change only (`vitest related`, `test-tools.mjs --only`, the
+   type check and the lint); CI runs every full suite.
+3. **The mode-specific finishing contract:** compile and run the focused tests of each piece, then
+   commit. Local workers then push and open or update exactly one non-draft PR against the
    supplied base branch, linking the ticket. They report the URL and tests and stop without polling
    CI. The orchestrator owns CI waiting, review fixes and final readiness verification.
    Cross-platform parity and i18n key parity land in the same commit.
    **The worker never merges and never opens a second PR.**
 
-For a local review-fix worker, add `--review-batch` to the compose command. Its order stops after
-the broader suite and a tested commit. The worker reports the commit SHA and test results without
+For a local review-fix worker, add `--review-batch` to the compose command, and launch it with
+`--fix-round <local|pullfrog>`. Its order stops after the focused tests and a tested commit. The worker reports the commit SHA and test results without
 pushing or updating the pull request. The orchestrator replies to and resolves the batch's threads,
 runs the local review of step 8, pushes once, and asks for the review right after that push.
 
@@ -592,7 +596,7 @@ The Cloud contract leads with the commit requirement and its consequence, before
 
 > Commit the implementation. Without a commit there is no diff and the work is lost.
 
-Then edit, compile, run focused tests and commit named paths before broader verification. A hook
+Then edit, compile, run focused tests and commit named paths. CI runs every full suite, so run no broader suite. A hook
 failure is reported with its exact output; never bypass hooks or change baselines to force a commit.
 Never push, create a branch or open a PR from Cloud. Report the commit and tests and stop without
 polling CI. The orchestrator materializes and delivers the change locally and owns CI waiting.
@@ -736,7 +740,7 @@ a non-empty remote diff keeps the task unresolved.
 ### Local execution
 
 ```bash
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>] [--fix-round <local|pullfrog> [--design-change <file>]]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 ```
 
@@ -778,7 +782,9 @@ worker and consumes no branch launch. Work on an existing pull request or wait o
 deliberate launch beyond that cap passes `--relaunch-reason "<concrete reason this additional order
 is necessary>"`. Name the new evidence or changed work that makes the launch necessary, never a
 generic retry. The reason is recorded beside the launch; it does not bypass, reset or clear the
-ledger. A capped launch without that concrete reason must fail.
+ledger. A capped launch without that concrete reason must fail. The reason never passes the fix
+round cap of step 8: a review fix worker launches with `--fix-round`, and at the
+`caps.reviewFixAttempts` cap only `--design-change <file>` allows one more round.
 
 The orchestrator launches it as a **background shell task and ends its turn.** Zero tokens burn
 while the worker runs, and the process exiting is what wakes the session.
@@ -1035,12 +1041,20 @@ clears `pullfrog-approval`.
 A body finding you FIX needs none of this. The fix moves the head, and the request right after that
 push asks for its review.
 
-**Split every unresolved finding two ways, and act on both halves:**
+**Split every unresolved finding two ways, and act on both halves.** The bar is the one
+`review-and-audit.md` rule 14 sets for the local review:
 
-- **FIX it in this pull request** when it breaks behaviour, security or data integrity. Such a
-  finding is never closed by a ticket.
-- **FILE it as an `orbit-tickets` issue** otherwise, name that issue in the reply, and drop it from
-  this run.
+- **FIX it in this pull request** when it is BLOCKING: it has a failing probe against the acceptance
+  of the ticket, or it is a regression that this pull request made (behaviour, security or data
+  integrity that passed on `main` or on the earlier head). Such a finding is never closed by a ticket.
+- **FILE it** otherwise, as a NOTE: file its class one time on the ticket that owns the area, or as
+  a new `orbit-tickets` issue when no ticket owns it, name that ticket in the reply, and drop it
+  from this run. File a security NOTE as a `Bug`. One class gets one ticket, never one for each member.
+- **A false statement in the body or a reply is yours to correct, and it starts no round.** Correct
+  the body with `gh pr edit <n> --body-file <file>`, answer its thread with
+  `resolve-bot-thread.mjs`, and re-adjudicate the same head with `--re-review` as above. The body
+  evidence comes from command output (the command, the exit code, the counts and the SHA), so a
+  reply is "fixed in `<sha>`, test `<name>`" and never a new claim.
 
 ### Compose one review batch
 
@@ -1060,12 +1074,15 @@ must preserve. Never launch one worker per finding. A later accepted review afte
 is a new batch and may launch one new worker.
 
 Either path allows one commit at most. Keep every filed-ticket disposition and test every fix. Only
-the batch's single commit spends one `caps.reviewFixAttempts` attempt; a batch that writes no commit
-spends nothing. If the batch has only FILE or not-applicable findings, perform their existing reply,
+the batch's single commit spends one `caps.reviewFixAttempts` round; a batch that writes no commit
+spends nothing. A worker batch claims it at launch (`launch-worker.mjs --fix-round pullfrog`), and
+the launcher gives it back when the launch ends with no commit, so the relaunch of that order spends
+the same round; a fix the orchestrator writes spends it with `node tools/fix-rounds.mjs --worktree <p> --record
+pullfrog` before its commit. If the batch has only FILE or not-applicable findings, perform their existing reply,
 resolve and same-head re-review transitions without launching a worker or inventing a commit.
 
 When the batch needs a worker, compose its order with `--review-batch`. The worker commits, runs the
-broader suite, reports the commit SHA and stops without pushing. **Its final report is the batch's
+focused tests of its change, reports the commit SHA and stops without pushing. **Its final report is the batch's
 handoff, and the orchestrator consumes it before anything else.** Read the report's
 `## Test evidence`, `## Assumptions` and `## Manual steps` sections and any `NEEDS_DECISION` line at the step 7
 worker-exit gate, adjudicate the assumptions there exactly as for an initial worker, and write every
@@ -1142,10 +1159,18 @@ After the push, re-run `node tools/verify-delivery.mjs`. The fix moved the head,
 `DELIVERED` is stale until this re-runs. `DELIVERED` continues; `STALE_PR` means the push did not
 land.
 
-**Count at most one review fix attempt for the single batched commit that answers a Pullfrog pass,
-and never exceed
-the positive `caps.reviewFixAttempts` value from `.claude/orchestrator.json` (currently 3).** A
-Pullfrog pass that still blocks after that bound is a named exhausted-fixer blocker, never a clean
+**Every fix round of a pull request, local and Pullfrog, spends one round of the positive
+`caps.reviewFixAttempts` value from `.claude/orchestrator.json` (currently 3), and
+`tools/fix-rounds.mjs` keeps the count.** The ledger lives in the git directory of the worktree,
+one count for each branch. A review batch order from `compose-prompt.mjs --review-batch` carries a
+marker, and `launch-worker.mjs` refuses it without `--fix-round`. At the cap, both tools refuse the
+next round and `--relaunch-reason` does not pass them. Then decide one of these and write it down:
+
+1. Push the head that meets the acceptance, and file the rest as NOTE tickets.
+2. Write one design change (one rule that closes the class, or a smaller scope) to a scratchpad file,
+   and pass it as `--design-change <file>`. One file allows one round.
+
+A Pullfrog pass that still blocks after that is a named exhausted-fixer blocker, never a clean
 handoff.
 
 **Why a bound at all.** PR #672 ran 9 review rounds over 38 hours and produced 19 findings: 19
@@ -1424,7 +1449,8 @@ owner action.
 **Read the launch JSON's `account` before acting on `authenticationFailed: true`.** When it is
 `worker`, start no further launch on the worker account. Relaunch that order, and every later one,
 in single-account mode by prefixing the launch command with `ORBIT_WORKER_CLAUDE_CONFIG_DIR=`, with
-`--relaunch-reason` when the branch ledger needs it. Record `resultError` in the handoff inventory
+`--relaunch-reason` when the branch ledger needs it. A review batch order passes `--fix-round`
+again: a launch that wrote no commit gave its round back. Record `resultError` in the handoff inventory
 and the step 11 report, with the owner's fix: remove the export from the shell profile. When it is
 `main` (single-account mode, or a fallback relaunch that failed sign-in), no account can run a
 worker: start no further launch and never relaunch on that account. Record `resultError` with the
