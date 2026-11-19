@@ -473,30 +473,41 @@ it.each([
     reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
 })
 
-// A title word names the records ("the same-title habits"); it never asks for an action. So a question that names only a
-// deletion and calls the records by their title reaches the both-actions reading, and the grader never reads the title
-// word as the asked rename: the case reports a grader limit.
+// A title word can name the records ("the same-title habits", "the title Water - 710ml", "this title") or ask a retitle,
+// and the two use the same words. So the grader never reads a title word at or before the asked action, whatever word
+// joins it: the case reports a grader limit.
 it.each([
   ['en', 'Which of the same-title habits should I delete?'],
   ['en', 'Which ones with the same title should I delete?'],
   ['en', 'Which of these same-title duplicates do I remove?'],
   ['en', 'Which of the six records sharing this title should I delete?'],
+  ['en', 'Which habits with the title Water - 710ml should I delete?'],
+  ['en', 'Which of the habits with this title should I delete?'],
+  ['en', 'Which ones with that title should I remove?'],
+  ['en', 'Which of the six with this title do I delete?'],
+  ['en', 'Which of the duplicate-title habits should I delete?'],
+  ['en', 'Which of the matching-title records should I delete?'],
+  ['en', 'Which of the identical-title habits should I remove?'],
+  ['en', 'Which ones under the title Water - 710ml should I delete?'],
+  ['en', 'Which four should get the new title, and which two should I delete?'],
+  ['en', 'Which four get the title Water - 1.18L, and which two should I delete?'],
   ['pt-BR', 'Quais dos seis hábitos com o mesmo título devo apagar?'],
   ['pt-BR', 'Quais registros de mesmo título eu excluo?'],
+  ['pt-BR', 'Quais dos hábitos com o título Water - 710ml devo apagar?'],
+  ['pt-BR', 'Quais dos seis com esse título eu excluo?'],
+  ['pt-BR', 'Quais registros com título repetido devo apagar?'],
+  ['pt-BR', 'Quais dos hábitos de título igual eu apago?'],
+  ['pt-BR', 'Quais quatro ficam com o título Water - 1.18L e quais dois eu apago?'],
 ])('reports a grader limit for a %s question whose title word comes before the action it asks about: %s', (locale, prompt) => {
   expect(sameTitleCard(shown(completedRecordsCard(prompt, locale)), cardVars(ids, locale))).toEqual({ pass: false, score: 0,
     reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
 })
 
-// A title word that no record-naming word joins asks for the retitle, so a question that asks the retitle first is read
-// as the rename, as it was before the title word of the records ("same title") was told apart from it.
+// A title word after the asked deletion cannot decide the half, so a question that asks the deletion first stays answered.
 it.each([
-  ['en', 'Which four should get the new title, and which two should I delete?', renamedHalf],
-  ['en', 'Which four get the title Water - 1.18L, and which two should I delete?', renamedHalf],
   ['en', 'Which two should I delete, and which four should get the title Water - 1.18L?', deletedHalf],
-  ['pt-BR', 'Quais quatro ficam com o título Water - 1.18L e quais dois eu apago?', renamedHalf],
   ['pt-BR', 'Quais dois eu apago e quais quatro ficam com o título Water - 1.18L?', deletedHalf],
-])('answers a %s question that asks the retitle by a title word beside the deletion: %s', async (locale, prompt, half) => {
+])('answers a %s question that asks the deletion before a title word: %s', async (locale, prompt, half) => {
   const card = completedRecordsCard(prompt, locale)
   const answer = sameTitleCard(shown(card), cardVars(ids, locale))
   expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
