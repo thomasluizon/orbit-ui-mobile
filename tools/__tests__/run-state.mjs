@@ -595,3 +595,8 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
   T(`${TOOL}: a real launcher refuses an unrecordable worktree claim`, unsafeAdmission.allowed === false,
     JSON.stringify(unsafeAdmission))
 }
+
+/** No formatter covers tools/, so a merge that drops a space after an assignment stays unless a test reads the source. */
+const runStateSource = readFileSync(join(TOOLS_DIR, TOOL), "utf8")
+const unspacedAssignments = [...runStateSource.matchAll(/^(?:export )?const \w+ =\S.*$/gm)].map((match) => match[0])
+T(`${TOOL}: every top-level const has a space after its =`, unspacedAssignments.length === 0, JSON.stringify(unspacedAssignments))

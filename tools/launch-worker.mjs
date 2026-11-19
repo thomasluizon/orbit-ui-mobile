@@ -12,7 +12,7 @@ import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, clearWorkerLaunchReservation, processStartIdentity, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, relayIsRunning, workerCompletionFile } from "./lib/run-state.mjs"
+import { clearWakeSource, clearWorkerLaunchReservation, FIX_ROUND_KINDS, fixRoundRefusal, fixRoundRefusalReason, processStartIdentity, readDesignChange, readFixRounds, recordFixRound, recordReservedWorkerPid, registerWakeSource, releaseFixRound, relayIsRunning, reserveWorkerLaunch, readRunState, REVIEW_BATCH_ORDER_MARKER, workerCompletionFile } from "./lib/run-state.mjs"
 import { followDetached, settleSupervised, startOrphaned, supervisionPaths } from "./lib/detached-launch.mjs"
 import { checkoutIdentity, resolveOnPath } from "./lib/cloud-worker.mjs"
 
@@ -40,6 +40,14 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      worker profile for this order (default: default)
   --relaunch-reason <text>
                      deliberate reason for launching after this branch reaches its configured cap
+  --fix-round <local|pullfrog>
+                     this order answers a review: claim the next caps.reviewFixAttempts round of
+                     the branch in the fix-rounds.mjs ledger. A launch that ends with no commit
+                     gives the round back, so its relaunch spends the same round. Required for an
+                     order that compose-prompt.mjs --review-batch wrote. --relaunch-reason never
+                     passes this cap
+  --design-change <file>
+                     the written design change that allows one fix round above caps.reviewFixAttempts
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing. The plan names
                      account and configDirectory, the account a claude worker runs under
   --help, -h         print this usage and exit 0
@@ -68,6 +76,7 @@ exitCode, outcome, authenticationFailed and resultError. It publishes only a non
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
             2 usage or config error, including a worker account directory that does not exist,
+              a launch cap or a fix round cap that is reached,
             3 the worker executable could not be resolved,
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
             8 admission refused new ticket work before reservation,
@@ -100,6 +109,8 @@ const hardCeilingArg = argOf("--hard-ceiling-minutes")
 const tierValue = argOf("--tier")
 const tierArgument = tierValue ?? "default"
 const relaunchReasonArgument = argOf("--relaunch-reason")
+const fixRoundArgument = argOf("--fix-round")
+const designChangeArgument = argOf("--design-change")
 const measurement = process.argv.includes("--measurement")
 const dryRun = process.argv.includes("--dry-run")
 
@@ -108,6 +119,12 @@ if ((process.argv.includes("--tier") && typeof tierValue !== "string") || !new S
 }
 if (process.argv.includes("--relaunch-reason") && (typeof relaunchReasonArgument !== "string" || relaunchReasonArgument.startsWith("--") || relaunchReasonArgument.trim() === "")) {
   fail(2, `${USAGE}\n\n--relaunch-reason must be non-empty text`)
+}
+if (process.argv.includes("--fix-round") && !FIX_ROUND_KINDS.includes(fixRoundArgument)) {
+  fail(2, `${USAGE}\n\n--fix-round must be ${FIX_ROUND_KINDS.join(" or ")}, got "${fixRoundArgument}"`)
+}
+if (process.argv.includes("--design-change") && (fixRoundArgument === null || typeof designChangeArgument !== "string" || designChangeArgument.startsWith("--"))) {
+  fail(2, `${USAGE}\n\n--design-change <file> requires --fix-round`)
 }
 
 let researchPlan = null
@@ -121,7 +138,7 @@ if (research) {
   try { researchPlan = researchPaths(orderArgument, outputArgument) } catch (error) { fail(2, error.message) }
 } else {
   if (orderArgument !== null || outputArgument !== null) fail(2, "--order and --out require --research")
-  const valueFlags = new Set(["--issue", "--worktree", "--prompt", "--hard-ceiling-minutes", "--tier", "--relaunch-reason"])
+  const valueFlags = new Set(["--issue", "--worktree", "--prompt", "--hard-ceiling-minutes", "--tier", "--relaunch-reason", "--fix-round", "--design-change"])
   const switches = new Set(["--measurement", "--dry-run"])
   for (let index = 2; index < process.argv.length; index++) {
     const flag = process.argv[index]
@@ -230,6 +247,21 @@ if (!research && !branch) fail(2, `${runDirectory} is not a git worktree`)
 /** Where the worker starts from, so a kill can report what the run added rather than make the
  * orchestrator re-derive it from git on every exit. */
 const startHead = gitIn(["rev-parse", "HEAD"])
+let designChange = null
+if (designChangeArgument !== null) {
+  try { designChange = readDesignChange(designChangeArgument) } catch (error) { fail(2, error.message) }
+}
+if (!research && fixRoundArgument === null && readFileSync(promptFile, "utf8").includes(REVIEW_BATCH_ORDER_MARKER)) {
+  fail(2, `${promptFile} is a review batch order, which is a fix round: pass --fix-round <local|pullfrog>`)
+}
+const fixRoundContext = { cap: config.caps.reviewFixAttempts, branch, designChange }
+/** Read before the launch slot is claimed, so a refused fix round never spends a launch. */
+const fixRoundsSpent = fixRoundArgument === null ? [] : readFixRounds(branch, runDirectory)
+const earlyFixRoundRefusal = fixRoundArgument === null ? null : fixRoundRefusal(fixRoundsSpent, config.caps.reviewFixAttempts, designChange)
+if (earlyFixRoundRefusal !== null) {
+  const nextStep = earlyFixRoundRefusal.spentBy ? "write the next design change in a new file" : "push the head that meets the acceptance and file the rest, or pass --design-change <file>"
+  fail(2, `${fixRoundRefusalReason(earlyFixRoundRefusal, fixRoundContext)} (node tools/fix-rounds.mjs --worktree ${runDirectory} lists them). --relaunch-reason does not pass it: ${nextStep}.`)
+}
 const engineName = config.worker
 const engine = config.workers[engineName]
 if (!engine.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
@@ -341,7 +373,8 @@ if (research) {
 }
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue: research ? null : issue, research, outputFile: researchPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
+  const fixRound = fixRoundArgument === null ? null : { kind: fixRoundArgument, number: fixRoundsSpent.length + 1, cap: config.caps.reviewFixAttempts, designChange }
+  console.log(JSON.stringify({ issue: research ? null : issue, research, outputFile: researchPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, fixRound, dryRun: true }, null, 2))
   process.exit(0)
 }
 
@@ -406,6 +439,21 @@ if (!reservation.allowed) {
   const earlier = reservation.earlierLaunches.map((launch, index) =>
     `  ${index + 1}. ${launch.timestamp} tier=${launch.tier} head=${launch.headSha}`).join("\n")
   fail(2, `worker launch cap ${config.caps.workerLaunchesPerBranch} reached for ${repositoryKey} branch ${branch}. Earlier launches:\n${earlier}\nPass --relaunch-reason "<text>" to record and allow another launch.`)
+}
+if (fixRoundArgument !== null) {
+  const fixRound = recordFixRound({ branch, kind: fixRoundArgument, headSha: startHead, timestamp, designChange, issue }, config.caps.reviewFixAttempts, runDirectory)
+  if (!fixRound.allowed) {
+    clearWorkerLaunchReservation(process.pid, runDirectory)
+    fail(2, `${fixRoundRefusalReason(fixRound.refusal, fixRoundContext)}, while this launch started; --relaunch-reason does not pass it`)
+  }
+  console.error(`${issue} spends fix round ${fixRound.number} of ${config.caps.reviewFixAttempts} on ${branch}`)
+  // Only a commit spends the round. A launch that ends with no commit gives the round back on every exit path, so the
+  // relaunch of that order spends the same round. A count that git cannot read keeps the round.
+  process.on("exit", () => {
+    if (startHead === "" || gitIn(["rev-list", "--count", `${startHead}..HEAD`]) !== "0") return
+    releaseFixRound(branch, fixRound.number, runDirectory)
+    console.error(`${issue} wrote no commit: fix round ${fixRound.number} on ${branch} is not spent`)
+  })
 }
 
 const accountLabel = (account) => account === null ? "" : ` on the ${account.name} account${account.configDirectory === null ? " (default Claude config)" : ` (${account.configDirectory})`}`

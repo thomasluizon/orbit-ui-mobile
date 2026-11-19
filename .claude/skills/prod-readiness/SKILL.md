@@ -403,7 +403,7 @@ set, not sweep-deletable code.
 npm run build`, then regenerate the map twice and confirm the two runs are
 byte-identical, which is what the `Architecture map drift` CI check asserts. Commit NOTHING from
 the map: its three artifacts are gitignored (#470). If `tools/arch-map.mjs` itself was edited, also
-run `node tools/test-tools.mjs`. Open at most ONE `chore(arch)` PR, opened never merged, reviewed
+run `node tools/test-tools.mjs --only arch-map`. Open at most ONE `chore(arch)` PR, opened never merged, reviewed
 by Pullfrog like everything else.
 
 **Holdback rule, same as Phase 2b.** Anything that cannot land (ambiguous liveness, a move that

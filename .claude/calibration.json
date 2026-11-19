@@ -228,8 +228,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "39e4428678a3e17d",
-      "calibratedAt": "2026-11-18",
+      "digest": "c7e609dac46b1954",
+      "calibratedAt": "2026-11-19",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -270,15 +270,15 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "d14493a29594d5e1",
+      "digest": "da849b351000b043",
       "calibratedAt": "2026-11-19",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "0ee56c735f815bce",
-      "calibratedAt": "2026-11-15",
+      "digest": "3295660407f385cd",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },
     ".claude/skills/progress/SKILL.md": {
@@ -312,8 +312,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "8981b0ff9dd8895e",
-      "calibratedAt": "2026-11-18",
+      "digest": "2aad899ef8ba5691",
+      "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {

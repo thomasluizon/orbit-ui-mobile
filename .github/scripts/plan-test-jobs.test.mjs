@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -59,8 +59,39 @@ test("a push or a dispatch runs every scope without a changed path list", () => 
   for (const event of ["push", "workflow_dispatch"]) {
     const { status, outputs } = plan({ event, changedFile: false })
     assert.equal(status, 0, event)
-    assert.deepEqual([outputs.web, outputs["type-check"], outputs.lint], ["true", "true", "true"], event)
+    assert.deepEqual([outputs.web, outputs["type-check"], outputs.lint, outputs.tools], ["true", "true", "true", "true"], event)
   }
+})
+
+test("a pull request whose whole diff is the relay record skips the tool test shards and nothing else runs", () => {
+  for (const changed of [[".claude/handoffs/NEXT.md"], [".claude/handoffs/NEXT.md", ".claude/specs/orbit-prod-release.md"], [".claude/specs/relay.md"]]) {
+    const { status, outputs } = plan({ changed })
+    assert.equal(status, 0, changed.join())
+    assert.deepEqual([outputs.web, outputs["type-check"], outputs.lint, outputs.tools], ["false", "false", "false", "false"], changed.join())
+  }
+})
+
+test("a relay record beside any other path runs the tool test shards", () => {
+  for (const other of ["tools/example.mjs", ".claude/specs/old/plan.md", ".claude/handoffs/OTHER.md", "TESTING.md", ".github/workflows/test.yml", "apps/web/app/page.tsx"]) {
+    const { status, outputs } = plan({ changed: [".claude/handoffs/NEXT.md", ".claude/specs/relay.md", other] })
+    assert.equal(status, 0, other)
+    assert.equal(outputs.tools, "true", other)
+  }
+})
+
+// GitHub reads these in the message of a push or of the head commit of a pull request (docs.github.com, "Skipping
+// workflow runs"). A squash merge copies every commit message of the pull request to main, so a marker that a hook
+// wrote on one relay commit would stop the main push runs of PR Tests, Guards and CodeQL that a release requires.
+test("no tool, hook or CI script writes a GitHub skip instruction into a commit message", () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
+  const listed = spawnSync("git", ["-C", root, "ls-files", "--", "lefthook.yml", "tools", ".claude/hooks", ".github/scripts"], { encoding: "utf8" })
+  assert.equal(listed.status, 0, listed.stderr)
+  const sources = listed.stdout.split("\n").filter((path) => path === "lefthook.yml" ||
+    (/\.[cm]?js$/.test(path) && !/(^|\/)(__tests__|__fixtures__)\/|\.test\.mjs$|^\.claude\/hooks\/test-hooks\.mjs$/.test(path)))
+  assert.ok(sources.includes("lefthook.yml") && sources.includes("tools/test-tools.mjs"), "the scan reads the hook configuration and the tools")
+  const instruction = /\[(skip ci|ci skip|no ci|skip actions|actions skip)\]|skip-checks: ?true/i
+  const marked = sources.filter((path) => instruction.test(readFileSync(join(root, path), "utf8")))
+  assert.deepEqual(marked, [])
 })
 
 test("each result key follows only its own Turbo tasks and the workflow file", () => {
