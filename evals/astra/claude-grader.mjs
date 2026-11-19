@@ -76,7 +76,7 @@ async function attempt(prompt, schema, accepts, signal) {
     if (!accepts(result.structured_output)) throw new GradeFailure('grade schema invalid')
     return { value: result.structured_output }
   } catch (failure) {
-    const error = `Claude rubric grading failed: ${failure instanceof GradeFailure ? failure.message : 'process could not run'}.`
+    const error = `Claude grading failed: ${failure instanceof GradeFailure ? failure.message : 'process could not run'}.`
     process.stderr.write(`${error}\n`)
     return { error }
   } finally {
@@ -85,7 +85,7 @@ async function attempt(prompt, schema, accepts, signal) {
 }
 
 // One retry of a failed call, never of a cancelled one: the aborted signal would fail the retry at once.
-export async function askClaude(prompt, { schema, accepts, signal }) {
+async function askClaude(prompt, { schema, accepts, signal }) {
   const first = await attempt(prompt, schema, accepts, signal)
   return first.error && !signal?.aborted ? attempt(prompt, schema, accepts, signal) : first
 }

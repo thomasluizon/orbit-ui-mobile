@@ -833,10 +833,11 @@ A card case adds `sameTitleSet.answer` (the decided `deleted` and `renamed` posi
 in `target_ids`. An option that declares none stands for its own id when that id is a nonempty GUID, in the order of
 the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
 and one selection the card allows must state the whole decision. A list that can hold only one half is answered with that
-half and needs no read. When a list can hold both halves, and for each `yesNo` question, one call of the Claude grader
-reads the question through the configured grader, the provider that `ORBIT_EVAL_GRADER` names, as the rubric does (`askGrader`
-of `grader-provider.mjs` loads it with `config: { schema: 'half' }` from the folder of the run's config). With
-`claude-grader.mjs` that is the same CLI, model, worker account, environment and time limit as the rubric. The prompt holds the question text as one quoted string, its type (a list or `yesNo`), and both halves of the
+half and needs no read. When a list can hold both halves, and for each `yesNo` question, one call of the configured
+grader, the provider that `ORBIT_EVAL_GRADER` names, reads the question as the rubric does (`askGrader` of
+`grader-provider.mjs` loads it with `config: { schema: 'half' }` from the folder of the run's config). With
+`claude-grader.mjs` that is the same CLI, model, worker account, environment and time limit as the rubric. The prompt
+holds the question text as one quoted string, its type (a list or `yesNo`), and both halves of the
 decision by count and title. The answer is the JSON `{"half":"deleted"}`, `{"half":"renamed"}` or `{"half":"unclear"}`:
 the half that a list question asks the person to select, or that a yes to a `yesNo` question agrees to. No word list or
 regular expression reads the question. Any other answer, a malformed answer and a failed call are `unclear`. An `unclear`

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import { summarize, writeResults, writeReport } from '../report.mjs'
 import { beforeEach as prepareAttempt } from '../hooks.mjs'
-import ClaudeGrader, { WORKER_CONFIG_VARIABLE, askClaude, graderEnvironment } from '../claude-grader.mjs'
+import ClaudeGrader, { WORKER_CONFIG_VARIABLE, graderEnvironment } from '../claude-grader.mjs'
 import { WORKER_ACCOUNT, workerAccountEnvironment } from '../../../tools/lib/orchestrator-config.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, turnTiming } from './fixtures/producer.mjs'
@@ -140,14 +140,15 @@ it('runs no CLI call for a provider reference that names an unknown schema', asy
   expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(false)
 })
 
-it('asks the same CLI path as the rubric with a schema and a check of its own', async () => {
+it('asks the card question read on the CLI path of the rubric, with the half schema', async () => {
   vi.stubEnv('CLAUDE_CODE_DISABLE_ATTACHMENTS', '0')
-  const schema = JSON.stringify({ type: 'object', properties: { half: { type: 'string' } }, required: ['half'] })
+  const half = new ClaudeGrader({ config: { schema: 'half' } })
   const recorded = JSON.parse(readFileSync(recordedResult, 'utf8'))
   vi.mocked(execFile).mockClear()
-  expect(await askClaude('Which half does the question ask about?', { schema, accepts: (value) => typeof value === 'object' }))
-    .toEqual({ value: recorded.structured_output })
+  expect(await half.callApi('Which half does the question ask about?')).toEqual({ output: JSON.stringify(recorded.structured_output) })
   const call = record()
+  const schema = call.args[call.args.indexOf('--json-schema') + 1]
+  expect(JSON.parse(schema)).toEqual({ type: 'object', additionalProperties: false, properties: { half: { type: 'string' } }, required: ['half'] })
   expect(call.args).toEqual(['-p', '--model', 'claude-opus-5-5', '--output-format', 'json', '--json-schema', schema,
     '--tools', '', '--strict-mcp-config', '--safe-mode', '--no-session-persistence'])
   expect(call.prompt).toBe('Which half does the question ask about?')
@@ -159,10 +160,10 @@ it('asks the same CLI path as the rubric with a schema and a check of its own', 
   expect(vi.mocked(execFile).mock.calls.map(([, , options]) => options.timeout)).toEqual([120000])
 })
 
-it('gives no value for an answer that its own check refuses, and retries the call once', async () => {
+it('gives no output for an answer that its own check refuses, and retries the call once', async () => {
   const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-  expect(await askClaude('Which half?', { schema: '{}', accepts: () => false }))
-    .toEqual({ error: 'Claude rubric grading failed: grade schema invalid.' })
+  vi.stubEnv('TEST_CLAUDE_MODE', 'bad-score')
+  expect(await provider.callApi('Grade this.')).toEqual({ error: 'Claude grading failed: grade schema invalid.' })
   expect(attempts()).toBe(2)
   errors.mockRestore()
 })
@@ -170,8 +171,8 @@ it('gives no value for an answer that its own check refuses, and retries the cal
 it('never runs the CLI for a card question read when the worker account directory is unset', async () => {
   vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', '')
   const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-  expect(await askClaude('Which half?', { schema: '{}', accepts: () => true }))
-    .toEqual({ error: 'Claude rubric grading failed: ORBIT_WORKER_CLAUDE_CONFIG_DIR is not set.' })
+  const half = new ClaudeGrader({ config: { schema: 'half' } })
+  expect(await half.callApi('Which half?')).toEqual({ error: 'Claude grading failed: ORBIT_WORKER_CLAUDE_CONFIG_DIR is not set.' })
   expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(false)
   errors.mockRestore()
 })
@@ -217,14 +218,14 @@ it.each([
   ['a missing directory', 'missing-account', 'ORBIT_WORKER_CLAUDE_CONFIG_DIR names no existing directory'],
 ])('fails closed and never runs the CLI when the worker account directory is %s', async (_name, value, failure) => {
   vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', value && join(directory, value))
-  expect(await provider.callApi('Offline rubric control.')).toEqual({ error: `Claude rubric grading failed: ${failure}.` })
+  expect(await provider.callApi('Offline rubric control.')).toEqual({ error: `Claude grading failed: ${failure}.` })
   expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(false)
 })
 
 it('fails closed when PATH has no installed CLI', async () => {
   vi.stubEnv('PATH', join(directory, 'missing'))
   expect(await provider.callApi('Offline rubric control.')).toEqual({
-    error: 'Claude rubric grading failed: installed executable unavailable (ENOENT).',
+    error: 'Claude grading failed: installed executable unavailable (ENOENT).',
   })
 })
 
@@ -244,7 +245,7 @@ it.each([
 ])('fails closed, names the failure and cleans private files: %s', async (mode, failure) => {
   vi.stubEnv('TEST_CLAUDE_MODE', mode)
   const response = await provider.callApi('PRIVATE_SENTINEL')
-  expect(response).toEqual({ error: `Claude rubric grading failed: ${failure}.` })
+  expect(response).toEqual({ error: `Claude grading failed: ${failure}.` })
   expect(JSON.stringify(response)).not.toContain('PRIVATE_SENTINEL')
   expect(attempts()).toBe(2)
   expect(existsSync(record().cwd)).toBe(false)
@@ -258,9 +259,9 @@ it('stops a call that the caller cancels, gives no verdict and does not retry it
   const pending = provider.callApi('Offline rubric control.', undefined, { abortSignal: controller.signal })
   await vi.waitFor(() => expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(true))
   controller.abort()
-  const error = 'Claude rubric grading failed: process interrupted by timeout or cancellation.'
+  const error = 'Claude grading failed: process interrupted by timeout or cancellation.'
   expect(await pending).toEqual({ error })
-  expect(errors.mock.calls.filter(([line]) => String(line).startsWith('Claude rubric grading failed'))).toEqual([[`${error}\n`]])
+  expect(errors.mock.calls.filter(([line]) => String(line).startsWith('Claude grading failed'))).toEqual([[`${error}\n`]])
   expect(attempts()).toBe(1)
   errors.mockRestore()
 })
@@ -271,7 +272,7 @@ it('ends a hung call at the two-minute limit, gives no verdict and retries it on
   vi.stubEnv('TEST_CLAUDE_MODE', 'hang')
   vi.mocked(execFile).mockClear()
   const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-  const error = 'Claude rubric grading failed: process interrupted by timeout or cancellation.'
+  const error = 'Claude grading failed: process interrupted by timeout or cancellation.'
   expect(await new ClaudeGrader().callApi('Offline rubric control.')).toEqual({ error })
   expect(vi.mocked(execFile).mock.calls.map(([, , options]) => options.timeout)).toEqual([120000, 120000])
   errors.mockRestore()
@@ -304,7 +305,7 @@ it.each([false, true])('keeps exhausted rubric evidence unavailable with product
   const summary = summarize(attemptResults, [testCase.metadata])
   expect(summary.cases[0]).toMatchObject({ unavailable: ATTEMPTS_PER_CASE, passed: 0,
     allAttemptsPass: productFailure ? 'fail' : 'incomplete',
-    unavailableReasons: ['Claude rubric grading failed: process exited with code 1.'] })
+    unavailableReasons: ['Claude grading failed: process exited with code 1.'] })
   expect(summarize(attemptResults, [{ ...testCase.metadata, readLatency: true }]).status).toBe(productFailure ? 'fail' : 'incomplete')
   const malformedTiming = structuredClone(attemptResults)
   malformedTiming[0].response.output.trace.timing = null
@@ -316,5 +317,5 @@ it.each([false, true])('keeps exhausted rubric evidence unavailable with product
   writeResults(attemptResults, directory)
   const evidence = JSON.parse(readFileSync(join(directory, 'attempts/grader-outage-r1.json'), 'utf8'))
   expect(evidence).toMatchObject({ pass: false, unavailable: true, assertions: [{ metric: 'finalAnswer', pass: false, unavailable: true }, {}] })
-  expect(writeReport(summary, directory)).toContain('Claude rubric grading failed')
+  expect(writeReport(summary, directory)).toContain('Claude grading failed')
 })
