@@ -534,8 +534,9 @@ suggestion draft. The outcome grade then approves the preview through the existi
 saved items back: title, schedule and time. Existing fixture habits must remain unchanged and appear only once.
 Offline tests do not replace the live gate.
 
-Refine cases first verify a real suggestion setup turn with the tool and composition gates, then
-send one of those drafts, the instruction and language as JSON to
+Refine cases first run a real suggestion setup turn on the client path. The setup states `outcome: { read: true }` and its
+own `composition`, and `prepareHeldPreview` in `setup.mjs` grades it with the outcome grade and then with `composition`. No
+tool gate runs on the setup turn. The case then sends one of those drafts, the instruction and language as JSON to
 `POST /api/chat/habit-suggestions/refine`. This endpoint returns one draft rather than a chat
 response or eval trace. Its assertions validate that draft's shape, original identity and requested
 schedule, treating selected weekdays as a set while rejecting duplicates. Schedule-only cases also
@@ -979,7 +980,8 @@ with no logged or skipped item. A mismatch makes the precondition incomplete bef
 The restart cases state one `update` change over the six habits: `due_date` within 0 to 7 days of the account date, where a
 habit may stay on its date (`mayStay`), and `dueToday`, the number of habits that are due on the account date. A smaller
 set stays today (`dueToday: 2` for the preference cases, 1 to 5 for the others) and the rest falls within seven days. The
-response contains only the `rescheduleHabits` preview. `restart-approve` holds `decision: approve`: the outcome grade
+response holds the `rescheduleHabits` preview and nothing else: no note, block, follow-up, action, policy denial or failed
+operation (`composition.previewOnly: true`). `restart-approve` holds `decision: approve`: the outcome grade
 approves the preview through confirm then execute and reads each habit and its history back. Each saved value must equal
 the value that the preview showed, and each field that the preview showed for a habit still holds its baseline value before
 the approval. `restart-reject` holds `decision: reject`: the preview is revised to an empty item list, confirmation

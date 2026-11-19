@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { composition } from '../composition.mjs'
 import { askGrader } from '../grader-provider.mjs'
 import { TOOL_NAME_KEYS, corpusTests, gradedByOutcome } from '../grade-method.mjs'
 import { captures } from './fixtures/core-streams.mjs'
@@ -266,6 +267,25 @@ describe.each(['preview', 'approve', 'reject', 'preference'].flatMap((family) =>
     expect(outcome.changes[0].fields.due_date).toEqual({ withinDays: [0, 7], mayStay: true })
     expect(outcome.changes[0].dueToday).toEqual(family === 'preference' ? 2 : { min: 1, max: 5 })
     expect(outcome.decision).toBe({ approve: 'approve', reject: 'reject' }[family])
+  })
+
+  it('holds the answer to its preview alone', () => {
+    expect(caseOf(id).vars.composition).toEqual({ mode: 'preview', previews: 1, previewOnly: true })
+  })
+
+  it.each([
+    ['a block', { parts: [{ type: 'block', kind: 'habitList', block: { scope: 'today', items: [{ id: 'water', title: 'Water', emoji: null, depth: 0, isBadHabit: false, status: 'today' }], totalCount: 1 } }] }],
+    ['a follow-up', { followUps: ['Anything else?'] }],
+    ['an action', { actions: [{ type: 'CreateHabit', status: 'Success' }] }],
+    ['a policy denial', { policyDenials: [{ operationId: 'create_habit', reason: 'Not allowed.' }] }],
+    ['a failed operation', { operations: [{ operationId: 'create_habit', status: 'Failed' }] }],
+  ])('fails %s beside the preview, and passes it once previewOnly is removed', async (_name, beside) => {
+    const held = restartPreview(todayCount(keeps))
+    const { vars, response } = await attempt(id, { replies: [turnOf({ pendingOperations: held, ...beside })], habits: restartHabits, records: { habits: restartIds } })
+    expect(await composition(response.output, { vars })).toMatchObject({ pass: false, reason: 'A preview case allows only the preview and its note.' })
+    const open = structuredClone(vars)
+    delete open.composition.previewOnly
+    expect((await composition(response.output, { vars: open })).pass, 'without previewOnly').toBe(true)
   })
 
   it.each([

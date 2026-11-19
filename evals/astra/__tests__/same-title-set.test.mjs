@@ -12,7 +12,6 @@ import { offlineCredentials } from './fixtures/credentials.mjs'
 import { streams } from './fixtures/same-title-streams.mjs'
 import { recordingGrader } from './fixtures/recording-grader.mjs'
 import { recordedAskGrader } from './fixtures/recorded-halves.mjs'
-import { unavailableAssertion } from '../evidence.mjs'
 
 vi.mock('../grader-provider.mjs', async (original) => ({ ...await original(), askGrader: vi.fn() }))
 
