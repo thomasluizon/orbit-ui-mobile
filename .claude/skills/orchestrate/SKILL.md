@@ -1091,11 +1091,9 @@ push asks for its review.
 `review-and-audit.md` rule 14 ranks a local review finding:
 
 - **FIX it in this pull request** when rule 14 ranks it BLOCKING. A thread on a regression that this pull
-  request causes in code it did not touch gets the BLOCKING rank too. Fix every instance of its class in one
-  commit. Each instance that a test can see gets a test proven red with the guard removed; a comment, doc or
-  unused-export instance needs only the edit. A class of word lists or regexes that guess at natural-language
-  input in code is fixed with a structured input or a deletion, never with one more pattern. Such a
-  finding is never closed by a ticket.
+  request causes in code it did not touch gets the BLOCKING rank too. Fix it as the paragraph "Fix
+  every instance of a class" of rule 14 says, and fix a free-text guess as its lens in the review
+  brief says. Such a finding is never closed by a ticket.
 - **FILE it** when rule 14 ranks it a NOTE. File its class one time on the ticket that owns the area, or as
   a new `orbit-tickets` issue when no ticket owns it, name that ticket in the reply, and drop it
   from this run. File a security NOTE as a `Bug`. One class gets one ticket, never one for each member.
@@ -1131,10 +1129,8 @@ pullfrog` before its commit. If the batch has only FILE or not-applicable findin
 resolve and same-head re-review transitions without launching a worker or inventing a commit.
 
 The round note of a batch names each defect class one time and lists every instance, one `path:line` each,
-including an instance outside the changed lines that the pull request caused. It tells the worker to fix every instance of each class in one commit, with a test
-proven red with its guard removed for each instance that a test can see (a comment, doc or unused-export instance needs only the edit), and to fix a class of word lists or regexes that guess at
-natural-language input in code with a structured input or a deletion. The next review reads the whole diff, so an instance left
-behind costs the next round.
+including an instance outside the changed lines that the pull request caused. The next review reads
+the whole diff, so an instance left behind costs the next round.
 
 When the batch needs a worker, compose its order with `--review-batch`. The worker commits, runs the
 focused tests of its change, reports the commit SHA and stops without pushing. **Its final report is the batch's

@@ -383,7 +383,7 @@ const reviewBatchFinishing = `${REVIEW_BATCH_ORDER_MARKER}
 You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage or commit \`architecture.json\`, \`architecture.html\` or \`architecture.mmd\`.
 
 **Fix every instance of each defect class in one commit.** The round note lists each class and each instance.
-Fix every one of them. Give each instance that a test can see (wrong behaviour, a missed edge case, a test or a guard that passes without its code) a test that you proved red with its guard removed. An instance of a comment, a doc or an unused export has no guard: make the edit and name it in your report. Do not stop at the
+Fix every one of them. Give each class one table test, with a row for each instance that a test can see, proven red with its guard removed. An instance that no test can see (a comment, a doc or an unused export) has no guard: make the edit and name it in your report. Do not stop at the
 first instance of a class, and do not leave one for the next review: the next review reads the whole diff. When a
 class comes from a word list or a regex that guesses at natural-language input in code, replace the guess with a
 structured input or delete it. Never add one more pattern. A test assertion that pins doc text is not such code.

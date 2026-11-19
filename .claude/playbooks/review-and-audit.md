@@ -109,7 +109,7 @@ File a NOTE one time on the ticket that owns its area (`node tools/comment-ticke
 
 **Every pass reads the whole diff.** A review pass, a fix-round pass included, reads the whole diff of the pull request against its merge base, as Pullfrog does. Pullfrog reads the whole diff on every review, so a pass that skips the earlier commits leaves the next instance of a class for the next round. The fix-round pass still reads `git diff <reviewed head>..<new head>` to check each fix.
 
-**Fix every instance of a class.** The fix round fixes every instance of each class in one commit, including an instance outside the changed lines that the diff caused. Each instance that a test can see (wrong behaviour, a missed edge case, a test or a guard that passes without its code) gets a row in one table test, proven red with the guard removed. An instance of a comment, a doc or an unused export has no guard to remove: it needs only the edit, and the report names it. One class never costs one round for each member.
+**Fix every instance of a class.** The fix round fixes every instance of each class in one commit, including an instance outside the changed lines that the diff caused. Each class gets one table test, with a row for each instance that a test can see, proven red with the guard removed. An instance that no test can see (a comment, a doc or an unused export) has no guard to remove: it needs only the edit, and the report names it. One class never costs one round for each member.
 
 **The body is evidence, not code.** The `## Test evidence` of the pull request body comes from command output: the command, the exit code, the counts and the SHA. A reviewer does not read body prose as code. The coordinator corrects a false statement in a body or a reply itself; that correction starts no round.
 
@@ -117,7 +117,7 @@ File a NOTE one time on the ticket that owns its area (`node tools/comment-ticke
 
 #### The review brief
 
-You review ONE open pull request before its next push. Find every defect that the GitHub reviewer (Pullfrog) would open a thread for, so that the next round can approve, and list each other finding as a NOTE. You are READ-ONLY: you edit no file, you commit nothing, you push nothing, and you post nothing to GitHub. You may run read-only commands (`git diff`, `git show`, `git log`, `grep`, `gh pr view`, `gh api` GET) and a focused test or type check when it confirms a finding. Never run Playwright, an emulator or a simulator.
+You review ONE open pull request before its next push. Find every defect that the GitHub reviewer (Pullfrog) would open a thread for, so that the next round can approve. You are READ-ONLY: you edit no file, you commit nothing, you push nothing, and you post nothing to GitHub. You may run read-only commands (`git diff`, `git show`, `git log`, `grep`, `gh pr view`, `gh api` GET) and a focused test or type check when it confirms a finding. Never run Playwright, an emulator or a simulator.
 
 What to read:
 
@@ -136,13 +136,13 @@ The lenses:
 - A guard or a test that cannot see what it claims to catch: a scan that skips a directory, a regex that misses a form, an assertion that passes when the code under test is deleted.
 - A behaviour path with no test, or a fix with no test that fails without it.
 - A platform path with no fallback: Windows path separators, a web, Android or iOS branch that the other platform lacks (web and mobile must match below the shell), reduced motion, a missing error path.
-- A wrong claim in a comment or a doc comment.
-- A guess at free text in code whose behaviour depends on reading natural-language input: a word list or a regex that reads prose. It is BLOCKING when it gives a wrong result or misses a case, like any other defect, and a test assertion that pins doc text is not such code. The fix is a structured input or a deletion, never one more pattern.
+- A wrong claim: a comment, a doc comment or a doc that contradicts the code.
+- A guess at free text in code whose behaviour depends on reading natural-language input: a word list or a regex that reads prose. A test assertion that pins doc text is not such code. The fix is a structured input or a deletion, never one more pattern.
 - A correctness defect: a race, a state that leaks across turns, an early return that skips cleanup, an unchecked external value.
 - Copy: a visible string in one locale only, or a pt-BR string translated word for word.
 - A gate edit that weakens a gate (an ESLint rule, a baseline, an inventory, an allowlist) without a reason.
 
-What a finding is: something you confirmed in the code at the head, with `path:line`, the concrete failure (the inputs or state, then the wrong result), and the smallest correct fix. Rank each one BLOCKING or NOTE. BLOCKING is every confirmed defect that this diff makes, in the changed lines or in code they break (a case that passed on `main` or on the earlier head fails at this head, such as an unchanged caller of a renamed export): wrong behaviour, a missed edge case, a test or a guard that passes without its code, a comment or a doc that contradicts the code, an unused export, prop, branch or helper that the diff leaves. NOTE is a matter of taste with no wrong result, or a defect that the diff did not make (file its class on the ticket that owns the area). A BLOCKING finding names its wrong result: the input or state, then the failure. For each defect class, name the class one time and list every instance, one `path:line` each, including an instance outside the changed lines that the diff caused. Do not pad: a finding you could not confirm goes under `## Not confirmed`, with what would confirm it. Zero findings is a valid result: say "NO FINDINGS" and name what you read.
+What a finding is: something you confirmed in the code at the head, with `path:line`, the concrete failure (the inputs or state, then the wrong result), and the smallest correct fix. Rank each one BLOCKING or NOTE. The lenses above own what a defect is. BLOCKING is every confirmed finding under a lens above that this diff makes, in the changed lines or in code they break (a case that passed on `main` or on the earlier head fails at this head, such as an unchanged caller of a renamed export). NOTE is a matter of taste with no wrong result, or a defect that the diff did not make (file its class on the ticket that owns the area). A BLOCKING finding names its wrong result: the input or state, then the failure. For each defect class, name the class one time and list every instance, one `path:line` each, including an instance outside the changed lines that the diff caused. Do not pad: a finding you could not confirm goes under `## Not confirmed`, with what would confirm it. Zero findings is a valid result: say "NO FINDINGS" and name what you read.
 
 Your report, with repository-relative paths only:
 
