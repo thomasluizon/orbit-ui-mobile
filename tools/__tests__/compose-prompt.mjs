@@ -604,8 +604,7 @@ export const cases = () => {
       /The round note of a batch names each defect class one time and lists every instance, one `path:line` each,\s+including an instance outside the changed lines that the pull request caused\. The next review reads\s+the whole diff/.test(orchestrateSkill) &&
       /\*\*FILE it\*\* when rule 14 ranks it a NOTE\. File its class one time/.test(orchestrateSkill) &&
       /A thread on a regression that this pull\s+request causes in code it did not touch gets the BLOCKING rank too/.test(orchestrateSkill) &&
-      !/a failing probe against the acceptance/.test(orchestrateSkill) &&
-      !/table test|guard removed/.test(orchestrateSkill),
+      !/a failing probe against the acceptance/.test(orchestrateSkill),
     orchestrateSkill,
   )
   T(
