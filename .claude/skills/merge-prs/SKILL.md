@@ -1,6 +1,6 @@
 ---
 name: merge-prs
-description: Merge a frozen set of already-approved pull requests after an /orchestrate run. Accept optional PR URLs, repo#number references, or unambiguous PR numbers; with no arguments, recover the PR set from the current conversation and orchestration scratchpad. Order dependencies, update branches with main, admin-squash merge without rerunning approval/CI on the mechanical update commit, synchronize GitHub tickets, and clean only the merged PRs' branches and worktrees. Use only when the owner explicitly invokes /merge-prs after every target PR has a passing pullfrog-approval check, green CI, and zero unresolved review threads.
+description: Merge a frozen set of already-approved pull requests after an /orchestrate run. Accept optional PR URLs, repo#number references, or unambiguous PR numbers; with no arguments, recover the PR set from the current conversation and the run notes on the tickets. Order dependencies, update branches with main, admin-squash merge without rerunning approval/CI on the mechanical update commit, synchronize GitHub tickets, and clean only the merged PRs' branches and worktrees. Use only when the owner explicitly invokes /merge-prs after every target PR has a passing pullfrog-approval check, green CI, and zero unresolved review threads.
 ---
 
 # /merge-prs
@@ -33,7 +33,7 @@ Accept any mix of PR URLs, `owner/repo#123`, or bare numbers when the repository
 With no arguments, recover the set in this order:
 
 1. PRs explicitly named in the current conversation's immediately preceding `/orchestrate` run.
-2. That run's scratchpad `queue-run.jsonl`, per-ticket artifacts, and final status summary.
+2. That run's per-ticket outcome notes (decision and report run notes on the tickets), per-ticket artifacts, and final status summary.
 3. PR URLs recorded on the corresponding GitHub tickets.
 
 Do not substitute every open PR in an account or repository. Exclude PRs and worktrees identified as

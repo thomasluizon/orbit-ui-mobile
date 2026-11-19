@@ -4,12 +4,14 @@ import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { dirname, relative, resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { HANDOFF_PROMPT_MAX_BYTES, HANDOFF_PROMPT_PATH, SPEC_MAX_BYTES, relayDocumentLimit, relayDocumentOversize } from "./lib/handoff-prompt.mjs"
+import { HANDOFF_PROMPT_MAX_BYTES, HANDOFF_PROMPT_PATH, SPEC_MAX_BYTES, relayDocumentLimit, relayDocumentLocalReferences, relayDocumentOversize } from "./lib/handoff-prompt.mjs"
 
 const USAGE = `usage: check-handoff-size.mjs (--files <path>... | --all) [--root <repository>]
 
   Fails when a relay document is over its byte ceiling: ${HANDOFF_PROMPT_PATH} over
-  ${HANDOFF_PROMPT_MAX_BYTES} B, or a spec .claude/specs/<slug>.md over ${SPEC_MAX_BYTES} B. Every other path is ignored,
+  ${HANDOFF_PROMPT_MAX_BYTES} B, or a spec .claude/specs/<slug>.md over ${SPEC_MAX_BYTES} B. It also fails when a relay
+  document names a file on one computer: a scratchpad file, an S <file> reference, a system temporary
+  directory, the old run carry directory or a home directory path. Every other path is ignored,
   so the Guards step passes every changed path. The ceilings live in tools/lib/handoff-prompt.mjs,
   which the handoff commit gate also reads.
 
@@ -18,7 +20,7 @@ const USAGE = `usage: check-handoff-size.mjs (--files <path>... | --all) [--root
   --root <repository>  read files from this repository instead of the script's repository
   --help, -h           print this usage and exit 0
 
-exit codes: 0 every relay document is within its ceiling, 1 a relay document is over it, 2 usage error or unreadable input`
+exit codes: 0 every relay document is within its ceiling and names no local file, 1 a relay document is over it or names one, 2 usage error or unreadable input`
 
 const fail = (message) => {
   console.error(`${message}\n\n${USAGE}`)
@@ -73,6 +75,7 @@ for (const path of documents) {
   }
   const oversize = relayDocumentOversize(path, text)
   if (oversize) problems.push(oversize)
+  problems.push(...relayDocumentLocalReferences(path, text))
 }
 if (problems.length > 0) {
   console.error(`Handoff size guard failed. Each document needs:\n${problems.map((problem) => `  ${problem}`).join("\n")}`)

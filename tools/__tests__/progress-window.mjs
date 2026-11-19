@@ -16,6 +16,7 @@ export const cases = async () => {
     if (repository === "orbit-ui-mobile") plan.push({ match: `run list --repo example/${repository} --workflow android-release.yml`, stdout: runReply(sources.recorded.android) })
   }
   plan.push({ match: "repos/thomasluizon/orbit-tickets/issues?", stdout: JSON.stringify([sources.recorded.ticket]) })
+  plan.push({ match: "repos/thomasluizon/orbit-tickets/issues/comments?", stdout: JSON.stringify([]) })
   plan.push({ match: "auth token", stdout: "fixture-token" })
   const transcriptPath = stage("progress-cli/current.jsonl", `${JSON.stringify({ timestamp: "2026-10-01T00:00:00Z", type: "user" })}\n`)
   const env = { ...orcaEnv(plan), GIT_BIN: process.execPath }
