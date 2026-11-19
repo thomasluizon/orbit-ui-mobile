@@ -968,6 +968,12 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
     /launchGate: HERMETIC_LAUNCH_GATE/.test(refusedGate(realOrchestratorConfig().launchGate) ?? "") && /launchGate: HERMETIC_LAUNCH_GATE/.test(refusedGate(undefined) ?? ""),
     String(refusedGate(realOrchestratorConfig().launchGate)),
   )
+  const shippedLoadCeiling = { ...HERMETIC_LAUNCH_GATE, loadMax: realOrchestratorConfig().launchGate.loadMax }
+  T(
+    `${TOOL}: a staged launcher refuses a gate with no spacing but the shipped load ceiling, which still waits on a loaded machine`,
+    /launchGate: HERMETIC_LAUNCH_GATE/.test(refusedGate(shippedLoadCeiling) ?? ""),
+    String(refusedGate(shippedLoadCeiling)),
+  )
   T(`${TOOL}: a staged launcher accepts the hermetic launch gate`, refusedGate(HERMETIC_LAUNCH_GATE) === null, String(refusedGate(HERMETIC_LAUNCH_GATE)))
 
   const dryRun = check(TOOL, "--dry-run resolves the plan and exits 0", [...argv, "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, options)

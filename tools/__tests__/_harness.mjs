@@ -463,8 +463,9 @@ export const HERMETIC_LAUNCH_GATE = { loadMax: 1_000_000, spacingSeconds: 0 }
 const LAUNCH_GATE_TOOL = "launch-worker.mjs"
 
 export const stageWithConfig = (label, tool, config) => {
-  if (tool === LAUNCH_GATE_TOOL && config.launchGate?.spacingSeconds !== 0) {
-    throw new Error(`stageWithConfig("${label}"): ${tool} passes the launch gate, so the staged config needs launchGate: HERMETIC_LAUNCH_GATE (spacingSeconds 0), got ${JSON.stringify(config.launchGate)}`)
+  const hermetic = config.launchGate?.loadMax === HERMETIC_LAUNCH_GATE.loadMax && config.launchGate?.spacingSeconds === HERMETIC_LAUNCH_GATE.spacingSeconds
+  if (tool === LAUNCH_GATE_TOOL && !hermetic) {
+    throw new Error(`stageWithConfig("${label}"): ${tool} passes the launch gate, so the staged config needs launchGate: HERMETIC_LAUNCH_GATE (${JSON.stringify(HERMETIC_LAUNCH_GATE)}), got ${JSON.stringify(config.launchGate)}`)
   }
   const base = join(root, "staged", label)
   mkdirSync(join(base, "tools"), { recursive: true })
