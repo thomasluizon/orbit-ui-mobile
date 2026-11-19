@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
 import { REVIEW_BATCH_ORDER_MARKER } from "../lib/run-state.mjs"
+import { orderSealProblem } from "../lib/run-notes.mjs"
 
 import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
@@ -71,6 +72,10 @@ export const cases = () => {
   )
   const prompt = composed(out)
   T(`${TOOL}: the ticket body survives composition verbatim`, prompt.startsWith("# Ticket body\n\nKeep this verbatim."), prompt.slice(0, 200) || written.stderr)
+  T(`${TOOL}: a local order carries a valid seal, and an appended note breaks it`, orderSealProblem(prompt) === null && orderSealProblem(`${prompt}\n## Orchestrator note\n`) !== null, prompt.slice(-200))
+  T(`${TOOL}: a local order carries the standing unattended rules`, prompt.includes("**Nobody answers an approval prompt.**") && prompt.includes("delete with Node") &&
+    prompt.includes("no attribution line") && prompt.includes("at most 12 lines") && prompt.includes("Spend at most 25 minutes of wall time on verification") &&
+    prompt.includes("reference a ticket with Tracks"), prompt)
   T(
     `${TOOL}: local ui delivery names the parity label and justification`,
     prompt.includes("--label parity:exempt") && prompt.includes("## Parity") &&
@@ -252,6 +257,13 @@ export const cases = () => {
     reviewPrompt,
   )
   T(
+    `${TOOL}: a review batch order names one final report shape, and the default order keeps the 12 line message`,
+    !reviewPrompt.includes("at most 12 lines") && !reviewPrompt.includes("The pull request body carries the full report") &&
+      reviewPrompt.includes("Your final report is the batch's handoff: the commit SHA, then the complete `## Test evidence`, `## Assumptions` and `## Manual steps` sections") &&
+      prompt.includes("Your final message is at most 12 lines") && !prompt.includes("Your final report is the batch's handoff"),
+    reviewPrompt,
+  )
+  T(
     `${TOOL}: only the review batch order carries the marker that makes launch-worker.mjs spend a fix round`,
     reviewPrompt.includes(REVIEW_BATCH_ORDER_MARKER) && !prompt.includes(REVIEW_BATCH_ORDER_MARKER),
     reviewPrompt.slice(0, 400),
@@ -348,6 +360,7 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const cloudPrompt = composed(cloudOut)
+  T(`${TOOL}: a Cloud order carries no seal and no local approval rules`, orderSealProblem(cloudPrompt) !== null && !cloudPrompt.includes("Nobody answers an approval prompt"))
   const reviewCloudOut = join(root, "compose-prompt", "review-cloud.md")
   check(
     TOOL,

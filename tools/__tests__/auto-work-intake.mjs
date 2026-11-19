@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs"
+import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { acknowledgeIntake, intakeSource, updateIntakeSource } from "../lib/auto-work-intake.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
@@ -19,6 +19,38 @@ export const cases = () => {
     { ...simple, classification: "bug", replyKind: "known bug" },
     { ...simple, classification: "question", replyKind: "supported how-to" },
   ]) T("intake: every other reply remains a draft", intake.replyDisposition?.(receipt) === "draft")
+  const cutover = join(root, "intake-cutover")
+  mkdirSync(join(cutover, ".git"), { recursive: true })
+  const legacy = { gmail: { completed: { handled: { id: "handled", classification: "noise" } }, pending: {}, highWater: "handled" },
+    play: { completed: {}, pending: { review: { id: "review" } }, highWater: null }, wake: { seen: { board: ["#1"] }, failures: {} } }
+  writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: legacy }, cutover)
+  T("intake: before the intake file exists, a read returns the marks of the local run record",
+    JSON.stringify(intake.readIntake(cutover)) === JSON.stringify(legacy) && intakeSource("gmail", cutover).completed.handled.classification === "noise", JSON.stringify(intake.readIntake(cutover)))
+  intake.updateIntake("wake", () => ({ seen: { board: ["#1", "#2"] }, failures: {} }), cutover)
+  writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: null }, cutover)
+  T("intake: the first write of the intake file carries the marks of the local run record to GitHub",
+    intakeSource("gmail", cutover).completed.handled?.classification === "noise" && intakeSource("play", cutover).pending.review?.id === "review" &&
+    intake.readIntake(cutover).wake.seen.board.length === 2, JSON.stringify(intake.readIntake(cutover)))
+  writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: { gmail: { completed: {}, pending: {}, highWater: "stale" } } }, cutover)
+  T("intake: after the intake file exists, the local run record is never read", intakeSource("gmail", cutover).highWater === "handled")
+  const content = join(root, "intake-cutover-content")
+  mkdirSync(join(content, ".git"), { recursive: true })
+  const legacyMail = { id: "pending", threadId: "thread", bodiesComplete: true, draftId: "draft", from: "SECRET sender", replyTo: "SECRET reply", subject: "SECRET subject",
+    snippet: "SECRET snippet", bodies: [{ mimeType: "text/plain", text: "SECRET body" }], messageId: "<SECRET@example.org>", references: "<SECRET>", internalDate: "1" }
+  writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: { gmail: { completed: {}, pending: { pending: legacyMail }, highWater: "pending" } } }, content)
+  const legacyRead = intake.readIntake(content).gmail.pending.pending
+  T("intake: before the intake file exists, a pending message reads as its marks without mail content",
+    JSON.stringify(legacyRead) === JSON.stringify({ id: "pending", threadId: "thread", draftId: "draft", bodiesComplete: true }), JSON.stringify(legacyRead))
+  intake.updateIntake("wake", () => ({ seen: {}, failures: {} }), content)
+  const committed = readFileSync(join(content, ".git", "orbit-test-run-files", "run-state", "intake.json"), "utf8")
+  T("intake: the first write of the intake file holds no mail content of the local run record", !/SECRET|example\.org/.test(committed) && JSON.parse(committed).gmail.pending.pending.draftId === "draft", committed)
+  const idleWake = join(root, "intake-idle-wake")
+  mkdirSync(join(idleWake, ".git"), { recursive: true })
+  writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: { play: { completed: {}, pending: { old: { id: "old" } }, highWater: null } } }, idleWake)
+  updateIntakeSource("play", (play) => ({ ...play, pending: { ...play.pending, fresh: { id: "fresh" } } }), idleWake)
+  const wakeReads = { readRunStatePlayPending: Object.keys(readRunState(idleWake).intake.play.pending), readIntakePlayPending: Object.keys(intakeSource("play", idleWake).pending) }
+  T("intake: an idle review wake finds the imported review in the intake file, never in the run record",
+    JSON.stringify(wakeReads) === JSON.stringify({ readRunStatePlayPending: ["old"], readIntakePlayPending: ["old", "fresh"] }), JSON.stringify(wakeReads))
   const checkout = join(root, "intake")
   mkdirSync(join(checkout, ".git"), { recursive: true })
   writeRunState({ sessionId: "parent", sleep: true, autoWork: true }, checkout)
