@@ -788,6 +788,25 @@ const checkCases = async ({ pullListing, alertListing }) => {
   T("github: a reported pull request keys without its head, so a new head does not wake the waiter", reported.keys.includes("api#1115") &&
     !reported.keys.some((key) => key.startsWith("api#1115 ")) && JSON.stringify(reportedListed) === JSON.stringify({ pullRequests: ["api#1115"] }),
   `${JSON.stringify(reported)} ${JSON.stringify(reportedListed)}`)
+  /* A failed live run read keeps the seen key of each withheld pull request, never the keys of other pull requests that share its digits. */
+  const sharedDigits = (...numbers) => ({ items: numbers.map((number) => ({ key: `ui#${number}`, head: "b".repeat(40), ownerAuthor: number === 25, unexpectedAuthor: false, tickets: [] })),
+    reads: ["ui pulls"], failures: [] })
+  let sharedListing = sharedDigits(25, 251, 2510)
+  let liveRunFailure
+  const sharedCheck = pullRequestCheck({ list: async () => sharedListing, readState: () => ({ intake: { pullRequests: { marks: { "ui#25": { head: "a".repeat(40), action: "reported" } } } } }),
+    readOtherRuns: () => ({ claims: (pull) => liveRunFailure !== undefined && pull.ownerAuthor === true, ...(liveRunFailure ? { failure: liveRunFailure } : {}) }) })
+  let sharedMarks = { seen: {}, failures: {}, sentryListedAt: new Date(0).toISOString() }
+  const sharedInterval = async () => {
+    const evaluated = evaluateChecks([{ source: "pullRequests" }], await Promise.allSettled([sharedCheck()]), sharedMarks, 0)
+    sharedMarks = evaluated.marks
+    return evaluated.wakes
+  }
+  await sharedInterval()
+  sharedListing = sharedDigits(25)
+  liveRunFailure = { read: "live runs", message: "Cannot read the other live runs: unreadable" }
+  await sharedInterval()
+  T("github: a failed live run read keeps the seen key of a withheld pull request and no key of another pull request that shares its digits",
+    JSON.stringify(sharedMarks.seen.pullRequests) === JSON.stringify(["ui#25"]), JSON.stringify(sharedMarks.seen))
   const partial = await alertCheck({ list: async () => alertListing })()
   T("github: a partial alert read passes its keys and names the failure", partial.keys.length === 2 && partial.failure.includes(NOT_FOUND), JSON.stringify(partial))
   let message = ""

@@ -276,7 +276,7 @@ export const pullRequestCheck = ({ list, readState, readOtherRuns }) => async ()
   if (!otherRuns.failure) return checked
   const withheld = listing.items.filter((pull) => !owned(pull) && otherRuns.claims(pull)).map(keyOf)
   return { keys: checked.keys, failure: [checked.failure, otherRuns.failure.message].filter(Boolean).join("; "),
-    unreadPrefixes: [...(checked.unreadPrefixes ?? []), ...withheld], ...(checked.unreadKeys ? { unreadKeys: checked.unreadKeys } : {}) }
+    ...(checked.unreadPrefixes ? { unreadPrefixes: checked.unreadPrefixes } : {}), unreadKeys: [...(checked.unreadKeys ?? []), ...withheld] }
 }
 
 /**
