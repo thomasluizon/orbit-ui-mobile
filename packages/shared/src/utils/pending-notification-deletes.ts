@@ -4,23 +4,17 @@ type DelayedDeleteEntry = {
 
 type PendingDeleteExecutor = () => unknown
 
-type FailedDeleteEntry = {
-  execute: PendingDeleteExecutor
-  timer: ReturnType<typeof setTimeout>
-  outOfLife: boolean
-}
-
 const PENDING_DELETE_DELAY_MS = 5000
 
 /**
- * How long a failed delayed delete keeps its notice and its retry. When the life ends the
- * notification is already back in the inbox, so deleting it again is the same one action the
- * retry was.
+ * How long the failed delete toast stays before it dismisses itself. The toast owns this life,
+ * so hover and focus can pause it. When the life ends the notification is already back in the
+ * inbox, so deleting it again is the same one action the retry was.
  */
 export const FAILED_DELETE_NOTICE_LIFE_MS = 10000
 
 const pendingDeleteEntries = new Map<string, DelayedDeleteEntry>()
-const failedDeleteEntries = new Map<string, FailedDeleteEntry>()
+const failedDeleteEntries = new Map<string, PendingDeleteExecutor>()
 const activeDeleteAttempts = new Map<string, symbol>()
 const subscribers = new Set<() => void>()
 let pendingDeleteSnapshot: string[] = []
@@ -36,15 +30,9 @@ function ownerIsAlive(): boolean {
   return entries.has(noticeOwner.id)
 }
 
-function dropOutOfLifeFailedDeletes(): void {
-  for (const [id, entry] of failedDeleteEntries) {
-    if (entry.outOfLife && noticeOwner?.id !== id) failedDeleteEntries.delete(id)
-  }
-}
-
 function syncPendingDeleteSnapshot(): void {
   if (!ownerIsAlive()) noticeOwner = null
-  dropOutOfLifeFailedDeletes()
+  if (noticeOwner?.kind !== 'failed') failedDeleteEntries.clear()
   pendingDeleteSnapshot = Array.from(pendingDeleteEntries.keys())
   failedDeleteSnapshot = Array.from(failedDeleteEntries.keys())
 }
@@ -72,8 +60,7 @@ export function getPendingNotificationDeleteIdsSnapshot(): string[] {
 /**
  * Returns the one delete toast to show, or null, as a stable snapshot. A queued delete takes the
  * toast from the old owner. A failure takes it too, but never from a pending undo. When the owner
- * ends, the toast is empty: no older delete gets it back. The failed toast owns its life, so it
- * can pause on hover; a failed delete that is out of life ends at once, or when it loses the toast.
+ * ends, no older delete gets the toast back, and the failed list holds at most the owner.
  */
 export function getNotificationDeleteNoticeSnapshot(): NotificationDeleteNoticeState | null {
   return noticeOwner
@@ -87,7 +74,6 @@ export function dismissPendingNotificationDeleteNotice(notificationId: string): 
 
 export function dismissNotificationDeleteNotices(): void {
   noticeOwner = null
-  clearFailedDeleteEntries()
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
 }
@@ -97,34 +83,20 @@ export function getFailedNotificationDeleteIdsSnapshot(): string[] {
   return failedDeleteSnapshot
 }
 
-function clearFailedDeleteEntries(): void {
-  for (const entry of failedDeleteEntries.values()) {
-    clearTimeout(entry.timer)
-  }
-  failedDeleteEntries.clear()
-}
-
 function takeFailedDelete(notificationId: string): PendingDeleteExecutor | null {
-  const entry = failedDeleteEntries.get(notificationId)
-  if (!entry) return null
+  const execute = failedDeleteEntries.get(notificationId)
+  if (!execute) return null
 
-  clearTimeout(entry.timer)
   failedDeleteEntries.delete(notificationId)
-  return entry.execute
+  return execute
 }
 
 function reportFailedDelete(notificationId: string, execute: PendingDeleteExecutor): void {
-  const entry: FailedDeleteEntry = {
-    execute,
-    outOfLife: false,
-    timer: setTimeout(() => {
-      entry.outOfLife = true
-      syncPendingDeleteSnapshot()
-      emitPendingDeleteChange()
-    }, FAILED_DELETE_NOTICE_LIFE_MS),
-  }
-  failedDeleteEntries.set(notificationId, entry)
-  if (noticeOwner?.kind !== 'pending') noticeOwner = { kind: 'failed', id: notificationId }
+  if (noticeOwner?.kind === 'pending') return
+
+  failedDeleteEntries.clear()
+  failedDeleteEntries.set(notificationId, execute)
+  noticeOwner = { kind: 'failed', id: notificationId }
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
 }
@@ -197,7 +169,7 @@ export function retryFailedNotificationDelete(notificationId: string): boolean {
 /** Supersedes delayed-delete failures and active attempts before a bulk clear. */
 export function clearFailedNotificationDeletes(): void {
   if (failedDeleteEntries.size === 0 && activeDeleteAttempts.size === 0) return
-  clearFailedDeleteEntries()
+  failedDeleteEntries.clear()
   activeDeleteAttempts.clear()
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
@@ -226,7 +198,7 @@ function clearPendingNotificationDeleteState(): void {
   }
 
   pendingDeleteEntries.clear()
-  clearFailedDeleteEntries()
+  failedDeleteEntries.clear()
   activeDeleteAttempts.clear()
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
