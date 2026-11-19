@@ -79,7 +79,7 @@ describe('mobile back navigation helpers', () => {
     expect(getAndroidBackFallbackRoute('/unknown')).toBeNull()
   })
 
-  it.each(['/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications'])('returns a directly linked %s to Perfil on Android back', (path) => {
+  it.each(['/profile/account', '/profile/preferences', '/profile/ai', '/profile/notifications'])('returns a directly linked %s to Perfil on Android back', (path) => {
     expect(getAndroidBackFallbackRoute(path)).toBe('/profile')
   })
 

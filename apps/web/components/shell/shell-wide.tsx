@@ -35,6 +35,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
 import { useModalFocusTrap } from './use-modal-focus-trap'
 import { getShellHeading } from './shell-header'
+import { OrbitNameText } from '@/components/ui/orbit-name-text'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 
 function getConversationFocusTarget(container: HTMLElement): HTMLElement {
@@ -59,7 +60,7 @@ type WithDestinationHrefs<Props> = Props extends { items: ShellWideItem[] }
   ? Omit<Props, 'items'> & { items: WebShellWideItem[]; themeAction?: ReactNode }
   : Props
 
-type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; astraButton?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void; tabViewTransition?: boolean }
+type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; astraButton?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void; tabViewTransition?: boolean; landmark?: false }
 
 function SidebarItem({
   item,
@@ -140,7 +141,7 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
           >
             <OrbitMascot size={20} />
             <span className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>
-              {row.label.split(/(Orbit)/).map((part, index) => part === 'Orbit' ? <span key={index} translate="no">{part}</span> : part)}
+              <OrbitNameText text={row.label} />
             </span>
           </button>
 }
@@ -458,8 +459,10 @@ function ShellWideBackground({
     || props.notice !== undefined || pinnedSlot !== undefined
   const floating = props.fab !== undefined
   const astraSpacing = getFabColumnSpacing({ hasBottomChrome, hasPinnedSlot: pinnedSlot !== undefined, floating, astraButton: props.astraButton !== undefined, wide })
+  // WHY: a shell inside a modal dialog sits over a page that already owns the one main landmark. https://www.w3.org/WAI/ARIA/apg/practices/landmark-regions/
+  const Scroller = props.landmark === false ? 'div' : 'main'
   const scroller = (
-    <main
+    <Scroller
       ref={registerScroller}
       data-shell-scroller=""
       style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
@@ -471,7 +474,7 @@ function ShellWideBackground({
         className="pointer-events-none absolute left-0 top-0 h-px w-px"
       />
       <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
-    </main>
+    </Scroller>
   )
   return (
     <ConversationComposerMotionProvider><div

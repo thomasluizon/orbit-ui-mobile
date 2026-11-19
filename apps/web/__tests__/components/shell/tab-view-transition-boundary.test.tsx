@@ -15,6 +15,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/stores/onboarding-draft-store', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/stores/onboarding-draft-store')>(),
   useOnboardingDraftHydrated: () => true,

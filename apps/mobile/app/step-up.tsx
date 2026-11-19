@@ -14,6 +14,8 @@ import {
   getStepUpLockSeconds,
   getStepUpPhaseFromTiming,
   isStepUpOperation,
+  markStepUpFlowContinued,
+  type StepUpOperation,
   type StepUpPhase,
   type StepUpTimingRecord,
 } from '@orbit/shared/utils'
@@ -35,6 +37,7 @@ import {
 import { PROFILE_STEP_UP_DESTINATIONS } from '@orbit/shared/utils/profile-routes'
 import { getBackLabel } from '@orbit/shared/utils/back-label'
 import { useProfile } from '@/hooks/use-profile'
+import { useFlag } from '@/hooks/use-flag'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
 import { useAuthStore } from '@/stores/auth-store'
@@ -45,8 +48,10 @@ import { createTokensV2 } from '@/lib/theme'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
+import { ResultDialog } from '@/components/ui/result-dialog'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { MotionPressable } from '@/components/ui/motion-pressable'
+import { GuidedStepUp, type GuidedStepUpState } from '@/components/auth/guided-step-up'
 
 export default function StepUpScreen() {
   const accountGeneration = useAccountGeneration()
@@ -80,6 +85,8 @@ function StepUpScreenContent() {
   const [code, setCode] = useState('')
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null)
   const [fieldError, setFieldError] = useState<string | null>(null)
+  const [shortSubmits, setShortSubmits] = useState(0)
+  const guided = useFlag('orbit_guided_flows')
   const [requestError, setRequestError] = useState<string | null>(null)
   const [requesting, setRequesting] = useState(false)
   const [scheduledDeletionAt, setScheduledDeletionAt] = useState<string | null>(null)
@@ -180,7 +187,11 @@ function StepUpScreenContent() {
   }
 
   async function handleConfirm() {
-    if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking || accountId === null) return
+    if (!operation || !record || checking || accountId === null) return
+    if (code.length !== STEP_UP_CODE_LENGTH) {
+      if (guided) refuseShortCode()
+      return
+    }
     const initiatingAccountId = accountId
     const generation = getAccountGeneration()
     if (!isCurrentRequest(generation, initiatingAccountId)) return
@@ -198,6 +209,7 @@ function StepUpScreenContent() {
         await clearStepUpTiming(operation, accountId)
         if (!isCurrentRequest(generation, initiatingAccountId)) return
         markStepUpVerified(operation)
+        markStepUpFlowContinued(operation)
         router.replace(returnDestination)
         return
       }
@@ -253,8 +265,14 @@ function StepUpScreenContent() {
     setNow(Date.now())
   }
 
+  function refuseShortCode() {
+    setFieldError(t('auth.errors.codeFormat'))
+    setShortSubmits((count) => count + 1)
+  }
+
   function handleCodeChange(value: string) {
     setCode(value)
+    setShortSubmits(0)
     setFieldError(null)
     setAttemptsRemaining(null)
     if (phase === 'wrong') setPhase('challenge')
@@ -263,44 +281,36 @@ function StepUpScreenContent() {
   const otpError = getMobileOtpError(t, fieldError, attemptsRemaining)
 
   if (!hydrated || !operation || !record) return null
-  const sharedView = { operationLabel, t, tokens }
+  const surface = { operationLabel, t, tokens, guided, operation }
   if (success) {
     return (
-      <MobileStepUpSuccess
-        {...sharedView}
-        deletionDate={formattedDeletionDate}
-        onSignOut={() => void logout()}
-        showProNotice={Boolean(profile?.hasProAccess)}
-      />
+      <>
+        <StepUpSurface {...surface} state={{ kind: 'success', scheduledAt: scheduledDeletionAt, deletionDate: formattedDeletionDate, showProNotice: Boolean(profile?.hasProAccess), onSignOut: () => void logout() }} />
+        <DeletionResult deletionDate={formattedDeletionDate} pro={Boolean(profile?.hasProAccess)} onSignOut={() => void logout()} t={t} />
+      </>
     )
   }
   if (exhausted) {
-    return (
-      <MobileStepUpExhausted
-        {...sharedView}
-        lockSeconds={lockSeconds}
-        backLabel={getBackLabel(returnDestination, t)}
-        onBack={() => router.replace(returnDestination)}
-      />
-    )
+    return <StepUpSurface {...surface} state={{ kind: 'exhausted', lockSeconds, backLabel: getBackLabel(returnDestination, t), onBack: () => router.replace(returnDestination) }} />
   }
   return (
-    <MobileStepUpChallenge
-      {...sharedView}
-      checking={checking}
-      code={code}
-      cooldownSeconds={cooldownSeconds}
-      email={email}
-      expired={expired}
-      onCancel={() => router.replace(returnDestination)}
-      onCodeChange={handleCodeChange}
-      onConfirm={() => void handleConfirm()}
-      onResend={() => void handleResend()}
-      otpError={otpError}
-      requestError={requestError}
-      requesting={requesting}
-    />
+    <StepUpSurface {...surface} state={{
+      kind: 'challenge', checking, code, cooldownSeconds, email, expired, otpError, requestError, requesting,
+      codeFocusRequest: shortSubmits > 0 ? shortSubmits : undefined,
+      onCancel: () => router.replace(returnDestination),
+      onCodeChange: handleCodeChange,
+      onConfirm: () => void handleConfirm(),
+      onResend: () => void handleResend(),
+    }} />
   )
+}
+
+function StepUpSurface({ guided, operation, state, operationLabel, t, tokens }: Readonly<SharedMobileStepUpProps & { guided: boolean; operation: StepUpOperation; state: GuidedStepUpState }>) {
+  if (guided) return <GuidedStepUp operation={operation} state={state} />
+  const sharedView = { operationLabel, t, tokens }
+  if (state.kind === 'success') return <MobileStepUpSuccess {...sharedView} deletionDate={state.deletionDate} showProNotice={state.showProNotice} onSignOut={state.onSignOut} />
+  if (state.kind === 'exhausted') return <MobileStepUpExhausted {...sharedView} lockSeconds={state.lockSeconds} backLabel={state.backLabel} onBack={state.onBack} />
+  return <MobileStepUpChallenge {...state} operationLabel={operationLabel} t={t} tokens={tokens} />
 }
 
 type StepUpTokens = ReturnType<typeof createTokensV2>
@@ -367,6 +377,22 @@ function MobileStepUpSuccess({
   )
 }
 
+function DeletionResult({ deletionDate, pro, onSignOut, t }: Readonly<{ deletionDate: string; pro: boolean; onSignOut: () => void; t: TFunction }>) {
+  const guided = useFlag('orbit_guided_flows')
+  const [dismissed, setDismissed] = useState(false)
+  if (!guided || dismissed) return null
+  return (
+    <ResultDialog
+      title={t('result.title')}
+      sentence={pro ? t('result.account.deletionScheduledPro', { date: deletionDate }) : t('result.account.deletionScheduled', { date: deletionDate })}
+      primaryLabel={t('stepUp.signOut')}
+      onPrimary={onSignOut}
+      onClose={() => setDismissed(true)}
+      orbitState="parado"
+    />
+  )
+}
+
 function MobileStepUpExhausted({
   backLabel,
   lockSeconds,
@@ -393,6 +419,7 @@ function MobileStepUpExhausted({
 interface MobileStepUpChallengeProps extends SharedMobileStepUpProps {
   checking: boolean
   code: string
+  codeFocusRequest: number | undefined
   cooldownSeconds: number
   email: string
   expired: boolean
@@ -406,7 +433,7 @@ interface MobileStepUpChallengeProps extends SharedMobileStepUpProps {
 }
 
 function MobileStepUpChallenge(props: Readonly<MobileStepUpChallengeProps>) {
-  const { checking, code, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t, tokens } = props
+  const { checking, code, codeFocusRequest, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t, tokens } = props
   const action = expired ? (
     <PillButton loading={requesting} onClick={onResend}>{t('stepUp.resend')}</PillButton>
   ) : (
@@ -416,7 +443,7 @@ function MobileStepUpChallenge(props: Readonly<MobileStepUpChallengeProps>) {
     <FlowShell nav={false} action={action}>
       <View style={styles.column}>
         <MobileStepUpHeader body={expired ? t('stepUp.expiredBody') : t('stepUp.body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('stepUp.expiredTitle') : t('stepUp.title')} tokens={tokens} />
-        <OtpInput value={code} onChange={onCodeChange} error={otpError} hint={expired ? undefined : t('stepUp.codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('stepUp.codeLabel')} />
+        <OtpInput value={code} onChange={onCodeChange} error={otpError} focusRequest={codeFocusRequest} hint={expired ? undefined : t('stepUp.codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('stepUp.codeLabel')} />
         {!expired ? <MobileStepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} tokens={tokens} /> : null}
         {requestError ? <Text accessibilityRole="alert" style={[styles.secondary, { color: tokens.statusBadText }]}>{requestError}</Text> : null}
         <View style={styles.note}>

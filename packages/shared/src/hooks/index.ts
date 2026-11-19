@@ -27,6 +27,7 @@ export { createGoalProgressEntry, reduceGoalProgressEntry, getGoalProgressEntryR
 
 export * from './bulk-actions-core'
 export * from './goal-creation-core'
+export * from './goal-edit-core'
 export * from './retained-goal-core'
 export * from './goal-linking-core'
 export * from './goal-habit-picker-core'
@@ -46,3 +47,7 @@ export * from './habit-structure-core'
 export * from './habit-delete-core'
 
 export { createUseDelayedLoading } from './delayed-loading-core'
+export { createUseGuidedGoalFlow, type GuidedGoalFlowNavigation } from './guided-goal-flow-core'
+export { createUseGuidedOnboardingNavigation } from './guided-onboarding-navigation-core'
+export { createQuestionFlowHooks } from './question-flow-core'
+export { createTagRequests, type TagRequestInput, type TagRequests, type TagRequestSelection } from './tag-requests-core'

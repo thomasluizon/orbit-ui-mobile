@@ -13,7 +13,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
 /** A circular progress sweep over a neutral track. */
-export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressRingProps>) {
+export function ProgressRing({ value = 0, size = 64, label, sweepDuration = 'base' }: Readonly<ProgressRingProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const prefersReducedMotion = usePrefersReducedMotion()
@@ -51,13 +51,13 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
     targetOffset.current = nextOffset
     const animation = Animated.timing(strokeDashoffset, {
       toValue: nextOffset,
-      duration: motionDurations.base,
+      duration: motionDurations[sweepDuration],
       easing: toAnimatedEasing(motionEasings.standard),
       useNativeDriver: false,
     })
     animation.start()
     return () => animation.stop()
-  }, [circumference, clamped, prefersReducedMotion, strokeDashoffset])
+  }, [circumference, clamped, prefersReducedMotion, strokeDashoffset, sweepDuration])
 
   return (
     <Svg

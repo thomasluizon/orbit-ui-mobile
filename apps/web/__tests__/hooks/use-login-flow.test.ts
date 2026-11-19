@@ -66,7 +66,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
 
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: Object.assign(() => ({ setAuth: mocks.setAuth }), {
+  useAuthStore: Object.assign(() => ({ setAuth: mocks.setAuth, isAuthenticated: mocks.authenticated }), {
     subscribe: (listener: () => void) => { mocks.authListeners.add(listener); return () => { mocks.authListeners.delete(listener) } },
     getState: () => ({
       isAuthenticated: mocks.authenticated,
@@ -143,6 +143,12 @@ beforeEach(() => {
   sessionStorage.clear()
   document.cookie = 'referral_code=;max-age=0;path=/'
   wireAuthNetwork()
+})
+
+it('reports the session of the auth store as signed in, so the sign-in surface reads no store of its own', () => {
+  expect(renderHook(() => useLoginFlow()).result.current.signedIn).toBe(false)
+  mocks.authenticated = true
+  expect(renderHook(() => useLoginFlow()).result.current.signedIn).toBe(true)
 })
 
 describe('Google sign in', () => {

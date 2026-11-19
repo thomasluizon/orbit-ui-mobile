@@ -54,7 +54,7 @@ describe('upgrade utils', () => {
     }
 
     expect(en.profile.freshStart.preservePreferences).toBe(
-      'Theme, language, and timezone',
+      'Theme, language, and time zone',
     )
     expect(ptBR.profile.freshStart.preservePreferences).toBe(
       'Tema, idioma e fuso horário',

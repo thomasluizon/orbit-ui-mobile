@@ -4,6 +4,17 @@ export { getSegmentedControlLayout } from './segmented-control'
 export { achievementEmoji } from './achievement-emoji'
 export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'
 export { submitApiKeyCreation, openApiKeyScopeOrStartStepUp, type ApiKeyCreationAdapter } from './api-key-creation'
+export {
+  API_KEY_CREATE_QUESTION_KEYS,
+  apiKeyCreatePosition,
+  apiKeyCreatePrimary,
+  apiKeyTextStepIssue,
+  readApiKeyCreateSubmission,
+  type ApiKeyCreatePosition,
+  type ApiKeyCreateStep,
+  type ApiKeyCreateSubmission,
+  type ApiKeyQuestionStep,
+} from './api-key-create-flow'
 export { habitInitial } from './habit-initial'
 export { mapCompletionSeries } from './completion-series'
 export { createClientId } from './client-id'
@@ -102,6 +113,8 @@ export {
   recordLoginFailure,
   deriveLoginEmailSubmission,
   formatLoginCountdown,
+  loginCodeLine,
+  loginRefusalHint,
   type LoginAttempts,
   type LoginCodeFailure,
 } from './auth-login'
@@ -237,7 +250,7 @@ export {
   buildHabitDaysList,
   buildHabitAstraFallbackCopy,
   applyHabitEmojiSuggestion,
-  reportHabitFormValidationError,
+  reportRefusedHabitSave,
   buildHabitEmojiSuggestionAvailability,
   buildHabitFormPatchFromSuggestion,
   buildHabitUnderstandingLabels,
@@ -405,7 +418,7 @@ export {
   getOnboardingDisplayTotal,
   buildOnboardingHabitInput,
   buildOnboardingScheduleFromPhrase,
-  buildOnboardingScheduleFromSuggestion,
+  buildOnboardingProposal,
   changeOnboardingScheduleMode,
   toggleOnboardingScheduleDay,
   getOnboardingCompleteCopy,
@@ -426,7 +439,31 @@ export {
   ONBOARDING_REMINDER_MINUTES,
   shouldRequestOnboardingSuggestion,
 } from './onboarding'
-export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingRemindCopy, OnboardingRemindState, OnboardingSchedule, OnboardingScheduleMode } from './onboarding'
+export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingProposal, OnboardingRemindCopy, OnboardingRemindState, OnboardingSchedule, OnboardingScheduleMode } from './onboarding'
+export {
+  describeOnboardingCadence,
+  describeOnboardingResult,
+  formatOnboardingCadence,
+  isOnboardingIntroScreen,
+  ONBOARDING_INTRO_SCREENS,
+  ONBOARDING_MODE_OPTIONS,
+  onboardingBackTarget,
+  onboardingGuidedPosition,
+  onboardingInitialView,
+  onboardingRunningStatusKey,
+  onboardingViewAfterStep,
+  onboardingModeDetailSteps,
+  onboardingScheduleFromSaved,
+  describeSavedOnboardingResult,
+  type OnboardingSavedHabit,
+  onboardingStepAfterAnswer,
+  onboardingSummaryValue,
+  ONBOARDING_UNIT_OPTIONS,
+  onboardingModeKey,
+  onboardingNeedsCadence,
+  phraseLineKey,
+} from './onboarding-guided'
+export type { OnboardingBackTarget, OnboardingCadenceText, OnboardingFlowView, OnboardingGuidedNavigation, OnboardingIntroScreen, OnboardingQuestionStep, OnboardingResultSentence } from './onboarding-guided'
 export {
   isMissingBillingError,
   isMissingBillingStatus,
@@ -477,6 +514,24 @@ export {
   validateGoalProgressInput,
 } from './goal-form'
 export type { GoalDraftFieldError, GoalDraftFieldErrorKeys } from './goal-form'
+export {
+  advanceGoalFlow,
+  createGoalEditPort,
+  getGoalFlowStepError,
+  GOAL_RESULT_DATE_FORMAT,
+  goalFlowPosition,
+  goalFlowStepOfField,
+  goalResultSentenceKey,
+  goalStepHintFor,
+  goalFlowSteps,
+  openGoalFlowStep,
+  retreatGoalFlow,
+  startGoalFlow,
+} from './goal-flow'
+export type { GoalDraftPort, GoalFlowNavigation, GoalFlowOptions, GoalFlowStep, GoalFlowStepDraft, GoalFlowStepError, GoalStepHint } from './goal-flow'
+export { GOAL_DEADLINE_CHOICES, resolveGoalDeadlineChoice, resolveMonthEndDeadline, resolveYearEndDeadline, type GoalDeadlineChoice } from './goal-deadline-options'
+export { buildTagLineItems, joinNamedItems, type TagLineHabit, type TagLineItems } from './tag-flow-line'
+export { leadingQuickOptions, searchByTitle } from './quick-options'
 export {
   createEmptyNotificationsResponse,
   deleteNotificationFromList,
@@ -727,6 +782,8 @@ export {
   buildFreshStartPreservedItems,
   FRESH_START_DELETED_ITEM_KEYS,
   FRESH_START_PRESERVED_ITEM_KEYS,
+  freshStartSubmitAction,
+  isFreshStartConfirmed,
 } from './fresh-start'
 export {
   buildSupportRequestBody,
@@ -736,10 +793,12 @@ export {
   buildSupportVersionSuffix,
   getSupportMessageMaxLength,
   getSupportMessageFit,
+  describeSupportFlowStep,
   getSupportSendReasonKey,
   SUPPORT_SUBJECT_OPTIONS,
 } from './support'
 export type {
+  SupportFlowStepState,
   SupportFormFields,
   SupportProfileFields,
   SupportRequestBody,
@@ -770,7 +829,8 @@ export {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
 } from './profile-navigation'
-export { buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from './profile-preferences'
+export { buildGuidedTimeZoneOptions, buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues, filterTimeZones, TIME_ZONE_PAGE_SIZE } from './profile-preferences'
+export type { GuidedTimeZoneInput, GuidedTimeZoneOptions } from './profile-preferences'
 export type {
   ProfileNavHintMode,
   ProfileNavIconKey,
@@ -861,7 +921,7 @@ export { TODAY_LAUNCH_SPAN_NAME, sampleTodayLaunch, startTodayLaunchTiming, isTo
 
 export { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePhrase } from './habit-recurrence-phrase'
 
-export { getPendingAuthProvider, getAuthCallbackErrorKey } from './auth-login'
+export { getPendingAuthProvider, getAuthCallbackErrorKey, showsAuthCallbackLine, deriveLoginEmailErrors } from './auth-login'
 
 export { createAstraAllowanceTranslator, type AstraAllowance } from './astra-allowance'
 
@@ -874,3 +934,58 @@ export { buildBulkCompletionChunks, getBulkCompletionReplay, normalizeBulkComple
 export type { BulkCompletionInput, BulkRetryChunk } from './bulk-completion'
 export { subscribeOrbitLoop, getOrbitLoopVersion, setOrbitMotionEnabled, isOrbitMotionEnabled, pauseOrbitLoopForOverlay, claimOrbitLiveSlot, mayOrbitRunLoop, runOrbitLoopClock, runOrbitReadClock } from './orbit-mascot-loop'
 export type { OrbitFrameScheduler, OrbitOverlay } from './orbit-mascot-loop'
+export {
+  remainingHabitFlowSteps,
+  readPhraseCoverage,
+  resetCoveredAnswers,
+  phraseLeavesWordsUnread,
+  describeHabitFlowSummary,
+  describeHabitResult,
+  formatHabitCadence,
+  optimisticHabitResult,
+  resolveResultDestination,
+} from './habit-flow'
+export type {
+  FlowValueFormat,
+  HabitFlowStepId,
+  HabitFlowAnswers,
+  PhraseCoverage,
+  RemainingHabitFlowStepsInput,
+  HabitResultItem,
+  HabitResultCadence,
+  HabitResultSentence,
+  HabitResultSentenceKey,
+} from './habit-flow'
+export {
+  advanceHabitFlow,
+  habitFlowPosition,
+  openHabitFlowStep,
+  retreatHabitFlow,
+  settleHabitFlow,
+  startHabitFlow,
+} from './habit-flow-navigation'
+export type {
+  HabitFlowDetailStep,
+  HabitFlowNavigation,
+  HabitFlowOptionalId,
+  HabitFlowPosition,
+  HabitFlowStepKey,
+} from './habit-flow-navigation'
+export { answerHabitReminder, answerHabitTime, answerHabitWhen, shiftCalendarDate, HABIT_TIME_OPTIONS } from './habit-flow-answers'
+export { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from './habit-flow-details'
+export type { EditDetailsRead, GuidedEditDetails, HabitFlowAnswerFields, HabitFlowOptionalInput, HabitWhenWords, HabitWhenWordsContext } from './habit-flow-details'
+export type { HabitFlowFormPort, HabitWhenChoice } from './habit-flow-answers'
+
+export {
+  GUIDED_FLOW_IDS,
+  createGuidedFlowTracker,
+  markGuidedFlowCompleted,
+  resetGuidedFlowCompleted,
+  takeGuidedFlowCompleted,
+  type GuidedFlowEvent,
+  type GuidedFlowId,
+  type GuidedFlowSink,
+  type GuidedFlowTracker,
+} from './guided-flow-events'
+
+export { parseDatePhrase, type DatePhraseContext, type DatePhraseResult } from './date-phrase-parser'

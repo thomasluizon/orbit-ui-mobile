@@ -5,6 +5,7 @@ import ptBR from '../i18n/pt-BR.json'
 import { buildPendingOperationCardLabels } from '../chat/pending-operation-card'
 import { buildChatClientContext } from '../chat/client-context'
 import { astraOfferDestination, canShowAstraOffer } from '../chat/astra-offer'
+import { NOTION_RETURN_PATH } from '../types/notion-connection'
 import { readBlockMetadataSchema } from '../types/chat'
 import { pendingAgentOperationSchema, revisePendingOperationRequestSchema } from '../types/ai'
 import { astraOfferFixture, makeOfferedPreview, offeredReadFixture, offerConversationId } from '../test-support/astra-offer-fixtures'
@@ -33,6 +34,10 @@ describe('negotiated Astra offers', () => {
   it('uses only known surface routes', () => {
     expect(astraOfferDestination({ ...astraOfferFixture, kind: 'openSurface', surface: 'calendar-sync' })).toBe('/calendar?import=1')
     expect(astraOfferDestination({ ...astraOfferFixture, kind: 'openSurface', surface: 'https://outside.invalid' })).toBeUndefined()
+  })
+  it.each(['advanced-api', 'ai-settings'])('opens the %s offer on the AI settings page at its new slug, as the Notion return does', (surface) => {
+    expect(astraOfferDestination({ ...astraOfferFixture, kind: 'openSurface', surface })).toBe('/profile/ai')
+    expect(NOTION_RETURN_PATH).toBe('/profile/ai')
   })
   it('matches the pinned dismissal producer without reading a response body', () => {
     const request = { conversationId: offerConversationId, offerKeys: [astraOfferFixture.offerKey] }

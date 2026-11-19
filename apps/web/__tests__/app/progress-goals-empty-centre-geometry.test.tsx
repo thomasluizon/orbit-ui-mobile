@@ -17,6 +17,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/progress/goals', useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile(), isError: false, isLoading: false, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: vi.fn(),
@@ -51,7 +52,7 @@ describe('Progresso Metas empty state centring in Chromium', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(cases)('centres the empty group between the header and the tab bar at $width px in $mode', async ({ width, mode }) => {
+  it.each(cases)('centres the empty group with Orbit at rest between the header and the tab bar at $width px in $mode', async ({ width, mode }) => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const view = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}><GoalsInShell /></NextIntlClientProvider>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
@@ -62,11 +63,13 @@ describe('Progresso Metas empty state centring in Chromium', () => {
         const header = document.querySelector('[data-shell-header] [data-page-header]')!.getBoundingClientRect()
         const tabs = document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect()
         const group = document.querySelector('[data-shell-scroller] [data-empty-state]')!.getBoundingClientRect()
-        return { free: { top: header.bottom, bottom: tabs.top }, group: { top: group.top, bottom: group.bottom } }
+        const orbit = document.querySelector('[data-shell-scroller] [data-empty-state] [data-asset="orbit-mascot"]')
+        return { free: { top: header.bottom, bottom: tabs.top }, group: { top: group.top, bottom: group.bottom }, orbit: { state: orbit?.getAttribute('data-orbit-state'), width: orbit?.getBoundingClientRect().width } }
       })
       const freeCentre = (geometry.free.top + geometry.free.bottom) / 2
       const groupCentre = (geometry.group.top + geometry.group.bottom) / 2
       expect(Math.abs(groupCentre - freeCentre), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
+      expect(geometry.orbit).toEqual({ state: 'parado', width: 96 })
     } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
   })
 })

@@ -6,9 +6,9 @@ import type { SendOneSmallStepMessage } from './one-small-step-actions'
 
 const offerDestinations: Readonly<Record<string, string>> = {
   today: '/', goals: '/progress/goals', progress: '/progress',
-  'advanced-api': '/profile/astra', notifications: '/notifications', referrals: 'referrals',
+  'advanced-api': '/profile/ai', notifications: '/notifications', referrals: 'referrals',
   'profile-preferences': '/profile/preferences', 'calendar-overview': '/calendar',
-  'calendar-sync': '/calendar?import=1', 'ai-settings': '/profile/astra',
+  'calendar-sync': '/calendar?import=1', 'ai-settings': '/profile/ai',
 }
 
 export function astraOfferDestination(action: AstraNextAction): string | undefined {

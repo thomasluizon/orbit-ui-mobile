@@ -30,10 +30,13 @@ export interface PersistedOnboardingDraft {
   onboardingLocallyDone: boolean
   pushPermissionGranted: boolean
   pushRegistrationFailed: boolean
+  /** The intro of the guided onboarding showed once on this install. It never shows again here, for any account. A draft stored before the intro existed has no value. */
+  introSeen?: boolean
 }
 
 export interface OnboardingDraftState extends PersistedOnboardingDraft {
   accountKey: string | null
+  introSeen: boolean
   setAccountScope: (accountKey: string | null, preserveAnonymousDraft?: boolean) => void
   bufferHabit: (habit: ApplyOnboardingHabit) => number
   replaceHabit: (habitIndex: number, habit: ApplyOnboardingHabit) => void
@@ -43,12 +46,13 @@ export interface OnboardingDraftState extends PersistedOnboardingDraft {
   markOnboardingLocallyDone: () => void
   markPushPermissionGranted: () => void
   markPushRegistrationFailed: () => void
+  markIntroSeen: () => void
   hasPendingAnswers: () => boolean
   buildApplyPayload: () => ApplyOnboardingRequest
   reset: () => void
 }
 
-function createInitialDraft(): PersistedOnboardingDraft & { accountKey: string | null } {
+function createInitialDraft(): PersistedOnboardingDraft & { accountKey: string | null; introSeen: boolean } {
   return {
     accountKey: null,
     habits: [],
@@ -58,6 +62,7 @@ function createInitialDraft(): PersistedOnboardingDraft & { accountKey: string |
     onboardingLocallyDone: false,
     pushPermissionGranted: false,
     pushRegistrationFailed: false,
+    introSeen: false,
   }
 }
 
@@ -73,12 +78,13 @@ export function getPersistedOnboardingDraft(
     onboardingLocallyDone: state.onboardingLocallyDone,
     pushPermissionGranted: state.pushPermissionGranted,
     pushRegistrationFailed: state.pushRegistrationFailed,
+    introSeen: state.introSeen,
   }
 }
 
 export function migrateOnboardingDraft(
   persistedState: unknown,
-): PersistedOnboardingDraft & { accountKey: string | null } {
+): PersistedOnboardingDraft & { accountKey: string | null; introSeen: boolean } {
   const initial = createInitialDraft()
   if (!isRecord(persistedState)) return initial
 
@@ -103,6 +109,25 @@ export function migrateOnboardingDraft(
     onboardingLocallyDone: persistedState.onboardingLocallyDone === true,
     pushPermissionGranted: persistedState.pushPermissionGranted === true,
     pushRegistrationFailed: persistedState.pushRegistrationFailed === true,
+    introSeen: persistedState.introSeen === true,
+  }
+}
+
+/**
+ * The draft a rehydration gives the store. The answers of another account are dropped. The facts of this install
+ * stay for every account: onboarding ended here, and the intro showed here.
+ */
+export function mergeOnboardingDraft(
+  persisted: unknown,
+  current: Pick<OnboardingDraftState, 'onboardingLocallyDone' | 'introSeen'>,
+  accountId: string | null,
+): PersistedOnboardingDraft & { accountKey: string | null; introSeen: boolean } {
+  const draft = migrateOnboardingDraft(persisted)
+  const answers = accountId !== null && draft.accountKey !== accountId ? createInitialDraft() : draft
+  return {
+    ...answers,
+    onboardingLocallyDone: current.onboardingLocallyDone || draft.onboardingLocallyDone || accountId !== null,
+    introSeen: current.introSeen || draft.introSeen,
   }
 }
 
@@ -130,7 +155,7 @@ export function createOnboardingDraftState(
       if (state.accountKey === null && accountKey !== null && preserveAnonymousDraft) {
         return { accountKey, onboardingLocallyDone }
       }
-      return { ...createInitialDraft(), accountKey, onboardingLocallyDone }
+      return { ...createInitialDraft(), accountKey, onboardingLocallyDone, introSeen: state.introSeen }
     }),
 
     bufferHabit: (habit) => {
@@ -159,6 +184,8 @@ export function createOnboardingDraftState(
 
     markPushRegistrationFailed: () => set({ pushRegistrationFailed: true }),
 
+    markIntroSeen: () => set({ introSeen: true }),
+
     hasPendingAnswers: () => {
       const state = get()
       return (
@@ -175,6 +202,7 @@ export function createOnboardingDraftState(
     reset: () => set((state) => ({
       ...createInitialDraft(),
       onboardingLocallyDone: state.onboardingLocallyDone,
+      introSeen: state.introSeen,
     })),
   }
 }

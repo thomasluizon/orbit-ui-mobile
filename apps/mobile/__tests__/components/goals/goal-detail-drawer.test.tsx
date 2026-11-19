@@ -2,14 +2,15 @@ import { QueryClient, QueryObserver, onlineManager } from '@tanstack/react-query
 import { goalKeys } from '@orbit/shared/query'
 import { MAX_GOAL_PROGRESS_NOTE_LENGTH } from '@orbit/shared/validation'
 import { PersonalText } from '@/components/ui/personal-text'
-import { Animated, BackHandler, StyleSheet } from 'react-native'
+import { Animated, BackHandler, Platform, StyleSheet } from 'react-native'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { createMockGoal, createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
 import { updateGoalProgressDetail } from '@orbit/shared/utils'
+import { MODAL_TRANSITION_FALLBACK_MS } from '@/components/ui/native-window-host'
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { buildTempGoal } from '@/lib/goal-mutation-helpers'
@@ -130,6 +131,9 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
       : null,
 }))
 
+const guidedFlag = vi.hoisted(() => ({ on: false }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => guidedFlag.on }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ timeZone: 'UTC' }) }) }))
 vi.mock('@/components/goals/edit-goal-modal', () => ({
   EditGoalModal: () => null,
 }))
@@ -240,6 +244,52 @@ describe('GoalDetailDrawer', () => {
     expect(text).toContain('goals.metrics.projectedCompletionJan 25, 2025')
     expect(text).toContain('goals.metrics.weeklyAdherence:{"percent":"75"}')
     TestRenderer.act(() => tree.unmount())
+  })
+
+  it('titles the goal sheet with the goal in the words of the person when the guided flows are on, and shows that title once', () => {
+    guidedFlag.on = true
+    try {
+      let tree: any
+      TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />) })
+      const sheet = tree.root.findByType('Sheet')
+      expect(sheet.props.accessibleTitle).toBe('Read 12 books')
+      expect(sheet.props.title).toBeUndefined()
+      const shownTitles = tree.root.findAll((node: any) => typeof node.type === 'string' && node.children.includes('Read 12 books') && node.props.importantForAccessibility !== 'no-hide-descendants')
+      expect(shownTitles, 'the body header is the one goal title the person sees').toHaveLength(1)
+      expect(shownTitles[0].props.accessibilityRole).toBe('header')
+      TestRenderer.act(() => tree.unmount())
+      const barTitles = (root: any) => root.findAll((node: any) => node.props.backLabel === 'common.back' && 'title' in node.props).map((node: any) => node.props.title)
+      TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="1" />) })
+      expect(barTitles(tree.root), 'the inline bar keeps the route name').toEqual(['progressScreen.sections.goals'])
+      TestRenderer.act(() => tree.unmount())
+      detailAvailable = false
+      TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="missing" />) })
+      const fallbackHeaders = tree.root.findAll((node: any) =>
+        typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === 'progressScreen.sections.goals')
+      expect(fallbackHeaders).toHaveLength(1)
+      TestRenderer.act(() => tree.unmount())
+    } finally {
+      guidedFlag.on = false
+      detailAvailable = true
+    }
+  })
+
+  it('shows the route name as the guided goal sheet title when a refresh drops the goal while the sheet is open', () => {
+    guidedFlag.on = true
+    try {
+      let tree: any
+      TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />) })
+      expect(tree.root.findByType('Sheet').props.accessibleTitle).toBe('Read 12 books')
+      detailAvailable = false
+      listGoalAvailable = false
+      TestRenderer.act(() => tree.update(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />))
+      const sheet = tree.root.findByType('Sheet')
+      expect(sheet.props.title, 'the header shows a title while the body has no goal heading').toBe('progressScreen.sections.goals')
+      expect(sheet.props.accessibleTitle).toBeUndefined()
+      TestRenderer.act(() => tree.unmount())
+    } finally {
+      guidedFlag.on = false
+    }
   })
 
   it('keeps no-deadline and no-data forecasts explicit', () => {
@@ -507,7 +557,7 @@ describe('GoalDetailDrawer', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('opens Astra after sheet dismissal with the selected synced goal', () => {
+  it('opens the conversation after sheet dismissal with the selected synced goal', () => {
     detailGoal = { ...detailGoal, title: 'Synced goal' }
     const onClose = vi.fn()
     sheetTestControls.defer(true)
@@ -526,7 +576,7 @@ describe('GoalDetailDrawer', () => {
     expect(mockPush).not.toHaveBeenCalled()
   })
 
-  it('retains inline goal detail and the existing draft when Astra opens', () => {
+  it('retains inline goal detail and the existing draft when the conversation opens', () => {
     useChatStore.setState({ draft: 'My unfinished message' })
     const onClose = vi.fn()
     let tree: ReturnType<typeof TestRenderer.create>
@@ -952,6 +1002,119 @@ describe('GoalDetailDrawer', () => {
     const tree = renderDrawer()
     press(tree, 'goals.detail.reactivate')
     expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  describe('with the guided flows on, a Modal waits for the native dismissal of the detail sheet', () => {
+    beforeEach(() => {
+      guidedFlag.on = true
+      sheetTestControls.defer(true)
+    })
+    afterEach(() => {
+      guidedFlag.on = false
+      sheetTestControls.defer(false)
+    })
+    const openEditModals = (tree: any) => tree.root.findAll((node: { props: { open?: unknown; goal?: unknown } }) => node.props.open === true && node.props.goal !== undefined)
+    const resultDialogs = (tree: any) => tree.root.findAll((node: { props: { testID?: string } }) => node.props.testID === 'result-dialog')
+
+    it('opens the guided edit only after the sheet is gone', () => {
+      const tree = renderDrawer()
+      press(tree, 'goals.detail.edit')
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(openEditModals(tree)).toHaveLength(0)
+      TestRenderer.act(() => sheetTestControls.completeDismissal())
+      expect(openEditModals(tree).length).toBeGreaterThan(0)
+    })
+
+    it.each(['goals.detail.markAbandoned', 'goals.detail.reactivate'])('shows the result of %s only after the sheet is gone', async (action) => {
+      if (action === 'goals.detail.reactivate') detailGoal = { ...listGoal, status: 'Abandoned', progressHistory: [] }
+      const tree = renderDrawer()
+      press(tree, action)
+      await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })
+      expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(resultDialogs(tree)).toHaveLength(0)
+      TestRenderer.act(() => sheetTestControls.completeDismissal())
+      expect(resultDialogs(tree).length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('with the guided flows on, the sheet waits for the Modal that closes before it presents again', () => {
+    beforeEach(() => {
+      guidedFlag.on = true
+      sheetTestControls.defer(true)
+    })
+    afterEach(() => {
+      Platform.OS = 'android'
+      guidedFlag.on = false
+      sheetTestControls.defer(false)
+      vi.useRealTimers()
+    })
+    const sheets = (tree: any) => tree.root.findAll((node: { type: unknown }) => node.type === 'Sheet')
+    const editModal = (tree: any) => tree.root.findAll((node: { props: { open?: unknown; goal?: unknown } }) => node.props.open === true && node.props.goal !== undefined)[0]
+    const resultModal = (tree: any) => tree.root.findAll((node: { type: unknown; props: { transparent?: unknown; onRequestClose?: unknown } }) => node.type === 'Modal' && node.props.transparent === true)[0]
+
+    async function openResult(tree: any) {
+      press(tree, 'goals.detail.markAbandoned')
+      await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })
+      TestRenderer.act(() => sheetTestControls.completeDismissal())
+      expect(resultModal(tree)).toBeDefined()
+    }
+
+    function openEdit(tree: any) {
+      press(tree, 'goals.detail.edit')
+      TestRenderer.act(() => sheetTestControls.completeDismissal())
+      expect(sheets(tree)).toHaveLength(0)
+      expect(editModal(tree).props.windowOpen).toBe(true)
+    }
+
+    it('on iOS keeps the sheet unmounted after the guided edit closes, until its window reports the dismissal', () => {
+      Platform.OS = 'ios'
+      const tree = renderDrawer()
+      openEdit(tree)
+      TestRenderer.act(() => editModal(tree).props.onClose())
+      expect(editModal(tree).props.windowOpen, 'the edit window is mounted and dismissing').toBe(false)
+      expect(sheets(tree), 'UIKit refuses a sheet over a Modal that still dismisses').toHaveLength(0)
+      TestRenderer.act(() => editModal(tree).props.onWindowDismissed())
+      expect(sheets(tree)).toHaveLength(1)
+      expect(editModal(tree)).toBeUndefined()
+    })
+
+    it('on iOS keeps the sheet unmounted after the status result closes, until its Modal reports the dismissal', async () => {
+      Platform.OS = 'ios'
+      const tree = renderDrawer()
+      await openResult(tree)
+      press(tree, 'result.goal.open')
+      expect(resultModal(tree).props.visible, 'the result Modal is mounted and dismissing').toBe(false)
+      expect(sheets(tree), 'UIKit refuses a sheet over a Modal that still dismisses').toHaveLength(0)
+      TestRenderer.act(() => resultModal(tree).props.onDismiss())
+      expect(sheets(tree)).toHaveLength(1)
+      expect(resultModal(tree)).toBeUndefined()
+    })
+
+    it('on iOS presents the sheet at the fallback when UIKit reports no dismissal', async () => {
+      Platform.OS = 'ios'
+      const tree = renderDrawer()
+      await openResult(tree)
+      vi.useFakeTimers()
+      press(tree, 'result.goal.open')
+      expect(sheets(tree)).toHaveLength(0)
+      TestRenderer.act(() => { vi.advanceTimersByTime(MODAL_TRANSITION_FALLBACK_MS) })
+      expect(sheets(tree)).toHaveLength(1)
+    })
+
+    it('on Android presents the sheet again at once, with no window held', () => {
+      const tree = renderDrawer()
+      openEdit(tree)
+      TestRenderer.act(() => editModal(tree).props.onClose())
+      expect(sheets(tree)).toHaveLength(1)
+      expect(editModal(tree)).toBeUndefined()
+    })
+  })
+
+  it('keeps the edit modal opening at once with the guided flows off, as before', () => {
+    const tree = renderDrawer()
+    press(tree, 'goals.detail.edit')
+    expect(tree.root.findAll((node: { props: { open?: unknown; goal?: unknown } }) => node.props.open === true && node.props.goal !== undefined).length).toBeGreaterThan(0)
   })
 
   it('opens the edit modal and requests dismiss without throwing', () => {

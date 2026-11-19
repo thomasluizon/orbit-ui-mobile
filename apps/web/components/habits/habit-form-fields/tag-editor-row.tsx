@@ -2,8 +2,7 @@ import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useEffect, useRef, useId } from 'react'
 import { X } from '@/components/ui/icons'
-import { SkeletonFace } from '@/components/ui/skeleton'
-import { waitingFaceClasses } from '@/components/ui/pill-action-style'
+import { PillButton } from '@/components/ui/pill-button'
 import { MAX_TAG_NAME_LENGTH } from '@orbit/shared/validation'
 
 interface TagEditorRowProps {
@@ -63,22 +62,7 @@ export function TagEditorRow({
           }
         }}
       />
-      <button
-        type="button"
-        className={`habit-control-motion press-hit-layer shrink-0 min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full ${pending ? waitingFaceClasses : 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-40'}`}
-        style={{
-          padding: "var(--orbit-space-8) var(--orbit-space-12)",
-          fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontWeight: 500,
-        }}
-        disabled={pending}
-        aria-busy={pending || undefined}
-        onClick={commit}
-      >
-        {pending ? <SkeletonFace /> : null}
-        {actionLabel}
-      </button>
+      <PillButton size="sm" minimumHeight={48} loading={pending} onClick={commit}>{actionLabel}</PillButton>
       <button
         type="button"
         aria-label={cancelAriaLabel}

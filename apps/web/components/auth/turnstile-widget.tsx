@@ -10,6 +10,7 @@ import {
   type TurnstileBridgeStage,
 } from '@orbit/shared/hooks/turnstile-token-core'
 import { useCurrentTheme } from '@/stores/theme-store'
+import { SkeletonFace } from '@/components/ui/skeleton'
 
 type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
 
@@ -320,6 +321,7 @@ export function TurnstileWidget({
   if (quiet) return <div ref={containerRef} style={{ position: challengeVisible ? undefined : 'absolute', ...passedStyle }} />
 
   const stopped = state === 'failed' || state === 'expired'
+  const waiting = state === 'loading'
   const challengeHidden = state !== 'interactive'
   return (
     <div data-testid="turnstile-slot" className="flex flex-col justify-center text-sm text-[var(--fg-2)]" style={{ minHeight: TURNSTILE_CHALLENGE_HEIGHT }}>
@@ -328,9 +330,11 @@ export function TurnstileWidget({
         <div ref={containerRef} className="w-full" style={passedStyle} />
       </div>
       <div className="flex items-center justify-center gap-2 text-center">
-        <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
-          {state === 'loading' ? t('auth.turnstileLoading') : ''}
-        </p>
+        <div data-turnstile-wait={waiting ? '' : undefined} className={waiting ? 'relative isolate grid w-full place-items-center overflow-hidden rounded-[var(--r-well)] px-4' : 'sr-only'}
+          style={waiting ? { height: TURNSTILE_CHALLENGE_HEIGHT } : undefined}>
+          {waiting ? <SkeletonFace /> : null}
+          <p role="status">{waiting ? t('auth.turnstileLoading') : ''}</p>
+        </div>
         <p role="alert" className={`text-[var(--status-bad-text)] ${stopped ? '' : 'sr-only'}`}>
           {stopped ? t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired') : ''}
         </p>
