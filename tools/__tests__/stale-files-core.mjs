@@ -726,6 +726,45 @@ const lateLivenessCases = async () => {
   }
 }
 
+/** The directories that `action` lists, in order of reading. */
+const directoriesListedBy = (action) => {
+  const listed = []
+  const listDirectory = fs.readdirSync
+  fs.readdirSync = (path, ...rest) => {
+    listed.push(String(path))
+    return listDirectory(path, ...rest)
+  }
+  syncBuiltinESMExports()
+  try {
+    action()
+  } finally {
+    fs.readdirSync = listDirectory
+    syncBuiltinESMExports()
+  }
+  return [...new Set(listed)]
+}
+
+/**
+ * The listing and the check before each removal read their evidence through one function. A field that a shared rule
+ * reads then cannot exist in the listing and miss at the removal: the removal reads each directory the listing reads.
+ */
+const sharedEvidenceCases = () => {
+  const machine = stageMachine("shared-evidence")
+  const otherRoot = join(machine.base, "other-project")
+  mkdirSync(join(otherRoot, LIVE_ELSEWHERE, "scratchpad"), { recursive: true })
+  const stale = join(machine.sessionRoot, STALE)
+  // A process works in the stale directory at the removal, so the item stays and the check ends on its live hold.
+  const probes = { ...quietProbes, processes: () => [{ command: "node build.mjs", directory: stale }] }
+  let listing
+  const listed = directoriesListedBy(() => { listing = collectListing(machine.context, { probes: quietProbes, measure: false }) })
+  T("stale-files: the shared evidence fixture lists the stale session directory", stalePaths(listing, "session").includes(stale), JSON.stringify(listing.stale))
+  let outcome
+  const read = directoriesListedBy(() => { outcome = removeListed({ ...listing, stale: listing.stale.filter((item) => item.path === stale) }, {}, { probes }) })
+  same("stale-files: the shared evidence fixture keeps the directory at the removal", outcome.skipped.map((item) => item.reason), ["it is in use now: a live process works in it"])
+  T("stale-files: the listing reads the session root and the other project roots", [machine.sessionRoot, otherRoot].every((directory) => listed.includes(directory)), JSON.stringify(listed))
+  same("stale-files: the check before the removal reads each directory that the listing reads", listed.filter((directory) => !read.includes(directory)), [])
+}
+
 /**
  * The tree of an item can change after the listing with no process left in it: a session runs `git -C <tree> ...` from
  * elsewhere and ends, or the owner works in the Orca login shell. Real git, pull requests merged at the listed tips. The
@@ -869,6 +908,7 @@ export const cases = async () => {
   freshBranchCases()
   expiredReflogCases()
   await lateLivenessCases()
+  sharedEvidenceCases()
   lateTreeCases()
   await lockCases()
 }

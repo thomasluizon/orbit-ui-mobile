@@ -392,9 +392,16 @@ const otherSessionHoldOf = (path, evidence) => {
   return session?.owner ? `it is in the directory of session ${session.name.slice(0, 8)}, which stays: ${session.owner}` : null
 }
 
-/** The sessions of the listing's root and of every other project root; null for a root that is not set or cannot be read. */
-const readSessionSets = (evidence) => ({ sessions: evidence.sessionRoot === null ? null : readSessions(evidence.sessionRoot, evidence),
-  otherSessions: readOtherSessions(evidence) })
+/**
+ * The evidence of every rule, read one way for the listing and for the check before each removal: the live evidence, the
+ * worktrees, the session directories and the time. A field that a shared rule reads cannot exist in the one and miss in the other.
+ * `sessions` holds the directories of the listing's own root, which only the listing classifies.
+ */
+const readEvidence = (context, probes, now) => {
+  const gathered = gatherEvidence(context, probes)
+  const sessions = gathered.sessionRoot === null ? null : readSessions(gathered.sessionRoot, gathered)
+  return { sessions, evidence: { ...gathered, otherSessions: readOtherSessions(gathered), now } }
+}
 
 const classifySessions = (sessions, evidence, probes) => sessions.map((session) => {
   const keep = session.owner ?? holdOf(session.path, evidence, probes)
@@ -509,9 +516,7 @@ const keepContainers = (items) => {
  */
 export const collectListing = (context, { probes = systemProbes, knownSizes = new Map(), measure = true, now = Date.now() } = {}) => {
   const deadline = now + LISTING_CEILING_MS
-  const gathered = gatherEvidence(context, probes)
-  const { sessions, otherSessions } = readSessionSets(gathered)
-  const evidence = { ...gathered, otherSessions, now }
+  const { sessions, evidence } = readEvidence(context, probes, now)
   const items = keepContainers([...classifySessions(sessions ?? [], evidence, probes), ...classifyWorktrees(evidence, probes, deadline)])
   const stale = items.filter((item) => item.stale).map(({ stale: _stale, ...item }) => ({ ...item,
     bytes: knownSizes.get(item.path) ?? (measure && Date.now() <= deadline ? probes.measure(item.path) : null) }))
@@ -693,14 +698,13 @@ const worktreeChangeOf = (item, evidence, probes) => {
 /**
  * Why `item` must stay just before its removal; null when it can go. Everything the listing read can change after it,
  * also with no process left in the item: a session resumes, a launch claims a worktree, or a session or the owner commits,
- * detaches the HEAD or makes a worktree or a repository in it. So this reads the live evidence and the worktrees again,
- * and applies the listing's rules to every kind of item.
+ * detaches the HEAD or makes a worktree or a repository in it. So this reads the listing's evidence again, through the same
+ * function, and applies the listing's rules to every kind of item.
  */
 const removalHoldOf = (item, context, repositories, probes) => {
-  const live = { ...readLiveEvidence(context, probes), sessionRoot: context.sessionRoot, now: Date.now() }
-  const liveHold = liveHoldOf(item, live)
+  const { evidence } = readEvidence({ ...context, repositories }, probes, Date.now())
+  const liveHold = liveHoldOf(item, evidence)
   if (liveHold) return `it is in use now: ${liveHold}`
-  const evidence = { ...live, otherSessions: readSessionSets(live).otherSessions, ...readWorktrees(repositories, probes) }
   const worktree = item.kind === "worktree"
   const tree = (worktree ? worktreeChangeOf(item, evidence, probes) : null) ?? holdOf(item.path, evidence, probes)
     ?? (worktree ? repositoryHoldOf(item.path, evidence, probes) : null)
