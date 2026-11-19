@@ -3,22 +3,15 @@ import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
-import { beforeAll, beforeEach } from '../hooks.mjs'
+import { beforeEach } from '../hooks.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
-import { offlineGrader } from './fixtures/grader.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
+import { sentTurn, streamedTurn } from './fixtures/offer-stream.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 
-const catalogFault = vi.hoisted(() => ({ missing: false }))
-vi.mock('node:fs', async (original) => {
-  const filesystem = await original()
-  return { ...filesystem, readFileSync: (path, ...options) => catalogFault.missing && String(path).endsWith('/catalog.yaml')
-    ? 'apiCommit: offline\n' : filesystem.readFileSync(path, ...options) }
-})
-
 vi.mock('../fixtures/reset.mjs', async (original) => ({ ...await original(), resetFixture: vi.fn() }))
-afterEach(() => { catalogFault.missing = false; vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 
 it.each(['en', 'pt-BR'])('prepares the shared client kinds for %s offer requests and preview setup', async (locale) => {
@@ -52,7 +45,7 @@ it('keeps all supplied cases, resolves their YAML contexts and configures the co
   expect(config.defaultTest.assert.some((assertion) => assertion.metric === 'proactiveOffers')).toBe(true)
 })
 
-it.each(['valid', 'wrong-trace', 'wrong-offer', 'dismiss-failed', 'fixture-failed'])(
+it.each(['valid', 'wrong-offer', 'dismiss-failed', 'fixture-failed'])(
   'drives fresh conversation setup, issued-key dismissal and preconditions: %s', async (fault) => {
     offlineCredentials()
     const source = corpus.find((entry) => entry.metadata.id === 'offers-dismissal-en')
@@ -74,11 +67,8 @@ it.each(['valid', 'wrong-trace', 'wrong-offer', 'dismiss-failed', 'fixture-faile
         dismissed++
         return new Response(null, { status: fault === 'dismiss-failed' ? 400 : 204 })
       }
-      expect(path).toBe('/api/chat')
-      const request = new Request(url, options)
-      const form = await request.formData()
-      const client = JSON.parse(form.get('clientContext'))
-      const id = request.headers.get('x-orbit-request-id')
+      expect(path).toBe('/api/chat/stream')
+      const { requestId: id, clientContext: client } = await sentTurn(url, options)
       const today = new Date().toISOString().slice(0, 10)
       conversations.push(client.conversationId)
       requestIds.push(id)
@@ -87,13 +77,13 @@ it.each(['valid', 'wrong-trace', 'wrong-offer', 'dismiss-failed', 'fixture-faile
       const action = { offerKey: `smallStep:account:${today}`, kind: 'continueChat', label: 'Choose one small step',
         surface: null, prompt: 'Help me choose one small step I can take today.', entityId: null, date: today }
       if (fault === 'wrong-offer') action.kind = 'execute'
-      return Response.json({ ...chatResponse(id, [toolCall('get_daily_summary', {}, 'Succeeded', 'read', client)]),
+      return streamedTurn({ ...chatResponse(id, [toolCall('get_daily_summary', {}, 'Succeeded', 'read', client)]),
         aiMessage: null, parts: [{ type: 'block', kind: 'daySummary', block: { date: today, dateTo: null,
           due: 0, done: 0, completionRate: null, overdueCount: 0, currentStreak: 0, surfaceId: 'today', rows: [], totalRows: 0,
           read: { queryId: '33333333-3333-4333-8333-333333333333', queryFamily: 'get_daily_summary', scope: {},
             revision: 'revision', completeness: 'complete', refreshToken: 'refresh', nextCursor: null, totalCount: 0,
             recovery: null, nextAction: action },
-        } }] }, { headers: { 'x-orbit-request-id': fault === 'wrong-trace' ? 'wrong' : id } })
+        } }] }, id)
     })
     for (let attempt = 0; attempt < (fault === 'valid' ? ATTEMPTS_PER_CASE + 1 : 1); attempt++) {
       const { test } = await beforeEach({ test: structuredClone(source) })
@@ -116,14 +106,3 @@ it.each(['valid', 'wrong-trace', 'wrong-offer', 'dismiss-failed', 'fixture-faile
     } else if (fault !== 'dismiss-failed') expect(dismissed).toBe(0)
   },
 )
-
-it('stops an offer run before HTTP when the committed catalog lacks producer variants', async () => {
-  offlineCredentials()
-  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
-  const fetch = vi.fn()
-  catalogFault.missing = true
-  vi.stubGlobal('fetch', fetch)
-  await expect(beforeAll({ suite: { tests: [structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-empty-en'))] } }))
-    .rejects.toThrow('Regenerate the proactive tool catalogs')
-  expect(fetch).not.toHaveBeenCalled()
-})

@@ -7,10 +7,11 @@ import { parse } from 'yaml'
 import AstraHttpProvider from '../http-provider.mjs'
 import { configureOffers } from '../offer-context.mjs'
 import { prepareCorrection } from '../setup.mjs'
+import { corpusTests } from '../grade-method.mjs'
 import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
+import { sentTurn, streamedTurn } from './fixtures/offer-stream.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 const state = { habits: [], goals: [], tags: [], checklistTemplates: [] }
 const reminderGroup = ['repeat_reminder', 'reminder_enabled']
@@ -80,12 +81,11 @@ async function rejectionAttempt(locale, fault) {
       return Response.json({ isSuccess: true, error: null, pendingOperationId: original.id,
         preview: { items: edited.items, previewFingerprint: revised.previewFingerprint }, cancelled: false })
     }
-    expect(path).toBe('/api/chat')
-    const request = new Request(url, options)
-    const form = await request.formData()
-    const setup = form.get('message') === scenario.vars.setup.input
-    const requestId = request.headers.get('x-orbit-request-id')
-    if (!setup) expect(JSON.parse(form.get('history'))).toHaveLength(2)
+    expect(path).toBe('/api/chat/stream')
+    const sent = await sentTurn(url, options)
+    const setup = sent.message === scenario.vars.setup.input
+    // The reply of the setup holds only its preview, which the shared history builder leaves out (buildRecentChatHistory).
+    if (!setup) expect(sent.history).toEqual([{ role: 'user', content: scenario.vars.setup.input }])
     // RevisePendingChangesTool uses snake-case tool arguments; the public revise DTO uses camel case.
     const call = setup ? toolCall('bulk_create_habits', { orbit_write_complete: true, orbit_dismissed_offer_keys: [],
       habits: [{ title, is_general: true, suggested_fields: [...reminderGroup, 'emoji'],
@@ -95,25 +95,19 @@ async function rejectionAttempt(locale, fault) {
         pending_operation_id: original.id, answer_question: false,
         items: [{ item_id: '0', edits_json: '{"emoji":"🍃"}', remove_suggested_fields: reminderGroup }],
       }, 'PendingConfirmation', 'revision', scenario.vars.clientContext)
-    return Response.json({ ...chatResponse(requestId, [call]), aiMessage: null, parts: [],
-      pendingOperations: [setup ? original : revised] }, { headers: { 'x-orbit-request-id': requestId } })
+    return streamedTurn({ ...chatResponse(sent.requestId, [call]), aiMessage: null, parts: [],
+      pendingOperations: [setup ? original : revised] }, sent.requestId)
   })
   const prepared = (await prepareCorrection(scenario)).test
-  prepared.vars.clientContextJson = JSON.stringify(prepared.vars.clientContext)
-  const provider = new AstraHttpProvider({ config: { ...configuration.providers[0].config,
-    transformResponse: `file://${root}/response.mjs` } })
+  const provider = new AstraHttpProvider({ config: {} })
   const response = await provider.callApi(prepared.vars.input, { vars: prepared.vars })
   expect(response.error).toBeUndefined()
-  const grader = { id: () => 'offline-rejection-grader', callApi: vi.fn(async () => ({
-    output: JSON.stringify({ pass: true, score: 1, reason: 'Offline rubric transport control.' }),
-  })) }
+  // The assertions that the launch corpus gives the case: no rubric, so no model grades it.
+  const assert = corpusTests().find((test) => test.metadata.id === scenario.metadata.id).assert
   const grade = await assertions.runAssertions({ provider, providerResponse: response, test: { ...prepared,
-    options: { provider: grader }, assert: configuration.defaultTest.assert.map((assertion) => ({ ...assertion,
-      ...(assertion.type === 'javascript' ? { value: assertion.value.replace('file://', `file://${root}/`) } : {}),
-    })),
+    assert: assert.map((assertion) => ({ ...assertion, value: assertion.value.replace('file://', `file://${root}/`) })),
   } })
-  expect(grade.componentResults).toHaveLength(configuration.defaultTest.assert.length)
-  expect(grader.callApi).toHaveBeenCalledOnce()
+  expect(grade.componentResults.map((entry) => entry.assertion.metric)).toEqual(['outcome', 'composition', 'proactiveOffers'])
   return { response, grade, requests }
 }
 
@@ -121,7 +115,7 @@ it.each(['en', 'pt-BR'])('accepts reminder removal through main provider verific
   const { response, grade, requests } = await rejectionAttempt(locale, 'valid')
   expect(response.output.offerReadback, response.output.offerReadback.reason).toMatchObject({ pass: true })
   expect(grade, grade.reason).toMatchObject({ pass: true })
-  expect(requests.map(({ path }) => path)).toEqual(['/api/chat', '/api/chat', '/api/eval/snapshot',
+  expect(requests.map(({ path }) => path)).toEqual(['/api/chat/stream', '/api/chat/stream', '/api/eval/snapshot',
     `/api/ai/pending-operations/${preview().id}/revise`, `/api/ai/pending-operations/${preview().id}/revise`,
     `/api/ai/pending-operations/${preview().id}/confirm`, '/api/eval/snapshot'])
 })
@@ -134,8 +128,8 @@ it.each(['en', 'pt-BR'].flatMap((locale) => ['retained-reminder', 'missing-emoji
   'rejects %s main-turn %s through the configured gate', async (locale, fault) => {
     const { response, grade, requests } = await rejectionAttempt(locale, fault)
     expect(response.output.offerReadback.pass).toBe(false)
-    expect(response.output.offerReadback.reason).toContain(fault === 'missing-emoji'
-      ? 'requested leaf emoji' : 'Suggested reminder removal lost requested or stored fields')
+    expect(response.output.offerReadback.reason).toContain(fault === 'retained-reminder'
+      ? 'Suggested reminder removal lost requested or stored fields' : 'The preview does not create exactly the records of the request')
     expect(grade.pass).toBe(false)
     expect(grade.componentResults.find((entry) => entry.assertion.metric === 'proactiveOffers').pass).toBe(false)
     expect(requests.some(({ path }) => path.includes('/ai/pending-operations/'))).toBe(false)
