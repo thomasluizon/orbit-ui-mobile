@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, readFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { escapeRegex } from "../lib/escape-regex.mjs"
@@ -69,4 +69,9 @@ export const cases = () => {
     JSON.stringify(Object.values(runFile("migration.json").posted)) === JSON.stringify([{ kind: "decision", target: "#2152" }]) && JSON.parse(printed.stdout).posted.length === 1)
   T(`${TOOL}: a successful --apply moves the marks to the intake file`, runFile("intake.json").gmail.highWater === "m2")
   T(`${TOOL}: a successful --apply leaves the run record of another checkout alone`, readRunState(staged.base)?.intake?.gmail?.highWater === "m2")
+  const dry = stageWithConfig("migrate-run-state-dry", TOOL, realOrchestratorConfig())
+  stage("staged/migrate-run-state-dry/.git/orbit-orchestrate-run.json", JSON.stringify(liveRecord))
+  check(TOOL, "a dry run exits 0", ["--manifest", applyManifest], { status: 0 }, { path: dry.path, env: { GH_BIN: stubGh(null) } })
+  T(`${TOOL}: a dry run keeps the intake of the run record`, readRunState(dry.base)?.intake?.gmail?.highWater === "m2")
+  T(`${TOOL}: a dry run records no posted item`, !existsSync(join(dry.base, ".git", "orbit-test-run-files", "run-state", "migration.json")))
 }

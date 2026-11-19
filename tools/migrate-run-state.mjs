@@ -107,7 +107,7 @@ try {
 } catch (error) {
   fail(error instanceof ManifestError ? 2 : 1, `migrate-run-state: ${redactSecrets(error.message)}`)
 }
-if (options.apply && runState?.intake !== undefined) {
+if (options.apply && runState?.intake != null) {
   // The marks now live on GitHub. A same-session write inherits the old key, so null replaces it instead of a delete.
   updateRunState((state) => (state ? { ...state, intake: null } : undefined))
 }
