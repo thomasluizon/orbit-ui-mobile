@@ -115,9 +115,9 @@ defaultTest:
         Distinguish a proposal from a saved change.
         {% endif %}
       metric: finalAnswer
-tests:
-  - file://scenarios.yaml
-  - file://composition-scenarios.yaml
+# scenarios.yaml and composition-scenarios.yaml. A case that states its `outcome` runs on the client path with the outcome
+# grade in place of the assertions above (grade-method.mjs).
+tests: file://grade-method.mjs:corpusTests
 evaluateOptions:
   repeat: 1
   maxConcurrency: 1

@@ -7,6 +7,8 @@ import { loadApiProvider } from 'promptfoo'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 import * as assertions from '../assertions.mjs'
 import parseResponse from '../response.mjs'
+import { outcome, runOutcomeCase } from '../client-path.mjs'
+import { corpusTests } from '../grade-method.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { chatResponse, toolCall, preview, habitAccountRead } from './fixtures/producer.mjs'
 import { habitMonthFixture } from '../../../packages/shared/src/test-support/habit-month-fixture.ts'
@@ -139,9 +141,21 @@ describe('production composition gate', () => {
   })
 })
 
+// The configured assertions of a case with an outcome, against the reply that its turn on the client path returns.
+async function outcomeGate(produced, test) {
+  const trace = { requestId: 'request', timing: produced.evalTrace.timing, modelCalls: 1, calls: produced.evalTrace.toolCalls
+    .map((call) => ({ id: call.id, name: call.name, arguments: call.arguments, resultStatus: call.status, result: call.result })) }
+  const vars = { ...test.vars, evalRequestId: 'request', accountDate: '2026-10-26', records: {} }
+  const received = await runOutcomeCase(vars, { send: async () => ({ kind: 'final', response: produced, requestId: 'request', responseRequestId: 'request', trace }) })
+  if (received.error) return { pass: false, reason: received.error }
+  expect(test.assert.map((assertion) => assertion.metric)).toEqual(['outcome', 'composition', 'finalAnswer'])
+  return [outcome(received.output, { vars }), assertions.composition(received.output, { vars })].find((check) => !check.pass) ?? { pass: true }
+}
+
 describe.each(['ambiguity-pt', 'ambiguity-en'])('%s clarification alternatives', (id) => {
-  const scenario = scenarios.find((entry) => entry.metadata.id === id)
+  const scenario = corpusTests().find((entry) => entry.metadata.id === id)
   const vars = { ...scenario.vars, clientContext: buildChatClientContext(scenario.metadata) }
+  const gate = (produced) => outcomeGate(produced, { ...scenario, vars })
   const question = scenario.metadata.locale === 'pt-BR' ? 'Qual caminhada você concluiu?' : 'Which habit should I change?'
   const choice = { type: 'block', kind: 'choice', block: {
     blockId: '11111111-1111-4111-8111-111111111111', question,
@@ -160,8 +174,9 @@ describe.each(['ambiguity-pt', 'ambiguity-en'])('%s clarification alternatives',
   it('accepts one source-shaped choice block through the provider and configured assertions', async () => {
     expect(await gate(clarification(), vars)).toMatchObject({ pass: true })
   })
-  it('accepts a plain-text clarification without any block', async () => {
-    expect(await gate(response([{ type: 'text', text: question }], question), vars)).toMatchObject({ pass: true })
+  it('rejects a plain-text clarification: only a card is the question', async () => {
+    expect(await gate(response([{ type: 'text', text: question }], question), vars))
+      .toMatchObject({ pass: false, reason: 'The request must end in a question card, and the reply shows none.' })
   })
   // Producer: orbit-api AskBlockNegotiation.Definition (1cf3559) folds a question form into a choice only when it holds one
   // singleChoice question with 2 to 4 options, labels of at most 20 characters, no recommended option and a prompt of at
@@ -190,16 +205,20 @@ describe.each(['ambiguity-pt', 'ambiguity-en'])('%s clarification alternatives',
     if (failure === 'question card with a pending write') produced.pendingOperations = [preview()]
     expect(await gate(produced, vars)).toMatchObject({ pass: false })
   })
-  it.each(['unrelated block', 'choice plus unrelated block', 'two choices', 'pending write', 'write tool', 'no parts', 'malformed choice'])('rejects %s', async (failure) => {
+  it.each(['unrelated block', 'choice plus unrelated block', 'two choices', 'pending write', 'no parts', 'malformed choice'])('rejects %s', async (failure) => {
     const produced = clarification()
     if (failure === 'unrelated block') produced.parts = [block]
     if (failure === 'choice plus unrelated block') produced.parts.push(block)
     if (failure === 'two choices') produced.parts.push(structuredClone(choice))
     if (failure === 'pending write') produced.pendingOperations = [preview()]
-    if (failure === 'write tool') produced.evalTrace.toolCalls.push(toolCall('log_habit', { habit_id: 'water' }, 'PendingConfirmation', 'write-call'))
     if (failure === 'no parts') delete produced.parts
     if (failure === 'malformed choice') produced.parts = [{ ...choice, block: { question } }]
     expect((await gate(produced, vars)).pass).toBe(false)
+  })
+  it('grades no tool name: a held write that the reply does not show is no change of the outcome', async () => {
+    const produced = clarification()
+    produced.evalTrace.toolCalls.push(toolCall('log_habit', { habit_id: 'water' }, 'PendingConfirmation', 'write-call'))
+    expect(await gate(produced, vars)).toMatchObject({ pass: true })
   })
 })
 
