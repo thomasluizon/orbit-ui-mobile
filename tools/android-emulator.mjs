@@ -28,7 +28,7 @@ const EXIT = { OK: 0, FAILED: 1, INVALID_INPUT: 2, NO_SDK: 3, AVD_FAILED: 4, BOO
 const USAGE = `android-emulator.mjs - bring the Orbit Android emulator to a ready state
 
 Usage:
-  node tools/android-emulator.mjs [--status] [--avd <name>] [--dns <servers>]
+  node tools/android-emulator.mjs [--status] [--avd <name>] [--port <port>] [--dns <servers>]
                                   [--verify-host <host>] [--timeout <seconds>] [--json]
 
 Creates the AVD "${AVD_NAME}" when it does not exist, boots it with explicit DNS
@@ -40,6 +40,8 @@ because an emulator started elsewhere inherits the host resolver.
 Options:
   --status            Report the current state and exit without creating or booting anything.
   --avd <name>        AVD to use. Default: ${AVD_NAME}
+  --port <port>       Even console port from 5554 to 5682 for a launched emulator, whose serial is then
+                      emulator-<port>. A device proof passes $ORBIT_PROOF_EMULATOR_PORT. Default: the emulator's choice
   --dns <servers>     Comma-separated DNS servers passed to -dns-server. Default: ${DNS_SERVERS}
   --verify-host <host> Host the guest must resolve before a running AVD is reused. Default: ${VERIFY_HOST}
   --timeout <seconds> Seconds to wait for boot. Default: ${BOOT_TIMEOUT_SECONDS}
@@ -73,6 +75,7 @@ function parseArgs(argv) {
     shutdownTimeout: SHUTDOWN_TIMEOUT_SECONDS,
     timeout: BOOT_TIMEOUT_SECONDS,
     json: false,
+    port: null,
   }
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -84,6 +87,14 @@ function parseArgs(argv) {
       options.status = true
     } else if (arg === "--json") {
       options.json = true
+    } else if (arg === "--port") {
+      const value = argv[index + 1]
+      const port = Number(value)
+      if (!/^\d+$/.test(value ?? "") || port % 2 !== 0 || port < 5554 || port > 5682) {
+        fail(EXIT.INVALID_INPUT, `--port needs an even console port from 5554 to 5682, got ${value}`)
+      }
+      index += 1
+      options.port = port
     } else if (arg === "--avd" || arg === "--dns" || arg === "--verify-host" || arg === "--timeout" || arg === "--shutdown-timeout") {
       const value = argv[index + 1]
       if (value === undefined || value.startsWith("--")) {
@@ -300,14 +311,14 @@ function createAvd(sdkPath, avd) {
   applyAvdSettings(configPath)
 }
 
-function launchEmulator(sdkPath, avd, dns) {
+function launchEmulator(sdkPath, avd, dns, port) {
   const emulator = executable(sdkPath, "emulator", "emulator")
   const logDir = path.join(tmpdir(), "orbit-emulator")
   mkdirSync(logDir, { recursive: true })
   const outLog = openSync(path.join(logDir, `${avd}.out.log`), "a")
   const errLog = openSync(path.join(logDir, `${avd}.err.log`), "a")
 
-  const child = spawn(emulator, ["-avd", avd, "-dns-server", dns], {
+  const child = spawn(emulator, ["-avd", avd, "-dns-server", dns, ...(port === null ? [] : ["-port", String(port)])], {
     cwd: path.join(sdkPath, "emulator"),
     detached: true,
     stdio: ["ignore", outLog, errLog],
@@ -453,7 +464,7 @@ async function main() {
     created = true
   }
 
-  const logPath = launchEmulator(sdkPath, options.avd, options.dns)
+  const logPath = launchEmulator(sdkPath, options.avd, options.dns, options.port)
   process.stderr.write(`android-emulator: booting ${options.avd}, log at ${logPath}\n`)
 
   const serial = await waitForBoot(adb, options.avd, options.timeout)

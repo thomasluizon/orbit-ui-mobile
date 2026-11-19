@@ -90,6 +90,8 @@ export const statusQuery = (numbers) => `query RunStatus($owner: String!, $name:
 const readJson = (path) => {
   try { return JSON.parse(readFileSync(path, "utf8")) } catch { return null }
 }
+/** Research, review and proof launchers wake the session but never hold a ticket worker slot. */
+const holdsTicketSlot = (source) => source.research !== true && source.review !== true
 const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`
 const action = (type, command, identity = {}) => ({ type,
   ...(identity.repositoryKey ? { pr: `${identity.repositoryKey}#${identity.prNumber}` } : identity), command })
@@ -492,7 +494,7 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
     nextActions.push(action("ORPHANED_WORKER", inspection, { workerPid: source.workerPid }))
   }
   const counts = readAdmissionCounts({ repoRoot, snapshots: snapshots.map((entry, index) => ({ ...entry, slug: repositories[index].slug })), limits: config.caps, now })
-  if (state.remaining?.length > 0 && counts.slotFree && wakes.orphaned.filter((source) => source.research !== true).length === 0 && wakes.live.filter((source) => source.research !== true && (source.workerPid || (source.pending === true && source.what?.startsWith("worker ")))).length < config.caps.parallelTickets) {
+  if (state.remaining?.length > 0 && counts.slotFree && wakes.orphaned.filter(holdsTicketSlot).length === 0 && wakes.live.filter((source) => holdsTicketSlot(source) && (source.workerPid || (source.pending === true && source.what?.startsWith("worker ")))).length < config.caps.parallelTickets) {
     nextActions.push(action("SLOT_FREE", `node tools/plan-queue.mjs --tickets ${quote(state.remaining.join(","))}${state.sleep ? " --sleep" : ""}`))
   }
   const unsettled = rows.find((row) => observations.some((entry) => entry.repositoryKey === row.repositoryKey && entry.prNumber === row.prNumber && !["CLOSED", "MERGED"].includes(entry.status)))
