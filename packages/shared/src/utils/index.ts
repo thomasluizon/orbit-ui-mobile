@@ -53,8 +53,7 @@ export {
   buildHabitStripModel,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
-  getHabitDaysWithoutLog,
-  HABIT_SLIPPING_RATE_LIMIT,
+  countDoneInRecentDays,
   getHabitHistoryLog,
   getHabitStartDate,
   habitHistoryCutoff,
@@ -366,6 +365,10 @@ export {
 export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
 export { calendarSlideMotion, resolveCalendarSlide } from './calendar-slide-motion'
 export type { CalendarSlideDirection } from './calendar-slide-motion'
+export { buildCalendarOrbitRequest, formatCalendarOrbitLine, nextCalendarPageTurn, resolveCalendarOrbitLine } from './calendar-orbit-line'
+export type { CalendarOrbitLine, CalendarOrbitLineInput, CalendarOrbitSentence, CalendarPageTurn } from './calendar-orbit-line'
+export { resolveCalendarJumpPhrase } from './calendar-jump-phrase'
+export type { CalendarJumpContext } from './calendar-jump-phrase'
 export { fetchAllPaginatedItems } from './pagination'
 export { habitListQueryFilters, shouldFetchAllHabitPages, habitViewQueryOptions } from './habit-list-pagination-core'
 export {
@@ -381,6 +384,8 @@ export {
 } from './subscription-pricing'
 export { resolveSubscriptionScreen, resolveUpgradeHeader, getSubscriptionBillingProvider, shouldFetchStripeBilling } from './subscription-screen'
 export { subscriptionSummary } from './subscription-summary'
+export { resolveUpgradeOrbitLine, resolvePurchaseResult, formatPurchaseResult } from './upgrade-guide'
+export type { UpgradeOrbitLine, UpgradeOrbitLineInput, PurchaseResult } from './upgrade-guide'
 export type {
   ResolveSubscriptionScreenInput,
   SubscriptionPortalState,
@@ -542,7 +547,7 @@ export {
   snapshotNotificationList,
 } from './notification-cache'
 export { formatNotificationRelativeTime } from './notification-time'
-export { getReturningInterval, type ReturningInterval } from './returning-interval'
+export { getReturningInterval, getReturningIntervalBetween, type ReturningInterval } from './returning-interval'
 export {
   getNotificationDetailActionVisibility,
   getNotificationDestination,
@@ -825,6 +830,10 @@ export type {
   ProgressGoalFilter,
   StreakRepairState,
 } from './progress'
+export { hasReturnedAfterGap, resolveProgressOrbitLine, resolveProgressWindowStatus, resolveStreakOrbitLine } from './progress-orbit-line'
+export type { ProgressOrbitLine, ProgressWindowStatus, StreakOrbitLine } from './progress-orbit-line'
+export { changedProgressFigures, parseProgressFigures, PROGRESS_FIGURE_KEYS, readProgressFigures } from './progress-figures'
+export type { ProgressFigureKey, ProgressFigureValues } from './progress-figures'
 export {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
@@ -932,7 +941,7 @@ export { SETTLE_DELAY_MS } from './engagement-prompt-timing'
 export { AuthRefreshNetworkError, isNetworkUnavailableError } from './network-error'
 export { buildBulkCompletionChunks, getBulkCompletionReplay, normalizeBulkCompletionInput, isBulkGatewayFailure } from './bulk-completion'
 export type { BulkCompletionInput, BulkRetryChunk } from './bulk-completion'
-export { subscribeOrbitLoop, getOrbitLoopVersion, setOrbitMotionEnabled, isOrbitMotionEnabled, pauseOrbitLoopForOverlay, claimOrbitLiveSlot, mayOrbitRunLoop, runOrbitLoopClock, runOrbitReadClock } from './orbit-mascot-loop'
+export { subscribeOrbitLoop, getOrbitLoopVersion, setOrbitMotionEnabled, isOrbitMotionEnabled, pauseOrbitLoopForOverlay, claimOrbitLiveSlot, mayOrbitRunLoop, runOrbitLoopClock, runOrbitReadClock, turnOrbitPage, getOrbitPageTurns } from './orbit-mascot-loop'
 export type { OrbitFrameScheduler, OrbitOverlay } from './orbit-mascot-loop'
 export {
   remainingHabitFlowSteps,

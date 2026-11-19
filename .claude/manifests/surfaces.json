@@ -125,13 +125,13 @@
       "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
       "href": "/calendar",
       "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-import-result.tsx",
         "apps/web/app/(app)/calendar/_components/calendar-view-router.tsx",
         "apps/web/app/(app)/calendar/page.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -147,13 +147,13 @@
       "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
       "href": "/calendar",
       "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-import-result.tsx",
         "apps/web/app/(app)/calendar/_components/calendar-view-router.tsx",
         "apps/web/app/(app)/calendar/page.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -169,13 +169,13 @@
       "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
       "href": "/calendar",
       "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-import-result.tsx",
         "apps/web/app/(app)/calendar/_components/calendar-view-router.tsx",
         "apps/web/app/(app)/calendar/page.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -191,13 +191,13 @@
       "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
       "href": "/calendar",
       "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-import-result.tsx",
         "apps/web/app/(app)/calendar/_components/calendar-view-router.tsx",
         "apps/web/app/(app)/calendar/page.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -213,13 +213,13 @@
       "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
       "href": "/calendar",
       "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-import-result.tsx",
         "apps/web/app/(app)/calendar/_components/calendar-view-router.tsx",
         "apps/web/app/(app)/calendar/page.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -235,13 +235,13 @@
       "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
       "href": "/calendar",
       "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-import-result.tsx",
         "apps/web/app/(app)/calendar/_components/calendar-view-router.tsx",
         "apps/web/app/(app)/calendar/page.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -257,13 +257,13 @@
       "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
       "href": "/calendar",
       "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-import-result.tsx",
         "apps/web/app/(app)/calendar/_components/calendar-view-router.tsx",
         "apps/web/app/(app)/calendar/page.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -279,13 +279,13 @@
       "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
       "href": "/calendar",
       "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-import-result.tsx",
         "apps/web/app/(app)/calendar/_components/calendar-view-router.tsx",
         "apps/web/app/(app)/calendar/page.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -1465,7 +1465,9 @@
       "sourceFile": "apps/web/app/(app)/search/page.tsx",
       "href": "/search",
       "ownedFiles": [
-        "apps/web/app/(app)/search/page.tsx"
+        "apps/web/app/(app)/search/page.tsx",
+        "apps/web/components/search/guided-search-outcome.tsx",
+        "apps/web/components/search/search-question-block.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1478,7 +1480,9 @@
       "sourceFile": "apps/web/app/(app)/search/page.tsx",
       "href": "/search",
       "ownedFiles": [
-        "apps/web/app/(app)/search/page.tsx"
+        "apps/web/app/(app)/search/page.tsx",
+        "apps/web/components/search/guided-search-outcome.tsx",
+        "apps/web/components/search/search-question-block.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -1491,7 +1495,9 @@
       "sourceFile": "apps/web/app/(app)/search/page.tsx",
       "href": "/search",
       "ownedFiles": [
-        "apps/web/app/(app)/search/page.tsx"
+        "apps/web/app/(app)/search/page.tsx",
+        "apps/web/components/search/guided-search-outcome.tsx",
+        "apps/web/components/search/search-question-block.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1504,7 +1510,9 @@
       "sourceFile": "apps/web/app/(app)/search/page.tsx",
       "href": "/search",
       "ownedFiles": [
-        "apps/web/app/(app)/search/page.tsx"
+        "apps/web/app/(app)/search/page.tsx",
+        "apps/web/components/search/guided-search-outcome.tsx",
+        "apps/web/components/search/search-question-block.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1598,6 +1606,7 @@
         "apps/web/components/upgrade/billing-dashboard.tsx",
         "apps/web/components/upgrade/play-billing-dashboard.tsx",
         "apps/web/components/upgrade/provider-handoff.tsx",
+        "apps/web/components/upgrade/purchase-result.tsx",
         "apps/web/components/upgrade/styles.ts",
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
@@ -1621,6 +1630,7 @@
         "apps/web/components/upgrade/billing-dashboard.tsx",
         "apps/web/components/upgrade/play-billing-dashboard.tsx",
         "apps/web/components/upgrade/provider-handoff.tsx",
+        "apps/web/components/upgrade/purchase-result.tsx",
         "apps/web/components/upgrade/styles.ts",
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
@@ -1644,6 +1654,7 @@
         "apps/web/components/upgrade/billing-dashboard.tsx",
         "apps/web/components/upgrade/play-billing-dashboard.tsx",
         "apps/web/components/upgrade/provider-handoff.tsx",
+        "apps/web/components/upgrade/purchase-result.tsx",
         "apps/web/components/upgrade/styles.ts",
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
@@ -1667,6 +1678,7 @@
         "apps/web/components/upgrade/billing-dashboard.tsx",
         "apps/web/components/upgrade/play-billing-dashboard.tsx",
         "apps/web/components/upgrade/provider-handoff.tsx",
+        "apps/web/components/upgrade/purchase-result.tsx",
         "apps/web/components/upgrade/styles.ts",
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
@@ -1685,6 +1697,7 @@
       "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
       "href": "/wrapped",
       "ownedFiles": [
+        "apps/web/app/(app)/wrapped/_components/guided-wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-player.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
@@ -1703,6 +1716,7 @@
       "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
       "href": "/wrapped",
       "ownedFiles": [
+        "apps/web/app/(app)/wrapped/_components/guided-wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-player.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
@@ -1721,6 +1735,7 @@
       "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
       "href": "/wrapped",
       "ownedFiles": [
+        "apps/web/app/(app)/wrapped/_components/guided-wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-player.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
@@ -1739,6 +1754,7 @@
       "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
       "href": "/wrapped",
       "ownedFiles": [
+        "apps/web/app/(app)/wrapped/_components/guided-wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-player.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
@@ -5259,6 +5275,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-question-in-view",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-in-view.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-in-view.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-question-in-view",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-in-view.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-in-view.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-question-in-view",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-in-view.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-in-view.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-question-in-view",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-in-view.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-in-view.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-read-block-frame",
       "platform": "web",
       "kind": "block",
@@ -6223,106 +6295,106 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-components-progress-content",
+      "surfaceId": "overlay-components-progress-streak",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+        "apps/web/app/(app)/progress/_components/progress-streak.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "overlay-components-progress-content",
+      "surfaceId": "overlay-components-progress-streak",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+        "apps/web/app/(app)/progress/_components/progress-streak.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-components-progress-content",
+      "surfaceId": "overlay-components-progress-streak",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+        "apps/web/app/(app)/progress/_components/progress-streak.tsx"
       ],
       "state": "default",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "overlay-components-progress-content",
+      "surfaceId": "overlay-components-progress-streak",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+        "apps/web/app/(app)/progress/_components/progress-streak.tsx"
       ],
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-components-progress-content",
+      "surfaceId": "overlay-components-progress-subscreen",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-subscreen.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+        "apps/web/app/(app)/progress/_components/progress-subscreen.tsx"
       ],
-      "state": "empty",
+      "state": "default",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "overlay-components-progress-content",
+      "surfaceId": "overlay-components-progress-subscreen",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-subscreen.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+        "apps/web/app/(app)/progress/_components/progress-subscreen.tsx"
       ],
-      "state": "empty",
+      "state": "default",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-components-progress-content",
+      "surfaceId": "overlay-components-progress-subscreen",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-subscreen.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+        "apps/web/app/(app)/progress/_components/progress-subscreen.tsx"
       ],
-      "state": "empty",
+      "state": "default",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "overlay-components-progress-content",
+      "surfaceId": "overlay-components-progress-subscreen",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-subscreen.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+        "apps/web/app/(app)/progress/_components/progress-subscreen.tsx"
       ],
-      "state": "empty",
+      "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -7835,6 +7907,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-habits-habit-detail-prompts",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-prompts",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-prompts",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-prompts",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-habits-habit-detail-screen",
       "platform": "web",
       "kind": "overlay",
@@ -8609,6 +8733,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-dialog.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -10019,6 +10195,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-ui-trial-expired-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-trial-expired-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-trial-expired-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-trial-expired-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-trial-expired-modal",
       "platform": "web",
       "kind": "overlay",
@@ -10132,6 +10360,7 @@
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-import-result.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
@@ -10152,6 +10381,7 @@
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-import-result.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
@@ -10172,6 +10402,7 @@
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-import-result.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
@@ -10192,6 +10423,7 @@
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-import-result.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
@@ -10212,6 +10444,7 @@
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-import-result.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
@@ -10232,6 +10465,7 @@
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-import-result.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
@@ -10252,6 +10486,7 @@
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-import-result.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
@@ -10272,6 +10507,7 @@
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-import-result.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
@@ -10294,6 +10530,7 @@
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
+        "apps/mobile/components/habit-list/bulk-motion-scope.tsx",
         "apps/mobile/components/habit-list/empty-state.tsx",
         "apps/mobile/components/habit-list/habit-drill.tsx",
         "apps/mobile/components/habit-list/habit-list-skeleton.tsx",
@@ -10344,6 +10581,7 @@
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
+        "apps/mobile/components/habit-list/bulk-motion-scope.tsx",
         "apps/mobile/components/habit-list/empty-state.tsx",
         "apps/mobile/components/habit-list/habit-drill.tsx",
         "apps/mobile/components/habit-list/habit-list-skeleton.tsx",
@@ -10394,6 +10632,7 @@
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
+        "apps/mobile/components/habit-list/bulk-motion-scope.tsx",
         "apps/mobile/components/habit-list/empty-state.tsx",
         "apps/mobile/components/habit-list/habit-drill.tsx",
         "apps/mobile/components/habit-list/habit-list-skeleton.tsx",
@@ -10444,6 +10683,7 @@
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
+        "apps/mobile/components/habit-list/bulk-motion-scope.tsx",
         "apps/mobile/components/habit-list/empty-state.tsx",
         "apps/mobile/components/habit-list/habit-drill.tsx",
         "apps/mobile/components/habit-list/habit-list-skeleton.tsx",
@@ -10494,6 +10734,7 @@
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
+        "apps/mobile/components/habit-list/bulk-motion-scope.tsx",
         "apps/mobile/components/habit-list/empty-state.tsx",
         "apps/mobile/components/habit-list/habit-drill.tsx",
         "apps/mobile/components/habit-list/habit-list-skeleton.tsx",
@@ -10544,6 +10785,7 @@
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
+        "apps/mobile/components/habit-list/bulk-motion-scope.tsx",
         "apps/mobile/components/habit-list/empty-state.tsx",
         "apps/mobile/components/habit-list/habit-drill.tsx",
         "apps/mobile/components/habit-list/habit-list-skeleton.tsx",
@@ -10594,6 +10836,7 @@
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
+        "apps/mobile/components/habit-list/bulk-motion-scope.tsx",
         "apps/mobile/components/habit-list/empty-state.tsx",
         "apps/mobile/components/habit-list/habit-drill.tsx",
         "apps/mobile/components/habit-list/habit-list-skeleton.tsx",
@@ -10644,6 +10887,7 @@
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
+        "apps/mobile/components/habit-list/bulk-motion-scope.tsx",
         "apps/mobile/components/habit-list/empty-state.tsx",
         "apps/mobile/components/habit-list/habit-drill.tsx",
         "apps/mobile/components/habit-list/habit-list-skeleton.tsx",
@@ -12135,6 +12379,10 @@
       "ownedFiles": [
         "apps/mobile/app/search.tsx",
         "apps/mobile/components/command/command-groups.tsx",
+        "apps/mobile/components/search/guided-search-frame.tsx",
+        "apps/mobile/components/search/search-list.tsx",
+        "apps/mobile/components/search/search-question-block.tsx",
+        "apps/mobile/components/search/use-search-screen.ts",
         "apps/mobile/hooks/use-habit-search.ts"
       ],
       "state": "default",
@@ -12150,6 +12398,10 @@
       "ownedFiles": [
         "apps/mobile/app/search.tsx",
         "apps/mobile/components/command/command-groups.tsx",
+        "apps/mobile/components/search/guided-search-frame.tsx",
+        "apps/mobile/components/search/search-list.tsx",
+        "apps/mobile/components/search/search-question-block.tsx",
+        "apps/mobile/components/search/use-search-screen.ts",
         "apps/mobile/hooks/use-habit-search.ts"
       ],
       "state": "default",
@@ -12165,6 +12417,10 @@
       "ownedFiles": [
         "apps/mobile/app/search.tsx",
         "apps/mobile/components/command/command-groups.tsx",
+        "apps/mobile/components/search/guided-search-frame.tsx",
+        "apps/mobile/components/search/search-list.tsx",
+        "apps/mobile/components/search/search-question-block.tsx",
+        "apps/mobile/components/search/use-search-screen.ts",
         "apps/mobile/hooks/use-habit-search.ts"
       ],
       "state": "default",
@@ -12180,6 +12436,10 @@
       "ownedFiles": [
         "apps/mobile/app/search.tsx",
         "apps/mobile/components/command/command-groups.tsx",
+        "apps/mobile/components/search/guided-search-frame.tsx",
+        "apps/mobile/components/search/search-list.tsx",
+        "apps/mobile/components/search/search-question-block.tsx",
+        "apps/mobile/components/search/use-search-screen.ts",
         "apps/mobile/hooks/use-habit-search.ts"
       ],
       "state": "default",
@@ -12366,6 +12626,7 @@
         "apps/mobile/components/upgrade/plan-summary-card.tsx",
         "apps/mobile/components/upgrade/play-billing-dashboard.tsx",
         "apps/mobile/components/upgrade/provider-handoff.tsx",
+        "apps/mobile/components/upgrade/purchase-result.tsx",
         "apps/mobile/components/upgrade/subscription-notice.tsx",
         "apps/mobile/components/upgrade/usage-card.tsx",
         "apps/mobile/hooks/use-billing.ts",
@@ -12387,6 +12648,7 @@
         "apps/mobile/components/upgrade/plan-summary-card.tsx",
         "apps/mobile/components/upgrade/play-billing-dashboard.tsx",
         "apps/mobile/components/upgrade/provider-handoff.tsx",
+        "apps/mobile/components/upgrade/purchase-result.tsx",
         "apps/mobile/components/upgrade/subscription-notice.tsx",
         "apps/mobile/components/upgrade/usage-card.tsx",
         "apps/mobile/hooks/use-billing.ts",
@@ -12408,6 +12670,7 @@
         "apps/mobile/components/upgrade/plan-summary-card.tsx",
         "apps/mobile/components/upgrade/play-billing-dashboard.tsx",
         "apps/mobile/components/upgrade/provider-handoff.tsx",
+        "apps/mobile/components/upgrade/purchase-result.tsx",
         "apps/mobile/components/upgrade/subscription-notice.tsx",
         "apps/mobile/components/upgrade/usage-card.tsx",
         "apps/mobile/hooks/use-billing.ts",
@@ -12429,6 +12692,7 @@
         "apps/mobile/components/upgrade/plan-summary-card.tsx",
         "apps/mobile/components/upgrade/play-billing-dashboard.tsx",
         "apps/mobile/components/upgrade/provider-handoff.tsx",
+        "apps/mobile/components/upgrade/purchase-result.tsx",
         "apps/mobile/components/upgrade/subscription-notice.tsx",
         "apps/mobile/components/upgrade/usage-card.tsx",
         "apps/mobile/hooks/use-billing.ts",
@@ -12448,6 +12712,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/wrapped/guided-wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12466,6 +12731,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/wrapped/guided-wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12484,6 +12750,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/wrapped/guided-wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12502,6 +12769,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/wrapped/guided-wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -15247,6 +15515,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-question-in-view",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-in-view.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-in-view.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-question-in-view",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-in-view.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-in-view.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-question-in-view",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-in-view.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-in-view.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-question-in-view",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-in-view.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-in-view.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-read-block-frame",
       "platform": "mobile",
       "kind": "block",
@@ -17667,6 +17991,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-habits-habit-detail-prompts",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-detail-prompts",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-detail-prompts",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-detail-prompts",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-habits-habit-detail-screen",
       "platform": "mobile",
       "kind": "overlay",
@@ -18389,6 +18765,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/marketing-consent/marketing-consent-prompt.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-milestone-share-milestone-share-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-milestone-share-milestone-share-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-milestone-share-milestone-share-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-milestone-share-milestone-share-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/milestone-share/milestone-share-dialog.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -18401,7 +18829,6 @@
       "sourceFile": "apps/mobile/components/milestone-share/milestone-share-prompt.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/milestone-share/milestone-share-card.tsx",
         "apps/mobile/components/milestone-share/milestone-share-prompt.tsx"
       ],
       "state": "default",
@@ -18415,7 +18842,6 @@
       "sourceFile": "apps/mobile/components/milestone-share/milestone-share-prompt.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/milestone-share/milestone-share-card.tsx",
         "apps/mobile/components/milestone-share/milestone-share-prompt.tsx"
       ],
       "state": "default",
@@ -18429,7 +18855,6 @@
       "sourceFile": "apps/mobile/components/milestone-share/milestone-share-prompt.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/milestone-share/milestone-share-card.tsx",
         "apps/mobile/components/milestone-share/milestone-share-prompt.tsx"
       ],
       "state": "default",
@@ -18443,7 +18868,6 @@
       "sourceFile": "apps/mobile/components/milestone-share/milestone-share-prompt.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/milestone-share/milestone-share-card.tsx",
         "apps/mobile/components/milestone-share/milestone-share-prompt.tsx"
       ],
       "state": "default",
@@ -19335,106 +19759,158 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-progress-progress-content",
+      "surfaceId": "m-overlay-progress-progress-streak",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/progress/progress-content.tsx",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/progress/progress-content.tsx"
+        "apps/mobile/components/progress/progress-streak.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "m-overlay-progress-progress-content",
+      "surfaceId": "m-overlay-progress-progress-streak",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/progress/progress-content.tsx",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/progress/progress-content.tsx"
+        "apps/mobile/components/progress/progress-streak.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-progress-progress-content",
+      "surfaceId": "m-overlay-progress-progress-streak",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/progress/progress-content.tsx",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/progress/progress-content.tsx"
+        "apps/mobile/components/progress/progress-streak.tsx"
       ],
       "state": "default",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "m-overlay-progress-progress-content",
+      "surfaceId": "m-overlay-progress-progress-streak",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/progress/progress-content.tsx",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/progress/progress-content.tsx"
+        "apps/mobile/components/progress/progress-streak.tsx"
       ],
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-progress-progress-content",
+      "surfaceId": "m-overlay-progress-progress-streak",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/progress/progress-content.tsx",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/progress/progress-content.tsx"
+        "apps/mobile/components/progress/progress-streak.tsx"
       ],
       "state": "empty",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "m-overlay-progress-progress-content",
+      "surfaceId": "m-overlay-progress-progress-streak",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/progress/progress-content.tsx",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/progress/progress-content.tsx"
+        "apps/mobile/components/progress/progress-streak.tsx"
       ],
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-progress-progress-content",
+      "surfaceId": "m-overlay-progress-progress-streak",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/progress/progress-content.tsx",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/progress/progress-content.tsx"
+        "apps/mobile/components/progress/progress-streak.tsx"
       ],
       "state": "empty",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "m-overlay-progress-progress-content",
+      "surfaceId": "m-overlay-progress-progress-streak",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/components/progress/progress-content.tsx",
+      "sourceFile": "apps/mobile/components/progress/progress-streak.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/progress/progress-content.tsx"
+        "apps/mobile/components/progress/progress-streak.tsx"
       ],
       "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-progress-streak-repair-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/streak-repair-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/streak-repair-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-progress-streak-repair-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/streak-repair-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/streak-repair-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-progress-streak-repair-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/streak-repair-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/streak-repair-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-progress-streak-repair-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/progress/streak-repair-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/progress/streak-repair-flow.tsx"
+      ],
+      "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -20633,6 +21109,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/time-field.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-trial-expired-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-trial-expired-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-trial-expired-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/trial-expired-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-trial-expired-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/trial-expired-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/trial-expired-dialog.tsx"
       ],
       "state": "default",
       "theme": "dark",

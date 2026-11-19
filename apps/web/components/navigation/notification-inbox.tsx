@@ -60,7 +60,7 @@ export function NotificationInbox() {
           if (id === 'read') markAllAsRead.mutate()
           else if (id === 'clear') setConfirmOpen(true)
         }} />
-      <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
+      <NotificationList items={inbox.visibleNotifications} scope={inbox.notifications.map((item) => item.id).join(' ')} isLoading={inbox.isLoading} isError={inbox.isError}
         onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
         onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />
       {selected ? <NotificationDetailModal open={detailOpen} onOpenChange={setDetailOpen}

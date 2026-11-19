@@ -40,7 +40,8 @@
         "$TURBO_ROOT$/design/canvas/Orbit Widget Android.dc.html",
         "$TURBO_ROOT$/design/canvas/_ds/*/tokens/typography.css",
         "$TURBO_ROOT$/eslint-rules/*.cjs",
-        "$TURBO_ROOT$/evals/astra/catalog.yaml"
+        "$TURBO_ROOT$/evals/astra/catalog.yaml",
+        "$TURBO_ROOT$/tools/feature-parity-rules.json"
       ]
     },
     "@orbit/desktop#test": {

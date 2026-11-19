@@ -33,6 +33,8 @@ vi.mock('react-native', async () => {
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), useLocalSearchParams: () => ({}) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ data: { status: 'connected', events: [] }, isPending: false, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-calendar-auto-sync', () => ({

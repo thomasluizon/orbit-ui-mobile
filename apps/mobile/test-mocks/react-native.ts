@@ -34,6 +34,7 @@ let nextNativeTag = 1
 type NativeHost = {
   name: string
   props: HostProps
+  children: unknown
   ancestors: number[]
   focusableInTouchMode: boolean
   selection?: { start: number; end: number }
@@ -72,6 +73,12 @@ export function __setTouchMode(value: boolean) {
 
 export function __getFocusedNativeTag() {
   return focusedNativeTag
+}
+
+/** The host name, the latest props and the latest children of the node that a native tag from `findNodeHandle` names. */
+export function __getNativeHost(nativeTag: number) {
+  const host = nativeHosts.get(nativeTag)
+  return host ? { name: host.name, props: host.props, children: host.children } : undefined
 }
 
 export function __getFocusedInputSelection() {
@@ -137,7 +144,7 @@ function createHostComponent(name: string) {
     React.useLayoutEffect(() => {
       const existing = nativeHosts.get(nativeTag)
       nativeHosts.set(nativeTag, {
-        name, props, ancestors,
+        name, props, ancestors, children,
         focusableInTouchMode: existing?.focusableInTouchMode ?? name === 'TextInput',
         selection: existing?.selection,
       })

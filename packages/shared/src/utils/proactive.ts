@@ -10,25 +10,30 @@ interface TodayAstraState {
   inDrillOrSurface: boolean
   item: ProactiveItem | null
   returning: ReturningInterval | null
+  guided: boolean
 }
 
-type TodayAstraTranslate = (key: 'todayAstra.openConversation' | 'todayAstra.viewProgress' | 'todayAstra.returningElapsed' | 'todayAstra.returningBounded', values?: { days: number }) => string
+type TodayAstraTranslate = (key: 'todayAstra.openConversation' | 'todayAstra.viewProgress' | 'todayAstra.returningElapsed' | 'todayAstra.returningBounded' | 'todayAstra.guided.returning', values?: { days: number }) => string
 
 export function getTodayAstraSlot(state: TodayAstraState, translate: TodayAstraTranslate): TodayAstraLine | 'summary' | null {
   return getTodayAstraLine(state, translate) ?? (shouldShowTodayAstraSurface(state) ? 'summary' : null)
 }
 
+/** With the guided flows on, the line after a gap never counts days: a gap beyond the window shows the same sentence as a gap inside it. */
 export function getTodayAstraLine(state: TodayAstraState, translate: TodayAstraTranslate): TodayAstraLine | null {
   if (!shouldShowTodayAstraSurface(state)) return null
   if (state.item) return { text: state.item.text, destination: translate('todayAstra.openConversation'), item: state.item }
   if (!state.returning) return null
   return {
-    text: state.returning.kind === 'elapsed'
-      ? translate('todayAstra.returningElapsed', { days: state.returning.days })
-      : translate('todayAstra.returningBounded'),
+    text: returningText(state.guided, state.returning, translate),
     destination: translate('todayAstra.viewProgress'),
     item: null,
   }
+}
+
+function returningText(guided: boolean, returning: ReturningInterval, translate: TodayAstraTranslate): string {
+  if (guided) return translate('todayAstra.guided.returning')
+  return returning.kind === 'elapsed' ? translate('todayAstra.returningElapsed', { days: returning.days }) : translate('todayAstra.returningBounded')
 }
 
 export function proactiveActionLabelKey(trigger: string): ProactiveActionLabelKey {

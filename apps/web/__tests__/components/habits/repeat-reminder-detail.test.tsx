@@ -5,6 +5,7 @@ import { RepeatReminderDetail } from '@/components/habits/repeat-reminder-detail
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { createTimeDisplay } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 
 const mutation = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }))
 vi.mock('@/hooks/use-correct-habit-dose', () => ({ useCorrectHabitDose: () => mutation }))
@@ -17,7 +18,7 @@ vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key
 vi.mock('@/components/ui/sheet', () => ({ Sheet: ({ children, actions }: { children: ReactNode; actions: ReactNode }) => <section role="dialog">{children}{actions}</section>, useSheetHost: () => ({ sheetRef: { current: null }, closeSheet: (action?: () => void) => action?.() }) }))
 const log = { id: 'log-1', date: '2026-10-28', value: 1, createdAtUtc: '2026-10-29T02:30:00Z', takenAtUtc: '2026-10-29T02:30:00Z', reminderAtUtc: '2026-10-29T02:00:30.125Z' }
 const habit = createMockHabit({ repeatReminder: { intervalMinutes: 30 }, nextReminderAtUtc: '2026-10-29T03:00:00Z' })
-beforeEach(() => { mutation.mutateAsync.mockReset().mockResolvedValue(undefined) })
+beforeEach(() => { mutation.isPending = false; mutation.mutateAsync.mockReset().mockResolvedValue(undefined) })
 it('shows server next time and corrects a dose using the reminder instant across midnight', async () => {
   const view = render(<RepeatReminderDetail habit={habit} logs={[log]} />)
   expect(screen.getByText('Next at 00:00')).toBeInTheDocument()
@@ -56,4 +57,52 @@ it('offers the reminder time as a named clock icon action', () => {
   const useReminderTime = screen.getByRole('button', { name: en.habits.useReminderTime })
   expect(useReminderTime).toHaveTextContent('')
   expect(useReminderTime.querySelector('svg')).not.toBeNull()
+})
+
+it('asks when the dose was done as one question, and the quick option saves the reminder time in one press', async () => {
+  enableTestFlags('orbit_guided_flows')
+  render(<RepeatReminderDetail habit={habit} logs={[log]} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Change time' }))
+  const group = screen.getByRole('group', { name: en.habits.takenAtQuestion })
+  const option = group.querySelector<HTMLButtonElement>('[data-option-card]')!
+  expect(option).toHaveTextContent(en.habits.useReminderTime)
+  expect(screen.getAllByRole('button', { name: en.habits.useReminderTime })).toHaveLength(1)
+  fireEvent.click(option)
+  await waitFor(() => expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:00:30.125Z' }))
+})
+
+it('shows the wait on the quick option that the person pressed, and not on Save', () => {
+  enableTestFlags('orbit_guided_flows')
+  mutation.mutateAsync.mockImplementation(() => { mutation.isPending = true; return new Promise(() => {}) })
+  render(<RepeatReminderDetail habit={habit} logs={[log]} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Change time' }))
+  fireEvent.click(document.querySelector<HTMLButtonElement>('[data-option-card]')!)
+  const option = document.querySelector<HTMLButtonElement>('[data-option-card]')!
+  expect(option).toHaveAttribute('aria-busy', 'true')
+  expect(option).toHaveTextContent(en.habits.useReminderTime)
+  expect(option.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
+  expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute('aria-busy')
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+})
+
+it('shows the wait on Save, and not on the quick option, when the person saves the fields', () => {
+  enableTestFlags('orbit_guided_flows')
+  mutation.mutateAsync.mockImplementation(() => { mutation.isPending = true; return new Promise(() => {}) })
+  const view = render(<RepeatReminderDetail habit={habit} logs={[log]} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Change time' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  view.rerender(<RepeatReminderDetail habit={habit} logs={[log]} />)
+  expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-busy', 'true')
+  const option = document.querySelector<HTMLButtonElement>('[data-option-card]')!
+  expect(option).toBeDisabled()
+  expect(option).not.toHaveAttribute('aria-busy')
+})
+
+it('keeps Save for the date and the time fields, and shows no quick option without a reminder time', async () => {
+  enableTestFlags('orbit_guided_flows')
+  render(<RepeatReminderDetail habit={habit} logs={[{ ...log, reminderAtUtc: null }]} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Change time' }))
+  expect(document.querySelector('[data-option-card]')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:30:00.000Z' }))
 })

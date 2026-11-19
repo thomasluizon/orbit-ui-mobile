@@ -15,6 +15,7 @@ import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/fact
 import { AstraConversation } from '@/components/chat/conversation'
 import { useChatStore } from '@/stores/chat-store'
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 
 describe('ChatEmptyState', () => {
   afterEach(() => {
@@ -43,6 +44,26 @@ describe('ChatEmptyState', () => {
     expect(container.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'parado')
     rerender(<ChatEmptyState mascotState="descansando" />)
     expect(container.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'descansando')
+  })
+
+  it.each(['todayAstra.guided.offline', 'conversation.restLimit'] as const)('shows the title and one Orbit line with the reason %s while Orbit rests', (reason) => {
+    enableTestFlags('orbit_guided_flows')
+    const { container } = render(<ChatEmptyState mascotState="descansando" restReason={reason} />)
+    expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
+    const lines = container.querySelectorAll('[data-empty-state-line]')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toHaveTextContent(reason)
+    const group = [...container.querySelector('[data-empty-state]')!.children]
+    expect(group.indexOf(lines[0]!)).toBe(group.indexOf(container.querySelector('[data-empty-state-mark]')!) + 1)
+  })
+
+  it('shows no Orbit line with no reason, and none with the guided flows off', () => {
+    const off = render(<ChatEmptyState mascotState="descansando" restReason="todayAstra.guided.offline" />)
+    expect(off.container.querySelector('[data-empty-state-line]')).toBeNull()
+    off.unmount()
+    enableTestFlags('orbit_guided_flows')
+    const { container } = render(<ChatEmptyState />)
+    expect(container.querySelector('[data-empty-state-line]')).toBeNull()
   })
 
   it('keeps the empty introduction out of the conversation live log', () => {

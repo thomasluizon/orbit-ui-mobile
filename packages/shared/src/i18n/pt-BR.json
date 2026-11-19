@@ -350,7 +350,15 @@
     "returningBounded": "Você concluiu um hábito pela última vez há mais de 30 dias.",
     "viewProgress": "Ver no Progresso",
     "offline": "O Orbit precisa de conexão. Você ainda pode registrar hábitos offline.",
-    "offlineLog": "Salvo neste aparelho. O Orbit sincroniza quando você se reconectar."
+    "offlineLog": "Salvo neste aparelho. O Orbit sincroniza quando você se reconectar.",
+    "guided": {
+      "offline": "Preciso de conexão para conversar.",
+      "returning": "Guardei seu progresso do jeito que você deixou.",
+      "offlineLog": "Salvo neste aparelho. Eu sincronizo quando você se reconectar."
+    }
+  },
+  "conversation": {
+    "restLimit": "Volto quando renovarem suas mensagens de IA."
   },
   "command": {
     "title": "O que você quer fazer",
@@ -385,7 +393,6 @@
     "subtitle": "Seu copiloto de hábitos"
   },
   "reviewMoment": {
-    "eyebrow": "Um recado do Orbit",
     "streakTitle": "{count, plural, =0 {# dias seguidos} one {# dia seguido} other {# dias seguidos}}",
     "levelTitle": "Nível {level}",
     "streakBody": "{count, plural, =0 {Você marcou presença # dias seguidos. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.} one {Você marcou presença # dia seguido. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.} other {Você marcou presença # dias seguidos. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.}}",
@@ -677,6 +684,7 @@
     },
     "nextReminder": "Próximo às {time}",
     "takenAt": "Feito às {time}",
+    "takenAtQuestion": "Quando você fez isso?",
     "changeTakenAt": "Alterar horário",
     "doseDate": "Data",
     "doseTime": "Horário",
@@ -715,6 +723,9 @@
       "emptyBody": "Nenhum hábito com esse nome, essa descrição ou essa tag.",
       "create": "Criar hábito",
       "count": "{count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
+      "line": {
+        "count": "{count, plural, =0 {Achei # hábitos.} one {Achei # hábito.} other {Achei # hábitos.}}"
+      },
       "open": "Abrir {name}",
       "next": "Próxima",
       "previous": "Anterior",
@@ -816,6 +827,7 @@
     "checklistCompleteTitle": "Checklist concluído",
     "checklistCompleteMessage": "Você concluiu todos os itens de \"{name}\". Quer registrar este hábito?",
     "checklistCompleteConfirm": "Registrar hábito",
+    "checklistCompleteQuestion": "Quer registrar este hábito?",
     "bulkDeleteTitle": "Apagar hábitos",
     "bulkDeleteMessage": "{count, plural, =0 {Isso remove # hábitos e os sub-hábitos deles. Você pode desfazer pela mensagem que aparece.} one {Isso remove # hábito e os sub-hábitos dele. Você pode desfazer pela mensagem que aparece.} other {Isso remove # hábitos e os sub-hábitos deles. Você pode desfazer pela mensagem que aparece.}}",
     "bulkDeleteConfirm": "Apagar hábitos",
@@ -1176,6 +1188,11 @@
       "daysFree": "Sem deslize",
       "reminders": "Lembretes",
       "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
+      "orbit": {
+        "lastSevenDays": "{done, plural, =0 {Você fez isso em # dos últimos 7 dias.} one {Você fez isso em # dos últimos 7 dias.} other {Você fez isso em # dos últimos 7 dias.}}",
+        "loadError": "Não consegui carregar este hábito.",
+        "slippingLine": "Esse hábito está num ritmo mais devagar. Uma nova data pode caber melhor."
+      },
       "copyDescription": "Copiar descrição",
       "descriptionCopied": "Descrição copiada",
       "copyFailed": "Não foi possível copiar a descrição. Selecione o texto e copie manualmente.",
@@ -1216,6 +1233,8 @@
       "logDateConfirmPermanentUnlogMessage": "Isso remove o registro de {name} em {date}. Não dá para desfazer.",
       "logDateConfirmLog": "Registrar hábito",
       "logDateConfirmUnlog": "Desfazer registro",
+      "logDateQuestion": "Registrar {name} em {date}?",
+      "logDateUnlogQuestion": "Desfazer o registro de {name} em {date}?",
       "checklistError": "Não foi possível atualizar este checklist. Tente novamente.",
       "deleteError": "Não foi possível apagar este hábito. Tente novamente.",
       "rescheduleWriteError": "Não foi possível aplicar este plano. Tente novamente.",
@@ -1370,6 +1389,24 @@
     "options": "Opções do calendário",
     "monthPicker": "Mês e ano",
     "legendTitle": "Legenda",
+    "legendQuestion": "O que cada marca quer dizer?",
+    "monthPickerQuestion": "Para quando você quer ir?",
+    "monthPickerLastMonth": "Mês passado",
+    "monthPickerTyped": "Escreva do seu jeito",
+    "monthPickerTypedPlaceholder": "Dia 20 ou sexta, dia 20",
+    "monthPickerTypedSubmit": "Ver dia",
+    "monthPickerTypedUnresolved": "Não achei essa data. Tente algo como dia 20.",
+    "orbit": {
+      "dayFull": "Dia {day}: tudo feito.",
+      "dayPartial": "Dia {day}: {done} de {total, plural, =0 {# feitos} one {# feito} other {# feitos}}.",
+      "dayLoggable": "Ainda dá para registrar esse dia.",
+      "dayFuture": "{count, plural, =0 {{weekday} tem # coisas marcadas.} one {{weekday} tem # coisa marcada.} other {{weekday} tem # coisas marcadas.}}",
+      "dayNone": "Nada marcado nesse dia.",
+      "monthEmpty": "Nada marcado em {month}.",
+      "monthFuture": "Este mês ainda não chegou.",
+      "askDay": "Me fala sobre o dia {date} no meu calendário.",
+      "askMonth": "Me fala sobre {month} no meu calendário."
+    },
     "title": "Google Agenda",
     "fetchingEvents": "Buscando seus eventos...",
     "noEvents": "Nenhum evento",
@@ -1533,6 +1570,8 @@
     },
     "question": {
       "progress": "{total, plural, =0 {{answered} de # perguntas respondidas} one {{answered} de # pergunta respondida} other {{answered} de # perguntas respondidas}}",
+      "next": "Próxima pergunta",
+      "previous": "Pergunta anterior",
       "required": "Responda a esta pergunta."
     },
     "choice": {
@@ -2975,6 +3014,7 @@
       "year": "Feche o ano."
     },
     "periodGroup": "Período",
+    "periodQuestion": "Qual período você quer ver?",
     "start": "Começar",
     "close": "Fechar Wrapped",
     "next": "Continuar",
@@ -2982,6 +3022,9 @@
     "progressLabel": "Slide {current} de {total}",
     "loading": "Preparando seu Wrapped…",
     "empty": "Nada registrado nesse período. Escolha outro período para ver um fechamento.",
+    "orbitLine": {
+      "empty": "Não achei nenhum registro nesse período."
+    },
     "error": "Não foi possível carregar seu Wrapped. Tente novamente.",
     "retry": "Tentar novamente",
     "periods": {
@@ -3175,10 +3218,17 @@
     "retry": "Tentar de novo",
     "askAstra": "Analisar resumo",
     "upgrade": "Fazer upgrade",
-    "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos."
+    "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos.",
+    "guided": {
+      "freePrompt": "O Pro traz um resumo diário dos seus hábitos."
+    }
   },
   "result": {
     "title": "Pronto!",
+    "streak": {
+      "repaired": "Sua sequência voltou para {count, plural, =0 {# dias} one {# dia} other {# dias}}.",
+      "see": "Ver a sequência"
+    },
     "task": {
       "dated": "A tarefa ficou marcada para {date}.",
       "datedTimed": "A tarefa ficou marcada para {date} às {time}.",
@@ -3187,13 +3237,18 @@
     "habit": {
       "repeat": "O hábito começa em {start} e se repete {cadence}.",
       "repeatTimed": "O hábito começa em {start} e se repete {cadence} às {time}.",
-      "updated": "As mudanças foram salvas."
+      "updated": "As mudanças foram salvas.",
+      "rescheduled": "O hábito foi para {date}.",
+      "deleted": "O hábito foi apagado."
     },
     "cadence": {
       "day": "{count, plural, =0 {a cada # dias} one {todo dia} other {a cada # dias}}",
       "week": "{count, plural, =0 {a cada # semanas} one {toda semana} other {a cada # semanas}}",
       "month": "{count, plural, =0 {a cada # meses} one {todo mês} other {a cada # meses}}",
       "year": "{count, plural, =0 {a cada # anos} one {todo ano} other {a cada # anos}}"
+    },
+    "calendar": {
+      "imported": "{count, plural, =0 {# hábitos foram criados a partir da sua agenda.} one {# hábito foi criado a partir da sua agenda.} other {# hábitos foram criados a partir da sua agenda.}}"
     },
     "seeToday": "Ver no Hoje",
     "account": {
@@ -3606,6 +3661,18 @@
     "free": "Grátis",
     "plan": "Plano",
     "restorePurchase": "Restaurar compra",
+    "question": "Qual plano?",
+    "orbitLine": {
+      "usage": "Você usou {used} de {limit, plural, =0 {# mensagens de IA} one {# mensagem de IA} other {# mensagens de IA}}.",
+      "loading": "Estou buscando os valores.",
+      "plansError": "Não consegui buscar os valores.",
+      "billingError": "Não consegui carregar seu plano.",
+      "offline": "Estou sem conexão agora."
+    },
+    "result": {
+      "renews": "O Pro está ativo e renova em {date}.",
+      "ends": "O Pro está ativo até {date}."
+    },
     "appStore": {
       "manage": "Gerenciar assinatura",
       "manageHint": "Sua assinatura é cobrada pela App Store. Gerencie seu plano nos ajustes da Apple.",
@@ -4012,7 +4079,19 @@
       "streak": "Sequência",
       "goals": "Metas",
       "window": "Últimos 30 dias",
+      "windowQuestion": "Como foram seus 30 dias?",
       "achievements": "Conquistas"
+    },
+    "sectionsQuestion": "O que você quer ver?",
+    "orbit": {
+      "activeDays": "{days, plural, =0 {Você apareceu em # dos últimos 30 dias.} one {Você apareceu em # dos últimos 30 dias.} other {Você apareceu em # dos últimos 30 dias.}}",
+      "quietWindow": "Ainda não tem registro nos últimos 30 dias.",
+      "day": "{weekday}, {date}: {done} de {total}.",
+      "dayUnscheduled": "{weekday}, {date}: nada estava agendado.",
+      "returned": "Você voltou. Daqui a gente continua.",
+      "empty": "Ainda não tem nada para medir.",
+      "streak": "{count, plural, =0 {# dias seguidos} one {# dia seguido} other {# dias seguidos}}. {days, plural, =0 {Faltam # dias} one {Falta # dia} other {Faltam # dias}} para o próximo congelamento.",
+      "streakOnly": "{count, plural, =0 {# dias seguidos.} one {# dia seguido.} other {# dias seguidos.}}"
     },
     "streak": {
       "currentLabel": "{count, plural, =0 {dias seguidos} one {dia seguido} other {dias seguidos}}",
@@ -4052,7 +4131,15 @@
       "repairCapped": "Esta lacuna precisa de {needed, plural, =0 {# congelamentos} one {# congelamento} other {# congelamentos}} e {banked} é o máximo que dá para guardar, então ela não pode ser reparada.",
       "repairError": "Não foi possível reparar a sequência. Tente novamente.",
       "repairRateLimited": "Foram muitas tentativas de reparo. Tente de novo daqui a pouco.",
-      "bankFull": "{count, plural, =0 {# congelamentos é o limite. O próximo chega depois que você usar um.} one {# congelamento é o limite. O próximo chega depois que você usar um.} other {# congelamentos é o limite. O próximo chega depois que você usar um.}}"
+      "bankFull": "{count, plural, =0 {# congelamentos é o limite. O próximo chega depois que você usar um.} one {# congelamento é o limite. O próximo chega depois que você usar um.} other {# congelamentos é o limite. O próximo chega depois que você usar um.}}",
+      "freezeSummary": "Cada congelamento cobre um dia sem registro, e você guarda até {ceiling, plural, =0 {# congelamentos} one {# congelamento} other {# congelamentos}}.",
+      "repairFlow": {
+        "question": "Recuperar com {count, plural, =0 {# congelamentos} one {# congelamento} other {# congelamentos}}?",
+        "line": "Vou cobrir {dates}, e não dá para desfazer depois.",
+        "repair": "Recuperar",
+        "notNow": "Agora não",
+        "saving": "Salvando sua sequência"
+      }
     },
     "goals": {
       "views": "Filtro de metas",

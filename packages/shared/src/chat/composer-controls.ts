@@ -69,9 +69,29 @@ export function promptDisabledReason(state: {
   return state.isSending ? translate('shell.composer.busy.reason') : undefined
 }
 
-/** Orbit rests on the conversation while the AI is unavailable: offline, or at the message or daily limit. */
-export function conversationMascotState(state: { isOnline: boolean; dailyBudgetReached?: boolean; atMessageLimit: boolean }): 'parado' | 'descansando' {
-  return !state.isOnline || state.dailyBudgetReached === true || state.atMessageLimit ? 'descansando' : 'parado'
+type ConversationAvailability = { isOnline: boolean; dailyBudgetReached?: boolean; atMessageLimit: boolean }
+
+/** The reason the AI is unavailable, as the key of its first-person sentence: offline, or at the message or daily limit. */
+export function conversationRestReason(state: ConversationAvailability): 'todayAstra.guided.offline' | 'conversation.restLimit' | null {
+  if (!state.isOnline) return 'todayAstra.guided.offline'
+  return state.dailyBudgetReached === true || state.atMessageLimit ? 'conversation.restLimit' : null
+}
+
+type AiAllowance = { aiMessagesUsed?: number; aiMessagesLimit?: number; hasProAccess?: boolean }
+
+/** The AI messages a person may use in the period. A profile that does not name the limit gets the limit of its plan. */
+export function resolveAiMessagesLimit(profile: AiAllowance | undefined): number {
+  return profile?.aiMessagesLimit ?? (profile?.hasProAccess ? 50 : 5)
+}
+
+/** The reason the AI rests for the person, from the connection and the profile alone. Hoje and Calendário read it. The conversation adds its own daily budget to the same mapping. */
+export function getOrbitRest(state: { isOnline: boolean; profile: AiAllowance | undefined }): ReturnType<typeof conversationRestReason> {
+  return conversationRestReason({ isOnline: state.isOnline, atMessageLimit: (state.profile?.aiMessagesUsed ?? 0) >= resolveAiMessagesLimit(state.profile) })
+}
+
+/** Orbit rests on the conversation while the AI is unavailable. */
+export function conversationMascotState(state: ConversationAvailability): 'parado' | 'descansando' {
+  return conversationRestReason(state) ? 'descansando' : 'parado'
 }
 
 export function findPromptSlot(prompt: string): { start: number; end: number } | null {

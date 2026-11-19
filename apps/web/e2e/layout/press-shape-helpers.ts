@@ -36,21 +36,11 @@ async function waitForHoverStateToSettle(control: Locator, hovered: boolean) {
   })
 }
 
-export async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
+export async function readTargetGeometry(control: Locator) {
   const paint = await control.evaluate(readControlPaint)
   const hit = await control.evaluate(readControlHitArea)
-  return control.evaluate((element, { fillPseudo, paint, hit }) => {
-    const bounds = element.getBoundingClientRect()
+  return control.evaluate((element, { paint, hit }) => {
     const smallPill = element.matches('.orbit-pill-action[data-size="sm"]')
-    const pixels = (value: string) => Number.parseFloat(value) || 0
-    const fill = element.querySelector('[data-press-fill]') ?? element
-    const fillStyle = getComputedStyle(fill, fillPseudo)
-    const fillBox = fillPseudo ? {
-      left: bounds.left + pixels(fillStyle.left), top: bounds.top + pixels(fillStyle.top),
-      right: bounds.right - pixels(fillStyle.right), bottom: bounds.bottom - pixels(fillStyle.bottom),
-      width: bounds.width - pixels(fillStyle.left) - pixels(fillStyle.right),
-      height: bounds.height - pixels(fillStyle.top) - pixels(fillStyle.bottom),
-    } : { ...paint.bounds, width: paint.bounds.right - paint.bounds.left, height: paint.bounds.bottom - paint.bounds.top }
     const probe = document.createElement('span')
     probe.style.backgroundColor = 'var(--bg-hover)'
     element.append(probe)
@@ -63,14 +53,14 @@ export async function readTargetGeometry(control: Locator, fillPseudo?: '::after
       hoverFill,
       opaqueHoverFill,
       hit,
-      painted: { left: fillBox.left, top: fillBox.top, right: fillBox.right, bottom: fillBox.bottom },
-      width: fillBox.width,
-      height: fillBox.height,
-      background: fillPseudo ? fillStyle.backgroundColor : paint.background,
-      opacity: fillPseudo ? fillStyle.opacity : paint.opacity,
-      radius: fillPseudo ? Math.min(pixels(fillStyle.borderTopLeftRadius), fillBox.width / 2, fillBox.height / 2) : paint.radii[0]!,
+      painted: { left: paint.bounds.left, top: paint.bounds.top, right: paint.bounds.right, bottom: paint.bounds.bottom },
+      width: paint.bounds.right - paint.bounds.left,
+      height: paint.bounds.bottom - paint.bounds.top,
+      background: paint.background,
+      opacity: paint.opacity,
+      radius: paint.radii[0]!,
     }
-  }, { fillPseudo: fillPseudo ?? null, paint, hit })
+  }, { paint, hit })
 }
 
 function paintEdgeInset(edge: 'left' | 'top' | 'right' | 'bottom', smallPill: boolean, reserved: boolean) {
@@ -78,19 +68,19 @@ function paintEdgeInset(edge: 'left' | 'top' | 'right' | 'bottom', smallPill: bo
   return edge === 'left' || edge === 'top' ? inset : -inset
 }
 
-export async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 20, fillToken?: '--bg-hover' | '--bg-hover-opaque', fillPseudo?: '::after') {
+export async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 20, fillToken?: '--bg-hover' | '--bg-hover-opaque') {
   await expect(control).toBeVisible()
   await readHitBoxOnceStill(control)
   await control.page().mouse.move(0, 0)
   await waitForHoverStateToSettle(control, false)
-  const resting = await readTargetGeometry(control, fillPseudo)
+  const resting = await readTargetGeometry(control)
   await control.hover()
   await waitForHoverStateToSettle(control, true)
   await expect.poll(async () => {
-    const hovered = await readTargetGeometry(control, fillPseudo)
+    const hovered = await readTargetGeometry(control)
     return hovered.background !== resting.background || hovered.opacity !== resting.opacity
   }, { message: 'the painted hit area responds to hover' }).toBe(true)
-  const geometry = await readTargetGeometry(control, fillPseudo)
+  const geometry = await readTargetGeometry(control)
   if (fillToken) expect(geometry.background, `the interaction uses ${fillToken}`).toBe(fillToken === '--bg-hover-opaque' ? geometry.opaqueHoverFill : geometry.hoverFill)
   for (const edge of ['left', 'top', 'right', 'bottom'] as const) {
     const reserved = edge === 'left' || edge === 'right' ? geometry.reserveInline : geometry.reserveBlock
@@ -101,9 +91,9 @@ export async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 
   expect(geometry.radius).toBeCloseTo(radius === 'pill' ? Math.min(geometry.width, geometry.height) / 2 : radius, 1)
 }
 
-export async function expectFullTouchTarget(control: Locator, radius: 'pill' | 8 | 12, fillToken?: '--bg-hover' | '--bg-hover-opaque', fillPseudo?: '::after') {
-  await expectHoverOnHitArea(control, radius, fillToken, fillPseudo)
-  const geometry = await readTargetGeometry(control, fillPseudo)
+export async function expectFullTouchTarget(control: Locator, radius: 'pill' | 8 | 12, fillToken?: '--bg-hover' | '--bg-hover-opaque') {
+  await expectHoverOnHitArea(control, radius, fillToken)
+  const geometry = await readTargetGeometry(control)
   expect(geometry.hit.right - geometry.hit.left).toBeGreaterThanOrEqual(48)
   expect(geometry.hit.bottom - geometry.hit.top).toBeGreaterThanOrEqual(48)
 }

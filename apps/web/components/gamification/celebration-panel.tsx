@@ -9,9 +9,11 @@ import { motionDurations, motionEasings, TOUCH_TARGET_MIN } from '@orbit/shared/
 import { isStreakCelebrationMilestone, type CelebrationQueueItem } from '@orbit/shared/stores'
 import { X } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
+import { OrbitHop } from '@/components/ui/orbit-hop'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { plural } from '@/lib/plural'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { useFlag } from '@/hooks/use-flag'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { DailyStreakMoment } from './daily-streak-moment'
@@ -125,6 +127,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss }:
   beforeDismiss: () => void
 }) {
   const t = useTranslations()
+  const guided = useFlag('orbit_guided_flows')
   const daily = active.kind === 'daily-streak'
   const { eyebrowKey, lineKey, values, pluralCount } = getCelebrationCopy(active)
   const translatedLine = t(lineKey, values)
@@ -166,7 +169,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss }:
         ? 'celebration-notice flex flex-wrap items-center gap-[12px] rounded-[20px] bg-[var(--bg-elev)] p-4 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]'
         : 'celebration-notice flex flex-wrap items-center gap-4 rounded-[20px] bg-[var(--bg-elev)] p-6 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]'}>
       <span role="status" aria-atomic="true" className="sr-only">{announcement}</span>
-      <span aria-hidden="true" data-celebration-mark="" className="flex size-[48px] shrink-0 items-center justify-center"><OrbitMascot size={48} state="feliz" still /></span>
+      <span aria-hidden="true" data-celebration-mark="" className="flex size-[48px] shrink-0 items-center justify-center">{guided ? <OrbitHop active={!daily && !reduced} className="flex"><OrbitMascot size={48} state="feliz" still /></OrbitHop> : <OrbitMascot size={48} state="feliz" still />}</span>
       {daily ? <DailyStreakMoment streak={active.payload.streak} entering={entering} /> : (
         <div className="celebration-copy min-w-0 flex-1" aria-hidden="true">
           <p className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--fg-3)]">{t(eyebrowKey)}</p>

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { useTranslations } from 'next-intl'
+import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
@@ -20,6 +21,8 @@ interface ConfirmSheetProps {
   minimumActionHeight?: number
   destructive?: boolean
   inlineActions?: boolean
+  quickOptions?: boolean
+  freePathLabel?: string
   confirmImmediately?: boolean
   loading?: boolean
   onCloseComplete?: () => void
@@ -41,6 +44,8 @@ export function ConfirmSheet({
   minimumActionHeight,
   destructive = false,
   inlineActions = false,
+  quickOptions = false,
+  freePathLabel,
   confirmImmediately = false,
   loading = false,
   onCloseComplete,
@@ -128,14 +133,48 @@ export function ConfirmSheet({
         setLifecycle((current) => ({ ...current, mounted: false }))
         onCancel()
       }}
-      actions={
+      actions={quickOptions ? undefined : (
         <>
           {cancelButton}{confirmButton}
         </>
-      }
+      )}
     >
-      {message ? <p className="break-words text-sm text-[var(--fg-2)]">{message}</p> : null}
-      {children}
+      {quickOptions ? (
+        <QuestionBody title={title} message={message} confirmLabel={confirmLabel} cancelLabel={cancelLabel ?? t('common.notNow')} freePathLabel={freePathLabel} answersDisabled={actionsDisabled} confirmDisabled={actionsDisabled || confirmDisabled} confirmLoading={loading} onConfirm={confirm} onCancel={cancel}>{children}</QuestionBody>
+      ) : (
+        <>
+          {message ? <p className="break-words text-sm text-[var(--fg-2)]">{message}</p> : null}
+          {children}
+        </>
+      )}
     </Sheet>
+  )
+}
+
+interface QuestionBodyProps {
+  title: string
+  message: string
+  confirmLabel: string
+  cancelLabel: string
+  freePathLabel?: string
+  answersDisabled: boolean
+  confirmDisabled: boolean
+  confirmLoading: boolean
+  onConfirm: () => void
+  onCancel: () => void
+  children?: ReactNode
+}
+
+function QuestionBody({ title, message, confirmLabel, cancelLabel, freePathLabel, answersDisabled, confirmDisabled, confirmLoading, onConfirm, onCancel, children }: Readonly<QuestionBodyProps>) {
+  return (
+    <div className="flex flex-col gap-6">
+      {message ? <p className="break-words text-sm text-[var(--fg-2)]">{message}</p> : null}
+      <div role="group" aria-label={title} data-option-group="" className="grid w-full grid-cols-2 gap-3">
+        <OptionCard label={confirmLabel} disabled={confirmDisabled} loading={confirmLoading} onSelect={onConfirm} />
+        <OptionCard label={cancelLabel} disabled={answersDisabled} onSelect={onCancel} />
+      </div>
+      {children}
+      {freePathLabel ? <div className="flex justify-end"><PillButton variant="secondary" size="sm" disabled={confirmDisabled} onClick={onConfirm}>{freePathLabel}</PillButton></div> : null}
+    </div>
   )
 }

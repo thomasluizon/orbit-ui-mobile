@@ -20,7 +20,7 @@ function CheckboxBox({ checked, error, loading }: Readonly<Pick<CheckboxProps, '
           <rect x={1} y={1} width={22} height={22} rx={7} fill="none" stroke={error ? 'var(--status-bad)' : 'var(--fg-3)'} strokeWidth={2} />
         </svg>
       ) : null}
-      {checked ? <Check size={16} strokeWidth={3} className={`relative ${loading ? 'text-[var(--fg-1)]' : 'text-[var(--bg)]'}`} /> : null}
+      {checked ? <Check size={16} strokeWidth={2.5} className={`relative ${loading ? 'text-[var(--fg-1)]' : 'text-[var(--bg)]'}`} /> : null}
     </span>
   )
 }

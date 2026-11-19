@@ -26,6 +26,7 @@ type NavigationHost = {
     testID?: string
     style?: unknown
   }
+  findAll: (predicate: (node: NavigationHost) => boolean) => NavigationHost[]
 }
 export function renderNavigation(element: ReactElement) {
   let tree!: ReactTestRenderer

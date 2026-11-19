@@ -10,7 +10,8 @@ import { useUIStore } from '@/stores/ui-store'
 import type { AppTokensV2 } from '@/lib/theme'
 import { CalendarLegend } from './calendar-shell'
 
-export function CalendarOptions({ tokens, onGoogleCalendar }: Readonly<{ tokens: AppTokensV2; onGoogleCalendar?: () => void }>) {
+/** `guided`: the legend sheet asks what each mark means. */
+export function CalendarOptions({ tokens, onGoogleCalendar, guided = false }: Readonly<{ tokens: AppTokensV2; onGoogleCalendar?: () => void; guided?: boolean }>) {
   const { t } = useTranslation()
   const styles = StyleSheet.create({
     iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
@@ -42,7 +43,7 @@ export function CalendarOptions({ tokens, onGoogleCalendar }: Readonly<{ tokens:
         <ListRow placement="column" textMode="label" title={t('calendar.legendTitle')} accessibilityLabel={t('calendar.legendTitle')} onClick={() => closeOptions('legend')} />
       </View>
     </Sheet> : null}
-    {legendOpen ? <Sheet ref={sheetRef} open title={t('calendar.legendTitle')} onClose={() => setLegendOpen(false)}>
+    {legendOpen ? <Sheet ref={sheetRef} open title={t(guided ? 'calendar.legendQuestion' : 'calendar.legendTitle')} onClose={() => setLegendOpen(false)}>
       <CalendarLegend loggableLabel={t('calendar.legend.loggable')} fullLabel={t('calendar.legend.full')} partialLabel={t('calendar.legend.partial')} noneLabel={t('calendar.legend.none')} tokens={tokens} />
     </Sheet> : null}
   </>

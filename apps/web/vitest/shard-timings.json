@@ -40,7 +40,6 @@
       "__tests__/components/focus-clipping.test.tsx": 23776,
       "__tests__/components/focus-scrollers.test.tsx": 52064,
       "__tests__/components/gamification/daily-streak-moment.browser.test.tsx": 7389,
-      "__tests__/components/gamification/streak-badge.test.tsx": 11530,
       "__tests__/components/goals/edit-goal-modal.test.tsx": 1568,
       "__tests__/components/habits/create-goal-from-habit-sheet.test.tsx": 2068,
       "__tests__/components/habits/habit-checklist-add-layout.test.tsx": 2532,

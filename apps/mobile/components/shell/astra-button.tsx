@@ -1,5 +1,6 @@
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { FAB_SIZE } from '@orbit/shared/theme'
-import { useMemo, useState } from 'react'
+import { getOrbitPageTurns, subscribeOrbitLoop } from '@orbit/shared/utils'
 import { StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { MotionPressable } from '@/components/ui/motion-pressable'
@@ -13,9 +14,11 @@ export function useAstraButtonBlocked(enabled: boolean) {
 }
 
 /** The conversation entry: the live Orbit at 48 on a solid `bgElev` circle with a 1px `borderControl` edge, the size of its 60 press target.
- *  A pointer hover paints the opaque elevated hover fill of that circle, and keyboard focus draws the web focus ring around the unscaled target. */
+ *  A pointer hover paints the opaque elevated hover fill of that circle, and keyboard focus draws the web focus ring around the unscaled target.
+ *  Its ring turns once when the person changes the page. */
 export function AstraButton() {
   const { t } = useTranslation()
+  const pageTurns = useSyncExternalStore(subscribeOrbitLoop, getOrbitPageTurns, getOrbitPageTurns)
   const openConversation = useUIStore(state => state.setAstraConversationOpen)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
@@ -32,7 +35,7 @@ export function AstraButton() {
     focusColor={tokens.primary}
     style={[styles.target, { backgroundColor: hovered ? tokens.bgElevHover : tokens.bgElev, borderColor: tokens.borderControl }]}
   >
-    <OrbitMascot size={48} live="lead" />
+    <OrbitMascot size={48} live="lead" turnKey={pageTurns} />
   </MotionPressable>
 }
 

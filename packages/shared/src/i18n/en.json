@@ -350,7 +350,15 @@
     "returningBounded": "You last completed a habit over 30 days ago.",
     "viewProgress": "See it on Progress",
     "offline": "Orbit needs a connection. Habit logging still works offline.",
-    "offlineLog": "Saved on this device. Orbit will sync it when you reconnect."
+    "offlineLog": "Saved on this device. Orbit will sync it when you reconnect.",
+    "guided": {
+      "offline": "I need a connection to talk.",
+      "returning": "I kept your progress right where you left it.",
+      "offlineLog": "Saved on this device. I sync it when you reconnect."
+    }
+  },
+  "conversation": {
+    "restLimit": "I can talk again when your AI messages renew."
   },
   "command": {
     "title": "What do you want to do",
@@ -385,7 +393,6 @@
     "subtitle": "Your habit copilot"
   },
   "reviewMoment": {
-    "eyebrow": "A word from Orbit",
     "streakTitle": "{count, plural, one {# day straight} other {# days straight}}",
     "levelTitle": "Level {level}",
     "streakBody": "{count, plural, one {You showed up # day in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.} other {You showed up # days in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.}}",
@@ -677,6 +684,7 @@
     },
     "nextReminder": "Next at {time}",
     "takenAt": "Done at {time}",
+    "takenAtQuestion": "When did you do this?",
     "changeTakenAt": "Change time",
     "doseDate": "Date",
     "doseTime": "Time",
@@ -715,6 +723,9 @@
       "emptyBody": "No habit with that name, that description or that tag.",
       "create": "Create habit",
       "count": "{count, plural, one {# habit} other {# habits}}",
+      "line": {
+        "count": "{count, plural, one {I found # habit.} other {I found # habits.}}"
+      },
       "open": "Open {name}",
       "next": "Next",
       "previous": "Previous",
@@ -816,6 +827,7 @@
     "checklistCompleteTitle": "Checklist complete",
     "checklistCompleteMessage": "All items in \"{name}\" are done. Would you like to log this habit?",
     "checklistCompleteConfirm": "Log habit",
+    "checklistCompleteQuestion": "Log this habit?",
     "bulkDeleteTitle": "Delete Habits",
     "bulkDeleteMessage": "{count, plural, one {This removes # habit and any sub-habits. You can undo it from the message that appears.} other {This removes # habits and any sub-habits. You can undo it from the message that appears.}}",
     "bulkDeleteConfirm": "Delete habits",
@@ -1176,6 +1188,11 @@
       "daysFree": "Days free",
       "reminders": "Reminders",
       "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
+      "orbit": {
+        "lastSevenDays": "{done, plural, one {You did this on # of the last 7 days.} other {You did this on # of the last 7 days.}}",
+        "loadError": "I could not load this habit.",
+        "slippingLine": "This habit has slowed down. A new date might fit it better."
+      },
       "copyDescription": "Copy description",
       "descriptionCopied": "Description copied",
       "copyFailed": "We could not copy the description. Select the text and copy it by hand.",
@@ -1216,6 +1233,8 @@
       "logDateConfirmPermanentUnlogMessage": "This removes the log for {name} on {date}. It cannot be undone.",
       "logDateConfirmLog": "Log habit",
       "logDateConfirmUnlog": "Undo log",
+      "logDateQuestion": "Log {name} on {date}?",
+      "logDateUnlogQuestion": "Undo the log for {name} on {date}?",
       "checklistError": "We could not update this checklist. Try again.",
       "deleteError": "We could not delete this habit. Try again.",
       "rescheduleWriteError": "We could not apply this plan. Try again.",
@@ -1370,6 +1389,24 @@
     "options": "Calendar options",
     "monthPicker": "Month and year",
     "legendTitle": "Legend",
+    "legendQuestion": "What does each mark mean?",
+    "monthPickerQuestion": "Where do you want to go?",
+    "monthPickerLastMonth": "Last month",
+    "monthPickerTyped": "In your own words",
+    "monthPickerTypedPlaceholder": "The 20th or Friday, the 20th",
+    "monthPickerTypedSubmit": "Show day",
+    "monthPickerTypedUnresolved": "I could not find that date. Try something like the 20th.",
+    "orbit": {
+      "dayFull": "The {day, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}: all done.",
+      "dayPartial": "The {day, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}: {done} of {total} done.",
+      "dayLoggable": "You can still log this day.",
+      "dayFuture": "{count, plural, one {{weekday} has # thing planned.} other {{weekday} has # things planned.}}",
+      "dayNone": "Nothing planned that day.",
+      "monthEmpty": "Nothing planned in {month}.",
+      "monthFuture": "This month has not arrived yet.",
+      "askDay": "Tell me about {date} in my calendar.",
+      "askMonth": "Tell me about {month} in my calendar."
+    },
     "title": "Google Calendar",
     "fetchingEvents": "Fetching your calendar events...",
     "noEvents": "No events",
@@ -1533,6 +1570,8 @@
     },
     "question": {
       "progress": "{total, plural, one {{answered} of # question answered} other {{answered} of # questions answered}}",
+      "next": "Next question",
+      "previous": "Previous question",
       "required": "Answer this question."
     },
     "choice": {
@@ -2975,6 +3014,7 @@
       "year": "Close the year."
     },
     "periodGroup": "Period",
+    "periodQuestion": "Which period do you want to see?",
     "start": "Start",
     "close": "Close Wrapped",
     "next": "Continue",
@@ -2982,6 +3022,9 @@
     "progressLabel": "Slide {current} of {total}",
     "loading": "Preparing your Wrapped…",
     "empty": "Nothing logged in this period. Pick another period to see a recap.",
+    "orbitLine": {
+      "empty": "I found no logs in this period."
+    },
     "error": "Couldn't load your Wrapped. Please try again.",
     "retry": "Try again",
     "periods": {
@@ -3175,10 +3218,17 @@
     "retry": "Try again",
     "askAstra": "Review summary",
     "upgrade": "Upgrade",
-    "freePrompt": "Pro gets a daily summary of your habits."
+    "freePrompt": "Pro gets a daily summary of your habits.",
+    "guided": {
+      "freePrompt": "Pro gets a daily summary of your habits."
+    }
   },
   "result": {
     "title": "Done!",
+    "streak": {
+      "repaired": "Your streak is back to {count, plural, one {# day} other {# days}}.",
+      "see": "See the streak"
+    },
     "task": {
       "dated": "The task is set for {date}.",
       "datedTimed": "The task is set for {date} at {time}.",
@@ -3187,13 +3237,18 @@
     "habit": {
       "repeat": "The habit starts on {start} and repeats {cadence}.",
       "repeatTimed": "The habit starts on {start} and repeats {cadence} at {time}.",
-      "updated": "The changes are saved."
+      "updated": "The changes are saved.",
+      "rescheduled": "The habit moved to {date}.",
+      "deleted": "The habit was deleted."
     },
     "cadence": {
       "day": "{count, plural, one {every day} other {every # days}}",
       "week": "{count, plural, one {every week} other {every # weeks}}",
       "month": "{count, plural, one {every month} other {every # months}}",
       "year": "{count, plural, one {every year} other {every # years}}"
+    },
+    "calendar": {
+      "imported": "{count, plural, one {# habit was created from your calendar.} other {# habits were created from your calendar.}}"
     },
     "seeToday": "View in Today",
     "account": {
@@ -3606,6 +3661,18 @@
     "free": "Free",
     "plan": "Plan",
     "restorePurchase": "Restore purchase",
+    "question": "Which plan?",
+    "orbitLine": {
+      "usage": "You used {used} of {limit, plural, one {# AI message} other {# AI messages}}.",
+      "loading": "I am fetching the amounts.",
+      "plansError": "I could not fetch the amounts.",
+      "billingError": "I could not load your plan.",
+      "offline": "I am offline right now."
+    },
+    "result": {
+      "renews": "Pro is active and renews on {date}.",
+      "ends": "Pro is active until {date}."
+    },
     "appStore": {
       "manage": "Manage subscription",
       "manageHint": "Your subscription is billed through the App Store. Manage your plan in Apple settings.",
@@ -4012,7 +4079,19 @@
       "streak": "Streak",
       "goals": "Goals",
       "window": "Last 30 days",
+      "windowQuestion": "How were your 30 days?",
       "achievements": "Achievements"
+    },
+    "sectionsQuestion": "What do you want to see?",
+    "orbit": {
+      "activeDays": "{days, plural, one {You showed up on # of the last 30 days.} other {You showed up on # of the last 30 days.}}",
+      "quietWindow": "Nothing is logged in the last 30 days yet.",
+      "day": "{weekday}, {date}: {done} of {total}.",
+      "dayUnscheduled": "{weekday}, {date}: nothing was scheduled.",
+      "returned": "You are back. We go on from here.",
+      "empty": "There is nothing to measure yet.",
+      "streak": "{count, plural, one {# day in a row} other {# days in a row}}. {days, plural, one {# more day} other {# more days}} for the next freeze.",
+      "streakOnly": "{count, plural, one {# day in a row.} other {# days in a row.}}"
     },
     "streak": {
       "currentLabel": "{count, plural, one {day in a row} other {days in a row}}",
@@ -4052,7 +4131,15 @@
       "repairCapped": "This gap needs {needed, plural, one {# freeze} other {# freezes}} and {banked} is the most you can bank, so it cannot be repaired.",
       "repairError": "The gap could not be repaired. Try again.",
       "repairRateLimited": "There were too many repair attempts. Try again shortly.",
-      "bankFull": "{count, plural, one {# freeze is the limit. The next one arrives after you spend one.} other {# freezes is the limit. The next one arrives after you spend one.}}"
+      "bankFull": "{count, plural, one {# freeze is the limit. The next one arrives after you spend one.} other {# freezes is the limit. The next one arrives after you spend one.}}",
+      "freezeSummary": "Each freeze covers a day with nothing logged, and you can bank up to {ceiling, plural, one {# freeze} other {# freezes}}.",
+      "repairFlow": {
+        "question": "Save your streak with {count, plural, one {# freeze} other {# freezes}}?",
+        "line": "I will cover {dates}, and it cannot be undone.",
+        "repair": "Save it",
+        "notNow": "Not now",
+        "saving": "Saving your streak"
+      }
     },
     "goals": {
       "views": "Goal views",

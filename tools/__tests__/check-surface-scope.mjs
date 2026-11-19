@@ -487,13 +487,14 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
   })
 
   const wrappedSlideSource = readFileSync(join(dirname(toolPath("check-surface-scope.mjs")), "..", "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx"), "utf8")
-  const alertPosition = wrappedSlideSource.indexOf('role="alert"')
-  const paragraphStart = wrappedSlideSource.lastIndexOf("<motion.p", alertPosition)
-  const paragraphEnd = wrappedSlideSource.indexOf("</motion.p>", alertPosition) + "</motion.p>".length
-  if (alertPosition < 0 || paragraphStart < 0 || paragraphEnd < "</motion.p>".length) {
+  // The slide holds more than one alert (the load error too), so the share alert is found by its message key.
+  const shareErrorPosition = wrappedSlideSource.indexOf("{t('shareCard.shareError')}")
+  const paragraphStart = wrappedSlideSource.lastIndexOf("<motion.p", shareErrorPosition)
+  const paragraphEnd = wrappedSlideSource.indexOf("</motion.p>", shareErrorPosition) + "</motion.p>".length
+  const alertParagraph = wrappedSlideSource.slice(paragraphStart, paragraphEnd)
+  if (shareErrorPosition < 0 || paragraphStart < 0 || paragraphEnd < "</motion.p>".length || !alertParagraph.includes('role="alert"')) {
     throw new Error("wrapped share alert paragraph is missing")
   }
-  const alertParagraph = wrappedSlideSource.slice(paragraphStart, paragraphEnd)
   const alertColor = "color: 'var(--status-bad-text)'"
   const coloredSpan = `<span style={{ ${alertColor} }}>`
   const spanPosition = alertParagraph.indexOf(coloredSpan)

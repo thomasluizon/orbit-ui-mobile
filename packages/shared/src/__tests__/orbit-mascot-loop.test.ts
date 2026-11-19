@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { conversationMascotState } from '../chat/composer-controls'
+import { conversationMascotState, conversationRestReason } from '../chat/composer-controls'
 import { ORBIT_MASCOT_MAX_FRAME_STEP_MS } from '../contracts/brand'
 import { mascotMotion } from '../theme'
 import {
@@ -363,5 +363,14 @@ describe('conversationMascotState', () => {
     [{ isOnline: true, atMessageLimit: false, dailyBudgetReached: true }, 'descansando'],
   ] as const)('rests Orbit only while the AI is unavailable: %o', (state, expected) => {
     expect(conversationMascotState(state)).toBe(expected)
+  })
+
+  it.each([
+    [{ isOnline: true, atMessageLimit: false }, null],
+    [{ isOnline: false, atMessageLimit: true }, 'todayAstra.guided.offline'],
+    [{ isOnline: true, atMessageLimit: true }, 'conversation.restLimit'],
+    [{ isOnline: true, atMessageLimit: false, dailyBudgetReached: true }, 'conversation.restLimit'],
+  ] as const)('gives the reason of the rest in the first person: %o', (state, expected) => {
+    expect(conversationRestReason(state)).toBe(expected)
   })
 })
