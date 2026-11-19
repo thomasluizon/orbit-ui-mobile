@@ -478,7 +478,7 @@
         "api",
         "repos/thomasluizon/orbit-tickets/issues/<issue-number>",
         "--jq",
-        "{number,html_url,title,body,state:(.state|ascii_upcase),state_reason:(if .state_reason==null then null else (.state_reason|ascii_upcase) end),labels:[.labels[]|{name}]}"
+        "{number,html_url,title,body,state:(.state|ascii_upcase),state_reason:(if .state_reason==null then null else (.state_reason|ascii_upcase) end),closed_at,labels:[.labels[]|{name}]}"
       ],
       "observedExitCode": 0,
       "paths": {
@@ -489,6 +489,12 @@
         },
         "$.body": {
           "types": [
+            "string"
+          ]
+        },
+        "$.closed_at": {
+          "types": [
+            "null",
             "string"
           ]
         },
