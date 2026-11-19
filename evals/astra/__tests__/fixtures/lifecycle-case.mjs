@@ -58,7 +58,7 @@ export function account(habits, held, { confirmsAfterRevise = false, savesOnRevi
   }
   const api = async (method, path, body) => {
     const route = path.split('?')[0]
-    calls.push({ method, path: route, body })
+    calls.push({ method, path: route, body, query: path.split('?')[1] })
     if (route === 'eval/snapshot') return { status: 200, payload: { habits: structuredClone(state) } }
     if (route === 'eval/pending-operations') return { status: 200, payload: { pendingCount: held.length } }
     if (route.startsWith('habits/')) return { status: 200, payload: structuredClone(state.find((stored) => stored.id === route.split('/')[1])) }
@@ -84,9 +84,9 @@ export const turnOf = (fields) => ({ aiMessage: '', actions: [], operations: [],
 // Runs one corpus case through the provider path of a converted case, against the replies that the test gives in order.
 // `held` is what the account approves. `accountHabits` is what the account holds when the turn starts, where it differs from the
 // habits that the reset left (a server that wrote before the approval). Returns the output of the attempt, the requests that
-// the account saw, the conversation id that each request carried, and the verdict.
+// the account saw, the conversation id that each request carried, and the verdict. `traces` holds the eval trace of each reply, in order.
 export async function attempt(id, { replies, held = replies.at(-1).pendingOperations ?? [], habits, accountHabits = habits, records,
-  confirmsAfterRevise, savesOnRevise, afterDecision, savesNothing, confirmReply, ...extra }) {
+  confirmsAfterRevise, savesOnRevise, afterDecision, savesNothing, confirmReply, traces = [], ...extra }) {
   const vars = preparedCase(id, { records, habits, ...extra })
   const fixture = account(accountHabits, held, { confirmsAfterRevise, savesOnRevise, afterDecision, savesNothing, confirmReply })
   const sent = []
@@ -98,7 +98,7 @@ export async function attempt(id, { replies, held = replies.at(-1).pendingOperat
     const response = replies[turn++]
     // core/client-turn.mjs sendTurn: the client takes the conversation id from each response that carries one.
     if (response.conversationId) conversation.conversationId = response.conversationId
-    return { kind: 'final', response, requestId, responseRequestId: requestId, trace: null }
+    return { kind: 'final', response, requestId, responseRequestId: requestId, trace: traces[turn - 1] ?? null }
   }
   const response = await runOutcomeCase(vars, { send, api: fixture.api })
   return { vars, sent, conversationIds, response, fixture, verdict: response.output ? outcome(response.output, { vars }) : { pass: false, reason: response.error } }

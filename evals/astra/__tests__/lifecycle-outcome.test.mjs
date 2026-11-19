@@ -6,7 +6,7 @@ import { outcome } from '../client-path.mjs'
 import { composition } from '../composition.mjs'
 import { askGrader } from '../grader-provider.mjs'
 import { TOOL_NAME_KEYS, corpusTests, gradedByOutcome } from '../grade-method.mjs'
-import { captures } from './fixtures/core-streams.mjs'
+import { answered, children, combined, deletes, parent, renames, sameTitleHabits, sameTitleRecords, withPreview } from './fixtures/same-title-account.mjs'
 import { streams } from './fixtures/same-title-streams.mjs'
 import { accountDate, addDays, attempt, caseOf, corpus, itemOf, previewOf, storedHabit, turnOf } from './fixtures/lifecycle-case.mjs'
 
@@ -76,17 +76,6 @@ describe('the lifecycle families of the launch corpus', () => {
   })
 })
 
-// Producer: the real staging capture of the owner request over one parent Water with six Water - 710ml children (#2127).
-const { children } = captures.complete
-const parent = '33333333-3333-4333-8333-333333333333'
-const sameTitleHabits = [storedHabit(parent, 'Water'), ...children.map((id) => storedHabit(id, 'Water - 710ml'))]
-const sameTitleRecords = { parent, children }
-const answered = captures.complete.turns.map((turn) => turn.at(-1).response)
-const withPreview = (pendingOperations) => ({ ...answered[1], pendingOperations })
-const heldItems = answered[1].pendingOperations[0].items
-const renames = heldItems.filter((item) => item.fields.some((field) => field.field === 'title'))
-const deletes = heldItems.filter((item) => item.fields.some((field) => field.field === 'delete'))
-const combined = (items) => [{ ...answered[1].pendingOperations[0], items }]
 
 describe('a same-title case', () => {
   it('passes a preview of the requested split and reads the saved children back after the approval', async () => {
@@ -632,6 +621,7 @@ describe('the carriers of the deleted checks of the lifecycle modules', () => {
 const brainDumpMixed = (options) => brainDump('brain-dump-mixed-en', [dentist, stretch], options)
 const confirmFails = () => { throw Object.assign(new Error('Fixture API POST ai/pending-operations/{id}/confirm failed: HTTP 503 (errorCode: none).'), { status: 503 }) }
 const confirmWithoutToken = (id) => ({ status: 200, payload: { pendingOperationId: id } })
+const confirmForAnother = () => ({ status: 200, payload: { pendingOperationId: '99999999-9999-4999-8999-999999999999', confirmationToken: 'offline-confirmation' } })
 
 describe('the preview rows of the deleted restart and brain dump tests', () => {
   const [restartHeld] = restartPreview(todayCount(3))
@@ -665,6 +655,7 @@ describe('the saved state rows of the deleted approval tests', () => {
   const approvals = [
     ['a restart', (options) => heldRestart('composition-restart-approve-en', todayCount(3), options)],
     ['a brain dump', brainDumpMixed],
+    ['a same-title split', (options) => attempt('same-title-card-en', { replies: answered, habits: sameTitleHabits, records: sameTitleRecords, ...options })],
   ]
   const defects = {
     'a write that saves nothing': { savesNothing: true },
@@ -687,8 +678,9 @@ describe('the saved state rows of the deleted approval tests', () => {
     expect(approvedPaths(fixture)).toEqual(['confirm'])
   })
 
-  it.each(approvals)('never executes %s when the confirmation holds no token', async (_name, run) => {
-    const { verdict, fixture } = await run({ confirmReply: confirmWithoutToken })
+  it.each(approvals.flatMap(([name, run]) => [[name, 'holds no token', run, confirmWithoutToken], [name, 'is bound to another preview', run, confirmForAnother]]))(
+    'never executes %s when the confirmation %s', async (_name, _defect, run, confirmReply) => {
+    const { verdict, fixture } = await run({ confirmReply })
     expect(verdict).toMatchObject({ pass: false, reason: expect.stringContaining('Approval confirmation lacks its bound token.') })
     expect(approvedPaths(fixture)).toEqual(['confirm'])
   })

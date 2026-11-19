@@ -1,13 +1,20 @@
+import { readFileSync } from 'node:fs'
+import { assertions as promptfooAssertions } from 'promptfoo'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { parse } from 'yaml'
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { composition } from '../composition.mjs'
 import { outcome, runOutcomeCase } from '../client-path.mjs'
+import { corpusTests } from '../grade-method.mjs'
 import { prepareCorrection } from '../setup.mjs'
 import { recordedStream } from './fixtures/core-replay.mjs'
 import { suggestionDraft } from './fixtures/producer.mjs'
 import { startingResponse } from './fixtures/starting-step.mjs'
-import { account, accountDate, attempt, caseOf, itemOf, preparedCase, previewOf, requestId, storedHabit, turnOf } from './fixtures/lifecycle-case.mjs'
+import { account, accountDate, attempt, caseOf, corpus, itemOf, preparedCase, previewOf, requestId, storedHabit, turnOf } from './fixtures/lifecycle-case.mjs'
 
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
+
+const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 
 const water = '22222222-2222-4222-8222-222222222222'
 const checklist = [{ text: 'Prepare water', isChecked: true }, { text: 'Fill glass', isChecked: false }]
@@ -390,5 +397,86 @@ describe('a suggestion case', () => {
     expect((await composition(response.output, { vars })).pass).toBe(false)
     const held = await read({ parts: [block([draft])], pendingOperations: [previewOf('createHabit', [itemOf(null, 'x', { title: [null, 'x'] })])] })
     expect(held.verdict).toMatchObject({ pass: false, reason: 'The read request held a preview of a change.' })
+  })
+})
+
+// The rows of the block action test that the conversion removed from one-small-step.test.mjs: the setup request, the follow-up
+// that the action of the block makes, its history, and the rubric that names the previous step. Each row prepares the real case
+// and sends its turns through the client path.
+const startingFamilies = ['one-small-step', 'one-small-step-smaller', 'one-small-step-smaller-legacy', 'one-small-step-save-task', 'one-small-step-save-checklist', 'one-small-step-legacy']
+const actionCases = ['en', 'pt-BR'].flatMap((locale) => ['smaller', 'smaller-legacy', 'save-task', 'save-checklist']
+  .flatMap((family) => [true, false].map((supportsContext) => [locale, family, supportsContext])))
+const followUpReply = turnOf({ aiMessage: 'Read one line', parts: [{ type: 'text', text: 'Read one line' }] })
+
+describe('the block action of a starting-step case', () => {
+  it.each(actionCases)('sends the setup turn in %s for %s with typed context %s, and builds the follow-up from the action of the block', async (locale, family, supportsContext) => {
+    const { vars, requests, block } = await prepare(`composition-one-small-step-${family}-${locale}`, { supportsContext })
+    const [setup] = requests
+    expect(setup.form.get('message')).toBe(vars.setup.input)
+    expect(JSON.parse(setup.form.get('history'))).toEqual([])
+    expect(JSON.parse(setup.form.get('clientContext')).partKinds).toContain('oneSmallStep')
+    expect(vars.previousStartingStep).toEqual(block.suggestion)
+    const action = block.actions.find(({ id }) => id === vars.startingStepAction)
+    expect(vars.clientContext.supportsStartingStepContext).toBe(true)
+    if (family.startsWith('smaller') && supportsContext) expect(vars.clientContext.previousStartingStep).toEqual(action.previousStep)
+    else expect(vars.clientContext).not.toHaveProperty('previousStartingStep')
+    const suffix = family === 'save-checklist' ? locale === 'en' ? ' Use the habit "Water".' : ' Use o hábito "Water".' : ''
+    expect(vars.input).toBe(action.message + suffix)
+    vi.stubGlobal('fetch', recordedStream([stream(followUpReply)], requests))
+    await runOutcomeCase(vars)
+    const followUp = requests[1]
+    expect(followUp.form.get('message')).toBe(vars.input)
+    expect(JSON.parse(followUp.form.get('clientContext'))).toMatchObject({ locale, supportsStartingStepContext: true })
+    expect(JSON.parse(followUp.form.get('history'))).toEqual([{ role: 'user', content: vars.setup.input },
+      { role: 'assistant', content: JSON.stringify([{ kind: 'oneSmallStep', block }]) }])
+    if (family === 'smaller-legacy') expect(JSON.parse(followUp.form.get('clientContext')).partKinds).toEqual([])
+  })
+
+  const readFamilies = ['one-small-step-smaller', 'one-small-step-smaller-legacy']
+  it.each(['en', 'pt-BR'].flatMap((locale) => readFamilies.map((family) => `composition-${family}-${locale}`)))('names the previous step of %s in the rubric that grades its answer', async (id) => {
+    const { vars, block } = await prepare(id)
+    const test = corpusTests().find((entry) => entry.metadata.id === id)
+    const rubric = test.assert.find((assertion) => assertion.type === 'llm-rubric')
+    const grader = { id: () => 'offline-starting-step-grader', callApi: vi.fn(async () => ({
+      output: JSON.stringify({ pass: true, score: 1, reason: 'Captured previous-step context.' }) })) }
+    const grade = await promptfooAssertions.runAssertion({ prompt: vars.input, assertion: rubric,
+      test: { ...test, vars, options: { provider: grader } }, vars, providerResponse: { output: { answer: 'Projected next answer' } } })
+    expect(grade.pass).toBe(true)
+    const gradingPrompt = grader.callApi.mock.calls[0][0]
+    expect(gradingPrompt).toContain('Previous starting step:')
+    expect(gradingPrompt).toContain(JSON.stringify(block.suggestion).replaceAll('"', '\\"'))
+  })
+
+  // The legacy action runs on a client without oneSmallStep, which predates the conversation id of the client, so it starts afresh.
+  const approvals = [['save-task', true], ['smaller-legacy', false]]
+  it.each(approvals)('sends the conversation id of the setup turn on the follow-up of %s and on its approval: %s', async (family, continued) => {
+    const { vars, block } = await prepare(`composition-one-small-step-${family}-en`)
+    const held = family === 'save-task' ? [previewOf('createHabit', [itemOf(null, block.suggestion.step, { title: [null, block.suggestion.step], frequency_unit: [null, 'OneTime'] })])] : []
+    const fixture = account(habits, held)
+    const requests = []
+    vi.stubGlobal('fetch', recordedStream([stream(turnOf(held.length ? { pendingOperations: held } : followUpReply))], requests))
+    const sentInContext = []
+    await runOutcomeCase(vars, { api: async (method, path, body) => {
+      const done = await fixture.api(method, path, body)
+      sentInContext.push(fixture.calls.at(-1))
+      return done
+    } })
+    const followUp = JSON.parse(requests[0].form.get('clientContext'))
+    const decided = sentInContext.filter((call) => /\/(confirm|execute)$/u.test(call.path))
+    expect(decided.map((call) => call.path.split('/').at(-1))).toEqual(held.length ? ['confirm', 'execute'] : [])
+    for (const call of decided) {
+      const context = call.path.endsWith('/confirm') ? JSON.parse(new URLSearchParams(call.query).get('clientContext')) : call.body.clientContext
+      expect(context).toEqual(followUp)
+    }
+    if (continued) expect(followUp.conversationId).toBe('cccccccc-cccc-4ccc-8ccc-cccccccccccc')
+    else expect(followUp).not.toHaveProperty('conversationId')
+  })
+
+  it.each(startingFamilies)('registers the %s case in both locales', (family) => {
+    expect(corpus.filter((entry) => entry.metadata.family === family).map((entry) => entry.metadata.locale).toSorted()).toEqual(['en', 'pt-BR'])
+  })
+
+  it('runs each attempt of the launch corpus once at a time, without a cache', () => {
+    expect(configuration.evaluateOptions).toMatchObject({ repeat: ATTEMPTS_PER_CASE, maxConcurrency: 1, cache: false })
   })
 })
