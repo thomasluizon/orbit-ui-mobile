@@ -60,14 +60,16 @@ export async function holdCase(vars, { send = sendTurn, conversation = vars.conv
 }
 
 // The provider path of a case with an outcome. An attempt without a gradable answer returns its reason as the provider
-// error, so no grader call is spent on it.
+// error, so no grader call is spent on it. Each result tells promptfoo never to retry it, as the POST /api/chat path of
+// http-provider.mjs does: a case runs once per window, and an error that names HTTP 429 would otherwise repeat the case.
 export async function runOutcomeCase(vars, dependencies) {
   if (vars.preconditionFailure) {
     return { error: `Precondition unavailable: ${vars.preconditionFailure}`,
-      metadata: { astraPreconditionFailure: true, astraPreconditionReason: vars.preconditionFailure } }
+      metadata: { astraPreconditionFailure: true, astraPreconditionReason: vars.preconditionFailure, rateLimitRetryable: false } }
   }
   const output = await holdCase(vars, dependencies)
-  return output.error ? { error: output.error, output } : { output }
+  const metadata = { rateLimitRetryable: false }
+  return output.error ? { error: output.error, output, metadata } : { output, metadata }
 }
 
 // promptfoo assertion: the outcome of one attempt of a launch corpus case, before any approval. A preview that the

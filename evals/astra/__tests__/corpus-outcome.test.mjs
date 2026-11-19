@@ -527,8 +527,19 @@ describe('the client path of a converted case', () => {
     vi.stubGlobal('fetch', api)
     expect(await runOutcomeCase({ ...prepared('single-read-en'), preconditionFailure: 'Fixture reset failed.' })).toEqual({
       error: 'Precondition unavailable: Fixture reset failed.',
-      metadata: { astraPreconditionFailure: true, astraPreconditionReason: 'Fixture reset failed.' } })
+      metadata: { astraPreconditionFailure: true, astraPreconditionReason: 'Fixture reset failed.', rateLimitRetryable: false } })
     expect(api).not.toHaveBeenCalled()
+  })
+
+  // promptfoo retries a provider result whose error names HTTP 429 unless its metadata says rateLimitRetryable: false
+  // (isProviderResponseRateLimited in promptfoo's scheduler). A case runs once per window, so no shape may be retried.
+  it.each([
+    ['a throttled turn', [{ kind: 'failed', status: 429, code: null, error: 'Too many requests.' }]],
+    ['a provider outage', [{ kind: 'failed', status: 400, code: 'AI_UNAVAILABLE', error: 'The model is unavailable.' }]],
+    ['a gradable answer', [reply([meditar()])]],
+  ])('tells promptfoo never to retry %s', async (_shape, replies) => {
+    const { response } = await scripted('single-read-en', replies)
+    expect(response.metadata).toEqual({ rateLimitRetryable: false })
   })
 })
 
