@@ -13,7 +13,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { HabitRow,type HabitRowProps } from '@/components/habits/habit-row'
-import { Skeleton } from '@/components/ui/skeleton'
+import { HabitListSkeleton } from '@/components/habit-list/habit-list-skeleton'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import { HabitListAllDone,HabitListEmptyState,HabitListFrequencyEmptyState,HabitListNothingOpen } from './habit-list/empty-state'
 import { HabitDrill } from './habit-list/habit-drill'
@@ -136,14 +136,6 @@ export interface HabitListHandle {
   refetch: () => void
   scrollToOffset: (offset: number, animated?: boolean) => void
 }
-
-const SKELETON_KEYS = [
-  'skeleton-1',
-  'skeleton-2',
-  'skeleton-3',
-  'skeleton-4',
-  'skeleton-5',
-]
 
 const KEYBOARD_SHOULD_PERSIST_TAPS = 'handled'
 
@@ -610,10 +602,8 @@ function getHabitListStatus(state: Readonly<HabitListScreenState>): HabitListSta
 }
 
 function renderHabitListStatusBody(state: Readonly<HabitListScreenState>, status: Exclude<HabitListStatus, 'ready'>) {
-  const { t, styles } = state.account
-  if (status === 'loading') return <ContentFade key="loading">{state.queries.habitsQuery.showLoading ? <View style={styles.skeletonContainer}>
-    {SKELETON_KEYS.map((key) => <Skeleton key={key} variant="habit-row" label={t('common.loading')} />)}
-  </View> : null}</ContentFade>
+  const { t } = state.account
+  if (status === 'loading') return <ContentFade key="loading">{state.queries.habitsQuery.showLoading ? <HabitListSkeleton /> : null}</ContentFade>
   return <ContentFade key="load-error"><HabitListEmptyState
     title={t('habits.loadError')}
     description=""
