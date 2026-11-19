@@ -55,7 +55,8 @@ export const reviewCheck = ({ run, repoRoot = REPO_ROOT }) => async () => {
 /**
  * Seen keys, failure signatures and the Sentry listing time, from the intake file. A listed pull request replaces every
  * key the last waiter saved for it, so a listed draft keeps no key and its ready head wakes the next waiter. Alert keys
- * stay a union: a listed alert key lacks the ticket-closed part of its waiter key, so a replacement would wake every seed.
+ * stay a union: until recordTicketClosedAlerts runs, a listed alert key can lack the ticket-closed part of its waiter key,
+ * so a replacement could wake every seed.
  */
 export const initialWakeMarks = (intake, nowMilliseconds) => {
   const marks = intake?.wake ?? {}
