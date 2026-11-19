@@ -18,11 +18,12 @@ type HabitCreateFrameProps = ComponentProps<typeof Sheet> & {
   leaving: boolean
   guided?: boolean
   discardSheet?: ReactNode
+  result?: ReactNode
   leaveGuard?: ComponentType<{ leaving: boolean; requestLeave: () => void }>
 }
 
-export function HabitCreateFrame({ presentation, fromConversation, leaving, guided = false, discardSheet, leaveGuard, ...props }: Readonly<HabitCreateFrameProps>) {
-  if (guided) return <GuidedCreateFrame presentation={presentation} leaving={leaving} leaveGuard={leaveGuard} title={props.title} discardSheet={discardSheet} onAttemptDismiss={props.onAttemptDismiss}>{props.children}</GuidedCreateFrame>
+export function HabitCreateFrame({ presentation, fromConversation, leaving, guided = false, discardSheet, result, leaveGuard, ...props }: Readonly<HabitCreateFrameProps>) {
+  if (guided) return <GuidedCreateFrame presentation={presentation} leaving={leaving} leaveGuard={leaveGuard} title={props.title} discardSheet={discardSheet} result={result} onAttemptDismiss={props.onAttemptDismiss}>{props.children}</GuidedCreateFrame>
   if (presentation === 'sheet') return <Sheet {...props} />
   return <HabitCreateScreenFrame {...props} fromConversation={fromConversation} leaving={leaving} leaveGuard={leaveGuard} />
 }
@@ -47,15 +48,15 @@ function HabitCreateScreenFrame({ fromConversation, leaving, leaveGuard: LeaveGu
   </Shell412></KeyboardAwareView>
 }
 
-function GuidedCreateFrame({ presentation, leaving, leaveGuard: LeaveGuard, title, children, discardSheet, onAttemptDismiss }: Readonly<Pick<HabitCreateFrameProps, 'presentation' | 'leaving' | 'leaveGuard' | 'title' | 'children' | 'discardSheet' | 'onAttemptDismiss'>>) {
+function GuidedCreateFrame({ presentation, leaving, leaveGuard: LeaveGuard, title, children, discardSheet, result, onAttemptDismiss }: Readonly<Pick<HabitCreateFrameProps, 'presentation' | 'leaving' | 'leaveGuard' | 'title' | 'children' | 'discardSheet' | 'result' | 'onAttemptDismiss'>>) {
   useLayoutEffect(() => {
     if (presentation !== 'screen') return undefined
     useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
     return () => useUIStore.getState().unregisterOpenOverlay(HABIT_CREATE_OVERLAY_ID)
   }, [presentation])
   const dismiss = () => onAttemptDismiss?.()
-  if (presentation === 'sheet') return <FlowScreen label={title ?? ''} onDismiss={dismiss}>{children}{discardSheet}</FlowScreen>
-  return <FlowScreen presentation="route" label={title ?? ''} onDismiss={dismiss}>
+  if (presentation === 'sheet') return <FlowScreen label={title ?? ''} onDismiss={dismiss} result={result}>{children}{discardSheet}</FlowScreen>
+  return <FlowScreen presentation="route" label={title ?? ''} onDismiss={dismiss} result={result}>
     {LeaveGuard ? <LeaveGuard leaving={leaving} requestLeave={dismiss} /> : null}
     {children}
     {discardSheet}

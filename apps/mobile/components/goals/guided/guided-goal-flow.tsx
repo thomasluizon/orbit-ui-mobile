@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import type { GoalDismissGuard, GuidedGoalFlowNavigation } from '@orbit/shared/hooks'
@@ -30,13 +30,14 @@ interface GoalFlowFrameProps {
   view: FlowStepView
   requestClose: () => void
   discard: GoalDismissGuard
+  result?: ReactNode
 }
 
-export function GoalFlowFrame({ flowId, label, flow, view, requestClose, discard }: Readonly<GoalFlowFrameProps>) {
+export function GoalFlowFrame({ flowId, label, flow, view, requestClose, discard, result }: Readonly<GoalFlowFrameProps>) {
   const { t } = useTranslation()
   const { position, total } = flow.position
   return (
-    <FlowScreen label={label} onDismiss={flow.canGoBack ? flow.back : requestClose}>
+    <FlowScreen label={label} onDismiss={flow.canGoBack ? flow.back : requestClose} result={result}>
       <QuestionFlow
         flow={flowId}
         stepKey={flow.current.step}

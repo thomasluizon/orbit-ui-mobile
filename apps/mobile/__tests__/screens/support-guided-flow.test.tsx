@@ -73,6 +73,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
       expect(mocks.apiClient).toHaveBeenCalledOnce()
       expect(mocks.completed).toHaveBeenCalledWith('support_request', 2, false)
       expect(hosts(tree).some((node) => node.props.testID === 'result-dialog')).toBe(true)
+      expect(hosts(tree).filter((node) => typeof node.props.onRequestClose === 'function'), 'the result draws in the window of the flow, so iOS presents one Modal').toHaveLength(1)
       expect(texts(tree)).toContain(messages.result.support.sent.replace('{email}', 'ada@example.com'))
       await press(tree, messages.profile.support.backToAbout)
       expect(mocks.push).toHaveBeenCalledWith('/about')

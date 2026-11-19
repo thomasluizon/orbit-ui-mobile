@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { SPACING } from '@orbit/shared/theme'
@@ -12,6 +13,7 @@ import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface SupportFlowProps {
+  result?: ReactNode
   step: 'subject' | 'message'
   email: string
   subject: SupportSubjectId | null
@@ -98,7 +100,7 @@ export function SupportFlow(props: Readonly<SupportFlowProps>) {
   const step = describeSupportFlowStep(props, (key, values) => t(key, values))
   const messaging = props.step === 'message'
   return (
-    <FlowScreen label={t('profile.support.title')} onDismiss={step.onDismiss}>
+    <FlowScreen label={t('profile.support.title')} onDismiss={step.onDismiss} result={props.result}>
       <QuestionFlow
         flow="support_request"
         showOrbit={false}
@@ -125,8 +127,7 @@ export function SupportFlow(props: Readonly<SupportFlowProps>) {
 /** The guided support surface: the flow, then the result dialog with Orbit in Feliz. The dialog replaces the success state and keeps the way back to About. */
 export function SupportGuided({ sent, onOpenAbout, onDismissResult, ...flow }: Readonly<SupportFlowProps & { sent: boolean; onOpenAbout: () => void; onDismissResult: () => void }>) {
   const { t } = useTranslation()
-  if (!sent) return <SupportFlow {...flow} />
-  return (
+  const result = sent ? (
     <ResultDialog
       title={t('result.title')}
       sentence={t('result.support.sent', { email: flow.email })}
@@ -135,7 +136,8 @@ export function SupportGuided({ sent, onOpenAbout, onDismissResult, ...flow }: R
       onClose={onDismissResult}
       orbitState="feliz"
     />
-  )
+  ) : undefined
+  return <SupportFlow {...flow} result={result} />
 }
 
 const styles = StyleSheet.create({

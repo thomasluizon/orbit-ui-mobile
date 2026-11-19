@@ -26,7 +26,7 @@ import { GoalProgressBlock } from './goal-detail-drawer/goal-progress-block'
 import { useGoalStatusActions } from './goal-detail-drawer/use-goal-status-actions'
 import { GoalAskEntry, useGoalOrbitLine } from './goal-detail-drawer/goal-orbit-line'
 import { GoalStatusResultDialog } from './goal-detail-drawer/goal-status-result-dialog'
-import { useGoalDetailOutcomes } from './goal-detail-drawer/use-goal-detail-outcomes'
+import { goalDetailSheetShows, useAfterSheetCloses, useGoalDetailOutcomes } from './goal-detail-drawer/use-goal-detail-outcomes'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -54,7 +54,9 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const astraConversationOpen = useUIStore(state => state.astraConversationOpen)
   const draftHydrated = useChatStore(state => state.draftHydrated)
   const guided = useFlag('orbit_guided_flows')
-  const outcomes = useGoalDetailOutcomes(goal, guided, usePrefersReducedMotion())
+  const { sheetRef, closeSheet } = useSheetHost()
+  const afterSheetCloses = useAfterSheetCloses({ guided, inline, closeSheet })
+  const outcomes = useGoalDetailOutcomes(goal, guided, usePrefersReducedMotion(), afterSheetCloses)
   const { progressFormOpened } = outcomes
   const orbitLine = useGoalOrbitLine(goal, guided)
   const deleteGoal = useDeleteGoal({ onDeleted: outcomes.onDeleted })
@@ -63,7 +65,6 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const [deleting, setDeleting] = useAccountScopedState(false)
   const headingRef = useRef<View>(null)
   const focusedInlineGoalId = useRef<string | null>(null)
-  const { sheetRef, closeSheet } = useSheetHost()
   const close = useCallback(() => {
     if (inline) onClose()
     else closeSheet(onClose)
@@ -140,15 +141,16 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
         <GoalForecast metrics={detailData?.metrics ?? null} unit={goal.unit} isLoading={isLoading} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onOpenHabit={openHabit} />
         <GoalAskEntry line={orbitLine} at="bottom" disabled={!draftHydrated} onPress={openAstra} />
-        <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} defaultIconColor={tokens.fg3} iconColor={tokens.statusBad} />
+        <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => afterSheetCloses(() => setEditing(true))} onDelete={() => setDeleting(true)} defaultIconColor={tokens.fg3} iconColor={tokens.statusBad} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <InlineLoadError message={t('goals.detail.loadError')} onRetry={() => void refetch()} /> : null}
     </View>
   )
 
+  const showsSheet = goalDetailSheetShows({ open, inline, editingProgress, guidedModalOpen: guided && (editing || outcomes.result !== null) })
   return (
     <>
-      {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} onBack={close} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} {...getGoalSheetTitle(goal, guided, t('progressScreen.sections.goals'))}>{body}</Sheet> : null}
+      {showsSheet ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} onBack={close} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} {...getGoalSheetTitle(goal, guided, t('progressScreen.sections.goals'))}>{body}</Sheet> : null}
       {open && editingProgress && sheetGoal ? <GoalProgressForm key={goalId} goal={sheetGoal} refetchDetail={refetch} asQuestion={guided} onClose={() => { setEditingProgress(false); outcomes.progressFormClosed() }} /> : null}
       {sheetGoal ? <EditGoalModal open={editing} onClose={() => setEditing(false)} goal={sheetGoal} /> : null}
       <GoalStatusResultDialog result={outcomes.result} onClose={outcomes.clearResult} onOpenList={openGoalsList} />

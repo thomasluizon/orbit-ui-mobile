@@ -9,7 +9,7 @@ import { createMockGoal, createMockProfile } from '@orbit/shared/__tests__/facto
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
 import { updateGoalProgressDetail } from '@orbit/shared/utils'
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { buildTempGoal } from '@/lib/goal-mutation-helpers'
@@ -1001,6 +1001,46 @@ describe('GoalDetailDrawer', () => {
     const tree = renderDrawer()
     press(tree, 'goals.detail.reactivate')
     expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  describe('with the guided flows on, a Modal waits for the native dismissal of the detail sheet', () => {
+    beforeEach(() => {
+      guidedFlag.on = true
+      sheetTestControls.defer(true)
+    })
+    afterEach(() => {
+      guidedFlag.on = false
+      sheetTestControls.defer(false)
+    })
+    const openEditModals = (tree: any) => tree.root.findAll((node: { props: { open?: unknown; goal?: unknown } }) => node.props.open === true && node.props.goal !== undefined)
+    const resultDialogs = (tree: any) => tree.root.findAll((node: { props: { testID?: string } }) => node.props.testID === 'result-dialog')
+
+    it('opens the guided edit only after the sheet is gone', () => {
+      const tree = renderDrawer()
+      press(tree, 'goals.detail.edit')
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(openEditModals(tree)).toHaveLength(0)
+      TestRenderer.act(() => sheetTestControls.completeDismissal())
+      expect(openEditModals(tree).length).toBeGreaterThan(0)
+    })
+
+    it.each(['goals.detail.markAbandoned', 'goals.detail.reactivate'])('shows the result of %s only after the sheet is gone', async (action) => {
+      if (action === 'goals.detail.reactivate') detailGoal = { ...listGoal, status: 'Abandoned', progressHistory: [] }
+      const tree = renderDrawer()
+      press(tree, action)
+      await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })
+      expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(resultDialogs(tree)).toHaveLength(0)
+      TestRenderer.act(() => sheetTestControls.completeDismissal())
+      expect(resultDialogs(tree).length).toBeGreaterThan(0)
+    })
+  })
+
+  it('keeps the edit modal opening at once with the guided flows off, as before', () => {
+    const tree = renderDrawer()
+    press(tree, 'goals.detail.edit')
+    expect(tree.root.findAll((node: { props: { open?: unknown; goal?: unknown } }) => node.props.open === true && node.props.goal !== undefined).length).toBeGreaterThan(0)
   })
 
   it('opens the edit modal and requests dismiss without throwing', () => {

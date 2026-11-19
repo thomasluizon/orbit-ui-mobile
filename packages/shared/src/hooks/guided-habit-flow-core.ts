@@ -3,7 +3,7 @@ import type { HabitPhraseReadRequest, HabitPhraseReadResponse } from '../types/h
 import type { SupportedLocale } from '../types/profile'
 import { getAccountDay } from '../utils/dates'
 import { phraseLeavesWordsUnread, readPhraseCoverage, remainingHabitFlowSteps, resetCoveredAnswers, type HabitFlowAnswers, type HabitFlowStepId } from '../utils/habit-flow'
-import { answerHabitReminder, answerHabitTime, answerHabitWhen, habitRepeatLacksStart, type HabitFlowFormPort, type HabitWhenChoice } from '../utils/habit-flow-answers'
+import { answerHabitReminder, answerHabitTime, answerHabitWhen, formHoldsTimelessReminder, habitRepeatLacksStart, type HabitFlowFormPort, type HabitWhenChoice } from '../utils/habit-flow-answers'
 import { guardHabitReadPatch, habitFlowFieldStep, readHabitPhraseDate, readHabitPhraseValues, readHabitWhenWords, type HabitPhraseDate } from '../utils/habit-flow-details'
 import {
   advanceHabitFlow,
@@ -48,7 +48,7 @@ export interface GuidedHabitFlowAdapters {
 
 /** The form writes and reads the flow needs. Each app builds it over its own form instance. */
 export interface GuidedHabitFlowForm {
-  getValues: () => Pick<HabitFormInput, 'title' | 'dueDate' | 'dueTime' | 'dueEndTime' | 'isGeneral' | 'emoji' | ScheduleField>
+  getValues: () => Pick<HabitFormInput, 'title' | 'dueDate' | 'dueTime' | 'dueEndTime' | 'isGeneral' | 'emoji' | 'scheduledReminders' | 'repeatReminder' | ScheduleField>
   setField: (field: keyof HabitFormInput, value: unknown) => void
 }
 
@@ -341,10 +341,10 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     }, [answerStep, chooseDate, controller, form, locale, mode, port, startRepeat, supportedLocale, timeZone, today])
     const answerTime = useCallback((time: string | null) => {
       controller.releaseDueTime()
-      answerHabitTime(port, time)
+      answerHabitTime(port, time, formHoldsTimelessReminder(form.getValues()))
       setProposals((value) => ({ ...value, time: false }))
       answerStep('time')
-    }, [answerStep, controller, port])
+    }, [answerStep, controller, form, port])
     const answerReminder = useCallback((remind: boolean) => {
       answerHabitReminder(port, remind)
       advance()

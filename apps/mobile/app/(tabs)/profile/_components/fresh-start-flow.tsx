@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { StyleSheet, Text } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { freshStartSubmitAction } from '@orbit/shared/utils'
@@ -11,6 +11,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { FreshStartLists } from './fresh-start-lists'
 
 interface FreshStartFlowProps {
+  result?: ReactNode
   step: 'info' | 'confirm'
   deletedItems: string[]
   preservedItems: string[]
@@ -37,7 +38,7 @@ export function FreshStartFlow(props: Readonly<FreshStartFlowProps>) {
     else if (action === 'reset') props.onReset()
   }
   return (
-    <FlowScreen label={t('profile.settingsRows.startOver')} onDismiss={confirming && !props.loading ? props.onBack : props.onClose}>
+    <FlowScreen label={t('profile.settingsRows.startOver')} onDismiss={confirming && !props.loading ? props.onBack : props.onClose} result={props.result}>
       <QuestionFlow
         flow="fresh_start"
         showOrbit={false}
@@ -84,8 +85,7 @@ const styles = StyleSheet.create({
 /** The guided fresh start: the flow, then the result dialog with Orbit in Parado. A queued reset says it waits for the connection. */
 export function FreshStartGuided({ outcome, onOpenToday, ...flow }: Readonly<FreshStartFlowProps & { outcome: 'done' | 'queued' | null; onOpenToday: () => void }>) {
   const { t } = useTranslation()
-  if (!outcome) return <FreshStartFlow {...flow} />
-  return (
+  const result = outcome ? (
     <ResultDialog
       title={t('result.title')}
       sentence={t(outcome === 'queued' ? 'result.account.freshStartQueued' : 'result.account.freshStart')}
@@ -94,5 +94,6 @@ export function FreshStartGuided({ outcome, onOpenToday, ...flow }: Readonly<Fre
       onClose={flow.onClose}
       orbitState="parado"
     />
-  )
+  ) : undefined
+  return <FreshStartFlow {...flow} result={result} />
 }

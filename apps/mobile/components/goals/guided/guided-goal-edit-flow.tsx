@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { buildGoalUpdateRequest, createGoalEditDraft, getGoalEditError, isGoalEditDirty, type GoalEditSource } from '@orbit/shared/hooks'
@@ -18,7 +18,7 @@ interface GuidedGoalEditFlowProps {
   onClose: () => void
 }
 
-function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProps & { onSaved: (goal: SavedGoal) => void }>) {
+function GoalEditRun({ goal, onClose, onSaved, result }: Readonly<GuidedGoalEditFlowProps & { onSaved: (goal: SavedGoal) => void; result: ReactNode }>) {
   const { t } = useTranslation()
   const translate = (key: string, values?: Record<string, unknown>) => t(key, values)
   const updateGoal = useUpdateGoal()
@@ -59,12 +59,12 @@ function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProp
     primary: { label: t('common.save'), onPress: () => void save(), loading: submission.waiting },
   }
   const requestClose = () => { if (!submission.isRunning()) discard.requestDismiss() }
-  return <GoalFlowFrame flowId="goal_edit" label={t('goals.detail.edit')} flow={flow} view={views[flow.current.step] ?? summary} requestClose={requestClose} discard={discard} />
+  return <GoalFlowFrame flowId="goal_edit" label={t('goals.detail.edit')} flow={flow} view={views[flow.current.step] ?? summary} requestClose={requestClose} discard={discard} result={result} />
 }
 
 /** The guided goal edit: it opens on the summary with the stored values, and a save closes with the result dialog. */
 export function GuidedGoalEditFlow({ goal, onClose }: Readonly<GuidedGoalEditFlowProps>) {
   const [saved, setSaved] = useState<SavedGoal | null>(null)
-  if (!saved) return <GoalEditRun goal={goal} onClose={onClose} onSaved={setSaved} />
-  return <GoalResultDialog title={saved.title} deadline={saved.deadline} change="updated" opensGoal onPrimary={onClose} onClose={onClose} />
+  const result = saved ? <GoalResultDialog title={saved.title} deadline={saved.deadline} change="updated" opensGoal onPrimary={onClose} onClose={onClose} /> : null
+  return <GoalEditRun goal={goal} onClose={onClose} onSaved={setSaved} result={result} />
 }

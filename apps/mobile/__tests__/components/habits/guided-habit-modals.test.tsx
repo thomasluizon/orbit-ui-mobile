@@ -8,7 +8,7 @@ import type { HabitPhraseReadResponse } from '@orbit/shared/types'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { i18n } from '@/lib/i18n'
-import { press, renderNavigation } from '../ui/navigation-render'
+import { nativeWindows, press, renderNavigation } from '../ui/navigation-render'
 
 const state = vi.hoisted(() => ({
   flag: true, create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, completed: vi.fn(), push: vi.fn(), phraseRead: vi.fn(), subCreate: vi.fn(),
@@ -135,6 +135,7 @@ describe('the Android create surface behind orbit_guided_flows', () => {
     })
     expect(state.completed).toHaveBeenCalledWith('habit_create', 5, false)
     expect(tree.hosts().some((node) => typeof node.props.children === 'string' && node.props.children.includes('08:00') && node.props.children.startsWith('A tarefa ficou marcada para'))).toBe(true)
+    expect(nativeWindows(tree), 'the result draws in the window of the flow, so iOS presents one Modal').toHaveLength(1)
     tree.unmount()
   })
 })
@@ -629,6 +630,46 @@ describe('the Android edit surface behind orbit_guided_flows', () => {
     expect((state.update.mock.calls[0]![0] as { data: Record<string, unknown> }).data).toMatchObject({ title: 'Correr', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '20:00' })
     expect(state.completed).toHaveBeenCalledWith('habit_edit', 1, false)
     expect(tree.hosts().some((node) => node.props.children === ptBR.result.habit.updated)).toBe(true)
+    expect(nativeWindows(tree), 'the result draws in the window of the flow, so iOS presents one Modal').toHaveLength(1)
+    tree.unmount()
+  })
+
+  describe.each([
+    ['a clock reminder', { scheduledReminders: [{ when: 'same_day' as const, time: '06:30' }], repeatReminder: null }],
+    ['a repeat reminder', { scheduledReminders: [], repeatReminder: { intervalMinutes: 30, activeStart: '08:00', activeEnd: '20:00' } }],
+  ])('answering no set time on %s', (_name, stored) => {
+    it('keeps the stored reminder in the save and on the summary', async () => {
+      const habit = createMockHabit({ ...storedHabit, reminderEnabled: true, reminderTimes: [], ...stored })
+      const tree = renderNavigation(<QueryClientProvider client={new QueryClient()}><EditHabitModal open onClose={vi.fn()} habit={habit} /></QueryClientProvider>)
+      await settle()
+      expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+      await tap(tree, /^Hora,/)
+      await tap(tree, ptBR.habits.flow.time.none)
+      expect(control(tree, /^Lembrete,/)?.props.accessibilityLabel).toContain(ptBR.habits.flow.summary.withReminder)
+      await primary(tree)
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+      const { data } = state.update.mock.calls[0]![0] as { data: Record<string, unknown> }
+      expect(data).not.toHaveProperty('dueTime')
+      expect(data).toMatchObject({ reminderEnabled: true })
+      if (habit.repeatReminder) {
+        expect(data).not.toHaveProperty('clearRepeatReminder')
+        expect(data.repeatReminder).toEqual(habit.repeatReminder)
+      } else expect(data.scheduledReminders).toEqual(habit.scheduledReminders)
+      tree.unmount()
+    })
+  })
+
+  it('states no reminder on the summary and sends none when only offset reminders remain after no set time', async () => {
+    const habit = createMockHabit({ ...storedHabit, reminderEnabled: true, reminderTimes: [15], scheduledReminders: [], repeatReminder: null })
+    const tree = renderNavigation(<QueryClientProvider client={new QueryClient()}><EditHabitModal open onClose={vi.fn()} habit={habit} /></QueryClientProvider>)
+    await settle()
+    await tap(tree, /^Hora,/)
+    await tap(tree, ptBR.habits.flow.time.none)
+    expect(control(tree, /^Lembrete,/)?.props.accessibilityLabel).toContain(ptBR.habits.flow.summary.noReminder)
+    await primary(tree)
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+    const { data } = state.update.mock.calls[0]![0] as { data: Record<string, unknown> }
+    expect(data).toMatchObject({ reminderEnabled: false, scheduledReminders: [], relativeReminders: [] })
     tree.unmount()
   })
 

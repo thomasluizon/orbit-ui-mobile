@@ -19,6 +19,8 @@ type NavigationHost = {
     nextFocusRight?: number
     nextFocusUp?: number
     onFocus?: () => void
+    onRequestClose?: () => void
+    accessibilityViewIsModal?: boolean
     testID?: string
     style?: unknown
   }
@@ -33,6 +35,11 @@ export function renderNavigation(element: ReactElement) {
     unmount: () => { void renderer.act(() => tree.update(<></>)) },
   }
 }
+/** A React Native `Modal` is the one host that takes `onRequestClose`. Each one is one native window on iOS. */
+export function nativeWindows(tree: { hosts: () => NavigationHost[] }): NavigationHost[] {
+  return tree.hosts().filter((node) => typeof node.props.onRequestClose === 'function')
+}
+
 export function press(node: NavigationHost) {
   void renderer.act(() => { if (!node.props.disabled) node.props.onPress?.() })
 }
