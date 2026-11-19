@@ -130,9 +130,13 @@ function checklistFailure(fields, vars) {
   if (!Array.isArray(steps) || !steps.length) return 'Missing the steps of the checklist case.'
   const items = fields.filter((field) => field.field === 'checklist_items' && field.provenance !== 'suggested')
     .flatMap((field) => Array.isArray(field.proposedValue) ? field.proposedValue : [])
-  const listed = items.map((item) => item?.text)
-  if (steps.some((words) => !listed.some((entry) => matchesField({ contains: words }, entry)))) return 'A requested checklist step is missing.'
-  return listed.length === steps.length ? null : 'The checklist holds a step outside the request.'
+  const unmatched = items.map((item) => item?.text)
+  for (const words of steps) {
+    const index = unmatched.findIndex((entry) => matchesField({ contains: words }, entry))
+    if (index < 0) return 'A requested checklist step is missing.'
+    unmatched.splice(index, 1)
+  }
+  return unmatched.length ? 'The checklist holds a step outside the request.' : null
 }
 
 // The weekday of the request stays as the person named it. Producer: orbit-api CreationFields gives a create preview a

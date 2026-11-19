@@ -151,6 +151,10 @@ describe('the requirements that an offers write case keeps beyond its outcome', 
     en: ['Open the planner', 'Clear the desk', 'Start the timer'],
     'pt-BR': ['Abrir o planejador', 'Liberar a mesa', 'Iniciar o cronômetro'],
   }
+  const mergedSteps = {
+    en: ['Open the planner and clear the desk', 'Start the timer', 'Check email'],
+    'pt-BR': ['Abrir o planejador e liberar a mesa', 'Iniciar o cronômetro', 'Verificar e-mail'],
+  }
   const titles = { en: ['Desk setup', 'Journal'], 'pt-BR': ['Preparação da mesa', 'Diário'] }
 
   // Producer: orbit-api CreationFields gives a create preview a `checklist_items` row with the typed list as its proposedValue.
@@ -182,6 +186,7 @@ describe('the requirements that an offers write case keeps beyond its outcome', 
       expect(await graded(id, checklistPreview(locale, steps[locale].slice(0, 2)))).toMatchObject({ pass: false })
       expect(await graded(id, checklistPreview(locale, [...steps[locale].slice(0, 2), 'Check email']))).toMatchObject({ pass: false })
       expect(await graded(id, checklistPreview(locale, []))).toMatchObject({ pass: false })
+      expect(await graded(id, checklistPreview(locale, mergedSteps[locale]))).toMatchObject({ pass: false })
     })
 
     it('holds no parent for an explicit root placement', async () => {
