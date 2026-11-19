@@ -380,7 +380,9 @@ const modeChoiceCase = () => {
     choice !== -1 && ["researchLaunch(", "readOnlyLaunch(", "ticketLaunch("].every((mode) => lines[choice].includes(mode)), lines[choice] ?? "no launchMode line")
   const branches = choice === -1 ? ["no launchMode line"] : lines.slice(choice + 1)
     .map((line, index) => `${choice + index + 2}: ${line.trim()}`)
-    .filter((line) => /\b(?:research|review|proof|readOnly|ticketWork|reservesWorktree)\w*\b|\bmode ===/.test(line.replace(/^\d+: /, "")))
+    // The cap name reviewFixAttempts and the text of a message are not mode branches.
+    .filter((line) => /\b(?:research|review|proof|readOnly|ticketWork|reservesWorktree)\w*\b|\bmode ===/.test(
+      line.replace(/^\d+: /, "").replaceAll("reviewFixAttempts", "").replace(/`[^`]*`|"[^"]*"/g, "\"\"")))
   T(`${TOOL}: no line after the mode choice names a mode (thread __pE)`, branches.length === 0, branches.join("\n     "))
 }
 

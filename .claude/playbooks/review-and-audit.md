@@ -93,17 +93,34 @@ The review runs on a read-only worker, never on an in-session subagent. A worker
 1. Make a detached worktree at the head: `git -C <repo> worktree add --detach <scratchpad>/review-<pr>-<short sha> <head>`.
 2. Compose the order: `node tools/compose-prompt.mjs --review --repo <key> --pr <n> --head <head> --out <scratchpad>/review-<pr>-order.md`. It embeds the brief below.
 3. Start the worker in the background: `node tools/launch-worker.mjs --review --order <order> --out <scratchpad>/review-<pr>-<short sha>.md --directory <worktree>`. It takes no admission and no branch launch slot.
-4. Read the result file when the launcher exits 0. Its first line is `VERDICT: CLEAN` or `VERDICT: DEFECTS (<n>)`. Exit 5 means the worker changed a tracked file or moved HEAD in its own detached worktree, the only worktree that its write sandbox lets it write: remove that worktree and do steps 1 to 4 again. Exit 1 means the run failed: read `logFile` and start it again. Exit 2 with "needs the macOS write sandbox" means this machine cannot run a read-only worker: stop and tell the owner.
-5. Fix every finding that the worker confirms. All the fixes go in the same push.
+4. Read the result file when the launcher exits 0. Its first line is `VERDICT: CLEAN` (no BLOCKING finding) or `VERDICT: DEFECTS (<n>)` (<n> BLOCKING findings). A NOTE and a `## Body` line stay in the report and never change the verdict. Exit 5 means the worker changed a tracked file or moved HEAD in its own detached worktree, the only worktree that its write sandbox lets it write: remove that worktree and do steps 1 to 4 again. Exit 1 means the run failed: read `logFile` and start it again. Exit 2 with "needs the macOS write sandbox" means this machine cannot run a read-only worker: stop and tell the owner.
+5. When the verdict is `VERDICT: CLEAN`, the gate ends: go to step 8. Otherwise fix every BLOCKING finding in one fix round. All the fixes go in one commit. Before the fix commit, spend the round with `node tools/fix-rounds.mjs --worktree <path> --record local`, or launch the fix worker with `--fix-round local`.
 6. Run the local checks that the change affects: lint, type check, and the focused tests of each changed workspace or tool. Each one must pass.
-7. After a fix round, do steps 1 to 4 again with `--since <reviewed head>` in step 2, at the new head. That worker reads only the new commits (`git diff <reviewed head>..<new head>`). Fix what it confirms, and run the affected checks again.
+7. After a fix round, do steps 1 to 4 again with `--since <reviewed head>` in step 2, at the new head. That worker reads only the new commits (`git diff <reviewed head>..<new head>`). Fix its BLOCKING findings in one more round, and run the affected checks again.
 8. Push. Then ask for the review as `orchestrate/SKILL.md` step 8 says. Remove each review worktree with `git -C <repo> worktree remove <worktree>`; it holds no work of its own. The repository `.gitignore` ignores a `node_modules` link, so a worktree with linked dependencies is removed without `--force`.
 
 The launcher runs the worker under a macOS `sandbox-exec` write profile (`tools/lib/review-run.mjs`). The profile refuses each write to the directory that holds each configured repository, to each worktree, to each hygiene root and to each git directory under the home directory, and it refuses each git network transport. Your own edits, commits and pushes in other worktrees never fail the run. The launcher leaves `GH_TOKEN` and `GITHUB_TOKEN` out of the worker's environment, so `echo $GH_TOKEN`, `printenv` and `env` print no token, and it refuses the launch when the `gh` sign-in of the keyring is not the repository owner. The worker still reaches the sign-in in the login keychain, because the keychain serves it and the worker's own Claude login together: a hook refuses each `gh` write and each credential read by command text, and a script that calls GitHub itself passes that hook.
 
+The local review ends after these two passes. Never start a third local pass, and never loop "fix, review, repeat until clean". A pass that finds no BLOCKING finding ends the gate early: push.
+
+**BLOCKING and NOTE.** A finding is BLOCKING only when one of these is true:
+
+- It has a failing probe (a command, a test or an input) against the acceptance of the ticket.
+- It is a regression that this pull request made: a case that passed on `main` or on the earlier head fails at this head.
+
+Each other finding is a NOTE. File the class of a NOTE one time on the ticket that owns its area (`node tools/comment-ticket.mjs`, or `node tools/create-ticket.mjs` when no ticket owns it), then push. A NOTE starts no fix round. This includes an older defect that the diff did not make, a new spelling that a guard does not read, and a twin surface outside the ticket.
+
+**No open search.** A review order never asks for an open search, such as "try at least 10 new spellings". It asks the reviewer to run the earlier probes again, then to judge the design one time: does one rule close the whole class? A pass reports at most one finding for each root cause.
+
+**One class, one table test.** When a review finds a second member of one defect class, the next fix round writes one table test that holds every member of the class (each field and each source) and fixes the rule, not the cell. One class never costs one round for each member.
+
+**The body is evidence, not code.** The `## Test evidence` of the pull request body comes from command output: the command, the exit code, the counts and the SHA. A reviewer does not read body prose as code. The coordinator corrects a false statement in a body or a reply itself; that correction starts no round.
+
+**The round count is a tool.** `caps.reviewFixAttempts` in `.claude/orchestrator.json` counts every fix round of a pull request, local and Pullfrog together, in the `tools/fix-rounds.mjs` ledger. At the cap, `launch-worker.mjs --fix-round` and `fix-rounds.mjs --record` refuse the next round, and `--relaunch-reason` does not pass that refusal. One more round needs a written design change (`--design-change <file>`): one rule that closes the class, or a smaller scope. Otherwise push the head that meets the acceptance and file the rest.
+
 #### The review brief
 
-You review ONE open pull request before its next push. Find everything that the GitHub reviewer (Pullfrog) would open a thread for, so that the next round can approve. You are READ-ONLY: you edit no file, you commit nothing, you push nothing, and you post nothing to GitHub. You may run read-only commands (`git diff`, `git show`, `git log`, `grep`, `gh pr view`, `gh api` GET) and a focused test or type check when it confirms a finding. Never run Playwright, an emulator or a simulator.
+You review ONE open pull request before its next push. Find each BLOCKING finding that the GitHub reviewer (Pullfrog) would open a thread for, so that the next round can approve, and list each other finding as a NOTE. You are READ-ONLY: you edit no file, you commit nothing, you push nothing, and you post nothing to GitHub. You may run read-only commands (`git diff`, `git show`, `git log`, `grep`, `gh pr view`, `gh api` GET) and a focused test or type check when it confirms a finding. Never run Playwright, an emulator or a simulator.
 
 What to read:
 
@@ -114,7 +131,7 @@ What to read:
 
 The lenses:
 
-- A body that does not match the head: a number, a file name, a behaviour, a test count, a manual step.
+- A body that does not match the head: a number, a file name, a behaviour, a test count, a manual step. Report it under `## Body`, never as a finding.
 - Dead code: an export, a prop, a branch, a helper or a test helper that nothing uses after this diff.
 - One rule written in two places: a list, a constant, a selector or a field catalog that is copied across files or layers and must stay equal by hand. It needs one owner, or a test that fails when the copies differ.
 - A file over 1000 lines, or a function over about 100 lines.
@@ -127,11 +144,11 @@ The lenses:
 - Copy: a visible string in one locale only, or a pt-BR string translated word for word.
 - A gate edit that weakens a gate (an ESLint rule, a baseline, an inventory, an allowlist) without a reason.
 
-What a finding is: something you confirmed in the code at the head, with `path:line`, the concrete failure (the inputs or state, then the wrong result), and the smallest correct fix. Rank each one BLOCKING (the reviewer will open a thread), LIKELY, or NIT. Skip a nit unless its fix is under one line. Do not pad: a finding you could not confirm goes under `## Not confirmed`, with what would confirm it. Zero findings is a valid result: say "NO FINDINGS" and name what you read.
+What a finding is: something you confirmed in the code at the head, with `path:line`, the concrete failure (the inputs or state, then the wrong result), and the smallest correct fix. Rank each one BLOCKING or NOTE as rule 14 defines them. A BLOCKING finding names its failing probe against the acceptance of the ticket, or the case that passed on `main` or on the earlier head. Report at most one finding for each root cause, and do not search for new forms of a class. Do not pad: a finding you could not confirm goes under `## Not confirmed`, with what would confirm it. Zero findings is a valid result: say "NO FINDINGS" and name what you read.
 
 Your report, with repository-relative paths only:
 
 - `HEAD: <sha you reviewed>`, `FILES READ: <n of m>`.
-- `## Findings`: one numbered item each, with the rank, `path:line`, the failure in one or two sentences, and the fix in one sentence.
-- `## Body`: each body line that is wrong at the head, with the correct text.
+- `## Findings`: one numbered item each, with the rank, `path:line`, the failure in one or two sentences, the probe for a BLOCKING finding, and the fix in one sentence.
+- `## Body`: each body line that is wrong at the head, with the correct text. The coordinator corrects these; they start no round.
 - `## Not confirmed`.
