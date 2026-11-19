@@ -315,7 +315,7 @@ const orderCases = () => {
 }
 
 /** A read-only mode decides its own values once; the launcher reads them and never asks which mode runs (thread __pE). */
-const launchModeCases = () => {
+const launchModeCases = async () => {
   const order = stage("review-run/mode-order.md", "Review the head.\n")
   const output = join(dirname(order), "mode-result.md")
   const copy = dirname(stage("review-run/mode-copy/file.txt", "a copy outside every repository\n"))
@@ -346,10 +346,15 @@ const launchModeCases = () => {
     try { readOnlyLaunch("review", cli(given)) } catch (error) { message = error.message }
     T(`${UNIT}: the review mode refuses ${label} with exit 2 (thread __pE)`, pattern.test(message) && refusals.join() === "2", `${message} ${refusals.join()}`)
   }
+  refusals.length = 0
+  let engineMessage = "accepted"
+  try { await review.prepare({ engineName: "codex" }) } catch (error) { engineMessage = error.message }
+  T(`${UNIT}: a review on an engine with no read-only hooks is refused with exit 2 on every platform (thread b_tA)`,
+    /needs the claude worker engine/.test(engineMessage) && refusals.join() === "2", `${engineMessage} ${refusals.join()}`)
 }
 
 export const cases = async () => {
-  launchModeCases()
+  await launchModeCases()
   orderCases()
   sandboxEscapeCases()
   await portClaimCases()

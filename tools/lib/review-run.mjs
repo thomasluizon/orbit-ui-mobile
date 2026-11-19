@@ -18,7 +18,7 @@ import { researchPaths } from "./research-run.mjs"
 import { isWakeSourceAlive, processStartIdentity } from "./run-state.mjs"
 import { VERDICT as REVIEW_VERDICT_LINE } from "./run-notes.mjs"
 
-/** The first line of each result. reviewOrder and proofOrder below write the same lines into each order. */
+/** The first line of a proof result, which proofOrder below writes into its order. A review result starts with the `VERDICT` line of run-notes.mjs. */
 const PROOF_VERDICT_LINE = /^PROOF: (?:PASS|FAIL \(\d+ defects?\))$/
 
 /** The verdict line of a result in `mode` ("review" or "proof"), or null when the first line is not one. */
