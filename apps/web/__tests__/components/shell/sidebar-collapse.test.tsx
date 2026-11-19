@@ -31,7 +31,7 @@ describe('sidebar collapse', () => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
   })
 
-  it('keeps the bell before the toggle in both sidebar states', () => {
+  it('puts the bell on the brand row and the theme action before the toggle in both sidebar states', () => {
     const { container } = render(shell())
     const sidebar = container.querySelector<HTMLElement>('[data-shell-sidebar]')!
     const brand = sidebar.querySelector('[data-shell-brand-row]')
@@ -41,10 +41,11 @@ describe('sidebar collapse', () => {
     expect(brand).toContainElement(bell)
     expect(toggle).toHaveAttribute('title', 'shell.collapseSidebar')
     expect(document.getElementById(toggle.getAttribute('aria-controls')!)).toBe(sidebar.querySelector('nav'))
-    expect(within(sidebar).getAllByRole('button').slice(0, 3)).toEqual([screen.getByRole('button', { name: 'settings.theme.switchToLight' }), bell, toggle])
+    const theme = screen.getByRole('button', { name: 'settings.theme.switchToLight' })
+    expect(within(sidebar).getAllByRole('button').slice(0, 3)).toEqual([bell, theme, toggle])
     toggle.focus()
     fireEvent.click(toggle)
-    expect(within(sidebar).getAllByRole('button').slice(0, 3)).toEqual([bell, toggle, screen.getByRole('button', { name: 'settings.theme.switchToLight' })])
+    expect(within(sidebar).getAllByRole('button').slice(0, 3)).toEqual([theme, toggle, screen.getByRole('button', { name: 'notifications.bell' })])
     expect(toggle).toHaveFocus()
     expect(toggle).toHaveAttribute('title', 'shell.expandSidebar')
     expect(sidebar.querySelector('[data-shell-account]')).toHaveAttribute('title', 'Person, person@example.test')

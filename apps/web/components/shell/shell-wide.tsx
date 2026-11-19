@@ -169,7 +169,8 @@ function SidebarBrandRow({ collapsed, navigationId, notifications, themeAction }
   const t = useTranslations()
   const toggleSidebar = useShellStore(state => state.toggleSidebar)
   const toggleLabel = collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')
-  const expandedControlsLayout = notifications ? 'w-full justify-between' : 'self-end'
+  const expandedControlsLayout = themeAction ? 'w-full justify-between' : 'self-end'
+  const notificationsSlot = notifications ? <span key="notifications" className="flex shrink-0 items-center gap-3">{notifications}</span> : null
   const sidebarToggle = (
     <IconButton
       key="toggle"
@@ -189,12 +190,12 @@ function SidebarBrandRow({ collapsed, navigationId, notifications, themeAction }
     <div data-shell-brand-row="" data-focus-inset="" className={`flex min-h-12 flex-col gap-3 ${collapsed ? 'items-center px-6' : 'items-start ps-6 pe-3'}`}>
       <div className={collapsed ? 'sr-only' : 'flex w-full items-center justify-between gap-3'}>
         <span className="shrink-0"><Lockup /></span>
-        {!collapsed ? themeAction : null}
+        {!collapsed ? notificationsSlot : null}
       </div>
       <div className={`flex items-center gap-3 ${collapsed ? 'flex-col' : expandedControlsLayout}`}>
-        {notifications ? <span key="notifications" className="flex shrink-0 items-center gap-3">{notifications}</span> : null}
+        {themeAction}
         {sidebarToggle}
-        {collapsed ? themeAction : null}
+        {collapsed ? notificationsSlot : null}
       </div>
     </div>
   )
