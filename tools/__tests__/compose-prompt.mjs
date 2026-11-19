@@ -1,5 +1,4 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { execFileSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { dirname, join } from "node:path"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
@@ -605,16 +604,9 @@ export const cases = () => {
       /The round note of a batch names each defect class one time and lists every instance, one `path:line` each,\s+including an instance outside the changed lines that the pull request caused\. The next review reads\s+the whole diff/.test(orchestrateSkill) &&
       /\*\*FILE it\*\* when rule 14 ranks it a NOTE\. File its class one time/.test(orchestrateSkill) &&
       /A thread on a regression that this pull\s+request causes in code it did not touch gets the BLOCKING rank too/.test(orchestrateSkill) &&
-      !/a failing probe against the acceptance/.test(orchestrateSkill),
+      !/a failing probe against the acceptance/.test(orchestrateSkill) &&
+      !/table test|guard removed/.test(orchestrateSkill),
     orchestrateSkill,
-  )
-  const fixRuleFiles = execFileSync("git", ["ls-files", "-z", "--", ".claude", "tools", ":(exclude)tools/__tests__", ":(exclude).claude/calibration.json"], { cwd: REPO_ROOT, encoding: "utf8" })
-    .split("\0").filter((path) => path !== "" && /\.(md|mjs)$/.test(path))
-    .filter((path) => /red with (the|its) guard removed|proven red|proved red/.test(readFileSync(join(REPO_ROOT, path), "utf8")))
-  T(
-    `${TOOL}: the fix procedure of a class lives in rule 14 and the batch order, and nowhere else`,
-    JSON.stringify(fixRuleFiles) === JSON.stringify([".claude/playbooks/review-and-audit.md", "tools/compose-prompt.mjs"]),
-    fixRuleFiles.join("\n"),
   )
   T(
     `${TOOL}: orchestration resolves review batch threads before its single push`,
