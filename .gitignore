@@ -1,5 +1,5 @@
-# Dependencies
-node_modules/
+# Dependencies. No trailing slash, so a node_modules link (a file, not a directory) is ignored too.
+node_modules
 
 # Build outputs
 dist/
