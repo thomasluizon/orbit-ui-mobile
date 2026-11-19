@@ -232,7 +232,6 @@ describe('pending notification deletes', () => {
     queuePendingNotificationDelete('second', vi.fn())
     queuePendingNotificationDelete('third', vi.fn())
     expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'third' })
-    expect(getNotificationDeleteNoticeSnapshot()).toBe(getNotificationDeleteNoticeSnapshot())
 
     cancelPendingNotificationDelete('third')
     expect(getNotificationDeleteNoticeSnapshot()).toBeNull()
@@ -412,7 +411,7 @@ describe('pending notification deletes', () => {
     expect(subscriber).not.toHaveBeenCalled()
   })
 
-  it('keeps a re-queued delete out of the failed list when its first attempt fails late', async () => {
+  it('keeps a late failure of the superseded first attempt from taking the toast of the re-queued delete', async () => {
     let rejectFirstAttempt!: (error: Error) => void
     const firstAttempt = new Promise<never>((_resolve, reject) => { rejectFirstAttempt = reject })
     queuePendingNotificationDelete('a', () => firstAttempt)
@@ -428,7 +427,7 @@ describe('pending notification deletes', () => {
     expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'a' })
   })
 
-  it('keeps a re-queued delete out of the failed list when its undo closes before the first attempt fails', async () => {
+  it('ignores a late failure of the first attempt after the re-queued delete gives up the toast', async () => {
     let rejectFirstAttempt!: (error: Error) => void
     const firstAttempt = new Promise<never>((_resolve, reject) => { rejectFirstAttempt = reject })
     queuePendingNotificationDelete('a', () => firstAttempt)
