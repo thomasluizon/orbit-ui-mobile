@@ -910,7 +910,7 @@ not a preference.
 
 **A salvaged pull request RE-ENTERS this algorithm at step 7 and runs every remaining step exactly as
 a worker-delivered one does.** Opening the pull request is the MIDDLE of salvage, never the end. Add
-its `{repositoryKey, prNumber, receiptPath}` identity to `pullRequests` in the run record the moment
+its `{repositoryKey, prNumber, receiptPath, issue, worktree, branch}` identity to `pullRequests` in the run record the moment
 it opens. It remains outstanding until current-head delivery, green CI carrying the review verdict
 admissible on that base under Hard prohibitions, `behind_by=0`, and ticket synchronization are all
 recorded for the same head/base pair.
@@ -1585,10 +1585,12 @@ The record has this shape:
   "sleep": true,
   "remaining": ["ORB-2", "ORB-3"],
   "pullRequests": [
-    {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>","closed":false}
+    {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>","closed":false,
+     "issue":"ORB-2","worktree":"<absolute worktree path>","branch":"<head branch>"}
   ],
   "readinessLedger": [
     {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>",
+     "issue":"ORB-2","worktree":"<absolute worktree path>","branch":"<head branch>",
      "receiptWritten":false,"blocker":null,"closed":false,
      "merged":"<the real merge commit sha once it is merged, or absent; a left-in placeholder is refused>"}
   ]
