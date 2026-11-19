@@ -4,7 +4,7 @@
 
 Each source reference identifies the action after migration. Labels remain localized through the existing shared locale keys or caller-supplied translated labels. Both platform primitives use the same 48px round target: 44px neutral interaction paint at radius 22 plus a transparent 2px hit extension on every side. Disabled and busy behavior share that geometry. Web exposes its label through both aria-label and the native title tooltip.
 
-The wide sidebar bell (`components/navigation/notification-bell.tsx`, corner placement) and collapse control (`components/shell/shell-wide.tsx`) use the same primitive. Their glyphs centre within 0.5px on both axes, with at least 8px between feedback and the lockup or sibling control. The 232px expanded and 96px collapsed rails retain their widths. Android retains its tab navigation shell.
+The wide sidebar bell (`components/navigation/notification-bell.tsx`, corner placement, beside the lockup), theme action and collapse control (`components/shell/shell-wide.tsx`, the row below) use the same primitive. Their glyphs centre within 0.5px on both axes, with at least 8px between feedback and the lockup or sibling control. The 232px expanded and 96px collapsed rails retain their widths. Android retains its tab navigation shell.
 
 The paired calendar `calendar-shell.tsx` owners retain centred 44px ghost paint and
 transparent 48px targets. Geometry assertions measure the complete target separately from paint.
