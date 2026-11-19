@@ -105,6 +105,7 @@ describe('AppLayout import prompt dismissal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.router.push.mockReset()
     mocks.dismissCalendarImport.mockResolvedValue(undefined)
     mocks.dismissImportPrompt.mockResolvedValue(undefined)
     useAuthStore.setState({ isAuthenticated: true, startExpiryMonitor: () => () => {} })
@@ -154,6 +155,8 @@ describe('AppLayout import prompt dismissal', () => {
     it.each(['later', 'import', 'close'] as const)('waits for dismissal before running %s', async (action) => {
       const dialog = mountPrompt()
       const dismissal = holdDismissal(dialog)
+      let pushedIntent: string | undefined
+      mocks.router.push.mockImplementation(() => { pushedIntent = getCurrentRouteTransitionIntent() })
       fireEvent.click(screen.getByRole('button', { name: action === 'close' ? 'common.close' : prompt[action] }))
 
       expect(dialog).toBeInTheDocument()
@@ -174,17 +177,19 @@ describe('AppLayout import prompt dismissal', () => {
       if (prompt.name === 'Astra') expect(mocks.patchProfile).toHaveBeenCalledExactlyOnceWith({ hasSeenImportPrompt: true })
       if (action === 'import' && prompt.name === 'calendar') {
         expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/calendar?import=1')
+        expect(pushedIntent).toBe('forward')
         expect(screen.queryByText('Astra conversation')).toBeNull()
       } else if (action === 'import') {
         expect(screen.getByText('Astra conversation')).toBeInTheDocument()
         expect(localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBe('onboarding.flow.meetAstra.importPrompt')
         expect(mocks.router.push).not.toHaveBeenCalled()
+        expect(getCurrentRouteTransitionIntent()).toBe('neutral')
       } else {
         expect(mocks.router.push).not.toHaveBeenCalled()
         expect(screen.queryByText('Astra conversation')).toBeNull()
         expect(localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBeNull()
+        expect(getCurrentRouteTransitionIntent()).toBe('neutral')
       }
-      expect(getCurrentRouteTransitionIntent()).toBe(action === 'import' ? 'forward' : 'neutral')
     })
 
     it.each(['later', 'import', 'close'] as const)('preserves account-change feedback after %s', async (action) => {
