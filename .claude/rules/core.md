@@ -1,7 +1,8 @@
 # Standing rules: the always-loaded core
 
 Tracked rules, prompts, specs and comments state current requirements without dated incidents,
-attributed quotes, session IDs or personal machine paths. Keep timed run evidence in the scratchpad.
+attributed quotes, session IDs or personal machine paths. Post timed run evidence to its ticket or
+the run record issue (`node tools/post-run-note.mjs`), never to a file on one computer.
 
 **At a glance:** the judgement that loads on EVERY turn. Everything else lives in
 `.claude/playbooks/`: **read the playbook yourself** when you start that activity, because no file

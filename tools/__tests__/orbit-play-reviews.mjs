@@ -5,7 +5,7 @@ import yaml from "js-yaml"
 import { collectReviewCycle, importPlayReviews, playAccessToken, readPlayReviews, PLAY_PACKAGES } from "../orbit-play-reviews.mjs"
 import { acknowledgeIntake, intakeSource, updateIntakeSource } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
-import { T, root, REPO_ROOT } from "./_harness.mjs"
+import { T, root, REPO_ROOT, seedIntake } from "./_harness.mjs"
 
 const ok = (stdout) => ({ status: 0, stdout: typeof stdout === "string" ? stdout : JSON.stringify(stdout), stderr: "", timedOut: false })
 const failed = (stderr, status = 1) => ({ status, stdout: "", stderr, timedOut: false })
@@ -119,7 +119,8 @@ export const cases = async () => {
   T("play: collection is GET-only and never posts replies", network.every(({ url, options }) => options.method === "GET" && url.pathname.endsWith("/reviews")))
   const checkout = join(root, "play-intake")
   mkdirSync(join(checkout, ".git"), { recursive: true })
-  writeRunState({ sessionId: "play-parent", sleep: true, autoWork: true, intake: { play: { workflowCycle: "first-cycle" } } }, checkout)
+  writeRunState({ sessionId: "play-parent", sleep: true, autoWork: true }, checkout)
+  seedIntake(checkout, { play: { workflowCycle: "first-cycle" } })
   const first = importPlayReviews(snapshot, checkout)
   T("play: first-cycle workflow metadata initializes source maps and survives import", intakeSource("play", checkout).workflowCycle === "first-cycle" && typeof intakeSource("play", checkout).completed === "object")
   T("play: tied timestamps keep each independent review", first.pending.length === 4)

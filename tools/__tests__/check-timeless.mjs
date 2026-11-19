@@ -35,9 +35,13 @@ export const cases = () => {
   const owner = ["Tho", "mas"].join("")
   const path = ["/", "Users/alex/project"].join("")
   const windowsPath = ["C:", "\\", "Users", "\\", "alex"].join("")
+  const carryPath = ["$HOME/.orbit-", "run-carry/carry.sh"].join("")
+  const scratchpadRoot = ["~/.claude-", "tmp/session/scratchpad/note.md"].join("")
   const plantedFindings = [
     ["machine-path", "sample.md", `Use ${path}.\n`],
     ["machine-path-windows", "sample.md", `Use ${windowsPath}.\n`],
+    ["machine-path-carry", "sample.md", `Run ${carryPath}.\n`],
+    ["machine-path-scratchpad", "sample.md", `Read ${scratchpadRoot}.\n`],
     ["owner-name", "sample.md", `Ask ${owner}.\n`],
     ["dated-anecdote", "sample.md", `On ${date}, the run failed.\n`],
     ["comment-length", "sample.js", Array.from({ length: 7 }, (_, index) => `// reason ${index}`).join("\n") + "\n"],

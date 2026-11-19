@@ -98,6 +98,20 @@ export const relayDocumentOversize = (path, text) => {
   return `\`${path}\` within ${limit} B (it is ${bytes} B): ${remedy}`
 }
 
+// Run state lives on GitHub, so a relay document that names a file on one computer strands the successor (thomasluizon/orbit-tickets#2152).
+const LOCAL_REFERENCES = [
+  ["a scratchpad file", /(?:^|[^\w-])scratchpad\/|\.claude-tmp\/|^Scratchpad:/im],
+  ["an `S` file reference", /(?:^|[\s`(|])S [\w.-]+\.(?:md|mjs|js|sh|json|txt|log|ndjson)\b/m],
+  ["a system temporary directory path", /\/private\/(?:tmp|var)\b|\/var\/folders\//],
+  ["the old run carry directory", new RegExp("\\.orbit-" + "run-carry\\b")],
+  ["a home directory path", /\/Users\/[^/\s`]+\/|(?:^|[\s'"`=(])\/home\/[^/\s`]+\/|[A-Za-z]:\\+Users\\|(?:^|[\s'"`=(])~\/|\$HOME\b|\$\{HOME\}/m],
+]
+
+/** Each kind of local file that a relay document names; GitHub is the only store a successor can read. */
+export const relayDocumentLocalReferences = (path, text) => relayDocumentLimit(path) === null ? []
+  : LOCAL_REFERENCES.filter(([, pattern]) => pattern.test(text)).map(([kind]) =>
+    `\`${path}\` without ${kind}: post that state to its ticket, its pull request or the run record issue, and name the comment instead`)
+
 const promptOpening = (lines) => {
   const firstHeading = lines.findIndex((line) => line.startsWith("## "))
   return lines.slice(0, firstHeading < 0 ? lines.length : firstHeading).join("\n")
@@ -190,9 +204,12 @@ export const validateHandoffPrompt = (text, { sleep, crank, autoWork, specVersio
   const missing = []
   const promptOversize = relayDocumentOversize(HANDOFF_PROMPT_PATH, String(text ?? ""))
   if (promptOversize) missing.push(promptOversize)
+  missing.push(...relayDocumentLocalReferences(HANDOFF_PROMPT_PATH, String(text ?? "")))
   for (const path of specVersions ? openingSpecPaths(text) : []) {
-    const oversize = specVersions(path).map((version) => relayDocumentOversize(path, version)).find(Boolean)
+    const versions = specVersions(path)
+    const oversize = versions.map((version) => relayDocumentOversize(path, version)).find(Boolean)
     if (oversize) missing.push(oversize)
+    missing.push(...new Set(versions.flatMap((version) => relayDocumentLocalReferences(path, version))))
   }
   if (sleep === true || crank === true || autoWork === true) {
     const entry = autoWork === true ? "/auto-work" : "/sleep"
@@ -287,7 +304,7 @@ export const adoptOwnerHandoffRun = (sessionId, prompt, repoRoot = REPO_ROOT) =>
     if (!sessionId || sessionId === previous?.sessionId || previous?.autoWork !== true || record?.from !== previous?.sessionId ||
         typeof prompt !== "string" || record.promptHash !== promptHash(prompt) || readHandoffRequest(record.from, repoRoot)?.origin !== "owner") return undefined
     if (record.promptHash !== promptHash(readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8"))) return undefined
-    return { ...previous, sessionId, sleep: true, decisionLogPath: null, relay: { from: previous.sessionId, pending: false },
+    return { ...previous, sessionId, sleep: true, relay: { from: previous.sessionId, pending: false },
       ownerHandoff: { ...record, successorSessionId: sessionId } }
   }, repoRoot, { sessionId })
   if (inherited === undefined) return false

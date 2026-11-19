@@ -2674,8 +2674,8 @@ const ownerQuestion = (sessionId = "approval-coordinator") => ({
 })
 const refusedQuestion = approvalHook(ownerQuestion())
 T("adapter person prompt: AskUserQuestion in an unattended run -> 2", refusedQuestion.status, 2)
-T("adapter person prompt: the refusal tells the agent to decide and log it, or to queue the owner question and ask it in reply text",
-  ["no person is present", "best option", "decision log", "openOwnerQuestions", "{ question, blocks }", "updateRunState", "plain reply text"].every((text) => refusedQuestion.stderr.includes(text)), true)
+T("adapter person prompt: the refusal tells the agent to decide and post it as a run note, or to queue the owner question and ask it in reply text",
+  ["no person is present", "best option", "run note", "post-run-note.mjs --kind decision", "openOwnerQuestions", "{ question, blocks }", "updateRunState", "plain reply text"].every((text) => refusedQuestion.stderr.includes(text)), true)
 T("adapter person prompt: a subagent of the unattended run -> 2", approvalHook({ ...ownerQuestion(), agent_id: "fix-agent", agent_type: "general-purpose" }).status, 2)
 T("adapter person prompt: another session beside the unattended run -> 0", approvalHook(ownerQuestion("owner-session")).status, 0)
 writeRunState({ sessionId: "approval-coordinator", sleep: false, remaining: [] }, wakeCheckout)
@@ -2727,9 +2727,7 @@ T("adapter approval: an unreadable run record fails closed -> 2", approvalHook(h
 T("adapter person prompt: an unreadable run record fails closed -> 2", approvalHook(ownerQuestion()).status, 2)
 T("adapter approval: an unreadable run record still allows a safe command -> 0", approvalHook({ ...heldRemoval(), tool_input: { command: "npm test" } }).status, 0)
 rmSync(runStatePath(wakeCheckout))
-const relayDecisionLog = join(wakeCheckout, ".git", "relay-decisions.md")
-writeFileSync(relayDecisionLog, "No open decisions.\n")
-const relayState = { autoWork: false, sessionId: "relay-parent", sleep: true, remaining: ["#1091"], decisionLogPath: relayDecisionLog }
+const relayState = { autoWork: false, sessionId: "relay-parent", sleep: true, remaining: ["#1091"] }
 /** The shipped thresholds, so the crossing tests follow the real values instead of a copy of them. */
 const { softTokens: relaySoft, hardTokens: relayHard } = JSON.parse(readFileSync(join(repoRoot, ".claude", "orchestrator.json"), "utf8")).relay
 const relayOptions = { enabled: true, softTokens: relaySoft, hardTokens: relayHard, state: relayState, sessionId: relayState.sessionId, measuredTokens: relayHard }
