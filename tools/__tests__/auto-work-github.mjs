@@ -294,6 +294,15 @@ const ownershipCases = async ({ pullListing }) => {
   const borrowed = recordListing("pullRequests", replace("api#1106", await relisted({ ...DEPENDABOT_PULL, branch: "fix/ticket-2144-bump", title: `${DEPENDABOT_PULL.title} (#2144)` })), checkout, NO_OTHER_RUN)
   T("github: a bot pull request never becomes run owned through a ticket reference", borrowed.open["api#1106"]?.runOwned === false &&
     pendingItems("pullRequests", borrowed).some((pull) => pull.key === "api#1106"))
+  const odd = fresh("ownership-odd-entries", { remaining: ["https://github.com/thomasluizon/orbit-tickets/issues/5", "ORB-99999", "#2144"] })
+  let oddPulls
+  try { oddPulls = recordListing("pullRequests", pullListing, odd, NO_OTHER_RUN) } catch (error) { oddPulls = { error: error.message } }
+  T("github: a remaining entry that names no ticket owns nothing and does not stop the listing", oddPulls.open?.["ui#2473"]?.runOwned === true &&
+    oddPulls.open?.["api#1115"]?.runOwned === false, JSON.stringify(oddPulls.error ?? oddPulls.open?.["ui#2473"]))
+  let oddKeys
+  try { oddKeys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(odd), readOtherRuns: noOtherRun })() } catch (error) { oddKeys = { error: error.message } }
+  T("github: a remaining entry that names no ticket does not stop the waiter check", Array.isArray(oddKeys.keys) &&
+    !oddKeys.keys.some((key) => key.startsWith("ui#2473 ")), JSON.stringify(oddKeys))
   const keys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout), readOtherRuns: noOtherRun })()
   T("github: the waiter skips an owner pull request of an in-flight ticket", JSON.stringify(keys.keys) ===
     JSON.stringify([`ui#2462 ${CONTRACT_PULL.head}`, `api#1106 ${DEPENDABOT_PULL.head}`, `api#1115 ${EARLIER_OWNER_PULL.head}`, "landing#20"]), JSON.stringify(keys))

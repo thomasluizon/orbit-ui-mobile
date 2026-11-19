@@ -367,9 +367,8 @@ export const readTicketState = async (number) => {
   const args = issueArgs(number, ticketConfiguration().repository)
   const response = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
   if (response === null || typeof response !== "object" || Array.isArray(response)) throw new Error("gh issue output was not an object")
-  const upper = (value) => typeof value === "string" ? value.toUpperCase() : value
   return { number: positiveIssueNumber(response.number),
-    ...checkedStateFields({ labels: response.labels, state: upper(response.state), stateReason: upper(response.state_reason) }, number) }
+    ...checkedStateFields({ labels: response.labels, state: response.state, stateReason: response.state_reason }, number) }
 }
 
 /** Bulk callers share one snapshot of the open project items while retaining the ordinary issue response. */

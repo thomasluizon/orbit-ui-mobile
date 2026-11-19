@@ -202,11 +202,12 @@ const ticketNumbersOf = (pull) => {
 /**
  * A pull request is the run's own only when the owner account opened it, and the run recorded it or
  * it names a ticket in `remaining`: a worker of this run carries it before the run records its
- * number. Both sides resolve to the GitHub issue number, so `#33` and `ORB-27` are one ticket.
+ * number. Both sides resolve to the GitHub issue number, so `#33` and `ORB-27` are one ticket. An entry that names
+ * no ticket (a URL, an `ORB-N` outside the migration map) owns nothing and never stops the listing.
  */
 const runOwnedPullRequest = (state) => {
   const recorded = runPullRequestKeys(state)
-  const inFlight = new Set((Array.isArray(state?.remaining) ? state.remaining : []).map((entry) => resolveTicket(entry).number))
+  const inFlight = new Set((Array.isArray(state?.remaining) ? state.remaining : []).map(issueNumberOf).filter((number) => number !== null))
   return (pull) => pull.ownerAuthor === true && (recorded.has(pull.key) || pull.tickets.some(({ number }) => inFlight.has(number)))
 }
 
