@@ -138,6 +138,11 @@ it.each(['en', 'pt-BR'])('seeds and independently verifies a cached retrospectiv
   expect(test.vars.composition.blocks).toEqual([{ kind: 'periodInsight', completeness: 'stale', recovery: 'refresh' }])
   expect(test.vars.outcome).toEqual({ read: true })
 })
+it.each(['en', 'pt-BR'])('seeds the stale %s retrospective and returns no value', async (locale) => {
+  const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-stale-${locale}`))
+  await expect(resetFixture(source, '2026-10-24', true)).resolves.toBeUndefined()
+  expect(requests.filter(({ path }) => path === 'habits/retrospective')).toHaveLength(2)
+})
 it.each(['uncached', 'missing-flag', 'empty-narrative', 'wrong-period', 'wrong-from', 'wrong-to', 'http-failure'])(
   'makes unverifiable stale setup incomplete and skips the case chat: %s', async (mode) => {
     const intercepted = globalThis.fetch
