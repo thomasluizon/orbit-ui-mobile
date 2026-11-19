@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { readIntake } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
 import { T, realOrchestratorConfig, run, seedIntake, stageWithConfig } from "./_harness.mjs"
-import { API_SCAN_COMMIT, CODE_SCANNING_ALERT, DEPENDABOT_ALERT, DEPENDABOT_PULL, NOT_FOUND, UNEXPECTED_PULL } from "./auto-work-github.mjs"
+import { ALERT_COMMIT, CODE_SCANNING_ALERT, DEPENDABOT_ALERT, DEPENDABOT_PULL, NOT_FOUND, UNEXPECTED_PULL } from "./auto-work-github.mjs"
 
 const CLOSED_TICKET_URL = "https://github.com/thomasluizon/orbit-tickets/issues/2140"
 /** The ticket that survives a duplicate close; no collection reads it. */
@@ -36,7 +36,6 @@ echo "$*" >> "${log}"
 case "$*" in
   "auth token --user thomasluizon") echo token-2149;;
   "api repos/thomasluizon/orbit-tickets/issues/2140 --jq "*) printf '%s\\n' '${quoted(ISSUE_2140)}' | sed "s/\\"CLOSED\\"/\\"\${ISSUE_STATE:-OPEN}\\"/; s/\\"COMPLETED\\"/\\"\${ISSUE_REASON:-COMPLETED}\\"/";;
-  "api repos/thomasluizon/orbit-api/code-scanning/analyses?ref=refs/heads/main&per_page=1 --jq "*) printf '%s\\n' "{\\"commit\\":\\"\${SCAN_COMMIT:-${API_SCAN_COMMIT}}\\"}";;
   "api --method PATCH --input - repos/"*)
     if [ -n "\${DISMISS_FAIL:-}" ]; then echo '${NOT_FOUND}' >&2; exit 1; fi
     cat > "${installation.base}/patch-\$(echo "$6" | tr '/' '_').json"; echo '{}';;
@@ -46,7 +45,7 @@ case "$*" in
     if [ -n "\${SUFFIX_PULL:-}" ]; then printf '%s\\n' '${quoted(SQUASH_SUFFIX_PULL)}'; fi
     if [ -n "\${OWNER_PULL:-}" ]; then printf '%s\\n' '${quoted(CLOSED_TICKET_PULL)}' | sed "s/${CLOSED_TICKET_PULL.head}/\${OWNER_HEAD:-${CLOSED_TICKET_PULL.head}}/"; fi;;
   *"repos/thomasluizon/orbit-landing-page/pulls?"*) printf '%s\\n' '${JSON.stringify(UNEXPECTED_PULL)}';;
-  *"repos/thomasluizon/orbit-api/code-scanning/alerts?"*) printf '%s\\n' '${quoted(CODE_SCANNING_ALERT)}';;
+  *"repos/thomasluizon/orbit-api/code-scanning/alerts?"*) printf '%s\\n' '${quoted(CODE_SCANNING_ALERT)}' | sed "s/${ALERT_COMMIT}/\${SCAN_COMMIT:-${ALERT_COMMIT}}/";;
   *"repos/thomasluizon/orbit-ui-mobile/dependabot/alerts?"*) printf '%s\\n' '${quoted(DEPENDABOT_ALERT)}';;
   *"repos/thomasluizon/orbit-landing-page/secret-scanning/alerts?"*) echo '${NOT_FOUND}' >&2; exit 1;;
   "api --paginate "*) ;;
@@ -85,7 +84,7 @@ esac
   const refused = run("auto-work-github.mjs", ["--mark", "alerts"], { path: installation.path, env, input: JSON.stringify({ key: "api code-scanning 28", action: "ticket" }) })
   T("github cli: an incomplete alert mark exits 1 and names the requirement", refused.status === 1 && refused.stderr.includes("verified cause"), refused.stderr)
 
-  const collectWith = (issueState, issueReason = "COMPLETED", scanCommit = API_SCAN_COMMIT) => {
+  const collectWith = (issueState, issueReason = "COMPLETED", scanCommit = ALERT_COMMIT) => {
     const again = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, ISSUE_STATE: issueState, ISSUE_REASON: issueReason, SCAN_COMMIT: scanCommit } })
     try { return { ...again, result: JSON.parse(again.stdout) } } catch { return { ...again, result: {} } }
   }
@@ -100,15 +99,20 @@ esac
     ticketClosed.result.alerts?.pending.some((alert) => alert.key === "api code-scanning 28") &&
     JSON.stringify((ticketClosed.result.alerts.ticketClosed ?? []).map((alert) => [alert.key, alert.ticket])) === JSON.stringify([["api code-scanning 28", CLOSED_TICKET_URL]]),
   `${ticketClosed.status} ${ticketClosed.stdout}${ticketClosed.stderr}`)
-  T("github cli: a closed-ticket code scanning alert names the newest scan of main, and its waiter key is recorded",
-    ticketClosed.result.alerts?.ticketClosed?.[0]?.scannedCommit === API_SCAN_COMMIT &&
-    JSON.stringify(readIntake(installation.base).alerts.ticketClosed) === JSON.stringify([`api code-scanning 28 ticket-closed ${API_SCAN_COMMIT}`]),
+  T("github cli: a closed-ticket code scanning alert names the commit that its own category analyzed last, and its waiter key is recorded",
+    ticketClosed.result.alerts?.ticketClosed?.[0]?.scannedCommit === ALERT_COMMIT &&
+    JSON.stringify(readIntake(installation.base).alerts.ticketClosed) === JSON.stringify([`api code-scanning 28 ticket-closed ${ALERT_COMMIT}`]),
   `${ticketClosed.stdout}${ticketClosed.stderr}`)
+  T("github cli: a collection reads no code scanning analysis of the repository", !readFileSync(log, "utf8").split("\n").some((line) => line.includes("analyses")), readFileSync(log, "utf8"))
+  const rescanned = collectWith("CLOSED", "COMPLETED", "f".repeat(40))
+  T("github cli: the analysis of the alert's own category moves its scanned commit and its waiter key", rescanned.result.alerts?.ticketClosed?.[0]?.scannedCommit === "f".repeat(40) &&
+    JSON.stringify(readIntake(installation.base).alerts.ticketClosed) === JSON.stringify([`api code-scanning 28 ticket-closed ${"f".repeat(40)}`]),
+  `${rescanned.stdout}${rescanned.stderr}`)
   /* A carrying ticket closed as not planned goes to the owner once: the run neither files a new ticket for its alert nor asks again. */
   const alertMark = () => readIntake(installation.base).alerts.marks["api code-scanning 28"]
   const markAlert = (receipt) => run("auto-work-github.mjs", ["--mark", "alerts"], { path: installation.path, env, input: JSON.stringify({ key: "api code-scanning 28", ...receipt }) })
   const notPlanned = collectWith("CLOSED", "NOT_PLANNED")
-  T("github cli: an alert whose carrying ticket closed as not planned is listed with the close reason and no scan of main",
+  T("github cli: an alert whose carrying ticket closed as not planned is listed with the close reason and no scanned commit",
     JSON.stringify((notPlanned.result.alerts?.ticketClosed ?? []).map((alert) => [alert.key, alert.stateReason, alert.scannedCommit ?? null])) ===
       JSON.stringify([["api code-scanning 28", "NOT_PLANNED", null]]) && notPlanned.result.alerts.pending.some((alert) => alert.key === "api code-scanning 28"),
   `${notPlanned.status} ${notPlanned.stdout}${notPlanned.stderr}`)
@@ -119,7 +123,7 @@ esac
     JSON.stringify([alertMark()?.action, alertMark()?.ticket, alertMark()?.stateReason]) === JSON.stringify(["reported", CLOSED_TICKET_URL, "NOT_PLANNED"]),
   `${newTicket.status} ${newTicket.stderr} ${ownerReport.status} ${ownerReport.stderr}`)
   const afterAlertReport = collectWith("CLOSED", "NOT_PLANNED", "e".repeat(40))
-  T("github cli: a reported not planned alert is not pending and is not asked again after a new scan of main",
+  T("github cli: a reported not planned alert is not pending and is not asked again after a new analysis",
     afterAlertReport.result.alerts?.ticketClosed?.length === 0 && !afterAlertReport.result.alerts.pending.some((alert) => alert.key === "api code-scanning 28") &&
     JSON.stringify(readIntake(installation.base).alerts.ticketClosed) === "[]" && alertMark()?.action === "reported",
   `${afterAlertReport.status} ${afterAlertReport.stdout}${afterAlertReport.stderr}`)
@@ -155,6 +159,23 @@ esac
   const marks = readIntake(installation.base).alerts.marks
   T("github cli: a dismissal records the false positive mark with its ticket and reason", ["api code-scanning 28", "ui dependabot 186", "landing secret-scanning 3"]
     .every((key) => marks[key]?.action === "false-positive" && marks[key].ticket === CLOSED_TICKET_URL && marks[key].reason === falsePositive.reason), JSON.stringify(marks))
+  /* A secret scanning alert whose ticket completed is reported to the owner, who confirms the rotation; --revoke then resolves it as revoked and records the mark. */
+  const secretKey = "landing secret-scanning 4"
+  const before = readIntake(installation.base)
+  seedIntake(installation.base, { ...before, alerts: { ...before.alerts,
+    open: { ...before.alerts.open, [secretKey]: { key: secretKey, read: "landing secret-scanning", repository: "landing", kind: "secret-scanning", number: 4 } },
+    marks: { ...before.alerts.marks, [secretKey]: { action: "reported", ticket: CLOSED_TICKET_URL, stateReason: "COMPLETED" } } } })
+  const rotation = { key: secretKey, ticket: CLOSED_TICKET_URL, reason: "The owner rotated the token." }
+  const revokeCode = run("auto-work-github.mjs", ["--revoke"], { path: installation.path, env, input: JSON.stringify({ ...rotation, key: "api code-scanning 28" }) })
+  const failedRevoke = run("auto-work-github.mjs", ["--revoke"], { path: installation.path, env: { ...env, DISMISS_FAIL: "1" }, input: JSON.stringify(rotation) })
+  const noMarkYet = readIntake(installation.base).alerts.marks[secretKey].action
+  const revoke = run("auto-work-github.mjs", ["--revoke"], { path: installation.path, env, input: JSON.stringify(rotation) })
+  T("github cli: --revoke refuses another kind, records nothing after a failed write, then resolves the secret as revoked and records the mark",
+    revokeCode.status === 1 && revokeCode.stderr.includes("only a secret scanning alert is revoked") && failedRevoke.status === 1 && failedRevoke.stderr.includes(NOT_FOUND) &&
+    noMarkYet === "reported" && revoke.status === 0 && JSON.parse(revoke.stdout).revoked === secretKey &&
+    JSON.stringify(JSON.parse(readFileSync(join(installation.base, "patch-repos_thomasluizon_orbit-landing-page_secret-scanning_alerts_4.json"), "utf8"))) ===
+      JSON.stringify({ state: "resolved", resolution: "revoked", resolution_comment: `Revoked; the owner confirmed the rotation on ${CLOSED_TICKET_URL}` }) &&
+    readIntake(installation.base).alerts.marks[secretKey].action === "revoked", `${revokeCode.stderr} ${failedRevoke.stderr} ${revoke.status} ${revoke.stdout}${revoke.stderr}`)
   /* An owner pull request that names a closed ticket has its own list, and the tool refuses to merge or fix it. */
   const collectOwner = (issueState, issueReason) => {
     const again = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, OWNER_PULL: "1", ISSUE_STATE: issueState, ISSUE_REASON: issueReason } })

@@ -50,12 +50,24 @@ const PULL_REQUEST_PROJECTION = ".[] | {number, author: .user.login, authorType:
 
 const ALERT_READS = [
   { kind: "code-scanning", query: "state=open&per_page=100",
-    projection: ".[] | {number, rule: .rule.id, severity: (.rule.security_severity_level // .rule.severity), tool: .tool.name, path: .most_recent_instance.location.path, line: .most_recent_instance.location.start_line, message: .most_recent_instance.message.text, url: .html_url} | tojson" },
+    projection: ".[] | {number, rule: .rule.id, severity: (.rule.security_severity_level // .rule.severity), tool: .tool.name, path: .most_recent_instance.location.path, line: .most_recent_instance.location.start_line, message: .most_recent_instance.message.text, commit: .most_recent_instance.commit_sha, url: .html_url} | tojson" },
   { kind: "secret-scanning", query: "state=open&per_page=100&hide_secret=true",
     projection: ".[] | {number, rule: .secret_type, path: .first_location_detected.path, line: .first_location_detected.start_line, message: .secret_type_display_name, url: .html_url} | tojson" },
   { kind: "dependabot", query: "state=open&per_page=100",
     projection: ".[] | {number, rule: .security_advisory.ghsa_id, severity: .security_advisory.severity, tool: .dependency.package.ecosystem, path: .dependency.manifest_path, message: ((.dependency.package.name // \"\") + \": \" + .security_advisory.summary), url: .html_url} | tojson" },
 ]
+
+/**
+ * What the run does with an open alert whose carrying ticket closed as COMPLETED, for each alert kind, because GitHub closes the alerts of
+ * each kind on its own terms. `scan`: a code scanning alert closes when an analysis of its own category no longer finds it, so the run
+ * compares the commit of that analysis with the merge of the fix. `owner`: a secret scanning alert never closes by itself, so the owner
+ * confirms the rotation and the run resolves it as revoked. `wait`: a Dependabot alert closes when the dependency graph reads the merged manifest.
+ */
+const ALERT_KINDS = {
+  "code-scanning": { completed: "scan" },
+  "secret-scanning": { completed: "owner" },
+  dependabot: { completed: "wait" },
+}
 
 const lastLine = (text) => String(text ?? "").trim().split("\n").at(-1)?.trim() ?? ""
 
@@ -282,29 +294,22 @@ export const pullRequestCheck = ({ list, readState, readIntakeMarks, readOtherRu
 
 /**
  * The waiter key of an open alert whose carrying ticket is closed. For code scanning of a ticket closed
- * as completed it carries the commit of the newest scan of the default branch, so a later scan that
- * still finds the alert is new. No other close reason compares scans, so a new scan wakes nothing.
+ * as completed it carries the commit that the alert's own category analyzed last (`scannedCommit`), so
+ * the key changes when that category analyzes again and never when another category does. No other
+ * kind or close reason compares scans.
  */
 const ticketClosedWakeKey = (alert) => `${alert.key} ticket-closed${alert.scannedCommit ? ` ${alert.scannedCommit}` : ""}`
 
-/** Reads the commit of the newest code scanning analysis of the default branch from one page. */
-export const newestScanCommit = async ({ repositories, readPages }, repositoryKey) => {
-  const slug = repositories.find((repository) => repository.key === repositoryKey)?.slug
-  if (!slug) throw new Error(`No repository matches ${repositoryKey}`)
-  const [analysis] = await readPages(`repos/${slug}/code-scanning/analyses?ref=refs/heads/main&per_page=1`, ".[] | {commit: .commit_sha} | tojson", { allPages: false })
-  return analysis?.commit ?? null
-}
-
 /**
  * Keys each open alert, and each open alert whose carrying ticket is closed a second time, so the
- * close of that ticket wakes the model. An alert whose ticket or scan read failed keeps its seen key.
+ * close of that ticket wakes the model. An alert whose ticket read failed keeps its seen key.
  */
-export const alertCheck = ({ list, readIntakeMarks = () => ({}), readTicketState, readNewestScan }) => async () => {
+export const alertCheck = ({ list, readIntakeMarks = () => ({}), readTicketState }) => async () => {
   const listing = await list()
   const marks = readIntakeMarks()?.alerts?.marks ?? {}
   const checked = wakeKeys(listing, (alert) => alert.key, (read) => `${read} `)
   if (!Object.values(marks).some((mark) => TICKETED_ALERT_ACTIONS.includes(mark?.action))) return checked
-  const closed = await alertsWithClosedTickets({ open: Object.fromEntries(listing.items.map((alert) => [alert.key, alert])), marks }, { readTicketState, readNewestScan })
+  const closed = await alertsWithClosedTickets({ open: Object.fromEntries(listing.items.map((alert) => [alert.key, alert])), marks }, { readTicketState })
   const failure = [checked.failure, ...closed.failures.map((entry) => entry.message)].filter(Boolean).join("; ")
   const unreadPrefixes = [...(checked.unreadPrefixes ?? []), ...closed.unreadKeys.map((key) => `${key} ticket-closed`)]
   return { keys: [...checked.keys, ...closed.items.map(ticketClosedWakeKey)], ...(failure ? { failure, unreadPrefixes } : {}) }
@@ -399,18 +404,23 @@ const ticketNumberOfUrl = (url) => Number(String(url).split("/").at(-1))
 /** The alert marks whose ticket carries the alert: a ticket, or the report of a ticket the owner decides. */
 const TICKETED_ALERT_ACTIONS = ["ticket", "reported"]
 
-/** The close reasons of a carrying ticket that the run acts on: completed compares scans, and a duplicate takes the surviving ticket. */
-const RUN_DECIDED_CLOSE_REASONS = ["COMPLETED", "DUPLICATE"]
-
-/** An alert whose carrying ticket closed as not planned or with no reason waits for the owner's decision. */
-const ownerDecidesAlert = (alert) => Boolean(alert.closedTicket) && !RUN_DECIDED_CLOSE_REASONS.includes(alert.closedTicket.stateReason)
+/**
+ * An alert whose carrying ticket closed as not planned or with no reason waits for the owner's decision, and so does a secret scanning
+ * alert whose ticket closed as completed: only the owner confirms that the credential is rotated. A duplicate takes the surviving ticket.
+ */
+const ownerDecidesAlert = (alert) => {
+  if (!alert.closedTicket) return false
+  const { stateReason } = alert.closedTicket
+  return stateReason === "COMPLETED" ? ALERT_KINDS[alert.kind].completed === "owner" : stateReason !== "DUPLICATE"
+}
 
 /**
- * The open alerts whose carrying ticket is closed, each with the close reason of its ticket. Only code
- * scanning of a completed ticket reads the newest scan of main. A reported mark holds while its ticket
- * stays closed with that reason. A failed ticket or scan read is a named failure; its alerts stay quiet.
+ * The open alerts whose carrying ticket is closed, each with the close reason of its ticket. Code scanning
+ * of a completed ticket carries the commit that its own category analyzed last, which the listing already
+ * holds. A reported mark holds while its ticket stays closed with that reason. A failed ticket read is a
+ * named failure; its alerts stay quiet.
  */
-export const alertsWithClosedTickets = async (contents, { readTicketState, readNewestScan }) => {
+export const alertsWithClosedTickets = async (contents, { readTicketState }) => {
   const marked = Object.values(contents.open).filter((alert) => TICKETED_ALERT_ACTIONS.includes(contents.marks[alert.key]?.action))
   const tickets = await readTicketStates(marked.map((alert) => ticketNumberOfUrl(contents.marks[alert.key].ticket)), readTicketState)
   const unreadTicket = new Set(tickets.failures.map((failure) => failure.number))
@@ -418,18 +428,12 @@ export const alertsWithClosedTickets = async (contents, { readTicketState, readN
   const reasonOf = (alert) => ticketOf(alert).stateReason ?? null
   const decided = (alert) => contents.marks[alert.key].action === "reported" && (contents.marks[alert.key].stateReason ?? null) === reasonOf(alert)
   const closed = marked.filter((alert) => ticketOf(alert)?.state === "CLOSED" && !decided(alert))
-  const comparesScan = (alert) => alert.kind === "code-scanning" && reasonOf(alert) === "COMPLETED"
-  const scanned = [...new Set(closed.filter(comparesScan).map((alert) => alert.repository))]
-  const scans = await Promise.allSettled(scanned.map((repository) => readNewestScan(repository)))
-  const commitOf = new Map(scanned.flatMap((repository, index) => scans[index].status === "fulfilled" ? [[repository, scans[index].value]] : []))
-  const unscanned = (alert) => comparesScan(alert) && !commitOf.has(alert.repository)
+  const comparesScan = (alert) => ALERT_KINDS[alert.kind].completed === "scan" && reasonOf(alert) === "COMPLETED"
   return {
-    items: closed.filter((alert) => !unscanned(alert)).map((alert) => ({ ...alert, ticket: contents.marks[alert.key].ticket, stateReason: reasonOf(alert),
-      ...(comparesScan(alert) && commitOf.get(alert.repository) ? { scannedCommit: commitOf.get(alert.repository) } : {}) })),
-    failures: [...tickets.failures.map(({ read, message }) => ({ read, message })),
-      ...scanned.flatMap((repository, index) => scans[index].status === "rejected"
-        ? [{ read: `${repository} code-scanning analyses`, message: String(scans[index].reason?.message ?? scans[index].reason) }] : [])],
-    unreadKeys: [...marked.filter((alert) => unreadTicket.has(ticketNumberOfUrl(contents.marks[alert.key].ticket))), ...closed.filter(unscanned)].map((alert) => alert.key),
+    items: closed.map((alert) => ({ ...alert, ticket: contents.marks[alert.key].ticket, stateReason: reasonOf(alert),
+      ...(comparesScan(alert) && alert.commit ? { scannedCommit: alert.commit } : {}) })),
+    failures: tickets.failures.map(({ read, message }) => ({ read, message })),
+    unreadKeys: marked.filter((alert) => unreadTicket.has(ticketNumberOfUrl(contents.marks[alert.key].ticket))).map((alert) => alert.key),
   }
 }
 
@@ -487,6 +491,8 @@ const ACTIONS = {
     reported: { valid: () => true },
     "false-positive": { valid: (receipt) => carryingTicket(receipt.ticket) && text(receipt.reason),
       requirement: "a false positive needs the ticket that holds the analysis and the reason" },
+    revoked: { valid: (receipt) => carryingTicket(receipt.ticket) && text(receipt.reason),
+      requirement: "a revoked secret needs its carrying ticket and the owner's confirmation of the rotation" },
   },
 }
 export const INTAKE_GITHUB_SOURCES = Object.keys(ACTIONS)
@@ -507,10 +513,15 @@ const receiptItem = (source, current, receipt) => {
   if (!Object.hasOwn(actions, receipt.action)) throw new Error(`Unknown ${source} action; use ${Object.keys(actions).join(", ")}`)
   if (!actions[receipt.action].valid(receipt)) throw new Error(actions[receipt.action].requirement)
   if (source === "alerts") {
+    if (receipt.action === "revoked") {
+      if (item.kind !== "secret-scanning") throw new Error("only a secret scanning alert is revoked")
+      if (current.marks[item.key]?.action !== "reported") throw new Error("a secret is revoked only after the owner heard of it: record reported first")
+      return item
+    }
     const ownerDecides = ownerDecidesAlert(item)
     if (ownerDecides !== (receipt.action === "reported")) throw new Error(ownerDecides
-      ? "an alert whose carrying ticket closed as not planned or with no reason goes to the owner; record reported"
-      : "only an alert whose carrying ticket closed as not planned or with no reason is reported")
+      ? "an alert whose carrying ticket closed as not planned or with no reason, or a secret scanning alert whose ticket closed as completed, goes to the owner; record reported"
+      : "only an alert whose carrying ticket closed as not planned or with no reason, or a secret scanning alert whose ticket closed as completed, is reported")
     return item
   }
   const { actions: permitted, refusal } = PULL_REQUEST_CLASSES[pullRequestClass(item)]
@@ -526,30 +537,40 @@ const writeMark = (source, receipt, repoRoot) => writeSource(source, (current) =
 
 /**
  * Records what the model did with one open item, at the head it acted on for a pull request. A false
- * positive is recorded only by dismissAlert, so the mark never exists without its dismissal.
+ * positive and a revoked secret are recorded only by closeAlert, so the mark never exists without its GitHub write.
  */
 export const markItem = (source, receipt, repoRoot = REPO_ROOT) => {
-  if (source === "alerts" && receipt?.action === "false-positive") throw new Error("a false positive is recorded only by --dismiss, which dismisses the alert first")
+  if (source === "alerts" && Object.hasOwn(CLOSINGS, receipt?.action)) throw new Error(`${receipt.action} is recorded only by ${CLOSINGS[receipt.action].flag}, which closes the alert first`)
   return writeMark(source, receipt, repoRoot)
 }
 
-/** The request of each alert kind that closes a false positive, from the REST description of each "Update an alert" endpoint. */
-const DISMISSALS = {
-  "code-scanning": { body: { state: "dismissed", dismissed_reason: "false positive" }, comment: "dismissed_comment" },
-  dependabot: { body: { state: "dismissed", dismissed_reason: "inaccurate" }, comment: "dismissed_comment" },
-  "secret-scanning": { body: { state: "resolved", resolution: "false_positive" }, comment: "resolution_comment" },
+/**
+ * The closing of an open alert that the run itself writes to GitHub, by receipt action and alert kind, each request from the REST
+ * description of its "Update an alert" endpoint. A false positive closes every kind. A revoked secret closes only a secret scanning alert,
+ * after the owner confirmed the rotation; the other kinds close on their own (see ALERT_KINDS). `flag` names the command that writes it.
+ */
+const CLOSINGS = {
+  "false-positive": { flag: "--dismiss", note: "False positive; the analysis is on", kinds: {
+    "code-scanning": { body: { state: "dismissed", dismissed_reason: "false positive" }, comment: "dismissed_comment" },
+    dependabot: { body: { state: "dismissed", dismissed_reason: "inaccurate" }, comment: "dismissed_comment" },
+    "secret-scanning": { body: { state: "resolved", resolution: "false_positive" }, comment: "resolution_comment" } } },
+  revoked: { flag: "--revoke", note: "Revoked; the owner confirmed the rotation on", kinds: {
+    "secret-scanning": { body: { state: "resolved", resolution: "revoked" }, comment: "resolution_comment" } } },
 }
 
+/** The command flag of each closing, mapped to its receipt action. */
+export const CLOSING_FLAGS = Object.fromEntries(Object.entries(CLOSINGS).map(([action, { flag }]) => [flag, action]))
+
 /**
- * Dismisses a false positive on GitHub, then records its mark. A failed write records nothing.
- * The comment names the ticket that holds the analysis; it stays below the 280-character limit.
+ * Closes an open alert on GitHub with the request of its receipt action and kind, then records its mark. A failed write records nothing.
+ * The comment names the ticket that holds the analysis or the confirmation; it stays below the 280-character limit.
  */
-export const dismissAlert = async (receipt, { repositories, write, repoRoot = REPO_ROOT }) => {
-  const dismissal = { ...receipt, action: "false-positive" }
-  const alert = receiptItem("alerts", sourceOf(readIntake(repoRoot), "alerts"), dismissal)
+export const closeAlert = async (action, receipt, { repositories, write, repoRoot = REPO_ROOT }) => {
+  const closing = { ...receipt, action }
+  const alert = receiptItem("alerts", sourceOf(readIntake(repoRoot), "alerts"), closing)
   const slug = repositories.find((repository) => repository.key === alert.repository)?.slug
   if (!slug) throw new Error(`No repository matches ${alert.repository}`)
-  const { body, comment } = DISMISSALS[alert.kind]
-  await write("PATCH", `repos/${slug}/${alert.kind}/alerts/${alert.number}`, { ...body, [comment]: `False positive; the analysis is on ${receipt.ticket}` })
-  return writeMark("alerts", dismissal, repoRoot)
+  const { body, comment } = CLOSINGS[action].kinds[alert.kind]
+  await write("PATCH", `repos/${slug}/${alert.kind}/alerts/${alert.number}`, { ...body, [comment]: `${CLOSINGS[action].note} ${receipt.ticket}` })
+  return writeMark("alerts", closing, repoRoot)
 }

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-import { alertsWithClosedTickets, autoWorkRepositories, closedTicketPullRequests, dismissAlert, githubPageReader, githubWriter, INTAKE_GITHUB_SOURCES, listOpenAlerts,
-  listOpenPullRequests, markItem, newestScanCommit, otherLiveRuns, pendingItems, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing,
+import { alertsWithClosedTickets, autoWorkRepositories, closeAlert, CLOSING_FLAGS, closedTicketPullRequests, githubPageReader, githubWriter, INTAKE_GITHUB_SOURCES, listOpenAlerts,
+  listOpenPullRequests, markItem, otherLiveRuns, pendingItems, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing,
   recordTicketClosedAlerts, unreportedPullRequests } from "./lib/auto-work-github.mjs"
 import { intakeRun } from "./lib/auto-work-intake.mjs"
 import { readTicketState } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
-const USAGE = `usage: auto-work-github.mjs <--collect | --mark <pullRequests|alerts> | --dismiss>
+const USAGE = `usage: auto-work-github.mjs <--collect | --mark <pullRequests|alerts> | --dismiss | --revoke>
 Lists every open pull request and every open alert (code scanning, secret scanning and Dependabot)
 of the ui, api and landing repositories, every author and every page, for auto-work steps 7 and 8.
 --collect      writes intake.pullRequests and intake.alerts, reads them back and prints
@@ -27,11 +27,11 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                read failed is named in failures with its key; it is not pending and takes no mark, and the other pull requests of its repository are listed. alerts adds ticketClosed: the
                open alerts whose carrying ticket is closed, each with its ticket, its
                stateReason and, for code scanning of a ticket closed as COMPLETED,
-               scannedCommit (the commit of the newest scan of main); they are pending again.
-               A reported alert stays out of ticketClosed while its ticket stays closed with
-               the reported stateReason. A failed read, also a failed ticket or scan read, is named in
-               failures; a failed list read keeps its previous items, and it is never an empty
-               source.
+               scannedCommit (the commit that the alert's own category analyzed last); they are
+               pending again. A reported alert stays out of ticketClosed while its ticket stays
+               closed with the reported stateReason. A failed read, also a failed ticket read,
+               is named in failures; a failed list read keeps its previous items, and it is never
+               an empty source.
 --mark <source> stdin JSON receipt for one open item:
                pullRequests {key, head, action: merged|fix|closed|reported, ticket?, reason?}
                  fix needs ticket (an orbit-tickets issue URL); closed needs reason; head must be
@@ -41,13 +41,20 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                  otherRun takes no mark.
                alerts {key, action: ticket|reported, ticket?, cause?}
                  ticket needs ticket and cause. reported is the only action for an alert in
-                 ticketClosed whose stateReason is NOT_PLANNED or null, and its mark keeps
-                 that ticket and stateReason; no other alert is reported.
+                 ticketClosed whose stateReason is NOT_PLANNED or null, and for a secret scanning
+                 alert in ticketClosed with any stateReason but DUPLICATE. Its mark keeps that
+                 ticket and stateReason; no other alert is reported.
 --dismiss      stdin JSON receipt {key, ticket, reason} for one open alert that the analysis on
                its ticket proves a false positive. Dismisses it on GitHub with the request of its
                kind (code scanning "false positive", Dependabot "inaccurate", secret scanning
                resolved "false_positive"), then records the false-positive mark. A failed
                dismissal records nothing.
+--revoke       stdin JSON receipt {key, ticket, reason} for one secret scanning alert that has a
+               reported mark, after the owner confirmed that the credential is rotated (reason
+               holds that confirmation). Resolves it on GitHub as revoked, then records the
+               revoked mark. A failed write records nothing. Another kind is refused: a code
+               scanning alert closes on its next analysis and a Dependabot alert closes when the
+               dependency graph reads the merged manifest.
 --help, -h     print usage
 exit codes: 0 success; 1 run state, configuration, receipt or GitHub write failure; 2 invalid
 arguments; 3 collected and written, with at least one named read failure`
@@ -56,10 +63,10 @@ const args = process.argv.slice(2)
 if (args.includes("--help") || args.includes("-h")) { console.log(USAGE); process.exit(0) }
 const collect = args.length === 1 && args[0] === "--collect"
 const mark = args.length === 2 && args[0] === "--mark" && INTAKE_GITHUB_SOURCES.includes(args[1])
-const dismiss = args.length === 1 && args[0] === "--dismiss"
-if (!collect && !mark && !dismiss) { console.error(USAGE); process.exit(2) }
+const closing = args.length === 1 ? CLOSING_FLAGS[args[0]] : undefined
+if (!collect && !mark && !closing) { console.error(USAGE); process.exit(2) }
 let receipt
-if (mark || dismiss) {
+if (mark || closing) {
   try { let input = ""; for await (const chunk of process.stdin) input += chunk; receipt = JSON.parse(input) } catch { console.error("Expected JSON on stdin"); process.exit(2) }
 }
 try {
@@ -70,9 +77,9 @@ try {
   }
   const config = readOrchestratorConfig()
   const repositories = autoWorkRepositories(config)
-  if (dismiss) {
-    const written = await dismissAlert(receipt, { repositories, write: githubWriter({ config }) })
-    console.log(JSON.stringify({ dismissed: receipt.key, mark: written.marks[receipt.key] }))
+  if (closing) {
+    const written = await closeAlert(closing, receipt, { repositories, write: githubWriter({ config }) })
+    console.log(JSON.stringify({ [closing === "revoked" ? "revoked" : "dismissed"]: receipt.key, mark: written.marks[receipt.key] }))
     process.exit(0)
   }
   const reading = { repositories, readPages: githubPageReader({ config }) }
@@ -82,7 +89,7 @@ try {
   const pulls = recordClosedTicketPullRequests(pullTickets)
   const openPulls = Object.values(pulls.open)
   const alerts = recordListing("alerts", alertListing)
-  const closedTickets = await alertsWithClosedTickets(alerts, { readTicketState, readNewestScan: (key) => newestScanCommit(reading, key) })
+  const closedTickets = await alertsWithClosedTickets(alerts, { readTicketState })
   recordTicketClosedAlerts(closedTickets.items)
   const result = {
     pullRequests: { open: openPulls.length, pending: pendingItems("pullRequests", pulls),

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { alertCheck, autoWorkRepositories, githubPageReader, listOpenAlerts, listOpenPullRequests, newestScanCommit, otherLiveRuns, pullRequestCheck } from "./lib/auto-work-github.mjs"
+import { alertCheck, autoWorkRepositories, githubPageReader, listOpenAlerts, listOpenPullRequests, otherLiveRuns, pullRequestCheck } from "./lib/auto-work-github.mjs"
 import { readTicketState } from "./lib/github-issues.mjs"
 import { boardCheck, commandRunner, initialWakeMarks, mailCheck, reviewCheck, saveWakeMarks, SENTRY_MODE, watchIntake } from "./lib/auto-work-wake.mjs"
 import { readIntake } from "./lib/auto-work-intake.mjs"
@@ -13,8 +13,8 @@ tools/lib/github-issues.mjs with no model call), the mailbox (orbit-mail.mjs --u
 owns (one key per pull request and head, and one key per pull request from an unexpected author or
 with a reported mark) and the open code scanning, secret scanning and Dependabot alerts of the ui, api
 and landing repositories (tools/lib/auto-work-github.mjs) are checked. An open alert whose carrying
-ticket is closed has a second key, which for code scanning names the commit of the newest scan of
-main. A key absent from intake.wake.seen (run-state/intake.json in the
+ticket is closed has a second key, which for code scanning names the commit that the alert's own
+category analyzed last. A key absent from intake.wake.seen (run-state/intake.json in the
 tickets repository) is new.
 Exit only for a new item, a source failure with a new signature, the hourly Sentry MCP listing
 (no read-only Sentry token exists, so sentryMode is mcp-hourly) or a change of the owning mode.
@@ -57,7 +57,7 @@ try {
       { source: "reviews", run: reviewCheck({ run }) },
       { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests({ ...reading(), readTicketState }), readState: readRunState, readIntakeMarks: readIntake, readOtherRuns: otherLiveRuns }) },
       { source: "alerts", run: alertCheck({ list: () => listOpenAlerts(reading()), readIntakeMarks: readIntake,
-        readTicketState, readNewestScan: (key) => newestScanCommit(reading(), key) }) }],
+        readTicketState }) }],
     marks: initialWakeMarks(readIntake(), started),
     intervalMilliseconds: seconds * 1000,
     modeChanged: () => modeChangedIn(readRunState()),

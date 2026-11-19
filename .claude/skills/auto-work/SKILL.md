@@ -252,28 +252,40 @@ file for the successor.
    fix lands at the root cause. A leaked secret also needs rotation of the credential, which
    is an owner action: put it to the owner through `/questions`. Record each alert with
    `node tools/auto-work-github.mjs --mark alerts` and `{key, action: ticket, ticket, cause}`.
-   An alert closes only when its fix is on the default branch and the next scan shows it as
-   fixed. An alert in `ticketClosed` is still open after its carrying ticket closed, so it is
+   GitHub closes an alert, and each kind closes on its own terms (the `COMPLETED` rules below).
+   An alert in `ticketClosed` is still open after its carrying ticket closed, so it is
    pending again. Each entry carries the `stateReason` of that ticket:
-   - `COMPLETED`: for code scanning, `scannedCommit` names the commit of the newest scan of the
-     default branch. Compare it with the merge of the fix first. When the scan is older than the
-     merge, do nothing more for that alert in this cycle: the next scan of the default branch
-     changes its waiter key and wakes the model again. When it is newer, the fix did not remove
-     the alert: reopen the ticket or write a new one with the alert, and mark the alert again.
+   - `COMPLETED`, by alert kind:
+     - Code scanning: the alert closes when an analysis of its own category no longer finds it.
+       `scannedCommit` names the commit that the alert's own category analyzed last, never
+       another category's. Run `git fetch origin main`, then
+       `git merge-base --is-ancestor <merge of the fix> <scannedCommit>`. When it exits 1, the
+       category did not analyze the merge yet: do nothing more for that alert in this cycle. Its
+       next analysis changes the waiter key and wakes the model again. When it exits 0, the fix
+       did not remove the alert: reopen the ticket or write a new one with the alert, and mark
+       the alert again.
+     - Secret scanning: GitHub never closes the alert when the secret leaves the repository.
+       Put it to the owner through `/questions` and ask whether the credential is rotated.
+       Record `{key, action: reported}`. After the owner confirms, run
+       `node tools/auto-work-github.mjs --revoke` with `{key, ticket, reason}` on stdin, where
+       `reason` holds the owner's confirmation. The tool resolves the alert as revoked on GitHub
+       and records the mark in one step. Never write a new ticket for it.
+     - Dependabot: wait. The alert closes when the dependency graph reads the merged manifest.
+       Mark nothing, write no ticket and put nothing to the owner.
    - `DUPLICATE`: find the ticket that survives, and mark the alert again with it and the cause.
      Do not reopen the duplicate and do not write a new ticket.
    - `NOT_PLANNED`, no reason, or a carrying ticket that no longer exists (404 or 410):
      never reopen the ticket and never write a new one. Put the alert
      to the owner through `/questions` with its repository, id, rule, `file:line` and ticket.
      Then record `{key, action: reported}`. The tool refuses `ticket` for this alert and
-     `reported` for every other alert. The mark keeps the ticket and its close reason, so a new
-     scan of the default branch does not ask again. When that ticket reopens and closes with
+     `reported` for an alert that the owner does not decide. The mark keeps the ticket and its
+     close reason, so a new analysis does not ask again. When that ticket reopens and closes with
      another reason, the alert is in `ticketClosed` again with the new reason.
    Never dismiss an alert to empty the list. Dismiss it only when the analysis proves a
    false positive. Write that analysis on its ticket first. Then run
    `node tools/auto-work-github.mjs --dismiss` with `{key, ticket, reason}` on stdin. The tool
    sends the request of the alert kind and records the false-positive mark only after GitHub
-   accepts the dismissal. Never dismiss an alert through another command.
+   accepts the dismissal. Never dismiss or resolve an alert through another command.
 9. Read `node tools/plan-queue.mjs --board` and use `/orchestrate`'s `--auto` selection to admit
    every finishable open ticket in that order within the current run. Append newly admitted
    tickets to `remaining` through `updateRunState` and read back the queue; never enter a second
@@ -314,9 +326,10 @@ fifteen-minute interval, the waiter checks the sources itself, with no model cal
   the model only once;
 - the open code scanning, secret scanning and Dependabot alerts of the same repositories. One
   key is the repository, the alert kind and the alert number. An open alert whose carrying
-  ticket is closed has a second key, `<alert key> ticket-closed`. For code scanning that key
-  also names the commit of the newest scan of `main`. Thus the close of the ticket wakes the
-  model once, and a newer scan that still finds the alert wakes it once more.
+  ticket is closed has a second key, `<alert key> ticket-closed`. For code scanning of a ticket
+  closed as completed that key also names the commit that the alert's own category analyzed
+  last. Thus the close of the ticket wakes the model once, and a later analysis of that
+  category that still finds the alert wakes it once more.
 
 The pull request and alert keys from the last step 7 collection count as seen. A read that
 fails is a named failure; a source with no successful read keeps its seen keys.

@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { alertCheck, alertsWithClosedTickets, closedTicketPullRequests, dismissAlert, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, otherLiveRuns, PULL_REQUEST_CLASSES,
-  pendingItems, pullRequestCheck, pullRequestClass, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing, runPullRequestKeys, unexpectedAuthor,
+import { alertCheck, alertsWithClosedTickets, closedTicketPullRequests, closeAlert, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, otherLiveRuns, PULL_REQUEST_CLASSES,
+  pendingItems, pullRequestCheck, pullRequestClass, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing, recordTicketClosedAlerts, runPullRequestKeys, unexpectedAuthor,
   unreportedPullRequests } from "../lib/auto-work-github.mjs"
 import { readIntake } from "../lib/auto-work-intake.mjs"
 import { evaluateChecks } from "../lib/auto-work-wake.mjs"
@@ -12,8 +12,12 @@ import { T, TOOLS_DIR, root } from "./_harness.mjs"
 const REPOSITORIES = [{ key: "ui", slug: "thomasluizon/orbit-ui-mobile" }, { key: "api", slug: "thomasluizon/orbit-api" },
   { key: "landing", slug: "thomasluizon/orbit-landing-page" }]
 const TICKET = "https://github.com/thomasluizon/orbit-tickets/issues/2149"
-/** The commit of the newest code scanning analysis of orbit-api main, from a live read of code-scanning/analyses?ref=refs/heads/main&per_page=1. */
-export const API_SCAN_COMMIT = "38513551ad4eb24eb93a8c7bc33891a4920bce89"
+/**
+ * The commit of the last analysis of the category of alert 28 (/language:csharp), from a live read of code-scanning/alerts/28
+ * (most_recent_instance.commit_sha). The newest analysis of any category of orbit-api main is another commit,
+ * 38513551ad4eb24eb93a8c7bc33891a4920bce89 (code-scanning/analyses?ref=refs/heads/main&per_page=1), which is why the run never reads it.
+ */
+export const ALERT_COMMIT = "de4a8db3015c713e1472d642fb07c4c15d7c643f"
 
 /*
  * Each item is a live projection of a real REST response. OWNER_PULL (ui#2473) is a merged owner pull request; the other pull requests and the
@@ -37,7 +41,7 @@ const REVERT_PULL = { number: 2490, author: "thomasluizon", authorType: "User", 
 /** A pull request from an account that no repository configures to open pull requests. */
 export const UNEXPECTED_PULL = { number: 20, author: "bellaFG", authorType: "User", head: "8edde4aebbb2f26a21a0c83b2b4d986e1e2757e2", branch: "fix/mobile-ring-centering", base: "main", draft: false,
   title: "fix: center orbital rings over hero title on mobile", url: "https://github.com/thomasluizon/orbit-landing-page/pull/20" }
-export const CODE_SCANNING_ALERT = { line: 84, message: "Cookie attribute 'Secure' is not set to true.\nCookie attribute 'Secure' is not set to true.", number: 28,
+export const CODE_SCANNING_ALERT = { commit: ALERT_COMMIT, line: 84, message: "Cookie attribute 'Secure' is not set to true.\nCookie attribute 'Secure' is not set to true.", number: 28,
   path: "tests/Orbit.Infrastructure.Tests/Controllers/OAuthControllerTests.CookiePolicy.cs", rule: "cs/web/cookie-secure-not-set", severity: "medium", tool: "CodeQL",
   url: "https://github.com/thomasluizon/orbit-api/security/code-scanning/28" }
 export const DEPENDABOT_ALERT = { message: "hono: Hono: `csrf()` does not check requests sent by hyperlink auditing (`text/ping`)", number: 186, path: "evals/astra/package-lock.json",
@@ -258,11 +262,11 @@ const stateCases = async ({ pullListing, alertListing }) => {
   T("github: a mark never dismisses an alert", refusal(() => markItem("alerts", { key: "api code-scanning 28", action: "dismissed", ticket: TICKET }, checkout))
     .startsWith("Unknown alerts action") &&
     refusal(() => markItem("alerts", { key: "api code-scanning 28", action: "false-positive", ticket: TICKET, reason: "Test fixture." }, checkout)) ===
-    "a false positive is recorded only by --dismiss, which dismisses the alert first")
+    "false-positive is recorded only by --dismiss, which closes the alert first")
   const writes = []
   let dismissal = ""
   try {
-    await dismissAlert({ key: "api code-scanning 28", ticket: TICKET }, { repositories: REPOSITORIES, write: async (...call) => { writes.push(call) }, repoRoot: checkout })
+    await closeAlert("false-positive", { key: "api code-scanning 28", ticket: TICKET }, { repositories: REPOSITORIES, write: async (...call) => { writes.push(call) }, repoRoot: checkout })
   } catch (error) { dismissal = error.message }
   T("github: a dismissal without the written analysis is refused before any GitHub write", dismissal === "a false positive needs the ticket that holds the analysis and the reason" &&
     writes.length === 0, `${dismissal} ${JSON.stringify(writes)}`)
@@ -456,15 +460,75 @@ const permissionCases = ({ pullListing }) => {
     JSON.stringify(Object.fromEntries(Object.entries(PULL_REQUEST_CLASSES).map(([name, row]) => [name, row.actions]))), JSON.stringify(permitted))
 }
 
-/* An open alert whose carrying ticket closes wakes the idle waiter once, and the next scan that still finds it wakes it once more. */
+/*
+ * GitHub closes the alerts of each kind on its own terms, so the run's rule for an alert whose ticket completed differs by kind: a code scanning alert
+ * carries the commit that its own category analyzed last, a secret scanning alert goes to the owner and is then resolved as revoked, and a Dependabot alert waits.
+ */
+const alertKindCases = async () => {
+  const secretListed = { number: 3, rule: "github_personal_access_token", path: "src/config.ts", line: 4, message: "GitHub Personal Access Token",
+    url: "https://github.com/thomasluizon/orbit-landing-page/security/secret-scanning/3" }
+  const reader = fakeReader({ "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT], "repos/thomasluizon/orbit-landing-page/secret-scanning": [secretListed],
+    "repos/thomasluizon/orbit-ui-mobile/dependabot": [DEPENDABOT_ALERT] })
+  const listing = await listOpenAlerts({ repositories: REPOSITORIES, readPages: reader.readPages })
+  const codeKey = "api code-scanning 28"
+  const secretKey = "landing secret-scanning 3"
+  const dependabotKey = "ui dependabot 186"
+  const analysesReads = reader.calls.filter((call) => call.path.includes("analyses"))
+  const codeRead = reader.calls.find((call) => call.path.includes("/code-scanning/alerts"))
+  T("github: the code scanning read projects the commit of the alert's own last analysis and reads no repository analysis",
+    codeRead.projection.includes("commit: .most_recent_instance.commit_sha") && analysesReads.length === 0 &&
+    listing.items.find((alert) => alert.key === codeKey).commit === ALERT_COMMIT, JSON.stringify(reader.calls))
+  const checkout = fresh("alert-kinds")
+  recordListing("alerts", listing, checkout)
+  const cause = "The test fixture sets Secure false on purpose."
+  for (const key of [codeKey, secretKey, dependabotKey]) markItem("alerts", { key, action: "ticket", ticket: TICKET, cause }, checkout)
+  const completed = await alertsWithClosedTickets(readIntake(checkout).alerts, { readTicketState: async (number) => ({ number, state: "CLOSED", stateReason: "COMPLETED" }) })
+  T("github: only a completed code scanning alert carries a scanned commit, and it is the commit of its own category",
+    JSON.stringify(Object.fromEntries(completed.items.map((alert) => [alert.key, alert.scannedCommit ?? null]))) ===
+      JSON.stringify({ [dependabotKey]: null, [codeKey]: ALERT_COMMIT, [secretKey]: null }) &&
+    completed.failures.length === 0, JSON.stringify(completed))
+  recordTicketClosedAlerts(completed.items, checkout)
+  const reportOf = (key) => refusal(() => markItem("alerts", { key, action: "reported" }, checkout))
+  const outcomes = { code: reportOf(codeKey), dependabot: reportOf(dependabotKey) }
+  T("github: a completed code scanning alert and a completed Dependabot alert are never reported", outcomes.code.startsWith("only an alert whose carrying ticket closed as not planned") &&
+    outcomes.dependabot.startsWith("only an alert whose carrying ticket closed as not planned"), JSON.stringify(outcomes))
+  const secretTicket = refusal(() => markItem("alerts", { key: secretKey, action: "ticket", ticket: TICKET, cause }, checkout))
+  T("github: a completed secret scanning alert goes to the owner and takes no new ticket", secretTicket.includes("goes to the owner") && reportOf(secretKey) === "" &&
+    readIntake(checkout).alerts.marks[secretKey].action === "reported" && readIntake(checkout).alerts.marks[secretKey].stateReason === "COMPLETED", secretTicket)
+
+  /* A revoked secret resolves on GitHub and records its mark in one step, only for a secret scanning alert that the owner heard of. */
+  const writes = []
+  const write = async (...call) => { writes.push(call) }
+  const revoke = (key, receipt = {}) => closeAlert("revoked", { key, ticket: TICKET, reason: "The owner rotated the token on 2026-11-19.", ...receipt }, { repositories: REPOSITORIES, write, repoRoot: checkout })
+  const attempt = async (change) => { try { await change(); return "" } catch (error) { return error.message } }
+  const unreported = fresh("alert-kinds-unreported")
+  recordListing("alerts", listing, unreported)
+  markItem("alerts", { key: secretKey, action: "ticket", ticket: TICKET, cause }, unreported)
+  const beforeReport = await attempt(() => closeAlert("revoked", { key: secretKey, ticket: TICKET, reason: "The owner rotated the token." }, { repositories: REPOSITORIES, write, repoRoot: unreported }))
+  const wrongKind = await attempt(() => revoke(codeKey))
+  const noReason = await attempt(() => revoke(secretKey, { reason: "" }))
+  const viaMark = refusal(() => markItem("alerts", { key: secretKey, action: "revoked", ticket: TICKET, reason: "The owner rotated the token." }, checkout))
+  T("github: a revoked secret is refused before any GitHub write unless a secret scanning alert was reported and the owner confirmed", writes.length === 0 &&
+    beforeReport === "a secret is revoked only after the owner heard of it: record reported first" && wrongKind === "only a secret scanning alert is revoked" &&
+    noReason === "a revoked secret needs its carrying ticket and the owner's confirmation of the rotation" &&
+    viaMark === "revoked is recorded only by --revoke, which closes the alert first", JSON.stringify({ beforeReport, wrongKind, noReason, viaMark, writes }))
+  const failedWrite = await attempt(() => closeAlert("revoked", { key: secretKey, ticket: TICKET, reason: "The owner rotated the token." },
+    { repositories: REPOSITORIES, write: async () => { throw new Error(NOT_FOUND) }, repoRoot: checkout }))
+  T("github: a failed revoke write records no mark", failedWrite === NOT_FOUND && readIntake(checkout).alerts.marks[secretKey].action === "reported", failedWrite)
+  const revoked = await revoke(secretKey)
+  T("github: a revoked secret resolves the alert as revoked with its ticket and records the revoked mark", JSON.stringify(writes) === JSON.stringify([["PATCH",
+    "repos/thomasluizon/orbit-landing-page/secret-scanning/alerts/3", { state: "resolved", resolution: "revoked", resolution_comment: `Revoked; the owner confirmed the rotation on ${TICKET}` }]]) &&
+    revoked.marks[secretKey].action === "revoked" && revoked.marks[secretKey].ticket === TICKET && revoked.marks[secretKey].reason === "The owner rotated the token on 2026-11-19.", JSON.stringify({ writes, revoked }))
+}
+
+/* An open alert whose carrying ticket closes wakes the idle waiter once, and the next analysis of its own category that still finds it wakes it once more. */
 const closedTicketAlertWakeCases = async () => {
-  const listing = await listOpenAlerts({ repositories: REPOSITORIES, readPages: fakeReader({ "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT] }).readPages })
+  let listing = await listOpenAlerts({ repositories: REPOSITORIES, readPages: fakeReader({ "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT] }).readPages })
   const state = { intake: { alerts: { marks: { "api code-scanning 28": { action: "ticket", ticket: TICKET, cause: "The test fixture sets Secure false on purpose." } } } } }
   let ticket = { state: "OPEN", stateReason: null }
-  let scan = API_SCAN_COMMIT
   const ticketReads = []
   const check = { source: "alerts", run: alertCheck({ list: async () => listing, readIntakeMarks: () => state.intake,
-    readTicketState: async (number) => { ticketReads.push(number); if (ticket instanceof Error) throw ticket; return { number, ...ticket } }, readNewestScan: async () => scan }) }
+    readTicketState: async (number) => { ticketReads.push(number); if (ticket instanceof Error) throw ticket; return { number, ...ticket } } }) }
   let marks = { seen: { alerts: ["api code-scanning 28"] }, failures: {}, sentryListedAt: new Date(0).toISOString() }
   const interval = async () => {
     const evaluated = evaluateChecks([check], await Promise.allSettled([check.run()]), marks, 0)
@@ -479,26 +543,24 @@ const closedTicketAlertWakeCases = async () => {
   const failed = await interval()
   ticket = { state: "CLOSED", stateReason: "COMPLETED" }
   const recovered = await interval()
-  scan = "a".repeat(40)
+  listing = { ...listing, items: [{ ...listing.items[0], commit: "a".repeat(40) }] }
   const rescanned = await interval()
   T("github: an open ticketed alert wakes nothing while its ticket is open", open.length === 0 && ticketReads[0] === 2149, JSON.stringify(open))
   T("github: the close of the carrying ticket of an open alert wakes the waiter once with alerts", JSON.stringify(closed) ===
-    JSON.stringify([{ source: "alerts", kind: "new", items: [`api code-scanning 28 ticket-closed ${API_SCAN_COMMIT}`] }]) && again.length === 0, JSON.stringify({ closed, again }))
+    JSON.stringify([{ source: "alerts", kind: "new", items: [`api code-scanning 28 ticket-closed ${ALERT_COMMIT}`] }]) && again.length === 0, JSON.stringify({ closed, again }))
   T("github: a failed ticket read wakes once as a failure and its recovery wakes nothing", failed.length === 1 && failed[0].kind === "failure" &&
     recovered.length === 0, JSON.stringify({ failed, recovered }))
-  T("github: a newer scan that still finds the alert wakes the waiter once more", JSON.stringify(rescanned) ===
+  T("github: a newer analysis of the alert's own category that still finds it wakes the waiter once more", JSON.stringify(rescanned) ===
     JSON.stringify([{ source: "alerts", kind: "new", items: [`api code-scanning 28 ticket-closed ${"a".repeat(40)}`] }]), JSON.stringify(rescanned))
 }
 
-/* Only a ticket closed as completed leads to the scan comparison: the owner decides a ticket closed as not planned once, and a new scan asks nothing again. */
+/* Only a ticket closed as completed leads to the scan comparison: the owner decides a ticket closed as not planned once, and a new analysis asks nothing again. */
 const notPlannedAlertWakeCases = async () => {
-  const listing = await listOpenAlerts({ repositories: REPOSITORIES, readPages: fakeReader({ "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT] }).readPages })
+  let listing = await listOpenAlerts({ repositories: REPOSITORIES, readPages: fakeReader({ "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT] }).readPages })
   const cause = "The test fixture sets Secure false on purpose."
   let state = { intake: { alerts: { marks: { "api code-scanning 28": { action: "ticket", ticket: TICKET, cause } } } } }
   let ticket = { state: "CLOSED", stateReason: "NOT_PLANNED" }
-  let scan = API_SCAN_COMMIT
-  const scanReads = []
-  const readers = { readTicketState: async (number) => ({ number, ...ticket }), readNewestScan: async (key) => { scanReads.push(key); return scan } }
+  const readers = { readTicketState: async (number) => ({ number, ...ticket }) }
   const check = { source: "alerts", run: alertCheck({ list: async () => listing, readIntakeMarks: () => state.intake, ...readers }) }
   let marks = { seen: { alerts: ["api code-scanning 28"] }, failures: {}, sentryListedAt: new Date(0).toISOString() }
   const interval = async () => {
@@ -507,21 +569,21 @@ const notPlannedAlertWakeCases = async () => {
     return evaluated.wakes
   }
   const closed = await alertsWithClosedTickets({ open: listing.items.reduce((open, alert) => ({ ...open, [alert.key]: alert }), {}), marks: state.intake.alerts.marks }, readers)
-  T("github: a closed-ticket alert carries the close reason of its ticket, and only a completed ticket reads the scan of main",
+  T("github: a closed-ticket alert carries the close reason of its ticket, and only a completed ticket carries the scanned commit",
     JSON.stringify(closed.items.map((alert) => [alert.key, alert.ticket, alert.stateReason, alert.scannedCommit ?? null])) ===
-      JSON.stringify([["api code-scanning 28", TICKET, "NOT_PLANNED", null]]) && scanReads.length === 0, JSON.stringify({ closed, scanReads }))
+      JSON.stringify([["api code-scanning 28", TICKET, "NOT_PLANNED", null]]), JSON.stringify(closed))
   const notPlanned = await interval()
-  scan = "c".repeat(40)
+  listing = { ...listing, items: [{ ...listing.items[0], commit: "c".repeat(40) }] }
   const rescanned = await interval()
   state = { intake: { alerts: { marks: { "api code-scanning 28": { action: "reported", ticket: TICKET, stateReason: "NOT_PLANNED" } } } } }
   const reported = await interval()
-  scan = "d".repeat(40)
+  listing = { ...listing, items: [{ ...listing.items[0], commit: "d".repeat(40) }] }
   const reportedRescan = await interval()
   ticket = { state: "CLOSED", stateReason: "COMPLETED" }
   const completed = await interval()
-  T("github: the close of a carrying ticket as not planned wakes the waiter once, and a new scan of main wakes nothing", JSON.stringify(notPlanned) ===
+  T("github: the close of a carrying ticket as not planned wakes the waiter once, and a new analysis wakes nothing", JSON.stringify(notPlanned) ===
     JSON.stringify([{ source: "alerts", kind: "new", items: ["api code-scanning 28 ticket-closed"] }]) && rescanned.length === 0, JSON.stringify({ notPlanned, rescanned }))
-  T("github: a reported not planned alert stays quiet at every later scan", reported.length === 0 && reportedRescan.length === 0, JSON.stringify({ reported, reportedRescan }))
+  T("github: a reported not planned alert stays quiet at every later analysis", reported.length === 0 && reportedRescan.length === 0, JSON.stringify({ reported, reportedRescan }))
   T("github: a reported alert wakes again when the close reason of its ticket changes", JSON.stringify(completed) ===
     JSON.stringify([{ source: "alerts", kind: "new", items: [`api code-scanning 28 ticket-closed ${"d".repeat(40)}`] }]), JSON.stringify(completed))
 }
@@ -535,18 +597,17 @@ const missingTicketAlertCases = async () => {
   const open = listing.items.reduce((items, alert) => ({ ...items, [alert.key]: alert }), {})
   const cause = "The test fixture sets Secure false on purpose."
   const failing = (status, text) => async () => { throw new Error(`gh api repos/thomasluizon/orbit-tickets/issues/2149 failed: gh: ${text} (HTTP ${status})`) }
-  const readNewestScan = async () => API_SCAN_COMMIT
   for (const [status, text] of [[404, "Not Found"], [410, "Gone"]]) {
     const ticketed = { open, marks: { "api code-scanning 28": { action: "ticket", ticket: TICKET, cause } } }
-    const missing = await alertsWithClosedTickets(ticketed, { readTicketState: failing(status, text), readNewestScan })
+    const missing = await alertsWithClosedTickets(ticketed, { readTicketState: failing(status, text) })
     T(`github: an alert whose carrying ticket answers ${status} is in ticketClosed once with no reason and no failure`, JSON.stringify(missing.items.map((alert) => [alert.key, alert.stateReason])) ===
       JSON.stringify([["api code-scanning 28", null]]) && missing.failures.length === 0 && missing.unreadKeys.length === 0, JSON.stringify(missing))
     const reported = await alertsWithClosedTickets({ open, marks: { "api code-scanning 28": { action: "reported", ticket: TICKET, stateReason: null } } },
-      { readTicketState: failing(status, text), readNewestScan })
+      { readTicketState: failing(status, text) })
     T(`github: a reported alert whose carrying ticket answers ${status} stays quiet and names no failure`, reported.items.length === 0 && reported.failures.length === 0 &&
       reported.unreadKeys.length === 0, JSON.stringify(reported))
   }
-  const gateway = await alertsWithClosedTickets({ open, marks: { "api code-scanning 28": { action: "ticket", ticket: TICKET, cause } } }, { readTicketState: failing(502, "Bad Gateway"), readNewestScan })
+  const gateway = await alertsWithClosedTickets({ open, marks: { "api code-scanning 28": { action: "ticket", ticket: TICKET, cause } } }, { readTicketState: failing(502, "Bad Gateway") })
   T("github: an alert whose carrying ticket answers 502 stays a named failure that keeps the alert quiet", gateway.items.length === 0 && gateway.failures.length === 1 &&
     gateway.failures[0].message.includes("HTTP 502") && JSON.stringify(gateway.unreadKeys) === JSON.stringify(["api code-scanning 28"]), JSON.stringify(gateway))
 }
@@ -717,8 +778,16 @@ const skillCases = () => {
     !adoption.includes("salvaged"), adoption)
   const closedAlertRule = skill.slice(skill.indexOf("An alert in `ticketClosed`"), skill.indexOf("Never dismiss an alert to empty the list"))
   const reasonRule = (reason) => closedAlertRule.slice(closedAlertRule.indexOf(`- \`${reason}\``)).split("\n   - ")[0]
-  T("github skill: step 8 compares scans only for a completed ticket, re-marks a duplicate and asks the owner once otherwise",
-    reasonRule("COMPLETED").includes("`scannedCommit`") && reasonRule("COMPLETED").includes("reopen the ticket or write a new one") &&
+  const completedKind = (kind) => reasonRule("COMPLETED").slice(reasonRule("COMPLETED").indexOf(`- ${kind}:`)).split("\n     - ")[0]
+  T("github skill: step 8 states one COMPLETED rule for each alert kind",
+    completedKind("Code scanning").includes("`scannedCommit`") && completedKind("Code scanning").includes("own category") && completedKind("Code scanning").includes("merge-base --is-ancestor") &&
+    completedKind("Code scanning").includes("reopen the ticket or write a new one") && !completedKind("Code scanning").includes("newest scan") &&
+    completedKind("Secret scanning").includes("never closes") && completedKind("Secret scanning").includes("`/questions`") && completedKind("Secret scanning").includes("action: reported") &&
+    completedKind("Secret scanning").includes("--revoke") && completedKind("Secret scanning").includes("Never write a new ticket") &&
+    completedKind("Dependabot").includes("wait") && completedKind("Dependabot").includes("dependency graph") && !completedKind("Dependabot").includes("scannedCommit"),
+    reasonRule("COMPLETED"))
+  T("github skill: step 8 no longer says that every alert closes on the next scan", !skill.includes("the next scan shows it as") && !skill.includes("newest scan"))
+  T("github skill: step 8 re-marks a duplicate and asks the owner once otherwise",
     reasonRule("DUPLICATE").includes("ticket that survives") && !reasonRule("DUPLICATE").includes("scannedCommit") &&
     reasonRule("NOT_PLANNED").includes("never reopen the ticket and never write a new one") && reasonRule("NOT_PLANNED").includes("`/questions`") &&
     reasonRule("NOT_PLANNED").includes("action: reported") && !reasonRule("NOT_PLANNED").includes("scannedCommit"), closedAlertRule)
@@ -873,7 +942,7 @@ const fixMarkAndTicketReadCases = async () => {
     { action: "ticket", ticket: `https://github.com/thomasluizon/orbit-tickets/issues/${number}` }]))
   const alertOpen = Object.fromEntries(alertNumbers.map((_, index) => [`api code-scanning ${index}`,
     { key: `api code-scanning ${index}`, kind: "code-scanning", repository: "api" }]))
-  const alertClosure = await alertsWithClosedTickets({ open: alertOpen, marks: alertMarks }, { readTicketState, readNewestScan: async () => null })
+  const alertClosure = await alertsWithClosedTickets({ open: alertOpen, marks: alertMarks }, { readTicketState })
   T("github: an alert check keeps at most four carrying-ticket reads in flight and reads each ticket once",
     peak > 1 && peak <= 4 && reads.length === 29 && new Set(reads).size === 29 && alertClosure.failures.length === 0, JSON.stringify({ peak, reads: reads.length, failures: alertClosure.failures }))
   const shared = async (number) => {
@@ -897,6 +966,7 @@ export const cases = async () => {
   await liveRunCases(listings)
   exportCases()
   permissionCases(listings)
+  await alertKindCases()
   await closedTicketAlertWakeCases()
   await notPlannedAlertWakeCases()
   await missingTicketAlertCases()
