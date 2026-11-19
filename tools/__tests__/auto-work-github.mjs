@@ -475,6 +475,25 @@ const draftCases = async () => {
   const ready = recordListing("pullRequests", await listingOf(false), checkout, NO_OTHER_RUN)
   T("github: the same head is pending once the owner marks the pull request ready", ready.open["ui#2473"].head === OWNER_PULL.head &&
     pendingItems("pullRequests", ready).some((pull) => pull.key === "ui#2473"), JSON.stringify(ready.open["ui#2473"]))
+
+  /* The waiter: a draft is no wake key, so the run never wakes for it, and the ready pull request at the same head is a new key. */
+  let listing = await listingOf(true)
+  const check = { source: "pullRequests", run: pullRequestCheck({ list: async () => listing, readState: () => ({}), readIntakeMarks: () => ({}), readOtherRuns: noOtherRun }) }
+  let marks = { seen: { pullRequests: [] }, failures: {}, sentryListedAt: new Date(0).toISOString() }
+  const interval = async () => {
+    const evaluated = evaluateChecks([check], await Promise.allSettled([check.run()]), marks, 0)
+    marks = evaluated.marks
+    return evaluated.wakes
+  }
+  const whileDraft = await interval()
+  listing = await listingOf(false)
+  const markedReady = await interval()
+  const again = await interval()
+  const listed = (draft) => listedWakeKeys({ pullRequests: { open: { "ui#2473": { key: "ui#2473", head: OWNER_PULL.head, runOwned: false, draft } } } })
+  T("github: a draft wakes the waiter never, and the owner marking it ready wakes it once at the same head", whileDraft.length === 0 &&
+    JSON.stringify(markedReady) === JSON.stringify([{ source: "pullRequests", kind: "new", items: [`ui#2473 ${OWNER_PULL.head}`] }]) && again.length === 0 &&
+    JSON.stringify(listed(true)) === JSON.stringify({ pullRequests: [] }) && JSON.stringify(listed(false)) === JSON.stringify({ pullRequests: [`ui#2473 ${OWNER_PULL.head}`] }),
+  JSON.stringify({ whileDraft, markedReady, again, draftListed: listed(true) }))
 }
 
 /* The same failure wakes the model once: a read that fails keeps its seen keys, so its recovery is not new. */

@@ -262,6 +262,9 @@ export const otherLiveRuns = (state, { repoRoot = REPO_ROOT, sessions = liveSess
  */
 const pullRequestWakeKey = (pull, mark) => pull.unexpectedAuthor || mark?.action === "reported" ? pull.key : `${pull.key} ${pull.head}`
 
+/** A draft is no waiter key: the run never wakes for it, and the same head is a new key once the owner marks it ready. */
+const wakesForPullRequest = (pull) => pullRequestClass(pull) !== "draft"
+
 /**
  * Turns a listing into waiter keys; it rejects only when no read succeeded. `unreadPrefixes` holds the key prefix of
  * each failed read and `unreadKeys` the key of each withheld item, so the waiter keeps the seen keys that failure cannot confirm.
@@ -286,7 +289,7 @@ export const pullRequestCheck = ({ list, readState, readIntakeMarks, readOtherRu
   const otherRuns = readOtherRuns(state)
   const marks = readIntakeMarks()?.pullRequests?.marks ?? {}
   const keyOf = (pull) => pullRequestWakeKey(pull, marks[pull.key])
-  const checked = wakeKeys({ ...listing, items: listing.items.filter((pull) => !owned(pull) && !otherRuns.claims(pull)) }, keyOf, (read) => `${read.split(" ")[0]}#`)
+  const checked = wakeKeys({ ...listing, items: listing.items.filter((pull) => !owned(pull) && !otherRuns.claims(pull) && wakesForPullRequest(pull)) }, keyOf, (read) => `${read.split(" ")[0]}#`)
   if (!otherRuns.failure) return checked
   const withheld = listing.items.filter((pull) => !owned(pull) && otherRuns.claims(pull)).map(keyOf)
   return { keys: checked.keys, failure: [checked.failure, otherRuns.failure.message].filter(Boolean).join("; "),
@@ -318,7 +321,7 @@ export const alertCheck = ({ list, readIntakeMarks = () => ({}), readTicketState
 
 /** The keys the model listed in its last cycle, so the waiter does not wake for them again. */
 export const listedWakeKeys = (intake) => ({
-  ...(intake?.pullRequests?.open ? { pullRequests: Object.values(intake.pullRequests.open).filter((pull) => !pull.runOwned && !pull.otherRun)
+  ...(intake?.pullRequests?.open ? { pullRequests: Object.values(intake.pullRequests.open).filter((pull) => !pull.runOwned && !pull.otherRun && wakesForPullRequest(pull))
     .map((pull) => pullRequestWakeKey(pull, intake.pullRequests.marks?.[pull.key])) } : {}),
   ...(intake?.alerts?.open ? { alerts: [...Object.keys(intake.alerts.open), ...(intake.alerts.ticketClosed ?? [])] } : {}),
 })

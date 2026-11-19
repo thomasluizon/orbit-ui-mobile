@@ -181,8 +181,9 @@ file for the successor.
 
    A draft pull request is one the owner has not offered for review. It is never pending:
    never ask Pullfrog to review it, never write a fix ticket for it and never close it. The
-   tool refuses every mark for it. Once the owner marks it ready, the next `--collect` lists
-   it in `pending` at the same head.
+   tool refuses every mark for it, and the idle waiter has no key for it. Once the owner marks
+   it ready, the same head is a new waiter key, so the waiter wakes the run and the next
+   `--collect` lists it in `pending`.
 
    An owner pull request in `pending` that names an open ticket in its branch or its title
    already has its carrying ticket, and no live run drives it. Do not write a second ticket
