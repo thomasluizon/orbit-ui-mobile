@@ -369,7 +369,7 @@ export const registrationFingerprint = (state, newestByCheck) => JSON.stringify(
   [...newestByCheck].map(([key, { databaseId, ...node }]) => [key, node]).sort(([left], [right]) => left.localeCompare(right)),
 ])
 
-const findRegisteredCheck = (newest, required) => {
+export const findRegisteredCheck = (newest, required) => {
   for (const node of newest.values()) {
     if (contextOf(node) !== required.context) continue
     if (required.appId === null || node.appId === required.appId) return node

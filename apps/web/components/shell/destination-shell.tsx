@@ -222,7 +222,6 @@ function DestinationShellContent({
   const setLastDestination = useShellStore((state) => state.setLastDestination)
   const paletteHint = usePaletteHint()
   const destination = resolveShellDestination(pathname)
-  const todayFabPending = useUIStore((state) => state.todayFabPending)
   const chrome = resolveShellChrome(pathname, lastDestination)
   const activeId = notFoundVisible ? '' : chrome.activeId
   useEffect(() => {
@@ -369,7 +368,6 @@ function DestinationShellContent({
         fab={
           pathname === '/' && !todayFabHidden && !conversationOpen ? <ShellCreateFab onCreate={onCreate} refusal={createRefusal} /> : undefined
         }
-        fabPending={pathname === '/' && todayFabPending}
         tabViewTransition
       >
         <div id="orbit-main" className={DESTINATION_MAIN_CLASS_NAME}>{children}</div>

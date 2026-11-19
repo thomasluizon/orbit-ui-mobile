@@ -43,8 +43,8 @@ function ClearanceProbe() {
 }
 function CreateFab() { return <View testID="create-fab" style={{ width: 60, height: 60 }} /> }
 
-function shell({ fab = true, fabPending = false, astraButton = true } = {}) {
-  return <Shell412 astraButton={astraButton} header={<View style={{ height: 48 }} />} fab={fab ? <CreateFab /> : undefined} fabPending={fabPending}
+function shell({ fab = true, astraButton = true } = {}) {
+  return <Shell412 astraButton={astraButton} header={<View style={{ height: 48 }} />} fab={fab ? <CreateFab /> : undefined}
     tabBar={<View testID="tab-bar" style={{ height: 80 }} />}><ClearanceProbe /></Shell412>
 }
 
@@ -84,21 +84,6 @@ describe.each([412, 840])('the compact Astra button at %ipx', width => {
     const alone = measure(width).get('astra-button')!
     expect(hosts('create-fab')).toHaveLength(0)
     expect({ left: alone.left, top: alone.top }).toEqual({ left: stacked.left, top: stacked.top })
-  })
-
-  it('holds the create habit slot while that button is pending, so the conversation entry stays put when it arrives', async () => {
-    await mountShell(width, { fab: false, fabPending: true })
-    const pending = measure(width).get('astra-button')!
-    const clearance = clearances.at(-1)
-    const slots = hosts('shell-fab-pending').map(slot => ({ props: slot.props, interactive: slot.findAll(node => typeof node.props.onPress === 'function' || node.props.accessible === true || node.props.focusable === true).length }))
-    await act(() => tree.update(shell()))
-    await reportLayouts(width)
-    expect(measure(width).get('astra-button')).toEqual(pending)
-    expect(clearances.at(-1)).toBe(clearance)
-    expect(hosts('shell-fab-pending')).toHaveLength(0)
-    expect(slots).toHaveLength(1)
-    expect(slots[0]!.props).toMatchObject({ pointerEvents: 'none', accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' })
-    expect(slots[0]!.interactive).toBe(0)
   })
 
   it('keeps the last Hoje row clear of both stacked buttons and the tab bar', async () => {
