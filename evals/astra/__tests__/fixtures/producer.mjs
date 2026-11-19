@@ -101,6 +101,19 @@ export function preview(name = 'Cholesterol exam') {
     }] }
 }
 
+// Producer: orbit-api CreationFields gives a create preview one item for each habit of the held write, with one row for
+// each argument that holds a value, in the text that AgentArgumentPreview.FormatValue gives it, and a `sub_habits` row
+// with the child drafts as its proposedValue.
+export function createPreview(habits) {
+  const template = preview().items[0]
+  const shown = (value) => typeof value === 'boolean' ? (value ? 'True' : 'False') : String(value)
+  return { ...preview(), changeTargetCount: habits.length, items: habits.map((habit, index) => ({
+    ...template, itemId: String(index), entityName: habit.title,
+    fields: Object.entries(habit).filter(([field, value]) => value !== null && (field === 'sub_habits' || typeof value !== 'object'))
+      .map(([field, value]) => ({ ...template.fields[0], entityName: habit.title, field, valueType: 'text',
+        newValue: field === 'sub_habits' ? JSON.stringify(value) : shown(value), proposedValue: value })) })) }
+}
+
 // Producer fixture: #1754 ProcessUserChatCommandHandlerTests.Timing read turn.
 export function turnTiming() {
   const names = ['moderation', 'context_load', 'context_load', 'prompt_build', 'budget', 'budget',

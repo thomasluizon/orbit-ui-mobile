@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { parse } from 'yaml'
 import { describeCase, validateLatencySummary } from './latency.mjs'
 import { aggregate, writeReport } from './report.mjs'
 import { ATTEMPTS_PER_CASE } from './attempts.mjs'
+import { readCorpus } from './grade-method.mjs'
 
-export const descriptors = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
-  parse(readFileSync(new URL(path, import.meta.url), 'utf8')).map(describeCase))
+export const descriptors = readCorpus().map(describeCase)
 
 function windowEntry(entry, descriptor) {
   if (!descriptor) throw new Error('Unexpected case across windows.')

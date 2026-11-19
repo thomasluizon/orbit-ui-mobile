@@ -3,11 +3,10 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { assertions } from 'promptfoo'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
-import { structural, behavior, composition } from '../assertions.mjs'
-import parseResponse from '../response.mjs'
-import { visibleAnswer } from '../visible-answer.mjs'
+import { composition } from '../assertions.mjs'
+import { outcome, runOutcomeCase } from '../client-path.mjs'
 import { fixtureHabitTitles } from '../fixtures/names.mjs'
-import { chatResponse, toolCall } from './fixtures/producer.mjs'
+import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
 
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
@@ -21,7 +20,7 @@ function scenario(locale) {
 }
 
 // Producer: DailySummaryReadProjection, StatusCards and DailySummaryResponse.
-function dailyAnswer(test, prose = '') {
+async function dailyAnswer(test, prose = '', extra = {}) {
   const call = toolCall('get_daily_summary', { generate_narrative: true }, 'Succeeded', 'summary-call', test.vars.clientContext)
   const card = { date: test.vars.accountDate, dateTo: test.vars.accountDate, due: 12, done: 1,
     completionRate: 8, overdueCount: 0, currentStreak: 0, surfaceId: 'today', totalRows: 12,
@@ -29,20 +28,21 @@ function dailyAnswer(test, prose = '') {
       depth: ['Meals', 'Water'].includes(title) ? 0 : 1, isBadHabit: false, status: title === 'Breakfast' ? 'done' : 'today' })) }
   call.result.payload = { summary: prose, insight: '', fromCache: false, readCard: card, sourceRevision: 'fixture-revision' }
   const response = { ...chatResponse(test.vars.evalRequestId, [call]), aiMessage: prose,
-    parts: [...(prose ? [{ type: 'text', text: prose }] : []), { type: 'block', kind: 'daySummary', block: card }] }
-  return parseResponse(response, '', { response: { status: 200, headers: { 'x-orbit-request-id': test.vars.evalRequestId } } })
+    parts: [...(prose ? [{ type: 'text', text: prose }] : []), { type: 'block', kind: 'daySummary', block: card }], ...extra }
+  const requestId = test.vars.evalRequestId
+  const trace = { requestId, timing: response.evalTrace.timing, modelCalls: 1,
+    calls: [{ id: call.id, name: call.name, arguments: call.arguments, resultStatus: call.status, result: call.result }] }
+  return (await runOutcomeCase(test.vars, { send: async () => ({ kind: 'final', response, requestId, responseRequestId: requestId, trace }) })).output
 }
 
-it.each(['en', 'pt-BR'])('grades %s sentence-first next steps through the existing tool, composition and rubric helpers', async (locale) => {
+it.each(['en', 'pt-BR'])('grades %s sentence-first next steps through the outcome, composition and rubric helpers', async (locale) => {
   const test = scenario(locale)
   const prose = locale === 'en' ? 'Your lunch is the next step because it is the earliest pending meal.'
     : 'Seu almoço é o próximo passo por ser a primeira refeição pendente.'
-  const output = dailyAnswer(test, prose)
-  expect((await structural(output, { vars: test.vars, test })).pass).toBe(true)
-  expect(behavior(output, { vars: test.vars }).pass).toBe(true)
+  const output = await dailyAnswer(test, prose)
+  expect(outcome(output, { vars: test.vars })).toMatchObject({ pass: true, reason: 'The read turn held no preview and no card.' })
   expect(composition(output, { vars: test.vars }).pass).toBe(true)
-  expect(composition(dailyAnswer(test), { vars: test.vars }).pass).toBe(true)
-  output.answer = visibleAnswer(output.composition, test.vars.clientContext)
+  expect(composition(await dailyAnswer(test), { vars: test.vars }).pass).toBe(true)
   const grader = { id: () => 'offline-hoje-rubric', callApi: vi.fn(async () => ({
     output: JSON.stringify({ pass: true, score: 1, reason: 'Captured rubric routing only.' }),
   })) }
@@ -62,16 +62,8 @@ it.each(['en', 'pt-BR'])('grades %s sentence-first next steps through the existi
   }
 })
 
-it.each(['missing-tool', 'facts-only', 'failed-tool', 'wrong-request', 'write'])('rejects %s evidence for the next-step case', (mode) => {
+it('rejects a held change for the next-step case', async () => {
   const test = scenario('en')
-  const output = dailyAnswer(test)
-  if (mode === 'missing-tool') output.trace.calls = []
-  if (mode === 'facts-only') output.trace.calls[0].arguments.generate_narrative = false
-  if (mode === 'failed-tool') output.trace.calls[0].resultStatus = 'Failed'
-  if (mode === 'wrong-request') test.vars.evalRequestId = 'another-request'
-  if (mode === 'write') {
-    const call = toolCall('log_habit', { habit_id: 'lunch' }, 'PendingConfirmation', 'write-call', test.vars.clientContext)
-    output.trace.calls.push({ ...call, resultStatus: call.status })
-  }
-  expect(behavior(output, { vars: test.vars }).pass).toBe(false)
+  const output = await dailyAnswer(test, '', { pendingOperations: [preview('Lunch')] })
+  expect(outcome(output, { vars: test.vars })).toMatchObject({ pass: false, reason: 'The read request held a preview of a change.' })
 })

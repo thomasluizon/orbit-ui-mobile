@@ -15,6 +15,8 @@ import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 import { requireCatalogCommit } from './trace-policy.mjs'
 import { requireGrader } from './grader-preflight.mjs'
+import { gradedByOutcome } from './grade-method.mjs'
+import { fixtureRecords } from './core/hooks.mjs'
 
 const { buildChatClientContext } = await tsImport('../../packages/shared/src/chat/client-context.ts', import.meta.url)
 
@@ -101,7 +103,7 @@ async function prepareAttempt(test) {
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
   const windowKey = `${test.vars.credentialKey}:${test.metadata.id}:${today}`
   const needsFreshWindow = test.vars.preconditions?.freshFreeDailyWindow === true
-  const retrospective = await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true,
+  await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true,
     needsFreshWindow && !freshFreeWindows.has(windowKey))
   if (needsFreshWindow) freshFreeWindows.add(windowKey)
   await seedOfferFixture(test, test.vars.accountDate)
@@ -140,9 +142,6 @@ async function prepareAttempt(test) {
     return value
   }
   test.vars = substitute(test.vars)
-  if (test.metadata.fixture === 'composition-stale' && test.vars.expectations?.required?.[0]) {
-    test.vars.expectations.required[0].result = { payload: retrospective }
-  }
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
   if (test.vars.clientContext.supportsParts === true) {
     test.vars.clientContext = { ...buildChatClientContext({ platform: test.metadata.platform ?? 'web',
@@ -152,6 +151,7 @@ async function prepareAttempt(test) {
   test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
   test.vars.historyJson = JSON.stringify(test.vars.history ?? [])
   test.vars.evalRequestId = randomUUID()
+  if (gradedByOutcome(test.vars)) test.vars.records = fixtureRecords(test.vars, substitutions)
   return test.vars.setup ? prepareCorrection(test) : { test }
 }
 

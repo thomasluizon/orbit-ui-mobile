@@ -10,9 +10,13 @@ const tally = (changes) => Object.entries(Object.groupBy(changes, (change) => ch
   .map(([kind, members]) => `${kind} ${members.length}`).join(', ') || 'no change'
 
 // The value a field must take: an exact string, a text that holds one of several words, a date counted from the
-// account date, a month and day in any year, or a clock time to the minute.
+// account date, a month and day in any year, a clock time to the minute, one of several exact strings, or an absent
+// field that otherwise holds the value of the inner expectation. A preview has no row for an argument that the model
+// omitted, so an `optional` field passes when it is absent.
 export function matchesField(expected, value, accountDate) {
   if (typeof expected === 'string') return value === expected
+  if (expected.optional !== undefined) return value == null || matchesField(expected.optional, value, accountDate)
+  if (expected.oneOf) return expected.oneOf.includes(value)
   if (expected.contains) return expected.contains.some((text) => normalize(value).includes(normalize(text)))
   if (expected.daysFromToday !== undefined) return value === dateOffset(accountDate, expected.daysFromToday)
   if (expected.monthDay) return /^\d{4}-\d{2}-\d{2}$/u.test(value ?? '') && value.slice(5) === expected.monthDay
@@ -76,7 +80,7 @@ function compareChanges(expected, actual, { records, accountDate }, answered) {
     const wanted = change.targets ? expectedTargets(change.targets, records, answered) : null
     const pool = wanted?.ids ?? wanted?.among
     const held = wanted ? remaining.filter((candidate) => candidate.kind === change.kind && pool.includes(candidate.target))
-      : remaining.filter((candidate) => candidate.kind === 'create' && !fieldFailure(change, candidate, accountDate)).slice(0, 1)
+      : remaining.filter((candidate) => candidate.kind === change.kind && !fieldFailure(change, candidate, accountDate)).slice(0, 1)
     const ids = held.map((candidate) => candidate.target)
     if (wanted ? (wanted.ids ? !sameMembers(ids, wanted.ids) : ids.length !== wanted.count) : !held.length) {
       return { failure: `The preview does not ${change.kind} exactly the records of the request. ${needs}` }
@@ -96,13 +100,24 @@ function withinRange(count, range, fallback) {
   return count >= min && count <= max
 }
 
+// A request that the server must refuse: the turn ends with the HTTP status and the error code of the case.
+function gradeRefusal(output, vars) {
+  const wanted = `HTTP ${vars.expectedHttpStatus} (${vars.expectedErrorCode})`
+  if (!output.refused) return verdict(false, output.error ?? `The request must be refused with ${wanted}, and the assistant answered it.`)
+  const { status, code } = output.refused
+  return status === vars.expectedHttpStatus && code === vars.expectedErrorCode ? verdict(true, `The request was refused with ${wanted}.`)
+    : verdict(false, `The request was refused with HTTP ${status} (${code}); the case expects ${wanted}.`)
+}
+
 // The outcome of the turns before any approval: the questions that came before the preview, and the change list of the
-// held previews against the expected list. A read turn holds no preview and no card that asks the person. A preview that the grader
-// cannot classify is a limit of the grader and no verdict on the assistant.
+// held previews against the expected list. A read turn holds no preview and no card that asks the person. A turn that
+// must end in a question holds a card that asks and no preview. A refusal is the status and the code of the case and no
+// answer. A preview that the grader cannot classify is a limit of the grader and no verdict on the assistant.
 export function gradePreview(output, vars) {
   if (output.unavailable) return verdict(false, output.error ?? 'The chat turn gave no evidence.', { unavailable: true })
-  if (output.error) return verdict(false, output.error)
   const { expected } = vars.core
+  if (expected.refusal) return gradeRefusal(output, vars)
+  if (output.error) return verdict(false, output.error)
   const questions = output.questionsBeforePreview
   const previews = output.previews ?? []
   if (expected.read) {
@@ -110,13 +125,18 @@ export function gradePreview(output, vars) {
     return output.asked ? verdict(false, 'The read request ended in a card that asks the person to act.')
       : verdict(true, 'The read turn held no preview and no card.')
   }
+  if (expected.question) {
+    if (previews.length) return verdict(false, 'The request must end in a question, and the reply held a preview of a change.')
+    return output.asked ? verdict(true, 'The turn ended in a question card and held no preview.')
+      : verdict(false, 'The request must end in a question card, and the reply shows none.')
+  }
   const { min = 0, max = 0 } = expected.questions ?? {}
   if (questions > max) return verdict(false, `The assistant asked ${questions} time(s) before a preview; the request allows ${max}.`)
   if (output.answerFailure) return verdict(false, output.answerFailure, output.graderLimit ? { graderLimit: true } : {})
   if (!previews.length) return verdict(false, `No preview came after ${questions} question(s).`)
   if (questions < min) return verdict(false, 'The assistant held a change without the question that the request needs.')
   if (!withinRange(previews.length, expected.previews, 1)) return verdict(false, `The request is held in ${previews.length} previews.`)
-  const { changes, unclassified } = changeList(previews, output.written ?? null)
+  const { changes, unclassified } = changeList(previews, output.written ?? null, { nestedCreates: vars.core.nestedCreates === true })
   if (unclassified.length) {
     return verdict(false, `The grader cannot classify a held preview: ${unclassified.join(', ')}.`, { graderLimit: true })
   }

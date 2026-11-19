@@ -130,26 +130,24 @@ it('preserves localized achievement names for Portuguese clients', () => {
 })
 
 it.each(['Failed', 'Succeeded', 'NotExecuted'])('reports an out-of-scope tool as called with its %s status', (status) => {
-  const test = scenario('goals', 'pt-BR')
+  const expectations = { required: [{ name: 'query_goals', arguments: {} }], allowed: ['query_habits', 'query_goals', 'review_goals'] }
   const call = toolCall('ask', recorded.rejectedCall.arguments, status)
   if (status === 'Failed') call.result.error = recorded.rejectedCall.result.error
   const output = parseResponse(chatResponse('request', [call]), '', { response: { headers: { 'x-orbit-request-id': 'request' } } })
-  expect(behavior(output, { vars: { ...test.vars, evalRequestId: 'request' } })).toMatchObject({
+  expect(behavior(output, { vars: { expectations, evalRequestId: 'request' } })).toMatchObject({
     pass: false, reason: `A tool was called outside the allowed set: ask (${status}).`,
   })
 })
 
-it.each(['en', 'pt-BR'])('rejects an extra goals block independently of the tool allow-list in %s', (locale) => {
+it.each(['en', 'pt-BR'])('rejects an extra goals block in %s', (locale) => {
   const test = scenario('goals', locale)
   const clientContext = buildChatClientContext({ platform: 'web', locale })
   const response = { ...chatResponse('request', [toolCall('query_goals', {})]), aiMessage: '',
     parts: [{ type: 'block', kind: 'goalList', block: { items: [] } }] }
   const output = parseResponse(response, '', { response: { headers: { 'x-orbit-request-id': 'request' } } })
   const context = { vars: { ...test.vars, clientContext, evalRequestId: 'request' } }
-  expect(behavior(output, context).pass).toBe(true)
   expect(composition(output, context).pass).toBe(true)
   output.composition.parts.unshift(structuredClone(habitBlock))
-  expect(behavior(output, context).pass).toBe(true)
   expect(composition(output, context)).toMatchObject({ pass: false, reason: 'Block kind outside the expected set: habitList.' })
   output.composition.parts[0] = { type: 'block', kind: 'habitMonth', block: habitMonthFixture }
   expect(composition(output, context).pass).toBe(false)
