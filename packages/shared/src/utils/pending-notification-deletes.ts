@@ -20,16 +20,27 @@ const activeDeleteAttempts = new Map<string, symbol>()
 const subscribers = new Set<() => void>()
 let pendingDeleteSnapshot: string[] = []
 let failedDeleteSnapshot: string[] = []
-let visiblePendingDeleteSnapshot: string[] = []
-const dismissedPendingDeleteNotices = new Set<string>()
+let noticePendingId: string | null = null
+let noticeSnapshot: NotificationDeleteNotice | null = null
+
+/**
+ * The one delete toast the shell shows. A pending undo outranks a failed retry, because the undo
+ * window is short. A newer delete takes the toast and an older delete never gets it back.
+ */
+export type NotificationDeleteNotice = { kind: 'pending' | 'failed'; id: string }
+
+function resolveNotice(): NotificationDeleteNotice | null {
+  if (noticePendingId) return { kind: 'pending', id: noticePendingId }
+  const [failedId] = failedDeleteEntries.keys()
+  return failedId === undefined ? null : { kind: 'failed', id: failedId }
+}
 
 function syncPendingDeleteSnapshot(): void {
+  if (noticePendingId && !pendingDeleteEntries.has(noticePendingId)) noticePendingId = null
   pendingDeleteSnapshot = Array.from(pendingDeleteEntries.keys())
   failedDeleteSnapshot = Array.from(failedDeleteEntries.keys())
-  for (const id of dismissedPendingDeleteNotices) {
-    if (!pendingDeleteEntries.has(id)) dismissedPendingDeleteNotices.delete(id)
-  }
-  visiblePendingDeleteSnapshot = pendingDeleteSnapshot.filter((id) => !dismissedPendingDeleteNotices.has(id))
+  const notice = resolveNotice()
+  if (notice?.kind !== noticeSnapshot?.kind || notice?.id !== noticeSnapshot?.id) noticeSnapshot = notice
 }
 
 function emitPendingDeleteChange(): void {
@@ -52,18 +63,20 @@ export function getPendingNotificationDeleteIdsSnapshot(): string[] {
   return pendingDeleteSnapshot
 }
 
-export function getVisiblePendingNotificationDeleteIdsSnapshot(): string[] {
-  return visiblePendingDeleteSnapshot
+/** Returns the one delete toast to show, or null, as a stable snapshot. */
+export function getNotificationDeleteNoticeSnapshot(): NotificationDeleteNotice | null {
+  return noticeSnapshot
 }
 
 export function dismissPendingNotificationDeleteNotice(notificationId: string): void {
-  dismissedPendingDeleteNotices.add(notificationId)
+  if (noticePendingId !== notificationId) return
+  noticePendingId = null
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
 }
 
 export function dismissNotificationDeleteNotices(): void {
-  for (const id of pendingDeleteEntries.keys()) dismissedPendingDeleteNotices.add(id)
+  noticePendingId = null
   failedDeleteEntries.clear()
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
@@ -83,6 +96,7 @@ function takeFailedDelete(notificationId: string): PendingDeleteExecutor | null 
 }
 
 function reportFailedDelete(notificationId: string, execute: PendingDeleteExecutor): void {
+  failedDeleteEntries.clear()
   failedDeleteEntries.set(notificationId, execute)
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
@@ -109,7 +123,6 @@ export function queuePendingNotificationDelete(notificationId: string, execute: 
   }
 
   takeFailedDelete(notificationId)
-  dismissedPendingDeleteNotices.delete(notificationId)
   activeDeleteAttempts.delete(notificationId)
 
   const timer = setTimeout(() => {
@@ -134,6 +147,7 @@ export function queuePendingNotificationDelete(notificationId: string, execute: 
   }, PENDING_DELETE_DELAY_MS)
 
   pendingDeleteEntries.set(notificationId, { execute, timer })
+  noticePendingId = notificationId
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
   return true

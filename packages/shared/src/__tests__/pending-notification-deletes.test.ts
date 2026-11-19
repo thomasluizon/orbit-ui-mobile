@@ -5,7 +5,9 @@ import {
   clearFailedNotificationDeletes,
   dismissFailedNotificationDelete,
   dismissNotificationDeleteNotices,
+  dismissPendingNotificationDeleteNotice,
   getFailedNotificationDeleteIdsSnapshot,
+  getNotificationDeleteNoticeSnapshot,
   getPendingNotificationDeleteIdsSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
@@ -223,6 +225,40 @@ describe('pending notification deletes', () => {
     await Promise.resolve()
     await Promise.resolve()
     expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['in-flight'])
+  })
+
+  it('offers one notice that follows the newest delete and never returns an older one', () => {
+    queuePendingNotificationDelete('first', vi.fn())
+    queuePendingNotificationDelete('second', vi.fn())
+    queuePendingNotificationDelete('third', vi.fn())
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'third' })
+    expect(getNotificationDeleteNoticeSnapshot()).toBe(getNotificationDeleteNoticeSnapshot())
+
+    cancelPendingNotificationDelete('third')
+    expect(getNotificationDeleteNoticeSnapshot()).toBeNull()
+    expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['first', 'second'])
+  })
+
+  it('ignores a dismissal for a delete that no longer owns the notice', () => {
+    queuePendingNotificationDelete('first', vi.fn())
+    queuePendingNotificationDelete('second', vi.fn())
+    dismissPendingNotificationDeleteNotice('first')
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'second' })
+    dismissPendingNotificationDeleteNotice('second')
+    expect(getNotificationDeleteNoticeSnapshot()).toBeNull()
+  })
+
+  it('keeps only the newest failed delete and shows it after the pending notice ends', () => {
+    queuePendingNotificationDelete('first', () => { throw new Error('boom') })
+    queuePendingNotificationDelete('second', () => { throw new Error('boom') })
+    vi.advanceTimersByTime(5000)
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['second'])
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'second' })
+
+    queuePendingNotificationDelete('third', vi.fn())
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'third' })
+    cancelPendingNotificationDelete('third')
+    expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'failed', id: 'second' })
   })
 
 })

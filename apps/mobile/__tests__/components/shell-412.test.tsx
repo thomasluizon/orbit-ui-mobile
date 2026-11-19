@@ -53,7 +53,7 @@ function LongScrollSurface() {
 }
 
 describe('Shell412 mobile', () => {
-  it.each([1, 2, 3])('spaces %i queued delete notices at the shell owner', async (count) => {
+  it.each([1, 2, 3])('shows one delete notice after %i queued deletes at the shell owner', async (count) => {
     vi.useFakeTimers()
     let tree!: ReactTestRenderer
     try {
@@ -62,7 +62,7 @@ describe('Shell412 mobile', () => {
         tree = TestRenderer.create(<Shell412 nav={false} notice={<NotificationDeleteNotice />} />)
       })
       const slot = findByTestId(tree, 'shell-notice')[0]!
-      expect(slot.findAllByType(Toast)).toHaveLength(count)
+      expect(slot.findAllByType(Toast)).toHaveLength(1)
       expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ paddingHorizontal: 16 })
       expect(StyleSheet.flatten(findByTestId(tree, 'shell-notice-content')[0]!.props.style)).toMatchObject({ gap: 12 })
     } finally {
@@ -72,7 +72,7 @@ describe('Shell412 mobile', () => {
     }
   })
 
-  it('spaces a failed delete beside a pending delete', async () => {
+  it('shows the pending delete alone when a failed delete waits', async () => {
     vi.useFakeTimers()
     let tree!: ReactTestRenderer
     try {
@@ -83,9 +83,7 @@ describe('Shell412 mobile', () => {
         tree = TestRenderer.create(<Shell412 nav={false} notice={<NotificationDeleteNotice />} />)
       })
       const slot = findByTestId(tree, 'shell-notice')[0]!
-      expect(slot.findAllByType(Toast).map(toast => toast.props.message)).toEqual([
-        'notifications.deleteQueued', 'notifications.deleteError',
-      ])
+      expect(slot.findAllByType(Toast).map(toast => toast.props.message)).toEqual(['notifications.deleteQueued'])
       expect(StyleSheet.flatten(findByTestId(tree, 'shell-notice-content')[0]!.props.style)).toMatchObject({ gap: 12 })
     } finally {
       await TestRenderer.act(() => tree.unmount())
