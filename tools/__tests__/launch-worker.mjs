@@ -16,7 +16,7 @@ const TOOL = "launch-worker.mjs"
  * agree with a guess about the schema while the real config carries something else. `command` is swapped,
  * because `claude` is not installed in CI, and `launchGate` is always HERMETIC_LAUNCH_GATE.
  */
-const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
+export const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
   const real = realOrchestratorConfig()
   return {
     ...real,
@@ -27,7 +27,7 @@ const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
   }
 }
 
-const stubEngine = (script) => ({
+export const stubEngine = (script) => ({
   engine: {
     args: [script],
     models: {
@@ -54,13 +54,13 @@ const stagedSiblings = (config) => {
   return siblingRepos
 }
 
-const launch = (label, config) => {
+export const launch = (label, config) => {
   const repo = stageRepo(`launch-worker-${label}`)
   if (!repo) return null
   repo.git(["remote", "set-url", "origin", `https://github.com/test-owner/${label}.git`])
   const configured = { ...config, repos: { ...config.repos, ...stagedSiblings(config), [config.cloud.repositoryKey]: repo.path } }
   const staged = stageWithConfig(`launch-worker-${label}`, TOOL, configured)
-  return { ...staged, worktree: repo.path, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, sealOrder("the work order, verbatim\n")) }
+  return { ...staged, worktree: repo.path, origin: repo.origin, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, sealOrder("the work order, verbatim\n")) }
 }
 
 /** A review fix worker that writes its one commit and exits. */
@@ -148,8 +148,10 @@ const fixRoundCases = () => {
   )
 }
 
-const githubAuthEnv = ({ branchPulls = [], pulls = [], queuedRuns = 0, readError = false } = {}) => orcaEnv([
+export const githubAuthEnv = ({ branchPulls = [], pulls = [], queuedRuns = 0, readError = false } = {}) => orcaEnv([
   { match: "auth token --user test-owner", stdout: "test-github-token" },
+  // gh prints the bare login and a newline for `gh api user --jq .login`, observed with the installed gh 2.101.0.
+  { match: "api user --jq .login", stdout: "test-owner\n" },
   { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: queuedRuns, workflow_runs: [] }), exit: readError ? 1 : 0, stderr: readError ? "GitHub unavailable" : "" },
   { match: "pulls?head=", stdout: JSON.stringify(branchPulls) },
   ...Array.from({ length: Math.floor(pulls.length / 100) + 1 }, (_, page) => ({
@@ -297,7 +299,7 @@ const accountStub = (label, { workerOutput, mainOutput = "" }) => {
   return { script, runs }
 }
 
-const discardAttemptLogs = (stdout) => {
+export const discardAttemptLogs = (stdout) => {
   try {
     for (const attempt of JSON.parse(stdout).attempts ?? []) rmSync(attempt.logFile, { force: true })
   } catch { /* a launch that printed no result has no attempt logs to remove */ }

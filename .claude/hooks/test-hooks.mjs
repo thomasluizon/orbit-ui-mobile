@@ -19,11 +19,12 @@ import { checkHandoffCommit, checkHandoffStop, gitCommitChains } from "./_lib/ru
 import { newestCommittedPrompt, promptsForCommit, specsForCommit, topLevelOf } from "./_lib/handoff-git.mjs"
 import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
-import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
+import { checkReadOnlyRun, checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { PERSON_PROMPT_TOOLS, REMOVAL_CHECK_TOOLS, REMOVAL_RULES, checkApprovalPrompt, checkPersonPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
 import { additionalWorkingDirectories } from "./_lib/working-directories.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
+import { proofOrder, reviewOrder } from "../../tools/lib/review-run.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
 import { takeCleanupLock } from "../../tools/lib/stale-files.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
@@ -996,6 +997,8 @@ for (const [shape, command] of descriptorSafetyRefusals) {
 T("engine: codex exec blocks", blocks(engine('codex exec "do the thing"')), true)
 T("engine: the research launcher allows", engine("node tools/launch-worker.mjs --research --order order.md --out findings.md"), null)
 T("engine: a raw engine after the research launcher blocks", blocks(engine("node tools/launch-worker.mjs --research --order order.md --out findings.md && codex exec")), true)
+T("engine: the review launcher allows", engine("node tools/launch-worker.mjs --review --order order.md --out result.md --directory /tmp/review-head"), null)
+T("engine: the refusal names the review and proof launcher", /launch-worker\.mjs --review` or\s+`--proof`/.test(engine("claude -p review this")?.message ?? ""), true)
 T("engine: cloud execution still blocks", blocks(engine("codex cloud exec")), true)
 T("engine: bare claude blocks", blocks(engine("claude")), true)
 T("engine: claude -p blocks", blocks(engine('claude -p "summarize"')), true)
@@ -1149,7 +1152,496 @@ for (const command of ["npm run dev", "next dev --port 3920", "pnpm dev", "expo 
   T(`worker-browser: ${command} blocks`, blocks(worker(command)), true)
 }
 T("worker-browser: the refusal says who owes the visual check", worker("npm run dev")?.message.includes("owed by a HUMAN"), true)
+// `xcrun simctl` drives a simulator as `adb` drives an emulator, so only a device proof may run it (thread eIVK).
+for (const [kind, env] of [["ticket", { ORBIT_LAUNCH_WORKER: "1" }], ["review", { ORBIT_LAUNCH_WORKER: "1", ORBIT_READ_ONLY_RUN: "1" }]]) {
+  for (const command of ["xcrun simctl boot 'iPhone 17'", "xcrun simctl erase all", "xcrun simctl io booted screenshot /tmp/a.png"]) {
+    T(`worker-browser: a ${kind} worker may not run ${command} (thread eIVK)`, blocks(checkWorkerBrowser(command, { env, cwd: repoRoot, repoRoots: [] })), true)
+  }
+}
+// A device proof worker (launch-worker.mjs --proof) drives a device, but never the owner's emulator,
+// and every other worker ban still holds for it.
+const PROOF_PIN = { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "1", ANDROID_SERIAL: "emulator-5594", ORBIT_PROOF_EMULATOR_PORT: "5594" }
+// A command that the reader of `shell-subset.mjs` cannot model is refused in a proof: nothing proves what it does to the pinned device.
+const PROOF_REFUSAL = /pinned device emulator-5594|cannot inspect in a device proof/
+const proofWorker = (command, env = PROOF_PIN) => checkWorkerBrowser(command, { env, cwd: repoRoot, repoRoots: [] })
+for (const command of ["adb shell input tap 1 1", "adb -s emulator-5594 shell input swipe 1 1 9 9 600", "adb devices", "emulator -avd orbit-proof-5594 -port 5594 -no-window", "node tools/android-emulator.mjs --avd orbit-proof-5594 --port 5594", "node tools/android-emulator.mjs --status --avd orbit-proof-5594", "ANDROID_SERIAL=emulator-5594 adb install app.apk", "xcrun simctl boot 'iPhone 17'"]) {
+  T(`worker-browser: a device proof may run ${command}`, proofWorker(command), null)
+}
+for (const command of ["emulator -avd Orbit_Pixel_9_API_35", "emulator @Orbit_Pixel_9_API_35 -no-window", "node tools/android-emulator.mjs", "node tools/android-emulator.mjs --status && adb devices"]) {
+  T(`worker-browser: a device proof may not reach the owner's emulator: ${command}`, /may boot only its throwaway AVD orbit-proof-5594, never the owner's emulator Orbit_Pixel_9_API_35/.test(proofWorker(command)?.message ?? ""), true)
+}
+// The launcher pins the proof's own serial; adb reaches any running emulator by serial, so each other one is refused.
+for (const command of [
+  "adb -s emulator-5554 shell pm clear org.useorbit.app",
+  "ANDROID_SERIAL=emulator-5554 adb shell input tap 1 1",
+  "adb -e install app.apk",
+  "adb -d shell input tap 1 1",
+  "adb -t 1 shell input tap 1 1",
+  "adb -H 127.0.0.1 -P 5038 devices",
+  "env ANDROID_SERIAL=emulator-5554 adb shell input tap 1 1",
+  "unset ANDROID_SERIAL; adb install app.apk",
+  "export ANDROID_SERIAL=emulator-5554",
+  "emulator -avd orbit-proof-5594 -no-window",
+  "emulator -avd orbit-proof-5594 -port 5554",
+  "node tools/android-emulator.mjs --avd orbit-proof-5594",
+  "node tools/android-emulator.mjs --avd orbit-proof-5594 --port 5554",
+]) {
+  T(`worker-browser: a device proof may not leave its pinned device: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+// The shell expands a variable after the hook reads the command, so the hook reads each pinned variable
+// reference as its pinned value. Both spellings of each command pass: the literal value and the variable.
+for (const command of [
+  "node tools/android-emulator.mjs --avd orbit-proof-5594 --port $ORBIT_PROOF_EMULATOR_PORT",
+  'node tools/android-emulator.mjs --avd orbit-proof-5594 --port "${ORBIT_PROOF_EMULATOR_PORT}"',
+  "node tools/android-emulator.mjs --avd orbit-proof-5594 --port=$ORBIT_PROOF_EMULATOR_PORT",
+  "node /launcher/checkout/tools/android-emulator.mjs --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT",
+  "emulator -avd orbit-proof-5594 -port $ORBIT_PROOF_EMULATOR_PORT -no-window",
+  "adb -s $ANDROID_SERIAL install app.apk",
+  'adb -s "$ANDROID_SERIAL" shell input tap 1 1',
+  "adb -s ${ANDROID_SERIAL} shell input tap 1 1",
+  "ORBIT_PROOF_EMULATOR_PORT=5594 node tools/android-emulator.mjs --avd orbit-proof-5594 --port $ORBIT_PROOF_EMULATOR_PORT",
+]) {
+  T(`worker-browser: a device proof may run the variable spelling ${command}`, proofWorker(command), null)
+}
+for (const command of [
+  "export ORBIT_PROOF_EMULATOR_PORT=5554",
+  "ORBIT_PROOF_EMULATOR_PORT=5554 node tools/android-emulator.mjs --avd orbit-proof-5594 --port $ORBIT_PROOF_EMULATOR_PORT",
+  "unset ORBIT_PROOF_EMULATOR_PORT; node tools/android-emulator.mjs --avd orbit-proof-5594 --port 5594",
+  "env -u ORBIT_PROOF_EMULATOR_PORT node tools/android-emulator.mjs --avd orbit-proof-5594 --port 5594",
+  "env -u ANDROID_SERIAL adb install app.apk",
+  "node tools/android-emulator.mjs --avd orbit-proof-5594 --port $OTHER_PORT",
+  "node tools/android-emulator.mjs --avd orbit-proof-5594 --port $ORBIT_PROOF_EMULATOR_PORT_OTHER",
+  "adb -s $OTHER_SERIAL install app.apk",
+  "adb -s $ORBIT_PROOF_EMULATOR_PORT install app.apk",
+  "adb -s $(adb devices | tail -1) install app.apk",
+]) {
+  T(`worker-browser: a device proof may not move its pinned variables or name another: ${command}`, PROOF_REFUSAL.test(proofWorker(command)?.message ?? ""), true)
+}
+// A shell wrapper cannot hide a device command from the pin (thread E8EM): the hook reads each unwrapped body.
+for (const command of [
+  "bash -c 'adb -s emulator-5554 shell pm clear org.useorbit.app'",
+  'sh -c "adb -e install app.apk"',
+  "eval adb -s emulator-5554 install app.apk",
+  "echo $(adb -s emulator-5554 shell pm clear org.useorbit.app)",
+  "echo `adb -s emulator-5554 shell pm clear org.useorbit.app`",
+  "bash -c \"bash -c 'adb -s emulator-5554 install app.apk'\"",
+]) {
+  T(`worker-browser: a device proof may not hide a command in a wrapper: ${command}`, PROOF_REFUSAL.test(proofWorker(command)?.message ?? ""), true)
+}
+// A reserved word or an exec-style prefix before the program cannot hide it from the pin (thread Go0p).
+for (const command of [
+  "for d in $(adb devices | awk 'NR>1{print $1}'); do adb -s $d shell pm clear org.useorbit.app; done",
+  "if true; then adb -s emulator-5554 install app.apk; fi",
+  "while read d; do adb -s \"$d\" install app.apk; done < devices.txt",
+  "until false; do adb -s emulator-5554 install app.apk; done",
+  "true && { adb -s emulator-5554 install app.apk; }",
+  "exec adb -s emulator-5554 install app.apk",
+  "nohup adb -s emulator-5554 install app.apk",
+  "nice -n 5 adb -s emulator-5554 install app.apk",
+  "timeout 30 adb -s emulator-5554 install app.apk",
+  "timeout -s KILL -k 5 30 adb -s emulator-5554 install app.apk",
+  "echo emulator-5554 | xargs -n 1 adb -s emulator-5554 install app.apk",
+  "echo app.apk | xargs -I {} adb -e install {}",
+  "if true; then exec timeout 30 nohup adb -d install app.apk; fi",
+  "env -i adb install app.apk",
+  "env -i ANDROID_SERIAL=emulator-5594 adb install app.apk",
+  "env --ignore-environment adb install app.apk",
+  "env - adb install app.apk",
+  "export -n ANDROID_SERIAL; adb install app.apk",
+  "declare +x ANDROID_SERIAL; adb install app.apk",
+  "typeset +x ORBIT_PROOF_EMULATOR_PORT",
+]) {
+  T(`worker-browser: a device proof may not hide a device command behind a prefix or clear a pin: ${command}`, PROOF_REFUSAL.test(proofWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "for f in a.apk; do adb -s $ANDROID_SERIAL install $f; done",
+  "if true; then adb -s emulator-5594 install app.apk; fi",
+  "exec adb -s emulator-5594 install app.apk",
+  "timeout 30 adb -s $ANDROID_SERIAL install app.apk",
+  "export ANDROID_SERIAL=emulator-5594",
+]) {
+  T(`worker-browser: a device proof may run the pinned form behind a prefix: ${command}`, proofWorker(command), null)
+}
+// A form that the reader refuses stays refused, also when its words are the pinned ones: the proof order gives plain commands.
+for (const command of [
+  "bash -c 'adb -s emulator-5594 shell input tap 1 1'",
+  "env -u OTHER adb -s emulator-5594 install app.apk",
+  "export -n OTHER_VARIABLE",
+]) {
+  T(`worker-browser: a device proof refuses a command outside the subset: ${command}`, /cannot inspect in a device proof/.test(proofWorker(command)?.message ?? ""), true)
+}
+// A wrapper that the reader passes through cannot hide a device flag or a pin change from the pin (thread JOZ-).
+for (const wrapper of ["stdbuf -oL", "setsid", "ionice -c 3", "noglob", "nice -n 5", "time", "command", "timeout 30", "env A=1"]) {
+  T(`worker-browser: a device proof may not hide a serial behind ${wrapper}`, /pinned device emulator-5594/.test(proofWorker(`${wrapper} adb -s emulator-5554 install app.apk`)?.message ?? ""), true)
+  T(`worker-browser: a device proof may run the pinned serial behind ${wrapper}`, proofWorker(`${wrapper} adb -s $ANDROID_SERIAL install app.apk`), null)
+}
+T("worker-browser: a device proof may not move a pinned variable with an env word", /pinned device emulator-5594/.test(proofWorker("env ANDROID_SERIAL=emulator-5554 adb install app.apk")?.message ?? ""), true)
+T("worker-browser: a device proof may not append to a pinned variable", /pinned device emulator-5594/.test(proofWorker("ANDROID_SERIAL+=x adb install app.apk")?.message ?? ""), true)
+// A flag value that adb reads in the same word cannot pass the pin (thread M_8G): only `-s <pinned serial>` leads.
+for (const command of [
+  "adb -t1 shell pm clear org.useorbit.app",
+  "adb -s127.0.0.1:5555 shell pm clear org.useorbit.app",
+  "adb -P5038 devices",
+  "adb -Hhost devices",
+  "adb -s emulator-5594 -t1 shell pm clear org.useorbit.app",
+  "adb -s$ANDROID_SERIAL shell pm clear org.useorbit.app",
+]) {
+  T(`worker-browser: a device proof may not pass an adb option with an attached value: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+// The AVD is judged as an allow list (thread M_8V): only `orbit-proof-<pinned port>` boots, whatever variable or loop names it.
+for (const command of [
+  "N=35; emulator -avd Orbit_Pixel_9_API_$N -port 5594 -no-window",
+  "AVD=Orbit_Pixel_9_API_35; node tools/android-emulator.mjs --avd $AVD --port $ORBIT_PROOF_EMULATOR_PORT",
+  "for A in Orbit_Pixel_9_API_35; do emulator -avd $A -port 5594 -no-window; done",
+  "emulator -avd orbit-proof-2145 -port 5594 -no-window",
+  "emulator -avd orbit-proof-5594 -avd Orbit_Pixel_9_API_35 -port 5594",
+  "emulator @orbit-proof-5555 -port 5594 -no-window",
+  "node tools/android-emulator.mjs --avd=Orbit_Pixel_9_API_35 --port 5594",
+  "node tools/android-emulator.mjs --avd orbit-proof-$OTHER --port 5594",
+]) {
+  T(`worker-browser: a device proof boots only its own AVD: ${command}`, /may boot only its throwaway AVD orbit-proof-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "emulator @orbit-proof-5594 -port 5594 -no-window",
+  "emulator -avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT -port $ORBIT_PROOF_EMULATOR_PORT -no-window",
+  'node tools/android-emulator.mjs --avd="orbit-proof-${ORBIT_PROOF_EMULATOR_PORT}" --port 5594',
+]) {
+  T(`worker-browser: a device proof may boot its own AVD: ${command}`, proofWorker(command), null)
+}
+// A `for` loop binds a name for its body, so it cannot move a pinned variable (thread M_8V).
+for (const command of [
+  "for ANDROID_SERIAL in emulator-5554; do adb shell pm clear org.useorbit.app; done",
+  "for ORBIT_PROOF_EMULATOR_PORT in 5554; do node tools/android-emulator.mjs --avd orbit-proof-5594 --port $ORBIT_PROOF_EMULATOR_PORT; done",
+  "for ANDROID_SERIAL in emulator-5594 emulator-5554; do adb shell pm clear org.useorbit.app; done",
+]) {
+  T(`worker-browser: a device proof may not bind a pinned variable in a for loop: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+T("worker-browser: a device proof may bind a pinned variable to its pinned value", proofWorker("for ANDROID_SERIAL in emulator-5594; do adb shell pm clear org.useorbit.app; done"), null)
+// xargs adds the words from standard input, which the pin cannot read (thread M_8d).
+for (const command of [
+  "echo -s emulator-5554 shell pm clear org.useorbit.app | xargs adb",
+  "echo -e install app.apk | xargs -r adb",
+  "echo emulator-5554 | xargs -I {} adb -s {} shell pm clear org.useorbit.app",
+  "echo '-avd Orbit_Pixel_9_API_35 -port 5594' | xargs emulator",
+  "echo --avd Orbit_Pixel_9_API_35 | xargs node tools/android-emulator.mjs --port 5594",
+]) {
+  T(`worker-browser: a device proof may not run a device program through xargs: ${command}`, /pinned device emulator-5594|boot only its throwaway AVD/.test(proofWorker(command)?.message ?? ""), true)
+}
+T("worker-browser: a device proof may run xargs for a program that is no device program", proofWorker("echo app.apk | xargs ls"), null)
+// The ticket worker rule reads through the same prefixes.
+for (const command of ["for i in 1; do npx playwright test; done", "if true; then npm run dev; fi", "exec npx playwright test", "timeout 60 npx playwright test"]) {
+  T(`worker-browser: a ticket worker may not hide a browser driver behind a prefix: ${command}`, blocks(worker(command)), true)
+}
+T("worker-browser: a nesting the expander gives up on is refused", blocks(proofWorker(`${"echo $(".repeat(40)}adb devices${")".repeat(40)}`)), true)
+// The orders and the hooks agree: each command of the proof order and of the review order passes every hook that a launched worker runs (threads JOZ1 and JOZ-).
+{
+  const proof = proofOrder({ slug: "owner/name", pullRequest: "7", head: "abc1234", plan: "1. Tap. Expected: it opens.", devices: ["iPhone 17"], evidenceDirectory: "/evidence", emulatorTool: "/launcher/checkout/tools/android-emulator.mjs" })
+  const review = reviewOrder({ brief: "Read it.", slug: "owner/name", pullRequest: "7", head: "abc1234" })
+  const fixRound = reviewOrder({ brief: "Read it.", slug: "owner/name", pullRequest: "7", head: "abc1234", since: "def5678" })
+  const commandsOf = (order) => [...order.matchAll(/`((?:node|adb|emulator|xcrun|git|gh) [^`]+)`/g)].map((match) => match[1].replaceAll(/<[^>]+>/g, "x"))
+  const proofCommands = commandsOf(proof)
+  T("worker-browser: the proof order names its boot command and its adb form", proofCommands.some((command) => command.includes("android-emulator.mjs")) && proofCommands.some((command) => command.startsWith("adb ")), true)
+  T("worker-browser: the proof order names its archive copy", proofCommands.some((command) => command.startsWith("git archive ") && command.includes("| tar -x -C")), true)
+  const reviewCommands = [...commandsOf(review), ...commandsOf(fixRound)]
+  T("worker-browser: the review order names a diff and a show", reviewCommands.some((command) => command.startsWith("git diff ")) && reviewCommands.some((command) => command.startsWith("git show ")), true)
+  const readOnly = { ORBIT_READ_ONLY_RUN: "1" }
+  const hooksOf = (command, env) => [
+    ["forbid-worker-browser", checkWorkerBrowser(command, { env, cwd: repoRoot, repoRoots: [] })],
+    ["read-only run", checkReadOnlyRun(command, { env })],
+    ["git-guardrails", checkGitCommand(command, { cwd: repoRoot, unattended: true })?.block ? { block: true } : null],
+    ["forbid-approval-prompt", checkApprovalPrompt(command, { cwd: repoRoot, workingDirectories: [repoRoot] })],
+  ]
+  for (const [kind, commands, env] of [["proof", proofCommands, { ...PROOF_PIN, ...readOnly }], ["review", reviewCommands, { ORBIT_LAUNCH_WORKER: "1", ...readOnly }]]) {
+    for (const command of commands) T(`worker-browser: every hook allows the ${kind} order's own command ${command}`, hooksOf(command, env).filter(([, verdict]) => verdict).map(([hook]) => hook), [])
+  }
+}
+// The commands of a device proof that the subset now reads (thread JOZ1), and the options that keep them refused.
+for (const command of ["adb install app.apk", "adb exec-out screencap -p > /evidence/step-1.png", "emulator -list-avds", "xcrun simctl io booted screenshot /evidence/step-1.png", "git archive abc1234 | tar -x -C /tmp/copy", "git archive --format=tar abc1234 | tar -xf - -C /tmp/copy", "tar -xzf /tmp/a.tgz -C /tmp/copy", "tar xf /tmp/a.tar -C /tmp/copy", "git diff origin/main...abc1234"]) {
+  T(`subset: ${command} is read, so the git rule allows it`, [readCommand(command).notModelled, Boolean(checkGitCommand(command, { cwd: repoRoot, unattended: true })?.block)], ["", false])
+}
+for (const command of ["xcrun git push", "xcrun --find git", "xcrun", "tar -I 'sh -c x' -xf a.tar", "tar --use-compress-program=sh -xf a.tar", "tar --to-command=sh -xf a.tar", "tar -xf a.tar --checkpoint=1 --checkpoint-action=exec=sh", "tar -xf a.tar --info-script=x.sh", "tar -xf a.tar -F x.sh", "git archive --remote=origin abc1234", "git archive --exec=sh --remote=origin abc1234", "git archive --rem=origin abc1234", "git archive --ex=sh abc1234"]) {
+  T(`subset: ${command} is refused`, Boolean(checkGitCommand(command, { cwd: repoRoot, unattended: true })?.block), true)
+}
+T("worker-browser: a device proof without a pinned serial may not run adb", /pinned device/.test(proofWorker("adb devices", { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "1" })?.message ?? ""), true)
+for (const command of ["npm run dev", "npx playwright test", "expo start"]) {
+  T(`worker-browser: a device proof still may not run ${command}`, /A worker may not start/.test(proofWorker(command)?.message ?? ""), true)
+}
+T("worker-browser: a proof marker other than 1 grants nothing", blocks(checkWorkerBrowser("adb devices", { env: { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "true" }, cwd: repoRoot, repoRoots: [] })), true)
+T("worker-browser: a typed proof marker grants nothing", blocks(worker("ORBIT_DEVICE_PROOF=1 adb devices")), true)
 T("worker-browser: a later chained dev server blocks", blocks(worker("npm test && npm run dev")), true)
+// A read-only review or proof reads GitHub and never writes it, and never reads a credential.
+const READ_ONLY_REFUSAL = /cannot inspect in a read-only run/
+const readOnlyWorker = (command) => checkReadOnlyRun(command, { env: { ORBIT_LAUNCH_WORKER: "1", ORBIT_READ_ONLY_RUN: "1" } })
+for (const command of [
+  "gh pr view 2476 --repo thomasluizon/orbit-ui-mobile --json body --jq .body",
+  "gh pr diff 2476",
+  "gh pr checks 2476",
+  "gh run view 42476551712 --log-failed",
+  "gh api \"repos/thomasluizon/orbit-ui-mobile/pulls/2476/comments?per_page=100\" --jq '.[]|.path'",
+  "gh api -X GET search/issues -f q=repo:thomasluizon/orbit-ui-mobile",
+  "gh api graphql -f query='query { viewer { login } }'",
+  "gh api graphql -fquery='query { viewer { login } }'",
+  "gh api -X GET -Fper_page=1 repos/thomasluizon/orbit-ui-mobile/pulls --jq length",
+  // A multi-line read, and a GraphQL variable inside a single-quoted query, stay reads (thread yoYB).
+  "gh api graphql -f query='\n  query {\n    viewer { login }\n  }'",
+  "gh api graphql -F owner=thomasluizon -f query='query($owner: String!) { user(login: $owner) { login } }'",
+  "gh auth status",
+  "gh auth status -a",
+  "gh auth status --hostname github.com",
+  "gh auth status -h github.com",
+  "gh auth status --json hosts",
+  "git log --oneline -3",
+]) {
+  T(`read-only run: ${command} allows`, readOnlyWorker(command), null)
+}
+for (const command of [
+  "gh api -X POST repos/thomasluizon/orbit-ui-mobile/git/refs -f ref=refs/heads/evil -f sha=43867fb40cb8eb853f50491a14b2d5d39b2a75bf",
+  "gh api --method=PATCH repos/thomasluizon/orbit-ui-mobile/pulls/2476 -f body=x",
+  "gh api repos/thomasluizon/orbit-ui-mobile/issues/2476/comments -f body=x",
+  "gh api repos/thomasluizon/orbit-ui-mobile/issues/2476/comments --input body.json",
+  "gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: \"x\"}) { clientMutationId } }'",
+  // A value attached to its shorthand flag is a body field too (thread xyAV).
+  "gh api repos/thomasluizon/orbit-ui-mobile/issues/2476/comments -fbody=x",
+  "gh api repos/thomasluizon/orbit-ui-mobile/issues/2476/comments -Fbody=x",
+  "gh api graphql -fquery='mutation { resolveReviewThread(input: {threadId: \"x\"}) { clientMutationId } }'",
+  // The hook cannot read a GraphQL query that comes from a file, so it counts as a write (thread xyAV).
+  "gh api graphql --input q.json",
+  "gh api graphql --input=q.json",
+  "gh api graphql -F query=@q.graphql",
+  "gh api graphql -Fquery=@q.graphql",
+  "gh api graphql --field=query=@q.graphql",
+  // A mutation on a later line, in a heredoc body, or in a query the hook cannot read as text is a write (thread yoYB).
+  "gh api graphql -f query='\n  mutation {\n    resolveReviewThread(input: {threadId: \"x\"}) { clientMutationId }\n  }'",
+  "gh api graphql -F threadId=PRRT_x -f query='\nmutation($threadId: ID!) {\n  resolveReviewThread(input: {threadId: $threadId}) { thread { isResolved } }\n}'",
+  "Q='mutation { resolveReviewThread(input: {threadId: \"x\"}) { clientMutationId } }'; gh api graphql -f query=\"$Q\"",
+  "gh api graphql -f query=\"$QUERY\"",
+  "gh api graphql -f query=$(cat q.graphql)",
+  "gh pr comment 2476 --body x",
+  "gh pr review 2476 --approve",
+  "gh pr merge 2476 --squash",
+  "gh issue close 2145",
+  "gh auth token",
+  "gh auth git-credential get",
+  // `gh auth status` prints the token in full with -t or --show-token, as `gh auth token` does (thread Go01).
+  "gh auth status -t",
+  "gh auth status --show-token",
+  "gh auth status --show-token=true",
+  "gh auth status -at",
+  "gh auth status -a -t",
+  "gh auth status --hostname github.com -t",
+  "gh -R thomasluizon/orbit-ui-mobile auth status --show-token",
+  "git credential fill",
+  "curl -X POST -H 'Authorization: token x' https://api.github.com/repos/thomasluizon/orbit-ui-mobile/git/refs -d '{}'",
+  "npx gh pr comment 2476 --body x",
+  // A curl or wget call to a GitHub host is refused whatever its spelling: curl reads a body from `-d<value>`, `-d@file` and `-T<file>`, and
+  // a read goes through `gh` (thread M_8G).
+  "curl -s https://api.github.com/repos/thomasluizon/orbit-ui-mobile",
+  "curl -H \"Authorization: token $GH_TOKEN\" -d'{\"body\":\"x\"}' https://api.github.com/repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  "curl -d@body.json https://api.github.com/repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  "curl -Tbody.json https://api.github.com/repos/thomasluizon/orbit-ui-mobile/contents/x",
+  "curl -dhello https://api.github.com/repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  "curl --json '{}' https://api.github.com/repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  // xargs adds the words from standard input, which no rule reads (thread M_8d).
+  "echo 2476 | xargs gh pr view",
+  "echo pr merge 2476 --squash | xargs gh",
+  "echo -f body=x | xargs gh api repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  "echo https://api.github.com/repos/thomasluizon/orbit-ui-mobile | xargs curl",
+  "echo pr comment 2476 | xargs -n 3 npx gh",
+]) {
+  T(`read-only run: ${command} blocks`, /A read-only run (writes nothing to GitHub|may not pass a word that the hook cannot resolve)/.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+// A wrapper or a leading repository flag cannot hide a GitHub write (threads E8EM and E8EV).
+for (const command of [
+  "echo $(gh pr comment 2476 --body x)",
+  "gh -R thomasluizon/orbit-ui-mobile pr comment 2476 --body x",
+  "gh -Rthomasluizon/orbit-ui-mobile pr comment 2476 --body x",
+  "gh --repo thomasluizon/orbit-ui-mobile pr merge 2476 --squash",
+  "gh --repo=thomasluizon/orbit-ui-mobile issue close 2145",
+  "gh -R thomasluizon/orbit-ui-mobile --repo thomasluizon/orbit-ui-mobile pr merge 2476",
+  "gh --unknown-flag pr view 2476",
+  "gh --hostname github.com pr comment 2476 --body x",
+  // A wrapper that the reader passes through to the program cannot hide a write (thread JOZ-).
+  "stdbuf -oL gh pr merge 2476 --squash",
+  "setsid gh pr merge 2476 --squash",
+  "ionice -c 3 gh pr comment 2476 --body x",
+  "noglob gh pr merge 2476 --squash",
+  "command gh pr merge 2476 --squash",
+  "time gh pr merge 2476 --squash",
+  "env A=1 gh pr merge 2476 --squash",
+  "find . -maxdepth 0 -exec gh pr merge 2476 --squash ';'",
+]) {
+  T(`read-only run: ${command} blocks`, /A read-only run (writes nothing to GitHub|may not pass a word that the hook cannot resolve)/.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "gh -R thomasluizon/orbit-ui-mobile pr view 2476",
+  "gh --repo=thomasluizon/orbit-ui-mobile pr view 2476 --json number,state",
+  "gh --repo thomasluizon/orbit-ui-mobile pr list --limit 1",
+  "gh --version",
+  "gh -h",
+  "echo $(gh pr diff 2476)",
+  "stdbuf -oL gh pr view 2476",
+  "ionice -c 3 gh pr checks 2476",
+]) {
+  T(`read-only run: ${command} allows`, readOnlyWorker(command), null)
+}
+// A reserved word or an exec-style prefix cannot hide a GitHub write, and the shapes the guards cannot read are refused (thread Go0p).
+for (const command of [
+  "if true; then gh pr merge 2476 --squash; fi",
+  "for n in 2476; do gh pr comment $n --body x; done",
+  "exec gh pr merge 2476 --squash",
+  "nohup gh pr merge 2476 --squash",
+  "nice -n 5 gh pr merge 2476 --squash",
+  "timeout 60 gh pr merge 2476 --squash",
+  "timeout -s KILL 60 gh pr merge 2476 --squash",
+  "echo 2476 | xargs gh pr merge --squash",
+  "echo 2476 | xargs -n 1 gh pr merge --squash",
+]) {
+  T(`read-only run: ${command} blocks`, /A read-only run (writes nothing to GitHub|may not pass a word that the hook cannot resolve)/.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "echo 'gh pr merge 2476 --squash' | bash",
+  "echo 'gh pr merge 2476 --squash' | sh",
+  "echo 'gh pr merge 2476 --squash' | zsh",
+  "echo 'gh pr merge 2476 --squash' | sudo bash -s",
+  "echo 'gh pr merge 2476 --squash' | env A=1 bash",
+  "bash -s <<'EOF'\ngh pr merge 2476 --squash\nEOF",
+  "bash -x <<'EOF'\ngh pr view 2476\nEOF",
+  "bash <<EOF\ngh pr view 2476\nEOF",
+  "sh < commands.txt",
+]) {
+  T(`read-only run: ${command} is refused as a shell that reads standard input`, /standard input|here document/.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "cat <<EOF\n$(gh pr merge 2476 --squash)\nEOF",
+  "cat <<EOF\n`gh pr merge 2476 --squash`\nEOF",
+  "cat <<-EOF\n$(gh pr merge 2476 --squash)\nEOF",
+]) {
+  T(`read-only run: ${command} is refused as an unquoted heredoc that runs a command`, READ_ONLY_REFUSAL.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "for n in 1 2; do gh pr view $n; done",
+  "if true; then gh pr diff 2476; fi",
+  "timeout 60 gh pr checks 2476",
+  "grep -rn \"gh pr merge\" .claude",
+  "curl -s https://example.com/status",
+  "echo 2476 | xargs echo",
+  "bash /abs/path.sh",
+  "cat <<'EOF'\n$(gh pr merge 2476 --squash)\nEOF",
+]) {
+  T(`read-only run: ${command} allows`, readOnlyWorker(command), null)
+}
+// The reader of `shell-subset.mjs` refuses each command that it cannot model, and the refusal names the construct and the plain subset (thread JOZ-).
+for (const command of [
+  "bash -c 'gh pr comment 2476 --body x'",
+  "bash -c 'gh pr view 2476'",
+  "sh -c \"gh pr merge 2476 --squash\"",
+  "eval gh pr merge 2476 --squash",
+  // The reader does not know wget, so a wget call to GitHub is outside the subset (thread M_8G).
+  "wget --post-data=x https://api.github.com/repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  "wget -qO- https://raw.githubusercontent.com/thomasluizon/orbit-ui-mobile/main/README.md",
+  "echo `gh pr comment 2476 --body x`",
+  "gh api graphql -f query=`cat q.graphql`",
+  "gh api graphql -f query=\"$(cat <<'EOF'\nmutation { resolveReviewThread(input: {threadId: \"x\"}) { clientMutationId } }\nEOF\n)\"",
+  "security find-generic-password -s gh:github.com -w",
+  "true || ! gh pr merge 2476 --squash",
+  "while true; do gh pr merge 2476 --squash; done",
+  "cat <<EOF\nplain text\nEOF",
+  "env -i gh pr view 2476",
+  "export -n ANDROID_SERIAL",
+  "stdbuf --output=L gh pr view 2476",
+  `${"echo $(".repeat(40)}gh pr view 2476${")".repeat(40)}`,
+]) {
+  T(`read-only run: ${command.slice(0, 80)} is refused as outside the subset`, READ_ONLY_REFUSAL.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+// A variable that the walk cannot resolve (it tracks lower-case names only) supplies the words that decide a write, a token print or the device (thread Oyo_).
+const proofReadOnlyWorker = (command) => checkReadOnlyRun(command, { env: { ...PROOF_PIN, ORBIT_READ_ONLY_RUN: "1" } })
+for (const command of [
+  "M=-XPOST; gh api repos/o/r/issues/1/comments $M",
+  "F=-fbody=x; gh api repos/o/r/issues/1/comments $F",
+  "S=--show-token; gh auth status $S",
+  "U=https://api.github.com/repos/o/r/issues/1/comments; curl -d x $U",
+  'M=-XPOST; gh api repos/o/r/issues/1/comments "$M"',
+  "M=-XPOST; npx gh api repos/o/r/issues/1/comments $M",
+  "R=gh; npx $R pr merge 2476 --squash",
+  "gh pr view $(echo 2476)",
+  "gh api repos/o/r/issues/1/comments ${M:--XPOST}",
+  "gh api -X GET repos/o/r/issues/1/comments ${ANDROID_SERIAL:+-XPOST}",
+]) {
+  T(`read-only run: ${command} blocks, a word that the walk cannot resolve supplies the words that decide the write`, READ_ONLY_REFUSAL.test(readOnlyWorker(command)?.message ?? "") || /A read-only run may not pass a word that the hook cannot resolve/.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "M=-XPOST; gh api repos/o/r/issues/1/comments $M",
+  "S=--show-token; gh auth status $S",
+  "gh api -X GET repos/o/r/issues/1/comments ${ANDROID_SERIAL:?missing}",
+]) {
+  T(`read-only run: a proof refuses ${command}`, /A read-only run may not pass a word that the hook cannot resolve/.test(proofReadOnlyWorker(command)?.message ?? ""), true)
+}
+T("read-only run: a proof still reads a pinned variable in a body as a write", /A read-only run writes nothing to GitHub/.test(proofReadOnlyWorker("gh api repos/o/r/issues/1/comments -f body=$ANDROID_SERIAL")?.message ?? ""), true)
+// A refusal of an unresolved word names the word and the reason, and says what passes (thread QXTK).
+for (const [command, word, reason] of [
+  ["gh pr view $PR --json files", "$PR", "a variable"],
+  ["gh pr view 2476 --json files,$FIELDS", "files,$FIELDS", "a variable"],
+  ["gh pr diff $(echo 2476)", "$(echo 2476)", "a command substitution"],
+  ["gh pr view 2476 --json {files,body}", "{files,body}", "a brace expansion"],
+]) {
+  const message = readOnlyWorker(command)?.message ?? ""
+  T(`read-only run: the refusal of ${command} names ${word} and ${reason}`, message.includes(`The word ${word} holds ${reason}`) && message.includes("Write the literal value in full") && !message.includes("Read with gh pr view"), true)
+}
+for (const [command, word, reason] of [
+  ["adb -s $ANDROID_SERIAL install /tmp/build/outputs/apk/release/*.apk", "/tmp/build/outputs/apk/release/*.apk", "a glob"],
+  ["adb install /tmp/build/outputs/apk/release/app-*-release.apk", "/tmp/build/outputs/apk/release/app-*-release.apk", "a glob"],
+  ["adb shell am start -n $PKG/.MainActivity", "$PKG/.MainActivity", "a variable"],
+  ["adb shell input text $(date)", "$(date)", "a command substitution"],
+]) {
+  const message = proofWorker(command)?.message ?? ""
+  T(`worker-browser: the refusal of ${command} names ${word} and ${reason}`, message.includes(`The word ${word} holds ${reason}`) && message.includes("Write the literal value in full") && message.includes("Only $ANDROID_SERIAL and $ORBIT_PROOF_EMULATOR_PORT") && !message.includes("run adb with no option"), true)
+}
+// A pinned variable stands for its value as a whole word or as part of one, and the refusal says so (thread Re7e).
+for (const command of [
+  "adb -s $ANDROID_SERIAL shell input text orbit-$ORBIT_PROOF_EMULATOR_PORT",
+  "adb -s $ANDROID_SERIAL shell input text orbit-${ORBIT_PROOF_EMULATOR_PORT}",
+  "node /launcher/checkout/tools/android-emulator.mjs --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT",
+]) {
+  T(`worker-browser: a proof allows a pinned variable inside a word: ${command}`, proofWorker(command), null)
+}
+for (const command of [
+  "adb -s $ANDROID_SERIAL shell input text orbit-proof-$ORBIT_PROOF_EMULATOR_PORT$X",
+  "adb -s $ANDROID_SERIAL shell input text orbit-$ORBIT_PROOF_EMULATOR_PORT${X}",
+]) {
+  const message = proofWorker(command)?.message ?? ""
+  T(`worker-browser: the refusal of ${command} says that a pinned variable stands for its value as a whole word or part of one`,
+    message.includes("may not pass a word that the hook cannot resolve") &&
+      message.includes("Only $ANDROID_SERIAL and $ORBIT_PROOF_EMULATOR_PORT, bare or braced with no modifier, stand for their pinned value, as a whole word or part of one.") &&
+      !message.includes("alone in a word"), true)
+}
+T("worker-browser: a proof still reads an unpinned serial as the pinned-device refusal", /run adb with no option/.test(proofWorker("adb -s emulator-5554 shell pm clear org.useorbit.app")?.message ?? ""), true)
+T("worker-browser: a proof allows its own APK path written in full", proofWorker("adb -s $ANDROID_SERIAL install /tmp/build/outputs/apk/release/app-release.apk"), null)
+for (const command of [
+  "echo $HOME; gh pr view 2476",
+  "m=-XGET; gh api repos/o/r/pulls/2476/comments $m",
+  "gh pr view 2476 --json body --jq .body",
+  'for number in 2476 2477; do gh pr view "$number"; done',
+]) {
+  T(`read-only run: ${command} allows, no resolved word and no unrelated variable decides a GitHub call`, readOnlyWorker(command), null)
+}
+for (const command of [
+  "T=-t1; adb $T shell pm clear org.useorbit.app",
+  "T=-t1; adb -s $ANDROID_SERIAL $T shell pm clear org.useorbit.app",
+  "S='-s emulator-5554'; adb $S shell pm clear org.useorbit.app",
+  "P=5554; node tools/android-emulator.mjs --avd orbit-proof-5594 --port $P",
+  'adb -s $ANDROID_SERIAL ${ANDROID_SERIAL:?missing} shell pm clear org.useorbit.app',
+  "adb -s $ANDROID_SERIAL shell pm clear $PACKAGE",
+  "A=-avd; emulator $A orbit-proof-5594 -port 5594 -no-window",
+  "E=emulator; npx $E -avd orbit-proof-5594 -port 5594",
+]) {
+  T(`worker-browser: a proof refuses ${command}, a word that the walk cannot resolve supplies the device`, /pinned device emulator-5594|may boot only its throwaway AVD|may not pass a word that the hook cannot resolve/.test(proofWorker(command)?.message ?? ""), true)
+}
+T("worker-browser: a proof allows the order's own variables, ANDROID_SERIAL and ORBIT_PROOF_EMULATOR_PORT, next to a word it can resolve",
+  proofWorker('package=org.useorbit.app; adb -s "$ANDROID_SERIAL" shell pm clear $package'), null)
+T("worker-browser: the unresolved word rule leaves a program that is no device program alone", proofWorker("echo $HOME; ls $DIR"), null)
+T("read-only run: a typed marker grants nothing to refuse (unresolved word)", checkReadOnlyRun("M=-XPOST; gh api x $M", { env: {} }), null)
+T("read-only run: a ticket worker keeps its own GitHub writes", checkReadOnlyRun("gh pr comment 2476 --body x", { env: { ORBIT_LAUNCH_WORKER: "1" } }), null)
+T("read-only run: a typed marker grants nothing to refuse", checkReadOnlyRun("ORBIT_READ_ONLY_RUN=1 gh pr comment 2476 --body x", { env: {} }), null)
 // The same commands from a session that is NOT a worker are none of this gate's business.
 T("worker-browser: npm run dev outside a worker allows", checkWorkerBrowser("npm run dev", { env: {}, cwd: "", repoRoots: [] }), null)
 T("worker-browser: a cwd inside a linked worktree IS a worker", blocks(checkWorkerBrowser("npm run dev", { env: {}, cwd: linkedWorktree, repoRoots: [mainCheckout] })), true)
@@ -1958,6 +2450,23 @@ T("git wrapper regression: nested escaped backticks", blocks(checkGitCommand("ec
 for (const command of ["(git push origin main)", "$(git push origin main)", "echo `git push origin main`", "bash -c 'git push origin main'", "eval 'git push origin main'", "git commit -nam x", "git -c core.hooksPath=/dev/null commit", "git -c 'core.hooksPath=/dev/null' commit", "git -ccore.hooksPath=/dev/null push origin feature/x", "git -c core.hooksPath=/dev/null push origin feature/x", "git push --all origin", "git push --mirror origin", "git push --branches origin"]) {
   T(`git wrapper regression: ${command}`, blocks(checkGitCommand(command)), true)
 }
+// Git config keys ignore case, and the hooks path also arrives through --config-env and the environment.
+for (const command of [
+  "git -c core.hookspath=/nonexistent push -q origin HEAD:refs/heads/x",
+  "git -c CORE.HOOKSPATH=/dev/null commit -m x",
+  "HP=/nonexistent git --config-env=core.hooksPath=HP push -q origin HEAD:refs/heads/x",
+  "git --config-env core.hookspath=HP commit -m x",
+  "GIT_CONFIG_PARAMETERS=\"'core.hooksPath'='/nonexistent'\" git push -q origin HEAD:refs/heads/x",
+  "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hookspath GIT_CONFIG_VALUE_0=/dev/null git commit -m x",
+  "env GIT_CONFIG_PARAMETERS=\"'core.hookspath'='/x'\" git push origin feature/x",
+]) {
+  T(`git hooks path: ${command} blocks`, blocks(checkGitCommand(command)), true)
+}
+// A config option before the subcommand and a git config variable are refused whatever key they set, because the hook cannot tell a safe key from a hooks path.
+for (const command of ["git -c core.editor=true commit -m x", "git --config-env=user.name=NAME commit -m x", "GIT_CONFIG_PARAMETERS=\"'user.name'='x'\" git commit -m x"]) {
+  T(`git hooks path: ${command} blocks`, blocks(checkGitCommand(command)), true)
+}
+T("git hooks path: git config core.hooksPath allows", checkGitCommand("git config core.hooksPath"), null)
 for (const command of ["npx -y playwright test", "pnpm exec playwright test", "yarn exec playwright test", "npx vite --port 5173", "remix", "curl localhost:3000", "curl 127.0.0.1:3000", "curl '[::1]:3000'"]) {
   T(`worker wrapper regression: ${command}`, blocks(checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" } })), true)
 }

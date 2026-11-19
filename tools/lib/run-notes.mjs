@@ -13,7 +13,8 @@ const MARKER = /^<!-- orbit-run-note: ([^>]*?) -->/
 const MARKERS = /<!-- orbit-run-note: ([^>]*?) -->/g
 const FULL_SHA = /^[0-9a-f]{40}$/
 const COMMIT_SHA = /^[0-9a-f]{7,40}$/
-const VERDICT = /^VERDICT: (?:CLEAN|DEFECTS \(([1-9]\d*)\))$/
+/** The one definition of a review verdict line: the launcher publishes a result only when post-run-note accepts its first line. */
+export const VERDICT = /^VERDICT: (?:CLEAN|DEFECTS \(([1-9]\d*)\))$/
 const SEAL = /\n<!-- orbit-order: composed sha256=([0-9a-f]{64}) -->\n$/
 
 const fieldsOf = (text) => Object.fromEntries(text.trim().split(/\s+/).filter(Boolean).map((pair) => {
