@@ -27,7 +27,7 @@ UI `main` `c91bbac24`; API `main` and production `70c66e7be`; landing `main` and
 | ui#2500 (`#2167`) | Pushed `df0bd219b` (base merges, review CLEAN), Pullfrog asked: wait, merge at the bar, close `#2167`. |
 | ui#2475 (`#2149`) | Local `f2a6d56ac` (seed fix for thread `PRRT_kwDOR5Siws65h4Je`, red first), not pushed: review since `73525ba68`, reply, body section, push, merge. |
 | ui#2501 (`#2168`) | Local `e56def733` (base merges, eval suite 2,639 passed), not pushed: review since `e41846661`, body line 4 (part 1 merged), push, merge. |
-| ui#2506 (`#2074`) | Fix round 1 of its local review on a worker (report on `#2074`): review since `052739226`, body file, push, merge at the bar. |
+| ui#2506 (`#2074`) | Local `496821865` (fix round 1, report on `#2074`), not pushed: review since `052739226`, the body file of the round, push, merge at the bar. |
 | `#2146` / `#2145` | Android proof worker (`launch-worker.mjs --proof`, result posted on `#2146`); on PASS close `#2145`; the web half at 375 in the browser on production; then the Android Open and TestFlight pair (never the App Store), close `#2177` and `#2146`. |
 | ui#2453 (`#2122`) | DIRTY after ui#2451 merged: merge `e01f0d14c` (final ui#2451 head) first, then `main`, review, push. |
 | `#2126`, `#2135`, Harness | Landing rendered check then production release; the `#2135` baseline window at 1.20 USD a day; the require-wake-source Stop hook firing inside a worker, fixed red first. |
