@@ -80,21 +80,24 @@ export const turnOf = (fields) => ({ aiMessage: '', actions: [], operations: [],
 // Runs one corpus case through the provider path of a converted case, against the replies that the test gives in order.
 // `held` is what the account approves. `accountHabits` is what the account holds when the turn starts, where it differs from the
 // habits that the reset left (a server that wrote before the approval). Returns the output of the attempt, the requests that
-// the account saw, and the verdict.
+// the account saw, the conversation id that each request carried, and the verdict.
 export async function attempt(id, { replies, held = replies.at(-1).pendingOperations ?? [], habits, accountHabits = habits, records,
   confirmsAfterRevise, savesOnRevise, ...extra }) {
   const vars = preparedCase(id, { records, habits, ...extra })
   const fixture = account(accountHabits, held, { confirmsAfterRevise, savesOnRevise })
   const sent = []
-  const conversations = []
+  const conversationIds = []
   let turn = 0
   const send = async (conversation, attempted) => {
     sent.push(attempted)
-    conversations.push(conversation)
-    return { kind: 'final', response: replies[turn++], requestId, responseRequestId: requestId, trace: null }
+    conversationIds.push(conversation.conversationId)
+    const response = replies[turn++]
+    // core/client-turn.mjs sendTurn: the client takes the conversation id from each response that carries one.
+    if (response.conversationId) conversation.conversationId = response.conversationId
+    return { kind: 'final', response, requestId, responseRequestId: requestId, trace: null }
   }
   const response = await runOutcomeCase(vars, { send, api: fixture.api })
-  return { vars, sent, conversations, response, fixture, verdict: response.output ? outcome(response.output, { vars }) : { pass: false, reason: response.error } }
+  return { vars, sent, conversationIds, response, fixture, verdict: response.output ? outcome(response.output, { vars }) : { pass: false, reason: response.error } }
 }
 
 // Producer: orbit-api PendingOperationChangePreviewer. A bulk write previews each record as one item, with one row for

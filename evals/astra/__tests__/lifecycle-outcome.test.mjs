@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { composition } from '../composition.mjs'
 import { askGrader } from '../grader-provider.mjs'
@@ -29,6 +32,18 @@ describe('the lifecycle families of the launch corpus', () => {
       expect(vars.setup?.expectations, entry.metadata.id).toBeUndefined()
       for (const key of ['sameTitleSet', 'restart', 'brainDump']) expect(vars[key], `${entry.metadata.id} ${key}`).toBeUndefined()
     }
+  })
+
+  // `sameTitleSet` is no row: core/answers.mjs builds it at run time for the card check of the same-title cases.
+  it.each(['restart', 'brainDump'])('leaves no module outside the tests that reads vars.%s, which no case holds', (key) => {
+    const root = fileURLToPath(new URL('..', import.meta.url))
+    const reads = new RegExp(`\\bvars\\??\\.${key}\\b|\\bvars\\[['"]${key}['"]\\]|\\{[^}]*\\b${key}\\b[^}]*\\}\\s*=\\s*(?:\\w+\\.)?vars\\b`, 'u')
+    const readers = readdirSync(root, { recursive: true, withFileTypes: true })
+      .filter((file) => file.isFile() && file.name.endsWith('.mjs'))
+      .map((file) => join(file.parentPath, file.name))
+      .filter((path) => !/[\\/](__tests__|node_modules|reports)[\\/]/u.test(path))
+      .filter((path) => reads.test(readFileSync(path, 'utf8')))
+    expect(readers.map((path) => path.slice(root.length))).toEqual([])
   })
 
   it('states an outcome for each case except the two that refine a draft on the refine route', () => {
@@ -566,12 +581,13 @@ describe('the carriers of the deleted checks of the lifecycle modules', () => {
     expect(approvedPaths(fixture)).toEqual([])
   })
 
-  it.each([['same-title-card-en', { replies: answered, habits: sameTitleHabits, records: sameTitleRecords }],
-    ['brain-dump-mixed-en', { replies: [turnOf({ pendingOperations: [previewOf('createHabits', [dentist, stretch])] })], habits: brainHabits, records: { water } }],
-  ])('approves %s in the conversation of its first response', async (id, setup) => {
-    const { fixture, conversations } = await attempt(id, setup)
+  const withConversationIds = (replies) => replies.map((reply, at) => ({ ...reply, conversationId: `cccccccc-cccc-4ccc-8ccc-${String(at + 1).padStart(12, '0')}` }))
+  it.each([['same-title-card-en', { replies: withConversationIds(answered), habits: sameTitleHabits, records: sameTitleRecords }],
+    ['brain-dump-mixed-en', { replies: withConversationIds([turnOf({ pendingOperations: [previewOf('createHabits', [dentist, stretch])] })]), habits: brainHabits, records: { water } }],
+  ])('approves %s under the conversation id that its last response set', async (id, setup) => {
+    const { fixture, conversationIds } = await attempt(id, setup)
     const execute = fixture.calls.find((call) => call.path.endsWith('/execute'))
-    expect(conversations[0].conversationId).toEqual(expect.any(String))
-    expect(execute.body.clientContext.conversationId).toBe(conversations[0].conversationId)
+    expect(conversationIds[0]).not.toBe(setup.replies.at(-1).conversationId)
+    expect(execute.body.clientContext.conversationId).toBe(setup.replies.at(-1).conversationId)
   })
 })
