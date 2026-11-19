@@ -31,9 +31,10 @@ export function mountModeFlow(readPhrase: GuidedHabitFlowOptions['readPhrase'] =
   const setRecurring = () => { switchTo('recurring'); write({ isGeneral: false, isFlexible: false, frequencyUnit: values.frequencyUnit ?? 'Day', frequencyQuantity: values.frequencyQuantity || 1 }) }
   const setFlexible = () => { switchTo('flexible'); write({ isGeneral: false, isFlexible: true, days: [], frequencyUnit: values.frequencyUnit ?? 'Week', frequencyQuantity: values.frequencyQuantity || 3 }) }
   const setGeneral = () => {
+    const draft = drafts.switch(values as never, 'general')
     const keepReminder = Boolean(values.repeatReminder)
     write({ isGeneral: true, isFlexible: false, isBadHabit: false, frequencyUnit: undefined, frequencyQuantity: undefined, days: [], dueTime: '', dueEndTime: '', endDate: '', scheduledReminders: [], ...(keepReminder ? {} : { reminderEnabled: false }) })
-    switchTo('general')
+    if (draft) write(draft)
     write({ dueDate: '', datePhrase: '', dateIssue: '' })
   }
   const chooseItemType = (itemType: 'task' | 'habit') => {

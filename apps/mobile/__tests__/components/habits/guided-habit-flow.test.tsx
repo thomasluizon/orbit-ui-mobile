@@ -352,6 +352,20 @@ describe.each([
     tree.unmount()
   })
 
+  it('scenario 14: keeps the time and the reminder when the type step on the summary changes a habit to a task', async () => {
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'call John' : 'ligar para o João')
+    await tap(tree, flowCopy().when.everyDay)
+    await tap(tree, '08:00')
+    await tap(tree, flowCopy().reminder.yes)
+    expect(heading(tree)).toBe(flowCopy().confirm.question)
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', dueTime: '08:00', reminderEnabled: true })
+    await tap(tree, new RegExp(`^${flowCopy().summary.type}`))
+    await tap(tree, new RegExp(`^${copy().habits.form.typeTask}`))
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'task', dueTime: '08:00', reminderEnabled: true })
+    tree.unmount()
+  })
+
   it('scenario 15: reads on the device offline, names the state and calls no reader', async () => {
     state.online = false
     const tree = renderNavigation(<Harness />)
