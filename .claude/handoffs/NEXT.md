@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/orchestrate` over the admitted queue without replanning. Crank is OFF (owner order): never invoke `/crank`. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`) and run `node tools/relay-checkout.mjs --check`.
 
-State lives on GitHub: the newest decision comments on the run record `#2179` (the RELAY queue block D867) hold the in-flight queue, the scratchpad folder that keeps the bodies, replies and push and launch helpers, and decisions D860 to D867; the successor starts from D868. Each ticket's comments hold its round notes, reviews and reports. Start each wake with `node tools/run-status.mjs --session <id>`. Read `date` before you write a time. The orchestrating checkout must contain `origin/main`: merge it into the relay branch after each merge to `main`.
+State lives on GitHub: the newest decision comments on the run record `#2179` (the RELAY queue block D883) hold the in-flight queue, the scratchpad folder that keeps the bodies, replies and push and launch helpers, and decisions D868 to D883; the successor starts from D884. Each ticket's comments hold its round notes, reviews and reports. Start each wake with `node tools/run-status.mjs --session <id>`. Read `date` before you write a time. The orchestrating checkout must contain `origin/main`: merge it into the relay branch after each merge to `main`.
 
 Tokens (owner order): the main account's weekly tokens reset each Thursday at 04:00 -03 and must last the whole week. Run ONE worker at a time, reviews included. Chain several read-only reviews in one background task so one wake covers them. Keep coordinator turns short. The relay pair is settled at soft 300000 and hard 360000 (`#2180`): never propose another pair without a new measurement of the plan's cache-read weight.
 
@@ -22,16 +22,15 @@ Finish the spec: an empty board except `#33`, verified releases, the assistant f
 
 ## In flight
 
-UI `main` `a858166e0`; API `main`, production and staging `70c66e7be`; landing `main` and staging `3dbd6cd` (production `20c1b0a90`); web staging and production `2460ef091`; Android Open and TestFlight 1.3.158 from `358ad030b`. Owner question queue: empty. Board 30 open, 30 placed in `## The order`, 0 unplaced, 0 placed twice (`#2180` was created and closed in this session).
+UI `main` `3e55f1f80`; API `main`, production and staging `70c66e7be`; landing `main` and staging `3dbd6cd` (production `20c1b0a90`); web staging and production `2460ef091`; Android Open and TestFlight 1.3.158 from `358ad030b`. Owner question queue: empty. Board 31 open, 31 placed in `## The order`, 0 unplaced, 0 placed twice (`#2181` was created in this session). No live worker; no detached check.
 
 | Item | Disposition |
 | --- | --- |
-| ui#2506 (`#2074`) | Pushed `3584c8754`, round 4 reviewed CLEAN, threads resolved, Pullfrog asked: wait-ci, merge at the bar; then the approval measurement and the require-wake-source work order. |
-| ui#2508 (`#2135`) | Pushed `c464081a4`, reviewed CLEAN, Pullfrog asked: wait-ci, merge at the bar; then recompose the r6 measurement order and launch it with `--measurement`. |
-| ui#2453 (`#2122`) | Round 4 committed `52d2cefe8`, not pushed: review since `c1bde0dec`, merge `main`, push with the round 4 body named in the queue block, Pullfrog. |
-| ui#2500 (`#2167`) | Pushed `abc01a676`; `pullfrog-approval` failed: read the threads, a fix round with a design change, review, push, merge. |
-| `#2126`, `#2146`, `#2152` | One at a time after the open pull requests: the landing fix pull request (work order comment), the `operations.md` Android proof deviations then close, the measurement-mode work order. |
-| Held | ui#2491 and ui#2494 on api#1124, ui#2498 proofs A and B at a real relay, the api assistant PRs on the `#2135` gate, `#2156` after its `resolveAfter`, `#2176` after `#2122`. |
+| ui#2500 (`#2167`) | Round 8 committed `27c716e68`, not pushed: review since `4e4424391`, body from the round report on the ticket, reply to the Pullfrog thread, push, Pullfrog, merge at the bar. |
+| ui#2506 (`#2074`) | Pushed `179d79eef`, Pullfrog COMMENTED with one thread: apply decision D881 as a coordinator fix, review, push, Pullfrog, merge at the bar. |
+| `#2135` | The r6 measurement stopped at its hard ceiling (5 of 17 cases): launch the resume order (newest ticket comment) with `--measurement --hard-ceiling-minutes 150`. |
+| `#2176`, `#2181`, `#2126`, `#2146`, `#2152` | One at a time after the open pull requests: `#2176` is unblocked by the `#2122` merge; `#2181` after `#2074`. |
+| Held | ui#2491 and ui#2494 on api#1124, ui#2498 proofs A and B at a real relay, the api assistant PRs on the `#2135` gate, `#2156` after its `resolveAfter`, `#2122` closes after a web release carries it. |
 
 ## Then, in this order
 
@@ -45,8 +44,7 @@ Unattended: never ask the owner; decide with the best option and log it on the r
 
 ## Previous prompt, disposition
 
-- Done: ui#2500 round 6 reviewed CLEAN and pushed (D861); ui#2506 round 4 built, reviewed and pushed (D861, D867); ui#2453 round 4 built (D865); the `#2135` grader work order built as ui#2508 and reviewed (D865, D867); intake cycle (D862); the owner's token order (D863) and relay order (D864, ui#2507 merged, D866).
-- Superseded: "At most 3 workers at once" (now one worker at a time, D863); the D859 queue block (the D867 block replaces it).
-- Carried: ui#2453, ui#2500, ui#2506, ui#2508, `#2126`, `#2135` r6, `#2146`, `#2152`, the held rows, intake, every standing order above.
+- Done: ui#2508 merged (D871); ui#2453 round 4 and the CI fix pushed, merged (D869, D875, D880, D882); ui#2500 rounds 7 and 8 built, round 7 pushed (D870, D872, D873, D880); ui#2506 rounds 5 and 6 pushed (D871, D873, D874, D877, D880); the `#2135` r6 measurement launched and stopped at its ceiling (D874, D879); intake cycle (D868, Sentry 17:46Z); the owner's pace order (D878, `#2181`).
+- Carried: ui#2500, ui#2506, `#2135` r6 resume, `#2126`, `#2146`, `#2152`, `#2176`, `#2181`, the held rows, intake, every standing order above.
 
 Treat every identifier here as a lead to verify.
