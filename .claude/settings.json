@@ -71,7 +71,7 @@
       },
       {
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/offer-stale-cleanup.mjs\"", "timeout": 5 }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/clean-stale-files.mjs\"", "timeout": 5 }
         ]
       }
     ],
@@ -79,6 +79,11 @@
       {
         "hooks": [
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/relay-at-threshold.mjs\"", "timeout": 5 }
+        ]
+      },
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/clean-stale-files.mjs\"", "timeout": 5 }
         ]
       },
       {
