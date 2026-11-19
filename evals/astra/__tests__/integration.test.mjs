@@ -157,7 +157,7 @@ describe('HTTP provider wiring without a server', () => {
       const run = spawnSync(process.execPath, ['--import', resolve(root, '__tests__/fixtures/http-preload.mjs'), cli,
         'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table'], {
         cwd: directory, encoding: 'utf8', timeout: 180000,
-        env: { ...process.env, ORBIT_EVAL_BASE_URL: 'https://orbit-api-staging-uqu2.onrender.com', ORBIT_EVAL_GRADER: 'offline',
+        env: { ...process.env, ORBIT_EVAL_BASE_URL: 'https://orbit-api-staging-uqu2.onrender.com', ORBIT_EVAL_GRADER: `file://${root}/__tests__/fixtures/grader.mjs`,
           ASTRA_TEST_REQUEST_LOG: resolve(directory, 'requests.txt'),
           PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'), PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
       })
@@ -247,7 +247,8 @@ describe('corpus and execution constraints', () => {
     offlineCredentials()
     for (const key of ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_HABIT_ID',
       'ORBIT_EVAL_SECOND_HABIT_ID', 'ORBIT_EVAL_OVERDUE_DATE', 'ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']) {
-      vi.stubEnv(key, key === 'ORBIT_EVAL_BASE_URL' ? 'https://orbit-api-staging-uqu2.onrender.com' : key === 'ORBIT_EVAL_OVERDUE_DATE' ? '2026-01-01' : 'offline')
+      vi.stubEnv(key, key === 'ORBIT_EVAL_BASE_URL' ? 'https://orbit-api-staging-uqu2.onrender.com' : key === 'ORBIT_EVAL_OVERDUE_DATE' ? '2026-01-01'
+        : key === 'ORBIT_EVAL_GRADER' ? `file://${root}/__tests__/fixtures/grader.mjs` : 'offline')
     }
     let configReads = 0
     vi.stubGlobal('fetch', async (url) => {
