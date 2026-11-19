@@ -79,6 +79,19 @@ describe('a same-title case', () => {
     expect(fixture.state.map((habit) => habit.title)).toEqual(['Water', 'Water - 1.18L', 'Water - 1.18L', 'Water - 1.18L', 'Water - 1.18L'])
   })
 
+  // A failed call of the grader that reads the card question is no evidence of the build: the attempt is unavailable, the
+  // person answers nothing, and no preview is approved.
+  it('gives a failed read of the card question an unavailable attempt, sends no answer and approves nothing', async () => {
+    const [{ block }] = answered[0].parts
+    const failedCall = 'Claude grading failed: process exited with code 1.'
+    vi.mocked(askGrader).mockResolvedValueOnce({ error: failedCall })
+    const { verdict, sent, fixture } = await attempt('same-title-card-en', { replies: [answered[0]], held: [], habits: sameTitleHabits, records: sameTitleRecords })
+    expect(sent).toHaveLength(1)
+    expect(verdict).toMatchObject({ pass: false, metadata: { unavailable: true },
+      reason: `The grader call that reads the card question failed (${failedCall}): ${block.questions[0].prompt}` })
+    expect(fixture.calls.map((call) => call.path.split('/').at(-1))).not.toContain('confirm')
+  })
+
   it('passes the same split in pt-BR, where the answer of the person is its own text', async () => {
     const { verdict, sent } = await attempt('same-title-card-pt', { replies: answered, habits: sameTitleHabits, records: sameTitleRecords })
     expect(verdict.pass, verdict.reason).toBe(true)
