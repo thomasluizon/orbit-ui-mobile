@@ -254,8 +254,8 @@ export function checkPersonPrompt(toolName) {
     rule: "person-prompt",
     message:
       `Refused in an unattended run: ${toolName} waits for a person to answer, and no person is present. The run would stop until one answers.\n\n` +
-      "Decide yourself. Take the best option, not the easiest one, and write the decision and its reason to the decision log " +
-      "(`decisionLogPath` in the run state; a launched worker writes it to the assumptions section that its order names).\n" +
+      "Decide yourself. Take the best option, not the easiest one, and post the decision and its reason as a run note " +
+      "(`node tools/post-run-note.mjs --kind decision`; a launched worker writes it to the assumptions section that its order names).\n" +
       "Only for a real owner question, which no tool, file or account can answer: add a `{ question, blocks }` row to " +
       "`openOwnerQuestions` through `updateRunState` in tools/lib/run-state.mjs, then ask it in plain reply text. " +
       "Plain reply text never blocks the run. Then continue with the work that the question does not block.\n",
