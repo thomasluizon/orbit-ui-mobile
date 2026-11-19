@@ -13,6 +13,7 @@ import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClientError, formatAPIDate, formatLocaleDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { Time24 } from '@orbit/shared/contracts/forms'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import {
@@ -162,7 +163,6 @@ vi.mock('@/lib/motion', async (importOriginal) => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, string | number>) => {
-      if (key === 'habits.detail.slippingLine') return `${key}:${values?.days}:${values?.streak}:${values?.limit}`
       if (key === 'habits.detail.loggedAt') return `${values?.date}, logged at ${values?.time}`
       if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
       if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
@@ -360,7 +360,8 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
   useRescheduleSuggestion: (options: { enabled: boolean }) => {
     mocks.rescheduleOptions.push(options)
     const settled = mocks.suggestion !== null || mocks.rescheduleError !== null
-    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isFetching: mocks.rescheduleRefetching || (!settled && !mocks.reschedulePaused), isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
+    const fetching = !settled && !mocks.reschedulePaused
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isLoading: fetching, isFetching: mocks.rescheduleRefetching || fetching, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
   },
 }))
 vi.mock('@/lib/theme', async (importOriginal) => {
@@ -373,7 +374,7 @@ vi.mock('@/lib/theme', async (importOriginal) => {
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: mocks.theme, surfaces: { screen: { backgroundColor: '#111111' } } }),
 }))
-vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size, color, state, reading }: { size: number; color?: string; state?: string; reading?: boolean }) => React.createElement('OrbitMascot', { size, color, state, reading }) }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ useStateMascotSize: () => 96, OrbitMascot: ({ size, color, state, reading }: { size: number; color?: string; state?: string; reading?: boolean }) => React.createElement('OrbitMascot', { size, color, state, reading }) }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
     ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, message, confirmLabel, onConfirm, onCancel })
@@ -956,6 +957,31 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
+  it('gives the offline reason with no second Orbit while the rescue request waits offline in the guided surface', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    mocks.reschedulePaused = true
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const status = tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' })
+    expect(textsOf(status)).toContain('shell.composer.offline.reason')
+    expect(status.findAllByType('OrbitMascot')).toHaveLength(0)
+    expect(tree.root.findAllByType('OrbitMascot').map((mascot: TestNode) => mascot.props.size)).toEqual([48])
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps Pensando on the Orbit line alone while the reschedule suggestion loads in the guided surface', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const wait = tree.root.findAllByType('Proposed').find(isRescueProposal)!.findAll((node: TestNode) => typeof node.type === 'string' && node.props.testID === 'rescue-loading-skeleton')[0]!
+    expect(wait.findAllByType('OrbitMascot')).toHaveLength(0)
+    expect(wait.findAllByType('Skeleton').map((block: TestNode) => [block.props.variant, block.props.label])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', undefined]])
+    expect(tree.root.findAllByType('OrbitMascot').filter((mascot: TestNode) => mascot.props.state === 'pensando').map((mascot: TestNode) => mascot.props.size)).toEqual([48])
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('moves the Orbit of the suggest date button while a retry with a kept error runs, with no skeleton light', () => {
     openRescueGate()
     mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
@@ -993,7 +1019,7 @@ describe('HabitDetailScreen', () => {
     mocks.rescheduleError = createApiClientError(400, { error: 'Not overdue', errorCode: 'HABIT_NOT_OVERDUE' }, 'Failed')
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
     expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
-    expect(textsOf(tree.root)).not.toContain('habits.detail.slippingLine:9:0:50')
+    expect(textsOf(tree.root)).not.toContain('habits.detail.slippingLine')
 
     mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
@@ -1004,7 +1030,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
     TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByProps({ children: 'habits.detail.rescheduleError' })).toHaveLength(0)
-    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine')
   })
 
   it.each([
@@ -1046,7 +1072,7 @@ describe('HabitDetailScreen', () => {
     expect(notNow!.props.disabled).toBe(false)
     TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
-    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine')
     mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
     expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
@@ -1066,13 +1092,30 @@ describe('HabitDetailScreen', () => {
     expect(status.findAllByType('PillButton')).toHaveLength(0)
   })
 
+  it('writes the slipping line in the first person while the guided flows are on', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(textsOf(tree.root)).toContain('habits.detail.orbit.slippingLine')
+    expect(textsOf(tree.root).some((text) => text.startsWith('habits.detail.slippingLine'))).toBe(false)
+  })
+
+  it('writes the load error in the first person while the guided flows are on', () => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.detailError = true
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findByProps({ testID: 'load-error' }).props.message).toBe('habits.detail.orbit.loadError')
+  })
+
   it('uses the account today overdue schedule on a historical detail', () => {
     openRescueGate()
     mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]]))
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />) })
     expect(mocks.scopedRequests).toContainEqual({ dateFrom: '2026-08-29', includeOverdue: true })
-    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine')
     expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
 
     mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
@@ -1100,12 +1143,12 @@ describe('HabitDetailScreen', () => {
     ])
     expect(proposal.findAllByType('PillButton').map((button: TestNode) => [button.props.variant, button.props.size])).toEqual([['ghost', 'sm'], ['primary', 'sm']])
     expect(textsOf(tree.root)).not.toContain('habits.detail.slipping')
-    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine')
 
     const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus')
     TestRenderer.act(() => { pressPillButton(proposal, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
-    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine')
     expect(focus).toHaveBeenCalledOnce()
     focus.mockRestore()
 
@@ -2409,6 +2452,26 @@ describe('HabitDetailScreen', () => {
     })
   })
 
+  it('shows the deleted result dialog when the delete has already removed the detail query, with the guided flows on', async () => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.deleteHabit.mockImplementationOnce(() => { mocks.detail = null; return Promise.resolve() })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+    TestRenderer.act(() => {
+      tree.root.findByProps({ title: 'habits.detail.delete' }).props.onClick()
+    })
+    await TestRenderer.act(async () => {
+      tree.root.findByProps({ testID: 'confirm-habits.deleteConfirmTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAll((node: TestNode) => node.props.testID === 'result-dialog').length).toBeGreaterThan(0)
+    expect(mocks.routerReplace).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('leaves habit detail suggestions to the shell composer', () => {
     TestRenderer.act(() => {
       TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
@@ -2464,7 +2527,7 @@ describe('HabitDetailScreen', () => {
 
     TestRenderer.act(() => { pressPillButton(card, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByProps({ testID: 'rescue-free-card' })).toHaveLength(0)
-    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
+    expect(textsOf(tree.root)).toContain('habits.detail.slippingLine')
   })
 
   it('draws the free rescue card hairline inside its edge, so the copy starts at the web inset', () => {

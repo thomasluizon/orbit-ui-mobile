@@ -14,14 +14,19 @@ import { useAppToast } from '@/hooks/use-app-toast'
 
 const SETTLEMENT_BACKOFF_MS = [1000, 2000, 4000, 8000]
 
-export function useStripeCheckoutReturn() {
+/**
+ * Settles a return from Stripe checkout. `purchaseConfirmed` turns true only after the profile read reports a paid Pro plan.
+ * A trial already has Pro access, so the read of a trial person settles only when the trial gives way to the plan.
+ * With `toastOnSuccess` off, the caller owns the feedback, such as the result dialog of the upgrade route.
+ */
+export function useStripeCheckoutReturn({ toastOnSuccess = true }: { toastOnSuccess?: boolean } = {}) {
   const queryClient = useQueryClient()
   const t = useTranslations()
   const { showSuccess } = useAppToast()
   const accountId = useHeldAccountId()
   const returnAccount = useRef<{ id: string; generation: number } | null>(null)
   const [retryAttempt, setRetryAttempt] = useState(0)
-  const [returnState, setReturnState] = useAccountScopedState({ hasReturnError: false, isSettling: false })
+  const [returnState, setReturnState] = useAccountScopedState({ hasReturnError: false, isSettling: false, purchaseConfirmed: false })
   useEffect(() => {
     if (accountId === null || new URLSearchParams(globalThis.location.search).get('subscription') !== 'success') return
     const generation = getAccountGeneration()
@@ -31,7 +36,7 @@ export function useStripeCheckoutReturn() {
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     const isCurrentAccount = () => !cancelled && getAccountGeneration() === generation && getHeldAccountId() === accountId
     const handleFailure = () => {
-      if (isCurrentAccount()) setReturnState({ hasReturnError: true, isSettling: false })
+      if (isCurrentAccount()) setReturnState({ hasReturnError: true, isSettling: false, purchaseConfirmed: false })
     }
     const settle = async (attempt: number): Promise<void> => {
       if (!isCurrentAccount()) return
@@ -40,7 +45,7 @@ export function useStripeCheckoutReturn() {
         queryClient.invalidateQueries({ queryKey: subscriptionKeys.all }, { throwOnError: true }),
       ])
       if (!isCurrentAccount()) return
-      if (!profile.hasProAccess) {
+      if (!profile.hasProAccess || profile.isTrialActive) {
         const delay = SETTLEMENT_BACKOFF_MS[attempt]
         if (delay === undefined) handleFailure()
         else retryTimer = setTimeout(() => { void settle(attempt + 1).catch(handleFailure) }, delay)
@@ -50,18 +55,18 @@ export function useStripeCheckoutReturn() {
       if (url.searchParams.get('subscription') !== 'success') return
       url.searchParams.delete('subscription')
       globalThis.history.replaceState(globalThis.history.state, '', url)
-      setReturnState({ hasReturnError: false, isSettling: false })
-      showSuccess(t('upgrade.purchaseSuccess'))
+      setReturnState({ hasReturnError: false, isSettling: false, purchaseConfirmed: true })
+      if (toastOnSuccess) showSuccess(t('upgrade.purchaseSuccess'))
     }
     void Promise.resolve().then(() => {
       if (!isCurrentAccount()) return
-      setReturnState({ hasReturnError: false, isSettling: true })
+      setReturnState({ hasReturnError: false, isSettling: true, purchaseConfirmed: false })
       return settle(0)
     }).catch(handleFailure)
     return () => {
       cancelled = true
       clearTimeout(retryTimer)
     }
-  }, [accountId, queryClient, retryAttempt, setReturnState, showSuccess, t])
+  }, [accountId, queryClient, retryAttempt, setReturnState, showSuccess, t, toastOnSuccess])
   return { ...returnState, retryReturn: () => setRetryAttempt((attempt) => attempt + 1) }
 }

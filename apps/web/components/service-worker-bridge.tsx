@@ -9,6 +9,7 @@ import { getNotificationDestination, invalidateNotificationList } from '@orbit/s
 import { habitKeys, proactiveKeys } from '@orbit/shared/query'
 import { NOTIFICATION_URL_PARAM, registerServiceWorker } from '@/lib/service-worker-registration'
 import { isDesktopPush } from '@/lib/desktop-runtime'
+import { buildConversationEntryHref } from '@/lib/conversation-entry-query'
 import { useAccountId } from '@/lib/account-scope'
 
 type AppRouter = ReturnType<typeof useRouter>
@@ -16,7 +17,7 @@ type AppRouter = ReturnType<typeof useRouter>
 function openNotificationUrl(router: AppRouter, url: unknown) {
   const destination = typeof url === 'string' ? getNotificationDestination(url) : null
   if (!destination) return
-  router.push(destination.opensAstra ? '/?astra=proactive' : destination.url)
+  router.push(destination.opensAstra ? buildConversationEntryHref('proactive') : destination.url)
 }
 
 function takeLaunchNotificationUrl(): string | null {

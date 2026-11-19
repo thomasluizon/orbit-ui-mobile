@@ -315,6 +315,11 @@ export function getHabitDaysWithoutLog(
   return differenceInCalendarDays(today, createdDate) + 1
 }
 
+/** The days of the strip on which the habit was done, among its last `window` days. The Orbit line states this one fact. */
+export function countDoneInRecentDays(days: readonly HabitDayValue[], window: number): number {
+  return days.slice(-window).filter((day) => day === 'done').length
+}
+
 export function shouldShowHabitMetrics(habit: Pick<HabitDetail, 'frequencyUnit' | 'isGeneral'>): boolean {
   return habit.frequencyUnit !== null || habit.isGeneral
 }

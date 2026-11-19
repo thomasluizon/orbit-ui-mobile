@@ -9,13 +9,14 @@ import { PillButton } from '@/components/ui/pill-button'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { sheetTestControls } from '../../support/sheet-double'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
+import { __setWindowDimensions } from '../../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
 
-afterEach(() => sheetTestControls.defer(false))
+afterEach(() => { sheetTestControls.defer(false); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) })
 
 describe('ConfirmSheet controlled close', () => {
   it.each([false, true])('uses small intrinsic Cancel then Confirm actions with inlineActions=%s', (inlineActions) => {
@@ -29,6 +30,14 @@ describe('ConfirmSheet controlled close', () => {
     expect(cancel).toMatchObject({ height: 44, paddingStart: BUTTON_SIZES.sm.paddingX, paddingHorizontal: BUTTON_SIZES.sm.paddingX, borderWidth: 1.5 })
     expect(cancel!.height).toBe(confirm!.height)
   })
+  it.each([[412, false, 'button-primary-sm'], [800, false, 'button-primary-sm'], [767, true, 'button-primary-sm'], [768, true, 'button-secondary-sm']] as const)('draws the confirm action at %i wide with inlineActions=%s as %s, as web does', (width, inlineActions, testID) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ConfirmSheet open inlineActions={inlineActions} title="Clear alerts" message="" confirmLabel="Clear" onCancel={vi.fn()} onConfirm={vi.fn()} />) })
+    const filled: ReactTestInstance[] = tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && ['button-primary-sm', 'button-secondary-sm'].includes(String(node.props.testID)))
+    expect(filled.map((node) => node.props.testID)).toEqual([testID])
+  })
+
   it('draws no Orbit inside a destructive confirmation', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<ConfirmSheet open title="Delete habit" message="Permanent action" confirmLabel="Delete habit" onCancel={vi.fn()} onConfirm={vi.fn()} />) })

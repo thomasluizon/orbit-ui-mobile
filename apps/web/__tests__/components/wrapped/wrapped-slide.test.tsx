@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -163,7 +164,8 @@ describe('WrappedSlide', () => {
 
   it.each([false, true])('withholds weekday claims while the profile is unavailable, error %s', (isError) => {
     profileState.isError = isError
-    renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)
+    const { container } = renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)
+    expect(container.querySelector('svg[data-asset="orbit-mascot"]')).toBeNull()
     expect(screen.queryAllByRole('img')).toHaveLength(0)
     expect(screen.queryByText('wrapped.slides.consistency.thin')).not.toBeInTheDocument()
     if (isError) {
@@ -173,6 +175,21 @@ describe('WrappedSlide', () => {
     } else {
       expect(screen.getByRole('progressbar', { name: 'wrapped.loading' })).toHaveAttribute('aria-busy', 'true')
     }
+  })
+
+  it('states the consistency error with Orbit in Parado under orbit_guided_flows, and retry reads the profile again', () => {
+    enableTestFlags('orbit_guided_flows')
+    profileState.isError = true
+    const { container } = renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)
+
+    const orbit = container.querySelectorAll('svg[data-asset="orbit-mascot"]')
+    expect(orbit).toHaveLength(1)
+    expect(orbit[0]).toHaveAttribute('data-orbit-state', 'parado')
+    expect(orbit[0]).toHaveAttribute('width', '96')
+    expect(screen.getByRole('alert')).toHaveTextContent('wrapped.error')
+    expect(screen.queryAllByRole('img')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'wrapped.retry' }))
+    expect(profileState.refetch).toHaveBeenCalledOnce()
   })
 
   it.each(['month', 'year'] as const)('keeps all weekday averages available for a %s recap on Thursday', (period) => {

@@ -19,10 +19,12 @@ export interface QuestionFlowAdapters {
  */
 export interface QuestionFlowHooks {
   useFlowAnnouncement: (line: string | null | undefined, stepKey: string) => string
+  /** For a question that takes focus on arrival and carries its first line as its description: no line until the line changes, then each later line. */
+  useLineAfterArrival: (line: string | null | undefined, carriedByQuestion: boolean) => string | null | undefined
   useGuidedFlowTracking: (flow: GuidedFlowId, stepKey: string, stepCount: number) => void
 }
 
-/** The two hooks of the one-question flow shell: the announcement of its polite live region and the step analytics. */
+/** The hooks of the one-question flow shell: the announcement of its polite live region and the step analytics. */
 export function createQuestionFlowHooks({ useState, useEffect, useRef, capture }: QuestionFlowAdapters): QuestionFlowHooks {
   function useFlowAnnouncement(line: string | null | undefined, stepKey: string): string {
     const [announced, setAnnounced] = useState('')
@@ -38,6 +40,12 @@ export function createQuestionFlowHooks({ useState, useEffect, useRef, capture }
       return () => clearTimeout(timer)
     }, [line, stepKey])
     return announced
+  }
+
+  function useLineAfterArrival(line: string | null | undefined, carriedByQuestion: boolean): string | null | undefined {
+    const [arrival, setArrival] = useState<{ line: string | null | undefined } | null>(carriedByQuestion ? { line } : null)
+    if (arrival && arrival.line !== line) setArrival(null)
+    return arrival ? null : line
   }
 
   function useGuidedFlowTracking(flow: GuidedFlowId, stepKey: string, stepCount: number): void {
@@ -56,5 +64,5 @@ export function createQuestionFlowHooks({ useState, useEffect, useRef, capture }
     }, [stepKey, stepCount])
   }
 
-  return { useFlowAnnouncement, useGuidedFlowTracking }
+  return { useFlowAnnouncement, useLineAfterArrival, useGuidedFlowTracking }
 }

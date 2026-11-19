@@ -6,7 +6,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
 
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, type ComponentProps } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useDocumentTitle } from '@/hooks/use-document-title'
@@ -18,14 +18,18 @@ import {
   resolveUpgradeHeader,
   playManageSubscriptionUrl,
 } from '@orbit/shared/utils'
+import { isSafeAuthReturnUrl } from '@orbit/shared/utils/login-attempt'
 import type { SubscriptionPortalState, SubscriptionScreenContent, SubscriptionScreenState } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
 import { ErrorState } from '@/components/ui/error-state'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
+import { GuidedPricingSection, type GuidedPricingSectionProps } from '@/components/upgrade/guided-pricing-section'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { PurchaseResult, usePurchaseOrigin } from '@/components/upgrade/purchase-result'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import { openCustomerPortal } from '@/lib/actions/subscription'
 import { getHeldAccountId } from '@/stores/auth-store'
@@ -35,6 +39,7 @@ import { useStripeCheckout } from '@/hooks/use-stripe-checkout'
 import { useStripeCheckoutReturn } from '@/hooks/use-stripe-checkout-return'
 import { useBilling } from '@/hooks/use-billing'
 import { useBackLabel } from '@/hooks/use-back-label'
+import { useFlag } from '@/hooks/use-flag'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useOffline } from '@/hooks/use-offline'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
@@ -47,6 +52,42 @@ const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
 const AI_SETTINGS_ROUTE = '/profile/ai'
 const LEGACY_AI_SETTINGS_ROUTE = '/profile/astra'
 
+function knownOrigin(from: string | null): string | null {
+  return from === AI_SETTINGS_ROUTE || from === LEGACY_AI_SETTINGS_ROUTE ? AI_SETTINGS_ROUTE : null
+}
+
+function purchaseOrigin(from: string | null): string | null {
+  return knownOrigin(from) ?? (isSafeAuthReturnUrl(from) ? from : null)
+}
+
+function UpgradePitchSection({ guided, usage, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage'> & { guided: boolean }) {
+  return guided ? <GuidedPricingSection {...props} usage={usage} /> : <PricingSection {...props} />
+}
+
+function UpgradeLoadFailed({ guided, retrying, onRetry, t }: Readonly<{ guided: boolean; retrying: boolean; onRetry: () => void; t: ReturnType<typeof useTranslations> }>) {
+  const mascotSize = useStateMascotSize()
+  const retry = <IconButton label={t('upgrade.billing.retry')} loading={retrying} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+  if (!guided) return <ErrorState fullSurface message={t('upgrade.billing.error')} action={retry} />
+  return (
+    <div data-upgrade-load-failed="" className="flex flex-col items-center">
+      <span aria-hidden="true"><OrbitMascot size={mascotSize} state="parado" /></span>
+      <ErrorState message={t('upgrade.orbitLine.billingError')} action={retry} />
+    </div>
+  )
+}
+
+function settledStatus<Status>(state: SubscriptionScreenState, status: Status | null): Status | null {
+  return state === 'loading' || state === 'load-failed' ? null : status
+}
+
+function settlingCheckout<Interval>(guided: boolean, isSettling: boolean, checkoutLoading: Interval | null): Interval | 'yearly' | null {
+  return checkoutLoading ?? (guided && isSettling ? 'yearly' : null)
+}
+
+function headerTitleIsHeading(guided: boolean, contentCap: 'pitch' | undefined): boolean {
+  return !guided || contentCap !== 'pitch'
+}
+
 function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean) {
   const isPitch = state !== 'loading' && state !== 'load-failed' && !hasLapsedNotice && content === 'pitch'
   return isPitch ? 'pitch' : undefined
@@ -56,7 +97,8 @@ export default function UpgradePage() {
   const t = useTranslations()
   const locale = useLocale()
   const from = useSearchParams().get('from')
-  const fallbackRoute = from === AI_SETTINGS_ROUTE || from === LEGACY_AI_SETTINGS_ROUTE ? AI_SETTINGS_ROUTE : '/profile'
+  const fallbackRoute = knownOrigin(from) ?? '/profile'
+  const guided = useFlag('orbit_guided_flows')
   const goBackOrFallback = useGoBackOrFallback()
   const backLabel = useBackLabel(fallbackRoute)
   const { showSuccess, showPersistentError } = useAppToast()
@@ -69,7 +111,12 @@ export default function UpgradePage() {
     refetch: refetchStatus,
   } = useSubscriptionStatus()
 
-  const { profile: accountProfile } = useProfile({ enabled: subscriptionStatus?.aiMessagesPeriod === 'week' })
+  const rememberFrom = usePurchaseOrigin(guided, from)
+  const { checkout: handleCheckout, checkoutLoading, checkoutError } = useStripeCheckout(rememberFrom)
+  const { hasReturnError, isSettling, purchaseConfirmed, retryReturn } = useStripeCheckoutReturn({ toastOnSuccess: !guided })
+  const confirmedPurchase = guided && purchaseConfirmed
+
+  const { profile: accountProfile } = useProfile({ enabled: subscriptionStatus?.aiMessagesPeriod === 'week' || confirmedPurchase })
   const status = useMemo(() => subscriptionStatus ? { ...subscriptionStatus, timeZone: accountProfile?.timeZone } : null, [subscriptionStatus, accountProfile?.timeZone])
   const trialDaysLeft = getTrialDaysLeft(status)
   const {
@@ -88,8 +135,6 @@ export default function UpgradePage() {
     refetch: refetchBilling,
   } = useBilling(shouldFetchStripeBilling(status, 'web'))
 
-  const { checkout: handleCheckout, checkoutLoading, checkoutError } = useStripeCheckout()
-  const { hasReturnError, isSettling, retryReturn } = useStripeCheckoutReturn()
   const [showPitch, setShowPitch] = useAccountScopedState(false)
   const [portalState, setPortalState] = useAccountScopedState<SubscriptionPortalState>('idle')
 
@@ -179,6 +224,8 @@ export default function UpgradePage() {
     void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()])
   }
 
+  const contentCap = upgradeContentCap(screenState, model.content, Boolean(lapsedNoticeStatus))
+
   let content
   if (screenState === 'loading') {
     content = (
@@ -189,20 +236,15 @@ export default function UpgradePage() {
       </div>
     )
   } else if (screenState === 'load-failed') {
-    content = (
-      <ErrorState fullSurface
-        message={t('upgrade.billing.error')}
-        action={
-          <IconButton label={t('upgrade.billing.retry')} loading={isSettling} onClick={retryLoad}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-        }
-      />
-    )
+    content = <UpgradeLoadFailed guided={guided} retrying={isSettling} onRetry={retryLoad} t={t} />
   } else if (lapsedNoticeStatus) {
     content = <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} />
   } else if (model.content === 'pitch') {
     content = (
       <div className="flex flex-col gap-6">
-        <PricingSection
+        <UpgradePitchSection
+          guided={guided}
+          usage={status}
           focusOnMount={showPitch}
           profile={status}
           plans={plans}
@@ -211,7 +253,7 @@ export default function UpgradePage() {
           isOnline={isOnline}
           dateHint={getProfileTrialEndHint(status, locale, t)}
           trialDaysLeft={trialDaysLeft}
-          checkoutLoading={checkoutLoading}
+          checkoutLoading={settlingCheckout(guided, isSettling, checkoutLoading)}
           checkoutError={checkoutError}
           discountedAmount={discountedAmount}
           onCheckout={(interval) => void handleCheckout(interval)}
@@ -260,11 +302,14 @@ export default function UpgradePage() {
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
         titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
+        titleHeading={headerTitleIsHeading(guided, contentCap)}
       />
-      <div data-upgrade-screen="" className="orbit-content-frame flex flex-1 flex-col justify-center pt-4" data-content-cap={upgradeContentCap(screenState, model.content, Boolean(lapsedNoticeStatus))} data-state={screenState} aria-busy={screenState === 'loading'}>
-        {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
+      <div data-upgrade-screen="" className="orbit-content-frame flex flex-1 flex-col justify-center pt-4" data-content-cap={contentCap} data-state={screenState} aria-busy={screenState === 'loading'}>
+        {screenState === 'offline' && model.content === 'pitch' && !guided ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </div>
+      <PurchaseResult purchaseConfirmed={confirmedPurchase} status={settledStatus(screenState, status)} billing={billing}
+        accountId={heldAccountId} from={from} timeZone={accountProfile?.timeZone} knownOrigin={purchaseOrigin} />
     </div>
   )
 }

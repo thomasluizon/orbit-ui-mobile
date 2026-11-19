@@ -17,6 +17,7 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import { fetchAuthEndpoint, getCookieValue, handleVerifySuccess, isOfflinePreflight, resolveLoginErrorState } from './login-form-helpers'
 import { NOTIFICATION_URL_PARAM } from '@/lib/service-worker-registration'
+import { buildConversationEntryHref, readConversationEntry } from '@/lib/conversation-entry-query'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
 export function useLoginFlow(isAuthCallback = false) {
@@ -167,9 +168,9 @@ export function useLoginFlow(isAuthCallback = false) {
   function available() { return !busy.current && !useAuthStore.getState().isAuthenticated && isOnline && !isOfflinePreflight() }
   function getReturnUrl() {
     const destination = getNotificationDestination(searchParams.get(NOTIFICATION_URL_PARAM))
-    if (destination) return destination.opensAstra ? '/?astra=proactive' : destination.url
-    if (searchParams.get('astra') === 'proactive') return '/?astra=proactive'
-    if (searchParams.get('astra') === 'open') return '/?astra=open'
+    if (destination) return destination.opensAstra ? buildConversationEntryHref('proactive') : destination.url
+    const entry = readConversationEntry(searchParams)
+    if (entry) return buildConversationEntryHref(entry)
     const url = searchParams.get('returnUrl')
     if (!isSafeAuthReturnUrl(url)) return '/'
     const pathname = url.split(/[?#]/)[0]

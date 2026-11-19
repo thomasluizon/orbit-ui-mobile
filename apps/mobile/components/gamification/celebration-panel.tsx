@@ -9,6 +9,7 @@ import { motionDurations, motionEasings, SPACING, TOUCH_TARGET_MIN } from '@orbi
 import { isStreakCelebrationMilestone, type CelebrationQueueItem } from '@orbit/shared/stores'
 import { X } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
+import { OrbitHop } from '@/components/ui/orbit-hop'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { createTokensV2 } from '@/lib/theme'
 import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
@@ -17,6 +18,7 @@ import { plural } from '@/lib/plural'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useShellFocusTarget } from '@/components/shell/shell-focus-target'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { useFlag } from '@/hooks/use-flag'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { DailyStreakMoment } from './daily-streak-moment'
@@ -114,6 +116,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss, o
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { width, fontScale } = useWindowDimensions()
+  const guided = useFlag('orbit_guided_flows')
   const daily = active.kind === 'daily-streak'
   const { eyebrowKey, lineKey, values, pluralCount } = getCelebrationCopy(active)
   const translatedLine = t(lineKey, values)
@@ -157,7 +160,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss, o
         opacity, transform: [{ translateY: y }] }]}>
       <Text testID={daily ? 'daily-streak-announcement' : 'celebration-announcement'} accessibilityLiveRegion="polite"
         style={styles.announcement}>{announcement}</Text>
-      <View style={styles.mark} importantForAccessibility="no-hide-descendants"><OrbitMascot size={48} state="feliz" still /></View>
+      <View style={styles.mark} importantForAccessibility="no-hide-descendants">{guided ? <OrbitHop testID="celebration-mark-hop" active={!daily && !reduced}><OrbitMascot size={48} state="feliz" still /></OrbitHop> : <OrbitMascot size={48} state="feliz" still />}</View>
       <View style={[styles.copy, { minWidth: Math.min(width - 80, 112 * fontScale) }]} accessible accessibilityLabel={label}>
         {daily ? <DailyStreakMoment streak={active.payload.streak} entering={entering} /> : (
           <View importantForAccessibility="no-hide-descendants">

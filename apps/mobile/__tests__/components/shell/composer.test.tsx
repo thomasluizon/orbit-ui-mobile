@@ -20,7 +20,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { __getFocusedInputSelection, __getFocusedNativeTag, __setFocusImpl, __setWindowDimensions } from '@/test-mocks/react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
-import { expectMotionPress, expectPressPaint } from '@/__tests__/support/press-feedback'
+import { controlStyle, expectMotionPress, expectPressPaint } from '@/__tests__/support/press-feedback'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
@@ -485,16 +485,18 @@ it.each([false, true])('clears through value changes and focuses the input with 
 it('keeps one complete suggestion focus outline inside the scroller without resizing chips', () => {
   const tree = renderComposer(props())
   const chip = () => byLabel(tree.root, 'chip sentinel 0')[0]
-  const resting = StyleSheet.flatten(chip().props.style)
+  const resting = controlStyle(chip())
   const target = {}
   const event = { nativeEvent: { target: 1 }, target, currentTarget: target }
   TestRenderer.act(() => chip().props.onFocus?.(event))
-  const focused = StyleSheet.flatten(chip().findAllByType('View').at(-1).props.style)
-  expect(focused.outlineWidth).toBe(2)
-  expect(focused.outlineOffset + focused.outlineWidth).toBeLessThanOrEqual(0)
-  expect(StyleSheet.flatten(chip().props.style)).toEqual(resting)
+  const { outlineWidth, outlineOffset, outlineStyle, outlineColor, ...focusedBox } = controlStyle(chip())
+  expect(outlineWidth).toBe(2)
+  expect(outlineStyle).toBe('solid')
+  expect(outlineColor).toBeDefined()
+  expect(outlineOffset + outlineWidth).toBeLessThanOrEqual(0)
+  expect(focusedBox).toEqual(resting)
   TestRenderer.act(() => chip().props.onBlur?.(event))
-  expect(StyleSheet.flatten(chip().props.style).outlineWidth ?? 0).toBe(0)
+  expect(controlStyle(chip()).outlineWidth ?? 0).toBe(0)
 })
 
 function byLabel(root: ReturnType<typeof TestRenderer.create>['root'], label: string) {
@@ -762,13 +764,13 @@ describe('Composer (mobile)', () => {
     const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
     expect(scroller.props.horizontal).toBe(true)
     expect(firstChip.findAllByType('Text')[0]!.props.numberOfLines).toBeUndefined()
-    expect(StyleSheet.flatten(firstChip.props.style).maxWidth).toBeLessThanOrEqual(348)
+    expect(controlStyle(firstChip).maxWidth).toBeLessThanOrEqual(348)
     const config = Yoga.Config.create()
     const target = Yoga.Node.create(config)
     const label = Yoga.Node.create(config)
     try {
-      applyComposerLayoutStyle(target, StyleSheet.flatten(firstChip.props.style))
-      applyComposerLayoutInsets(target, StyleSheet.flatten(firstChip.props.style))
+      applyComposerLayoutStyle(target, controlStyle(firstChip))
+      applyComposerLayoutInsets(target, controlStyle(firstChip))
       label.setMeasureFunc(width => ({ width: Math.min(1600, width), height: 40 * Math.ceil(1600 / width) }))
       applyComposerLayoutStyle(label, StyleSheet.flatten(firstChip.findAllByType('Text')[0]!.props.style))
       target.insertChild(label, 0)
@@ -806,7 +808,7 @@ describe('Composer (mobile)', () => {
         for (const suggestion of suggestions) {
           const chip = byLabel(tree.root, suggestion.label)[0]
           const text = chip.findAllByType('Text')[0]!
-          const style = StyleSheet.flatten(chip.props.style)
+          const style = controlStyle(chip)
           expect(style.maxWidth).toBe(256)
           expect(style.minHeight).toBe(48)
           expect(style.height).toBeUndefined()
@@ -844,7 +846,7 @@ describe('Composer (mobile)', () => {
           const labelWidth = measureProfileRow({ type: 'View', props: { style: { alignItems: 'flex-start' } },
             children: [{ type: 'Text', props: { style: text.props.style }, children: [text.props.children] }] }, 4000, fontScale).texts[0]!.width
           const contentStyle = StyleSheet.flatten(chip.findByProps({ testID: 'composer-suggestion-content' }).props.style)
-          const style = StyleSheet.flatten(chip.props.style)
+          const style = controlStyle(chip)
           const inset = 2 * (style.paddingHorizontal + style.borderWidth)
           const naturalWidth = labelWidth + chip.findByType(OrbitMascot).props.size + contentStyle.gap + inset
           const contentWidth = Math.min(naturalWidth, style.maxWidth ?? naturalWidth) - inset
@@ -894,7 +896,7 @@ describe('Composer (mobile)', () => {
         const content = chip.findByProps({ testID: 'composer-suggestion-content' })
         const renderedWidth = Math.min(naturalWidths[index]!, width - 32) - 24 - 2 * StyleSheet.hairlineWidth
         TestRenderer.act(() => content.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: renderedWidth, height: 24 } } }))
-        expect(StyleSheet.flatten(chip.props.style).minWidth).toBeUndefined()
+        expect(controlStyle(chip).minWidth).toBeUndefined()
       }
       return StyleSheet.flatten(byLabel(mounted.root, en.shell.composer.suggestionsLabel)[0].props.contentContainerStyle).gap
     }
@@ -921,7 +923,7 @@ describe('Composer (mobile)', () => {
         const chipWidths = [180, 200, 160].map(natural => Math.min(natural * fontScale, available - 32))
         for (const [index, chipWidth] of chipWidths.entries()) {
           const chip = byLabel(tree.root, `chip sentinel ${index}`)[0]
-          const style = StyleSheet.flatten(chip.props.style)
+          const style = controlStyle(chip)
           expect(style.maxWidth).toBe(available - 32)
           expect(style.minHeight).toBe(48)
           const config = Yoga.Config.create()

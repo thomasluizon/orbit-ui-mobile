@@ -10,11 +10,12 @@ selector and a shared clearance below it. The following states use that composit
 | Range, ready/loading/empty/error | Calendar page, CalendarRangeView | CalendarScreen, CalendarRangeView | Fourteen-day navigation, selector, body clearance |
 | Agenda, ready/loading/empty/error | Calendar page, CalendarAgendaView | CalendarScreen, CalendarAgendaView | Seven-day navigation, selector, body clearance |
 | Profile loading, every selected view | Calendar page, CalendarBody | CalendarScreen, CalendarBody | Selected view navigation, selector, body clearance |
-| Month picker | CalendarHeader, CalendarMonthPicker | CalendarHeader, CalendarMonthPicker | Preserve month selection and dismissal |
+| Orbit line row, every view | CalendarHeader, CalendarOrbitLine | CalendarHeader, CalendarOrbitLine | One fact about the selected day or the shown month between the navigation and the selector; absent with `orbit_guided_flows` off or with no selected day |
+| Month picker | CalendarHeader, CalendarMonthPicker | CalendarHeader, CalendarMonthPicker | Preserve month selection and dismissal; with `orbit_guided_flows` on, the question title, the quick options Hoje and Mês passado, and the typed date |
 | Year picker | CalendarHeader, YearPicker | CalendarHeader, YearPicker | Preserve year selection, focus return and dismissal |
 
-This is 38 platform-state surfaces: four view states in four views on two platforms,
-plus profile loading and two pickers on each platform. While the profile loads, the selected
+This is 40 platform-state surfaces: four view states in four views on two platforms,
+plus profile loading, the Orbit line row and two pickers on each platform. While the profile loads, the selected
 view keeps its header and shows its loading body. Profile-load failure keeps the same header,
 and `CalendarBody` replaces only the body with the retry surface.
 

@@ -98,10 +98,12 @@ describe('DayCell', () => {
       <DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={1} />,
     )
     expect(container.querySelectorAll('circle')[0]).toHaveAttribute('stroke', 'var(--status-empty)')
-    expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', `${(1 / 3) * 100} 100`)
+    const arc = () => container.querySelectorAll('circle')[1]!
+    expect(arc()).toHaveAttribute('stroke-dasharray', '100 100')
+    expect(Number(arc().getAttribute('stroke-dashoffset'))).toBeCloseTo(100 - (1 / 3) * 100)
 
     rerender(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={2} />)
-    expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', `${(2 / 3) * 100} 100`)
+    expect(Number(arc().getAttribute('stroke-dashoffset'))).toBeCloseTo(100 - (2 / 3) * 100)
   })
 
   it('uses the quiet habit-history treatment for completed, missed, and unscheduled days', () => {

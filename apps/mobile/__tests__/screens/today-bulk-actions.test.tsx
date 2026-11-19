@@ -56,6 +56,10 @@ const mocks = vi.hoisted(() => ({
     checkAllDoneCelebration: vi.fn(),
     todayFabHidden: false,
     setTodayFabHidden: vi.fn(),
+    bulkMotionGeneration: 0,
+    bulkMotionActive: false,
+    beginBulkMotion: vi.fn(),
+    endBulkMotion: vi.fn(),
   },
 }))
 

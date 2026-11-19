@@ -26,7 +26,17 @@ const BAD_TEXT_SOURCE_SITES = [
   },
   {
     name: 'web streak repair error',
-    path: 'apps/web/app/(app)/progress/_components/progress-content.tsx',
+    path: 'apps/web/app/(app)/progress/_components/progress-streak.tsx',
+    pattern: /repair\.isError[\s\S]*?text-\[var\(--status-bad-text\)\]/,
+  },
+  {
+    name: 'web guided streak repair error',
+    path: 'apps/web/app/(app)/progress/_components/guided-streak-section.tsx',
+    pattern: /repair\.isError[\s\S]*?text-\[var\(--status-bad-text\)\]/,
+  },
+  {
+    name: 'web repair flow error',
+    path: 'apps/web/app/(app)/progress/_components/streak-repair-flow.tsx',
     pattern: /repair\.isError[\s\S]*?text-\[var\(--status-bad-text\)\]/,
   },
   {
@@ -151,7 +161,17 @@ const BAD_TEXT_SOURCE_SITES = [
   },
   {
     name: 'mobile streak repair error',
-    path: 'apps/mobile/components/progress/progress-content.tsx',
+    path: 'apps/mobile/components/progress/progress-streak.tsx',
+    pattern: /repair\.isError[\s\S]*?color: tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile guided streak repair error',
+    path: 'apps/mobile/components/progress/guided-streak-section.tsx',
+    pattern: /repair\.isError[\s\S]*?color: tokens\.statusBadText/,
+  },
+  {
+    name: 'mobile repair flow error',
+    path: 'apps/mobile/components/progress/streak-repair-flow.tsx',
     pattern: /repair\.isError[\s\S]*?color: tokens\.statusBadText/,
   },
   {

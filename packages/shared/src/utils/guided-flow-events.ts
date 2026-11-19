@@ -10,6 +10,7 @@ export const GUIDED_FLOW_IDS = [
   'delete_account',
   'support_request',
   'api_key_create',
+  'streak_repair',
 ] as const
 
 export type GuidedFlowId = (typeof GUIDED_FLOW_IDS)[number]

@@ -3,6 +3,7 @@ import {
   type AnswerBlockProps,
 } from './block-answer'
 import type { BlockAnswer } from '../types/chat'
+import { fitsQuickOptions } from './question-block-core'
 
 type AnswerTranslationKey = 'answered' | 'closed' | 'alreadyAnswered' | 'invalid' | 'error' |
   'acting' | 'reviewing' | 'offline' | 'limit' | 'position' | 'proposed' | 'freeText' | 'submit' | 'review'
@@ -136,3 +137,8 @@ export function getAnswerBlockView(props: AnswerBlockProps, state: AnswerBlockSt
   }
 }
 
+
+/** A choice or a pick list whose options fit the quick option grid answers with quick options. Each other set keeps the list presentation. */
+export function answerUsesQuickOptions(view: Pick<AnswerBlockView, 'options'>): boolean {
+  return fitsQuickOptions(view.options)
+}

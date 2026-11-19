@@ -17,6 +17,7 @@ function bundleConversation() {
   const contents = `import React, { createRef, lazy, Suspense, useState } from 'react';
     import { createRoot } from 'react-dom/client';
     import { NextIntlClientProvider } from 'next-intl';
+    import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
     import { createChatThreadScroll } from '@orbit/shared/hooks';
     import en from '@orbit/shared/i18n/en.json';
     import ptBR from '@orbit/shared/i18n/pt-BR.json';
@@ -29,6 +30,7 @@ function bundleConversation() {
     const messages = configuration.locale === 'en' ? en : ptBR;
     useUIStore.getState().setAstraConversationOpen(configuration.open);
     if (configuration.settleToday) document.addEventListener('pointerdown', () => useUIStore.getState().setTodayFabHidden(true), { once: true });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const threadScroll = createChatThreadScroll();
     const chatContainerRef = createRef();
     function App() {
@@ -41,7 +43,7 @@ function bundleConversation() {
       const chat = { composerProps, threadScroll, chatContainerRef, messages: [], activeSteps: [],
         isTyping: false, streamingMessageId: null, showSuggestions: false, canShowFollowUps: false,
         scrollToBottom: () => {} };
-      return <NextIntlClientProvider locale={configuration.locale} messages={messages} timeZone="UTC">
+      return <QueryClientProvider client={queryClient}><NextIntlClientProvider locale={configuration.locale} messages={messages} timeZone="UTC">
         <DestinationShell onCreate={() => {}} conversationOpen={open} conversationLabel="Astra"
           todayFabHidden={configuration.settleToday ? todayFabHidden : undefined}
           conversation={configuration.delayed ? <Suspense fallback={null}><DeferredConversation chat={chat} /></Suspense> : <AstraConversation chat={chat} />}
@@ -49,7 +51,7 @@ function bundleConversation() {
             conversationLabel={messages.todayAstra.openConversation} /> : undefined}>
           <h1 className="p-4">Destination</h1>
         </DestinationShell>
-      </NextIntlClientProvider>;
+      </NextIntlClientProvider></QueryClientProvider>;
     }
     createRoot(document.getElementById('root')).render(<App />);`
   const boundaries = {

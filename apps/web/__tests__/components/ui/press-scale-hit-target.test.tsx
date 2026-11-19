@@ -16,7 +16,6 @@ import { AnswerBlock } from '@/components/chat/answer-block'
 import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
 import { CalendarTimeGrid } from '@/components/calendar/calendar-time-grid'
 import { CommandRow } from '@/components/command/command-row'
-import { StreakBadge } from '@/components/gamification/streak-badge'
 import { HabitRow } from '@/components/habits/habit-row'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { HabitRowTrailing } from '@/components/habits/habit-row-trailing'
@@ -99,7 +98,6 @@ const controls: [string, () => ReactElement, (page: Page) => Locator][] = [
   ['the habit row menu', () => <HabitRowTrailing habit={createMockHabit({ title: 'Parent' })} menuItems={[{ id: 'edit', label: 'Edit' }]} {...parentRing} />,
     (page) => page.locator('[data-habit-row-control="menu"]')],
   ['a selection tray action', () => <SelectionTray {...tray} />, (page) => page.getByRole('button', { name: en.habits.bulkBar.log, exact: true })],
-  ['the streak badge', () => <StreakBadge streak={3} />, (page) => page.locator('.orbit-streak-badge')],
 ]
 
 describe('press hit target in Chromium', () => {

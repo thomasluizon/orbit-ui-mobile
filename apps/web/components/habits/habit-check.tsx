@@ -4,7 +4,7 @@ import { motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { HABIT_CHECK_PATH, HABIT_CHECK_PERIMETER, habitCheckProgress } from '@orbit/shared/utils/habit-row-status'
 import { Check } from '@/components/ui/icons'
-import { useListScope } from '@/components/motion/list-motion'
+import { useListBulk, useListScope } from '@/components/motion/list-motion'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 interface HabitCheckProps {
@@ -24,11 +24,12 @@ function CheckProgressStroke({ ratio, bad }: Readonly<{ ratio: number; bad: bool
 function useCompletionSettle(done: boolean): number | null {
   const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
   const scope = useListScope()
+  const bulk = useListBulk()
   const [previous, setPrevious] = useState({ done, scope })
   const [logged, setLogged] = useState(false)
   if (done !== previous.done || scope !== previous.scope) {
     setPrevious({ done, scope })
-    setLogged(done && scope === previous.scope)
+    setLogged(done && scope === previous.scope && !bulk)
   }
   return logged && !reduced ? resolveMotionPreset('success-feedback').scaleFrom : null
 }
@@ -67,7 +68,7 @@ export function HabitCheck({ status, label, unavailable = false, progress }: Rea
       className="habit-check-motion relative inline-flex shrink-0 items-center justify-center rounded-[12px]"
       style={{ width: 28, height: 28, background: done ? 'var(--fg-1)' : 'var(--habit-check-feedback, transparent)', boxShadow: done ? 'none' : `inset 0 0 0 1px ${color}` }}>
       {done ? <span data-habit-check-feedback="" aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[inherit]" /> : null}
-      {done ? <Check aria-hidden="true" className="relative" size={16} strokeWidth={3} color="var(--bg)" /> : null}
+      {done ? <Check aria-hidden="true" className="relative" size={16} strokeWidth={2.5} color="var(--bg)" /> : null}
       {!done && ratio > 0 ? <CheckProgressStroke ratio={ratio} bad={status === 'bad'} /> : null}
     </span>
   )

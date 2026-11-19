@@ -108,7 +108,8 @@ function SuggestionStrip({
         contentContainerStyle={[styles.suggestions, { gap: layout.gap, paddingStart: layout.paddingStart }]}
       >
         {suggestions.map(suggestion => (
-          <InsetFocusPressable
+          <MotionPressable
+            focusInset
             key={suggestion.id}
             accessibilityRole="button"
             accessibilityLabel={suggestion.label}
@@ -133,7 +134,7 @@ function SuggestionStrip({
               {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
               <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><OrbitMascot size={16} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
             </View>
-          </InsetFocusPressable>
+          </MotionPressable>
         ))}
       </ScrollView>
     </View>

@@ -4,13 +4,16 @@ import { useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuthStore } from '@/stores/auth-store'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
+import { useFlag } from '@/hooks/use-flag'
 
 export function ExpiryWarning() {
   const t = useTranslations()
   const { sessionRefreshFailed, logout } = useAuthStore()
   const router = useRouter()
   const routedToSignIn = useRef(false)
+  const guided = useFlag('orbit_guided_flows')
 
   useEffect(() => {
     if (!sessionRefreshFailed) {
@@ -49,6 +52,7 @@ export function ExpiryWarning() {
             'inset 0 0 0 1px color-mix(in srgb, var(--status-overdue) 28%, transparent), var(--shadow-2)',
         }}
       >
+        {guided ? <span aria-hidden="true" className="shrink-0"><OrbitMascot size={48} state="parado" /></span> : null}
         <span
           className="flex-1"
           style={{

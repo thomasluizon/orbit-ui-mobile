@@ -26,6 +26,28 @@ interface PricingSectionProps {
   t: ReturnType<typeof useTranslations>
 }
 
+/** The stay free action: a link to the place the person came from. A plain press runs `onStayFree`, and a modified press keeps the link. */
+export function StayFreeLink({ href, disabled, onStayFree, t }: Readonly<{ href: string; disabled: boolean; onStayFree: () => void; t: ReturnType<typeof useTranslations> }>) {
+  return (
+    <Link
+      href={href}
+      aria-disabled={disabled}
+      onClick={(event) => {
+        if (disabled) {
+          event.preventDefault()
+          return
+        }
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+        event.preventDefault()
+        onStayFree()
+      }}
+      className="group/stay-free inline-flex min-h-[var(--touch-min)] items-center text-base leading-[1.5] text-[var(--fg-2)] aria-disabled:pointer-events-none aria-disabled:opacity-40"
+    >
+      <span data-slot="press-surface" className="orbit-link-action orbit-link-action-persistent underline-offset-4 transition-[color,scale] [transition-duration:var(--dur-hover),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] motion-safe:group-active/stay-free:scale-[0.96]">{t('upgrade.convert.stayFree')}</span>
+    </Link>
+  )
+}
+
 export function PricingSection({
   stayFreeHref = '/profile',
   focusOnMount = false,
@@ -80,22 +102,7 @@ export function PricingSection({
                 {t('upgrade.convert.handOff')}
               </p>
             </div> : null}
-            <Link
-              href={stayFreeHref}
-              aria-disabled={checkoutLoading !== null}
-              onClick={(event) => {
-                if (checkoutLoading !== null) {
-                  event.preventDefault()
-                  return
-                }
-                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
-                event.preventDefault()
-                onStayFree()
-              }}
-              className="group/stay-free inline-flex min-h-[var(--touch-min)] items-center text-base leading-[1.5] text-[var(--fg-2)] aria-disabled:pointer-events-none aria-disabled:opacity-40"
-            >
-              <span data-slot="press-surface" className="orbit-link-action orbit-link-action-persistent underline-offset-4 transition-[color,scale] [transition-duration:var(--dur-hover),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] motion-safe:group-active/stay-free:scale-[0.96]">{t('upgrade.convert.stayFree')}</span>
-            </Link>
+            <StayFreeLink href={stayFreeHref} disabled={checkoutLoading !== null} onStayFree={onStayFree} t={t} />
           </div>
       </div>
     </div>

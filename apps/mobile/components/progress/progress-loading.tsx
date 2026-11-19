@@ -16,6 +16,8 @@ export function ProgressLoading({ label, screen }: Readonly<{ label: string; scr
 }
 
 const styles = StyleSheet.create({
-  loading: { gap: 32 }, loadingRows: { gap: 12 },
-  loadingTileRow: { flexDirection: 'row', gap: 16 }, loadingTile: { flex: 1, minWidth: 0 },
+  loading: { gap: 32 },
+  loadingRows: { gap: 12 },
+  loadingTile: { flex: 1, minWidth: 0 },
+  loadingTileRow: { flexDirection: 'row', gap: 16 },
 })

@@ -20,7 +20,7 @@ on both platforms.
 | Habit selection rows | `apps/web/components/habits/habit-row.tsx` | Selected title expands through `habit-row-content.tsx`; the selection action keeps its progress and status accessible name. |
 | Habit detail heading | `apps/web/components/habits/habit-detail-screen.tsx` | Unclamped reading heading; words wrap and oversized tokens ellipsize without scrolling. The one named pencil opens the full title input. |
 | Checklist item labels | `apps/web/components/habits/habit-checklist.tsx` | Fully wrapping label with no line clamp or disclosure; body completion and checkbox are sibling actions. |
-| Progress top habit | `apps/web/app/(app)/progress/_components/progress-content.tsx` | A habit without a destination discloses beside its button; a habit with an id remains a collapsed destination link. |
+| Progress top habit | `apps/web/app/(app)/progress/_components/progress-window.tsx` | A habit without a destination discloses beside its button; a habit with an id remains a collapsed destination link. |
 | Retrospective top habit | `apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx` | Disclosed heading beside its button, inside the existing motion part. |
 | About account fact | `apps/web/app/(app)/about/page.tsx` | Disclosed account value beside its native disclosure button. |
 | Personal settings rows | `apps/web/components/ui/list-row.tsx`, `apps/web/components/ui/settings-group.tsx` | Typed labels disclose beside their native action; trailing controls retain their own pointer and keyboard paths. |
