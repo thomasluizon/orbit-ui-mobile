@@ -1092,6 +1092,23 @@ describe('HabitDetailScreen', () => {
     expect(status.findAllByType('PillButton')).toHaveLength(0)
   })
 
+  it('writes the slipping line in the first person while the guided flows are on', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(textsOf(tree.root)).toContain('habits.detail.orbit.slippingLine')
+    expect(textsOf(tree.root).some((text) => text.startsWith('habits.detail.slippingLine'))).toBe(false)
+  })
+
+  it('writes the load error in the first person while the guided flows are on', () => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.detailError = true
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findByProps({ testID: 'load-error' }).props.message).toBe('habits.detail.orbit.loadError')
+  })
+
   it('uses the account today overdue schedule on a historical detail', () => {
     openRescueGate()
     mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]]))

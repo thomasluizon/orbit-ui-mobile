@@ -13,7 +13,7 @@ interface TodayAstraState {
   guided: boolean
 }
 
-type TodayAstraTranslate = (key: 'todayAstra.openConversation' | 'todayAstra.viewProgress' | 'todayAstra.returningElapsed' | 'todayAstra.returningBounded') => string
+type TodayAstraTranslate = (key: 'todayAstra.openConversation' | 'todayAstra.viewProgress' | 'todayAstra.returningElapsed' | 'todayAstra.returningBounded' | 'todayAstra.guided.returning', values?: { days: number }) => string
 
 export function getTodayAstraSlot(state: TodayAstraState, translate: TodayAstraTranslate): TodayAstraLine | 'summary' | null {
   return getTodayAstraLine(state, translate) ?? (shouldShowTodayAstraSurface(state) ? 'summary' : null)
@@ -25,12 +25,15 @@ export function getTodayAstraLine(state: TodayAstraState, translate: TodayAstraT
   if (state.item) return { text: state.item.text, destination: translate('todayAstra.openConversation'), item: state.item }
   if (!state.returning) return null
   return {
-    text: state.guided || state.returning.kind === 'elapsed'
-      ? translate('todayAstra.returningElapsed')
-      : translate('todayAstra.returningBounded'),
+    text: returningText(state.guided, state.returning, translate),
     destination: translate('todayAstra.viewProgress'),
     item: null,
   }
+}
+
+function returningText(guided: boolean, returning: ReturningInterval, translate: TodayAstraTranslate): string {
+  if (guided) return translate('todayAstra.guided.returning')
+  return returning.kind === 'elapsed' ? translate('todayAstra.returningElapsed', { days: returning.days }) : translate('todayAstra.returningBounded')
 }
 
 export function proactiveActionLabelKey(trigger: string): ProactiveActionLabelKey {

@@ -72,8 +72,8 @@ export function promptDisabledReason(state: {
 type ConversationAvailability = { isOnline: boolean; dailyBudgetReached?: boolean; atMessageLimit: boolean }
 
 /** The reason the AI is unavailable, as the key of its first-person sentence: offline, or at the message or daily limit. */
-export function conversationRestReason(state: ConversationAvailability): 'todayAstra.offline' | 'conversation.restLimit' | null {
-  if (!state.isOnline) return 'todayAstra.offline'
+export function conversationRestReason(state: ConversationAvailability): 'todayAstra.guided.offline' | 'conversation.restLimit' | null {
+  if (!state.isOnline) return 'todayAstra.guided.offline'
   return state.dailyBudgetReached === true || state.atMessageLimit ? 'conversation.restLimit' : null
 }
 

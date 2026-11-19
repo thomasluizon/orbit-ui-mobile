@@ -336,10 +336,10 @@ describe('web Today Astra owned surfaces', () => {
     render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
 
     if (visible) {
-      expect(screen.getByText('todayAstra.returningElapsed', { exact: false })).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed' })).toHaveAttribute('href', '/progress')
+      expect(screen.getByText('todayAstra.returningElapsed:3', { exact: false })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed:3' })).toHaveAttribute('href', '/progress')
     } else {
-      expect(screen.queryByText('todayAstra.returningElapsed', { exact: false })).not.toBeInTheDocument()
+      expect(screen.queryByText('todayAstra.returningElapsed:3', { exact: false })).not.toBeInTheDocument()
     }
     vi.useRealTimers()
   })

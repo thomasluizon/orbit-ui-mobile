@@ -46,7 +46,7 @@ describe('ChatEmptyState', () => {
     expect(container.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'descansando')
   })
 
-  it.each(['todayAstra.offline', 'conversation.restLimit'] as const)('shows the title and one Orbit line with the reason %s while Orbit rests', (reason) => {
+  it.each(['todayAstra.guided.offline', 'conversation.restLimit'] as const)('shows the title and one Orbit line with the reason %s while Orbit rests', (reason) => {
     enableTestFlags('orbit_guided_flows')
     const { container } = render(<ChatEmptyState mascotState="descansando" restReason={reason} />)
     expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
@@ -58,7 +58,7 @@ describe('ChatEmptyState', () => {
   })
 
   it('shows no Orbit line with no reason, and none with the guided flows off', () => {
-    const off = render(<ChatEmptyState mascotState="descansando" restReason="todayAstra.offline" />)
+    const off = render(<ChatEmptyState mascotState="descansando" restReason="todayAstra.guided.offline" />)
     expect(off.container.querySelector('[data-empty-state-line]')).toBeNull()
     off.unmount()
     enableTestFlags('orbit_guided_flows')

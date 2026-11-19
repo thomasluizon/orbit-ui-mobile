@@ -46,7 +46,7 @@ describe('web Orbit line on Hoje', () => {
     mocks.online = false
     const { container } = renderLine()
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'descansando')
-    fireEvent.click(screen.getByRole('button', { name: 'todayAstra.offline' }))
+    fireEvent.click(screen.getByRole('button', { name: 'todayAstra.guided.offline' }))
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
@@ -63,7 +63,7 @@ describe('web Orbit line on Hoje', () => {
     mocks.proactive = false
     mocks.profile = { ...mocks.profile, lastCompletionDate: beyondTheWindow() }
     renderLine()
-    expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed' })).toHaveAttribute('href', '/progress')
+    expect(screen.getByRole('link', { name: 'todayAstra.guided.returning' })).toHaveAttribute('href', '/progress')
     expect(screen.queryByText('todayAstra.returningBounded')).not.toBeInTheDocument()
   })
 

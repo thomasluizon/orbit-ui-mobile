@@ -8,10 +8,10 @@ import { useFlag } from '@/hooks/use-flag'
 import { isNetworkUnavailableError } from '@orbit/shared/utils'
 
 /** The full-surface load error of habit detail. With the guided flows on, Orbit in Parado, never sad, sits above the message and the retry, centred in the free area, and a read that failed for want of a connection says so. */
-export function HabitDetailLoadError({ message, offlineMessage, error: failure, retryLabel, onRetry }: Readonly<{ message: string; offlineMessage?: string; error?: unknown; retryLabel: string; onRetry: () => void }>) {
+export function HabitDetailLoadError({ message, guidedMessage, offlineMessage, error: failure, retryLabel, onRetry }: Readonly<{ message: string; guidedMessage?: string; offlineMessage?: string; error?: unknown; retryLabel: string; onRetry: () => void }>) {
   const guided = useFlag('orbit_guided_flows')
   const size = useStateMascotSize()
-  const shown = guided && offlineMessage && isNetworkUnavailableError(failure) ? offlineMessage : message
+  const shown = guided ? (offlineMessage && isNetworkUnavailableError(failure) ? offlineMessage : guidedMessage ?? message) : message
   const error = <ErrorState fullSurface={!guided} message={shown} action={<IconButton label={retryLabel} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />
   if (!guided) return <View style={styles.content}>{error}</View>
   return (

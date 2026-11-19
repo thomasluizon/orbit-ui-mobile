@@ -58,7 +58,7 @@ describe('Android Orbit line on Hoje', () => {
     mocks.online = false
     const tree = await renderLine()
     expect(probe(tree).state).toBe('descansando')
-    expect(row(tree).props.accessibilityLabel).toBe('todayAstra.offline')
+    expect(row(tree).props.accessibilityLabel).toBe('todayAstra.guided.offline')
     await renderer.act(() => { (row(tree).props.onPress as () => void)() })
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
@@ -76,7 +76,7 @@ describe('Android Orbit line on Hoje', () => {
     mocks.proactive = false
     mocks.profile = { ...mocks.profile, lastCompletionDate: beyondTheWindow() }
     const tree = await renderLine()
-    expect(row(tree).props.accessibilityLabel).toBe('todayAstra.returningElapsed')
+    expect(row(tree).props.accessibilityLabel).toBe('todayAstra.guided.returning')
     expect(row(tree).props.accessibilityRole).toBe('link')
     expect(row(tree).props.accessibilityHint).toBe('todayAstra.viewProgress')
   })

@@ -87,7 +87,7 @@ function hasText(tree: ReactTestRenderer, text: string): boolean {
 describe('mobile Today Astra', () => {
   it.each([
     ['proactive', 'Check in', 'todayAstra.openConversation'],
-    ['elapsed', 'todayAstra.returningElapsed', 'todayAstra.viewProgress'],
+    ['elapsed', 'todayAstra.returningElapsed:3', 'todayAstra.viewProgress'],
     ['bounded', 'todayAstra.returningBounded', 'todayAstra.viewProgress'],
   ])('makes the %s sentence the whole row target with a destination hint', async (variant, sentence, destination) => {
     mocks.profile.lastCompletionDate = variant === 'bounded' ? '2026-07-29' : '2026-08-26'
@@ -132,9 +132,9 @@ describe('mobile Today Astra', () => {
   })
 
   it.each([
-    ['three-day completion', '2026-08-26', 'todayAstra.returningElapsed'],
-    ['four-day completion', '2026-08-25', 'todayAstra.returningElapsed'],
-    ['window boundary', '2026-07-30', 'todayAstra.returningElapsed'],
+    ['three-day completion', '2026-08-26', 'todayAstra.returningElapsed:3'],
+    ['four-day completion', '2026-08-25', 'todayAstra.returningElapsed:4'],
+    ['window boundary', '2026-07-30', 'todayAstra.returningElapsed:30'],
     ['gap beyond the window', '2026-07-29', 'todayAstra.returningBounded'],
   ])('shows the profile interval for %s', async (_scenario, lastCompletionDate, expected) => {
     mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate }
@@ -150,7 +150,7 @@ describe('mobile Today Astra', () => {
     const tree = await renderTodayAstra()
 
     expect(hasText(tree, 'todayAstra.returningBounded')).toBe(false)
-    expect(hasText(tree, 'todayAstra.returningElapsed')).toBe(false)
+    expect(hasText(tree, 'todayAstra.returningElapsed:3')).toBe(false)
   })
 
   it('opens Progress from the returning line without marking a notification read', async () => {
@@ -178,7 +178,7 @@ describe('mobile Today Astra', () => {
 
     const tree = await renderTodayAstra()
 
-    expect(hasText(tree, 'todayAstra.returningElapsed')).toBe(true)
+    expect(hasText(tree, 'todayAstra.returningElapsed:3')).toBe(true)
     expect(tree.root.findAll((node) =>
       node.props.accessibilityRole === 'link' &&
       node.props.accessibilityHint === 'todayAstra.viewProgress',

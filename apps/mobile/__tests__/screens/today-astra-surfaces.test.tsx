@@ -447,7 +447,7 @@ describe('mobile Today Astra owned surfaces', () => {
     })
 
     const returning = tree.root.findAll((node) =>
-      node.props.children === 'todayAstra.returningElapsed',
+      node.props.children === 'todayAstra.returningElapsed:3',
     )
     expect(returning.length > 0).toBe(visible)
     vi.useRealTimers()

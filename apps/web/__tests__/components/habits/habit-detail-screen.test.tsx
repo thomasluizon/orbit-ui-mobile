@@ -736,6 +736,23 @@ describe('HabitDetailScreen', () => {
     expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
   })
 
+  it('writes the slipping line in the first person while the guided flows are on', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    render(<HabitDetailScreen habitId="habit-1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
+    expect(screen.getByText('habits.detail.orbit.slippingLine')).toBeVisible()
+    expect(screen.queryByText('habits.detail.slippingLine')).not.toBeInTheDocument()
+  })
+
+  it('writes the load error in the first person while the guided flows are on', () => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.detailError = true
+    render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.orbit.loadError')
+    expect(screen.queryByText('habits.detail.loadError')).not.toBeInTheDocument()
+  })
+
   it.each(['initial request', 'retry'])('dismisses a pending proposal during %s for this visit', (requestState) => {
     openRescueGate()
     if (requestState === 'retry') mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')

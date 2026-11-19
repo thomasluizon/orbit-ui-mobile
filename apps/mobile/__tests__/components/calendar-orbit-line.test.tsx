@@ -121,7 +121,7 @@ describe('the Calendário Orbit line on Android', () => {
     state.online = online
     const tree = render(<CalendarOrbitLine {...props()} />)
     const row = host(tree.root, 'today-astra-slot')!
-    const reason = online ? en.conversation.restLimit : en.todayAstra.offline
+    const reason = online ? en.conversation.restLimit : en.todayAstra.guided.offline
     expect(row.props.accessibilityLabel).toBe('The 13th: 1 of 3 done.')
     expect(row.props.accessibilityState).toMatchObject({ disabled: true })
     expect(row.props.accessibilityHint).toBe(reason)

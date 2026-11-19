@@ -346,11 +346,16 @@
   },
   "todayAstra": {
     "openConversation": "Abrir conversa",
-    "returningElapsed": "Guardei seu progresso do jeito que você deixou.",
+    "returningElapsed": "{days, plural, =0 {Você concluiu um hábito pela última vez há # dias.} one {Você concluiu um hábito pela última vez há # dia.} other {Você concluiu um hábito pela última vez há # dias.}}",
     "returningBounded": "Você concluiu um hábito pela última vez há mais de 30 dias.",
     "viewProgress": "Ver no Progresso",
-    "offline": "Preciso de conexão para conversar.",
-    "offlineLog": "Salvo neste aparelho. Eu sincronizo quando você se reconectar."
+    "offline": "O Orbit precisa de conexão. Você ainda pode registrar hábitos offline.",
+    "offlineLog": "Salvo neste aparelho. O Orbit sincroniza quando você se reconectar.",
+    "guided": {
+      "offline": "Preciso de conexão para conversar.",
+      "returning": "Guardei seu progresso do jeito que você deixou.",
+      "offlineLog": "Salvo neste aparelho. Eu sincronizo quando você se reconectar."
+    }
   },
   "conversation": {
     "restLimit": "Volto quando renovarem suas mensagens de IA."
@@ -1184,14 +1189,16 @@
       "reminders": "Lembretes",
       "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
       "orbit": {
-        "lastSevenDays": "{done, plural, =0 {Você fez isso em # dos últimos 7 dias.} one {Você fez isso em # dos últimos 7 dias.} other {Você fez isso em # dos últimos 7 dias.}}"
+        "lastSevenDays": "{done, plural, =0 {Você fez isso em # dos últimos 7 dias.} one {Você fez isso em # dos últimos 7 dias.} other {Você fez isso em # dos últimos 7 dias.}}",
+        "loadError": "Não consegui carregar este hábito.",
+        "slippingLine": "Esse hábito está num ritmo mais devagar. Uma nova data pode caber melhor."
       },
       "copyDescription": "Copiar descrição",
       "descriptionCopied": "Descrição copiada",
       "copyFailed": "Não foi possível copiar a descrição. Selecione o texto e copie manualmente.",
       "screenTitle": "Hábito",
       "loading": "Carregando hábito",
-      "loadError": "Não consegui carregar este hábito.",
+      "loadError": "Não foi possível carregar este hábito.",
       "dayHabitsLoading": "Carregando os hábitos deste dia",
       "dayHabitsLoadError": "Não foi possível carregar os hábitos deste dia.",
       "retry": "Tentar novamente",
@@ -1199,7 +1206,7 @@
       "log": "Registrar \"{title}\"",
       "unlog": "Desfazer registro de {title}",
       "lastThirtyDays": "Últimos 30 dias",
-      "slippingLine": "Esse hábito está num ritmo mais devagar. Uma nova data pode caber melhor.",
+      "slippingLine": "Nenhum registro {days, plural, =0 {nos últimos # dias} one {no último dia} other {nos últimos # dias}}. A sequência está em {streak} e a taxa dos últimos 30 dias está abaixo de {limit}%.",
       "history": "Atividade",
       "previousMonth": "Mês anterior",
       "nextMonth": "Próximo mês",
@@ -3211,7 +3218,10 @@
     "retry": "Tentar de novo",
     "askAstra": "Analisar resumo",
     "upgrade": "Fazer upgrade",
-    "freePrompt": "O Pro traz um resumo diário dos seus hábitos."
+    "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos.",
+    "guided": {
+      "freePrompt": "O Pro traz um resumo diário dos seus hábitos."
+    }
   },
   "result": {
     "title": "Pronto!",

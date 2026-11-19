@@ -10,7 +10,10 @@ describe('getReturningInterval', () => {
     expect(en.todayAstra.returningBounded).toContain('completed a habit')
     expect(ptBR.todayAstra.returningBounded).toContain('concluiu um hábito')
   })
-  it.each([['en', en.todayAstra.returningElapsed], ['pt-BR', ptBR.todayAstra.returningElapsed]])('writes the %s sentence after a gap as one sentence with no count of days', (_locale, sentence) => {
+  it.each([['en', en.todayAstra.returningElapsed], ['pt-BR', ptBR.todayAstra.returningElapsed]])('keeps the %s sentence of a gap inside the window with its count of days while the guided flows are off', (_locale, sentence) => {
+    expect(sentence).toMatch(/\{days, plural/u)
+  })
+  it.each([['en', en.todayAstra.guided.returning], ['pt-BR', ptBR.todayAstra.guided.returning]])('writes the %s sentence after a gap as one sentence with no count of days', (_locale, sentence) => {
     expect(sentence).not.toMatch(/\d|\{|#|plural/u)
     expect(sentence.match(/[.!?]/gu)).toEqual(['.'])
     expect(sentence).not.toMatch(/\b(days?|dias?|ago|há|missed|perdeu|faltou)\b/iu)

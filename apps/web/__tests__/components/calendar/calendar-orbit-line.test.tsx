@@ -108,7 +108,7 @@ describe('the Calendário Orbit line', () => {
     expect(row).toBeDisabled()
     expect(screen.getByTestId('calendar-orbit-line-reason')).toHaveStyle({ fontSize: '12px', lineHeight: '1.4' })
     const reason = screen.getByTestId('calendar-orbit-line-reason').textContent!
-    expect(reason).toBe(isOnline ? en.conversation.restLimit : en.todayAstra.offline)
+    expect(reason).toBe(isOnline ? en.conversation.restLimit : en.todayAstra.guided.offline)
     expect(row).toHaveAccessibleDescription(reason)
     expect(document.querySelector('[data-asset="orbit-mascot"]')?.getAttribute('data-orbit-state')).toBe('descansando')
   })

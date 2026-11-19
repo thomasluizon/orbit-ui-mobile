@@ -56,7 +56,8 @@ import {
   parseAPIDate,
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
-import type { ChecklistItem, HabitDetail, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
+import type { ChecklistItem, HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
+import { getHabitDaysWithoutLog, HABIT_SLIPPING_RATE_LIMIT } from '@orbit/shared/utils/habit-detail-flow'
 import { ShellHeader } from '@/components/shell/shell-header'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
@@ -333,10 +334,14 @@ function useHabitRescue({ habitId, isBadHabit, slipping, overdue, hasProAccess, 
   return { query, open: eligible && extractBackendErrorCode(query.error) !== 'HABIT_NOT_OVERDUE' }
 }
 
-function SlippingLine({ visible }: Readonly<{ visible: boolean }>) {
+function SlippingLine({ visible, metrics, createdAtUtc, today, timeZone }: Readonly<{ visible: boolean; metrics: HabitMetrics | undefined; createdAtUtc: string; today: Date; timeZone: string | null | undefined }>) {
   const t = useTranslations()
-  if (!visible) return null
-  return <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">{t('habits.detail.slippingLine')}</p>
+  const guided = useFlag('orbit_guided_flows')
+  if (!visible || (!guided && !metrics)) return null
+  const text = guided || !metrics
+    ? t('habits.detail.orbit.slippingLine')
+    : t('habits.detail.slippingLine', { days: getHabitDaysWithoutLog(metrics, createdAtUtc, today, timeZone), streak: metrics.currentStreak, limit: HABIT_SLIPPING_RATE_LIMIT })
+  return <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">{text}</p>
 }
 
 const rescueCardClass = 'flex flex-col gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]'
@@ -629,7 +634,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   }
 
   if (detailQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></div></HabitDetailFrame>
-  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><HabitDetailUnavailable result={resultHost.result} habitDeleted={resultHost.habitDeleted} onSeeToday={resultHost.seeToday} onClose={resultHost.close}><HabitDetailLoadError message={t('habits.detail.loadError')} offlineMessage={t('offline.description')} error={detailQuery.error} retryLabel={t('habits.detail.retry')} onRetry={retryFailedQueries} /></HabitDetailUnavailable></HabitDetailFrame>
+  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><HabitDetailUnavailable result={resultHost.result} habitDeleted={resultHost.habitDeleted} onSeeToday={resultHost.seeToday} onClose={resultHost.close}><HabitDetailLoadError message={t('habits.detail.loadError')} guidedMessage={t('habits.detail.orbit.loadError')} offlineMessage={t('offline.description')} error={detailQuery.error} retryLabel={t('habits.detail.retry')} onRetry={retryFailedQueries} /></HabitDetailUnavailable></HabitDetailFrame>
 
   const children = (detailQuery.data as HabitDetail).children.map((sourceChild) => {
     const child = normalizeDrillDetailChild(sourceChild, habit.id, dateStr)
@@ -671,7 +676,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         <div data-testid="detail-children" aria-busy={habitsQuery.isLoading} className="flex flex-col gap-[12px]">{children.map(({ habit: child, completed: childCompleted, canLog, dateStatusKey, nextDueHint, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <div key={child.id}><HabitRow habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} meta={[...(nextDueHint ? [{ kind: 'future' as const, label: nextDueHint }] : []), ...(dateStatusKey ? [{ kind: 'date-status' as const, label: t(dateStatusKey) }] : [])]} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} /><UnscheduledChildReason reason={dateStatusKey ? undefined : childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} /></div>)}</div>
         {subHabitCreation}
       </Surface> : subHabitCreation}
-      {strip ? <section ref={stripRef} tabIndex={-1} className="habit-detail-strip flex flex-col gap-2" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} /></section> : null}
+      {strip ? <section ref={stripRef} tabIndex={-1} className="habit-detail-strip flex flex-col gap-2" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} /></section> : null}
       <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasProAccess={hasProAccess} locale={language} today={today} scheduleEditing={editOpen} returnFocus={() => stripRef.current?.focus()} onAccepted={resultHost.rescheduled} />
       <HabitDetailReviewRow habit={habit} />
       <section className="flex flex-col gap-3"><ListRow placement="column" icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><div hidden={!detailsOpen} id="habit-detail-fields" className="flex flex-col gap-6">

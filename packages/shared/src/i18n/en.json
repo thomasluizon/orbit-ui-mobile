@@ -346,11 +346,16 @@
   },
   "todayAstra": {
     "openConversation": "Open the conversation",
-    "returningElapsed": "I kept your progress right where you left it.",
+    "returningElapsed": "{days, plural, one {You last completed a habit # day ago.} other {You last completed a habit # days ago.}}",
     "returningBounded": "You last completed a habit over 30 days ago.",
     "viewProgress": "See it on Progress",
-    "offline": "I need a connection to talk.",
-    "offlineLog": "Saved on this device. I sync it when you reconnect."
+    "offline": "Orbit needs a connection. Habit logging still works offline.",
+    "offlineLog": "Saved on this device. Orbit will sync it when you reconnect.",
+    "guided": {
+      "offline": "I need a connection to talk.",
+      "returning": "I kept your progress right where you left it.",
+      "offlineLog": "Saved on this device. I sync it when you reconnect."
+    }
   },
   "conversation": {
     "restLimit": "I can talk again when your AI messages renew."
@@ -1184,14 +1189,16 @@
       "reminders": "Reminders",
       "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
       "orbit": {
-        "lastSevenDays": "{done, plural, one {You did this on # of the last 7 days.} other {You did this on # of the last 7 days.}}"
+        "lastSevenDays": "{done, plural, one {You did this on # of the last 7 days.} other {You did this on # of the last 7 days.}}",
+        "loadError": "I could not load this habit.",
+        "slippingLine": "This habit has slowed down. A new date might fit it better."
       },
       "copyDescription": "Copy description",
       "descriptionCopied": "Description copied",
       "copyFailed": "We could not copy the description. Select the text and copy it by hand.",
       "screenTitle": "Habit",
       "loading": "Loading habit",
-      "loadError": "I could not load this habit.",
+      "loadError": "We could not load this habit.",
       "dayHabitsLoading": "Loading this day's habits",
       "dayHabitsLoadError": "We could not load this day's habits.",
       "retry": "Try again",
@@ -1199,7 +1206,7 @@
       "log": "Log \"{title}\"",
       "unlog": "Undo log for {title}",
       "lastThirtyDays": "Last 30 days",
-      "slippingLine": "This habit has slowed down. A new date might fit it better.",
+      "slippingLine": "No completions in the last {days, plural, one {# day} other {# days}}. The streak is at {streak} and the 30-day rate is below {limit}%.",
       "history": "Activity",
       "previousMonth": "Previous month",
       "nextMonth": "Next month",
@@ -3211,7 +3218,10 @@
     "retry": "Try again",
     "askAstra": "Review summary",
     "upgrade": "Upgrade",
-    "freePrompt": "Pro gets a daily summary of your habits."
+    "freePrompt": "Pro gets a daily summary of your habits.",
+    "guided": {
+      "freePrompt": "Pro gets a daily summary of your habits."
+    }
   },
   "result": {
     "title": "Done!",

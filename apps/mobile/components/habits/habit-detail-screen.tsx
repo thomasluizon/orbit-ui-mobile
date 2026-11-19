@@ -51,7 +51,8 @@ import {
   getHabitRowTypeLabelKey,
   STAT_VALUE_SIZER,
 } from '@orbit/shared/utils'
-import type { ChecklistItem, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
+import type { ChecklistItem, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
+import { getHabitDaysWithoutLog, HABIT_SLIPPING_RATE_LIMIT } from '@orbit/shared/utils/habit-detail-flow'
 import { useAccountGeneration, useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { FlowShell } from '@/components/shell/flow-shell'
@@ -284,10 +285,14 @@ function useHabitRescue({ habitId, isBadHabit, slipping, overdue, hasPro, locale
   return { query, open: eligible && extractBackendErrorCode(query.error) !== 'HABIT_NOT_OVERDUE' }
 }
 
-function SlippingLine({ visible, tokens }: Readonly<{ visible: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
+function SlippingLine({ visible, metrics, createdAtUtc, today, timeZone, tokens }: Readonly<{ visible: boolean; metrics: HabitMetrics | undefined; createdAtUtc: string; today: Date; timeZone: string | null | undefined; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
-  if (!visible) return null
-  return <Text style={[styles.rescueBody, { color: tokens.fg2 }]}>{t('habits.detail.slippingLine')}</Text>
+  const guided = useFlag('orbit_guided_flows')
+  if (!visible || (!guided && !metrics)) return null
+  const text = guided || !metrics
+    ? t('habits.detail.orbit.slippingLine')
+    : t('habits.detail.slippingLine', { days: getHabitDaysWithoutLog(metrics, createdAtUtc, today, timeZone), streak: metrics.currentStreak, limit: HABIT_SLIPPING_RATE_LIMIT })
+  return <Text style={[styles.rescueBody, { color: tokens.fg2 }]}>{text}</Text>
 }
 
 function renderRescueProposalValues(suggestion: RescheduleSuggestion, labels: ReturnType<typeof buildRescheduleProposalLabels>, finePrint: string, tokens: ReturnType<typeof createTokensV2>) {
@@ -576,7 +581,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
 
   const appBar = <HabitDetailNavigation parentId={parentId} titleIsHeading={detailQuery.isLoading || detailQuery.isError || !habit || !detailQuery.data} onBack={back} />
   if (detailQuery.isLoading) return <FlowShell nav={false} mode="detail" header={appBar}><View style={styles.content}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></View></FlowShell>
-  if (detailQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} mode="detail" header={appBar}><HabitDetailUnavailable result={resultHost.result} habitDeleted={resultHost.habitDeleted} onSeeToday={resultHost.seeToday} onClose={resultHost.close}><HabitDetailLoadError message={t('habits.detail.loadError')} offlineMessage={t('offline.description')} error={detailQuery.error} retryLabel={t('habits.detail.retry')} onRetry={retryFailedQueries} /></HabitDetailUnavailable></FlowShell>
+  if (detailQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} mode="detail" header={appBar}><HabitDetailUnavailable result={resultHost.result} habitDeleted={resultHost.habitDeleted} onSeeToday={resultHost.seeToday} onClose={resultHost.close}><HabitDetailLoadError message={t('habits.detail.loadError')} guidedMessage={t('habits.detail.orbit.loadError')} offlineMessage={t('offline.description')} error={detailQuery.error} retryLabel={t('habits.detail.retry')} onRetry={retryFailedQueries} /></HabitDetailUnavailable></FlowShell>
 
   const children = detailQuery.data.children.map((sourceChild) => {
     const child = normalizeDrillDetailChild(sourceChild, habit.id, dateStr)
@@ -618,7 +623,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         <View testID="detail-children" accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, dateStatusKey, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={dateStatusKey ? undefined : childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View>
         {subHabitCreation}
       </Surface> : subHabitCreation}
-        {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text ref={stripLabelRef} style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} tokens={tokens} /></View> : null}
+        {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text ref={stripLabelRef} style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} tokens={tokens} /></View> : null}
       <FocusedRescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasPro={hasPro} locale={language} today={today} tokens={tokens} scheduleEditing={editOpen} returnFocus={focusStrip} onAccepted={resultHost.rescheduled} />
       <HabitDetailReviewRow habit={habit} />
       <View style={{ gap: 12 }}><ListRow placement="column" icon={disclosureIcon(detailsOpen)} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><View nativeID="habit-detail-fields" style={{ gap: 24, display: detailsOpen ? 'flex' : 'none' }}>

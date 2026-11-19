@@ -23,7 +23,8 @@ import { matchesHabitMonthDays } from './month-days'
 export const HABIT_DETAIL_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 export const HABIT_DETAIL_FREQUENCY_UNITS = ['Day', 'Week', 'Month', 'Year'] as const
 const HISTORY_LOOKBACK_DAYS = 365
-const HABIT_SLIPPING_RATE_LIMIT = 50
+/** A habit is slipping only while its 30-day completion rate is below this percentage. */
+export const HABIT_SLIPPING_RATE_LIMIT = 50
 /** The widest stat card value. Its hidden copy sizes the value slot, so the loading skeleton and the loaded value wrap the row the same way. */
 export const STAT_VALUE_SIZER = '100%'
 
@@ -299,6 +300,19 @@ export function isHabitSlipping(
   if (formatAPIDateInTimeZone(new Date(habit.createdAtUtc), accountTimeZone) > cutoff) return false
   const recentlyLogged = logs.some((log) => log.value > 0 && log.date >= cutoff)
   return habit.isBadHabit ? recentlyLogged : !recentlyLogged
+}
+
+/** Calendar days without a completion up to the account's today: after the last completion, or from the
+ *  creation day in the account timezone, both ends included, when there is none. */
+export function getHabitDaysWithoutLog(
+  metrics: Pick<HabitMetrics, 'lastCompletedDate'>,
+  createdAtUtc: string,
+  today: Date,
+  accountTimeZone: string | null | undefined,
+): number {
+  if (metrics.lastCompletedDate) return differenceInCalendarDays(today, parseAPIDate(metrics.lastCompletedDate))
+  const createdDate = parseAPIDate(formatAPIDateInTimeZone(new Date(createdAtUtc), accountTimeZone))
+  return differenceInCalendarDays(today, createdDate) + 1
 }
 
 /** The days of the strip on which the habit was done, among its last `window` days. The Orbit line states this one fact. */

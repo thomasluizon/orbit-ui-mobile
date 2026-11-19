@@ -161,7 +161,7 @@ describe('when the AI rests', () => {
 
   it.each([
     [true, { aiMessagesUsed: 0 }, null],
-    [false, { aiMessagesUsed: 0 }, 'todayAstra.offline'],
+    [false, { aiMessagesUsed: 0 }, 'todayAstra.guided.offline'],
     [true, { aiMessagesUsed: 4 }, null],
     [true, { aiMessagesUsed: 5 }, 'conversation.restLimit'],
     [true, { aiMessagesUsed: 4, aiMessagesLimit: undefined, hasProAccess: false }, null],

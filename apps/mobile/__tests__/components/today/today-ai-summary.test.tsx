@@ -2,6 +2,7 @@ import React from 'react'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { TodayAISummary } from '@/components/today/today-ai-summary'
 import { useUIStore } from '@/stores/ui-store'
 import { useChatStore } from '@/stores/chat-store'
@@ -134,6 +135,16 @@ describe('daily summary on Hoje', () => {
       await press(tree, 'summary.freePrompt')
       expect(mocks.push).toHaveBeenCalledWith('/upgrade')
       expect(mocks.useSummary).not.toHaveBeenCalled()
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([[false, 'summary.freePrompt', 'summary.guided.freePrompt'], [true, 'summary.guided.freePrompt', 'summary.freePrompt']])('reads the free prompt of its own copy set with the guided flows %s', async (guided, shown, hidden) => {
+    if (guided) enableTestFlags('orbit_guided_flows')
+    mocks.profile = createMockProfile({ hasProAccess: false })
+    const tree = await renderSummary()
+    try {
+      expect(hasText(tree, shown)).toBe(true)
+      expect(hasText(tree, hidden)).toBe(false)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
