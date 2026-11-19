@@ -248,6 +248,18 @@ describe('Progresso root bar selection (Android)', () => {
     expect(lineOf(root)).toBe('You showed up on 12 of the last 30 days.')
   })
 
+  it.each(['increment', 'decrement'] as const)('keeps the day line when a press follows the %s step to the same bar, and clears it on the next press', async (actionName) => {
+    const root = await renderIn('en')
+    await renderer.act(() => { (bars(root)[1]!.props.onAccessibilityAction as (event: { nativeEvent: { actionName: string } }) => void)({ nativeEvent: { actionName } }) })
+    const checkedBar = () => bars(root).find((bar) => (bar.props.accessibilityState as { checked: boolean }).checked)!
+    const dayLine = lineOf(root)
+    expect(dayLine).toMatch(/^\w+, September \d+: \d of 2\.$/)
+    await press(checkedBar())
+    expect(lineOf(root)).toBe(dayLine)
+    await press(checkedBar())
+    expect(lineOf(root)).toBe('You showed up on 12 of the last 30 days.')
+  })
+
   it('returns the default line on a touch outside the chart', async () => {
     const root = await renderIn('pt-BR')
     await press(bars(root)[1]!)

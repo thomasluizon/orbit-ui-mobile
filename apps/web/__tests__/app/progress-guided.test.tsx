@@ -214,6 +214,29 @@ describe('Progresso root bar selection', () => {
     expect(rootMascots(container)[0]).toHaveAttribute('data-orbit-state', 'parado')
   })
 
+  it.each([['Home', 'Tuesday, September 8: 1 of 2.'], ['End', 'Thursday, September 10: 1 of 2.']] as const)('keeps the day line when a press follows a %s step to the same bar, and clears it on the next press', (key, dayLine) => {
+    const { container } = renderIn('en', <ProgressContent />)
+    fireEvent.keyDown(screen.getAllByRole('radio')[1]!, { key })
+    expect(orbitLine(container)).toHaveTextContent(dayLine)
+    const stepped = screen.getAllByRole('radio').find((bar) => bar.getAttribute('aria-checked') === 'true')!
+    fireEvent.click(stepped)
+    expect(orbitLine(container)).toHaveTextContent(dayLine)
+    fireEvent.click(stepped)
+    expect(orbitLine(container)).toHaveTextContent('You showed up on 12 of the last 30 days.')
+  })
+
+  it('keeps the day line when a press follows an arrow step to the same bar, and clears it on the next press', () => {
+    const { container } = renderIn('en', <ProgressContent />)
+    fireEvent.keyDown(screen.getAllByRole('radio')[1]!, { key: 'ArrowRight' })
+    const stepped = screen.getAllByRole('radio').find((bar) => bar.getAttribute('aria-checked') === 'true')!
+    const dayLine = orbitLine(container)!.textContent!
+    expect(dayLine).toMatch(/^\w+, September \d+: \d of 2\.$/)
+    fireEvent.click(stepped)
+    expect(orbitLine(container)).toHaveTextContent(dayLine)
+    fireEvent.click(stepped)
+    expect(orbitLine(container)).toHaveTextContent('You showed up on 12 of the last 30 days.')
+  })
+
   it('returns the default line on a press outside the chart', () => {
     const { container } = renderIn('en', <ProgressContent />)
     fireEvent.click(screen.getAllByRole('radio')[0]!)
