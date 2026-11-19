@@ -1,6 +1,9 @@
-import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
+import { useFlag } from '@/hooks/use-flag'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
 import { Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type PressableProps, type ViewStyle } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
@@ -146,11 +149,35 @@ function getPersonalControlFill(calendarDay: boolean) {
   return calendarDay ? { ...styles.controlFill, ...styles.calendarDayControlFill } : styles.controlFill
 }
 
+function useCheckSettle(checked: boolean) {
+  const guided = useFlag('orbit_guided_flows')
+  const reducedMotion = usePrefersReducedMotion()
+  const [shown, setShown] = useState(checked)
+  const [logged, setLogged] = useState(false)
+  if (checked !== shown) {
+    setShown(checked)
+    setLogged(checked)
+  }
+  const scale = useSharedValue(1)
+  const settleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
+  useEffect(() => {
+    if (!logged || !guided || reducedMotion) return undefined
+    scale.value = resolveMotionPreset('success-feedback').scaleFrom
+    scale.value = withSpring(1, { ...motionSprings.completion, overshootClamping: true })
+    return () => {
+      cancelAnimation(scale)
+      scale.value = 1
+    }
+  }, [guided, logged, reducedMotion, scale])
+  return settleStyle
+}
+
 function CalendarDayCircle({ checked, loading, color }: Readonly<{ checked: boolean; loading: boolean; color: string }>) {
+  const settleStyle = useCheckSettle(checked)
   const CircleIcon = checked ? CheckCircle : Circle
   return <View style={styles.calendarDayCircle}>
     {loading ? <SkeletonFace /> : null}
-    <CircleIcon data-slot="calendar-day-circle" size={24} strokeWidth={1.5} color={color} accessible={false} />
+    <Animated.View testID="calendar-day-check" style={settleStyle}><CircleIcon data-slot="calendar-day-circle" size={24} strokeWidth={1.5} color={color} accessible={false} /></Animated.View>
   </View>
 }
 

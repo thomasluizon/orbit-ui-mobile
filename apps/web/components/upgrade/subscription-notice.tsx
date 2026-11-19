@@ -1,4 +1,5 @@
-import { OrbitMascotIcon } from '@/components/ui/orbit-mascot'
+import { OrbitMascot, OrbitMascotIcon } from '@/components/ui/orbit-mascot'
+import { useFlag } from '@/hooks/use-flag'
 import { ProBenefits } from './pro-benefits'
 import type { useTranslations } from 'next-intl'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
@@ -8,12 +9,14 @@ import { formatBillingDate } from './styles'
 
 type UpgradeTranslations = ReturnType<typeof useTranslations>
 
+/** The lapsed notice and the payment issue notice. With the guided flows on, Orbit sits above it in Parado: never sad, and never Feliz. */
 export function SubscriptionNotice({ status, locale, onResubscribe, t }: Readonly<{
   status: SubscriptionStatus | null
   locale: string
   onResubscribe?: () => void
   t: UpgradeTranslations
 }>) {
+  const guided = useFlag('orbit_guided_flows')
   if (!status || status.hasProAccess || (!status.lapseReason && !status.subscriptionEndedAtUtc)) return null
   const endedAt = status.subscriptionEndedAtUtc
     ? formatBillingDate(status.subscriptionEndedAtUtc, locale) : null
@@ -21,7 +24,8 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t }: Readonl
   const endedKey = paymentFailed ? 'upgrade.billing.lapsed.payment_failed' : 'upgrade.billing.lapsed.ended'
   return (
     <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-4 py-4">
+      <section data-subscription-notice="" className="flex flex-col gap-4 py-4">
+        {guided ? <span aria-hidden="true"><OrbitMascot size={48} state="parado" /></span> : null}
         <h2 className="t-display-heading text-balance">{t('upgrade.billing.lapsed.title')}</h2>
         {endedAt ? <p className="font-mono text-xs text-[var(--fg-3)]">{t(endedKey, { date: endedAt })}</p> : null}
         {paymentFailed ? <div className="flex flex-col gap-1 text-sm text-[var(--fg-3)]">

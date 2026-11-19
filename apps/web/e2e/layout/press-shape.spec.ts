@@ -82,7 +82,6 @@ for (const width of [412, 1280] as const) {
         fixture.innerHTML = markup
         document.querySelector('main')!.append(fixture)
       }, renderCompactTargetInventory())
-      await expectFullTouchTarget(page.getByTestId('compact-target-fixture').getByRole('button', { name: /Sequência/ }), 'pill', '--bg-hover-opaque', '::after')
       for (const label of [ptBr.habits.form.resetChecklist, ptBr.habits.form.clearChecklist]) {
         await expectFullTouchTarget(page.getByTestId('compact-target-fixture').getByRole('button', { name: label, exact: true }), 'pill')
       }

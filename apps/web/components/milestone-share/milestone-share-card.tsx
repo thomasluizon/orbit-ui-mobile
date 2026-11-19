@@ -22,6 +22,9 @@ const rarityBadgeStyle: CSSProperties = {
   background: 'var(--bg-field)',
 }
 
+/** The logical width of the card and of its image. A preview scales the card and never changes this width. */
+export const MILESTONE_SHARE_CARD_WIDTH = 360
+
 export type MilestoneShareVariant =
   | { kind: 'streak'; streak: number }
   | { kind: 'achievement'; achievementId: string; iconKey: string; rarity: string }
@@ -56,7 +59,7 @@ export function MilestoneShareCard({
         data-testid="milestone-share-card"
         className="relative after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:[box-shadow:inset_0_0_0_1px_var(--hairline)]"
         style={{
-          width: 360,
+          width: MILESTONE_SHARE_CARD_WIDTH,
           background: 'var(--bg)',
           borderRadius: 20,
           overflow: 'hidden',

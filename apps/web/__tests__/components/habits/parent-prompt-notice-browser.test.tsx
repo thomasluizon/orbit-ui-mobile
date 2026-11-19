@@ -12,6 +12,7 @@ const entry = `
   import React, { useState } from 'react';
   import { createRoot } from 'react-dom/client';
   import { NextIntlClientProvider, useTranslations } from 'next-intl';
+  import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
   import en from '../../packages/shared/src/i18n/en.json';
   import ptBR from '../../packages/shared/src/i18n/pt-BR.json';
   import { createMockHabit } from '../../packages/shared/src/__tests__/factories';
@@ -53,7 +54,8 @@ const entry = `
     </ShellWide>;
   }
   const locale = root.dataset.locale;
-  createRoot(root).render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Example /></NextIntlClientProvider>);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  createRoot(root).render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Example /></NextIntlClientProvider></QueryClientProvider>);
 `
 
 describe('parent undo presentation with mounted modal transitions', () => {

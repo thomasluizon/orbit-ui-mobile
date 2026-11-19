@@ -14,6 +14,7 @@ const achievements = ['first_orbit', 'liftoff', 'mission_control'].map((id, inde
 )
 const profile = createMockGamificationProfile({ achievements, achievementsEarned: 1, achievementsTotal: 3 })
 
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({
   profile: createMockProfile({ hasProAccess: true, canViewGamification: true }),
   isLoading: false, isError: false,

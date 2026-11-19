@@ -1,4 +1,5 @@
 import { createInstance } from 'i18next'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import ICUCommonJs from 'i18next-icu/cjs'
 import { renderedText } from '../../support/react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
@@ -191,6 +192,17 @@ describe('ReferralPrompt (mobile)', () => {
 
     expect(findByType(tree, 'Sheet')).toHaveLength(0)
     expect(findByType(tree, 'ReferralDrawerOpen')).toHaveLength(1)
+  })
+
+  it('holds no Orbit line and no live mascot with the guided flows on', async () => {
+    enableTestFlags('orbit_guided_flows')
+    const tree = await renderArmed('level-3')
+    await TestRenderer.act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+    expect(findByType(tree, 'Sheet')).toHaveLength(1)
+    expect(tree.root.findAll((node) => (node.props as Record<string, unknown>)['data-orbit-face'] === 'rig')).toHaveLength(0)
+    expect(tree.root.findAll((node) => { const { testID } = node.props as { testID?: unknown }; return typeof testID === 'string' && testID.endsWith('orbit-line') })).toHaveLength(0)
   })
 
   it('dismisses without opening the drawer from "maybe later"', async () => {

@@ -355,6 +355,15 @@ Both platforms keep a centred column capped at 740px, 16px content insets and sm
 label-hugging actions in wide windows. This amendment supersedes the inline detail stack
 in the Progresso drawing; its detail compositions and semantic tokens remain authoritative.
 
+**Orbit answers, then the person asks the next thing.** Behind `orbit_guided_flows`, the overview
+opens with Orbit and one line that answers "am I moving" from the 30-day read: the active days,
+a selected day, the return after a gap, or the empty window. The line never counts misses and is
+absent behind the Pro gate. The window heading is the question `Como foram seus 30 dias?` and the
+three rows sit under `O que você quer ver?`. A press on a bar changes the line to that day. A
+figure that changed since the last visit rolls once. Sequência draws Orbit at 48 beside one fact,
+shows the repair on the screen in a gap, and runs the repair as a one-question flow that closes
+with the result dialog. `design/progress-surfaces.md` lists the owners and the states.
+
 ### The month completion rate has one definition
 
 One client definition is required because no endpoint supplies this window.
@@ -747,7 +756,7 @@ There is no second character and no separate AI glyph.
 
 **There is one mark.** The hollow ring mark and the separate AI glyph are retired. No surface draws them.
 
-**Sizes are enumerated.** The size is the drawn width. The height follows the 7:5 box. The live mascot renders at 48, 96 and 128. 48 is the Orbit line on a destination root and a shell notice. 96 is a flow step, an empty state and a full-surface error in the compact shell. 128 is the same surfaces at 1024 and above, and the result dialog at every width. The live face needs each eye at least 2px wide, so it never renders below 40. From 16 to 24 the mark is the small static face. Export sizes stay 16, 48, 128 and 512.
+**Sizes are enumerated.** The size is the drawn width. The height follows the 7:5 box. The live mascot renders at 48, 96 and 128. 48 is the Orbit line on a destination root and a shell notice; Progresso is the one destination root that draws Orbit at 96, or 128 at 1024 and above, centred above its line. 96 is a flow step, an empty state and a full-surface error in the compact shell. 128 is the same surfaces at 1024 and above, and the result dialog at every width. The live face needs each eye at least 2px wide, so it never renders below 40. From 16 to 24 the mark is the small static face. Export sizes stay 16, 48, 128 and 512.
 
 **The small face read motion.** The live rig needs 40px or more, so the 16 to 24 face has its own motion, built in the same geometry module from its drawn paths (`orbitSmallFaceFrame`). While an Orbit read that its control started runs, the moon orbits the ring once per ring turn (900) and passes behind the planet, the ring tilts at most 5 degrees each side of rest on the idle loop's tilt period, and the eyes blink at once and then at the blink interval. The planet does not move. The drawn ring reaches the edges of the drawing box, so the ring tilts only as far as the box allows, and at the two ends of the ring the moon moves in toward the planet. The whole ring and the whole moon stay inside the box, the moon stays on the ring band, and the box never clips either. Each read starts at the drawn face, and the face returns to it when the read ends or fails. While the read motion runs, the control keeps its label, its size and its busy state, and draws no skeleton face. Under reduced motion or with `Orbit em movimento` off, the face stays still, and the control keeps its busy state and takes the still skeleton tone (`SkeletonFace`), as every other waiting control does.
 

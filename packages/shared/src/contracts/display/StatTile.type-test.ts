@@ -17,6 +17,7 @@ type ExpectedDefaultVariant = {
   label: string
   state?: 'default'
   value: string | number
+  roll?: boolean
   emptyLabel?: never
   loadingLabel?: never
 }
@@ -45,6 +46,7 @@ export type StatTileTypeContract = [
   Assert<IsExactWidth<StatTileProps['emptyLabel'], string | undefined>>,
   Assert<IsExactWidth<StatTileProps['loadingLabel'], string | undefined>>,
   Assert<IsExact<{ label: 'Total'; value: 4 }, StatTileProps>>,
+  Assert<IsExact<{ label: 'Total'; value: 4; roll: true }, StatTileProps>>,
   Assert<IsExact<{ label: 'Total'; state: 'loading'; loadingLabel: 'Loading' }, StatTileProps>>,
   Assert<IsExact<{ label: 'Total'; state: 'empty'; emptyLabel: 'No data' }, StatTileProps>>,
   // @ts-expect-error default state requires value

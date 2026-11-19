@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AccessibilityInfo, Animated, Easing, findNodeHandle, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { ResultDialogProps } from '@orbit/shared/contracts/flow'
-import { motionDurations, motionEasings, motionPresets, PADDING } from '@orbit/shared/theme'
+import { motionPresets, PADDING } from '@orbit/shared/theme'
 import { ActionRow } from '@/components/ui/action-row'
+import { OrbitHop } from '@/components/ui/orbit-hop'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useFlowWindow } from '@/components/ui/flow-window'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
@@ -11,24 +12,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-const HOP_HEIGHT = 12
 const PANEL_MAX_WIDTH = 420
-
-function useHop(active: boolean) {
-  const [hop] = useState(() => new Animated.Value(0))
-  useEffect(() => {
-    if (!active) return
-    const half = motionDurations.slow / 2
-    const easing = Easing.bezier(...motionEasings.standard)
-    const animation = Animated.sequence([
-      Animated.timing(hop, { toValue: -HOP_HEIGHT, duration: half, easing, useNativeDriver: true }),
-      Animated.timing(hop, { toValue: 0, duration: half, easing, useNativeDriver: true }),
-    ])
-    animation.start()
-    return () => animation.stop()
-  }, [active, hop])
-  return hop
-}
 
 function useWindowFade(active: boolean) {
   const [opacity] = useState(() => new Animated.Value(active ? 0 : 1))
@@ -87,9 +71,7 @@ export function ResultDialogFrame({ visible = true, onDismissed, label, hint, te
 export function ResultDialog({ visible, onDismissed, title, sentence, primaryLabel, onPrimary, secondaryLabel, onSecondary, onClose, orbitState = 'feliz' }: Readonly<ResultDialogProps & Pick<ResultDialogFrameProps, 'visible' | 'onDismissed'>>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const reducedMotion = usePrefersReducedMotion()
   const primaryRef = useRef<View>(null)
-  const hop = useHop(orbitState === 'feliz' && !reducedMotion)
 
   useEffect(() => {
     const target = findNodeHandle(primaryRef.current)
@@ -98,9 +80,7 @@ export function ResultDialog({ visible, onDismissed, title, sentence, primaryLab
 
   return (
     <ResultDialogFrame visible={visible} onDismissed={onDismissed} label={title} hint={sentence} onClose={onClose}>
-      <Animated.View testID="result-dialog-orbit" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={{ transform: [{ translateY: hop }] }}>
-        <OrbitMascot size={128} state={orbitState} />
-      </Animated.View>
+      <OrbitHop testID="result-dialog-orbit" active={orbitState === 'feliz'}><OrbitMascot size={128} state={orbitState} /></OrbitHop>
       <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       <Text style={[styles.sentence, { color: tokens.fg2 }]}>{sentence}</Text>
       <ActionRow align="center">

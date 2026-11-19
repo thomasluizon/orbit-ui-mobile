@@ -6,11 +6,17 @@ import ptBR from '../i18n/pt-BR.json'
 const noon = new Date('2026-08-29T12:00:00Z')
 
 describe('getReturningInterval', () => {
-  it('describes completions accurately in both locales', () => {
-    expect(en.todayAstra.returningElapsed).toContain('completed a habit')
+  it('names the last completion in the bounded sentence in both locales', () => {
     expect(en.todayAstra.returningBounded).toContain('completed a habit')
-    expect(ptBR.todayAstra.returningElapsed).toContain('concluiu um hábito')
     expect(ptBR.todayAstra.returningBounded).toContain('concluiu um hábito')
+  })
+  it.each([['en', en.todayAstra.returningElapsed], ['pt-BR', ptBR.todayAstra.returningElapsed]])('keeps the %s sentence of a gap inside the window with its count of days while the guided flows are off', (_locale, sentence) => {
+    expect(sentence).toMatch(/\{days, plural/u)
+  })
+  it.each([['en', en.todayAstra.guided.returning], ['pt-BR', ptBR.todayAstra.guided.returning]])('writes the %s sentence after a gap as one sentence with no count of days', (_locale, sentence) => {
+    expect(sentence).not.toMatch(/\d|\{|#|plural/u)
+    expect(sentence.match(/[.!?]/gu)).toEqual(['.'])
+    expect(sentence).not.toMatch(/\b(days?|dias?|ago|há|missed|perdeu|faltou)\b/iu)
   })
   it.each([null, undefined])('hides an unavailable completion date: %s', (lastCompletionDate) => {
     expect(getReturningInterval(lastCompletionDate, 'UTC', noon)).toBeNull()

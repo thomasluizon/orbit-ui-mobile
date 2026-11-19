@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { NextIntlClientProvider } from 'next-intl'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -66,4 +67,6 @@ function Surface() {
   </>
 }
 
-createRoot(document.getElementById('root')!).render(<NextIntlClientProvider locale={configuration.locale} messages={words} timeZone="UTC"><Surface /></NextIntlClientProvider>)
+const queryClient = new QueryClient()
+
+createRoot(document.getElementById('root')!).render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={configuration.locale} messages={words} timeZone="UTC"><Surface /></NextIntlClientProvider></QueryClientProvider>)

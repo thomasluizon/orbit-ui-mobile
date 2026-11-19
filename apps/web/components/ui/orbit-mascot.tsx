@@ -76,8 +76,9 @@ function useRingTurn(turnKey: string | number | undefined, enabled: boolean): nu
     seen.current = turnKey
     if (!enabled) return undefined
     let frame = 0
-    const start = performance.now()
+    let start: number | null = null
     const step = (now: number) => {
+      start ??= now
       const next = orbitRingTurnProgress(now - start, mascotMotion.ringTurn)
       setProgress(next >= 1 ? 0 : next)
       if (now - start < mascotMotion.ringTurn) frame = requestAnimationFrame(step)

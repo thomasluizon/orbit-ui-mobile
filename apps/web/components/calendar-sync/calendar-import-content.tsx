@@ -83,7 +83,8 @@ export interface CalendarImportActionState {
 
 type CalendarEvent = CalendarSyncEvent
 
-export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
+export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange, onImported }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void
+  onImported?: (count: number) => void }>) {
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()
@@ -250,6 +251,12 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 ),
               )
             }
+            void queryClient.invalidateQueries({ queryKey: [...calendarKeys.all, 'manual-fetch'] })
+            if (isReviewMode) void queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
+            if (failedItems.length === 0 && onImported) {
+              onImported(successCount)
+              return
+            }
             setImportResult({
               imported: successCount,
               habits: result.results.reduce<{ id: string; title: string }[]>((accumulator, item) => {
@@ -260,12 +267,6 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               }, []),
             })
             setWizardStage('done')
-            void queryClient.invalidateQueries({ queryKey: [...calendarKeys.all, 'manual-fetch'] })
-            if (isReviewMode) {
-              void queryClient.invalidateQueries({
-                queryKey: calendarKeys.syncSuggestions(),
-              })
-            }
           },
           onError: (err: unknown) => {
             if (getAccountGeneration() !== importAccount) return

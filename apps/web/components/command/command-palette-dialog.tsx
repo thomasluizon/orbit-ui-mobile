@@ -55,7 +55,7 @@ export function CommandPaletteDialog({ navItems, onCreateHabit, modalId, panelRe
           onCreateHabit={onCreateHabit}
           onClose={close}
         />
-        <UpdateAvailableBanner modalId={modalId} />
+        <UpdateAvailableBanner modalId={modalId} mascot={false} />
         <div className="empty:hidden shrink-0 px-4 pb-4" data-shell-notice="">
           <AppToastHost placement="modal" modalId={modalId} />
         </div>

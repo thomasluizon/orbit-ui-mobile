@@ -1,6 +1,9 @@
 import { INTERACTION_FILL_CLEARANCE } from '../../theme/interaction'
 import { TOUCH_TARGET_MIN } from '../../theme/breakpoints'
 
+/** How a selection reached the chart: a press, the focus of a bar (Android), or a step by key or accessibility action. */
+export type BarChartSelectionSource = 'press' | 'focus' | 'step'
+
 export type BarChartPoint = Readonly<{
   startDate: string
   endDate: string

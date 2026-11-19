@@ -168,10 +168,6 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   }
 })
 
-vi.mock('@/components/gamification/streak-badge', () => ({
-  StreakBadge: () => null,
-}))
-
 vi.mock('@/components/navigation/notification-bell', () => ({
   NotificationBell: () => null,
 }))

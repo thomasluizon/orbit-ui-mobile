@@ -2,6 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { openCurrentProactiveItem } from '@/lib/proactive-item'
+import { readConversationEntry } from '@/lib/conversation-entry-query'
 
 import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 
@@ -112,8 +113,8 @@ function OpenAstraFromQuery({ pathname, onOpen }: Readonly<{
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    const entry = searchParams.get('astra')
-    if (entry !== 'open' && entry !== 'proactive') return
+    const entry = readConversationEntry(searchParams)
+    if (!entry) return
     if (entry === 'proactive') void openCurrentProactiveItem(queryClient)
     else onOpen(true)
     router.replace(pathname)
@@ -267,7 +268,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     setShowCreateRefusal(false)
     if (profile !== undefined && !hasProAccess && habitCountLoaded && totalHabitCount >= 10) {
       setRouteTransitionIntent('forward')
-      router.push('/upgrade')
+      router.push(`/upgrade?from=${encodeURIComponent(pathname)}`)
       return
     }
     setShowCreateModal(true)

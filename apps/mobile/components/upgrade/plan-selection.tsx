@@ -2,14 +2,14 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { ProBenefits } from './pro-benefits'
 import { useState, type ReactNode } from 'react'
-import { Platform, Text, View } from 'react-native'
+import { Platform, Text, View, useWindowDimensions } from 'react-native'
 import Animated, {
   Easing,
   FadeIn,
   FadeOut,
   ReduceMotion,
 } from 'react-native-reanimated'
-import { SPACING, motionDurations, motionEasings } from '@orbit/shared/theme'
+import { RESPONSIVE_TYPE_BREAKPOINT, SPACING, motionDurations, motionEasings } from '@orbit/shared/theme'
 import { applySubscriptionDiscount } from '@orbit/shared/utils'
 import { getUpgradeTierReservation } from '@orbit/shared/utils/upgrade'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
@@ -29,7 +29,20 @@ import {
   type UpgradeTextFn,
 } from './types'
 
-interface Tier {
+const WIDE_SHELL_WIDTH = 1024
+
+function usePlanColumns() {
+  const { width } = useWindowDimensions()
+  const twoColumns = width >= RESPONSIVE_TYPE_BREAKPOINT
+  return {
+    twoColumns,
+    intervalStyle: width >= WIDE_SHELL_WIDTH ? styles.intervalCapped : undefined,
+    loadingChoicesStyle: twoColumns ? [styles.planChoices, styles.planChoicesRow] : styles.planChoices,
+    choicesStyle: twoColumns ? [styles.planChoices, styles.planChoicesRow, styles.planChoicesHug] : styles.planChoices,
+  }
+}
+
+export interface Tier {
   interval: SubscriptionInterval
   name: string
   price: string
@@ -120,6 +133,7 @@ export function PlanSelection({
   tokens: Tokens
 }>) {
   const prefersReducedMotion = usePrefersReducedMotion()
+  const { twoColumns, intervalStyle, loadingChoicesStyle, choicesStyle } = usePlanColumns()
   const checkoutPending = checkoutLoading !== null
   const selectInterval = (interval: string) => {
     if (interval !== 'monthly' && interval !== 'yearly') return
@@ -127,7 +141,7 @@ export function PlanSelection({
   }
 
   const intervalControl = (
-    <View>
+    <View style={intervalStyle}>
       <SegmentedControl
         label={t('upgrade.plans.intervalLabel')}
         options={[
@@ -147,9 +161,9 @@ export function PlanSelection({
       <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
         <View style={[styles.planState, !inset && { paddingHorizontal: SPACING.s0 }]}>
           {intervalControl}
-          <View style={styles.planChoices}>
+          <View style={loadingChoicesStyle}>
             {(['yearly', 'monthly'] as const).map((interval) => (
-              <TierReservation key={interval} interval={interval} t={t} tokens={tokens}>
+              <TierReservation key={interval} interval={interval} column={twoColumns} t={t} tokens={tokens}>
                 <View style={styles.planChoices}>
                   {[0, 1, 2].map((rowIndex) => (
                     <Skeleton
@@ -200,10 +214,11 @@ export function PlanSelection({
     <PlanLoadMotion stateKey="loaded" reduced={prefersReducedMotion}>
       <View style={[styles.planGroup, !inset && { paddingHorizontal: SPACING.s0 }]}>
         {intervalControl}
-        <View style={styles.planChoices}>
+        <View style={choicesStyle}>
           {tiers.map((tier) => (
             <TierCard
               key={tier.interval}
+              column={twoColumns}
               tier={tier}
               recommended={tier.interval === 'yearly'}
               selected={tier.interval === selectedInterval}
@@ -227,8 +242,9 @@ export function PlanSelection({
   )
 }
 
-function TierReservation({ interval, t, tokens, children }: Readonly<{
+function TierReservation({ interval, column, t, tokens, children }: Readonly<{
   interval: SubscriptionInterval
+  column: boolean
   t: UpgradeTextFn
   tokens: Tokens
   children: ReactNode
@@ -236,7 +252,7 @@ function TierReservation({ interval, t, tokens, children }: Readonly<{
   const [height, setHeight] = useState(0)
   const [contentHeight, setContentHeight] = useState(0)
   return (
-    <View testID={`upgrade-reservation-${interval}`} style={{ minHeight: Math.max(height, contentHeight) }}>
+    <View testID={`upgrade-reservation-${interval}`} style={[column ? styles.planChoiceColumn : null, { minHeight: Math.max(height, contentHeight) }]}>
       <View
         importantForAccessibility="no-hide-descendants"
         pointerEvents="none"
@@ -273,6 +289,7 @@ function TierCard({
   selected,
   loading,
   disabled,
+  column = false,
   measurement = false,
   onCheckout,
   t,
@@ -283,6 +300,7 @@ function TierCard({
   selected: boolean
   loading: boolean
   disabled: boolean
+  column?: boolean
   measurement?: boolean
   onCheckout: (interval: SubscriptionInterval) => void
   t: UpgradeTextFn
@@ -293,6 +311,7 @@ function TierCard({
       testID={measurement ? undefined : `upgrade-tier-${tier.interval}`}
       style={[
         styles.tierCard,
+        column ? styles.planChoiceColumn : null,
         {
           backgroundColor: selected ? tokens.primaryDim : tokens.bgCard,
           borderColor: selected ? tokens.primary : tokens.hairline,
@@ -338,7 +357,8 @@ function appStoreEquivalent(monthlyOffer: StoreOffer | null, yearlyOffer: StoreO
     : undefined
 }
 
-function buildTiers({ plans, monthlyOffer, yearlyOffer, monthlyPrice, yearlyPrice, isApple }: {
+/** The two plan cards. A price comes from the store offer, or from the plans read. */
+export function buildTiers({ plans, monthlyOffer, yearlyOffer, monthlyPrice, yearlyPrice, isApple }: {
   plans: SubscriptionPlans | null; monthlyOffer: StoreOffer | null; yearlyOffer: StoreOffer | null
   monthlyPrice?: string; yearlyPrice?: string; isApple: boolean
 }, t: UpgradeTextFn) {

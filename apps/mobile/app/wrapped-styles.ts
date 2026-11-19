@@ -62,6 +62,8 @@ export const styles = StyleSheet.create({
   habitEmoji: { fontSize: 44, lineHeight: 53 },
   habitInitial: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 44, lineHeight: 53 },
   figureWidth: { width: '100%' },
+  slideError: { alignItems: 'center', gap: SPACING.s24, paddingVertical: SPACING.s48, paddingHorizontal: SPACING.s24 },
+  slideErrorMessage: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
   tapZones: { position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, flexDirection: 'row' },
   prevZone: { flex: 1 },
   nextZone: { flex: 2 },

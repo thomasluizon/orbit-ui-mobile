@@ -1,0 +1,62 @@
+import type { ReactNode, RefObject } from 'react'
+import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native'
+import { useTranslation } from 'react-i18next'
+import type { OrbitLookTarget } from '@orbit/shared/contracts/brand'
+import { SPACING } from '@orbit/shared/theme'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+
+type MascotRef = RefObject<View | null>
+type LookAt = OrbitLookTarget | null
+
+/** The space between the field and the rows under it. It belongs to the pinned question, not to the visible block. */
+export const QUESTION_END_GAP = SPACING.s16
+
+/**
+ * Orbit above the search question while no query exists. With a query the slot stays mounted and empty, so the field under it keeps its mount.
+ * `offset` moves the block down into the centre of the free area.
+ */
+export function SearchOrbit({ resting, offset, hidden, mascotRef, lookAt, onLayout }: Readonly<{ resting: boolean; offset: number; hidden: boolean; mascotRef: MascotRef; lookAt: LookAt; onLayout: (event: LayoutChangeEvent) => void }>) {
+  const mascotSize = useStateMascotSize()
+  return (
+    <View testID="search-orbit" ref={resting ? mascotRef : undefined} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden onLayout={onLayout} style={[resting ? styles.orbit : null, { marginTop: offset }, hidden ? styles.hidden : null]}>
+      {resting ? <OrbitMascot size={mascotSize} lookAt={lookAt} /> : null}
+    </View>
+  )
+}
+
+/** The search question with its field. The question is the heading of the screen and the label of the field. `hidden` holds it back until the block is placed. */
+export function SearchQuestion({ hidden, onLayout, children }: Readonly<{ hidden: boolean; onLayout: (event: LayoutChangeEvent) => void; children: ReactNode }>) {
+  const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return (
+    <View testID="search-question" onLayout={onLayout} style={[styles.question, { backgroundColor: tokens.bg }, hidden ? styles.hidden : null]}>
+      <Text accessibilityRole="header" textBreakStrategy="balanced" style={[styles.heading, { color: tokens.fg1 }]}>{t('habits.search.question')}</Text>
+      {children}
+    </View>
+  )
+}
+
+/** Orbit at 48 beside the one sentence about the result set. Orbit is Pensando while the search runs, and Parado after a miss and on a load error. */
+export function SearchOrbitLine({ mascotRef, lookAt, thinking, children }: Readonly<{ mascotRef: MascotRef; lookAt: LookAt; thinking: boolean; children: ReactNode }>) {
+  return (
+    <View testID="search-orbit-line" style={styles.line}>
+      <View ref={mascotRef} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={styles.lineMascot}>
+        <OrbitMascot size={48} state={thinking ? 'pensando' : 'parado'} lookAt={lookAt} />
+      </View>
+      <View style={styles.lineContent}>{children}</View>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  orbit: { alignItems: 'center', paddingBottom: SPACING.s24 },
+  question: { gap: 12, paddingBottom: QUESTION_END_GAP },
+  hidden: { opacity: 0 },
+  heading: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },
+  line: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s4 },
+  lineMascot: { width: 48, alignItems: 'center' },
+  lineContent: { flex: 1, minWidth: 0 },
+})

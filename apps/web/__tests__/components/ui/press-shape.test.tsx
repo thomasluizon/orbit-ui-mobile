@@ -63,7 +63,6 @@ describe('painted press and hover shapes', () => {
       encoding: 'utf8',
       env: { ...process.env, TSX_TSCONFIG_PATH: resolve('e2e/layout/compact-target-tsconfig.json') },
     })
-    expect(within(container).getByRole('button', { name: /Sequência/ })).toBeDefined()
     for (const label of [ptBr.habits.form.resetChecklist, ptBr.habits.form.clearChecklist]) {
       expect(within(container).getByRole('button', { name: label })).toBeDefined()
     }

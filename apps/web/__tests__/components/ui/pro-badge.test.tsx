@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -30,6 +31,18 @@ describe('ProBadge', () => {
     mockProfile.hasProAccess = hasProAccess
     render(<ProBadge />)
     expect(screen.getByText(text)).toBeInTheDocument()
+  })
+
+  it.each([
+    { isTrialActive: true, text: 'trial.proBadge' },
+    { isTrialActive: false, text: 'common.proBadge' },
+  ])('keeps the text $text and draws no mascot with the guided flows on', ({ isTrialActive, text }) => {
+    enableTestFlags('orbit_guided_flows')
+    mockProfile.isTrialActive = isTrialActive
+    mockProfile.hasProAccess = true
+    const { container } = render(<ProBadge />)
+    expect(screen.getByText(text)).toBeInTheDocument()
+    expect(container.querySelector('[data-orbit-face], [data-orbit-state]')).toBeNull()
   })
 
   it('applies custom classes to the outer badge wrapper', () => {

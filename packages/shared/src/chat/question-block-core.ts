@@ -29,6 +29,27 @@ export function isQuestionAnswered(question: Question, answer: QuestionAnswer | 
   return answer.number >= question.min && answer.number <= question.max && isOnQuestionStep(answer.number, question.min, question.step)
 }
 
+/** The most options that render as quick options. A longer list keeps the list presentation. */
+export const QUICK_OPTION_LIMIT = 4
+
+/** The most words in the label of a quick option. A longer label does not hold one line in the card at 320. */
+export const QUICK_OPTION_WORD_LIMIT = 4
+
+/**
+ * The one rule of the quick option grid: 2 to 4 options, no detail line on any option, and each label of 4 words or fewer.
+ * The option card holds a label only, so each other set keeps the row layout.
+ */
+export function fitsQuickOptions(options: readonly { readonly label: string; readonly description?: string | null }[]): boolean {
+  return options.length >= 2 && options.length <= QUICK_OPTION_LIMIT &&
+    options.every((option) => !option.description && option.label.trim().split(/\s+/u).length <= QUICK_OPTION_WORD_LIMIT)
+}
+
+/** A yes/no question, or a single-choice question whose options fit the quick option grid, answers with quick options. A multiple-choice question takes several answers and keeps its check list. */
+export function usesQuickOptions(question: Question): boolean {
+  if (question.type === 'yesNo') return true
+  return question.type === 'singleChoice' && fitsQuickOptions(question.options)
+}
+
 export function formatQuestionNumber(value: number, locale: string): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 20 }).format(value)
 }

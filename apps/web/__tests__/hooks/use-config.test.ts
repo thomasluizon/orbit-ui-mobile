@@ -16,6 +16,7 @@ import { createQueryClient } from '@/lib/query-client'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), report: vi.fn(), replace: vi.fn() }))
+vi.unmock('@/hooks/use-flag')
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mocks.replace }) }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/lib/api-fetch', async (importOriginal) => ({

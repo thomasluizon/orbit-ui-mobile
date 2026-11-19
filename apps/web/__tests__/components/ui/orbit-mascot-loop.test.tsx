@@ -334,3 +334,18 @@ describe('Orbit ring outline on web', () => {
     expect([...container.querySelectorAll('[fill="var(--bg)"]')].every((node) => node.getAttribute('data-part') === 'eye')).toBe(true)
   })
 })
+
+describe('Orbit ring turn on web', () => {
+  it('turns the ring from the frame clock, so a frame stamp behind performance.now still shows the turn', () => {
+    const frameClockOffset = 5000
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => window.setTimeout(() => callback(performance.now() - frameClockOffset), 16))
+    vi.stubGlobal('cancelAnimationFrame', (handle: number) => window.clearTimeout(handle))
+    const { container, rerender } = render(<OrbitMascot size={96} turnKey={0} />)
+    expect(container.querySelector('svg')?.getAttribute('data-orbit-turn')).toBe('rest')
+    rerender(<OrbitMascot size={96} turnKey={1} />)
+    act(() => { vi.advanceTimersByTime(mascotMotion.ringTurn / 2) })
+    expect(container.querySelector('svg')?.getAttribute('data-orbit-turn')).toBe('turning')
+    act(() => { vi.advanceTimersByTime(mascotMotion.ringTurn) })
+    expect(container.querySelector('svg')?.getAttribute('data-orbit-turn')).toBe('rest')
+  })
+})

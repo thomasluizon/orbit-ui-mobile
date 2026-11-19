@@ -1,8 +1,12 @@
-import { PADDING, SPACING } from '@orbit/shared/theme'
-import { useState } from 'react'
+import type { OrbitLookTarget } from '@orbit/shared/contracts/brand'
+import { PADDING, SPACING, motionDurations, motionEasings } from '@orbit/shared/theme'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useFlag } from '@/hooks/use-flag'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -15,12 +19,37 @@ interface TodayAstraLineProps {
   busy?: boolean
   announce?: boolean
   loading?: boolean
+  mascotState?: 'parado' | 'pensando' | 'descansando'
+  lookAt?: OrbitLookTarget | null
+  turnKey?: string | number
+  mascotRef?: RefObject<View | null>
 }
 
-export function TodayAstraLine({ text, destination, role = 'button', onPress, disabled = false, busy = false, announce = false, loading = false }: Readonly<TodayAstraLineProps>) {
+function useSentenceFade(text: string, still: boolean) {
+  const opacity = useSharedValue(1)
+  const shown = useRef(text)
+  useEffect(() => {
+    if (shown.current === text) return undefined
+    shown.current = text
+    if (still) return undefined
+    opacity.value = 0
+    opacity.value = withTiming(1, { duration: motionDurations.micro, easing: Easing.bezier(...motionEasings.standard) })
+    return () => {
+      cancelAnimation(opacity)
+      opacity.value = 1
+    }
+  }, [opacity, still, text])
+  return useAnimatedStyle(() => ({ opacity: opacity.value }))
+}
+
+export function TodayAstraLine({ text, destination, role = 'button', onPress, disabled = false, busy = false, announce = false, loading = false, mascotState = 'parado', lookAt, turnKey, mascotRef }: Readonly<TodayAstraLineProps>) {
+  const guided = useFlag('orbit_guided_flows')
   const { fontScale } = useWindowDimensions()
+  const reducedMotion = usePrefersReducedMotion()
+  const sentenceStyle = useSentenceFade(text, !guided || reducedMotion)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const type = guided ? styles.orbitLineText : styles.text
   const [pressed, setPressed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
@@ -42,15 +71,17 @@ export function TodayAstraLine({ text, destination, role = 'button', onPress, di
         onPress={onPress}
       >
         {!disabled && (pressed || hovered) ? <View accessible={false} pointerEvents="none" style={[StyleSheet.absoluteFill, styles.feedback, { backgroundColor: tokens.bgHoverOpaque }]} /> : null}
-        <View accessible={false} style={{ width: 48, flexShrink: 0, alignItems: 'center' }}>
-          <OrbitMascot size={48} live="withLead" />
+        <View ref={mascotRef} accessible={false} style={{ width: 48, flexShrink: 0, alignItems: 'center' }}>
+          {guided ? <OrbitMascot size={48} live="withLead" state={mascotState} lookAt={lookAt} turnKey={turnKey} /> : <OrbitMascot size={48} live="withLead" />}
         </View>
-        {loading ? <View testID="summary-skeleton" accessible={false} importantForAccessibility="no-hide-descendants" style={styles.skeleton}>
+        {loading ? <View testID="summary-skeleton" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.skeleton, { minHeight: type.lineHeight * 2 }]}>
           <View style={styles.placeholder}><Skeleton variant="fill" grouped /></View>
           <View style={[styles.placeholder, styles.placeholderShort]}><Skeleton variant="fill" grouped /></View>
-        </View> : <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.text, { color: tokens.fg2 }]}>
-          {text}
-        </Text>}
+        </View> : <Animated.View testID="today-astra-sentence" style={[styles.sentence, sentenceStyle]}>
+          <Text numberOfLines={2} ellipsizeMode="tail" style={[type, { color: tokens.fg2 }]}>
+            {text}
+          </Text>
+        </Animated.View>}
       </Pressable>
     </View>
   )
@@ -59,8 +90,10 @@ export function TodayAstraLine({ text, destination, role = 'button', onPress, di
 const styles = StyleSheet.create({
   line: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: SPACING.s8, paddingRight: SPACING.s16, paddingVertical: SPACING.s8, borderRadius: 12 },
   feedback: { borderRadius: 12 },
-  skeleton: { flex: 1, minWidth: 0, minHeight: 14 * 1.55 * 2, justifyContent: 'center', gap: 8 },
+  skeleton: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 8 },
   placeholder: { height: 14, width: '100%' },
   placeholderShort: { width: '66.67%' },
-  text: { minWidth: 0, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 },
+  sentence: { minWidth: 0, flex: 1 },
+  text: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 },
+  orbitLineText: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 16 * 1.4 },
 })

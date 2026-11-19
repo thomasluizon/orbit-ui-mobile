@@ -1,8 +1,14 @@
-import { describe, expect, it } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { useTranslations } from 'next-intl'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
+
+const motion = vi.hoisted(() => ({ reducedMotion: false }))
+vi.mock('@/hooks/use-viewport-match', () => ({
+  useViewportMatch: (query: string) => query.includes('prefers-reduced-motion') ? motion.reducedMotion : false,
+}))
 
 const status: SubscriptionStatus = {
   plan: 'free', hasProAccess: false, isTrialActive: false, trialEndsAt: null,
@@ -32,6 +38,30 @@ describe('lapsed subscription notice', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     expect(screen.queryByText('upgrade.billing.usage.title')).not.toBeInTheDocument()
     expect(screen.queryByText('upgrade.billing.usage.nearLimit')).not.toBeInTheDocument()
+  })
+
+  it.each([[false, 'running'], [true, 'still']] as const)('draws Orbit with reduced motion %s as %s, with the guided flows on', (reducedMotion, loop) => {
+    enableTestFlags('orbit_guided_flows')
+    motion.reducedMotion = reducedMotion
+    try {
+      render(<SubscriptionNotice status={status} locale="en" onResubscribe={vi.fn()} t={t} />)
+      expect(document.querySelector('[data-subscription-notice] [data-orbit-face="rig"]')).toHaveAttribute('data-orbit-loop', loop)
+    } finally {
+      motion.reducedMotion = false
+    }
+  })
+
+  it.each([false, true])('keeps the notice and its action, and shows Orbit in Parado only with the guided flows on (%s)', (guided) => {
+    if (guided) enableTestFlags('orbit_guided_flows')
+    const onResubscribe = vi.fn()
+    render(<SubscriptionNotice status={status} locale="en" onResubscribe={onResubscribe} t={t} />)
+    const notice = document.querySelector<HTMLElement>('[data-subscription-notice]')!
+    expect(within(notice).getByRole('heading', { name: 'upgrade.billing.lapsed.title' })).toBeInTheDocument()
+    expect(within(notice).getByText('upgrade.billing.lapsed.paymentFix')).toBeInTheDocument()
+    expect(notice.querySelectorAll('[data-orbit-face="rig"][data-orbit-state="parado"]')).toHaveLength(guided ? 1 : 0)
+    expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
+    fireEvent.click(within(notice).getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
+    expect(onResubscribe).toHaveBeenCalledTimes(1)
   })
 
   it('lists each lost entitlement separately with the current message allowance', () => {

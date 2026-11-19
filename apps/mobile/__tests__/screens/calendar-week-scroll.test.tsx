@@ -17,6 +17,7 @@ interface TestTree {
 const { create } = require('react-test-renderer') as { create: (element: React.ReactNode) => TestTree }
 
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 const scrollToOffset = vi.hoisted(() => vi.fn())
 vi.mock('react-native', async () => {
   const React = await import('react')

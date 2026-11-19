@@ -293,6 +293,17 @@ describe('Today create during first load', () => {
     expect(useUIStore.getState().showCreateModal).toBe(false)
   })
 
+  it('sends a free account at the habit limit to the upgrade flow with the screen it left', () => {
+    state.profile = { hasProAccess: false }
+    state.count = 10
+    state.countLoaded = true
+    state.pathname = '/calendar'
+    render(<QueryAppLayout><div>Calendar</div></QueryAppLayout>)
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(state.push).toHaveBeenCalledExactlyOnceWith('/upgrade?from=%2Fcalendar')
+  })
+
   it('pushes creation when count arrives before a Pro profile', () => {
     state.count = 10
     state.countLoaded = true

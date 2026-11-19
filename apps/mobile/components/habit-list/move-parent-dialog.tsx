@@ -15,6 +15,7 @@ import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useFlag } from '@/hooks/use-flag'
 
 export type { MoveParentOption } from '@orbit/shared/utils/move-parent'
 
@@ -33,9 +34,20 @@ function MoveDialogDescription({
   return <Text style={styles.moveDialogDescription}>{t('habits.moveParent.description', { name })}</Text>
 }
 
-function getMoveDialogTitle(t: MoveParentDialogProps['t'], selectionOnly: boolean, selectionTitle: string | undefined, movingHabitCount?: number) {
-  return selectionOnly ? selectionTitle ?? t('habits.form.parentHabit') : movingHabitCount === undefined ? t('habits.moveParent.title')
-    : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
+function useMoveParentHeading(t: MoveParentDialogProps['t'], selectionOnly: boolean, selectionTitle: string | undefined, movingHabitCount?: number) {
+  const asksOneQuestion = useFlag('orbit_guided_flows') && !selectionOnly
+  const question = t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })
+  const moveSubject = movingHabitCount === undefined ? t('habits.moveParent.title') : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
+  const subject = selectionOnly ? selectionTitle ?? t('habits.form.parentHabit') : moveSubject
+  return { asksOneQuestion, question, subject, title: asksOneQuestion ? question : subject }
+}
+
+function MoveSubjectLine({ visible, subject, styles }: Readonly<{ visible: boolean; subject: string; styles: Styles }>) {
+  return visible ? <Text testID="move-parent-subject" style={styles.moveDialogDescription}>{subject}</Text> : null
+}
+
+function MoveQuestionLabel({ visible, question, styles }: Readonly<{ visible: boolean; question: string; styles: Styles }>) {
+  return visible ? <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.destinationQuestion}>{question}</Text> : null
 }
 
 function MoveTargetRow({
@@ -62,7 +74,7 @@ function MoveTargetRow({
       meta={option.childCount > 0 ? String(option.childCount) : undefined}
       tag={isCurrentParent ? currentLabel : undefined}
       leading={option.id === null
-        ? <Home size={20} strokeWidth={1.8} color={tokens.fg2} />
+        ? <Home size={20} strokeWidth={1.5} color={tokens.fg2} />
         : <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.wellEmoji}>{option.emoji ?? '·'}</Text>}
       onSelect={() => onSelect(option.id)}
     />
@@ -128,7 +140,7 @@ export function MoveParentDialog({
       contentLaidOutRef.current = false
     }
   }, [visible, inventoryState])
-  const title = getMoveDialogTitle(t, selectionOnly, selectionTitle, movingHabitCount)
+  const { asksOneQuestion, question, subject, title } = useMoveParentHeading(t, selectionOnly, selectionTitle, movingHabitCount)
   async function confirmMove() {
     if (await onConfirm() === true) {
       closeSheet(hideDialog, hideDialog)
@@ -169,10 +181,11 @@ export function MoveParentDialog({
 
         <MoveDialogDescription
           t={t}
-          name={selectionOnly ? null : movingHabitTitle}
+          name={selectionOnly || asksOneQuestion ? null : movingHabitTitle}
           count={movingHabitCount}
           styles={styles}
         />
+        <MoveSubjectLine visible={asksOneQuestion && movingHabitCount !== undefined} subject={subject} styles={styles} />
 
         {showSearch ? (
           <View style={styles.searchWrap}>
@@ -185,17 +198,15 @@ export function MoveParentDialog({
                 scrollRef.current?.scrollTo({ y: 0, animated: false })
               }}
               placeholder={t('habits.moveParent.searchPlaceholder')}
-              trailing={<Search size={20} strokeWidth={1.8} color={tokens.fg3} />}
+              trailing={<Search size={20} strokeWidth={1.5} color={tokens.fg3} />}
             />
           </View>
         ) : null}
 
         <View testID="move-parent-destinations" style={styles.destinations}>
-        {treeRows.length > 0 ? (
-          <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.destinationQuestion}>{t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })}</Text>
-        ) : null}
+        <MoveQuestionLabel visible={treeRows.length > 0 && !asksOneQuestion} question={question} styles={styles} />
 
-        <RadioGroup accessibilityLabel={t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })} style={{ flexShrink: 1 }}>
+        <RadioGroup accessibilityLabel={question} style={{ flexShrink: 1 }}>
           {rootOption ? (
             <MoveTargetRow
               option={rootOption}

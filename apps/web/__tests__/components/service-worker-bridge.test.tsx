@@ -157,7 +157,7 @@ describe('ServiceWorkerBridge', () => {
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' })
     postFromWorker(container, { type: 'orbit:notification-click', url: '/progress' })
 
-    expect(mockPush.mock.calls).toEqual([['/?astra=proactive'], ['/progress']])
+    expect(mockPush.mock.calls).toEqual([['/?orbit=proactive'], ['/progress']])
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
     expect(useChatStore.getState().messages).toEqual([])
   })
@@ -183,7 +183,7 @@ describe('ServiceWorkerBridge', () => {
 
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' }, [reply.port])
 
-    expect(mockPush).toHaveBeenCalledWith('/?astra=proactive')
+    expect(mockPush).toHaveBeenCalledWith('/?orbit=proactive')
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
     expect(useChatStore.getState().messages).toEqual([])
     expect(await reply.receipts()).toEqual([{ type: 'orbit:notification-click-received' }])
@@ -268,7 +268,7 @@ describe('ServiceWorkerBridge', () => {
     installServiceWorkerContainer()
     window.history.replaceState(null, '', '/?notificationUrl=%2Fchat')
     renderBridge()
-    expect(mockPush).toHaveBeenCalledWith('/?astra=proactive')
+    expect(mockPush).toHaveBeenCalledWith('/?orbit=proactive')
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
     expect(useChatStore.getState().messages).toEqual([])
   })
@@ -277,7 +277,7 @@ describe('ServiceWorkerBridge', () => {
     installServiceWorkerContainer()
     window.history.replaceState(null, '', '/onboarding?notificationUrl=%2Fchat')
     renderBridge()
-    expect(mockPush).toHaveBeenCalledWith('/?astra=proactive')
+    expect(mockPush).toHaveBeenCalledWith('/?orbit=proactive')
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
     expect(useChatStore.getState().messages).toEqual([])
   })

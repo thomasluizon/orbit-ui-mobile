@@ -2,6 +2,7 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
+import { OrbitHop } from '@/components/ui/orbit-hop'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
 
@@ -17,6 +18,7 @@ import { HABIT_FREQUENCY_FILTER_OPTIONS } from '@orbit/shared/utils/habit-freque
 import type { HabitFrequencyFilter } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { useFlag } from '@/hooks/use-flag'
 
 const SECONDARY_ACTION_STYLE = {
   fontFamily: 'var(--font-sans)',
@@ -139,12 +141,17 @@ export function HabitListEmptyState({
   )
 }
 
+/** The completed day: Orbit in Feliz. With the guided flows on, it draws at the state size and hops once while the celebration of the completed day is the active one, and never on a later visit. With them off, it draws at 96 with no hop. */
 export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: () => void }>) {
   const t = useTranslations()
+  const guided = useFlag('orbit_guided_flows')
+  const stateSize = useStateMascotSize()
+  const mascotSize = guided ? stateSize : 96
+  const celebrating = useUIStore((state) => state.activeCelebration?.kind === 'all-done')
   return (
     <div data-testid="habit-list-all-done" className="flex min-w-0 flex-col items-center text-center" style={{ gap: 24, padding: 'var(--orbit-space-48) var(--orbit-space-24)' }}>
-      <div data-testid="completed-day-mark" className="relative flex shrink-0 items-center justify-center" style={{ width: 96, height: orbitMascotHeight(96) }} aria-hidden="true">
-        <OrbitMascot size={96} state="feliz" />
+      <div data-testid="completed-day-mark" className="relative flex shrink-0 items-center justify-center" style={{ width: mascotSize, height: orbitMascotHeight(mascotSize) }} aria-hidden="true">
+        {guided ? <OrbitHop active={celebrating} className="flex"><OrbitMascot size={mascotSize} state="feliz" /></OrbitHop> : <OrbitMascot size={mascotSize} state="feliz" />}
       </div>
       <div className="flex min-w-0 flex-col items-center" style={{ gap: 8 }}>
         <p style={{ fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.2, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--fg-1)', textWrap: 'balance' }}>

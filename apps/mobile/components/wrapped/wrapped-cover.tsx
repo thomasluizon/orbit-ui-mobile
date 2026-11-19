@@ -10,11 +10,13 @@ import { Icon } from '@/components/ui/icon'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Button } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useFlag } from '@/hooks/use-flag'
+import { GuidedWrappedCover } from './guided-wrapped-cover'
 import { styles, type Tokens } from '@/app/wrapped-styles'
 
 type WrappedCoverState = 'ready' | 'loading' | 'failed' | 'empty'
 
-interface WrappedCoverProps {
+export interface WrappedCoverProps {
   tokens: Tokens
   period: RecapSharePeriod
   onSelectPeriod: (period: RecapSharePeriod) => void
@@ -23,7 +25,13 @@ interface WrappedCoverProps {
   onRetry: () => void
 }
 
-export function WrappedCover({
+/** The cover of the Wrapped screen. `orbit_guided_flows` picks the guided cover; off, the current cover renders. */
+export function WrappedCover(props: Readonly<WrappedCoverProps>) {
+  const guided = useFlag('orbit_guided_flows')
+  return guided ? <GuidedWrappedCover {...props} /> : <CurrentWrappedCover {...props} />
+}
+
+function CurrentWrappedCover({
   tokens,
   period,
   onSelectPeriod,

@@ -31,7 +31,7 @@ describe('state surface Orbit size', () => {
 
   it.each([[1023, 96], [1024, 128]] as const)('draws the empty notification list Orbit at %ipx as %i', async (width, size) => {
     const tree = await renderAt(width, (
-      <NotificationList items={[]} isLoading={false} isError={false} onRetry={vi.fn()} onOpen={vi.fn()} onDelete={vi.fn()} />
+      <NotificationList items={[]} scope="" isLoading={false} isError={false} onRetry={vi.fn()} onOpen={vi.fn()} onDelete={vi.fn()} />
     ))
     expect(stateMascotSizes(tree)).toEqual([size])
   })
