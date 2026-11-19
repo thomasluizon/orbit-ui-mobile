@@ -766,6 +766,12 @@ export const cases = async () => {
     ),
     "a fractional worker launch cap was accepted",
   )
+  T(`${NAME}: the launch gate needs a positive load ceiling`,
+    /launchGate\.loadMax must be a positive number/.test(readAndFail("no-launch-load", { ...real, launchGate: { ...real.launchGate, loadMax: 0 } }) ?? ""))
+  T(`${NAME}: the launch gate needs a spacing of 0 seconds or more`,
+    /launchGate\.spacingSeconds must be a number of seconds, 0 or more/.test(readAndFail("negative-launch-spacing", { ...real, launchGate: { ...real.launchGate, spacingSeconds: -1 } }) ?? "") &&
+      /launchGate\.loadMax/.test(readAndFail("no-launch-gate", { ...real, launchGate: undefined }) ?? ""))
+  T(`${NAME}: the shipped launch gate keeps the run's load ceiling and spacing`, real.launchGate.loadMax === 60 && real.launchGate.spacingSeconds === 45, JSON.stringify(real.launchGate))
   T(
     `${NAME}: a cloud cap outside the measured 4 through 8 range is refused`,
     /caps\.cloudParallelTasks must be an integer from 4 through 8/.test(

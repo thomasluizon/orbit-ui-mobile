@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { answerHabitReminder, answerHabitTime, answerHabitWhen, shiftCalendarDate, type HabitFlowFormPort } from '../utils/habit-flow-answers'
+import { answerHabitReminder, answerHabitTime, answerHabitWhen, formHoldsTimelessReminder, shiftCalendarDate, type HabitFlowFormPort } from '../utils/habit-flow-answers'
 
 function port() {
   const calls: string[] = []
@@ -52,14 +52,28 @@ describe('answerHabitWhen', () => {
 })
 
 describe('answerHabitTime and answerHabitReminder', () => {
-  it('sets the time, and clears the end time and the reminder for "no set time"', () => {
+  it('sets the time and leaves the reminder alone', () => {
     const timed = port()
-    answerHabitTime(timed.target, '08:00')
+    answerHabitTime(timed.target, '08:00', false)
     expect(timed.values.dueTime).toBe('08:00')
-    expect(timed.calls).not.toContain('reminder:false')
-    const untimed = port()
-    answerHabitTime(untimed.target, null)
-    expect(untimed.values).toMatchObject({ dueTime: '', dueEndTime: '', reminder: false })
+    expect(timed.calls.some((call) => call.startsWith('reminder:'))).toBe(false)
+  })
+
+  it('clears the time and the end time for "no set time", and turns the reminder off only when no clock or repeat reminder remains', () => {
+    const offsetsOnly = port()
+    answerHabitTime(offsetsOnly.target, null, false)
+    expect(offsetsOnly.values).toMatchObject({ dueTime: '', dueEndTime: '', reminder: false })
+    const keepsReminder = port()
+    answerHabitTime(keepsReminder.target, null, true)
+    expect(keepsReminder.values).toMatchObject({ dueTime: '', dueEndTime: '' })
+    expect(keepsReminder.calls.some((call) => call.startsWith('reminder:'))).toBe(false)
+  })
+
+  it('names the reminders that need no time', () => {
+    expect(formHoldsTimelessReminder({ scheduledReminders: [], repeatReminder: null })).toBe(false)
+    expect(formHoldsTimelessReminder({})).toBe(false)
+    expect(formHoldsTimelessReminder({ scheduledReminders: [{ when: 'same_day', time: '06:30' }] })).toBe(true)
+    expect(formHoldsTimelessReminder({ repeatReminder: { intervalMinutes: 30 } })).toBe(true)
   })
 
   it('turns the reminder on or leaves it off', () => {

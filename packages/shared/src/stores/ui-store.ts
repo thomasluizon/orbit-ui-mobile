@@ -150,8 +150,7 @@ export interface UIStoreState {
 
   /** Transient shell state. These values are deliberately excluded from persistence. */
   todayFabHidden: boolean;
-  todayFabPending: boolean;
-  setTodayFabHidden: (hidden: boolean, pending?: boolean) => void;
+  setTodayFabHidden: (hidden: boolean) => void;
   calendarHasError: boolean;
   setCalendarHasError: (hasError: boolean) => void;
   astraConversationOpen: boolean;
@@ -451,9 +450,8 @@ export function createUIStoreState(
       get().registerOpenOverlay(id);
       return true;
     },
-    todayFabHidden: true,
-    todayFabPending: true,
-    setTodayFabHidden: (hidden, pending = false) => set({ todayFabHidden: hidden, todayFabPending: pending }),
+    todayFabHidden: false,
+    setTodayFabHidden: (hidden) => set({ todayFabHidden: hidden }),
     calendarHasError: false,
     setCalendarHasError: (calendarHasError) => set({ calendarHasError }),
     astraConversationOpen: false,

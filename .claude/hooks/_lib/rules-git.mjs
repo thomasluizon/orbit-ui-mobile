@@ -262,7 +262,7 @@ export const GIT_SUBCOMMANDS = ["add", "apply", "bisect", "blame", "branch", "ca
   "config", "count-objects", "describe", "diff", "diff-files", "diff-index", "diff-tree", "fetch", "for-each-ref", "format-patch", "fsck", "grep", "hash-object", "log",
   "ls-files", "ls-remote", "ls-tree", "merge", "merge-base", "mv", "name-rev", "pull", "push", "range-diff", "rebase", "reflog", "remote", "reset", "restore", "rev-list",
   "rev-parse", "revert", "rm", "shortlog", "show", "show-branch", "show-ref", "stash", "status", "switch", "symbolic-ref", "tag", "var", "verify-commit", "verify-tag",
-  "version", "worktree", "merge-tree"]
+  "version", "worktree", "merge-tree", "archive"]
 
 /** True for a short option word that holds `letter` before a letter in `valueLetters`, which takes the rest of the word as its value. */
 const holdsShortOption = (word, letter, valueLetters) => {
@@ -284,6 +284,7 @@ function commandOption(subcommand, rest) {
     "ls-remote": (word) => isLongOption(word, "--upload-pack", "--u"),
     push: (word) => isLongOption(word, "--receive-pack", "--rece") || isLongOption(word, "--exec", "--e"),
     grep: (word) => isLongOption(word, "--open-files-in-pager", "--op") || holdsShortOption(word, "O", "efABCm"),
+    archive: (word) => isLongOption(word, "--exec", "--e") || isLongOption(word, "--remote", "--r"),
   }[subcommand]
   return (runs && rest.find((word, index) => runs(word, index))) ?? ""
 }

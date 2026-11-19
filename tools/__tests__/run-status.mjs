@@ -1,14 +1,16 @@
 import { spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { dirname, join, relative } from "node:path"
 
-import { T, check, orcaEnv, realOrchestratorConfig, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
-import { runStatus, statusQuery } from "../run-status.mjs"
+import { T, check, orcaEnv, realOrchestratorConfig, REPO_ROOT, same, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
+import { retiredBasesQuery, runStatus, statusQuery } from "../run-status.mjs"
 import { readAdmissionCounts, RELEASE_HOLD_MS } from "../lib/admission.mjs"
 import { writeReadinessReceipt } from "../lib/readiness-receipt.mjs"
+import { composeRunNote } from "../lib/run-notes.mjs"
 import { clearWakeSource, readRunState, registerWakeSource, reserveWorkerLaunch, runStatePath, workerLaunchDirectory, writeRunState } from "../lib/run-state.mjs"
 
 const fixture = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-run-status.json"), "utf8"))
+const barFixture = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-run-status-merge-bar.json"), "utf8"))
 const sessionId = "status-session"
 const readyPull = () => {
   const pull = structuredClone(fixture.response.data.repository.pr1459)
@@ -17,6 +19,86 @@ const readyPull = () => {
   pull.mergeStateStatus = "CLEAN"
   pull.statusCheckRollup.contexts.nodes = pull.statusCheckRollup.contexts.nodes.map((check) => ({ ...check, status: "COMPLETED", conclusion: "SUCCESS" }))
   return pull
+}
+
+/**
+ * A new computer: a fresh clone whose only branch is main has no worktree of the pull request's head, so the
+ * cold start names the exact create-worktree step before the delivery command that reads "$WORKTREE".
+ */
+const newComputerWorktreeCases = async ({ repo, options, authenticate, runner, reads, head }) => {
+  const branch = head.headRefName
+  spawnSync("git", ["-C", repo.path, "push", "-q", repo.origin, `main:${branch}`], { encoding: "utf8" })
+  const clone = join(dirname(repo.path), "run-status-new-computer")
+  spawnSync("git", ["clone", "-q", repo.origin, clone], { encoding: "utf8" })
+  spawnSync("git", ["-C", clone, "remote", "set-url", "origin", "https://github.com/test-owner/ui.git"], { encoding: "utf8" })
+  const config = { ...options.config, repos: { ui: clone } }
+  const cold = await runStatus({ ...options, config, sessionId: "", authenticate, runner, reads })
+  const createIndex = cold.nextActions.findIndex((entry) => entry.type === "CREATE_WORKTREE" && entry.pr === "ui#1459")
+  const create = cold.nextActions[createIndex]
+  const verify = cold.nextActions[createIndex + 1]
+  T("run-status: a cold start with no worktree names the create-worktree command before the delivery command that needs it", createIndex >= 0 &&
+    create.command === `git -C '${clone}' fetch origin '${branch}:${branch}' && node tools/create-worktree.mjs --repo 'path:${clone}' --name 'ui-pr-1459' --base-branch '${branch}' --issue 1092 --no-parent --comment 'cold start of ui#1459' --json` &&
+    create.then === `git -C "$WORKTREE" switch '${branch}'` &&
+    verify?.type === "VERIFY_DELIVERY" && verify.pr === "ui#1459" && verify.command.includes('--worktree "$WORKTREE"'), JSON.stringify(cold.nextActions))
+  if (createIndex < 0) return
+  const argvFile = join(dirname(repo.path), "run-status-new-computer-orca-argv.json")
+  const created = spawnSync("bash", ["-c", create.command], { cwd: REPO_ROOT, encoding: "utf8", env: { ...process.env,
+    GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: `url.${repo.origin}.insteadOf`, GIT_CONFIG_VALUE_0: "https://github.com/test-owner/ui.git",
+    ...orcaEnv([{ match: "worktree create", argvFile, stdout: "{}" }]) } })
+  const baseSha = spawnSync("git", ["-C", repo.path, "rev-parse", "main"], { encoding: "utf8" }).stdout.trim()
+  const orcaArgs = existsSync(argvFile) ? JSON.parse(readFileSync(argvFile, "utf8")) : []
+  T("run-status: the named create-worktree command runs in a fresh clone that has no local head branch", created.status === 0 &&
+    created.stdout.includes(`WORKTREE_BASE ${branch} ${baseSha}`) && orcaArgs.join(" ").includes(`--base-branch ${branch} --issue 1092`), `${created.status} ${created.stdout} ${created.stderr} ${JSON.stringify(orcaArgs)}`)
+  // Orca creates the worktree on its own branch at the head commit; a detached worktree stands in for it.
+  const worktree = join(dirname(repo.path), "run-status-new-computer-worktree")
+  spawnSync("git", ["-C", clone, "worktree", "add", "-q", "--detach", worktree, branch], { encoding: "utf8" })
+  const switched = spawnSync("bash", ["-c", create.then], { encoding: "utf8", env: { ...process.env, WORKTREE: worktree } })
+  T("run-status: the follow-up command checks out the pull request's head branch in the new worktree", switched.status === 0 &&
+    spawnSync("git", ["-C", worktree, "branch", "--show-current"], { encoding: "utf8" }).stdout.trim() === branch, switched.stderr)
+  const resumed = await runStatus({ ...options, config, sessionId: "", authenticate, runner, reads })
+  T("run-status: a cold start with the head's worktree present names that worktree and no create step", !resumed.nextActions.some((entry) => entry.type === "CREATE_WORKTREE") &&
+    resumed.nextActions.some((entry) => entry.type === "VERIFY_DELIVERY" && entry.command.includes(`--worktree '${relative(repo.path, worktree)}'`)), JSON.stringify(resumed.nextActions))
+}
+
+/** A fresh clone: no run record, no receipt and no launch result, so every fact comes from the stubbed GitHub reads. */
+const coldStartCases = async ({ repo, options, authenticate, readCalls, setResponse }) => {
+  const head = readyPull()
+  const open = { data: { repository: { pullRequests: { totalCount: 2, nodes: [{ number: 1459, headRefName: head.headRefName }, { number: 7, headRefName: "chore/prod-release-relay-c315" }] } } } }
+  const statuses = { data: { repository: { ...open.data.repository, pr1459: head } } }
+  setResponse(open)
+  const runner = async (file, args, invocation) => {
+    readCalls.push(args)
+    const query = args.at(-1)
+    const payload = args[1] === "graphql" ? (query.includes("pr1459:") ? statuses : open) : { total_count: 0, workflow_runs: [] }
+    return { status: 0, stdout: JSON.stringify(payload), stderr: "", error: null, timedOut: false, overflowed: false }
+  }
+  const roundNote = composeRunNote({ kind: "round-note", round: 2, head: head.headRefOid, body: "Fix the two findings." })
+  const review = composeRunNote({ kind: "review", head: head.headRefOid, body: "VERDICT: CLEAN" })
+  const commentsRead = []
+  const reads = {
+    listTickets: async () => [{ number: 1092, title: "Fixture ticket", status: "In Review" }, { number: 1093, title: "Next ticket", status: "Todo" }, { number: 1, title: "Finished", status: "Done" }],
+    readTicketComments: async (number) => { commentsRead.push(number); return number === 1092 ? [{ body: roundNote, createdAt: "2026-10-01T20:00:00Z", author: "owner" }, { body: review, createdAt: "2026-10-01T20:30:00Z", author: "owner" }] : [] },
+    readIntakeMarks: () => ({ gmail: { pending: { m2: {} }, completed: { m1: {} }, highWater: "m2" }, wake: { seen: { mail: ["m2"], board: ["#1092 x", "#1093 y"] }, sentryListedAt: "2026-10-01T19:00:00Z" } }),
+  }
+  const cold = await runStatus({ ...options, sessionId: "", authenticate, runner, reads })
+  T("run-status: a checkout with no run record rebuilds the run from GitHub", cold.status === "COLD_START", JSON.stringify(cold))
+  T("run-status: a cold start finds each open ticket pull request and skips other branches", cold.pullRequests.length === 1 && cold.pullRequests[0].prNumber === 1459 && cold.pullRequests[0].issue === "#1092", JSON.stringify(cold.pullRequests))
+  T("run-status: a cold start recomputes readiness from GitHub and names the delivery check that writes a fresh receipt", cold.pullRequests[0].receipt === "MISSING_OR_CORRUPT" &&
+    cold.nextActions.some((entry) => entry.type === "VERIFY_DELIVERY" && entry.pr === "ui#1459"), JSON.stringify(cold.nextActions))
+  T("run-status: a cold start carries the latest round note and review of each in-flight ticket", cold.tickets.length === 1 && cold.tickets[0].ticket === "#1092" &&
+    cold.tickets[0].latestRoundNote.round === "2" && cold.tickets[0].latestRoundNote.head === head.headRefOid && cold.tickets[0].latestReview.verdict === "clean" && cold.tickets[0].latestReport === null, JSON.stringify(cold.tickets))
+  T("run-status: a cold start lists the board queue without finished tickets and plans it", JSON.stringify(cold.queue.map((ticket) => ticket.ticket)) === JSON.stringify(["#1092", "#1093"]) &&
+    cold.nextActions.some((entry) => entry.type === "PLAN_QUEUE" && entry.command === "node tools/plan-queue.mjs --board --sleep"), JSON.stringify(cold.queue))
+  const closedSet = /The action set is closed:\n([\s\S]*?)\n\n/.exec(readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8"))?.[1] ?? ""
+  const named = new Set(closedSet.match(/`[A-Z_]+`/g)?.map((name) => name.slice(1, -1)))
+  T("run-status: the closed action set of the orchestrate skill names each cold start action", cold.nextActions.every((entry) => named.has(entry.type)),
+    JSON.stringify(cold.nextActions.map((entry) => entry.type).filter((type) => !named.has(type))))
+  T("run-status: a cold start summarizes the intake marks from the tickets repository", JSON.stringify(cold.intake.gmail) === JSON.stringify({ pending: 1, completed: 1, highWater: "m2" }) &&
+    cold.intake.wake.seen.board === 2 && cold.intake.play.pending === 0, JSON.stringify(cold.intake))
+  T("run-status: a cold start writes no run record", !existsSync(join(repo.path, ".git", "orbit-orchestrate-run.json")))
+  await newComputerWorktreeCases({ repo, options, authenticate, runner, reads, head })
+  const failing = await runStatus({ ...options, sessionId: "", authenticate, runner, reads: { ...reads, listTickets: async () => { throw new Error("board read failed ghp_abcdefghijklmnopqrstuvwx") } } })
+  T("run-status: a failed board read is reported and redacted, never an empty queue", failing.queue.error?.includes("board read failed") && !failing.queue.error.includes("ghp_abcdefghijklmnopqrstuvwx"), JSON.stringify(failing.queue))
 }
 
 export const cases = async () => {
@@ -43,13 +125,20 @@ export const cases = async () => {
     return { status: 0, stdout: malformedJson ? "status-secret" : JSON.stringify(payload), stderr: "", error: null, timedOut: false, overflowed: false }
   }
   const snapshot = (extra = {}) => runStatus({ ...options, authenticate, runner, ...extra })
-  T("run-status: no record exits without any GitHub calls", (await snapshot()).status === "no run record" && readCalls.length === 0)
+  await coldStartCases({ repo, options, authenticate, readCalls, setResponse: (next) => { response = next } })
+  response = structuredClone(fixture.response)
+  readCalls.length = 0
   const cliPath = join(repo.path, "tools", "run-status.mjs")
   mkdirSync(dirname(cliPath), { recursive: true })
   cpSync(join(TOOLS_DIR, "run-status.mjs"), cliPath)
   cpSync(join(TOOLS_DIR, "lib"), join(repo.path, "tools", "lib"), { recursive: true })
-  check("run-status.mjs", "the CLI succeeds when its staged checkout has no run record", [],
-    { status: 0, stdout: /no run record/ }, { path: cliPath })
+  mkdirSync(join(repo.path, ".claude"), { recursive: true })
+  for (const file of ["linear-to-github-map.json", "orchestrator.json"]) cpSync(join(TOOLS_DIR, "..", ".claude", file), join(repo.path, ".claude", file))
+  const unreachable = stage("run-status-cold/gh", "#!/bin/sh\necho 'gh: offline (HTTP 503)' >&2\nexit 1\n")
+  spawnSync("chmod", ["755", unreachable])
+  const cold = check("run-status.mjs", "the CLI rebuilds from GitHub when its staged checkout has no run record, and reports what it cannot read", [],
+    { status: 0, stdout: /"status":"COLD_START"/ }, { path: cliPath, env: { GH_BIN: unreachable } })
+  T("run-status: an unreachable GitHub leaves each source marked unreadable, never an empty success", /"queue":\{"error":/.test(cold.stdout) && /"status":"UNREADABLE"/.test(cold.stdout), cold.stdout)
   const linked = dirname(stage("run-status-linked/.git", `gitdir: ${join(repo.path, ".git", "worktrees", "linked")}\n`))
   const linkedStatus = await snapshot({ repoRoot: linked })
   T("run-status: linked worktrees never read the main checkout's run", linkedStatus.mainCheckout === repo.path && linkedStatus.warning.includes("linked worktree"))
@@ -245,7 +334,8 @@ export const cases = async () => {
   }
   report = await snapshot()
   T(`run-status: ten PRs fit the output budget (${Buffer.byteLength(JSON.stringify(report))} bytes)`, Buffer.byteLength(JSON.stringify(report)) <= 8192, `bytes: ${Buffer.byteLength(JSON.stringify(report))}`)
-  T("run-status: ten PRs still use one GraphQL query", readCalls.filter((args) => args[1] === "graphql").length === 1)
+  const tenReads = readCalls.filter((args) => args[1] === "graphql").map((args) => [...args.at(-1).matchAll(/pr(\d+): pullRequest/g)].length)
+  T("run-status: ten PRs use two parallel reads of at most eight pull requests", JSON.stringify(tenReads) === "[8,2]", JSON.stringify(tenReads))
 
   reset()
   const indexedLaunch = { ...launch, launcherPid: 999999998 }
@@ -279,6 +369,13 @@ export const cases = async () => {
   registerWakeSource({ pid: process.pid, workerPid: process.pid, research: true, what: "research" }, repo.path)
   T("run-status: research wakes the session without occupying a ticket slot", (await snapshot({ config: atCap })).nextActions.some((entry) => entry.type === "SLOT_FREE"))
   clearWakeSource(process.pid, repo.path)
+  for (const what of ["review", "proof"]) {
+    registerWakeSource({ pid: process.pid, workerPid: process.pid, research: false, review: true, what }, repo.path)
+    const readOnly = await snapshot({ config: atCap })
+    T(`run-status: a ${what} worker wakes the session without occupying a ticket slot`,
+      readOnly.wakeSources.live.length === 1 && readOnly.nextActions.some((entry) => entry.type === "SLOT_FREE"), JSON.stringify(readOnly.nextActions))
+    clearWakeSource(process.pid, repo.path)
+  }
 
   const worker = stageRepo("run-status-transition-worker")
   const baseSha = worker.git(["rev-parse", "HEAD"]).stdout.trim()
@@ -373,4 +470,242 @@ export const assertRepositoryLabel = (ticket) => ticket
     report = await snapshot()
     T(`run-status: recorded READY supersedes ${telemetry} telemetry`, advanced.status === 0 && report.nextActions[0].type === "MERGE_CANDIDATE" && (telemetry === "absent" ? !existsSync(launchResultPath) : readFileSync(launchResultPath, "utf8") === "broken"), JSON.stringify(report.nextActions))
   }
+  await mergeBarCases()
+}
+
+/**
+ * The merge bar comes from GitHub alone: these rows carry no receipt, no delivery and no ticket artifact.
+ * Each scenario starts from a recorded pull request and changes one fact to a value that the same
+ * recording or the schema introspection holds. The scenario at the bar changes two: the merge state
+ * and the behind count, because no recorded pull request is at the bar.
+ */
+const mergeBarCases = async () => {
+  const recorded = barFixture.response.data.repository
+  const { repository: slug, numbers: recordedNumbers } = barFixture.generation
+  // The default branch was recorded in a separate read, so the main recording lacks that one selection.
+  const defaultBranchSelection = "    defaultBranchRef { name }\n"
+  const mergeCommitSelection = "      mergeCommit { oid }\n"
+  T("run-status: the merge-bar recording came from the production query", statusQuery(recordedNumbers).includes(defaultBranchSelection) && statusQuery(recordedNumbers).includes(mergeCommitSelection) &&
+    barFixture.query === statusQuery(recordedNumbers).replace(defaultBranchSelection, "").replaceAll(mergeCommitSelection, "") &&
+    barFixture.defaultBranch.query.includes(defaultBranchSelection) && barFixture.mergeCommit.query.includes(mergeCommitSelection))
+  T("run-status: the retired-bases recording came from the production query", barFixture.retiredBases.query === retiredBasesQuery(barFixture.retiredBases.bases))
+  const recordedMergeCommit = barFixture.mergeCommit.response.data.repository.pr2487.mergeCommit.oid
+  const recordedDefaultBranch = barFixture.defaultBranch.response.data.repository.defaultBranchRef
+  const repo = stageRepo("run-status-merge-bar")
+  repo.git(["remote", "set-url", "origin", `https://github.com/${slug}.git`])
+  const config = { repos: { ui: repo.path }, caps: { parallelTickets: 6, maxOpenPullRequests: 200, maxQueuedRuns: 30 } }
+  const session = "merge-bar-session"
+  const reads = []
+  let pulls = {}
+  let open = []
+  let failingRead = null
+  let failingRetiredRead = false
+  let defaultBranchRef = recordedDefaultBranch
+  const retiredReads = []
+  // The recorded answer for each base of the recording; any other base was never the head of a pull request.
+  const recordedRetired = new Map(barFixture.retiredBases.bases.map((base, index) => [base, barFixture.retiredBases.response.data.repository[`b${index}`].totalCount]))
+  const runner = async (file, args) => {
+    let payload = { total_count: 0, workflow_runs: [] }
+    if (args[1] === "rate_limit") payload = fixture.rateLimit
+    if (args[1] === "graphql" && args.at(-1).startsWith("query=query RetiredBases")) {
+      const asked = [...args.at(-1).matchAll(/b\d+: pullRequests\(headRefName: ("(?:[^"\\]|\\.)*")/g)].map((match) => JSON.parse(match[1]))
+      retiredReads.push(asked)
+      if (failingRetiredRead) return { status: 1, stdout: "", stderr: "gh: HTTP 502", error: null, timedOut: false, overflowed: false }
+      payload = { data: { repository: Object.fromEntries(asked.map((base, index) => [`b${index}`, { totalCount: recordedRetired.get(base) ?? 0 }])) } }
+    } else if (args[1] === "graphql") {
+      const numbers = [...args.at(-1).matchAll(/pr(\d+): pullRequest\(number: \d+\)/g)].map((match) => Number(match[1]))
+      reads.push(numbers)
+      if (failingRead !== null && numbers.includes(failingRead)) return { status: 1, stdout: "", stderr: "gh: HTTP 502", error: null, timedOut: false, overflowed: false }
+      payload = { data: { repository: { defaultBranchRef, pullRequests: { totalCount: open.length, nodes: open }, ...Object.fromEntries(numbers.map((number) => [`pr${number}`, pulls[number]])) } } }
+    }
+    return { status: 0, stdout: JSON.stringify(payload), stderr: "", error: null, timedOut: false, overflowed: false }
+  }
+  const authenticate = async () => ({ environment: { GH_TOKEN: "status-secret" }, secrets: ["status-secret"] })
+  const rowOf = (number) => ({ repositoryKey: "ui", prNumber: number, receiptPath: join(repo.path, `absent-receipt-${number}.json`) })
+  const listed = (...numbers) => recorded.pullRequests.nodes.filter((node) => numbers.includes(node.number))
+  const snapshot = async (served, { rows = Object.keys(served).map(Number), remaining = [], openNodes = listed(...Object.keys(served).map(Number)) } = {}) => {
+    pulls = served
+    open = openNodes
+    reads.length = 0
+    writeFileSync(runStatePath(repo.path), JSON.stringify({ sessionId: session, sleep: true, remaining, pullRequests: rows.map(rowOf) }))
+    return runStatus({ repoRoot: repo.path, sessionId: session, config, now: Date.parse("2026-10-01T21:00:00Z"), authenticate, runner })
+  }
+  const READY = ["MERGE_NOW", "UPDATE_BRANCH", "RETARGET"]
+  const typesOf = (report, number) => report.nextActions.filter((entry) => entry.pr === `ui#${number}`).map((entry) => entry.type)
+  const neither = (report, number) => !typesOf(report, number).some((type) => ["MERGE_NOW", "UPDATE_BRANCH"].includes(type))
+  const statusOf = (name) => fixture.enums.MergeStateStatus.enumValues.find((entry) => entry.name === name).name
+  const conclusionOf = (name) => fixture.enums.CheckConclusionState.enumValues.find((entry) => entry.name === name).name
+  const checkOf = (pull, name) => pull.statusCheckRollup.contexts.nodes.find((check) => check.name === name)
+
+  const number = 2489
+  const conflicted = () => structuredClone(recorded[`pr${number}`])
+  const onlyBehind = () => ({ ...conflicted(), mergeStateStatus: statusOf("CLEAN") })
+  const atBar = () => {
+    const pull = onlyBehind()
+    pull.baseRef.compare.behindBy = recorded.pr2484.baseRef.compare.behindBy
+    return pull
+  }
+  const head = recorded[`pr${number}`].headRefOid
+
+  let report = await snapshot({ [number]: atBar() })
+  same("run-status: a pull request at the bar gets the exact merge command and nothing else", report.nextActions,
+    [{ type: "MERGE_NOW", pr: `ui#${number}`, command: `gh pr merge ${number} --repo '${slug}' --squash --match-head-commit ${head}` }])
+  T("run-status: the merge command names the full recorded head", /^[0-9a-f]{40}$/.test(head) && recorded.pr2484.baseRef.compare.behindBy === 0)
+  T("run-status: the observation carries the behind count and the review check", report.pullRequests[0].behindBy === 0 && report.pullRequests[0].approval === "SUCCESS" && report.pullRequests[0].receipt === "MISSING_OR_CORRUPT", JSON.stringify(report.pullRequests[0]))
+
+  report = await snapshot({ [number]: onlyBehind() })
+  same("run-status: a pull request that is only behind gets the branch update command and nothing else", report.nextActions,
+    [{ type: "UPDATE_BRANCH", pr: `ui#${number}`, command: `gh pr update-branch ${number} --repo '${slug}'` }])
+  T("run-status: the recorded behind count is above zero", recorded[`pr${number}`].baseRef.compare.behindBy > 0 && report.pullRequests[0].behindBy === recorded[`pr${number}`].baseRef.compare.behindBy)
+
+  report = await snapshot({ [number]: conflicted() })
+  T("run-status: a behind pull request with a merge conflict, as recorded, gets neither action", recorded[`pr${number}`].mergeStateStatus === "DIRTY" && neither(report, number), JSON.stringify(report.nextActions))
+
+  report = await snapshot({ 2491: structuredClone(recorded.pr2491) })
+  T("run-status: a failed review check with unresolved threads, as recorded, gets neither action and a review read", neither(report, 2491) && typesOf(report, 2491).includes("READ_REVIEW") && report.pullRequests[0].approval === "FAILURE", JSON.stringify(report.nextActions))
+  report = await snapshot({ 2484: structuredClone(recorded.pr2484) })
+  T("run-status: running checks with no review check, as recorded, get neither action", neither(report, 2484) && report.pullRequests[0].approval === null && report.pullRequests[0].behindBy === 0, JSON.stringify(report.nextActions))
+  report = await snapshot({ 2487: structuredClone(recorded.pr2487) })
+  T("run-status: a merged pull request, as recorded, gets no action", recorded.pr2487.state === "MERGED" && report.nextActions.length === 1 && report.nextActions[0].type === "NO_ACTION", JSON.stringify(report.nextActions))
+
+  const below = async (label, change) => {
+    for (const [name, start] of [["at the bar", atBar], ["only behind", onlyBehind]]) {
+      const pull = start()
+      change(pull)
+      const changed = await snapshot({ [number]: pull })
+      T(`run-status: ${label} gets neither action when otherwise ${name}`, neither(changed, number), JSON.stringify(changed.nextActions))
+    }
+  }
+  await below("a failed review check", (pull) => { checkOf(pull, "pullfrog-approval").conclusion = conclusionOf("FAILURE") })
+  await below("a review check that still runs", (pull) => { Object.assign(checkOf(pull, "pullfrog-approval"), { status: "IN_PROGRESS", conclusion: null }) })
+  await below("an APPROVED review without its review check", (pull) => {
+    pull.statusCheckRollup.contexts.nodes = pull.statusCheckRollup.contexts.nodes.filter((check) => check.name !== "pullfrog-approval")
+  })
+  T("run-status: the recording without its review check keeps the APPROVED review of the head", recorded[`pr${number}`].reviews.nodes.some((review) => review.state === "APPROVED" && review.commit.oid === head))
+  await below("a review check from another app", (pull) => { checkOf(pull, "pullfrog-approval").checkSuite.app.databaseId = checkOf(pull, "Lint").checkSuite.app.databaseId })
+  await below("a failing required check", (pull) => { checkOf(pull, "Lint").conclusion = conclusionOf("FAILURE") })
+  await below("a failing check that protection does not require", (pull) => { checkOf(pull, "Plan").conclusion = conclusionOf("FAILURE") })
+  T("run-status: the failing optional check is absent from the recorded protection rule", !recorded[`pr${number}`].baseRef.branchProtectionRule.requiredStatusChecks.some((required) => required.context === "Plan"))
+  await below("a check that still runs", (pull) => { Object.assign(checkOf(pull, "Plan"), { status: "IN_PROGRESS", conclusion: null }) })
+  await below("a required check that never registered", (pull) => {
+    pull.statusCheckRollup.contexts.nodes = pull.statusCheckRollup.contexts.nodes.filter((check) => check.name !== "Unit Tests")
+  })
+  await below("an unresolved review thread", (pull) => { pull.reviewThreads.nodes = [structuredClone(recorded.pr2491.reviewThreads.nodes[0])] })
+  await below("an unresolved thread from a person", (pull) => {
+    pull.reviewThreads.nodes = [{ isResolved: false, comments: { nodes: [{ author: { __typename: "User", login: "reviewer" } }] } }]
+  })
+  await below("a truncated thread page", (pull) => { pull.reviewThreads.pageInfo.hasNextPage = true })
+  await below("a truncated check page", (pull) => { pull.statusCheckRollup.contexts.pageInfo.hasNextPage = true })
+  await below("a draft", (pull) => { pull.isDraft = true })
+  await below("a comparison of another head", (pull) => { pull.baseRef.compare.headTarget.oid = recorded.pr2491.headRefOid })
+  await below("a comparison against an older base", (pull) => { pull.baseRef.compare.baseTarget.oid = pull.baseRefOid })
+  await below("an absent comparison", (pull) => { pull.baseRef.compare = null })
+  for (const status of ["BLOCKED", "UNKNOWN", "UNSTABLE", "DIRTY"]) {
+    await below(`merge state ${status}`, (pull) => { pull.mergeStateStatus = statusOf(status) })
+  }
+  const strictBehind = { ...onlyBehind(), mergeStateStatus: statusOf("BEHIND") }
+  report = await snapshot({ [number]: strictBehind })
+  T("run-status: merge state BEHIND with the rest of the bar gets the branch update", JSON.stringify(typesOf(report, number)) === '["UPDATE_BRANCH"]', JSON.stringify(report.nextActions))
+
+  const stackedChild = () => {
+    const pull = structuredClone(recorded.pr2488)
+    pull.mergeStateStatus = statusOf("CLEAN")
+    checkOf(pull, "pullfrog-approval").conclusion = conclusionOf("SUCCESS")
+    for (const thread of pull.reviewThreads.nodes) thread.isResolved = true
+    return pull
+  }
+  const parent = recorded.pullRequests.nodes.find((node) => node.headRefName === recorded.pr2488.baseRefName)
+  T("run-status: the recorded child has no protection rule and its base is the head of an open pull request",
+    recorded.pr2488.baseRef.branchProtectionRule === null && parent !== undefined && parent.number !== 2488)
+  report = await snapshot({ 2488: stackedChild() }, { openNodes: listed(2488, parent.number) })
+  T("run-status: a stacked child at the bar gets neither action while its parent is open", neither(report, 2488), JSON.stringify(report.nextActions))
+  const retarget = { type: "RETARGET", pr: "ui#2488", command: `gh pr edit 2488 --repo '${slug}' --base '${recordedDefaultBranch.name}' && gh pr update-branch 2488 --repo '${slug}'` }
+  const merged = recorded.pr2487
+  const childOfMerged = () => {
+    const pull = stackedChild()
+    pull.baseRefName = merged.headRefName
+    pull.baseRef.name = merged.headRefName
+    return pull
+  }
+  retiredReads.length = 0
+  report = await snapshot({ 2487: structuredClone(merged), 2488: childOfMerged() }, { openNodes: listed(2488) })
+  T("run-status: the recorded parent is merged and its head branch is not the default branch", merged.state === "MERGED" && merged.headRefName !== recordedDefaultBranch.name && recordedDefaultBranch.name === recorded[`pr${number}`].baseRefName)
+  T("run-status: GitHub recorded one merged or closed pull request with the head branch of the merged parent", recordedRetired.get(merged.headRefName) === 1)
+  same("run-status: a child at the bar whose parent merged and kept its branch gets the retarget and no merge", report.nextActions, [retarget])
+  T("run-status: one extra read names only the unowned base", JSON.stringify(retiredReads) === JSON.stringify([[merged.headRefName]]), JSON.stringify(retiredReads))
+  retiredReads.length = 0
+  report = await snapshot({ [number]: atBar() })
+  T("run-status: a pull request on the default branch costs no extra read", retiredReads.length === 0 && typesOf(report, number)[0] === "MERGE_NOW", JSON.stringify(retiredReads))
+  retiredReads.length = 0
+  report = await snapshot({ 2488: stackedChild() }, { openNodes: listed(2488, parent.number) })
+  T("run-status: a base that an open pull request owns costs no extra read", retiredReads.length === 0)
+  failingRetiredRead = true
+  report = await snapshot({ 2488: childOfMerged() })
+  T("run-status: a failed read of the retired bases gets no retarget and names the error", !typesOf(report, 2488).includes("RETARGET") && report.repositories[0].status === "OK" && report.repositories[0].error?.includes("HTTP 502"), JSON.stringify(report))
+  failingRetiredRead = false
+  const integrationChild = () => {
+    const pull = stackedChild()
+    pull.baseRefName = "integration/never-a-pull-request-head"
+    pull.baseRef.name = pull.baseRefName
+    return pull
+  }
+  T("run-status: GitHub recorded no pull request with the head branch of the integration base", barFixture.retiredBases.bases.includes(integrationChild().baseRefName) && recordedRetired.get(integrationChild().baseRefName) === 0)
+  for (const [label, child] of [["at the bar", integrationChild], ["only behind", () => ({ ...integrationChild(), mergeStateStatus: statusOf("BEHIND"), baseRef: { ...integrationChild().baseRef, compare: { ...integrationChild().baseRef.compare, behindBy: 1 } } })]]) {
+    report = await snapshot({ 2488: child() })
+    T(`run-status: a pull request ${label} on a base that was never the head of a pull request gets no merge, update or retarget`, !typesOf(report, 2488).some((type) => READY.includes(type)), JSON.stringify(report.nextActions))
+  }
+  report = await snapshot({ 2488: stackedChild() })
+  T("run-status: the recorded child on the head branch of an open pull request that this snapshot does not list gets no retarget", recordedRetired.get(recorded.pr2488.baseRefName) === 0 && !typesOf(report, 2488).some((type) => READY.includes(type)), JSON.stringify(report.nextActions))
+  const behindChild = childOfMerged()
+  behindChild.baseRef.compare.behindBy = recorded[`pr${number}`].baseRef.compare.behindBy
+  report = await snapshot({ 2488: behindChild })
+  same("run-status: a child behind the branch of its merged parent gets the retarget and no branch update", report.nextActions, [retarget])
+  const conflictedChild = childOfMerged()
+  conflictedChild.mergeStateStatus = "DIRTY"
+  report = await snapshot({ 2488: conflictedChild })
+  same("run-status: a child with a merge conflict against its closed parent still gets the retarget", report.nextActions, [retarget])
+  const failedChild = childOfMerged()
+  checkOf(failedChild, "pullfrog-approval").conclusion = conclusionOf("FAILURE")
+  report = await snapshot({ 2488: failedChild })
+  T("run-status: a child below the bar gets no retarget", !typesOf(report, 2488).some((type) => ["MERGE_NOW", "UPDATE_BRANCH", "RETARGET"].includes(type)), JSON.stringify(report.nextActions))
+  defaultBranchRef = null
+  report = await snapshot({ 2488: stackedChild(), [number]: atBar() })
+  T("run-status: a response without the default branch names no merge, branch update or retarget", !report.nextActions.some((entry) => ["MERGE_NOW", "UPDATE_BRANCH", "RETARGET"].includes(entry.type)), JSON.stringify(report.nextActions))
+  defaultBranchRef = recordedDefaultBranch
+
+  const mergedElsewhere = () => ({ ...structuredClone(recorded.pr2487), mergeCommit: { oid: recordedMergeCommit } })
+  report = await snapshot({ 2487: mergedElsewhere() })
+  same("run-status: a run row that GitHub shows as merged, with no sha in the ledger, gets the write of the merge sha", report.nextActions,
+    [{ type: "RECORD_MERGE", pr: "ui#2487", command: `node tools/record-merge.mjs --repo 'ui' --pr 2487 --sha ${recordedMergeCommit}` }])
+  T("run-status: the recorded merge commit is a full sha", /^[0-9a-f]{40}$/.test(recordedMergeCommit))
+  report = await snapshot({ 2487: structuredClone(recorded.pr2487) })
+  T("run-status: a merged row whose response carries no merge commit gets no write", report.nextActions.length === 1 && report.nextActions[0].type === "NO_ACTION", JSON.stringify(report.nextActions))
+
+  report = await snapshot({ [number]: atBar() }, { rows: [] })
+  T("run-status: an open pull request of the owner outside the run is read in a second query", JSON.stringify(reads) === JSON.stringify([[], [number]]), JSON.stringify(reads))
+  same("run-status: an owner pull request outside the run at the bar gets the merge command", report.nextActions,
+    [{ type: "MERGE_NOW", pr: `ui#${number}`, command: `gh pr merge ${number} --repo '${slug}' --squash --match-head-commit ${head}` }])
+  T("run-status: a pull request outside the run adds no row observation", report.pullRequests.length === 0)
+  report = await snapshot({ [number]: onlyBehind() }, { rows: [] })
+  T("run-status: an owner pull request outside the run that is only behind gets the branch update", JSON.stringify(typesOf(report, number)) === '["UPDATE_BRANCH"]', JSON.stringify(report.nextActions))
+  report = await snapshot({ 2491: structuredClone(recorded.pr2491) }, { rows: [] })
+  T("run-status: an owner pull request outside the run below the bar gets no action", report.nextActions.length === 1 && report.nextActions[0].type === "NO_ACTION", JSON.stringify(report.nextActions))
+  report = await snapshot({ [number]: atBar() }, { rows: [], openNodes: [{ ...listed(number)[0], author: { login: "dependabot" } }] })
+  T("run-status: an open pull request of another account costs no second query and gets no action", JSON.stringify(reads) === "[[]]" && report.nextActions[0].type === "NO_ACTION", JSON.stringify(reads))
+  report = await snapshot({ [number]: atBar() }, { openNodes: [...listed(number), { number: 9999, headRefName: recordedDefaultBranch.name, author: { login: "someone" } }] })
+  same("run-status: an open pull request whose head branch is named like the default branch leaves the merge of a pull request on the default branch", report.nextActions,
+    [{ type: "MERGE_NOW", pr: `ui#${number}`, command: `gh pr merge ${number} --repo '${slug}' --squash --match-head-commit ${head}` }])
+  failingRead = number
+  report = await snapshot({ 2491: structuredClone(recorded.pr2491), [number]: atBar() }, { rows: [2491] })
+  T("run-status: a failed second query keeps the run rows and names the error", report.repositories[0].status === "OK" && report.repositories[0].error?.includes("HTTP 502") &&
+    report.pullRequests[0].status === "OPEN" && typesOf(report, 2491).includes("READ_REVIEW") && neither(report, number), JSON.stringify(report))
+  failingRead = null
+
+  report = await snapshot({ 2491: structuredClone(recorded.pr2491), 2488: childOfMerged(), 2484: { ...onlyBehind(), number: 2484 }, [number]: atBar() }, { remaining: ["#1100"] })
+  T("run-status: ready merges come first, then branch updates, then retargets, then every other action",
+    JSON.stringify(report.nextActions.map((entry) => entry.type)) === '["MERGE_NOW","UPDATE_BRANCH","RETARGET","READ_REVIEW","SLOT_FREE"]', JSON.stringify(report.nextActions))
+
+  const nine = Object.fromEntries(Array.from({ length: 9 }, (_, index) => [3000 + index, { ...structuredClone(recorded.pr2491), number: 3000 + index }]))
+  report = await snapshot(nine)
+  T("run-status: nine pull requests are read in parallel queries of at most eight", JSON.stringify(reads.map((numbers) => numbers.length).sort()) === "[1,8]" && report.pullRequests.length === 9 && report.pullRequests.every((entry) => entry.status === "OPEN"), JSON.stringify(reads))
 }

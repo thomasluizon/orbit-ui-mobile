@@ -49,13 +49,21 @@ export function habitRepeatLacksStart(values: { dueDate?: string | null | undefi
   return !values.isGeneral && !values.dueDate && (Boolean(values.frequencyUnit) || values.isFlexible === true)
 }
 
-/** A quick option of the "time" step. `null` is "no set time". */
-export function answerHabitTime(port: HabitFlowFormPort, time: string | null): void {
+/**
+ * A quick option of the "time" step. `null` is "no set time": it clears the time and the end time, as the full form does.
+ * An offset reminder needs a time, but a clock reminder and a repeat reminder do not. The reminder switch goes off
+ * only when no such reminder remains (`hasTimelessReminder`), because the form refuses to save a switch that is on with nothing to send.
+ */
+export function answerHabitTime(port: HabitFlowFormPort, time: string | null, hasTimelessReminder: boolean): void {
   port.setField('dueTime', time ?? '')
-  if (time === null) {
-    port.setField('dueEndTime', '')
-    port.setReminderEnabled(false)
-  }
+  if (time !== null) return
+  port.setField('dueEndTime', '')
+  if (!hasTimelessReminder) port.setReminderEnabled(false)
+}
+
+/** Whether the form holds a clock reminder or a repeat reminder, which stay when the item has no set time. */
+export function formHoldsTimelessReminder(values: { scheduledReminders?: readonly unknown[] | null | undefined; repeatReminder?: unknown }): boolean {
+  return Boolean(values.repeatReminder) || (values.scheduledReminders?.length ?? 0) > 0
 }
 
 /** The reminder step turns the reminder on with the default times, or leaves it off. */

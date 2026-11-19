@@ -69,7 +69,7 @@ describe('QuestionFlow on Android', () => {
     tree.unmount()
   })
 
-  it.each([['when', 'time'], ['summary', 'type']])('moves accessibility focus to the question and slides on each step change, and on a return to the first step %s', (first, second) => {
+  it.each([['when', 'time'], ['summary', 'type']])('sets accessibility focus once and slides once on each step change, and on a return to the first step %s', (first, second) => {
     const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
     const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
     const timing = vi.spyOn(Animated, 'timing')
@@ -163,7 +163,7 @@ describe('QuestionFlow on Android', () => {
     } finally { tree.unmount(); vi.useRealTimers() }
   })
 
-  it('hides the live region with a clipped 1 by 1 box and never with a zero alpha, so TalkBack still reads it', () => {
+  it('draws the live region as a clipped 1 by 1 box and never with a zero alpha', () => {
     const tree = renderNavigation(flow({ line: null }))
     const region = tree.hosts().find((node) => (node.props as Record<string, unknown>).accessibilityLiveRegion === 'polite')!
     const style = StyleSheet.flatten(region.props.style as StyleProp<ViewStyle>)

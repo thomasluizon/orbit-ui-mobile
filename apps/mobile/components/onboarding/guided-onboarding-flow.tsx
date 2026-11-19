@@ -68,6 +68,8 @@ export interface GuidedOnboardingProps extends OnboardingDecisionProps {
   onEmoji: (emoji: string) => void
   completionPending: boolean
   offline: boolean
+  windowOpen?: boolean
+  onWindowDismissed?: () => void
   /** The current shell notices: the create failure and the read verification. */
   notices: ReactNode
   /** Absent while a deferred push registration is recovered. */
@@ -357,7 +359,7 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
   const statusKey = onboardingRunningStatusKey(props)
 
   return (
-    <FlowScreen label={t('onboarding.flow.guided.screenLabel')} onDismiss={back ?? close}>
+    <FlowScreen label={t('onboarding.flow.guided.screenLabel')} onDismiss={back ?? close} open={props.windowOpen} onDismissed={props.onWindowDismissed}>
       <QuestionFlow
         flow="onboarding"
         stepKey={view}

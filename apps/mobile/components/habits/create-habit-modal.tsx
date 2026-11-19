@@ -734,11 +734,24 @@ export function CreateHabitModal({
     />
   )
 
+  const result = saved ? (
+    <HabitResultDialog
+      habitId={saved.id}
+      optimistic={saved.optimistic}
+      change="created"
+      onClose={() => {
+        setSaved(null)
+        finishClose(() => { onClose(); onCreated?.() })
+      }}
+      onCreateAnother={() => { setSaved(null); setSaveError(null); setFlowRun((run) => run + 1) }}
+    />
+  ) : undefined
   return (
     <>
       {open ? (<HabitCreateFrame
         guided={guided}
         discardSheet={guided ? discardSheet : undefined}
+        result={result}
         presentation={presentation}
         fromConversation={fromConversation}
         leaving={leaveAction !== null}
@@ -753,18 +766,7 @@ export function CreateHabitModal({
       >
         {guided ? renderGuidedFlow() : renderFormFields()}
       </HabitCreateFrame>) : null}
-      {saved ? (
-        <HabitResultDialog
-          habitId={saved.id}
-          optimistic={saved.optimistic}
-          change="created"
-          onClose={() => {
-            setSaved(null)
-            finishClose(() => { onClose(); onCreated?.() })
-          }}
-          onCreateAnother={() => { setSaved(null); setSaveError(null); setFlowRun((run) => run + 1) }}
-        />
-      ) : null}
+      {open ? null : result}
       {guided ? null : discardSheet}
     </>
   )

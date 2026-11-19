@@ -185,13 +185,14 @@ export function HabitListFrequencyEmptyState({ frequencyUnit }: Readonly<{ frequ
   />
 }
 
-export function HabitListSkeleton() {
+/** `grouped` makes every unit decoration, for a region whose parent already announces the load. */
+export function HabitListSkeleton({ grouped }: Readonly<{ grouped?: boolean }> = {}) {
   const t = useTranslations()
 
   return (
-    <div className="flex flex-col gap-3 px-4" aria-busy="true">
+    <div className="flex flex-col gap-3 px-4" aria-busy={grouped ? undefined : true}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <Skeleton key={i} variant="habit-row" label={t('common.loading')} />
+        <Skeleton key={i} variant="habit-row" {...(grouped ? { grouped: true as const } : { label: t('common.loading') })} />
       ))}
     </div>
   )

@@ -8,6 +8,7 @@ import { testI18n } from '@/__tests__/support/i18n'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { OverlayHost } from '@/components/ui/overlay-host'
+import { MODAL_TRANSITION_FALLBACK_MS } from '@/components/ui/native-window-host'
 
 const mocks = vi.hoisted(() => ({
   language: 'en', isLive: true, pro: true, reducedMotion: false, suggestionAvailable: false,
@@ -444,4 +445,76 @@ it('renders the current Android onboarding with the flag off', async () => {
   expect(texts(tree)).toContain(en.onboarding.flow.what.title)
   expect(texts(tree)).not.toContain(en.onboarding.flow.guided.intro.talk.title)
   expect(hosts(tree).some((node) => node.props.testID === 'question-flow')).toBe(false)
+})
+
+describe('the native window handoff of the guided onboarding', () => {
+  const stepsWindow = (tree: TestTree) => tree.root.findAll((node) => node.type === 'Modal' && node.props.transparent !== true)
+  const doneTitle = en.onboarding.flow.done.skippedTitle
+
+  async function skipFromFirstQuestion(tree: TestTree) {
+    for (let screen = 0; screen < 3; screen += 1) await press(tree, en.onboarding.flow.continue)
+    await press(tree, en.onboarding.flow.skip)
+  }
+
+  it('on iOS keeps the steps window until UIKit finishes its dismissal, then presents the done shell', async () => {
+    const platform = await import('react-native')
+    platform.Platform.OS = 'ios'
+    try {
+      const tree = await mount()
+      await skipFromFirstQuestion(tree)
+      const leaving = stepsWindow(tree)
+      expect(leaving, 'the steps window is still mounted and dismissing').toHaveLength(1)
+      expect(leaving[0]!.props.visible).toBe(false)
+      expect(texts(tree), 'the done shell waits, because UIKit refuses a presentation over a dismissal').not.toContain(doneTitle)
+      await TestRenderer.act(async () => { (leaving[0]!.props.onDismiss as () => void)(); await Promise.resolve() })
+      expect(texts(tree)).toContain(doneTitle)
+      expect(stepsWindow(tree)).toHaveLength(0)
+    } finally {
+      platform.Platform.OS = 'android'
+    }
+  })
+
+  it('on iOS presents the done shell at the fallback when UIKit reports no dismissal', async () => {
+    vi.useFakeTimers()
+    const platform = await import('react-native')
+    platform.Platform.OS = 'ios'
+    try {
+      const tree = await mount()
+      await skipFromFirstQuestion(tree)
+      expect(texts(tree)).not.toContain(doneTitle)
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(MODAL_TRANSITION_FALLBACK_MS) })
+      expect(texts(tree)).toContain(doneTitle)
+    } finally {
+      platform.Platform.OS = 'android'
+      vi.useRealTimers()
+    }
+  })
+
+  it('on iOS keeps the steps window until UIKit finishes its dismissal, then presents the Pro dialog after a push recovery', async () => {
+    mocks.pro = false
+    useOnboardingDraftStore.setState({ introSeen: true, habits: [{ title: 'Walk', dueTime: '18:00' }], pushPermissionGranted: true, pushRegistrationFailed: true })
+    const proStep = (tree: TestTree) => tree.root.findAll((node) => node.type === 'ProStep')
+    const platform = await import('react-native')
+    platform.Platform.OS = 'ios'
+    try {
+      const tree = await mount()
+      await press(tree, en.onboarding.flow.remind.continue)
+      const leaving = stepsWindow(tree)
+      expect(leaving, 'the steps window is still mounted and dismissing').toHaveLength(1)
+      expect(leaving[0]!.props.visible).toBe(false)
+      expect(proStep(tree), 'the Pro dialog waits, because UIKit refuses a presentation over a dismissal').toHaveLength(0)
+      await TestRenderer.act(async () => { (leaving[0]!.props.onDismiss as () => void)(); await Promise.resolve() })
+      expect(proStep(tree)).toHaveLength(1)
+      expect(stepsWindow(tree)).toHaveLength(0)
+    } finally {
+      platform.Platform.OS = 'android'
+    }
+  })
+
+  it('on Android presents the done shell at once, with no window left behind', async () => {
+    const tree = await mount()
+    await skipFromFirstQuestion(tree)
+    expect(texts(tree)).toContain(doneTitle)
+    expect(stepsWindow(tree)).toHaveLength(0)
+  })
 })

@@ -636,6 +636,39 @@ describe('the edit surface behind orbit_guided_flows', () => {
     expect(await screen.findByRole('dialog', { name: ptBR.result.title })).toHaveAccessibleDescription(ptBR.result.habit.updated)
   })
 
+  describe.each([
+    ['a clock reminder', { scheduledReminders: [{ when: 'same_day' as const, time: '06:30' }], repeatReminder: null }],
+    ['a repeat reminder', { scheduledReminders: [], repeatReminder: { intervalMinutes: 30, activeStart: '08:00', activeEnd: '20:00' } }],
+  ])('answering no set time on %s', (_name, stored) => {
+    it('keeps the stored reminder in the save and on the summary', async () => {
+      const habit = createMockHabit({ ...storedHabit, reminderEnabled: true, reminderTimes: [], ...stored })
+      render(<QueryClientProvider client={new QueryClient()}><EditHabitModal open onOpenChange={vi.fn()} habit={habit} /></QueryClientProvider>)
+      await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+      await press(/^Hora/)
+      await press(ptBR.habits.flow.time.none)
+      expect(screen.getByRole('button', { name: /^Lembrete/ })).toHaveTextContent(ptBR.habits.flow.summary.withReminder)
+      await press(ptBR.common.save)
+      const { data } = state.update.mock.calls[0]![0] as { data: Record<string, unknown> }
+      expect(data).not.toHaveProperty('dueTime')
+      expect(data).toMatchObject({ reminderEnabled: true })
+      if (habit.repeatReminder) expect(data).not.toHaveProperty('clearRepeatReminder')
+      if (habit.repeatReminder) expect(data.repeatReminder).toEqual(habit.repeatReminder)
+      else expect(data.scheduledReminders).toEqual(habit.scheduledReminders)
+    })
+  })
+
+  it('states no reminder on the summary and sends none when only offset reminders remain after no set time', async () => {
+    const habit = createMockHabit({ ...storedHabit, reminderEnabled: true, reminderTimes: [15], scheduledReminders: [], repeatReminder: null })
+    render(<QueryClientProvider client={new QueryClient()}><EditHabitModal open onOpenChange={vi.fn()} habit={habit} /></QueryClientProvider>)
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    await press(/^Hora/)
+    await press(ptBR.habits.flow.time.none)
+    expect(screen.getByRole('button', { name: /^Lembrete/ })).toHaveTextContent(ptBR.habits.flow.summary.noReminder)
+    await press(ptBR.common.save)
+    const { data } = state.update.mock.calls[0]![0] as { data: Record<string, unknown> }
+    expect(data).toMatchObject({ reminderEnabled: false, scheduledReminders: [], relativeReminders: [] })
+  })
+
   const summary = () => screen.getByRole('group', { name: ptBR.habits.flow.confirm.question })
   const save = () => screen.getByRole('button', { name: ptBR.common.save })
 

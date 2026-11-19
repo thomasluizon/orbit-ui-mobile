@@ -1,51 +1,41 @@
-import { afterEach, expect, it, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { parse } from 'yaml'
-import AstraHttpProvider from '../http-provider.mjs'
-import { behavior, structural, composition } from '../assertions.mjs'
+import { expect, it } from 'vitest'
+import { composition } from '../assertions.mjs'
 import gradingInput from '../grading-input.mjs'
+import { outcome, runOutcomeCase } from '../client-path.mjs'
+import { readCorpus } from '../grade-method.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
-import { chatResponse, toolCall, capacityFailureCall, apiKeysStepUpResponse } from './fixtures/producer.mjs'
+import { chatResponse, capacityFailureCall, apiKeysStepUpResponse, preview } from './fixtures/producer.mjs'
 
-const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
-const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
-const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+const corpus = readCorpus()
 
+// One case with an outcome against the reply that its turn on the client path returns, with the trace of that reply.
 async function receive(test, produced) {
-  vi.stubEnv(test.vars.credentialKey, 'offline-token')
   const clientContext = buildChatClientContext({ platform: 'mobile', locale: test.metadata.locale })
-  const vars = { ...test.vars, clientContext, credentialKey: test.vars.credentialKey, evalRequestId: 'request',
-    historyJson: '[]', clientContextJson: JSON.stringify(clientContext) }
-  vi.stubGlobal('fetch', async () => Response.json(produced, { headers: { 'x-orbit-request-id': 'request' } }))
-  const provider = new AstraHttpProvider({ config: { ...configuration.providers[0].config,
-    url: 'https://astra.invalid/api/chat', transformResponse: `file://${fileURLToPath(new URL('../response.mjs', import.meta.url))}` } })
-  return { output: (await provider.callApi(test.vars.input, { vars })).output, context: { vars, test } }
+  const vars = { ...test.vars, clientContext, evalRequestId: 'request', accountDate: '2026-10-30', records: {} }
+  const trace = { requestId: 'request', timing: produced.evalTrace.timing, modelCalls: 1, calls: produced.evalTrace.toolCalls
+    .map((call) => ({ id: call.id, name: call.name, arguments: call.arguments, resultStatus: call.status, result: call.result })) }
+  const { output } = await runOutcomeCase(vars, { send: async () => (
+    { kind: 'final', response: produced, requestId: 'request', responseRequestId: 'request', trace }) })
+  return { output, context: { vars, test } }
 }
 
 it('requires the habit capacity refusal rather than a held create preview', async () => {
-  const test = scenarios.find((entry) => entry.metadata.id === 'edge-free-limit-en')
+  const test = corpus.find((entry) => entry.metadata.id === 'edge-free-limit-en')
   const produced = { ...chatResponse('request', [capacityFailureCall()]),
     aiMessage: "You've reached the 1,000 habit limit. You can adjust an existing habit.",
     parts: [{ type: 'text', text: "You've reached the 1,000 habit limit. You can adjust an existing habit." }],
     operations: [{ operationId: 'create_habit', sourceName: 'create_habit', status: 'Failed' }] }
   const { output, context } = await receive(test, produced)
-  expect((await structural(output, context)).pass).toBe(true)
-  expect(behavior(output, context).pass).toBe(true)
+  expect(outcome(output, context)).toMatchObject({ pass: true, reason: 'The read turn held no preview and no card.' })
   expect(composition(output, context).pass).toBe(true)
   expect(test.vars.rubric).toContain('next step')
   const evidence = JSON.parse(gradingInput(output, context)).groundingEvidence
   expect(evidence.toolOutcomes).toContainEqual({ name: 'create_habit', status: 'Failed',
     error: "You've reached the {0} habit limit.",
     result: { error: "You've reached the {0} habit limit.", arguments: [1000], errorCode: 'HABIT_LIMIT_REACHED' } })
-  output.trace.calls[0].result.payload.errorCode = 'UNEXPECTED_FAILURE'
-  expect(behavior(output, context).pass).toBe(false)
-  for (const status of ['PendingConfirmation', 'Succeeded']) {
-    const call = toolCall('create_habit', { title: 'Stretch', frequency_unit: 'Day' }, status)
-    const alternative = await receive(test, { ...produced, evalTrace: chatResponse('request', [call]).evalTrace })
-    expect(behavior(alternative.output, alternative.context).pass).toBe(false)
-  }
+  const held = await receive(test, { ...produced, pendingOperations: [preview('Stretch')] })
+  expect(outcome(held.output, held.context)).toMatchObject({ pass: false, reason: 'The read request held a preview of a change.' })
+  expect(composition(held.output, held.context).pass).toBe(false)
   expect(composition({ ...output, composition: { ...output.composition,
     pendingOperations: [apiKeysStepUpResponse('request', {}).pendingOperations[0]] } }, context).pass).toBe(false)
 })
@@ -55,8 +45,7 @@ it.each(['en', 'pt-BR'])('requires and projects the emailed-code step-up surface
   const client = buildChatClientContext({ platform: 'mobile', locale })
   const produced = apiKeysStepUpResponse('request', client)
   const { output, context } = await receive(test, produced)
-  expect((await structural(output, context)).pass).toBe(true)
-  expect(behavior(output, context).pass).toBe(true)
+  expect(outcome(output, context)).toMatchObject({ pass: true, reason: 'The held previews hold exactly the requested changes.' })
   expect(composition(output, context).pass).toBe(true)
   const visible = JSON.parse(output.answer).pendingOperations[0]
   expect(visible).not.toHaveProperty('count')
@@ -64,7 +53,6 @@ it.each(['en', 'pt-BR'])('requires and projects the emailed-code step-up surface
   expect(visible.stepUp).toEqual(locale === 'en'
     ? { message: 'Confirm your identity on the device before this can continue.', actionLabel: 'Confirm identity' }
     : { message: 'Confirme a identidade no aparelho antes de continuar.', actionLabel: 'Confirmar identidade' })
-  expect(test.vars.rubric).toContain('step-up')
   for (const mutate of [
     (response) => { response.pendingOperations = [] },
     (response) => { response.pendingOperations[0].confirmationRequirement = 'FreshConfirmation' },
@@ -78,17 +66,10 @@ it.each(['en', 'pt-BR'])('requires and projects the emailed-code step-up surface
     const received = await receive(test, invalid)
     expect(composition(received.output, received.context).pass).toBe(false)
   }
-  const succeeded = structuredClone(output)
-  succeeded.trace.calls[0].resultStatus = 'Succeeded'
-  succeeded.trace.calls[0].result.payload = null
-  expect(behavior(succeeded, context).pass).toBe(false)
-})
-
-it('allows the catalog goal review without changing the Hoje required tool', () => {
-  for (const locale of ['en', 'pt-BR']) {
-    const goals = corpus.find((entry) => entry.metadata.id === `composition-goals-${locale}`)
-    expect(goals.vars.expectations.allowed).toContain('review_goals')
-    expect(corpus.find((entry) => entry.metadata.id === `composition-hoje-next-step-${locale}`)
-      .vars.expectations.required).toEqual([{ name: 'get_daily_summary', arguments: { generate_narrative: true } }])
-  }
+  const none = await receive(test, { ...structuredClone(produced), pendingOperations: [] })
+  expect(outcome(none.output, none.context)).toMatchObject({ pass: false, reason: 'The reply holds no preview and no question card.' })
+  const two = structuredClone(produced)
+  two.pendingOperations.push(structuredClone(two.pendingOperations[0]))
+  const doubled = await receive(test, two)
+  expect(outcome(doubled.output, doubled.context)).toMatchObject({ pass: false, reason: 'The request is held in 2 previews.' })
 })

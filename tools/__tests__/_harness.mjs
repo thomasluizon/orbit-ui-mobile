@@ -3,6 +3,16 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync,
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 
+/** Run files (the intake marks) go to a directory in each test checkout's git directory, never to GitHub. */
+process.env.ORBIT_TEST_RUN_FILES = "1"
+
+/** Writes the intake file of one test checkout, the way a predecessor on another computer left it. */
+export const seedIntake = (checkout, intake) => {
+  const directory = join(checkout, ".git", "orbit-test-run-files", "run-state")
+  mkdirSync(directory, { recursive: true })
+  writeFileSync(join(directory, "intake.json"), `${JSON.stringify(intake, null, 2)}\n`)
+}
+
 /**
  * Injected by the runner. These are live bindings: configure() runs before any case
  * module is imported, so every module reads the runner's own resolution.
@@ -442,7 +452,21 @@ export const check = (file, name, argv, expect, options = {}) => {
   return result
 }
 
+/**
+ * The launch gate every staged launch uses. launch-worker.mjs waits at passLaunchGate for the configured spacing
+ * since the previous launch of the checkout, so a staged config that keeps the shipped 45 seconds makes each
+ * second launch of one case module sleep. The load ceiling is far above any real load.
+ */
+export const HERMETIC_LAUNCH_GATE = { loadMax: 1_000_000, spacingSeconds: 0 }
+
+/** The tool that passes the launch gate. A staged copy of it must never wait at the real gate. */
+const LAUNCH_GATE_TOOL = "launch-worker.mjs"
+
 export const stageWithConfig = (label, tool, config) => {
+  const hermetic = config.launchGate?.loadMax === HERMETIC_LAUNCH_GATE.loadMax && config.launchGate?.spacingSeconds === HERMETIC_LAUNCH_GATE.spacingSeconds
+  if (tool === LAUNCH_GATE_TOOL && !hermetic) {
+    throw new Error(`stageWithConfig("${label}"): ${tool} passes the launch gate, so the staged config needs launchGate: HERMETIC_LAUNCH_GATE (${JSON.stringify(HERMETIC_LAUNCH_GATE)}), got ${JSON.stringify(config.launchGate)}`)
+  }
   const base = join(root, "staged", label)
   mkdirSync(join(base, "tools"), { recursive: true })
   mkdirSync(join(base, ".claude"), { recursive: true })

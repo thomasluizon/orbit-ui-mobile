@@ -1,71 +1,58 @@
 import { expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { parse } from 'yaml'
-import { behavior } from '../assertions.mjs'
-import { toolCall } from './fixtures/producer.mjs'
+import { outcome } from '../client-path.mjs'
+import { readCorpus } from '../grade-method.mjs'
+import { createPreview } from './fixtures/producer.mjs'
 
-const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
+const corpus = readCorpus()
 const scenario = (family, locale) => structuredClone(corpus.find((entry) => entry.metadata.family === family && entry.metadata.locale === locale))
-const argumentsFrom = (value) => {
-  if (Array.isArray(value)) return value.map(argumentsFrom)
-  if (value && typeof value === 'object' && 'anyOf' in value) return argumentsFrom(value.anyOf[0])
-  if (value && typeof value === 'object') return 'textContains' in value ? value.textContains
-    : Object.fromEntries(Object.entries(value).map(([key, child]) => [key, argumentsFrom(child)]))
-  return value
-}
-function grade(test, calls) {
-  return behavior({ trace: { state: 'available', requestId: 'request', responseRequestId: 'request',
-    calls: calls.map(({ status, ...call }) => ({ ...call, resultStatus: status })) } },
-  { vars: { ...test.vars, evalRequestId: 'request' } })
-}
-it.each(['en', 'pt-BR'])('keeps coalesced bulk creation within the requested scope in %s', (locale) => {
+const records = { first: '11111111-aaaa-4aaa-8aaa-111111111111', second: '22222222-bbbb-4bbb-8bbb-222222222222' }
+const fixtureEvidence = { habits: [{ id: records.first, title: 'Post Lunch' }, { id: records.second, title: 'Before Bed' }] }
+// One value that an expected field accepts: its first word list entry, its clock time, the id of its record, or its text.
+const accepted = (value) => value.contains?.[0] ?? value.time ?? records[value.record] ?? value
+const habitsFrom = (test) => test.vars.outcome.changes.map((change) =>
+  Object.fromEntries(Object.entries(change.fields).map(([field, value]) => [field, accepted(value)])))
+const grade = (test, habits) => outcome({ turns: 1, questionsBeforePreview: 0, previews: [createPreview(habits)], asked: false, written: [] },
+  { vars: { ...test.vars, accountDate: '2026-10-23', records, fixtureEvidence } })
+
+it.each(['en', 'pt-BR'])('keeps a batch of new records within the requested scope in %s', (locale) => {
   for (const family of ['existing-parents', 'medical-batch']) {
     const test = scenario(family, locale)
-    const supplied = argumentsFrom(test.vars.expectations.required[0].arguments)
-    const call = () => toolCall('bulk_create_habits', supplied, 'PendingConfirmation')
-    expect(grade(test, [call()]).pass).toBe(true)
-    const wrong = structuredClone(supplied)
-    if (family === 'existing-parents') wrong.habits[0].parent_habit_id = 'wrong-parent'
-    else wrong.habits[0].due_date = 'wrong-date'
-    expect(grade(test, [toolCall('bulk_create_habits', wrong, 'PendingConfirmation')]).pass).toBe(false)
-    expect(grade(test, [call(), { ...call(), id: 'second', result: { ...call().result, id: 'second' } }]).pass).toBe(false)
-    supplied.habits.push({ title: 'Unrequested habit' })
-    expect(grade(test, [call()]).pass).toBe(false)
+    const habits = habitsFrom(test)
+    expect(grade(test, habits)).toMatchObject({ pass: true, reason: 'The held previews hold exactly the requested changes.' })
+    const wrong = structuredClone(habits)
+    if (family === 'existing-parents') wrong[0].parent_habit_id = records.second
+    else wrong[0].due_date = 'wrong-date'
+    expect(grade(test, wrong).pass).toBe(false)
+    expect(grade(test, [...habits, { title: 'Unrequested habit' }]).reason).toMatch(/^The preview holds a change outside the request\./u)
+    expect(grade(test, habits.slice(1)).pass).toBe(false)
   }
 })
-it.each(['en', 'pt-BR'])('allows profile context while keeping outcome requirements in %s', (locale) => {
-  for (const family of ['calendar-sync', 'feature-help']) {
-    const test = scenario(family, locale)
-    const required = test.vars.expectations.required[0]
-    const target = toolCall(required.name, required.arguments ?? required.argumentsAnyOf[0], 'Succeeded', 'target')
-    const profile = toolCall('get_profile', {}, 'Succeeded', 'profile')
-    expect(grade(test, [profile, target]).pass).toBe(true)
-    expect(grade(test, [profile]).pass).toBe(false)
-    expect(grade(test, [profile, target, toolCall('delete_habit', { habit_id: 'other' }, 'PendingConfirmation', 'write')]).pass).toBe(false)
-  }
+it('accepts the stored title of a parent in place of its id', () => {
+  const test = scenario('existing-parents', 'en')
+  const habits = habitsFrom(test)
+  habits[0].parent_habit_id = 'Post Lunch'
+  habits[1].parent_habit_id = 'Before Bed'
+  expect(grade(test, habits)).toMatchObject({ pass: true })
 })
 it.each(['en', 'pt-BR'])('declares the medical correction setup dependency in %s', (locale) => {
   expect(scenario('medical-correction', locale).vars.setup.caseId).toBe(`composition-medical-batch-${locale}`)
 })
 it.each(['en', 'pt-BR'])('binds medical dates to future account date offsets in %s', (locale) => {
   const test = scenario('medical-batch', locale)
-  expect(test.vars.expectations.required[0].arguments.habits[0].due_date).toBe('{accountDate+3}')
-  expect(test.vars.rubric).toContain('{accountDate}')
-  expect(test.vars.rubric).toContain('{accountDate+3}')
+  expect(test.vars.outcome.changes.map((change) => change.fields.due_date))
+    .toEqual(['{accountDate+3}', '{accountDate+7}', '{accountDate+4}', '{accountDate+6}', '{accountDate+7}'])
 })
 
 it.each(['calendar-sync', 'error', 'offline'])('asks about Google Agenda in the Portuguese %s case', (family) => {
   const test = scenario(family, 'pt-BR')
   expect(test.vars.input).toMatch(/agenda do Google|Google Agenda/u)
   expect(test.vars.input).not.toContain('meu calendário')
-  expect(test.vars.expectations.required[0].name).toBe('get_calendar_overview')
+  expect(test.vars.outcome).toEqual({ read: true })
 })
 
 it.each(['en', 'pt-BR'])('requests the seeded month dates and saved narrative in %s', (locale) => {
   const test = scenario('stale', locale)
   expect(test.vars.input).toContain('{retrospectiveFrom}')
   expect(test.vars.input).toContain('{accountDate}')
-  expect(test.vars.expectations.required[0]).toMatchObject({ name: 'get_retrospective',
-    arguments: { period: 'month', date_from: '{retrospectiveFrom}', date_to: '{accountDate}' } })
   expect(test.vars.composition.blocks).toEqual([{ kind: 'periodInsight', completeness: 'stale', recovery: 'refresh' }])
 })

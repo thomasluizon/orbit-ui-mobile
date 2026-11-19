@@ -5,6 +5,7 @@ import { Text, TextInput } from 'react-native'
 import { Portal, PortalHost } from '@rn-primitives/portal'
 import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { normalizeHabitQueryData } from '@orbit/shared/utils/habit-normalization'
+import { buildHabitCreateHref } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import en from '@orbit/shared/i18n/en.json'
 import { __setWindowDimensions } from '../../test-mocks/react-native'
@@ -13,7 +14,8 @@ import TodayScreen from '@/app/(tabs)/index'
 import RootLayout from '@/app/_layout'
 import { Shell412 } from '@/components/shell/shell-412'
 import {
-  getFailedNotificationDeleteIdsSnapshot,
+  dismissNotificationDeleteNotices,
+  getNotificationDeleteNoticeSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
   subscribePendingNotificationDeleteIds,
@@ -40,6 +42,7 @@ const routeState = vi.hoisted(() => ({
   paints: [] as boolean[],
   pathname: '/wrapped',
   segments: ['wrapped'],
+  searchParams: {},
 }))
 const authState = vi.hoisted(() => ({ isAuthenticated: true }))
 const createState = vi.hoisted(() => ({
@@ -71,7 +74,7 @@ vi.mock('expo-router', () => {
     Stack,
     ThemeProvider: ({ children }: Readonly<{ children?: ReactNode }>) =>
       React.createElement(RootPortalContext.Provider, { value: `${useContext(RootPortalContext)}/navigation` }, children),
-    useGlobalSearchParams: () => ({}),
+    useGlobalSearchParams: () => routeState.searchParams,
     usePathname: () => routeState.pathname,
     useRouter: () => ({ push: createState.push, replace: vi.fn() }),
     useSegments: () => routeState.segments,
@@ -216,16 +219,14 @@ vi.mock('@/hooks/use-retained-onboarding-guard', () => ({
 
 vi.mock('@/components/navigation/notification-delete-notice', () => ({
   NotificationDeleteNotice: () => {
-    const failedIds = useSyncExternalStore(
+    const notice = useSyncExternalStore(
       subscribePendingNotificationDeleteIds,
-      getFailedNotificationDeleteIdsSnapshot,
-      getFailedNotificationDeleteIdsSnapshot,
+      getNotificationDeleteNoticeSnapshot,
+      getNotificationDeleteNoticeSnapshot,
     )
-    return failedIds.map((id) => React.createElement(
-      Text,
-      { key: id },
-      "Couldn't delete that alert. Try again.",
-    ))
+    return notice?.kind === 'failed'
+      ? React.createElement(Text, null, "Couldn't delete that alert. Try again.")
+      : null
   },
 }))
 vi.mock('@/components/navigation/destination-tab-bar', () => ({
@@ -347,6 +348,7 @@ describe('Wrapped root shell', () => {
     createState.portalVisible = false
     routeState.pathname = '/wrapped'
     routeState.segments = ['wrapped']
+    routeState.searchParams = {}
     createState.profile = undefined
     createState.profileError = false
     createState.reducedMotion = false
@@ -394,6 +396,49 @@ describe('Wrapped root shell', () => {
     createState.profile = { hasProAccess: true }
     await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
     expect(createState.showCreate).not.toHaveBeenCalledWith(false)
+  })
+
+  it('opens the create screen on the press while the profile loads, once, and does not replay it when the profile arrives', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.mountToday = true
+    createState.profile = undefined
+    createState.showCreate.mockImplementation((open: boolean) => useUIStore.setState({ showCreateModal: open }))
+    const tree = await renderRoot()
+    const [createFab] = findByTestId(tree, 'fab')
+    await TestRenderer.act(() => (createFab?.props.onPress as () => void)())
+    expect(createState.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/', date: '2026-09-14', conversation: false }))
+    expect(useUIStore.getState().showCreateModal).toBe(false)
+
+    createState.profile = { hasProAccess: true }
+    await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
+    expect(createState.push).toHaveBeenCalledTimes(1)
+    createState.showCreate.mockReset()
+  })
+
+  it('opens the create screen on the pinned route date, not the account day', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.searchParams = { date: '2026-01-05' }
+    createState.showCreate.mockImplementation((open: boolean) => useUIStore.setState({ showCreateModal: open }))
+    const tree = await renderRoot()
+    const [createFab] = findByTestId(tree, 'fab')
+    await TestRenderer.act(() => (createFab?.props.onPress as () => void)())
+    expect(createState.push).toHaveBeenCalledExactlyOnceWith('/habits/new?date=2026-01-05&from=%2F')
+    createState.showCreate.mockReset()
+  })
+
+  it('opens the create screen with no date off the Today view', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.searchParams = { date: '2026-01-05' }
+    useUIStore.setState({ activeView: 'all' })
+    createState.showCreate.mockImplementation((open: boolean) => useUIStore.setState({ showCreateModal: open }))
+    const tree = await renderRoot()
+    const [createFab] = findByTestId(tree, 'fab')
+    await TestRenderer.act(() => (createFab?.props.onPress as () => void)())
+    expect(createState.push).toHaveBeenCalledExactlyOnceWith('/habits/new?from=%2F')
+    createState.showCreate.mockReset()
   })
 
   it('names the Hoje create FAB for the habit action', async () => {
@@ -450,22 +495,22 @@ describe('Wrapped root shell', () => {
     await TestRenderer.act(() => tree.update(React.createElement(React.Fragment)))
   })
 
-  it('keeps the first empty Today render and its remount free of a FAB', async () => {
+  it('draws the FAB on the first empty Today render and on its remount, then removes it once the empty list settles', async () => {
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
     routeState.mountToday = true
     createState.profile = { hasProAccess: true }
     const tree = await renderRoot()
-    expect(routeState.paints[0]).toBe(false)
-    expect(routeState.paints.every((visible) => !visible)).toBe(true)
-    expect(findByTestId(tree, 'fab')).toHaveLength(0)
-    expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
+    expect(routeState.paints[0]).toBe(true)
+    expect(findByTestId(tree, 'fab')).toHaveLength(1)
     routeState.hasData = true
     await TestRenderer.act(() => tree.update(<RootLayout />))
     expect(findByTestId(tree, 'fab')).toHaveLength(0)
     await TestRenderer.act(() => tree.update(<></>))
+    routeState.paints.length = 0
+    routeState.hasData = false
     await TestRenderer.act(() => tree.update(<RootLayout />))
-    expect(routeState.paints.every((visible) => !visible)).toBe(true)
+    expect(routeState.paints[0]).toBe(true)
     await TestRenderer.act(() => tree.update(<></>))
   })
 
@@ -486,25 +531,36 @@ describe('Wrapped root shell', () => {
       expect(fab).toBeDefined()
       await TestRenderer.act(() => tree.update(<RootLayout />))
       expect(findByTestId(tree, 'fab')[0]).toBe(fab)
-      expect(visibility).toEqual([true])
+      expect(visibility).toEqual([])
       unsubscribe()
       await TestRenderer.act(() => tree.update(<></>))
     } finally { unsubscribe() }
   })
 
-  it('retains the Today bottom viewport when its habits become available', async () => {
+  it('draws the create FAB and the tab bar on the first frame while the profile and the habits are pending', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.mountToday = true
+    createState.profile = undefined
+    const tree = await renderRoot()
+    expect(findByTestId(tree, 'fab')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(1)
+  })
+
+  it('retains the Today FAB and bottom viewport when its habits become available', async () => {
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
     routeState.mountToday = true
     createState.profile = { hasProAccess: true }
     const tree = await renderRoot()
     const [bottomViewport] = findByTestId(tree, 'shell-bottom-viewport')
-    expect(findByTestId(tree, 'fab')).toHaveLength(0)
+    const [fab] = findByTestId(tree, 'fab')
+    expect(fab).toBeDefined()
     expect(bottomViewport?.props.scrollEnabled).toBe(true)
     routeState.habits = normalizeHabitQueryData([createMockHabitScheduleItem()]).habitsById
     routeState.hasData = true
     await TestRenderer.act(() => tree.update(<RootLayout />))
-    expect(findByTestId(tree, 'fab')).toHaveLength(1)
+    expect(findByTestId(tree, 'fab')[0]).toBe(fab)
     expect(findByTestId(tree, 'shell-bottom-viewport')[0]).toBe(bottomViewport)
     expect(bottomViewport?.props.scrollEnabled).toBe(true)
   })
@@ -531,15 +587,12 @@ describe('Wrapped root shell', () => {
     const tree = await renderRoot()
     expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
     expect(findByTestId(tree, 'shell-bottom-viewport')[0]?.props.scrollEnabled).toBe(false)
-    await TestRenderer.act(() => tree.update(<></>))
-    expect(useUIStore.getState().todayFabPending).toBe(true)
   })
 
   it.each(['/calendar', '/progress', '/profile', '/habits/habit-1'])('uses its own chrome on %s while Today is pending', async (pathname) => {
     routeState.pathname = pathname
     routeState.segments = [pathname.slice(1)]
     const tree = await renderRoot()
-    expect(useUIStore.getState().todayFabPending).toBe(true)
     expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
     expect(findByTestId(tree, 'shell-bottom-viewport')[0]?.props.scrollEnabled).toBe(false)
   })
@@ -636,6 +689,18 @@ describe('Wrapped root shell', () => {
     const tree = await renderRoot()
 
     expect(findByTestId(tree, 'shell-bottom')).toHaveLength(0)
+    expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
+  })
+
+  it('mounts the delete notice only while a delete owns the toast', async () => {
+    routeState.pathname = '/chat'
+    routeState.segments = ['chat']
+    const tree = await renderRoot()
+    await TestRenderer.act(() => { queuePendingNotificationDelete('notif-1', () => {}) })
+    expect(findByTestId(tree, 'shell-notice')).toHaveLength(1)
+
+    await TestRenderer.act(() => { dismissNotificationDeleteNotices() })
+
     expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
   })
 

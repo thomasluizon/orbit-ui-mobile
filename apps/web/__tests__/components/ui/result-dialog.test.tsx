@@ -42,7 +42,7 @@ describe('ResultDialog', () => {
     expect(props.onSecondary).toHaveBeenCalledTimes(1)
   })
 
-  it('closes on Escape and never dismisses itself', async () => {
+  it('stays open until Escape closes it', async () => {
     render(<ResultDialog {...props} />)
     await screen.findByRole('dialog')
     expect(props.onClose).not.toHaveBeenCalled()

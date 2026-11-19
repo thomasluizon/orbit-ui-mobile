@@ -5,6 +5,7 @@ import { requireEvalOrigin, resetFixture } from '../fixtures/reset.mjs'
 import { fixtureHabitTitles } from '../fixtures/names.mjs'
 import { requireEvalAccess, requireEvalTrace } from '../fixtures/api.mjs'
 import { requireCatalogCommit } from '../trace-policy.mjs'
+import { requireGrader } from '../grader-preflight.mjs'
 import { mustPassKOf } from './corpus.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 
@@ -23,7 +24,8 @@ export async function beforeAll({ suite }) {
   const name = descriptors.every((descriptor) => descriptor.mustPass) ? 'must-pass'
     : descriptors.every((descriptor) => !descriptor.mustPass) ? 'other' : null
   if (!name) throw new Error('One run of the core set holds must-pass cases or other cases, never both.')
-  const graded = suite.tests.some((test) => test.vars.rubric)
+  // A rubric and a same-title card question each read through the configured grader (ORBIT_EVAL_GRADER), so each needs it before a chat turn spends.
+  const graded = suite.tests.some((test) => test.vars.rubric || test.vars.core?.answer?.sameTitle)
   for (const key of ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_CREDENTIALS_FILE', ...(graded ? ['ORBIT_EVAL_GRADER'] : [])]) {
     if (!process.env[key]) throw new Error(`Missing required environment variable: ${key}`)
   }
@@ -32,6 +34,7 @@ export async function beforeAll({ suite }) {
   const health = await healthyApi({ fresh: true })
   requireCatalogCommit(health.commit)
   readCredentials()
+  if (graded) await requireGrader(new URL('.', import.meta.url))
   // Each card answer and each measured model call reads the eval trace, so an account without the trace flag stops the
   // run here, before any chat turn spends.
   const unmetered = new Map()
@@ -45,7 +48,7 @@ export async function beforeAll({ suite }) {
 }
 
 // The records a case names, from the fixture the reset left in the account.
-function fixtureRecords(vars, account) {
+export function fixtureRecords(vars, account) {
   const set = vars.sameTitleBaseline
   return set ? { parent: set.parent.id, children: set.children.map((child) => child.id), walk: account.secondHabitId }
     : { water: account.habitId, walk: account.secondHabitId, first: account.habitId, second: account.secondHabitId }

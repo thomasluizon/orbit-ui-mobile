@@ -318,7 +318,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
           t('onboarding.flow.meetAstra.importPrompt'),
         )
       }
-      setRouteTransitionIntent('forward')
       setAstraConversationOpen(true)
     })
   }, [closeImportSheet, handleDismissImportPrompt, setAstraConversationOpen, t])

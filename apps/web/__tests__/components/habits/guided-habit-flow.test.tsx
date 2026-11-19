@@ -325,6 +325,19 @@ describe.each([
     expect(helpers().form.getValues('frequencyUnit') ?? null).toBeNull()
   })
 
+  it('scenario 14: keeps the time and the reminder when the type step on the summary changes a habit to a task', async () => {
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'call John' : 'ligar para o João')
+    await press(messages().when.everyDay)
+    await press('08:00')
+    await press(messages().reminder.yes)
+    expect(heading()).toHaveTextContent(messages().confirm.question)
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', dueTime: '08:00', reminderEnabled: true })
+    await press(new RegExp(`^${messages().summary.type}`))
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(locale === 'en' ? en.habits.form.typeTask : ptBR.habits.form.typeTask) })) })
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'task', dueTime: '08:00', reminderEnabled: true })
+  })
+
   it('scenario 14: proposes the emoji of the free read and marks a used read', async () => {
     state.read.mockResolvedValue({ read: true, emoji: '🪴', frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
     render(<Harness />)

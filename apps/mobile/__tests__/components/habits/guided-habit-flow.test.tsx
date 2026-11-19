@@ -278,7 +278,7 @@ describe.each([
     tree.unmount()
   })
 
-  it('moves accessibility focus to the question on each step change, a return to the first step included', async () => {
+  it('sets accessibility focus once on each step change, a return to the first step included', async () => {
     const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
     const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
     const tree = renderNavigation(<Harness />)
@@ -349,6 +349,20 @@ describe.each([
     await primary(tree)
     expect(helpers().form.getValues('itemType')).toBe('task')
     expect(helpers().form.getValues('frequencyUnit') ?? null).toBeNull()
+    tree.unmount()
+  })
+
+  it('scenario 14: keeps the time and the reminder when the type step on the summary changes a habit to a task', async () => {
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'call John' : 'ligar para o João')
+    await tap(tree, flowCopy().when.everyDay)
+    await tap(tree, '08:00')
+    await tap(tree, flowCopy().reminder.yes)
+    expect(heading(tree)).toBe(flowCopy().confirm.question)
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', dueTime: '08:00', reminderEnabled: true })
+    await tap(tree, new RegExp(`^${flowCopy().summary.type}`))
+    await tap(tree, new RegExp(`^${copy().habits.form.typeTask}`))
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'task', dueTime: '08:00', reminderEnabled: true })
     tree.unmount()
   })
 

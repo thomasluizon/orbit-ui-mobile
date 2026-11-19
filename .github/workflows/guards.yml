@@ -55,8 +55,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [ '${{ github.event_name }}' = 'pull_request' ] && ! grep -Eq '^\.github/(workflows|actions)/' "$RUNNER_TEMP/changed-paths.txt"; then
-            echo "Workflow syntax skipped: no workflow or action changed."
+          if [ '${{ github.event_name }}' = 'pull_request' ] && ! grep -Eq '^\.github/(workflows/|actions/|actionlint\.yaml$)' "$RUNNER_TEMP/changed-paths.txt"; then
+            echo "Workflow syntax skipped: no workflow, action or actionlint configuration changed."
             exit 0
           fi
           actionlint_dir=$(mktemp -d "$RUNNER_TEMP/actionlint.XXXXXX")
@@ -162,7 +162,7 @@ jobs:
         run: node tools/check-dashes.mjs --check-baseline
         if: ${{ !cancelled() }}
       - id: handoff-size__1
-        name: "Handoff Size: Changed specs and the relay prompt stay inside their byte ceilings"
+        name: "Handoff Size: Changed specs and the relay prompt stay inside their byte ceilings and name no local file"
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
         run: |
           xargs -0 --no-run-if-empty node tools/check-handoff-size.mjs --files \

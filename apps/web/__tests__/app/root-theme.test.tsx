@@ -12,6 +12,8 @@ import { getCurrentTheme } from '@/stores/theme-store'
 import { useAccountClockSeed } from '@/lib/account-clock'
 import { getAccountDay } from '@orbit/shared/utils'
 import RootLayout from '@/app/layout'
+import { useInitialSidebarCollapsed } from '@/components/shell/sidebar-preference-provider'
+import { SIDEBAR_COLLAPSED_COOKIE } from '@/lib/sidebar-preference'
 import { captureException } from '@sentry/nextjs'
 import { cookies } from 'next/headers'
 import { RequestCookies } from 'next/dist/server/web/spec-extension/cookies'
@@ -68,6 +70,22 @@ async function serverDocument() {
   const tree = await RootLayout({ children: <main>Theme fixture</main> })
   return new DOMParser().parseFromString(renderToStaticMarkup(tree), 'text/html')
 }
+
+function SidebarPreferenceProbe() {
+  return <output>{useInitialSidebarCollapsed() ? 'collapsed' : 'expanded'}</output>
+}
+
+describe('root sidebar preference before hydration', () => {
+  it.each([['1', 'collapsed'], ['0', 'expanded'], [undefined, 'expanded'], ['garbage', 'expanded']] as const)(
+    'reads the sidebar cookie %s on the server and renders %s',
+    async (value, expected) => {
+      if (value !== undefined) requestCookies.set(SIDEBAR_COLLAPSED_COOKIE, value)
+      vi.stubGlobal('fetch', vi.fn())
+      const html = renderToStaticMarkup(await RootLayout({ children: <SidebarPreferenceProbe /> }))
+      expect(html).toContain(`<output>${expected}</output>`)
+    },
+  )
+})
 
 describe('root theme before hydration', () => {
   it('seeds the account clock from the profile already loaded for the theme', async () => {

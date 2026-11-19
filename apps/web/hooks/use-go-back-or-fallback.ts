@@ -24,7 +24,6 @@ export function useGoBackOrFallback() {
 
       const navigation = getBackNavigation(fallbackRoute)
       if (navigation.kind === 'history') {
-        setRouteTransitionIntent('back')
         router.back()
         return
       }

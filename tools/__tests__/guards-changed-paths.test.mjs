@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 import yaml from "js-yaml"
+import { escapeRegex } from "../lib/escape-regex.mjs"
 import { guardGroups } from "./_guard-groups.mjs"
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
@@ -115,16 +116,31 @@ for (const [jobId, stepName, path, options] of [
   })
 }
 
-test("handoff-size: the step fails an oversized changed relay document and ignores an unchanged one", () => {
+test("workflow-syntax: a pull request that changes only the actionlint configuration runs the gate", () => {
+  for (const mode of ["owned", "unowned"]) {
+    runCase("workflow-syntax", "Lint all workflows", ".github/actionlint.yaml", mode, { stubs: "gh() { echo GATE_RAN; exit 0; }" })
+  }
+})
+
+test("the actionlint configuration holds only the self-hosted runner labels and no ignore", () => {
+  const configuration = yaml.load(readFileSync(join(repositoryRoot, ".github/actionlint.yaml"), "utf8"))
+  assert.deepEqual(Object.keys(configuration), ["self-hosted-runner"], "a paths or ignore key would hide a finding the gate reports")
+  assert.deepEqual(Object.keys(configuration["self-hosted-runner"]), ["labels"])
+  assert.ok(Array.isArray(configuration["self-hosted-runner"].labels), "labels must be a list")
+})
+
+test("handoff-size: the step fails an oversized or machine-bound changed relay document and ignores an unchanged one", () => {
   const job = guardGroups(workflow)["handoff-size"]
   const prepare = job.steps.find((step) => step.name === "Resolve pull request changed paths")
-  const gate = job.steps.find((step) => step.name === "Changed specs and the relay prompt stay inside their byte ceilings")
+  const gate = job.steps.find((step) => step.name === "Changed specs and the relay prompt stay inside their byte ceilings and name no local file")
   assert.ok(prepare?.run && gate?.run, "handoff-size must prepare changed paths and run its guard")
   for (const [label, changes, passes] of [
     ["an oversized changed spec fails", { ".claude/specs/grown.md": "x".repeat(41984) }, false],
     ["an oversized changed prompt fails", { ".claude/handoffs/NEXT.md": "x".repeat(8300) }, false],
     ["a spec at its ceiling passes", { ".claude/specs/grown.md": "x".repeat(40960) }, true],
     ["an unchanged oversized spec elsewhere passes", { "notes.txt": "changed\n" }, true],
+    ["a changed prompt that names the old run carry fails", { ".claude/handoffs/NEXT.md": `Run \`$HOME/.orbit-${"run-carry"}/carry.sh\` first.\n` }, false],
+    ["a changed spec that names a scratchpad file fails", { ".claude/specs/grown.md": "Read `S note-2469-r20.md`.\n" }, false],
   ]) {
     const directory = mkdtempSync(join(tmpdir(), "guards-handoff-size-"))
     try {
@@ -152,7 +168,7 @@ test("handoff-size: the step fails an oversized changed relay document and ignor
       const guarded = spawnSync("bash", ["-e", "-c", gate.run], { cwd: directory, env: environment, encoding: "utf8" })
       // WHY: GNU xargs reports a failed child as 123 and BSD xargs as 1; the step only has to fail (https://github.com/thomasluizon/orbit-tickets/issues/2064).
       assert.equal(guarded.status === 0, passes, `${label}: exit ${guarded.status} ${guarded.stdout}${guarded.stderr}`)
-      if (!passes) assert.match(guarded.stderr, new RegExp(`\`${Object.keys(changes)[0].replaceAll(".", "\\.")}\` within \\d+ B \\(it is \\d+ B\\)`))
+      if (!passes) assert.match(guarded.stderr, new RegExp(`\`${escapeRegex(Object.keys(changes)[0])}\` (?:within \\d+ B \\(it is \\d+ B\\)|without )`))
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }

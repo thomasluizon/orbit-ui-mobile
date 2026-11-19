@@ -2,19 +2,18 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { basename, dirname, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { parse } from 'yaml'
 import { validateToolArguments } from './tool-validation.mjs'
 import { tools, legacyTools, offerTools, observableSchema } from './trace-policy.mjs'
 import { configureOffers } from './offer-context.mjs'
 import { toolBehavior } from './assertions.mjs'
 import { historicalReadExpectations } from './offer-lifecycle.mjs'
 import parseResponse from './response.mjs'
+import { gradedByOutcome, readCorpus } from './grade-method.mjs'
 import { tsImport } from 'tsx/esm/api'
 
 const { buildChatClientContext } = await tsImport('../../packages/shared/src/chat/client-context.ts', import.meta.url)
 
-const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
-  parse(readFileSync(new URL(path, import.meta.url), 'utf8'), { merge: true }))
+const corpus = readCorpus()
 const observable = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
   description: tool.function.description ?? undefined,
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
@@ -81,7 +80,9 @@ export async function replayAttempt(attempt, descriptor, recorded) {
     Object.assign(structure, { pass: true, reason: 'Recorded arguments match the producer request declaration.' })
     notes.push('The API keeps the cacheable ask request schema; continuation updates are instruction constraints.')
   }
-  const behavior = assertions.find((assertion) => assertion.metric === 'toolBehavior')
+  // A case with an outcome holds no tool-name expectations, so its recorded calls are not graded again against them.
+  const byOutcome = gradedByOutcome(test.vars)
+  const behavior = byOutcome ? undefined : assertions.find((assertion) => assertion.metric === 'toolBehavior')
   const completedGoal = test.vars.offerFamily === 'goal-on-track' && test.vars.offerState === 'completed'
   if (behavior && (completedGoal || behavior.pass === false && behavior.reason.startsWith('Mutation outside the declared operation scope:'))) {
     const verdict = toolBehavior(attempt.toolCalls, test.vars.expectations)
@@ -104,7 +105,7 @@ export async function replayAttempt(attempt, descriptor, recorded) {
       headers: { 'x-orbit-request-id': attempt.httpError.responseRequestId } } })
     if (parsed.output?.unavailable) { after = 'incomplete'; notes.push('AI_UNAVAILABLE is unavailable evidence, not a refusal.') }
   }
-  if (attempt.setup?.toolCalls?.length) {
+  if (attempt.setup?.toolCalls?.length && !byOutcome) {
     const verdict = toolBehavior(attempt.setup.toolCalls, test.vars.setup.expectations)
     notes.push(`Setup outcome scope: ${verdict.reason} Preview evidence remains unavailable.`)
   }

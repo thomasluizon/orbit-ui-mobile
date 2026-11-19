@@ -2,6 +2,7 @@ import { createReadStream, existsSync, readFileSync, readdirSync } from "node:fs
 import { dirname, join, resolve } from "node:path"
 import { homedir } from "node:os"
 import { createInterface } from "node:readline"
+import { parseRunNote } from "./run-notes.mjs"
 import { openSessionChain, readSessionChain } from "./session-chain.mjs"
 import { readSessionMetrics } from "./session-context.mjs"
 import { gitDirectoryOf, readRunState } from "./run-state.mjs"
@@ -98,7 +99,8 @@ const chainEntries = async ({ sessionId, repoRoot, transcriptPath, now }) => {
   const startedAt = predecessors.at(-1)?.endedAt ?? pending?.startedAt ??
     (transcript ? (await readSessionMetrics(transcript)).startedAt : null)
   if (!startedAt) return null
-  const decisions = state?.decisionLogPath ? readFileSync(state.decisionLogPath, "utf8") : pending?.decisions ?? ""
+  // A chain entry written before the decisions moved to GitHub still carries its copied text (thomasluizon/orbit-tickets#2152).
+  const decisions = pending?.decisions ?? ""
   const entries = [...predecessors, { sessionId: currentSessionId, startedAt, endedAt: now,
     decisions, openOwnerQuestions: state?.openOwnerQuestions ?? pending?.openOwnerQuestions ?? [] }]
   let previousStart = -Infinity
@@ -145,7 +147,7 @@ const progressEntries = async ({ sessionId, repoRoot, transcriptPath, transcript
       endedAt: Date.parse(entry.endedAt) > Date.parse(now) ? now : entry.endedAt,
       decisions: entry.decisions ?? "", openOwnerQuestions: entry.openOwnerQuestions ?? [],
       ...(entry.decisions ? {} : { conversation: await conversationInWindow(entry.transcriptPath, startedAt, now) }),
-      merges: [], releases: [], closedTickets: [], createdTickets: [] })
+      merges: [], releases: [], closedTickets: [], createdTickets: [], decisionNotes: [] })
   }
   entries.sort((left, right) => Date.parse(left.startedAt) - Date.parse(right.startedAt))
   const current = entries.findIndex((entry) => entry.sessionId === currentSessionId)
@@ -176,7 +178,7 @@ const assign = (entries, kind, item, time, now, startedAt) => {
     owner = entries.find((entry) => entry.sessionId === null)
     if (!owner) {
       owner = { sessionId: null, startedAt, endedAt: now, decisions: "", openOwnerQuestions: [], conversation: [],
-        merges: [], releases: [], closedTickets: [], createdTickets: [] }
+        merges: [], releases: [], closedTickets: [], createdTickets: [], decisionNotes: [] }
       entries.unshift(owner)
     }
   }
@@ -188,6 +190,7 @@ const assign = (entries, kind, item, time, now, startedAt) => {
 const pullProjection = "[.[]|{number,title,body,base:{ref:.base.ref},merge_commit_sha,merged_at,html_url}]"
 const runProjection = "{total_count,workflow_runs:[.workflow_runs[]|{id,display_title,head_branch,conclusion,status,created_at,updated_at,html_url}]}"
 const ticketProjection = "[.[]|{number,title,body,created_at,closed_at,state_reason,html_url,pull_request}]"
+const commentProjection = "[.[]|{id,body,created_at,html_url,issue_url}]"
 
 export const collectProgressWindow = async ({ sessionId, repoRoot, transcriptPath, now, repositories, ticketRepository, readPages, transcriptsDirectory }) => {
   const progress = await progressEntries({ sessionId, repoRoot, transcriptPath, transcriptsDirectory, now })
@@ -204,6 +207,9 @@ export const collectProgressWindow = async ({ sessionId, repoRoot, transcriptPat
   ])
   sources.push({ repository: ticketRepository, kind: "closedTickets", projection: ticketProjection,
     path: `repos/${ticketRepository}/issues?state=all&per_page=100&since=${encodeURIComponent(startedAt)}` })
+  // Every decision is a run note comment on its ticket or on the run record issue, so one read of the repository's comments finds them all.
+  sources.push({ repository: ticketRepository, kind: "decisionNotes", projection: commentProjection,
+    path: `repos/${ticketRepository}/issues/comments?per_page=100&since=${encodeURIComponent(startedAt)}` })
   const results = await Promise.allSettled(sources.map(async (source) => ({ source,
     pages: await readPages(source.path, source.projection, source) })))
   for (const result of results) {
@@ -211,7 +217,9 @@ export const collectProgressWindow = async ({ sessionId, repoRoot, transcriptPat
     collectSource(entries, result.value.source, result.value.pages, now, startedAt)
   }
   for (const entry of entries) {
-    for (const kind of ["merges", "releases", "closedTickets", "createdTickets"]) entry[kind].sort((left, right) => left.time.localeCompare(right.time) || left.id - right.id)
+    for (const kind of ["merges", "releases", "closedTickets", "createdTickets", "decisionNotes"]) entry[kind].sort((left, right) => left.time.localeCompare(right.time) || left.id - right.id)
+    // The conversation is the fallback for an entry with no recorded decision.
+    if (entry.decisionNotes.length > 0) delete entry.conversation
   }
   return { baseline: "available", baselineSource, sessionId: currentSessionId, window: { startedAt, endedAt: now, localStartedAt: new Date(startedAt).toLocaleString(undefined, { timeZoneName: "short" }) }, entries }
 }
@@ -225,6 +233,17 @@ const collectSource = (entries, source, pages, now, startedAt) => {
     }
   } else if (pages.some((page) => !Array.isArray(page))) throw new Error(`invalid response at ${source.path}`)
   const rows = source.kind === "releases" ? pages.flatMap((page) => page.workflow_runs) : pages.flat()
+  if (source.kind === "decisionNotes") {
+    for (const row of rows) {
+      if (!Number.isInteger(row?.id) || typeof row.body !== "string" || typeof row.created_at !== "string" || typeof row.html_url !== "string") {
+        throw new Error(`invalid comment at ${source.path}`)
+      }
+      if (parseRunNote(row.body)?.kind !== "decision") continue
+      assign(entries, source.kind, { repository: source.repository, id: row.id, issue: Number(/\/issues\/(\d+)$/.exec(row.issue_url ?? "")?.[1]) || null,
+        text: row.body.split("\n").slice(2).join("\n").trim(), time: row.created_at, url: row.html_url }, row.created_at, now, startedAt)
+    }
+    return
+  }
   for (const row of rows) {
     const id = source.kind === "releases" ? row?.id : row?.number
     const title = source.kind === "releases" ? row?.display_title : row?.title

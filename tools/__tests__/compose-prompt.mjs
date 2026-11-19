@@ -1,10 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { createHash } from "node:crypto"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
+import { REVIEW_BATCH_ORDER_MARKER } from "../lib/run-state.mjs"
+import { orderSealProblem } from "../lib/run-notes.mjs"
 
-import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
+import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageRepo, stageWithConfig, T } from "./_harness.mjs"
 
 const TOOL = "compose-prompt.mjs"
 const APPROVAL_HOOK = join(".claude", "hooks", "forbid-approval-prompt.mjs")
@@ -36,7 +38,85 @@ const ticketPlan = (value = ticket(), comments = []) => [
 ]
 const comment = (body, createdAt = "2026-08-13T18:58:17Z", isMinimized = false) => ({ author: { login: "thomasluizon" }, body, createdAt, isMinimized })
 const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
+
+const HEAD = "0123456789abcdef0123456789abcdef01234567"
+const REVIEWED = "89abcdef0123456789abcdef0123456789abcdef"
+
+/** Read-only orders read no ticket: an empty gh plan makes any GitHub read fail the case. */
+const readOnlyCases = () => {
+  const repository = stageRepo("compose-prompt-read-only")
+  repository.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"])
+  const real = realOrchestratorConfig()
+  const staged = stageWithConfig("compose-prompt-read-only", TOOL, { ...real, repos: { ui: repository.path, api: API_REPO_PATH, landing: LANDING_REPO_PATH } })
+  const playbook = join(staged.base, ".claude", "playbooks", "review-and-audit.md")
+  mkdirSync(join(staged.base, ".claude", "playbooks"), { recursive: true })
+  cpSync(join(REPO_ROOT, ".claude", "playbooks", "review-and-audit.md"), playbook)
+  const options = { path: staged.path, env: orcaEnv([]) }
+  const directory = join(root, "compose-prompt-read-only")
+  mkdirSync(directory, { recursive: true })
+  const base = ["--repo", "ui", "--pr", "2145", "--head", HEAD]
+
+  const reviewPath = join(directory, "review.md")
+  check(TOOL, "--review composes a review order without reading the ticket", ["--review", ...base, "--out", reviewPath], { status: 0, stdout: /review\.md/ }, options)
+  const review = composed(reviewPath)
+  T(`${TOOL}: the review order embeds the playbook brief and its contract`,
+    review.startsWith("# Read-only review of thomasluizon/orbit-ui-mobile pull request #2145") && review.includes("The lenses:") &&
+      review.includes("## Read-only review contract") && review.includes(`git diff origin/main...${HEAD}`) && !review.includes("$(") &&
+      review.includes("`VERDICT: CLEAN`") && review.includes("`VERDICT: DEFECTS (<n>)`") && review.includes("at most 12 lines") &&
+      review.includes("No GitHub write") && !review.includes("#### The review brief"),
+    review)
+  const fixRoundPath = join(directory, "fix-round.md")
+  check(TOOL, "--review --since composes a fix-round order", ["--review", ...base, "--since", REVIEWED, "--base", "release", "--out", fixRoundPath], { status: 0 }, options)
+  const fixRound = composed(fixRoundPath)
+  T(`${TOOL}: a fix-round order reads only the commits after the reviewed head`,
+    fixRound.includes(`git diff ${REVIEWED}..${HEAD}`) && !fixRound.includes("git merge-base"), fixRound)
+
+  writeFileSync(playbook, readFileSync(playbook, "utf8").replace("The lenses:", "The lenses, edited in the playbook only:"))
+  const editedPath = join(directory, "edited.md")
+  check(TOOL, "--review reads the brief from the playbook each time", ["--review", ...base, "--out", editedPath], { status: 0 }, options)
+  T(`${TOOL}: an edit of the playbook brief reaches the next order`, composed(editedPath).includes("The lenses, edited in the playbook only:"), composed(editedPath))
+  writeFileSync(playbook, "# A playbook with no brief\n")
+  check(TOOL, "--review refuses a playbook with no brief", ["--review", ...base, "--out", join(directory, "no-brief.md")], { status: 2, stderr: /could not read the review brief: the playbook has no "#### The review brief" section/ }, options)
+
+  const plan = stage("compose-prompt-read-only/plan.md", "1. Drag the Astra button 20 times. Expected: it moves every time.\n")
+  const evidence = join(directory, "evidence")
+  const proofPath = join(directory, "proof.md")
+  const proofArgs = ["--proof", ...base, "--plan", plan, "--devices", "iPhone 17, orbit-proof-2145", "--evidence", evidence, "--out", proofPath]
+  check(TOOL, "--proof composes a device proof order", proofArgs, { status: 0 }, options)
+  const proof = composed(proofPath)
+  T(`${TOOL}: a review order and a proof order carry a valid seal, and an appended line breaks it (thread b_tA)`,
+    [review, proof].every((order) => orderSealProblem(order) === null && orderSealProblem(`${order}One more line.\n`) !== null), `${review.slice(-200)}\n${proof.slice(-200)}`)
+  T(`${TOOL}: the proof order names its steps, devices, evidence directory and verdict lines`,
+    proof.startsWith("# Device proof of thomasluizon/orbit-ui-mobile pull request #2145") && proof.includes("Drag the Astra button 20 times") &&
+      proof.includes("Use only these: iPhone 17, orbit-proof-2145.") && proof.includes(evidence) && existsSync(evidence) &&
+      proof.includes("`PROOF: PASS`") && proof.includes("`PROOF: FAIL (<n> defects)`") && proof.includes("Orbit_Pixel_9_API_35") &&
+      proof.includes("You write nothing tracked") && proof.includes("at most 12 lines"),
+    proof)
+  T(`${TOOL}: the proof order boots with the composing checkout's own emulator tool by absolute path (thread vkfg)`,
+    proof.includes(`\`node ${join(dirname(staged.path), "android-emulator.mjs")} --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT\``), proof)
+  writeFileSync(join(evidence, "step-1.png"), "an earlier proof\n")
+  const empty = stage("compose-prompt-read-only/empty-plan.md", "\n")
+  for (const [name, argv, pattern] of [
+    ["--review with --issue", ["--review", ...base, "--issue", "ORB-215", "--out", reviewPath], /drop --issue, --cloud, --layout-guard and --review-batch/],
+    ["--review with --proof", ["--review", ...proofArgs.slice(1), "--proof"], /drop --issue/],
+    ["--review with --review-batch", ["--review", ...base, "--review-batch", "--out", reviewPath], /drop --issue/],
+    ["--review without --pr", ["--review", "--repo", "ui", "--head", HEAD, "--out", reviewPath], /needs --pr <n>/],
+    ["--review with an upper-case head", ["--review", "--repo", "ui", "--pr", "2145", "--head", HEAD.toUpperCase(), "--out", reviewPath], /needs --head <sha>/],
+    ["--review with a short since", ["--review", ...base, "--since", "abc", "--out", reviewPath], /--since needs the reviewed head/],
+    ["--proof with --since", [...proofArgs, "--since", REVIEWED], /--since belongs to --review/],
+    ["--proof without a plan", ["--proof", ...base, "--devices", "iPhone 17", "--evidence", join(directory, "evidence-2"), "--out", proofPath], /needs --plan <file>/],
+    ["--proof with an empty plan", ["--proof", ...base, "--plan", empty, "--devices", "iPhone 17", "--evidence", join(directory, "evidence-2"), "--out", proofPath], /is empty/],
+    ["--proof without devices", ["--proof", ...base, "--plan", plan, "--devices", " , ", "--evidence", join(directory, "evidence-2"), "--out", proofPath], /needs --devices <names>/],
+    ["--proof with a relative evidence directory", ["--proof", ...base, "--plan", plan, "--devices", "iPhone 17", "--evidence", "evidence", "--out", proofPath], /an absolute path/],
+    ["--proof with evidence inside a repository", ["--proof", ...base, "--plan", plan, "--devices", "iPhone 17", "--evidence", join(repository.path, "evidence"), "--out", proofPath], /--evidence .* is inside the .* repository/],
+    ["--proof with an evidence directory that holds a file", proofArgs, /must be a new or empty directory/],
+  ]) {
+    check(TOOL, `refuses ${name}`, argv, { status: 2, stderr: pattern }, options)
+  }
+}
+
 export const cases = () => {
+  readOnlyCases()
   mkdirSync(join(root, "compose-prompt"), { recursive: true })
   const real = realOrchestratorConfig()
   const staged = stageWithConfig("compose-prompt", TOOL, {
@@ -70,6 +150,10 @@ export const cases = () => {
   )
   const prompt = composed(out)
   T(`${TOOL}: the ticket body survives composition verbatim`, prompt.startsWith("# Ticket body\n\nKeep this verbatim."), prompt.slice(0, 200) || written.stderr)
+  T(`${TOOL}: a local order carries a valid seal, and an appended note breaks it`, orderSealProblem(prompt) === null && orderSealProblem(`${prompt}\n## Orchestrator note\n`) !== null, prompt.slice(-200))
+  T(`${TOOL}: a local order carries the standing unattended rules`, prompt.includes("**Nobody answers an approval prompt.**") && prompt.includes("delete with Node") &&
+    prompt.includes("no attribution line") && prompt.includes("at most 12 lines") && prompt.includes("Spend at most 25 minutes of wall time on verification") &&
+    prompt.includes("reference a ticket with Tracks"), prompt)
   T(
     `${TOOL}: local ui delivery names the parity label and justification`,
     prompt.includes("--label parity:exempt") && prompt.includes("## Parity") &&
@@ -129,9 +213,21 @@ export const cases = () => {
     prompt,
   )
   T(
+    `${TOOL}: the brief asks for the focused checks of the change and leaves every full suite to CI`,
+    /Run only the focused checks of your change; CI runs every full suite/.test(prompt) &&
+      /`npx vitest related <changed source files> --run`/.test(prompt) && /Never start Vitest without a file name/.test(prompt) &&
+      /`node tools\/test-tools\.mjs --only <case module>` for each case module that covers a changed tool or reads a changed file \(`grep -rl <file name> tools\/__tests__`/.test(prompt) &&
+      /Never run the complete tools suite/.test(prompt) &&
+      // The hooks harness reads .claude/settings.json and every tracked doc, so a trigger narrower than these skips the suite that covers the edit.
+      /`node \.claude\/hooks\/test-hooks\.mjs` after a change to `\.claude\/\*\*`, a tracked `\*\.md` file, or another file the harness reads or imports \(`grep -n <file name> \.claude\/hooks\/test-hooks\.mjs`\)/.test(prompt) &&
+      !/hooks\/\*\*`/.test(prompt) &&
+      !/run them in full|broader suite|broader verification/i.test(prompt),
+    prompt,
+  )
+  T(
     `${TOOL}: the UI brief includes Chromium geometry within Vitest evidence`,
-    /repository's own Vitest suites are required evidence: run them in full/.test(prompt) &&
-      /including any headless Chromium geometry tests they launch/.test(prompt) &&
+    /The focused Vitest tests of your change are required evidence/.test(prompt) &&
+      /including any headless Chromium geometry test they launch/.test(prompt) &&
       !/apps\/web\/__tests__\/support\/chromium\.ts/.test(prompt) &&
       /That Chromium use is permitted within Vitest/.test(prompt),
     prompt,
@@ -213,7 +309,7 @@ export const cases = () => {
   const originalFinishing = prompt.slice(prompt.indexOf("## Finishing contract"), prompt.indexOf("\n\n---\n\n## Orchestrator's brief")).trimEnd()
   T(
     `${TOOL}: local finishing section matches the reviewed contract byte for byte`,
-    createHash("sha256").update(originalFinishing).digest("hex") === "d13c3929c22cef1389b6b076155341a2a275ba62ee1e94a2e978c5598ddd25ce",
+    createHash("sha256").update(originalFinishing).digest("hex") === "2c296c59590b16c9ddc3195567f45e7096e4b1678cf387474464e19ccb64979c",
     originalFinishing,
   )
   const reviewOut = join(root, "compose-prompt", "review-batch.md")
@@ -227,7 +323,8 @@ export const cases = () => {
   const reviewPrompt = composed(reviewOut)
   T(
     `${TOOL}: review batch ends after a tested commit and reports its SHA without delivery instructions`,
-    /Run the broader suite/.test(reviewPrompt) &&
+    /CI runs the full suites after the push/.test(reviewPrompt) &&
+      !/broader suite/i.test(reviewPrompt) &&
       /Report the commit SHA/.test(reviewPrompt) &&
       /Stop after the tested commit/.test(reviewPrompt) &&
       /Do not push or open a pull request/.test(reviewPrompt) &&
@@ -236,6 +333,18 @@ export const cases = () => {
       !/One commit series on your branch, pushed/.test(reviewPrompt) &&
       !/The pull request must NOT be a draft/.test(reviewPrompt),
     reviewPrompt,
+  )
+  T(
+    `${TOOL}: a review batch order names one final report shape, and the default order keeps the 12 line message`,
+    !reviewPrompt.includes("at most 12 lines") && !reviewPrompt.includes("The pull request body carries the full report") &&
+      reviewPrompt.includes("Your final report is the batch's handoff: the commit SHA, then the complete `## Test evidence`, `## Assumptions` and `## Manual steps` sections") &&
+      prompt.includes("Your final message is at most 12 lines") && !prompt.includes("Your final report is the batch's handoff"),
+    reviewPrompt,
+  )
+  T(
+    `${TOOL}: only the review batch order carries the marker that makes launch-worker.mjs spend a fix round`,
+    reviewPrompt.includes(REVIEW_BATCH_ORDER_MARKER) && !prompt.includes(REVIEW_BATCH_ORDER_MARKER),
+    reviewPrompt.slice(0, 400),
   )
   T(
     `${TOOL}: review batch report ends with the literal sections the orchestrator copies into the body`,
@@ -329,6 +438,7 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const cloudPrompt = composed(cloudOut)
+  T(`${TOOL}: a Cloud order carries no seal and no local approval rules`, orderSealProblem(cloudPrompt) !== null && !cloudPrompt.includes("Nobody answers an approval prompt"))
   const reviewCloudOut = join(root, "compose-prompt", "review-cloud.md")
   check(
     TOOL,
@@ -348,6 +458,17 @@ export const cases = () => {
       deliverySentences.every((sentence) => !cloudPrompt.includes(sentence)),
     cloudPrompt.slice(-1200),
   )
+  for (const [name, text] of [
+    ["the Cloud order", cloudPrompt],
+    ["the orchestrate skill", readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")],
+    ["the sleep skill", readFileSync(join(REPO_ROOT, ".claude", "skills", "sleep", "SKILL.md"), "utf8")],
+  ]) {
+    T(
+      `${TOOL}: ${name} asks for no broader verification beside the focused checks`,
+      !/broader verification/i.test(text),
+      text.split("\n").filter((line) => /broader verification/i.test(line)).join("\n"),
+    )
+  }
   /**
    * One brief feeds the local, Cloud and explicit main orders, so each one is asserted separately: a
    * later split could drop the block from any single mode and the other two would stay green. Each
@@ -404,7 +525,7 @@ export const cases = () => {
   T(
     `${TOOL}: orchestration resolves review batch threads before its single push`,
     /compose its order with `--review-batch`/.test(orchestrateSkill) &&
-      /worker commits, runs the\s+broader suite, reports the commit SHA and stops without pushing/.test(orchestrateSkill) &&
+      /worker commits, runs the\s+focused tests of its change, reports the commit SHA and stops without pushing/.test(orchestrateSkill) &&
       /resolve every identified thread on that commit, run the local review\s+gate on it, then push once/.test(orchestrateSkill) &&
       !/A worker cannot keep that order\s+under today's contract/.test(orchestrateSkill),
     orchestrateSkill,

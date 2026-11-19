@@ -1,10 +1,7 @@
 import { expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { parse } from 'yaml'
+import { readCorpus } from '../grade-method.mjs'
 
-const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
-const corpus = configuration.tests.flatMap((file) =>
-  parse(readFileSync(new URL(`../${file.replace('file://', '')}`, import.meta.url), 'utf8')))
+const corpus = readCorpus()
 const months = 'January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|fev|abr|mai|ago|set|out|dez'
 const fixedDate = new RegExp(`\\b\\d{1,2}/\\d{1,2}\\b|\\b\\d{4}-\\d{2}-\\d{2}\\b|\\b(?:${months})\\.?\\s+\\d{1,2}\\b|\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+|de\\s+)?(?:${months})\\b`, 'iu')
 const hasFixedDate = (input) => fixedDate.test(input.replace(/\{[^{}]+\}/g, ''))

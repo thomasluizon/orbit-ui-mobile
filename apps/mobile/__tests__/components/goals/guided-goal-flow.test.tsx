@@ -8,7 +8,7 @@ import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { EditGoalModal } from '@/components/goals/edit-goal-modal'
 import { i18n } from '@/lib/i18n'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
-import { press, renderNavigation } from '../ui/navigation-render'
+import { nativeWindows, press, renderNavigation } from '../ui/navigation-render'
 
 const mocks = vi.hoisted(() => ({
   guided: true,
@@ -138,6 +138,7 @@ describe('the guided goal create flow on Android', () => {
     expect(onCreated).toHaveBeenCalledWith('goal-new', ['h1'])
     expect(mocks.completed).toHaveBeenCalledWith('goal_create', 6, false)
     expect(resultSentence(tree)).toBe('A meta "Ler 12 livros" vai até 31 de dezembro de 2026.')
+    expect(nativeWindows(tree), 'the result draws in the window of the flow, so iOS presents one Modal').toHaveLength(1)
     expect(tree.hosts().some((node) => (node.props as Record<string, unknown>)['data-orbit-state'] === 'feliz')).toBe(true)
     await tap(tree, 'Ver a meta')
     expect(onClose).toHaveBeenCalledTimes(1)
@@ -163,6 +164,28 @@ describe('the guided goal create flow on Android', () => {
     const draft = { ...createGoalDraft(), goalType: 'Streak' as const, description: 'Gym days', targetValue: '30', unit: i18n.t('goals.form.streakUnit'), deadline: '' }
     expect(mocks.create).toHaveBeenCalledWith(buildGoalCreationRequest(draft))
     expect(resultSentence(tree)).toBe('The goal "Gym days" is set with no deadline.')
+    tree.unmount()
+  })
+
+  it('keeps one flow window mounted while Create another starts an empty flow, so iOS presents no second Modal', async () => {
+    await i18n.changeLanguage('en')
+    const tree = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} />)
+    await type(tree, EN.title, 'Gym days')
+    await tap(tree, 'Continue')
+    await tap(tree, 'Streak')
+    await type(tree, 'How many days in a row?', '30')
+    await tap(tree, 'Continue')
+    await tap(tree, 'No deadline')
+    await tap(tree, 'Continue')
+    await tap(tree, 'Create goal')
+    expect(resultDialog(tree)).toBeDefined()
+    const [flowWindow] = nativeWindows(tree)
+    await tap(tree, 'Create another')
+    expect(resultDialog(tree)).toBeUndefined()
+    expect(heading(tree)).toBe(EN.title)
+    expect(progress(tree)).toBe('Step 1 of 6')
+    expect(nativeWindows(tree)).toHaveLength(1)
+    expect(nativeWindows(tree)[0], 'the window of the flow is the same one, not a new Modal').toBe(flowWindow)
     tree.unmount()
   })
 
@@ -339,6 +362,7 @@ describe('the guided goal edit flow on Android', () => {
     expect(control(tree, 'Save').props.accessibilityState).toMatchObject({ busy: true })
     await act(async () => { finish(); await Promise.resolve() })
     expect(resultSentence(tree)).toBe('The goal "Run 100km" is saved with no deadline.')
+    expect(nativeWindows(tree), 'the result draws in the window of the flow, so iOS presents one Modal').toHaveLength(1)
     tree.unmount()
   })
 

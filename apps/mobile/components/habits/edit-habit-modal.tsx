@@ -579,10 +579,11 @@ function EditHabitDraft({
 
   function renderGuidedEdit() {
     const requestDismiss = () => { if (!isSubmitting()) dismissGuard.requestDismiss() }
+    const result = saved && habit ? <HabitResultDialog habitId={habit.id} change="updated" onClose={() => { setSaved(false); onClose(); void onSaved?.() }} /> : undefined
     return (
       <>
-        {saved || !habit ? null : (
-          <FlowScreen label={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')} onDismiss={requestDismiss}>
+        {habit ? (
+          <FlowScreen label={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')} onDismiss={requestDismiss} result={result}>
             <HabitFormInteractionProvider disabled={saving}>
               <GuidedHabitFlow mode="edit" formHelpers={formHelpers} fields={{ ...fieldProps, parentValue: parent.value, linkedGoals: habitDetail?.linkedGoals ?? habit.linkedGoals }} lockedGeneral={parent.lockedGeneral} fromConversation={Boolean(initialSuggestion)}
                 pending={saving} detailsLoading={guidedDetails.loading} detailsError={guidedDetailsError} saveError={saveError} createLabel={t('common.save')}
@@ -590,8 +591,7 @@ function EditHabitDraft({
             </HabitFormInteractionProvider>
             {discardDialog}
           </FlowScreen>
-        )}
-        {saved && habit ? <HabitResultDialog habitId={habit.id} change="updated" onClose={() => { setSaved(false); onClose(); void onSaved?.() }} /> : null}
+        ) : null}
       </>
     )
   }

@@ -684,7 +684,7 @@ describe('the report files', () => {
     const markdown = writeReport(summary, directory())
     expect(markdown).toContain('| required | owner-turns | b | en | yes | 3 | 1/3 | incomplete |')
     expect(markdown).toContain(`Grader limits (the grader could not read the reply; no verdict on the assistant):\nrequired: ${classify}`)
-    expect(markdown).toContain('No evidence (a throttle, a spend ceiling, a failed precondition, a failed rubric grader, a card turn without the '
+    expect(markdown).toContain('No evidence (a throttle, a spend ceiling, a failed precondition, a failed rubric grader, a failed card question read, a card turn without the '
       + 'trace that its answer needs, or a preview turn without the trace that shows a `stored` field):\n'
       + 'required: The chat turn failed with HTTP 429 (AI_DAILY_BUDGET_EXCEEDED): budget')
     expect(markdown).not.toContain('Behavior failures')

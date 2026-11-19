@@ -7,8 +7,9 @@ import { approvePendingOperation, publicApi } from '../fixtures/api.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { safeFailureMessage } from '../credentials.mjs'
 
-// In a conversation, only a throttle, a spend ceiling, or a card or preview turn whose grading needs the eval trace and
-// that returned none is no evidence of the build (`noEvidenceKinds` in core/report.mjs names every kind): the case stays
+// In a conversation, only a throttle, a spend ceiling, a failed call of the grader that reads a card question, or a card or
+// preview turn whose grading needs the eval trace and that returned none is no evidence of the build (`noEvidenceKinds` in
+// core/report.mjs names every kind): the case stays
 // incomplete and continues in a later window. Each other failure is the build under test failing the person: an HTTP
 // 5xx, a stream that stops or ends without a final event, a failed approval. It fails the attempt, so no later window
 // runs the case again.
@@ -62,11 +63,14 @@ async function sendTurnAgain(turn, api) {
 // Runs one case as a person with a shipped client. The person sends the earlier owner messages of a live situation and
 // then the phrasing, one message after each question, in one conversation; answers each further question the case
 // allows; and stops at the first preview. A reply that is no question, and one question past the allowed count, are
-// recorded and not answered. A write case whose preview holds the expected changes is approved and read back.
-export async function runCase(vars, { send = sendTurn, api = publicApi(vars.credentialKey), now = () => performance.now() } = {}) {
-  const { expected, prefix, lead, image, resend } = vars.core
-  const conversation = openConversation({ platform: vars.clientContext.platform, locale: vars.clientContext.locale,
-    credentialKey: vars.credentialKey, timeZone: vars.accountTimeZone, uses24HourClock: vars.uses24HourClock, messages: prefix })
+// recorded and not answered. A case that expects no change ends with its first reply. A write case whose preview holds
+// the expected changes is approved and read back. A launch corpus case passes `approve: false` and, when an earlier turn
+// of the case opened it, the `conversation`: it holds its preview and approves nothing.
+export async function runCase(vars, { send = sendTurn, api = publicApi(vars.credentialKey), now = () => performance.now(),
+  conversation = openConversation({ platform: vars.clientContext.platform, locale: vars.clientContext.locale,
+    credentialKey: vars.credentialKey, timeZone: vars.accountTimeZone, uses24HourClock: vars.uses24HourClock, messages: vars.core.prefix }),
+  approve = true } = {}) {
+  const { expected, lead, image, resend } = vars.core
   const output = { turns: 0, questionsBeforePreview: 0, previews: [], modelCalls: 0, seconds: 0 }
   const maxQuestions = expected.questions?.max ?? 0
   const typed = [...lead, vars.input]
@@ -86,13 +90,13 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
     counted = output.modelCalls
     output.modelCalls = counted === null || turn.trace?.modelCalls == null ? null : counted + turn.trace.modelCalls
     output.previews = turn.response.pendingOperations ?? []
-    if (output.previews.length || expected.read) break
+    if (output.previews.length || !expected.changes) break
     const question = questionOf(turn, expected)
     if (!question.pass) { output.answerFailure = question.reason; break }
     output.questionsBeforePreview++
     if (output.questionsBeforePreview > maxQuestions) break
     if (output.turns < typed.length) { attempted = typedMessage(output.turns); continue }
-    const answer = answerQuestion(turn, vars)
+    const answer = await answerQuestion(turn, vars)
     if (!answer.pass) {
       // The turn without the trace adds no counted model calls, as a failed turn adds none, so a later window that
       // replaces this attempt keeps the cost of the run measured.
@@ -114,13 +118,13 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
   } catch (error) {
     return { ...output, answer: null, error: `The answer cannot be drawn (${error.blockKind ?? 'composition'}): ${error.message}` }
   }
-  if (expected.read) return output
+  if (!expected.changes) return output
   const preview = gradePreview(output, vars)
   // A preview turn without the trace that its grading needs adds no counted model calls, as a card turn without it adds
   // none, so a later window that replaces this attempt keeps the cost of the run measured.
   if (preview.metadata.unavailable) return Object.assign(output, { unavailable: true, error: preview.reason, modelCalls: counted })
   if (preview.metadata.graderLimit) output.graderLimit = true
-  if (!preview.pass) return output
+  if (!preview.pass || !approve) return output
   if (resend) output.resend = await sendTurnAgain(turn, api)
   output.readback = await approveAndReadBack(output.previews, conversation, vars, api)
   return output

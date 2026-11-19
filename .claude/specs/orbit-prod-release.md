@@ -24,6 +24,7 @@ Operating facts for workers, CI, merges, releases, consoles and devices are in `
 - The owner is the only active Orbit user before launch: read every fleet signal (PostHog versions, Sentry release counts) as the owner's usage, and a build missing from devices as the owner's phone not updated yet.
 - Never create another Claude account and never buy access. When the worker account and the main account both reach their limits, stop new launches until a reset and tell the owner (`orchestrate/SKILL.md` §5.4.1; Batch T changes the account setup).
 - Read every worker diff before it counts, for `DESIGN.md` values and gate edits (D95).
+- Run every pre-push review, fix-round review and device proof on a read-only worker (`launch-worker.mjs --review` or `--proof`, `.claude/playbooks/review-and-audit.md` rule 14), never on an in-session subagent or review agent: the main account stays free for the coordinator. This rule replaces the `#2074` rule of one read-only review agent per push, and no ordinary worker runs a review in its branch worktree.
 
 ### The owner
 
@@ -64,7 +65,7 @@ In-flight work finishes as normal. Then no new board ticket is admitted until ev
 
 - `#2064` Cut the production release spec to 40 KB and `NEXT.md` to 8 KB, with a size guard. Next: CI, review and merge of `ui#2386`; then close the relay docs pull request `ui#1989` and start the next relay branch from `main`.
 - `#2065` Lower the coordinator relay threshold to 200k tokens. Next: after `#2064` merges, `/orchestrate`.
-- `#2066` Cut fixed context per call: unused connectors off, `CLAUDE.md` to 6 KB, `MEMORY.md` trimmed. Next: CI, review, merge of `ui#2378`; then the orchestrator sets `disabledMcpServers` for this project in `~/.claude.json` and trims `MEMORY.md` to 6 KB.
+- `#2066` Cut fixed context per call: unused connectors off, `CLAUDE.md` to 6 KB, `MEMORY.md` trimmed. Next: CI, review, merge of `ui#2378`; then the orchestrator sets `disabledMcpServers` for this project in the user Claude config `.claude.json` and trims `MEMORY.md` to 6 KB.
 - `#2067` Run the default and mechanical worker tiers on Sonnet 5.5. Next: CI, review, merge of `ui#2379` (base-merged after `ui#2380`, calibration reseeded); the first default-tier launch after the merge proves Sonnet with `--effort high`.
 - `#2068` Cache ticket classifier results on disk by body hash. Next: CI, review, merge of `ui#2381`.
 - `#2069` Wake the auto-work coordinator only when an intake source has a new item. Next: CI, review, merge of `ui#2382`; then intake step 5 runs `node tools/orbit-play-reviews.mjs --cycle`.

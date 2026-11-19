@@ -1336,7 +1336,7 @@ describe('HabitList', () => {
     } finally { dimensions.mockRestore() }
   })
 
-  it('keeps the Hoje list mounted while the skeleton delay expires', async () => {
+  it('keeps the Hoje list mounted and draws its skeleton on the first frame while the habits load', async () => {
     const { queryClient } = await vi.importActual<typeof import('@/lib/query-client')>('@/lib/query-client')
     vi.useFakeTimers()
     skipFlow.active = true
@@ -1349,10 +1349,8 @@ describe('HabitList', () => {
       })
       const loadingList = tree!.root.findByType('DraggableFlatList')
       expect(loadingList.props.accessibilityState).toEqual({ busy: true })
-      expect(tree!.root.findAllByType(Skeleton)).toHaveLength(0)
-      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(299) })
-      expect(tree!.root.findAllByType(Skeleton)).toHaveLength(0)
-      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(tree!.root.findAllByType(Skeleton)).toHaveLength(5)
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(300) })
       expect(tree!.root.findByType('DraggableFlatList')).toBe(loadingList)
       expect(tree!.root.findAllByType(Skeleton)).toHaveLength(5)
       expect(loadingList.props.accessibilityState).toEqual({ busy: true })

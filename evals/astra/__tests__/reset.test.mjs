@@ -7,10 +7,10 @@ import { beforeAll as preflight, beforeEach as prepareAttempt } from '../hooks.m
 import { resetFixture, runReset } from '../fixtures/reset.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
+import { offlineGrader } from './fixtures/grader.mjs'
 import { CHAT_BLOCK_KINDS } from '../../../packages/shared/src/chat/block-kinds.ts'
 import { summarize } from '../report.mjs'
-import { behavior } from '../assertions.mjs'
-import { toolCall } from './fixtures/producer.mjs'
+import { captures } from './fixtures/core-streams.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((file) => parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'), { merge: true }))
 let habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered
@@ -136,7 +136,12 @@ it.each(['en', 'pt-BR'])('seeds and independently verifies a cached retrospectiv
     { method: 'GET', path: 'habits/retrospective' }, { method: 'GET', path: 'habits/retrospective' },
   ])
   expect(test.vars.composition.blocks).toEqual([{ kind: 'periodInsight', completeness: 'stale', recovery: 'refresh' }])
-  expect(test.vars.expectations.required[0]).toMatchObject({ name: 'get_retrospective', result: { payload: retrospectiveResponse(true) } })
+  expect(test.vars.outcome).toEqual({ read: true })
+})
+it.each(['en', 'pt-BR'])('seeds the stale %s retrospective and returns no value', async (locale) => {
+  const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-stale-${locale}`))
+  await expect(resetFixture(source, '2026-10-24', true)).resolves.toBeUndefined()
+  expect(requests.filter(({ path }) => path === 'habits/retrospective')).toHaveLength(2)
 })
 it.each(['uncached', 'missing-flag', 'empty-narrative', 'wrong-period', 'wrong-from', 'wrong-to', 'http-failure'])(
   'makes unverifiable stale setup incomplete and skips the case chat: %s', async (mode) => {
@@ -344,20 +349,21 @@ it('drives refresh, default reset, independent readback and ID substitution thro
   expect(requests.at(-1).path).toBe('eval/snapshot')
   const account = JSON.parse(readFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, 'utf8')).ORBIT_EVAL_TOKEN
   expect(test.vars.input).toContain(account.habitId)
-  expect(test.vars.expectations.required[0].arguments.habit_id).toBe(account.habitId)
+  expect(test.vars.records).toMatchObject({ water: account.habitId, walk: account.secondHabitId })
   expect(test.vars.evalRequestId).toMatch(/^[0-9a-f-]{36}$/)
   expect(process.env.ORBIT_EVAL_TOKEN).toBe('pro-access')
 })
 
 it('lets an exhausted exempt ordinary fixture reach chat after one preflight config read', async () => {
   exhausted = true
-  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
   const source = scenario('pro')
   const intercepted = globalThis.fetch
   vi.stubGlobal('fetch', async (url, options) => {
-    if (new URL(url).pathname !== '/api/chat') return intercepted(url, options)
+    if (new URL(url).pathname !== '/api/chat/stream') return intercepted(url, options)
     requests.push({ path: 'chat', method: options.method })
-    return Response.json({ aiMessage: 'Hello.' })
+    return new Response(captures.complete.turns[0].map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''),
+      { headers: { 'content-type': 'text/event-stream' } })
   })
   await preflight({ suite: { tests: [source] } })
   const provider = new AstraHttpProvider({ config: {
@@ -400,7 +406,7 @@ it.each(['free-at-limit', 'budget-exhausted'])('keeps the metered %s fixture pat
   pro = fixture !== 'free-at-limit'
   exhausted = fixture === 'budget-exhausted'
   capacity = 7
-  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
   const source = scenario(fixture)
   await preflight({ suite: { tests: [source] } })
   const { test } = await prepareAttempt({ test: source })
@@ -566,28 +572,9 @@ it('adopts roots in the other locale before registering stable IDs', async () =>
   expect(habits.map((habit) => habit.title)).toEqual(['Beber água', 'Caminhada'])
 })
 
-it.each(['en', 'pt-BR'])('grades only the independently verified stale retrospective result in %s', async (locale) => {
-  const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-stale-${locale}`))
-  const { test } = await prepareAttempt({ test: source })
-  const supplied = { period: 'month', date_from: test.vars.expectations.required[0].result.payload.dateFrom,
-    date_to: test.vars.accountDate, language: locale }
-  const grade = (payload, argumentsOverride = {}) => {
-    const { status, ...call } = toolCall('get_retrospective', { ...supplied, ...argumentsOverride })
-    call.result.payload = payload
-    return behavior({ trace: { state: 'available', requestId: test.vars.evalRequestId,
-      responseRequestId: test.vars.evalRequestId, calls: [{ ...call, resultStatus: status }] } }, { vars: test.vars })
-  }
-  expect(grade(retrospectiveResponse(true)).pass).toBe(true)
-  expect(grade(retrospectiveResponse(true), { date_from: '2026-01-01' }).pass).toBe(false)
-  expect(grade(retrospectiveResponse(true), { date_to: '2026-01-31' }).pass).toBe(false)
-  for (const patch of [{ fromCache: false }, { dateFrom: '2026-01-01' }, { dateTo: '2026-01-31' },
-    { narrative: { highlights: 'Invented narrative', missed: '', trends: '', suggestion: '' } }]) {
-    expect(grade({ ...retrospectiveResponse(true), ...patch }).pass).toBe(false)
-  }
-})
 it('marks the Free capacity case incomplete before chat when its daily window is already used', async () => {
   pro = false; unmetered = false
-  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
   await preflight({ suite: { tests: [scenario('free-at-limit')] } })
   const intercepted = globalThis.fetch
   vi.stubGlobal('fetch', async (url, options) => new URL(url).pathname === '/api/profile'
@@ -609,18 +596,12 @@ it.each(['en', 'pt-BR'])('keeps every medical date after account today across ye
   const { test } = await prepareAttempt({ test: source })
   expect(test.vars).not.toHaveProperty('preconditionFailure')
   expect(test.vars.accountDate).toBe('2031-12-30')
-  const required = test.vars.expectations.required[0]
-  for (const arguments_ of [required.arguments, ...required.argumentsAnyOf]) {
-    const habits = arguments_.habits.flatMap((habit) => [habit, ...(habit.sub_habits ?? [])])
-    expect(habits.map((habit) => habit.due_date)).toEqual(['2032-01-02', '2032-01-06', '2032-01-03', '2032-01-05', '2032-01-06'])
-    expect(habits.slice(2, 4).map((habit) => habit.end_date)).toEqual(['2032-01-06', '2032-01-06'])
-    expect(habits[4].due_end_time).toBe('13:30')
-  }
+  const created = test.vars.outcome.changes.map((change) => change.fields)
+  expect(created.map((fields) => fields.due_date)).toEqual(['2032-01-02', '2032-01-06', '2032-01-03', '2032-01-05', '2032-01-06'])
+  expect(created.slice(2, 4).map((fields) => fields.end_date)).toEqual(['2032-01-06', '2032-01-06'])
+  expect(created[4].due_end_time).toEqual({ time: '13:30' })
   expect(test.vars.input).toContain(locale === 'en' ? 'On 01/02' : 'dia 02/01')
   expect(test.vars.input).toContain(locale === 'en' ? 'EXAM ON 01/06' : 'EXAME DO DIA 06/01')
-  expect(test.vars.rubric).toContain('The account date is 2031-12-30')
-  expect(test.vars.rubric).toContain('2032-01-02')
-  expect(test.vars.rubric).not.toContain('even when it is before today')
 })
 
 it.each([
@@ -664,25 +645,9 @@ it('preserves serialized JSON when resolving placeholders on repeat attempts', a
   expect(prepared.vars.evalRequestId).not.toBe(firstRequest)
 })
 
-it('preserves weekday positions when comparing the seeded cached metrics', async () => {
-  const intercepted = globalThis.fetch
-  const saved = retrospectiveResponse(true)
-  saved.metrics.weeklyConsistency = [0, 25, 50, 75, 100, 0, 0]
-  vi.stubGlobal('fetch', async (url, options) => new URL(url).pathname === '/api/habits/retrospective'
-    ? Response.json(saved) : intercepted(url, options))
-  const { test } = await prepareAttempt({ test: scenario('composition-stale') })
-  const { status, ...call } = toolCall('get_retrospective', { period: 'month', date_from: saved.dateFrom, date_to: saved.dateTo })
-  call.result.payload = structuredClone(saved)
-  const output = { trace: { state: 'available', requestId: test.vars.evalRequestId,
-    responseRequestId: test.vars.evalRequestId, calls: [{ ...call, resultStatus: status }] } }
-  expect(behavior(output, { vars: test.vars }).pass).toBe(true)
-  call.result.payload.metrics.weeklyConsistency.reverse()
-  expect(behavior(output, { vars: test.vars }).pass).toBe(false)
-})
-
 it('requires a fresh Free window once and permits calls until its message allowance is exhausted', async () => {
   pro = false; unmetered = false
-  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_GRADER', offlineGrader)
   const source = scenario('free-at-limit')
   await preflight({ suite: { tests: [source] } })
   const intercepted = globalThis.fetch
