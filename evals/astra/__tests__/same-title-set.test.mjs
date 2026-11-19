@@ -503,6 +503,21 @@ it.each([
     reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
 })
 
+// A question that names the records by a title word and no other rename word names one action, the deletion, and the
+// deleted count it states confirms that half. A title word never decides a half; the count does.
+it.each([
+  ['en', 'Which two of the same-title habits should I delete?'],
+  ['en', 'Which 2 habits with the title Water - 710ml should I delete?'],
+  ['en', 'Which two of the six with this title should I delete?'],
+  ['pt-BR', 'Quais dois dos hábitos com o mesmo título devo apagar?'],
+  ['pt-BR', 'Quais 2 dos 6 hábitos com o título Water - 710ml devo excluir?'],
+])('answers a %s deletion question that names the records by a title word and states the deleted count: %s', async (locale, prompt) => {
+  const card = completedRecordsCard(prompt, locale)
+  const answer = sameTitleCard(shown(card), cardVars(ids, locale))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, { [card.block.questions[0].id]: deletedHalf }, locale))
+})
+
 // A title word after the asked deletion cannot decide the half, so a question that asks the deletion first stays answered.
 it.each([
   ['en', 'Which two should I delete, and which four should get the title Water - 1.18L?', deletedHalf],

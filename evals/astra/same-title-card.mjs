@@ -64,10 +64,11 @@ const deletionWords = /\b(?:delet|remov|exclu|apag|elimin|descart|drop|eras|disc
 const renameVerbs = /\b(?:renam|renome|chang|mud|troc|coloc|becom|updat|atualiz)/u
 // Rename words of a list question only: the habits to keep are the habits to rename, and the habits a list asks a title
 // for are the habits to retitle. A yesNo question that keeps a half or names its title proposes no rename.
-const listRenameWords = /\b(?:keep|mant|title\b|titulo\b)/u
 // A title word also names the records ("the same-title habits", "the title Water - 710ml", "com esse titulo"), and a
 // record description and a retitle use the same words, so a title word never decides which action a both-actions question asks.
 const titleWords = /\b(?:title|titulo)\b/u
+const keepWords = /\b(?:keep|mant)/u
+const listRenameWords = new RegExp(`${keepWords.source}|${titleWords.source}`, 'u')
 // A yes to a negated action, or to one of two alternatives, agrees to no one action.
 const noProposalWords = /\b(?:not|never|nothing|without|instead|rather|or|nao|nunca|nada|nem|sem|ou|em vez|ao inves)\b|n['’]t\b/u
 // Count words for one half of the six children. One, um and uma also read as a pronoun or an article, so only the digit
@@ -128,12 +129,18 @@ function bothActionsHalf(text, decision) {
 }
 
 // The half of the decision a list question asks about: the action it names, else the count it states. A question that
-// names both actions is read by bothActionsHalf. Null when it names neither, or when the two point at different halves.
+// names both actions is read by bothActionsHalf. A question whose only rename word is a title word ("Which two of the
+// same-title habits should I delete?") may name one action, so when bothActionsHalf cannot tell, the deleted count it
+// states answers it. Null when it names neither, or when the two point at different halves.
 function askedHalf(prompt, decision) {
   const text = normalize(prompt)
   const deletion = deletionWords.test(text)
   const rename = renameVerbs.test(text) || listRenameWords.test(text)
-  if (deletion && rename) return bothActionsHalf(text, decision)
+  if (deletion && rename) {
+    const half = bothActionsHalf(text, decision)
+    if (half || renameVerbs.test(text) || keepWords.test(text)) return half
+    return countHalf(text, decision) === 'deleted' ? 'deleted' : null
+  }
   const byAction = onlyOne(deletion, rename)
   const byCount = countHalf(text, decision)
   return byAction && byCount && byAction !== byCount ? null : byAction ?? byCount

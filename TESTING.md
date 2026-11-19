@@ -848,6 +848,9 @@ The same holds when a title word (`title`, `título`) stands at or before that a
 habits should I delete?", "Which habits with the title Water - 710ml should I delete?" or "Which four get the title
 Water - 1.18L, and which two should I delete?". A record description and a retitle use the same words, so a title word
 never decides the half. A title word after the asked action changes nothing.
+When a title word is the only rename word of the question, the question may name only the deletion. The deleted count
+that it states then answers it: "Which two of the same-title habits should I delete?" asks for the deleted half. A
+question with no such count, or with a count of the renamed half, stays a grader limit.
 A count only confirms the action that its clause names. In a list question, `keep` and
 `manter` are rename words, because the records to keep are the records to rename. When the question tells neither, or
 the two signals disagree, the case fails with a message that names a grader limit, not a model fault. A `yesNo`
