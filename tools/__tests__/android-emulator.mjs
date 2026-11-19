@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, check, root, run } from "./_harness.mjs"
@@ -64,8 +64,10 @@ process.exit(0)
   const emulatorShim = join(sdk, "emulator-shim.mjs")
   writeFileSync(
     emulatorShim,
-    `const avds = ${JSON.stringify(behaviour.avds ?? [])}
+    `import { appendFileSync } from "node:fs"
+const avds = ${JSON.stringify(behaviour.avds ?? [])}
 if (process.argv.includes("-list-avds")) process.stdout.write(avds.map((a) => a + "\\n").join(""))
+else appendFileSync(${JSON.stringify(join(sdk, "emulator-args.log"))}, process.argv.slice(2).join(" ") + "\\n")
 process.exit(0)
 `,
   )
@@ -98,6 +100,14 @@ const statusOf = (sdk) => {
 }
 
 export const cases = () => {
+  // A device proof pins its throwaway emulator to the console port the launcher chose (launch-worker.mjs --proof).
+  for (const [label, value] of [["an odd port", "5595"], ["a port below the emulator range", "5552"], ["a port above it", "5684"], ["a word", "next"]]) {
+    check("android-emulator.mjs", `rejects ${label} for --port`, ["--port", value], { status: 2, stderr: /--port needs an even console port from 5554 to 5682/ })
+  }
+  const pinned = stageSdk("pinned-port", { devices: [], avds: ["orbit-proof-2145"] })
+  const booted = run("android-emulator.mjs", ["--avd", "orbit-proof-2145", "--port", "5594", "--timeout", "1"], { env: sdkEnv(pinned) })
+  const launchedWith = existsSync(join(pinned, "emulator-args.log")) ? readFileSync(join(pinned, "emulator-args.log"), "utf8") : ""
+  T("android-emulator.mjs: --port boots the emulator on that console port", booted.status === 5 && /-avd orbit-proof-2145 .*-port 5594/.test(launchedWith), `status=${booted.status} ${booted.stderr} args=${launchedWith}`)
   check("android-emulator.mjs", "rejects a value-less --avd", ["--avd"], { status: 2, stderr: /requires a value/ })
   check("android-emulator.mjs", "rejects a value-less --dns", ["--dns"], { status: 2, stderr: /requires a value/ })
   check("android-emulator.mjs", "rejects a non-numeric --timeout", ["--timeout", "soon"], {

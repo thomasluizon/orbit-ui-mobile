@@ -1,12 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { createHash } from "node:crypto"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
 import { REVIEW_BATCH_ORDER_MARKER } from "../lib/run-state.mjs"
 import { orderSealProblem } from "../lib/run-notes.mjs"
 
-import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
+import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageRepo, stageWithConfig, T } from "./_harness.mjs"
 
 const TOOL = "compose-prompt.mjs"
 const APPROVAL_HOOK = join(".claude", "hooks", "forbid-approval-prompt.mjs")
@@ -38,7 +38,85 @@ const ticketPlan = (value = ticket(), comments = []) => [
 ]
 const comment = (body, createdAt = "2026-08-13T18:58:17Z", isMinimized = false) => ({ author: { login: "thomasluizon" }, body, createdAt, isMinimized })
 const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
+
+const HEAD = "0123456789abcdef0123456789abcdef01234567"
+const REVIEWED = "89abcdef0123456789abcdef0123456789abcdef"
+
+/** Read-only orders read no ticket: an empty gh plan makes any GitHub read fail the case. */
+const readOnlyCases = () => {
+  const repository = stageRepo("compose-prompt-read-only")
+  repository.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"])
+  const real = realOrchestratorConfig()
+  const staged = stageWithConfig("compose-prompt-read-only", TOOL, { ...real, repos: { ui: repository.path, api: API_REPO_PATH, landing: LANDING_REPO_PATH } })
+  const playbook = join(staged.base, ".claude", "playbooks", "review-and-audit.md")
+  mkdirSync(join(staged.base, ".claude", "playbooks"), { recursive: true })
+  cpSync(join(REPO_ROOT, ".claude", "playbooks", "review-and-audit.md"), playbook)
+  const options = { path: staged.path, env: orcaEnv([]) }
+  const directory = join(root, "compose-prompt-read-only")
+  mkdirSync(directory, { recursive: true })
+  const base = ["--repo", "ui", "--pr", "2145", "--head", HEAD]
+
+  const reviewPath = join(directory, "review.md")
+  check(TOOL, "--review composes a review order without reading the ticket", ["--review", ...base, "--out", reviewPath], { status: 0, stdout: /review\.md/ }, options)
+  const review = composed(reviewPath)
+  T(`${TOOL}: the review order embeds the playbook brief and its contract`,
+    review.startsWith("# Read-only review of thomasluizon/orbit-ui-mobile pull request #2145") && review.includes("The lenses:") &&
+      review.includes("## Read-only review contract") && review.includes(`git diff origin/main...${HEAD}`) && !review.includes("$(") &&
+      review.includes("`VERDICT: CLEAN`") && review.includes("`VERDICT: DEFECTS (<n>)`") && review.includes("at most 12 lines") &&
+      review.includes("No GitHub write") && !review.includes("#### The review brief"),
+    review)
+  const fixRoundPath = join(directory, "fix-round.md")
+  check(TOOL, "--review --since composes a fix-round order", ["--review", ...base, "--since", REVIEWED, "--base", "release", "--out", fixRoundPath], { status: 0 }, options)
+  const fixRound = composed(fixRoundPath)
+  T(`${TOOL}: a fix-round order reads only the commits after the reviewed head`,
+    fixRound.includes(`git diff ${REVIEWED}..${HEAD}`) && !fixRound.includes("git merge-base"), fixRound)
+
+  writeFileSync(playbook, readFileSync(playbook, "utf8").replace("The lenses:", "The lenses, edited in the playbook only:"))
+  const editedPath = join(directory, "edited.md")
+  check(TOOL, "--review reads the brief from the playbook each time", ["--review", ...base, "--out", editedPath], { status: 0 }, options)
+  T(`${TOOL}: an edit of the playbook brief reaches the next order`, composed(editedPath).includes("The lenses, edited in the playbook only:"), composed(editedPath))
+  writeFileSync(playbook, "# A playbook with no brief\n")
+  check(TOOL, "--review refuses a playbook with no brief", ["--review", ...base, "--out", join(directory, "no-brief.md")], { status: 2, stderr: /could not read the review brief: the playbook has no "#### The review brief" section/ }, options)
+
+  const plan = stage("compose-prompt-read-only/plan.md", "1. Drag the Astra button 20 times. Expected: it moves every time.\n")
+  const evidence = join(directory, "evidence")
+  const proofPath = join(directory, "proof.md")
+  const proofArgs = ["--proof", ...base, "--plan", plan, "--devices", "iPhone 17, orbit-proof-2145", "--evidence", evidence, "--out", proofPath]
+  check(TOOL, "--proof composes a device proof order", proofArgs, { status: 0 }, options)
+  const proof = composed(proofPath)
+  T(`${TOOL}: a review order and a proof order carry a valid seal, and an appended line breaks it (thread b_tA)`,
+    [review, proof].every((order) => orderSealProblem(order) === null && orderSealProblem(`${order}One more line.\n`) !== null), `${review.slice(-200)}\n${proof.slice(-200)}`)
+  T(`${TOOL}: the proof order names its steps, devices, evidence directory and verdict lines`,
+    proof.startsWith("# Device proof of thomasluizon/orbit-ui-mobile pull request #2145") && proof.includes("Drag the Astra button 20 times") &&
+      proof.includes("Use only these: iPhone 17, orbit-proof-2145.") && proof.includes(evidence) && existsSync(evidence) &&
+      proof.includes("`PROOF: PASS`") && proof.includes("`PROOF: FAIL (<n> defects)`") && proof.includes("Orbit_Pixel_9_API_35") &&
+      proof.includes("You write nothing tracked") && proof.includes("at most 12 lines"),
+    proof)
+  T(`${TOOL}: the proof order boots with the composing checkout's own emulator tool by absolute path (thread vkfg)`,
+    proof.includes(`\`node ${join(dirname(staged.path), "android-emulator.mjs")} --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT\``), proof)
+  writeFileSync(join(evidence, "step-1.png"), "an earlier proof\n")
+  const empty = stage("compose-prompt-read-only/empty-plan.md", "\n")
+  for (const [name, argv, pattern] of [
+    ["--review with --issue", ["--review", ...base, "--issue", "ORB-215", "--out", reviewPath], /drop --issue, --cloud, --layout-guard and --review-batch/],
+    ["--review with --proof", ["--review", ...proofArgs.slice(1), "--proof"], /drop --issue/],
+    ["--review with --review-batch", ["--review", ...base, "--review-batch", "--out", reviewPath], /drop --issue/],
+    ["--review without --pr", ["--review", "--repo", "ui", "--head", HEAD, "--out", reviewPath], /needs --pr <n>/],
+    ["--review with an upper-case head", ["--review", "--repo", "ui", "--pr", "2145", "--head", HEAD.toUpperCase(), "--out", reviewPath], /needs --head <sha>/],
+    ["--review with a short since", ["--review", ...base, "--since", "abc", "--out", reviewPath], /--since needs the reviewed head/],
+    ["--proof with --since", [...proofArgs, "--since", REVIEWED], /--since belongs to --review/],
+    ["--proof without a plan", ["--proof", ...base, "--devices", "iPhone 17", "--evidence", join(directory, "evidence-2"), "--out", proofPath], /needs --plan <file>/],
+    ["--proof with an empty plan", ["--proof", ...base, "--plan", empty, "--devices", "iPhone 17", "--evidence", join(directory, "evidence-2"), "--out", proofPath], /is empty/],
+    ["--proof without devices", ["--proof", ...base, "--plan", plan, "--devices", " , ", "--evidence", join(directory, "evidence-2"), "--out", proofPath], /needs --devices <names>/],
+    ["--proof with a relative evidence directory", ["--proof", ...base, "--plan", plan, "--devices", "iPhone 17", "--evidence", "evidence", "--out", proofPath], /an absolute path/],
+    ["--proof with evidence inside a repository", ["--proof", ...base, "--plan", plan, "--devices", "iPhone 17", "--evidence", join(repository.path, "evidence"), "--out", proofPath], /--evidence .* is inside the .* repository/],
+    ["--proof with an evidence directory that holds a file", proofArgs, /must be a new or empty directory/],
+  ]) {
+    check(TOOL, `refuses ${name}`, argv, { status: 2, stderr: pattern }, options)
+  }
+}
+
 export const cases = () => {
+  readOnlyCases()
   mkdirSync(join(root, "compose-prompt"), { recursive: true })
   const real = realOrchestratorConfig()
   const staged = stageWithConfig("compose-prompt", TOOL, {
