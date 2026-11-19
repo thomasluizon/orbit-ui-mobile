@@ -223,18 +223,31 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     return { controller, ownPhraseDate }
   }
 
-  function useModeSwitches(form: GuidedHabitFlowForm, helpers: GuidedHabitFlowHelpers, setAnswers: StateSetter<HabitFlowAnswers>): GuidedHabitModeSwitches {
+  function useLatestState<State>(initial: State): [State, StateSetter<State>, () => State] {
+    const [state, setState] = useState<State>(initial)
+    const latest = useRef(state)
+    const read = useCallback(() => latest.current, [])
+    const set: StateSetter<State> = useCallback((update) => {
+      latest.current = typeof update === 'function' ? (update as (current: State) => State)(latest.current) : update
+      setState(latest.current)
+    }, [])
+    return [state, set, read]
+  }
+
+  function useModeSwitches(form: GuidedHabitFlowForm, helpers: GuidedHabitFlowHelpers, setAnswers: StateSetter<HabitFlowAnswers>, readProposals: () => GuidedHabitProposals): GuidedHabitModeSwitches {
     return useMemo(() => {
       const hold = <Args extends unknown[]>(switchMode: (...args: Args) => void) => (...args: Args) => {
         const before = form.getValues()
         const held = TIME_ANSWER_FIELDS.map((field) => [field, before[field]] as const)
         const droppedTime = Boolean(before.dueTime)
+        const timeIsProposal = readProposals().time
         switchMode(...args)
         const after = form.getValues()
         if (before.isGeneral || after.isGeneral) {
           if (droppedTime && !after.dueTime) setAnswers((value) => (value.time ? { ...value, time: false } : value))
           return
         }
+        if (timeIsProposal) return
         for (const [field, value] of held) if (JSON.stringify(value ?? null) !== JSON.stringify(after[field] ?? null)) form.setField(field, value)
       }
       return {
@@ -244,7 +257,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
         setFlexible: hold(helpers.setFlexible),
         setGeneral: hold(helpers.setGeneral),
       }
-    }, [form, helpers, setAnswers])
+    }, [form, helpers, readProposals, setAnswers])
   }
 
   function usePhraseDate(form: GuidedHabitFlowForm, port: HabitFlowFormPort, ownPhraseDate: (span: HabitPhraseSpan | null) => void) {
@@ -472,16 +485,10 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
   return function useGuidedHabitFlow(options: Readonly<GuidedHabitFlowOptions>): GuidedHabitFlowState {
     const { form, helpers, mode, lockedGeneral, locale, timeZone, isOnline, watched } = options
     const today = getAccountDay(new Date(), timeZone)
-    const [answers, setAnswersState] = useState<HabitFlowAnswers>({ when: false, time: false })
-    const latestAnswers = useRef(answers)
-    const readAnswers = useCallback(() => latestAnswers.current, [])
-    const setAnswers: StateSetter<HabitFlowAnswers> = useCallback((update) => {
-      latestAnswers.current = typeof update === 'function' ? update(latestAnswers.current) : update
-      setAnswersState(latestAnswers.current)
-    }, [])
-    const [proposals, setProposals] = useState<GuidedHabitProposals>(NO_PROPOSALS)
+    const [answers, setAnswers, readAnswers] = useLatestState<HabitFlowAnswers>({ when: false, time: false })
+    const [proposals, setProposals, readProposals] = useLatestState<GuidedHabitProposals>(NO_PROPOSALS)
     const [deliberateType, setDeliberateType] = useState<DeliberateType>(null)
-    const switches = useModeSwitches(form, helpers, setAnswers)
+    const switches = useModeSwitches(form, helpers, setAnswers, readProposals)
     const { controller, ownPhraseDate } = useFormController(options, switches, deliberateType, readAnswers)
     const isGeneral = helpers.isGeneral
     const supportedLocale = resolveSupportedLocale(locale)
