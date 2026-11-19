@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import {
+  getNotificationDeleteNoticeSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
 } from '@/lib/pending-notification-deletes'
@@ -54,6 +55,7 @@ describe('notification delete notice', () => {
     act(() => { queuePendingNotificationDelete('third', vi.fn()) })
     fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
     expect(screen.queryByRole('group')).toBeNull()
+    expect(getNotificationDeleteNoticeSnapshot()).toBeNull()
   })
 
   it('lets an earlier pending delete finish on its own five second timer', async () => {

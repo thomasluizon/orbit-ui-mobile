@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import {
+  getNotificationDeleteNoticeSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
 } from '@/lib/pending-notification-deletes'
@@ -57,6 +58,7 @@ describe('notification delete notice', () => {
     queue('third', vi.fn())
     press('common.close')
     expect(toastCount()).toBe(0)
+    expect(getNotificationDeleteNoticeSnapshot()).toBeNull()
   })
 
   it('lets an earlier pending delete finish on its own five second timer', async () => {
