@@ -12,13 +12,12 @@ import { runFiles } from "./lib/run-files.mjs"
 import { ManifestError, MANIFEST_KINDS, migrateRunState } from "./lib/run-migration.mjs"
 import { REPO_ROOT, runStatePath, updateRunState } from "./lib/run-state.mjs"
 
-const USAGE = `usage: migrate-run-state.mjs [--apply] [--manifest <file>] [--run-state <file>]
+const USAGE = `usage: migrate-run-state.mjs [--apply] [--manifest <file>]
 
   Moves a run's working state from this computer to GitHub, once. Without --apply it is a dry run: it
-  reads and validates everything, prints the plan as JSON, and writes nothing.
+  reads and validates everything, prints the plan as JSON, and writes nothing. The intake marks come from
+  the run record of this checkout (.git/orbit-orchestrate-run.json); a missing record moves no marks.
 
-  --run-state <file>  the run record whose intake marks move (default: this checkout's
-                      .git/orbit-orchestrate-run.json); a missing file moves no marks
   --manifest <file>   a JSON array of the live scratchpad items to post, each with its file:
                         {"kind":"round-note","file":"<path>","issue":2152,"round":2,"head":"<40-hex sha>"}
                         {"kind":"review","file":"<path>","issue":2152,"head":"<40-hex sha>"}
@@ -46,7 +45,7 @@ const fail = (code, message) => {
 }
 
 const argv = process.argv.slice(2)
-const options = { apply: false, manifest: null, runState: runStatePath() }
+const options = { apply: false, manifest: null }
 for (let index = 0; index < argv.length; index++) {
   const flag = argv[index]
   if (flag === "--help" || flag === "-h") {
@@ -54,9 +53,8 @@ for (let index = 0; index < argv.length; index++) {
     process.exit(0)
   }
   if (flag === "--apply") options.apply = true
-  else if ((flag === "--manifest" || flag === "--run-state") && typeof argv[index + 1] === "string" && !argv[index + 1].startsWith("--")) {
-    options[flag === "--manifest" ? "manifest" : "runState"] = resolve(argv[++index])
-  } else fail(2, `${USAGE}\n\nunknown option or missing value: ${flag}`)
+  else if (flag === "--manifest" && typeof argv[index + 1] === "string" && !argv[index + 1].startsWith("--")) options.manifest = resolve(argv[++index])
+  else fail(2, `${USAGE}\n\nunknown option or missing value: ${flag}`)
 }
 
 const readJson = (path, label, missing) => {
@@ -68,7 +66,7 @@ const readJson = (path, label, missing) => {
   }
 }
 
-const runState = readJson(options.runState, "run record", null)
+const runState = readJson(runStatePath(), "run record", null)
 const manifest = options.manifest === null ? [] : readJson(options.manifest, "manifest")
 if (!Array.isArray(manifest)) fail(2, "migrate-run-state: the manifest must be a JSON array")
 
