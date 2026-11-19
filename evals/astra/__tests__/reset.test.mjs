@@ -143,7 +143,7 @@ it.each(['en', 'pt-BR'])('seeds the stale %s retrospective and returns no value'
   await expect(resetFixture(source, '2026-10-24', true)).resolves.toBeUndefined()
   expect(requests.filter(({ path }) => path === 'habits/retrospective')).toHaveLength(2)
 })
-it.each(['uncached', 'missing-flag','empty-narrative', 'wrong-period', 'wrong-from', 'wrong-to', 'http-failure'])(
+it.each(['uncached', 'missing-flag', 'empty-narrative', 'wrong-period', 'wrong-from', 'wrong-to', 'http-failure'])(
   'makes unverifiable stale setup incomplete and skips the case chat: %s', async (mode) => {
     const intercepted = globalThis.fetch
     let reads = 0

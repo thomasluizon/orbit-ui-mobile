@@ -1389,7 +1389,8 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    (`grade-method.mjs`). `vars.outcome` selects the client path (`POST /api/chat/stream`, with a conversation id) and the
    outcome grade of the core set. `vars.expectations` selects `POST /api/chat` and the tool-name grade. A case never
    holds both. An `outcome` has one of four forms. `read: true` holds no preview and no card that asks the person.
-   `question: true` ends in a question card and holds no preview. `refusal: true` gives the `expectedHttpStatus` and
+   `question: true` ends in a card that asks (`choice`, `question` or `pickList`) and holds no preview.
+   `refusal: true` gives the `expectedHttpStatus` and
    `expectedErrorCode` of the case. `changes` lists the held changes by kind, with each record by its fixture name
    (`water`, `walk`, `first`, `second`) and never by its id. A `changes` case holds no rubric. A case that reads
    an answer holds a final-answer rubric. The lifecycle families and the offers keep `expectations` until their own
