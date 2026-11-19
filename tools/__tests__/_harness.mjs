@@ -210,6 +210,7 @@ export const githubIssueReadPlan = (value, repository = "thomasluizon/orbit-tick
     number: issue.number,
     state: issue.state,
     state_reason: issue.stateReason,
+    closed_at: issue.closedAt ?? null,
     title: issue.title,
   }
   const dependencyEntry = (relation, connection) => ({
