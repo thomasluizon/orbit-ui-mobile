@@ -110,7 +110,7 @@
       "model": "sonnet",
       "effort": "medium",
       "digest": "a0371051c0ba9dc2",
-      "calibratedAt": "2026-11-19",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: judges a diff against DESIGN.md with the spec in front of it, so sonnet at medium effort is right; the rules are written down, which is what keeps it off high."
     },
     ".claude/agents/design-specialist.md": {
@@ -193,8 +193,8 @@
     ".claude/skills/crank/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "76d3a38fd031ccb6",
-      "calibratedAt": "2026-11-16",
+      "digest": "fba7ecda8135e268",
+      "calibratedAt": "2026-11-19",
       "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
     },
     ".claude/skills/deep-research/SKILL.md": {
@@ -228,7 +228,7 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "51effdc2db259b73",
+      "digest": "9fb8d4216cd803d1",
       "calibratedAt": "2026-11-19",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
@@ -270,7 +270,7 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "f77ca77efc074cb9",
+      "digest": "3de48368d54b41a1",
       "calibratedAt": "2026-11-19",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
@@ -278,7 +278,7 @@
       "model": null,
       "effort": null,
       "digest": "3295660407f385cd",
-      "calibratedAt": "2026-11-19",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },
     ".claude/skills/progress/SKILL.md": {

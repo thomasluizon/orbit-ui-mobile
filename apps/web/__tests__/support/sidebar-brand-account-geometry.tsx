@@ -142,9 +142,10 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
             lockup: bounds(sidebar.querySelector('[data-asset="orbit-lockup"]')!),
             search: bounds(sidebar.querySelector('button:has(.tabler-icon-search)')!),
             trailingGlyph: bounds(toggle.querySelector('svg')!),
+            firstControlIsTheme: controls[0] === theme,
             firstControlIsBell: controls[0] === bell,
             afterNavigation: controls.slice(controls.indexOf(navigationEnd) + 1).map(element => element === create ? 'create' : element.hasAttribute('data-shell-account') ? 'account' : 'unexpected'),
-            icons: [bell, toggle, theme].map(element => {
+            icons: [theme, toggle, bell].map(element => {
               const icon = element.querySelector('svg')!
               return { ...bounds(icon), strokeWidth: getComputedStyle(icon).strokeWidth }
             }),
@@ -167,27 +168,28 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
           expect([icon.width, icon.height]).toEqual([20, 20])
           expect(icon.strokeWidth).toBe('2px')
         }
-        for (const [index, control] of [header.bell, header.toggle, header.theme].entries()) {
+        for (const [index, control] of [header.theme, header.toggle, header.bell].entries()) {
           expect.soft(Math.abs(header.icons[index]!.centerX - control.centerX), 'glyph inline centre').toBeLessThanOrEqual(0.5)
           expect(Math.abs(header.icons[index]!.centerY - control.centerY), 'glyph block centre').toBeLessThanOrEqual(0.5)
         }
         if (collapsed) {
-          expect(header.firstControlIsBell).toBe(true)
-          expect(header.toggle.top - header.bell.bottom).toBe(12)
-          expect(header.theme.top - header.toggle.bottom).toBe(12)
+          expect(header.firstControlIsTheme).toBe(true)
+          expect(header.toggle.top - header.theme.bottom).toBe(12)
+          expect(header.bell.top - header.toggle.bottom).toBe(12)
           expect(header.toggle.centerX).toBe(header.sidebar.centerX)
+          expect(header.theme.centerX).toBe(header.sidebar.centerX)
           expect(header.bell.centerX).toBe(header.sidebar.centerX)
         } else {
-          expect.soft(Math.abs(header.theme.centerY - header.lockup.centerY), 'theme and lockup block centres').toBeLessThanOrEqual(1)
-          expect.soft(Math.abs(header.theme.right - header.toggle.right), 'theme and collapse trailing edges').toBeLessThanOrEqual(1)
-          expect(header.brand.height).toBeCloseTo(header.theme.height + 12 + header.bell.height, 1)
-          expect(header.bell.top - header.theme.bottom).toBe(12)
-          expect(header.bell.centerY).toBe(header.toggle.centerY)
-          expect(Math.abs(header.bell.left - header.lockup.left), 'bell and lockup leading edges').toBeLessThanOrEqual(1)
-          expect(header.toggle.left - header.bell.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-          expect(header.theme.left - header.lockup.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+          expect(header.firstControlIsBell).toBe(true)
+          expect.soft(Math.abs(header.bell.centerY - header.lockup.centerY), 'bell and lockup block centres').toBeLessThanOrEqual(1)
+          expect.soft(Math.abs(header.bell.right - header.toggle.right), 'bell and collapse trailing edges').toBeLessThanOrEqual(1)
+          expect(header.brand.height).toBeCloseTo(header.bell.height + 12 + header.theme.height, 1)
+          expect(header.theme.top - header.bell.bottom).toBe(12)
+          expect(header.theme.centerY).toBe(header.toggle.centerY)
+          expect(Math.abs(header.theme.left - header.lockup.left), 'theme and lockup leading edges').toBeLessThanOrEqual(1)
+          expect(header.toggle.left - header.theme.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+          expect(header.bell.left - header.lockup.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
           expect.soft(Math.abs(header.lockup.left - header.search.left)).toBeLessThanOrEqual(1)
-          expect(header.theme.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
         }
         await assertBrandFills(page)
         const shortAccount = await measureAccount(page)

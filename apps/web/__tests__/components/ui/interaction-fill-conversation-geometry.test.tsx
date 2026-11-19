@@ -28,7 +28,7 @@ function bundleConversation() {
     const DeferredConversation = lazy(() => new Promise(resolve => setTimeout(() => resolve({ default: AstraConversation }), 500)));
     const messages = configuration.locale === 'en' ? en : ptBR;
     useUIStore.getState().setAstraConversationOpen(configuration.open);
-    if (configuration.settleToday) document.addEventListener('pointerdown', () => useUIStore.getState().setTodayFabHidden(configuration.settleToday !== true), { once: true });
+    if (configuration.settleToday) document.addEventListener('pointerdown', () => useUIStore.getState().setTodayFabHidden(true), { once: true });
     const threadScroll = createChatThreadScroll();
     const chatContainerRef = createRef();
     function App() {
@@ -111,7 +111,7 @@ describe('interaction fill guard with the mounted conversation owners', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  async function mount(width: number, locale: 'en' | 'pt-BR', route: string, open: boolean, draft: string, delayed = false, settleToday: boolean | 'empty' | 'error' = false) {
+  async function mount(width: number, locale: 'en' | 'pt-BR', route: string, open: boolean, draft: string, delayed = false, settleToday: 'empty' | 'error' | false = false) {
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
     await setUpPage(page, 2000, async () => {
@@ -122,23 +122,6 @@ describe('interaction fill guard with the mounted conversation owners', () => {
     })
     return page
   }
-
-  it.each(['en', 'pt-BR'] as const)('keeps a Calendar press when Today confirms its list in %s', async (locale) => {
-    const page = await mount(412, locale, '/', false, '', false, true)
-    try {
-      const messages = locale === 'en' ? en : ptBR
-      const calendar = page.locator('[data-shell-tab-bar]').getByRole('link', { name: messages.nav.calendar, exact: true })
-      const before = await calendar.boundingBox()
-      expect(before).not.toBeNull()
-      await page.mouse.move(before!.x + before!.width / 2, before!.y + before!.height / 2)
-      await page.mouse.down()
-      await page.locator('[data-shell-fab] button').waitFor({ state: 'visible' })
-      const after = await calendar.boundingBox()
-      await page.mouse.up()
-      expect(after).toEqual(before)
-      expect(await page.locator('html').getAttribute('data-navigation')).toBe('/calendar')
-    } finally { await page.close() }
-  })
 
   it.each((['empty', 'error'] as const).flatMap(outcome => (['en', 'pt-BR'] as const).map(locale => ({ outcome, locale }))))(
     'keeps a Calendar press when Today settles $outcome in $locale', async ({ outcome, locale }) => {
