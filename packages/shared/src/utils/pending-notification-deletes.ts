@@ -82,7 +82,6 @@ export function getNotificationDeleteNoticeSnapshot(): NotificationDeleteNoticeS
 export function dismissPendingNotificationDeleteNotice(notificationId: string): void {
   if (noticeOwner?.kind !== 'pending' || noticeOwner.id !== notificationId) return
   noticeOwner = null
-  syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
 }
 

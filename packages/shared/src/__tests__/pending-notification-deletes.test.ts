@@ -445,4 +445,31 @@ describe('pending notification deletes', () => {
     expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['a'])
     expect(getNotificationDeleteNoticeSnapshot()).toEqual({ kind: 'pending', id: 'a' })
   })
+
+  const failA = () => {
+    queuePendingNotificationDelete('a', () => { throw new Error('boom') })
+    vi.advanceTimersByTime(5000)
+  }
+  const queueA = () => { queuePendingNotificationDelete('a', vi.fn()) }
+  it.each<[string, () => void, () => unknown, number]>([
+    ['a queued delete', () => {}, () => queuePendingNotificationDelete('a', vi.fn()), 1],
+    ['a cancelled delete', queueA, () => cancelPendingNotificationDelete('a'), 1],
+    ['a dismissed pending notice', queueA, () => dismissPendingNotificationDeleteNotice('a'), 1],
+    ['dismissed notices', queueA, () => dismissNotificationDeleteNotices(), 1],
+    ['an undo window that ends', queueA, () => vi.advanceTimersByTime(5000), 1],
+    ['a delete that fails when its window ends', () => { queuePendingNotificationDelete('a', () => { throw new Error('boom') }) },
+      () => vi.advanceTimersByTime(5000), 2],
+    ['a failed notice whose life ends', failA, () => vi.advanceTimersByTime(FAILED_DELETE_NOTICE_LIFE_MS), 1],
+    ['a dismissed failed delete', failA, () => dismissFailedNotificationDelete('a'), 1],
+    ['a retried failed delete', failA, () => retryFailedNotificationDelete('a'), 1],
+    ['cleared failed deletes', failA, () => clearFailedNotificationDeletes(), 1],
+    ['cleared pending deletes', queueA, () => clearPendingNotificationDeletes(), 1],
+  ])('tells each subscriber about %s', (_name, setUp, change, calls) => {
+    setUp()
+    const subscriber = vi.fn()
+    const unsubscribe = subscribePendingNotificationDeleteIds(subscriber)
+    change()
+    unsubscribe()
+    expect(subscriber).toHaveBeenCalledTimes(calls)
+  })
 })
