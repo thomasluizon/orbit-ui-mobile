@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
+import { resolveCppCompiler } from './support/cpp-compiler.ts'
 
 it.each([
   ['macos/launch.m', 'MIN(128, MIN(NSWidth(self.bounds), NSHeight(self.bounds)))'],
@@ -33,7 +34,7 @@ it.skipIf(process.platform !== 'win32')('keeps the centered Windows mark above h
   const directory = mkdtempSync(join(tmpdir(), 'orbit-launch-'))
   try {
     const executable = join(directory, 'launch.exe')
-    const compiled = spawnSync('clang++', ['-std=c++20', fileURLToPath(new URL('./native-launch.cpp', import.meta.url)), '-o', executable,
+    const compiled = spawnSync(resolveCppCompiler(), ['-std=c++20', fileURLToPath(new URL('./native-launch.cpp', import.meta.url)), '-o', executable,
       '-lgdiplus', '-lshlwapi', '-lcomctl32', '-lgdi32', '-ladvapi32', '-luser32'], { encoding: 'utf8' })
     expect(compiled.error, compiled.stderr).toBeUndefined()
     expect(compiled.status, compiled.stderr).toBe(0)
