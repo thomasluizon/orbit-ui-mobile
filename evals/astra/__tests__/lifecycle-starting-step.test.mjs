@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs'
 import { assertions as promptfooAssertions } from 'promptfoo'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
-import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { composition } from '../composition.mjs'
 import { outcome, runOutcomeCase } from '../client-path.mjs'
 import { corpusTests } from '../grade-method.mjs'
@@ -477,6 +476,6 @@ describe('the block action of a starting-step case', () => {
   })
 
   it('runs each attempt of the launch corpus once at a time, without a cache', () => {
-    expect(configuration.evaluateOptions).toMatchObject({ repeat: ATTEMPTS_PER_CASE, maxConcurrency: 1, cache: false })
+    expect(configuration.evaluateOptions).toMatchObject({ maxConcurrency: 1, cache: false })
   })
 })

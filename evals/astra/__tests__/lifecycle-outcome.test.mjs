@@ -76,7 +76,6 @@ describe('the lifecycle families of the launch corpus', () => {
   })
 })
 
-
 describe('a same-title case', () => {
   it('passes a preview of the requested split and reads the saved children back after the approval', async () => {
     const { verdict, fixture } = await attempt('same-title-card-en', { replies: answered, habits: sameTitleHabits, records: sameTitleRecords })

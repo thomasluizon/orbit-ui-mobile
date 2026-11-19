@@ -71,7 +71,7 @@ describe('the same-title cases of the launch corpus', () => {
     for (const entry of asking.filter((item) => !item.vars.answer.sameTitle)) expect(entry.vars.outcome.questions, idOf(entry)).toEqual({ min: 1, max: 1 })
   })
 
-  it('let only the count and card cases carry one preview note', () => {
+  it('let only the split, count and card cases carry one preview note', () => {
     expect(sameTitle.filter((entry) => entry.vars.composition.allowPreviewNote).map(idOf))
       .toEqual(['same-title-split-en', 'same-title-count-differs-en', 'same-title-card-en', 'same-title-split-pt', 'same-title-count-differs-pt', 'same-title-card-pt'])
   })
