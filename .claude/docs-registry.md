@@ -73,7 +73,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/skills/sleep/wake-report.md` | Cold text of sleep: the two-part report written when the owner says stop. |
 | `.claude/skills/wrap-up/SKILL.md` | Closes a session in one command: `/progress`, then `/questions`, then `/handoff`, with `--sleep` and `--crank` passed through to the last one. An open chain extends both reporting passes across every relay and the current session before owner handoff closes it. |
 | `.claude/skills/questions/SKILL.md` | Owner decision criteria, the relay mode that filters the owner question queue without asking, and the procedure for unavoidable manual actions. |
-| `.claude/skills/progress/SKILL.md` | Product-level progress reporting from live delivery artifacts. |
+| `.claude/skills/progress/SKILL.md` | Product-level progress reporting from live delivery artifacts: what got merged, what is built but not merged, and with `--remaining` what is still pending on the board. |
 | `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop; D90 suspends human steps 1/3/7/8, keeps 2/4/5/6 and the ui-skills sweep. |
 | `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
