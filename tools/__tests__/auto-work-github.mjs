@@ -15,7 +15,7 @@ const TICKET = "https://github.com/thomasluizon/orbit-tickets/issues/2149"
 export const API_SCAN_COMMIT = "38513551ad4eb24eb93a8c7bc33891a4920bce89"
 
 /*
- * Each item is a live projection of a real REST response. OWNER_PULL (ui#2473) is an open owner pull request; the other pull requests and the
+ * Each item is a live projection of a real REST response. OWNER_PULL (ui#2473) is a merged owner pull request; the other pull requests and the
  * alerts are closed ones, read with their state filter removed.
  */
 export const DEPENDABOT_PULL = { number: 1106, author: "dependabot[bot]", authorType: "Bot", head: "1eb7c13b62064064a60a3589eff1b1812f39190e",
@@ -229,6 +229,22 @@ const stateCases = async ({ pullListing, alertListing }) => {
   const keptAdopted = recordListing("pullRequests", failedApiRead, adopted, NO_OTHER_RUN)
   T("github: a pull request that a failed read keeps is run owned when this run names its ticket in remaining",
     keptAdopted.open["api#1115"]?.runOwned === true && !pendingItems("pullRequests", keptAdopted).some((pull) => pull.key === "api#1115"), JSON.stringify(keptAdopted.open["api#1115"]))
+  /* A kept pull request carries its last closedTickets; its class of this cycle decides whether step 7 may close it or ask the owner. */
+  const closedTicketsOfApi = { items: [{ key: "api#1115", closedTickets: [{ number: 2140, stateReason: "COMPLETED" }] }] }
+  const keptClosedTickets = (label, adopt, otherRuns) => {
+    const state = fresh(label)
+    recordListing("pullRequests", pullListing, state, NO_OTHER_RUN)
+    recordClosedTicketPullRequests(closedTicketsOfApi, state)
+    if (adopt) writeRunState({ ...readRunState(state), remaining: ["#2074"] }, state)
+    return recordListing("pullRequests", failedApiRead, state, { otherRuns })
+  }
+  const ticketClosedKeys = (label, adopt, otherRuns) => closedTicketPullRequests(keptClosedTickets(label, adopt, otherRuns)).map((pull) => pull.key)
+  const keptListed = ticketClosedKeys("kept-closed-listed", false, { claims: () => false })
+  const keptOtherRun = ticketClosedKeys("kept-closed-claimed", false, { claims: (pull) => pull.key === "api#1115" })
+  const keptUnreadRuns = ticketClosedKeys("kept-closed-unread-runs", false, { claims: () => true, failure: { read: "live runs", message: NOT_FOUND } })
+  const keptRunOwned = ticketClosedKeys("kept-closed-adopted", true, { claims: () => false })
+  T("github: a kept pull request with closed tickets is listed in ticketClosed only when no run holds it",
+    JSON.stringify([keptListed, keptOtherRun, keptUnreadRuns, keptRunOwned]) === JSON.stringify([["api#1115"], [], [], []]), JSON.stringify({ keptListed, keptOtherRun, keptUnreadRuns, keptRunOwned }))
   const closed = recordListing("pullRequests", { items: [], reads: pullListing.reads, failures: [] }, checkout, NO_OTHER_RUN)
   T("github: a pull request that is no longer open leaves the listing and its mark", Object.keys(closed.open).length === 0 && Object.keys(closed.marks).length === 0 &&
     closed.failures === undefined)

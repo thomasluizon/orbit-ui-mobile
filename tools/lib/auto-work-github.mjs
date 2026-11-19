@@ -376,8 +376,9 @@ export const pendingItems = (source, contents) => Object.values(contents.open)
 /** The pull requests from an unexpected author that the owner did not hear about yet. */
 export const unreportedPullRequests = (contents) => Object.values(contents.open).filter((pull) => pull.unexpectedAuthor && !contents.marks[pull.key])
 
-/** The pull requests whose every named ticket is closed, with no mark that holds at their current head. */
-export const closedTicketPullRequests = (contents) => Object.values(contents.open).filter((pull) => pull.closedTickets && !pull.unread && unmarkedAtHead("pullRequests", contents, pull))
+/** The pull requests of class closedTickets that no run owns, with no mark that holds at their current head. */
+export const closedTicketPullRequests = (contents) => Object.values(contents.open)
+  .filter((pull) => !pull.runOwned && pullRequestClass(pull) === "closedTickets" && unmarkedAtHead("pullRequests", contents, pull))
 
 /** Reads the state of each ticket number once, with at most TICKET_READ_CONCURRENCY reads in flight. A missing or deleted ticket reads as closed with no reason, so the owner decides its alert once; any other failed read is a named failure. */
 const readTicketStates = async (numbers, readTicketState) => {
