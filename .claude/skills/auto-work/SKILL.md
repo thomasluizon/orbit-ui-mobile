@@ -339,7 +339,9 @@ fifteen-minute interval, the waiter checks the sources itself, with no model cal
   ticket is closed has a second key, `<alert key> ticket-closed`. For code scanning of a ticket
   closed as completed that key also names the commit that the alert's own category analyzed
   last. Thus the close of the ticket wakes the model once, and a later analysis of that
-  category that still finds the alert wakes it once more.
+  category that still finds the alert wakes it once more. For a Dependabot alert, the key
+  becomes `<alert key> ticket-closed overdue` 24 hours after its ticket closed, so that deadline
+  wakes the model once more.
 
 The pull request and alert keys from the last step 7 collection count as seen. A read that
 fails is a named failure; a source with no successful read keeps its seen keys.
