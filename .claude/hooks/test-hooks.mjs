@@ -3588,6 +3588,50 @@ T("progress: a fork's pull request is never read as a stacked parent", {
 }, { anchorListingRequestsTheField: true, anchorRequiresMappedRepository: true, dropsForkRowsFirst: true, saysWhyTheFilterIsNeeded: true })
 
 /**
+ * The owner reads the report to learn what changed in the product. A tracking number, a version or
+ * a release run tells him how the work was filed, so the answer shape excludes each of them.
+ */
+T("progress: the answer has two parts and no tracking number", {
+  mergedIsFirst: /^1\. \*\*Merged\.\*\*/m.test(progressSkill),
+  builtNotMergedIsSecond: /^2\. \*\*Built, not merged\.\*\*/m.test(progressSkill),
+  bansNumbersAndVersions: /no pull request number, ticket number, commit SHA, version number or release\s+run/.test(progressSkill),
+  readsWhatHoldsEachItem: progressSkill.includes("isDraft,statusCheckRollup") && progressSkill.includes("`pullfrog-approval`"),
+  restatesThePassRule: progressSkill.includes("`SUCCESS`, `NEUTRAL` or `SKIPPED`") && progressSkill.includes("`PASSING_CONCLUSIONS`") && progressSkill.includes("`CANCELLED` and `TIMED_OUT`"),
+  readsOnlyTheNewestRun: /read only the newest entry of each\s+`name` by\s+`startedAt`/.test(progressSkill),
+  hasNoUnknownRuleThatContradictsTheTable: !/does not name is unknown/.test(progressSkill),
+  readsTheRequiredChecksOfTheBase: progressSkill.includes("gh api repos/<owner>/<repo>/branches/<baseRefName>/protection/required_status_checks") && progressSkill.includes("`checks[].context`"),
+  holdsAPullRequestWhoseRequiredChecksNeverRan: progressSkill.includes("| a check that the base branch requires has no entry | the full checks did not run on this head: they run on its next push |") && progressSkill.indexOf("| a check that the base branch requires has no entry |") < progressSkill.indexOf("| `pullfrog-approval` passes, every other entry passes and `mergeable` is `MERGEABLE` |"),
+  saysARetargetDoesNotRunTheChecks: !progressSkill.includes("run only once it targets the integration branch") && /the full checks run on its first push after it\s+targets the integration branch/.test(progressSkill),
+  readsMergeability: progressSkill.includes("isDraft,statusCheckRollup,mergeable"),
+  stackedPullRequestWaitsForItsParent: progressSkill.includes("| the base-chain walk that starts at its own `baseRefName` ends at another branch | it waits for the work it is stacked on to merge"),
+  remainingKeepsTheBaseChainWalk: /`--remaining` keeps the base-chain\s+walk of step 3/.test(progressSkill) && !progressSkill.includes("the helper,\nthe base-chain rule and the ancestry check) does not apply"),
+  conflictingPullRequestNeedsAFix: progressSkill.includes("| `mergeable` is `CONFLICTING` | it conflicts with its base"),
+  uncomputedMergeabilityIsNamed: progressSkill.includes("| `mergeable` is still `UNKNOWN` after `gh pr view <number> --json mergeable` | GitHub has not said yet whether it conflicts with its base |"),
+  holdsNothingWhenTheReviewPasses: progressSkill.includes("| `pullfrog-approval` passes, every other entry passes and `mergeable` is `MERGEABLE` | only the merge is left |") && !progressSkill.includes("`pullfrog-approval` is `SUCCESS`"),
+  stackedRowSkipsTheRequiredCheckRead: progressSkill.includes("a stacked row skips the read") && progressSkill.indexOf("For the stacked row, run the base-chain walk") < progressSkill.indexOf("protection/required_status_checks"),
+  unresolvedWalkIsNotAWait: !/means it waits for that parent/.test(progressSkill) && /a parent that closed with nothing merged never merges,\s+so\s+say the work needs a new base/.test(progressSkill),
+  mergedParentNeedsARetarget: progressSkill.includes("| its own `baseRefName` is the head of a pull request whose deciding row in step 3 is `MERGED` | the work it is stacked on already merged: it needs a retarget") && progressSkill.indexOf("whose deciding row in step 3 is `MERGED` |") < progressSkill.indexOf("| the base-chain walk that starts at its own `baseRefName` ends at another branch |"),
+  unresolvedWalkHasItsOwnRow: progressSkill.includes("| the base-chain walk that starts at its own `baseRefName` cannot resolve | a parent that closed with nothing merged: the work needs a new base;") && progressSkill.indexOf("| the base-chain walk that starts at its own `baseRefName` ends at another branch |") < progressSkill.indexOf("| the base-chain walk that starts at its own `baseRefName` cannot resolve |") && progressSkill.indexOf("| the base-chain walk that starts at its own `baseRefName` cannot resolve |") < progressSkill.indexOf("| `pullfrog-approval` passes, every other entry passes and `mergeable` is `MERGEABLE` |"),
+  keepsTheWindowStartLine: progressSkill.includes("window.localStartedAt"),
+  hasNoOwnerQuestionPart: !progressSkill.includes("What is waiting on the owner"),
+  placesMissingBehaviourInsideTheItem: !/is missing three behaviours\. Name\s+them\./.test(progressSkill) && /qualifier inside the item of that screen/.test(progressSkill),
+}, { mergedIsFirst: true, builtNotMergedIsSecond: true, bansNumbersAndVersions: true, readsWhatHoldsEachItem: true, restatesThePassRule: true, readsOnlyTheNewestRun: true, hasNoUnknownRuleThatContradictsTheTable: true, readsTheRequiredChecksOfTheBase: true, holdsAPullRequestWhoseRequiredChecksNeverRan: true, saysARetargetDoesNotRunTheChecks: true, readsMergeability: true, stackedPullRequestWaitsForItsParent: true, remainingKeepsTheBaseChainWalk: true, conflictingPullRequestNeedsAFix: true, uncomputedMergeabilityIsNamed: true, holdsNothingWhenTheReviewPasses: true, stackedRowSkipsTheRequiredCheckRead: true, unresolvedWalkIsNotAWait: true, mergedParentNeedsARetarget: true, unresolvedWalkHasItsOwnRow: true, keepsTheWindowStartLine: true, hasNoOwnerQuestionPart: true, placesMissingBehaviourInsideTheItem: true })
+T("progress: --remaining reads the open board in dependency order and the open pull requests", {
+  isAnArgument: /^argument-hint: "\[--remaining \| --full\]/m.test(progressSkill),
+  readsTheBoardPlan: progressSkill.includes("node tools/plan-queue.mjs --board"),
+  ordersByDependency: /in dependency order,\s+blockers first, by `position`/.test(progressSkill),
+  claimsNoBoardOrder: !/board order/.test(progressSkill),
+  saysWhenTheBoardIsIncomplete: progressSkill.includes("`counts.requested` of 250 is incomplete") && progressSkill.includes("Exit 2 means the board could not be read"),
+  readsTicketBodies: progressSkill.includes("gh issue view <ticket-number> --repo <ticket-repository> --json title,body"),
+  linksPullRequestsToTickets: progressSkill.includes("`Tracks #<ticket-number>` or `Tracks <ticket-repository>#<ticket-number>`"),
+  linksByTheHeadBranch: progressSkill.includes("`headRefName` carries `ticket-<ticket-number>`") && progressSkill.includes("`tools/run-status.mjs`"),
+  neverLinksByABareNumber: !/names that ticket/.test(progressSkill) && /Any other number in a title or body is a reference, not a\s+link/.test(progressSkill),
+  headBranchWinsOverTracks: /A pull request builds one ticket\. When its\s+`headRefName` carries/.test(progressSkill) && /Only a head that names no ticket links\s+by its first `Tracks` line/.test(progressSkill),
+  laterTracksLineNamesTheEffort: /A later `Tracks` line names the effort the ticket belongs to, not a ticket this pull request\s+builds/.test(progressSkill),
+  usesNoWindow: /--remaining`[^\n]*\bno window\b/.test(progressSkill),
+}, { isAnArgument: true, readsTheBoardPlan: true, ordersByDependency: true, claimsNoBoardOrder: true, saysWhenTheBoardIsIncomplete: true, readsTicketBodies: true, linksPullRequestsToTickets: true, linksByTheHeadBranch: true, neverLinksByABareNumber: true, headBranchWinsOverTracks: true, laterTracksLineNamesTheEffort: true, usesNoWindow: true })
+
+/**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by
  * looking rather than by any gate. A pre-commit hook does not check for them and neither did
  * anything else, so a merge resolved by a substitution that silently matched nothing shipped.
