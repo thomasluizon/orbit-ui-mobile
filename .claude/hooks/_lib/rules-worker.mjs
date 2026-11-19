@@ -232,7 +232,7 @@ function unresolvedDecisionWord(program, args, deviceProof, programs) {
 const unresolvedAdvice = (found, deviceProof) =>
   `The word ${found.text} holds ${found.reason}, and the hook cannot read its value. Write the literal value in full, with no glob, no brace\n` +
   "expansion and no substitution, or use a lower-case variable that the same line sets to a literal." +
-  (deviceProof ? ` Only $${PINNED_SERIAL} and $${PINNED_PORT}, alone in a word, stand for their pinned value.` : "")
+  (deviceProof ? ` Only $${PINNED_SERIAL} and $${PINNED_PORT}, bare or braced with no modifier, stand for their pinned value, as a whole word or part of one.` : "")
 
 /** The builtins whose words are `NAME=value`: the reader allows no option for them. */
 const ASSIGNING_BUILTINS = new Set(["export", "declare", "typeset", "local", "readonly"])

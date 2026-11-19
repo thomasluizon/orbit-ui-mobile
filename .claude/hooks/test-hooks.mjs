@@ -1589,6 +1589,24 @@ for (const [command, word, reason] of [
   const message = proofWorker(command)?.message ?? ""
   T(`worker-browser: the refusal of ${command} names ${word} and ${reason}`, message.includes(`The word ${word} holds ${reason}`) && message.includes("Write the literal value in full") && message.includes("Only $ANDROID_SERIAL and $ORBIT_PROOF_EMULATOR_PORT") && !message.includes("run adb with no option"), true)
 }
+// A pinned variable stands for its value as a whole word or as part of one, and the refusal says so (thread Re7e).
+for (const command of [
+  "adb -s $ANDROID_SERIAL shell input text orbit-$ORBIT_PROOF_EMULATOR_PORT",
+  "adb -s $ANDROID_SERIAL shell input text orbit-${ORBIT_PROOF_EMULATOR_PORT}",
+  "node /launcher/checkout/tools/android-emulator.mjs --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT",
+]) {
+  T(`worker-browser: a proof allows a pinned variable inside a word: ${command}`, proofWorker(command), null)
+}
+for (const command of [
+  "adb -s $ANDROID_SERIAL shell input text orbit-proof-$ORBIT_PROOF_EMULATOR_PORT$X",
+  "adb -s $ANDROID_SERIAL shell input text orbit-$ORBIT_PROOF_EMULATOR_PORT${X}",
+]) {
+  const message = proofWorker(command)?.message ?? ""
+  T(`worker-browser: the refusal of ${command} says that a pinned variable stands for its value as a whole word or part of one`,
+    message.includes("may not pass a word that the hook cannot resolve") &&
+      message.includes("Only $ANDROID_SERIAL and $ORBIT_PROOF_EMULATOR_PORT, bare or braced with no modifier, stand for their pinned value, as a whole word or part of one.") &&
+      !message.includes("alone in a word"), true)
+}
 T("worker-browser: a proof still reads an unpinned serial as the pinned-device refusal", /run adb with no option/.test(proofWorker("adb -s emulator-5554 shell pm clear org.useorbit.app")?.message ?? ""), true)
 T("worker-browser: a proof allows its own APK path written in full", proofWorker("adb -s $ANDROID_SERIAL install /tmp/build/outputs/apk/release/app-release.apk"), null)
 for (const command of [

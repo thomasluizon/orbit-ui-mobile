@@ -31,7 +31,8 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
   --review          a pre-push review of pull request --pr at --head, or with --since a fix-round
                     review of only the commits after the reviewed head. Embeds the review brief of
                     .claude/playbooks/review-and-audit.md rule 14. The result opens with
-                    VERDICT: CLEAN or VERDICT: DEFECTS (<n>)
+                    VERDICT: CLEAN (no BLOCKING finding) or VERDICT: DEFECTS (<n>), where n counts
+                    BLOCKING findings only. A NOTE and a body line never change it
   --proof           a device proof of pull request --pr at --head. The result opens with
                     PROOF: PASS or PROOF: FAIL (<n> defects)
   --pr <n>          the pull request number

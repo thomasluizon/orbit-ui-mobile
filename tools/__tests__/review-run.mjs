@@ -276,6 +276,12 @@ const orderCases = () => {
   T(`${UNIT}: both orders tell the worker to read the project rules, which this run does not load`,
     [review, proof].every((order) => order.includes("Read `CLAUDE.md` and `.claude/rules/core.md` of your directory first.")), review)
   same(`${UNIT}: the review order promises exactly the review verdict lines`, promised(review).map((line) => resultVerdict(line, "review")), ["VERDICT: CLEAN", "VERDICT: DEFECTS (2)"])
+  const contract = review.slice(review.indexOf("**Your result.**"))
+  T(`${UNIT}: the review verdict is CLEAN with only NOTE findings and wrong body lines, and counts BLOCKING findings only (thread Re7X)`,
+    /`VERDICT: CLEAN` when you confirmed no BLOCKING finding/.test(contract) &&
+      /`VERDICT: DEFECTS \(<n>\)`, where n counts the BLOCKING findings only/.test(contract) &&
+      /A NOTE and a\s+`## Body` line never change the verdict/.test(contract) &&
+      !/no\s+body line is wrong|and the wrong body lines/.test(contract), contract)
   same(`${UNIT}: the proof order promises exactly the proof verdict lines`, promised(proof).map((line) => resultVerdict(line, "proof")), ["PROOF: PASS", "PROOF: FAIL (2 defects)"])
   const maximum = (order) => Number(/at most (\d+) lines/.exec(order)?.[1])
   T(`${UNIT}: both orders cap the final message at 12 lines`, maximum(review) === 12 && maximum(proof) === 12, `${maximum(review)} ${maximum(proof)}`)
