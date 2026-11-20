@@ -645,6 +645,7 @@ Actions runs from the last 24 hours and live claims above `caps.maxQueuedRuns`, 
 repositories. A branch with an open pull
 request is exempt. Claims end when the launcher exits or its branch gains an open pull request. A GitHub read error
 refuses admission with exit 8 and `ADMISSION_REFUSED` JSON. Do not retry by changing flags.
+The pace governor holds a launch over the weekly budget line and ends the wait with exit 9 and `PACE_HOLD` JSON that names `wakeAt`: launch again then, never earlier. A launch that waits at the launch gate longer than `pace.launchGateAllowanceMinutes` exits 10 with `LAUNCH_GATE_TIMEOUT` JSON: launch again once the load is down.
 
 ### Cloud execution
 

@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, relative } from "node:path"
 
-import { T, check, orcaEnv, realOrchestratorConfig, REPO_ROOT, same, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
+import { T, check, hermeticPace, orcaEnv, realOrchestratorConfig, REPO_ROOT, same, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
 import { retiredBasesQuery, runStatus, statusQuery } from "../run-status.mjs"
 import { readAdmissionCounts, RELEASE_HOLD_MS } from "../lib/admission.mjs"
 import { writeReadinessReceipt } from "../lib/readiness-receipt.mjs"
@@ -133,12 +133,15 @@ export const cases = async () => {
   cpSync(join(TOOLS_DIR, "run-status.mjs"), cliPath)
   cpSync(join(TOOLS_DIR, "lib"), join(repo.path, "tools", "lib"), { recursive: true })
   mkdirSync(join(repo.path, ".claude"), { recursive: true })
-  for (const file of ["linear-to-github-map.json", "orchestrator.json"]) cpSync(join(TOOLS_DIR, "..", ".claude", file), join(repo.path, ".claude", file))
+  cpSync(join(TOOLS_DIR, "..", ".claude", "linear-to-github-map.json"), join(repo.path, ".claude", "linear-to-github-map.json"))
+  // The shipped governor reads the transcripts of this machine, so the staged CLI runs with it off.
+  writeFileSync(join(repo.path, ".claude", "orchestrator.json"), `${JSON.stringify({ ...realOrchestratorConfig(), pace: hermeticPace() }, null, 2)}\n`)
   const unreachable = stage("run-status-cold/gh", "#!/bin/sh\necho 'gh: offline (HTTP 503)' >&2\nexit 1\n")
   spawnSync("chmod", ["755", unreachable])
   const cold = check("run-status.mjs", "the CLI rebuilds from GitHub when its staged checkout has no run record, and reports what it cannot read", [],
     { status: 0, stdout: /"status":"COLD_START"/ }, { path: cliPath, env: { GH_BIN: unreachable } })
   T("run-status: an unreachable GitHub leaves each source marked unreadable, never an empty success", /"queue":\{"error":/.test(cold.stdout) && /"status":"UNREADABLE"/.test(cold.stdout), cold.stdout)
+  T("run-status: the staged CLI prints the pace of its staged config, with the governor off, and never reads this machine", /"pace":\{"enabled":false\}/.test(cold.stdout), cold.stdout)
   const linked = dirname(stage("run-status-linked/.git", `gitdir: ${join(repo.path, ".git", "worktrees", "linked")}\n`))
   const linkedStatus = await snapshot({ repoRoot: linked })
   T("run-status: linked worktrees never read the main checkout's run", linkedStatus.mainCheckout === repo.path && linkedStatus.warning.includes("linked worktree"))

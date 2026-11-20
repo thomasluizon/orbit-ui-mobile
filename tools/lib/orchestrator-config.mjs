@@ -111,8 +111,9 @@ const BACKGROUND_LIMIT_MARGIN_MINUTES = 1
 
 /**
  * The minutes a launcher may hold for the pace. The whole launcher process lives in one background task, so the hold, the launch
- * gate allowance and every worker run it can start must fit in `pace.backgroundLimitMinutes`. `attempts` is 2 when a second
- * account lets the launcher relaunch once after a usage limit, else 1. The result is never negative.
+ * gate allowance (the launcher stops waiting at the gate after it) and every worker run it can start must fit in
+ * `pace.backgroundLimitMinutes`. `attempts` is 2 when the launch mode relaunches and a second account lets the launcher relaunch
+ * once after a usage limit, else 1. The result is never negative.
  */
 export const paceHoldBudgetMinutes = ({ pace, hardCeilingMinutes, attempts }) =>
   Math.max(0, Math.min(pace.maxHoldMinutes, pace.backgroundLimitMinutes - pace.launchGateAllowanceMinutes - attempts * hardCeilingMinutes - BACKGROUND_LIMIT_MARGIN_MINUTES))
@@ -129,7 +130,7 @@ const validatePace = (pace, timeouts) => {
   positive(timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")
   const longestRunMinutes = pace.maxHoldMinutes + pace.launchGateAllowanceMinutes + timeouts.hardCeilingMinutes
   if (longestRunMinutes + BACKGROUND_LIMIT_MARGIN_MINUTES > pace.backgroundLimitMinutes) {
-    throw new Error(`.claude/orchestrator.json pace.maxHoldMinutes (${pace.maxHoldMinutes}) + pace.launchGateAllowanceMinutes (${pace.launchGateAllowanceMinutes}) + timeouts.hardCeilingMinutes (${timeouts.hardCeilingMinutes}) = ${longestRunMinutes} must stay below pace.backgroundLimitMinutes (${pace.backgroundLimitMinutes}), or the harness kills a held launch that was admitted`)
+    throw new Error(`.claude/orchestrator.json pace.maxHoldMinutes (${pace.maxHoldMinutes}) + pace.launchGateAllowanceMinutes (${pace.launchGateAllowanceMinutes}) + timeouts.hardCeilingMinutes (${timeouts.hardCeilingMinutes}) = ${longestRunMinutes} must stay below pace.backgroundLimitMinutes (${pace.backgroundLimitMinutes}), or the harness stops a launcher that the hold admitted`)
   }
   nonEmptyString(pace.transcriptRoot, "pace.transcriptRoot")
   nonEmptyString(pace.source, "pace.source")
@@ -179,7 +180,6 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   }
   validatePace(config.pace, config.timeouts)
   nonEmptyString(config.classifier.model, "classifier.model")
-  positive(config.timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")
   positive(config.timeouts?.cloudCeilingMinutes, "timeouts.cloudCeilingMinutes")
   positive(config.timeouts?.cloudCommandMinutes, "timeouts.cloudCommandMinutes")
   positive(config.timeouts?.gitRemoteSeconds, "timeouts.gitRemoteSeconds")

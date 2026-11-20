@@ -220,9 +220,9 @@ const countCases = async () => {
  * A staged launcher reads the real clock, so the fixture takes the share of the week that has passed now.
  * `spentOfLine` is the spend as a multiple of the line: 0.5 is under it, 2 is over it.
  */
-const liveFixture = (label, spentOfLine, paceOverrides = {}) => {
+const liveFixture = (label, spentOfLine, paceOverrides = {}, timeouts = {}, launchGate = {}) => {
   const nowMs = Date.now()
-  const config = launchConfig(stubEngine(stage("pace-governor/immediate-worker.js", "process.exit(0)\n")))
+  const config = launchConfig({ ...stubEngine(stage("pace-governor/immediate-worker.js", "process.exit(0)\n")), timeouts })
   const transcripts = join(root, "pace-governor", `${label}-projects`)
   const spentWeighted = 1_000_000
   mkdirSync(transcripts, { recursive: true })
@@ -231,6 +231,8 @@ const liveFixture = (label, spentOfLine, paceOverrides = {}) => {
   utimesSync(transcript, new Date(nowMs), new Date(nowMs))
   const pace = { ...config.pace, enabled: true, transcriptRoot: transcripts, ...paceOverrides }
   const fixture = launch(`pace-${label}`, { ...config, pace })
+  // The staging refuses a gate that waits, so a case that needs a waiting gate writes it into the staged file.
+  if (Object.keys(launchGate).length > 0) writeFileSync(fixture.configPath, `${JSON.stringify({ ...JSON.parse(readFileSync(fixture.configPath, "utf8")), launchGate: { ...config.launchGate, ...launchGate } }, null, 2)}\n`)
   const elapsedShare = (nowMs - weekWindow(nowMs, pace.weeklyReset).startMs) / WEEK
   writeCalibration(join(fixture.base, ".git", "orbit-pace-calibration.json"), {
     percent: 10, readAt: iso(nowMs), weeklyBudget: spentWeighted / (elapsedShare * spentOfLine), weights: weightsFingerprint(pace),
@@ -283,7 +285,40 @@ const holdBudgetCases = async () => {
   const stillHeld = oneAccount.child.exitCode === null
   oneAccount.child.kill("SIGKILL")
   await oneAccount.closed
-  T("launch-worker.mjs: the same 60 minute ceiling with one account leaves a hold of 49 minutes, and the launcher keeps waiting", wake !== null && stillHeld, `${JSON.stringify(wake)} ${oneAccount.output.stdout} ${oneAccount.output.stderr}`)
+  T("launch-worker.mjs: the same 60 minute ceiling with one account leaves room, and the launcher keeps waiting", wake !== null && stillHeld, `${JSON.stringify(wake)} ${oneAccount.output.stdout} ${oneAccount.output.stderr}`)
+
+  // A 55 minute ceiling leaves no room for two worker runs and room for one. Research never relaunches, so it counts one.
+  const researchOrder = stage("pace-governor/budget-research-order.md", "Research the pace rule.\n")
+  const researchArgv = ["--research", "--order", researchOrder, "--out", join(dirname(researchOrder), "budget-findings.md")]
+  const researchRoom = liveFixture("budget-research", 2, { recheckMinutes: 0.01, maxHoldMinutes: 5 }, { hardCeilingMinutes: 55 })
+  const research = startLauncher(researchRoom.fixture, researchArgv)
+  const researchWake = await waitFor(() => heldWake(researchRoom.fixture))
+  await new Promise((resolve) => setTimeout(resolve, 1500))
+  const researchHeld = research.child.exitCode === null
+  research.child.kill("SIGKILL")
+  await research.closed
+  T("launch-worker.mjs: a research launch with a second account counts one worker run, so the same 55 minute ceiling leaves a hold",
+    researchWake !== null && researchHeld, `${JSON.stringify(researchWake)} ${research.output.stdout} ${research.output.stderr}`)
+  const ticketNoRoom = liveFixture("budget-ticket-two", 2, { recheckMinutes: 0.01, maxHoldMinutes: 5 }, { hardCeilingMinutes: 55 })
+  const ticket = startLauncher(ticketNoRoom.fixture, ticketNoRoom.argv)
+  const ticketExit = await Promise.race([ticket.closed, new Promise((resolve) => setTimeout(() => resolve(null), 20_000))])
+  if (ticketExit === null) ticket.child.kill("SIGKILL")
+  T("launch-worker.mjs: ticket work with a second account counts two worker runs, so the 55 minute ceiling leaves no hold and exits 9 at once",
+    ticketExit?.code === 9 && parse(ticket.output.stdout).reason === "PACE_HOLD", `${JSON.stringify(ticketExit)} ${ticket.output.stdout} ${ticket.output.stderr}`)
+}
+
+/** The wait at the launch gate ends after the allowance, so the hold, the gate and the worker runs stay inside the background limit. */
+const gateAllowanceCases = async () => {
+  const busy = liveFixture("gate-busy", 0.5, { launchGateAllowanceMinutes: 0.02 }, {}, { loadMax: 0.000001, spacingSeconds: 0 })
+  const started = Date.now()
+  const launcher = startLauncher(busy.fixture, busy.argv)
+  const exited = await Promise.race([launcher.closed, new Promise((resolve) => setTimeout(() => resolve(null), 20_000))])
+  if (exited === null) launcher.child.kill("SIGKILL")
+  const body = parse(launcher.output.stdout)
+  T("launch-worker.mjs: a launch whose gate never passes ends at the allowance with LAUNCH_GATE_TIMEOUT, exit 10, no launch recorded and no wake source",
+    exited?.code === 10 && body.reason === "LAUNCH_GATE_TIMEOUT" && body.admitted === false && body.load >= 0.000001 && Date.now() - started < 20_000 &&
+      !existsSync(join(busy.fixture.base, ".git", "orbit-launch-gate.json")) && wakeFiles(busy.fixture).length === 0,
+    `${JSON.stringify(exited)} ${launcher.output.stdout} ${launcher.output.stderr}`)
 }
 
 /** A stop during the hold removes the wake source and every temporary directory of the mode. */
@@ -407,6 +442,7 @@ export const cases = async () => {
   await countCases()
   await launcherCases()
   await holdBudgetCases()
+  await gateAllowanceCases()
   await stopDuringHoldCases()
   await statusCases()
   await snapshotCases()

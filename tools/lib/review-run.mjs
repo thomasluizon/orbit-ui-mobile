@@ -388,6 +388,7 @@ export const readOnlyLaunch = (mode, { argv, argOf, fail }) => {
     },
     begin: () => { snapshotBefore = runDirectorySnapshot(runDirectory, gitWorktree) },
     spawn: (executable, args) => sandboxedInvocation(profile, executable, args),
+    relaunches: true,
     /** A read-only order starts again from its beginning, so a partial result of the first attempt cannot be published. */
     relaunchArguments: () => {
       rmSync(stagedResult, { force: true })

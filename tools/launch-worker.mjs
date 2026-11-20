@@ -10,7 +10,7 @@ import { researchLaunch } from "./lib/research-run.mjs"
 import { readOnlyLaunch } from "./lib/review-run.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
-import { passLaunchGate } from "./lib/launch-gate.mjs"
+import { LAUNCH_GATE_EXPIRED_EXIT, LaunchGateExpired, passLaunchGate } from "./lib/launch-gate.mjs"
 import { awaitPace, PACE_HOLD_EXIT, readPace } from "./lib/pace-governor.mjs"
 import { orderSealProblem, runNotesIn } from "./lib/run-notes.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
@@ -97,8 +97,8 @@ it with the linear budget line of the week. Every mode passes it: ticket work, r
 At or under the line, a launch is admitted while fewer than pace.workerCap launchers are live. Over the line, or
 at the cap, the launch waits and registers a wake source with paceHold true and the time the line catches up. The
 whole launcher is one background task of pace.backgroundLimitMinutes, so the wait ends at pace.maxHoldMinutes or sooner:
-it leaves room for the launch gate allowance and for each worker run the launcher can start (two with a second Claude account,
-which relaunches once after a usage limit), at the ceiling of --hard-ceiling-minutes. A launch still held at that end prints
+it leaves room for the launch gate allowance and for each worker run the launcher can start (two for ticket work and a read-only run
+with a second Claude account, which relaunch once after a usage limit; one for research, which never relaunches), at the ceiling of --hard-ceiling-minutes. A launch still held at that end prints
 reason PACE_HOLD with the wake time and exits 9. A stop by SIGINT or SIGTERM during the wait removes the wake source and
 the files of the mode. A dry run prints the verdict as pace and never waits. Without a stored owner reading the launch is admitted and the
 log says so; node tools/pace-calibrate.mjs stores a reading. pace.enabled false turns the governor off.
@@ -106,7 +106,9 @@ log says so; node tools/pace-calibrate.mjs stores a reading. pace.enabled false 
 Before admission, every launch waits at the launch gate: until the one-minute load is under
 launchGate.loadMax and launchGate.spacingSeconds have passed since the previous launch from this
 checkout (.claude/orchestrator.json). The check and the launch record share one lock, so start each
-launch in its own background command and never gate a launch by hand
+launch in its own background command and never gate a launch by hand. The wait ends after
+pace.launchGateAllowanceMinutes: the launcher then prints reason LAUNCH_GATE_TIMEOUT with the wait and the load, records
+no launch and exits 10, so the hold, the gate and the worker runs stay inside pace.backgroundLimitMinutes
 
 Prints one JSON object on stdout when the worker is gone: issue, engine, tier, account, pid,
 logFile, startedAt, endedAt, exitCode, outcome, usageLimitReached, authenticationFailed, resultError
@@ -135,6 +137,7 @@ exit codes: 0 the worker exited on its own, 1 this launcher killed it or it neve
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
             8 admission refused new ticket work before reservation,
             9 the pace governor still held the launch at the end of its wait (pace.maxHoldMinutes or less); launch again at the printed wakeAt,
+            10 the launch gate did not pass within pace.launchGateAllowanceMinutes; launch again when the load is down,
             130 stopped by SIGINT, 143 stopped by SIGTERM
 Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.
 A read-only run exits 0 only after publishing its result, 5 when it found a write, 1 on any other
@@ -263,6 +266,7 @@ const ticketLaunch = () => {
     },
     begin: () => {},
     spawn: (executable, args) => ({ executable, args }),
+    relaunches: true,
     relaunchArguments: () => continuationArguments,
     /** Retains the result under the launcher checkout's Git directory. Exit 4 marks a killed run whose tree holds commits. */
     finish: ({ attempts, startedAt, sessionId, branch, startHead, engine, tier, model, measurement, noProgressMinutes, hardCeilingMinutes }) => {
@@ -293,7 +297,7 @@ if (readOnlyFlags.length > 1 || (researchFlag && readOnlyFlags.length > 0)) fail
 /**
  * The one choice between ticket work, research and a read-only run. Each mode owns its arguments and
  * everything else that differs. The flow below reads its values (label, runDirectory, promptFile, plan,
- * workerArguments, environment, reservation, repositoryKey, wake, sealedOrder, clearsClaimsOnExit, inheritedDescriptors)
+ * workerArguments, environment, reservation, repositoryKey, wake, sealedOrder, clearsClaimsOnExit, relaunches, inheritedDescriptors)
  * and calls its steps in this order: checkRunDirectory, prepare, admit, begin, spawn, relaunchArguments, finish.
  */
 const cli = { argv: process.argv, argOf, fail }
@@ -497,10 +501,11 @@ process.on("exit", () => {
   if (holding) clearWakeSource(process.pid)
 })
 /**
- * The whole launcher is one background task with a time limit. A second account lets it relaunch once after a usage limit,
- * so the hold leaves room for each worker run it can start, and for the ceiling that --hard-ceiling-minutes sets.
+ * The whole launcher is one background task with a time limit. A mode that relaunches, with a second account, starts a second
+ * worker run after a usage limit, so the hold leaves room for each worker run it can start, for the ceiling that
+ * --hard-ceiling-minutes sets and for the launch gate, which stops waiting after pace.launchGateAllowanceMinutes.
  */
-const holdBudgetMinutes = paceHoldBudgetMinutes({ pace: config.pace, hardCeilingMinutes, attempts: fallbackAccount === null ? 1 : 2 })
+const holdBudgetMinutes = paceHoldBudgetMinutes({ pace: config.pace, hardCeilingMinutes, attempts: launchMode.relaunches && fallbackAccount !== null ? 2 : 1 })
 let paced
 try {
   paced = await awaitPace({
@@ -517,7 +522,14 @@ if (paced.expired === true) {
   console.log(JSON.stringify({ admitted: false, reason: "PACE_HOLD", decision: paced.decision, wakeAt: paced.wakeAt, spentShare: paced.spentShare, lineShare: paced.lineShare, headroomHours: paced.headroomHours, error: paced.reason }))
   process.exit(PACE_HOLD_EXIT)
 }
-const gate = await passLaunchGate(config.launchGate)
+let gate
+try {
+  gate = await passLaunchGate({ ...config.launchGate, maxWaitMs: config.pace.launchGateAllowanceMinutes * 60_000 })
+} catch (error) {
+  if (!(error instanceof LaunchGateExpired)) throw error
+  console.log(JSON.stringify({ admitted: false, reason: "LAUNCH_GATE_TIMEOUT", waitedSeconds: Math.round(error.waitedMs / 1000), load: error.load, error: error.message }))
+  process.exit(LAUNCH_GATE_EXPIRED_EXIT)
+}
 console.error(`${issue} passed the launch gate at load ${gate.load.toFixed(2)} after ${Math.round(gate.waitedMs / 1000)} s`)
 try { launchRunState = readRunState() } catch (error) { fail(2, error.message) }
 if (config.relay.enabled && launchRunState?.relay?.pending === true) {

@@ -798,6 +798,7 @@ export const cases = async () => {
   const budgetRows = [
     ["a launcher with one account keeps the configured hold", { hardCeilingMinutes: 45, attempts: 1 }, 60],
     ["a launcher with a second account gives up one more worker run for the relaunch", { hardCeilingMinutes: 45, attempts: 2 }, 19],
+    ["a worker ceiling of 60 minutes with one worker run leaves a hold of 49 minutes", { hardCeilingMinutes: 60, attempts: 1 }, 49],
     ["a worker ceiling set on the command line shortens the hold", { hardCeilingMinutes: 100, attempts: 1 }, 9],
     ["a worker ceiling that leaves no room leaves no hold", { hardCeilingMinutes: 119, attempts: 1 }, 0],
   ]

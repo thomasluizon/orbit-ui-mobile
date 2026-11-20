@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { launchGateStampPath, passLaunchGate } from "../lib/launch-gate.mjs"
+import { LaunchGateExpired, launchGateStampPath, passLaunchGate } from "../lib/launch-gate.mjs"
 import { acquireRelayLock, processStartIdentity, RelayLockHeld } from "../lib/run-state.mjs"
 
 import { T, root, same } from "./_harness.mjs"
@@ -37,6 +37,23 @@ export const cases = async () => {
   const loaded = machine([75, 61, 60, 59.5])
   const underLoad = await passLaunchGate({ loadMax: 60, spacingSeconds: 45, repoRoot: busy, ...loaded, pollMs: 5000 })
   T(`${UNIT}: a launch waits until the one-minute load is under the ceiling`, underLoad.load === 59.5 && loaded.sleeps.length === 3, JSON.stringify({ underLoad, sleeps: loaded.sleeps }))
+
+  const stuck = checkout("stuck")
+  const never = machine([100])
+  const clockSleep = never.sleep
+  // Without a deadline the gate never ends, so a guard turns the endless wait into a failure.
+  never.sleep = async (milliseconds) => {
+    if (never.sleeps.length >= 20) throw new Error("the gate kept waiting past its deadline")
+    await clockSleep(milliseconds)
+  }
+  let expired = null
+  try { await passLaunchGate({ loadMax: 60, spacingSeconds: 0, repoRoot: stuck, ...never, pollMs: 5000, maxWaitMs: 12_000 }) } catch (error) { expired = error }
+  T(`${UNIT}: a wait that reaches maxWaitMs throws LaunchGateExpired at the deadline, not a poll later, with the load it read`,
+    expired instanceof LaunchGateExpired && expired.waitedMs === 12_000 && expired.load === 100 && never.sleeps.join() === "5000,5000,2000", JSON.stringify({ expired: expired?.message, sleeps: never.sleeps }))
+  T(`${UNIT}: an expired wait records no launch`, (() => { try { readFileSync(launchGateStampPath(stuck)); return false } catch (error) { return error.code === "ENOENT" } })())
+  const lastMoment = machine([100, 3])
+  const atDeadline = await passLaunchGate({ loadMax: 60, spacingSeconds: 0, repoRoot: checkout("last-moment"), ...lastMoment, pollMs: 5000, maxWaitMs: 5000 })
+  T(`${UNIT}: a launch that passes on the last check at the deadline is admitted`, atDeadline.load === 3 && atDeadline.waitedMs === 5000, JSON.stringify(atDeadline))
 
   const held = checkout("held")
   mkdirSync(join(held, ".git", "orbit-launch-gate-lock"), { recursive: true })
