@@ -1298,7 +1298,7 @@ const poll = setInterval(() => {
   )
   const committedKill = launch("kill-with-commits", launchConfig({ ...stubEngine(COMMITTER), timeouts: { hardCeilingMinutes: 0.08, noProgressMinutes: 5, pollSeconds: 0.2 } }))
   const killHead = committedKill.git(["rev-parse", "HEAD"]).stdout.trim()
-  const killOrder = stage("launch-worker/kill-with-commits-fix-order.md", sealOrder(`${composeRunNote({ kind: "round-note", round: 1, head: killHead, body: "Fix the review findings." })}\nthe work order, verbatim\n`))
+  const killOrder = stage("launch-worker/kill-with-commits-fix-order.md", sealOrder(`${composeRunNote({ kind: "round-note", round: 1, head: killHead, pullfrogThreads: 0, body: "Fix the review findings." })}\nthe work order, verbatim\n`))
   const salvageable = check(
     TOOL,
     "a kill that leaves commits exits 4 and NAMES them in the result",

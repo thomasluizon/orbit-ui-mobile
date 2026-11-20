@@ -10,7 +10,7 @@ const refusal = (note) => {
 }
 
 export const cases = () => {
-  const round = composeRunNote({ kind: "round-note", round: 2, head: HEAD, body: "Fix the two findings.\n\n" })
+  const round = composeRunNote({ kind: "round-note", round: 2, head: HEAD, pullfrogThreads: 0, body: "Fix the two findings.\n\n" })
   T(`${UNIT}: a round note starts with its marker and names its round and head`, round.startsWith(`<!-- orbit-run-note: kind=round-note round=2 head=${HEAD} pullfrogThreads=0 -->\n## Fix round 2 note for head`) && round.endsWith("Fix the two findings.\n"), round)
   same(`${UNIT}: a round note parses back to its fields`, parseRunNote(round), { kind: "round-note", round: "2", head: HEAD, pullfrogThreads: "0" })
   const withThreads = composeRunNote({ kind: "round-note", round: 2, head: HEAD, pullfrogThreads: 3, body: "Three threads." })
@@ -21,6 +21,7 @@ export const cases = () => {
   same(`${UNIT}: a comment without a leading marker is no run note`, parseRunNote(`Quoted later: ${round}`), null)
   for (const [label, note, message] of [
     ["a round note without a round", { kind: "round-note", head: HEAD, body: "x" }, /--round/],
+    ["a round note without a Pullfrog thread count", { kind: "round-note", round: 1, head: HEAD, body: "x" }, /--pullfrog-threads/],
     ["a round note with a short head", { kind: "round-note", round: 1, head: "abc1234", body: "x" }, /--head/],
     ["a round note with a negative Pullfrog thread count", { kind: "round-note", round: 1, head: HEAD, pullfrogThreads: -1, body: "x" }, /--pullfrog-threads/],
     ["a round note with a fractional Pullfrog thread count", { kind: "round-note", round: 1, head: HEAD, pullfrogThreads: 1.5, body: "x" }, /--pullfrog-threads/],
@@ -43,7 +44,7 @@ export const cases = () => {
   const comments = [
     { body: round, createdAt: "2026-11-18T01:00:00Z", author: "a" },
     { body: "A plain comment.", createdAt: "2026-11-18T02:00:00Z", author: "b" },
-    { body: composeRunNote({ kind: "round-note", round: 3, head: "b".repeat(40), body: "Round three." }), createdAt: "2026-11-18T03:00:00Z", author: "a" },
+    { body: composeRunNote({ kind: "round-note", round: 3, head: "b".repeat(40), pullfrogThreads: 0, body: "Round three." }), createdAt: "2026-11-18T03:00:00Z", author: "a" },
     { body: review, createdAt: "2026-11-18T04:00:00Z", author: "a" },
   ]
   same(`${UNIT}: the latest round note is the newest one`, latestRunNote(comments, "round-note")?.note.round, "3")

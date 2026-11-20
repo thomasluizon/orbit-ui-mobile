@@ -43,7 +43,7 @@ export const reviewVerdict = (text) => {
  * review: `head` (the full SHA reviewed) and a body whose first line is `VERDICT: CLEAN` or `VERDICT: DEFECTS (<n>)`.
  * report: `commits` (one or more commit SHAs). decision: nothing more.
  */
-export const composeRunNote = ({ kind, round = null, head = null, commits = [], pullfrogThreads = 0, body }) => {
+export const composeRunNote = ({ kind, round = null, head = null, commits = [], pullfrogThreads = null, body }) => {
   if (!RUN_NOTE_KINDS.includes(kind)) throw new Error(`run note kind must be one of ${RUN_NOTE_KINDS.join(", ")}, got ${JSON.stringify(kind)}`)
   const text = String(body ?? "").replace(/\s*$/, "")
   if (text.trim() === "") throw new Error("a run note needs a body")
