@@ -62,6 +62,8 @@ const CASE_MODULES = [
   ["lib/pullfrog-rules.mjs", "pullfrog-rules"],
   ["lib/escape-regex.mjs", "escape-regex"],
   ["lib/github-read.mjs", "github-read"],
+  ["lib/config.mjs", "drive"],
+  ["lib/github.mjs", "drive"],
   ["select-artifact-attempts.mjs", "select-artifact-attempts"],
   ["lib/background-runs.mjs", "background-runs"],
   ["add-ticket-to-project.mjs", "add-ticket-to-project"],
