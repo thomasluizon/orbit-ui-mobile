@@ -64,6 +64,8 @@ const CASE_MODULES = [
   ["lib/github-read.mjs", "github-read"],
   ["lib/config.mjs", "drive"],
   ["lib/github.mjs", "drive"],
+  ["lib/worker.mjs", "drive"],
+  ["lib/order.mjs", "drive"],
   ["select-artifact-attempts.mjs", "select-artifact-attempts"],
   ["lib/background-runs.mjs", "background-runs"],
   ["add-ticket-to-project.mjs", "add-ticket-to-project"],

@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { EventEmitter } from "node:events"
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { readDriveConfig, workerEnvironment } from "../lib/config.mjs"
@@ -31,6 +32,25 @@ import {
   updateBranch,
   wholeDiffApproved,
 } from "../lib/github.mjs"
+import { ORDER_KINDS, partOf, renderBrief, renderOrder } from "../lib/order.mjs"
+import {
+  finalResult,
+  isUsageLimitMessage,
+  launch,
+  listSkillNames,
+  logEvent,
+  logFinalResult,
+  NO_STOP,
+  probe,
+  readEvent,
+  readWorkerToken,
+  WORKER_DENY,
+  WORKER_LIMITS,
+  workerCommand,
+  workerEnvironmentFor,
+  workerInvocation,
+  workerSettings,
+} from "../lib/worker.mjs"
 import { T, realOrchestratorConfig, root, same, toolPath, SELF } from "./_harness.mjs"
 
 const FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
@@ -524,7 +544,412 @@ const configUnit = async () => {
   await configRefusals()
 }
 
-const UNITS = { "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit }
+const WORKER_FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-worker.json", import.meta.url), "utf8"))
+const HOME = "/home/driver"
+const TOKEN = "worker-token-value"
+
+/** A clock that runs its timers in time order when a test advances it. */
+const fakeClock = () => {
+  let now = 0
+  let nextId = 0
+  const timers = new Map()
+  const add = (callback, ms, repeat) => {
+    timers.set(++nextId, { callback, at: now + ms, ms, repeat })
+    return nextId
+  }
+  return {
+    now: () => now,
+    setTimeout: (callback, ms) => add(callback, ms, false),
+    clearTimeout: (handle) => timers.delete(handle),
+    setInterval: (callback, ms) => add(callback, ms, true),
+    clearInterval: (handle) => timers.delete(handle),
+    pending: () => timers.size,
+    advance: async (ms) => {
+      const target = now + ms
+      for (let due = nextTimer(timers, target); due !== null; due = nextTimer(timers, target)) {
+        const [key, timer] = due
+        now = timer.at
+        if (timer.repeat) timer.at += timer.ms
+        else timers.delete(key)
+        await timer.callback()
+      }
+      now = target
+    },
+  }
+}
+
+const nextTimer = (timers, target) => [...timers.entries()].filter(([, timer]) => timer.at <= target).sort((left, right) => left[1].at - right[1].at)[0] ?? null
+
+/** A child process that records its stdin, and ends when the test says so. */
+const fakeChild = (pid = 4242) => {
+  const child = new EventEmitter()
+  child.pid = pid
+  child.stdinText = null
+  child.stdin = { on: () => {}, end: (text) => { child.stdinText = text } }
+  return child
+}
+
+const sortedKeys = (record) => Object.fromEntries(Object.entries(record).sort(([left], [right]) => left.localeCompare(right)))
+
+const resultLine = (record) => JSON.stringify({ type: "result", subtype: "success", is_error: false, result: "done", session_id: "fixture-session", ...record })
+
+const workerLaunchHarness = (name, { logText = "", fingerprint = () => "same", logSize = () => 0, limits } = {}) => {
+  const directory = join(root, "drive-worker", name)
+  mkdirSync(directory, { recursive: true })
+  const logFile = join(directory, "worker.log")
+  const pidFile = join(directory, "worker.pid")
+  writeFileSync(logFile, logText)
+  const child = fakeChild()
+  const clock = fakeClock()
+  const spawned = []
+  const signals = []
+  const invocation = { command: { executable: "claude", args: ["-p"] }, environment: { GH_TOKEN: TOKEN } }
+  const run = launch({
+    invocation, worktree: directory, order: "the order", logFile, pidFile, clock, limits,
+    spawnChild: (...call) => { spawned.push(call); return child },
+    kill: (pid, signal) => signals.push([pid, signal]),
+    fingerprint, logSize,
+  })
+  return { run, child, clock, spawned, signals, logFile, pidFile, invocation, directory, ends: (code = 0, signal = null) => child.emit("exit", code, signal) }
+}
+
+const settingsCases = () => {
+  const settings = workerSettings({ hotPath: `${HOME}/Developer/brain/hot.md`, skillNames: ["brain", "humanizer", "pdf"] })
+  same("lib/worker.mjs: the settings JSON holds exactly the keys the order names", Object.keys(settings), ["claudeMdExcludes", "autoMemoryEnabled", "outputStyle", "skillOverrides", "permissions"])
+  same("lib/worker.mjs: the hot file is excluded from loading", settings.claudeMdExcludes, [`${HOME}/Developer/brain/hot.md`])
+  same("lib/worker.mjs: auto memory is off and the output style is the default", [settings.autoMemoryEnabled, settings.outputStyle], [false, "default"])
+  same("lib/worker.mjs: every skill is off except humanizer", settings.skillOverrides, { brain: "off", pdf: "off" })
+  same("lib/worker.mjs: the deny list is the one the order names", settings.permissions.deny, [
+    "Edit(**/.github/migration-contracts.json)", "Write(**/.github/migration-contracts.json)", "Edit(**/.github/migration-locks.json)", "Write(**/.github/migration-locks.json)",
+    "Bash(render *)", "Bash(terraform *)", "Bash(aws *)", "Bash(stripe *)", "Bash(gh workflow *)", "Bash(gh secret *)", "Bash(gh pr merge*)", "Bash(gh api *merge*)",
+    "Bash(gh api * -X *)", "Bash(gh api -X *)", "Bash(gh api * --method *)", "Bash(gh api --method *)", "Bash(gh auth *)", "Bash(env -u GH_TOKEN *)", "Bash(unset GH_TOKEN*)", "Bash(*GH_TOKEN=*)", "Bash(security *)",
+  ])
+  T("lib/worker.mjs: the deny list of the settings is a copy, so a caller cannot change the constant", settings.permissions.deny !== WORKER_DENY && Object.isFrozen(WORKER_DENY))
+  const schema = WORKER_FIXTURE.skillOverridesSchema
+  const allowedValues = JSON.parse(/U\((\[[^\]]*\])\)/.exec(schema.schema)[1])
+  T("lib/worker.mjs: every skillOverrides value that the worker writes is one the installed CLI accepts", Object.values(settings.skillOverrides).every((value) => allowedValues.includes(value)))
+  T("lib/worker.mjs: the installed CLI reads claudeMdExcludes as a list of paths and autoMemoryEnabled as a boolean", /C\(n\(\)\)/.test(schema.claudeMdExcludes) && /absolute paths/.test(schema.claudeMdExcludes) && /O\(\)/.test(schema.autoMemoryEnabled))
+  const json = JSON.stringify(settings)
+  const command = workerCommand(json)
+  same("lib/worker.mjs: the command is the one the order names, with the settings last", [command.executable, command.args], ["claude", [
+    "-p", "--model", "claude-sonnet-5-5", "--effort", "high", "--output-format", "stream-json", "--verbose", "--strict-mcp-config", "--permission-mode", "bypassPermissions",
+    "--disallowed-tools", "Task", "AskUserQuestion", "--settings", json,
+  ]])
+  const run = WORKER_FIXTURE.workerCommandRun
+  same("lib/worker.mjs: the real run of this command started with the permission mode and output style the command names", [run.init.permissionMode, run.init.output_style], [command.args[command.args.indexOf("--permission-mode") + 1], settings.outputStyle])
+  T("lib/worker.mjs: the command names no prompt, so the order goes in on stdin", !command.args.some((argument) => argument.includes("the order")) && command.args.at(-2) === "--settings")
+}
+
+const skillAndEnvironmentCases = async () => {
+  const skills = join(root, "drive-worker", "skills")
+  const make = (path, withSkill = true) => {
+    mkdirSync(join(skills, path), { recursive: true })
+    if (withSkill) writeFileSync(join(skills, path, "SKILL.md"), "---\nname: x\n---\n")
+  }
+  make("brain")
+  make("humanizer")
+  make("synced/account-a/pdf")
+  make("synced/account-b/pdf")
+  make("synced/account-a/xlsx")
+  make("empty-folder", false)
+  mkdirSync(join(root, "drive-worker", "linked-target"), { recursive: true })
+  writeFileSync(join(root, "drive-worker", "linked-target", "SKILL.md"), "x")
+  symlinkSync(join(root, "drive-worker", "linked-target"), join(skills, "linked"))
+  symlinkSync(join(root, "drive-worker", "missing-target"), join(skills, "broken"))
+  writeFileSync(join(skills, "README.md"), "not a skill")
+  same("lib/worker.mjs: skill names come from every folder with a SKILL.md, synced folders and links included, once each", listSkillNames(skills), ["brain", "humanizer", "linked", "pdf", "xlsx"])
+
+  const parent = { PATH: "/usr/bin", HOME, CLAUDE_CONFIG_DIR: "/other", ANTHROPIC_API_KEY: "key", CLAUDE_CODE_OAUTH_TOKEN: "oauth", CLAUDE_CODE_TMPDIR: "/scratch/claude", GH_TOKEN: "owner-token" }
+  const environment = workerEnvironmentFor(parent, TOKEN)
+  same("lib/worker.mjs: the worker environment holds no account override and the worker token", sortedKeys(environment), sortedKeys({
+    PATH: "/usr/bin", HOME, CLAUDE_CODE_TMPDIR: "/scratch/claude", CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1", CLAUDE_CODE_DISABLE_BUNDLED_SKILLS: "1", GH_TOKEN: TOKEN,
+  }))
+  T("lib/worker.mjs: the parent environment stays unchanged", parent.GH_TOKEN === "owner-token" && parent.ANTHROPIC_API_KEY === "key")
+  T("lib/worker.mjs: a parent with no temporary directory gives the worker none", !("CLAUDE_CODE_TMPDIR" in workerEnvironmentFor({ PATH: "/usr/bin" }, TOKEN)))
+  T("lib/worker.mjs: an empty token is refused", /needs a GitHub token/.test(await thrown(() => workerEnvironmentFor(parent, ""))))
+  T("lib/worker.mjs: a missing token is refused", /needs a GitHub token/.test(await thrown(() => workerEnvironmentFor(parent, null))))
+
+  const keychain = async (answer) => {
+    const calls = []
+    const token = await readWorkerToken({ run: async (...call) => { calls.push(call); return answer } })
+    return { token, calls }
+  }
+  const found = await keychain({ status: 0, stdout: `${TOKEN}\n` })
+  same("lib/worker.mjs: the token is the Keychain item without its line end", found.token, TOKEN)
+  same("lib/worker.mjs: the Keychain read asks for the one item by name", [found.calls[0][0], found.calls[0][1]], ["security", ["find-generic-password", "-s", "orbit-worker-github-token", "-w"]])
+  same("lib/worker.mjs: a missing Keychain item gives null", (await keychain({ status: 44, stdout: "", stderr: "could not be found" })).token, null)
+  same("lib/worker.mjs: an empty Keychain answer gives null", (await keychain({ status: 0, stdout: "\n" })).token, null)
+
+  const home = join(root, "drive-worker", "home")
+  mkdirSync(join(home, ".claude", "skills", "pdf"), { recursive: true })
+  mkdirSync(join(home, ".claude", "skills", "humanizer"), { recursive: true })
+  writeFileSync(join(home, ".claude", "skills", "pdf", "SKILL.md"), "x")
+  writeFileSync(join(home, ".claude", "skills", "humanizer", "SKILL.md"), "x")
+  const invocation = workerInvocation({ home, parentEnvironment: parent, token: TOKEN })
+  const settings = JSON.parse(invocation.command.args.at(-1))
+  same("lib/worker.mjs: the invocation excludes the hot file of the home folder and turns off the listed skills", [settings.claudeMdExcludes, settings.skillOverrides], [[join(home, "Developer", "brain", "hot.md")], { pdf: "off" }])
+  same("lib/worker.mjs: the invocation carries the worker environment", invocation.environment.GH_TOKEN, TOKEN)
+}
+
+const eventCases = () => {
+  const recorded = readEvent(`{"type":"system"}\nnot json\n${WORKER_FIXTURE.rateLimitEvent.line}\n`)
+  same("lib/worker.mjs: the recorded event gives the session id, the utilization, the reset time and the status", recorded, { sessionId: "2b299b6a-be9f-4eec-b671-10dc5e21bca4", utilization: 0.4, resetsAt: 1794391200, status: "allowed" })
+  const warning = readEvent(WORKER_FIXTURE.rateLimitEventWarning.line)
+  same("lib/worker.mjs: a warning event reads the window of seven days, not the line's top level", [warning.utilization, warning.resetsAt, warning.status], [0.58, 1795676400, "allowed_warning"])
+  const newest = readEvent([WORKER_FIXTURE.rateLimitEvent.line, WORKER_FIXTURE.rateLimitEventWarning.line].join("\n"))
+  same("lib/worker.mjs: the newest event wins", newest.utilization, 0.58)
+  same("lib/worker.mjs: a log with no event reads null for the reading", readEvent(WORKER_FIXTURE.signInStop.lines.join("\n")), { sessionId: JSON.parse(WORKER_FIXTURE.signInStop.lines[0]).session_id, utilization: null, resetsAt: null, status: null })
+  const other = JSON.parse(WORKER_FIXTURE.rateLimitEvent.line)
+  other.rate_limit_info.unifiedWindows = { five_hour: other.rate_limit_info.unifiedWindows.seven_day }
+  same("lib/worker.mjs: an event with no seven_day window gives no reading", readEvent(JSON.stringify(other)).utilization, null)
+  same("lib/worker.mjs: an empty log gives no session and no reading", readEvent(""), { sessionId: null, utilization: null, resetsAt: null, status: null })
+
+  const logFile = join(root, "drive-worker", "big-event.log")
+  const filler = `${JSON.stringify({ type: "user", session_id: "later", message: "x".repeat(900) })}\n`
+  writeFileSync(logFile, [WORKER_FIXTURE.signInStop.lines[0], "\n", filler.repeat(1500), WORKER_FIXTURE.rateLimitEvent.line, "\n", filler.repeat(900), WORKER_FIXTURE.rateLimitEventWarning.line].join(""))
+  const big = logEvent(logFile)
+  T("lib/worker.mjs: a log of over two chunks gives the first session id and the newest event, even with no final line end", big.sessionId === JSON.parse(WORKER_FIXTURE.signInStop.lines[0]).session_id && big.utilization === 0.58, JSON.stringify(big))
+  same("lib/worker.mjs: a log that cannot be read gives no reading", logEvent(join(root, "drive-worker", "no-such.log")).utilization, null)
+}
+
+const resultCases = () => {
+  const { assistantLine, resultLine: limitLine } = WORKER_FIXTURE.limitStop
+  const limit = finalResult([assistantLine, limitLine].join("\n"))
+  same("lib/worker.mjs: a result with the weekly limit text is a usage limit", [limit.usageLimitReached, limit.authenticationFailed, limit.error, limit.needsDecision], [true, false, "You've hit your weekly limit · resets 4am (America/Sao_Paulo)", null])
+  const transientText = "API Error: Server is temporarily limiting requests (not your usage limit) · this may be a temporary capacity issue."
+  const transient = JSON.parse(limitLine)
+  transient.result = transientText
+  delete transient.api_error
+  const transientVerdict = finalResult(JSON.stringify(transient))
+  same("lib/worker.mjs: a transient 429 is not a usage limit and keeps its text", [transientVerdict.usageLimitReached, transientVerdict.error], [false, transientText])
+  const success = resultLine({})
+  same("lib/worker.mjs: a later success line clears an earlier limit", finalResult([limitLine, success].join("\n")), { ...NO_STOP })
+  const signIn = finalResult(WORKER_FIXTURE.signInStop.lines.join("\n"))
+  same("lib/worker.mjs: the recorded sign-in failure is authenticationFailed, not a limit", [signIn.authenticationFailed, signIn.usageLimitReached, signIn.error], [true, false, "Not logged in · Please run /login"])
+  same("lib/worker.mjs: a limit text in a successful result is no limit", finalResult(resultLine({ result: "You've hit your weekly limit" })).usageLimitReached, false)
+  same("lib/worker.mjs: a log with no result gives no stop", finalResult(`${assistantLine}\nnot json\n`), { ...NO_STOP })
+  const decision = finalResult(WORKER_FIXTURE.needsDecision.resultLine)
+  T("lib/worker.mjs: the last line of a result that says NEEDS_DECISION gives the question", decision.needsDecision?.startsWith("The API branch of #7") && decision.needsDecision.endsWith("the name of its kind."), JSON.stringify(decision))
+  same("lib/worker.mjs: NEEDS_DECISION that is not the last line gives no question", finalResult(resultLine({ result: "NEEDS_DECISION: a question\nthen more text" })).needsDecision, null)
+  same("lib/worker.mjs: NEEDS_DECISION with no question gives none", finalResult(resultLine({ result: "NEEDS_DECISION: " })).needsDecision, null)
+  same("lib/worker.mjs: an error result gives no question", finalResult(resultLine({ is_error: true, result: "NEEDS_DECISION: a question" })).needsDecision, null)
+  T("lib/worker.mjs: the usage limit rules read a prefix, a pattern, and nothing else", isUsageLimitMessage("You're out of extra usage") && isUsageLimitMessage("Opus requires usage credits. Switch.") && !isUsageLimitMessage("Opus is experiencing high load.") && !isUsageLimitMessage(undefined) && !isUsageLimitMessage(`prefix ${"You've hit your"}`))
+
+  const logFile = join(root, "drive-worker", "long-result.log")
+  const filler = `${JSON.stringify({ type: "user", message: "y".repeat(1000) })}\n`
+  writeFileSync(logFile, [limitLine, "\n", filler.repeat(400), success].join(""))
+  same("lib/worker.mjs: a log read from its tail sees the last result and ignores an earlier one", logFinalResult(logFile), { ...NO_STOP })
+  writeFileSync(logFile, [limitLine, "\n", filler.repeat(400)].join(""))
+  same("lib/worker.mjs: a limit line more than 256 KiB from the end is not read", logFinalResult(logFile), { ...NO_STOP })
+  writeFileSync(logFile, [filler.repeat(400), limitLine].join(""))
+  same("lib/worker.mjs: a limit line inside the last 256 KiB is read", logFinalResult(logFile).usageLimitReached, true)
+  same("lib/worker.mjs: a log that cannot be read gives no stop", logFinalResult(join(root, "drive-worker", "no-such.log")), { ...NO_STOP })
+}
+
+const probeCases = async () => {
+  const invocation = { command: { executable: "claude", args: ["-p", "--settings", "{}"] }, environment: { GH_TOKEN: TOKEN } }
+  const calls = []
+  const answer = (stdout) => async (...call) => { calls.push(call); return { status: 0, stdout, stderr: "" } }
+  const reading = await probe({ invocation, cwd: "/tmp/probe", run: answer(`${WORKER_FIXTURE.signInStop.lines[0]}\n${WORKER_FIXTURE.rateLimitEventWarning.line}\n`) })
+  same("lib/worker.mjs: the probe reads the event of its output", reading, { sessionId: JSON.parse(WORKER_FIXTURE.signInStop.lines[0]).session_id, utilization: 0.58, resetsAt: 1795676400, status: "allowed_warning" })
+  const [file, args, options] = calls[0]
+  same("lib/worker.mjs: the probe runs the worker command with one turn", [file, args], ["claude", ["-p", "--settings", "{}", "--max-turns", "1"]])
+  same("lib/worker.mjs: the probe sends the prompt on stdin with the worker environment and a bound", [options.input, options.env, options.cwd, options.timeoutMs], ["reply ok", { GH_TOKEN: TOKEN }, "/tmp/probe", 120000])
+  same("lib/worker.mjs: a probe with no event gives null", await probe({ invocation, run: answer(WORKER_FIXTURE.signInStop.lines.join("\n")) }), null)
+  same("lib/worker.mjs: a probe with no output gives null", await probe({ invocation, run: async () => ({ status: 1, stdout: "", stderr: "" }) }), null)
+}
+
+const launchCases = async () => {
+  T("lib/worker.mjs: the clocks are the ones the order names", WORKER_LIMITS.hardCeilingMs === 45 * 60000 && WORKER_LIMITS.noProgressMs === 10 * 60000 && WORKER_LIMITS.logCapBytes === 512 * 1024 * 1024)
+
+  const normal = workerLaunchHarness("normal")
+  same("lib/worker.mjs: the worker starts detached in the worktree with its stdin open and its log on stdout and stderr", [normal.spawned[0][0], normal.spawned[0][1], normal.spawned[0][2].cwd, normal.spawned[0][2].detached, normal.spawned[0][2].env, normal.spawned[0][2].stdio.slice(0, 1), normal.spawned[0][2].stdio[1] === normal.spawned[0][2].stdio[2]], ["claude", ["-p"], normal.directory, true, { GH_TOKEN: TOKEN }, ["pipe"], true])
+  same("lib/worker.mjs: the order goes to the worker on stdin", normal.child.stdinText, "the order")
+  T("lib/worker.mjs: the pid file names the worker while it runs", existsSync(normal.pidFile) && JSON.parse(readFileSync(normal.pidFile, "utf8")).pid === 4242)
+  writeFileSync(normal.logFile, [WORKER_FIXTURE.rateLimitEventWarning.line, WORKER_FIXTURE.needsDecision.resultLine].join("\n"))
+  normal.ends(0)
+  const facts = await normal.run
+  same("lib/worker.mjs: a worker that exits gives its exit, session, reading and verdict", [facts.exitCode, facts.killed, facts.sessionId, facts.utilization, facts.resetsAt, facts.result.usageLimitReached, typeof facts.result.needsDecision], [0, null, "6e8fb04c-31b7-4d70-af4e-05ffb45ee449", 0.58, 1795676400, false, "string"])
+  T("lib/worker.mjs: the pid file is gone when the worker is", !existsSync(normal.pidFile))
+  same("lib/worker.mjs: the worker's group gets a last kill when the worker exits", normal.signals.at(-1), [4242, "SIGKILL"])
+  same("lib/worker.mjs: a worker that exits clears every timer", normal.clock.pending(), 0)
+
+  let tick = 0
+  const moving = workerLaunchHarness("ceiling-moving", { fingerprint: () => `step-${tick++}` })
+  await moving.clock.advance(44 * 60000)
+  same("lib/worker.mjs: a worker that moves is not killed before the hard ceiling", moving.signals, [])
+  await moving.clock.advance(60000)
+  same("lib/worker.mjs: the hard ceiling kills the process group with TERM", moving.signals, [[4242, "SIGTERM"]])
+  await moving.clock.advance(10000)
+  same("lib/worker.mjs: the group gets KILL after the grace time", moving.signals.at(-1), [4242, "SIGKILL"])
+  moving.ends(null, "SIGKILL")
+  const hard = await moving.run
+  same("lib/worker.mjs: a ceiling kill names its clock", [hard.killed, hard.killReason, hard.exitCode, hard.signal], ["hard-ceiling", "passed its hard ceiling", null, "SIGKILL"])
+
+  const stalled = workerLaunchHarness("stalled")
+  await stalled.clock.advance(9 * 60000)
+  same("lib/worker.mjs: a silent worker is not killed before ten minutes", stalled.signals, [])
+  await stalled.clock.advance(2 * 60000)
+  same("lib/worker.mjs: ten minutes with no change in the files, HEAD or log kill the group", stalled.signals[0], [4242, "SIGTERM"])
+  stalled.ends(null, "SIGTERM")
+  same("lib/worker.mjs: a stall kill names its clock", (await stalled.run).killed, "no-progress")
+
+  let size = 0
+  const growing = workerLaunchHarness("growing", { logSize: () => (size += 10) })
+  await growing.clock.advance(30 * 60000)
+  same("lib/worker.mjs: a log that grows counts as progress", growing.signals, [])
+  growing.ends(0)
+  await growing.run
+
+  let changes = 0
+  const editing = workerLaunchHarness("editing", { fingerprint: () => `files-${Math.floor(changes++ / 10)}` })
+  await editing.clock.advance(30 * 60000)
+  same("lib/worker.mjs: a change in the files or HEAD counts as progress", editing.signals, [])
+  editing.ends(0)
+  await editing.run
+
+  const flood = workerLaunchHarness("flood", { logSize: () => 512 * 1024 * 1024 + 1 })
+  await flood.clock.advance(30000)
+  same("lib/worker.mjs: a log past the cap kills the group", flood.signals[0], [4242, "SIGTERM"])
+  flood.ends(null, "SIGTERM")
+  same("lib/worker.mjs: a cap kill names its clock", (await flood.run).killed, "log-cap")
+
+  const dir = join(root, "drive-worker", "refused")
+  mkdirSync(dir, { recursive: true })
+  const refused = await launch({ invocation: { command: { executable: "claude", args: [] }, environment: {} }, worktree: dir, order: "x", logFile: join(dir, "a.log"), pidFile: join(dir, "a.pid"), clock: fakeClock(), spawnChild: () => { throw new Error("spawn failed") } })
+  same("lib/worker.mjs: a spawn that throws gives a spawn error and no exit", [refused.spawnError, refused.exitCode], ["spawn failed", null])
+  const errored = workerLaunchHarness("errored")
+  errored.child.emit("error", new Error("ENOENT"))
+  same("lib/worker.mjs: an error event of the child gives a spawn error", [(await errored.run).spawnError], ["ENOENT"])
+}
+
+const workerUnit = async () => {
+  settingsCases()
+  await skillAndEnvironmentCases()
+  eventCases()
+  resultCases()
+  await probeCases()
+  await launchCases()
+}
+
+const RETIRED_NAMES = ["ast", "ra"].join("")
+const BANNED_TEXT = new RegExp(`(^|[^&\\w])#[0-9]{2,5}(?![0-9A-Fa-f])|ORB-[0-9]|\\b(${RETIRED_NAMES}|re${"design"}|re${"brand"})\\b`, "im")
+
+const PLACE = { repoKey: "ui", repoPath: "/work/orbit-ui-mobile", worktree: "/work/orbit-worktrees/ui/chore-ticket-9-part-2", branch: "chore/ticket-9-part-2", base: "main" }
+const TICKET = { number: 9, title: "A ticket title", body: "The ticket body, in the owner's words.\n\nSecond paragraph.", repository: TICKET_REPOSITORY }
+const ownerComment = (body, kind = null) => ({ id: `c-${body.length}`, author: "owner", createdAt: "2026-11-20T10:00:00Z", body, kind })
+const PART_COMMENTS = [
+  ownerComment("Part 1 of 3: the first behaviour\n\nSECRET-BODY-OF-PART-1 with details."),
+  ownerComment("## Part 2 of 3: the second behaviour\n\nBODY-OF-PART-2 holds the paths.\nPaths: a/, b"),
+  ownerComment("Part 3 of 3: the third behaviour\n\nSECRET-BODY-OF-PART-3."),
+  ownerComment("An owner note that is no part.\n\nNOTE-WITHOUT-PART."),
+  ...["launch", "record", "request", "needs-owner", "notice", "close"].map((kind) => ownerComment(`<!-- orbit-drive:${kind} -->\nDRIVER-${kind.toUpperCase()}`, kind)),
+]
+const FINDINGS = [ownerComment("<!-- orbit-drive:findings -->\nFindings, part 1\n\nsrc/a.ts:4 | class | fix", "findings")]
+const REVIEW = {
+  blocking: [
+    { path: "src/a.ts", line: 10, body: "BLOCKING: correctness bug. Instances: `src/a.ts:10`, `src/b.ts:22`." },
+    { path: "src/c.ts", line: 3, body: "BLOCKING: broken contract.\nInstances: `src/c.ts:3`." },
+    { path: "src/d.ts", line: 8, body: "BLOCKING: missed requirement. Instances: `src/d.ts:8`." },
+  ],
+}
+const PULL = { number: 50, headSha: "d77a67c4c0ae619b41e7ffb03316f142aad46606" }
+const FAILURE = { checks: [{ name: "Unit Tests", failedSteps: ["Run Domain Tests"], logLines: Array.from({ length: 80 }, (_, index) => `log line ${index}`) }, { name: "Lint", failedSteps: [], logLines: [] }], conflicts: ["a.ts", "b.ts"] }
+const order = (kind, extra = {}) => renderOrder({ kind, ticket: TICKET, partComments: PART_COMMENTS, place: PLACE, ...extra })
+
+const orderCases = async () => {
+  same("lib/order.mjs: the order kinds are the six of the spec", ORDER_KINDS, ["build", "build part", "fix", "ci-fix", "merge-forward", "find"])
+  same("lib/order.mjs: a part comment is read with or without its heading marks", [PART_COMMENTS[0], PART_COMMENTS[1], PART_COMMENTS[3]].map(partOf), [{ number: 1, total: 3 }, { number: 2, total: 3 }, null])
+  same("lib/order.mjs: a line that only starts like a part is no part", ["Parts of speech", "Part 1 of", "part 1 of 3", " Part 1 of 3"].map((body) => partOf({ body })), [null, null, null, null])
+  same("lib/order.mjs: two digits and a colon after the total still read as a part", partOf({ body: "Part 12 of 14: a" }), { number: 12, total: 14 })
+
+  for (const kind of ORDER_KINDS) {
+    const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
+    const longPlace = { ...PLACE, repoPath: `/${"long-directory-name/".repeat(12)}orbit`, worktree: `/${"worktree-directory/".repeat(12)}branch`, branch: `chore/${"x".repeat(80)}` }
+    const longest = Buffer.byteLength(renderBrief({ kind, place: longPlace, ticket: TICKET }))
+    T(`lib/order.mjs: the ${kind} brief is at most 6,000 bytes (${Buffer.byteLength(brief)} with a short place, ${longest} with a long one)`, Buffer.byteLength(brief) <= 6000 && longest <= 6000)
+    T(`lib/order.mjs: the ${kind} brief matches no name of a ticket, a feature or a project`, !BANNED_TEXT.test(brief), (BANNED_TEXT.exec(brief) ?? [])[0])
+    T(`lib/order.mjs: the ${kind} brief names the place and no draft`, brief.includes(PLACE.worktree) && brief.includes(PLACE.branch) && !brief.includes("--draft ") && (!kind.startsWith("build") || brief.includes("non-draft")))
+  }
+
+  const build = order("build", { partComments: [] })
+  T("lib/order.mjs: a build order holds the title, the ticket body and the brief, and no part section", build.startsWith("# A ticket title\n\nThe ticket body") && build.includes("Second paragraph.") && build.includes("## Brief") && !build.includes("## Parts"))
+  T("lib/order.mjs: a build order tells the worker to rebase before its first push", /Rebase on `origin\/main` before the first push/.test(build))
+  const delivery = build.slice(build.indexOf("**Delivery.**"))
+  T("lib/order.mjs: the delivery rules name the Tracks line, the three sections, the Remaining line and the attribution ban", delivery.includes(`Tracks ${TICKET_REPOSITORY}#9`) && delivery.includes("never `Closes`") && ["## Assumptions", "## Manual steps", "## Test evidence", "`Remaining:`", "`Co-Authored-By`", "`Generated with`", "git rm", "rmSync", "Stage named paths only", "never `--no-verify`"].every((text) => delivery.includes(text)))
+  T("lib/order.mjs: the brief tells the worker to decide with the recommended option and to end with NEEDS_DECISION only for the four owner matters", /Decide every choice with the recommended option/.test(build) && /NEEDS_DECISION: <question>.*money.*model or effort.*standing owner order.*irreversible/.test(build))
+  T("lib/order.mjs: the brief bans a browser, a dev server and the production CLI, and names the two barrier files", /Open no browser\. Start no dev server\. Run no production CLI/.test(build) && build.includes(".github/migration-contracts.json") && build.includes(".github/migration-locks.json"))
+  T("lib/order.mjs: the brief names the copy rule", build.includes("`/humanizer`") && build.includes("`/second-opinion`") && build.includes("`BRAND.md`"))
+
+  const part = order("build part", { partNumber: 2, findings: [] })
+  T("lib/order.mjs: a part order holds the full comment of its part under a title, with the heading marks cut", part.includes("### Part 2 of 3: the second behaviour (this order)") && part.includes("BODY-OF-PART-2 holds the paths.") && part.includes("Paths: a/, b"))
+  T("lib/order.mjs: a part order holds only the first line of each other part", part.includes("- Part 1 of 3: the first behaviour") && part.includes("- Part 3 of 3: the third behaviour") && !part.includes("SECRET-BODY-OF-PART-1") && !part.includes("SECRET-BODY-OF-PART-3"))
+  T("lib/order.mjs: an order holds none of the comments of the driver and no owner note that is no part", ["launch", "record", "request", "needs-owner", "notice", "close"].every((kind) => !part.includes(`DRIVER-${kind.toUpperCase()}`)) && !part.includes("NOTE-WITHOUT-PART") && !part.includes("orbit-drive:"))
+  T("lib/order.mjs: a part order names its part and the part-only rule", part.includes("## This order (build part)") && part.includes("Build Part 2 of this ticket and no other part"))
+  const apply = order("build part", { partNumber: 2, findings: FINDINGS })
+  T("lib/order.mjs: an apply part holds the findings it applies, in full and without the marker", apply.includes("## Findings to apply") && apply.includes("src/a.ts:4 | class | fix") && !apply.includes("<!-- orbit-drive:findings -->") && !apply.includes("DRIVER-LAUNCH"))
+
+  const fix = order("fix", { pull: PULL, review: REVIEW })
+  T("lib/order.mjs: a fix order lists every class and every instance of the review", ["src/a.ts:10", "src/b.ts:22", "src/c.ts:3", "src/d.ts:8", "BLOCKING: correctness bug", "BLOCKING: broken contract", "BLOCKING: missed requirement"].every((text) => fix.includes(text)), fix)
+  T("lib/order.mjs: a fix order names the head and asks for one commit, one red table test per class, one push", fix.includes(PULL.headSha) && /in one commit/.test(fix) && /one table test per class/.test(fix) && /Push once/.test(fix) && /Merge `origin\/main`/.test(fix))
+  const ciFix = order("ci-fix", { pull: PULL, failure: FAILURE })
+  T("lib/order.mjs: a ci-fix order names each failed check, its failed steps and the last 60 log lines", ciFix.includes("### Unit Tests (failed steps: Run Domain Tests)") && ciFix.includes("### Lint\n") && ciFix.includes("log line 79") && ciFix.includes("log line 20") && !ciFix.includes("log line 19\n"))
+  const forward = order("merge-forward", { pull: PULL, failure: FAILURE })
+  T("lib/order.mjs: a merge-forward order names the conflicts and asks for one push", forward.includes("in: a.ts, b.ts") && /Merge `origin\/main` into the branch/.test(forward) && /Push once/.test(forward))
+  T("lib/order.mjs: a merge-forward order without a conflict list still reads", /conflicts with `origin\/main`\. Merge/.test(order("merge-forward", { pull: PULL, failure: null })))
+  const find = order("find", { partNumber: 1 })
+  T("lib/order.mjs: a find order is read only and ends with the findings table", /path:line \| class \| fix/.test(find) && /Commit nothing, push nothing and open no pull request/.test(find) && /read-only order/.test(find) && !find.includes("gh pr create"))
+
+  const orders = {
+    build: build,
+    "build part": part,
+    fix,
+    "ci-fix": ciFix,
+    "merge-forward": forward,
+    find,
+  }
+  for (const [kind, text] of Object.entries(orders)) {
+    const reads = kind === "find"
+    const pushes = kind === "fix" || kind === "ci-fix" || kind === "merge-forward"
+    const opens = !reads && !pushes
+    T(`lib/order.mjs: the ${kind} brief gives the final message the rule of its own kind`, reads
+      ? !text.includes("at most 12 lines") && /final message is the area list and the findings table of "This order", with nothing after the table/.test(text)
+      : /final message is at most 12 lines/.test(text) && text.includes("the pull request URL"))
+    T(`lib/order.mjs: the ${kind} brief puts the decisions where its kind can write`, reads
+      ? !text.includes("pull request body") && !text.includes("commit message") && !text.includes("NEEDS_DECISION")
+      : text.includes(pushes ? "in the commit message" : "in the pull request body") && !text.includes(pushes ? "in the pull request body" : "in the commit message"))
+    T(`lib/order.mjs: the ${kind} brief names only the GitHub writes that its kind may make`, text.includes("`gh pr create`") === opens && (reads || text.includes("Write to GitHub only with `git push`")))
+    T(`lib/order.mjs: the ${kind} brief asks for verification evidence only when the order makes a change`, reads
+      ? !text.includes("Report each command") && !text.includes("Spend at most 25 minutes")
+      : text.includes("Report each command with its exit code") && text.includes("Spend at most 25 minutes"))
+  }
+
+  for (const [label, call, message] of [
+    ["an unknown kind", () => renderOrder({ kind: "review", ticket: TICKET, place: PLACE }), /unknown order kind/],
+    ["a part order with no part number", () => order("build part"), /needs the number of its part/],
+    ["a part order whose part has no comment", () => order("build part", { partNumber: 7 }), /no comment for part 7/],
+    ["a fix order with no blocking class", () => order("fix", { pull: PULL, review: { blocking: [] } }), /needs its pull request/],
+    ["a ci-fix order with no failed check", () => order("ci-fix", { pull: PULL, failure: { checks: [] } }), /needs its pull request/],
+    ["a merge-forward order with no pull request", () => order("merge-forward"), /needs its pull request/],
+  ]) T(`lib/order.mjs: ${label} is refused`, message.test(await thrown(call)))
+  T("lib/order.mjs: a brief over the limit is refused", /over the 6000 byte limit/.test(await thrown(() => renderBrief({ kind: "build", place: { ...PLACE, repoPath: "x".repeat(7000) }, ticket: TICKET }))))
+}
+
+const selfSufficiencyCases = () => {
+  const files = ["lib/worker.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
+  for (const file of files) {
+    const path = toolPath(file)
+    const found = readFileSync(path, "utf8").split("\n").map((line, index) => [index + 1, line]).filter(([, line]) => BANNED_TEXT.test(line))
+    T(`${file}: names no ticket, feature, rename or one-time project`, found.length === 0, found.slice(0, 3).map(([number, line]) => `${number}: ${line.slice(0, 120)}`).join("\n"))
+  }
+}
+
+const orderUnit = async () => {
+  await orderCases()
+  selfSufficiencyCases()
+}
+
+const UNITS = { "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
 
 /** The runner calls cases() once for a module, so one call runs the unit of every registry row that names this module. */
 const registeredUnits = readFileSync(toolPath(SELF), "utf8").split("\n").flatMap((line) => /^\s*\["([^"]+)", "drive"\],?$/.exec(line)?.[1] ?? [])
