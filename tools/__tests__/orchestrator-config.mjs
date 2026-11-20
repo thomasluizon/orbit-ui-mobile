@@ -51,7 +51,7 @@ const stageConfigRepo = (label, { head, origin, working }) => {
 }
 
 export const cases = async () => {
-  const { readOrchestratorConfig, resolveWorkerInvocation, workerAccounts } = await import(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)
+  const { paceHoldBudgetMinutes, readOrchestratorConfig, resolveWorkerInvocation, workerAccounts } = await import(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)
 
   for (const [name, endMarker] of [["audit", "const VERIFY_CAP"], ["prod-readiness", "const OPS_SCHEMA"]]) {
     const source = readFileSync(new URL(`../../.claude/workflows/${name}.mjs`, import.meta.url), "utf8")
@@ -784,6 +784,28 @@ export const cases = async () => {
   for (const [name, weeklyReset] of [["weekday", { ...real.pace.weeklyReset, weekday: 7 }], ["hour", { ...real.pace.weeklyReset, hour: 24 }], ["minute", { ...real.pace.weeklyReset, minute: 60 }], ["offset", { ...real.pace.weeklyReset, utcOffsetMinutes: 900 }], ["none", undefined]]) {
     T(`${NAME}: a weekly reset with a bad ${name} is refused`, /pace\.weeklyReset must hold/.test(readAndFail(`pace-reset-${name}`, withPace({ weeklyReset })) ?? ""))
   }
+  const withCeiling = (hardCeilingMinutes) => ({ ...real, timeouts: { ...real.timeouts, hardCeilingMinutes } })
+  const { maxHoldMinutes, launchGateAllowanceMinutes, backgroundLimitMinutes } = real.pace
+  const fixedMinutes = launchGateAllowanceMinutes + real.timeouts.hardCeilingMinutes
+  T(`${NAME}: a hold, a gate allowance and one worker run that reach the background limit are refused`,
+    /= \d+ must stay below pace\.backgroundLimitMinutes/.test(readAndFail("pace-hold-at-limit", withPace({ maxHoldMinutes: backgroundLimitMinutes - fixedMinutes })) ?? "") &&
+      /= \d+ must stay below pace\.backgroundLimitMinutes/.test(readAndFail("pace-hold-over-limit", withPace({ maxHoldMinutes: backgroundLimitMinutes })) ?? ""))
+  T(`${NAME}: a hold one minute under the background limit is accepted`, readAndFail("pace-hold-under-limit", withPace({ maxHoldMinutes: backgroundLimitMinutes - fixedMinutes - 1 })) === null)
+  T(`${NAME}: a worker ceiling that pushes the shipped hold to the background limit is refused`,
+    /timeouts\.hardCeilingMinutes \(\d+\)/.test(readAndFail("pace-ceiling-over-limit", withCeiling(backgroundLimitMinutes - maxHoldMinutes - launchGateAllowanceMinutes)) ?? ""))
+  T(`${NAME}: the gate allowance and the background limit need positive numbers`,
+    /pace\.launchGateAllowanceMinutes must be a positive number/.test(readAndFail("pace-gate-allowance", withPace({ launchGateAllowanceMinutes: 0 })) ?? "") && /pace\.backgroundLimitMinutes must be a positive number/.test(readAndFail("pace-background-limit", withPace({ backgroundLimitMinutes: undefined })) ?? ""))
+  const budgetRows = [
+    ["a launcher with one account keeps the configured hold", { hardCeilingMinutes: 45, attempts: 1 }, 60],
+    ["a launcher with a second account gives up one more worker run for the relaunch", { hardCeilingMinutes: 45, attempts: 2 }, 19],
+    ["a worker ceiling set on the command line shortens the hold", { hardCeilingMinutes: 100, attempts: 1 }, 9],
+    ["a worker ceiling that leaves no room leaves no hold", { hardCeilingMinutes: 119, attempts: 1 }, 0],
+  ]
+  for (const [name, input, expected] of budgetRows) {
+    T(`${NAME}: ${name}`, paceHoldBudgetMinutes({ pace: real.pace, ...input }) === expected, String(paceHoldBudgetMinutes({ pace: real.pace, ...input })))
+  }
+  T(`${NAME}: every hold budget row that holds, with its worker runs and the gate allowance, stays under the background limit`,
+    budgetRows.filter(([, , expected]) => expected > 0).every(([, input]) => paceHoldBudgetMinutes({ pace: real.pace, ...input }) + launchGateAllowanceMinutes + input.attempts * input.hardCeilingMinutes < backgroundLimitMinutes))
   T(`${NAME}: every token class needs a positive weight`,
     /pace\.tokenWeights\.cacheRead must be a positive number/.test(readAndFail("pace-token-weight", withPace({ tokenWeights: { ...real.pace.tokenWeights, cacheRead: 0 } })) ?? "") && /pace\.tokenWeights must be an object/.test(readAndFail("pace-token-weights", withPace({ tokenWeights: undefined })) ?? ""))
   T(`${NAME}: the model weights need a default and positive weights`,

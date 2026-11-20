@@ -432,7 +432,7 @@ const coldStart = async ({ repoRoot, config, runner, authenticate, now, reads })
 
 const GITHUB_READS = { listTickets: () => listOpenTickets(), readTicketComments: (number) => readComments(number), readIntakeMarks: (repoRoot) => readIntake(repoRoot) }
 
-export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, runner = runBounded, authenticate = githubEnvironment, now = Date.now(), reads = GITHUB_READS } = {}) => {
+const snapshotOf = async ({ repoRoot = REPO_ROOT, sessionId = "", config, runner = runBounded, authenticate = githubEnvironment, now = Date.now(), reads = GITHUB_READS } = {}) => {
   const state = readRunState(repoRoot)
   if (!state) {
     const gitdir = gitDirectoryOf(repoRoot)
@@ -525,11 +525,17 @@ export const paceOfStatus = ({ config, repoRoot = REPO_ROOT, nowMs = Date.now() 
   }
 }
 
+/** Every snapshot carries the pace. `pace` reads it, and a test passes its own reader. */
+export const runStatus = async (options = {}) => {
+  const { pace = paceOfStatus, config, repoRoot, now } = options
+  return { ...await snapshotOf(options), pace: pace({ config, repoRoot, nowMs: now }) }
+}
+
 const main = async () => {
   const args = process.argv.slice(2)
   if (args.includes("--help") || args.includes("-h")) { console.log(USAGE); return }
   if (args.length !== 0 && (args.length !== 2 || args[0] !== "--session" || !args[1] || args[1].startsWith("-"))) throw new Error(USAGE)
-  console.log(JSON.stringify({ ...await runStatus({ sessionId: args[1] ?? "" }), pace: paceOfStatus() }))
+  console.log(JSON.stringify(await runStatus({ sessionId: args[1] ?? "" })))
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error) => { console.error(redactSecrets(error.message)); process.exitCode = 2 })

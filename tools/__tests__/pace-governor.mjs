@@ -1,12 +1,14 @@
-import { spawn } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 
-import { T, hermeticPace, realOrchestratorConfig, root, run, same, stage } from "./_harness.mjs"
+import { T, WORKER_CONFIG_DIRECTORY_VARIABLE, hermeticPace, realOrchestratorConfig, root, run, same, stage } from "./_harness.mjs"
 import { PACE_DECISIONS, awaitPace, calibrationPath, countLiveLaunchers, readCalibration, readPace, takeReading, weekWindow, weightedSpend, weightsFingerprint, writeCalibration } from "../lib/pace-governor.mjs"
-import { readWakeSourceStates, registerWakeSource } from "../lib/run-state.mjs"
+import { PRICE_WEIGHTS } from "../lib/relay-cost.mjs"
+import { readWakeSourceStates, registerWakeSource, wakeSourceDirectory } from "../lib/run-state.mjs"
 import { githubAuthEnv, launch, launchConfig, stubEngine } from "./launch-worker.mjs"
-import { paceOfStatus } from "../run-status.mjs"
+import { paceOfStatus, runStatus } from "../run-status.mjs"
 
 const UNIT = "lib/pace-governor.mjs"
 /** The shape of a real `message.usage` object; each record below replaces its counts. */
@@ -240,6 +242,79 @@ const parse = (text) => {
   try { return JSON.parse(text) } catch { return {} }
 }
 
+/** A launcher that a test starts and watches. `env` overrides the environment of the child. */
+const startLauncher = (fixture, argv, env = {}) => {
+  const child = spawn(process.execPath, [fixture.path, ...argv], { cwd: dirname(fixture.path), env: { ...process.env, ...githubAuthEnv(), ...env }, stdio: ["ignore", "pipe", "pipe"] })
+  const output = { stdout: "", stderr: "" }
+  child.stdout.on("data", (chunk) => { output.stdout += chunk })
+  child.stderr.on("data", (chunk) => { output.stderr += chunk })
+  const closed = new Promise((resolve) => child.on("close", (code, signal) => resolve({ code, signal })))
+  return { child, output, closed }
+}
+
+const waitFor = async (probe, milliseconds = 30_000) => {
+  const deadline = Date.now() + milliseconds
+  for (;;) {
+    const found = probe()
+    if (found || Date.now() >= deadline) return found
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+}
+
+const heldWake = (fixture) => readWakeSourceStates(fixture.base).live.find((source) => source.paceHold === true) ?? null
+const wakeFiles = (fixture) => existsSync(wakeSourceDirectory(fixture.base)) ? readdirSync(wakeSourceDirectory(fixture.base)).filter((name) => name.endsWith(".json")) : []
+
+/**
+ * A launcher that the pace holds is one background task of at most the background limit. Each row reads how long the
+ * hold may last for the worker runs that the launcher can still start. A row where the hold would pass the limit exits 9 at once.
+ */
+const holdBudgetCases = async () => {
+  const noRoom = liveFixture("budget-none", 2, { recheckMinutes: 0.01 })
+  const twoAccounts = startLauncher(noRoom.fixture, [...noRoom.argv, "--hard-ceiling-minutes", "60"])
+  const exited = await Promise.race([twoAccounts.closed, new Promise((resolve) => setTimeout(() => resolve(null), 20_000))])
+  if (exited === null) twoAccounts.child.kill("SIGKILL")
+  T("launch-worker.mjs: a launcher with a second account gives up one more worker run, so a 60 minute ceiling leaves no hold and exits 9 at once",
+    exited?.code === 9 && parse(twoAccounts.output.stdout).reason === "PACE_HOLD", `${JSON.stringify(exited)} ${twoAccounts.output.stdout} ${twoAccounts.output.stderr}`)
+
+  const room = liveFixture("budget-room", 2, { recheckMinutes: 0.01 })
+  const oneAccount = startLauncher(room.fixture, [...room.argv, "--hard-ceiling-minutes", "60"], { [WORKER_CONFIG_DIRECTORY_VARIABLE]: "" })
+  const wake = await waitFor(() => heldWake(room.fixture))
+  await new Promise((resolve) => setTimeout(resolve, 1500))
+  const stillHeld = oneAccount.child.exitCode === null
+  oneAccount.child.kill("SIGKILL")
+  await oneAccount.closed
+  T("launch-worker.mjs: the same 60 minute ceiling with one account leaves a hold of 49 minutes, and the launcher keeps waiting", wake !== null && stillHeld, `${JSON.stringify(wake)} ${oneAccount.output.stdout} ${oneAccount.output.stderr}`)
+}
+
+/** A stop during the hold removes the wake source and every temporary directory of the mode. */
+const stopDuringHoldCases = async () => {
+  const stopRows = [
+    ["a ticket launch", (fixture) => fixture.argv, () => []],
+    ["a research launch", () => {
+      const order = stage("pace-governor/stop-research-order.md", "Research the pace rule.\n")
+      return ["--research", "--order", order, "--out", join(dirname(order), "stop-findings.md")]
+    }, (temporary) => readdirSync(temporary).filter((name) => name.startsWith("orbit-research-"))],
+  ]
+  for (const [label, argvOf, leftovers] of stopRows) {
+    const overLine = liveFixture(`stop-${label.split(" ")[1]}`, 2)
+    const temporary = mkdtempSync(join(tmpdir(), "orbit-pace-stop-"))
+    try {
+      const launcher = startLauncher(overLine.fixture, argvOf(overLine), { TMPDIR: temporary, TEMP: temporary, TMP: temporary })
+      const wake = await waitFor(() => heldWake(overLine.fixture))
+      const held = { wake: wake !== null, files: wakeFiles(overLine.fixture).length, temporary: leftovers(temporary).length }
+      launcher.child.kill("SIGTERM")
+      const result = await Promise.race([launcher.closed, new Promise((resolve) => setTimeout(() => resolve(null), 20_000))])
+      if (result === null) launcher.child.kill("SIGKILL")
+      T(`launch-worker.mjs: SIGTERM during the hold of ${label} exits 143 and removes the wake source${label === "a research launch" ? " and the research directory" : ""}`,
+        held.wake && held.files === 1 && (label !== "a research launch" || held.temporary === 1) &&
+          result?.code === 143 && wakeFiles(overLine.fixture).length === 0 && leftovers(temporary).length === 0,
+        `${JSON.stringify({ held, result, files: wakeFiles(overLine.fixture), temporary: leftovers(temporary) })} ${launcher.output.stderr}`)
+    } finally {
+      rmSync(temporary, { recursive: true, force: true })
+    }
+  }
+}
+
 const launcherCases = async () => {
   const underLine = liveFixture("under", 0.5)
   const overLine = liveFixture("over", 2)
@@ -288,7 +363,7 @@ const launcherCases = async () => {
   }
 }
 
-const statusCases = () => {
+const statusCases = async () => {
   const rows = scenario({ files: oneCall(20_000, Date.now() - 1000), reading: { readAt: iso(Date.now()), weeklyBudget: 1e15 } })
   const pace = paceOfStatus({ config: rows.config, repoRoot: rows.repoRoot })
   T("run-status.mjs: the status prints the week share spent, the line and the hours of headroom",
@@ -301,11 +376,38 @@ const statusCases = () => {
   T("run-status.mjs: an unreadable reading is reported, not dropped", /is not JSON/.test(paceOfStatus({ config: rows.config, repoRoot: rows.repoRoot }).error ?? ""))
 }
 
+/** The status of a linked worktree stops before any GitHub read, so it is the one snapshot a test reads with no network. */
+const snapshotCases = async () => {
+  const rows = scenario({ files: oneCall(20_000, Date.now() - 1000), reading: { readAt: iso(Date.now()), weeklyBudget: 1e15 } })
+  const linked = join(dirname(rows.repoRoot), "linked")
+  const git = (args, cwd) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
+  rmSync(join(rows.repoRoot, ".git"), { recursive: true, force: true })
+  git(["init", "-q", "--initial-branch=main"], rows.repoRoot)
+  git(["-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", "commit", "-q", "--allow-empty", "-m", "base"], rows.repoRoot)
+  git(["worktree", "add", "-q", "--detach", linked], rows.repoRoot)
+  writeCalibration(calibrationPath(rows.repoRoot), { percent: 10, readAt: iso(Date.now()), weeklyBudget: 1e15, weights: weightsFingerprint(rows.pace) })
+  const status = await runStatus({ repoRoot: linked, config: rows.config })
+  T("run-status.mjs: every snapshot carries the pace, the decision with it", status.status === "no run record" && status.pace?.enabled === true && status.pace.decision === "ADMIT" && status.pace.spentShare === 0, JSON.stringify(status))
+  const injected = await runStatus({ repoRoot: linked, config: rows.config, pace: () => ({ enabled: false }) })
+  T("run-status.mjs: a pace reader that a caller passes replaces the governor read", injected.pace.enabled === false)
+}
+
+/** The pace weights price the same tokens as the relay cost model. Four classes are one rule in two files. */
+const weightCases = () => {
+  const { cacheRead: paceCacheRead, ...paceRest } = realOrchestratorConfig().pace.tokenWeights
+  const { cacheRead: relayCacheRead, ...relayRest } = PRICE_WEIGHTS
+  same(`${UNIT}: the pace token weights equal the relay price weights in every class except the cache read, which the ticket sets at 0.1`, [paceRest, paceCacheRead, relayCacheRead], [relayRest, 0.1, 0.05])
+}
+
 export const cases = async () => {
   tableCases()
   readingCases()
+  weightCases()
   await awaitCases()
   await countCases()
   await launcherCases()
-  statusCases()
+  await holdBudgetCases()
+  await stopDuringHoldCases()
+  await statusCases()
+  await snapshotCases()
 }

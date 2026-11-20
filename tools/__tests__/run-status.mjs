@@ -105,7 +105,7 @@ export const cases = async () => {
   const repo = stageRepo("run-status")
   repo.git(["remote", "set-url", "origin", "https://github.com/test-owner/ui.git"])
   const config = { repos: { ui: repo.path }, caps: { parallelTickets: 6, maxOpenPullRequests: 10, maxQueuedRuns: 30 } }
-  const options = { repoRoot: repo.path, sessionId, config, now: Date.parse("2026-10-01T21:00:00Z") }
+  const options = { repoRoot: repo.path, sessionId, config, now: Date.parse("2026-10-01T21:00:00Z"), pace: () => ({ enabled: false }) }
   const readCalls = []
   let response = structuredClone(fixture.response)
   let rateLimit = structuredClone(fixture.rateLimit)
@@ -528,7 +528,7 @@ const mergeBarCases = async () => {
     open = openNodes
     reads.length = 0
     writeFileSync(runStatePath(repo.path), JSON.stringify({ sessionId: session, sleep: true, remaining, pullRequests: rows.map(rowOf) }))
-    return runStatus({ repoRoot: repo.path, sessionId: session, config, now: Date.parse("2026-10-01T21:00:00Z"), authenticate, runner })
+    return runStatus({ repoRoot: repo.path, sessionId: session, config, now: Date.parse("2026-10-01T21:00:00Z"), authenticate, runner, pace: () => ({ enabled: false }) })
   }
   const READY = ["MERGE_NOW", "UPDATE_BRANCH", "RETARGET"]
   const typesOf = (report, number) => report.nextActions.filter((entry) => entry.pr === `ui#${number}`).map((entry) => entry.type)

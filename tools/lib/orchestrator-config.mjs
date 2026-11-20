@@ -106,13 +106,31 @@ const validateTickets = (tickets) => {
 
 const PACE_TOKEN_WEIGHT_KEYS = ["input", "cacheWrite5m", "cacheWrite1h", "cacheRead", "output"]
 
+/** A launcher must end at least this long before the background limit, so the harness never kills it while it writes its result. */
+const BACKGROUND_LIMIT_MARGIN_MINUTES = 1
+
+/**
+ * The minutes a launcher may hold for the pace. The whole launcher process lives in one background task, so the hold, the launch
+ * gate allowance and every worker run it can start must fit in `pace.backgroundLimitMinutes`. `attempts` is 2 when a second
+ * account lets the launcher relaunch once after a usage limit, else 1. The result is never negative.
+ */
+export const paceHoldBudgetMinutes = ({ pace, hardCeilingMinutes, attempts }) =>
+  Math.max(0, Math.min(pace.maxHoldMinutes, pace.backgroundLimitMinutes - pace.launchGateAllowanceMinutes - attempts * hardCeilingMinutes - BACKGROUND_LIMIT_MARGIN_MINUTES))
+
 /** Every number the pace governor reads, and the source that owns them. A missing one stops the launch. */
-const validatePace = (pace) => {
+const validatePace = (pace, timeouts) => {
   if (!isRecord(pace)) throw new Error(".claude/orchestrator.json must declare a pace object")
   if (typeof pace.enabled !== "boolean") throw new Error(".claude/orchestrator.json pace.enabled must be a boolean")
   if (!Number.isInteger(pace.workerCap) || pace.workerCap <= 0) throw new Error(".claude/orchestrator.json pace.workerCap must be a positive integer")
   positive(pace.recheckMinutes, "pace.recheckMinutes")
   positive(pace.maxHoldMinutes, "pace.maxHoldMinutes")
+  positive(pace.launchGateAllowanceMinutes, "pace.launchGateAllowanceMinutes")
+  positive(pace.backgroundLimitMinutes, "pace.backgroundLimitMinutes")
+  positive(timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")
+  const longestRunMinutes = pace.maxHoldMinutes + pace.launchGateAllowanceMinutes + timeouts.hardCeilingMinutes
+  if (longestRunMinutes + BACKGROUND_LIMIT_MARGIN_MINUTES > pace.backgroundLimitMinutes) {
+    throw new Error(`.claude/orchestrator.json pace.maxHoldMinutes (${pace.maxHoldMinutes}) + pace.launchGateAllowanceMinutes (${pace.launchGateAllowanceMinutes}) + timeouts.hardCeilingMinutes (${timeouts.hardCeilingMinutes}) = ${longestRunMinutes} must stay below pace.backgroundLimitMinutes (${pace.backgroundLimitMinutes}), or the harness kills a held launch that was admitted`)
+  }
   nonEmptyString(pace.transcriptRoot, "pace.transcriptRoot")
   nonEmptyString(pace.source, "pace.source")
   const reset = pace.weeklyReset
@@ -159,7 +177,7 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   if (!Number.isInteger(config.relay.hardTokens) || config.relay.hardTokens <= config.relay.softTokens || config.relay.hardTokens >= AUTO_COMPACT_TOKENS) {
     throw new Error(`.claude/orchestrator.json relay.hardTokens must be an integer above relay.softTokens and below ${AUTO_COMPACT_TOKENS}`)
   }
-  validatePace(config.pace)
+  validatePace(config.pace, config.timeouts)
   nonEmptyString(config.classifier.model, "classifier.model")
   positive(config.timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")
   positive(config.timeouts?.cloudCeilingMinutes, "timeouts.cloudCeilingMinutes")

@@ -15,7 +15,7 @@ import { awaitPace, PACE_HOLD_EXIT, readPace } from "./lib/pace-governor.mjs"
 import { orderSealProblem, runNotesIn } from "./lib/run-notes.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
-import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
+import { paceHoldBudgetMinutes, readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
 import { checkoutIdentity, resolveOnPath } from "./lib/cloud-worker.mjs"
 import { clearWakeSource, clearWorkerLaunchReservation, FIX_ROUND_KINDS, fixRoundRefusal, fixRoundRefusalReason, readDesignChange, readFixRounds, recordFixRound, recordReservedWorkerPid, releaseFixRound, registerWakeSource, reserveWorkerLaunch, readRunState, REVIEW_BATCH_ORDER_MARKER, workerLaunchDirectory } from "./lib/run-state.mjs"
 
@@ -95,9 +95,12 @@ Before the launch gate, the pace governor (.claude/orchestrator.json pace, tools
 weighted token spend of the main account since its weekly reset from the local Claude transcripts and compares
 it with the linear budget line of the week. Every mode passes it: ticket work, research, review and proof.
 At or under the line, a launch is admitted while fewer than pace.workerCap launchers are live. Over the line, or
-at the cap, the launch waits for at most pace.maxHoldMinutes and registers a wake source with paceHold true and the
-time the line catches up. A launch still held at that maximum prints reason PACE_HOLD with the wake time and exits 9. A
-dry run prints the verdict as pace and never waits. Without a stored owner reading the launch is admitted and the
+at the cap, the launch waits and registers a wake source with paceHold true and the time the line catches up. The
+whole launcher is one background task of pace.backgroundLimitMinutes, so the wait ends at pace.maxHoldMinutes or sooner:
+it leaves room for the launch gate allowance and for each worker run the launcher can start (two with a second Claude account,
+which relaunches once after a usage limit), at the ceiling of --hard-ceiling-minutes. A launch still held at that end prints
+reason PACE_HOLD with the wake time and exits 9. A stop by SIGINT or SIGTERM during the wait removes the wake source and
+the files of the mode. A dry run prints the verdict as pace and never waits. Without a stored owner reading the launch is admitted and the
 log says so; node tools/pace-calibrate.mjs stores a reading. pace.enabled false turns the governor off.
 
 Before admission, every launch waits at the launch gate: until the one-minute load is under
@@ -131,7 +134,7 @@ exit codes: 0 the worker exited on its own, 1 this launcher killed it or it neve
             3 the worker executable could not be resolved,
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
             8 admission refused new ticket work before reservation,
-            9 the pace governor still held the launch after pace.maxHoldMinutes; launch again at the printed wakeAt,
+            9 the pace governor still held the launch at the end of its wait (pace.maxHoldMinutes or less); launch again at the printed wakeAt,
             130 stopped by SIGINT, 143 stopped by SIGTERM
 Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.
 A read-only run exits 0 only after publishing its result, 5 when it found a write, 1 on any other
@@ -476,10 +479,32 @@ const launched = (environment) => ({ ...environment, ORBIT_LAUNCH_WORKER: "1", O
  * A hold registers its wake, which names the time the line catches up, and a hold is no worker.
  */
 const heldAt = new Date().toISOString()
+/** Set while an attempt runs. It stops that attempt's whole group and returns false when a clock already did. */
+let stopActiveAttempt = null
+let stopExitCode = null
+// The signals come first: a stop during the hold exits through the exit handlers, which remove what the mode made.
+for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
+  process.on(signal, () => {
+    if (stopActiveAttempt) {
+      if (stopActiveAttempt(`${issue} received ${signal}; killing the worker process tree`)) stopExitCode ??= exitCode
+      return
+    }
+    process.exit(exitCode)
+  })
+}
+let holding = true
+process.on("exit", () => {
+  if (holding) clearWakeSource(process.pid)
+})
+/**
+ * The whole launcher is one background task with a time limit. A second account lets it relaunch once after a usage limit,
+ * so the hold leaves room for each worker run it can start, and for the ceiling that --hard-ceiling-minutes sets.
+ */
+const holdBudgetMinutes = paceHoldBudgetMinutes({ pace: config.pace, hardCeilingMinutes, attempts: fallbackAccount === null ? 1 : 2 })
 let paced
 try {
   paced = await awaitPace({
-    config,
+    config: { ...config, pace: { ...config.pace, maxHoldMinutes: holdBudgetMinutes } },
     holdAt: (verdict) => registerWakeSource({ pid: process.pid, ...launchMode.wake, what: `pace hold: ${launchMode.wake.what}`, paceHold: true, decision: verdict.decision, wakeAt: verdict.wakeAt, workerPid: null, logFile, startedAt: heldAt }),
     release: () => clearWakeSource(process.pid),
     log: (line) => console.error(`${issue} ${line}`),
@@ -487,6 +512,7 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
+holding = false
 if (paced.expired === true) {
   console.log(JSON.stringify({ admitted: false, reason: "PACE_HOLD", decision: paced.decision, wakeAt: paced.wakeAt, spentShare: paced.spentShare, lineShare: paced.lineShare, headroomHours: paced.headroomHours, error: paced.reason }))
   process.exit(PACE_HOLD_EXIT)
@@ -500,19 +526,6 @@ if (config.relay.enabled && launchRunState?.relay?.pending === true) {
 }
 // The network step of the mode: it sets the worker environment, and it may refuse the launch.
 await launchMode.admit({ config, branch, launched })
-/** Set while an attempt runs. It stops that attempt's whole group and returns false when a clock already did. */
-let stopActiveAttempt = null
-let stopExitCode = null
-for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
-  process.on(signal, () => {
-    if (stopActiveAttempt) {
-      if (stopActiveAttempt(`${issue} received ${signal}; killing the worker process tree`)) stopExitCode ??= exitCode
-      return
-    }
-    process.exit(exitCode)
-  })
-}
-
 const timestamp = new Date().toISOString()
 let launchSessionId
 try { launchSessionId = readRunState()?.sessionId ?? null } catch (error) { fail(2, error.message) }
