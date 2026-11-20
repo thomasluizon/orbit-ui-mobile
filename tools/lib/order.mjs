@@ -70,19 +70,24 @@ const kindSection = ({ kind, pull, review, failure, partNumber }) => {
   }
 }
 
+/** A fix, ci-fix or merge-forward order pushes to the branch of an open pull request and opens none. */
+const pushesToOpenPull = (kind) => kind === "fix" || kind === "ci-fix" || kind === "merge-forward"
+
 /** The delivery rules. A find order has no delivery, so it does not get them. */
 const deliverySection = ({ ticket, kind }) => {
   const repository = ticket.repository
-  const pullRequest = kind === "fix" || kind === "ci-fix" || kind === "merge-forward"
+  const pushes = pushesToOpenPull(kind)
+  const pullRequest = pushes
     ? "Push to the branch of the open pull request. Open no other pull request."
     : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` (never \`Closes\`), \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open.`
-  return `**Delivery.** Commit after each coherent piece. ${pullRequest} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge, never force-push, never \`--no-verify\`. Write to GitHub only with \`git push\` and \`gh pr create\`.`
+  return `**Delivery.** Commit after each coherent piece. ${pullRequest} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge, never force-push, never \`--no-verify\`. Write to GitHub only with ${pushes ? "`git push`" : "`git push` and `gh pr create`"}.`
 }
 
 /** The generic brief. It names no ticket, feature or screen: the ticket is the order, in the owner's words. */
 export const renderBrief = ({ kind, place, ticket }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
   const reads = kind === "find"
+  const pushes = pushesToOpenPull(kind)
   const brief = `## Brief
 
 **Place.** Repository \`${place.repoKey}\` at \`${place.repoPath}\`. Working tree \`${place.worktree}\`. Branch \`${place.branch}\` is checked out. Base branch \`${place.base}\`. Work in this repository only, and create no other branch.
@@ -94,11 +99,10 @@ export const renderBrief = ({ kind, place, ticket }) => {
 - Tools: \`node tools/test-tools.mjs --only <case module>\` for each case module that covers a changed tool or reads a changed file. Never run the complete tools suite.
 - Hooks: \`node .claude/hooks/test-hooks.mjs\` after a change to \`.claude/**\` or a tracked \`*.md\` file.
 - The type check and the lint of each changed workspace.
-- Spend at most 25 minutes on verification. Report each command with its exit code.
-- Open no browser. Start no dev server. Run no production CLI.
+${reads ? "" : "- Spend at most 25 minutes on verification. Report each command with its exit code.\n"}- Open no browser. Start no dev server. Run no production CLI.
 - Never write a deployment barrier: \`.github/migration-contracts.json\` and \`.github/migration-locks.json\`.
 
-**Decisions.** Nobody answers a question. Decide every choice with the recommended option. Write the choice and its evidence in the pull request body. Never wait on a prompt. End with the line \`NEEDS_DECISION: <question>\` only for money, a change of model or effort, a change to a standing owner order, or an irreversible act in production.
+**Decisions.** Nobody answers a question. Decide every choice with the recommended option. ${reads ? "Never wait on a prompt." : `Write the choice and its evidence in the ${pushes ? "commit message" : "pull request body"}. Never wait on a prompt. End with the line \`NEEDS_DECISION: <question>\` only for money, a change of model or effort, a change to a standing owner order, or an irreversible act in production.`}
 
 **Copy.** Write copy against \`BRAND.md\` with \`/humanizer\`. Then approve it with \`/second-opinion\`, run with the same \`--settings\` and environment as this session, inside your own turn.
 
@@ -106,7 +110,7 @@ ${reads ? "**Delivery.** This is a read-only order. Change no file, make no comm
 
 **Commands.** Keep each shell command plain. Never put \`$(\`, a backtick, \`eval\` or a variable in a path or a redirect. Search with the Grep tool. Write a longer check as a \`.mjs\` file in the system temporary directory and run it with \`node\`. Run no command that Claude Code holds for an approval.
 
-**Report.** Your final message is at most 12 lines: the verdict, the commit SHAs, each test command with its pass count, and the pull request URL.
+**Report.** ${reads ? "Your final message is the area list and the findings table of \"This order\", with nothing after the table." : "Your final message is at most 12 lines: the verdict, the commit SHAs, each test command with its pass count, and the pull request URL."}
 `
   if (Buffer.byteLength(brief) > BRIEF_LIMIT_BYTES) throw new Error(`the brief is ${Buffer.byteLength(brief)} bytes, over the ${BRIEF_LIMIT_BYTES} byte limit`)
   return brief

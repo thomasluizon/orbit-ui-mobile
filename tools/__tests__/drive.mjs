@@ -900,6 +900,30 @@ const orderCases = async () => {
   const find = order("find", { partNumber: 1 })
   T("lib/order.mjs: a find order is read only and ends with the findings table", /path:line \| class \| fix/.test(find) && /Commit nothing, push nothing and open no pull request/.test(find) && /read-only order/.test(find) && !find.includes("gh pr create"))
 
+  const orders = {
+    build: build,
+    "build part": part,
+    fix,
+    "ci-fix": ciFix,
+    "merge-forward": forward,
+    find,
+  }
+  for (const [kind, text] of Object.entries(orders)) {
+    const reads = kind === "find"
+    const pushes = kind === "fix" || kind === "ci-fix" || kind === "merge-forward"
+    const opens = !reads && !pushes
+    T(`lib/order.mjs: the ${kind} brief gives the final message the rule of its own kind`, reads
+      ? !text.includes("at most 12 lines") && /final message is the area list and the findings table of "This order", with nothing after the table/.test(text)
+      : /final message is at most 12 lines/.test(text) && text.includes("the pull request URL"))
+    T(`lib/order.mjs: the ${kind} brief puts the decisions where its kind can write`, reads
+      ? !text.includes("pull request body") && !text.includes("commit message") && !text.includes("NEEDS_DECISION")
+      : text.includes(pushes ? "in the commit message" : "in the pull request body") && !text.includes(pushes ? "in the pull request body" : "in the commit message"))
+    T(`lib/order.mjs: the ${kind} brief names only the GitHub writes that its kind may make`, text.includes("`gh pr create`") === opens && (reads || text.includes("Write to GitHub only with `git push`")))
+    T(`lib/order.mjs: the ${kind} brief asks for verification evidence only when the order makes a change`, reads
+      ? !text.includes("Report each command") && !text.includes("Spend at most 25 minutes")
+      : text.includes("Report each command with its exit code") && text.includes("Spend at most 25 minutes"))
+  }
+
   for (const [label, call, message] of [
     ["an unknown kind", () => renderOrder({ kind: "review", ticket: TICKET, place: PLACE }), /unknown order kind/],
     ["a part order with no part number", () => order("build part"), /needs the number of its part/],
