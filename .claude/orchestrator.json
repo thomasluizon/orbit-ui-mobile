@@ -5,11 +5,12 @@
     "enabled": true,
     "workerCap": 3,
     "recheckMinutes": 5,
+    "maxHoldMinutes": 100,
     "transcriptRoot": "~/.claude/projects",
     "weeklyReset": { "weekday": 4, "hour": 4, "minute": 0, "utcOffsetMinutes": -180 },
     "tokenWeights": { "input": 1, "cacheWrite5m": 1.25, "cacheWrite1h": 2, "cacheRead": 0.1, "output": 5 },
     "modelWeights": { "opus": 1.7, "sonnet": 1, "default": 1.7 },
-    "source": "Weekly reset: Thursday 04:00 at UTC-3, set by the owner. Token weights are multiples of the input price and model weights are multiples of the Sonnet price, both measured on run record #2179 (D878). The worker cap is the three-worker pace of that record."
+    "source": "Weekly reset: Thursday 04:00 at UTC-3, set by the owner. Token weights are multiples of the input price and model weights are multiples of the Sonnet price, both measured on run record #2179 (D878). The worker cap is the three-worker pace of that record. A hold ends before the 120 minute background task limit of .claude/playbooks/operations.md."
   },
   "workers": {
     "codex": {

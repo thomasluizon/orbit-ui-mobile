@@ -778,6 +778,7 @@ export const cases = async () => {
     T(`${NAME}: a worker cap of ${JSON.stringify(workerCap)} is refused`, /pace\.workerCap must be a positive integer/.test(readAndFail(`pace-cap-${workerCap}`, withPace({ workerCap })) ?? ""))
   }
   T(`${NAME}: the recheck time needs a positive number`, /pace\.recheckMinutes must be a positive number/.test(readAndFail("pace-recheck", withPace({ recheckMinutes: 0 })) ?? ""))
+  T(`${NAME}: the maximum hold needs a positive number`, /pace\.maxHoldMinutes must be a positive number/.test(readAndFail("pace-max-hold", withPace({ maxHoldMinutes: 0 })) ?? ""))
   T(`${NAME}: the transcript directory and the source need text`,
     /pace\.transcriptRoot must be a non-empty string/.test(readAndFail("pace-root", withPace({ transcriptRoot: "" })) ?? "") && /pace\.source must be a non-empty string/.test(readAndFail("pace-source", withPace({ source: " " })) ?? ""))
   for (const [name, weeklyReset] of [["weekday", { ...real.pace.weeklyReset, weekday: 7 }], ["hour", { ...real.pace.weeklyReset, hour: 24 }], ["minute", { ...real.pace.weeklyReset, minute: 60 }], ["offset", { ...real.pace.weeklyReset, utcOffsetMinutes: 900 }], ["none", undefined]]) {

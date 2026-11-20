@@ -160,7 +160,7 @@ const readingCases = () => {
 }
 
 const awaitCases = async () => {
-  const config = { pace: { ...realOrchestratorConfig().pace, enabled: true, recheckMinutes: 5 } }
+  const config = { pace: { ...realOrchestratorConfig().pace, enabled: true, recheckMinutes: 5, maxHoldMinutes: 1000 } }
   const verdicts = [
     { decision: PACE_DECISIONS.holdLine, wakeAt: iso(RESET + 30 * 60_000), reason: "over" },
     { decision: PACE_DECISIONS.holdLine, wakeAt: iso(RESET + 30 * 60_000 + 60_000), reason: "over" },
@@ -179,6 +179,15 @@ const awaitCases = async () => {
   same(`${UNIT}: a hold waits for the line, at least the recheck time and at most one hour, then reads the spend again`, sleeps, [30 * 60_000, 5 * 60_000, 5 * 60_000, HOUR])
   same(`${UNIT}: each hold registers its wake and the admit clears it`, events, ["hold HOLD_LINE", "hold HOLD_LINE", "hold HOLD_CAP", "hold HOLD_LINE", "release"])
   T(`${UNIT}: the wait reports how long the launch was held`, result.heldMs === 30 * 60_000 + 10 * 60_000 + HOUR && result.decision === "ADMIT", JSON.stringify(result))
+
+  const stillOver = { decision: PACE_DECISIONS.holdLine, wakeAt: iso(RESET + 50 * HOUR), reason: "over" }
+  const expiredSleeps = []
+  let expiredClock = RESET
+  const expired = await awaitPace({
+    config: { pace: { ...config.pace, maxHoldMinutes: 100 } }, now: () => expiredClock, read: () => stillOver,
+    sleep: async (milliseconds) => { expiredSleeps.push(milliseconds); expiredClock += milliseconds },
+  })
+  same(`${UNIT}: a hold ends at the maximum wait with its last verdict and its wake time`, [expiredSleeps, expired.expired, expired.decision, expired.wakeAt, expired.heldMs], [[HOUR, 40 * 60_000], true, "HOLD_LINE", stillOver.wakeAt, 100 * 60_000])
 
   let read = false
   const disabled = await awaitPace({ config: { pace: { ...config.pace, enabled: false } }, read: () => { read = true } })
@@ -209,7 +218,7 @@ const countCases = async () => {
  * A staged launcher reads the real clock, so the fixture takes the share of the week that has passed now.
  * `spentOfLine` is the spend as a multiple of the line: 0.5 is under it, 2 is over it.
  */
-const liveFixture = (label, spentOfLine) => {
+const liveFixture = (label, spentOfLine, paceOverrides = {}) => {
   const nowMs = Date.now()
   const config = launchConfig(stubEngine(stage("pace-governor/immediate-worker.js", "process.exit(0)\n")))
   const transcripts = join(root, "pace-governor", `${label}-projects`)
@@ -218,7 +227,7 @@ const liveFixture = (label, spentOfLine) => {
   const transcript = join(transcripts, "session.jsonl")
   writeFileSync(transcript, `${call({ id: `${label}-1`, at: nowMs - 1000, output: spentWeighted / 5 })}\n`)
   utimesSync(transcript, new Date(nowMs), new Date(nowMs))
-  const pace = { ...config.pace, enabled: true, transcriptRoot: transcripts }
+  const pace = { ...config.pace, enabled: true, transcriptRoot: transcripts, ...paceOverrides }
   const fixture = launch(`pace-${label}`, { ...config, pace })
   const elapsedShare = (nowMs - weekWindow(nowMs, pace.weeklyReset).startMs) / WEEK
   writeCalibration(join(fixture.base, ".git", "orbit-pace-calibration.json"), {
@@ -249,6 +258,13 @@ const launcherCases = async () => {
   if (admittedBody.logFile) rmSync(admittedBody.logFile, { force: true })
   T("launch-worker.mjs: a launch under the line passes the governor and runs the worker", admitted.status === 0 && admittedBody.outcome === "EXITED" && /pace admits/.test(admitted.stderr), `${admitted.status} ${admitted.stderr} ${admitted.stdout}`)
   T("launch-worker.mjs: an admitted launch leaves no pace hold behind", readWakeSourceStates(underLine.fixture.base).live.length === 0)
+
+  const shortHold = liveFixture("short", 2, { recheckMinutes: 0.01, maxHoldMinutes: 0.03 })
+  const expiredRun = run("launch-worker.mjs", shortHold.argv, { path: shortHold.fixture.path, env: githubAuthEnv() })
+  const expiredBody = parse(expiredRun.stdout)
+  T("launch-worker.mjs: a launch still held at the maximum wait prints PACE_HOLD with the wake time and exits 9",
+    expiredRun.status === 9 && expiredBody.reason === "PACE_HOLD" && expiredBody.admitted === false && expiredBody.decision === "HOLD_LINE" && Date.parse(expiredBody.wakeAt) > Date.now(), `${expiredRun.status} ${expiredRun.stdout} ${expiredRun.stderr}`)
+  T("launch-worker.mjs: a launch held to the maximum leaves no wake source", readWakeSourceStates(shortHold.fixture.base).live.length === 0)
 
   const held = spawn(process.execPath, [overLine.fixture.path, ...overLine.argv], { cwd: dirname(overLine.fixture.path), env: { ...process.env, ...githubAuthEnv() }, stdio: ["ignore", "pipe", "pipe"] })
   let heldError = ""

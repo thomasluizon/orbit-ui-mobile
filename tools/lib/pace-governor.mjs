@@ -19,6 +19,9 @@ const DAY_MS = 24 * HOUR_MS
 const WEEK_MS = 7 * DAY_MS
 const WEEK_HOURS = WEEK_MS / HOUR_MS
 
+/** The exit code of a launcher that the governor still holds at its maximum wait. */
+export const PACE_HOLD_EXIT = 9
+
 export const PACE_DECISIONS = Object.freeze({ admit: "ADMIT", holdLine: "HOLD_LINE", holdCap: "HOLD_CAP" })
 
 /** The weekly window that holds `nowMs`. A call exactly at the reset belongs to the new week. */
@@ -203,15 +206,17 @@ export const readPace = ({ config, repoRoot = REPO_ROOT, nowMs = Date.now(), liv
 }
 
 /**
- * Waits until the verdict admits. A line hold sleeps until the line catches up and then reads the
- * spend again, because the coordinator and the live workers kept spending. `holdAt` registers the
- * wake for each hold verdict, and `release` clears it. Nothing here records a launch.
+ * Waits until the verdict admits, for at most `pace.maxHoldMinutes`. A line hold sleeps until the line
+ * catches up and then reads the spend again, because the coordinator and the live workers kept spending.
+ * `holdAt` registers the wake for each hold verdict, and `release` clears it. A hold that outlasts the
+ * maximum returns the last verdict with `expired` true. Nothing here records a launch.
  */
 export const awaitPace = async ({ config, repoRoot = REPO_ROOT, now = Date.now, sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
   read = readPace, holdAt = () => {}, release = () => {}, log = () => {} }) => {
   if (config.pace.enabled !== true) return { decision: PACE_DECISIONS.admit, enabled: false, heldMs: 0 }
   const startedMs = now()
   const recheckMs = config.pace.recheckMinutes * MINUTE_MS
+  const deadlineMs = startedMs + config.pace.maxHoldMinutes * MINUTE_MS
   let announced = null
   for (;;) {
     const verdict = read({ config, repoRoot, nowMs: now() })
@@ -224,9 +229,14 @@ export const awaitPace = async ({ config, repoRoot = REPO_ROOT, now = Date.now, 
       log(`pace holds (${verdict.decision}): ${verdict.reason}`)
       announced = verdict.decision
     }
+    const remainingMs = deadlineMs - now()
+    if (remainingMs <= 0) {
+      release()
+      return { ...verdict, enabled: true, expired: true, heldMs: now() - startedMs }
+    }
     holdAt(verdict)
     const untilMs = verdict.wakeAt === null ? 0 : Date.parse(verdict.wakeAt) - now()
     // The spend moves while a launch waits, so no wait lasts longer than one hour.
-    await sleep(Math.min(Math.max(untilMs, recheckMs), HOUR_MS))
+    await sleep(Math.min(Math.max(untilMs, recheckMs), HOUR_MS, remainingMs))
   }
 }

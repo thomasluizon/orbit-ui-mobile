@@ -11,7 +11,7 @@ import { readOnlyLaunch } from "./lib/review-run.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { passLaunchGate } from "./lib/launch-gate.mjs"
-import { awaitPace, readPace } from "./lib/pace-governor.mjs"
+import { awaitPace, PACE_HOLD_EXIT, readPace } from "./lib/pace-governor.mjs"
 import { orderSealProblem, runNotesIn } from "./lib/run-notes.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
@@ -95,7 +95,8 @@ Before the launch gate, the pace governor (.claude/orchestrator.json pace, tools
 weighted token spend of the main account since its weekly reset from the local Claude transcripts and compares
 it with the linear budget line of the week. Every mode passes it: ticket work, research, review and proof.
 At or under the line, a launch is admitted while fewer than pace.workerCap launchers are live. Over the line, or
-at the cap, the launch waits and registers a wake source with paceHold true and the time the line catches up. A
+at the cap, the launch waits for at most pace.maxHoldMinutes and registers a wake source with paceHold true and the
+time the line catches up. A launch still held at that maximum prints reason PACE_HOLD with the wake time and exits 9. A
 dry run prints the verdict as pace and never waits. Without a stored owner reading the launch is admitted and the
 log says so; node tools/pace-calibrate.mjs stores a reading. pace.enabled false turns the governor off.
 
@@ -130,6 +131,7 @@ exit codes: 0 the worker exited on its own, 1 this launcher killed it or it neve
             3 the worker executable could not be resolved,
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
             8 admission refused new ticket work before reservation,
+            9 the pace governor still held the launch after pace.maxHoldMinutes; launch again at the printed wakeAt,
             130 stopped by SIGINT, 143 stopped by SIGTERM
 Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.
 A read-only run exits 0 only after publishing its result, 5 when it found a write, 1 on any other
@@ -474,8 +476,9 @@ const launched = (environment) => ({ ...environment, ORBIT_LAUNCH_WORKER: "1", O
  * A hold registers its wake, which names the time the line catches up, and a hold is no worker.
  */
 const heldAt = new Date().toISOString()
+let paced
 try {
-  await awaitPace({
+  paced = await awaitPace({
     config,
     holdAt: (verdict) => registerWakeSource({ pid: process.pid, ...launchMode.wake, what: `pace hold: ${launchMode.wake.what}`, paceHold: true, decision: verdict.decision, wakeAt: verdict.wakeAt, workerPid: null, logFile, startedAt: heldAt }),
     release: () => clearWakeSource(process.pid),
@@ -483,6 +486,10 @@ try {
   })
 } catch (error) {
   fail(2, error.message)
+}
+if (paced.expired === true) {
+  console.log(JSON.stringify({ admitted: false, reason: "PACE_HOLD", decision: paced.decision, wakeAt: paced.wakeAt, spentShare: paced.spentShare, lineShare: paced.lineShare, headroomHours: paced.headroomHours, error: paced.reason }))
+  process.exit(PACE_HOLD_EXIT)
 }
 const gate = await passLaunchGate(config.launchGate)
 console.error(`${issue} passed the launch gate at load ${gate.load.toFixed(2)} after ${Math.round(gate.waitedMs / 1000)} s`)

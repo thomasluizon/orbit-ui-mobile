@@ -112,6 +112,7 @@ const validatePace = (pace) => {
   if (typeof pace.enabled !== "boolean") throw new Error(".claude/orchestrator.json pace.enabled must be a boolean")
   if (!Number.isInteger(pace.workerCap) || pace.workerCap <= 0) throw new Error(".claude/orchestrator.json pace.workerCap must be a positive integer")
   positive(pace.recheckMinutes, "pace.recheckMinutes")
+  positive(pace.maxHoldMinutes, "pace.maxHoldMinutes")
   nonEmptyString(pace.transcriptRoot, "pace.transcriptRoot")
   nonEmptyString(pace.source, "pace.source")
   const reset = pace.weeklyReset
