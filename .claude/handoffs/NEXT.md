@@ -28,7 +28,7 @@ UI `main` `7947f0894`; API `main`, production and staging `9295ac75b`; landing `
 
 | Item | Disposition |
 | --- | --- |
-| `#2181` ui#2509 | Branch `feature/ticket-2181-pace-governor`, worktree `ticket-2181-pace-governor`, `main` merged in. Local heads, none pushed: `7d419703c` (merge), `6a32455f2` (round 5), `54c13d4da` (round 6), `225384230` (round 7, `tools/wait-until.mjs`). The round 8 fix worker (the round 8 note and D930 on `#2181`) RUNS; its outcome is unknown: read the worktree log and new commits first. Next: the read-only review of its head with `--since 225384230`; on CLEAN, put the body (the ticket comment with the body draft, plus lines for rounds 7 and 8) on the pull request, push, reply to and resolve the 3 Pullfrog threads of `a4c62a196` (fixed by round 4, `565960555`), ask Pullfrog, `wait-ci.mjs --require-check pullfrog-approval`, merge at the bar. Pushed head `a4c62a196` has a Pullfrog review with 3 open threads; nothing is approved. |
+| `#2181` ui#2509 | Branch `feature/ticket-2181-pace-governor`, worktree `ticket-2181-pace-governor`, `main` merged in. Local heads, none pushed: `7d419703c` (merge), `6a32455f2` (round 5), `54c13d4da` (round 6), `225384230` (round 7, `tools/wait-until.mjs`), `4b500be1d` (round 8, D930; the worker report is a comment on `#2181`, tree clean). Next: the read-only review of `4b500be1d` with `--since 225384230`; on CLEAN, put the body (the ticket comment with the body draft, plus lines for rounds 7 and 8 from their reports) on the pull request, push, reply to and resolve the 3 Pullfrog threads of `a4c62a196` (fixed by round 4, `565960555`), ask Pullfrog, `wait-ci.mjs --require-check pullfrog-approval`, merge at the bar. Pushed head `a4c62a196` has a Pullfrog review with 3 open threads; nothing is approved. |
 | `#2074` layer 2 | ui#2510 merged as `7947f0894` (D925); the ticket stays open. Next after ui#2509: the driver (v3 item 1), the totals at merge (v3 item 5), the verdict read (00:50 item 3) and the review NOTEs filed on `#2074`. |
 | `#2182` | Resolve ORBIT-API-1A at the first listing after the `resolveAfter` that `intake.sentry` holds, with no event newer than its `lastEventAt`, then `complete-ticket.mjs`. |
 | `#2184` | Owner-reported Android launch screen hang; next after `#2074` layer 2. |
@@ -48,7 +48,7 @@ Unattended: never ask the owner; decide with the best option and log it on the r
 ## Previous prompt, disposition
 
 - Done: relay adopted (D924); `#2074` layer 1 pushed at `d77a67c4c`, thread resolved, Pullfrog approved, merged as `7947f0894` (D925); ui#2509 merged with `main` (D926) and local rounds 5 to 7 (D927 to D929); two intake cycles.
-- Carried: ui#2509 (round 8 in flight), `#2074` layer 2, the `#2182` close, `#2184`, `#2183`, `#2169`, `#2176`, `#2126`, `#2146`, `#2152`, the held rows, intake, every standing order above.
+- Carried: ui#2509 (round 8 committed, review next), `#2074` layer 2, the `#2182` close, `#2184`, `#2183`, `#2169`, `#2176`, `#2126`, `#2146`, `#2152`, the held rows, intake, every standing order above.
 - Superseded: "`#2074` layer 1 first" (merged); "the review tier moves when ui#2510 merges" (it moved).
 
 Treat every identifier here as a lead to verify.
