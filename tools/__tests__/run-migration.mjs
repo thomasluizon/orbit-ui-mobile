@@ -54,7 +54,7 @@ const planCases = () => {
     if (!(path in texts)) throw new Error(`ENOENT: ${path}`)
     return texts[path]
   }
-  T(`${UNIT}: a round note item becomes its ticket comment`, planItem({ kind: "round-note", file: "round.md", issue: 2152, round: 2, head: HEAD }, { readText }).text.startsWith(`<!-- orbit-run-note: kind=round-note round=2 head=${HEAD} -->`))
+  T(`${UNIT}: a round note item becomes its ticket comment`, planItem({ kind: "round-note", file: "round.md", issue: 2152, round: 2, head: HEAD }, { readText }).text.startsWith(`<!-- orbit-run-note: kind=round-note round=2 head=${HEAD} pullfrogThreads=0 -->`))
   same(`${UNIT}: a body item targets its pull request`, planItem({ kind: "body", file: "body.md", repo: "ui", pr: 2486 }, { readText }).target, "ui#2486 body")
   for (const [label, item, message] of [
     ["an unknown kind", { kind: "note", file: "round.md" }, /manifest kind/],
