@@ -403,6 +403,7 @@ export const orcaEnv = (plan) => {
   return {
     ORCA_BIN: process.execPath,
     GH_BIN: process.execPath,
+    PULLFROG_BIN: process.execPath,
     NODE_OPTIONS: `--require "${ORCA_SHIM.replaceAll("\\", "/")}"`,
     ORBIT_ORCA_STUB: JSON.stringify(plan),
   }

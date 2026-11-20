@@ -5,10 +5,10 @@ import { pathToFileURL } from "node:url"
 import { setTimeout as wait } from "node:timers/promises"
 import { Worker } from "node:worker_threads"
 
-import { T, TOOLS_DIR, root } from "./_harness.mjs"
+import { T, TOOLS_DIR, root, stage } from "./_harness.mjs"
 import { claudeProcessFields, exitedPid, reusedPidRecord, stageClaudeSessions } from "./owner-questions-core.mjs"
 
-const { clearWakeSource, liveSessionProcess, liveSessionProcesses, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, unseenSessions, updateRunState, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
+const { clearWakeSource, darwinProcessStart, liveSessionProcess, processStartIdentity, liveSessionProcesses, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, unseenSessions, updateRunState, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
 
 const TOOL = "lib/run-state.mjs"
 
@@ -254,7 +254,39 @@ const sessionRecordCases = () => {
   T(`${TOOL}: a sessions directory with no record has no live session`, JSON.stringify(empty) === JSON.stringify({ live: [] }), JSON.stringify(empty))
 }
 
+/** A real zombie (a child that exited and that its parent never reaps) and pid 1, which another user owns. */
+const darwinProcessReadCases = async () => {
+  if (process.platform !== "darwin") return
+  const pidFile = stage("run-state/zombie/zombie.pid", "")
+  const holder = stage("run-state/zombie/holder.mjs", `import { spawn } from "node:child_process"
+import { writeFileSync } from "node:fs"
+const child = spawn(process.execPath, ["-e", "process.exit(0)"], { stdio: "ignore" })
+writeFileSync(${JSON.stringify(pidFile)}, String(child.pid))
+Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)`)
+  const parent = spawn(process.execPath, [holder], { stdio: "ignore" })
+  const closed = new Promise((resolve) => parent.once("close", resolve))
+  try {
+    let zombie = null
+    const deadline = Date.now() + 60000
+    while (zombie?.state !== "Z" && Date.now() < deadline) {
+      const pid = Number(readFileSync(pidFile, "utf8"))
+      zombie = pid > 0 ? { pid, ...darwinProcessStart(pid) } : null
+      if (zombie?.state !== "Z") await wait(20)
+    }
+    T(`${TOOL}: the darwin read sees a zombie as state Z with its start second, so a zombie lock holder reads as gone`,
+      zombie?.state === "Z" && Number.isInteger(zombie.startSeconds) && processStartIdentity(zombie.pid) === null, JSON.stringify(zombie))
+  } finally {
+    parent.kill("SIGKILL")
+    await closed
+  }
+  const own = darwinProcessStart(process.pid)
+  T(`${TOOL}: the darwin identity of this process is its start second`, own !== null && processStartIdentity(process.pid) === `darwin:${own.startSeconds}`, JSON.stringify(own))
+  const init = darwinProcessStart(1)
+  T(`${TOOL}: the darwin read sees a process of another user`, init !== null && Number.isInteger(init.startSeconds), JSON.stringify(init))
+}
+
 export const cases = async () => {
+  await darwinProcessReadCases()
   strandedQueueCases()
   sessionRecordCases()
   const raced = await raceDisableAgainstWakeSaves()

@@ -571,7 +571,14 @@ export const cases = async () => {
       CLAUDE_MODEL.test(model ?? "") && resolved.model === model && effortOf(resolved.args) === "high" &&
         resolved.args.slice(-2).join(" ") === `--model ${model}`,
       `.claude/orchestrator.json resolved ${resolved.model} with ${JSON.stringify(resolved.args)}`)
+    T(`${NAME}: the shipped ${tier} implementer runs claude-sonnet-5-5, the owner's worker model`, resolved.model === "claude-sonnet-5-5", resolved.model)
   }
+  /** The review tier is the one reviewer model: claude-opus-5-5 at xhigh, confirmed with a real run of the installed claude CLI. */
+  const reviewer = resolveWorkerInvocation(engineName, engine, "review")
+  T(`${NAME}: the shipped review tier is claude-opus-5-5 at xhigh effort`,
+    reviewer.model === "claude-opus-5-5" && effortOf(reviewer.args) === "xhigh" && reviewer.args.slice(-2).join(" ") === "--model claude-opus-5-5" &&
+      reviewer.args.join(" ").includes("--effort xhigh --model claude-opus-5-5"), JSON.stringify(reviewer))
+  T(`${NAME}: the review tier keeps every sub-agent off vector of its engine`, engine.subagentOffArgs.length > 0 && engine.subagentOffArgs.every((argument) => reviewer.args.includes(argument)), JSON.stringify(reviewer.args))
 
   const engineFailures = []
   const codexEngine = real.workers.codex
@@ -581,8 +588,8 @@ export const cases = async () => {
       resolved.model === "gpt-6.1-sol" && resolved.args.includes(`model_reasoning_effort="${effort}"`), JSON.stringify(resolved))
   }
   for (const [declaredName, declaredEngine] of Object.entries(real.workers)) {
-    T(`${NAME}: ${declaredName} declares exactly the four worker tiers`,
-      JSON.stringify(Object.keys(declaredEngine.models ?? {}).sort()) === JSON.stringify(["deep", "default", "max", "mechanical"]))
+    T(`${NAME}: ${declaredName} declares exactly its worker tiers`,
+      JSON.stringify(Object.keys(declaredEngine.models ?? {}).sort()) === JSON.stringify(declaredName === "claude" ? ["deep", "default", "max", "mechanical", "review"] : ["deep", "default", "max", "mechanical"]))
     const tiers = Object.keys(declaredEngine.models ?? {})
     if (tiers.length === 0) {
       engineFailures.push(`${declaredName}: declares no model tiers`)
@@ -631,8 +638,8 @@ export const cases = async () => {
   const fallback = real.workers.claude ?? {}
   T(
     `${NAME}: the claude engine runs claude with a Claude model on every tier and no other tier`,
-    fallback.command === "claude" && JSON.stringify(Object.keys(fallback.models ?? {})) === JSON.stringify(WORKER_TIERS) &&
-      WORKER_TIERS.every((tier) => CLAUDE_MODEL.test(fallback.models[tier]?.model ?? "")),
+    fallback.command === "claude" && JSON.stringify(Object.keys(fallback.models ?? {})) === JSON.stringify([...WORKER_TIERS, "review"]) &&
+      [...WORKER_TIERS, "review"].every((tier) => CLAUDE_MODEL.test(fallback.models[tier]?.model ?? "")),
     `.claude/orchestrator.json declares command ${JSON.stringify(fallback.command)} with ${JSON.stringify(fallback.models)}`,
   )
 

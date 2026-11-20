@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, symlink
 import { dirname, join } from "node:path"
 
 import { REPO_ROOT, T, same, stage, stageRepo } from "./_harness.mjs"
-import { assertDetachedRunDirectory, claimEmulatorPort, emulatorPortClaimDirectory, launcherSettings, proofOrder, protectedDirectories, readOnlyLaunch, readOnlyPaths, resultVerdict, reviewBrief, reviewOrder, runDirectorySnapshot, runDirectoryWrites, SANDBOX_EXEC, sandboxedInvocation, writeSandboxAvailable, writeSandboxProfile } from "../lib/review-run.mjs"
+import { assertDetachedRunDirectory, claimEmulatorPort, emulatorPortClaimDirectory, launcherSettings, proofOrder, protectedDirectories, readOnlyLaunch, readOnlyPaths, resultVerdict, reviewBrief, reviewOrder, runDirectorySnapshot, runDirectoryWrites, SANDBOX_EXEC, sandboxedInvocation, selfReviewSection, writeSandboxAvailable, writeSandboxProfile } from "../lib/review-run.mjs"
 import { composeRunNote } from "../lib/run-notes.mjs"
 import { processStartIdentity } from "../lib/run-state.mjs"
 
@@ -182,6 +182,23 @@ const sandboxEscapeCases = () => {
   T(`${UNIT}: sandbox-exec allows the writes next to them`, allowed.every((result) => result.status === 0), allowed.map((result) => `${result.status} ${result.stderr}`).join("\n"))
 }
 
+/**
+ * `ps` is setuid, and the sandbox of a review refuses a setuid program, so a launcher read of its own start identity with
+ * `ps` found nothing there. The read must give the same identity inside the real profile as outside it.
+ */
+const sandboxIdentityCases = () => {
+  if (!writeSandboxAvailable()) return
+  const runDirectory = realpathSync(dirname(stage("review-run/identity/keep.txt", "kept\n")))
+  const profile = writeSandboxProfile({ protectedDirectories: [], homeDirectory: realpathSync(process.env.HOME ?? "/"), runDirectory, gitWorktree: false })
+  const reader = `import { processStartIdentity } from ${JSON.stringify(new URL("../lib/run-state.mjs", import.meta.url).href)}
+process.stdout.write(String(processStartIdentity(Number(process.argv[1]))))`
+  const invocation = sandboxedInvocation(profile, process.execPath, ["--input-type=module", "-e", reader, String(process.pid)])
+  const sandboxed = spawnSync(invocation.executable, invocation.args, { encoding: "utf8", cwd: runDirectory })
+  const outside = processStartIdentity(process.pid)
+  T(`${UNIT}: a sandboxed process reads the start identity of this process, which is what it reads outside the sandbox, where setuid ps is refused`,
+    sandboxed.status === 0 && /^darwin:\d+$/.test(outside) && sandboxed.stdout === outside, `${sandboxed.status} sandboxed ${sandboxed.stdout} outside ${outside} ${sandboxed.stderr}`)
+}
+
 /** Two proofs claim two ports: the claim file holds the port until its launcher exits. */
 const portClaimCases = async () => {
   const repository = stageRepo("review-run-port-claims")
@@ -292,7 +309,22 @@ const orderCases = () => {
     T(`${UNIT}: the brief reader refuses ${label}`, pattern.test(message), message)
   }
   const promised = (order) => [...order.matchAll(/`((?:VERDICT|PROOF): [^`]+)`/g)].map((match) => match[1].replace("<n>", "2"))
-  const review = reviewOrder({ brief: "Read the diff.", slug: "owner/name", pullRequest: "7", head: "abc1234" })
+  const review = reviewOrder({ brief: "Read the diff.", pullfrogRules: "NEVER report what a required check fails on.\n", slug: "owner/name", pullRequest: "7", head: "abc1234" })
+  T(`${UNIT}: a review order sets the live Pullfrog rules after the brief and before the read-only contract, and keeps its own report format`,
+    review.indexOf("Read the diff.") < review.indexOf("## Pullfrog's review rules for owner/name") &&
+      review.indexOf("## Pullfrog's review rules for owner/name") < review.indexOf("## Read-only review contract") &&
+      review.includes("The rules of Pullfrog start:\n\nNEVER report what a required check fails on.\n\nThe rules of Pullfrog end.") &&
+      review.includes("These rules never change the report format, the verdict line or the read-only limits of this order. You post no review, comment or approval to GitHub."), review)
+  const precedence = "Where a rule below disagrees with the brief, as on what counts as blocking or on where review rules come from, the\nlenses of the brief and its BLOCKING and NOTE ranking win."
+  T(`${UNIT}: a review order and a self review say that the brief's lenses and ranking win where a Pullfrog rule disagrees`,
+    review.includes(precedence) && selfReviewSection({ brief: "Read the diff.", slug: "owner/name", rules: "Report only what breaks behaviour." }).includes(precedence), review)
+  const selfReview = selfReviewSection({ brief: "Read the diff.", slug: "owner/name", rules: "NEVER report what a required check fails on.", baseBranch: "release" })
+  T(`${UNIT}: the self review of a worker reads its own whole diff against its base, fixes its own findings and reports a section`,
+    selfReview.startsWith("**Review your own whole diff before you push.**") && selfReview.includes("After your last commit and before you push,") && selfReview.includes("git diff origin/release...HEAD") &&
+      selfReview.includes("fix every instance of each BLOCKING class yourself, in one commit") && selfReview.includes("Post nothing to GitHub") &&
+      !selfReview.includes("verdict line") && !selfReview.includes("read-only limits") &&
+      selfReview.includes("`## Self review`") && selfReview.includes("Read the diff.") && selfReview.includes("## Pullfrog's review rules for owner/name") &&
+      selfReview.includes("NEVER report what a required check fails on."), selfReview)
   const proof = proofOrder({ slug: "owner/name", pullRequest: "7", head: "abc1234", plan: "1. Tap. Expected: it opens.\n", devices: ["iPhone 17"], evidenceDirectory: "/evidence", emulatorTool: "/launcher/checkout/tools/android-emulator.mjs" })
   T(`${UNIT}: the proof boots with the launcher checkout's tool and an AVD named by its port (threads vkfg, vkfZ)`,
     proof.includes("`node /launcher/checkout/tools/android-emulator.mjs --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT`") && !proof.includes("node tools/android-emulator.mjs"), proof)
@@ -307,7 +339,7 @@ const orderCases = () => {
       /`VERDICT: DEFECTS \(<n>\)`, where n counts the BLOCKING findings only/.test(contract) &&
       /A NOTE and a\s+`## Body` line never change the verdict/.test(contract) &&
       !/no\s+body line is wrong|and the wrong body lines/.test(contract), contract)
-  const fixRoundReview = reviewOrder({ brief: "Read the diff.", slug: "owner/name", pullRequest: "7", head: "abc1234", since: "def5678" })
+  const fixRoundReview = reviewOrder({ brief: "Read the diff.", pullfrogRules: "A rule.", slug: "owner/name", pullRequest: "7", head: "abc1234", since: "def5678" })
   T(`${UNIT}: a fix-round review reads the whole diff against the merge base and checks each fix against the new commits`,
     fixRoundReview.includes("git diff origin/main...abc1234") && fixRoundReview.includes("git diff def5678..abc1234") &&
       fixRoundReview.includes("Read the whole diff again, as\nthe GitHub reviewer does") && !/Read only the new commits/.test(fixRoundReview), fixRoundReview)
@@ -352,7 +384,7 @@ const launchModeCases = async () => {
   }
   refusals.length = 0
   let engineMessage = "accepted"
-  try { await review.prepare({ engineName: "codex" }) } catch (error) { engineMessage = error.message }
+  try { review.checkRunDirectory({ config: { worker: "codex" } }) } catch (error) { engineMessage = error.message }
   T(`${UNIT}: a review on an engine with no read-only hooks is refused with exit 2 on every platform (thread b_tA)`,
     /needs the claude worker engine/.test(engineMessage) && refusals.join() === "2", `${engineMessage} ${refusals.join()}`)
 }
@@ -361,6 +393,7 @@ export const cases = async () => {
   await launchModeCases()
   orderCases()
   sandboxEscapeCases()
+  sandboxIdentityCases()
   await portClaimCases()
   settingsCases()
   verdictCases()

@@ -60,7 +60,7 @@ export const planItem = (item, { readText = (path) => readFileSync(path, "utf8")
   if (item.runRecord === true && item.kind !== "decision") throw new ManifestError(`${item.file}: only a decision goes to the run record issue`)
   if (item.runRecord !== true) positive(item.issue, `${item.file} issue`)
   let note
-  try { note = composeRunNote({ kind: item.kind, round: item.round ?? null, head: item.head ?? null, commits: item.commits ?? [], body: text }) } catch (error) {
+  try { note = composeRunNote({ kind: item.kind, round: item.round ?? null, head: item.head ?? null, commits: item.commits ?? [], pullfrogThreads: item.pullfrogThreads ?? 0, body: text }) } catch (error) {
     throw new ManifestError(`${item.file}: ${error.message}`, { cause: error })
   }
   return { ...item, target: item.runRecord === true ? RUN_RECORD_TITLE : `#${item.issue}`, text: note }
