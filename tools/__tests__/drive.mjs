@@ -51,6 +51,7 @@ import {
   workerInvocation,
   workerSettings,
 } from "../lib/worker.mjs"
+import { driverUnit } from "./_drive-tick.mjs"
 import { T, realOrchestratorConfig, root, same, toolPath, SELF } from "./_harness.mjs"
 
 const FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
@@ -949,7 +950,7 @@ const orderUnit = async () => {
   selfSufficiencyCases()
 }
 
-const UNITS = { "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
+const UNITS = { "drive.mjs": driverUnit, "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
 
 /** The runner calls cases() once for a module, so one call runs the unit of every registry row that names this module. */
 const registeredUnits = readFileSync(toolPath(SELF), "utf8").split("\n").flatMap((line) => /^\s*\["([^"]+)", "drive"\],?$/.exec(line)?.[1] ?? [])

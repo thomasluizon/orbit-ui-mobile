@@ -225,13 +225,15 @@ const notifyOnce = async (env, mem, message) => {
 const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason }) => {
   const item = pull ? `${repoKey}#${pull.number}` : `ticket#${ticket.number}`
   log(env, item, "needs-owner", reason)
-  if (env.dryRun || ticket.labels.includes(OWNER)) return
-  await env.github.editLabels("tickets", ticket.number, { add: [OWNER] })
-  ticket.labels.push(OWNER)
-  if (pull && !pull.labels.includes(OWNER)) {
-    try { await env.github.editLabels(repoKey, pull.number, { add: [OWNER] }) } catch (error) { log(env, item, "label-failed", error.message) }
+  if (env.dryRun || (ticket ? ticket.labels.includes(OWNER) : pull.labels.includes(OWNER))) return
+  if (ticket) {
+    await env.github.editLabels("tickets", ticket.number, { add: [OWNER] })
+    ticket.labels.push(OWNER)
   }
-  await env.github.comment("tickets", ticket.number, marked("needs-owner", reason))
+  if (pull && !pull.labels.includes(OWNER)) {
+    try { await env.github.editLabels(repoKey, pull.number, { add: [OWNER] }); pull.labels.push(OWNER) } catch (error) { log(env, item, "label-failed", error.message) }
+  }
+  await env.github.comment(ticket ? "tickets" : repoKey, ticket ? ticket.number : pull.number, marked("needs-owner", reason))
   await env.notify(`Orbit driver needs you: ${reason}`)
 }
 
@@ -418,7 +420,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "rerun":
       await env.github.rerunFailed(repoKey, action.runId)
       return env.github.comment(repoKey, pull.number, marked("record", `driver rerun ${action.runId}`))
-    case "needs-owner": return needsOwner(env, mem, { ticket: ticket ?? { number: 0, labels: [OWNER] }, repoKey, pull, reason: action.reason })
+    case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason })
     case "behind": {
       if (ctx.updated) return log(env, `${repoKey}#${pull.number}`, "wait", "another pull request is next to merge")
       ctx.updated = true
@@ -514,7 +516,8 @@ const prepareWorktree = async (env, repoKey, branch, fresh) => {
 const ticketForOrder = (env, ticket, extra = "") => ({ number: ticket.number, title: ticket.title, body: extra === "" ? ticket.body : `${ticket.body.trim()}\n\n${extra}`, repository: env.config.tickets.repository })
 
 /** Starts one worker for an order and records its launch on the ticket first, so a crash still counts. */
-const startWorker = async (env, mem, order) => {
+const startWorker = async (env, mem, candidate) => {
+  const order = { ...candidate, branch: candidate.branch ?? candidate.pull.headRef }
   const { kind, repoKey, ticket, pull = null, part = null, branch, extra = "" } = order
   const token = await env.worker.readWorkerToken()
   if (token === null) {
