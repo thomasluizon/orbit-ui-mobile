@@ -17,9 +17,11 @@ const SHA = /^[0-9a-f]{40}$/
 const BARRIER_CHECK = "Guard Migrations"
 const BARRIER_STEP = "Require deployment barriers for schema contractions"
 const SETUP_STEP = "Set up job"
+const OWNER_LABEL = "needs:owner"
 
 const PULL_FIELDS = (number) => `number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
   author { login }
+  labels(first: 50) { nodes { name } }
   mergeCommit { oid }
   files(first: 100) { nodes { path } }
   commits(last: 100) { nodes { commit { oid parents(first: 3) { totalCount } } } }
@@ -148,6 +150,7 @@ const normalizePull = (raw, ticketRepository) => {
     state: raw.state,
     draft: raw.isDraft,
     author: botLogin(raw.author),
+    labels: labelNames(raw.labels),
     headRef: raw.headRefName,
     headSha: raw.headRefOid,
     baseRef: raw.baseRefName,
@@ -239,13 +242,13 @@ export const deployFirstHolds = (labels) => labels.flatMap((label) => {
   return match ? [{ environment: match[1], task: match[2] }] : []
 })
 
-/** The newest check of each producer: a rerun replaces its own earlier entry, and a same-named check of another app stays separate. */
+/** The newest check of each producer: a rerun replaces its own earlier entry, and a same-named check of another app stays separate. Each entry keeps its rollup `node`. */
 const newestChecks = (nodesOfRollup) => {
   const newest = new Map()
   for (const node of nodesOfRollup) {
     const check = node.__typename === "CheckRun"
-      ? { name: node.name, appId: node.checkSuite?.app?.databaseId ?? null, passed: node.status === "COMPLETED" && PASSING_CONCLUSIONS.has(node.conclusion), at: node.startedAt ?? "", id: node.databaseId }
-      : { name: node.context, appId: null, passed: node.state === "SUCCESS", at: node.createdAt ?? "", id: 0 }
+      ? { name: node.name, appId: node.checkSuite?.app?.databaseId ?? null, passed: node.status === "COMPLETED" && PASSING_CONCLUSIONS.has(node.conclusion), at: node.startedAt ?? "", id: node.databaseId, node }
+      : { name: node.context, appId: null, passed: node.state === "SUCCESS", at: node.createdAt ?? "", id: 0, node }
     const key = JSON.stringify([check.name, check.appId])
     const previous = newest.get(key)
     // Two runs can start in the same second and GitHub lists the newer first, so the higher check run id is the newer run.
@@ -320,9 +323,9 @@ const dependabotFailures = (types) => {
 
 /**
  * The failed conditions of the merge bar at the exact head; an empty list means the bar holds.
- * `context`: `fixLaunches`, `wholeDiffRequests` (ISO time of the driver's request, by head sha), `cleanMerges`
- * (shas of base merges whose remerge diff is empty), `blockers` (open blockedBy ticket numbers of the tracked ticket) and,
- * for a Dependabot pull request, `updateTypes` (`readDependabotUpdateTypes`).
+ * `context`: `fixLaunches`, `wholeDiffRequests` (ISO time of the request, by head sha), `cleanMerges` (shas of empty
+ * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket) and, for a
+ * Dependabot pull request, `updateTypes`.
  */
 export const mergeBar = (pull, context = {}) => {
   const failed = []
@@ -343,11 +346,13 @@ export const mergeBar = (pull, context = {}) => {
   if (pull.mergeState !== "CLEAN") failed.push(`merge-state:${pull.mergeState}`)
   if ((context.blockers ?? []).length > 0) failed.push(`blocked-by:${context.blockers.join(",")}`)
   if (dependabot) failed.push(...dependabotFailures(context.updateTypes))
+  if (pull.labels.includes(OWNER_LABEL) || (context.ticketLabels ?? []).includes(OWNER_LABEL)) failed.push("needs-owner")
   return failed
 }
 
-/** The failing checks of a pull request. A check run of GitHub Actions is one job, so its id names the job inside the run of its details URL. */
-export const failedChecks = (pull) => pull.checks.filter((node) => node.__typename === "CheckRun" && node.status === "COMPLETED" && !PASSING_CONCLUSIONS.has(node.conclusion))
+/** The failing checks of a pull request, from the same newest run of each check that the merge bar reads. A check run of GitHub Actions is one job, so its id names the job inside the run of its details URL. */
+export const failedChecks = (pull) => newestChecks(pull.checks).map((check) => check.node)
+  .filter((node) => node.__typename === "CheckRun" && node.status === "COMPLETED" && !PASSING_CONCLUSIONS.has(node.conclusion))
   .map((node) => ({ name: node.name, conclusion: node.conclusion, jobId: node.databaseId, runId: /\/actions\/runs\/(\d+)/.exec(node.detailsUrl ?? "")?.[1] ?? null }))
 
 /** What to do about one failed check, from the names of its failed steps: a rerun for the setup step, the owner for a barrier, otherwise a fix order. */

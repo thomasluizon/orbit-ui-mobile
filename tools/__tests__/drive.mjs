@@ -146,6 +146,9 @@ const githubUnit = async () => {
   same("lib/github.mjs: one read holds every open pull request when the numbers are known", [openCalls.length, openState.numbers, openState.defaultBranch, openState.slug], [1, [2509], "main", UI])
   same("lib/github.mjs: a pull request keeps its identity fields", [open.number, open.state, open.draft, open.author, open.headRef, open.headSha, open.baseRef, open.mergeState, open.changedFiles, open.files.length], [2509, "OPEN", false, "thomasluizon", "feature/ticket-2181-pace-governor", "a4c62a196324df595f5597e00863abc65f86435f", "main", "DIRTY", 23, 23])
   same("lib/github.mjs: behindBy comes from the comparison that names this head and this base tip", open.behindBy, 1)
+  const labelled = stateResponse([2509])
+  labelled.data.repository.pr2509.labels = FIXTURE.pullLabels.response.data.repository.pr7.labels
+  same("lib/github.mjs: a pull request keeps the names of its labels", [open.labels, (await readPulls([2509], [2509, 2510], labelled)).state.pulls[0].labels], [[], ["parity:exempt"]])
   same("lib/github.mjs: the short form of a Tracks line names no ticket", open.tracks, null)
   same("lib/github.mjs: the full Tracks line names its ticket", approved.tracks, NEWEST_TICKET)
   same("lib/github.mjs: the required checks of branch protection carry their app ids", [open.requiredChecks.length, open.requiredChecks.find((check) => check.context === "pullfrog-approval")], [13, { context: "pullfrog-approval", appId: 1768019 }])
@@ -240,6 +243,9 @@ const mergeBarCases = (approved) => {
   same("lib/github.mjs: the newest rerun of a check replaces its earlier failed run", barOf({ checks: markedOlder }), [])
   const markedNewer = ready.checks.map((check) => (check !== older && check.name === "PR Metadata" ? { ...check, conclusion: "FAILURE" } : check))
   same("lib/github.mjs: a failed newest rerun fails the bar", barOf({ checks: markedNewer }), ["check-not-green:PR Metadata"])
+  same("lib/github.mjs: the failed checks of a pull request leave out a run that a newer run replaced", failedChecks({ checks: markedOlder }), [])
+  same("lib/github.mjs: the failed checks of a pull request name the newest run when it failed", failedChecks({ checks: markedNewer }).map((check) => [check.name, check.conclusion]), [["PR Metadata", "FAILURE"]])
+  same("lib/github.mjs: the failed checks and the bar agree on every check of the recorded rollup", failedChecks({ checks: failing }).map((check) => `check-not-green:${check.name}`), barOf({ checks: failing }))
   same("lib/github.mjs: a check list that ends early fails the bar", barOf({ checksComplete: false }), ["checks-incomplete"])
   const review = ready.reviews.at(-1)
   same("lib/github.mjs: a review that is not APPROVED fails the bar", barOf({ reviews: [{ ...review, state: "COMMENTED" }] }), ["review-not-approved-at-head"])
@@ -253,6 +259,10 @@ const mergeBarCases = (approved) => {
   same("lib/github.mjs: an unknown lag fails the bar", barOf({ behindBy: null }), ["behind-unknown"])
   same("lib/github.mjs: a merge state that is not CLEAN fails the bar", barOf({ mergeState: "BLOCKED" }), ["merge-state:BLOCKED"])
   same("lib/github.mjs: an open blocker of the tracked ticket fails the bar", barOf({}, { blockers: [3, 4] }), ["blocked-by:3,4"])
+  same("lib/github.mjs: a pull request that carries needs:owner fails the bar", barOf({ labels: ["parity:exempt", "needs:owner"] }), ["needs-owner"])
+  same("lib/github.mjs: a tracked ticket that carries needs:owner fails the bar", barOf({}, { ticketLabels: ["repo:ui", "needs:owner"] }), ["needs-owner"])
+  same("lib/github.mjs: needs:owner on both the pull request and its ticket is one failed condition", barOf({ labels: ["needs:owner"] }, { ticketLabels: ["needs:owner"] }), ["needs-owner"])
+  same("lib/github.mjs: other labels on the pull request and its ticket leave the bar alone", barOf({ labels: ["parity:exempt"] }, { ticketLabels: ["repo:ui", "needs:conversation"] }), [])
   same("lib/github.mjs: every failed condition is listed, not only the first", barOf({ draft: true, behindBy: 1, mergeState: "BEHIND" }), ["draft", "behind:1", "merge-state:BEHIND"])
 
   const dependabot = { author: "dependabot", tracks: null }
@@ -516,15 +526,12 @@ const configUnit = async () => {
 
 const UNITS = { "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit }
 
-/**
- * Every row of the registry that names this module runs cases() once, and the runner passes no argument. The rows are
- * read from the registry in its own order, so the nth call runs the unit that the nth row names.
- */
+/** The runner calls cases() once for a module, so one call runs the unit of every registry row that names this module. */
 const registeredUnits = readFileSync(toolPath(SELF), "utf8").split("\n").flatMap((line) => /^\s*\["([^"]+)", "drive"\],?$/.exec(line)?.[1] ?? [])
-let calls = 0
 
 export const cases = async () => {
-  const unit = registeredUnits[calls++]
-  T(`registry: row ${calls} of ${registeredUnits.length} for the drive module names a unit that has cases`, UNITS[unit] !== undefined, `row ${unit} has no cases in tools/__tests__/drive.mjs`)
-  await UNITS[unit]?.()
+  for (const unit of registeredUnits) {
+    T(`registry: the drive row for ${unit} names a unit that has cases`, UNITS[unit] !== undefined, `row ${unit} has no cases in tools/__tests__/drive.mjs`)
+    await UNITS[unit]?.()
+  }
 }
