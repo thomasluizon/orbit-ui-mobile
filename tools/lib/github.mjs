@@ -16,6 +16,7 @@ const MARKER = /^<!-- orbit-drive:([a-z-]+) -->/
 const SHA = /^[0-9a-f]{40}$/
 const BARRIER_CHECK = "Guard Migrations"
 const BARRIER_STEP = "Require deployment barriers for schema contractions"
+const SETUP_STEP = "Set up job"
 
 const PULL_FIELDS = (number) => `number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
   author { login }
@@ -348,10 +349,10 @@ export const mergeBar = (pull, context = {}) => {
 export const failedChecks = (pull) => pull.checks.filter((node) => node.__typename === "CheckRun" && node.status === "COMPLETED" && !PASSING_CONCLUSIONS.has(node.conclusion))
   .map((node) => ({ name: node.name, conclusion: node.conclusion, jobId: node.databaseId, runId: /\/actions\/runs\/(\d+)/.exec(node.detailsUrl ?? "")?.[1] ?? null }))
 
-/** What to do about one failed check: a rerun for a setup step or a GitHub 504, the owner for a barrier, otherwise a fix order. */
-export const classifyCheckFailure = ({ name, failedSteps, log }) => {
+/** What to do about one failed check, from the names of its failed steps: a rerun for the setup step, the owner for a barrier, otherwise a fix order. */
+export const classifyCheckFailure = ({ name, failedSteps }) => {
   if (name === BARRIER_CHECK && failedSteps.includes(BARRIER_STEP)) return "needs-owner"
-  return failedSteps.includes("Set up job") || /\bHTTP 504\b/.test(log) ? "rerun" : "ci-fix"
+  return failedSteps.includes(SETUP_STEP) ? "rerun" : "ci-fix"
 }
 
 /** The names of the failed steps of one job of a workflow run. */
@@ -521,5 +522,5 @@ export const createTicket = async ({ title, body, labels, milestone = null, stat
   await graphql(api, ADD_ITEM_MUTATION, { project: tickets.projectId, content: contentId })
   await setStatus(number, status, seams)
   if (blockers.length > 0) await api.run(["issue", "edit", String(number), "--repo", tickets.repository, "--add-blocked-by", blockers.join(",")])
-  return { number, url: created, title, status }
+  return { number, url: created, title, milestone: null, status }
 }
