@@ -1127,7 +1127,7 @@ the batch's single commit spends one `caps.reviewFixAttempts` round; a batch tha
 spends nothing. A worker batch claims it at launch (`launch-worker.mjs --fix-round`, which records `pullfrog` when the round note counts a Pullfrog thread, else `local`), and
 the launcher gives it back when the launch ends with no commit, so the relaunch of that order spends
 the same round; a fix the orchestrator writes spends it with `node tools/fix-rounds.mjs --worktree <p> --record
-pullfrog` before its commit. If the batch has only FILE or not-applicable findings, perform their existing reply,
+<local|pullfrog>` before its commit, by the same rule: `pullfrog` when a Pullfrog thread is in the batch, else `local`. If the batch has only FILE or not-applicable findings, perform their existing reply,
 resolve and same-head re-review transitions without launching a worker or inventing a commit.
 
 Post the round note with `--pullfrog-threads <n>`, the count of Pullfrog threads in the batch (0 for a

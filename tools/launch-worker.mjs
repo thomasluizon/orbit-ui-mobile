@@ -339,7 +339,7 @@ if (designChangeArgument !== null) {
 if (launchMode.fixRounds === true && !fixRoundSwitch && orderText.includes(REVIEW_BATCH_ORDER_MARKER)) {
   fail(2, `${promptFile} is a review batch order, which is a fix round: pass --fix-round`)
 }
-const roundNote = launchMode.fixRounds === true && fixRoundSwitch ? runNotesIn(orderText).find((note) => note.kind === "round-note" && note.head === startHead) : undefined
+const roundNote = launchMode.fixRounds === true && fixRoundSwitch ? runNotesIn(orderText).findLast((note) => note.kind === "round-note" && note.head === startHead) : undefined
 if (launchMode.fixRounds === true && fixRoundSwitch && roundNote === undefined) {
   fail(2, `${promptFile} quotes no round note for head ${startHead}. Post the round's note to the ticket with node tools/post-run-note.mjs --kind round-note --issue ${issue} --round <n> --head ${startHead} --pullfrog-threads <n> --body-file <file>, then compose the order again`)
 }

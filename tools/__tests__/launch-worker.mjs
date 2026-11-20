@@ -118,6 +118,9 @@ const fixRoundCases = () => {
     !existsSync(join(fixRounds.worktree, ".git", "orbit-fix-rounds")), dryPlan.stdout)
   const pullfrogPlan = check(TOOL, "a dry run of a batch with Pullfrog threads names the kind pullfrog", [...fixArgs(2), "--fix-round", "--dry-run"], { status: 0 }, fixOptions)
   T(`${TOOL}: one launch for the local and the Pullfrog findings of one head records the kind pullfrog`, /"fixRound": \{\s*"kind": "pullfrog",\s*"number": 1,\s*"cap": 1/.test(pullfrogPlan.stdout), pullfrogPlan.stdout)
+  const twoNotesOrder = stage(`launch-worker/fix-rounds-two-notes-${currentHead()}.md`, sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\n${roundNote(currentHead(), 0)}\n${roundNote(currentHead(), 2)}\nthe review batch order\n`))
+  const newestPlan = check(TOOL, "a dry run of an order with two round notes of one head reads the newest", ["--issue", "ORB-201", "--worktree", fixRounds.worktree, "--prompt", twoNotesOrder, "--fix-round", "--dry-run"], { status: 0 }, fixOptions)
+  T(`${TOOL}: the later round note of one head wins, as every later comment does`, /"fixRound": \{\s*"kind": "pullfrog"/.test(newestPlan.stdout), newestPlan.stdout)
   discardLog(check(TOOL, "the first fix round launches", [...fixArgs(), "--fix-round"], { status: 0, stderr: /spends fix round 1 of 1(?![\s\S]*is not spent)/ }, fixOptions).stdout)
   check(
     TOOL,

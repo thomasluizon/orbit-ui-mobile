@@ -17,7 +17,7 @@ const commentWrite = (number, stdinFile) => ({ match: `issue comment ${number} -
 export const cases = () => {
   const body = stage("post-run-note/round.md", "Fix the two findings of the round 1 review.\n")
   const captured = stage("post-run-note/round-comment.txt", "unwritten")
-  check(TOOL, "a round note is posted to its ticket with its marker", ["--kind", "round-note", "--issue", "#2152", "--round", "2", "--head", HEAD, "--body-file", body],
+  check(TOOL, "a round note is posted to its ticket with its marker", ["--kind", "round-note", "--issue", "#2152", "--round", "2", "--head", HEAD, "--pullfrog-threads", "0", "--body-file", body],
     { status: 0, stdout: /"number":2152,"url":"https:\/\/github\.com\/thomasluizon\/orbit-tickets\/issues\/2152","kind":"round-note"/ },
     { env: orcaEnv([...githubIssueReadPlan(issue), commentWrite(2152, captured)]) })
   T(`${TOOL}: the posted comment starts with the round note marker`, readFileSync(captured, "utf8").startsWith(`<!-- orbit-run-note: kind=round-note round=2 head=${HEAD} pullfrogThreads=0 -->`), readFileSync(captured, "utf8"))
@@ -26,6 +26,8 @@ export const cases = () => {
   check(TOOL, "a round note posts the count of Pullfrog threads in its batch", ["--kind", "round-note", "--issue", "#2152", "--round", "1", "--head", HEAD, "--pullfrog-threads", "2", "--body-file", body],
     { status: 0 }, { env: orcaEnv([...githubIssueReadPlan(issue), commentWrite(2152, threadsCaptured)]) })
   T(`${TOOL}: the posted round note carries pullfrogThreads=2`, readFileSync(threadsCaptured, "utf8").startsWith(`<!-- orbit-run-note: kind=round-note round=1 head=${HEAD} pullfrogThreads=2 -->`), readFileSync(threadsCaptured, "utf8"))
+  check(TOOL, "a round note without a Pullfrog thread count is refused, so an omission never records the kind local", ["--kind", "round-note", "--issue", "#2152", "--round", "1", "--head", HEAD, "--body-file", body],
+    { status: 2, stderr: /--pullfrog-threads/ }, { env: orcaEnv([]) })
   for (const count of ["many", "", " ", "0x2", "1e0"]) {
     check(TOOL, `a round note with the Pullfrog thread count ${JSON.stringify(count)} is refused`, ["--kind", "round-note", "--issue", "#2152", "--round", "1", "--head", HEAD, "--pullfrog-threads", count, "--body-file", body],
       { status: 2, stderr: /--pullfrog-threads/ }, { env: orcaEnv([]) })

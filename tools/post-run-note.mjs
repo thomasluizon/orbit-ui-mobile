@@ -12,7 +12,7 @@ const USAGE = `usage: post-run-note.mjs --kind <${RUN_NOTE_KINDS.join("|")}> (--
   Each note starts with a marker line that tools/run-status.mjs and tools/compose-prompt.mjs read back.
 
   --kind round-note   a fix round's note, before its worker launches. Needs --round and --head (the full
-                      SHA the round answers). --pullfrog-threads <n> (default 0) counts the Pullfrog
+                      SHA the round answers). --pullfrog-threads <n> (required) counts the Pullfrog
                       threads in the batch: one launch answers the local and the Pullfrog findings of one
                       head, and the fix round ledger records the kind pullfrog when n is above 0.
                       tools/launch-worker.mjs --fix-round refuses an order that carries no round note for
@@ -67,7 +67,7 @@ const wholeNumberOf = (value) => /^\d+$/.test(value) ? Number(value) : Number.Na
 let note
 try {
   note = composeRunNote({ kind: values["--kind"], round: values["--round"] === undefined ? null : wholeNumberOf(values["--round"]), head: values["--head"] ?? null,
-    pullfrogThreads: values["--pullfrog-threads"] === undefined ? 0 : wholeNumberOf(values["--pullfrog-threads"]), commits: values["--commits"] ? values["--commits"].split(",") : [], body })
+    pullfrogThreads: values["--pullfrog-threads"] === undefined ? null : wholeNumberOf(values["--pullfrog-threads"]), commits: values["--commits"] ? values["--commits"].split(",") : [], body })
 } catch (error) {
   fail(2, `post-run-note: ${error.message}`)
 }
