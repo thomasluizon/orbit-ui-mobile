@@ -1,6 +1,10 @@
 /** The review rules that Pullfrog applies to a repository, read live from the Pullfrog console, never copied into a file. */
 
 import { spawnSync } from "node:child_process"
+import { existsSync } from "node:fs"
+import { win32 } from "node:path"
+
+import { resolveSpawnTarget } from "./win-spawn-target.mjs"
 
 /** The Pullfrog CLI that printed the listing this parser reads. A newer version is a reviewed change. */
 const PULLFROG_CLI_VERSION = "0.1.138"
@@ -21,10 +25,25 @@ const parsePullfrogReviewRules = (listing, slug) => {
 }
 
 /** The command that lists the Pullfrog settings of `slug`. `PULLFROG_BIN` names the CLI itself, so a test names a stub. */
-export const pullfrogListCommand = (slug, environment = process.env) => {
+export const pullfrogListCommand = (slug, environment = process.env, { platform = process.platform, resolveTarget = resolveSpawnTarget, fileExists = existsSync } = {}) => {
   if (!SLUG.test(slug)) throw new Error(`cannot read the Pullfrog review rules: "${slug}" is not an owner/repository slug`)
-  const [command, runner] = environment.PULLFROG_BIN ? [environment.PULLFROG_BIN, []] : ["npx", ["-y", `pullfrog@${PULLFROG_CLI_VERSION}`]]
-  return { command, args: [...runner, "config", "list", "--repo", slug] }
+  if (environment.PULLFROG_BIN) return { command: environment.PULLFROG_BIN, args: ["config", "list", "--repo", slug] }
+  const [command, npx] = npxRunner({ platform, pathValue: environment.PATH ?? "", pathExt: environment.PATHEXT ?? "", resolveTarget, fileExists })
+  return { command, args: [...npx, "-y", `pullfrog@${PULLFROG_CLI_VERSION}`, "config", "list", "--repo", slug] }
+}
+
+/**
+ * Node spawns no .cmd shim without a shell (CVE-2024-27980), and a shell joins arguments without escaping them. On Windows
+ * this runs the npx-cli.js that npm's own npx.cmd runs from the directory of the shim (npm/bin/npx.cmd: %~dp0\node_modules\npm\bin\npx-cli.js).
+ */
+const npxRunner = ({ platform, pathValue, pathExt, resolveTarget, fileExists }) => {
+  if (platform !== "win32") return ["npx", []]
+  const target = resolveTarget("npx", { platform, pathValue, pathExt })
+  if (target === null) throw new Error("cannot read the Pullfrog review rules: no npx on PATH")
+  if (![".cmd", ".bat"].includes(win32.extname(target).toLowerCase())) return [target, []]
+  const cli = win32.join(win32.dirname(target), "node_modules", "npm", "bin", "npx-cli.js")
+  if (!fileExists(cli)) throw new Error(`cannot read the Pullfrog review rules: npx is the command shim ${target}, and ${cli} does not exist`)
+  return [process.execPath, [cli]]
 }
 
 /** Reads the review rules of `slug`. Any failure throws an error that names the repository and the CLI version, so a compose stops with a named cause. */

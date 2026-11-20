@@ -59,6 +59,17 @@ export const cases = () => {
   T(`${UNIT}: with no stub the command is npx at an exact CLI version, never latest`,
     direct.command === "npx" && direct.args.length === 6 && direct.args[0] === "-y" && /^pullfrog@\d+\.\d+\.\d+$/.test(direct.args[1]) &&
       JSON.stringify(direct.args.slice(2)) === JSON.stringify(["config", "list", "--repo", SLUG]), JSON.stringify(direct))
+  const shim = "C:\\Program Files\\nodejs\\npx.cmd"
+  const onWindows = (fileExists) => pullfrogListCommand(SLUG, { PATH: "C:\\Program Files\\nodejs" }, { platform: "win32", resolveTarget: () => shim, fileExists })
+  const windows = onWindows(() => true)
+  same(`${UNIT}: on Windows the npx shim is never spawned: node runs the npx-cli.js that the shim runs, with the same arguments`, windows,
+    { command: process.execPath, args: ["C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npx-cli.js", ...direct.args] })
+  let missing = null
+  try { onWindows(() => false) } catch (error) { missing = error.message }
+  T(`${UNIT}: on Windows a shim with no npx-cli.js beside it stops the read with the shim named`, /npx is the command shim C:\\Program Files\\nodejs\\npx\.cmd/.test(missing ?? ""), String(missing))
+  let absent = null
+  try { pullfrogListCommand(SLUG, {}, { platform: "win32", resolveTarget: () => null }) } catch (error) { absent = error.message }
+  T(`${UNIT}: on Windows no npx on PATH stops the read with a named cause`, /no npx on PATH/.test(absent ?? ""), String(absent))
   same(`${UNIT}: PULLFROG_BIN names the CLI itself and takes the listing arguments only`, pullfrogListCommand(SLUG, { PULLFROG_BIN: "/stub/pullfrog" }),
     { command: "/stub/pullfrog", args: ["config", "list", "--repo", SLUG] })
 }
