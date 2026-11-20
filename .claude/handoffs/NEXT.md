@@ -22,13 +22,13 @@ Finish the spec: an empty board except `#33`, verified releases, the assistant f
 
 ## In flight
 
-UI `main` `1d13bec4c`; API `main` `9295ac75b`, production and staging `70c66e7be`; landing `main` and staging `3dbd6cd` (production `20c1b0a90`); web staging and production `2460ef091`; Android Open and TestFlight 1.3.158 from `358ad030b`. Owner question queue: empty (`owner-questions.mjs --list` printed `[]`). Board 29 open, 29 placed in `## The order`, 0 unplaced, 0 placed twice. No live local worker. Sentry: ORBIT-WEB-1H resolved and `#2156` closed; 5 unresolved, last listed 23:46Z, no new event; the next listing is due one hour after that mark. Mail, Play reviews, pull requests and alerts: nothing pending at 23:47Z.
+UI `main` `1d13bec4c`; API `main` `9295ac75b`, production and staging `70c66e7be`; landing `main` and staging `3dbd6cd` (production `20c1b0a90`); web staging and production `2460ef091`; Android Open and TestFlight 1.3.158 from `358ad030b`. Owner question queue: empty (`owner-questions.mjs --list` printed `[]`). Board 29 open, 29 placed in `## The order`, 0 unplaced, 0 placed twice. No live local worker. Sentry: ORBIT-WEB-1H resolved and `#2156` closed; 5 unresolved, last listed 01:05Z, no new event; the next listing is due one hour after that mark. Mail, Play reviews, pull requests and alerts: nothing pending at 23:47Z.
 
 | Item | Disposition |
 | --- | --- |
 | `#2182` | api#1130 merged as `9295ac75b` (API `main`; no migration, so no Render export is needed). Next: the API release through `/release` (staging, then production; API alone, never with web), then resolve ORBIT-API-1A after the release shows no new event, then close `#2182`. |
 | Hook tests | `node .claude/hooks/test-hooks.mjs` failed 3 attended-commit rows at the relay (git-guardrails adapter and two handoff chain rows, got 2 want 0) after a text-only spec and prompt change; confirm on a clean checkout and ticket the cause if it reproduces (D907 on `#2182`). |
-| `#2169` | Buildable now that ui#2500 merged; its comments list what ui#2500 left to it and the `evals/astra` `vite` install defect. |
+| `#2169` | ui#2500 merged, but the board still blocks it on `#2160`, `#2164` and `#2165`; its comments list what ui#2500 left to it and the `evals/astra` `vite` install defect. |
 | `#2181`, `#2176`, `#2126`, `#2146`, `#2152` | One at a time after the API release, in the spec's order. |
 | Held | ui#2491 and ui#2494 on api#1124, ui#2498 proofs A and B at a real relay plus the leaked-stub test fix (comment on `#2173`), the api assistant PRs on the `#2135` gate (baseline with cost complete; api#1130 also edits `AgentOperationExecutor.cs`, so the second to merge rebases), `#2122` closes after a web release carries it. |
 
