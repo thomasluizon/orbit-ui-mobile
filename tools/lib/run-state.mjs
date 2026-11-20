@@ -172,7 +172,7 @@ const removeStaleReclaim = (path) => {
   }
 }
 
-// A process start identity never changes, and each darwin read spawns ps, so lock owners read their own once.
+// A process start identity never changes, and each darwin read spawns /usr/bin/python3, so lock owners read their own once.
 let ownProcessStartIdentity = null
 const ownProcessIdentity = () => (ownProcessStartIdentity ??= processStartIdentity(process.pid))
 
