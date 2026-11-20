@@ -25,31 +25,31 @@ const darwinLstartSeconds = (lstart) => {
 }
 
 /**
- * `ps` is setuid on macOS, and the sandbox of a read-only review refuses a setuid program, so this reads
- * the state and start time from libproc: `proc_pidinfo(pid, PROC_PIDTBSDINFO)` fills `struct proc_bsdinfo`
- * (sys/proc_info.h, 136 bytes), the record behind the `stat` and `lstart` columns of `ps`. `-I` keeps the
- * working directory out of the import path of `/usr/bin/python3`, which has no setuid bit. It prints
- * `<pbi_status> <pbi_start_tvsec>`, or nothing when the process is gone. */
-const LIBPROC_START_SOURCE = `
+ * `ps` is setuid, and a review sandbox refuses a setuid program, so this makes the call `ps` makes:
+ * `sysctl(CTL_KERN, KERN_PROC, KERN_PROC_PID, pid)` fills the 648 byte `struct kinfo_proc`, zombies and other
+ * users' processes included (libproc's `proc_pidinfo` fills neither). `p_starttime.tv_sec` is at byte 0,
+ * `p_stat` at 36, `p_pid` at 40. `-I` keeps the working directory out of the import path of `/usr/bin/python3`,
+ * which has no setuid bit. It prints `<p_stat> <start second>`, or nothing for a gone process (length 0). */
+const SYSCTL_START_SOURCE = `
 import ctypes, sys
-class BsdInfo(ctypes.Structure):
-    _fields_ = [("flags", ctypes.c_uint32), ("status", ctypes.c_uint32), ("xstatus", ctypes.c_uint32), ("pid", ctypes.c_uint32), ("ppid", ctypes.c_uint32),
-        ("uid", ctypes.c_uint32), ("gid", ctypes.c_uint32), ("ruid", ctypes.c_uint32), ("rgid", ctypes.c_uint32), ("svuid", ctypes.c_uint32), ("svgid", ctypes.c_uint32), ("reserved", ctypes.c_uint32),
-        ("comm", ctypes.c_char * 16), ("name", ctypes.c_char * 32), ("nfiles", ctypes.c_uint32), ("pgid", ctypes.c_uint32), ("pjobc", ctypes.c_uint32), ("tdev", ctypes.c_uint32), ("tpgid", ctypes.c_uint32), ("nice", ctypes.c_int32),
-        ("start_seconds", ctypes.c_uint64), ("start_microseconds", ctypes.c_uint64)]
-info = BsdInfo()
-PROC_PIDTBSDINFO = 3
-filled = ctypes.CDLL("/usr/lib/libproc.dylib").proc_pidinfo(int(sys.argv[1]), PROC_PIDTBSDINFO, 0, ctypes.byref(info), ctypes.sizeof(info))
-if filled == ctypes.sizeof(info):
-    print(info.status, info.start_seconds)
+pid = int(sys.argv[1])
+KINFO_PROC_BYTES = 648
+record = ctypes.create_string_buffer(KINFO_PROC_BYTES)
+length = ctypes.c_size_t(KINFO_PROC_BYTES)
+CTL_KERN, KERN_PROC, KERN_PROC_PID = 1, 14, 1
+name = (ctypes.c_int * 4)(CTL_KERN, KERN_PROC, KERN_PROC_PID, pid)
+called = ctypes.CDLL("/usr/lib/libc.dylib").sysctl(name, 4, record, ctypes.byref(length), None, ctypes.c_size_t(0))
+raw = record.raw
+if called == 0 and length.value == KINFO_PROC_BYTES and int.from_bytes(raw[40:44], "little", signed=True) == pid:
+    print(raw[36], int.from_bytes(raw[0:8], "little", signed=True))
 `
-/** `pbi_status` of sys/proc.h: SIDL, SRUN, SSLEEP, SSTOP, SZOMB. The first letter is the BSD `ps` state letter of each. */
+/** `p_stat` of sys/proc.h: SIDL, SRUN, SSLEEP, SSTOP, SZOMB. The first letter is the BSD `ps` state letter of each. */
 const DARWIN_PROCESS_STATES = { 1: "I", 2: "R", 3: "S", 4: "T", 5: "Z" }
-const DARWIN_LIBPROC_LINE = /^([1-5]) (\d+)$/
+const DARWIN_SYSCTL_LINE = /^([1-5]) (\d+)$/
 
 export const darwinProcessStart = (pid) => {
-  const result = spawnSync("/usr/bin/python3", ["-I", "-c", LIBPROC_START_SOURCE, String(pid)], { encoding: "utf8", timeout: 5000 })
-  const match = result.status === 0 ? DARWIN_LIBPROC_LINE.exec(result.stdout.trim()) : null
+  const result = spawnSync("/usr/bin/python3", ["-I", "-c", SYSCTL_START_SOURCE, String(pid)], { encoding: "utf8", timeout: 5000 })
+  const match = result.status === 0 ? DARWIN_SYSCTL_LINE.exec(result.stdout.trim()) : null
   return match ? { state: DARWIN_PROCESS_STATES[match[1]], startSeconds: Number(match[2]) } : null
 }
 const MERGE_SHA = /^[0-9a-f]{7,40}$/
