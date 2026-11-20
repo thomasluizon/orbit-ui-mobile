@@ -11,7 +11,7 @@ import { readOnlyLaunch } from "./lib/review-run.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { passLaunchGate } from "./lib/launch-gate.mjs"
-import { orderSealProblem, runNotesIn } from "./lib/run-notes.mjs"
+import { fixRoundKindOf, orderSealProblem, runNotesIn } from "./lib/run-notes.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
@@ -29,7 +29,8 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
 
   Read-only: launch-worker.mjs --review|--proof --order <file> --out <scratchpad file> --directory <path>
                      [--tier <t>] [--hard-ceiling-minutes <n>] [--measurement] [--dry-run]
-  --review           a pre-push or fix-round review (tools/compose-prompt.mjs --review composes the order)
+  --review           a pre-push or fix-round review (tools/compose-prompt.mjs --review composes the order).
+                     It runs the review tier of .claude/orchestrator.json, and no other tier (--tier review is the same)
   --proof            a device proof (tools/compose-prompt.mjs --proof composes the order). The worker
                      gets ORBIT_DEVICE_PROOF=1, which lets the worker hook allow adb, emulator and xcrun, and
                      a free emulator port pair from 5560: ORBIT_PROOF_EMULATOR_PORT=<port> and
@@ -72,17 +73,18 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      this ticket's hard ceiling, replacing timeouts.hardCeilingMinutes for this one
                      launch. For a ticket that legitimately outruns the fleet-wide default
   --tier <default|mechanical|deep|max>
-                     worker profile for this order (default: default)
+                     worker profile for this order (default: default). The review tier belongs to --review only
   --relaunch-reason <text>
                      deliberate reason for launching after this branch reaches its configured cap
-  --fix-round <local|pullfrog>
-                     this order answers a review: claim the next caps.reviewFixAttempts round of
-                     the branch in the fix-rounds.mjs ledger. A launch that ends with no commit
-                     gives the round back, so its relaunch spends the same round. Required for an
-                     order that compose-prompt.mjs --review-batch wrote. --relaunch-reason never
-                     passes this cap.
+  --fix-round        this order answers the reviews of one head, the local review and the Pullfrog
+                     review together: claim the next caps.reviewFixAttempts round of the branch in
+                     the fix-rounds.mjs ledger. A launch that ends with no commit gives the round
+                     back, so its relaunch spends the same round. Required for an order that
+                     compose-prompt.mjs --review-batch wrote. --relaunch-reason never passes this cap.
                      The order must quote a round note for the worktree's head, posted to the ticket
-                     with tools/post-run-note.mjs --kind round-note before the order was composed
+                     with tools/post-run-note.mjs --kind round-note before the order was composed.
+                     The ledger records the kind pullfrog when that note counts a Pullfrog thread
+                     (--pullfrog-threads), and the kind local otherwise
   --design-change <file>
                      the written design change that allows one fix round above caps.reviewFixAttempts
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing. The plan names
@@ -146,23 +148,25 @@ const argOf = (flag) => {
 
 const hardCeilingArg = argOf("--hard-ceiling-minutes")
 const tierValue = argOf("--tier")
-const tierArgument = tierValue ?? "default"
+/** A review runs the review tier. Every other launch picks one of the four order profiles. */
+const reviewRun = process.argv.includes("--review")
+const tierArgument = tierValue ?? (reviewRun ? "review" : "default")
 const relaunchReasonArgument = argOf("--relaunch-reason")
-const fixRoundArgument = argOf("--fix-round")
+const fixRoundSwitch = process.argv.includes("--fix-round")
 const designChangeArgument = argOf("--design-change")
 const measurement = process.argv.includes("--measurement")
 const dryRun = process.argv.includes("--dry-run")
 
-if ((process.argv.includes("--tier") && typeof tierValue !== "string") || !new Set(["default", "mechanical", "deep", "max"]).has(tierArgument)) {
-  fail(2, `${USAGE}\n\n--tier must be default, mechanical, deep or max, got "${tierArgument}"`)
+if ((process.argv.includes("--tier") && typeof tierValue !== "string") || (reviewRun ? tierArgument !== "review" : !["default", "mechanical", "deep", "max"].includes(tierArgument))) {
+  fail(2, `${USAGE}\n\n--tier must be ${reviewRun ? "review with --review" : "default, mechanical, deep or max"}, got "${tierArgument}"`)
 }
 if (process.argv.includes("--relaunch-reason") && (typeof relaunchReasonArgument !== "string" || relaunchReasonArgument.startsWith("--") || relaunchReasonArgument.trim() === "")) {
   fail(2, `${USAGE}\n\n--relaunch-reason must be non-empty text`)
 }
-if (process.argv.includes("--fix-round") && !FIX_ROUND_KINDS.includes(fixRoundArgument)) {
-  fail(2, `${USAGE}\n\n--fix-round must be ${FIX_ROUND_KINDS.join(" or ")}, got "${fixRoundArgument}"`)
+if (fixRoundSwitch && FIX_ROUND_KINDS.includes(argOf("--fix-round"))) {
+  fail(2, `${USAGE}\n\n--fix-round takes no kind: the round note of the order says whether a Pullfrog thread is in the batch`)
 }
-if (process.argv.includes("--design-change") && (fixRoundArgument === null || typeof designChangeArgument !== "string" || designChangeArgument.startsWith("--"))) {
+if (process.argv.includes("--design-change") && (!fixRoundSwitch || typeof designChangeArgument !== "string" || designChangeArgument.startsWith("--"))) {
   fail(2, `${USAGE}\n\n--design-change <file> requires --fix-round`)
 }
 
@@ -178,8 +182,8 @@ const gitOutput = (directory, args) => {
 const ticketLaunch = () => {
   if (argOf("--order") !== null || argOf("--out") !== null) fail(2, "--order and --out require --research, --review or --proof")
   if (argOf("--directory") !== null) fail(2, "--directory requires --review or --proof")
-  const valueFlags = new Set(["--issue", "--worktree", "--prompt", "--hard-ceiling-minutes", "--tier", "--relaunch-reason", "--fix-round", "--design-change"])
-  const switches = new Set(["--measurement", "--dry-run"])
+  const valueFlags = new Set(["--issue", "--worktree", "--prompt", "--hard-ceiling-minutes", "--tier", "--relaunch-reason", "--design-change"])
+  const switches = new Set(["--measurement", "--dry-run", "--fix-round"])
   for (let index = 2; index < process.argv.length; index++) {
     const flag = process.argv[index]
     if (valueFlags.has(flag)) index++
@@ -332,16 +336,19 @@ let designChange = null
 if (designChangeArgument !== null) {
   try { designChange = readDesignChange(designChangeArgument) } catch (error) { fail(2, error.message) }
 }
-if (launchMode.fixRounds === true && fixRoundArgument === null && orderText.includes(REVIEW_BATCH_ORDER_MARKER)) {
-  fail(2, `${promptFile} is a review batch order, which is a fix round: pass --fix-round <local|pullfrog>`)
+if (launchMode.fixRounds === true && !fixRoundSwitch && orderText.includes(REVIEW_BATCH_ORDER_MARKER)) {
+  fail(2, `${promptFile} is a review batch order, which is a fix round: pass --fix-round`)
 }
-if (launchMode.fixRounds === true && fixRoundArgument !== null && !runNotesIn(orderText).some((note) => note.kind === "round-note" && note.head === startHead)) {
-  fail(2, `${promptFile} quotes no round note for head ${startHead}. Post the round's note to the ticket with node tools/post-run-note.mjs --kind round-note --issue ${issue} --round <n> --head ${startHead} --body-file <file>, then compose the order again`)
+const roundNote = launchMode.fixRounds === true && fixRoundSwitch ? runNotesIn(orderText).find((note) => note.kind === "round-note" && note.head === startHead) : undefined
+if (launchMode.fixRounds === true && fixRoundSwitch && roundNote === undefined) {
+  fail(2, `${promptFile} quotes no round note for head ${startHead}. Post the round's note to the ticket with node tools/post-run-note.mjs --kind round-note --issue ${issue} --round <n> --head ${startHead} --pullfrog-threads <n> --body-file <file>, then compose the order again`)
 }
+/** One launch answers every finding of one head, so the kind says whether a Pullfrog thread is in the batch. */
+const fixRoundKind = roundNote === undefined ? null : fixRoundKindOf(roundNote)
 const fixRoundContext = { cap: config.caps.reviewFixAttempts, branch, designChange }
 /** Read before the launch slot is claimed, so a refused fix round never spends a launch. */
-const fixRoundsSpent = fixRoundArgument === null ? [] : readFixRounds(branch, runDirectory)
-const earlyFixRoundRefusal = fixRoundArgument === null ? null : fixRoundRefusal(fixRoundsSpent, config.caps.reviewFixAttempts, designChange)
+const fixRoundsSpent = fixRoundKind === null ? [] : readFixRounds(branch, runDirectory)
+const earlyFixRoundRefusal = fixRoundKind === null ? null : fixRoundRefusal(fixRoundsSpent, config.caps.reviewFixAttempts, designChange)
 if (earlyFixRoundRefusal !== null) {
   const nextStep = earlyFixRoundRefusal.spentBy ? "write the next design change in a new file" : "push the head that meets the acceptance and file the rest, or pass --design-change <file>"
   fail(2, `${fixRoundRefusalReason(earlyFixRoundRefusal, fixRoundContext)} (node tools/fix-rounds.mjs --worktree ${runDirectory} lists them). --relaunch-reason does not pass it: ${nextStep}.`)
@@ -447,7 +454,7 @@ const logFile = logFileFor(primaryAccount)
 await launchMode.prepare({ config, launcherRoot, engineName, invocation, scriptArgs, branch })
 
 if (dryRun) {
-  const fixRound = fixRoundArgument === null ? null : { kind: fixRoundArgument, number: fixRoundsSpent.length + 1, cap: config.caps.reviewFixAttempts, designChange }
+  const fixRound = fixRoundKind === null ? null : { kind: fixRoundKind, number: fixRoundsSpent.length + 1, cap: config.caps.reviewFixAttempts, designChange }
   console.log(JSON.stringify({ ...launchMode.plan, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: launchMode.workerArguments, logFile, fixRound, dryRun: true }, null, 2))
   process.exit(0)
 }
@@ -501,8 +508,8 @@ if (!reservation.allowed) {
     `  ${index + 1}. ${launch.timestamp} tier=${launch.tier} head=${launch.headSha}`).join("\n")
   fail(2, `worker launch cap ${claim.branchCap} reached for ${repositoryKey} branch ${branch}. Earlier launches:\n${earlier}\nPass --relaunch-reason "<text>" to record and allow another launch.`)
 }
-if (fixRoundArgument !== null) {
-  const fixRound = recordFixRound({ branch, kind: fixRoundArgument, headSha: startHead, timestamp, designChange, issue }, config.caps.reviewFixAttempts, runDirectory)
+if (fixRoundKind !== null) {
+  const fixRound = recordFixRound({ branch, kind: fixRoundKind, headSha: startHead, timestamp, designChange, issue }, config.caps.reviewFixAttempts, runDirectory)
   if (!fixRound.allowed) {
     clearWorkerLaunchReservation(process.pid, runDirectory)
     fail(2, `${fixRoundRefusalReason(fixRound.refusal, fixRoundContext)}, while this launch started; --relaunch-reason does not pass it`)

@@ -113,6 +113,16 @@ fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd
     plan.mode === "review" && plan.issue === null && plan.runDirectory === clean.runDirectory && plan.outputFile?.endsWith(".md") &&
       plan.args?.at(-1).includes(clean.order) && plan.args.at(-1).includes("read-only review run") && plan.args.includes("--disallowed-tools"),
     planned.stdout)
+  T(`${TOOL}: a review runs the review tier of the configuration with no --tier`,
+    plan.tier === "review" && plan.model === "gate-stub-review" && plan.args?.includes("--gate-effort=xhigh") && plan.args.slice(-4, -2).join(" ") !== "" && plan.args.includes("gate-stub-review"), planned.stdout)
+  const explicit = check(TOOL, "--tier review is the same as the default", [...clean.argv("review", clean.output()), "--tier", "review", "--dry-run"], { status: 0 }, { path: clean.path })
+  T(`${TOOL}: an explicit review tier resolves the same plan`, JSON.parse(explicit.stdout || "{}").tier === "review", explicit.stdout)
+  for (const tier of ["default", "mechanical", "deep", "max"]) {
+    check(TOOL, `--review refuses the ${tier} tier`, [...clean.argv("review", clean.output()), "--tier", tier, "--dry-run"], { status: 2, stderr: /--tier must be review with --review/ }, { path: clean.path })
+  }
+  const proofPlanned = check(TOOL, "a proof dry run keeps the default tier", [...clean.argv("proof", clean.output()), "--dry-run"], { status: 0 }, { path: clean.path })
+  T(`${TOOL}: a proof runs the default tier, never the review tier`, JSON.parse(proofPlanned.stdout || "{}").tier === "default", proofPlanned.stdout)
+  check(TOOL, "--proof refuses the review tier", [...clean.argv("proof", clean.output()), "--tier", "review", "--dry-run"], { status: 2, stderr: /--tier must be default, mechanical, deep or max, got "review"/ }, { path: clean.path })
   T(`${TOOL}: the review dry run names the protected directories: the directory that holds the repositories and each worktree`,
     plan.writeSandbox?.includes(dirname(clean.worktree)) && plan.writeSandbox.includes(clean.worktree) && plan.writeSandbox.includes(clean.runDirectory) && plan.proofEmulatorPort === null,
     JSON.stringify(plan.writeSandbox))
@@ -384,7 +394,7 @@ const sealCases = () => {
   const directory = dirname(fixture.order)
   const composed = join(directory, "seal-composed-review.md")
   check("compose-prompt.mjs", "a review order is composed for the launcher",
-    ["--review", "--repo", "ui", "--pr", "2145", "--head", "0123456789abcdef0123456789abcdef01234567", "--out", composed], { status: 0 }, { path: composeTool, env: orcaEnv([]) })
+    ["--review", "--repo", "ui", "--pr", "2145", "--head", "0123456789abcdef0123456789abcdef01234567", "--out", composed], { status: 0 }, { path: composeTool, env: orcaEnv([{ match: "config list --repo", stdout: "owner/repository\n\nprompts.review                \"Review rules of the stub.\"  [repo]\n" }]) })
   const dryRun = (order) => ["--review", "--order", order, "--out", fixture.output(), "--directory", fixture.runDirectory, "--dry-run"]
   const sandboxed = process.platform === "darwin"
   check(TOOL, sandboxed ? "a review order that compose-prompt.mjs wrote passes the seal check" : "a review order that compose-prompt.mjs wrote passes the seal check and stops at the missing write sandbox",

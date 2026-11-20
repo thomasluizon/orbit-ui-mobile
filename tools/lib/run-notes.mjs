@@ -39,11 +39,11 @@ export const reviewVerdict = (text) => {
 
 /**
  * The comment body for one run note, or an error naming what the note misses.
- * round-note: `round` (a positive integer) and `head` (the full SHA the round answers).
+ * round-note: `round` (a positive integer), `head` (the full SHA the round answers), `pullfrogThreads` (0 or more).
  * review: `head` (the full SHA reviewed) and a body whose first line is `VERDICT: CLEAN` or `VERDICT: DEFECTS (<n>)`.
  * report: `commits` (one or more commit SHAs). decision: nothing more.
  */
-export const composeRunNote = ({ kind, round = null, head = null, commits = [], body }) => {
+export const composeRunNote = ({ kind, round = null, head = null, commits = [], pullfrogThreads = 0, body }) => {
   if (!RUN_NOTE_KINDS.includes(kind)) throw new Error(`run note kind must be one of ${RUN_NOTE_KINDS.join(", ")}, got ${JSON.stringify(kind)}`)
   const text = String(body ?? "").replace(/\s*$/, "")
   if (text.trim() === "") throw new Error("a run note needs a body")
@@ -53,7 +53,8 @@ export const composeRunNote = ({ kind, round = null, head = null, commits = [], 
   if (kind === "round-note") {
     if (!Number.isInteger(round) || round <= 0) throw new Error("a round note needs --round <positive integer>")
     if (!FULL_SHA.test(head ?? "")) throw new Error("a round note needs --head <the full SHA the round answers>")
-    Object.assign(fields, { round, head })
+    if (!Number.isInteger(pullfrogThreads) || pullfrogThreads < 0) throw new Error("a round note needs --pullfrog-threads <0 or more>, the Pullfrog threads of the batch")
+    Object.assign(fields, { round, head, pullfrogThreads })
     heading = `## Fix round ${round} note for head \`${head}\``
   } else if (kind === "review") {
     if (!FULL_SHA.test(head ?? "")) throw new Error("a review result needs --head <the full SHA that was reviewed>")
@@ -71,6 +72,9 @@ export const composeRunNote = ({ kind, round = null, head = null, commits = [], 
   const marker = `<!-- orbit-run-note: ${Object.entries(fields).map(([key, value]) => `${key}=${value}`).join(" ")} -->`
   return `${marker}\n${heading}\n\n${text}\n`
 }
+
+/** The ledger kind of a fix round: one launch answers every review of one head, and a Pullfrog thread in its batch makes it `pullfrog`. */
+export const fixRoundKindOf = (roundNote) => (Number(roundNote.pullfrogThreads ?? 0) > 0 ? "pullfrog" : "local")
 
 /** The newest comment of one kind, from comments sorted oldest first as readComments returns them. */
 export const latestRunNote = (comments, kind) => {

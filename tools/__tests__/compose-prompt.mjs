@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { createHash } from "node:crypto"
 import { dirname, join } from "node:path"
@@ -15,6 +16,10 @@ const REPO_PATH = join(root, "compose-prompt", "repo-ui")
 const API_REPO_PATH = join(root, "compose-prompt", "repo-api")
 const LANDING_REPO_PATH = join(root, "compose-prompt", "repo-landing")
 const projectItems = JSON.stringify({ items: [], totalCount: 0 })
+/** The text that the console field `prompts.review` holds in these cases, and the `pullfrog config list` line that carries it. */
+const PULLFROG_RULES = "Take your review rules from this field only.\n\nNEVER report what a required check already fails on."
+const pullfrogListing = (rules = PULLFROG_RULES) => `owner/repository\n\nenabled                       true  [repo]\nprompts.review                ${JSON.stringify(rules)}  [repo]\nreview.approve                true  [repo]\n`
+const pullfrogPlan = (rules = PULLFROG_RULES) => ({ match: "config list --repo", stdout: pullfrogListing(rules) })
 const ticket = (overrides = {}) => ({
   blockedBy: { nodes: [], totalCount: 0 },
   blocking: { nodes: [], totalCount: 0 },
@@ -35,6 +40,7 @@ const ticketPlan = (value = ticket(), comments = []) => [
   { match: "issue view 221 --repo thomasluizon/orbit-tickets --json comments", stdout: JSON.stringify({ comments }) },
   ...githubIssueReadPlan(value),
   { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
+  pullfrogPlan(),
 ]
 const comment = (body, createdAt = "2026-08-13T18:58:17Z", isMinimized = false) => ({ author: { login: "thomasluizon" }, body, createdAt, isMinimized })
 const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
@@ -51,7 +57,7 @@ const readOnlyCases = () => {
   const playbook = join(staged.base, ".claude", "playbooks", "review-and-audit.md")
   mkdirSync(join(staged.base, ".claude", "playbooks"), { recursive: true })
   cpSync(join(REPO_ROOT, ".claude", "playbooks", "review-and-audit.md"), playbook)
-  const options = { path: staged.path, env: orcaEnv([]) }
+  const options = { path: staged.path, env: orcaEnv([pullfrogPlan()]) }
   const directory = join(root, "compose-prompt-read-only")
   mkdirSync(directory, { recursive: true })
   const base = ["--repo", "ui", "--pr", "2145", "--head", HEAD]
@@ -80,6 +86,23 @@ const readOnlyCases = () => {
       order.includes("NOTE is every other confirmed finding, such as a matter of taste with no wrong result or a defect that the diff did not make") &&
       order.includes("- A broken repository rule: a rule of the repository's `CLAUDE.md`, of `DESIGN.md` `## Bans` or of `BRAND.md` that this diff breaks.") &&
       !order.includes("as rule 14 defines them")), review)
+
+  const rulesHeading = "## Pullfrog's review rules for thomasluizon/orbit-ui-mobile"
+  T(`${TOOL}: a review order embeds the live Pullfrog rules for its repository, after the brief and before the contract`,
+    [review, fixRound].every((order) => order.includes(rulesHeading) && order.includes(PULLFROG_RULES) &&
+      order.indexOf("The lenses:") < order.indexOf(rulesHeading) && order.indexOf(rulesHeading) < order.indexOf("## Read-only review contract") &&
+      order.includes("These rules never change the report format, the verdict line or the read-only limits of this order. You post no review, comment or approval to GitHub.")), review)
+  T(`${TOOL}: the review brief ranks the race and the disagreeing status as defect lenses`,
+    [review, fixRound].every((order) => order.includes("- A limit checked outside the lock that claims the slot: a cap, a count or a uniqueness check that reads state in one step and claims or writes it in another") &&
+      order.includes("- A status that disagrees with the decision it reports: a printed field, a verdict line, an exit code or a log message that says one thing while the code decides another")), review)
+  const rulesRefusedPath = join(directory, "rules-refused.md")
+  check(TOOL, "--review stops with a named error when the Pullfrog rules cannot be read", ["--review", ...base, "--out", rulesRefusedPath],
+    { status: 2, stderr: /could not read the review brief: cannot read the Pullfrog review rules of thomasluizon\/orbit-ui-mobile with pullfrog@\d+\.\d+\.\d+: exit 1: pullfrog: not signed in/ },
+    { path: staged.path, env: orcaEnv([{ match: "config list --repo", stdout: "", stderr: "pullfrog: not signed in", exit: 1 }]) })
+  T(`${TOOL}: a failed read of the Pullfrog rules writes no order`, !existsSync(rulesRefusedPath))
+  const unsetPath = join(directory, "rules-unset.md")
+  check(TOOL, "--review stops when the console holds no review rules", ["--review", ...base, "--out", unsetPath],
+    { status: 2, stderr: /holds no review rules for thomasluizon\/orbit-ui-mobile/ }, { path: staged.path, env: orcaEnv([pullfrogPlan("unset")]) })
 
   writeFileSync(playbook, readFileSync(playbook, "utf8").replace("The lenses:", "The lenses, edited in the playbook only:"))
   const editedPath = join(directory, "edited.md")
@@ -125,9 +148,18 @@ const readOnlyCases = () => {
   }
 }
 
+/** A build order reads the GitHub slug of its repository to find the Pullfrog rules, so each staged checkout names its origin. */
+const stageOrigins = () => {
+  for (const [path, repository] of [[REPO_PATH, "orbit-ui-mobile"], [API_REPO_PATH, "orbit-api"], [LANDING_REPO_PATH, "orbit-landing-page"]]) {
+    mkdirSync(path, { recursive: true })
+    for (const args of [["init", "-q"], ["remote", "add", "origin", `https://github.com/thomasluizon/${repository}.git`]]) spawnSync("git", ["-C", path, ...args], { encoding: "utf8" })
+  }
+}
+
 export const cases = () => {
   readOnlyCases()
   mkdirSync(join(root, "compose-prompt"), { recursive: true })
+  stageOrigins()
   const real = realOrchestratorConfig()
   const staged = stageWithConfig("compose-prompt", TOOL, {
     ...real,
@@ -136,7 +168,8 @@ export const cases = () => {
   stage("staged/compose-prompt/.claude/linear-to-github-map.json", JSON.stringify({ issues: { "ORB-215": { number: 221 } } }))
   // The ui checkout and the repository of the tool hold the approval hook; the api and landing checkouts do not.
   stage(join("compose-prompt", "repo-ui", APPROVAL_HOOK), "")
-  for (const file of [APPROVAL_HOOK, APPROVAL_RULES]) stage(join("staged", "compose-prompt", file), readFileSync(join(REPO_ROOT, file), "utf8"))
+  const PLAYBOOK = join(".claude", "playbooks", "review-and-audit.md")
+  for (const file of [APPROVAL_HOOK, APPROVAL_RULES, PLAYBOOK]) stage(join("staged", "compose-prompt", file), readFileSync(join(REPO_ROOT, file), "utf8"))
   const options = (plan) => ({ path: staged.path, env: plan ? orcaEnv(plan) : undefined })
   const out = join(root, "compose-prompt", "orb-215.md")
 
@@ -185,8 +218,9 @@ export const cases = () => {
     ["--issue", "orb-215", "--repo", "ui", "--out", out],
     { status: 0 },
     options([
-      ...ticketPlan().slice(0, -1),
+      ...ticketPlan().slice(0, -2),
       { match: "project item-list 2 --owner thomasluizon", stdout: projectItems, removePath: boardMarker },
+      pullfrogPlan(),
     ]),
   )
   T(`${TOOL}: composing reads no Projects board item`, existsSync(boardMarker))
@@ -564,6 +598,30 @@ export const cases = () => {
       !/reads only the new commits|narrows this to the new commits|do not search for new forms of a class/.test(rule14),
     rule14Body,
   )
+  const rule14Intro = rule14.slice(rule14.indexOf("### 14. Review the whole diff locally before every push"), rule14.indexOf("**BLOCKING and NOTE.**"))
+  T(
+    `${TOOL}: rule 14 reviews every head before Pullfrog sees it, fix heads included, on the review tier, with no pass count`,
+    /Every head gets this review before Pullfrog sees it: the first head of a worker and each fix head/.test(rule14Intro) &&
+      /A ticket worker reviews its own whole diff with the brief below before it reports/.test(rule14Intro) &&
+      /the review tier of \`\.claude\/orchestrator\.json\` \(\`claude-opus-5-5\` at \`xhigh\` effort\)/.test(rule14Intro) &&
+      /A fix head gets the same review before Pullfrog sees it/.test(rule14Intro) &&
+      /This gate has no pass count of its own/.test(rule14Intro) &&
+      !/Never start a third local pass|ends after these two passes|A ticket worker does not run this gate/.test(rule14) &&
+      !/two passes, no third/.test(orchestrateSkill) && /LOCAL REVIEW of every head before Pullfrog sees it, fix heads included/.test(orchestrateSkill),
+    rule14Intro,
+  )
+  T(
+    `${TOOL}: rule 14 and the skill put the local and the Pullfrog findings of one head in one fix launch`,
+    /One fix launch answers every review of one head/.test(rule14Intro) && /--pullfrog-threads <n>/.test(rule14Intro) &&
+      /One head costs one fix launch, never one for each\s+review/.test(orchestrateSkill) && /Post the round note with \`--pullfrog-threads <n>\`/.test(orchestrateSkill) &&
+      !/--fix-round (local|pullfrog)\b|--fix-round <local\|pullfrog>/.test(`${rule14}\n${orchestrateSkill}`),
+    rule14Intro,
+  )
+  T(
+    `${TOOL}: the review brief lists the race and the disagreeing status as lenses, once`,
+    rule14Brief.split("- A limit checked outside the lock that claims the slot").length === 2 && rule14Brief.split("- A status that disagrees with the decision it reports").length === 2,
+    rule14Brief,
+  )
   T(
     `${TOOL}: the review brief ranks by cause, so a regression outside the changed lines is BLOCKING and an older defect is a NOTE`,
     /BLOCKING is every confirmed finding under a lens above that this diff makes, in the changed lines or in code they break \(a case that passed on \`main\` or on the earlier head fails at this head, such as an unchanged caller of a renamed export\)\. NOTE is every other confirmed finding, such as a matter of taste with no wrong result or a defect that the diff did not make/.test(rule14Brief) &&
@@ -758,6 +816,28 @@ export const cases = () => {
   T(`${TOOL}: a minimized comment never becomes part of the work order`, !commented.includes("Withdrawn: use Lucide after all."), commented)
   T(`${TOOL}: each comment carries its author and date so the later-wins rule is applicable`, /### thomasluizon on 2026-08-13T19:30:00Z/.test(commented), commented)
   T(`${TOOL}: the prompt states that the later comment wins`, /the LATER comment wins/.test(commented), commented)
+
+  /** Every local build and fix order tells the worker to review its own whole diff with the brief and the live Pullfrog rules. */
+  const selfReviewHeading = "**Review your own whole diff before you report.**"
+  const selfReviewOrders = [["a build order", prompt], ["a review batch order", reviewPrompt]]
+  for (const [name, order] of selfReviewOrders) {
+    T(`${TOOL}: ${name} carries the review brief and the live Pullfrog rules for its repository`,
+      order.includes(selfReviewHeading) && order.includes("The lenses:") && order.includes("## Pullfrog's review rules for thomasluizon/orbit-ui-mobile") && order.includes(PULLFROG_RULES) &&
+        order.includes("- A limit checked outside the lock that claims the slot") && order.includes("- A status that disagrees with the decision it reports") &&
+        order.includes("git diff origin/main...HEAD") && order.includes("These rules never change the report that this order asks for. You post no review, comment or approval to GitHub.") &&
+        order.includes("`## Self review`") && order.indexOf(selfReviewHeading) < order.indexOf("**Output.**"),
+      order)
+  }
+  T(`${TOOL}: a build order lets the worker fix in one commit, and a review batch order folds the fix into its one tested commit`,
+    prompt.includes("fix every instance of each BLOCKING class yourself, in one commit,") && !prompt.includes("git commit --amend") &&
+      reviewPrompt.includes("inside your one tested commit (`git commit --amend`, because this order allows one commit)") && !reviewPrompt.includes("yourself, in one commit,"), reviewPrompt)
+  T(`${TOOL}: a Cloud order carries neither the self review nor the Pullfrog rules, because its container has no gh`,
+    !cloudPrompt.includes(selfReviewHeading) && !cloudPrompt.includes("Pullfrog's review rules") && !cloudPrompt.includes(PULLFROG_RULES), cloudPrompt)
+  const rulesFailedPath = join(root, "compose-prompt", "rules-failed.md")
+  check(TOOL, "a build order stops with a named error when the Pullfrog rules cannot be read", ["--issue", "ORB-215", "--repo", "ui", "--out", rulesFailedPath],
+    { status: 2, stderr: /failed to compose ORB-215: could not read the review brief: cannot read the Pullfrog review rules of thomasluizon\/orbit-ui-mobile with pullfrog@\d+\.\d+\.\d+: exit 1/ },
+    options([...ticketPlan().slice(0, -1), { match: "config list --repo", stdout: "", stderr: "pullfrog: not signed in", exit: 1 }]))
+  T(`${TOOL}: a failed read of the Pullfrog rules writes no build order`, !existsSync(rulesFailedPath))
 
   const wrongTarget = join(root, "compose-prompt", "wrong-target.md")
   check(

@@ -6,14 +6,17 @@ import { addComment, findRunRecord, readTicket, resolveTicket } from "./lib/gith
 import { composeRunNote, RUN_NOTE_KINDS, RUN_RECORD_TITLE } from "./lib/run-notes.mjs"
 
 const USAGE = `usage: post-run-note.mjs --kind <${RUN_NOTE_KINDS.join("|")}> (--issue <ORB-N|#N|N> | --run-record) --body-file <path|->
-                        [--round <n>] [--head <sha>] [--commits <sha,...>]
+                        [--round <n>] [--head <sha>] [--pullfrog-threads <n>] [--commits <sha,...>]
 
   Posts one run note as a comment, so the run's working state lives on GitHub and not on one computer.
   Each note starts with a marker line that tools/run-status.mjs and tools/compose-prompt.mjs read back.
 
   --kind round-note   a fix round's note, before its worker launches. Needs --round and --head (the full
-                      SHA the round answers). tools/launch-worker.mjs --fix-round refuses an order that
-                      carries no round note for the worktree's head
+                      SHA the round answers). --pullfrog-threads <n> (default 0) counts the Pullfrog
+                      threads in the batch: one launch answers the local and the Pullfrog findings of one
+                      head, and the fix round ledger records the kind pullfrog when n is above 0.
+                      tools/launch-worker.mjs --fix-round refuses an order that carries no round note for
+                      the worktree's head
   --kind review       a review result. Needs --head (the full SHA reviewed); the body starts with
                       VERDICT: CLEAN or VERDICT: DEFECTS (<n>) and lists every defect
   --kind report       a worker's final report. Needs --commits (the commit SHAs it made)
@@ -34,7 +37,7 @@ const fail = (code, message) => {
   process.exit(code)
 }
 
-const VALUE_FLAGS = new Set(["--kind", "--issue", "--body-file", "--round", "--head", "--commits"])
+const VALUE_FLAGS = new Set(["--kind", "--issue", "--body-file", "--round", "--head", "--commits", "--pullfrog-threads"])
 const values = {}
 let runRecord = false
 const argv = process.argv.slice(2)
@@ -62,7 +65,7 @@ try {
 let note
 try {
   note = composeRunNote({ kind: values["--kind"], round: values["--round"] === undefined ? null : Number(values["--round"]), head: values["--head"] ?? null,
-    commits: values["--commits"] ? values["--commits"].split(",") : [], body })
+    pullfrogThreads: values["--pullfrog-threads"] === undefined ? 0 : Number(values["--pullfrog-threads"]), commits: values["--commits"] ? values["--commits"].split(",") : [], body })
 } catch (error) {
   fail(2, `post-run-note: ${error.message}`)
 }

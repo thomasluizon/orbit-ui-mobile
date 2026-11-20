@@ -1336,8 +1336,8 @@ T("worker-browser: a nesting the expander gives up on is refused", blocks(proofW
 // The orders and the hooks agree: each command of the proof order and of the review order passes every hook that a launched worker runs (threads JOZ1 and JOZ-).
 {
   const proof = proofOrder({ slug: "owner/name", pullRequest: "7", head: "abc1234", plan: "1. Tap. Expected: it opens.", devices: ["iPhone 17"], evidenceDirectory: "/evidence", emulatorTool: "/launcher/checkout/tools/android-emulator.mjs" })
-  const review = reviewOrder({ brief: "Read it.", slug: "owner/name", pullRequest: "7", head: "abc1234" })
-  const fixRound = reviewOrder({ brief: "Read it.", slug: "owner/name", pullRequest: "7", head: "abc1234", since: "def5678" })
+  const review = reviewOrder({ brief: "Read it.", pullfrogRules: "A rule.", slug: "owner/name", pullRequest: "7", head: "abc1234" })
+  const fixRound = reviewOrder({ brief: "Read it.", pullfrogRules: "A rule.", slug: "owner/name", pullRequest: "7", head: "abc1234", since: "def5678" })
   const commandsOf = (order) => [...order.matchAll(/`((?:node|adb|emulator|xcrun|git|gh) [^`]+)`/g)].map((match) => match[1].replaceAll(/<[^>]+>/g, "x"))
   const proofCommands = commandsOf(proof)
   T("worker-browser: the proof order names its boot command and its adb form", proofCommands.some((command) => command.includes("android-emulator.mjs")) && proofCommands.some((command) => command.startsWith("adb ")), true)
@@ -3806,13 +3806,10 @@ childProcess.spawnSync = (command, args, options) => {
   if (command === "powershell.exe" && args.some((arg) => arg.includes("Get-Process -Id ${process.pid} "))) {
     result.stdout = replaceIdentity(result.stdout.trim()) + "\\r\\n"
   }
-  // macOS: the identity is the lstart second, so the swap moves the start time and prints it back.
-  if (command === "ps" && args.includes("${process.pid}")) {
-    const [state, ...lstart] = result.stdout.trim().split(/\\s+/)
-    const seconds = Date.parse(lstart.join(" ") + " GMT") / 1000
-    const moved = new Date(Number(replaceIdentity(String(seconds))) * 1000).toUTCString()
-    const [, weekday, day, month, year, time] = /^(\\w{3}), (\\d{2}) (\\w{3}) (\\d{4}) ([\\d:]{8}) GMT$/.exec(moved)
-    result.stdout = state + "   " + weekday + " " + month + " " + String(Number(day)).padStart(2) + " " + time + " " + year + "\\n"
+  // macOS: the identity is the start second that libproc reports, so the swap moves it and prints it back.
+  if (command === "/usr/bin/python3" && args.includes("${process.pid}")) {
+    const [status, seconds] = result.stdout.trim().split(" ")
+    result.stdout = status + " " + replaceIdentity(seconds) + "\\n"
   }
   return result
 }

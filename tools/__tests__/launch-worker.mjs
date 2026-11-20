@@ -33,6 +33,7 @@ export const stubEngine = (script) => ({
     models: {
       default: { model: "gate-stub", args: ["--gate-effort=high"] },
       mechanical: { model: "gate-stub", args: ["--gate-effort=medium"] },
+      review: { model: "gate-stub-review", args: ["--gate-effort=xhigh"] },
     },
   },
 })
@@ -77,9 +78,9 @@ const fixRoundFiles = (worktree) => {
 const fixRoundReleaseCases = () => {
   const release = launch("fix-round-release", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLaunchesPerBranch: 2, reviewFixAttempts: 1 } }))
   const releaseHead = release.git(["rev-parse", "HEAD"]).stdout.trim()
-  const roundNote = composeRunNote({ kind: "round-note", round: 1, head: releaseHead, body: "Fix the review findings." })
+  const roundNote = composeRunNote({ kind: "round-note", round: 1, head: releaseHead, pullfrogThreads: 1, body: "Fix the review findings." })
   const batchPrompt = stage("launch-worker/fix-round-release-batch.md", sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\n${roundNote}\nthe review batch order\n`))
-  const args = ["--issue", "ORB-201", "--worktree", release.worktree, "--prompt", batchPrompt, "--fix-round", "pullfrog"]
+  const args = ["--issue", "ORB-201", "--worktree", release.worktree, "--prompt", batchPrompt, "--fix-round"]
   const options = { path: release.path, env: githubAuthEnv() }
   discardLog(check(TOOL, "a fix launch that writes no commit gives its round back", args,
     { status: 0, stderr: /spends fix round 1 of 1[\s\S]*wrote no commit: fix round 1 on main is not spent/ }, options).stdout)
@@ -92,8 +93,8 @@ const fixRoundCases = () => {
   const fixRounds = launch("fix-rounds", launchConfig({ ...stubEngine(FIX_COMMITTER), caps: { workerLaunchesPerBranch: 1, reviewFixAttempts: 1 } }))
   const currentHead = () => fixRounds.git(["rev-parse", "HEAD"]).stdout.trim()
   const head = currentHead()
-  const roundNote = (noteHead) => composeRunNote({ kind: "round-note", round: 1, head: noteHead, body: "Fix the two review findings." })
-  const batchOrder = () => stage(`launch-worker/fix-rounds-batch-${currentHead()}.md`, sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\n${roundNote(currentHead())}\nthe review batch order\n`))
+  const roundNote = (noteHead, pullfrogThreads = 0) => composeRunNote({ kind: "round-note", round: 1, head: noteHead, pullfrogThreads, body: "Fix the two review findings." })
+  const batchOrder = (pullfrogThreads = 0) => stage(`launch-worker/fix-rounds-batch-${currentHead()}-${pullfrogThreads}.md`, sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\n${roundNote(currentHead(), pullfrogThreads)}\nthe review batch order\n`))
   const orderOptions = { path: fixRounds.path, env: githubAuthEnv() }
   const orderArgs = (prompt) => ["--issue", "ORB-201", "--worktree", fixRounds.worktree, "--prompt", prompt, "--dry-run"]
   check(TOOL, "an order that compose-prompt.mjs did not seal exits 2", orderArgs(stage("launch-worker/unsealed.md", "a hand-written order\n")),
@@ -102,22 +103,26 @@ const fixRoundCases = () => {
     { status: 2, stderr: /is not a composed order: it carries no seal/ }, orderOptions)
   check(TOOL, "an order edited above its seal exits 2", orderArgs(stage("launch-worker/edited.md", sealOrder("the composed order\n").replace("composed", "edited"))),
     { status: 2, stderr: /its text changed after tools\/compose-prompt\.mjs sealed it/ }, orderOptions)
-  check(TOOL, "a fix round whose order quotes no round note exits 2", [...orderArgs(stage("launch-worker/no-round-note.md", sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\nthe review batch order\n`))), "--fix-round", "local"],
+  check(TOOL, "a fix round whose order quotes no round note exits 2", [...orderArgs(stage("launch-worker/no-round-note.md", sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\nthe review batch order\n`))), "--fix-round"],
     { status: 2, stderr: new RegExp(`quotes no round note for head ${head}[\\s\\S]*post-run-note\\.mjs --kind round-note`) }, orderOptions)
-  check(TOOL, "a fix round whose round note answers another head exits 2", [...orderArgs(stage("launch-worker/stale-round-note.md", sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\n${roundNote("0".repeat(40))}\n`))), "--fix-round", "local"],
+  check(TOOL, "a fix round whose round note answers another head exits 2", [...orderArgs(stage("launch-worker/stale-round-note.md", sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\n${roundNote("0".repeat(40))}\n`))), "--fix-round"],
     { status: 2, stderr: /quotes no round note for head/ }, orderOptions)
-  const fixArgs = () => ["--issue", "ORB-201", "--worktree", fixRounds.worktree, "--prompt", batchOrder()]
+  const fixArgs = (pullfrogThreads = 0) => ["--issue", "ORB-201", "--worktree", fixRounds.worktree, "--prompt", batchOrder(pullfrogThreads)]
   const fixOptions = { path: fixRounds.path, env: githubAuthEnv() }
   check(TOOL, "a review batch order without --fix-round exits 2", fixArgs(), { status: 2, stderr: /is a review batch order, which is a fix round: pass --fix-round/ }, fixOptions)
-  check(TOOL, "an unknown fix round kind exits 2", [...fixArgs(), "--fix-round", "worker"], { status: 2, stderr: /--fix-round must be local or pullfrog/ }, fixOptions)
-  const dryPlan = check(TOOL, "a dry run names the fix round it would spend", [...fixArgs(), "--fix-round", "local", "--dry-run"], { status: 0 }, fixOptions)
-  T(`${TOOL}: the dry run plans fix round 1 of 1 and records nothing`, /"fixRound": \{\s*"kind": "local",\s*"number": 1,\s*"cap": 1/.test(dryPlan.stdout) &&
+  for (const kind of ["local", "pullfrog", "worker"]) {
+    check(TOOL, `a fix round that names the kind ${kind} on the command line exits 2`, [...fixArgs(), "--fix-round", kind], { status: 2, stderr: kind === "worker" ? /unsupported option: worker/ : /--fix-round takes no kind: the round note of the order says whether a Pullfrog thread is in the batch/ }, fixOptions)
+  }
+  const dryPlan = check(TOOL, "a dry run names the fix round it would spend", [...fixArgs(), "--fix-round", "--dry-run"], { status: 0 }, fixOptions)
+  T(`${TOOL}: the dry run plans fix round 1 of 1 as local, because its round note counts no Pullfrog thread, and records nothing`, /"fixRound": \{\s*"kind": "local",\s*"number": 1,\s*"cap": 1/.test(dryPlan.stdout) &&
     !existsSync(join(fixRounds.worktree, ".git", "orbit-fix-rounds")), dryPlan.stdout)
-  discardLog(check(TOOL, "the first fix round launches", [...fixArgs(), "--fix-round", "local"], { status: 0, stderr: /spends fix round 1 of 1(?![\s\S]*is not spent)/ }, fixOptions).stdout)
+  const pullfrogPlan = check(TOOL, "a dry run of a batch with Pullfrog threads names the kind pullfrog", [...fixArgs(2), "--fix-round", "--dry-run"], { status: 0 }, fixOptions)
+  T(`${TOOL}: one launch for the local and the Pullfrog findings of one head records the kind pullfrog`, /"fixRound": \{\s*"kind": "pullfrog",\s*"number": 1,\s*"cap": 1/.test(pullfrogPlan.stdout), pullfrogPlan.stdout)
+  discardLog(check(TOOL, "the first fix round launches", [...fixArgs(), "--fix-round"], { status: 0, stderr: /spends fix round 1 of 1(?![\s\S]*is not spent)/ }, fixOptions).stdout)
   check(
     TOOL,
     "a fix round above the cap exits 2 even with a relaunch reason",
-    [...fixArgs(), "--fix-round", "pullfrog", "--relaunch-reason", "Pullfrog found one more spelling"],
+    [...fixArgs(2), "--fix-round", "--relaunch-reason", "Pullfrog found one more spelling"],
     { status: 2, stderr: /fix round cap 1 reached for branch main[\s\S]*--relaunch-reason does not pass it/ },
     fixOptions,
   )
@@ -127,14 +132,14 @@ const fixRoundCases = () => {
   discardLog(check(
     TOOL,
     "a written design change passes the fix round cap",
-    [...fixArgs(), "--fix-round", "pullfrog", "--relaunch-reason", "design change round", "--design-change", design],
+    [...fixArgs(2), "--fix-round", "--relaunch-reason", "design change round", "--design-change", design],
     { status: 0, stderr: /spends fix round 2 of 1/ },
     fixOptions,
   ).stdout)
   check(
     TOOL,
     "a design change file that already passed the cap exits 2 before the launch slot",
-    [...fixArgs(), "--fix-round", "pullfrog", "--relaunch-reason", "same design again", "--design-change", design],
+    [...fixArgs(2), "--fix-round", "--relaunch-reason", "same design again", "--design-change", design],
     { status: 2, stderr: /design change .*fix-rounds-design\.md already allowed fix round 2 on branch main/ },
     fixOptions,
   )
@@ -903,6 +908,7 @@ export const cases = async () => {
   check(TOOL, "refuses a malformed ticket reference", ["--issue", "ticket-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt], { status: 2, stderr: /--issue must be ORB-N, #N, or N/ }, options)
   check(TOOL, "accepts a post-migration #N reference", ["--issue", "#9001", "--worktree", fixture.worktree, "--prompt", fixture.prompt, "--dry-run"], { status: 0, stdout: /"issue": "#9001"/ }, options)
   check(TOOL, "accepts a post-migration plain number and normalizes it", ["--issue", "9001", "--worktree", fixture.worktree, "--prompt", fixture.prompt, "--dry-run"], { status: 0, stdout: /"issue": "#9001"/ }, options)
+  check(TOOL, "a ticket launch refuses the review tier, which belongs to --review", [...argv, "--tier", "review", "--dry-run"], { status: 2, stderr: /--tier must be default, mechanical, deep or max, got "review"/ }, options)
   check(TOOL, "refuses a tier outside the four order profiles", [...argv, "--tier", "expensive", "--dry-run"], { status: 2, stderr: /--tier must be default, mechanical, deep or max/ }, options)
   check(TOOL, "refuses ultra because automatic delegation is forbidden", [...argv, "--tier", "ultra", "--dry-run"], { status: 2, stderr: /--tier must be default, mechanical, deep or max/ }, options)
   check(TOOL, "refuses a tier flag with no value", [...argv, "--tier"], { status: 2, stderr: /--tier must be default, mechanical, deep or max/ }, options)
@@ -1293,7 +1299,7 @@ const poll = setInterval(() => {
   const salvageable = check(
     TOOL,
     "a kill that leaves commits exits 4 and NAMES them in the result",
-    ["--issue", "ORB-201", "--worktree", committedKill.worktree, "--prompt", killOrder, "--fix-round", "local"],
+    ["--issue", "ORB-201", "--worktree", committedKill.worktree, "--prompt", killOrder, "--fix-round"],
     { status: 4, stdout: /"outcome": "KILLED_HARD_CEILING"[\s\S]*"commitsSinceLaunch": 1[\s\S]*deliver the work/ },
     { path: committedKill.path, env: githubAuthEnv() },
   )

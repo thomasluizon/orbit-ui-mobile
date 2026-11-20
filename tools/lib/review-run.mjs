@@ -337,6 +337,7 @@ export const readOnlyLaunch = (mode, { argv, argOf, fail }) => {
     workerArguments: null,
     environment: null,
     checkRunDirectory: ({ config }) => {
+      if (config.worker !== "claude") fail(2, `--${mode} needs the claude worker engine, whose hooks hold the read-only guards; .claude/orchestrator.json names "${config.worker}"`)
       if (!writeSandboxAvailable()) fail(2, `--${mode} needs the macOS write sandbox (${SANDBOX_EXEC}), and ${process.platform} has none. A read-only worker never runs without it.`)
       if (!gitWorktree) return
       try { assertDetachedRunDirectory(runDirectory, configuredRepositories(config)) } catch (error) { fail(2, error.message) }
@@ -346,8 +347,7 @@ export const readOnlyLaunch = (mode, { argv, argOf, fail }) => {
      * sets CLAUDE_PROJECT_DIR to the run directory, so a project settings file would run the hooks of the head
      * under review. --setting-sources user drops that file; --settings adds the launcher's hooks by path.
      */
-    prepare: async ({ config, launcherRoot, engineName, invocation, scriptArgs }) => {
-      if (engineName !== "claude") fail(2, `--${mode} needs the claude worker engine, whose hooks hold the read-only guards; .claude/orchestrator.json names "${engineName}"`)
+    prepare: async ({ config, launcherRoot, invocation, scriptArgs }) => {
       storage = mkdtempSync(join(tmpdir(), `orbit-${mode}-`))
       stagedResult = join(storage, "result.md")
       const settingsFile = join(storage, "settings.json")
@@ -457,8 +457,42 @@ The hooks of this run come from the orchestrating checkout, not from the head.`
 const FINAL_MESSAGE = `**Your final message has at most 12 lines:** the verdict line, the result file path, and one line for
 each of the most severe findings. The orchestrator reads the result file, not your message.`
 
+/**
+ * The live review rules of Pullfrog for one repository, set after a brief. The text is read from the Pullfrog console
+ * when the order is composed (tools/lib/pullfrog-rules.mjs), so the rules in the order are never older than the review.
+ */
+const pullfrogRulesSection = ({ slug, rules, limits }) => `## Pullfrog's review rules for ${slug}
+
+Pullfrog, the GitHub reviewer, applies these rules to every head of this repository. They were read from the Pullfrog
+console when this order was composed. Apply them together with the lenses of the brief, so that a review that finds no
+BLOCKING finding predicts the Pullfrog approval. A rule that says what Pullfrog never reports binds you the same way.
+${limits} You post no review, comment or approval to GitHub.
+
+The rules of Pullfrog start:
+
+${rules.trim()}
+
+The rules of Pullfrog end.`
+
+/**
+ * The step of a build or a fix order in which the worker reviews its own whole diff with the review brief and the live
+ * Pullfrog rules, before it reports. The brief is written for a read-only reviewer; the worker fixes its own findings.
+ */
+export const selfReviewSection = ({ brief, slug, rules, baseBranch = "main", singleCommit = false }) => `**Review your own whole diff before you report.** Pullfrog reviews your head after the push, and each
+defect that it finds costs a fix round. Find the same defects first. After your last commit and before you report,
+read \`git diff origin/${baseBranch}...HEAD\` in full and rank each defect with the brief below. The brief is written for a
+read-only reviewer, and your run is not read-only: fix every instance of each BLOCKING class yourself, ${singleCommit ? "inside your one tested commit (\`git commit --amend\`, because this order allows one commit)" : "in one commit"},
+with a test for each instance that a test can see. Post nothing to GitHub. Where the brief names the pull request
+body or the earlier threads, use the body you will write and the threads that your round note names. Check the fix
+against the same brief one time, then stop: the review of the next head is not your work. End the report with a
+\`## Self review\` section: the files you read, each class you fixed, and each NOTE you left.
+
+${brief}
+
+${pullfrogRulesSection({ slug, rules, limits: "These rules never change the report that this order asks for." })}`
+
 /** The order of a pre-push review. With `since` it also names the new commits, so a fix-round review checks each fix. It reads the whole diff either way. */
-export const reviewOrder = ({ brief, slug, pullRequest, head, since = null, baseBranch = "main" }) => {
+export const reviewOrder = ({ brief, pullfrogRules, slug, pullRequest, head, since = null, baseBranch = "main" }) => {
   const whole = `Read the whole diff against its merge base: \`git diff origin/${baseBranch}...${head}\`.`
   const scope = since === null
     ? whole
@@ -467,6 +501,8 @@ the GitHub reviewer does, and use \`git diff ${since}..${head}\` to check each f
   return `# Read-only review of ${slug} pull request #${pullRequest}
 
 ${brief}
+
+${pullfrogRulesSection({ slug, rules: pullfrogRules, limits: "These rules never change the report format, the verdict line or the read-only limits of this order." })}
 
 ---
 

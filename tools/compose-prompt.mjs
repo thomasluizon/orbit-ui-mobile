@@ -7,7 +7,8 @@ import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
 import { parityExemptTerms } from "./lib/parity-scope.mjs"
-import { proofOrder, reviewBrief, reviewOrder } from "./lib/review-run.mjs"
+import { proofOrder, reviewBrief, reviewOrder, selfReviewSection } from "./lib/review-run.mjs"
+import { readPullfrogReviewRules } from "./lib/pullfrog-rules.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REVIEW_BATCH_ORDER_MARKER } from "./lib/run-state.mjs"
 import { sealOrder } from "./lib/run-notes.mjs"
@@ -32,7 +33,9 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
   --review          a pre-push review of pull request --pr at --head. It reads the whole diff against
                     the merge base on every pass. With --since, a fix-round review also reads the
                     commits after the reviewed head, to check each fix. Embeds the review brief of
-                    .claude/playbooks/review-and-audit.md rule 14. The result opens with
+                    .claude/playbooks/review-and-audit.md rule 14, and the live review rules of
+                    Pullfrog for the repository (read from the Pullfrog console with the pinned
+                    pullfrog CLI; a failed read exits 2). The result opens with
                     VERDICT: CLEAN (no BLOCKING finding) or VERDICT: DEFECTS (<n>), where n counts
                     BLOCKING findings only. A NOTE and a body line never change it
   --proof           a device proof of pull request --pr at --head. The result opens with
@@ -46,6 +49,9 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
                     when absent and refused when it holds a file (--proof only)
   Both orders forbid every tracked write, commit, branch, push and GitHub write, and end with a
   final message of at most 12 lines.
+
+Every build and fix order (--issue) carries the same brief and the same live Pullfrog rules, and tells the
+worker to review its own whole diff with them before it reports. A failed read of the rules exits 2.
 
 A local order ends with a seal line. tools/launch-worker.mjs refuses an order without it, or one whose text
 changed after it, so a fix round's note reaches a worker only as a ticket comment
@@ -103,6 +109,9 @@ const insideDeclaredRepository = (path, flag) => {
 insideDeclaredRepository(out, "--out")
 
 const COMMIT = /^[0-9a-f]{7,40}$/
+const PLAYBOOK = new URL("../.claude/playbooks/review-and-audit.md", import.meta.url)
+/** The review brief of rule 14 and the live review rules of Pullfrog for repository `slug`. A failed read stops the compose. */
+const reviewMaterial = (slug) => ({ brief: reviewBrief(readFileSync(PLAYBOOK, "utf8")), rules: readPullfrogReviewRules(slug) })
 const readOnlyOrder = () => {
   const pullRequest = argOf("--pr")
   const head = argOf("--head")
@@ -113,9 +122,9 @@ const readOnlyOrder = () => {
   try { slug = repositorySlug(repoPath) } catch (error) { fail(2, `could not read the GitHub repository of ${repoPath}: ${error.message}`) }
   if (readOnlyMode === "review") {
     if (since !== null && !COMMIT.test(since)) fail(2, "--since needs the reviewed head, 7 to 40 lowercase hex characters copied from git")
-    let brief
-    try { brief = reviewBrief(readFileSync(new URL("../.claude/playbooks/review-and-audit.md", import.meta.url), "utf8")) } catch (error) { fail(2, `could not read the review brief: ${error.message}`) }
-    return reviewOrder({ brief, slug, pullRequest, head, since, baseBranch })
+    let material
+    try { material = reviewMaterial(slug) } catch (error) { fail(2, `could not read the review brief: ${error.message}`) }
+    return reviewOrder({ brief: material.brief, pullfrogRules: material.rules, slug, pullRequest, head, since, baseBranch })
   }
   if (since !== null) fail(2, "--since belongs to --review")
   const planArgument = argOf("--plan")
@@ -152,6 +161,20 @@ try {
 }
 
 const ticketReference = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
+
+/**
+ * Every local build and fix order carries the review brief and the live Pullfrog rules, so the worker reviews its own whole
+ * diff first. A Cloud order has no GitHub access and its container contract forbids `gh`, so it carries neither.
+ */
+let selfReview = ""
+if (!cloud) {
+  try {
+    const slug = repositorySlug(repoPath)
+    selfReview = selfReviewSection({ ...reviewMaterial(slug), slug, baseBranch, singleCommit: reviewBatch })
+  } catch (error) {
+    fail(2, `failed to compose ${issue}: could not read the review brief: ${error.message}`)
+  }
+}
 
 /**
  * Oldest first, each one attributed and dated, because /orchestrate's rule is that the LATER
@@ -289,7 +312,7 @@ ${baseInstruction}
 review information, never delivery gates. Keep one atomic behaviour complete: migrations with their
 model change, generated Designer or contract output with its source/schema, and required lockfiles
 or codemod output in this pull request. Do not split required generated output away to make the diff look smaller, and
-do not deliver partial behaviour silently.${browserBan}${focusedVerification}${unattendedRules}
+do not deliver partial behaviour silently.${browserBan}${focusedVerification}${unattendedRules}${selfReview === "" ? "" : `\n\n${selfReview}`}
 
 **Output.** ${outputInstruction}${localUiParityDelivery}
 

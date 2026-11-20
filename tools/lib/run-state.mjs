@@ -12,11 +12,10 @@ const GITDIR_LINE = /^gitdir:[ \t]*(.+?)[ \t]*$/m
 const LINUX_DEAD_PROCESS_STATES = new Set(["Z", "X", "x"])
 export const PENDING_WAKE_SOURCE_MAX_AGE_MS = 45_000
 const DARWIN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-// BSD ps prints `Ss   Thu Sep 24 14:06:02 2026` for `stat=,lstart=` under LC_ALL=C and TZ=UTC0, and pads a one-digit day: `Sat Nov  7`.
-const DARWIN_PS_LINE = /^(\S+)\s+(.+)$/
+// The procStart of a Claude Code session record on macOS reads like `Thu Sep 24 14:06:02 2026` in UTC, with a padded one-digit day: `Sat Nov  7`.
 const DARWIN_LSTART = /^[A-Z][a-z]{2} ([A-Z][a-z]{2}) +(\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})$/
 
-/** Seconds since the epoch of a BSD ps lstart printed in UTC under LC_ALL=C; null for any other text. */
+/** Seconds since the epoch of a BSD lstart text in UTC; null for any other text. */
 const darwinLstartSeconds = (lstart) => {
   const match = DARWIN_LSTART.exec(lstart)
   const month = match ? DARWIN_MONTHS.indexOf(match[1]) : -1
@@ -25,13 +24,33 @@ const darwinLstartSeconds = (lstart) => {
   return Date.UTC(Number(year), month, Number(day), Number(hours), Number(minutes), Number(seconds)) / 1000
 }
 
+/**
+ * `ps` is setuid on macOS, and the sandbox of a read-only review refuses a setuid program, so this reads
+ * the state and start time from libproc: `proc_pidinfo(pid, PROC_PIDTBSDINFO)` fills `struct proc_bsdinfo`
+ * (sys/proc_info.h, 136 bytes), the record behind the `stat` and `lstart` columns of `ps`. `-I` keeps the
+ * working directory out of the import path of `/usr/bin/python3`, which has no setuid bit. It prints
+ * `<pbi_status> <pbi_start_tvsec>`, or nothing when the process is gone. */
+const LIBPROC_START_SOURCE = `
+import ctypes, sys
+class BsdInfo(ctypes.Structure):
+    _fields_ = [("flags", ctypes.c_uint32), ("status", ctypes.c_uint32), ("xstatus", ctypes.c_uint32), ("pid", ctypes.c_uint32), ("ppid", ctypes.c_uint32),
+        ("uid", ctypes.c_uint32), ("gid", ctypes.c_uint32), ("ruid", ctypes.c_uint32), ("rgid", ctypes.c_uint32), ("svuid", ctypes.c_uint32), ("svgid", ctypes.c_uint32), ("reserved", ctypes.c_uint32),
+        ("comm", ctypes.c_char * 16), ("name", ctypes.c_char * 32), ("nfiles", ctypes.c_uint32), ("pgid", ctypes.c_uint32), ("pjobc", ctypes.c_uint32), ("tdev", ctypes.c_uint32), ("tpgid", ctypes.c_uint32), ("nice", ctypes.c_int32),
+        ("start_seconds", ctypes.c_uint64), ("start_microseconds", ctypes.c_uint64)]
+info = BsdInfo()
+PROC_PIDTBSDINFO = 3
+filled = ctypes.CDLL("/usr/lib/libproc.dylib").proc_pidinfo(int(sys.argv[1]), PROC_PIDTBSDINFO, 0, ctypes.byref(info), ctypes.sizeof(info))
+if filled == ctypes.sizeof(info):
+    print(info.status, info.start_seconds)
+`
+/** `pbi_status` of sys/proc.h: SIDL, SRUN, SSLEEP, SSTOP, SZOMB. The first letter is the BSD `ps` state letter of each. */
+const DARWIN_PROCESS_STATES = { 1: "I", 2: "R", 3: "S", 4: "T", 5: "Z" }
+const DARWIN_LIBPROC_LINE = /^([1-5]) (\d+)$/
+
 export const darwinProcessStart = (pid) => {
-  const result = spawnSync("ps", ["-o", "stat=,lstart=", "-p", String(pid)], {
-    encoding: "utf8", timeout: 3000, env: { ...process.env, LC_ALL: "C", TZ: "UTC0" },
-  })
-  const match = result.status === 0 ? DARWIN_PS_LINE.exec(result.stdout.trim()) : null
-  const startSeconds = match ? darwinLstartSeconds(match[2]) : null
-  return startSeconds === null ? null : { state: match[1], startSeconds }
+  const result = spawnSync("/usr/bin/python3", ["-I", "-c", LIBPROC_START_SOURCE, String(pid)], { encoding: "utf8", timeout: 5000 })
+  const match = result.status === 0 ? DARWIN_LIBPROC_LINE.exec(result.stdout.trim()) : null
+  return match ? { state: DARWIN_PROCESS_STATES[match[1]], startSeconds: Number(match[2]) } : null
 }
 const MERGE_SHA = /^[0-9a-f]{7,40}$/
 
