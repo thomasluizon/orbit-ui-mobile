@@ -62,10 +62,12 @@ try {
 } catch (error) {
   fail(2, `post-run-note: cannot read ${values["--body-file"]}: ${error.message}`)
 }
+/** Only decimal digits count: Number() reads "" as 0 and "0x2" as 2, so an unset shell variable would post a false count. */
+const wholeNumberOf = (value) => /^\d+$/.test(value) ? Number(value) : Number.NaN
 let note
 try {
-  note = composeRunNote({ kind: values["--kind"], round: values["--round"] === undefined ? null : Number(values["--round"]), head: values["--head"] ?? null,
-    pullfrogThreads: values["--pullfrog-threads"] === undefined ? 0 : Number(values["--pullfrog-threads"]), commits: values["--commits"] ? values["--commits"].split(",") : [], body })
+  note = composeRunNote({ kind: values["--kind"], round: values["--round"] === undefined ? null : wholeNumberOf(values["--round"]), head: values["--head"] ?? null,
+    pullfrogThreads: values["--pullfrog-threads"] === undefined ? 0 : wholeNumberOf(values["--pullfrog-threads"]), commits: values["--commits"] ? values["--commits"].split(",") : [], body })
 } catch (error) {
   fail(2, `post-run-note: ${error.message}`)
 }
