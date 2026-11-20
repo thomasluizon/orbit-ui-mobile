@@ -3806,7 +3806,7 @@ childProcess.spawnSync = (command, args, options) => {
   if (command === "powershell.exe" && args.some((arg) => arg.includes("Get-Process -Id ${process.pid} "))) {
     result.stdout = replaceIdentity(result.stdout.trim()) + "\\r\\n"
   }
-  // macOS: the identity is the start second that libproc reports, so the swap moves it and prints it back.
+  // macOS: the identity is the start second that the sysctl read reports (p_starttime.tv_sec), so the swap moves it and prints it back.
   if (command === "/usr/bin/python3" && args.includes("${process.pid}")) {
     const [status, seconds] = result.stdout.trim().split(" ")
     result.stdout = status + " " + replaceIdentity(seconds) + "\\n"
