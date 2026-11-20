@@ -317,7 +317,7 @@ const orderCases = () => {
       review.includes("These rules never change the report format, the verdict line or the read-only limits of this order. You post no review, comment or approval to GitHub."), review)
   const selfReview = selfReviewSection({ brief: "Read the diff.", slug: "owner/name", rules: "NEVER report what a required check fails on.", baseBranch: "release" })
   T(`${UNIT}: the self review of a worker reads its own whole diff against its base, fixes its own findings and reports a section`,
-    selfReview.startsWith("**Review your own whole diff before you report.**") && selfReview.includes("git diff origin/release...HEAD") &&
+    selfReview.startsWith("**Review your own whole diff before you push.**") && selfReview.includes("After your last commit and before you push,") && selfReview.includes("git diff origin/release...HEAD") &&
       selfReview.includes("fix every instance of each BLOCKING class yourself, in one commit") && selfReview.includes("Post nothing to GitHub") &&
       !selfReview.includes("verdict line") && !selfReview.includes("read-only limits") &&
       selfReview.includes("`## Self review`") && selfReview.includes("Read the diff.") && selfReview.includes("## Pullfrog's review rules for owner/name") &&

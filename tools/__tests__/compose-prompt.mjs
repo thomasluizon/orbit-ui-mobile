@@ -602,7 +602,7 @@ export const cases = () => {
   T(
     `${TOOL}: rule 14 reviews every head before Pullfrog sees it, fix heads included, on the review tier, with no pass count`,
     /Every head gets this review before Pullfrog sees it: the first head of a worker and each fix head/.test(rule14Intro) &&
-      /A ticket worker reviews its own whole diff with the brief below before it reports/.test(rule14Intro) &&
+      /A ticket worker reviews its own whole diff with the brief below before it pushes \(a review batch worker, which never pushes, before it reports\)/.test(rule14Intro) &&
       /the review tier of \`\.claude\/orchestrator\.json\` \(\`claude-opus-5-5\` at \`xhigh\` effort\)/.test(rule14Intro) &&
       /A fix head gets the same review before Pullfrog sees it/.test(rule14Intro) &&
       /This gate has no pass count of its own/.test(rule14Intro) &&
@@ -818,8 +818,16 @@ export const cases = () => {
   T(`${TOOL}: the prompt states that the later comment wins`, /the LATER comment wins/.test(commented), commented)
 
   /** Every local build and fix order tells the worker to review its own whole diff with the brief and the live Pullfrog rules. */
-  const selfReviewHeading = "**Review your own whole diff before you report.**"
+  const selfReviewHeading = "**Review your own whole diff before you "
   const selfReviewOrders = [["a build order", prompt], ["a review batch order", reviewPrompt]]
+  T(`${TOOL}: a build order reviews before its push, and a review batch order, which never pushes, reviews before its report`,
+    prompt.includes("**Review your own whole diff before you push.**") && prompt.includes("After your last commit and before you push,") &&
+      prompt.includes("yourself, in one commit, then push,") && !prompt.includes("before you report,") &&
+      reviewPrompt.includes("**Review your own whole diff before you report.**") && reviewPrompt.includes("After your last commit and before you report,"),
+    prompt.slice(prompt.indexOf(selfReviewHeading), prompt.indexOf(selfReviewHeading) + 600))
+  T(`${TOOL}: a review batch order runs the focused tests again after it amends its commit`,
+    reviewPrompt.includes("then run the focused tests again, so the commit you report is a tested one") && !prompt.includes("run the focused tests again"),
+    reviewPrompt.slice(reviewPrompt.indexOf(selfReviewHeading), reviewPrompt.indexOf(selfReviewHeading) + 700))
   for (const [name, order] of selfReviewOrders) {
     T(`${TOOL}: ${name} carries the review brief and the live Pullfrog rules for its repository`,
       order.includes(selfReviewHeading) && order.includes("The lenses:") && order.includes("## Pullfrog's review rules for thomasluizon/orbit-ui-mobile") && order.includes(PULLFROG_RULES) &&

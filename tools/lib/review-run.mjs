@@ -476,12 +476,18 @@ The rules of Pullfrog end.`
 
 /**
  * The step of a build or a fix order in which the worker reviews its own whole diff with the review brief and the live
- * Pullfrog rules, before it reports. The brief is written for a read-only reviewer; the worker fixes its own findings.
+ * Pullfrog rules: before the push of a build order, and before the report of a review batch order, which never pushes.
+ * The brief is written for a read-only reviewer; the worker fixes its own findings.
  */
-export const selfReviewSection = ({ brief, slug, rules, baseBranch = "main", singleCommit = false }) => `**Review your own whole diff before you report.** Pullfrog reviews your head after the push, and each
-defect that it finds costs a fix round. Find the same defects first. After your last commit and before you report,
+export const selfReviewSection = ({ brief, slug, rules, baseBranch = "main", singleCommit = false }) => {
+  const before = singleCommit ? "report" : "push"
+  const fix = singleCommit
+    ? "inside your one tested commit (`git commit --amend`, because this order allows one commit), then run the focused tests again, so the commit you report is a tested one"
+    : "in one commit, then push"
+  return `**Review your own whole diff before you ${before}.** Pullfrog reviews your head after the push, and each
+defect that it finds costs a fix round. Find the same defects first. After your last commit and before you ${before},
 read \`git diff origin/${baseBranch}...HEAD\` in full and rank each defect with the brief below. The brief is written for a
-read-only reviewer, and your run is not read-only: fix every instance of each BLOCKING class yourself, ${singleCommit ? "inside your one tested commit (\`git commit --amend\`, because this order allows one commit)" : "in one commit"},
+read-only reviewer, and your run is not read-only: fix every instance of each BLOCKING class yourself, ${fix},
 with a test for each instance that a test can see. Post nothing to GitHub. Where the brief names the pull request
 body or the earlier threads, use the body you will write and the threads that your round note names. Check the fix
 against the same brief one time, then stop: the review of the next head is not your work. End the report with a
@@ -490,6 +496,7 @@ against the same brief one time, then stop: the review of the next head is not y
 ${brief}
 
 ${pullfrogRulesSection({ slug, rules, limits: "These rules never change the report that this order asks for." })}`
+}
 
 /** The order of a pre-push review. With `since` it also names the new commits, so a fix-round review checks each fix. It reads the whole diff either way. */
 export const reviewOrder = ({ brief, pullfrogRules, slug, pullRequest, head, since = null, baseBranch = "main" }) => {

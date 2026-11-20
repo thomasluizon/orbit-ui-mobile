@@ -8,14 +8,14 @@ const SLUG = "thomasluizon/orbit-ui-mobile"
  * The shape of `pullfrog config list --repo <slug>` as pullfrog@0.1.138 printed it for this repository: a slug line, a blank line,
  * then `<key>  <JSON value>  [<source>]` for each setting. Only the value of `prompts.review` is shortened.
  */
-const listing = (reviewValue) => `${SLUG}
+const listing = (reviewValue, reviewSource = "repo") => `${SLUG}
 
 enabled                       true  [repo]
 model                         "unset"  [default]
 effort                        0.5  [default]
 instructions                  "unset"  [repo]
 hooks.stop                    "unset"  [repo]
-prompts.review                ${reviewValue}  [repo]
+prompts.review                ${reviewValue}  [${reviewSource}]
 review.approve                true  [repo]
 review.approval-check         true  [repo]
 fix-ci.reviewed-prs           false  [repo]
@@ -31,6 +31,8 @@ const readThrough = (stdout, { status = 0, slug = SLUG } = {}) => {
 
 export const cases = () => {
   same(`${UNIT}: the rules are the decoded JSON string of the prompts.review line`, readThrough(listing(JSON.stringify(rulesText))), { rules: rulesText })
+  same(`${UNIT}: an identity without write access reads the rules of a [repo, read-only] line`,
+    readThrough(listing(JSON.stringify(rulesText), "repo, read-only")), { rules: rulesText })
 
   const refusals = [
     ["a listing with no prompts.review line", "enabled  true  [repo]\n", /has no prompts\.review line/],

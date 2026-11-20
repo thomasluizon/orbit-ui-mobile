@@ -10,8 +10,8 @@ import { resolveSpawnTarget } from "./win-spawn-target.mjs"
 const PULLFROG_CLI_VERSION = "0.1.138"
 
 const SLUG = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
-/** `prompts.review  "<JSON string>"  [<source>]` is one line of `pullfrog config list`. */
-const REVIEW_RULES_LINE = /^prompts\.review[ \t]+(".*")[ \t]+\[[A-Za-z-]+\][ \t]*$/m
+/** `prompts.review  "<JSON string>"  [<source>]` is one line of `pullfrog config list`; an identity without write access sees `[<source>, read-only]`. */
+const REVIEW_RULES_LINE = /^prompts\.review[ \t]+(".*")[ \t]+\[[A-Za-z-]+(?:, read-only)?\][ \t]*$/m
 const UNSET = "unset"
 
 /** The review rules in the output of `pullfrog config list`, or an error that names why there are none. */
