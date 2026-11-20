@@ -514,7 +514,10 @@ const dependabotCases = async (seams) => {
 
 const ciCases = (open, approved) => {
   const failed = failedChecks(open)
-  same("lib/github.mjs: a failed check names its run and its job", failed.map((check) => [check.name, check.conclusion, check.runId, check.jobId]), [["pullfrog-approval", "FAILURE", "44663065457", 136048537814]])
+  same("lib/github.mjs: the failed Pullfrog approval check is no failed check, its review owns it", failed, [])
+  const approval = open.checks.find((check) => check.name === "pullfrog-approval")
+  const unitTests = { ...approval, name: "Unit Tests", databaseId: 5, checkSuite: { app: { databaseId: 15368 } } }
+  same("lib/github.mjs: a failed check names its run and its job beside the failed approval check", failedChecks({ ...open, checks: [...open.checks, unitTests] }).map((check) => [check.name, check.conclusion, check.runId, check.jobId]), [["Unit Tests", "FAILURE", "44663065457", 5]])
   same("lib/github.mjs: a pull request with green checks has no failed check", failedChecks(approved), [])
   const stepsOf = (jobName, change = (steps) => steps) => FIXTURE.failedJobs.response.jobs.find((job) => job.name === jobName).steps.map((step) => ({ ...step })).map((step, position, steps) => change(steps)[position])
   const barrierSteps = stepsOf("Guard Migrations").filter((step) => step.conclusion === "failure").map((step) => step.name)

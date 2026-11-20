@@ -493,6 +493,40 @@ const cliCases = async () => {
   T("drive: the state directory of the tick tests exists only inside the test root", !existsSync(join(root, "drive-tick-state-missing")))
 }
 
+const blockingClassCases = async () => {
+  const redUnit = [check("Unit Tests", "FAILURE"), approvalCheck()]
+  const dependabot = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", checks: redUnit })] } })
+  await dependabot.run()
+  same("drive: a Dependabot pull request with a red check gives needs:owner and does not wedge the lane", [dependabot.launched.map((entry) => entry.worktree), only(dependabot.calls, "editLabels").map((entry) => entry.slice(1, 3))], [["/r/orbit-worktrees/ui/chore-ticket-8"], [["ui", 30]]])
+  const conflict = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", mergeState: "DIRTY" })] } })
+  await conflict.run()
+  same("drive: a Dependabot pull request with a conflict gives needs:owner and does not wedge the lane", [conflict.launched.length, only(conflict.calls, "editLabels").length], [1, 1])
+  const closedTicket = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { checks: redUnit })] } })
+  await closedTicket.run()
+  same("drive: a pull request whose tracked ticket is closed gets needs:owner and no fix order", [closedTicket.launched.map((entry) => entry.worktree), only(closedTicket.calls, "editLabels").map((entry) => entry.slice(1, 3))], [["/r/orbit-worktrees/ui/chore-ticket-8"], [["ui", 30]]])
+  const noOrder = scenario({ tickets: [], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", reviews: [review("REQUEST_CHANGES", HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] })] } })
+  await noOrder.run()
+  same("drive: a Dependabot pull request with a BLOCKING review gets needs:owner and no fix order", [noOrder.launched.length, only(noOrder.calls, "editLabels").length], [0, 1])
+
+  const redApproval = check("pullfrog-approval", "FAILURE", { databaseId: 12, checkSuite: { app: { databaseId: APP } } })
+  const commented = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("COMMENTED", HEAD, -5 * MINUTE)], checks: [check("Unit Tests"), redApproval], mergeState: "BLOCKED" })] } })
+  await commented.run()
+  same("drive: a COMMENTED review beside a red pullfrog-approval check gets one re-request and no ci-fix order", [commentsOf(commented.calls, 30).map((text) => text.split("\n")[1]), commented.launched.length], [[PLAIN], 0])
+
+  const merged = { number: 31, body: `Tracks ${REPOSITORY}#8\n\nRemaining: none`, mergedAt: iso(-3600 * 1000), headRefName: "chore/ticket-8" }
+  const routes = [["--state merged", (args) => (args.join(" ").includes("#8\"") ? JSON.stringify([merged]) : "[]")]]
+  const pausedTicket = ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null })
+  for (const [label, extra] of [["under the pace line", {}], ["over the pace line", { reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE } }], ["while the driver is paused", { tickets: [pausedTicket, ticket(7, { labels: ["repo:ui", "Bug"] }), ticket(8)], probeReading: { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" } }]]) {
+    const scene = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Bug"] }), ticket(8)], routes, ...extra })
+    await scene.run()
+    same(`drive: a ticket with no launch comment whose merged pull request says Remaining: none closes ${label}`, only(scene.calls, "closeTicket"), [["closeTicket", 8]])
+  }
+  const cached = scenario({ tickets: [ticket(7), ticket(9)] })
+  await cached.run()
+  await cached.run()
+  same("drive: a later tick reuses the merged pull request read of a ticket that waits", cached.calls.filter((entry) => entry[0] === "gh" && entry[1].includes('orbit-tickets#9"')).length, 1)
+}
+
 export const driverUnit = async () => {
   await admissionCases()
   await paceCases()
@@ -507,4 +541,5 @@ export const driverUnit = async () => {
   await intakeCases()
   await robustnessCases()
   await cliCases()
+  await blockingClassCases()
 }

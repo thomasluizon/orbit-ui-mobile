@@ -350,8 +350,14 @@ export const mergeBar = (pull, context = {}) => {
   return failed
 }
 
-/** The failing checks of a pull request, from the same newest run of each check that the merge bar reads. A check run of GitHub Actions is one job, so its id names the job inside the run of its details URL. */
-export const failedChecks = (pull) => newestChecks(pull.checks).map((check) => check.node)
+/**
+ * The failing checks of a pull request, from the same newest run of each check that the merge bar reads. A check run of
+ * GitHub Actions is one job, so its id names the job inside the run of its details URL. The Pullfrog approval check is
+ * never one: it fails when a review withholds the approval, so the review state owns it.
+ */
+export const failedChecks = (pull) => newestChecks(pull.checks)
+  .filter((check) => !(check.name === PULLFROG_APPROVAL.context && check.appId === PULLFROG_APPROVAL.appId))
+  .map((check) => check.node)
   .filter((node) => node.__typename === "CheckRun" && node.status === "COMPLETED" && !PASSING_CONCLUSIONS.has(node.conclusion))
   .map((node) => ({ name: node.name, conclusion: node.conclusion, jobId: node.databaseId, runId: /\/actions\/runs\/(\d+)/.exec(node.detailsUrl ?? "")?.[1] ?? null }))
 

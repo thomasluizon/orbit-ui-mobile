@@ -45,6 +45,9 @@ const REPOSITORY_KEYS = ["ui", "api", "landing"]
 const FIX_KINDS = ["fix", "ci-fix", "merge-forward"]
 const MAX_ORDER_LAUNCHES = 2
 const MAX_FIX_LAUNCHES = 2
+const MERGED_TTL_MS = 10 * 60 * 1000
+const MERGED_READS_PER_TICK = 10
+const REMAINING_NONE = /^Remaining: none\s*$/m
 const MISSING_AFTER_RUN_MS = 15 * 60 * 1000
 const MISSING_AFTER_REQUEST_MS = 30 * 60 * 1000
 const TICKET_COMMENT_LIMIT = 65000
@@ -212,7 +215,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: null, exits: [], lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map() })
+export const createMemory = () => ({ running: null, exits: [], lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0 })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -368,7 +371,11 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs }, pull
   const launches = launchesOf(ticket).filter((entry) => entry.branch === pull.headRef && FIX_KINDS.includes(entry.kind))
   const actions = []
   const owner = (reason) => [...actions, { type: "needs-owner", reason }]
-  const orderOrOwner = (order, classes) => (launches.length >= MAX_FIX_LAUNCHES ? owner(`${item} used its ${MAX_FIX_LAUNCHES} fix launches. Open: ${classes}`) : [...actions, order])
+  const orderOrOwner = (order, classes) => {
+    // A worker order is recorded on a ticket, so a pull request with no open ticket goes to the owner.
+    if (ticket === null) return owner(`${item} needs a ${order.kind} order and no open ticket tracks it. Open: ${classes}`)
+    return launches.length >= MAX_FIX_LAUNCHES ? owner(`${item} used its ${MAX_FIX_LAUNCHES} fix launches. Open: ${classes}`) : [...actions, order]
+  }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
   if (need.approved) {
     const open = pull.threads.filter((thread) => !thread.resolved && thread.author === "pullfrog")
@@ -437,6 +444,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "merge":
       await env.github.merge(repoKey, pull.number, pull.headSha)
       ctx.merged = true
+      mem.merged.delete(pull.tracks)
       await outsideTicket(env, repoKey, pull)
       return undefined
     default: return undefined
@@ -594,7 +602,22 @@ const mergedFor = async (env, ticket) => {
   return JSON.parse(out).filter((pull) => pattern.test(pull.body))
 }
 
-/** What admission does with one ticket: an order, a close, or the reason it waits. */
+/**
+ * The merged pull requests of a ticket, from a cache that a read renews each 10 minutes. The search API allows 30 reads a
+ * minute, so a plain read spends at most 10 a tick and answers from an older read or an empty list after that. A fresh read
+ * is for the ticket that admission is about to build.
+ */
+const mergedHistory = async (env, mem, ticket, { fresh = false } = {}) => {
+  const cached = mem.merged.get(ticket.number)
+  if (cached && !fresh && env.now() - cached.at < MERGED_TTL_MS) return cached.history
+  if (!fresh && mem.mergedReadsLeft <= 0) return cached?.history ?? []
+  if (!fresh) mem.mergedReadsLeft -= 1
+  const history = await mergedFor(env, ticket)
+  mem.merged.set(ticket.number, { at: env.now(), history })
+  return history
+}
+
+/** What admission does with one ticket: an order, or the reason it waits. */
 const ticketVerdict = async (env, mem, states, ticket, { settled = false } = {}) => {
   const labels = ticket.labels
   const stop = (reason) => ({ reason })
@@ -610,11 +633,8 @@ const ticketVerdict = async (env, mem, states, ticket, { settled = false } = {})
   const state = states.find((entry) => entry.repositoryKey === ticket.repoKey)
   const tracking = state.pulls.filter((pull) => pull.tracks === ticket.number)
   const parts = partsOf(ticket)
-  // Another order is admitted or held, so a ticket with no history of its own waits without a read of its merged pull requests.
-  if (settled && launchesOf(ticket).length === 0 && tracking.length === 0) return stop("queued behind the admitted or held order")
-  const history = await mergedFor(env, ticket)
+  const history = await mergedHistory(env, mem, ticket, { fresh: !settled })
   const doneBranches = new Set(history.map((pull) => pull.headRefName))
-  if (history.some((pull) => /^Remaining: none\s*$/m.test(pull.body)) && tracking.length === 0) return { close: true, merged: history }
   const used = new Set([...doneBranches, ...state.pulls.map((pull) => pull.headRef)])
   if (parts.length === 0) {
     if (tracking.length > 0) return stop("an open pull request tracks it")
@@ -639,12 +659,33 @@ const ticketVerdict = async (env, mem, states, ticket, { settled = false } = {})
 }
 
 /** Closes a ticket after its last merge: the comment, the close, the board Status and the worktrees. */
-const closeFinished = async (env, ticket, verdict) => {
+const closeFinished = async (env, mem, ticket, merged) => {
   log(env, `ticket#${ticket.number}`, "close", "a merged pull request says Remaining: none")
   if (env.dryRun) return
-  await env.github.comment("tickets", ticket.number, marked("close", `Closed by the driver: ${verdict.merged.map((pull) => `#${pull.number}`).join(", ")} merged with Remaining: none.`))
+  await env.github.comment("tickets", ticket.number, marked("close", `Closed by the driver: ${merged.map((pull) => `#${pull.number}`).join(", ")} merged with Remaining: none.`))
   await env.github.closeTicket(ticket.number)
-  await removeWorktrees(env, ticket.repoKey, verdict.merged.map((pull) => pull.headRefName))
+  mem.merged.delete(ticket.number)
+  await removeWorktrees(env, ticket.repoKey, merged.map((pull) => pull.headRefName))
+}
+
+/** Closes every ticket whose merged pull request says `Remaining: none` while no open pull request tracks it. It runs on every tick, paused or not, and before admission. */
+const closeFinishedTickets = async (env, mem, tickets, states) => {
+  const closed = new Set()
+  const closable = tickets.filter((ticket) => {
+    const state = states.find((entry) => entry.repositoryKey === ticket.repoKey)
+    return state !== undefined && ![OWNER, "needs:conversation", "owner-work"].some((label) => ticket.labels.includes(label)) && !state.pulls.some((pull) => pull.tracks === ticket.number)
+  }).sort((left, right) => (mem.merged.get(left.number)?.at ?? 0) - (mem.merged.get(right.number)?.at ?? 0) || left.number - right.number)
+  for (const ticket of closable) {
+    try {
+      const merged = await mergedHistory(env, mem, ticket)
+      if (!merged.some((pull) => REMAINING_NONE.test(pull.body))) continue
+      await closeFinished(env, mem, ticket, merged)
+      closed.add(ticket.number)
+    } catch (error) {
+      log(env, `ticket#${ticket.number}`, "error", error.message)
+    }
+  }
+  return closed
 }
 
 /** Notices for `owner-work` tickets whose blockers are all closed, once for each ticket. */
@@ -663,11 +704,6 @@ const admit = async (env, mem, tickets, states) => {
   let held = false
   for (const ticket of rankTickets(tickets)) {
     const verdict = await ticketVerdict(env, mem, states, ticket, { settled: chosen !== null || held })
-    if (verdict.close) {
-      decisions.set(ticket.number, "close")
-      await closeFinished(env, ticket, verdict)
-      continue
-    }
     if (verdict.reason) {
       decisions.set(ticket.number, `wait: ${verdict.reason}`)
       continue
@@ -779,11 +815,13 @@ export const tick = async (env, mem) => {
   const orders = []
   for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets))
   await ownerWorkNotices(env, mem, tickets)
+  mem.mergedReadsLeft = MERGED_READS_PER_TICK
+  const closed = await closeFinishedTickets(env, mem, tickets, states)
   const paused = pauseIssue(tickets)
   if (paused && !env.dryRun && mem.running === null && (mem.lastProbeAt === null || env.now() - mem.lastProbeAt >= HOUR_MS)) await runProbe(env, mem, tickets).catch((error) => log(env, "probe", "error", error.message))
   const busy = mem.running !== null || env.workerLive()
-  const { chosen, decisions } = paused ? { chosen: null, decisions: new Map() } : await admit(env, mem, tickets, states)
-  for (const ticket of tickets) env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${paused ? "wait: the driver is paused" : decisions.get(ticket.number) ?? "wait"}`)
+  const { chosen, decisions } = paused ? { chosen: null, decisions: new Map() } : await admit(env, mem, tickets.filter((ticket) => !closed.has(ticket.number)), states)
+  for (const ticket of tickets) env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${closed.has(ticket.number) ? "close" : paused ? "wait: the driver is paused" : decisions.get(ticket.number) ?? "wait"}`)
   const launchable = orders.filter((entry) => !paused).sort((left, right) => left.pull.number - right.pull.number)[0] ?? (paused ? null : chosen)
   if (launchable && busy) log(env, "lane", "wait", "a worker runs")
   else if (launchable && !env.dryRun) await startWorker(env, mem, launchable).catch((error) => log(env, `ticket#${launchable.ticket.number}`, "error", error.message))
