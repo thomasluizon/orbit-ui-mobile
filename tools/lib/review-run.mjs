@@ -466,6 +466,8 @@ const pullfrogRulesSection = ({ slug, rules, limits }) => `## Pullfrog's review 
 Pullfrog, the GitHub reviewer, applies these rules to every head of this repository. They were read from the Pullfrog
 console when this order was composed. Apply them together with the lenses of the brief, so that a review that finds no
 BLOCKING finding predicts the Pullfrog approval. A rule that says what Pullfrog never reports binds you the same way.
+Where a rule below disagrees with the brief, as on what counts as blocking or on where review rules come from, the
+lenses of the brief and its BLOCKING and NOTE ranking win.
 ${limits} You post no review, comment or approval to GitHub.
 
 The rules of Pullfrog start:

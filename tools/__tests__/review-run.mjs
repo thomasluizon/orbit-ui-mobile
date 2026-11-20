@@ -315,6 +315,9 @@ const orderCases = () => {
       review.indexOf("## Pullfrog's review rules for owner/name") < review.indexOf("## Read-only review contract") &&
       review.includes("The rules of Pullfrog start:\n\nNEVER report what a required check fails on.\n\nThe rules of Pullfrog end.") &&
       review.includes("These rules never change the report format, the verdict line or the read-only limits of this order. You post no review, comment or approval to GitHub."), review)
+  const precedence = "Where a rule below disagrees with the brief, as on what counts as blocking or on where review rules come from, the\nlenses of the brief and its BLOCKING and NOTE ranking win."
+  T(`${UNIT}: a review order and a self review say that the brief's lenses and ranking win where a Pullfrog rule disagrees`,
+    review.includes(precedence) && selfReviewSection({ brief: "Read the diff.", slug: "owner/name", rules: "Report only what breaks behaviour." }).includes(precedence), review)
   const selfReview = selfReviewSection({ brief: "Read the diff.", slug: "owner/name", rules: "NEVER report what a required check fails on.", baseBranch: "release" })
   T(`${UNIT}: the self review of a worker reads its own whole diff against its base, fixes its own findings and reports a section`,
     selfReview.startsWith("**Review your own whole diff before you push.**") && selfReview.includes("After your last commit and before you push,") && selfReview.includes("git diff origin/release...HEAD") &&

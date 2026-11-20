@@ -103,7 +103,7 @@ The launcher runs the worker under a macOS `sandbox-exec` write profile (`tools/
 
 This gate has no pass count of its own. A head that reads `VERDICT: CLEAN` ends it: push. The fix round cap of the round count paragraph below ends the loop when a head does not read clean.
 
-**BLOCKING and NOTE.** The review brief below owns the definition of BLOCKING and NOTE, because the review worker reads only the brief.
+**BLOCKING and NOTE.** The review brief below owns the definition of BLOCKING and NOTE. The order also carries the live Pullfrog rules, and it says that the brief's lenses and ranking win where the two disagree.
 
 File a NOTE one time on the ticket that owns its area (`node tools/comment-ticket.mjs`, or `node tools/create-ticket.mjs` when no ticket owns it), then push. A NOTE starts no fix round. A false statement in the pull request body goes under `## Body`, and the coordinator fixes it.
 
