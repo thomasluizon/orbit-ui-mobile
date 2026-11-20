@@ -36,7 +36,7 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe] [--help]
 
 exit codes: 0 done, 2 usage error, 3 missing tool, configuration or credential`
 
-export const TICK_MS = 120 * 1000
+const TICK_MS = 120 * 1000
 const HOUR_MS = 60 * 60 * 1000
 const WEEK_MS = 7 * 24 * HOUR_MS
 const PACE_FACTOR = 0.95
@@ -68,7 +68,7 @@ export const launchesOf = (ticket) => (ticket?.comments ?? []).filter((entry) =>
 })
 
 /** Parts of a ticket, oldest comment first, one entry for each part number. */
-export const partsOf = (ticket) => {
+const partsOf = (ticket) => {
   const byNumber = new Map()
   for (const entry of ticket.comments) {
     const part = entry.kind === null ? partOf(entry) : null
@@ -101,7 +101,7 @@ export const pathsOverlap = async (env, repoPath, left, right) => {
 }
 
 /** The number of open tickets on the longest path of `blockedBy` links that starts at each open ticket. */
-export const chainLengths = (tickets) => {
+const chainLengths = (tickets) => {
   const dependents = new Map(tickets.map((ticket) => [ticket.number, []]))
   for (const ticket of tickets) for (const blocker of ticket.blockedBy) if (blocker.open) dependents.get(blocker.number)?.push(ticket.number)
   const lengths = new Map()
@@ -287,9 +287,13 @@ const wholeDiffRequestTimes = (pull) => {
 const cleanMergesOf = async (env, repoPath, pull) => {
   const merges = pull.commits.filter((commit) => commit.parents === 2)
   if (merges.length === 0) return []
-  await env.git(repoPath, ["fetch", "origin", `refs/pull/${pull.number}/head`])
+  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", `refs/pull/${pull.number}/head`])
   const clean = []
-  for (const merge of merges) if ((await env.git(repoPath, ["show", "--remerge-diff", "--format=", merge.sha])).stdout.trim() === "") clean.push(merge.sha)
+  for (const merge of merges) {
+    // A commit that git cannot show is never a clean merge.
+    const shown = await env.git(repoPath, ["show", "--remerge-diff", "--format=", merge.sha])
+    if (shown.status === 0 && shown.stdout.trim() === "") clean.push(merge.sha)
+  }
   return clean
 }
 
@@ -348,7 +352,7 @@ const checkPlan = async (env, repoKey, pull) => {
 }
 
 /** The ordered actions for one pull request. The plan writes nothing. */
-export const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs }, pull) => {
+const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs }, pull) => {
   const dependabot = pull.author === "dependabot"
   const item = `${repoKey}#${pull.number}`
   if (pull.draft) return [{ type: "none", reason: "draft" }]
@@ -756,7 +760,7 @@ const reapExits = async (env, mem, tickets, states) => {
 }
 
 /** Reads the world once and reaps the exits of workers that ended since the last tick. */
-export const reapPending = async (env, mem) => {
+const reapPending = async (env, mem) => {
   const { tickets, states } = await readWorld(env, mem)
   await reapExits(env, mem, tickets, states)
 }
@@ -823,7 +827,7 @@ const runText = async (file, args, options = {}) => {
 }
 
 /** The real seams of the driver. A test builds its own with the same members. */
-export const realEnvironment = ({ dryRun = false } = {}) => {
+const realEnvironment = ({ dryRun = false } = {}) => {
   const config = readDriveConfig()
   const stateDir = join(commonDirOf(config.repos.ui), "orbit-drive")
   mkdirSync(join(stateDir, "logs"), { recursive: true })
