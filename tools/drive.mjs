@@ -260,12 +260,12 @@ const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reaso
 const pauseIssue = (tickets) => tickets.find((ticket) => ticket.title === PAUSE_TITLE) ?? null
 
 /** Pauses admission: a log line, a notification and one issue that holds the message and the reset time. */
-const pauseDriver = async (env, mem, tickets, { source, message, reset, account = mem.account?.key ?? "unknown" }) => {
+const pauseDriver = async (env, mem, tickets, { source, message, reset, account = mem.account?.key ?? null }) => {
   log(env, "driver", "pause", `${source}: ${message}`)
   if (env.dryRun || pauseIssue(tickets)) return
   await env.notify(`Orbit driver paused: ${source} stopped. ${message}`)
-  const created = await env.github.createTicket({ title: PAUSE_TITLE, body: `${source} stopped.\n\nMessage: ${message}\n\nReset time named by the message: ${reset ?? "none named"}\n\nAccount: ${account}`, labels: [OWNER] })
-  tickets.push({ number: created.number, title: PAUSE_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: `Account: ${account}` })
+  const created = await env.github.createTicket({ title: PAUSE_TITLE, body: `${source} stopped.\n\nMessage: ${message}\n\nReset time named by the message: ${reset ?? "none named"}${account === null ? "" : `\n\nAccount: ${account}`}`, labels: [OWNER] })
+  tickets.push({ number: created.number, title: PAUSE_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: account === null ? "" : `Account: ${account}` })
 }
 
 const pauseAccount = (issue) => /^Account: (\S+)$/m.exec(issue.body)?.[1] ?? null
@@ -333,9 +333,7 @@ const runProbe = async (env, mem, tickets) => {
   mem.probeOwed = false
   const paused = pauseIssue(tickets)
   if (paused && reading.status === "allowed") {
-    await env.github.comment("tickets", paused.number, `The probe reads status allowed (${Math.round(reading.utilization * 100)} percent of the week). The driver resumes.`)
-    await env.github.closeTicket(paused.number)
-    tickets.splice(tickets.indexOf(paused), 1)
+    await closeIssue(env, tickets, paused, `The probe reads status allowed (${Math.round(reading.utilization * 100)} percent of the week). The driver resumes.`)
     log(env, "driver", "resume", "the probe reads status allowed")
   }
   return mem.reading
@@ -902,13 +900,13 @@ export const tick = async (env, mem) => {
     log(env, "tick", "retry", error.message)
     return { retried: true }
   }
+  const account = await trackAccount(env, mem, tickets)
   await reapExits(env, mem, tickets, states)
   const orders = []
   for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets))
   await ownerWorkNotices(env, mem, tickets)
   mem.mergedReadsLeft = MERGED_READS_PER_TICK
   const closed = await closeFinishedTickets(env, mem, tickets, states)
-  const account = await trackAccount(env, mem, tickets)
   const paused = pauseIssue(tickets)
   const holdReason = paused ? "the driver is paused" : account.ok ? null : account.reason
   if (paused && account.ok && !env.dryRun && mem.running === null && (mem.lastProbeAt === null || env.now() - mem.lastProbeAt >= HOUR_MS)) await runProbe(env, mem, tickets).catch((error) => log(env, "probe", "error", error.message))
