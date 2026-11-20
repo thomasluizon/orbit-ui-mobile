@@ -180,6 +180,7 @@ const normalizePull = (raw, ticketRepository) => {
 
 /** Every open pull request of one repository in one read. `knownNumbers` from the last tick lets one read hold all of them. */
 export const readRepositoryState = async (repositoryKey, { knownNumbers = [], ...seams } = {}) => {
+  if (!knownNumbers.every((number) => Number.isInteger(number) && number > 0)) throw new Error("knownNumbers must be positive integers")
   const api = bind(seams)
   const slug = api.slugOf(repositoryKey)
   const { owner, name } = splitSlug(slug)
@@ -385,6 +386,7 @@ export const deployedAt = async (repositoryKey, environment, task, seams = {}) =
 
 /** True when `sha` is contained in `ofSha`: the compare status is `ahead` or `identical`. */
 export const isAncestor = async (repositoryKey, sha, ofSha, seams = {}) => {
+  if (!SHA.test(sha) || !SHA.test(ofSha)) throw new Error("isAncestor needs two full 40-character shas")
   const api = bind(seams)
   const status = (await api.run(["api", `repos/${api.slugOf(repositoryKey)}/compare/${sha}...${ofSha}`, "--jq", ".status"])).trim()
   return status === "ahead" || status === "identical"

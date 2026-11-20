@@ -177,6 +177,7 @@ const githubUnit = async () => {
     response.data.repository.open.pageInfo.hasNextPage = true
     return readPulls([2509], [2509], response)
   })))
+  T("lib/github.mjs: a known number that is not a positive integer is refused before any call", /positive integers/.test(await thrown(() => readRepositoryState("ui", { knownNumbers: [1, "2) { id } x: pullRequest(number: 3"], ...seams(scripted([]).run) }))))
   T("lib/github.mjs: a GraphQL error is refused with its text", /errors: .*boom/.test(await thrown(() => readRepositoryState("ui", { knownNumbers: [], ...seams(async () => json({ errors: [{ message: "boom" }] })) }))))
   T("lib/github.mjs: output that is not JSON is refused", /invalid JSON/.test(await thrown(() => readRepositoryState("ui", { knownNumbers: [], ...seams(async () => "<html>") }))))
 
@@ -337,6 +338,7 @@ const pullfrogAndDeploymentCases = async (seams) => {
     const { run, calls } = compareRun(`${status}\n`)
     T(`lib/github.mjs: a compare status of ${status} means ${want ? "deployed" : "not deployed"}`, (await isAncestor("ui", "a".repeat(40), "b".repeat(40), seams(run))) === want && calls[0].args[1] === `repos/${UI}/compare/${"a".repeat(40)}...${"b".repeat(40)}`)
   }
+  T("lib/github.mjs: a sha that is not 40 hex characters is refused before any call", /40-character/.test(await thrown(() => isAncestor("ui", "../x", "b".repeat(40), seams(scripted([]).run)))))
   T("lib/github.mjs: the recorded compare answers read as the recorded facts", (await isAncestor("ui", "a".repeat(40), "b".repeat(40), seams(compareRun(FIXTURE.compare.ahead).run))) && !(await isAncestor("ui", "a".repeat(40), "b".repeat(40), seams(compareRun(FIXTURE.compare.behind).run))) && (await isAncestor("ui", "a".repeat(40), "b".repeat(40), seams(compareRun(FIXTURE.compare.identical).run))))
 
   const trackedRun = (merges) => scripted([["pr list", () => json(merges)]])
