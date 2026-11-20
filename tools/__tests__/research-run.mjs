@@ -165,7 +165,7 @@ const launchModeCase = () => {
     T("research mode: it names itself, its order and an empty run directory", mode.label === "research" && mode.promptFile.endsWith("mode-order.md") && readdirSync(mode.runDirectory).length === 0, JSON.stringify([mode.label, mode.promptFile]))
     T("research mode: it registers a research wake source, claims no run directory and clears its wake source on exit",
       JSON.stringify(mode.wake) === JSON.stringify({ what: "research", research: true, review: false }) && mode.reservation === null && mode.clearsClaimsOnExit === true, JSON.stringify([mode.wake, mode.reservation]))
-    T("research mode: it never runs a second time", mode.relaunchArguments() === null)
+    T("research mode: it never runs a second time, so it declares no relaunch and carries no relaunch arguments", mode.relaunches === false && mode.relaunchArguments === undefined, JSON.stringify([mode.relaunches, typeof mode.relaunchArguments]))
     mode.prepare({ engineName: "claude", invocation: { model: "a-model" }, scriptArgs: ["shim.js"] })
     T("research mode: its plan and its worker arguments are its own", mode.plan.research === true && mode.plan.issue === null && mode.workerArguments[0] === "shim.js" && mode.workerArguments.includes("WebSearch,WebFetch"), JSON.stringify([mode.plan, mode.workerArguments]))
     const message = mode.spawn("engine", ["-p"], 4)

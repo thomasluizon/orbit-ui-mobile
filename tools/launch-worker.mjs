@@ -99,7 +99,7 @@ at the cap, the launch waits and registers a wake source with paceHold true and 
 whole launcher is one background task of pace.backgroundLimitMinutes, so the wait ends at pace.maxHoldMinutes or sooner:
 it leaves room for the launch gate allowance and for each worker run the launcher can start (two for ticket work and a read-only run
 with a second Claude account, which relaunch once after a usage limit; one for research, which never relaunches), at the ceiling of --hard-ceiling-minutes. A launch still held at that end prints
-reason PACE_HOLD with the wake time and exits 9. A stop by SIGINT or SIGTERM during the wait removes the wake source and
+reason PACE_HOLD and exits 9: a line hold prints wakeAt, the time the line catches up, and a cap hold prints wakeAt null. A stop by SIGINT or SIGTERM during the wait removes the wake source and
 the files of the mode. A dry run prints the verdict as pace and never waits. Without a stored owner reading the launch is admitted and the
 log says so; node tools/pace-calibrate.mjs stores a reading. pace.enabled false turns the governor off.
 
@@ -133,10 +133,10 @@ writeSandbox, the protected directories, and proofEmulatorPort.
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
             2 usage or config error, including a worker account directory that does not exist,
               a launch cap or a fix round cap that is reached,
-            3 the worker executable could not be resolved,
+            3 the worker executable could not be resolved, or a wake source could not be registered,
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
             8 admission refused new ticket work before reservation,
-            9 the pace governor still held the launch at the end of its wait (pace.maxHoldMinutes or less); launch again at the printed wakeAt,
+            9 the pace governor still held the launch at the end of its wait (pace.maxHoldMinutes or less); launch again at the printed wakeAt, or when a live launcher ends if wakeAt is null (a cap hold),
             10 the launch gate did not pass within pace.launchGateAllowanceMinutes; launch again when the load is down,
             130 stopped by SIGINT, 143 stopped by SIGTERM
 Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.
@@ -298,7 +298,7 @@ if (readOnlyFlags.length > 1 || (researchFlag && readOnlyFlags.length > 0)) fail
  * The one choice between ticket work, research and a read-only run. Each mode owns its arguments and
  * everything else that differs. The flow below reads its values (label, runDirectory, promptFile, plan,
  * workerArguments, environment, reservation, repositoryKey, wake, sealedOrder, clearsClaimsOnExit, relaunches, inheritedDescriptors)
- * and calls its steps in this order: checkRunDirectory, prepare, admit, begin, spawn, relaunchArguments, finish.
+ * and calls its steps in this order: checkRunDirectory, prepare, admit, begin, spawn, finish. Only a mode with `relaunches` true carries relaunchArguments.
  */
 const cli = { argv: process.argv, argOf, fail }
 const launchMode = researchFlag ? researchLaunch(cli) : readOnlyFlags.length > 0 ? readOnlyLaunch(readOnlyFlags[0].slice(2), cli) : ticketLaunch()
@@ -455,6 +455,8 @@ const { executable, scriptArgs } = headlessInvocation()
  * account is null.
  */
 const [primaryAccount = null, fallbackAccount = null] = accounts
+/** A second worker run starts only for a mode that relaunches, and only when a second account takes it. */
+const relaunchesOnce = launchMode.relaunches === true && fallbackAccount !== null
 /** Outside every repo: a log written into the worktree lands in the worker's own diff. */
 const logDirectory = join(tmpdir(), "orbit-workers")
 mkdirSync(logDirectory, { recursive: true })
@@ -505,12 +507,17 @@ process.on("exit", () => {
  * worker run after a usage limit, so the hold leaves room for each worker run it can start, for the ceiling that
  * --hard-ceiling-minutes sets and for the launch gate, which stops waiting after pace.launchGateAllowanceMinutes.
  */
-const holdBudgetMinutes = paceHoldBudgetMinutes({ pace: config.pace, hardCeilingMinutes, attempts: launchMode.relaunches && fallbackAccount !== null ? 2 : 1 })
+const holdBudgetMinutes = paceHoldBudgetMinutes({ pace: config.pace, hardCeilingMinutes, attempts: relaunchesOnce ? 2 : 1 })
 let paced
 try {
   paced = await awaitPace({
     config: { ...config, pace: { ...config.pace, maxHoldMinutes: holdBudgetMinutes } },
-    holdAt: (verdict) => registerWakeSource({ pid: process.pid, ...launchMode.wake, what: `pace hold: ${launchMode.wake.what}`, paceHold: true, decision: verdict.decision, wakeAt: verdict.wakeAt, workerPid: null, logFile, startedAt: heldAt }),
+    // A hold that no reader can see leaves the orchestrator blind to a launcher that waits, so it stops like the pending registration below.
+    holdAt: (verdict) => {
+      if (!registerWakeSource({ pid: process.pid, ...launchMode.wake, what: `pace hold: ${launchMode.wake.what}`, paceHold: true, decision: verdict.decision, wakeAt: verdict.wakeAt, workerPid: null, logFile, startedAt: heldAt })) {
+        fail(3, "could not register the pace hold wake source")
+      }
+    },
     release: () => clearWakeSource(process.pid),
     log: (line) => console.error(`${issue} ${line}`),
   })
@@ -860,8 +867,8 @@ const finish = (attempts) => {
 }
 
 const attempts = [await runAttempt(primaryAccount, logFile, launchMode.workerArguments)]
-// A stopped launch never relaunches, because only an EXITED attempt reads a usage limit. A mode with no relaunch returns null.
-const relaunchArguments = attempts[0].usageLimitReached && fallbackAccount !== null ? launchMode.relaunchArguments() : null
+// A stopped launch never relaunches, because only an EXITED attempt reads a usage limit.
+const relaunchArguments = attempts[0].usageLimitReached && relaunchesOnce ? launchMode.relaunchArguments() : null
 if (relaunchArguments !== null) {
   console.error(`${issue} stopped at the ${primaryAccount.name} account's usage limit; relaunching it once on the ${fallbackAccount.name} account`)
   attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), relaunchArguments))

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { calibrationPath, readCalibration, takeReading, writeCalibration } from "./lib/pace-governor.mjs"
+import { NoSpendError, calibrationPath, readCalibration, takeReading, writeCalibration } from "./lib/pace-governor.mjs"
 
 const USAGE = `usage: pace-calibrate.mjs --percent <number> [--at <ISO time>]
        pace-calibrate.mjs --show
@@ -18,7 +18,7 @@ The stored reading lives in the common Git directory, so every worktree reads th
   --help, -h     print this usage and exit 0
 
 exit codes: 0 stored or shown, 1 no stored reading to show or no spend to derive a budget from,
-            2 usage or config error`
+            2 usage or config error, 3 the reading could not be stored`
 
 const argv = process.argv.slice(2)
 const fail = (code, message) => {
@@ -65,7 +65,11 @@ let reading
 try {
   reading = takeReading({ pace: config.pace, percent: Number(percentText), readAtMs })
 } catch (error) {
-  fail(error.message.startsWith("no spend found") ? 1 : 2, error.message)
+  fail(error instanceof NoSpendError ? 1 : 2, error.message)
 }
-writeCalibration(path, reading)
+try {
+  writeCalibration(path, reading)
+} catch (error) {
+  fail(3, `could not store the reading at ${path}: ${error.message}`)
+}
 console.log(JSON.stringify({ path, ...reading }, null, 2))

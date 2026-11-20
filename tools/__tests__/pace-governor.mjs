@@ -124,6 +124,13 @@ const tableCases = () => {
   const overAndCapped = verdictOf(scenario({ files: oneCall(80_000), reading: {} }), { liveWorkers: 3 })
   T(`${UNIT}: over the line and at the cap, the line hold wins because it carries the wake time`, overAndCapped.decision === "HOLD_LINE" && overAndCapped.wakeAt === "2026-11-22T02:12:00.000Z", JSON.stringify(overAndCapped))
 
+  // One call written twice with different output counts: the larger copy counts whichever file the directory lists last.
+  const partial = call({ id: "copy-1", at: CHECK - HOUR, output: 10_000 })
+  const finished = call({ id: "copy-1", at: CHECK - HOUR, output: 20_000 })
+  same(`${UNIT}: copies of one call that differ count the largest output, in either file order`,
+    [{ "a/first.jsonl": [partial], "b/second.jsonl": [finished] }, { "a/first.jsonl": [finished], "b/second.jsonl": [partial] }, { "a/one.jsonl": [finished, partial] }]
+      .map((files) => verdictOf(scenario({ files, reading: {} })).spentWeighted), [100_000, 100_000, 100_000])
+
   const unusable = verdictOf(scenario({
     files: { "a/session.jsonl": [
       call({ id: "ok", at: CHECK - HOUR, output: 20_000 }),
@@ -307,6 +314,32 @@ const holdBudgetCases = async () => {
     ticketExit?.code === 9 && parse(ticket.output.stdout).reason === "PACE_HOLD", `${JSON.stringify(ticketExit)} ${ticket.output.stdout} ${ticket.output.stderr}`)
 }
 
+/** A cap hold has no time to wake at: the launcher exits 9 with wakeAt null, and the orchestrator waits for a live launcher to end. */
+const capHoldCases = async () => {
+  const capped = liveFixture("cap", 0.5, { workerCap: 1, recheckMinutes: 0.01, maxHoldMinutes: 0.03 })
+  const live = sleeperProcess()
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    registerWakeSource({ pid: live.pid, workerPid: null, startedAt: iso(Date.now()), what: "worker #1", research: false, review: false, pending: true, pendingAt: iso(Date.now()) }, capped.fixture.base)
+    const result = run("launch-worker.mjs", capped.argv, { path: capped.fixture.path, env: githubAuthEnv() })
+    const body = parse(result.stdout)
+    T("launch-worker.mjs: a launch held by the worker cap until the end of the wait exits 9 with PACE_HOLD, the decision HOLD_CAP and wakeAt null",
+      result.status === 9 && body.reason === "PACE_HOLD" && body.decision === "HOLD_CAP" && body.wakeAt === null && body.admitted === false, `${result.status} ${result.stdout} ${result.stderr}`)
+  } finally {
+    live.kill("SIGKILL")
+  }
+}
+
+/** A hold that no reader can see stops the launch, the way the pending registration does. */
+const holdRegistrationCases = () => {
+  const blind = liveFixture("blind", 2)
+  // A file where the wake source directory belongs makes the registration fail.
+  writeFileSync(join(blind.fixture.base, ".git", "orbit-wake-sources"), "not a directory\n")
+  const result = run("launch-worker.mjs", blind.argv, { path: blind.fixture.path, env: githubAuthEnv() })
+  T("launch-worker.mjs: a pace hold whose wake source cannot be registered exits 3 and does not wait",
+    result.status === 3 && /could not register the pace hold wake source/.test(result.stderr), `${result.status} ${result.stdout} ${result.stderr}`)
+}
+
 /** The wait at the launch gate ends after the allowance, so the hold, the gate and the worker runs stay inside the background limit. */
 const gateAllowanceCases = async () => {
   const busy = liveFixture("gate-busy", 0.5, { launchGateAllowanceMinutes: 0.02 }, {}, { loadMax: 0.000001, spacingSeconds: 0 })
@@ -442,6 +475,8 @@ export const cases = async () => {
   await countCases()
   await launcherCases()
   await holdBudgetCases()
+  await capHoldCases()
+  holdRegistrationCases()
   await gateAllowanceCases()
   await stopDuringHoldCases()
   await statusCases()

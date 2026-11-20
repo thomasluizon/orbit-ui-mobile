@@ -338,6 +338,8 @@ const launchModeCases = async () => {
   same(`${UNIT}: a proof in a copy outside git claims nothing (thread __pE)`, proof.reservation, null)
   same(`${UNIT}: each read-only mode names itself in its label and its review wake source (thread __pE)`,
     [review.label, review.wake, proof.label, proof.wake], ["review", { what: "review", research: false, review: true }, "proof", { what: "proof", research: false, review: true }])
+  T(`${UNIT}: a review and a proof both relaunch once after a usage limit, so the pace hold budget counts two worker runs`,
+    review.relaunches === true && proof.relaunches === true && typeof review.relaunchArguments === "function" && typeof proof.relaunchArguments === "function", JSON.stringify([review.relaunches, proof.relaunches]))
   T(`${UNIT}: a read-only mode runs in its checked run directory, reads its order, and clears its claims on exit (thread __pE)`,
     review.runDirectory === realpathSync(detached) && proof.runDirectory === realpathSync(copy) && review.promptFile === realpathSync(order) && review.clearsClaimsOnExit === true,
     JSON.stringify([review.runDirectory, proof.runDirectory, review.promptFile]))

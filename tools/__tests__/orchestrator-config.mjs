@@ -788,11 +788,15 @@ export const cases = async () => {
   const { maxHoldMinutes, launchGateAllowanceMinutes, backgroundLimitMinutes } = real.pace
   const fixedMinutes = launchGateAllowanceMinutes + real.timeouts.hardCeilingMinutes
   T(`${NAME}: a hold, a gate allowance and one worker run that reach the background limit are refused`,
-    /= \d+ must stay below pace\.backgroundLimitMinutes/.test(readAndFail("pace-hold-at-limit", withPace({ maxHoldMinutes: backgroundLimitMinutes - fixedMinutes })) ?? "") &&
-      /= \d+ must stay below pace\.backgroundLimitMinutes/.test(readAndFail("pace-hold-over-limit", withPace({ maxHoldMinutes: backgroundLimitMinutes })) ?? ""))
+    /leaves room for \d+ minutes[^]*must stay below pace\.backgroundLimitMinutes/.test(readAndFail("pace-hold-at-limit", withPace({ maxHoldMinutes: backgroundLimitMinutes - fixedMinutes })) ?? "") &&
+      /leaves room for \d+ minutes[^]*must stay below pace\.backgroundLimitMinutes/.test(readAndFail("pace-hold-over-limit", withPace({ maxHoldMinutes: backgroundLimitMinutes })) ?? ""))
   T(`${NAME}: a hold one minute under the background limit is accepted`, readAndFail("pace-hold-under-limit", withPace({ maxHoldMinutes: backgroundLimitMinutes - fixedMinutes - 1 })) === null)
   T(`${NAME}: a worker ceiling that pushes the shipped hold to the background limit is refused`,
     /timeouts\.hardCeilingMinutes \(\d+\)/.test(readAndFail("pace-ceiling-over-limit", withCeiling(backgroundLimitMinutes - maxHoldMinutes - launchGateAllowanceMinutes)) ?? ""))
+  // The 120 minute limit is written twice: pace.backgroundLimitMinutes here and the timeout of the background task in the playbook.
+  const playbookTimeout = /`timeout` (\d+)/.exec(readFileSync(new URL("../../.claude/playbooks/operations.md", import.meta.url), "utf8"))?.[1]
+  T(`${NAME}: the background task timeout of the operations playbook equals pace.backgroundLimitMinutes`,
+    Number(playbookTimeout) === backgroundLimitMinutes * 60_000, `playbook timeout ${playbookTimeout}, pace.backgroundLimitMinutes ${backgroundLimitMinutes}`)
   T(`${NAME}: the gate allowance and the background limit need positive numbers`,
     /pace\.launchGateAllowanceMinutes must be a positive number/.test(readAndFail("pace-gate-allowance", withPace({ launchGateAllowanceMinutes: 0 })) ?? "") && /pace\.backgroundLimitMinutes must be a positive number/.test(readAndFail("pace-background-limit", withPace({ backgroundLimitMinutes: undefined })) ?? ""))
   const budgetRows = [

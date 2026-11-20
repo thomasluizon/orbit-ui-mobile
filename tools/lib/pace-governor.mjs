@@ -1,11 +1,11 @@
 /**
  * The pace governor compares the weighted token spend since the last weekly reset of the main account
  * with a linear budget line, and it holds a launch that is over the line. Transcript fields come from
- * real records: `type`, `isSidechain`, `timestamp` and `message.{id, model, usage}`. A streamed call
- * writes several records with one `message.id`, and the last one wins. A subagent file counts too.
+ * real records: `type`, `timestamp` and `message.{id, model, usage}`. A streamed call writes several records
+ * with one `message.id`, and the record with the largest `output_tokens` counts, in any file order. A subagent file counts too.
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { spawnSync } from "node:child_process"
@@ -83,11 +83,14 @@ export const weightedSpend = ({ pace, sinceMs, untilMs }) => {
       if (record?.type !== "assistant" || typeof record.message?.id !== "string" || !usage || !Number.isFinite(at)) continue
       if (![usage.input_tokens, usage.cache_creation_input_tokens, usage.cache_read_input_tokens, usage.output_tokens].every((value) => Number.isInteger(value) && value >= 0)) continue
       if (at < sinceMs || at > untilMs) continue
-      calls.set(record.message.id, weightedTokensOf(usage, record.message.model, pace))
+      // Copies of one call can differ when a file holds a partial copy; the largest output count is the most complete one, in any file order.
+      if (usage.output_tokens >= (calls.get(record.message.id)?.outputTokens ?? -1)) {
+        calls.set(record.message.id, { outputTokens: usage.output_tokens, weighted: weightedTokensOf(usage, record.message.model, pace) })
+      }
     }
   }
   let total = 0
-  for (const weighted of calls.values()) total += weighted
+  for (const { weighted } of calls.values()) total += weighted
   return total
 }
 
@@ -121,20 +124,29 @@ export const readCalibration = (path) => {
   return reading
 }
 
+/** The week of a reading holds no spend, so no budget can be derived from it. */
+export class NoSpendError extends Error {}
+
 /** A new reading replaces the stored one. The budget is the spend of the week at the reading, divided by its share. */
 export const takeReading = ({ pace, percent, readAtMs }) => {
   if (!(Number.isFinite(percent) && percent > 0 && percent <= 100)) throw new Error(`the reading must be a percentage above 0 and up to 100, got ${percent}`)
   if (!Number.isFinite(readAtMs)) throw new Error("the reading needs a valid time")
   const { startMs } = weekWindow(readAtMs, pace.weeklyReset)
   const spentWeighted = weightedSpend({ pace, sinceMs: startMs, untilMs: readAtMs })
-  if (!(spentWeighted > 0)) throw new Error(`no spend found from ${new Date(startMs).toISOString()} to ${new Date(readAtMs).toISOString()} under ${expandHome(pace.transcriptRoot)}, so no budget can be derived`)
+  if (!(spentWeighted > 0)) throw new NoSpendError(`no spend found from ${new Date(startMs).toISOString()} to ${new Date(readAtMs).toISOString()} under ${expandHome(pace.transcriptRoot)}, so no budget can be derived`)
   return { percent, readAt: new Date(readAtMs).toISOString(), spentWeighted, weeklyBudget: spentWeighted / (percent / 100), weights: weightsFingerprint(pace) }
 }
 
 export const writeCalibration = (path, reading) => {
+  const unpublished = `${path}.${process.pid}.unpublished`
   mkdirSync(join(path, ".."), { recursive: true })
-  writeFileSync(`${path}.${process.pid}.unpublished`, `${JSON.stringify(reading, null, 2)}\n`)
-  renameSync(`${path}.${process.pid}.unpublished`, path)
+  writeFileSync(unpublished, `${JSON.stringify(reading, null, 2)}\n`)
+  try {
+    renameSync(unpublished, path)
+  } catch (error) {
+    rmSync(unpublished, { force: true })
+    throw error
+  }
 }
 
 const round = (value, digits) => Number(value.toFixed(digits))

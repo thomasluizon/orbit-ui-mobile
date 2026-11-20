@@ -123,7 +123,6 @@ export const researchLaunch = ({ argv, argOf, fail }) => {
     },
     spawn: (executable, args, firstInheritedDescriptor) => ({ executable, args, input: researchPrompt(orderFile), reportDescriptor: reportDescriptor === null ? null : firstInheritedDescriptor }),
     relaunches: false,
-    relaunchArguments: () => null,
     /** Publishes only a non-empty report of an engine that exited 0. */
     finish: ({ attempts, startedAt, engine, model }) => {
       const last = attempts.at(-1)

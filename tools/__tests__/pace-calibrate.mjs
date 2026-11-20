@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { dirname, join } from "node:path"
 
 import { T, check, hermeticPace, realOrchestratorConfig, root, run, same, stageWithConfig } from "./_harness.mjs"
 
@@ -37,5 +37,10 @@ export const cases = async () => {
   check(TOOL, "a missing percentage is refused", [], { status: 2, stderr: /--percent is required/ }, options)
   check(TOOL, "a time with no offset is refused", ["--percent", "20", "--at", "2026-11-19T10:00:00"], { status: 2, stderr: /ISO time with an offset/ }, options)
   check(TOOL, "a week with no spend gives no budget and exits 1", ["--percent", "20", "--at", "2026-11-26T09:00:00Z"], { status: 1, stderr: /no spend found/ }, options)
+  // A directory where the reading belongs makes the final rename fail, after the week's spend was read.
+  const blocked = stagedCalibrator("blocked", [record("m1", "2026-11-19T08:00:00.000Z", 20_000)])
+  mkdirSync(join(blocked.stored, "occupied"), { recursive: true })
+  check(TOOL, "a reading that cannot be stored exits 3 with the path, and leaves no unpublished file", ["--percent", "20", "--at", "2026-11-19T10:00:00Z"], { status: 3, stderr: /could not store the reading at .*orbit-pace-calibration\.json/ }, { path: blocked.path })
+  T(`${TOOL}: a failed store leaves no unpublished file`, !readdirSync(dirname(blocked.stored)).some((name) => name.endsWith(".unpublished")), readdirSync(dirname(blocked.stored)).join(","))
   check(TOOL, "--show takes no other argument", ["--show", "--percent", "20"], { status: 2, stderr: /--show takes no other argument/ }, options)
 }

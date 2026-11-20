@@ -70,6 +70,18 @@ export const cases = async () => {
   const afterLock = await blocked
   T(`${UNIT}: a launch waits while another launcher holds the gate lock`, waiting.sleeps.length === 1 && afterLock.load === 3, JSON.stringify({ afterLock, sleeps: waiting.sleeps }))
 
+  // The lock stays held for the whole wait, so the gate never reads the load: the message says so and the load is null.
+  const lockedOut = checkout("locked-out")
+  mkdirSync(join(lockedOut, ".git", "orbit-launch-gate-lock"), { recursive: true })
+  writeFileSync(join(lockedOut, ".git", "orbit-launch-gate-lock", "owner.json"), JSON.stringify({ pid: process.pid, processStartIdentity: processStartIdentity(process.pid), claimId: "other launcher" }))
+  const lockedMachine = machine([3])
+  let lockedExpiry = null
+  try { await passLaunchGate({ loadMax: 60, spacingSeconds: 0, repoRoot: lockedOut, ...lockedMachine, pollMs: 5000, maxWaitMs: 12_000 }) } catch (error) { lockedExpiry = error }
+  T(`${UNIT}: a wait that a live owner of the gate lock blocks throws LaunchGateExpired at the deadline with the load unread and records no launch`,
+    lockedExpiry instanceof LaunchGateExpired && lockedExpiry.waitedMs === 12_000 && lockedExpiry.load === null && /one-minute load unread/.test(lockedExpiry.message) && lockedMachine.sleeps.join() === "5000,5000,2000" &&
+      (() => { try { readFileSync(launchGateStampPath(lockedOut)); return false } catch (error) { return error.code === "ENOENT" } })(),
+    JSON.stringify({ expired: lockedExpiry?.message, sleeps: lockedMachine.sleeps }))
+
   const corrupt = checkout("corrupt")
   writeFileSync(launchGateStampPath(corrupt), "{")
   let refusal = null

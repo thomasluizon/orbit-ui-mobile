@@ -128,9 +128,10 @@ const validatePace = (pace, timeouts) => {
   positive(pace.launchGateAllowanceMinutes, "pace.launchGateAllowanceMinutes")
   positive(pace.backgroundLimitMinutes, "pace.backgroundLimitMinutes")
   positive(timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")
-  const longestRunMinutes = pace.maxHoldMinutes + pace.launchGateAllowanceMinutes + timeouts.hardCeilingMinutes
-  if (longestRunMinutes + BACKGROUND_LIMIT_MARGIN_MINUTES > pace.backgroundLimitMinutes) {
-    throw new Error(`.claude/orchestrator.json pace.maxHoldMinutes (${pace.maxHoldMinutes}) + pace.launchGateAllowanceMinutes (${pace.launchGateAllowanceMinutes}) + timeouts.hardCeilingMinutes (${timeouts.hardCeilingMinutes}) = ${longestRunMinutes} must stay below pace.backgroundLimitMinutes (${pace.backgroundLimitMinutes}), or the harness stops a launcher that the hold admitted`)
+  // The shipped hold must fit with one worker run: the budget of one run leaves the configured hold whole.
+  const budgetMinutes = paceHoldBudgetMinutes({ pace, hardCeilingMinutes: timeouts.hardCeilingMinutes, attempts: 1 })
+  if (budgetMinutes !== pace.maxHoldMinutes) {
+    throw new Error(`.claude/orchestrator.json pace.maxHoldMinutes (${pace.maxHoldMinutes}) leaves room for ${budgetMinutes} minutes: with pace.launchGateAllowanceMinutes (${pace.launchGateAllowanceMinutes}), timeouts.hardCeilingMinutes (${timeouts.hardCeilingMinutes}) and a ${BACKGROUND_LIMIT_MARGIN_MINUTES} minute margin it must stay below pace.backgroundLimitMinutes (${pace.backgroundLimitMinutes}), or the harness stops a launcher that the hold admitted`)
   }
   nonEmptyString(pace.transcriptRoot, "pace.transcriptRoot")
   nonEmptyString(pace.source, "pace.source")
