@@ -55,7 +55,7 @@ worker to review its own whole diff with them before it reports. A failed read o
 
 A local order ends with a seal line. tools/launch-worker.mjs refuses an order without it, or one whose text
 changed after it, so a fix round's note reaches a worker only as a ticket comment
-(node tools/post-run-note.mjs --kind round-note) that this tool reads.
+(node tools/post-run-note.mjs --kind round-note --pullfrog-threads <n>) that this tool reads.
 
 Prints the output path on stdout.
 exit codes: 0 prompt written, 2 usage or ticket read error`

@@ -98,13 +98,13 @@ const fixRoundCases = () => {
   const orderOptions = { path: fixRounds.path, env: githubAuthEnv() }
   const orderArgs = (prompt) => ["--issue", "ORB-201", "--worktree", fixRounds.worktree, "--prompt", prompt, "--dry-run"]
   check(TOOL, "an order that compose-prompt.mjs did not seal exits 2", orderArgs(stage("launch-worker/unsealed.md", "a hand-written order\n")),
-    { status: 2, stderr: /is not a composed order: it carries no seal of tools\/compose-prompt\.mjs/ }, orderOptions)
+    { status: 2, stderr: /is not a composed order: it carries no seal of tools\/compose-prompt\.mjs[\s\S]*post-run-note\.mjs --kind round-note --pullfrog-threads <n>/ }, orderOptions)
   check(TOOL, "an order with a note appended after the seal exits 2", orderArgs(stage("launch-worker/appended.md", `${sealOrder("the composed order\n")}\n## Orchestrator note\n\nalso fix this\n`)),
     { status: 2, stderr: /is not a composed order: it carries no seal/ }, orderOptions)
   check(TOOL, "an order edited above its seal exits 2", orderArgs(stage("launch-worker/edited.md", sealOrder("the composed order\n").replace("composed", "edited"))),
     { status: 2, stderr: /its text changed after tools\/compose-prompt\.mjs sealed it/ }, orderOptions)
   check(TOOL, "a fix round whose order quotes no round note exits 2", [...orderArgs(stage("launch-worker/no-round-note.md", sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\nthe review batch order\n`))), "--fix-round"],
-    { status: 2, stderr: new RegExp(`quotes no round note for head ${head}[\\s\\S]*post-run-note\\.mjs --kind round-note`) }, orderOptions)
+    { status: 2, stderr: new RegExp(`quotes no round note for head ${head}[\\s\\S]*post-run-note\\.mjs --kind round-note[\\s\\S]*--pullfrog-threads <n>`) }, orderOptions)
   check(TOOL, "a fix round whose round note answers another head exits 2", [...orderArgs(stage("launch-worker/stale-round-note.md", sealOrder(`${REVIEW_BATCH_ORDER_MARKER}\n\n${roundNote("0".repeat(40))}\n`))), "--fix-round"],
     { status: 2, stderr: /quotes no round note for head/ }, orderOptions)
   const fixArgs = (pullfrogThreads = 0) => ["--issue", "ORB-201", "--worktree", fixRounds.worktree, "--prompt", batchOrder(pullfrogThreads)]

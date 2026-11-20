@@ -21,7 +21,7 @@ const parsePullfrogReviewRules = (listing, slug) => {
 }
 
 /** The command that lists the Pullfrog settings of `slug`. `PULLFROG_BIN` names the CLI itself, so a test names a stub. */
-const pullfrogListCommand = (slug, environment = process.env) => {
+export const pullfrogListCommand = (slug, environment = process.env) => {
   if (!SLUG.test(slug)) throw new Error(`cannot read the Pullfrog review rules: "${slug}" is not an owner/repository slug`)
   const [command, runner] = environment.PULLFROG_BIN ? [environment.PULLFROG_BIN, []] : ["npx", ["-y", `pullfrog@${PULLFROG_CLI_VERSION}`]]
   return { command, args: [...runner, "config", "list", "--repo", slug] }

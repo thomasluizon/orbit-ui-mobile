@@ -578,7 +578,7 @@ export const cases = async () => {
   T(`${NAME}: the shipped review tier is claude-opus-5-5 at xhigh effort`,
     reviewer.model === "claude-opus-5-5" && effortOf(reviewer.args) === "xhigh" && reviewer.args.slice(-2).join(" ") === "--model claude-opus-5-5" &&
       reviewer.args.join(" ").includes("--effort xhigh --model claude-opus-5-5"), JSON.stringify(reviewer))
-  T(`${NAME}: the review tier keeps every sub-agent off vector of its engine`, engine.subagentOffArgs.every((argument) => reviewer.args.includes(argument)), JSON.stringify(reviewer.args))
+  T(`${NAME}: the review tier keeps every sub-agent off vector of its engine`, engine.subagentOffArgs.length > 0 && engine.subagentOffArgs.every((argument) => reviewer.args.includes(argument)), JSON.stringify(reviewer.args))
 
   const engineFailures = []
   const codexEngine = real.workers.codex

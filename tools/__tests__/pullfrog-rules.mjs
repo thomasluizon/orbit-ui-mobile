@@ -1,4 +1,4 @@
-import { readPullfrogReviewRules } from "../lib/pullfrog-rules.mjs"
+import { pullfrogListCommand, readPullfrogReviewRules } from "../lib/pullfrog-rules.mjs"
 import { orcaEnv, same, T } from "./_harness.mjs"
 
 const UNIT = "lib/pullfrog-rules.mjs"
@@ -54,9 +54,11 @@ export const cases = () => {
     T(`${UNIT}: the slug ${JSON.stringify(slug)} is refused before any process starts`, /is not an owner\/repository slug/.test(result.error ?? ""), JSON.stringify(result))
   }
 
-  /** With no stub, the read runs `npx` at an exact version: no PATH, so the spawn error names the command. */
-  let spawnError = null
-  try { readPullfrogReviewRules(SLUG, { PATH: "" }) } catch (error) { spawnError = error.message }
-  T(`${UNIT}: with no stub the read runs npx at an exact CLI version, never latest`,
-    /with pullfrog@\d+\.\d+\.\d+: .*npx/.test(spawnError ?? "") && !/latest/.test(spawnError ?? ""), String(spawnError))
+  /** The command is judged by the arguments that spawn receives, never by error text: the error names the version constant, not the command. */
+  const direct = pullfrogListCommand(SLUG, {})
+  T(`${UNIT}: with no stub the command is npx at an exact CLI version, never latest`,
+    direct.command === "npx" && direct.args.length === 6 && direct.args[0] === "-y" && /^pullfrog@\d+\.\d+\.\d+$/.test(direct.args[1]) &&
+      JSON.stringify(direct.args.slice(2)) === JSON.stringify(["config", "list", "--repo", SLUG]), JSON.stringify(direct))
+  same(`${UNIT}: PULLFROG_BIN names the CLI itself and takes the listing arguments only`, pullfrogListCommand(SLUG, { PULLFROG_BIN: "/stub/pullfrog" }),
+    { command: "/stub/pullfrog", args: ["config", "list", "--repo", SLUG] })
 }

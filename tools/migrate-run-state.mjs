@@ -19,12 +19,14 @@ const USAGE = `usage: migrate-run-state.mjs [--apply] [--manifest <file>]
   the run record of this checkout (.git/orbit-orchestrate-run.json); a missing record moves no marks.
 
   --manifest <file>   a JSON array of the live scratchpad items to post, each with its file:
-                        {"kind":"round-note","file":"<path>","issue":2152,"round":2,"head":"<40-hex sha>"}
+                        {"kind":"round-note","file":"<path>","issue":2152,"round":2,"head":"<40-hex sha>","pullfrogThreads":0}
                         {"kind":"review","file":"<path>","issue":2152,"head":"<40-hex sha>"}
                         {"kind":"report","file":"<path>","issue":2152,"commits":["<sha>"]}
                         {"kind":"decision","file":"<path>","issue":2152}  or  {"kind":"decision","file":"<path>","runRecord":true}
                         {"kind":"body","file":"<path>","repo":"ui","pr":2486}
                         {"kind":"reply","file":"<path>","repo":"ui","pr":2486,"thread":"PRRT_..."}
+                      A round-note item's pullfrogThreads is the count of Pullfrog threads in that round's batch
+                      (default 0); launch-worker.mjs --fix-round reads it to record the kind pullfrog or local.
                       Kinds: ${MANIFEST_KINDS.join(", ")}. Every item is validated before the first write
   --apply             find or create the closed "Orbit run record" issue, merge the intake marks into
                       run-state/intake.json in the tickets repository (a mark already there wins), post every

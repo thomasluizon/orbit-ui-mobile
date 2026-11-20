@@ -55,6 +55,15 @@ const planCases = () => {
     return texts[path]
   }
   T(`${UNIT}: a round note item becomes its ticket comment`, planItem({ kind: "round-note", file: "round.md", issue: 2152, round: 2, head: HEAD }, { readText }).text.startsWith(`<!-- orbit-run-note: kind=round-note round=2 head=${HEAD} pullfrogThreads=0 -->`))
+  for (const [label, count, expected] of [["no count", undefined, "pullfrogThreads=0"], ["a count of 0", 0, "pullfrogThreads=0"], ["a count of 3", 3, "pullfrogThreads=3"]]) {
+    const marker = planItem({ kind: "round-note", file: "round.md", issue: 2152, round: 2, head: HEAD, pullfrogThreads: count }, { readText }).text.split("\n")[0]
+    T(`${UNIT}: a round note item with ${label} posts ${expected}, the count that launch-worker.mjs --fix-round reads`, marker.includes(expected), marker)
+  }
+  for (const [label, count] of [["a negative count", -1], ["a fractional count", 1.5], ["a count that is text", "many"]]) {
+    let error = null
+    try { planItem({ kind: "round-note", file: "round.md", issue: 2152, round: 2, head: HEAD, pullfrogThreads: count }, { readText }) } catch (caught) { error = caught }
+    T(`${UNIT}: a round note item with ${label} is refused before any write`, error instanceof ManifestError && /--pullfrog-threads/.test(error.message), error?.message)
+  }
   same(`${UNIT}: a body item targets its pull request`, planItem({ kind: "body", file: "body.md", repo: "ui", pr: 2486 }, { readText }).target, "ui#2486 body")
   for (const [label, item, message] of [
     ["an unknown kind", { kind: "note", file: "round.md" }, /manifest kind/],

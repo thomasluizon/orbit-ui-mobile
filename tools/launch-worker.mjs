@@ -321,7 +321,7 @@ if (normalize(promptFile).startsWith(`${normalize(runDirectory)}/`)) {
 const orderText = launchMode.sealedOrder ? readFileSync(promptFile, "utf8") : null
 const sealProblem = launchMode.sealedOrder ? orderSealProblem(orderText) : null
 if (sealProblem) {
-  fail(2, `${promptFile} is not a composed order: ${sealProblem}. Build every worker order with node tools/compose-prompt.mjs; a fix round's note goes to the ticket first with node tools/post-run-note.mjs --kind round-note`)
+  fail(2, `${promptFile} is not a composed order: ${sealProblem}. Build every worker order with node tools/compose-prompt.mjs; a fix round's note goes to the ticket first with node tools/post-run-note.mjs --kind round-note --pullfrog-threads <n>`)
 }
 
 /** A run directory outside git reads as the empty text. */

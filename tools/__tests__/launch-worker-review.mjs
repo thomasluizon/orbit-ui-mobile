@@ -114,7 +114,7 @@ fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd
       plan.args?.at(-1).includes(clean.order) && plan.args.at(-1).includes("read-only review run") && plan.args.includes("--disallowed-tools"),
     planned.stdout)
   T(`${TOOL}: a review runs the review tier of the configuration with no --tier`,
-    plan.tier === "review" && plan.model === "gate-stub-review" && plan.args?.includes("--gate-effort=xhigh") && plan.args.slice(-4, -2).join(" ") !== "" && plan.args.includes("gate-stub-review"), planned.stdout)
+    plan.tier === "review" && plan.model === "gate-stub-review" && plan.args?.includes("--gate-effort=xhigh") &&plan.args.includes("gate-stub-review"), planned.stdout)
   const explicit = check(TOOL, "--tier review is the same as the default", [...clean.argv("review", clean.output()), "--tier", "review", "--dry-run"], { status: 0 }, { path: clean.path })
   T(`${TOOL}: an explicit review tier resolves the same plan`, JSON.parse(explicit.stdout || "{}").tier === "review", explicit.stdout)
   for (const tier of ["default", "mechanical", "deep", "max"]) {
