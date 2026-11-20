@@ -72,6 +72,10 @@
         "max": {
           "model": "claude-sonnet-5-5",
           "args": ["--effort", "high"]
+        },
+        "review": {
+          "model": "claude-opus-5-5",
+          "args": ["--effort", "xhigh"]
         }
       }
     }

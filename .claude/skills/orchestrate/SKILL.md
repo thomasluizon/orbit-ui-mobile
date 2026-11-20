@@ -27,7 +27,7 @@ from their own computer. So each kind of state has one home on GitHub:
 
 | state | home |
 |---|---|
-| a worker order and each fix round's note | a ticket comment posted before the launch: `node tools/post-run-note.mjs --kind round-note --issue <ref> --round <n> --head <sha>`. `compose-prompt.mjs` reads every comment, and `launch-worker.mjs --fix-round` refuses an order that quotes no round note for the worktree's head |
+| a worker order and each fix round's note | a ticket comment posted before the launch: `node tools/post-run-note.mjs --kind round-note --issue <ref> --round <n> --head <sha> --pullfrog-threads <n>`. `compose-prompt.mjs` reads every comment, and `launch-worker.mjs --fix-round` refuses an order that quotes no round note for the worktree's head |
 | the standing worker rules | the brief inside `tools/compose-prompt.mjs`. Never append a note to a composed order: `launch-worker.mjs` refuses an order whose seal does not match |
 | a review result | a ticket comment that names the reviewed head: `--kind review --head <sha>`, body starting `VERDICT:` |
 | a worker's final report | the pull request body, plus a ticket comment with the commit SHAs: `--kind report --commits <sha,...>` |
@@ -184,8 +184,8 @@ no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detail
                      left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
                      A SALVAGED PR RE-ENTERS HERE and runs 7, 8 and 9 like any other.
  8  CLEAR PULLFROG   Pullfrog reviews only on request. The request goes out at the push, beside CI.
-                     LOCAL REVIEW before every push: review-and-audit.md rule 14, two passes, no third;
-                     each pass reads the whole diff and lists every instance of each defect class
+                     LOCAL REVIEW of every head before Pullfrog sees it, fix heads included: review-and-audit.md
+                     rule 14; each pass reads the whole diff and lists every instance of each defect class
                      node tools/list-bot-threads.mjs --pr <n> --repo <key> -> threads[] AND reviewBody
                      then wait-ci --require-check pullfrog-approval in the background
                      FIX every BLOCKING finding, every instance of its class in one commit
@@ -225,7 +225,7 @@ node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--layout-guard] [--review-batch] [--cloud]
 node tools/compose-prompt.mjs    --review --repo <key> --pr <n> --head <sha> [--since <reviewed sha>] --out <file>
 node tools/compose-prompt.mjs    --proof --repo <key> --pr <n> --head <sha> --plan <file> --devices <names> --evidence <dir> --out <file>
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>] [--fix-round <local|pullfrog> [--design-change <file>]]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>] [--fix-round [--design-change <file>]]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 node tools/launch-worker.mjs --review|--proof --order <scratchpad order> --out <scratchpad result> --directory <detached worktree> [--tier <t>] [--hard-ceiling-minutes <n>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
@@ -616,7 +616,7 @@ server, emulator or Playwright command. The worker never runs the guard; the `La
    **The worker never merges and never opens a second PR.**
 
 For a local review-fix worker, add `--review-batch` to the compose command, and launch it with
-`--fix-round <local|pullfrog>`. Its order stops after the focused tests and a tested commit. The worker reports the commit SHA and test results without
+`--fix-round`. Its order stops after the focused tests and a tested commit. The worker reports the commit SHA and test results without
 pushing or updating the pull request. The orchestrator replies to and resolves the batch's threads,
 runs the local review of step 8, pushes once, and asks for the review right after that push.
 
@@ -774,7 +774,7 @@ a non-empty remote diff keeps the task unresolved.
 ### Local execution
 
 ```bash
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>] [--fix-round <local|pullfrog> [--design-change <file>]]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical|deep|max>] [--relaunch-reason <text>] [--fix-round [--design-change <file>]]
 node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 node tools/launch-worker.mjs --review|--proof --order <scratchpad order> --out <scratchpad result> --directory <detached worktree>
 ```
@@ -1015,7 +1015,8 @@ change: green checks, an approval at the exact head, zero unresolved threads and
 
 **Run the local review gate, `.claude/playbooks/review-and-audit.md` rule 14, on a review worker
 (`launch-worker.mjs --review`) before every push of a pull request head and before you ask for the
-review of a head that a worker pushed.** A fix round gets its own review worker with `--since`. That gate is
+review of a head that a worker pushed.** Every head gets this review before Pullfrog sees it, a fix head included, and the review worker of a fix head runs
+with `--since`. It runs the `review` tier (`claude-opus-5-5` at `xhigh`). That gate is
 what keeps a head that fails CI, or that carries a finding the reviewer will open, from costing a
 review round.
 
@@ -1105,7 +1106,8 @@ push asks for its review.
 
 ### Compose one review batch
 
-Build ONE classified finding set for ONE accepted Pullfrog review of the current head. `threads[]`
+Build ONE classified finding set for the current head: the BLOCKING findings of its local review and
+ONE accepted Pullfrog review. One head costs one fix launch, never one for each review. `threads[]`
 and a non-null `reviewBody` are two inputs to that same set, never two queues. Split both surfaces
 into findings, then deduplicate descriptions of the same required code change. Preserve every
 contributing `threads[].id` on the surviving finding so each thread can receive its own reply and
@@ -1122,13 +1124,14 @@ is a new batch and may launch one new worker.
 
 Either path allows one commit at most. Keep every filed-ticket disposition and test every fix. Only
 the batch's single commit spends one `caps.reviewFixAttempts` round; a batch that writes no commit
-spends nothing. A worker batch claims it at launch (`launch-worker.mjs --fix-round pullfrog`), and
+spends nothing. A worker batch claims it at launch (`launch-worker.mjs --fix-round`, which records `pullfrog` when the round note counts a Pullfrog thread, else `local`), and
 the launcher gives it back when the launch ends with no commit, so the relaunch of that order spends
 the same round; a fix the orchestrator writes spends it with `node tools/fix-rounds.mjs --worktree <p> --record
-pullfrog` before its commit. If the batch has only FILE or not-applicable findings, perform their existing reply,
+<local|pullfrog>` before its commit, by the same rule: `pullfrog` when a Pullfrog thread is in the batch, else `local`. If the batch has only FILE or not-applicable findings, perform their existing reply,
 resolve and same-head re-review transitions without launching a worker or inventing a commit.
 
-The round note of a batch names each defect class one time and lists every instance, one `path:line` each,
+Post the round note with `--pullfrog-threads <n>`, the count of Pullfrog threads in the batch (0 for a
+batch that answers the local review alone). The round note of a batch names each defect class one time and lists every instance, one `path:line` each,
 including an instance outside the changed lines that the pull request caused. The next review reads
 the whole diff, so an instance left behind costs the next round.
 
@@ -1446,18 +1449,21 @@ runs for merged tickets only, including those merged under D88/D90 standing auth
 |---|---|
 | Orchestrator | Opus 5.5 @ high, or Sol 6.1 @ high |
 | Implementer | the engine named by `worker` in `.claude/orchestrator.json`, at the order's `default`, `mechanical`, `deep` or `max` tier |
+| Pre-push reviewer | the `review` tier of `workers.claude.models`: `claude-opus-5-5` at `xhigh` effort, run by `launch-worker.mjs --review` on every head before Pullfrog sees it |
 | Reviewer | Pullfrog in GitHub Actions: `anthropic/claude-opus-5-5` at `xhigh` effort, pinned in `.github/workflows/pullfrog.yml` |
 
-The shipped worker is `claude`, and every tier runs `--effort high`. The owner sets the model of
-each tier in `.claude/orchestrator.json` per account allowance. Every tier now resolves to
-Fable 5.2, so each dry run prints `--effort high --model claude-fable-5-2`. Use `default` for normal
+The shipped worker is `claude`. Its `default`, `mechanical`, `deep` and `max` tiers run `--effort high`
+and the model that `.claude/orchestrator.json` names, `claude-sonnet-5-5`, so each dry run prints
+`--effort high --model claude-sonnet-5-5`. Its `review` tier runs `--effort xhigh --model claude-opus-5-5`,
+and `launch-worker.mjs --review` takes it with no `--tier`; no ticket launch takes it. Only the owner's words
+change a model. Use `default` for normal
 orders, `mechanical` for fully specified mechanical work, `deep` for a large ticket and `max` for a
 review round after one failed round. Never use `ultra`, which delegates to its own agents;
 worker orders forbid sub-agents. The installed
 `claude` CLI accepts exactly `low`, `medium`, `high`, `xhigh` and `max` for `--effort`, and it
 warns and runs the default effort on any other value.
 
-This harness launches no reviewer. `launch-worker.mjs` resolves the requested worker tier; tier
+This harness launches no Pullfrog review. `launch-worker.mjs` resolves the requested worker tier; tier
 selection routes the resulting order, never the Pullfrog review itself. The Pullfrog step pays
 with the `CLAUDE_CODE_OAUTH_TOKEN` repository secret. In all three repositories, the secret holds a
 token of the main account: the owner's Claude Max subscription, the default Claude config.

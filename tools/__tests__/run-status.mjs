@@ -72,7 +72,7 @@ const coldStartCases = async ({ repo, options, authenticate, readCalls, setRespo
     const payload = args[1] === "graphql" ? (query.includes("pr1459:") ? statuses : open) : { total_count: 0, workflow_runs: [] }
     return { status: 0, stdout: JSON.stringify(payload), stderr: "", error: null, timedOut: false, overflowed: false }
   }
-  const roundNote = composeRunNote({ kind: "round-note", round: 2, head: head.headRefOid, body: "Fix the two findings." })
+  const roundNote = composeRunNote({ kind: "round-note", round: 2, head: head.headRefOid, pullfrogThreads: 0, body: "Fix the two findings." })
   const review = composeRunNote({ kind: "review", head: head.headRefOid, body: "VERDICT: CLEAN" })
   const commentsRead = []
   const reads = {

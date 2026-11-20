@@ -59,6 +59,7 @@ const CASE_MODULES = [
   ["desktop-bench/acceptance.mjs", "desktop-acceptance"],
   ["lib/ci-budget.mjs", "ci-budget"],
   ["lib/parity-scope.mjs", "parity-scope"],
+  ["lib/pullfrog-rules.mjs", "pullfrog-rules"],
   ["lib/escape-regex.mjs", "escape-regex"],
   ["lib/github-read.mjs", "github-read"],
   ["select-artifact-attempts.mjs", "select-artifact-attempts"],

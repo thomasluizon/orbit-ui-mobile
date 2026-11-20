@@ -12,11 +12,10 @@ const GITDIR_LINE = /^gitdir:[ \t]*(.+?)[ \t]*$/m
 const LINUX_DEAD_PROCESS_STATES = new Set(["Z", "X", "x"])
 export const PENDING_WAKE_SOURCE_MAX_AGE_MS = 45_000
 const DARWIN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-// BSD ps prints `Ss   Thu Sep 24 14:06:02 2026` for `stat=,lstart=` under LC_ALL=C and TZ=UTC0, and pads a one-digit day: `Sat Nov  7`.
-const DARWIN_PS_LINE = /^(\S+)\s+(.+)$/
+// The procStart of a Claude Code session record on macOS reads like `Thu Sep 24 14:06:02 2026` in UTC, with a padded one-digit day: `Sat Nov  7`.
 const DARWIN_LSTART = /^[A-Z][a-z]{2} ([A-Z][a-z]{2}) +(\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})$/
 
-/** Seconds since the epoch of a BSD ps lstart printed in UTC under LC_ALL=C; null for any other text. */
+/** Seconds since the epoch of a BSD lstart text in UTC; null for any other text. */
 const darwinLstartSeconds = (lstart) => {
   const match = DARWIN_LSTART.exec(lstart)
   const month = match ? DARWIN_MONTHS.indexOf(match[1]) : -1
@@ -25,13 +24,33 @@ const darwinLstartSeconds = (lstart) => {
   return Date.UTC(Number(year), month, Number(day), Number(hours), Number(minutes), Number(seconds)) / 1000
 }
 
+/**
+ * `ps` is setuid, and a review sandbox refuses a setuid program, so this makes the call `ps` makes:
+ * `sysctl(CTL_KERN, KERN_PROC, KERN_PROC_PID, pid)` fills the 648 byte `struct kinfo_proc`, zombies and other
+ * users' processes included (libproc's `proc_pidinfo` fills neither). `p_starttime.tv_sec` is at byte 0,
+ * `p_stat` at 36, `p_pid` at 40. `-I` keeps the working directory out of the import path of `/usr/bin/python3`,
+ * which has no setuid bit. It prints `<p_stat> <start second>`, or nothing for a gone process (length 0). */
+const SYSCTL_START_SOURCE = `
+import ctypes, sys
+pid = int(sys.argv[1])
+KINFO_PROC_BYTES = 648
+record = ctypes.create_string_buffer(KINFO_PROC_BYTES)
+length = ctypes.c_size_t(KINFO_PROC_BYTES)
+CTL_KERN, KERN_PROC, KERN_PROC_PID = 1, 14, 1
+name = (ctypes.c_int * 4)(CTL_KERN, KERN_PROC, KERN_PROC_PID, pid)
+called = ctypes.CDLL("/usr/lib/libc.dylib").sysctl(name, 4, record, ctypes.byref(length), None, ctypes.c_size_t(0))
+raw = record.raw
+if called == 0 and length.value == KINFO_PROC_BYTES and int.from_bytes(raw[40:44], "little", signed=True) == pid:
+    print(raw[36], int.from_bytes(raw[0:8], "little", signed=True))
+`
+/** `p_stat` of sys/proc.h: SIDL, SRUN, SSLEEP, SSTOP, SZOMB. The first letter is the BSD `ps` state letter of each. */
+const DARWIN_PROCESS_STATES = { 1: "I", 2: "R", 3: "S", 4: "T", 5: "Z" }
+const DARWIN_SYSCTL_LINE = /^([1-5]) (\d+)$/
+
 export const darwinProcessStart = (pid) => {
-  const result = spawnSync("ps", ["-o", "stat=,lstart=", "-p", String(pid)], {
-    encoding: "utf8", timeout: 3000, env: { ...process.env, LC_ALL: "C", TZ: "UTC0" },
-  })
-  const match = result.status === 0 ? DARWIN_PS_LINE.exec(result.stdout.trim()) : null
-  const startSeconds = match ? darwinLstartSeconds(match[2]) : null
-  return startSeconds === null ? null : { state: match[1], startSeconds }
+  const result = spawnSync("/usr/bin/python3", ["-I", "-c", SYSCTL_START_SOURCE, String(pid)], { encoding: "utf8", timeout: 5000 })
+  const match = result.status === 0 ? DARWIN_SYSCTL_LINE.exec(result.stdout.trim()) : null
+  return match ? { state: DARWIN_PROCESS_STATES[match[1]], startSeconds: Number(match[2]) } : null
 }
 const MERGE_SHA = /^[0-9a-f]{7,40}$/
 
@@ -153,7 +172,7 @@ const removeStaleReclaim = (path) => {
   }
 }
 
-// A process start identity never changes, and each darwin read spawns ps, so lock owners read their own once.
+// A process start identity never changes, and each darwin read spawns /usr/bin/python3, so lock owners read their own once.
 let ownProcessStartIdentity = null
 const ownProcessIdentity = () => (ownProcessStartIdentity ??= processStartIdentity(process.pid))
 
