@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { chmodSync, closeSync, existsSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { HERMETIC_LAUNCH_GATE, T, WORKER_CONFIG_DIRECTORY, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { HERMETIC_LAUNCH_GATE, T, hermeticPace, WORKER_CONFIG_DIRECTORY, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 import { researchLaunch } from "../lib/research-run.mjs"
 import { readWakeSourceStates, wakeSourceDirectory, workerLaunchDirectory, writeRunState } from "../lib/run-state.mjs"
 
@@ -16,7 +16,7 @@ const engineStub = (label, body) => {
 const fixture = (label, command, overrides = {}) => {
   const real = realOrchestratorConfig()
   const worker = overrides.worker ?? real.worker
-  const config = { ...real, ...overrides, launchGate: HERMETIC_LAUNCH_GATE, workers: { ...real.workers, [worker]: { ...real.workers[worker], command } } }
+  const config = { ...real, ...overrides, launchGate: HERMETIC_LAUNCH_GATE, pace: hermeticPace(), workers: { ...real.workers, [worker]: { ...real.workers[worker], command } } }
   const staged = stageWithConfig(`research-${label}`, TOOL, config)
   const order = stage(`research/${label}-order.md`, "Compare read-only research approaches and cite sources.\n")
   const output = join(dirname(order), `${label}-findings.md`)

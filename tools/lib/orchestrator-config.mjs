@@ -104,6 +104,28 @@ const validateTickets = (tickets) => {
   }
 }
 
+const PACE_TOKEN_WEIGHT_KEYS = ["input", "cacheWrite5m", "cacheWrite1h", "cacheRead", "output"]
+
+/** Every number the pace governor reads, and the source that owns them. A missing one stops the launch. */
+const validatePace = (pace) => {
+  if (!isRecord(pace)) throw new Error(".claude/orchestrator.json must declare a pace object")
+  if (typeof pace.enabled !== "boolean") throw new Error(".claude/orchestrator.json pace.enabled must be a boolean")
+  if (!Number.isInteger(pace.workerCap) || pace.workerCap <= 0) throw new Error(".claude/orchestrator.json pace.workerCap must be a positive integer")
+  positive(pace.recheckMinutes, "pace.recheckMinutes")
+  nonEmptyString(pace.transcriptRoot, "pace.transcriptRoot")
+  nonEmptyString(pace.source, "pace.source")
+  const reset = pace.weeklyReset
+  if (!isRecord(reset) || !Number.isInteger(reset.weekday) || reset.weekday < 0 || reset.weekday > 6 || !Number.isInteger(reset.hour) || reset.hour < 0 || reset.hour > 23 ||
+      !Number.isInteger(reset.minute) || reset.minute < 0 || reset.minute > 59 || !Number.isInteger(reset.utcOffsetMinutes) || Math.abs(reset.utcOffsetMinutes) > 14 * 60) {
+    throw new Error(".claude/orchestrator.json pace.weeklyReset must hold integer weekday 0 to 6 (Sunday is 0), hour, minute and utcOffsetMinutes")
+  }
+  if (!isRecord(pace.tokenWeights)) throw new Error(".claude/orchestrator.json pace.tokenWeights must be an object")
+  for (const key of PACE_TOKEN_WEIGHT_KEYS) positive(pace.tokenWeights[key], `pace.tokenWeights.${key}`)
+  if (!isRecord(pace.modelWeights)) throw new Error(".claude/orchestrator.json pace.modelWeights must be an object")
+  positive(pace.modelWeights.default, "pace.modelWeights.default")
+  for (const [name, weight] of Object.entries(pace.modelWeights)) positive(weight, `pace.modelWeights.${name}`)
+}
+
 export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranch = "main") => {
   const configPath = fileURLToPath(configUrl)
   let text
@@ -136,6 +158,7 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   if (!Number.isInteger(config.relay.hardTokens) || config.relay.hardTokens <= config.relay.softTokens || config.relay.hardTokens >= AUTO_COMPACT_TOKENS) {
     throw new Error(`.claude/orchestrator.json relay.hardTokens must be an integer above relay.softTokens and below ${AUTO_COMPACT_TOKENS}`)
   }
+  validatePace(config.pace)
   nonEmptyString(config.classifier.model, "classifier.model")
   positive(config.timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")
   positive(config.timeouts?.cloudCeilingMinutes, "timeouts.cloudCeilingMinutes")

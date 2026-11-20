@@ -10,6 +10,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { readPace } from "./lib/pace-governor.mjs"
 import { currentBaseShaOf, findRegisteredCheck, newestChecks, readinessCiIsGreen, readinessReport, requiredChecksOf, reviewChecksFor, rollupFromGraphQlNodes, PASSING_CONCLUSIONS, REVIEW_APP_CONTEXT, REVIEW_APP_ID } from "./lib/readiness-receipt.mjs"
 import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, readWorkerLaunches, workerLaunchDirectory } from "./lib/run-state.mjs"
 import { parseWorktreeList } from "./lib/git-worktrees.mjs"
@@ -49,6 +50,10 @@ its ledger row has no sha.
 Errors are redacted; tokens are scoped to child environments; pull request bodies are never read.
 Active auto-work wakes append INTAKE after in-flight actions, including with an empty queue.
 Ordinary sleep keeps NO_ACTION; a pending relay drain suppresses intake.
+
+Every snapshot carries pace: the share of the weekly budget spent, the line (the share of the week that has
+passed), the hours of headroom under the line (negative when over), the governor decision and the time the line
+catches up. The spend is the weighted token use of the main account since its weekly reset, coordinator included.
 
   --session <id>  current orchestrating session id (required when a run exists; unused for a cold start)
   --help, -h     print this usage and exit 0
@@ -508,11 +513,23 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
     admission: counts, repositories: snapshots.map(({ repositoryKey, status, openPullRequests, queuedRuns, error }) => ({ repositoryKey, status, openPullRequests, queuedRuns, error })), pullRequests: observations, nextActions }
 }
 
+/** The pace the launch governor sees now, in the shape every snapshot prints. */
+export const paceOfStatus = ({ config, repoRoot = REPO_ROOT, nowMs = Date.now() } = {}) => {
+  try {
+    const activeConfig = config ?? readOrchestratorConfig()
+    if (!activeConfig.pace.enabled) return { enabled: false }
+    const { spentShare, lineShare, headroomHours, overLine, decision, wakeAt, liveWorkers, workerCap, nextReset, calibration, reason } = readPace({ config: activeConfig, repoRoot, nowMs })
+    return { enabled: true, spentShare, lineShare, headroomHours, overLine, decision, wakeAt, liveWorkers, workerCap, nextReset, calibration: calibration.note, reason }
+  } catch (error) {
+    return { error: redactSecrets(error.message) }
+  }
+}
+
 const main = async () => {
   const args = process.argv.slice(2)
   if (args.includes("--help") || args.includes("-h")) { console.log(USAGE); return }
   if (args.length !== 0 && (args.length !== 2 || args[0] !== "--session" || !args[1] || args[1].startsWith("-"))) throw new Error(USAGE)
-  console.log(JSON.stringify(await runStatus({ sessionId: args[1] ?? "" })))
+  console.log(JSON.stringify({ ...await runStatus({ sessionId: args[1] ?? "" }), pace: paceOfStatus() }))
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error) => { console.error(redactSecrets(error.message)); process.exitCode = 2 })

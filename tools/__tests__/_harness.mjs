@@ -460,6 +460,12 @@ export const check = (file, name, argv, expect, options = {}) => {
  */
 export const HERMETIC_LAUNCH_GATE = { loadMax: 1_000_000, spacingSeconds: 0 }
 
+/**
+ * The pace governor of a staged launch. The shipped governor reads the spend of the real transcripts on this
+ * machine and holds a launch that is over the line, so a staged launcher runs with the governor off.
+ */
+export const hermeticPace = () => ({ ...realOrchestratorConfig().pace, enabled: false })
+
 /** The tool that passes the launch gate. A staged copy of it must never wait at the real gate. */
 const LAUNCH_GATE_TOOL = "launch-worker.mjs"
 
@@ -467,6 +473,9 @@ export const stageWithConfig = (label, tool, config) => {
   const hermetic = config.launchGate?.loadMax === HERMETIC_LAUNCH_GATE.loadMax && config.launchGate?.spacingSeconds === HERMETIC_LAUNCH_GATE.spacingSeconds
   if (tool === LAUNCH_GATE_TOOL && !hermetic) {
     throw new Error(`stageWithConfig("${label}"): ${tool} passes the launch gate, so the staged config needs launchGate: HERMETIC_LAUNCH_GATE (${JSON.stringify(HERMETIC_LAUNCH_GATE)}), got ${JSON.stringify(config.launchGate)}`)
+  }
+  if (tool === LAUNCH_GATE_TOOL && config.pace?.enabled !== false && !config.pace?.transcriptRoot?.startsWith(root)) {
+    throw new Error(`stageWithConfig("${label}"): ${tool} passes the pace governor, so the staged config needs pace: hermeticPace() or a transcriptRoot under the suite's temp root`)
   }
   const base = join(root, "staged", label)
   mkdirSync(join(base, "tools"), { recursive: true })

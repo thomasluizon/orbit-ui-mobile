@@ -36,7 +36,7 @@ const mean = (values) => values.length === 0 ? 0 : values.reduce((sum, value) =>
  * Splits the created tokens by cache TTL. A record whose `cache_creation` split is absent, or does not
  * add up to `cache_creation_input_tokens`, prices every created token as a 5-minute write.
  */
-const cacheWritesByTtl = (usage) => {
+export const cacheWritesByTtl = (usage) => {
   const total = usage.cache_creation_input_tokens
   const oneHour = usage.cache_creation?.ephemeral_1h_input_tokens
   const fiveMinute = usage.cache_creation?.ephemeral_5m_input_tokens

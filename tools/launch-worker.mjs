@@ -11,6 +11,7 @@ import { readOnlyLaunch } from "./lib/review-run.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { passLaunchGate } from "./lib/launch-gate.mjs"
+import { awaitPace, readPace } from "./lib/pace-governor.mjs"
 import { orderSealProblem, runNotesIn } from "./lib/run-notes.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
@@ -89,6 +90,14 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      account and configDirectory, the account a claude worker runs under. A dry run
                      never waits at the launch gate
   --help, -h         print this usage and exit 0
+
+Before the launch gate, the pace governor (.claude/orchestrator.json pace, tools/lib/pace-governor.mjs) reads the
+weighted token spend of the main account since its weekly reset from the local Claude transcripts and compares
+it with the linear budget line of the week. Every mode passes it: ticket work, research, review and proof.
+At or under the line, a launch is admitted while fewer than pace.workerCap launchers are live. Over the line, or
+at the cap, the launch waits and registers a wake source with paceHold true and the time the line catches up. A
+dry run prints the verdict as pace and never waits. Without a stored owner reading the launch is admitted and the
+log says so; node tools/pace-calibrate.mjs stores a reading. pace.enabled false turns the governor off.
 
 Before admission, every launch waits at the launch gate: until the one-minute load is under
 launchGate.loadMax and launchGate.spacingSeconds have passed since the previous launch from this
@@ -446,14 +455,35 @@ const logFile = logFileFor(primaryAccount)
 // The mode sets its worker arguments and its fields of the dry-run plan.
 await launchMode.prepare({ config, launcherRoot, engineName, invocation, scriptArgs, branch })
 
+/** The pace verdict the plan shows. A dry run reads it and never waits. */
+const dryRunPace = () => {
+  if (!config.pace.enabled) return { enabled: false }
+  try { return { enabled: true, ...readPace({ config }) } } catch (error) { return fail(2, error.message) }
+}
+
 if (dryRun) {
   const fixRound = fixRoundArgument === null ? null : { kind: fixRoundArgument, number: fixRoundsSpent.length + 1, cap: config.caps.reviewFixAttempts, designChange }
-  console.log(JSON.stringify({ ...launchMode.plan, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: launchMode.workerArguments, logFile, fixRound, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ ...launchMode.plan, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: launchMode.workerArguments, logFile, fixRound, pace: dryRunPace(), dryRun: true }, null, 2))
   process.exit(0)
 }
 
 /** The markers of a worker that this launcher started. The worker hooks read the first one. */
 const launched = (environment) => ({ ...environment, ORBIT_LAUNCH_WORKER: "1", ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca" })
+/**
+ * The pace governor holds every mode before the launch gate, so a held launch never records a launch.
+ * A hold registers its wake, which names the time the line catches up, and a hold is no worker.
+ */
+const heldAt = new Date().toISOString()
+try {
+  await awaitPace({
+    config,
+    holdAt: (verdict) => registerWakeSource({ pid: process.pid, ...launchMode.wake, what: `pace hold: ${launchMode.wake.what}`, paceHold: true, decision: verdict.decision, wakeAt: verdict.wakeAt, workerPid: null, logFile, startedAt: heldAt }),
+    release: () => clearWakeSource(process.pid),
+    log: (line) => console.error(`${issue} ${line}`),
+  })
+} catch (error) {
+  fail(2, error.message)
+}
 const gate = await passLaunchGate(config.launchGate)
 console.error(`${issue} passed the launch gate at load ${gate.load.toFixed(2)} after ${Math.round(gate.waitedMs / 1000)} s`)
 try { launchRunState = readRunState() } catch (error) { fail(2, error.message) }

@@ -771,6 +771,24 @@ export const cases = async () => {
   T(`${NAME}: the launch gate needs a spacing of 0 seconds or more`,
     /launchGate\.spacingSeconds must be a number of seconds, 0 or more/.test(readAndFail("negative-launch-spacing", { ...real, launchGate: { ...real.launchGate, spacingSeconds: -1 } }) ?? "") &&
       /launchGate\.loadMax/.test(readAndFail("no-launch-gate", { ...real, launchGate: undefined }) ?? ""))
+  const withPace = (changes) => ({ ...real, pace: { ...real.pace, ...changes } })
+  T(`${NAME}: the governor needs a pace object`, /must declare a pace object/.test(readAndFail("no-pace", { ...real, pace: undefined }) ?? ""))
+  T(`${NAME}: the governor on switch must be a boolean`, /pace\.enabled must be a boolean/.test(readAndFail("pace-enabled", withPace({ enabled: "yes" })) ?? ""))
+  for (const workerCap of [0, 1.5, "3"]) {
+    T(`${NAME}: a worker cap of ${JSON.stringify(workerCap)} is refused`, /pace\.workerCap must be a positive integer/.test(readAndFail(`pace-cap-${workerCap}`, withPace({ workerCap })) ?? ""))
+  }
+  T(`${NAME}: the recheck time needs a positive number`, /pace\.recheckMinutes must be a positive number/.test(readAndFail("pace-recheck", withPace({ recheckMinutes: 0 })) ?? ""))
+  T(`${NAME}: the transcript directory and the source need text`,
+    /pace\.transcriptRoot must be a non-empty string/.test(readAndFail("pace-root", withPace({ transcriptRoot: "" })) ?? "") && /pace\.source must be a non-empty string/.test(readAndFail("pace-source", withPace({ source: " " })) ?? ""))
+  for (const [name, weeklyReset] of [["weekday", { ...real.pace.weeklyReset, weekday: 7 }], ["hour", { ...real.pace.weeklyReset, hour: 24 }], ["minute", { ...real.pace.weeklyReset, minute: 60 }], ["offset", { ...real.pace.weeklyReset, utcOffsetMinutes: 900 }], ["none", undefined]]) {
+    T(`${NAME}: a weekly reset with a bad ${name} is refused`, /pace\.weeklyReset must hold/.test(readAndFail(`pace-reset-${name}`, withPace({ weeklyReset })) ?? ""))
+  }
+  T(`${NAME}: every token class needs a positive weight`,
+    /pace\.tokenWeights\.cacheRead must be a positive number/.test(readAndFail("pace-token-weight", withPace({ tokenWeights: { ...real.pace.tokenWeights, cacheRead: 0 } })) ?? "") && /pace\.tokenWeights must be an object/.test(readAndFail("pace-token-weights", withPace({ tokenWeights: undefined })) ?? ""))
+  T(`${NAME}: the model weights need a default and positive weights`,
+    /pace\.modelWeights\.default must be a positive number/.test(readAndFail("pace-model-default", withPace({ modelWeights: { opus: 1.7 } })) ?? "") && /pace\.modelWeights\.opus must be a positive number/.test(readAndFail("pace-model-weight", withPace({ modelWeights: { default: 1, opus: -1 } })) ?? ""))
+  T(`${NAME}: the shipped pace config names its reset, its cap and its source`,
+    real.pace.weeklyReset.weekday === 4 && real.pace.weeklyReset.hour === 4 && real.pace.weeklyReset.utcOffsetMinutes === -180 && real.pace.workerCap === 3 && /#2179/.test(real.pace.source), JSON.stringify(real.pace))
   T(`${NAME}: the shipped launch gate keeps the run's load ceiling and spacing`, real.launchGate.loadMax === 60 && real.launchGate.spacingSeconds === 45, JSON.stringify(real.launchGate))
   T(
     `${NAME}: a cloud cap outside the measured 4 through 8 range is refused`,

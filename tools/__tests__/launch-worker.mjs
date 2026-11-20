@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { HERMETIC_LAUNCH_GATE, processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
+import { HERMETIC_LAUNCH_GATE, hermeticPace, processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
 import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, REVIEW_BATCH_ORDER_MARKER, writeRunState } from "../lib/run-state.mjs"
 import { cases as lifecycleCases, cleanupLifecycleLaunch, gateSignalCases, launcherResult } from "./launch-worker-lifecycle.mjs"
 import { SIGN_IN_TEXT, TRANSIENT_TEXT, limitResultLine, resultLine, signInFailureLines } from "./claude-usage-limit.mjs"
@@ -21,6 +21,7 @@ export const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => 
   return {
     ...real,
     launchGate: HERMETIC_LAUNCH_GATE,
+    pace: hermeticPace(),
     workers: { ...real.workers, [real.worker]: { ...real.workers[real.worker], command: process.execPath, ...engine } },
     timeouts: { ...real.timeouts, ...timeouts },
     caps: { ...real.caps, ...caps },
@@ -958,7 +959,7 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
 
   const refusedGate = (launchGate) => {
     try {
-      stageWithConfig("launch-worker-gate-refusal", TOOL, { ...realOrchestratorConfig(), launchGate })
+      stageWithConfig("launch-worker-gate-refusal", TOOL, { ...realOrchestratorConfig(), launchGate, pace: hermeticPace() })
       return null
     } catch (error) {
       return error.message
@@ -976,6 +977,17 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
     String(refusedGate(shippedLoadCeiling)),
   )
   T(`${TOOL}: a staged launcher accepts the hermetic launch gate`, refusedGate(HERMETIC_LAUNCH_GATE) === null, String(refusedGate(HERMETIC_LAUNCH_GATE)))
+  const refusedPace = (pace) => {
+    try {
+      stageWithConfig("launch-worker-pace-refusal", TOOL, { ...realOrchestratorConfig(), launchGate: HERMETIC_LAUNCH_GATE, pace })
+      return null
+    } catch (error) {
+      return error.message
+    }
+  }
+  T(`${TOOL}: a staged launcher refuses the shipped pace governor, which reads the transcripts of this machine`,
+    /pace: hermeticPace\(\)/.test(refusedPace(realOrchestratorConfig().pace) ?? "") && /pace: hermeticPace\(\)/.test(refusedPace(undefined) ?? ""), String(refusedPace(realOrchestratorConfig().pace)))
+  T(`${TOOL}: a staged launcher accepts the governor switched off`, refusedPace(hermeticPace()) === null, String(refusedPace(hermeticPace())))
 
   const dryRun = check(TOOL, "--dry-run resolves the plan and exits 0", [...argv, "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, options)
   const real = realOrchestratorConfig()
