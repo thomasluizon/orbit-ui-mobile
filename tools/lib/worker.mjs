@@ -1,0 +1,374 @@
+/** The delivery driver's headless worker: its command, settings and environment, its clocks, and what a claude log says about how it stopped. */
+
+import { spawn } from "node:child_process"
+import { closeSync, existsSync, openSync, readdirSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+
+import { runBounded } from "./bounded-process.mjs"
+import { workerEnvironment } from "./config.mjs"
+
+const MODEL = "claude-sonnet-5-5"
+const EFFORT = "high"
+const KEYCHAIN_ITEM = "orbit-worker-github-token"
+const SKILL_KEPT_ON = "humanizer"
+const PROBE_PROMPT = "reply ok"
+const PROBE_TIMEOUT_MS = 120 * 1000
+const KILL_GRACE_MS = 10 * 1000
+const TAIL_BYTES = 256 * 1024
+const READ_CHUNK_BYTES = 1024 * 1024
+/** Skill folders sit at most three directories under the skills root: `synced/<account>/<skill>`. */
+const SKILL_DEPTH = 3
+
+/** The worker's clocks: a hard ceiling, a stall limit, a log cap and the sampling step. */
+export const WORKER_LIMITS = Object.freeze({
+  hardCeilingMs: 45 * 60 * 1000,
+  noProgressMs: 10 * 60 * 1000,
+  logCapBytes: 512 * 1024 * 1024,
+  sampleMs: 30 * 1000,
+})
+
+/** What a worker may not run. A worker pushes and opens a pull request, and nothing else reaches production or GitHub state. */
+export const WORKER_DENY = Object.freeze([
+  "Edit(**/.github/migration-contracts.json)",
+  "Write(**/.github/migration-contracts.json)",
+  "Edit(**/.github/migration-locks.json)",
+  "Write(**/.github/migration-locks.json)",
+  "Bash(render *)",
+  "Bash(terraform *)",
+  "Bash(aws *)",
+  "Bash(stripe *)",
+  "Bash(gh workflow *)",
+  "Bash(gh secret *)",
+  "Bash(gh pr merge*)",
+  "Bash(gh api *merge*)",
+  "Bash(gh api * -X *)",
+  "Bash(gh api -X *)",
+  "Bash(gh api * --method *)",
+  "Bash(gh api --method *)",
+  "Bash(gh auth *)",
+  "Bash(env -u GH_TOKEN *)",
+  "Bash(unset GH_TOKEN*)",
+  "Bash(*GH_TOKEN=*)",
+  "Bash(security *)",
+])
+
+/** The names of the skill folders under `skillsRoot`, the synced folders included: every directory that holds a SKILL.md. */
+export const listSkillNames = (skillsRoot) => {
+  const names = new Set()
+  const walk = (directory, level) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name)
+      // A link to a folder counts as that folder, and a broken link is not a skill.
+      let isDirectory = false
+      try { isDirectory = statSync(path).isDirectory() } catch { continue }
+      if (!isDirectory) continue
+      if (existsSync(join(path, "SKILL.md"))) names.add(entry.name)
+      else if (level < SKILL_DEPTH) walk(path, level + 1)
+    }
+  }
+  walk(skillsRoot, 1)
+  return [...names].sort()
+}
+
+/**
+ * The `--settings` JSON. `skillOverrides` takes the values "on", "name-only", "user-invocable-only" and "off"
+ * in claude 2.1.329 (its settings schema), and "off" hides a skill from the model and from its slash name.
+ */
+export const workerSettings = ({ hotPath, skillNames }) => ({
+  claudeMdExcludes: [hotPath],
+  autoMemoryEnabled: false,
+  outputStyle: "default",
+  skillOverrides: Object.fromEntries(skillNames.filter((name) => name !== SKILL_KEPT_ON).map((name) => [name, "off"])),
+  permissions: { deny: [...WORKER_DENY] },
+})
+
+/** The worker command. The order goes in on stdin, never in argv. */
+export const workerCommand = (settingsJson) => ({
+  executable: "claude",
+  args: [
+    "-p", "--model", MODEL, "--effort", EFFORT, "--output-format", "stream-json", "--verbose", "--strict-mcp-config",
+    "--permission-mode", "bypassPermissions", "--disallowed-tools", "Task", "AskUserQuestion", "--settings", settingsJson,
+  ],
+})
+
+/** The main-account environment plus the worker's own switches and its GitHub token. */
+export const workerEnvironmentFor = (parentEnvironment, token) => {
+  if (typeof token !== "string" || token === "") throw new Error("a worker needs a GitHub token")
+  const environment = {
+    ...workerEnvironment(parentEnvironment),
+    CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1",
+    CLAUDE_CODE_DISABLE_BUNDLED_SKILLS: "1",
+    GH_TOKEN: token,
+  }
+  if (parentEnvironment.CLAUDE_CODE_TMPDIR) environment.CLAUDE_CODE_TMPDIR = parentEnvironment.CLAUDE_CODE_TMPDIR
+  return environment
+}
+
+/** The worker token from the Keychain, or null when the item is missing. The token is never logged. */
+export const readWorkerToken = async ({ run = runBounded } = {}) => {
+  const result = await run("security", ["find-generic-password", "-s", KEYCHAIN_ITEM, "-w"], { timeoutMs: 15 * 1000 })
+  const token = typeof result.stdout === "string" ? result.stdout.trim() : ""
+  return result.status === 0 && token !== "" ? token : null
+}
+
+/** The command and the environment of every worker run: a launch and a probe use the same ones. */
+export const workerInvocation = ({ home, parentEnvironment, token }) => {
+  const settings = workerSettings({ hotPath: join(home, "Developer", "brain", "hot.md"), skillNames: listSkillNames(join(home, ".claude", "skills")) })
+  return { command: workerCommand(JSON.stringify(settings)), environment: workerEnvironmentFor(parentEnvironment, token) }
+}
+
+/**
+ * The prefixes that the installed claude CLI (2.1.329) classifies as a reached usage limit. The CLI tags such a
+ * subscriber 429 `api_error: "usage_limit_reached"`; a transient 429 does not match these.
+ */
+const LIMIT_PREFIXES = [
+  "You've hit your",
+  "You've reached your",
+  "You're out of usage credits",
+  "Your org is out of usage · add funds to continue",
+  "Your org is out of usage · contact your admin",
+  "Your seat type doesn't include usage credits",
+  "Your seat type doesn't include usage",
+  "Your usage allocation has been disabled by your admin",
+  "Your group's usage limit is set to $0",
+  "Fable 5 requires usage credits",
+  "You're out of extra usage",
+  "Your seat type doesn't include extra usage",
+]
+const LIMIT_PATTERNS = [/^(?:Fable|Haiku|Mythos|Opus|Sonnet)(?: [^·\n]{1,40})? requires usage credits\./]
+
+export const isUsageLimitMessage = (text) => typeof text === "string" && (LIMIT_PREFIXES.some((prefix) => text.startsWith(prefix)) || LIMIT_PATTERNS.some((pattern) => pattern.test(text)))
+
+const NEEDS_DECISION_LINE = /^NEEDS_DECISION: (\S.*)$/
+
+/** The verdict for a run that did not stop at a limit or at sign-in. */
+export const NO_STOP = Object.freeze({ usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null })
+
+/** The question of the last line of a result, when that line is `NEEDS_DECISION: <question>`. */
+const decisionOf = (resultText) => {
+  if (typeof resultText !== "string") return null
+  const lastLine = resultText.trimEnd().split("\n").at(-1)
+  return NEEDS_DECISION_LINE.exec(lastLine)?.[1] ?? null
+}
+
+/**
+ * The verdict of the last `type: "result"` line. A failed result carries the error text in `result`, and the CLI tags the
+ * assistant message before it `error: "authentication_failed"` for a missing sign-in and for a 401 or 403.
+ */
+export const finalResult = (logText) => {
+  let verdict = NO_STOP
+  let apiError = null
+  for (const line of logText.split("\n")) {
+    if (!line.startsWith("{")) continue
+    let record
+    try { record = JSON.parse(line) } catch { continue }
+    if (record?.type === "assistant") apiError = record.is_api_error_message === true ? record.error ?? null : null
+    if (record?.type !== "result") continue
+    const failed = record.is_error === true
+    verdict = {
+      usageLimitReached: failed && isUsageLimitMessage(record.result),
+      authenticationFailed: failed && apiError === "authentication_failed",
+      error: failed && typeof record.result === "string" ? record.result : null,
+      needsDecision: failed ? null : decisionOf(record.result),
+    }
+    apiError = null
+  }
+  return verdict
+}
+
+/** The result line is the last one the CLI writes, so only the tail of a long log is read. */
+export const logFinalResult = (logFile) => {
+  let descriptor
+  try {
+    const size = statSync(logFile).size
+    const length = Math.min(size, TAIL_BYTES)
+    const buffer = Buffer.alloc(length)
+    descriptor = openSync(logFile, "r")
+    readSync(descriptor, buffer, 0, length, size - length)
+    return finalResult(buffer.toString("utf8"))
+  } catch {
+    // A log that cannot be read proves no stop, and the caller still reports the exit.
+    return NO_STOP
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor)
+  }
+}
+
+/**
+ * The session id and the newest `seven_day` reading of a stream-json log. `utilization` is a fraction and `resetsAt`
+ * is epoch seconds. Both are null when the log holds no such event.
+ */
+export const readEvent = (logText) => {
+  let sessionId = null
+  let reading = null
+  for (const line of logText.split("\n")) {
+    if (!line.startsWith("{")) continue
+    let record
+    try { record = JSON.parse(line) } catch { continue }
+    if (sessionId === null && typeof record?.session_id === "string") sessionId = record.session_id
+    if (record?.type !== "rate_limit_event") continue
+    const info = record.rate_limit_info
+    const window = info?.unifiedWindows?.seven_day
+    if (typeof window?.utilization === "number" && Number.isFinite(window.utilization) && Number.isInteger(window.resetsAt)) {
+      reading = { utilization: window.utilization, resetsAt: window.resetsAt, status: typeof info.status === "string" ? info.status : null }
+    }
+  }
+  return { sessionId, utilization: reading?.utilization ?? null, resetsAt: reading?.resetsAt ?? null, status: reading?.status ?? null }
+}
+
+/** `readEvent` of a log file of any size: it keeps the first line with a session id and every event line, and reads the file in chunks. */
+export const logEvent = (logFile) => {
+  const kept = []
+  let sessionSeen = false
+  let descriptor
+  try {
+    descriptor = openSync(logFile, "r")
+    const buffer = Buffer.alloc(READ_CHUNK_BYTES)
+    let carry = ""
+    for (let read = readSync(descriptor, buffer, 0, buffer.length, null); read > 0; read = readSync(descriptor, buffer, 0, buffer.length, null)) {
+      const lines = (carry + buffer.toString("utf8", 0, read)).split("\n")
+      carry = lines.pop()
+      for (const line of lines) {
+        const isEvent = line.includes('"type":"rate_limit_event"')
+        if (isEvent || (!sessionSeen && line.includes('"session_id":"'))) {
+          kept.push(line)
+          sessionSeen = true
+        }
+      }
+    }
+    if (carry.includes('"type":"rate_limit_event"')) kept.push(carry)
+  } catch {
+    // A log that cannot be read holds no event.
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor)
+  }
+  return readEvent(kept.join("\n"))
+}
+
+/** The one-turn pace probe: the worker command, settings and environment, the prompt "reply ok" and one turn. A reading, or null when the output holds no event. */
+export const probe = async ({ invocation, cwd = tmpdir(), run = runBounded } = {}) => {
+  const { command, environment } = invocation
+  const result = await run(command.executable, [...command.args, "--max-turns", "1"], { cwd, env: environment, input: PROBE_PROMPT, timeoutMs: PROBE_TIMEOUT_MS })
+  const reading = readEvent(typeof result.stdout === "string" ? result.stdout : "")
+  return reading.utilization === null ? null : reading
+}
+
+/** The real clock. A test passes its own with the same five members. */
+const SYSTEM_CLOCK = Object.freeze({
+  now: () => Date.now(),
+  setTimeout: (callback, ms) => setTimeout(callback, ms),
+  clearTimeout: (handle) => clearTimeout(handle),
+  setInterval: (callback, ms) => setInterval(callback, ms),
+  clearInterval: (handle) => clearInterval(handle),
+})
+
+/** The newest file time under `directory`. `.git` and `node_modules` change without the worker. */
+const newestMtime = (directory) => {
+  let newest = 0
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    if (entry.name === ".git" || entry.name === "node_modules") continue
+    const path = join(directory, entry.name)
+    try {
+      newest = Math.max(newest, entry.isDirectory() ? newestMtime(path) : statSync(path).mtimeMs)
+    } catch {
+      // A path the worker removed during the walk is not progress.
+    }
+  }
+  return newest
+}
+
+const headOf = async (worktree, run) => (await run("git", ["-C", worktree, "rev-parse", "HEAD"], { timeoutMs: 15 * 1000 })).stdout?.trim() ?? ""
+
+/** A worker that edits without a commit moves only the file time, and one that commits a written tree moves only HEAD. */
+const defaultFingerprint = async (worktree) => `${await headOf(worktree, runBounded)}:${newestMtime(worktree)}`
+
+const killTree = (pid, signal) => {
+  try {
+    // The worker leads its own process group, so the negative pid reaches every child it started.
+    process.kill(-pid, signal)
+  } catch {
+    // A group that is already gone is the goal.
+  }
+}
+
+const defaultLogSize = (logFile) => {
+  try { return statSync(logFile).size } catch { return null }
+}
+
+const KILL_REASONS = Object.freeze({ "hard-ceiling": "passed its hard ceiling", "no-progress": "made no progress", "log-cap": "wrote past the log cap" })
+
+/**
+ * Starts one worker in `worktree`, writes `order` on its stdin and its stream-json to `logFile`, and resolves when it is gone.
+ * A clock kills the whole process tree. The result holds the exit, the clock that killed it, the session id, the newest
+ * `seven_day` reading and the final result verdict. The spawn, the kill, the fingerprint and the log size are seams.
+ */
+export const launch = ({ invocation, worktree, order, logFile, pidFile, clock = SYSTEM_CLOCK, limits = WORKER_LIMITS, spawnChild = spawn, kill = killTree, fingerprint = defaultFingerprint, logSize = defaultLogSize }) =>
+  new Promise((resolve) => {
+    const startedAt = clock.now()
+    const logDescriptor = openSync(logFile, "a")
+    let child
+    try {
+      child = spawnChild(invocation.command.executable, invocation.command.args, {
+        cwd: worktree,
+        env: invocation.environment,
+        detached: true,
+        stdio: ["pipe", logDescriptor, logDescriptor],
+      })
+    } catch (error) {
+      closeSync(logDescriptor)
+      resolve({ spawnError: error.message, exitCode: null, killed: null, sessionId: null, utilization: null, resetsAt: null, status: null, result: NO_STOP, durationMs: 0 })
+      return
+    }
+    let killed = null
+    let finished = false
+    let escalation = null
+    let sampling = false
+    let lastFingerprint = null
+    let lastLogSize = 0
+    let lastProgressAt = startedAt
+    const stop = (clockName) => {
+      if (killed !== null || finished) return
+      killed = clockName
+      kill(child.pid, "SIGTERM")
+      escalation = clock.setTimeout(() => kill(child.pid, "SIGKILL"), KILL_GRACE_MS)
+    }
+    const ceiling = clock.setTimeout(() => stop("hard-ceiling"), limits.hardCeilingMs)
+    const sample = async () => {
+      if (sampling || killed !== null || finished) return
+      sampling = true
+      try {
+        const size = logSize(logFile) ?? 0
+        if (size > limits.logCapBytes) return stop("log-cap")
+        const print = await fingerprint(worktree)
+        if (print !== lastFingerprint || size > lastLogSize) {
+          lastFingerprint = print
+          lastLogSize = size
+          lastProgressAt = clock.now()
+        } else if (clock.now() - lastProgressAt >= limits.noProgressMs) {
+          stop("no-progress")
+        }
+      } finally {
+        sampling = false
+      }
+    }
+    const sampler = clock.setInterval(sample, limits.sampleMs)
+    const finish = (exitCode, signal, spawnError = null) => {
+      if (finished) return
+      finished = true
+      clock.clearTimeout(ceiling)
+      clock.clearInterval(sampler)
+      if (escalation !== null) clock.clearTimeout(escalation)
+      // The worker's own exit does not end a child it left in the group.
+      kill(child.pid, "SIGKILL")
+      closeSync(logDescriptor)
+      rmSync(pidFile, { force: true })
+      const { sessionId, utilization, resetsAt, status } = logEvent(logFile)
+      resolve({ spawnError, exitCode, signal, killed, killReason: killed === null ? null : KILL_REASONS[killed], sessionId, utilization, resetsAt, status, result: logFinalResult(logFile), durationMs: clock.now() - startedAt })
+    }
+    child.on("error", (error) => finish(null, null, error.message))
+    child.on("exit", (code, signal) => finish(code, signal))
+    if (Number.isInteger(child.pid)) writeFileSync(pidFile, `${JSON.stringify({ pid: child.pid, worktree, startedAt: new Date(startedAt).toISOString() })}\n`)
+    child.stdin?.on("error", () => { /* a worker that exits before it reads the order reports its own exit */ })
+    child.stdin?.end(order)
+  })
