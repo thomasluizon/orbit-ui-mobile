@@ -18,7 +18,7 @@ import { escapeRegex } from "./lib/escape-regex.mjs"
 import { WORKTREE_REMOVE_ARGUMENTS, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { classifyCheckFailure, failedChecks, holds, mergeBar, needsWholeDiff, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { partOf, renderOrder } from "./lib/order.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -322,15 +322,24 @@ const findPullByBranch = (states, branch) => states.flatMap((state) => state.pul
 const requestsOf = (pull) => pull.comments.filter((entry) => entry.kind === "request").map((entry) => ({ ...entry, whole: /whole diff/.test(bodyAfterMarker(entry)) }))
 const newestAt = (reviews) => reviews.reduce((newest, review) => (review.submittedAt > newest ? review.submittedAt : newest), "")
 
-/** The head sha each driver whole-diff request belongs to: the commit of the newest review before the request. */
+/** The review passes of a pull request, without the replies that Pullfrog posts to its own threads. */
+const passesOf = (pull) => pull.reviews.filter(isReviewPass)
+
+/** The commit of the newest review pass before a request. */
+const commitBefore = (pull, request) => passesOf(pull).filter((entry) => entry.submittedAt < request.createdAt).sort((left, right) => left.submittedAt.localeCompare(right.submittedAt)).at(-1)?.commit
+
+/** The time of the first whole-diff request for each head sha: the head is the commit of the newest review pass before the request. */
 const wholeDiffRequestTimes = (pull) => {
   const times = {}
   for (const request of requestsOf(pull).filter((entry) => entry.whole)) {
-    const review = pull.reviews.filter((entry) => entry.submittedAt < request.createdAt).sort((left, right) => left.submittedAt.localeCompare(right.submittedAt)).at(-1)
-    if (review && (times[review.commit] === undefined || request.createdAt < times[review.commit])) times[review.commit] = request.createdAt
+    const commit = commitBefore(pull, request)
+    if (commit !== undefined && (times[commit] === undefined || request.createdAt < times[commit])) times[commit] = request.createdAt
   }
   return times
 }
+
+/** The whole-diff requests for the head that a later review pass answered. */
+const answeredWholeDiffRequests = (pull) => requestsOf(pull).filter((request) => request.whole && commitBefore(pull, request) === pull.headSha && passesOf(pull).some((entry) => entry.submittedAt > request.createdAt)).length
 
 /** The shas of the two-parent commits of a pull request whose remerge diff is empty. */
 const cleanMergesOf = async (env, repoPath, pull) => {
@@ -348,9 +357,10 @@ const cleanMergesOf = async (env, repoPath, pull) => {
 
 /** What the pull request waits on at its head, from the Pullfrog reviews and runs: a plain request, a whole-diff request, a fix, or nothing. */
 const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
-  const atHead = pull.reviews.filter((review) => review.commit === pull.headSha).sort((left, right) => left.submittedAt.localeCompare(right.submittedAt))
+  const passes = passesOf(pull)
+  const atHead = passes.filter((review) => review.commit === pull.headSha).sort((left, right) => left.submittedAt.localeCompare(right.submittedAt))
   const latest = atHead.at(-1) ?? null
-  const sinceReview = requestsOf(pull).filter((entry) => entry.createdAt > newestAt(pull.reviews))
+  const sinceReview = requestsOf(pull).filter((entry) => entry.createdAt > newestAt(passes))
   const waiting = () => {
     const lastRequest = sinceReview.at(-1)
     const after = runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(lastRequest.createdAt))
@@ -364,7 +374,10 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
   if (latest === null) return demand(PLAIN_REQUEST, "no Pullfrog review at this head")
   if (latest.state === "APPROVED") {
     const context = { wholeDiffRequests: wholeDiffRequestTimes(pull), cleanMerges: pull.cleanMerges ?? [] }
-    return needsWholeDiff(pull, { fixLaunches }) && !wholeDiffApproved(pull, context) ? demand(WHOLE_DIFF_REQUEST, "an approval-head pass is owed") : { approved: true }
+    if (!needsWholeDiff(pull, { fixLaunches }) || wholeDiffApproved(pull, context)) return { approved: true }
+    // A whole-diff pass that lacks its "Whole diff:" line gets one re-request, then the owner.
+    if (answeredWholeDiffRequests(pull) >= 2) return { owner: "Pullfrog answered two whole-diff requests at this head with no whole-diff review" }
+    return demand(WHOLE_DIFF_REQUEST, "an approval-head pass is owed")
   }
   if (latest.state === "REQUEST_CHANGES" && latest.blocking.length > 0) return { fix: latest }
   const unusable = atHead.filter((review) => review.state === "COMMENTED" || (review.state === "REQUEST_CHANGES" && review.blocking.length === 0))
@@ -508,7 +521,7 @@ const pullActions = async (env, mem, repoKey, state, tickets) => {
   for (const pull of [...state.pulls].sort((left, right) => left.number - right.number)) {
     const item = `${repoKey}#${pull.number}`
     try {
-      const awaiting = requestsOf(pull).some((entry) => entry.createdAt > newestAt(pull.reviews))
+      const awaiting = requestsOf(pull).some((entry) => entry.createdAt > newestAt(passesOf(pull)))
       const runs = pull.draft || !awaiting ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
       if (!pull.draft && pull.reviews.some((review) => review.state === "APPROVED")) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       const plan = await planPull(env, mem, { ...ctx, runs }, pull)
@@ -603,6 +616,14 @@ const startWorker = async (env, mem, candidate) => {
   })
 }
 
+const FORBIDDEN_PUSH = /The requested URL returned error: 403|remote: Permission to .* denied/
+
+/** True when the remote branch names the head of the worktree. */
+const pushLanded = async (env, worktree, branch) => {
+  const remote = await env.git(worktree, ["ls-remote", "origin", `refs/heads/${branch}`])
+  return remote.status === 0 && remote.stdout.split(/\s/)[0] === await gitText(env, worktree, ["rev-parse", "HEAD"])
+}
+
 /** What a worker's exit leaves to do: records, a pause, a question, or a findings comment. */
 const reapExit = async (env, mem, tickets, states, exit) => {
   const { order, result, headBefore, worktree, logFile, account } = exit
@@ -615,7 +636,8 @@ const reapExit = async (env, mem, tickets, states, exit) => {
     const message = result.result.error ?? "the worker stopped"
     return pauseDriver(env, mem, tickets, { source: result.result.usageLimitReached ? "A worker" : "A worker sign-in", message, reset: workerApi.usageLimitIn(message)?.reset ?? null, account: account ?? undefined })
   }
-  if (/The requested URL returned error: 403|remote: Permission to .* denied/.test(tail)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
+  // Text that the worker read can hold the 403 message, so only a push that did not land counts.
+  if (FORBIDDEN_PUSH.test(tail) && !await pushLanded(env, worktree, branch)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `NEEDS_DECISION: ${result.result.needsDecision}` })
   if (kind === "find") {
     const text = resultText(tail)
@@ -842,6 +864,8 @@ const reapPending = async (env, mem) => {
 
 export const tick = async (env, mem) => {
   env.lines = []
+  // A worker that runs when the read starts holds the lane for this whole tick, whatever the read shows.
+  const busy = mem.running !== null || env.workerLive()
   let tickets
   let states
   try {
@@ -861,7 +885,6 @@ export const tick = async (env, mem) => {
   const paused = pauseIssue(tickets)
   const holdReason = paused ? "the driver is paused" : account.ok ? null : account.reason
   if (paused && account.ok && !env.dryRun && mem.running === null && (mem.lastProbeAt === null || env.now() - mem.lastProbeAt >= HOUR_MS)) await runProbe(env, mem, tickets).catch((error) => log(env, "probe", "error", error.message))
-  const busy = mem.running !== null || env.workerLive()
   const { chosen, decisions } = holdReason ? { chosen: null, decisions: new Map() } : await admit(env, mem, tickets.filter((ticket) => !closed.has(ticket.number)), states)
   for (const ticket of tickets) env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${closed.has(ticket.number) ? "close" : holdReason ? `wait: ${holdReason}` : decisions.get(ticket.number) ?? "wait"}`)
   const launchable = orders.filter(() => !holdReason).sort((left, right) => left.pull.number - right.pull.number)[0] ?? (holdReason ? null : chosen)

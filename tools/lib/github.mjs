@@ -283,7 +283,10 @@ export const wholeDiffApproved = (pull, { wholeDiffRequests = {}, cleanMerges = 
     return position >= 0 && pull.commits.slice(position + 1).every((commit) => commit.parents === 2 && cleanMerges.includes(commit.sha))
   })
 
-const newestReview = (pull) => [...pull.reviews].sort((first, second) => first.submittedAt.localeCompare(second.submittedAt)).at(-1) ?? null
+/** A Pullfrog review that is a pass: its reply to a review thread is a COMMENTED review with an empty body and no BLOCKING comment. */
+export const isReviewPass = (review) => review.state !== "COMMENTED" || review.body.trim() !== "" || review.blocking.length > 0
+
+const newestReview = (pull) => [...pull.reviews].filter(isReviewPass).sort((first, second) => first.submittedAt.localeCompare(second.submittedAt)).at(-1) ?? null
 
 /** The first of major, minor and patch that differs between two dotted versions, or null when either is not numeric. */
 const semverChange = (from, to) => {

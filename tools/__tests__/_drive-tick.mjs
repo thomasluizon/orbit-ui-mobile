@@ -268,7 +268,7 @@ const reviewCases = async () => {
   await fix.run()
   T("drive: REQUEST_CHANGES with three BLOCKING classes gives one fix order that lists every instance", fix.launched.length === 1 && ["a.mjs:1", "b.mjs:2", "c.mjs:3"].every((text) => fix.launched[0].order.includes(text)))
 
-  const commented = (state = "COMMENTED") => review(state, HEAD, -5 * MINUTE)
+  const commented = (state = "COMMENTED") => review(state, HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })
   const first = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented()], comments: [comment("ticket", "T")] })] } })
   await first.run()
   same("drive: a COMMENTED review with no BLOCKING gets one re-request", commentsOf(first.calls, 30).map((text) => text.split("\n")[1]), [PLAIN])
@@ -599,7 +599,7 @@ const blockingClassCases = async () => {
   same("drive: a Dependabot pull request with a BLOCKING review gets needs:owner and no fix order", [noOrder.launched.length, only(noOrder.calls, "editLabels").length], [0, 1])
 
   const redApproval = check("pullfrog-approval", "FAILURE", { databaseId: 12, checkSuite: { app: { databaseId: APP } } })
-  const commented = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("COMMENTED", HEAD, -5 * MINUTE)], checks: [check("Unit Tests"), redApproval], mergeState: "BLOCKED" })] } })
+  const commented = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("COMMENTED", HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })], checks: [check("Unit Tests"), redApproval], mergeState: "BLOCKED" })] } })
   await commented.run()
   same("drive: a COMMENTED review beside a red pullfrog-approval check gets one re-request and no ci-fix order", [commentsOf(commented.calls, 30).map((text) => text.split("\n")[1]), commented.launched.length], [[PLAIN], 0])
 
@@ -638,6 +638,53 @@ const blockingClassCases = async () => {
   same("drive: a waiting ticket whose merged history was not read gets no cap check and no needs:owner", [only(settled.calls, "editLabels").length, commentsOf(settled.calls, settledNumber).length], [0, 0])
 }
 
+const reviewReply = (offset) => review("COMMENTED", HEAD, offset)
+
+const laneAndReviewPassCases = async () => {
+  const exitDuringRead = scenario({ tickets: [ticket(7)] })
+  let finishWorker
+  exitDuringRead.env.worker.launch = (options) => { exitDuringRead.launched.push(options); return new Promise((resolve) => { finishWorker = () => resolve({ exitCode: 0, killed: null, sessionId: "s1", utilization: 0.2, resetsAt: RESETS_AT, status: "allowed", result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null } }) }) }
+  await tick(exitDuringRead.env, exitDuringRead.mem)
+  const readLanding = exitDuringRead.env.github.readRepositoryState
+  exitDuringRead.env.github.readRepositoryState = async (key) => {
+    if (key === "landing") { finishWorker(); await new Promise((resolve) => setImmediate(resolve)) }
+    return readLanding(key)
+  }
+  await tick(exitDuringRead.env, exitDuringRead.mem)
+  same("drive: a worker that exits during the read of a tick keeps the lane for that tick", exitDuringRead.launched.length, 1)
+
+  const answered = (count) => {
+    const requests = Array.from({ length: count }, (_, index) => comment("request", `${PLAIN} whole diff`, (-50 + index * 20) * MINUTE))
+    const replies = Array.from({ length: count }, (_, index) => review("APPROVED", HEAD, (-40 + index * 20) * MINUTE, { body: "> No issues." }))
+    return scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { changedFiles: 40, comments: [comment("ticket", "T"), ...requests], reviews: [review("APPROVED", HEAD, -60 * MINUTE), ...replies] })] } })
+  }
+  const oneAnswer = answered(1)
+  await oneAnswer.run()
+  same("drive: one whole-diff request answered with no whole-diff review gets one re-request", [commentsOf(oneAnswer.calls, 30).map((text) => text.split("\n")[1]), only(oneAnswer.calls, "editLabels").length], [[`${PLAIN} whole diff`], 0])
+  const twoAnswers = answered(2)
+  await twoAnswers.run()
+  same("drive: two whole-diff requests answered with no whole-diff review give needs:owner and no third request", [commentsOf(twoAnswers.calls, 30).filter((text) => text.includes("review")).length, only(twoAnswers.calls, "editLabels").length], [0, 2])
+
+  const repliesBeforeChanges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [reviewReply(-9 * MINUTE), reviewReply(-8 * MINUTE), review("REQUEST_CHANGES", HEAD, -5 * MINUTE)] })] } })
+  await repliesBeforeChanges.run()
+  same("drive: thread replies before a review with no BLOCKING comment do not count as a second unusable review", [commentsOf(repliesBeforeChanges.calls, 30).map((text) => text.split("\n")[1]), only(repliesBeforeChanges.calls, "editLabels").length], [[PLAIN], 0])
+
+  const replyAfterApproval = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("APPROVED", HEAD, -10 * MINUTE), reviewReply(-5 * MINUTE)] })] } })
+  await replyAfterApproval.run()
+  same("drive: a thread reply after the approval leaves the approval as the latest review and the bar holds", only(replyAfterApproval.calls, "merge").length, 1)
+
+  const failedRun = { databaseId: 78, displayTitle: "Respond to mention on #7 [abc]", status: "completed", conclusion: "failure", createdAt: iso(-10 * MINUTE), updatedAt: iso(-5 * MINUTE) }
+  const repliesThenStop = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [reviewReply(-8 * MINUTE), reviewReply(-7 * MINUTE)] })] }, runs: [failedRun], routes: [["--log-failed", "You've hit your limit. Resets 4am (America/Sao_Paulo)"]] })
+  await repliesThenStop.run()
+  same("drive: a Pullfrog run that replies to two threads and stops at a usage limit pauses the driver", [only(repliesThenStop.calls, "createTicket").length, only(repliesThenStop.calls, "editLabels").length], [1, 0])
+
+  const landed = scenario({ tickets: [ticket(7)], gitRoutes: [["ls-remote", `${HEAD}\trefs/heads/chore/ticket-7\n`], ["log --format=%H", `${NEXT_HEAD}\n`]], routes: [["--head chore/ticket-7", "31\n"]] })
+  landed.env.worker.launch = (options) => { writeFileSync(options.logFile, `${JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", content: "fatal: unable to access: The requested URL returned error: 403" }] } })}\n`); return Promise.resolve({ exitCode: 0, sessionId: "s1", utilization: null, result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null } }) }
+  await landed.run()
+  await landed.run()
+  same("drive: a worker whose log reads the 403 text but whose push landed is not a failed push and gets its commit records", [only(landed.calls, "editLabels").length, only(landed.calls, "notify").length, commentsOf(landed.calls, 31).map((text) => text.split("\n")[1])], [0, 0, [`worker s1 -> ${NEXT_HEAD}`]])
+}
+
 export const driverUnit = async () => {
   await admissionCases()
   await paceCases()
@@ -654,4 +701,5 @@ export const driverUnit = async () => {
   await robustnessCases()
   await cliCases()
   await blockingClassCases()
+  await laneAndReviewPassCases()
 }
