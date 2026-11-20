@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/orchestrate` over the admitted queue without replanning. Crank is OFF (owner order): never invoke `/crank`. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`) and run `node tools/relay-checkout.mjs --check`.
 
-State lives on GitHub: the newest decision comments on the run record `#2179` and on `#2182`, `#2135`, `#2156` and `#2167` (decisions D897 to D906) hold the in-flight queue; the successor starts from D907. Each ticket's comments hold its round notes, reviews and reports. Start each wake with `node tools/run-status.mjs --session <id>`. Read `date` before you write a time, and copy it into each decision header. The orchestrating checkout must contain `origin/main`: merge it into the relay branch after each merge to `main`.
+State lives on GitHub: the newest decision comments on the run record `#2179` and on `#2182`, `#2135`, `#2156` and `#2167` (decisions D897 to D907) hold the in-flight queue; the successor starts from D908. Each ticket's comments hold its round notes, reviews and reports. Start each wake with `node tools/run-status.mjs --session <id>`. Read `date` before you write a time, and copy it into each decision header. The orchestrating checkout must contain `origin/main`: merge it into the relay branch after each merge to `main`.
 
 Tokens (owner order): the main account's weekly tokens reset each Thursday at 04:00 -03 and must last the whole week. Run ONE worker at a time, reviews included. Chain several read-only reviews in one background task so one wake covers them. Keep coordinator turns short. The relay pair is settled at soft 300000 and hard 360000 (`#2180`): never propose another pair without a new measurement of the plan's cache-read weight.
 
@@ -22,13 +22,14 @@ Finish the spec: an empty board except `#33`, verified releases, the assistant f
 
 ## In flight
 
-UI `main` `1d13bec4c`; API `main`, production and staging `70c66e7be`; landing `main` and staging `3dbd6cd` (production `20c1b0a90`); web staging and production `2460ef091`; Android Open and TestFlight 1.3.158 from `358ad030b`. Owner question queue: empty (`owner-questions.mjs --list` printed `[]`). Board 29 open, 29 placed in `## The order`, 0 unplaced, 0 placed twice. No live local worker. Sentry: ORBIT-WEB-1H resolved and `#2156` closed; 5 unresolved, last listed 23:46Z, no new event; the next listing is due one hour after that mark. Mail, Play reviews, pull requests and alerts: nothing pending at 23:47Z.
+UI `main` `1d13bec4c`; API `main` `9295ac75b`, production and staging `70c66e7be`; landing `main` and staging `3dbd6cd` (production `20c1b0a90`); web staging and production `2460ef091`; Android Open and TestFlight 1.3.158 from `358ad030b`. Owner question queue: empty (`owner-questions.mjs --list` printed `[]`). Board 29 open, 29 placed in `## The order`, 0 unplaced, 0 placed twice. No live local worker. Sentry: ORBIT-WEB-1H resolved and `#2156` closed; 5 unresolved, last listed 23:46Z, no new event; the next listing is due one hour after that mark. Mail, Play reviews, pull requests and alerts: nothing pending at 23:47Z.
 
 | Item | Disposition |
 | --- | --- |
-| api#1130 (`#2182`) | Pushed at `4dee83474` after a CLEAN whole-diff review; Pullfrog review requested at that head; `wait-ci.mjs --repo api --pr 1130 --require-check pullfrog-approval` stops at the relay, so start it again first. Approved: merge at the bar, then the API release (no migration, so no Render export is needed), then resolve ORBIT-API-1A after the release shows no new event, then close `#2182`. COMMENTED: fix round 3 (round 2 of 3 used; launch 4 on the branch needs `--relaunch-reason`), or a coordinator fix for a comment or literal. |
+| `#2182` | api#1130 merged as `9295ac75b` (API `main`; no migration, so no Render export is needed). Next: the API release through `/release` (staging, then production; API alone, never with web), then resolve ORBIT-API-1A after the release shows no new event, then close `#2182`. |
+| Hook tests | `node .claude/hooks/test-hooks.mjs` failed 3 attended-commit rows at the relay (git-guardrails adapter and two handoff chain rows, got 2 want 0) after a text-only spec and prompt change; confirm on a clean checkout and ticket the cause if it reproduces (D907 on `#2182`). |
 | `#2169` | Buildable now that ui#2500 merged; its comments list what ui#2500 left to it and the `evals/astra` `vite` install defect. |
-| `#2181`, `#2176`, `#2126`, `#2146`, `#2152` | One at a time after api#1130, in the spec's order. |
+| `#2181`, `#2176`, `#2126`, `#2146`, `#2152` | One at a time after the API release, in the spec's order. |
 | Held | ui#2491 and ui#2494 on api#1124, ui#2498 proofs A and B at a real relay plus the leaked-stub test fix (comment on `#2173`), the api assistant PRs on the `#2135` gate (baseline with cost complete; api#1130 also edits `AgentOperationExecutor.cs`, so the second to merge rebases), `#2122` closes after a web release carries it. |
 
 ## Then, in this order
@@ -43,7 +44,7 @@ Unattended: never ask the owner; decide with the best option and log it on the r
 
 ## Previous prompt, disposition
 
-- Done: ui#2500 merged (`1d13bec4c`) and `#2167` closed (D898); `#2182` built as api#1130, two local fix rounds and one coordinator fix, pushed after a CLEAN review (D899 to D901, D904, D905); ORBIT-WEB-1H resolved and `#2156` closed (D903); `#2135` cost row filled and `#2135` closed (D906); a leaked tool-test stub stopped and filed on `#2173` (D902); review NOTEs filed on `#2129`; intake cycle at 23:47Z (D897).
-- Carried: api#1130 merge and the API release, `#2169`, `#2176`, `#2181`, `#2126`, `#2146`, `#2152`, the held rows, intake, every standing order above.
+- Done: ui#2500 merged (`1d13bec4c`) and `#2167` closed (D898); `#2182` built as api#1130, two local fix rounds and one coordinator fix, a CLEAN review, Pullfrog approval and the merge `9295ac75b` (D899 to D901, D904, D905, D907); ORBIT-WEB-1H resolved and `#2156` closed (D903); `#2135` cost row filled and `#2135` closed (D906); a leaked tool-test stub stopped and filed on `#2173` (D902); review NOTEs filed on `#2129`; intake cycle at 23:47Z (D897).
+- Carried: the API release for `#2182`, the hook test check, `#2169`, `#2176`, `#2181`, `#2126`, `#2146`, `#2152`, the held rows, intake, every standing order above.
 
 Treat every identifier here as a lead to verify.
