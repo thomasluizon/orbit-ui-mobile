@@ -1,7 +1,7 @@
 /** The delivery driver's headless worker: its command, settings and environment, its clocks, and what a claude log says about how it stopped. */
 
 import { spawn } from "node:child_process"
-import { closeSync, existsSync, openSync, readdirSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -372,3 +372,24 @@ export const launch = ({ invocation, worktree, order, logFile, pidFile, clock = 
     child.stdin?.on("error", () => { /* a worker that exits before it reads the order reports its own exit */ })
     child.stdin?.end(order)
   })
+
+/** The reading that the snapshot of the status line holds, or null. Its `email` only names the account that took it, and nothing prints it. */
+export const readSnapshot = (path) => {
+  try {
+    const snapshot = JSON.parse(readFileSync(path, "utf8"))
+    const window = snapshot.rateLimits?.seven_day
+    if (typeof window?.used_percentage !== "number" || !Number.isInteger(window.resets_at)) return null
+    return { utilization: window.used_percentage / 100, resetsAt: window.resets_at, at: Date.parse(snapshot.at), email: snapshot.email ?? null }
+  } catch {
+    return null
+  }
+}
+
+/** The first line of a failed log that is a usage-limit message, with the reset time it names; null when there is none. */
+export const usageLimitIn = (logText, isLimit = isUsageLimitMessage) => {
+  for (const line of logText.split("\n")) {
+    const message = line.replace(/^.*?\d{4}-\d\d-\d\dT[\d:.]+Z /, "").trim()
+    if (isLimit(message)) return { message, reset: /(?:resets?|until)\s+([^.\n·]+)/i.exec(message)?.[1]?.trim() ?? null }
+  }
+  return null
+}

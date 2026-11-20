@@ -3,8 +3,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceDecision, parseArguments, rankTickets, readSnapshot, recordStart, resultText, setReviewerToken, tick, ticketComment, usageLimitIn } from "../drive.mjs"
-import { isUsageLimitMessage } from "../lib/worker.mjs"
+import { accountFrom, createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceDecision, parseArguments, rankTickets, recordStart, resultText, tick, ticketComment } from "../drive.mjs"
+import { isUsageLimitMessage, readSnapshot, usageLimitIn } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
 const READS = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8")).driverReads

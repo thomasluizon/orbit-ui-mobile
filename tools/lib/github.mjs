@@ -537,3 +537,51 @@ export const createTicket = async ({ title, body, labels, milestone = null, stat
   if (blockers.length > 0) await api.run(["issue", "edit", String(number), "--repo", tickets.repository, "--add-blocked-by", blockers.join(",")])
   return { number, url: created, title, milestone: null, status }
 }
+
+const SENTRY_ORGANIZATION = "orbit-ai-habit-tracker"
+const SENTRY_REPO = { "orbit-api": "api", "orbit-web": "ui", "orbit-mobile": "ui" }
+const SENTRY_TITLE_LIMIT = 120
+const REVIEWER_SECRET = "CLAUDE_CODE_OAUTH_TOKEN"
+
+/** All pages of the unresolved Sentry issues of the organization: a page names the next one in its `Link` header with `results="true"`. */
+export const sentryIssues = async (fetchJson, token) => {
+  const issues = []
+  for (let url = `https://sentry.io/api/0/organizations/${SENTRY_ORGANIZATION}/issues/?query=is:unresolved`; url !== null;) {
+    const page = await fetchJson(url, { headers: { Authorization: `Bearer ${token}` } })
+    issues.push(...page.body)
+    url = /<([^>]+)>; rel="next"; results="true"/.exec(page.link ?? "")?.[1] ?? null
+  }
+  return issues
+}
+
+/** True when `text` holds `needle` and the next character does not continue a word or a number (an alert url ends in its number). */
+export const holds = (text, needle) => new RegExp(`${escapeRegex(needle)}(?![A-Za-z0-9])`).test(text)
+
+/** True when `text` names the Sentry short id as a whole word: `ORBIT-API-1A` is not named by `ORBIT-API-1AB`. */
+const namesShortId = (text, shortId) => new RegExp(`(?<![A-Za-z0-9])${escapeRegex(shortId)}(?![A-Za-z0-9])`).test(text)
+
+/** The `Bug` ticket for a Sentry issue, or null for a project with no repository. A ticket holds the issue when it names the short id, the permalink or the `/issues/<id>/` path. */
+export const sentryCandidate = (issue) => {
+  const repoKey = SENTRY_REPO[issue.project?.slug]
+  if (!repoKey) return null
+  const suffix = ` (Sentry ${issue.shortId})`
+  return {
+    repoKey,
+    title: `${issue.title.slice(0, SENTRY_TITLE_LIMIT - suffix.length)}${suffix}`,
+    body: `${issue.title}\n\n${issue.permalink}\n\nProject: ${issue.project.slug}`,
+    held: (text) => namesShortId(text, issue.shortId) || holds(text, issue.permalink) || holds(text, `/issues/${issue.id}/`),
+    label: issue.permalink,
+  }
+}
+
+/** Sets the reviewer secret of each repository from the token on stdin of `gh`. It prints each result and never the token. Returns the exit code. */
+export const setReviewerToken = async ({ token, slugs, runGh, out }) => {
+  let failures = 0
+  for (const slug of slugs) {
+    const result = await runGh(["secret", "set", REVIEWER_SECRET, "--repo", slug], token)
+    const done = result.status === 0 && !result.error
+    if (!done) failures += 1
+    out(`${slug}: ${done ? "set" : `failed, exit ${result.status ?? "none"}`}`)
+  }
+  return failures === 0 ? 0 : 3
+}

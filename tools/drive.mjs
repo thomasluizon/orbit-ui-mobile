@@ -18,7 +18,7 @@ import { escapeRegex } from "./lib/escape-regex.mjs"
 import { WORKTREE_REMOVE_ARGUMENTS, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { classifyCheckFailure, failedChecks, mergeBar, needsWholeDiff, wholeDiffApproved } from "./lib/github.mjs"
+import { classifyCheckFailure, failedChecks, holds, mergeBar, needsWholeDiff, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { partOf, renderOrder } from "./lib/order.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -60,7 +60,6 @@ const PAUSE_TITLE = "Driver paused: a worker stopped at a usage limit or a sign-
 const RESTART_TITLE = "Driver restarted three times in ten minutes"
 const LOGIN_TITLE = "Driver stopped: Claude is not logged in"
 const LOGIN_MESSAGE = "Orbit driver: Claude is not logged in, so no worker starts."
-const REVIEWER_SECRET = "CLAUDE_CODE_OAUTH_TOKEN"
 const OWNER = "needs:owner"
 const PLAIN_REQUEST = "@pullfrog review"
 const WHOLE_DIFF_REQUEST = "@pullfrog review whole diff"
@@ -141,18 +140,6 @@ export const paceDecision = ({ reading, now, lastProbeAt = null }) => {
   return { action: now - reading.at > HOUR_MS ? probeOrHold : "admit", utilization: reading.utilization, line }
 }
 
-/** The reading that the snapshot of the status line holds, or null. Its `email` only names the account that took it, and nothing prints it. */
-export const readSnapshot = (path) => {
-  try {
-    const snapshot = JSON.parse(readFileSync(path, "utf8"))
-    const window = snapshot.rateLimits?.seven_day
-    if (typeof window?.used_percentage !== "number" || !Number.isInteger(window.resets_at)) return null
-    return { utilization: window.used_percentage / 100, resetsAt: window.resets_at, at: Date.parse(snapshot.at), email: snapshot.email ?? null }
-  } catch {
-    return null
-  }
-}
-
 const newestReading = (...readings) => readings.filter(Boolean).sort((left, right) => right.at - left.at)[0] ?? null
 
 /** The account of a `claude auth status --json` answer, keyed on its organization and email. The key is a hash, so it can appear in a log or an issue. */
@@ -191,15 +178,6 @@ export const resultText = (logText) => {
     } catch { /* a cut first line of the tail */ }
   }
   return ""
-}
-
-/** The first line of a failed log that is a usage-limit message, with the reset time it names; null when there is none. */
-export const usageLimitIn = (logText, isLimit = workerApi.isUsageLimitMessage) => {
-  for (const line of logText.split("\n")) {
-    const message = line.replace(/^.*?\d{4}-\d\d-\d\dT[\d:.]+Z /, "").trim()
-    if (isLimit(message)) return { message, reset: /(?:resets?|until)\s+([^.\n·]+)/i.exec(message)?.[1]?.trim() ?? null }
-  }
-  return null
 }
 
 const branchName = (ticket, part, used) => {
@@ -556,7 +534,7 @@ const pullActions = async (env, mem, repoKey, state, tickets) => {
 const pullfrogLimit = async (env, mem, tickets, repoKey, runs) => {
   for (const run of runs.filter((entry) => entry.status === "completed" && entry.conclusion === "failure" && !mem.checkedRuns.has(entry.databaseId))) {
     mem.checkedRuns.add(run.databaseId)
-    const found = usageLimitIn(await env.gh(["run", "view", String(run.databaseId), "--repo", env.slugOf(repoKey), "--log-failed"]))
+    const found = workerApi.usageLimitIn(await env.gh(["run", "view", String(run.databaseId), "--repo", env.slugOf(repoKey), "--log-failed"]))
     if (found) {
       await pauseDriver(env, mem, tickets, { source: "Pullfrog", ...found })
       return true
@@ -635,7 +613,7 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   const tail = tailOf(logFile)
   if (result.result.usageLimitReached || result.result.authenticationFailed) {
     const message = result.result.error ?? "the worker stopped"
-    return pauseDriver(env, mem, tickets, { source: result.result.usageLimitReached ? "A worker" : "A worker sign-in", message, reset: usageLimitIn(message)?.reset ?? null, account: account ?? undefined })
+    return pauseDriver(env, mem, tickets, { source: result.result.usageLimitReached ? "A worker" : "A worker sign-in", message, reset: workerApi.usageLimitIn(message)?.reset ?? null, account: account ?? undefined })
   }
   if (/The requested URL returned error: 403|remote: Permission to .* denied/.test(tail)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `NEEDS_DECISION: ${result.result.needsDecision}` })
@@ -807,48 +785,14 @@ const decidePace = (env, mem) => {
   return { ...pace }
 }
 
-const SENTRY_ORGANIZATION = "orbit-ai-habit-tracker"
-const SENTRY_REPO = { "orbit-api": "api", "orbit-web": "ui", "orbit-mobile": "ui" }
-
-/** All pages of a Sentry list: it names the next page in the `Link` header with `results="true"`. */
-const sentryIssues = async (env, token) => {
-  const issues = []
-  for (let url = `https://sentry.io/api/0/organizations/${SENTRY_ORGANIZATION}/issues/?query=is:unresolved`; url !== null;) {
-    const page = await env.fetchJson(url, { headers: { Authorization: `Bearer ${token}` } })
-    issues.push(...page.body)
-    url = /<([^>]+)>; rel="next"; results="true"/.exec(page.link ?? "")?.[1] ?? null
-  }
-  return issues
-}
-
-/** True when `text` holds `needle` and the next character does not continue a word or a number (an alert url ends in its number). */
-const holds = (text, needle) => new RegExp(`${escapeRegex(needle)}(?![A-Za-z0-9])`).test(text)
-
-/** True when `text` names the Sentry short id as a whole word: `ORBIT-API-1A` is not named by `ORBIT-API-1AB`. */
-const namesShortId = (text, shortId) => new RegExp(`(?<![A-Za-z0-9])${escapeRegex(shortId)}(?![A-Za-z0-9])`).test(text)
-
-const SENTRY_TITLE_LIMIT = 120
-
-/** One `Bug` ticket candidate for a Sentry issue. A ticket holds the issue when it names the short id, the permalink or the `/issues/<id>/` path. */
-const sentryCandidate = (issue, repoKey) => {
-  const suffix = ` (Sentry ${issue.shortId})`
-  return {
-    repoKey,
-    title: `${issue.title.slice(0, SENTRY_TITLE_LIMIT - suffix.length)}${suffix}`,
-    body: `${issue.title}\n\n${issue.permalink}\n\nProject: ${issue.project.slug}`,
-    held: (text) => namesShortId(text, issue.shortId) || holds(text, issue.permalink) || holds(text, `/issues/${issue.id}/`),
-    label: issue.permalink,
-  }
-}
-
 /** Hourly: one `Bug` ticket for each Sentry issue and each alert that no ticket, open or closed, holds. */
 const intake = async (env, mem) => {
   const candidates = []
   const sentryToken = await env.keychain("orbit-sentry-token")
   if (sentryToken === null) log(env, "intake", "skipped", "no orbit-sentry-token in the Keychain")
-  else for (const issue of await sentryIssues(env, sentryToken)) {
-    const key = SENTRY_REPO[issue.project?.slug]
-    if (key) candidates.push(sentryCandidate(issue, key))
+  else for (const issue of await sentryIssues(env.fetchJson, sentryToken)) {
+    const candidate = sentryCandidate(issue)
+    if (candidate !== null) candidates.push(candidate)
   }
   for (const key of REPOSITORY_KEYS) {
     const slug = env.slugOf(key)
@@ -955,18 +899,6 @@ const runText = async (file, args, options = {}) => {
   return result.stdout
 }
 
-/** Sets the reviewer secret of each repository from the token. It prints each result and never the token. Returns the exit code. */
-export const setReviewerToken = async ({ token, slugs, runGh, out }) => {
-  let failures = 0
-  for (const slug of slugs) {
-    const result = await runGh(["secret", "set", REVIEWER_SECRET, "--repo", slug], token)
-    const done = result.status === 0 && !result.error
-    if (!done) failures += 1
-    out(`${slug}: ${done ? "set" : `failed, exit ${result.status ?? "none"}`}`)
-  }
-  return failures === 0 ? 0 : 3
-}
-
 const readStdin = async () => {
   const chunks = []
   for await (const chunk of process.stdin) chunks.push(chunk)
@@ -991,7 +923,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     notify: async (message) => { await runBounded("osascript", ["-e", `display notification ${JSON.stringify(message)} with title "Orbit driver"`], { timeoutMs: 15 * 1000 }) },
     keychain: async (service) => { const result = await runBounded("security", ["find-generic-password", "-s", service, "-w"], { timeoutMs: 15 * 1000 }); return result.status === 0 && result.stdout.trim() !== "" ? result.stdout.trim() : null },
     fetchJson: async (url, { headers }) => { const response = await fetch(url, { headers }); if (!response.ok) throw new Error(`${url} returned ${response.status}`); return { body: await response.json(), link: response.headers.get("link") } },
-    snapshot: () => readSnapshot(join(home, ".claude", "usage-snapshot.json")),
+    snapshot: () => workerApi.readSnapshot(join(home, ".claude", "usage-snapshot.json")),
     authStatus: async () => {
       const result = await runBounded("claude", ["auth", "status", "--json"], { timeoutMs: 30 * 1000 })
       try { return JSON.parse(result.stdout) } catch { throw new Error(`claude auth status --json gave no JSON (exit ${result.status ?? "none"})`) }
