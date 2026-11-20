@@ -3,11 +3,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceDecision, parseArguments, rankTickets, readSnapshot, recordStart, resultText, tick, ticketComment, usageLimitIn } from "../drive.mjs"
+import { accountFrom, createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceDecision, parseArguments, rankTickets, readSnapshot, recordStart, resultText, setReviewerToken, tick, ticketComment, usageLimitIn } from "../drive.mjs"
 import { isUsageLimitMessage } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
 const READS = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8")).driverReads
+const AUTH = READS.claudeAuthStatus.output
+const ACCOUNT = accountFrom(AUTH)
 const NOW = Date.parse("2026-11-19T12:00:00Z")
 const RESETS_AT = Math.floor((NOW + 3.5 * 24 * 3600 * 1000) / 1000)
 const LINE = 0.475
@@ -42,7 +44,7 @@ const partComment = (number, total, extra = "") => comment(null, `Part ${number}
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [] } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH } = {}) => {
   const calls = []
   const messages = []
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
@@ -76,10 +78,11 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     keychain: async () => null,
     fetchJson: async () => ({ body: [], link: null }),
     snapshot: () => null,
+    authStatus: async () => structuredClone(auth),
     workerLive: () => false,
   }
   const mem = createMemory()
-  mem.reading = reading
+  mem.reading = reading === null ? null : { account: ACCOUNT.key, ...reading }
   mem.lastIntakeAt = NOW
   return { env, mem, calls, messages, launched, run: async () => { const result = await tick(env, mem); await mem.running; if (process.env.DEBUG_DRIVE_TICK) console.error(messages.splice(0).join("\n")); return result } }
 }
@@ -172,11 +175,11 @@ const paceCases = async () => {
   await silent.run()
   same("drive: a probe with no event starts no order and sends one notification", [silent.launched.length, only(silent.calls, "notify").length], [0, 1])
   const snapshotScene = scenario({ tickets: [ticket(7)], reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - 3 * 3600 * 1000 } })
-  snapshotScene.env.snapshot = () => ({ utilization: 0.2, resetsAt: RESETS_AT, at: NOW - MINUTE })
+  snapshotScene.env.snapshot = () => ({ utilization: 0.2, resetsAt: RESETS_AT, at: NOW - MINUTE, email: AUTH.email })
   await snapshotScene.run()
   same("drive: the newer snapshot reading wins over the older worker reading", snapshotScene.launched.length, 1)
   writeFileSync(SNAPSHOT, JSON.stringify({ at: iso(0), email: "someone@example.test", rateLimits: { seven_day: { used_percentage: 54, resets_at: RESETS_AT } } }))
-  same("drive: the snapshot reads a percent as a fraction and drops the email", readSnapshot(SNAPSHOT), { utilization: 0.54, resetsAt: RESETS_AT, at: NOW })
+  same("drive: the snapshot reads a percent as a fraction and keeps the email for the account comparison", readSnapshot(SNAPSHOT), { utilization: 0.54, resetsAt: RESETS_AT, at: NOW, email: "someone@example.test" })
   same("drive: an unreadable snapshot gives no reading", readSnapshot(join(root, "no-such-snapshot.json")), null)
 }
 
@@ -438,25 +441,112 @@ const recordedFieldCases = () => {
   T("drive: the head sha read is 40 hexadecimal characters and one newline", /^40 lowercase hexadecimal characters, then one newline$/.test(READS.headRefOid.stdoutShape))
 }
 
+const sentryUrl = (id) => `https://orbit-ai-habit-tracker.sentry.io/issues/${id}/`
+
 const intakeCases = async () => {
   recordedFieldCases()
-  const hourAgo = { lastIntakeAt: 0 }
-  const issueList = JSON.stringify([{ body: "Known\n\nhttps://sentry.io/organizations/o/issues/1/" }])
-  const scene = scenario({ tickets: [], routes: [["issue list", issueList], ["dependabot/alerts", JSON.stringify([{ html_url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/3", security_advisory: { summary: "Bad" }, dependency: { package: { name: "pkg" } } }])], ["code-scanning/alerts", JSON.stringify([{ html_url: "https://github.com/x/y/security/code-scanning/4", rule: { description: "Rule" }, most_recent_instance: { location: { path: "a.ts" } } }])], ["secret-scanning/alerts", JSON.stringify([{ html_url: "https://github.com/x/y/security/secret-scanning/5", secret_type_display_name: "Token", secret: "NEVER-COPY" }])]] })
-  scene.mem.lastIntakeAt = hourAgo.lastIntakeAt
-  scene.env.keychain = async () => "sentry-token"
-  scene.env.fetchJson = async () => ({ body: [{ title: "Known", permalink: "https://sentry.io/organizations/o/issues/1/", project: { slug: "orbit-web" } }, { title: "New one", permalink: "https://sentry.io/organizations/o/issues/2/", project: { slug: "orbit-web" } }], link: null })
-  await scene.run()
-  const tickets = only(scene.calls, "createTicket").map((entry) => entry[1])
-  same("drive: intake skips a Sentry issue that a ticket holds and opens a Bug ticket for a new one", tickets.filter((entry) => entry.body.includes("sentry.io")).map((entry) => [entry.labels, entry.title]), [[["repo:ui", "Bug"], "Sentry: New one"]])
-  same("drive: intake opens one Bug ticket for each kind of alert and never copies a secret", [tickets.filter((entry) => entry.body.includes("/security/")).length > 0, tickets.some((entry) => JSON.stringify(entry).includes("NEVER-COPY"))], [true, false])
-  const pages = scenario({ tickets: [] })
-  pages.mem.lastIntakeAt = 0
+  const recorded = READS.sentryIssues
+  const derived = (shortId, id, slug) => ({ id, shortId, title: `Derived ${shortId}`, permalink: sentryUrl(id), project: { slug } })
+  const secondPage = [derived("ORBIT-API-9A", "7811290001", "orbit-api"), derived("ORBIT-API-9B", "7811290002", "orbit-api"), derived("ORBIT-WEB-2", "7811290003", "orbit-web")]
+  const nextUrl = "https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is%3Aunresolved&limit=2&cursor=1795199194000:0:0"
+  const known = [
+    { title: "Reconnect the database (Sentry ORBIT-API-1Q)", body: "A ticket that names the short id in its title." },
+    { title: "Log reading", body: "The log shows ORBIT-API-1KB twice." },
+    { title: "Closed ticket", body: `Trace: ${sentryUrl("7811290001")}` },
+    { title: "Path ticket", body: "See /issues/7811290002/ for the trace." },
+  ]
+  const alert = (kind, url, extra) => [`${kind}`, JSON.stringify([{ html_url: url, ...extra }])]
+  const scene = scenario({ tickets: [], routes: [
+    ["issue list", JSON.stringify(known)],
+    ["thomasluizon/ui/dependabot/alerts", alert("d", "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/3", { security_advisory: { summary: "Bad" }, dependency: { package: { name: "pkg" } } })[1]],
+    ["thomasluizon/api/code-scanning/alerts", alert("c", "https://github.com/thomasluizon/orbit-api/security/code-scanning/4", { rule: { description: "Rule" }, most_recent_instance: { location: { path: "a.ts" } } })[1]],
+    ["thomasluizon/landing/secret-scanning/alerts", alert("s", "https://github.com/thomasluizon/orbit-landing-page/security/secret-scanning/5", { secret_type_display_name: "Token", secret: "NEVER-COPY" })[1]],
+  ] })
+  scene.mem.lastIntakeAt = 0
   const urls = []
-  pages.env.keychain = async () => "t"
-  pages.env.fetchJson = async (url) => { urls.push(url); return url.includes("cursor=2") ? { body: [], link: null } : { body: [], link: '<https://sentry.io/api/0/x/?cursor=2>; rel="next"; results="true"; cursor="2"' } }
-  await pages.run()
-  same("drive: intake follows the Sentry next page link", urls.length, 2)
+  scene.env.keychain = async () => "sentry-token"
+  scene.env.fetchJson = async (url) => { urls.push(url); return url === nextUrl ? { body: secondPage, link: null } : { body: recorded.body, link: recorded.link } }
+  await scene.run()
+  const created = only(scene.calls, "createTicket").map((entry) => entry[1])
+  const sentry = created.filter((entry) => / \(Sentry [A-Z0-9-]+\)$/.test(entry.title))
+  same("drive: intake reads the first page, then the one next page that the recorded Link header names", urls, ["https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is:unresolved", nextUrl])
+  same("drive: intake opens a Bug ticket only for an issue that no title, short id, permalink or path holds", sentry.map((entry) => [entry.labels, entry.title.endsWith(" (Sentry ORBIT-API-1K)"), entry.title.endsWith(" (Sentry ORBIT-WEB-2)")]), [[["repo:api", "Bug"], true, false], [["repo:ui", "Bug"], false, true]])
+  same("drive: the ticket of a Sentry issue holds its permalink and a title of at most 120 characters", [sentry[0].body.split("\n")[2], sentry.every((entry) => entry.title.length <= 120), sentry[1].body.split("\n")[2]], [recorded.body[1].permalink, true, sentryUrl("7811290003")])
+  const alerts = created.filter((entry) => !sentry.includes(entry))
+  same("drive: intake opens one Bug ticket for each kind of alert, a longer alert number holds none, and no secret is copied", [alerts.map((entry) => entry.labels).sort(), alerts.length, created.some((entry) => JSON.stringify(entry).includes("NEVER-COPY"))], [[["repo:api", "Bug"], ["repo:landing", "Bug"], ["repo:ui", "Bug"]], 3, false])
+  const longer = scenario({ tickets: [], routes: [["issue list", JSON.stringify([{ title: "Alert", body: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/34" }])], ["thomasluizon/ui/dependabot/alerts", JSON.stringify([{ html_url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/3" }, { html_url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/34" }])]] })
+  longer.mem.lastIntakeAt = 0
+  await longer.run()
+  same("drive: an alert url that only a longer alert url contains is not held, and the exact url is", only(longer.calls, "createTicket").map((entry) => entry[1].body.split("\n")[2]), ["https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/3"])
+}
+
+const accountCases = async () => {
+  same("drive: the recorded auth status holds every key the driver reads", ["loggedIn", "email", "orgId", "subscriptionType"].every((key) => key in AUTH), true)
+  const other = { ...AUTH, orgId: "00000000-0000-4000-8000-000000000002" }
+  same("drive: the account key changes with the organization and with the email", [accountFrom(other).key === ACCOUNT.key, accountFrom({ ...AUTH, email: "second@example.com" }).key === ACCOUNT.key, accountFrom(AUTH).key === ACCOUNT.key], [false, false, true])
+
+  const changed = scenario({ tickets: [ticket(7)], auth: other })
+  changed.mem.account = ACCOUNT
+  changed.env.snapshot = () => ({ utilization: 0.1, resetsAt: RESETS_AT, at: NOW - MINUTE, email: AUTH.email })
+  await changed.run()
+  same("drive: a change of organization drops the old readings and probes before the next build order", [only(changed.calls, "probe").length, changed.launched.length, changed.messages.filter((line) => line.includes("account changed")).length], [1, 1, 1])
+  same("drive: the change line names the organization and the plan and never the email", [changed.messages.some((line) => line.includes("orgId 00000000-0000-4000-8000-000000000002, max")), JSON.stringify([changed.messages, changed.calls]).includes(AUTH.email)], [true, false])
+
+  const sameAccount = scenario({ tickets: [ticket(7)] })
+  sameAccount.env.snapshot = () => ({ utilization: 0.1, resetsAt: RESETS_AT, at: NOW - MINUTE, email: AUTH.email })
+  sameAccount.mem.reading = null
+  await sameAccount.run()
+  same("drive: a snapshot of the logged-in account counts, so no probe runs", [only(sameAccount.calls, "probe").length, sameAccount.launched.length], [0, 1])
+  const foreign = scenario({ tickets: [ticket(7)], reading: null })
+  foreign.env.snapshot = () => ({ utilization: 0.1, resetsAt: RESETS_AT, at: NOW - MINUTE, email: "someone.else@example.com" })
+  await foreign.run()
+  same("drive: a snapshot of another account does not count, so a probe runs", [only(foreign.calls, "probe").length, foreign.launched.length], [1, 1])
+  const foreignEvent = scenario({ tickets: [ticket(7)] })
+  foreignEvent.mem.reading = { ...foreignEvent.mem.reading, account: "another-account" }
+  await foreignEvent.run()
+  same("drive: a worker event of another account does not count", only(foreignEvent.calls, "probe").length, 1)
+
+  const oldPause = ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null, body: "A worker stopped.\n\nAccount: 0123456789abcdef" })
+  const ended = scenario({ tickets: [oldPause, ticket(7)] })
+  await ended.run()
+  same("drive: a change of account ends a usage-limit pause with a comment on its issue and a probe", [commentsOf(ended.calls, 50).map((text) => /account changed/.test(text)), only(ended.calls, "closeTicket"), only(ended.calls, "probe").length, ended.launched.length], [[true], [["closeTicket", 50]], 1, 1])
+  const sameAccountPause = ticket(50, { ...oldPause, body: `A worker stopped.\n\nAccount: ${ACCOUNT.key}` })
+  const kept = scenario({ tickets: [sameAccountPause, ticket(7)], probeReading: { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" } })
+  await kept.run()
+  same("drive: a pause of the logged-in account stays", [only(kept.calls, "closeTicket").length, kept.launched.length], [0, 0])
+
+  const signedOut = { ...AUTH, loggedIn: false }
+  const out = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30)] }, auth: signedOut })
+  await out.run()
+  same("drive: a signed-out login launches nothing, sends one notification and opens one needs:owner issue", [out.launched.length, only(out.calls, "notify").length, only(out.calls, "createTicket").map((entry) => entry[1].labels)], [0, 1, [[OWNER_LABEL]]])
+  same("drive: merges continue while Claude is signed out", only(out.calls, "merge").length, 1)
+  const loginIssue = ticket(51, { title: "Driver stopped: Claude is not logged in", labels: [OWNER_LABEL], repoKey: null })
+  const again = scenario({ tickets: [loginIssue, ticket(7)], auth: signedOut })
+  await again.run()
+  same("drive: a signed-out login with its issue open opens no second issue", [only(again.calls, "createTicket").length, again.launched.length], [0, 0])
+  const back = scenario({ tickets: [loginIssue, ticket(7)] })
+  await back.run()
+  same("drive: the issue closes when the login returns and workers start again", [only(back.calls, "closeTicket"), commentsOf(back.calls, 51).length, back.launched.length], [[["closeTicket", 51]], 1, 1])
+  const dry = scenario({ tickets: [ticket(7)], auth: signedOut, dryRun: true })
+  await dry.run()
+  same("drive: a dry run with a signed-out login writes nothing", dry.calls.filter((entry) => ["createTicket", "notify", "comment"].includes(entry[0])).length, 0)
+  same("drive: no log line, issue or notification holds the email", JSON.stringify([out.messages, out.calls, again.messages, back.messages, back.calls]).includes(AUTH.email), false)
+
+  const TOKEN = `sk-ant-oat01-${"q".repeat(40)}`
+  const SLUGS = ["thomasluizon/orbit-ui-mobile", "thomasluizon/orbit-api", "thomasluizon/orbit-landing-page"]
+  const runTool = async (answer, input = `${TOKEN}\n`) => {
+    const seen = []
+    const lines = []
+    const code = await main(["--reviewer-token"], { out: (line) => lines.push(line), err: (line) => lines.push(line), stdin: async () => input, runGh: async (args, text) => { seen.push({ args, input: text }); return answer(args) }, slugs: SLUGS })
+    return { code, seen, lines }
+  }
+  const good = await runTool(() => ({ status: 0, stdout: "", stderr: "" }))
+  same("drive: --reviewer-token sets the secret in the three repositories from stdin", [good.code, good.seen.map((entry) => entry.args), good.seen.every((entry) => entry.input === TOKEN)], [0, SLUGS.map((slug) => ["secret", "set", "CLAUDE_CODE_OAUTH_TOKEN", "--repo", slug]), true])
+  same("drive: --reviewer-token prints each result and never the token", [good.lines, JSON.stringify([good.seen.map((entry) => entry.args), good.lines]).includes(TOKEN)], [SLUGS.map((slug) => `${slug}: set`), false])
+  const bad = await runTool((args) => (args.includes("thomasluizon/orbit-api") ? { status: 1, stdout: "", stderr: `denied for ${TOKEN}` } : { status: 0, stdout: "", stderr: "" }))
+  same("drive: --reviewer-token reports a failed repository, exits 3 and still never prints the token", [bad.code, bad.lines.includes("thomasluizon/orbit-api: failed, exit 1"), JSON.stringify(bad.lines).includes(TOKEN)], [3, true, false])
+  same("drive: --reviewer-token with an empty stdin exits 2 and runs no gh call", [(await runTool(() => ({ status: 0 }), "  \n")).code, (await runTool(() => ({ status: 0 }), "\n")).seen.length], [2, 0])
+  same("drive: --reviewer-token parses as a mode", parseArguments(["--reviewer-token"]).mode, "reviewer-token")
 }
 
 const robustnessCases = async () => {
@@ -539,6 +629,7 @@ export const driverUnit = async () => {
   await ciCases()
   await closeCases()
   await intakeCases()
+  await accountCases()
   await robustnessCases()
   await cliCases()
   await blockingClassCases()

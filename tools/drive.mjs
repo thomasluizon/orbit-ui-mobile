@@ -7,6 +7,7 @@
  */
 
 import { spawn, spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { delimiter, dirname, join } from "node:path"
@@ -22,7 +23,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { partOf, renderOrder } from "./lib/order.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --reviewer-token] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, runs one worker at a
   time inside the weekly pace, and merges at the owner's bar. It spends no tokens while it waits.
@@ -32,6 +33,8 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe] [--help]
               take, write nothing and spawn nothing
   --once      run one real tick, wait for a worker that the tick started, then exit
   --probe     run one pace probe and print the reading (utilization, resetsAt, age)
+  --reviewer-token  read a Claude OAuth token on stdin and set CLAUDE_CODE_OAUTH_TOKEN in the three repositories;
+              print each repository's result and never the token
   --help, -h  print this usage and exit 0
 
 exit codes: 0 done, 2 usage error, 3 missing tool, configuration or credential`
@@ -55,6 +58,9 @@ const RESTART_WINDOW_MS = 10 * 60 * 1000
 const BRANCH_TYPE = { Bug: "fix", Feature: "feature", Improvement: "chore" }
 const PAUSE_TITLE = "Driver paused: a worker stopped at a usage limit or a sign-in failure"
 const RESTART_TITLE = "Driver restarted three times in ten minutes"
+const LOGIN_TITLE = "Driver stopped: Claude is not logged in"
+const LOGIN_MESSAGE = "Orbit driver: Claude is not logged in, so no worker starts."
+const REVIEWER_SECRET = "CLAUDE_CODE_OAUTH_TOKEN"
 const OWNER = "needs:owner"
 const PLAIN_REQUEST = "@pullfrog review"
 const WHOLE_DIFF_REQUEST = "@pullfrog review whole diff"
@@ -135,19 +141,29 @@ export const paceDecision = ({ reading, now, lastProbeAt = null }) => {
   return { action: now - reading.at > HOUR_MS ? probeOrHold : "admit", utilization: reading.utilization, line }
 }
 
-/** The reading that the snapshot of the status line holds, or null. The email field is never read. */
+/** The reading that the snapshot of the status line holds, or null. Its `email` only names the account that took it, and nothing prints it. */
 export const readSnapshot = (path) => {
   try {
     const snapshot = JSON.parse(readFileSync(path, "utf8"))
     const window = snapshot.rateLimits?.seven_day
     if (typeof window?.used_percentage !== "number" || !Number.isInteger(window.resets_at)) return null
-    return { utilization: window.used_percentage / 100, resetsAt: window.resets_at, at: Date.parse(snapshot.at) }
+    return { utilization: window.used_percentage / 100, resetsAt: window.resets_at, at: Date.parse(snapshot.at), email: snapshot.email ?? null }
   } catch {
     return null
   }
 }
 
 const newestReading = (...readings) => readings.filter(Boolean).sort((left, right) => right.at - left.at)[0] ?? null
+
+/** The account of a `claude auth status --json` answer, keyed on its organization and email. The key is a hash, so it can appear in a log or an issue. */
+export const accountFrom = (status) => ({ key: createHash("sha256").update(`${status.orgId}\n${status.email}`).digest("hex").slice(0, 16), email: status.email, orgId: status.orgId, subscriptionType: status.subscriptionType })
+
+/** A reading counts only for the account that took it: a worker event for the account of its launch, the snapshot for its email. */
+const readingsOfAccount = (env, mem) => {
+  if (mem.account === null) return []
+  const snapshot = env.snapshot()
+  return [mem.reading?.account === mem.account.key ? mem.reading : null, snapshot?.email === mem.account.email ? snapshot : null]
+}
 
 const tailOf = (logFile) => {
   let descriptor
@@ -215,7 +231,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: null, exits: [], lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0 })
+export const createMemory = () => ({ running: null, exits: [], lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, account: null, probeOwed: false })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -244,12 +260,65 @@ const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reaso
 const pauseIssue = (tickets) => tickets.find((ticket) => ticket.title === PAUSE_TITLE) ?? null
 
 /** Pauses admission: a log line, a notification and one issue that holds the message and the reset time. */
-const pauseDriver = async (env, mem, tickets, { source, message, reset }) => {
+const pauseDriver = async (env, mem, tickets, { source, message, reset, account = mem.account?.key ?? "unknown" }) => {
   log(env, "driver", "pause", `${source}: ${message}`)
   if (env.dryRun || pauseIssue(tickets)) return
   await env.notify(`Orbit driver paused: ${source} stopped. ${message}`)
-  const created = await env.github.createTicket({ title: PAUSE_TITLE, body: `${source} stopped.\n\nMessage: ${message}\n\nReset time named by the message: ${reset ?? "none named"}`, labels: [OWNER] })
-  tickets.push({ number: created.number, title: PAUSE_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: "" })
+  const created = await env.github.createTicket({ title: PAUSE_TITLE, body: `${source} stopped.\n\nMessage: ${message}\n\nReset time named by the message: ${reset ?? "none named"}\n\nAccount: ${account}`, labels: [OWNER] })
+  tickets.push({ number: created.number, title: PAUSE_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: `Account: ${account}` })
+}
+
+const pauseAccount = (issue) => /^Account: (\S+)$/m.exec(issue.body)?.[1] ?? null
+
+/** Closes an issue that the driver opened, with the comment that says why. */
+const closeIssue = async (env, tickets, issue, text) => {
+  await env.github.comment("tickets", issue.number, text)
+  await env.github.closeTicket(issue.number)
+  tickets.splice(tickets.indexOf(issue), 1)
+}
+
+/**
+ * Reads the default Claude login each tick. A change of account drops the readings of the old one, ends a usage-limit
+ * pause that the old one hit, and owes a probe before the next build or find order. A logged-out login stops every worker.
+ * Returns `{ ok, reason }`: with `ok` false the tick starts no worker.
+ */
+const trackAccount = async (env, mem, tickets) => {
+  let status
+  try {
+    status = await env.authStatus()
+  } catch (error) {
+    log(env, "account", "unreadable", error.message)
+    return { ok: false, reason: "the Claude login cannot be read" }
+  }
+  const loginIssue = tickets.find((ticket) => ticket.title === LOGIN_TITLE) ?? null
+  if (status.loggedIn !== true) {
+    log(env, "account", "logged-out", "no worker starts")
+    if (!env.dryRun) {
+      await notifyOnce(env, mem, LOGIN_MESSAGE)
+      if (loginIssue === null) {
+        const created = await env.github.createTicket({ title: LOGIN_TITLE, body: "The default Claude login is signed out. Run claude auth login, then the driver starts workers again.", labels: [OWNER] })
+        tickets.push({ number: created.number, title: LOGIN_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: "" })
+      }
+    }
+    return { ok: false, reason: "Claude is not logged in" }
+  }
+  mem.notified.delete(LOGIN_MESSAGE)
+  if (loginIssue !== null && !env.dryRun) await closeIssue(env, tickets, loginIssue, "Claude is logged in again. The driver starts workers again.")
+  const account = accountFrom(status)
+  if (mem.account !== null && mem.account.key !== account.key) {
+    log(env, "account", "changed", `orgId ${account.orgId}, ${account.subscriptionType}`)
+    mem.reading = null
+    mem.lastProbeAt = null
+    mem.probeOwed = true
+  }
+  mem.account = account
+  const paused = pauseIssue(tickets)
+  if (paused !== null && pauseAccount(paused) !== null && pauseAccount(paused) !== account.key) {
+    log(env, "driver", "resume", "the Claude account changed")
+    mem.probeOwed = true
+    if (!env.dryRun) await closeIssue(env, tickets, paused, "The Claude account changed, so the pause ends. The driver probes the new account before the next build order.")
+  }
+  return { ok: true, reason: null }
 }
 
 /** One pace probe. A reading with status `allowed` while the driver is paused resumes it. */
@@ -260,7 +329,8 @@ const runProbe = async (env, mem, tickets) => {
     await notifyOnce(env, mem, "Orbit driver: the pace probe returned no rate limit event, so no new build order starts.")
     return null
   }
-  mem.reading = { utilization: reading.utilization, resetsAt: reading.resetsAt, at: env.now() }
+  mem.reading = { utilization: reading.utilization, resetsAt: reading.resetsAt, at: env.now(), account: mem.account?.key ?? null }
+  mem.probeOwed = false
   const paused = pauseIssue(tickets)
   if (paused && reading.status === "allowed") {
     await env.github.comment("tickets", paused.number, `The probe reads status allowed (${Math.round(reading.utilization * 100)} percent of the week). The driver resumes.`)
@@ -547,26 +617,27 @@ const startWorker = async (env, mem, candidate) => {
   const stamp = new Date(env.now()).toISOString().replace(/[:.]/g, "-")
   const stem = branch.replaceAll("/", "-")
   const invocation = await env.invocation(token)
+  const account = mem.account?.key ?? null
   const running = env.worker.launch({ invocation, worktree, order: text, logFile: join(env.stateDir, "logs", `${stem}-${stamp}.log`), pidFile: join(env.stateDir, `${stem}.pid`) })
   log(env, `ticket#${ticket.number}`, `launch ${kind}`, `branch ${branch}, worktree ${worktree}`)
   mem.running = running.then((result) => {
     mem.running = null
-    mem.exits.push({ order, result, headBefore, worktree, logFile: join(env.stateDir, "logs", `${stem}-${stamp}.log`) })
+    mem.exits.push({ order, result, headBefore, worktree, account, logFile: join(env.stateDir, "logs", `${stem}-${stamp}.log`) })
     mem.wake()
   })
 }
 
 /** What a worker's exit leaves to do: records, a pause, a question, or a findings comment. */
 const reapExit = async (env, mem, tickets, states, exit) => {
-  const { order, result, headBefore, worktree, logFile } = exit
+  const { order, result, headBefore, worktree, logFile, account } = exit
   const { kind, repoKey, ticket, branch, part } = order
   const item = `ticket#${ticket.number}`
-  if (result.utilization !== null) mem.reading = { utilization: result.utilization, resetsAt: result.resetsAt, at: env.now() }
+  if (result.utilization !== null && account !== null) mem.reading = { utilization: result.utilization, resetsAt: result.resetsAt, at: env.now(), account }
   log(env, item, "worker-exit", `${kind}, exit ${result.exitCode}${result.killReason ? `, killed: ${result.killReason}` : ""}`)
   const tail = tailOf(logFile)
   if (result.result.usageLimitReached || result.result.authenticationFailed) {
     const message = result.result.error ?? "the worker stopped"
-    return pauseDriver(env, mem, tickets, { source: result.result.usageLimitReached ? "A worker" : "A worker sign-in", message, reset: usageLimitIn(message)?.reset ?? null })
+    return pauseDriver(env, mem, tickets, { source: result.result.usageLimitReached ? "A worker" : "A worker sign-in", message, reset: usageLimitIn(message)?.reset ?? null, account: account ?? undefined })
   }
   if (/The requested URL returned error: 403|remote: Permission to .* denied/.test(tail)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `NEEDS_DECISION: ${result.result.needsDecision}` })
@@ -733,7 +804,7 @@ const admit = async (env, mem, tickets, states) => {
 
 /** The pace decision from the newest of the worker reading and the snapshot, with its one log line. */
 const decidePace = (env, mem) => {
-  const pace = paceDecision({ reading: newestReading(mem.reading, env.snapshot()), now: env.now(), lastProbeAt: mem.lastProbeAt })
+  const pace = paceDecision({ reading: mem.probeOwed ? null : newestReading(...readingsOfAccount(env, mem)), now: env.now(), lastProbeAt: mem.lastProbeAt })
   log(env, "pace", pace.action, `utilization ${pace.utilization === null ? "unknown" : pace.utilization.toFixed(3)}, line ${pace.line === null ? "unknown" : pace.line.toFixed(3)}`)
   return { ...pace }
 }
@@ -752,14 +823,34 @@ const sentryIssues = async (env, token) => {
   return issues
 }
 
-/** Hourly: one `Bug` ticket for each Sentry issue and each alert that no ticket holds. */
+/** True when `text` holds `needle` and the next character does not continue a word or a number (an alert url ends in its number). */
+const holds = (text, needle) => new RegExp(`${escapeRegex(needle)}(?![A-Za-z0-9])`).test(text)
+
+/** True when `text` names the Sentry short id as a whole word: `ORBIT-API-1A` is not named by `ORBIT-API-1AB`. */
+const namesShortId = (text, shortId) => new RegExp(`(?<![A-Za-z0-9])${escapeRegex(shortId)}(?![A-Za-z0-9])`).test(text)
+
+const SENTRY_TITLE_LIMIT = 120
+
+/** One `Bug` ticket candidate for a Sentry issue. A ticket holds the issue when it names the short id, the permalink or the `/issues/<id>/` path. */
+const sentryCandidate = (issue, repoKey) => {
+  const suffix = ` (Sentry ${issue.shortId})`
+  return {
+    repoKey,
+    title: `${issue.title.slice(0, SENTRY_TITLE_LIMIT - suffix.length)}${suffix}`,
+    body: `${issue.title}\n\n${issue.permalink}\n\nProject: ${issue.project.slug}`,
+    held: (text) => namesShortId(text, issue.shortId) || holds(text, issue.permalink) || holds(text, `/issues/${issue.id}/`),
+    label: issue.permalink,
+  }
+}
+
+/** Hourly: one `Bug` ticket for each Sentry issue and each alert that no ticket, open or closed, holds. */
 const intake = async (env, mem) => {
   const candidates = []
   const sentryToken = await env.keychain("orbit-sentry-token")
   if (sentryToken === null) log(env, "intake", "skipped", "no orbit-sentry-token in the Keychain")
   else for (const issue of await sentryIssues(env, sentryToken)) {
     const key = SENTRY_REPO[issue.project?.slug]
-    if (key) candidates.push({ url: issue.permalink, repoKey: key, title: `Sentry: ${issue.title}`.slice(0, 120), body: `${issue.title}\n\n${issue.permalink}\n\nProject: ${issue.project.slug}` })
+    if (key) candidates.push(sentryCandidate(issue, key))
   }
   for (const key of REPOSITORY_KEYS) {
     const slug = env.slugOf(key)
@@ -770,14 +861,14 @@ const intake = async (env, mem) => {
     ]) {
       let alerts = []
       try { alerts = JSON.parse(await env.gh(["api", `repos/${slug}/${path}/alerts?state=open&per_page=100`])) } catch (error) { log(env, "intake", "alerts-unread", `${kind} of ${slug}: ${error.message}`) }
-      for (const alert of alerts) candidates.push({ url: alert.html_url, repoKey: key, title: `${kind}: ${describeAlert(alert)}`.slice(0, 120), body: `${describeAlert(alert)}\n\n${alert.html_url}` })
+      for (const alert of alerts) candidates.push({ repoKey: key, title: `${kind}: ${describeAlert(alert)}`.slice(0, 120), body: `${describeAlert(alert)}\n\n${alert.html_url}`, held: (text) => holds(text, alert.html_url), label: alert.html_url })
     }
   }
   if (candidates.length === 0) return
-  // Open and closed tickets both hold a permalink, so a closed ticket keeps its issue from coming back.
-  const known = await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "all", "--limit", "5000", "--json", "body"])
-  for (const candidate of candidates.filter((entry) => !known.includes(entry.url))) {
-    log(env, "intake", "ticket", candidate.url)
+  // Open and closed tickets both count, so a closed ticket keeps its issue from coming back.
+  const known = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "all", "--limit", "5000", "--json", "title,body"])).map((ticket) => `${ticket.title}\n${ticket.body}`)
+  for (const candidate of candidates.filter((entry) => !known.some(entry.held))) {
+    log(env, "intake", "ticket", candidate.label)
     if (!env.dryRun) await env.github.createTicket({ title: candidate.title, body: candidate.body, labels: [`repo:${candidate.repoKey}`, "Bug"] })
   }
 }
@@ -817,12 +908,14 @@ export const tick = async (env, mem) => {
   await ownerWorkNotices(env, mem, tickets)
   mem.mergedReadsLeft = MERGED_READS_PER_TICK
   const closed = await closeFinishedTickets(env, mem, tickets, states)
+  const account = await trackAccount(env, mem, tickets)
   const paused = pauseIssue(tickets)
-  if (paused && !env.dryRun && mem.running === null && (mem.lastProbeAt === null || env.now() - mem.lastProbeAt >= HOUR_MS)) await runProbe(env, mem, tickets).catch((error) => log(env, "probe", "error", error.message))
+  const holdReason = paused ? "the driver is paused" : account.ok ? null : account.reason
+  if (paused && account.ok && !env.dryRun && mem.running === null && (mem.lastProbeAt === null || env.now() - mem.lastProbeAt >= HOUR_MS)) await runProbe(env, mem, tickets).catch((error) => log(env, "probe", "error", error.message))
   const busy = mem.running !== null || env.workerLive()
-  const { chosen, decisions } = paused ? { chosen: null, decisions: new Map() } : await admit(env, mem, tickets.filter((ticket) => !closed.has(ticket.number)), states)
-  for (const ticket of tickets) env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${closed.has(ticket.number) ? "close" : paused ? "wait: the driver is paused" : decisions.get(ticket.number) ?? "wait"}`)
-  const launchable = orders.filter((entry) => !paused).sort((left, right) => left.pull.number - right.pull.number)[0] ?? (paused ? null : chosen)
+  const { chosen, decisions } = holdReason ? { chosen: null, decisions: new Map() } : await admit(env, mem, tickets.filter((ticket) => !closed.has(ticket.number)), states)
+  for (const ticket of tickets) env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${closed.has(ticket.number) ? "close" : holdReason ? `wait: ${holdReason}` : decisions.get(ticket.number) ?? "wait"}`)
+  const launchable = orders.filter(() => !holdReason).sort((left, right) => left.pull.number - right.pull.number)[0] ?? (holdReason ? null : chosen)
   if (launchable && busy) log(env, "lane", "wait", "a worker runs")
   else if (launchable && !env.dryRun) await startWorker(env, mem, launchable).catch((error) => log(env, `ticket#${launchable.ticket.number}`, "error", error.message))
   if (!env.dryRun && env.now() - mem.lastIntakeAt >= HOUR_MS) {
@@ -851,7 +944,7 @@ const toolOnPath = (name, pathText = process.env.PATH ?? "") => pathText.split(d
 export const missingTools = (pathText) => REQUIRED_TOOLS.filter((name) => !toolOnPath(name, pathText))
 
 export const parseArguments = (argv) => {
-  const modes = new Set(["--dry-run", "--once", "--probe"])
+  const modes = new Set(["--dry-run", "--once", "--probe", "--reviewer-token"])
   const given = argv.filter((argument) => argument !== "--help" && argument !== "-h")
   const unknown = given.filter((argument) => !modes.has(argument))
   if (unknown.length > 0 || given.length > 1) return { error: `unknown or conflicting argument: ${(unknown[0] ?? given[1])}` }
@@ -862,6 +955,24 @@ const runText = async (file, args, options = {}) => {
   const result = await runBounded(file, args, { timeoutMs: 120 * 1000, ...options })
   if (result.error || result.status !== 0) throw new Error(`${file} ${args.slice(0, 3).join(" ")} failed: ${(result.stderr || result.error?.message || `exit ${result.status}`).trim()}`)
   return result.stdout
+}
+
+/** Sets the reviewer secret of each repository from the token. It prints each result and never the token. Returns the exit code. */
+export const setReviewerToken = async ({ token, slugs, runGh, out }) => {
+  let failures = 0
+  for (const slug of slugs) {
+    const result = await runGh(["secret", "set", REVIEWER_SECRET, "--repo", slug], token)
+    const done = result.status === 0 && !result.error
+    if (!done) failures += 1
+    out(`${slug}: ${done ? "set" : `failed, exit ${result.status ?? "none"}`}`)
+  }
+  return failures === 0 ? 0 : 3
+}
+
+const readStdin = async () => {
+  const chunks = []
+  for await (const chunk of process.stdin) chunks.push(chunk)
+  return Buffer.concat(chunks).toString("utf8")
 }
 
 /** The real seams of the driver. A test builds its own with the same members. */
@@ -883,6 +994,10 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     keychain: async (service) => { const result = await runBounded("security", ["find-generic-password", "-s", service, "-w"], { timeoutMs: 15 * 1000 }); return result.status === 0 && result.stdout.trim() !== "" ? result.stdout.trim() : null },
     fetchJson: async (url, { headers }) => { const response = await fetch(url, { headers }); if (!response.ok) throw new Error(`${url} returned ${response.status}`); return { body: await response.json(), link: response.headers.get("link") } },
     snapshot: () => readSnapshot(join(home, ".claude", "usage-snapshot.json")),
+    authStatus: async () => {
+      const result = await runBounded("claude", ["auth", "status", "--json"], { timeoutMs: 30 * 1000 })
+      try { return JSON.parse(result.stdout) } catch { throw new Error(`claude auth status --json gave no JSON (exit ${result.status ?? "none"})`) }
+    },
     workerLive: live,
     invocation: async (token) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only" }),
     sleep: (ms, mem) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); mem.wake = () => { clearTimeout(timer); resolve() } }),
@@ -895,10 +1010,17 @@ const commonDirOf = (repoPath) => {
   return result.stdout.trim()
 }
 
-export const main = async (argv, { out = console.log, err = console.error } = {}) => {
+export const main = async (argv, { out = console.log, err = console.error, stdin = readStdin, runGh = (args, input) => runBounded("gh", args, { timeoutMs: 60 * 1000, input }), slugs = null } = {}) => {
   const parsed = parseArguments(argv)
   if (parsed.error) { err(`${parsed.error}\n${USAGE}`); return 2 }
   if (parsed.help) { out(USAGE); return 0 }
+  if (parsed.mode === "reviewer-token") {
+    const token = (await stdin()).trim()
+    if (token === "") { err(`The token is empty. Pipe it on stdin: pbpaste | node tools/drive.mjs --reviewer-token`); return 2 }
+    let repositories = slugs
+    try { repositories ??= REPOSITORY_KEYS.map((key) => repositorySlug(readDriveConfig().repos[key])) } catch (error) { err(error.message); return 3 }
+    return setReviewerToken({ token, slugs: repositories, runGh, out })
+  }
   const missing = missingTools()
   if (missing.length > 0) { err(`Missing from PATH: ${missing.join(", ")}`); return 3 }
   let env

@@ -57,6 +57,50 @@
   "pullLabels": {"provenance":"gh api graphql -f query='query { repository(owner:\"thomasluizon\", name:\"orbit-ui-mobile\") { pullRequests(states: MERGED, last: 100) { nodes { number labels(first: 50) { nodes { name } } } } } }' on 2026-11-20; cut to one merged pull request that carries a label","response":{"data":{"repository":{"pr7":{"labels":{"nodes":[{"name":"parity:exempt"}]}}}}}},
   "driverReads": {
     "provenance": "Each member was recorded on 2026-11-20 with the command named in its own provenance key. Only key lists and one line format are kept, because the values of these reads belong to other work.",
+    "sentryIssues": {
+      "provenance": "GET https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is:unresolved&limit=2 with a read-only personal token, 2026-11-20T22:44:34.594Z",
+      "status": 200,
+      "link": "<https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is%3Aunresolved&limit=2&cursor=1795199346000:0:1>; rel=\"previous\"; results=\"false\"; cursor=\"1795199346000:0:1\", <https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is%3Aunresolved&limit=2&cursor=1795199194000:0:0>; rel=\"next\"; results=\"true\"; cursor=\"1795199194000:0:0\"",
+      "body": [
+        {
+          "id": "7811298321",
+          "shortId": "ORBIT-API-1Q",
+          "title": "Npgsql.NpgsqlException: Name or service not known",
+          "permalink": "https://orbit-ai-habit-tracker.sentry.io/issues/7811298321/",
+          "project": {
+            "slug": "orbit-api"
+          }
+        },
+        {
+          "id": "7811297239",
+          "shortId": "ORBIT-API-1K",
+          "title": "Health check database with status Unhealthy completed after 4439.8507ms with message 'Database unreachable'",
+          "permalink": "https://orbit-ai-habit-tracker.sentry.io/issues/7811297239/",
+          "project": {
+            "slug": "orbit-api"
+          }
+        }
+      ]
+    },
+    "claudeAuthStatus": {
+      "provenance": "claude auth status --json, claude 2.1.329, 2026-11-20; email, orgId and the home directory replaced, every key and type as recorded",
+      "output": {
+        "loggedIn": true,
+        "authMethod": "claude.ai",
+        "apiProvider": "firstParty",
+        "analyticsDisabled": false,
+        "projectsDirectory": "<home>/.claude/projects",
+        "configDirectory": "<home>/.claude",
+        "loginExpiresAt": "2026-12-18T09:43:08.795Z",
+        "consoleProfileSignInOffered": true,
+        "email": "owner@example.com",
+        "orgId": "00000000-0000-4000-8000-000000000001",
+        "orgName": "owner@example.com's Organization",
+        "subscriptionType": "max",
+        "storedClaudeAiLogin": true,
+        "planTier": "max_20x"
+      }
+    },
     "mergedPulls": {
       "provenance": "gh pr list --repo thomasluizon/orbit-ui-mobile --state merged --search '\"Tracks thomasluizon/orbit-tickets#\" in:body' --json number,body,mergedAt,headRefName --limit 1 (exit 0)",
       "keys": [
@@ -67,9 +111,10 @@
       ]
     },
     "ticketBodies": {
-      "provenance": "gh issue list --repo thomasluizon/orbit-tickets --state all --limit 1 --json body (exit 0)",
+      "provenance": "gh issue list --repo thomasluizon/orbit-tickets --state all --limit 1 --json title,body --jq '.[0] | keys | join(\",\")' (exit 0), printed body,title",
       "keys": [
-        "body"
+        "body",
+        "title"
       ]
     },
     "dependabotAlert": {
