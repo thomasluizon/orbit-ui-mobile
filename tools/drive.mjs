@@ -15,6 +15,7 @@ import { pathToFileURL } from "node:url"
 import { readDriveConfig } from "./lib/config.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
 import { WORKTREE_REMOVE_ARGUMENTS, parseWorktreeList } from "./lib/git-worktrees.mjs"
+import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { classifyCheckFailure, failedChecks, mergeBar, needsWholeDiff, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
@@ -449,7 +450,8 @@ const pullActions = async (env, mem, repoKey, state, tickets) => {
   for (const pull of [...state.pulls].sort((left, right) => left.number - right.number)) {
     const item = `${repoKey}#${pull.number}`
     try {
-      const runs = pull.draft ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
+      const awaiting = requestsOf(pull).some((entry) => entry.createdAt > newestAt(pull.reviews))
+      const runs = pull.draft || !awaiting ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
       if (!pull.draft && pull.reviews.some((review) => review.state === "APPROVED")) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       const plan = await planPull(env, mem, { ...ctx, runs }, pull)
       const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs)
@@ -589,7 +591,7 @@ const mergedFor = async (env, ticket) => {
 }
 
 /** What admission does with one ticket: an order, a close, or the reason it waits. */
-const ticketVerdict = async (env, mem, states, ticket) => {
+const ticketVerdict = async (env, mem, states, ticket, { settled = false } = {}) => {
   const labels = ticket.labels
   const stop = (reason) => ({ reason })
   const repoLabels = labels.filter((label) => label.startsWith("repo:"))
@@ -604,7 +606,9 @@ const ticketVerdict = async (env, mem, states, ticket) => {
   const state = states.find((entry) => entry.repositoryKey === ticket.repoKey)
   const tracking = state.pulls.filter((pull) => pull.tracks === ticket.number)
   const parts = partsOf(ticket)
-  const history = launchesOf(ticket).length > 0 || tracking.length > 0 ? await mergedFor(env, ticket) : []
+  // Another order is admitted or held, so a ticket with no history of its own waits without a read of its merged pull requests.
+  if (settled && launchesOf(ticket).length === 0 && tracking.length === 0) return stop("queued behind the admitted or held order")
+  const history = await mergedFor(env, ticket)
   const doneBranches = new Set(history.map((pull) => pull.headRefName))
   if (history.some((pull) => /^Remaining: none\s*$/m.test(pull.body)) && tracking.length === 0) return { close: true, merged: history }
   const used = new Set([...doneBranches, ...state.pulls.map((pull) => pull.headRef)])
@@ -652,9 +656,9 @@ const ownerWorkNotices = async (env, mem, tickets) => {
 const admit = async (env, mem, tickets, states) => {
   const decisions = new Map()
   let chosen = null
-  const reading = newestReading(mem.reading, env.snapshot())
+  let held = false
   for (const ticket of rankTickets(tickets)) {
-    const verdict = await ticketVerdict(env, mem, states, ticket)
+    const verdict = await ticketVerdict(env, mem, states, ticket, { settled: chosen !== null || held })
     if (verdict.close) {
       decisions.set(ticket.number, "close")
       await closeFinished(env, ticket, verdict)
@@ -670,25 +674,28 @@ const admit = async (env, mem, tickets, states) => {
       await needsOwner(env, mem, { ticket, reason: `The ${verdict.order.kind} order of ${verdict.order.branch} launched ${launches.length} times without a result` })
       continue
     }
-    if (chosen !== null) {
+    if (chosen !== null || held) {
       decisions.set(ticket.number, `queued: ${verdict.order.kind}`)
       continue
     }
-    const pace = paceDecision({ reading, now: env.now(), lastProbeAt: mem.lastProbeAt })
-    log(env, "pace", pace.action, `utilization ${pace.utilization === null ? "unknown" : pace.utilization.toFixed(3)}, line ${pace.line === null ? "unknown" : pace.line.toFixed(3)}`)
-    if (pace.action === "hold") decisions.set(ticket.number, "hold: over the weekly pace line")
-    else if (pace.action === "probe" && env.dryRun) decisions.set(ticket.number, "would probe the pace, then admit if under the line")
-    else if (pace.action === "probe") {
+    const pace = decidePace(env, mem)
+    if (pace.action === "probe" && !env.dryRun) {
       const fresh = await runProbe(env, mem, tickets)
-      const again = fresh === null ? null : paceDecision({ reading: fresh, now: env.now(), lastProbeAt: mem.lastProbeAt })
-      if (again?.action === "admit") chosen = verdict.order
-      decisions.set(ticket.number, chosen ? `admit ${verdict.order.kind}` : "hold: the pace probe did not clear it")
-    } else {
-      chosen = verdict.order
-      decisions.set(ticket.number, `admit ${verdict.order.kind} on ${verdict.order.branch}`)
+      pace.action = fresh !== null && paceDecision({ reading: fresh, now: env.now(), lastProbeAt: mem.lastProbeAt }).action === "admit" ? "admit" : "hold"
+      log(env, "pace", pace.action, "after the probe")
     }
+    held = pace.action !== "admit"
+    if (!held) chosen = verdict.order
+    decisions.set(ticket.number, held ? (pace.action === "probe" ? "would probe the pace, then admit if under the line" : "hold: over the weekly pace line") : `admit ${verdict.order.kind} on ${verdict.order.branch}`)
   }
   return { chosen, decisions }
+}
+
+/** The pace decision from the newest of the worker reading and the snapshot, with its one log line. */
+const decidePace = (env, mem) => {
+  const pace = paceDecision({ reading: newestReading(mem.reading, env.snapshot()), now: env.now(), lastProbeAt: mem.lastProbeAt })
+  log(env, "pace", pace.action, `utilization ${pace.utilization === null ? "unknown" : pace.utilization.toFixed(3)}, line ${pace.line === null ? "unknown" : pace.line.toFixed(3)}`)
+  return { ...pace }
 }
 
 const SENTRY_ORGANIZATION = "orbit-ai-habit-tracker"
@@ -707,7 +714,6 @@ const sentryIssues = async (env, token) => {
 
 /** Hourly: one `Bug` ticket for each Sentry issue and each alert that no ticket holds. */
 const intake = async (env, mem) => {
-  const known = (await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "all", "--limit", "5000", "--json", "body"])).toString()
   const candidates = []
   const sentryToken = await env.keychain("orbit-sentry-token")
   if (sentryToken === null) log(env, "intake", "skipped", "no orbit-sentry-token in the Keychain")
@@ -720,13 +726,16 @@ const intake = async (env, mem) => {
     for (const [kind, path, describeAlert] of [
       ["Dependabot", "dependabot", (alert) => `${alert.security_advisory?.summary ?? "alert"} (${alert.dependency?.package?.name ?? "dependency"})`],
       ["Code scanning", "code-scanning", (alert) => `${alert.rule?.description ?? "alert"} (${alert.most_recent_instance?.location?.path ?? "file"})`],
-      ["Secret scanning", "secret-scanning", (alert) => `${alert.secret_type_display_name ?? "secret"} alert`],
+      ["Secret scanning", "secret-scanning", (alert) => `${alert.secret_type_display_name ?? alert.secret_type ?? "secret"} alert`],
     ]) {
       let alerts = []
       try { alerts = JSON.parse(await env.gh(["api", `repos/${slug}/${path}/alerts?state=open&per_page=100`])) } catch (error) { log(env, "intake", "alerts-unread", `${kind} of ${slug}: ${error.message}`) }
       for (const alert of alerts) candidates.push({ url: alert.html_url, repoKey: key, title: `${kind}: ${describeAlert(alert)}`.slice(0, 120), body: `${describeAlert(alert)}\n\n${alert.html_url}` })
     }
   }
+  if (candidates.length === 0) return
+  // Open and closed tickets both hold a permalink, so a closed ticket keeps its issue from coming back.
+  const known = await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "all", "--limit", "5000", "--json", "body"])
   for (const candidate of candidates.filter((entry) => !known.includes(entry.url))) {
     log(env, "intake", "ticket", candidate.url)
     if (!env.dryRun) await env.github.createTicket({ title: candidate.title, body: candidate.body, labels: [`repo:${candidate.repoKey}`, "Bug"] })
@@ -734,20 +743,35 @@ const intake = async (env, mem) => {
 }
 
 /** One tick: rebuild the state, reap exits, act on pull requests, run the owner-work notices, admit, and take the hourly intake. */
+const readWorld = async (env, mem) => {
+  const tickets = await env.github.readTickets()
+  const states = []
+  for (const key of REPOSITORY_KEYS) states.push(await env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] }))
+  for (const state of states) mem.known[state.repositoryKey] = state.numbers
+  return { tickets, states }
+}
+
+const reapExits = async (env, mem, tickets, states) => {
+  for (const exit of mem.exits.splice(0)) await reapExit(env, mem, tickets, states, exit).catch((error) => log(env, `ticket#${exit.order.ticket.number}`, "error", error.message))
+}
+
+/** Reads the world once and reaps the exits of workers that ended since the last tick. */
+export const reapPending = async (env, mem) => {
+  const { tickets, states } = await readWorld(env, mem)
+  await reapExits(env, mem, tickets, states)
+}
+
 export const tick = async (env, mem) => {
   env.lines = []
   let tickets
   let states
   try {
-    tickets = await env.github.readTickets()
-    states = []
-    for (const key of REPOSITORY_KEYS) states.push(await env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] }))
+    ({ tickets, states } = await readWorld(env, mem))
   } catch (error) {
     log(env, "tick", "retry", error.message)
     return { retried: true }
   }
-  for (const state of states) mem.known[state.repositoryKey] = state.numbers
-  for (const exit of mem.exits.splice(0)) await reapExit(env, mem, tickets, states, exit).catch((error) => log(env, `ticket#${exit.order.ticket.number}`, "error", error.message))
+  await reapExits(env, mem, tickets, states)
   const orders = []
   for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets))
   await ownerWorkNotices(env, mem, tickets)
@@ -810,7 +834,7 @@ export const realEnvironment = ({ dryRun = false } = {}) => {
   return {
     config, dryRun, stateDir, home, github: githubApi, worker: workerApi, now: () => Date.now(), lines: [],
     log: (line) => console.log(line),
-    slugOf: (key) => (key === "tickets" ? config.tickets.repository : `thomasluizon/${{ ui: "orbit-ui-mobile", api: "orbit-api", landing: "orbit-landing-page" }[key]}`),
+    slugOf: (key) => (key === "tickets" ? config.tickets.repository : repositorySlug(config.repos[key])),
     git: (cwd, args) => runBounded("git", ["-C", cwd, ...args], { timeoutMs: 300 * 1000 }),
     gh: (args) => runText("gh", args, { maxBuffer: 64 * 1024 * 1024 }),
     notify: async (message) => { await runBounded("osascript", ["-e", `display notification ${JSON.stringify(message)} with title "Orbit driver"`], { timeoutMs: 15 * 1000 }) },
@@ -854,7 +878,7 @@ export const main = async (argv, { out = console.log, err = console.error } = {}
   do {
     try { await tick(env, mem) } catch (error) { log(env, "tick", "error", error.message) }
     if (parsed.mode === "dry-run") return 0
-    if (parsed.mode === "once") { await mem.running; await tick(env, mem).catch(() => {}); return 0 }
+    if (parsed.mode === "once") { await mem.running; await reapPending(env, mem).catch((error) => log(env, "tick", "error", error.message)); return 0 }
     if (!stopping) await env.sleep(TICK_MS, mem)
   } while (!stopping)
   return 0

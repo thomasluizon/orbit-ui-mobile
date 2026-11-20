@@ -7,6 +7,7 @@ import { createMemory, launchesOf, main, marked, missingTools, pathsOverlap, pac
 import { isUsageLimitMessage } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
+const READS = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8")).driverReads
 const NOW = Date.parse("2026-11-19T12:00:00Z")
 const RESETS_AT = Math.floor((NOW + 3.5 * 24 * 3600 * 1000) / 1000)
 const LINE = 0.475
@@ -204,7 +205,8 @@ const usageLimitCases = async () => {
   await merging.run()
   same("drive: merges continue during a pause", only(merging.calls, "merge").length, 1)
 
-  const logLine = "build\tRun\t2026-11-19T10:00:00.1234567Z You've hit your limit. Resets 4am (America/Sao_Paulo)"
+  const recordedPrefix = READS.failedRunLog.line.replace(/Z .*$/, "Z ")
+  const logLine = `${recordedPrefix}You've hit your limit. Resets 4am (America/Sao_Paulo)`
   same("drive: a failed Pullfrog log with a limit message reads as a limit with its reset", usageLimitIn(`${logLine}\nother`, isUsageLimitMessage)?.reset, "4am (America/Sao_Paulo)")
   same("drive: a failed log with a transient 429 is not a limit", usageLimitIn("x\t2026-11-19T10:00:00Z API Error: 429 rate limited, retry later", isUsageLimitMessage), null)
   const run = { databaseId: 77, displayTitle: "Respond to mention on #7 [abc]", status: "completed", conclusion: "failure", createdAt: iso(-10 * MINUTE), updatedAt: iso(-5 * MINUTE) }
@@ -419,7 +421,17 @@ const closeCases = async () => {
   same("drive: a merge opens one ticket for the Outside this change section", [only(outside.calls, "merge").length, created?.labels, created?.body.includes("src/x.mjs:4 loses data.")], [1, ["repo:ui", "Bug"], true])
 }
 
+const recordedFieldCases = () => {
+  const has = (keys, path) => keys.includes(path.split(".")[0])
+  T("drive: every field the driver reads from the merged pull request list was recorded", ["number", "body", "mergedAt", "headRefName"].every((key) => READS.mergedPulls.keys.includes(key)))
+  T("drive: the ticket body list read was recorded", READS.ticketBodies.keys.includes("body"))
+  T("drive: every field the driver reads from a Dependabot alert was recorded", ["html_url", READS.dependabotAlert.summaryPath, READS.dependabotAlert.packagePath].every((path) => has(READS.dependabotAlert.keys, path)))
+  T("drive: every field the driver reads from a code scanning alert was recorded", ["html_url", READS.codeScanningAlert.rulePath, READS.codeScanningAlert.pathPath].every((path) => has(READS.codeScanningAlert.keys, path)))
+  T("drive: the head sha read is 40 hexadecimal characters and one newline", /^40 lowercase hexadecimal characters, then one newline$/.test(READS.headRefOid.stdoutShape))
+}
+
 const intakeCases = async () => {
+  recordedFieldCases()
   const hourAgo = { lastIntakeAt: 0 }
   const issueList = JSON.stringify([{ body: "Known\n\nhttps://sentry.io/organizations/o/issues/1/" }])
   const scene = scenario({ tickets: [], routes: [["issue list", issueList], ["dependabot/alerts", JSON.stringify([{ html_url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/3", security_advisory: { summary: "Bad" }, dependency: { package: { name: "pkg" } } }])], ["code-scanning/alerts", JSON.stringify([{ html_url: "https://github.com/x/y/security/code-scanning/4", rule: { description: "Rule" }, most_recent_instance: { location: { path: "a.ts" } } }])], ["secret-scanning/alerts", JSON.stringify([{ html_url: "https://github.com/x/y/security/secret-scanning/5", secret_type_display_name: "Token", secret: "NEVER-COPY" }])]] })
