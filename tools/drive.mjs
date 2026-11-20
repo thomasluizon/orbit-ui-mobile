@@ -209,7 +209,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: null, exits: [], lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, account: null, probeOwed: false })
+export const createMemory = () => ({ running: null, exits: [], lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -651,8 +651,9 @@ const mergedFor = async (env, ticket) => {
 
 /**
  * The merged pull requests of a ticket, from a cache that a read renews each 10 minutes. The search API allows 30 reads a
- * minute, so a plain read spends at most 10 a tick and answers from an older read or an empty list after that. A fresh read
- * is for the ticket that admission is about to build.
+ * minute, so a plain read spends at most 10 a tick and answers from an older read or an empty list after that. Only the
+ * close pass takes a plain read, and it closes nothing before a fresh read confirms it. Admission takes a fresh read
+ * for the ticket it is about to build, and builds nothing from a history that this tick did not read.
  */
 const mergedHistory = async (env, mem, ticket, { fresh = false } = {}) => {
   const cached = mem.merged.get(ticket.number)
@@ -661,6 +662,7 @@ const mergedHistory = async (env, mem, ticket, { fresh = false } = {}) => {
   if (!fresh) mem.mergedReadsLeft -= 1
   const history = await mergedFor(env, ticket)
   mem.merged.set(ticket.number, { at: env.now(), history })
+  mem.mergedReadThisTick.add(ticket.number)
   return history
 }
 
@@ -680,11 +682,13 @@ const ticketVerdict = async (env, mem, states, ticket, { settled = false } = {})
   const state = states.find((entry) => entry.repositoryKey === ticket.repoKey)
   const tracking = state.pulls.filter((pull) => pull.tracks === ticket.number)
   const parts = partsOf(ticket)
-  const history = await mergedHistory(env, mem, ticket, { fresh: !settled })
+  if (parts.length === 0 && tracking.length > 0) return stop("an open pull request tracks it")
+  if (settled) return stop("queued behind the admitted or held order")
+  const history = await mergedHistory(env, mem, ticket, { fresh: true })
+  if (tracking.length === 0 && history.some((pull) => REMAINING_NONE.test(pull.body))) return stop("a merged pull request says Remaining: none")
   const doneBranches = new Set(history.map((pull) => pull.headRefName))
   const used = new Set([...doneBranches, ...state.pulls.map((pull) => pull.headRef)])
   if (parts.length === 0) {
-    if (tracking.length > 0) return stop("an open pull request tracks it")
     const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${history.map((pull) => /^Remaining:.*$/m.exec(pull.body)?.[0] ?? "").filter(Boolean).at(-1) ?? "Remaining: unknown"}`
     return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch: branchName(ticket, null, used), extra: remaining } }
   }
@@ -724,8 +728,10 @@ const closeFinishedTickets = async (env, mem, tickets, states) => {
   }).sort((left, right) => (mem.merged.get(left.number)?.at ?? 0) - (mem.merged.get(right.number)?.at ?? 0) || left.number - right.number)
   for (const ticket of closable) {
     try {
-      const merged = await mergedHistory(env, mem, ticket)
-      if (!merged.some((pull) => REMAINING_NONE.test(pull.body))) continue
+      const finishedIn = (history) => history.some((pull) => REMAINING_NONE.test(pull.body))
+      if (!finishedIn(await mergedHistory(env, mem, ticket))) continue
+      const merged = mem.mergedReadThisTick.has(ticket.number) ? mem.merged.get(ticket.number).history : await mergedHistory(env, mem, ticket, { fresh: true })
+      if (!finishedIn(merged)) continue
       await closeFinished(env, mem, ticket, merged)
       closed.add(ticket.number)
     } catch (error) {
@@ -850,6 +856,7 @@ export const tick = async (env, mem) => {
   for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets))
   await ownerWorkNotices(env, mem, tickets)
   mem.mergedReadsLeft = MERGED_READS_PER_TICK
+  mem.mergedReadThisTick.clear()
   const closed = await closeFinishedTickets(env, mem, tickets, states)
   const paused = pauseIssue(tickets)
   const holdReason = paused ? "the driver is paused" : account.ok ? null : account.reason

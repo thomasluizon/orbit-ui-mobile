@@ -615,6 +615,27 @@ const blockingClassCases = async () => {
   await cached.run()
   await cached.run()
   same("drive: a later tick reuses the merged pull request read of a ticket that waits", cached.calls.filter((entry) => entry[0] === "gh" && entry[1].includes('orbit-tickets#9"')).length, 1)
+
+  const lateBug = 50
+  const settledNumber = 20
+  const finished = (number, branch) => ({ number: 30, body: `Tracks ${REPOSITORY}#${number}\n\nRemaining: none`, mergedAt: iso(-60 * 1000), headRefName: branch })
+  const staleRoutes = [["--state merged", (args) => (args.join(" ").includes('#7"') ? JSON.stringify([finished(7, "chore/ticket-7")]) : "[]")]]
+  const stale = scenario({ tickets: [ticket(7)], routes: staleRoutes })
+  stale.mem.merged.set(7, { at: NOW - 5 * MINUTE, history: [] })
+  await stale.run()
+  same("drive: a merge that a cached history misses starts no build for a ticket that says Remaining: none", stale.launched.length, 0)
+  await stale.run()
+  same("drive: the next tick closes the ticket that the fresh read found finished", [only(stale.calls, "closeTicket"), stale.launched.length], [[["closeTicket", 7]], 0])
+
+  const crowd = Array.from({ length: 11 }, (_, index) => ticket(index + 1))
+  const spent = scenario({ tickets: [...crowd, ticket(lateBug, { labels: ["repo:ui", "Bug"] })], routes: [["--state merged", (args) => (args.join(" ").includes(`#${lateBug}"`) ? JSON.stringify([finished(lateBug, `fix/ticket-${lateBug}`)]) : "[]")]] })
+  await spent.run()
+  same("drive: a finished Bug ticket that the spent read budget could not see starts no order", spent.launched.some((entry) => entry.worktree.includes(`ticket-${lateBug}`)), false)
+
+  const twice = [comment("launch", JSON.stringify({ kind: "build", part: null, branch: `chore/ticket-${settledNumber}` }), -7200 * 1000), comment("launch", JSON.stringify({ kind: "build", part: null, branch: `chore/ticket-${settledNumber}` }), -3600 * 1000)]
+  const settled = scenario({ tickets: [...crowd.slice(0, 10), ticket(settledNumber, { comments: twice })], routes: [["--state merged", (args) => (args.join(" ").includes(`#${settledNumber}"`) ? JSON.stringify([{ ...finished(settledNumber, `chore/ticket-${settledNumber}`), body: `Tracks ${REPOSITORY}#${settledNumber}\n\nRemaining: the settings screen` }]) : "[]")]] })
+  await settled.run()
+  same("drive: a waiting ticket whose merged history was not read gets no cap check and no needs:owner", [only(settled.calls, "editLabels").length, commentsOf(settled.calls, settledNumber).length], [0, 0])
 }
 
 export const driverUnit = async () => {
