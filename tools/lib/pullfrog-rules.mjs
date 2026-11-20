@@ -26,7 +26,7 @@ const parsePullfrogReviewRules = (listing, slug) => {
 
 /** The command that lists the Pullfrog settings of `slug`. `PULLFROG_BIN` names the CLI itself, so a test names a stub. */
 export const pullfrogListCommand = (slug, environment = process.env, { platform = process.platform, resolveTarget = resolveSpawnTarget, fileExists = existsSync } = {}) => {
-  if (!SLUG.test(slug)) throw new Error(`cannot read the Pullfrog review rules: "${slug}" is not an owner/repository slug`)
+  if (!SLUG.test(slug)) throw new Error(`"${slug}" is not an owner/repository slug`)
   if (environment.PULLFROG_BIN) return { command: environment.PULLFROG_BIN, args: ["config", "list", "--repo", slug] }
   const [command, npx] = npxRunner({ platform, pathValue: environment.PATH ?? "", pathExt: environment.PATHEXT ?? "", resolveTarget, fileExists })
   return { command, args: [...npx, "-y", `pullfrog@${PULLFROG_CLI_VERSION}`, "config", "list", "--repo", slug] }
@@ -39,18 +39,19 @@ export const pullfrogListCommand = (slug, environment = process.env, { platform 
 const npxRunner = ({ platform, pathValue, pathExt, resolveTarget, fileExists }) => {
   if (platform !== "win32") return ["npx", []]
   const target = resolveTarget("npx", { platform, pathValue, pathExt })
-  if (target === null) throw new Error("cannot read the Pullfrog review rules: no npx on PATH")
+  if (target === null) throw new Error("no npx on PATH")
   if (![".cmd", ".bat"].includes(win32.extname(target).toLowerCase())) return [target, []]
   const cli = win32.join(win32.dirname(target), "node_modules", "npm", "bin", "npx-cli.js")
-  if (!fileExists(cli)) throw new Error(`cannot read the Pullfrog review rules: npx is the command shim ${target}, and ${cli} does not exist`)
+  if (!fileExists(cli)) throw new Error(`npx is the command shim ${target}, and ${cli} does not exist`)
   return [process.execPath, [cli]]
 }
 
 /** Reads the review rules of `slug`. Any failure throws an error that names the repository and the CLI version, so a compose stops with a named cause. */
-export const readPullfrogReviewRules = (slug, environment = process.env) => {
-  const { command, args } = pullfrogListCommand(slug, environment)
-  const result = spawnSync(command, args, { encoding: "utf8", timeout: 120_000, env: environment, windowsHide: true })
+export const readPullfrogReviewRules = (slug, environment = process.env, platformOptions = {}) => {
   const unreadable = (reason) => new Error(`cannot read the Pullfrog review rules of ${slug} with pullfrog@${PULLFROG_CLI_VERSION}: ${reason}`)
+  let listCommand
+  try { listCommand = pullfrogListCommand(slug, environment, platformOptions) } catch (error) { throw unreadable(error.message) }
+  const result = spawnSync(listCommand.command, listCommand.args, { encoding: "utf8", timeout: 120_000, env: environment, windowsHide: true })
   if (result.error) throw unreadable(result.error.message)
   if (result.status !== 0) throw unreadable(`exit ${result.status}: ${(result.stderr || result.stdout).trim().split("\n")[0]}`)
   try { return parsePullfrogReviewRules(result.stdout, slug) } catch (error) { throw unreadable(error.message) }

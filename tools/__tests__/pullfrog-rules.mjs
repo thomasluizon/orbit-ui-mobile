@@ -51,7 +51,7 @@ export const cases = () => {
 
   for (const slug of ["", "thomasluizon", "a/b/c", "owner/repo name", "owner/repo;rm"]) {
     const result = readThrough("", { slug })
-    T(`${UNIT}: the slug ${JSON.stringify(slug)} is refused before any process starts`, /is not an owner\/repository slug/.test(result.error ?? ""), JSON.stringify(result))
+    T(`${UNIT}: the slug ${JSON.stringify(slug)} is refused before any process starts, with the pinned version named`, /with pullfrog@\d+\.\d+\.\d+: "[^"]*" is not an owner\/repository slug$/.test(result.error ?? ""), JSON.stringify(result))
   }
 
   /** The command is judged by the arguments that spawn receives, never by error text: the error names the version constant, not the command. */
@@ -64,12 +64,14 @@ export const cases = () => {
   const windows = onWindows(() => true)
   same(`${UNIT}: on Windows the npx shim is never spawned: node runs the npx-cli.js that the shim runs, with the same arguments`, windows,
     { command: process.execPath, args: ["C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npx-cli.js", ...direct.args] })
-  let missing = null
-  try { onWindows(() => false) } catch (error) { missing = error.message }
-  T(`${UNIT}: on Windows a shim with no npx-cli.js beside it stops the read with the shim named`, /npx is the command shim C:\\Program Files\\nodejs\\npx\.cmd/.test(missing ?? ""), String(missing))
-  let absent = null
-  try { pullfrogListCommand(SLUG, {}, { platform: "win32", resolveTarget: () => null }) } catch (error) { absent = error.message }
-  T(`${UNIT}: on Windows no npx on PATH stops the read with a named cause`, /no npx on PATH/.test(absent ?? ""), String(absent))
+  same(`${UNIT}: on Windows an npx that is a program, not a shim, runs itself with the same arguments`,
+    pullfrogListCommand(SLUG, {}, { platform: "win32", resolveTarget: () => "C:\\Volta\\npx.exe", fileExists: () => true }), { command: "C:\\Volta\\npx.exe", args: direct.args })
+  const readError = (platformOptions) => { try { readPullfrogReviewRules(SLUG, {}, platformOptions); return null } catch (error) { return error.message } }
+  const named = /^cannot read the Pullfrog review rules of thomasluizon\/orbit-ui-mobile with pullfrog@\d+\.\d+\.\d+: /
+  const missing = readError({ platform: "win32", resolveTarget: () => shim, fileExists: () => false })
+  T(`${UNIT}: on Windows a shim with no npx-cli.js beside it stops the read with the repository, the version and the shim named`, named.test(missing ?? "") && /npx is the command shim C:\\Program Files\\nodejs\\npx\.cmd/.test(missing ?? ""), String(missing))
+  const absent = readError({ platform: "win32", resolveTarget: () => null })
+  T(`${UNIT}: on Windows no npx on PATH stops the read with the repository, the version and the cause named`, named.test(absent ?? "") && /no npx on PATH$/.test(absent ?? ""), String(absent))
   same(`${UNIT}: PULLFROG_BIN names the CLI itself and takes the listing arguments only`, pullfrogListCommand(SLUG, { PULLFROG_BIN: "/stub/pullfrog" }),
     { command: "/stub/pullfrog", args: ["config", "list", "--repo", SLUG] })
 }
