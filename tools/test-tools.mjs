@@ -62,6 +62,8 @@ const CASE_MODULES = [
   ["lib/pullfrog-rules.mjs", "pullfrog-rules"],
   ["lib/escape-regex.mjs", "escape-regex"],
   ["lib/github-read.mjs", "github-read"],
+  ["lib/config.mjs", "drive"],
+  ["lib/github.mjs", "drive"],
   ["select-artifact-attempts.mjs", "select-artifact-attempts"],
   ["lib/background-runs.mjs", "background-runs"],
   ["add-ticket-to-project.mjs", "add-ticket-to-project"],
@@ -253,7 +255,7 @@ if (parallelCount !== null) {
   process.exit(result.failed.length === 0 ? 0 : 1)
 }
 
-const validModules = [...CASE_MODULES, ...REPOSITORY_CASE_MODULES].map(([, module]) => module)
+const validModules = [...new Set([...CASE_MODULES, ...REPOSITORY_CASE_MODULES].map(([, module]) => module))]
 const unknownModules = [...new Set(requestedModules.filter((name) => !validModules.includes(name)))]
 if (unknownModules.length > 0) {
   console.error(`test-tools: unknown case module(s): ${unknownModules.join(", ")}`)
@@ -268,7 +270,8 @@ const selection = shard
   ? new Set(partitionModules({ modules: validModules, seconds: measuredSeconds, shardCount: shard.count })[shard.index - 1])
   : requestedSet.size > 0 ? requestedSet : null
 const isSelected = (module) => selection === null || selection.has(module)
-const selectedCaseModules = CASE_MODULES.filter(([, module]) => isSelected(module))
+// One test module can cover several files. It runs once, under the first file that names it.
+const selectedCaseModules = CASE_MODULES.filter(([, module], position) => isSelected(module) && CASE_MODULES.findIndex(([, other]) => other === module) === position)
 const selectedRepositoryModules = REPOSITORY_CASE_MODULES.filter(([, module]) => isSelected(module))
 
 if (listOnly) {
