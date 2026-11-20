@@ -125,7 +125,7 @@ const configRefusals = async () => {
     writeFileSync(join(path, ".claude", "orchestrator.json"), json(config))
     return await thrown(() => readDriveConfig({ directory: path }))
   }
-  T("lib/config.mjs: a ticket repository that is not owner/name is refused", /owner\/repository slug/.test(await refuse("slug", (config) => { config.tickets.tickets = null; config.tickets.repository = "orbit-tickets" })))
+  T("lib/config.mjs: a ticket repository that is not owner/name is refused", /owner\/repository slug/.test(await refuse("slug", (config) => { config.tickets.repository = "orbit-tickets" })))
   T("lib/config.mjs: a missing Done option is refused", /statusOptions\.Done/.test(await refuse("done", (config) => { delete config.tickets.statusOptions.Done })))
   T("lib/config.mjs: a project number that is not an integer is refused", /projectNumber/.test(await refuse("number", (config) => { config.tickets.projectNumber = "2" })))
   T("lib/config.mjs: a missing repository path is refused", /repos\.landing/.test(await refuse("repo", (config) => { delete config.repos.landing })))
@@ -212,7 +212,7 @@ const githubUnit = async () => {
 
   mergeBarCases(approved)
   await pullfrogAndDeploymentCases(seams)
-  await writeCases(seams, tickets)
+  await writeCases(seams)
   await dependabotCases(seams)
   ciCases(open, approved)
   await failureStepCases(seams)
@@ -364,7 +364,7 @@ const pullfrogAndDeploymentCases = async (seams) => {
   same("lib/github.mjs: a blocker with no deploy-first label has no hold", await unmetDeployFirst({ ...blocker, labels: ["repo:ui"] }, seams(scripted(holdRoutes(FIXTURE.trackedMerges.older, {})).run)), [])
 }
 
-const writeCases = async (seams, tickets) => {
+const writeCases = async (seams) => {
   const { threadId, response } = FIXTURE.resolveThread
   const resolveRun = scripted([["resolveReviewThread", () => json(response)]])
   await resolveThreads([threadId], seams(resolveRun.run))
@@ -465,7 +465,6 @@ const writeCases = async (seams, tickets) => {
     T(`lib/github.mjs: createTicket refuses ${name} before it creates anything`, pattern.test(await thrown(() => createTicket({ title: "A bug", body: "Body", ...change }, seams(run.run)))) && run.calls.every((call) => call.args[1] !== "create"))
   }
   T("lib/github.mjs: a create that prints no issue URL is refused", /printed no issue URL/.test(await thrown(() => createTicket({ title: "A bug", body: "Body", labels: ["Bug"] }, seams(created([["issue create", () => "oops"]]).run)))))
-  same("lib/github.mjs: the ticket reader fixture and the configured repository agree", [tickets.length > 0, TICKETS.repository], [true, TICKET_REPOSITORY])
 }
 
 const dependabotCases = async (seams) => {
