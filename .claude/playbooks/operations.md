@@ -83,7 +83,7 @@ Hermetic layout facts live in `TESTING.md` `### Hermetic layout harness facts`.
 - A secret that only a browser can create is stored by the owner in the macOS Keychain and read with `security find-generic-password -s <service> -w`, never printed. Services: `orbit-cloudflare-api-token`, `orbit-cloudflare-read-only-api-token`, `orbit-stripe-test-secret-key`.
 - Staging seeds fixed sign-in codes for `qa@useorbit.org` and `reviewer@useorbit.org` in `/orbit/staging/api/TEST_ACCOUNTS`; read them from SSM without printing them. Never request a production sign-in code for the owner's own account. CAPTCHAs and emailed codes are the owner's.
 - Never mention rotating a key or token that showed in a redacted log or a worker report.
-- Do not sign in to staging web through Google in Chrome, and do not sign in to a third-party dashboard through an OAuth grant. The one ordered Google grant is the `contact@useorbit.org` consent through `tools/authorize-orbit-mail.mjs`.
+- Do not sign in to staging web through Google in Chrome, and do not sign in to a third-party dashboard through an OAuth grant.
 - The classifier refused these calls once: reading a staging sign-in code from Gmail in Chrome, navigating Gmail web in Chrome, Ignore on a GitGuardian incident, Apple's Developer Agreement button and Google's API data policy checkbox. Do not retry them; name a blocked call in one line so the owner can allow it, and keep working.
 - Sentry organization `orbit-ai-habit-tracker`, region `https://us.sentry.io`, read through the Sentry MCP. The Azure CLI is signed in to the Orbit directory. For company facts read the brain note `2 Areas/10-19 Orbit Business/13 Legal & LTDA/Orbit legal entity.md`, then `CARTAO CNPJ.pdf` in Drive.
 

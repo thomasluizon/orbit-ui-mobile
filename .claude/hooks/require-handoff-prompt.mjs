@@ -14,14 +14,13 @@ try {
   const input = readStdinJson()
   const request = readHandoffRequest(input?.session_id ?? "")
   const run = readRunState()
-  const state = run?.sessionId === input?.session_id ? run : null
   let verdict = null
   if (input?.hook_event_name === "Stop" && request) {
     const head = newestCommittedPrompt(REPO_ROOT)
-    verdict = checkHandoffStop({ request, state, headPrompt: head.text, headPromptCommittedAt: head.committedAt, headSpecVersions: head.specVersions })
+    verdict = checkHandoffStop({ request, headPrompt: head.text, headPromptCommittedAt: head.committedAt, headSpecVersions: head.specVersions })
   } else if (typeof input?.tool_input?.command === "string") {
     const unattended = isUnattendedRun({ env: process.env, state: run, sessionId: input?.session_id ?? "" })
-    verdict = checkHandoffCommit({ command: input.tool_input.command, cwd: input?.cwd || process.cwd(), unattended, request, state, promptsForCommit, specsForCommit,
+    verdict = checkHandoffCommit({ command: input.tool_input.command, cwd: input?.cwd || process.cwd(), unattended, request, promptsForCommit, specsForCommit,
       // Mid-operation the refresh fails (merge, cherry-pick, a rebase's detached HEAD) or drops a revert's prepared message, and the staged docs came from that operation.
       refreshCheckout: (chain) => {
         const directory = topLevelOf(chain)

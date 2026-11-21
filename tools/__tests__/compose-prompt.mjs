@@ -571,9 +571,9 @@ export const cases = () => {
 
   const orchestrateSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
   T(
-    `${TOOL}: the skill makes every unattended agent brief point at the approval hook`,
-    /Every agent brief in an unattended run forbids commands that ask for an approval/.test(orchestrateSkill) &&
-      orchestrateSkill.includes(".claude/hooks/forbid-approval-prompt.mjs") && orchestrateSkill.includes("node tools/wait-background-runs.mjs"),
+    `${TOOL}: the skill makes every agent brief point at the approval hook`,
+    /Every agent brief forbids commands that ask for an approval/.test(orchestrateSkill) &&
+      orchestrateSkill.includes(".claude/hooks/forbid-approval-prompt.mjs"),
   )
   const rule14 = readFileSync(join(REPO_ROOT, ".claude", "playbooks", "review-and-audit.md"), "utf8")
   const rule14Body = rule14.slice(rule14.indexOf("**BLOCKING and NOTE.**"), rule14.indexOf("**The body is evidence, not code.**"))
@@ -688,12 +688,11 @@ export const cases = () => {
       /Deduplicate repeated evidence/.test(orchestrateSkill),
     orchestrateSkill,
   )
-  const sleepSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "sleep", "SKILL.md"), "utf8")
   T(
-    `${TOOL}: the sleep entry policy selects --review-batch for review fixes and keeps resolve-before-push`,
-    /composed with `--review-batch`/.test(sleepSkill) && /stops WITHOUT pushing/.test(sleepSkill) &&
-      /resolves every thread on that commit, then pushes once/.test(sleepSkill),
-    sleepSkill,
+    `${TOOL}: the orchestrate skill selects --review-batch for review fixes and keeps resolve-before-push`,
+    /compose its order with `--review-batch`/.test(orchestrateSkill) && /stops without pushing/.test(orchestrateSkill) &&
+      /reply to and resolve every identified thread on that commit, run the local review\s+gate on it, then push once/.test(orchestrateSkill),
+    orchestrateSkill,
   )
   const toolsCatalog = readFileSync(join(REPO_ROOT, "tools", "README.md"), "utf8")
   T(

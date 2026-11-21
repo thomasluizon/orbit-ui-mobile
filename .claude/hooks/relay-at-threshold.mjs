@@ -50,7 +50,7 @@ try {
       const begun = updateRunState((current) => verdictStillHolds(state, current) ? { ...current, relay: { pending: true, forced: verdict.forced, armedAt: current.relay?.armedAt,
         armedTokens: current.relay?.armedTokens, from: input.session_id, measuredTokens, permissionMode: input.permission_mode, transcriptPath: input.transcript_path, triggeredAt: now } } : undefined, undefined, caller)
       applied = begun !== undefined
-      if (applied) recordHandoffRequest(input.session_id, { command: "handoff", origin: "context-relay", sleep: true, crank: begun.crank === true, autoWork: begun.autoWork === true }, now)
+      if (applied) recordHandoffRequest(input.session_id, { command: "handoff", origin: "context-relay", sleep: true }, now)
     }
     if (verdict?.fallback) {
       applied = updateRunState((current) => verdictStillHolds(state, current)

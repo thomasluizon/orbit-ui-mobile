@@ -16,13 +16,13 @@ export const topLevelOf = (chain) => git(chain[0], [...chain.slice(1).flatMap((d
 
 const listed = (output) => output.split("\n").map((line) => line.trim()).includes(HANDOFF_PROMPT_PATH)
 
-/** The staged NEXT.md when it differs from HEAD, and the working copy when that differs too: each is a version a commit could record. */
+/** The staged NEXT.md when it differs from HEAD, and the working copy when that differs too: each is a version a commit could record. A deleted file has no version. */
 export const promptsForCommit = (chain) => {
   const top = topLevelOf(chain)
   const prompts = []
-  if (listed(git(top, ["diff", "--cached", "--name-only"]))) prompts.push(git(top, ["show", `:${HANDOFF_PROMPT_PATH}`]))
+  if (listed(git(top, ["diff", "--cached", "--name-only"])) && git(top, ["ls-files", "--cached", "--", HANDOFF_PROMPT_PATH]).trim() !== "") prompts.push(git(top, ["show", `:${HANDOFF_PROMPT_PATH}`]))
   const unstaged = listed(git(top, ["diff", "--name-only"])) || listed(git(top, ["ls-files", "--others", "--exclude-standard"]))
-  if (unstaged) prompts.push(readFileSync(join(top, HANDOFF_PROMPT_PATH), "utf8"))
+  if (unstaged && existsSync(join(top, HANDOFF_PROMPT_PATH))) prompts.push(readFileSync(join(top, HANDOFF_PROMPT_PATH), "utf8"))
   return prompts
 }
 
@@ -47,7 +47,8 @@ export const specsForCommit = (chain, path) => {
 /** The newest committed NEXT.md on any local or remote branch, so a handoff committed in another checkout is still judged. */
 export const newestCommittedPrompt = (repoRoot) => {
   const [sha, committedAt] = git(repoRoot, ["log", "-1", "--format=%H%n%cI", "--branches", "--remotes", "HEAD", "--", HANDOFF_PROMPT_PATH]).trim().split("\n")
-  if (!sha) return { text: null, committedAt: "", specVersions: () => [] }
+  // WHY: ls-tree reads the tree alone, so a deletion commit has no prompt while a missing blob still fails the later show.
+  if (!sha || git(repoRoot, ["ls-tree", "--name-only", sha, "--", HANDOFF_PROMPT_PATH]).trim() === "") return { text: null, committedAt: "", specVersions: () => [] }
   const specVersions = (path) => holds(repoRoot, `${sha}:${path}`) ? [git(repoRoot, ["show", `${sha}:${path}`])] : []
   return { text: git(repoRoot, ["show", `${sha}:${HANDOFF_PROMPT_PATH}`]), committedAt, specVersions }
 }

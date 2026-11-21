@@ -2,7 +2,7 @@
 // asked for is refused. The requested mode comes from the owner's prompt or the machine-origin
 // context relay request, so the model cannot talk its way past it.
 
-import { HANDOFF_PROMPT_PATH, handoffAutoWork, handoffCrank, validateHandoffPrompt } from "../../../tools/lib/handoff-prompt.mjs"
+import { HANDOFF_PROMPT_PATH, validateHandoffPrompt } from "../../../tools/lib/handoff-prompt.mjs"
 import { PLAIN_SUBSET_ADVICE } from "./shell-subset.mjs"
 import { gitCommandParts, gitDirectoryChain, readGitCommands } from "./rules-git.mjs"
 
@@ -51,10 +51,7 @@ const describe = (missing, mode) =>
   `Missing:\n${missing.map((item) => `- ${item}`).join("\n")}\n\n` +
   "Fix the prompt, then commit again. The requirements come from .claude/skills/handoff/SKILL.md.\n"
 
-const modeOf = (request, state) => {
-  const mode = request?.origin === "context-relay" ? "context-relay --sleep" : request?.sleep ? "--sleep" : request ? "attended" : "unrecorded"
-  return `${mode}${handoffAutoWork(request, state) ? " --auto-work" : ""}${handoffCrank(request, state) ? " --crank" : ""}`
-}
+const modeOf = (request) => (request?.origin === "context-relay" ? "context-relay --sleep" : request?.sleep ? "--sleep" : request ? "attended" : "unrecorded")
 
 /**
  * Every NEXT.md version each recording git command of the command could record must comply with the recorded request.
@@ -62,15 +59,14 @@ const modeOf = (request, state) => {
  * `specsForCommit` returns every version of a named spec the command could record. `refreshCheckout` runs only for the chain of a
  * `git commit`: it merges `origin/main`, which must never come before a merge, a pull, a rebase or a stash that the agent asked for.
  */
-export const checkHandoffCommit = ({ command, cwd, home, unattended = true, request, state, promptsForCommit, specsForCommit, refreshCheckout }) => {
+export const checkHandoffCommit = ({ command, cwd, home, unattended = true, request, promptsForCommit, specsForCommit, refreshCheckout }) => {
   const { chains: recorded, notModelled } = gitCommitChains(command, { cwd, home, unattended })
   if (notModelled) return { block: true, message: notModelledRefusal(String(command), notModelled) }
   const chains = [...new Map(recorded.map(({ chain }) => [JSON.stringify(chain), chain])).values()]
   for (const chain of chains) {
     for (const text of promptsForCommit(chain)) {
-      const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, crank: handoffCrank(request, state),
-        autoWork: handoffAutoWork(request, state), specVersions: specsForCommit && ((path) => specsForCommit(chain, path)) })
-      if (missing.length > 0) return { block: true, message: describe(missing, modeOf(request, state)) }
+      const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, specVersions: specsForCommit && ((path) => specsForCommit(chain, path)) })
+      if (missing.length > 0) return { block: true, message: describe(missing, modeOf(request)) }
     }
   }
   try {
@@ -82,10 +78,9 @@ export const checkHandoffCommit = ({ command, cwd, home, unattended = true, requ
 }
 
 /** After a recorded request, a NEXT.md committed since that request, and the spec it names in that commit, must comply before the session may stop. */
-export const checkHandoffStop = ({ request, state, headPrompt, headPromptCommittedAt, headSpecVersions }) => {
+export const checkHandoffStop = ({ request, headPrompt, headPromptCommittedAt, headSpecVersions }) => {
   if (!request || headPrompt === null) return null
   if (!(Date.parse(headPromptCommittedAt) >= Date.parse(request.recordedAt))) return null
-  const missing = validateHandoffPrompt(headPrompt, { sleep: request.sleep === true, crank: handoffCrank(request, state),
-    autoWork: handoffAutoWork(request, state), specVersions: headSpecVersions })
-  return missing.length === 0 ? null : { block: true, message: describe(missing, modeOf(request, state)) }
+  const missing = validateHandoffPrompt(headPrompt, { sleep: request.sleep === true, specVersions: headSpecVersions })
+  return missing.length === 0 ? null : { block: true, message: describe(missing, modeOf(request)) }
 }

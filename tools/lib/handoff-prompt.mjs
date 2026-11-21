@@ -1,10 +1,9 @@
 /** The handoff prompt contract, checked mechanically so a handoff cannot ignore the mode the owner asked for. */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { createHash } from "node:crypto"
 import { join } from "node:path"
 
-import { REPO_ROOT, gitDirectoryOf, readRunState, updateRunState } from "./run-state.mjs"
+import { REPO_ROOT, gitDirectoryOf } from "./run-state.mjs"
 
 export const HANDOFF_PROMPT_PATH = ".claude/handoffs/NEXT.md"
 // A relay re-reads the prompt and its spec in full, so both carry a byte ceiling (thomasluizon/orbit-tickets#2064).
@@ -15,7 +14,6 @@ const REQUEST_FILE = "orbit-handoff-request.json"
 const KEPT_REQUESTS = 20
 
 const SLEEP_TOKEN = /(?:^|[\s(])(?:--sleep|\/sleep)(?=$|[\s),;!?])/
-const CRANK_TOKEN = /(?:^|[\s(])(?:--crank|\/crank)(?=$|[\s),;!?])/
 // The hook documentation gives the typed text; the transcript stores the expanded command tags. Accept both.
 const HANDOFF_COMMAND = /<command-name>\/(handoff|wrap-up)<\/command-name>|^[\t ]*\/(handoff|wrap-up)(?=$|[\s),;!?])/gm
 const TAGGED_ARGS = /<command-args>([\s\S]*?)<\/command-args>/
@@ -68,8 +66,7 @@ export const parseHandoffRequest = (prompt) => {
   const command = first[1] ?? first[2]
   const trailing = text.slice(first.index + first[0].length, next?.index ?? text.length)
   const args = first[1] ? (TAGGED_ARGS.exec(trailing)?.[1] ?? "") : trailing.split(/\r?\n|\s+\/(?:handoff|wrap-up)\b/)[0]
-  const crank = CRANK_TOKEN.test(args)
-  return { command, sleep: crank || SLEEP_TOKEN.test(args), crank }
+  return { command, sleep: SLEEP_TOKEN.test(args) }
 }
 
 const headingLine = (lines, prefix) => lines.findIndex((line) => line.startsWith(prefix))
@@ -120,85 +117,11 @@ const promptOpening = (lines) => {
 /** The spec paths named before the prompt's first `##` heading. */
 export const openingSpecPaths = (text) => [...new Set(promptOpening(String(text ?? "").split("\n")).match(SPEC_PATH) ?? [])]
 
-const WORK_REFERENCE = /(?:\b[\w-]+)?#\d+\b/g
-const NAMED_FIRST = /(?:\b[\w-]+)?#\d+\b(?:\s*\([^)]*\))?(?:\s+[\w-]+){0,3}?\s+(?:FIRST\b|first\b(?=\s*(?:$|[,:)!\]]|then\b|and\b)))/
-// `landing` is a repository key and a page name here, so it never counts as an order.
-const MERGE_ORDER = /\b(?:merge|merges|merging|land|lands|ship|ships|hold|holds)\b/i
-const AHEAD_WORD = /\b(?:before|ahead of)\b/i
-// The disposition word settles an order only as its label: behind a colon or an opening parenthesis after the order, or before the colon that opens the clause.
-const SETTLED_ORDER = /[:(]\s*(?:superseded|done)\b/i
-// A clause that opens with the label (`Superseded: "ui#2486 FIRST"`) settles the order it quotes.
-const SETTLED_LABEL = /^[\s>*+-]*(?:superseded|done)\s*:/i
-// A start order says which item starts first when the worker pool is short. It names the cap and holds no ready work.
-const START_ORDER = /\bunder the (?:[\w.-]+\s+){0,2}caps?\b/i
-
-// An item that merges after another one, or once another one has merged, waits for it as `before` does.
-const AFTER_WORD = /\b(?:after|once|then)\b/i
-
-// Deploy-API-first is a standing rule, not an ordering preference: an API item that merges before a user interface or landing item is stated, never refused.
-const repositoryOf = (reference) => reference[0].slice(0, reference[0].indexOf("#"))
-const isDeployApiFirst = (earlier, later) => repositoryOf(earlier) === "api" && ["ui", "landing"].includes(repositoryOf(later))
-
-// A bare ticket inside parentheses, such as `(#2171)` or `(ticket #2171)`, annotates the item before it and is no item of an order.
-const itemsOf = (clause) => [...clause.matchAll(WORK_REFERENCE)].filter((reference) => {
-  const before = clause.slice(0, reference.index)
-  return repositoryOf(reference) !== "" || before.split("(").length <= before.split(")").length
-})
-
-// `X FIRST` names a hold unless X is an API item and the next item in the clause is a user interface or landing item.
-const namedFirstOf = (clause) => {
-  const named = NAMED_FIRST.exec(clause)
-  if (!named) return null
-  const namedReference = new RegExp(WORK_REFERENCE.source).exec(named[0])
-  const next = itemsOf(clause).find((reference) => reference.index >= named.index + named[0].length)
-  return next && isDeployApiFirst(namedReference, next) ? null : named
-}
-
-/**
- * One item merges before or ahead of the next one, or after or once the previous one, or an order before it holds it until the next one.
- */
-const ordersPair = (clause, first, next) => {
-  const leading = clause.slice(0, first.index)
-  const between = clause.slice(first.index + first[0].length, next.index)
-  const ahead = AHEAD_WORD.exec(between)
-  if (ahead) return (MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(0, ahead.index))) && !isDeployApiFirst(first, next)
-  const after = AFTER_WORD.exec(between)
-  if (after) {
-    // `Wait for Y to merge, then merge X` merges the first reference earlier; `Merge X after Y` and `X once Y merged` merge the next one earlier.
-    const [earlier, later] = after[0].toLowerCase() === "then" ? [first, next] : [next, first]
-    return (MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(after.index))) && !isDeployApiFirst(earlier, later)
-  }
-  return /\buntil\b/i.test(between) && MERGE_ORDER.test(leading) && !isDeployApiFirst(next, first)
-}
-
-/**
- * Each clause that orders one item of work ahead of another: `X FIRST`, a merge of one item before or
- * ahead of another or after or once another, or a hold of one item until another. An order that its own clause labels as
- * superseded or done orders nothing: the word counts only after the order, not anywhere on the line.
- * A start order under the cap with no merge word holds no ready work, and a past merge is a fact.
- */
-const orderingHolds = (text) => {
-  const holds = []
-  for (const line of String(text ?? "").split("\n")) {
-    for (const clause of line.split(/[.;](?:\s|$)/)) {
-      const named = namedFirstOf(clause)
-      const references = itemsOf(clause)
-      const second = references.slice(1).find((next, index) => ordersPair(clause, references[index], next))
-      if (!named && !second) continue
-      const orderEnd = named ? named.index + named[0].length : second.index + second[0].length
-      if (SETTLED_LABEL.test(clause) || SETTLED_ORDER.test(clause.slice(orderEnd))) continue
-      if (named && START_ORDER.test(clause.slice(0, named.index)) && !MERGE_ORDER.test(clause)) continue
-      holds.push((named ? clause.slice(0, orderEnd) : clause).replace(/^[\s>*+-]+/, "").trim())
-    }
-  }
-  return holds
-}
-
 /**
  * Every requirement the prompt misses; `sleep` true or false adds that mode's rules, undefined checks only the shared ones.
  * `specVersions(path)` returns each version of a named spec that the caller would publish; omitted, no spec size is read.
  */
-export const validateHandoffPrompt = (text, { sleep, crank, autoWork, specVersions }) => {
+export const validateHandoffPrompt = (text, { sleep, specVersions }) => {
   const lines = String(text ?? "").split("\n")
   const firstNonEmptyLine = lines.find((line) => line.trim() !== "")?.trim() ?? ""
   const missing = []
@@ -211,21 +134,11 @@ export const validateHandoffPrompt = (text, { sleep, crank, autoWork, specVersio
     if (oversize) missing.push(oversize)
     missing.push(...new Set(versions.flatMap((version) => relayDocumentLocalReferences(path, version))))
   }
-  if (sleep === true || crank === true || autoWork === true) {
-    const entry = autoWork === true ? "/auto-work" : "/sleep"
-    if (lines[0].replace(/\r$/, "") !== entry) missing.push(`the first line must be exactly \`${entry}\`, so the prompt runs with nothing added`)
+  if (sleep === true) {
+    if (lines[0].replace(/\r$/, "") !== "/sleep") missing.push("the first line must be exactly `/sleep`, so the prompt runs with nothing added")
     if (headingLine(lines, "## Sleep") < 0) missing.push("a `## Sleep` section")
   } else if (sleep === false && firstNonEmptyLine.startsWith("/")) {
     missing.push("an attended prompt must not start with a slash command")
-  }
-  if (crank === true) {
-    const body = sectionBody(lines, "## Crank")
-    if (body === null || !/(?:^|[\s`(])\/crank(?=$|[\s`),;.!?])/.test(body)) {
-      missing.push("a `## Crank` section whose body invokes `/crank` immediately after `/sleep` entry")
-    }
-    for (const hold of orderingHolds(text)) {
-      missing.push(`no ordering hold under crank: remove \`${hold.slice(0, 160)}\`. A pull request at the merge bar merges when \`run-status.mjs\` reports \`MERGE_NOW\`; a real dependency is a ticket relation or a stacked base, never a prompt order. A start order for a short worker pool names the cap (\`Queue order under the cap: #A first, then #B\`), and a finished order keeps \`: done\` or \`: superseded\` after it`)
-    }
   }
   if (openingSpecPaths(text).length === 0) missing.push("the spec path `.claude/specs/<slug>.md` before the first `##` heading")
   const goal = sectionBody(lines, "## Goal")
@@ -251,13 +164,6 @@ const readRequests = (repoRoot) => {
   }
 }
 
-/** New requests enable the matching run when recorded; later run writes supersede that intent. */
-export const handoffCrank = (request, state) =>
-  typeof state?.crank === "boolean" ? state.crank : request?.crank === true
-
-export const handoffAutoWork = (request, state) =>
-  typeof state?.autoWork === "boolean" ? state.autoWork : request?.autoWork === true
-
 /** Records a handoff request from the owner's prompt or the machine's context relay hook and tool. */
 export const recordHandoffRequest = (sessionId, request, recordedAt, repoRoot = REPO_ROOT) => {
   if (!sessionId || !request) return
@@ -268,7 +174,6 @@ export const recordHandoffRequest = (sessionId, request, recordedAt, repoRoot = 
     .slice(0, KEPT_REQUESTS)
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   writeFileSync(requestPath(repoRoot), `${JSON.stringify(Object.fromEntries(kept), null, 2)}\n`)
-  if (request.crank === true) updateRunState((state) => state?.sessionId === sessionId ? { ...state, crank: true } : undefined, repoRoot, { sessionId })
 }
 
 export const readHandoffRequest = (sessionId, repoRoot = REPO_ROOT) => (sessionId ? readRequests(repoRoot)[sessionId] ?? null : null)
@@ -276,38 +181,3 @@ export const readHandoffRequest = (sessionId, repoRoot = REPO_ROOT) => (sessionI
 /** The working copy of each spec a checkout would publish; a spec the checkout lacks has no version to measure. */
 export const checkoutSpecVersions = (repoRoot) => (path) =>
   existsSync(join(repoRoot, path)) ? [readFileSync(join(repoRoot, path), "utf8")] : []
-
-const promptHash = (prompt) => createHash("sha256").update(prompt).digest("hex")
-
-/** An owner handoff binds intake to this predecessor and the exact prompt being handed over. */
-export const prepareOwnerHandoffRun = (sessionId, repoRoot = REPO_ROOT) => {
-  let ownerHandoff
-  const written = updateRunState((state) => {
-    if (state?.sessionId !== sessionId || state.autoWork !== true || readHandoffRequest(sessionId, repoRoot)?.origin !== "owner") return undefined
-    const prompt = readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8")
-    const missing = validateHandoffPrompt(prompt, { sleep: true, autoWork: true, crank: state.crank, specVersions: checkoutSpecVersions(repoRoot) })
-    if (missing.length) throw new Error(`Owner handoff prompt misses: ${missing.join("; ")}`)
-    ownerHandoff = { from: sessionId, promptHash: promptHash(prompt) }
-    return { ...state, ownerHandoff }
-  }, repoRoot, { sessionId })
-  if (written === undefined) return false
-  if (JSON.stringify(written.ownerHandoff) !== JSON.stringify(ownerHandoff)) throw new Error("Owner intake handoff write was not confirmed")
-  return true
-}
-
-/** The actual incoming prompt, rather than a file read in its place, authorizes owner succession. */
-export const adoptOwnerHandoffRun = (sessionId, prompt, repoRoot = REPO_ROOT) => {
-  let previous
-  const inherited = updateRunState((current) => {
-    previous = current
-    const record = previous?.ownerHandoff
-    if (!sessionId || sessionId === previous?.sessionId || previous?.autoWork !== true || record?.from !== previous?.sessionId ||
-        typeof prompt !== "string" || record.promptHash !== promptHash(prompt) || readHandoffRequest(record.from, repoRoot)?.origin !== "owner") return undefined
-    if (record.promptHash !== promptHash(readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8"))) return undefined
-    return { ...previous, sessionId, sleep: true, relay: { from: previous.sessionId, pending: false },
-      ownerHandoff: { ...record, successorSessionId: sessionId } }
-  }, repoRoot, { sessionId })
-  if (inherited === undefined) return false
-  if (inherited.sessionId !== sessionId || JSON.stringify(inherited.intake) !== JSON.stringify(previous.intake)) throw new Error("Owner intake adoption was not confirmed")
-  return true
-}

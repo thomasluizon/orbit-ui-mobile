@@ -12,7 +12,6 @@ import { dirname, join } from "node:path"
 import { readOrchestratorConfig } from "./orchestrator-config.mjs"
 import { gitDirectoryOf, REPO_ROOT } from "./run-state.mjs"
 
-export const INTAKE_FILE = "run-state/intake.json"
 const COMMAND_TIMEOUT_MS = 30_000
 const MAX_BUFFER = 128 * 1024 * 1024
 const WRITE_ATTEMPTS = 5
@@ -40,7 +39,7 @@ export const splitIncluded = (stdout) => {
   return { status, body: end === null ? "" : stdout.slice(end.index + end[0].length) }
 }
 
-/** The contents API of the tickets repository through `gh api`, synchronous so every intake caller stays a plain call. */
+/** The contents API of the tickets repository through `gh api`, synchronous so every caller stays a plain call. */
 export const githubRunFiles = ({ repository = readOrchestratorConfig().tickets.repository, gh = process.env.GH_BIN || "gh", environment = process.env } = {}) => {
   const api = (args, input) => {
     const result = spawnSync(gh, ["api", "--include", ...args], { encoding: "utf8", env: environment, input, timeout: COMMAND_TIMEOUT_MS, maxBuffer: MAX_BUFFER })
