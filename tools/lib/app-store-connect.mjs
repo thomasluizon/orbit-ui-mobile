@@ -1,4 +1,4 @@
-import { createSign } from "node:crypto"
+import { sign } from "node:crypto"
 import { setTimeout as delay } from "node:timers/promises"
 
 const API_ORIGIN = "https://api.appstoreconnect.apple.com"
@@ -9,7 +9,7 @@ export const appStoreToken = ({ keyId, issuerId, privateKey }) => {
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url")
   const issuedAt = Math.floor(Date.now() / 1000)
   const unsigned = `${encode({ alg: "ES256", kid: keyId, typ: "JWT" })}.${encode({ iss: issuerId, iat: issuedAt, exp: issuedAt + 600, aud: "appstoreconnect-v1" })}`
-  const signature = createSign("SHA256").update(unsigned).sign({ key: privateKey, dsaEncoding: "ieee-p1363" }, "base64url")
+  const signature = sign("SHA256", Buffer.from(unsigned), { key: privateKey, dsaEncoding: "ieee-p1363" }).toString("base64url")
   return `${unsigned}.${signature}`
 }
 
