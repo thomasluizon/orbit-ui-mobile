@@ -57,3 +57,13 @@ supporting claim; "for people with ADHD" is not the default headline.
 `BRAND.md` defines the audience, positioning, and principles that a design must satisfy. `DESIGN.md`
 defines the mechanical UI guideline that implements them. Visual and interaction specifications
 belong in `DESIGN.md`, not here.
+
+## Standing owner rules
+
+- Orbit pt-BR copy reads as written by a Brazilian, never a word-for-word translation of the English string.
+- The Orbit mascot carries the brand's tone with motion on every surface (app and landing page). A static icon swap is not enough.
+- The Orbit logo is the same mark in every place it appears, in and out of the repositories.
+- Orbit has no ads and never will. Orbit Pro is the only way it earns money, so any ad code is dead code to delete.
+- In career or public copy about Orbit, describe what it is now. Never claim past infrastructure migrations. Orbit is not launched yet.
+- Claude writes and approves all product copy itself: against this file, then `/humanizer`, then `/second-opinion`. Never ask the owner to approve copy.
+- Orbit keeps its Instagram and X accounts on contact@useorbit.org for news and launch only. The focus is the founder accounts.

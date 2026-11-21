@@ -1,52 +1,54 @@
 # Orbit
 
-Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android, iPhone and iPad), `apps/desktop` (Tauri webview shell), `packages/shared`. Siblings `orbit-api`, `orbit-landing-page` and each workspace carry their own `CLAUDE.md`; this root holds cross-cutting rules. **`.claude/docs-registry.md` lists every other doc and when to read it.**
+Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android, iPhone and iPad), `apps/desktop` (Tauri webview shell), `packages/shared`. Each workspace has its own `CLAUDE.md`. The sibling repositories are `orbit-api` and `orbit-landing-page`.
 
-## Maximum implementation (overrides global rule 4, "surgical changes")
+## Work
 
-Fix anything broken, stale, or wrong that you find in the same PR; never call it "out of scope" or "pre-existing." Exception: `/audit-*` reports against its rubric and does not fix mid-pass. A review round fixes only BLOCKING findings and files the rest. Do everything yourself (MCP servers, CLIs, APIs); involve me only when no other way exists.
+- Tickets live in `thomasluizon/orbit-tickets`. Exactly one label (`repo:ui`, `repo:api` or `repo:landing`) routes each ticket. Cross-repository work uses an API ticket that blocks a UI ticket.
+- One ticket is one repository. It ships as one or more independently mergeable PRs of one behavior. Each PR body says `Tracks thomasluizon/orbit-tickets#<N>`, never `Closes`. The last PR says `Remaining: none`.
+- The delivery driver (`tools/drive.mjs`, `/orchestrate`) launches a headless worker for every code change and merges at the bar. The owner session writes no code for a ticket. Nobody uses an admin merge.
+- Fix the ticket and everything the change breaks. A blocking-class bug outside the change goes to a ticket.
+- Never remove features. A change never drops a production capability (a view, tab, action, setting or shortcut) unless the owner removed it explicitly. A missing feature is a defect to restore with production's behavior.
+- Models: the owner session and the Pullfrog reviewer run Opus 5.5. Every worker runs `claude-sonnet-5-5` at effort high. Only the owner's words in chat change a model or an effort. A usage limit never does.
+- The Pullfrog prompt lives in its console. It changes only by an owner decision.
+- Copy every identifier you pass to a tool (PR number, SHA, run id, node id) from this run's output, never from memory.
+- A URL slug, an anchor id, a primary nav label, or a form field's `name` or order changes only with the owner's approval.
+- Rules, skills and specs state only the current instruction: no incident history, no dated story, no attributed quote, no session id, no home path, no other account or employer.
+- When something is wrong, fix the instance and its cause, then report. A new guard (hook, gate or lint rule) enters only with evidence: the owner's words or a measured failure. Never ask when the answer is obvious.
+- In a cleanup, assume each file is stale. It stays only with a written reason to exist.
+- After a verified migration, delete the old project and cancel the old subscription. Never do it before the migration is verified.
+- Every PR targets `main` in orbit-ui-mobile and orbit-api. Never ask which branch.
+- The owner is the only active user. "No device runs build X" means the owner has not updated the phone yet.
+- Before public launch, a production outage is not urgent. Keep the board order.
 
-## The workflow (D1-D9)
+## Parity
 
-Tickets live in the private `thomasluizon/orbit-tickets` repository (D1); exactly one `repo:ui`, `repo:api`, or `repo:landing` label routes each one. The ticket is the prompt (D2). One ticket = one repo = one coherent, independently mergeable PR (D4); file and line estimates are planning signals only. Cross-repo work uses an API ticket blocking a UI ticket. `/orchestrate <ticket-reference>` takes exactly one `ORB-N` or `#N` ticket (D5).
+Every change lands in `apps/web` and `apps/mobile` in the same PR: logic, features, behavior and error handling, reverts included. Allowed differences: platform adapters (BFF or direct API, cookie or SecureStore, shadcn or StyleSheet, Radix or rn-primitives, next-intl or i18next) and the layout-shell divergence that `DESIGN.md` lists. Add i18n keys to `en.json` and `pt-BR.json` in the same edit. For an allowed one-sided change, label the PR `parity:exempt` and add a `## Parity` line that names the adapter or the divergence.
 
-## Cross-platform parity (MANDATORY)
+## Code
 
-Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic, features, behavior and error handling identical, reverts included. Allowed differences: platform adapters (BFF vs direct API, cookie vs SecureStore, shadcn vs React Native StyleSheet, Radix Primitives vs rn-primitives with one API shape, next-intl vs i18next) and the layout-shell divergence `DESIGN.md` enumerates (navigation chrome, command palette and keyboard shortcuts, hover on that chrome). Everything below the shell stays parity-bound. i18n keys land in `en.json` AND `pt-BR.json` in the same edit. `PR Metadata` fails a one-sided UI change; the escape hatch is `parity:exempt` with a one-line PR-body justification naming the adapter or divergence.
+1. Fix the root cause. Add no defensive branch for a problem that an upstream owner has. An unavoidable one gets a one-line WHY comment.
+2. Put cross-app code in `packages/shared` and cross-component code in `apps/<platform>/components/`. Extract on the third real use.
+3. Confirm a field, flag, exit code or response shape of an external interface against the real response or the installed source, never memory or `--help`. Write no fixture that agrees with a guess.
 
-## Code standards
+## Security and contracts
 
-ESLint `local/*`, `guards.yml` and Roslyn `ORBIT0001..0005` enforce the mechanical rules; trust the gates. Judgement rules:
+The web cookie is httpOnly, sameSite strict and secure. Mobile tokens live in SecureStore, never AsyncStorage. Contract types live in `packages/shared/src/types/*` (Zod). DTO changes are append-only and deploy the API first. Never rename, remove or retype a field that an old mobile client reads. A breaking change uses expand-contract and the `AppConfig.MinSupportedVersion` gate, which rises only when the carrying build is live in the Play fleet. Keep the locale out of auth and deep-link URLs. Gate both listing and revoking API keys behind the emailed code.
 
-1. **Root cause over workarounds.** No defensive branch for a problem owned upstream; an unavoidable one gets a one-line WHY comment linking the issue.
-2. **Delete unused code immediately.** No "just in case" exports, dead branches or stubs.
-3. **No premature abstraction.** Extract on the third real use.
-4. **Function size.** Soft cap ~50 lines and ~3 nesting levels, hard cap ~100.
-5. **Error handling at boundaries only.** Validate user input and external APIs, trust your types inside, never swallow an error.
-6. **Naming.** Descriptive, no abbreviations, never `data`/`info`/`temp`/`obj`/`helper`/`util` as a final name.
-7. **DRY at the right level.** Cross-app code goes to `packages/shared`, cross-component to `apps/<platform>/components/`, never for one caller.
-8. **Never assume an external interface.** Confirm a field, flag, exit code or response shape from a CLI, API or library you did not write against the real response or the installed source, never memory or `--help`. Never write the fixture that agrees with a guess; cannot confirm it, do not read it. Nothing writes inside `node_modules`.
-9. **Simplest implementation** that fully meets the current requirements.
-10. **Grow the system in layers.** Start from the smallest version that works end to end, and never trade a working product for unfinished complexity.
-11. **Use the dependencies already here**, then an established library, before you write your own.
+## Brand and design
 
-## Security & contracts
+"Orbit" is never translated. The `DESIGN.md` sections `Information architecture` and `Bans` outrank every drawing in `design/canvas/`, and a drawing outranks the `DESIGN.md` prose. No decorative glow and no gradient wash. `--primary` is fill and graphic only. `--primary-soft` is accent text.
 
-Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureStore, never AsyncStorage. Contract types live in `packages/shared/src/types/*` (Zod); never invent a field the API does not return. Shared/DTO changes are **append-only and deploy-API-first**: add optional fields, never rename, remove or retype a field old mobile clients still read. Breaking changes use expand-contract plus the `AppConfig.MinSupportedVersion` gate, raised only once the carrying build is live in the Play fleet (#210).
+## Git and tests
 
-## Brand & design
+- Branch prefixes: `feature/`, `fix/`, `chore/`. `main` is protected. Squash only. Never use `--no-verify` or `--no-gpg-sign`. Never reuse a squash-merged branch.
+- An API change that the UI needs gets a paired, cross-linked `orbit-api` PR in the same task.
+- Tests are Vitest. Locally run only focused tests (`vitest related`). CI runs every full suite. After a change to `tools/`, run `node tools/test-tools.mjs --only <module>`.
 
-"Orbit" is never translated. Read `BRAND.md` before brand, copy, positioning or design-direction work. Read `DESIGN.md` before any frontend work, and the `design/canvas/` drawing for your surface (the granted export). Precedence is the `DESIGN.md` D42 ladder: `## Information architecture` and `## Bans` outrank every drawing, and a drawing outranks `DESIGN.md` prose. **No decorative glow and no gradient wash.** `--primary` is fill/graphic only, `--primary-soft` accent text.
+## Docs
 
-## Git workflow
-
-- Backend support: a paired, cross-linked `orbit-api` PR in the same task.
-- Branches `feature/`|`fix/`|`chore/`; `main` is protected; squash-merge only; never `--no-verify`/`--no-gpg-sign`; never reuse a squash-merged branch.
-- **Admin merge is forbidden.** Only the delivery driver merges, at the merge bar. When a merge needs more, STOP and ask the owner. Never use `PUT /repos/{owner}/{repo}/pulls/{number}/merge` or GraphQL `mergePullRequest`.
-- Pullfrog, not the writer session, reviews every PR in GitHub Actions. Its `pullfrog-approval` check is required on `main` in both code repositories; no PR changes its instructions. Fix the code when it is red.
-
-## Tooling
-
-- Tools follow `tools/CONVENTIONS.md`, cataloged in `tools/README.md`. After you change `tools/**` or `.claude/**`, RUN `node tools/test-tools.mjs --only <module>` per changed tool and per module that reads a changed file (`grep -rl <file name> tools/__tests__`).
-- Testing: Vitest unit and behavior tests for every feature, no new E2E against prod. Locally run only focused tests (`vitest related`); CI runs every full suite. `TESTING.md` is the catalog.
-- **Research reports do not live in this repo**: they go stale silently, then get cited as authority. Durable knowledge is an ADR in the brain vault.
+- `BRAND.md` before copy, brand or positioning work.
+- `DESIGN.md` before frontend work.
+- `TESTING.md` for the test catalog.
+- `FEATURES.md` for the feature inventory.
+- `.claude/skills/release/reference.md` for release facts.
