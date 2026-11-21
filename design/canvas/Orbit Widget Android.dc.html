@@ -46,27 +46,19 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">case&nbsp;&nbsp;</span>the widget is the last unredesigned surface, the most used surface of the only paying subscriber, and ugly enough that he stopped using it. That is the whole case, and it is enough.</p>
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>the Android home screen widget at the sizes a launcher actually offers, plus the preview the configuration picker shows. The launcher owns the surface behind it, so the backdrop here is a neutral stand in rather than a wallpaper, and the widget is drawn opaque because it cannot know what is under it.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>rows, streak zero, tomorrow, empty, first load, refreshing, refresh failed, signed out, picker. Every per row treatment is in the rows state at once: completed, overdue, pending, a bad habit, a children done over total badge, a checklist badge, a child indent, and the truncation where the tree goes deeper than the widget can show. NO plan axis: the widget is not gated and shows the same thing on either plan, so the absent switch is a decision.</p>
-      <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>the header is two lines, not one. Under the day label sits the subtitle OrbitWidgetProvider.kt:102-107 writes: the completed count, the word for of, the total and the word for completed, computed at OrbitWidgetService.kt:376-387, and it is the ONLY progress figure on the surface. It stays EMPTY until the widget has synced at least once (:104), which is the first load state here. The day label is not always today: with dayOffset 1 and habits in the payload the header says Amanhã or Tomorrow (OrbitWidgetService.kt:368-372, the strings at :126 and :135), drawn as its own state where nothing is done or overdue yet. The figure counts the way :378-386 counts: a top level habit with children contributes its children’s total and done, a leaf contributes one, and a BAD HABIT contributes nothing, because a slip is not a completion (:377). Against this fixture that is 3 of 7, with the sweets row on the surface and outside both numbers.</p>
-      <p><span style="color:var(--fg-3)">no tokens&nbsp;&nbsp;</span>three facts, in order. RemoteViews cannot read a CSS custom property, so the widget cannot consume tokens directly. It still FOLLOWS Orbit’s tokens: the app syncs the resolved token colours into the widget’s shared preferences and the widget reads them back per active scheme and mode (OrbitWidgetService.kt:148-153 with OrbitWidgetModule.COLOR_KEY_PREFIX), so the literals in this document are the flattened results that sync produces, each naming the token it came from. The hardcoded fallback map in the code is only the first paint before any sync (OrbitWidgetService.kt:104-120), and the token generator keeps that map aligned with the current palette.</p>
-      <p><span style="color:var(--fg-3)">map&nbsp;&nbsp;</span>dark: #09090B is --bg, #131315 is --bg-card flattened, #1D1D1F is --bg-well flattened, #2B2B2D is --hairline-ghost flattened over the card, #F4F4F6 is --fg-1, #C9C9CC is --fg-2, #8F8F93 is --fg-3, #5D5D60 is --fg-4, #8B8B8E is --track-empty and --status-empty, #C4530F is --primary, #ED773E is --primary-text, #FE9A00 is --status-overdue. Light: #FAFAFA is --bg, #FFFFFF is --bg-card, #F1F1F2 is --bg-well flattened, #E6E6E8 is --hairline flattened, #1A1A1D is --fg-1, #424247 is --fg-2, #68686D is --fg-3, #89898D is --fg-4, #7E7E82 is --track-empty and --status-empty, #C4530F is --primary unchanged, #A63A00 is --primary-text, #7D5700 is light --status-overdue.</p>
-      <p><span style="color:var(--fg-3)">no fonts&nbsp;&nbsp;</span>a widget cannot load Geist or Space Grotesk, so it renders in the platform font. That is stated rather than faked here: the widget blocks use the system stack, which is why the numerals are not the display face and why nothing in the widget is tracked negative.</p>
-      <p><span style="color:var(--fg-3)">no icon font&nbsp;&nbsp;</span>Tabler is a webfont and RemoteViews cannot use it, so each status mark is a shape a vector drawable can hold: a filled disc with a check, a triangle, and an open ring. They match the app's glyph meanings without depending on its font.</p>
-      <p><span style="color:var(--fg-3)">strings&nbsp;&nbsp;</span>the widget’s strings live in an Android resource file rather than the shared translation files, so this surface is outside the copy pass and the copy had to be right here. The empty line is ONE string, shown whenever the list is empty (OrbitWidgetProvider.kt:113 and :129): Tudo feito! and All clear! (OrbitWidgetService.kt:130 and :139), drawn verbatim, whether nothing was scheduled or everything is done. Two changes the implementation owes on that string, recorded rather than drawn: the two cases deserve two lines, because all clear after a full day and all clear on a day with nothing scheduled are different facts, and the exclamation mark breaks the voice rule that no success carries one. The signed out words are the app’s own: Abra o Orbit para entrar and Open Orbit to sign in (OrbitWidgetProvider.kt:94-99), in the header’s subtitle and the body line both, with the streak hidden. Both locales are written out in full, and the Portuguese is the longer one, which is what sets the truncation on the narrow sizes.</p>
-      <p><span style="color:var(--fg-3)">sizes&nbsp;&nbsp;</span>four, at the dp a launcher grid actually gives: 4 by 1, 4 by 2, 4 by 3 and 2 by 2. The row count is derived from the geometry rather than set per size: the header takes 48, each row takes 48, and where habits do not fit, one row gives up its place so the remainder can be stated. The 2 by 2 drops the times, since a 160dp column cannot hold a name and a time on one line in Portuguese. Only 4 by 1 cannot state a remainder at all, because a header and one row consume its whole height, and that is a size limit rather than a choice. The row's own vocabulary never changes between sizes, so a person moving the widget does not learn a second layout.</p>
-      <p><span style="color:var(--fg-3)">overdue&nbsp;&nbsp;</span>the widget computes overdue with its own rule, capped at a maximum range, and it is not the rule the app list uses. This document draws what the widget produces: the 18:00 walk is overdue, and the habit whose time passed beyond the cap renders as pending here while the app list would call it overdue. The two are not reconciled, and the unification is ticket #343 on the api: GetHabitWidgetQuery.cs:151-176 keeps a private overdue rule capped at AppConstants.MaxRangeDays, while the habit list delegates to HabitScheduleService.IsOverdueOnDate through HabitScheduleFilters.cs:99-100, whose own comment says the point of delegating is that the schedule query and the daily summary share one definition of overdue. This drawing stays correct after #343 lands, because only the fixture's beyond the cap row changes.</p>
-      <p><span style="color:var(--fg-3)">streak&nbsp;&nbsp;</span>the streak hides at zero rather than rendering a nought, because a nought is the one number on this surface that would only ever discourage. The header keeps its other content and the space closes up.</p>
-      <p><span style="color:var(--fg-3)">picker&nbsp;&nbsp;</span>the configuration preview matches the shipped widget rather than an idealised one: the same header, the same three rows at 4 by 2, the same marks, and a day that includes an overdue row, because a preview that shows only completed rows sells something the widget does not deliver. It is static, since the picker cannot render live data.</p>
-      <p><span style="color:var(--fg-3)">touch&nbsp;&nbsp;</span>Android’s minimum is 48dp, not 44, so every tappable region here is 48 tall. The WHOLE CARD opens the app, not only a row: OrbitWidgetProvider.kt:150-155 wires the root, the header container, the header label, the empty view and the loading view to the same intent, :148 gives the list its row template, and only the refresh is its own target (:149). The signed out card is one tap target with no control on it, because the widget cannot sign anyone in and a button that says Entrar would be a control that cannot do what it says; tapping anywhere opens the app (:154). There is no ripple, because RemoteViews does not give one.</p>
-      <p><span style="color:var(--fg-3)">refresh&nbsp;&nbsp;</span>the refresh can fail, and the widget has nowhere to put an error, which is the honest answer rather than an omission: OrbitWidgetService.kt:340-348 catches a failed reload, hides the spinner and puts the control back, with a whole timeout worker behind it (OrbitWidgetRefreshTimeoutWorker.kt; apps/mobile/lib/widget-refresh-timeout.ts). The refresh failed state draws exactly that: the spinner gone, the control returned, and the rows that were already there staying, indistinguishable from rows because that is what a person sees.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one use only: the streak figure, which is progress toward something unfinished. Completion is neutral, so a done row is the fg-1 disc exactly as in the app. The signed out state carries NO accent and no control at all, because its one action is the whole card.</p>
-      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>flattening the surfaces changes nothing measurably: fg-1 on #131315 is 16.893:1 dark and #1A1A1D on #FFFFFF is 17.364:1 light. The primary text pair measures 5.858:1 dark and 5.766:1 light on the widget well, its worst widget surface. The empty track measures 5.46:1 on the dark card and 4.95:1 on its well, then 4.043:1 on the light card and 3.582:1 on its well. Dark #FE9A00 carries overdue with a triangle beside it. Light #7D5700 measures 5.750:1 on the widget well and is the same pair the app uses.</p>
-      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock: the streak, every time, the header figure’s count and total, the children badge, the checklist badge, the overflow count and the truncation count.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 no literal appears without the token it came from. 2 the picker preview and the shipped 4 by 2 are the same drawing. 3 the streak never renders a zero. 4 the bad habit never counts toward the header figure, and no control promises what the widget cannot do.</p>
-      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>1 nothing in the design system can be reused on this surface, by construction, so every part here is composed and none of it should be pulled back into the system. 2 the flattened surface literals need a generator or they will drift the first time an alpha changes. 3 the row is 48 rather than the app's 68, so the widget's density is its own; that is a launcher constraint rather than a choice.</p>
-      <p><span style="color:var(--fg-3)">decided&nbsp;&nbsp;</span>1 tapping a row opens the app (Thomas, 2026-08-20), which is also what ships: a widget has no undo and no toast, so a pocket tap would write a log the person could not take back without opening the app anyway. The 48dp minimum and the refresh control are unchanged. 2 the widget does not follow the launcher's dynamic colour on Android 12 and later, and Orbit's literals stay. The accent and the mark are two of the very few identity carriers this surface has, DESIGN.md makes them load bearing, and handing the widget's colour to the launcher gives that identity away on the one screen a person sees without opening anything.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>The Android home screen widget at the sizes a launcher offers, plus the preview that the configuration picker shows. The launcher owns the surface behind the widget, so the backdrop here is a neutral stand in. The widget is drawn opaque, because it cannot know what is under it. There is no plan axis: the widget is not gated.</p>
+      <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>The header has two lines. Under the day label sits the subtitle, the only progress figure on the surface. The subtitle stays empty until the first sync. A bad habit is not counted in the figure, because a slip is not a completion.</p>
+      <p><span style="color:var(--fg-3)">no tokens&nbsp;&nbsp;</span>RemoteViews cannot read a CSS custom property, so each literal in this drawing is a flattened token and names the token it came from. The widget keeps the literals of Orbit and ignores the dynamic colour of the launcher. The accent and the mark are two of the few identity carriers that this surface has.</p>
+      <p><span style="color:var(--fg-3)">no fonts&nbsp;&nbsp;</span>A widget cannot load Geist or Space Grotesk, so it renders in the platform font. The numerals are not the display face, and nothing is tracked negative.</p>
+      <p><span style="color:var(--fg-3)">no icon font&nbsp;&nbsp;</span>RemoteViews cannot use the Tabler webfont, so each status mark is a shape that a vector drawable can hold: a filled disc with a check, a triangle and an open ring.</p>
+      <p><span style="color:var(--fg-3)">strings&nbsp;&nbsp;</span>The empty line is ONE string, shown whenever the list is empty, whether nothing was scheduled or everything is done. The signed out words are Open Orbit to sign in, in the subtitle and in the body line, with the streak hidden. Both locales are written out in full. Portuguese is the longer one and sets the truncation on the narrow sizes.</p>
+      <p><span style="color:var(--fg-3)">sizes&nbsp;&nbsp;</span>There are four sizes: 4 by 1, 4 by 2, 4 by 3 and 2 by 2. The row count comes from the geometry: the header takes 48, each row takes 48, and the remainder line takes 24. Where habits do not fit, one row gives up its place so that the line can state the remainder. The 2 by 2 drops the times. The row vocabulary never changes between sizes.</p>
+      <p><span style="color:var(--fg-3)">overdue&nbsp;&nbsp;</span>The widget computes overdue with its own rule, capped at a maximum range. This drawing shows what the widget produces. A habit whose time passed beyond the cap renders as pending here.</p>
+      <p><span style="color:var(--fg-3)">streak&nbsp;&nbsp;</span>The streak hides at zero, because a nought would only discourage. The header keeps its other content and the space closes up.</p>
+      <p><span style="color:var(--fg-3)">picker&nbsp;&nbsp;</span>The configuration preview is the shipped 4 by 2 drawing: the same header, the same three rows, the same marks and a day that includes an overdue row. It is static, because the picker cannot render live data.</p>
+      <p><span style="color:var(--fg-3)">touch&nbsp;&nbsp;</span>Every tappable region is 48 tall, the Android minimum. Tapping anywhere on the card opens the app, and the widget never logs, because a widget has no undo and no toast. Only the refresh is its own target. The signed out card is one tap target with no control, because the widget cannot sign anyone in.</p>
+      <p><span style="color:var(--fg-3)">refresh&nbsp;&nbsp;</span>The refresh can fail, and the widget has nowhere to put an error. The failed state shows the spinner gone, the control back and the old rows staying.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>The streak figure is the only accent, because it is progress toward something unfinished. Completion is neutral: a done row is the fg-1 disc, as in the app. The signed out state has NO accent and no control.</p>
     </div>
   </sc-if>
 
@@ -75,7 +67,6 @@ a:hover{color:var(--fg-1)}
 <script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
 const H = React.createElement;
 const F = React.Fragment;
-const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 
 /* RemoteViews cannot read a CSS custom property, so every value here is a literal and every literal
    names the token it came from. Alpha-over-surface tokens are flattened, because a widget has no
@@ -134,7 +125,7 @@ const T = {
       { id: 'dishes', name: 'Louça', time: null, mark: 'pending', child: true },
       { id: 'night', name: 'Rotina da noite', time: '22:00', mark: 'pending', checklist: '1/3' },
       { id: 'stretch', name: 'Alongamento', time: '21:00', mark: 'pending' },
-      /* A bad habit (HabitItem.isBadHabit): drawn, and never counted in the header figure. */
+      /* A bad habit: drawn, and never counted in the header figure. */
       { id: 'sweets', name: 'Doce depois do jantar', time: null, mark: 'pending', bad: true },
     ],
     overflow: (n) => ['mais ', n],
@@ -214,7 +205,7 @@ class Component extends DCLogic {
   }
 
   badge(text, c) {
-    return H('span', { 'data-mock': 'true', style: { flex: '0 0 auto', paddingInline: 6, height: 18,
+    return H('span', { style: { flex: '0 0 auto', paddingInline: 6, height: 18,
       lineHeight: '18px', borderRadius: 6, background: c.well, color: c.fg2, fontFamily: SYS,
       fontSize: 12, letterSpacing: '0.02em' } }, text);
   }
@@ -235,9 +226,9 @@ class Component extends DCLogic {
             textOverflow: 'ellipsis' } }, r.name),
           r.children ? this.badge(r.children, c) : null,
           r.checklist ? this.badge(t.checklistWord + ' ' + r.checklist, c) : null),
-        (showTime && r.time) ? H('span', { 'data-mock': 'true', style: { fontFamily: SYS, fontSize: 12,
+        (showTime && r.time) ? H('span', { style: { fontFamily: SYS, fontSize: 12,
           lineHeight: 1.35, color: r.mark === 'overdue' ? c.overdue : c.fg3 } }, r.time) : null),
-      r.deeper ? H('span', { 'data-mock': 'true', style: { flex: '0 0 auto', fontFamily: SYS,
+      r.deeper ? H('span', { style: { flex: '0 0 auto', fontFamily: SYS,
         fontSize: 12, color: c.fg4 } }, t.deeper(r.deeper)) : null);
   }
 
@@ -250,16 +241,12 @@ class Component extends DCLogic {
         H('span', { style: { fontFamily: SYS, fontSize: 13, fontWeight: 600,
           letterSpacing: '0.04em', textTransform: 'uppercase', color: c.fg3, whiteSpace: 'nowrap',
           overflow: 'hidden', textOverflow: 'ellipsis' } }, o.title || t.today),
-        /* The subtitle (OrbitWidgetProvider.kt:102-107): the only progress figure on the surface,
-           EMPTY until the widget has synced at least once (:104). */
-        /* Amended 2026-09-09: drawn in fg-4, shipped in fg-3. fg-4 measures 2.83 dark and 3.48
-           light as 11sp text, both under the 4.5 floor, so the step down from the day label is
-           carried by size and weight instead of by a second neutral. */
+        /* The subtitle: the only progress figure on the surface, empty until the first sync. It uses fg-3, not fg-4: fg-4 as 11sp text is under the 4.5 contrast floor. */
         o.sub ? H('span', { style: { fontFamily: SYS, fontSize: 12, lineHeight: 1.3, color: c.fg3,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, o.sub) : null),
       /* The streak hides at zero rather than rendering a nought. */
       o.streak ? H('span', { style: { flex: '0 0 auto', display: 'flex', alignItems: 'baseline', gap: 3 } },
-        H('span', { 'data-mock': 'true', style: { fontFamily: SYS, fontSize: 15, fontWeight: 600,
+        H('span', { style: { fontFamily: SYS, fontSize: 15, fontWeight: 600,
           color: c.primaryText } }, o.streak),
         size.w > 200 ? H('span', { style: { fontFamily: SYS, fontSize: 12, color: c.fg3 } },
           t.streakUnit) : null) : null,
@@ -286,7 +273,7 @@ class Component extends DCLogic {
     /* The row count comes from the widget's real geometry, not a guess per size: the header is 48, a
        row is 48, and the remainder line needs 24, so it always has room to be stated. */
     const tomorrow = st === 'tomorrow';
-    /* Tomorrow's list (dayOffset 1, OrbitWidgetService.kt:368-372): nothing is done or overdue yet. */
+    /* Tomorrow's list: nothing is done or overdue yet. */
     const rows = tomorrow ? t.rows.map((r) => Object.assign({}, r, { mark: 'pending' })) : t.rows;
     const avail = size.h - 48;
     const fit = Math.max(1, Math.floor(avail / 48));
@@ -294,15 +281,11 @@ class Component extends DCLogic {
     const count = canStateRest ? Math.max(1, fit - 1) : Math.min(fit, rows.length);
     const visible = rows.slice(0, count);
     const rest = rows.length - count;
-    /* The header figure (OrbitWidgetService.kt:376-387): a parent contributes its children's total
-       and done, a leaf contributes one, and a bad habit contributes NOTHING, because a slip is not
-       a completion (:377). Against this fixture: 3 done of 7, and the sweets row is outside both. */
-    const subNode = H(F, null, mock(tomorrow ? '0' : '3'), t.ofWord, mock('7'), t.doneWord);
+    /* The header figure: a parent contributes its children's total and done, a leaf contributes one, and a bad habit contributes NOTHING. Against this fixture: 3 done of 7. */
+    const subNode = H(F, null, tomorrow ? '0' : '3', t.ofWord, '7', t.doneWord);
 
     if (st === 'signed out') {
-      /* No control: the widget cannot sign anyone in. OrbitWidgetProvider.kt:94-99 sets the header
-         to Orbit and both lines to the open-Orbit words, hides the streak, and tapping anywhere
-         opens the app (:154). */
+      /* No control: the widget cannot sign anyone in. The header says Orbit, both lines say the open Orbit words, the streak hides, and tapping anywhere opens the app. */
       return this.shell(size, H('div', { role: 'button', 'aria-label': t.signedOutLine,
         style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', cursor: 'pointer' } },
         this.header(t, c, size, { title: 'Orbit', sub: t.signedOutLine }),
@@ -313,7 +296,7 @@ class Component extends DCLogic {
 
     if (st === 'first load') {
       return this.shell(size, H(F, null,
-        /* Before the first sync the subtitle is empty (OrbitWidgetProvider.kt:104). */
+        /* Before the first sync the subtitle is empty. */
         this.header(t, c, size, {}),
         H('div', { 'aria-busy': 'true', 'aria-label': t.loading,
           style: { flex: 1, display: 'flex', flexDirection: 'column' } },
@@ -327,11 +310,10 @@ class Component extends DCLogic {
     }
 
     if (st === 'empty') {
-      /* ONE string whether nothing was scheduled or everything is done (OrbitWidgetProvider.kt:113
-         and :129; the string at OrbitWidgetService.kt:130 and :139). */
+      /* ONE string whether nothing was scheduled or everything is done. */
       return this.shell(size, H(F, null,
         this.header(t, c, size, { streak: '12',
-          sub: H(F, null, mock('7'), t.ofWord, mock('7'), t.doneWord) }),
+          sub: H(F, null, '7', t.ofWord, '7', t.doneWord) }),
         H('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
           gap: 4, padding: '8px 12px' } },
           H('p', { style: { fontFamily: SYS, fontSize: 15, lineHeight: 1.35, color: c.fg1 } },
@@ -342,13 +324,13 @@ class Component extends DCLogic {
     return this.shell(size, H(F, null,
       this.header(t, c, size, { streak: streak, refreshing: st === 'refreshing',
         title: tomorrow ? t.tomorrowW : undefined, sub: subNode }),
-      /* refresh failed (OrbitWidgetService.kt:340-348): the spinner leaves, the control returns, and
+      /* refresh failed: the spinner leaves, the control returns, and
          the rows that were already there stay. The widget has nowhere to put an error, so the state
          renders exactly like rows, which is the honest drawing. */
       H('div', { style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
         opacity: st === 'refreshing' ? 0.6 : 1 } },
         visible.map((r) => this.row(r, t, c, size.times)),
-        (rest > 0 && canStateRest) ? H('p', { 'data-mock': 'true',
+        (rest > 0 && canStateRest) ? H('p', {
           style: { fontFamily: SYS, fontSize: 12, height: 24, lineHeight: '24px', flex: '0 0 auto',
             color: c.fg4, paddingInline: 12 } },
           t.overflow(String(rest))) : null)), c);
@@ -389,7 +371,7 @@ class Component extends DCLogic {
           H('p', { translate: 'no', style: { fontSize: 'var(--fs-md)', fontWeight: 500 } }, t.pickerTitle),
           H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.5, color: 'var(--fg-3)',
             textWrap: 'pretty' } }, t.pickerSub)),
-        H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
+        H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
           color: 'var(--fg-4)', flex: '0 0 auto' } }, t.pickerSize)),
       H(D.Button, { size: 'sm', variant: wide ? 'secondary' : 'primary', onClick: () => {},
         style: { width: '100%' } }, t.pickerAdd));

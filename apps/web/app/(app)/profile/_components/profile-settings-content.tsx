@@ -97,7 +97,7 @@ export function ProfileSettingsContent({ profile, isLoading }: Readonly<ProfileS
       />]
     }),
     more: buildMoreRows(context, () => setShowWidgetInfo(true)),
-    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 428 controls this label under D42. */
+    /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil signOut controls this label under D42. */
     ending: <ListRow textMode="label" compact icon={<LogOut size={24} strokeWidth={1.8} />} title={t('profile.settingsRows.signOut')} chevron={false} onClick={() => void logout()} />,
   }
   return <>

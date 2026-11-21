@@ -22,12 +22,10 @@ a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
 
 .native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
-.native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .native-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
-.native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
+.native-control:hover:not(:disabled):not(.native-tab){background:var(--bg-hover)}
 .native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-.native-send:hover:not(:disabled){background:var(--primary-hover)}
-.native-send:active:not(:disabled){background:var(--primary-pressed)}
 .native-tab:hover .native-tab-indicator{background:var(--bg-hover)}
 </style>
 <script src="./native-mobile.js"></script>
@@ -68,25 +66,16 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Perfil exists to change one setting and get out. The top level contains the account row opening Conta, then Preferências, Astra and Notificações. Each opens one sub-screen with a title and visible back control. Mais do Orbit stays inline with Wrapped, Android widget, calendar sync, support and about, in the existing order; sign out stays last. The position under the account row remains available for Orbit Pro. No avatar, bio or stats.</p>
-      <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>In the compact shell, Hoje has one fixed round Astra button stacked directly above the create habit button (#2077); wide web reaches Astra from its sidebar Astra row. Habit detail keeps its own composer and chips. Hoje suggestions and composer disclosure live inside the conversation. This surface has no composer dock or chips; its last content clears the tab bar at compact widths or the column bottom on wide web. An open Astra conversation stays full screen when destinations change: it covers the compact shell and replaces the wide destination column while the sidebar stays visible.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>default, email never asked, email on, email off, allowance spent, exporting, step up, step up done, keys none, fresh start, delete, loading. A plan axis sits beside the state, free or Pro, defaulting to free: a plan is an account fact that survives a state change, so free and pro came OFF the state axis in the same edit that added it. Reached by using the screen rather than the axis: the rename sheet from the account row, the revoke confirmation from a key's own action, the scoped create from its button, and the export's preparing beat from the row itself.</p>
-      <p><span style="color:var(--fg-3)">account and preferences&nbsp;&nbsp;</span>the account row keeps the display name and email and opens Conta: edit name with the existing sheet, export with its preparing state and shell done toast, usage analytics, fresh start, then danger-labelled account deletion with confirmation and step-up. Preferências owns timezone, week start, clock, language, the two-way dark/light theme choice and the general-habits switch with its description. Every setting has one home.</p>
-      <p><span style="color:var(--fg-3)">astra&nbsp;&nbsp;</span>the daily allowance with its remainder, a bar over the day's count, 5 on free against 50 on Pro (D70 item 1). It never states when the allowance returns, because no endpoint returns that moment. Free carries see Pro, which leaves for Orbit Pro; Pro carries no upgrade action, since there is nothing above it, and gets the billing hand off instead, which leaves for Orbit Assinatura: billing is NOT a step up, because the Stripe customer portal authenticates the person itself. Then the two things Astra does unasked, each labelled for its on state.</p>
-      <p><span style="color:var(--fg-3)">keys&nbsp;&nbsp;</span>the section matches advanced/page.tsx:81-110. The heading carries the Pro badge on both sides. A free account sees the section's description and a lock row that ROUTES to the upgrade and nothing else, so the step up is only ever reached on Pro. A Pro account reaches the step up first (keys and account deletion are the only two step up operations; StepUp structurally cannot hold a credential field), and after it the list: each key a row with its name, its mono prefix and a REVOKE through ListRow's real per-row action with its own confirmation, then create and scoped create, and the MCP connection line under them. The exact scope vocabulary and the MCP snippet are the app's own, so the scoped create takes the scope as text and the MCP line names where the key goes without inventing an endpoint.</p>
-      <p><span style="color:var(--fg-3)">notifications&nbsp;&nbsp;</span>one per user field, the product email consent, nullable (profile.ts:71), so never asked is a real third state and renders as a question with two answers rather than a toggle resting in a default nobody chose. Everything else is a per device push registration capped at 5, so the group states the count against the cap and names the device in hand. Each habit's reminders live on the habit, and the group says so instead of drawing a global toggle with nothing to write to.</p>
-      <p><span style="color:var(--fg-3)">more&nbsp;&nbsp;</span>the top level keeps PROFILE_NAV_ITEMS in order: Orbit Wrapped, Android widget, calendar sync, support and about. The widget opens its existing help sheet. Calendar sync keeps its Pro badge and upgrade redirect on free accounts and opens Calendário on Pro. Support and about keep their existing routes.</p>
-      <p><span style="color:var(--fg-3)">ending&nbsp;&nbsp;</span>sign out is the last top-level row and leaves for Entrar. Fresh start belongs in Conta above deletion with its existing confirmation. Account deletion stays last in Conta, keeps its danger label and confirmation, and routes to step-up; API key step-up returns to Astra, while cancelled deletion returns to Conta.</p>
-      <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>free is the default because it is the account most people have and the harder case to get right. Three gates draw from both sides: the allowance panel, the keys section and the calendar sync row. Every gated tap leaves for Orbit Pro through one route; a gated affordance is never a disabled row and never a silent no-op. The state axis jumped to a key state on a free account shows the lock row, because that is all a free account can reach.</p>
-      <p><span style="color:var(--fg-3)">toggles&nbsp;&nbsp;</span>a switch is labelled for its on state, so the label reads as what happens when it is on and never as a negation. Nothing here has to be mentally inverted.</p>
-      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. Group gap 32 against in-group 12 separates navigation, Mais do Orbit and sign out. Rows keep 16 of inline padding and a 44 minimum.</p>
-      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>12 on wells, 20 on the groups and the allowance panel, 28 on the shell and the sheet, 8 on badges, 999 on everything interactive, the theme pills included.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: current position on the Perfil tab, on a switch that is on and on the selected theme pill; unfinished progress on the allowance bar, which turns neutral when the day's count is spent. Exactly one filled action at a time: the consent answer while the question is unanswered, the confirmation once one is open; the key actions stay neutral, and StepUp owns its one accent action by its own rule. Wide: the sidebar create is the one filled action, so everything else steps down.</p>
-      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. status-bad carries the delete label and the revoke action's icon, each paired with position and a word, never colour alone. The mono values sit at fg-3, which clears every resting surface and now clears the hovered one too at 4.57:1, since the .13 amendment closed that limit.</p>
-      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: the allowance count and ceiling, the device count and cap, the key prefixes, the address, and the setting values in the you group.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 nothing here is a setting the product cannot write, and every claim traces to a field or a file. 2 the destructive actions are named, separated and confirmed, and no ordinary row can delete anything. 3 no credential is collected outside a hand off, and no gated tap dies silently.</p>
-      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: this time it already carried ListRow's action and CanvasControls' plans axis, so nothing was re-synced, the second consecutive check that needed none. Still composed around the system: 1 SettingsGroup owns a card surface of its own, so the groups are RowLists with ListRow rows, and the value-plus-control rows (theme, the switches, the devices) are composed padded rows inside them. 2 there is no three state consent control, so never asked is composed from a well and two buttons. 3 there is no two-value choice control for a setting: SegmentedControl is scoped to views of the same content, so the theme choice is two composed pills. 4 the scoped create sheet is composed from Input plus a Sheet, since no key form exists. Closed since last time: the per key revoke rides ListRow's action instead of a hand composed row, and the export toast rides the shells' notice slot.</p>
-      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the device list should allow revoking one registration, which the cap implies but no endpoint exposes. Whether the allowance row should lead to the conversation, since the count is only spendable there. The scope vocabulary for a scoped key and the exact MCP snippet are the app's, so both are taken as text here rather than invented.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Perfil exists to change one setting and get out. The top level holds the account row, the Orbit Pro position, then Preferências, Orbit and Notificações. Each opens one sub-screen with a title and a visible back control. Mais do Orbit stays inline, and sign out stays last. There is no avatar, bio or stats.</p>
+      <p><span style="color:var(--fg-3)">account and preferences&nbsp;&nbsp;</span>The account row opens Conta: edit name, export, usage analytics, fresh start, then account deletion with a danger label, confirmation and step up. Preferências holds time zone, week start, clock, language, theme and the general habits switch. Every setting has one home.</p>
+      <p><span style="color:var(--fg-3)">astra&nbsp;&nbsp;</span>The allowance panel shows the remainder and a bar over the count of the day: 5 on free, 50 on Pro. It never states when the allowance returns, because no endpoint returns that moment. Free sees Pro, which leaves for Orbit Pro. Pro has no upgrade action. Pro gets the billing hand off, which leaves for Orbit Assinatura. Billing is NOT a step up, because the Stripe customer portal authenticates the person.</p>
+      <p><span style="color:var(--fg-3)">keys&nbsp;&nbsp;</span>A free account sees the description and a lock row that routes to the upgrade and nothing else. The step up is reached only on Pro, and then the list. Keys and account deletion are the only two step up operations.</p>
+      <p><span style="color:var(--fg-3)">notifications&nbsp;&nbsp;</span>The product email consent is one nullable field, so never asked is a real third state. It shows as a question with two answers, not as a toggle in a default nobody chose. Push is a per device registration capped at 5, so the group states the count against the cap.</p>
+      <p><span style="color:var(--fg-3)">more&nbsp;&nbsp;</span>Calendar sync keeps its Pro badge and upgrade redirect on free accounts and opens Calendário on Pro.</p>
+      <p><span style="color:var(--fg-3)">ending&nbsp;&nbsp;</span>Sign out is the last top level row and leaves for Entrar. Account deletion is last in Conta, and it routes to step up. The step up for API keys returns to Orbit. Cancelled deletion returns to Conta.</p>
+      <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>Free is the default, because most accounts are free. Three gates draw from both sides: the allowance panel, the keys section and the calendar sync row. Every gated tap leaves for Orbit Pro through one route. A gated control is never a disabled row and never a silent no-op.</p>
+      <p><span style="color:var(--fg-3)">toggles&nbsp;&nbsp;</span>A switch is labelled for its on state, never as a negation.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>Exactly one filled action at a time: the consent answer while the question is unanswered, the confirmation once one is open. The key actions stay neutral. On wide, the sidebar create is the one filled action.</p>
     </div>
   </sc-if>
 
@@ -95,7 +84,6 @@ a:hover{color:var(--fg-1)}
 <script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
 const H = React.createElement;
 const F = React.Fragment;
-const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
 const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 const EMAIL = 'marina@exemplo.com';
@@ -105,7 +93,7 @@ const T = {
     lang: 'pt-BR',
     tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina', create: 'Criar hábito',
     navLabel: 'Navegação principal', palette: 'Buscar',
-    gYou: 'Você', gAstra: 'Astra', gNotif: 'Notificações', gMore: 'Mais do Orbit', gDanger: 'Encerrar',
+    gYou: 'Você', gAstra: 'Orbit', gNotif: 'Notificações', gMore: 'Mais do Orbit', gDanger: 'Encerrar',
     name: 'Marina', renameTitle: 'Mudar o nome', renameLabel: 'Nome', renameGo: 'Pronto',
     tz: 'Fuso horário', tzValue: 'America/Sao_Paulo',
     week: 'Semana começa em', weekValue: 'segunda',
@@ -121,12 +109,12 @@ const T = {
     spentLine: 'As mensagens de hoje foram usadas. A sua lista continua funcionando sem elas.',
     plan: 'Plano', planFree: 'Grátis', planPro: 'Pro',
     seePro: 'Ver o Pro', billing: 'Gerir assinatura',
-    proactive: 'Astra avisa quando algo escapa',
-    summary: 'Resumo do dia pelo Astra',
+    proactive: 'O Orbit avisa quando algo escapa',
+    summary: 'Resumo do dia pelo Orbit',
     keys: 'Chaves de API e MCP',
     keysDesc: 'Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.',
     keysUnlock: 'Liberar com o Pro',
-    keysOpen: 'Abrir as chaves', keysCount: (n) => [mock(n), n === '1' ? ' chave ativa' : ' chaves ativas'],
+    keysOpen: 'Abrir as chaves', keysCount: (n) => [n, n === '1' ? ' chave ativa' : ' chaves ativas'],
     keysNone: 'Nenhuma chave ainda',
     keyNew: 'Criar chave', keyNewScoped: 'Criar chave com escopo',
     keyNewName: 'Nova chave',
@@ -159,15 +147,6 @@ const T = {
     delBody: 'Os seus hábitos, registros e metas saem do Orbit. Não há como restaurar depois disto.',
     cancel: 'Cancelar', delConfirm: 'Apagar',
     loading: 'Carregando',
-    composerWords: {
-      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
-      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
-      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
-      busyReason: 'O Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
-      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
-    },
-    chips: ['Mudar o fuso horário', 'Desligar o resumo do dia', 'Ver o meu plano', 'Exportar os meus dados'],
-    limit: ['As ', '5', ' mensagens de hoje foram usadas.'],
     deviceNames: ['iPhone de Marina', 'Chrome no Mac'],
     keyNames: ['Automação da casa', 'Leitura no notebook'],
   },
@@ -175,7 +154,7 @@ const T = {
     lang: 'en',
     tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina', create: 'Create habit',
     navLabel: 'Main navigation', palette: 'Search',
-    gYou: 'You', gAstra: 'Astra', gNotif: 'Notifications', gMore: 'More of Orbit', gDanger: 'Ending things',
+    gYou: 'You', gAstra: 'Orbit', gNotif: 'Notifications', gMore: 'More of Orbit', gDanger: 'Ending things',
     name: 'Marina', renameTitle: 'Change the name', renameLabel: 'Name', renameGo: 'Done',
     tz: 'Timezone', tzValue: 'America/Sao_Paulo',
     week: 'Week starts on', weekValue: 'Monday',
@@ -191,12 +170,12 @@ const T = {
     spentLine: "Today's messages have been used. Your list keeps working without them.",
     plan: 'Plan', planFree: 'Free', planPro: 'Pro',
     seePro: 'See Pro', billing: 'Manage subscription',
-    proactive: 'Astra tells you when something slips',
-    summary: 'Daily summary from Astra',
+    proactive: 'Orbit tells you when something slips',
+    summary: 'Daily summary from Orbit',
     keys: 'API keys and MCP',
     keysDesc: 'To connect Orbit to other tools through the API or an MCP client.',
     keysUnlock: 'Unlock with Pro',
-    keysOpen: 'Open the keys', keysCount: (n) => [mock(n), n === '1' ? ' active key' : ' active keys'],
+    keysOpen: 'Open the keys', keysCount: (n) => [n, n === '1' ? ' active key' : ' active keys'],
     keysNone: 'No keys yet',
     keyNew: 'Create key', keyNewScoped: 'Create a scoped key',
     keyNewName: 'New key',
@@ -229,15 +208,6 @@ const T = {
     delBody: 'Your habits, logs and goals leave Orbit. There is no way to restore this afterwards.',
     cancel: 'Cancel', delConfirm: 'Delete',
     loading: 'Loading',
-    composerWords: {
-      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
-      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
-      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
-      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
-      offlineReason: 'No connection. Astra comes back when the connection does.',
-    },
-    chips: ['Change my timezone', 'Turn off the daily summary', 'See my plan', 'Export my data'],
-    limit: ["Today's ", '5', ' messages have been used.'],
     deviceNames: ["Marina's iPhone", 'Chrome on Mac'],
     keyNames: ['Home automation', 'Laptop read access'],
   },
@@ -327,10 +297,10 @@ class Component extends DCLogic {
     };
 
     const preferences = group(t.gYou, H(D.RowList, null,
-      H(window.OrbitNativeMobile.ListRow, { title: t.tz, value: mock(t.tzValue), onClick: () => {} }),
-      H(window.OrbitNativeMobile.ListRow, { title: t.week, value: mock(t.weekValue), onClick: () => {} }),
-      H(window.OrbitNativeMobile.ListRow, { title: t.clock, value: mock(t.clockValue), onClick: () => {} }),
-      H(window.OrbitNativeMobile.ListRow, { title: t.language, value: mock(t.languageValue), onClick: () => {} }),
+      H(window.OrbitNativeMobile.ListRow, { title: t.tz, value: t.tzValue, onClick: () => {} }),
+      H(window.OrbitNativeMobile.ListRow, { title: t.week, value: t.weekValue, onClick: () => {} }),
+      H(window.OrbitNativeMobile.ListRow, { title: t.clock, value: t.clockValue, onClick: () => {} }),
+      H(window.OrbitNativeMobile.ListRow, { title: t.language, value: t.languageValue, onClick: () => {} }),
       /* Theme: exactly two values (themeModeSchema), a two way choice and never a switch to invert. */
       H('div', { style: { padding: '12px 16px', minHeight: 44, display: 'flex', alignItems: 'center', gap: 12 } },
         H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-md)' } }, t.theme),
@@ -347,7 +317,7 @@ class Component extends DCLogic {
         H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-md)', lineHeight: 1.4 } }, t.allowance),
         H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
           fontVariantNumeric: 'tabular-nums', flex: '0 0 auto' } },
-          mock(String(used)), t.ofWord, mock(String(cap)), t.used)),
+          String(used), t.ofWord, String(cap), t.used)),
       H(D.ProgressBar, { value: used, max: cap, label: t.allowance }),
       spent ? H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.5, color: 'var(--fg-3)', textWrap: 'pretty' } }, t.spentLine) : null,
       H('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
@@ -357,8 +327,7 @@ class Component extends DCLogic {
         pro ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: this.goBilling }, t.billing)
           : H(D.Button, { variant: 'ghost', size: 'sm', onClick: this.goPro }, t.seePro)));
 
-    /* advanced/page.tsx:81-110: the heading carries the Pro badge; free sees the description and the
-       lock route and nothing else; Pro reaches the step up and then the list. */
+    /* The heading carries the Pro badge. Free sees the lock route only. Pro reaches the step up, then the list. */
     const keysSection = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
       H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } }, label(t.keys), H(window.OrbitNativeMobile.Badge, null, 'Pro')),
       H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5, textWrap: 'pretty' } }, t.keysDesc),
@@ -371,7 +340,7 @@ class Component extends DCLogic {
             ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
                 keys.length
                   ? H(D.RowList, null, keys.map((k, i) => H(window.OrbitNativeMobile.ListRow, { key: i, icon: 'key', title: k.n,
-                      value: mock(k.p), chevron: false,
+                      value: k.p, chevron: false,
                       action: { icon: 'trash', label: t.revoke(k.n), danger: true,
                         onPress: () => this.setState({ revokeAsk: i }) } })))
                   : H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, t.keysNone),
@@ -413,7 +382,7 @@ class Component extends DCLogic {
         H('div', { style: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 44, padding: '12px 16px' } },
           H('span', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-md)' } }, t.devices),
           H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)', flex: '0 0 auto' } },
-            mock('2'), t.ofWord, mock('5'))),
+            '2', t.ofWord, '5')),
         H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 16px' } },
           t.deviceNames.map((nm, i) => H('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: 8, minHeight: 24 } },
             H('span', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', color: 'var(--fg-2)' } }, nm),
@@ -433,7 +402,7 @@ class Component extends DCLogic {
 
     const sectionWords = t.lang === 'en' ? { account: 'Account', preferences: 'Preferences', notifications: 'Notifications', back: 'Back' } : { account: 'Conta', preferences: 'Preferências', notifications: 'Notificações', back: 'Voltar' };
     if (s.section) return H('div', { style: { display: 'grid', gap: 24 } },
-      H(window.OrbitNativeMobile.NavHeader, { title: sectionWords[s.section] || 'Astra', backLabel: sectionWords.back, onBack: () => this.setState({ section: null }) }),
+      H(window.OrbitNativeMobile.NavHeader, { title: sectionWords[s.section] || 'Orbit', backLabel: sectionWords.back, onBack: () => this.setState({ section: null }) }),
       s.section === 'account' ? H(D.RowList, null,
         H(window.OrbitNativeMobile.ListRow, { icon: 'user', typedTitle: true, fullText: true, title: name, description: EMAIL, onClick: () => this.setState({ renameOpen: true, nameDraft: name }) }),
         H(window.OrbitNativeMobile.ListRow, { icon: 'download', title: t.exportLabel, value: s.exportPhase === 'prep' ? t.exportPrep : undefined, onClick: this.onExport }),
@@ -444,7 +413,7 @@ class Component extends DCLogic {
       H(window.OrbitNativeMobile.ListRow, { icon: 'user', typedTitle: true, title: name, description: EMAIL, onClick: () => this.setState({ section: 'account' }) }),
       H(window.OrbitNativeMobile.ListRow, { icon: 'crown', title: 'Orbit Pro', value: pro ? 'Pro' : t.lang === 'en' ? 'Free' : 'Grátis', onClick: this.goPro }),
       H(window.OrbitNativeMobile.ListRow, { icon: 'settings', title: sectionWords.preferences, onClick: () => this.setState({ section: 'preferences' }) }),
-      H('button', { type: 'button', onClick: () => this.setState({ section: 'astra' }), style: { display: 'flex', alignItems: 'center', minHeight: 52, gap: 12, padding: '12px 16px', border: 0, background: 'transparent', color: 'var(--fg-1)', font: 'inherit' } }, H(D.AstraGlyph, { size: 24 }), 'Astra'),
+      H('button', { type: 'button', onClick: () => this.setState({ section: 'astra' }), style: { display: 'flex', alignItems: 'center', minHeight: 52, gap: 12, padding: '12px 16px', border: 0, background: 'transparent', color: 'var(--fg-1)', font: 'inherit' } }, H(D.AstraGlyph, { size: 24 }), 'Orbit'),
       H(window.OrbitNativeMobile.ListRow, { icon: 'bell', title: sectionWords.notifications, onClick: () => this.setState({ section: 'notifications' }) })),
       more, H(window.OrbitNativeMobile.ListRow, { icon: 'logout', title: t.signOut, chevron: false, onClick: this.goEntrar }));
   }
@@ -480,7 +449,6 @@ class Component extends DCLogic {
       navItems: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
       tabBar: H(window.OrbitNativeMobile.TabBar, { items: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
         activeId: 'perfil', onSelect: () => {} }),
-      /* The export's done word rides the notice slot: pinned chrome above the composer, never in its place. */
       notice: s.exportPhase === 'done' ? H(D.Toast, { kind: 'done', message: t.exportDone }) : null,
       sheet: s.calendarOpen ? H(D.Sheet, { open: true, title: t.lang === 'en' ? 'Calendars' : 'Calendários', onClose: () => this.setState({ calendarOpen: false }) },
         H(window.OrbitNativeMobile.ListRow, { icon: 'calendar', title: 'Google Calendar', onClick: () => {} })) : s.renameOpen

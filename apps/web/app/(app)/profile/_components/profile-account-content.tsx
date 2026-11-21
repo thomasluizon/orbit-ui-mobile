@@ -67,15 +67,15 @@ export function ProfileAccountContent({ profile }: Readonly<ProfileContentProps>
     <>
       <RowList>
         <ListRow key="account" icon={<ProfileNavIcon iconKey="account" />} textMode="personal" personalExpanded personalTextInsetStart={false} wrapTitle title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? t('profile.editName.title'), email: profile?.email ?? '' })} description={profile?.email} onClick={() => setShowEditName(true)} />
-        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 106 controls this label under D42. */}
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil exportLabel controls this label under D42. */}
         <ListRow key="export" textMode="label" compact={!exportError} icon={icon(Download)} title={t('profile.settingsRows.export')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError ?? undefined} onClick={() => void exportData()} />
         {analyticsEnabled === null ? null : (
           // eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil analytics row controls this label under D42.
           <div><ListRow icon={icon(BarChart3)} textMode="label" title={t('profile.analytics.title')} description={analyticsSaveError ? t('profile.analytics.saveError') : undefined} chevron={false} toggle={{ checked: analyticsEnabled, onChange: onToggleAnalytics }} /><span role="status" aria-live="polite" className="sr-only">{analyticsSaveError ? t('profile.analytics.saveError') : null}</span></div>
         )}
-        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 429 controls this label under D42. */}
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil fresh controls this label under D42. */}
         <ListRow key="fresh-start" textMode="label" compact icon={icon(RotateCcw)} title={t('profile.settingsRows.startOver')} onClick={() => setShowFreshStart(true)} />
-        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 430 controls this label under D42. */}
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil del controls this label under D42. */}
         <ListRow key="delete" textMode="label" compact icon={icon(Trash2)} title={t('profile.settingsRows.deleteAccount')} danger onClick={() => setShowDeleteAccount(true)} />
       </RowList>
       <EditNameSheet open={showEditName} onOpenChange={setShowEditName} guided={guided} />
