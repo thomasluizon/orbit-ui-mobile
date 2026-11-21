@@ -1079,7 +1079,9 @@ const admit = async (env, mem, tickets, states, { running, room, full }) => {
 
 /** The pace of this tick: the newest reading of the logged-in account, its slots and its stop state, with its one log line. */
 const decidePace = (env, mem, running, allowance) => {
-  const reading = mem.probeOwed ? null : newestReading(...readingsOfAccount(env, mem).filter(Boolean))
+  const [own, snapshot] = readingsOfAccount(env, mem)
+  // While a probe is owed the status-line snapshot may belong to another organization of the same email, so only a reading of this account's key counts.
+  const reading = newestReading(own, mem.probeOwed ? null : snapshot)
   const pace = paceState({ reading, now: env.now(), allowance, workersRun: running.workers.length > 0 })
   return { ...pace, free: pace.stopped ? 0 : Math.max(0, pace.slots - running.workers.length) }
 }
@@ -1224,7 +1226,7 @@ export const tick = async (env, mem) => {
   let pace = decidePace(env, mem, running, allowance)
   // One probe, only at a start with no reading, or each hour while the driver is paused. The weekly stop runs none.
   const probeDue = mem.lastProbeAt === null || env.now() - mem.lastProbeAt >= HOUR_MS
-  if (account.ok && !env.dryRun && !pace.stopped && probeDue && (pace.state === "unknown" || (paused && running.workers.length === 0))) {
+  if (account.ok && !env.dryRun && !pace.stopped && probeDue && (pace.state === "unknown" || mem.probeOwed || (paused && running.workers.length === 0))) {
     await runProbe(env, mem, tickets).catch((error) => log(env, "probe", "error", error.message))
     pace = decidePace(env, mem, running, allowance)
   }

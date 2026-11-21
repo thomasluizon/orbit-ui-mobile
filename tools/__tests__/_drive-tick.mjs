@@ -699,6 +699,11 @@ const accountCases = async () => {
   await changed.run()
   same("drive: a change of organization drops the old reading and keeps the reading of the new account", [changed.mem.reading.account, changed.mem.reading.utilization], [accountFrom(other).key, 0.1])
   same("drive: a change of organization drops the old readings and probes before the next build order", [only(changed.calls, "probe").length, changed.launched.length, changed.messages.filter((line) => line.includes("account changed")).length], [1, 1, 1])
+  const owedStop = scenario({ tickets: [ticket(7), ticket(8)], reading: null, probeReading: null, limit: { utilization: 0.95 } })
+  owedStop.mem.account = { ...ACCOUNT, key: "0000000000000000", email: "previous@example.com" }
+  await owedStop.run()
+  await owedStop.run()
+  same("drive: a probe that is owed and returns no reading does not hide a worker reading at 0.95 from the 90% stop", [owedStop.launched.length, only(owedStop.calls, "createTicket").length, owedStop.messages.some((line) => /pace stopped/.test(line))], [1, 1, true])
   same("drive: the change line names the organization and the plan and never the email", [changed.messages.some((line) => line.includes("orgId 00000000-0000-4000-8000-000000000002, max")), JSON.stringify([changed.messages, changed.calls]).includes(AUTH.email)], [true, false])
 
   const sameAccount = scenario({ tickets: [ticket(7)] })
