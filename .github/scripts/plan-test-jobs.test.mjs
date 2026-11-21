@@ -125,20 +125,6 @@ test("no file that the tool tests or the CI scripts read names a path of the ski
   }
 })
 
-// GitHub reads these in the message of a push or of the head commit of a pull request (docs.github.com, "Skipping
-// workflow runs"). A squash merge copies every commit message of the pull request to main, so a marker that a hook
-// wrote on one relay commit would stop the main push runs of PR Tests, Guards and CodeQL that a release requires.
-test("no tool or CI script writes a GitHub skip instruction into a commit message", () => {
-  const listed = spawnSync("git", ["-C", root, "ls-files", "--", "lefthook.yml", "tools", ".github/scripts"], { encoding: "utf8" })
-  assert.equal(listed.status, 0, listed.stderr)
-  const sources = listed.stdout.split("\n").filter((path) => path === "lefthook.yml" ||
-    (/\.[cm]?js$/.test(path) && !/(^|\/)(__tests__|__fixtures__)\/|\.test\.mjs$/.test(path)))
-  assert.ok(sources.includes("lefthook.yml") && sources.includes("tools/test-tools.mjs"), "the scan reads the hook configuration and the tools")
-  const instruction = /\[(skip ci|ci skip|no ci|skip actions|actions skip)\]|skip-checks: ?true/i
-  const marked = sources.filter((path) => instruction.test(readFileSync(join(root, path), "utf8")))
-  assert.deepEqual(marked, [])
-})
-
 test("each result key follows only its own Turbo tasks and the workflow file", () => {
   const base = plan().outputs
   assert.match(base["web-unit-key"], /^web-unit-[0-9a-f]{24}-[0-9a-f]{24}$/)

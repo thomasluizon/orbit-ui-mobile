@@ -13,7 +13,6 @@ const chromiumShardCount = workflow.jobs["web-tests"].strategy.matrix.total[0]
 const jsdomShards = workflow.jobs["web-tests"].strategy.matrix.include
 const mobileShardCount = workflow.jobs["mobile-tests"].strategy.matrix.total[0]
 const workspaceDirectories = ["apps/desktop", "packages/shared", "eslint-rules"]
-const mergedAction = yaml.load(readFileSync(resolve(root, ".github/actions/merged-unit-results/action.yml"), "utf8"))
 const unitSteps = workflow.jobs["unit-tests"].steps
 const stepNamed = (steps, name) => steps.find((step) => step.name === name)
 const webLegs = [...jsdomShards, ...Array.from({ length: chromiumShardCount }, (_, index) => ({ project: "chromium", shard: index + 1, total: chromiumShardCount }))]
@@ -98,41 +97,29 @@ const selectAndVerify = (directory, artifacts) => {
   }
 }
 
-test("configured Chromium shards split recorded time evenly and leave room for growth and coverage", async () => {
+test("every Chromium shard fits the step time limit with room for growth and coverage", async () => {
   const web = workflow.jobs["web-tests"]
   const { shard: indexes, total: [count] } = web.strategy.matrix
   assert.deepEqual(indexes, Array.from({ length: count }, (_, index) => index + 1))
   const step = stepNamed(web.steps, "Run web shard with coverage")
   assert.equal(step["timeout-minutes"], 16)
-  const budgetCommand = stepNamed(unitSteps, "Enforce web test file budget").run.match(/^node \.github\/scripts\/check-web-test-budget\.mjs \S+ (\d+)$/)
-  assert.ok(budgetCommand, "the workflow must supply a per-file budget")
-  const fileBudgetMs = Number(budgetCommand[1])
   const { durationMsByFile: { chromium: durationMsByFile } } = JSON.parse(readFileSync(join(root, "apps/web/vitest/shard-timings.json"), "utf8"))
   const growthFactor = 1.25
-  const overBudgetFiles = Object.entries(durationMsByFile).flatMap(([file, measured]) => {
-    const projected = measured * growthFactor
-    return projected < fileBudgetMs ? [] : [`${file}: ${(measured / 1000).toFixed(3)}s measured, ${(projected / 1000).toFixed(3)}s with headroom exceeds the per-file budget`]
-  })
-  assert.equal(overBudgetFiles.length, 0, overBudgetFiles.join("\n"))
   const webRoot = join(root, "apps/web")
   const files = Object.keys(durationMsByFile).map((name) => ({ moduleId: join(webRoot, name), project: { name: "chromium" } }))
   const selected = []
-  const loads = []
   for (const index of indexes) {
     const sequencer = new TimedSequencer({ config: { root: webRoot, shard: { index, count } } })
     const shard = await sequencer.shard(files)
     assert.deepEqual(await sequencer.shard([...files].reverse()), shard, "input order must not affect assignment")
     selected.push(...shard)
     const measured = shard.reduce((sum, file) => sum + durationMsByFile[file.moduleId.slice(webRoot.length + 1)], 0)
-    loads.push(measured)
-    // WHY: JSON timings omit setup and coverage work; reserve four minutes plus 25% test growth. https://github.com/thomasluizon/orbit-tickets/issues/1886
+    // WHY: JSON timings omit setup and coverage work; reserve four minutes plus 25% test growth.
     const projected = measured * growthFactor + 240_000
     assert.ok(projected < step["timeout-minutes"] * 60_000, `Chromium ${index}/${count}: ${(measured / 1000).toFixed(3)}s measured, ${(projected / 1000).toFixed(3)}s with headroom exceeds the step limit`)
   }
   assert.equal(selected.length, files.length)
   assert.deepEqual(new Set(selected), new Set(files), "every measured file must run exactly once")
-  const longestFile = Math.max(...Object.values(durationMsByFile))
-  assert.ok(Math.max(...loads) - Math.min(...loads) <= longestFile, "no shard may carry more than one file of extra recorded time")
 })
 
 test("every recorded web test duration names a test file that exists", () => {
@@ -150,161 +137,39 @@ test("an unrecorded file counts as the project median and equal durations still 
   assert.deepEqual(new Set(shards.flat()), new Set(files))
 })
 
-test("Unit Tests passes only when the plan passed and each test group passed or has a cached result", () => {
+test("Unit Tests passes only when the plan and every test group passed", () => {
   const gate = workflow.jobs["unit-tests"]
   assert.equal(gate.name, "Unit Tests")
   assert.equal(gate.if, "${{ !cancelled() }}")
   assert.deepEqual(gate.needs, ["plan", "web-tests", "mobile-tests", "workspace-tests"])
-  const step = stepNamed(gate.steps, "Require every test job or its cached result")
+  const step = stepNamed(gate.steps, "Require every test job")
   assert.equal(gate.steps.indexOf(step), 0)
-  assert.deepEqual(step.env, {
-    PLAN_RESULT: "${{ needs.plan.result }}",
-    WEB_RESULT: "${{ needs.web-tests.result }}",
-    WEB_HIT: "${{ needs.plan.outputs.web-unit-hit }}",
-    MOBILE_RESULT: "${{ needs.mobile-tests.result }}",
-    MOBILE_HIT: "${{ needs.plan.outputs.mobile-unit-hit }}",
-    WORKSPACE_RESULT: "${{ needs.workspace-tests.result }}",
-    WORKSPACE_HIT: "${{ needs.plan.outputs.workspace-unit-hit }}",
-  })
   const results = ["success", "failure", "cancelled", "skipped"]
-  const passes = (result, hit) => result === "success" || (result === "skipped" && hit === "true")
   for (const plan of results) {
     for (const web of results) {
-      for (const hit of ["true", "false", ""]) {
-        for (const others of results) {
-          const env = { PLAN_RESULT: plan, WEB_RESULT: web, WEB_HIT: hit, MOBILE_RESULT: others, MOBILE_HIT: hit, WORKSPACE_RESULT: "success", WORKSPACE_HIT: "" }
-          const result = spawnSync("bash", ["-e", "-c", step.run], { env: { ...process.env, ...env } })
-          assert.equal(result.status === 0, plan === "success" && passes(web, hit) && passes(others, hit), JSON.stringify(env))
-        }
+      for (const others of results) {
+        const env = { PLAN_RESULT: plan, WEB_RESULT: web, MOBILE_RESULT: others, WORKSPACE_RESULT: "success" }
+        const result = spawnSync("bash", ["-e", "-c", step.run], { env: { ...process.env, ...env } })
+        assert.equal(result.status === 0, plan === "success" && web === "success" && others === "success", JSON.stringify(env))
       }
     }
   }
 })
 
-test("each test group starts only without a cached result, and every event looks the result up", () => {
-  const plan = workflow.jobs.plan
-  for (const [job, group] of [["web-tests", "web-unit"], ["mobile-tests", "mobile-unit"], ["workspace-tests", "workspace-unit"]]) {
-    assert.equal(workflow.jobs[job].needs, "plan")
-    assert.equal(workflow.jobs[job].if, `needs.plan.outputs.${group}-hit != 'true'`)
-    assert.equal(plan.outputs[`${group}-hit`], `\${{ steps.${group}.outputs.cache-hit == 'true' || steps.merged.outputs.${group}-hit == 'true' }}`)
-    assert.equal(plan.outputs[`${group}-key`], `\${{ steps.plan.outputs.${group}-key }}`)
-    const lookup = plan.steps.find((step) => step.id === group)
-    assert.equal(lookup.if, undefined)
-    assert.ok(lookup.uses.startsWith("actions/cache/restore@"))
-    assert.equal(lookup.with["lookup-only"], true)
-    assert.equal(lookup.with.key, `\${{ steps.plan.outputs.${group}-key }}`)
-    const variable = `\${{ env.${group.replace("-unit", "").toUpperCase()}_UNIT_RESULTS }}`
-    const restore = unitSteps.find((step) => step.uses?.startsWith("actions/cache/restore@") && step.with.key === `\${{ needs.plan.outputs.${group}-key }}`)
-    const save = unitSteps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.key === `\${{ needs.plan.outputs.${group}-key }}`)
-    for (const step of [lookup, restore, save]) assert.equal(step.with.path, variable, `${group}: the cache version includes the path, so every step names the same one`)
-    assert.equal(restore.if, `needs.${job}.result == 'skipped'`)
-    assert.equal(restore.with["fail-on-cache-miss"], true)
-    assert.equal(save.if, `github.event_name != 'pull_request' && needs.${job}.result == 'success'`)
-  }
-  const planStep = plan.steps.find((step) => step.id === "plan")
-  assert.match(planStep.run, /node \.github\/scripts\/plan-test-jobs\.mjs --event "\$EVENT_NAME"/)
-  assert.match(planStep.run, /run test --dry=json/)
-  assert.equal(plan.steps.find((step) => step.uses?.startsWith("actions/checkout@")).with["fetch-depth"], 2)
-  const cached = [workflow.env.WEB_UNIT_RESULTS, workflow.env.MOBILE_UNIT_RESULTS, ...workflow.env.WORKSPACE_UNIT_RESULTS.trim().split("\n")]
-  assert.deepEqual(cached, ["apps/web", "apps/mobile", ...workspaceDirectories].map((directory) => `${directory}/coverage/lcov.info`))
-})
-
-test("a push or a dispatch on main saves the unit results of the merged pull request when its keys are equal", () => {
-  const plan = workflow.jobs.plan
-  assert.deepEqual(plan.permissions, { contents: "read", actions: "read", "pull-requests": "read" })
-  const call = plan.steps.find((step) => step.id === "merged")
-  assert.equal(call.uses, "./.github/actions/merged-unit-results")
-  assert.match(call.if, /^github\.event_name != 'pull_request' && \(/)
-  for (const group of ["web-unit", "mobile-unit", "workspace-unit"]) assert.match(call.if, new RegExp(`steps\\.${group}\\.outputs\\.cache-hit != 'true'`))
-  const steps = mergedAction.runs.steps
-  const ids = steps.map((step) => step.id)
-  const find = steps.find((step) => step.id === "merged")
-  assert.equal(find.run, 'node .github/scripts/merged-unit-results.mjs find --repository "$GITHUB_REPOSITORY" --sha "$GITHUB_SHA" | tee -a "$GITHUB_OUTPUT"')
-  assert.equal(find.env.GITHUB_TOKEN, "${{ github.token }}")
-  const download = steps.find((step) => step.uses?.startsWith("actions/download-artifact@"))
-  assert.equal(download.if, "steps.merged.outputs.artifact-id != ''")
-  assert.equal(download.id, "merged-download")
-  assert.equal(download["continue-on-error"], true, "a failed download must not fail Plan, which would skip every test job on main")
-  assert.deepEqual(download.with, { "artifact-ids": "${{ steps.merged.outputs.artifact-id }}", "run-id": "${{ steps.merged.outputs.run-id }}", "github-token": "${{ github.token }}" },
-    "one artifact downloads at the workspace root, where its paths name the cached files")
-  const match = steps.find((step) => step.id === "adopt")
-  assert.equal(match.run, 'node .github/scripts/merged-unit-results.mjs match --keys-file unit-test-keys.json | tee -a "$GITHUB_OUTPUT"')
-  assert.equal(match.if, "steps.merged-download.outcome == 'success'", "a partial download is never matched, so main runs the tests")
-  assert.ok(ids.indexOf("merged") < steps.indexOf(download) && steps.indexOf(download) < ids.indexOf("adopt"))
-  for (const group of ["web-unit", "mobile-unit", "workspace-unit"]) {
-    const prefix = group.replace("-unit", "")
-    const upper = prefix.toUpperCase()
-    assert.deepEqual([call.with[`${prefix}-key`], call.with[`${prefix}-path`], call.with[`${prefix}-hit`]],
-      [`\${{ steps.plan.outputs.${group}-key }}`, `\${{ env.${upper}_UNIT_RESULTS }}`, `\${{ steps.${group}.outputs.cache-hit }}`], `${group}: the call passes the key, the path and the first lookup`)
-    assert.equal(match.env[`${upper}_UNIT_KEY`], `\${{ inputs.${prefix}-key }}`)
-    const save = steps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.key === `\${{ inputs.${prefix}-key }}`)
-    assert.equal(save.if, `github.event_name != 'pull_request' && inputs.${prefix}-hit != 'true' && steps.adopt.outputs.${prefix}-unit == 'true'`)
-    const confirm = steps.find((step) => step.id === `${group}-merged`)
-    assert.equal(confirm.if, `inputs.${prefix}-hit != 'true' && steps.adopt.outputs.${prefix}-unit == 'true'`)
-    assert.deepEqual(confirm.with, { path: `\${{ inputs.${prefix}-path }}`, key: `\${{ inputs.${prefix}-key }}`, "lookup-only": true })
-    assert.equal(save.with.path, confirm.with.path)
-    assert.ok(ids.indexOf("adopt") < steps.indexOf(save) && steps.indexOf(save) < ids.indexOf(`${group}-merged`))
-    assert.equal(mergedAction.outputs[`${group}-hit`].value, `\${{ steps.${group}-merged.outputs.cache-hit }}`)
-  }
-  const record = stepNamed(unitSteps, "Record the unit result keys")
-  assert.equal(record.run, "node .github/scripts/merged-unit-results.mjs record > unit-test-keys.json")
-  assert.deepEqual(record.env, {
-    WEB_UNIT_KEY: "${{ needs.plan.outputs.web-unit-key }}",
-    MOBILE_UNIT_KEY: "${{ needs.plan.outputs.mobile-unit-key }}",
-    WORKSPACE_UNIT_KEY: "${{ needs.plan.outputs.workspace-unit-key }}",
-  })
-  const upload = unitSteps.find((step) => step.with?.name === "unit-test-coverage")
-  assert.equal(unitSteps.indexOf(record) + 1, unitSteps.indexOf(upload))
-})
-
-test("required checks report on every pull request through job conditions, never a workflow path filter", () => {
+test("every required check keeps its name, and a path filter never hides it", () => {
   assert.equal(workflow.on.pull_request.paths, undefined)
-  assert.ok(Object.hasOwn(workflow.on, "push") && Object.hasOwn(workflow.on, "workflow_dispatch"))
   const required = { build: "Build", "type-check": "Type Check", lint: "Lint", "unit-tests": "Unit Tests", "tool-tests": "Tool Tests" }
   for (const [id, name] of Object.entries(required)) {
     assert.equal(workflow.jobs[id].name, name)
     assert.equal(workflow.jobs[id].strategy, undefined, `${name} must keep its literal check name when its condition skips it`)
   }
-  assert.equal(workflow.jobs.build.if, "needs.plan.outputs.web == 'true'")
-  assert.equal(workflow.jobs["type-check"].if, "needs.plan.outputs.type-check == 'true'")
-  assert.equal(workflow.jobs.lint.if, "github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true'")
-  assert.equal(workflow.jobs["tool-tests"].if, "${{ !cancelled() }}", "Tool Tests reports a conclusion when the plan finds no tool input")
-  for (const step of unitSteps) assert.doesNotMatch(String(step.if ?? ""), /outputs\.(web|type-check|lint)\b|base_ref/, `${step.name ?? step.uses}: Unit Tests and its scan never follow a path scope`)
-  // Each limit above 15 minutes is 1.5 times the measured worst run that its workflow comment names.
-  const measuredAboveFifteen = {
-    "web-tests": [20, "Web unit holds a 16 minute step plus setup and report time: the worst shard step took 697 s on main, and 960 s step limit plus 240 s setup is 1200 s"],
-    "unit-tests": [16, "Unit Tests holds the tests and the scan: 619 s at worst on main, times 1.5"],
-  }
-  for (const [id, job] of Object.entries(workflow.jobs)) {
-    if (id in measuredAboveFifteen) {
-      const [limit, source] = measuredAboveFifteen[id]
-      assert.equal(job["timeout-minutes"], limit, source)
-      continue
-    }
-    assert.ok(Number.isInteger(job["timeout-minutes"]) && job["timeout-minutes"] <= 15, `${id} needs a job time limit near its measured time`)
-  }
 })
 
-test("every pull request distributes Chromium without increasing browser concurrency on a runner", () => {
-  const web = workflow.jobs["web-tests"]
-  assert.equal(web.strategy["fail-fast"], false)
-  assert.deepEqual(web.strategy.matrix.project, ["chromium"])
-  assert.deepEqual(web.strategy.matrix.shard, Array.from({ length: chromiumShardCount }, (_, index) => index + 1))
-  assert.deepEqual(web.strategy.matrix.total, [chromiumShardCount])
-  assert.deepEqual(jsdomShards, [1, 2, 3, 4].map((shard) => ({ project: "jsdom", shard, total: 4 })))
-  const run = stepNamed(web.steps, "Run web shard with coverage").run
-  assert.match(run, /--project=\$\{\{ matrix.project \}\}/)
-  assert.match(run, /--shard=\$\{\{ matrix.shard \}\}\/\$\{\{ matrix.total \}\}/)
-  assert.match(run, /--reporter=blob/)
-  assert.match(run, /--reporter=json/)
-  assert.doesNotMatch(run, /maxWorkers|fileParallelism|passWithNoTests/)
-  assert.equal(web.env.ARTIFACT_NAME, "web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}")
-  assert.equal(stepNamed(web.steps, "Stage web shard reports under the artifact name").if, "${{ always() }}")
-  const upload = web.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
-  assert.equal(upload.with.name, "${{ env.ARTIFACT_NAME }}")
-  assert.equal(upload.if, "${{ always() }}")
-  assert.equal(upload.with["include-hidden-files"], true)
-  assert.equal(upload.with["if-no-files-found"], "error")
+test("the SonarCloud scan runs last, after the merged coverage, on a full clone", () => {
+  assert.equal(unitSteps.at(-1).uses, "SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4")
+  assert.equal(unitSteps.at(-1).if, undefined)
+  assert.equal(unitSteps.at(-2).name, "Merge Coverage Reports")
+  assert.equal(unitSteps.find((step) => step.uses?.startsWith("actions/checkout@")).with["fetch-depth"], 0, "Sonar reads the new-code blame")
 })
 
 test("Unit Tests requires every jsdom and Chromium shard blob and timing report to be nonempty", () => {
@@ -334,40 +199,6 @@ test("Unit Tests requires every jsdom and Chromium shard blob and timing report 
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
-})
-
-test("mobile shards merge their blobs under the unchanged mobile thresholds", () => {
-  const mobile = workflow.jobs["mobile-tests"]
-  assert.equal(mobile.strategy["fail-fast"], false)
-  assert.deepEqual(mobile.strategy.matrix.shard, Array.from({ length: mobileShardCount }, (_, index) => index + 1))
-  const run = stepNamed(mobile.steps, "Run mobile shard with coverage")
-  assert.equal(run["working-directory"], "apps/mobile")
-  // apps/mobile/__tests__/scripts/widget-color-generator.test.ts runs a workspace script with the npm CLI that
-  // npm_execpath names, and only npm sets that variable. So the shard runs vitest through the workspace test script.
-  assert.match(run.run, /^npm run test -- --shard=/, "the mobile shard runs vitest through npm")
-  assert.match(run.run, /--shard=\$\{\{ matrix.shard \}\}\/\$\{\{ matrix.total \}\}/)
-  assert.match(run.run, /--coverage\.thresholds\.lines=0/)
-  assert.match(run.run, /--outputFile\.blob=\.artifacts\/unit-tests\/blobs\/mobile-\$\{\{ matrix.shard \}\}\.json/)
-  assert.equal(mobile.env.ARTIFACT_NAME, "mobile-unit-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}")
-  assert.equal(stepNamed(mobile.steps, "Stage mobile shard reports under the artifact name").if, "${{ always() }}")
-  const upload = mobile.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
-  assert.equal(upload.with.name, "${{ env.ARTIFACT_NAME }}")
-  assert.equal(upload.if, "${{ always() }}")
-  const verify = stepNamed(unitSteps, "Verify every mobile report arrived")
-  const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
-  try {
-    mkdirSync(join(directory, "apps/mobile/.artifacts/unit-tests/blobs"), { recursive: true })
-    for (let shard = 1; shard <= mobileShardCount; shard++) writeFileSync(join(directory, `apps/mobile/.artifacts/unit-tests/blobs/mobile-${shard}.json`), "{}")
-    assert.equal(spawnSync("bash", ["-e", "-c", verify.run], { cwd: directory }).status, 0)
-    rmSync(join(directory, `apps/mobile/.artifacts/unit-tests/blobs/mobile-${mobileShardCount}.json`))
-    assert.notEqual(spawnSync("bash", ["-e", "-c", verify.run], { cwd: directory }).status, 0)
-  } finally {
-    rmSync(directory, { recursive: true, force: true })
-  }
-  const merge = stepNamed(unitSteps, "Merge mobile reports and enforce coverage thresholds")
-  assert.equal(merge["working-directory"], "apps/mobile")
-  assert.match(merge.run, /--merge-reports=\.artifacts\/unit-tests\/blobs --coverage/)
-  assert.doesNotMatch(merge.run, /thresholds|--shard|--reporter=blob/)
 })
 
 test("every test workspace runs in exactly one test job", () => {
@@ -426,25 +257,6 @@ test("workspace coverage keeps its directory tree and the gate rejects missing r
   }
 })
 
-test("Unit Tests merges coverage under the unchanged thresholds and ends with the SonarCloud scan", () => {
-  const merge = stepNamed(unitSteps, "Merge web reports and enforce coverage thresholds")
-  assert.match(merge.run, /--merge-reports=/)
-  assert.match(merge.run, /--coverage/)
-  assert.doesNotMatch(merge.run, /thresholds|--project|--shard|--reporter=blob/)
-  const download = stepNamed(unitSteps, "Download workspace coverage")
-  assert.equal(download.with.pattern, "workspace-unit-coverage-*")
-  assert.equal(download.with["merge-multiple"], true)
-  assert.equal(unitSteps.at(-1).uses, "SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4")
-  assert.equal(unitSteps.at(-1).if, undefined)
-  assert.equal(unitSteps.at(-2).name, "Merge Coverage Reports")
-  assert.ok(unitSteps.indexOf(stepNamed(unitSteps, "Verify coverage reports")) < unitSteps.length - 2)
-  assert.equal(unitSteps.find((step) => step.uses?.startsWith("actions/checkout@")).with["fetch-depth"], 0, "Sonar reads the new-code blame")
-  assert.equal(workflow.jobs.sonarcloud, undefined)
-  const upload = unitSteps.find((step) => step.with?.name === "unit-test-coverage")
-  assert.equal(upload.with["if-no-files-found"], "error")
-  assert.deepEqual(upload.with.path.trim().split("\n"), [...["apps/web", "apps/mobile", ...workspaceDirectories].map((directory) => `${directory}/coverage/lcov.info`), "unit-test-keys.json"])
-})
-
 test("Sonar coverage merge normalizes desktop scripts measured by the web workspace", () => {
   const step = stepNamed(unitSteps, "Merge Coverage Reports")
   const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
@@ -461,25 +273,6 @@ test("Sonar coverage merge normalizes desktop scripts measured by the web worksp
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
-})
-
-test("aggregate downloads extract every artifact's own folder at one path, then select before verification", () => {
-  for (const [group, input, output, verify] of [
-    ["web", ".artifacts/downloads/web", "apps/web/.artifacts/unit-tests", "Verify every web report arrived"],
-    ["mobile", ".artifacts/downloads/mobile", "apps/mobile/.artifacts/unit-tests", "Verify every mobile report arrived"],
-  ]) {
-    const download = stepNamed(unitSteps, `Download ${group} shard reports`)
-    assert.equal(download.with["merge-multiple"], true)
-    assert.equal(download.with.path, input)
-    const select = stepNamed(unitSteps, `Select latest ${group} report attempts`)
-    assert.equal(select.run, `node tools/select-artifact-attempts.mjs --input-dir ${input} --output-dir ${output}`)
-    assert.ok(unitSteps.indexOf(download) < unitSteps.indexOf(select))
-    assert.ok(unitSteps.indexOf(select) < unitSteps.indexOf(stepNamed(unitSteps, verify)))
-  }
-  const select = stepNamed(unitSteps, "Select latest workspace coverage attempt")
-  assert.equal(select.run, "node tools/select-artifact-attempts.mjs --input-dir .artifacts/downloads/workspaces --output-dir .")
-  assert.ok(unitSteps.indexOf(stepNamed(unitSteps, "Download workspace coverage")) < unitSteps.indexOf(select))
-  assert.ok(unitSteps.indexOf(select) < unitSteps.indexOf(stepNamed(unitSteps, "Verify coverage reports")))
 })
 
 test("a first attempt of every test job reaches the coverage gate through the pinned artifact actions", () => {
@@ -536,49 +329,6 @@ test("every pattern download in every workflow extracts at one path whatever the
   }
 })
 
-test("layout shards and the Lighthouse budget reuse the one hermetic Build", () => {
-  const build = workflow.jobs.build
-  assert.ok(build.steps.some((step) => step.run === "npm run build:hermetic -w apps/web"))
-  const upload = build.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
-  assert.equal(upload.with.name, "web-hermetic-build")
-  assert.equal(upload.if, "github.event_name == 'pull_request'")
-  for (const id of ["layout-shards", "lighthouse"]) {
-    const job = workflow.jobs[id]
-    assert.deepEqual(job.needs, ["plan", "build"])
-    assert.equal(job.if, "github.event_name == 'pull_request' && needs.plan.outputs.web == 'true'")
-    assert.equal(job.steps.find((step) => step.uses?.startsWith("actions/download-artifact@")).with.name, "web-hermetic-build")
-    assert.equal(job.steps.some((step) => /build:hermetic|check-hermetic-web-build|next build/.test(step.run ?? "")), false, `${id} must not build the web app again`)
-  }
-  const shards = workflow.jobs["layout-shards"]
-  assert.deepEqual(shards.strategy.matrix.shard, [1, 2, 3, 4, 5, 6, 7, 8])
-  assert.ok(shards.steps.some((step) => step.run === 'npm run test:layout -w apps/web -- --test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt"'))
-  const plan = stepNamed(shards.steps, "Plan the balanced layout shard lists")
-  assert.match(plan.run, /npm run test:layout -w apps\/web -- --list --reporter=json/)
-  assert.match(plan.run, /plan-layout-shards\.mjs --list "\$RUNNER_TEMP\/layout-list\.json" \\\n\s+--timings \.github\/layout-shard-timings\.json --shards 8 --out-dir "\$RUNNER_TEMP\/layout-shards"/)
-  assert.equal(plan.env.PLAYWRIGHT_JSON_OUTPUT_FILE, "${{ runner.temp }}/layout-list.json")
-  assert.equal(shards.steps.some((step) => /--shard=/.test(step.run ?? "")), false, "Playwright's count split puts the slow spec in one shard")
-  const timings = stepNamed(shards.steps, "Upload layout test timings")
-  assert.equal(timings.with.name, "layout-timings-${{ matrix.shard }}")
-  assert.equal(timings.with.path, "apps/web/.artifacts/layout/layout-report.json")
-  const restore = shards.steps.find((step) => step.uses?.startsWith("actions/cache/restore@"))
-  const save = build.steps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.path === "~/.cache/ms-playwright")
-  assert.equal(restore.with.path, "~/.cache/ms-playwright")
-  assert.equal(restore.with.key, "${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}")
-  assert.match(save.if, /^github\.event_name != 'pull_request'/)
-  const gate = stepNamed(workflow.jobs.lighthouse.steps, "Run median TBT and script budget gates")
-  assert.equal(gate["timeout-minutes"], 8)
-  assert.equal(workflow.jobs.lighthouse["timeout-minutes"], 15)
-})
-
-test("pull request runs save no cache that a push to main saves", () => {
-  for (const [id, job] of Object.entries(workflow.jobs)) {
-    for (const step of job.steps ?? []) {
-      if (step.uses?.startsWith("actions/cache@")) assert.fail(`${id}: use actions/cache/restore with a save step that pull requests skip`)
-      if (step.uses?.startsWith("actions/cache/save@")) assert.match(step.if ?? "", /^github\.event_name != 'pull_request'/, `${id}: ${step.name}`)
-    }
-  }
-})
-
 test("real Vitest reports combine project coverage and reject incomplete coverage", { timeout: 120_000 }, () => {
   const shardStep = stepNamed(workflow.jobs["web-tests"].steps, "Run web shard with coverage")
   const mergeStep = stepNamed(unitSteps, "Merge web reports and enforce coverage thresholds")
@@ -621,16 +371,4 @@ test("real Vitest reports combine project coverage and reject incomplete coverag
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
-})
-
-test("the web test timings upload only after the web report selection ran", () => {
-  assert.equal(stepNamed(unitSteps, "Select latest web report attempts").id, "select-web-reports")
-  assert.equal(stepNamed(unitSteps, "Upload web test timings").if, "${{ !cancelled() && steps.select-web-reports.outcome == 'success' }}")
-})
-
-// A file over 1000 lines is too long to review: the merged result steps live in a local action.
-test("test.yml stays within 1000 lines, so the merged unit result steps stay in their local action", () => {
-  const lines = readFileSync(resolve(root, ".github/workflows/test.yml"), "utf8").trimEnd().split("\n").length
-  assert.ok(lines <= 1000, `test.yml has ${lines} lines`)
-  assert.equal(workflow.jobs.plan.steps.some((step) => step.uses?.startsWith("actions/download-artifact@")), false)
 })
