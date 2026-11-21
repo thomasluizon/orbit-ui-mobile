@@ -113,10 +113,21 @@ export const readWorkerToken = async ({ run = runBounded } = {}) => {
   return result.status === 0 && token !== "" ? token : null
 }
 
-/** The command and the environment of every worker run: a launch and a probe use the same ones. */
-export const workerInvocation = ({ home, parentEnvironment, token }) => {
+/** The config directory of the worker account: the second Claude login, beside the main one. */
+export const workerConfigDirectory = (home) => join(home, ".claude-orbit-workers")
+
+/** The environment of a `claude auth status` call on the worker account: the main-account environment plus its config directory. */
+export const workerAccountEnvironment = (parentEnvironment, configDirectory) => ({ ...workerEnvironment(parentEnvironment), CLAUDE_CONFIG_DIR: configDirectory })
+
+/**
+ * The command and the environment of every worker run: a launch and a probe use the same ones. The main account has no
+ * `configDirectory`. The worker account sets `CLAUDE_CONFIG_DIR` to its directory, and nothing else changes.
+ */
+export const workerInvocation = ({ home, parentEnvironment, token, configDirectory = null }) => {
   const settings = workerSettings({ hotPath: join(home, "Developer", "brain", "hot.md"), skillNames: listSkillNames(join(home, ".claude", "skills")) })
-  return { command: workerCommand(JSON.stringify(settings)), environment: workerEnvironmentFor(parentEnvironment, token) }
+  const environment = workerEnvironmentFor(parentEnvironment, token)
+  if (configDirectory !== null) environment.CLAUDE_CONFIG_DIR = configDirectory
+  return { command: workerCommand(JSON.stringify(settings)), environment }
 }
 
 /**

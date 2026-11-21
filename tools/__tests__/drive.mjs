@@ -48,6 +48,8 @@ import {
   WORKER_DENY,
   WORKER_LIMITS,
   workerCommand,
+  workerAccountEnvironment,
+  workerConfigDirectory,
   workerEnvironmentFor,
   workerInvocation,
   workerSettings,
@@ -710,6 +712,12 @@ const skillAndEnvironmentCases = async () => {
   const settings = JSON.parse(invocation.command.args.at(-1))
   same("lib/worker.mjs: the invocation excludes the hot file of the home folder and turns off the listed skills", [settings.claudeMdExcludes, settings.skillOverrides], [[join(home, "Developer", "brain", "hot.md")], { pdf: "off" }])
   same("lib/worker.mjs: the invocation carries the worker environment", invocation.environment.GH_TOKEN, TOKEN)
+  const workerDirectory = workerConfigDirectory(home)
+  const onWorker = workerInvocation({ home, parentEnvironment: { ...parent, CLAUDE_CONFIG_DIR: "/somewhere/else" }, token: TOKEN, configDirectory: workerDirectory })
+  same("lib/worker.mjs: the worker account sets CLAUDE_CONFIG_DIR to its directory and the main account sets none", [workerDirectory, onWorker.environment.CLAUDE_CONFIG_DIR, "CLAUDE_CONFIG_DIR" in invocation.environment], [join(home, ".claude-orbit-workers"), workerDirectory, false])
+  const { CLAUDE_CONFIG_DIR: _directory, ...onWorkerRest } = onWorker.environment
+  same("lib/worker.mjs: the worker account changes nothing else in the invocation", [onWorkerRest, onWorker.command], [invocation.environment, invocation.command])
+  same("lib/worker.mjs: the account status call of the worker account has the config directory and no account override", [workerAccountEnvironment({ ...parent, CLAUDE_CODE_OAUTH_TOKEN: "x" }, workerDirectory).CLAUDE_CONFIG_DIR, "CLAUDE_CODE_OAUTH_TOKEN" in workerAccountEnvironment({ ...parent, CLAUDE_CODE_OAUTH_TOKEN: "x" }, workerDirectory)], [workerDirectory, false])
 }
 
 const eventCases = () => {
