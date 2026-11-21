@@ -875,8 +875,18 @@ const mergedHistory = async (env, mem, ticket, { fresh = false } = {}) => {
   return history
 }
 
+/** `runs-last:board` waits for every other ticket, `runs-last:repo` for every other ticket of its repository. A later rank is never a reason for an earlier one to wait. */
+const runsLastRank = (ticket) => (ticket.labels.includes("runs-last:board") ? 2 : ticket.labels.includes("runs-last:repo") ? 1 : 0)
+
+/** The number of open tickets that a `runs-last` ticket waits for, or 0 for a ticket with no such label. */
+const runsLastOpen = (tickets, ticket) => {
+  const rank = runsLastRank(ticket)
+  if (rank === 0) return 0
+  return tickets.filter((other) => other.number !== ticket.number && runsLastRank(other) < rank && (rank === 2 || other.repoKey === ticket.repoKey)).length
+}
+
 /** What admission does with one ticket: an order, or the reason it waits. A part whose worker runs counts as an open part, so it blocks another part whose `Paths:` overlap and never starts twice. */
-const ticketVerdict = async (env, mem, states, ticket, { settled = null, running }) => {
+const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null, running }) => {
   const labels = ticket.labels
   const stop = (reason) => ({ reason })
   const repoLabels = labels.filter((label) => label.startsWith("repo:"))
@@ -884,6 +894,8 @@ const ticketVerdict = async (env, mem, states, ticket, { settled = null, running
   for (const label of [OWNER, "needs:conversation", "owner-work"]) if (labels.includes(label)) return stop(`carries ${label}`)
   const open = ticket.blockedBy.filter((blocker) => blocker.open)
   if (open.length > 0) return stop(`blocked by ${open.map((blocker) => blocker.number).join(", ")}`)
+  const waiting = runsLastOpen(tickets, ticket)
+  if (waiting > 0) return stop(`runs last (${waiting} open)`)
   for (const blocker of ticket.blockedBy) {
     const unmet = await env.github.unmetDeployFirst(blocker)
     if (unmet.length > 0) return stop(`deploy-first ${unmet.map((hold) => `${hold.environment}/${hold.task}`).join(", ")} of ${blocker.number} is not deployed`)
@@ -976,7 +988,7 @@ const admit = async (env, mem, tickets, states, { running, room, full }) => {
   const decisions = new Map()
   const chosen = []
   for (const ticket of rankTickets(tickets)) {
-    const verdict = await ticketVerdict(env, mem, states, ticket, { settled: chosen.length >= room ? full : null, running })
+    const verdict = await ticketVerdict(env, mem, states, tickets, ticket, { settled: chosen.length >= room ? full : null, running })
     if (verdict.reason) {
       decisions.set(ticket.number, verdict.owner ? `needs:owner: ${verdict.reason}` : `wait: ${verdict.reason}`)
       if (verdict.owner) await needsOwner(env, mem, { ticket, reason: verdict.owner })
@@ -1049,7 +1061,13 @@ const readRunningReadings = (env, mem, running) => {
   }
 }
 
-/** Hourly: one `Bug` ticket for each Sentry issue and each alert that no ticket, open or closed, holds. */
+/** The closed ticket numbers that name a regressed issue, or null when the issue gets no new ticket: an open ticket names it, or its last event is no later than the newest close, so the fix holds. */
+const regressionOf = (candidate, named) => {
+  if (candidate.regressedAt === undefined || named.some((ticket) => ticket.state === "OPEN")) return null
+  return named.every((ticket) => Date.parse(ticket.closedAt) < candidate.regressedAt) ? named.map((ticket) => ticket.number) : null
+}
+
+/** Hourly: one `Bug` ticket for each Sentry issue and each alert that no ticket holds, and for each regressed issue that only closed tickets hold. */
 const intake = async (env, mem) => {
   const candidates = []
   const sentryToken = await env.keychain("orbit-sentry-token")
@@ -1071,11 +1089,15 @@ const intake = async (env, mem) => {
     }
   }
   if (candidates.length === 0) return
-  // Open and closed tickets both count, so a closed ticket keeps its issue from coming back.
-  const known = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "all", "--limit", "5000", "--json", "title,body"])).map((ticket) => `${ticket.title}\n${ticket.body}`)
-  for (const candidate of candidates.filter((entry) => !known.some(entry.held))) {
+  // Open and closed tickets both count, so a closed ticket keeps its issue from coming back, unless the issue regressed after the close.
+  const known = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "all", "--limit", "5000", "--json", "number,title,body,state,closedAt"]))
+  for (const candidate of candidates) {
+    const named = known.filter((ticket) => candidate.held(`${ticket.title}\n${ticket.body}`))
+    const earlier = named.length === 0 ? [] : regressionOf(candidate, named)
+    if (earlier === null) continue
     log(env, "intake", "ticket", candidate.label)
-    if (!env.dryRun) await env.github.createTicket({ title: candidate.title, body: candidate.body, labels: [`repo:${candidate.repoKey}`, "Bug"] })
+    const body = earlier.length === 0 ? candidate.body : `${candidate.body}\n\nThe issue regressed after the fix of ${earlier.map((number) => `#${number}`).join(", ")}.`
+    if (!env.dryRun) await env.github.createTicket({ title: candidate.title, body, labels: [`repo:${candidate.repoKey}`, "Bug"] })
   }
 }
 

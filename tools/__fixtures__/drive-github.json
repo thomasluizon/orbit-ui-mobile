@@ -58,7 +58,7 @@
   "driverReads": {
     "provenance": "Each member was recorded on 2026-11-20 with the command named in its own provenance key. Only key lists and one line format are kept, because the values of these reads belong to other work.",
     "sentryIssues": {
-      "provenance": "GET https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is:unresolved&limit=2 with a read-only personal token, 2026-11-20T22:44:34.594Z",
+      "provenance": "GET https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is:unresolved&limit=2 with a read-only personal token, 2026-11-20T22:44:34.594Z; substatus and lastSeen of both issues read from the same request path on 2026-11-21 (ORBIT-API-1Q and ORBIT-API-1K both returned substatus regressed; the other issues of that read returned new, ongoing and escalating)",
       "status": 200,
       "link": "<https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is%3Aunresolved&limit=2&cursor=1795199346000:0:1>; rel=\"previous\"; results=\"false\"; cursor=\"1795199346000:0:1\", <https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is%3Aunresolved&limit=2&cursor=1795199194000:0:0>; rel=\"next\"; results=\"true\"; cursor=\"1795199194000:0:0\"",
       "body": [
@@ -67,6 +67,8 @@
           "shortId": "ORBIT-API-1Q",
           "title": "Npgsql.NpgsqlException: Name or service not known",
           "permalink": "https://orbit-ai-habit-tracker.sentry.io/issues/7811298321/",
+          "substatus": "regressed",
+          "lastSeen": "2026-11-20T18:29:06Z",
           "project": {
             "slug": "orbit-api"
           }
@@ -76,6 +78,8 @@
           "shortId": "ORBIT-API-1K",
           "title": "Health check database with status Unhealthy completed after 4439.8507ms with message 'Database unreachable'",
           "permalink": "https://orbit-ai-habit-tracker.sentry.io/issues/7811297239/",
+          "substatus": "regressed",
+          "lastSeen": "2026-11-20T18:26:41Z",
           "project": {
             "slug": "orbit-api"
           }
@@ -111,11 +115,16 @@
       ]
     },
     "ticketBodies": {
-      "provenance": "gh issue list --repo thomasluizon/orbit-tickets --state all --limit 1 --json title,body --jq '.[0] | keys | join(\",\")' (exit 0), printed body,title",
+      "provenance": "gh issue list --repo thomasluizon/orbit-ui-mobile --state all --limit 1 --json number,title,body,state,closedAt --jq '.[0] | keys | join(\",\")' (exit 0) on 2026-11-21, printed body,closedAt,number,state,title; the build account cannot read the private tickets repository, and gh gives an issue of any repository these keys; one closed issue read gave state CLOSED and closedAt 2026-08-12T03:03:08Z",
       "keys": [
         "body",
+        "closedAt",
+        "number",
+        "state",
         "title"
-      ]
+      ],
+      "closedState": "CLOSED",
+      "closedAtShape": "2026-08-12T03:03:08Z"
     },
     "dependabotAlert": {
       "provenance": "gh api 'repos/thomasluizon/orbit-ui-mobile/dependabot/alerts?state=fixed&per_page=1' (exit 0); the three repositories had no open alert, so a fixed alert gave the field names",

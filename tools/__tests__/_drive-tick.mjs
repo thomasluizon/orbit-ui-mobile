@@ -150,6 +150,23 @@ const admissionCases = async () => {
   await wait("refuses a ticket that an open pull request tracks", [ticket(7)], null, { pulls: { ui: [pull(30)] } })
   await wait("holds a deploy-first blocker that is not deployed", [ticket(7, { blockedBy: [blocker(5, false, ["deploy-first:production/deploy"])] })], null, { unmet: [{ environment: "production", task: "deploy" }] })
   await wait("takes a Bug before a longer chain", [ticket(9, { labels: ["repo:ui", "Bug"] }), ticket(7), ticket(8, { blockedBy: [blocker(7)] })], "/r/orbit-worktrees/ui/fix-ticket-9", { reading: { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  const runsLast = async (label, tickets, expected) => {
+    const scene = scenario({ tickets, dryRun: true })
+    const printed = []
+    scene.env.log = (line) => printed.push(line)
+    await scene.run()
+    same(`drive: admission ${label}`, printed.find((line) => line.startsWith("ticket ") && line.includes("#9:")).split("#9: ")[1], expected)
+  }
+  const sweep = (extra = {}) => ticket(9, { labels: ["repo:ui", "Bug", "runs-last:repo"], ...extra })
+  const audit = (extra = {}) => ticket(9, { labels: ["repo:ui", "Bug", "runs-last:board"], ...extra })
+  await runsLast("holds a runs-last:repo ticket while another ticket of its repository is open", [sweep(), ticket(7)], "wait: runs last (1 open)")
+  await runsLast("admits a runs-last:repo ticket when the only other open ticket is of another repository", [sweep(), ticket(7, { labels: ["repo:api", "Improvement"], repoKey: "api" })], "admit build on fix/ticket-9")
+  await runsLast("counts every other open ticket of the repository for a runs-last:repo ticket", [sweep(), ticket(7), ticket(8), ticket(5, { labels: ["repo:ui", "owner-work"] })], "wait: runs last (3 open)")
+  await runsLast("holds a runs-last:board ticket while a ticket of any repository is open", [audit(), ticket(7, { labels: ["repo:landing", "Improvement"], repoKey: "landing" })], "wait: runs last (1 open)")
+  await runsLast("admits a runs-last:board ticket when no other ticket is open", [audit()], "admit build on fix/ticket-9")
+  await runsLast("holds a runs-last:board ticket while a runs-last:repo ticket is open", [audit(), ticket(7, { labels: ["repo:api", "runs-last:repo"], repoKey: "api" })], "wait: runs last (1 open)")
+  await runsLast("does not hold a runs-last:repo ticket for a runs-last:board ticket of its repository", [sweep(), audit({ number: 8 })], "admit build on fix/ticket-9")
+  await runsLast("does not hold a runs-last:repo ticket for another runs-last:repo ticket", [sweep(), sweep({ number: 8, labels: ["repo:ui", "runs-last:repo"] })], "admit build on fix/ticket-9")
   same("drive: rank puts the head of the longest chain before the lowest number", rankTickets([ticket(5), ticket(9), ticket(10, { blockedBy: [blocker(9)] }), ticket(11, { blockedBy: [blocker(10)] })]).map((entry) => entry.number), [9, 10, 5, 11])
   same("drive: rank breaks a tie on the lowest number", rankTickets([ticket(9), ticket(4), ticket(6)]).map((entry) => entry.number), [4, 6, 9])
 
@@ -625,7 +642,7 @@ const intakeCases = async () => {
     { title: "Log reading", body: "The log shows ORBIT-API-1KB twice." },
     { title: "Closed ticket", body: `Trace: ${sentryUrl("7811290001")}` },
     { title: "Path ticket", body: "See /issues/7811290002/ for the trace." },
-  ]
+  ].map((entry, index) => ({ number: 1700 + index, state: entry.title === "Closed ticket" ? "CLOSED" : "OPEN", closedAt: entry.title === "Closed ticket" ? "2026-11-10T00:00:00Z" : "0001-01-01T00:00:00Z", ...entry }))
   const alert = (kind, url, extra) => [`${kind}`, JSON.stringify([{ html_url: url, ...extra }])]
   const scene = scenario({ tickets: [], routes: [
     ["issue list", JSON.stringify(known)],
@@ -645,6 +662,21 @@ const intakeCases = async () => {
   same("drive: the ticket of a Sentry issue holds its permalink and a title of at most 120 characters", [sentry[0].body.split("\n")[2], sentry.every((entry) => entry.title.length <= 120), sentry[1].body.split("\n")[2]], [recorded.body[1].permalink, true, sentryUrl("7811290003")])
   const alerts = created.filter((entry) => !sentry.includes(entry))
   same("drive: intake opens one Bug ticket for each kind of alert, a longer alert number holds none, and no secret is copied", [alerts.map((entry) => entry.labels).sort(), alerts.length, created.some((entry) => JSON.stringify(entry).includes("NEVER-COPY"))], [[["repo:api", "Bug"], ["repo:landing", "Bug"], ["repo:ui", "Bug"]], 3, false])
+  const regression = async (issue, tickets) => {
+    const regressed = scenario({ tickets: [], routes: [["issue list", JSON.stringify(tickets)]] })
+    regressed.mem.lastIntakeAt = 0
+    regressed.env.keychain = async () => "sentry-token"
+    regressed.env.fetchJson = async () => ({ body: [{ ...recorded.body[0], ...issue }], link: null })
+    await regressed.run()
+    return only(regressed.calls, "createTicket").map((entry) => entry[1]).filter((entry) => entry.title.endsWith(" (Sentry ORBIT-API-1Q)")).map((entry) => [entry.labels, entry.body.split("\n").at(-1)])
+  }
+  const closedTicket = (number, closedAt) => ({ number, state: "CLOSED", closedAt, title: "Triage", body: "Fixed ORBIT-API-1Q." })
+  const openTicket = (number) => ({ number, state: "OPEN", closedAt: "0001-01-01T00:00:00Z", title: "Triage again", body: "Names ORBIT-API-1Q." })
+  const regressedAfterClose = [closedTicket(3, "2026-11-10T00:00:00Z"), closedTicket(4, "2026-11-12T00:00:00Z")]
+  same("drive: a regressed issue that only closed tickets name gets one Bug ticket that links them", await regression({}, regressedAfterClose), [[["repo:api", "Bug"], "The issue regressed after the fix of #3, #4."]])
+  same("drive: a regressed issue that an open ticket names gets no ticket", await regression({}, [...regressedAfterClose, openTicket(5)]), [])
+  same("drive: an unresolved issue that is not regressed and that a closed ticket names gets no ticket", await regression({ substatus: "ongoing" }, regressedAfterClose), [])
+  same("drive: a regressed issue whose last event is older than the close gets no ticket, as the fix holds", await regression({}, [closedTicket(3, "2026-11-20T18:30:00Z")]), [])
   const longer = scenario({ tickets: [], routes: [["issue list", JSON.stringify([{ title: "Alert", body: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/34" }])], ["thomasluizon/ui/dependabot/alerts", JSON.stringify([{ html_url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/3" }, { html_url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/34" }])]] })
   longer.mem.lastIntakeAt = 0
   await longer.run()
