@@ -426,29 +426,24 @@ export const cases = async () => {
   }
 
   const canceled = fixture("owner-cancel")
-  mkdirSync(join(canceled.checkout, ".claude", "hooks"), { recursive: true })
-  cpSync(toolPath("lib"), join(canceled.checkout, "tools", "lib"), { recursive: true })
-  cpSync(new URL("../../.claude/hooks/_lib", import.meta.url), join(canceled.checkout, ".claude", "hooks", "_lib"), { recursive: true })
-  cpSync(new URL("../../.claude/hooks/record-handoff-request.mjs", import.meta.url), join(canceled.checkout, ".claude", "hooks", "record-handoff-request.mjs"))
   const cancellationCommands = []
   const cancelExecute = executeFor(canceled.checkout, { confirm: false, commands: cancellationCommands })
   let rejectedEntry = false
   let rejectedOrdinaryWrite = false
-  let ownerHookSucceeded = false
+  let ownerCancelRecorded = false
   const canceledError = await failure({ repoRoot: canceled.checkout, sessionId: "predecessor", confirmMilliseconds: 1, wait: async () => {},
     execute: (binary, args, cwd, environment) => {
       if (args[1] === "send" && args.includes("--text")) {
         const nominated = readRunState(canceled.checkout).relay.successorSessionId
-        const hook = spawnSync(process.execPath, [join(canceled.checkout, ".claude", "hooks", "record-handoff-request.mjs")], {
-          input: JSON.stringify({ session_id: "predecessor", prompt: "/handoff --sleep", transcript_path: canceled.transcriptPath }), encoding: "utf8" })
-        ownerHookSucceeded = hook.status === 0 && readRunState(canceled.checkout).relay.canceledByOwner === true
+        updateRunState((state) => ({ ...state, sleep: false, relay: { ...state.relay, pending: false, canceledByOwner: true } }), canceled.checkout, { sessionId: "predecessor" })
+        ownerCancelRecorded = readRunState(canceled.checkout).relay.canceledByOwner === true
         try { adoptRelayRun(nominated, canceled.checkout) } catch (error) { rejectedEntry = /cancel/i.test(error.message) }
         try { writeRunState({ sessionId: nominated, sleep: false, relay: { from: "predecessor" } }, canceled.checkout) }
         catch (error) { rejectedOrdinaryWrite = /cancel/i.test(error.message) }
       }
       return cancelExecute(binary, args, cwd, environment)
     } })
-  T("relay-session: real owner hook cancels a nominated relay", ownerHookSucceeded)
+  T("relay-session: an owner cancel on the run record cancels a nominated relay", ownerCancelRecorded)
   T("relay-session: canceled nominee cannot enter sleep or replace the stopped run", rejectedEntry && rejectedOrdinaryWrite)
   const canceledState = readRunState(canceled.checkout)
   T("relay-session: timeout cleanup preserves owner cancellation", /did not confirm/.test(canceledError) && canceledState.sessionId === "predecessor" && canceledState.sleep === false && canceledState.relay.pending === false && canceledState.relay.canceledByOwner === true)

@@ -21,7 +21,7 @@ step.
 
 ## Context relay mode
 
-`--relay` is the unattended context transition requested by `relay-at-threshold.mjs`.
+`--relay` is the unattended context transition that `tools/relay-session.mjs` completes.
 It includes `--sleep`.
 It never asks the owner anything, and it never ends the session before a successor
 is confirmed. This is the exception to the owner handoff's ending
@@ -70,7 +70,6 @@ turn with `node tools/relay-session.mjs --retry-wake` as a background task and r
 exits, at least ten minutes later. Launch nothing during that wait. After two failures near
 the auto compact point, the hook records the fallback and permits ordinary continuation.
 
-An owner-origin `/handoff` clears a pending drain through `record-handoff-request.mjs`.
 After an owner handoff has finished its committed and pushed outputs, run
 `node tools/relay-session.mjs --close-chain` before the final reply. When this session has an open
 reporting chain, the tool records the session and closes that chain; with no open chain it records
@@ -290,10 +289,8 @@ the gap an instruction left.
 
 ## What belongs in the prompt
 
-Short. It points at the spec and says what to do next. Its shape is enforced, not advised: a hook
-records the mode from the owner's own `/handoff` or `/wrap-up` prompt, and `git commit` of
-`NEXT.md`, and the stop after it, are refused while the prompt misses any requirement below
-(`tools/lib/handoff-prompt.mjs`, `.claude/hooks/require-handoff-prompt.mjs`).
+Short. It points at the spec and says what to do next. Its shape is checked by `validateHandoffPrompt` in
+`tools/lib/handoff-prompt.mjs`: the prompt misses no requirement below.
 
 0. Under `--sleep`, the first line is exactly `/sleep`, so pasting the file starts the run with
    nothing added. An attended prompt never starts with a slash command.
