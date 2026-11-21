@@ -685,15 +685,16 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     return [{ type: "retarget", base: state.defaultBranch }, { type: "update" }, request(PLAIN_REQUEST)]
   }
   const launches = launchesOf(ticket).filter((entry) => entry.branch === pull.headRef && FIX_KINDS.includes(entry.kind))
-  // A ci-fix launch for a base merge is no fault of the change, so the cap does not count it.
-  const counted = launches.filter((entry) => entry.baseMerge !== true)
+  // A ci-fix launch for a base merge is no fault of the change, so the cap does not count it. Its mark holds the head it ran at.
+  const counted = launches.filter((entry) => !entry.baseMerge)
   const actions = flakeActions(pull)
   const owner = (reason) => [...actions, { type: "needs-owner", reason }]
   const orderOrOwner = (order, classes) => {
     // A worker order is recorded on a ticket, so a pull request with no open ticket goes to the owner.
     if (ticket === null) return owner(`${item} needs a ${order.kind} order and no open ticket tracks it. Open: ${classes}`)
     // An owner comment after a cap report grants one more launch, and that launch carries the comment.
-    if (order.failure?.baseMerge) return [...actions, order]
+    // The free launch runs once for each head, so a worker that pushes nothing meets the cap at its next launch.
+    if (order.failure?.baseMerge && !launches.some((entry) => entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
     const grants = capGrants(ticket, item)
     if (counted.length < MAX_FIX_LAUNCHES + grants.length) return [...actions, counted.length < MAX_FIX_LAUNCHES ? order : { ...order, ownerNote: grants[counted.length - MAX_FIX_LAUNCHES].body }]
     // A launch that still runs is in the count, so a cap is read only when no worker runs on the branch and the last launch has its result.
@@ -763,7 +764,7 @@ const updateBranch = async (env, repoKey, pull) => {
 const fileFlake = async (env, ctx, pull, action) => {
   const title = `Flaky check: ${action.name}`
   const slug = env.slugOf(ctx.repoKey)
-  if (!ctx.tickets.some((ticket) => ticket.title === title) && !ctx.flaky.has(title)) {
+  if (!ctx.tickets.some((ticket) => ticket.title === title && ticket.repoKey === ctx.repoKey) && !ctx.flaky.has(title)) {
     ctx.flaky.add(title)
     const body = `The check "${action.name}" failed on ${slug}#${pull.number} at the head \`${pull.headSha}\` and passed on a rerun of the run ${action.runId} at the same head. The test is flaky.\n\nFailed lines:\n\n\`\`\`\n${action.lines}\n\`\`\`\n\nFind the test that failed. Remove the timing or the shared state that makes it fail.`
     await env.github.createTicket({ title, body, labels: [`repo:${ctx.repoKey}`, "Bug"] })
@@ -925,7 +926,7 @@ const startWorker = async (env, mem, candidate) => {
     log(env, `ticket#${ticket.number}`, "wait", reason)
     return reason
   }
-  const baseMergeMark = order.failure?.baseMerge ? { baseMerge: true } : {}
+  const baseMergeMark = order.baseMergeHead ? { baseMerge: order.baseMergeHead } : {}
   await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark, at: new Date(env.now()).toISOString() })))
   ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark })), createdAt: new Date(env.now()).toISOString() })
   const worktree = await prepareWorktree(env, repoKey, branch, pull === null, location)

@@ -1046,11 +1046,19 @@ const baseMergeCases = async () => {
   const landing = merged(LANDING_150, "landing", { checks: build, comments: [comment("ticket", "T"), RERAN], tickets: [ticket(7, { repoKey: "landing", labels: ["repo:landing", "Improvement"], comments: capped("chore/ticket-7-30") })], routes: [["--log-failed", "Error: the page lists the iPhone app twice\n"]] })
   await landing.run()
   const launchRecord = JSON.parse(commentsOf(landing.calls, 7).find((text) => text.startsWith("<!-- orbit-drive:launch -->")).split("\n")[1])
-  same("drive: landing#150, Build red after the merge of 8dbc88950 with the cap spent, gets a ci-fix order that the cap does not count and no needs:owner", [landing.launched.length, only(landing.calls, "editLabels").length, only(landing.calls, "notify").length, launchRecord.kind, launchRecord.baseMerge], [1, 0, 0, "ci-fix", true])
+  same("drive: landing#150, Build red after the merge of 8dbc88950 with the cap spent, gets a ci-fix order that the cap does not count and no needs:owner", [landing.launched.length, only(landing.calls, "editLabels").length, only(landing.calls, "notify").length, launchRecord.kind, launchRecord.baseMerge], [1, 0, 0, "ci-fix", LANDING_150.merge])
   T("drive: the base-merge ci-fix order names the green commit and the base commits that the merge brought in", orderText(landing).includes(LANDING_150.base) && orderText(landing).includes(LANDING_150.green) && /clean merge of `origin\/main`/.test(orderText(landing)))
-  const again = merged(LANDING_150, "landing", { checks: build, comments: [comment("ticket", "T"), RERAN], tickets: [ticket(7, { repoKey: "landing", labels: ["repo:landing", "Improvement"], comments: [...capped("chore/ticket-7-30"), comment("launch", JSON.stringify({ kind: "ci-fix", part: null, branch: "chore/ticket-7-30", baseMerge: true }))] })] })
-  await again.run()
-  same("drive: a launch that carried the base-merge mark is not in the count, so two counted launches still stay at the cap for another failure", [again.launched.length, only(again.calls, "editLabels").length], [1, 0])
+  const markedLaunch = (head) => comment("launch", JSON.stringify({ kind: "ci-fix", part: null, branch: "chore/ticket-7-30", baseMerge: head }))
+  const headTable = [
+    ["a free launch at an older head", [markedLaunch("0000000000000000000000000000000000000000")], [1, 0]],
+    ["a free launch at this head", [markedLaunch(LANDING_150.merge)], [0, 2]],
+    ["six free launches at this head", Array.from({ length: 6 }, () => markedLaunch(LANDING_150.merge)), [0, 2]],
+  ]
+  for (const [label, extra, expected] of headTable) {
+    const again = merged(LANDING_150, "landing", { checks: build, comments: [comment("ticket", "T"), RERAN], tickets: [ticket(7, { repoKey: "landing", labels: ["repo:landing", "Improvement"], comments: [...capped("chore/ticket-7-30"), ...extra] })] })
+    await again.run()
+    same(`drive: with the cap spent and ${label}, the base-merge ci-fix gives [launches, label writes]`, [again.launched.length, only(again.calls, "editLabels").length], expected)
+  }
   const own = scenario({ tickets: [ticket(7, { comments: capped("chore/ticket-7-30") })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-30", headSha: UI_2528.merge, commits: [{ sha: UI_2528.green, parents: 1, checkState: "FAILURE" }, { sha: UI_2528.merge, parents: 2, checkState: "FAILURE" }], reviews: [], checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), RERAN] })] }, gitRoutes: [["--remerge-diff", ""], ["log --no-merges", "3f4e5d6c7 a base commit\n"]] })
   await own.run()
   same("drive: a clean merge on top of a red commit is the fault of the change, so the cap holds", [own.launched.length, only(own.calls, "editLabels").length], [0, 2])
@@ -1073,9 +1081,15 @@ const baseMergeCases = async () => {
   const filedOnce = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check("Tool Tests", "SUCCESS"), approvalCheck()], comments: [comment("ticket", "T"), RERAN, record, comment("record", "driver flake-filed 9001 Tool Tests")] })] } })
   await filedOnce.run()
   same("drive: a flake that has its filed record gets no second ticket", only(filedOnce.calls, "createTicket").length, 0)
-  const held = scenario({ tickets: [ticket(7), { ...ticket(8), title: "Flaky check: Tool Tests" }], pulls: { ui: [pull(30, { checks: [check("Tool Tests", "SUCCESS"), approvalCheck()], comments: [comment("ticket", "T"), RERAN, record] })] } })
-  await held.run()
-  same("drive: an open ticket of the same flaky check gets no second ticket, and the pull request records the filing", [only(held.calls, "createTicket").length, commentsOf(held.calls, 30).filter((text) => text.includes("driver flake-filed")).length], [0, 1])
+  const flakeTable = [
+    ["an open ticket of the same check in the same repository", { ...ticket(8), title: "Flaky check: Tool Tests", repoKey: "ui" }, 0],
+    ["an open ticket of the same check in another repository", { ...ticket(8), title: "Flaky check: Tool Tests", repoKey: "api", labels: ["repo:api", "Bug"] }, 1],
+  ]
+  for (const [label, other, created] of flakeTable) {
+    const held = scenario({ tickets: [ticket(7), other], pulls: { ui: [pull(30, { checks: [check("Tool Tests", "SUCCESS"), approvalCheck()], comments: [comment("ticket", "T"), RERAN, record] })] } })
+    await held.run()
+    same(`drive: ${label} gives [tickets filed, filed records]`, [only(held.calls, "createTicket").length, commentsOf(held.calls, 30).filter((text) => text.includes("driver flake-filed")).length], [created, 1])
+  }
   const stillRed = toolTests({ comments: [comment("ticket", "T"), RERAN] })
   await stillRed.run()
   same("drive: Tool Tests still red after the rerun at the clean merge gets a ci-fix order that the cap does not count", [only(stillRed.calls, "rerunFailed").length, stillRed.launched.length, only(stillRed.calls, "editLabels").length], [0, 1, 0])
