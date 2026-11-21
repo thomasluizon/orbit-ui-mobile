@@ -1223,6 +1223,15 @@ const paceRestartCases = async () => {
   await gapRestarted.run()
   same("drive: a restart keeps the last build launch, so the gap still holds the next build order", [gapFirst.launched.length, gapRestarted.mem.history.launches, gapRestarted.launched.length], [1, [NOW], 0])
 
+  const reapedFirst = scenario({ tickets: [ticket(7)], reading: overLine })
+  await reapedFirst.run()
+  const leftoverEvent = `${JSON.stringify({ type: "rate_limit_event", rate_limit_info: { status: "allowed", unifiedWindows: { seven_day: { utilization: 0.9, resetsAt: RESETS_AT } } } })}\n`
+  leftBehind(reapedFirst, {}, leftoverEvent)
+  const reapedRestarted = scenario({ tickets: [ticket(7)], reading: null, stateDirectory: reapedFirst.env.stateDir })
+  reapedRestarted.env.now = () => NOW + 10 * MINUTE
+  await reapedRestarted.run()
+  same("drive: a restart that reaps a worker with a reading before it knows the account still keeps the last build launch, so the gap holds the next build order", [reapedFirst.launched.length, reapedRestarted.launched.length], [1, 0])
+
   const pausedTicket = ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null })
   const rejected = { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" }
   const pausedFirst = scenario({ tickets: [pausedTicket, ticket(7)], probeReading: rejected })

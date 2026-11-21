@@ -290,7 +290,7 @@ const PACE_FILE = "pace.json"
 
 /** Keeps the newest reading, the time of the last probe and the pace history beside the pid files, so a restart neither probes again inside the hour nor forgets the last launch. */
 const savePace = (env, mem) => {
-  if (!env.dryRun) writeFileSync(join(env.stateDir, PACE_FILE), `${JSON.stringify({ account: mem.account?.key ?? null, lastProbeAt: mem.lastProbeAt, reading: mem.reading, history: mem.history })}\n`)
+  if (!env.dryRun && mem.paceLoaded) writeFileSync(join(env.stateDir, PACE_FILE), `${JSON.stringify({ account: mem.account?.key ?? null, lastProbeAt: mem.lastProbeAt, reading: mem.reading, history: mem.history })}\n`)
 }
 
 /** Adds the readings of this account that the history lacks, drops what is older than the span, and saves. */
