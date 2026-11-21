@@ -7,53 +7,55 @@ effort: high
 
 # Release
 
-Only dispatch after the owner invokes a release. Planning is read-only. Never dispatch a service whose plan says `needsRelease: false`. Keep API, web, landing, Android order and stop after any failed release or verification.
+Dispatch only after the owner invokes a release. Planning is read-only. Never dispatch a service whose plan says `needsRelease: false`. Keep the order API, web, landing, Android. Stop after a failed release or a failed verification. Read `reference.md` in this folder for the release facts.
 
 ## Plan
 
-Production uses `node tools/release-plan.mjs`, with `--track production` when requested. Staging requires a branch argument: `node tools/release-plan.mjs --environment staging --branch <branch>`. Staging Android uses `internal`. Show each service's branch, deployed SHA or absent baseline, planned SHA (`plannedSha`), pinned `dispatchCommand`, and unreleased commits. Show the Android track and its baseline. Web and Android also show `releaseCi`, the PR Tests and Guards push or dispatch runs at the planned SHA that both release workflows require. When it is not `success`, the web service has no `dispatchCommand`: wait for `pending`, or dispatch `test.yml` and `guards.yml` on the branch for `missing` or `failed`, then plan again. Dispatch Android only at `success`. An empty plan ends without dispatch.
+Production uses `node tools/release-plan.mjs`, with `--track production` when the owner asks for it. Staging needs a branch: `node tools/release-plan.mjs --environment staging --branch <branch>`. Staging Android uses `internal`.
 
-The staging API baseline is the `commit` from `/health` with `status: Healthy` at the URL in its Render service record. The production API baseline is its current live Render deploy. The web baseline is `/api/health` at the URL in its Render service record. The landing baseline is its current live Render deploy. The UI repository variables `RENDER_API_STAGING_SERVICE_ID` and `RENDER_WEB_STAGING_SERVICE_ID` locate the API and web services. The planner locates Render landing services by their `orbit-landing` and `orbit-landing-staging` names. A missing baseline is a first deploy. For staging, show `deployedFromOtherBranch` when the live commit is outside the selected branch and list the selected branch's commits from the comparison. Stop on a divergent production comparison or remote read failure.
+Show for each service:
+
+- the branch, the deployed SHA or absent baseline, the planned SHA (`plannedSha`) and the pinned `dispatchCommand`;
+- the unreleased commits and the Android track with its baseline;
+- `releaseCi` for web and Android: the PR Tests and Guards runs at the planned SHA.
+
+When `releaseCi` is not `success`, web has no `dispatchCommand`. Wait for `pending`. For `missing` or `failed`, dispatch `test.yml` and `guards.yml` on the branch, then plan again. Dispatch Android only at `success`. An empty plan ends with no dispatch. Stop on a divergent production comparison or a remote read failure. For staging, show `deployedFromOtherBranch` when the live commit is outside the selected branch.
 
 ## Dispatch in plan order
 
-Keep the reviewed plan and its full planned SHA for each repository through dispatch and verification. A branch advancing after planning does not change the selected commit. If a newer commit is wanted, produce and review a new plan first. Production selects `main`; staging uses the required branch. For API, web, and landing, run each repository's manual `release.yml` from `main`:
+Keep the reviewed plan and its full planned SHA for each repository until verification ends. A branch that advances after the plan does not change the selected commit. For a newer commit, plan again. Production selects `main`. Staging uses the required branch.
+
+For API, web and landing, run the manual `release.yml` of each repository from `main`. Use the exact `dispatchCommand` of the plan. Staging needs a full 40-character SHA. Always pass the planned SHA.
 
 ```text
 gh workflow run release.yml --repo thomasluizon/<repo> --ref main -f environment=<production|staging> -f branch=<selected branch> -f sha=<planned SHA>
 ```
 
-Use the plan's exact `dispatchCommand` for API, web, and landing. Staging requires an explicit full 40-character SHA. Production defaults to the dispatch's `github.sha` only when `sha` is empty; always pass the planned SHA from this procedure. Each workflow verifies checkout identity and selected-branch ancestry before deployment.
+Production needs staging to serve the same commit with healthy status. Web and Android also need green PR Tests and Guards at the selected SHA. Add `-f force_unstaged=true -f override_reason="<reason>"` to the web dispatch only when the owner asks to bypass staging admission.
 
-Production requires staging to serve the same commit with healthy status. Web and Android also require successful PR Tests and Guards runs and their checks on the selected SHA, a non-empty Sentry DSN and a non-empty Apple client ID (`NEXT_PUBLIC_APPLE_CLIENT_ID` for the selected web environment, `EXPO_PUBLIC_APPLE_CLIENT_ID` for Android). Web admission reads `/api/health` at the URL of `RENDER_WEB_STAGING_SERVICE_ID` and requires a successful `web-staging-smoke` status on that SHA. Staging smoke uses `STAGING_SMOKE_TEST_EMAIL` and `STAGING_SMOKE_TEST_CODE` for its seeded account. Only when the operator explicitly requests bypassing web staging admission, append both `-f force_unstaged=true` and `-f override_reason="<operator reason>"` to the UI dispatch command. Both admission summaries record the reason. Use the override inputs documented by the API and landing workflows for those repositories.
+`gh workflow run` returns no run id. Record the dispatch time and the `main` SHA. List the recent runs and select the unique new run with that `main` SHA. If no unique run matches, stop.
 
-For the staging Git-backed landing service, its workflow first updates the service's tracked branch with `PATCH /v1/services/{serviceId}` and `{"branch":"<selected branch>"}`, then triggers `POST /v1/services/{serviceId}/deploys` with `{"commitId":"<planned SHA>"}`. The update does not itself deploy. Both calls belong to that repository's workflow. The staging API and web workflows build the selected SHA into an image and deploy its digest. Do not change Render service settings manually while planning.
+```text
+gh run list --repo thomasluizon/<repo> --workflow release.yml --branch main --limit 10 --json databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch
+node tools/wait-release.mjs --repo <api|ui|landing> --run <databaseId> --sha <planned SHA> --workflow-sha <main workflow SHA> --service-url <selected service origin>
+```
 
-`gh workflow run` returns no run ID. Record the dispatch time and the repository's `main` SHA, then list recent `workflow_dispatch` runs on `main` with `gh run list --repo thomasluizon/<repo> --workflow release.yml --branch main --limit 10 --json databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch`, and select the unique new run with that `main` SHA. If no unique run matches, stop. Use `node tools/wait-release.mjs --repo <api|ui|landing> --run <databaseId> --sha <planned SHA> --workflow-sha <main workflow SHA> --service-url <selected service origin>`. The workflow run head is `main` even when its checkout deploys the selected staging branch. The waiter requires the selected service origin and checks its live commit against the planned SHA after the run succeeds: API `/health` with `status: Healthy`, web `/api/health` with `status: ok`, or landing `/` with the `orbit-build` meta tag. Use the selected Render service URL, without a path, as the origin. A missing, unhealthy, or different live commit fails verification. A ceiling result leaves the release unresolved; do not dispatch the next service.
+The waiter checks the live commit against the planned SHA after the run succeeds. A missing, unhealthy or different commit fails the check. A ceiling result leaves the release unresolved, so do not dispatch the next service.
 
-After success, verify the live service. API: require `https://api.useorbit.org/health` to report `status: Healthy` for production, or the staging service URL's `/health` to be healthy for staging; confirm the reported health commit equals the planned SHA. For production API, also confirm the Render live deploy commit equals the planned SHA. Web: require the selected Render service URL's `/api/health` to report `status: ok` and the planned `commit`. Landing: require a successful GitHub Deployment for the planned SHA and its URL's `orbit-build` meta tag to equal the SHA. Stop with the run URL and observed value on a mismatch.
+After success, verify the live service:
+
+- API: `/health` reports `status: Healthy` and the planned SHA. For production, the Render live deploy commit also equals the planned SHA.
+- Web: `/api/health` reports `status: ok` and the planned `commit`.
+- Landing: a successful GitHub Deployment exists for the planned SHA, and the `orbit-build` meta tag equals the SHA.
+
+Stop with the run URL and the observed value on a mismatch.
 
 ## Desktop with web
 
-The UI `release.yml` owns desktop admission for both environments. The required PR Tests and Guards runs on the planned SHA already cover the shell and web bridge unit tests. After production staging admission succeeds, reusable `desktop-release.yml` checks out the exact planned web SHA and compares that commit's shell inputs with the immutable version tag named by the channel's verified manifest. Unchanged inputs keep the published shell. Changed inputs automatically select a higher version and package, sign, notarize and verify every target. The selected channel advances before web deployment only when `main` contains the source; a source outside `main` (a branch-selected staging release or a Desktop Release dispatched on a branch) builds and verifies without publication, so a squash merge cannot strand the channel lineage. A failed desktop check or publication stops the web release. Do not dispatch a separate Desktop Release during `/release`.
-
-Read the Desktop summary for the selected SHA, channel and published or unchanged version. The signed channel manifest remains the update endpoint. Running desktop windows check `/api/desktop-release` at launch, on focus and reconnect, and every minute; native shells check the signed channel at launch, on focus and every minute. A newer web build or shell offers Restart now and Later in the existing notice slot once streaming, edits, attachments and mutations settle. The native menu also shows Update available. Later hides the exact offer until the next process launch or a newer version. Restart reloads a web-only update, or downloads, verifies, installs and relaunches a shell update after repeating the settle checks. A one-use account-bound checkpoint restores Astra; shell relaunch also restores the same-origin page. Checkpoint or update failure retains the current window for explicit Retry. Closing the window or choosing Quit never applies an update. Shells without the guarded update bridge retain their native menu for shell installation and can still offer web updates. The coordinator obtains `/second-opinion` approval for English and pt-BR update copy before merge. `apps/web/web-compatibility.json` declares the web build's `minimumShellVersion`; raise it with an incompatible shell requirement. The automatic shell version must meet that floor before web deployment. A source outside `main` whose floor is above the shell the channel keeps fails the plan before any build; merge the floor change to `main` first. Server rendering and hydration retain the application content; an older running shell switches to the native menu update instructions after hydration.
+The UI `release.yml` runs the desktop release for both environments. Do not dispatch a separate Desktop Release during `/release`. A failed desktop check stops the web release. Read the Desktop summary of the run for the channel and the published or unchanged version.
 
 ## Android
 
-Follow `.claude/skills/android-release/SKILL.md` to derive the next version and Play versionCode across all tracks. Confirm the exact inputs with the owner before dispatch. Production uses `open` by default or explicitly requested `production`, always from `main`. Staging uses only `internal`, from the selected branch. Never promote a binary across tracks. Android and iOS ship at one `app_version`: right after the Android dispatch, run `.claude/skills/ios-release/SKILL.md` at the same version from the same commit (the check refuses another commit), with `variant=production` after `open` or `production` and `variant=staging` after `internal`. The iOS archive runs beside the Android build, and its upload step waits for the Android record, so Android uploads first. A platform-only release needs a defect specific to that platform and a `platform_only_reason`, and it uses the `nextVersion` of `mobile-version-pair.js plan`, so one version never names two code states.
+Follow `.claude/skills/android-release/SKILL.md` for the version, the `versionCode` and the dispatch. Confirm the exact inputs with the owner first. Production uses `open` by default, or `production` when the owner asks, always from `main`. Staging uses only `internal`, from the selected branch. Then run `.claude/skills/ios-release/SKILL.md` at the same version.
 
-For a native Sentry upload blocker, follow that procedure's **Sentry organization lookup recovery**:
-use the trusted-main same-secret diagnostic. An API index 200 alone does not prove token auth; retain
-the bounded auth/scopes classification and exact type-only receipt when available. Reported auth
-and a listed scope do not resolve a native lookup 404 or prove target access. Use that procedure's
-bounded scope-selected identity/control and regional comparisons without adding grants or guessing
-destinations. Preserve the native failure independently of auxiliary success. Retain those evidence
-limits, repair only a demonstrated cause and recheck Play plus concurrent releases before any
-never-uploaded-code retry. Use confirmed
-GitHub/Play CLI or API interfaces first, with Console fallback only for history or availability those
-interfaces cannot establish. Unknown history stops recovery; current tracks do not prove a code was
-never uploaded. Pin and freshly verify the approved carrying main source, and keep Open submission
-separate from verified tester availability.
-
-Before staging Android dispatch, require the staging API Render service and `https://api-staging.useorbit.org/health` to be healthy at the planned API commit. Dispatch `android-release.yml` with `--ref <selected branch>` and the confirmed inputs. Resolve the unique new run on that branch and SHA, then use `wait-release.mjs --repo ui --workflow android --run <databaseId> --sha <planned Android SHA>`. Verify the Play upload step and API health again. A successful upload does not establish when Play makes the build available to testers.
+Before a staging Android dispatch, the staging API must be healthy at the planned API commit. Dispatch with `--ref <selected branch>`. Resolve the unique new run, then run `wait-release.mjs --repo ui --workflow android --run <databaseId> --sha <planned Android SHA>`. A successful upload does not say when Play makes the build available to testers.

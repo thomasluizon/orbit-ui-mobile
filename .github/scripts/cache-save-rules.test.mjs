@@ -66,8 +66,7 @@ test("every job that installs from the lockfile restores the npm cache first, an
     const restore = steps.findIndex(isNpmRestore)
     if (restore < 0 || restore > install) withoutCache.push(where)
   }
-  // The diagnostic workflow keeps its four fixed steps and no cache step (tools/__tests__/android-sentry-diagnostic.mjs).
-  assert.deepEqual(withoutCache, ["android-sentry-diagnostic.yml: diagnose"])
+  assert.deepEqual(withoutCache, [])
 
   const action = actions.find(({ file }) => file === "restore-npm-cache/action.yml").steps
   const restore = action.find((step) => step.id === "restore")

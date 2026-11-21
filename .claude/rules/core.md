@@ -4,13 +4,7 @@ Tracked rules, prompts, specs and comments state current requirements without da
 attributed quotes, session IDs or personal machine paths. Post timed run evidence to its ticket,
 never to a file on one computer.
 
-**At a glance:** the judgement that loads on EVERY turn. Everything else lives in
-`.claude/playbooks/`: **read the playbook yourself** when you start that activity, because no file
-path predicts it.
-
-| playbook | read it when |
-|---|---|
-| `operations.md` | launching a worker, waiting on CI, merging, releasing, infrastructure, a browser, console or device |
+**At a glance:** the judgement that loads on EVERY turn.
 
 ### 1. No red-capable command, no hypothesising
 

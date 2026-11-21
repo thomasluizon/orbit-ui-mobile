@@ -1,34 +1,22 @@
 ---
 name: android-generate
-description: Build a release APK from the current working tree, then either reveal it in the file explorer or install and launch it on the Orbit Android emulator. Use when the user wants a fresh APK, wants to test mobile changes on the emulator, or says /android-generate. Not for publishing to Google Play, which is /android-release.
+description: Build a release APK from this checkout, then reveal it in Finder or install and launch it on the Orbit Android emulator. Use for a fresh APK, an emulator test of mobile changes, or /android-generate. Not for Google Play, which is /android-release.
 argument-hint: "[--emulator]"
 effort: low
 ---
 
-# Android Generate - build an APK from this checkout
+# Android Generate: build an APK from this checkout
 
-Builds the local release APK with `apps/mobile`'s own script, so the skipped
-Sentry upload, and the Gradle staging directory all stay exactly as the repository defines them.
+This skill builds the local release APK with the script of `apps/mobile`. Sentry upload stays skipped.
 
-## Mode (from `$ARGUMENTS`)
-
-| Arguments | What to do |
+| Arguments | Action |
 |---|---|
-| empty | Build the ARM-only APK, then reveal it in the file explorer. |
-| `--emulator` | Build with the x86_64 ABI added, boot the emulator, install, and launch. |
+| empty | Build the ARM-only APK, then reveal it in Finder. |
+| `--emulator` | Build with the x86_64 ABI added, boot the emulator, install and launch. |
 
-## Why `--emulator` changes the ABIs
+An x86_64 emulator needs the x86_64 native slice. Without it, the app exits at start.
 
-`apps/mobile/app.json` sets local `buildArchs` defaults to `["armeabi-v7a", "arm64-v8a"]`.
-An x86_64 emulator needs its native slice: React Native's SoLoader resolves `libreactnative.so`
-on the device's primary ABI and exits when that library is absent.
-
-`--emulator` passes `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64` to Gradle for the
-local build. The release and startup-proof workflows use the same override so the release boot
-gate can execute the shipping AAB on an x86_64 emulator before Play submission. Keep the local
-defaults in `app.json`; generated `gradle.properties` is rewritten from it on every prebuild.
-
-## Step 1 - Build
+## Step 1: Build
 
 ```bash
 cd apps/mobile
@@ -36,76 +24,43 @@ npm run android:apk            # default
 npm run android:apk:emulator   # --emulator
 ```
 
-Run it with `run_in_background: true` and a log file. Cold builds can take tens of minutes;
-later builds reuse the Gradle cache. Poll the log rather than blocking the session.
+Run the build with `run_in_background: true` and a log file. A cold build can take tens of minutes. Poll the log.
 
-The script stops Gradle daemons before `expo prebuild`, because a live daemon holds `apps/mobile/android`
-open on Windows and prebuild dies with `EBUSY: resource busy or locked`. If you still see EBUSY, some
-other process has that directory open. **A shell whose working directory is `apps/mobile/android` is
-enough to cause it** - move it and retry.
+Prebuild needs `apps/mobile/google-services.json`. It is gitignored. When it is missing, prebuild fails with `Cannot copy google-services.json`. Ask the owner to download it from the Firebase console for `org.useorbit.app`.
 
-Prebuild needs `apps/mobile/google-services.json`, which is gitignored and absent on a fresh clone.
-When it is missing, prebuild fails with `Cannot copy google-services.json`. Ask the user to download it
-from the Firebase console for `org.useorbit.app`; CI writes it from the `GOOGLE_SERVICES_JSON` secret,
-and secrets cannot be read back.
+The APK lands at `apps/mobile/android/app/build/outputs/apk/release/app-release.apk`.
 
-The APK lands at:
-
-```
-apps/mobile/android/app/build/outputs/apk/release/app-release.apk
-```
-
-## Step 2a - Default: reveal the APK
+## Step 2a: Default, reveal the APK
 
 ```bash
-explorer.exe /select,"<absolute windows path to app-release.apk>"
+open -R apps/mobile/android/app/build/outputs/apk/release/app-release.apk
 ```
-
-`explorer.exe /select` returns exit code 1 even when it succeeds. Treat a non-zero exit as normal here
-and confirm the file exists with `stat` instead.
 
 Report the absolute path and the file size.
 
-## Step 2b - `--emulator`: install and launch
+## Step 2b: `--emulator`, install and launch
 
-1. **Bring the emulator up.** It creates the AVD on first use and always passes explicit DNS:
+1. Boot the emulator. The tool creates the AVD on first use. Read `serial` from the JSON.
    ```bash
    node tools/android-emulator.mjs --json
    ```
-   Read `serial` from the JSON for the following steps.
-
-2. **Verify the APK really carries x86_64** before blaming anything else:
-   ```bash
-   unzip -l <apk> | grep libreactnative.so
-   ```
-   Expect a `lib/x86_64/libreactnative.so` row. Its absence means the override did not apply.
-
-3. **Uninstall any Play copy first.** A Play install and a local build carry different signing keys, so
-   installing over one fails. `adb uninstall` returning `Failure [DELETE_FAILED_INTERNAL_ERROR]` when the
-   app is absent is fine.
+2. Check that the APK carries x86_64: `unzip -l <apk> | grep libreactnative.so` must show `lib/x86_64/libreactnative.so`.
+3. Remove any Play copy. A Play install and a local build have different signing keys. A `DELETE_FAILED_INTERNAL_ERROR` result for an absent app is fine.
    ```bash
    adb -s <serial> uninstall org.useorbit.app
    adb -s <serial> install -r <apk>
    ```
-
-4. **Launch and prove it did not crash:**
+4. Launch the app. A live `pidof` result and an empty crash buffer are the pass.
    ```bash
    adb -s <serial> logcat -c
    adb -s <serial> shell monkey -p org.useorbit.app -c android.intent.category.LAUNCHER 1
    adb -s <serial> shell pidof org.useorbit.app
    adb -s <serial> logcat -b crash -d
    ```
-   A live pid plus an empty crash buffer is the pass. `dumpsys package org.useorbit.app | grep primaryCpuAbi`
-   should read `x86_64`.
 
-## Never drive the emulator while the user is using it
+Say plainly when the app crashed. Never infer success from the install step alone.
 
-Once you hand the device over - a sign-in, a manual walkthrough - send it no `adb shell input`, no
-`am start`, and no screenshots until the user says they are done. An `am start` once threw away
-credentials the user was mid-way through typing.
+## Rules for the emulator
 
-## Report
-
-State the APK path and size, the ABIs it contains, and for `--emulator` the serial, the installed
-`versionName`, and the crash-buffer result. Say plainly if the app crashed; never infer success from
-the install step alone.
+- After you hand the device to the owner, send no `adb shell input`, no `am start` and no screenshot until the owner says the work is done.
+- A device-bug repro may boot a separate throwaway AVD, never the owner's `Orbit_Pixel_9_API_35`, never signed in as the owner, and deleted after the proof.

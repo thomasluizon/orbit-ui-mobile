@@ -76,7 +76,8 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/brand/README.md` | The source Orbit and Astra marks, their variants, the raster and manual upload exports and the three type families. |
 | `packages/decode-uri-component/README.md` | Why the CommonJS port of `decode-uri-component` 0.5.0 exists for Expo Router and where its code comes from. |
 | `packages/shared/scripts/__fixtures__/README.md` | Provenance of the producer fixtures: the `orbit-api` commit they come from; evidence, never runtime inputs. |
-| `.claude/playbooks/operations.md` | Standing rules for launching a worker, waiting on CI, merging, releasing, infrastructure and a browser, console or device. |
+| `.claude/skills/release/reference.md` | Release order, CI, infrastructure and secrets facts for `/release`, `/android-release` and `/ios-release`. |
+| `.claude/skills/android-release/reference.md` | Play, Sentry upload and device recipe facts for `/android-release` and `/android-generate`. |
 | `.claude/rules/product-and-content.md` | Path-scoped rules for i18n copy, the landing page, JSON-LD, the design system and any subtraction pass. |
 | `.claude/skills/audit-security/checklist.md` | The category list that `/audit-security` walks; its only consumer. |
 | **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined in `CLAUDE.md`. |

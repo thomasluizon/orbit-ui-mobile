@@ -5,112 +5,33 @@ description: Publish an Orbit iOS build to internal TestFlight through the manua
 
 # iOS release
 
+Never release on the App Store. This workflow uploads to internal TestFlight only. Read `.github/workflows/ios-release.yml` for the inputs and the credential names.
+
 ## One mobile version
 
-iOS ships at the same `app_version` as Android, from the same commit. Each store keeps its own build counter.
-The default path is `/android-release` first, then this skill right after the Android dispatch, at the version
-and commit of that Android run. The iOS archive runs beside the Android build; Android still uploads first.
+iOS ships at the same `app_version` as Android, from the same commit. Each store keeps its own build counter. The default path is `/android-release` first. Then run this skill right after the Android dispatch, at the version and commit of that Android run. Android still uploads first.
 
-The `variant` selects the GitHub environment, and each environment keeps its own records. Select the
-variant of the Android run's environment:
+The `variant` selects the GitHub environment. Each environment keeps its own records. Select the variant of the Android environment:
 
 | Android `track` | GitHub environment | iOS `variant` |
 |---|---|---|
 | `open`, `production` | `production` | `production` |
 | `internal` | `staging` | `staging` |
 
-Use the `app_version` of the Android run: the newest Android version from
-`node apps/mobile/scripts/mobile-version-pair.js plan --environment <the variant>` (set `GITHUB_REPOSITORY`
-and `GH_TOKEN`) when Android already uploaded, or the version of the Android dispatch that is still running.
-The workflow runs `mobile-version-pair.js check` against that environment only, twice. Before the build,
-`--stage build` refuses an iOS version that differs from the newest Android version there, unless an
-`android-release.yml` run of that version for that environment is queued or running on the same commit.
-Before the TestFlight upload, `--stage upload --wait-minutes 45` reads the Android records every 30 seconds
-until Android records that version, and refuses when the Android run ends without a record or the wait ends.
-Both pass `--sha "$GITHUB_SHA"` and refuse a build of a commit other than the commit of the newest Android
-record at that version. A new build
-number at a version that iOS already carries must build that version's commit too. `gh workflow run --ref`
-builds the tip of the branch. So dispatch only while that tip is the commit of the Android run. If the
-branch moved, release Android at the new `nextVersion` from the new tip first. If the newest Android record
-at the version has no commit, the check refuses the version and does not guess a commit. An iOS `staging` build thus needs an
-Android `internal` build at the same version first. When the staging plan shows an older Android version
-than the code under test, release Android `internal` at the new version, then release iOS `staging`.
+## The version pair
 
-Release iOS alone only for a defect specific to iOS. Pass the defect as `platform_only_reason`.
-The run summary and the iOS deployment record keep the reason. Never invent a reason to pass the check.
-An iOS-only release uses the `nextVersion` of the same plan, above the newest version of both platforms.
-One version names one code state, so the check refuses an iOS-only version at or below the newest Android
-version. The next shared release then starts on Android at the new `nextVersion`, above this iOS version.
+1. Use the version of the Android run: `node apps/mobile/scripts/mobile-version-pair.js plan --environment <variant>` (set `GITHUB_REPOSITORY` and `GH_TOKEN`), or the version of the Android dispatch that still runs.
+2. The workflow runs `mobile-version-pair.js check` twice. `--stage build` refuses a version that differs from the newest Android version, unless a matching Android run is queued or running on the same commit.
+3. `--stage upload --wait-minutes 45` waits for the Android record of that version. It refuses when the Android run ends with no record.
+4. Both checks refuse a commit other than the commit of the newest Android record at that version. A record with no commit makes the check refuse the version.
+5. `gh workflow run --ref` builds the tip of the branch. Dispatch only while that tip is the commit of the Android run. If the branch moved, release Android at the new `nextVersion` first.
+6. Release iOS alone only for a defect that only iOS has. Pass the defect as `platform_only_reason`. Never invent a reason to pass the check.
+7. An iOS-only release uses `nextVersion` of the same plan. The check refuses an iOS-only version at or below the newest Android version.
+8. The next shared release then starts on Android at the new `nextVersion`.
 
-After the upload, the job `record-upload` (`needs: release`, `ubuntu-latest`) records an `ios-release`
-GitHub Deployment, which the Android check reads. It makes 3 attempts, and it reuses the record of the same
-commit, version, build number and variant. If this job fails, use "Re-run failed jobs". The rerun does not
-upload the build again and does not use a new build number. Until this record exists, the Android check
-does not see this iOS version.
+## Dispatch
 
-Read `.github/workflows/ios-release.yml` for the current inputs and credential names.
-It archives the embedded redesign bundle, uploads Sentry symbols, and uploads to App Store Connect.
-The `variant` input defaults to `production`, the pair of the default Android `open` track.
-Production releases run from `main`.
-
-Before dispatch, resolve the requested ref to a commit equal to the Android run's commit, the app version from the rule above, an unused positive `build_number`,
-and `variant` (`staging` or `production`, from the table above). Read the latest build number from the matching app's
-App Store Connect TestFlight screen; do not infer it from Android's version code. Verify the
-`Mobile iOS Build` compile check for the commit when the commit changed a native input; that workflow runs
-only for native inputs. Ask for a missing release parameter only after
-checking the requested release context. Dispatch only when the user has authorized the upload.
-
-The GitHub environments `ios-staging` and `ios-production`, under Settings > Environments, need:
-
-| Kind | Key | Source |
-|---|---|---|
-| Variable | `ORBIT_APPLE_TEAM_ID` | Apple Developer > Membership details > Team ID |
-| Variable | `EXPO_PUBLIC_APPLE_CLIENT_ID` | Required. The app reads it only to show the Sign in with Apple button; the API's `AppleSignIn__NativeClientId` sets the client ID that Apple checks. By convention it holds that bundle identifier: `org.useorbit.app` in `ios-production` and `org.useorbit.app.staging` in `ios-staging`. The release stops before it builds when the value is empty |
-| Variable | `ORBIT_IOS_APP_STORE_ID` | App Store Connect > Apps > matching app > App Information > Apple ID |
-| Variable | `IOS_PROVISIONING_PROFILE_NAME` | Apple Developer > Certificates, Identifiers & Profiles > Profiles; the matching App Store distribution profile's name |
-| Variable | `IOS_WIDGET_PROVISIONING_PROFILE_NAME` | The distribution profile name for that variant's `<bundleIdentifier>.widget` extension |
-| Secret | `IOS_DISTRIBUTION_CERTIFICATE_BASE64` | Base64 of the Apple Distribution certificate and private key exported as a password-protected PKCS#12 file |
-| Secret | `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD` | Password used for that PKCS#12 export |
-| Secret | `IOS_PROVISIONING_PROFILE_BASE64` | Base64 of that variant's distribution provisioning profile |
-| Secret | `IOS_WIDGET_PROVISIONING_PROFILE_BASE64` | Base64 of the widget extension's distribution provisioning profile |
-| Secret | `APP_STORE_CONNECT_API_KEY_ID` | App Store Connect > Users and Access > Integrations > App Store Connect API > Team Keys |
-| Secret | `APP_STORE_CONNECT_API_ISSUER_ID` | Issuer ID on the same screen |
-| Secret | `APP_STORE_CONNECT_API_PRIVATE_KEY` | Raw downloaded `.p8` contents for that team key |
-| Secret | `SENTRY_AUTH_TOKEN` | Sentry token with release upload access to `orbit-mobile` |
-
-Supply the existing `EXPO_PUBLIC_GOOGLE_CLIENT_ID`, `EXPO_PUBLIC_TURNSTILE_SITE_KEY`,
-`EXPO_PUBLIC_SENTRY_DSN`, `STAGING_EXPO_PUBLIC_POSTHOG_KEY` and `PRODUCTION_EXPO_PUBLIC_POSTHOG_KEY`
-repository variables to these environments as appropriate. Each variant uses its own API host.
-The Google web OAuth client must allow that variant's HTTPS `/auth-callback` redirect.
-
-Enrollment and signing are prerequisites for an upload, not for the unsigned compile job.
-Do not request enrollment while compilation and repository tests can still proceed.
-Once enrolled, enable Push Notifications and Associated Domains for both app bundle identifiers,
-and create their App Store Connect records. The application identifier prefix in
-`apps/web/public/.well-known/apple-app-site-association` is the enrolled team `BD7JH468F7`; keep it
-equal to `ORBIT_APPLE_TEAM_ID`. Verify both web hosts serve it as JSON with status 200 and no redirect. In App Store
-Connect > Pricing and Availability > iPhone and iPad Apps on Apple Silicon Mac, opt out of Mac
-availability before distribution. Keep testers internal; this workflow does not submit for review.
-
-Register `org.useorbit.app.widget` and `org.useorbit.app.staging.widget` as explicit extension
-identifiers in Apple Developer > Certificates, Identifiers & Profiles > Identifiers. Register
-App Groups `group.org.useorbit.app.widget` and `group.org.useorbit.app.staging.widget`, associating
-each group with its containing app and extension. The App Group also grants Keychain access to
-the group name; no team prefix or change to the app's default Keychain group is needed. Generate
-separate App Store distribution profiles for all four targets after enabling their capabilities.
-The workflow installs both profiles for the selected variant and exports both bundle identifiers.
-The plugin sets each target's profile so an app profile never applies to the extension.
-
-The unsigned macOS compile job needs no Apple membership, certificate, profile or upload key.
-It compiles the widget's Swift state and storage behavior tests through Vitest, then builds the
-containing app and its embedded extension without launching a simulator. Complete that check
-before enrollment. After signing becomes available, verify a completed habit appears after one
-WidgetKit refresh, sign-out clears the widget, and reinstall opens login. Measure iPad at 744,
-820, 1032 and 1366 points, including Split View, Slide Over and 200 percent Dynamic Type; check
-labels, safe areas, landscape, sheet dismissal, VoiceOver focus and Reduce Motion on the device.
-Repository tests and unsigned compilation do not establish those rendered or device results.
-
-Confirm the installed `gh workflow run` interface before dispatching. The command shape is:
+Before dispatch, resolve the ref to the commit of the Android run. Find an unused positive `build_number` on the TestFlight screen of the matching app in App Store Connect. Never infer it from the Android version code. Check the `Mobile iOS Build` compile result when the commit changed a native input. Dispatch only when the owner authorized the upload.
 
 ```sh
 gh workflow run ios-release.yml --ref <ref> \
@@ -118,23 +39,15 @@ gh workflow run ios-release.yml --ref <ref> \
   -f platform_only_reason=<reason or empty>
 ```
 
-Follow only the dispatched run. After the `release` job uploads the build, the separate job
-`testflight-access` (`needs: release`, `ubuntu-latest`, 30 minutes) runs `tools/testflight-access.mjs`.
-It does not wait for `record-upload`.
-It waits until App Store Connect lists the exact version and build as `VALID`, and it fails the job on
-`FAILED`, `INVALID` or a timeout. It then makes sure the app has an internal beta group with access to all
-builds, and it makes that group hold every person of the team's other internal beta groups. App Store
-Connect gives the same person a different tester id in each app. A link of another app's tester id to the
-group answers 409 `STATE_ERROR`. So the tool matches a person by e-mail address without regard to case. For
-each person with no tester record for this app, it creates one in the group (`POST /v1/betaTesters` with the
-`betaGroups` relationship). Apple's answer to that create for a person who already has a record for this app
-is not known. So a person with a record for this app outside the group gets no write, and the summary counts
-these people. Add them to the group in App Store Connect. It invents no new person. It creates the group only
-when missing and it fails when the group would hold no tester. The job summary shows the processing state,
-the group name, the tester count and the number of testers this run added. It never prints an e-mail address
-or a name. A failed create fails the job with the App Store Connect error code and title. If this job fails,
-use "Re-run failed jobs". The rerun does not upload the build again and does not use a new build number. It
-runs the tool from the original commit of the run. So a rerun can clear a timeout or an App Store Connect
-failure, but it never gets a later fix to the tool. After such a fix, the next release that you dispatch proves
-the fix. The release key needs only the App Manager role. Report the run URL, commit, variant, version, build
-number and the job summary. Never print signing material.
+Follow only the dispatched run.
+
+## After the upload
+
+- The job `record-upload` records an `ios-release` GitHub Deployment, which the Android check reads. It makes 3 attempts.
+- The job `testflight-access` runs `tools/testflight-access.mjs`. It waits until App Store Connect lists the exact version and build as `VALID`, then makes sure the internal beta group has the team testers.
+- If either job fails, use "Re-run failed jobs". A rerun does not upload the build again and does not use a new build number.
+- A rerun uses the tool of the original commit. A later fix to the tool takes effect on the next release.
+
+## Report
+
+Report the run URL, the commit, the variant, the version, the build number and the job summary. Never print signing material.
