@@ -9,9 +9,7 @@ const AVD_NAME = "Orbit_Pixel_9_API_35"
 const SYSTEM_IMAGE = "system-images;android-35;google_apis_playstore;x86_64"
 const DEVICE_PROFILE = "pixel_9"
 const DNS_SERVERS = "8.8.8.8,1.1.1.1"
-const VERIFY_HOST = "api.useorbit.org"
 const BOOT_TIMEOUT_SECONDS = 420
-const SHUTDOWN_TIMEOUT_SECONDS = 60
 
 const AVD_SETTINGS = {
   "PlayStore.enabled": "yes",
@@ -28,24 +26,18 @@ const EXIT = { OK: 0, FAILED: 1, INVALID_INPUT: 2, NO_SDK: 3, AVD_FAILED: 4, BOO
 const USAGE = `android-emulator.mjs - bring the Orbit Android emulator to a ready state
 
 Usage:
-  node tools/android-emulator.mjs [--status] [--avd <name>] [--port <port>] [--dns <servers>]
-                                  [--verify-host <host>] [--timeout <seconds>] [--json]
+  node tools/android-emulator.mjs [--status] [--avd <name>] [--port <port>] [--timeout <seconds>] [--json]
 
 Creates the AVD "${AVD_NAME}" when it does not exist, boots it with explicit DNS
 servers, and waits until the guest reports sys.boot_completed=1. Every serial is matched
-to its own AVD, so an unrelated emulator is never reported or targeted. A running AVD is
-reused only when it can still resolve --verify-host; otherwise it is restarted with --dns,
-because an emulator started elsewhere inherits the host resolver.
+to its own AVD, so an unrelated emulator is never reported or targeted. A running AVD is reused.
 
 Options:
   --status            Report the current state and exit without creating or booting anything.
   --avd <name>        AVD to use. Default: ${AVD_NAME}
   --port <port>       Even console port from 5554 to 5682 for a launched emulator, whose serial is then
                       emulator-<port>. A device proof passes $ORBIT_PROOF_EMULATOR_PORT. Default: the emulator's choice
-  --dns <servers>     Comma-separated DNS servers passed to -dns-server. Default: ${DNS_SERVERS}
-  --verify-host <host> Host the guest must resolve before a running AVD is reused. Default: ${VERIFY_HOST}
   --timeout <seconds> Seconds to wait for boot. Default: ${BOOT_TIMEOUT_SECONDS}
-  --shutdown-timeout <seconds> Seconds to wait for a restarted AVD to leave adb devices. Default: ${SHUTDOWN_TIMEOUT_SECONDS}
   --json              Emit the result as JSON on stdout.
   --help, -h          Print this usage and exit 0.
 
@@ -70,9 +62,6 @@ function parseArgs(argv) {
   const options = {
     status: false,
     avd: AVD_NAME,
-    dns: DNS_SERVERS,
-    verifyHost: VERIFY_HOST,
-    shutdownTimeout: SHUTDOWN_TIMEOUT_SECONDS,
     timeout: BOOT_TIMEOUT_SECONDS,
     json: false,
     port: null,
@@ -95,22 +84,13 @@ function parseArgs(argv) {
       }
       index += 1
       options.port = port
-    } else if (arg === "--avd" || arg === "--dns" || arg === "--verify-host" || arg === "--timeout" || arg === "--shutdown-timeout") {
+    } else if (arg === "--avd" || arg === "--timeout") {
       const value = argv[index + 1]
       if (value === undefined || value.startsWith("--")) {
         fail(EXIT.INVALID_INPUT, `${arg} requires a value`)
       }
       index += 1
       if (arg === "--avd") options.avd = value
-      else if (arg === "--dns") options.dns = value
-      else if (arg === "--verify-host") options.verifyHost = value
-      else if (arg === "--shutdown-timeout") {
-        const seconds = Number(value)
-        if (!Number.isFinite(seconds) || seconds <= 0) {
-          fail(EXIT.INVALID_INPUT, `--shutdown-timeout requires a positive number of seconds, got ${value}`)
-        }
-        options.shutdownTimeout = seconds
-      }
       else {
         const seconds = Number(value)
         if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -130,7 +110,6 @@ function resolveSdkPath() {
   const candidates = [
     process.env.ANDROID_HOME,
     process.env.ANDROID_SDK_ROOT,
-    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, "Android", "Sdk") : null,
     path.join(homedir(), "Library", "Android", "sdk"),
     path.join(homedir(), "Android", "Sdk"),
   ].filter(Boolean)
@@ -139,45 +118,15 @@ function resolveSdkPath() {
 }
 
 function executable(sdkPath, ...segments) {
-  const base = path.join(sdkPath, ...segments)
-  for (const suffix of process.platform === "win32" ? [".exe", ".bat", ""] : [""]) {
-    if (existsSync(base + suffix)) return base + suffix
-  }
-  return base
+  return path.join(sdkPath, ...segments)
 }
 
-/**
- * Node cannot spawn a .bat or .cmd file without a command processor, and the SDK ships
- * `sdkmanager.bat` and `avdmanager.bat` on Windows. Those paths run through a shell, with the
- * command quoted because the SDK lives under a path containing spaces on a default install.
- * https://nodejs.org/api/child_process.html#spawning-bat-and-cmd-files-on-windows
- */
 function run(command, args, options = {}) {
-  const needsShell = process.platform === "win32" && /\.(bat|cmd)$/i.test(command)
-  return spawnSync(needsShell ? `"${command}"` : command, args, {
+  return spawnSync(command, args, {
     encoding: "utf8",
     env: { ...process.env, ...(options.env ?? {}) },
     input: options.input,
-    shell: needsShell,
-    windowsHide: true,
   })
-}
-
-/**
- * Every serial `adb devices` lists, whatever its transport state, or null when the command itself
- * failed. Shutdown is judged against this, never against the `device`-only view: a serial sitting in
- * `offline` is still holding its AVD lock, and an empty list from a failed command is not evidence
- * of anything.
- */
-function listedSerials(adb) {
-  const listed = run(adb, ["devices"])
-  if (listed.status !== 0) return null
-  return String(listed.stdout ?? "")
-    .split(/\r?\n/)
-    .slice(1)
-    .map((line) => line.trim().split(/\s+/))
-    .filter((parts) => parts.length >= 2 && parts[0].startsWith("emulator-"))
-    .map((parts) => parts[0])
 }
 
 function bootedSerials(adb) {
@@ -215,44 +164,6 @@ function readySerialFor(adb, avd) {
   return (
     bootedSerials(adb).find((serial) => isBootCompleted(adb, serial) && avdNameForSerial(adb, serial) === avd) ?? null
   )
-}
-
-/**
- * Any serial running `avd`, booted or still starting. A starting AVD holds its lock exactly like a
- * ready one, so the launch decision must consult this rather than readiness.
- */
-function presentSerialFor(adb, avd) {
-  return (listedSerials(adb) ?? []).find((serial) => avdNameForSerial(adb, serial) === avd) ?? null
-}
-
-/**
- * Waits for one specific serial to finish booting, re-proving its identity on every poll. A serial is
- * a reused TCP port, not a stable name: the adopted process can exit and another emulator can take
- * the same port, so one identity check at adoption time is not enough. Returns the serial, or null
- * when it times out or stops being the requested AVD.
- */
-async function waitForBootOf(adb, serial, avd, timeoutSeconds) {
-  const deadline = Date.now() + timeoutSeconds * 1000
-  while (Date.now() < deadline) {
-    if (avdNameForSerial(adb, serial) !== avd) return null
-    if (isBootCompleted(adb, serial)) return serial
-    await new Promise((resolve) => setTimeout(resolve, 5000))
-  }
-  return null
-}
-
-/**
- * Serials that `adb devices` lists but that cannot state which AVD they are, typically because they
- * are still `offline`. One of them may be the requested AVD, so launching alongside them risks the
- * duplicate-launch race this tool exists to avoid. The caller must refuse rather than guess.
- */
-function unidentifiedSerials(adb) {
-  return (listedSerials(adb) ?? []).filter((serial) => avdNameForSerial(adb, serial) === null)
-}
-
-function resolvesHost(adb, serial, host) {
-  const probe = run(adb, ["-s", serial, "shell", "ping", "-c", "1", "-W", "4", "-I", "wlan0", host])
-  return /^PING /m.test(String(probe.stdout ?? ""))
 }
 
 function listAvds(emulator) {
@@ -311,37 +222,21 @@ function createAvd(sdkPath, avd) {
   applyAvdSettings(configPath)
 }
 
-function launchEmulator(sdkPath, avd, dns, port) {
+function launchEmulator(sdkPath, avd, port) {
   const emulator = executable(sdkPath, "emulator", "emulator")
   const logDir = path.join(tmpdir(), "orbit-emulator")
   mkdirSync(logDir, { recursive: true })
   const outLog = openSync(path.join(logDir, `${avd}.out.log`), "a")
   const errLog = openSync(path.join(logDir, `${avd}.err.log`), "a")
 
-  const child = spawn(emulator, ["-avd", avd, "-dns-server", dns, ...(port === null ? [] : ["-port", String(port)])], {
+  const child = spawn(emulator, ["-avd", avd, "-dns-server", DNS_SERVERS, ...(port === null ? [] : ["-port", String(port)])], {
     cwd: path.join(sdkPath, "emulator"),
     detached: true,
     stdio: ["ignore", outLog, errLog],
     env: { ...process.env, ANDROID_HOME: sdkPath, ANDROID_SDK_ROOT: sdkPath },
-    windowsHide: false,
   })
   child.unref()
   return path.join(logDir, `${avd}.out.log`)
-}
-
-/**
- * True once `serial` has left `adb devices` entirely. The caller must not launch before this holds.
- * A failed listing keeps waiting rather than counting as departure, so a transient `adb` error can
- * never license a relaunch into the running process.
- */
-async function waitForShutdown(adb, serial, timeoutSeconds) {
-  const deadline = Date.now() + timeoutSeconds * 1000
-  while (Date.now() < deadline) {
-    const serials = listedSerials(adb)
-    if (serials !== null && !serials.includes(serial)) return true
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-  }
-  return false
 }
 
 async function waitForBoot(adb, avd, timeoutSeconds) {
@@ -385,77 +280,30 @@ async function main() {
 
   const exists = listAvds(emulator).includes(options.avd)
 
+  const running = readySerialFor(adb, options.avd)
+
   if (options.status) {
-    const ready = readySerialFor(adb, options.avd)
-    const booting = ready ? null : presentSerialFor(adb, options.avd)
     report(options, {
       avd: options.avd,
-      serial: ready ?? booting,
-      state: ready ? "ready" : booting ? "booting" : exists ? "stopped" : "absent",
+      serial: running,
+      state: running ? "ready" : exists ? "stopped" : "absent",
       sdk: sdkPath,
       created: false,
-      booted: Boolean(ready),
+      booted: Boolean(running),
     })
     process.exit(EXIT.OK)
   }
 
-  /**
-   * Adopt an instance of this AVD that is merely BOOTING, never launch alongside it. Matching on
-   * boot completion alone hid a starting AVD, so a second launch raced the first for the same AVD
-   * lock. Adoption waits for that serial specifically, then falls through to the same DNS gate,
-   * because an instance this tool did not start carries no DNS guarantee.
-   */
-  let running = readySerialFor(adb, options.avd)
-  if (!running) {
-    const booting = presentSerialFor(adb, options.avd)
-    if (booting) {
-      process.stderr.write(`android-emulator: ${options.avd} is already starting as ${booting}; waiting for it\n`)
-      running = await waitForBootOf(adb, booting, options.avd, options.timeout)
-      if (!running) {
-        fail(
-          EXIT.BOOT_TIMEOUT,
-          `${booting} was already starting but never completed boot as ${options.avd} within ${options.timeout}s.`,
-        )
-      }
-    } else {
-      // An offline serial cannot answer `emu avd name`, so it could be this very AVD. Refusing is the
-      // only safe reading: launching alongside it recreates the duplicate-launch race.
-      const unknown = unidentifiedSerials(adb)
-      if (unknown.length > 0) {
-        fail(
-          EXIT.FAILED,
-          `cannot identify ${unknown.join(", ")}; one of them may be ${options.avd}. Wait for it, or stop it, then retry.`,
-        )
-      }
-    }
-  }
-
   if (running) {
-    // Reuse only survives the DNS check. An emulator someone else started (Android Studio, a bare
-    // `emulator -avd`) inherits the host resolver, and this tool must not report that as ready.
-    if (resolvesHost(adb, running, options.verifyHost)) {
-      report(options, {
-        avd: options.avd,
-        serial: running,
-        state: "ready",
-        sdk: sdkPath,
-        created: false,
-        booted: true,
-      })
-      process.exit(EXIT.OK)
-    }
-    process.stderr.write(
-      `android-emulator: ${running} cannot resolve ${options.verifyHost}; restarting it with -dns-server ${options.dns}\n`,
-    )
-    const killed = run(adb, ["-s", running, "emu", "kill"])
-    if (killed.status !== 0) {
-      fail(EXIT.FAILED, `could not stop ${running}: ${(killed.stderr || killed.stdout || "").trim()}`)
-    }
-    // Confirmed shutdown, never a fixed delay: a surviving process keeps the AVD lock, and
-    // waitForBoot would then rediscover this same DNS-broken serial and call it ready.
-    if (!(await waitForShutdown(adb, running, options.shutdownTimeout))) {
-      fail(EXIT.FAILED, `${running} was still present ${options.shutdownTimeout}s after emu kill; stop it and retry.`)
-    }
+    report(options, {
+      avd: options.avd,
+      serial: running,
+      state: "ready",
+      sdk: sdkPath,
+      created: false,
+      booted: true,
+    })
+    process.exit(EXIT.OK)
   }
 
   let created = false
@@ -464,7 +312,7 @@ async function main() {
     created = true
   }
 
-  const logPath = launchEmulator(sdkPath, options.avd, options.dns, options.port)
+  const logPath = launchEmulator(sdkPath, options.avd, options.port)
   process.stderr.write(`android-emulator: booting ${options.avd}, log at ${logPath}\n`)
 
   const serial = await waitForBoot(adb, options.avd, options.timeout)
