@@ -136,6 +136,24 @@ const tracksOf = (body, ticketRepository) => {
   return match ? Number(match[1]) : null
 }
 
+/**
+ * The BLOCKING findings in the body of a review. A finding runs from a line that starts with `BLOCKING:` to the next such line,
+ * a `## ` heading or the Pullfrog divider. Pullfrog writes a finding in the body when its file has no diff line, as a binary file
+ * has none. A body finding has no path and no line.
+ */
+export const bodyFindings = (body) => {
+  const findings = []
+  let open = null
+  for (const line of body.split("\n")) {
+    if (line.startsWith("BLOCKING:")) {
+      open = [line]
+      findings.push(open)
+    } else if (/^## |^<!-- PULLFROG_DIVIDER/.test(line)) open = null
+    else open?.push(line)
+  }
+  return findings.map((lines) => ({ path: null, line: null, body: lines.join("\n").trim() }))
+}
+
 const normalizeComment = (comment) => ({
   id: comment.id,
   author: comment.author?.login ?? null,
@@ -175,7 +193,10 @@ const normalizePull = (raw, ticketRepository) => {
       submittedAt: review.submittedAt,
       body: review.body ?? "",
       author: botLogin(review.author),
-      blocking: nodes(review.comments).filter((comment) => comment.body.startsWith("BLOCKING:")).map((comment) => ({ path: comment.path, line: comment.line, body: comment.body })),
+      blocking: [
+        ...nodes(review.comments).filter((comment) => comment.body.startsWith("BLOCKING:")).map((comment) => ({ path: comment.path, line: comment.line, body: comment.body })),
+        ...bodyFindings(review.body ?? ""),
+      ],
     })),
     threads: nodes(raw.reviewThreads).map((thread) => ({ id: thread.id, resolved: thread.isResolved, author: botLogin(thread.comments?.nodes?.[0]?.author) })),
     threadsComplete: raw.reviewThreads?.pageInfo?.hasNextPage === false,
