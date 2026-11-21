@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import type { ThemeMode } from '@orbit/shared/types/profile'
-import { SPACING, APPLE_SIGN_IN_BUTTON, APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN, signInButtonSpec, signInLeadHeight, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
+import { SPACING, APPLE_SIGN_IN_BUTTON, SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN, signInButtonSpec, signInLeadHeight, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ThemedMotionPressable } from './motion-pressable'
@@ -205,7 +205,7 @@ export function ThemedButton({
       ]}
     >
       <ButtonContents tokens={tokens} skeletonWaiting={skeletonWaiting} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor}
-        signIn={signIn} outlineWidth={outlineWidth} labelSize={appleColors ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize}>{children}</ButtonContents>
+        signIn={signIn} outlineWidth={outlineWidth} labelSize={signIn ? SIGN_IN_TITLE_SIZE : sizeSpec.fontSize}>{children}</ButtonContents>
     </ThemedMotionPressable>
   )
 }

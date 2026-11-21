@@ -5,7 +5,7 @@
 | Surface | Owner | States |
 | --- | --- | --- |
 | Web login | `apps/web/app/(auth)/login/email-step.tsx` | Configured, hidden without public client, offline and busy |
-| Mobile login | `apps/mobile/components/auth/apple-sign-in-button.tsx` | Apple's system control on iOS (native sign-in); the Apple pill on Android (browser session); hidden without public client |
+| Mobile login | `apps/mobile/components/auth/apple-sign-in-button.tsx` | The Apple pill on every platform: native sign-in on iOS, browser session on Android; hidden without public client |
 | Web callback | `apps/web/app/(auth)/auth-callback/auth-callback-content.tsx` | State mismatch, expired handoff, session changed, reactivated account and signed in |
 | Mobile callback | `apps/mobile/components/auth/apple-auth-callback.tsx` | The same handoff outcomes, with SecureStore state and session ownership |
 | Native iOS sign-in | `apps/mobile/lib/apple-auth.ts` | Random state, SHA-256 nonce, silent cancellation and existing login completion |
@@ -18,12 +18,13 @@ All authored copy uses the paired English and Brazilian Portuguese locales.
 Every Apple sign-in button follows Apple's Human Interface Guidelines for Sign in with Apple. It is
 as tall as the Google pill (`SIGN_IN_BUTTON_HEIGHT`, 44) and has the same capsule corner radius. It
 is white with a black logo and title on the dark theme, and black with a white logo and title on
-the light theme. The title is 43% of the button height, so it is larger than the Google title. Each
-platform uses artwork that Apple permits there:
+the light theme. The title is 43% of the button height (`SIGN_IN_TITLE_SIZE`, 19). The Google pill uses
+the same title size, so the two titles on the sign-in card match on every platform. Each platform uses
+artwork that Apple permits there:
 
 | Platform | Button | Apple artwork |
 | --- | --- | --- |
-| iOS | `ASAuthorizationAppleIDButton` through `expo-apple-authentication`, 44 pt, corner radius 22; dims to 0.4 while busy or disabled and shows no spinner, because the system control cannot draw one | The system control draws its own logo and localized title |
+| iOS | `PillButton brand="apple"`, 44 pt, title 19; the system control `ASAuthorizationAppleIDButton` is not used, because iOS sets its title size from the system font and the app cannot match the Google title to it | `apps/mobile/assets/auth/apple-sign-in-logo-on-*.png`, as on Android |
 | Android | `PillButton brand="apple"`, 44 pt, title 19 | `apps/mobile/assets/auth/apple-sign-in-logo-on-*.png`, from `https://appleid.cdn-apple.com/appleid/button/logo` (size 44, no border, scales 1 to 4) |
 | Web | `PillButton brand="apple"`, 44 px, title 19 | The left-aligned medium logo file from Apple Design Resources (`Logo-Sign-in-with-Apple`), in `apps/web/components/auth/apple-sign-in-logo.tsx` |
 
@@ -36,7 +37,7 @@ stay centred, as on the Google pill. The guidelines permit the larger leading in
 the space between the logo and the button's leading edge." `APPLE_SIGN_IN_BUTTON` in
 `packages/shared/src/theme/button.ts` holds the proportion, the inset and the two colour pairs. While
 busy, the Android and web pills keep Apple's colours, logo and title. They are disabled and busy, and
-they dim to the existing 0.4 disabled opacity, as the iOS control does. They show no skeleton face,
+they dim to the existing 0.4 disabled opacity. They show no skeleton face,
 because the Android logo tile is opaque and Apple's rules fix the button colours. The busy Google
 pill keeps its skeleton face.
 
@@ -50,7 +51,7 @@ images from the button endpoint that
 [Incorporating Sign in with Apple into other platforms](https://developer.apple.com/documentation/signinwithapple/incorporating-sign-in-with-apple-into-other-platforms)
 documents for apps "that don't have access to the Sign in with Apple JS framework".
 
-At large text, the Google pill and the Apple pills on Android and web follow the large-text rule of `DESIGN.md`. The title wraps
+At large text, the Google pill and the Apple pills follow the large-text rule of `DESIGN.md`. The title wraps
 inside a taller pill, and the pill keeps the 22 corner radius. The logo or mark stays at the top,
 on the first line of the title.
 
