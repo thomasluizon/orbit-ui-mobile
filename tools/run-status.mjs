@@ -14,7 +14,6 @@ import { currentBaseShaOf, findRegisteredCheck, newestChecks, readinessCiIsGreen
 import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, readWorkerLaunches, workerLaunchDirectory } from "./lib/run-state.mjs"
 import { parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { listOpenTickets, readComments } from "./lib/github-issues.mjs"
-import { readIntake } from "./lib/auto-work-intake.mjs"
 import { latestRunNote } from "./lib/run-notes.mjs"
 import { readinessReceiptPath } from "./lib/readiness-receipt.mjs"
 
@@ -23,7 +22,7 @@ const USAGE = `usage: run-status.mjs [--session <id>]
 Reads the owning checkout's run, wake sources, launcher results, receipts and GitHub board.
 With no run record in the checkout (a fresh clone, another computer, or after a reboot), it rebuilds the
 run from GitHub alone and prints status COLD_START: the board queue, every open ticket pull request
-with its next step, the latest round note and review of each in-flight ticket, and the intake marks.
+with its next step, and the latest round note and review of each in-flight ticket.
 A pull request with no worktree here gets CREATE_WORKTREE before the delivery command that needs one:
 its command prints the new worktree path, which is $WORKTREE, and its "then" command checks out the head.
 Prints one compact JSON object with observations and exact next commands. No verdict is decided.
@@ -47,8 +46,6 @@ head branches.
 RECORD_MERGE names the write of the merge sha when GitHub shows a pull request of the run as MERGED and
 its ledger row has no sha.
 Errors are redacted; tokens are scoped to child environments; pull request bodies are never read.
-Active auto-work wakes append INTAKE after in-flight actions, including with an empty queue.
-Ordinary sleep keeps NO_ACTION; a pending relay drain suppresses intake.
 
   --session <id>  current orchestrating session id (required when a run exists; unused for a cold start)
   --help, -h     print this usage and exit 0
@@ -362,8 +359,6 @@ const createWorktreeAction = (row, pull, repositoryPath) => ({
 })
 const ticketOfBranch = (branch) => /ticket-(\d+)/.exec(branch)?.[1] ?? null
 const noteSummary = (note) => note && { ...note.note, createdAt: note.createdAt, author: note.author }
-const sourceSummary = (source) => ({ pending: Object.keys(source?.pending ?? {}).length, completed: Object.keys(source?.completed ?? {}).length,
-  highWater: source?.highWater ?? null })
 
 /**
  * A run rebuilt from GitHub alone: no run record, scratchpad or receipt is read as the record. Readiness is
@@ -372,10 +367,9 @@ const sourceSummary = (source) => ({ pending: Object.keys(source?.pending ?? {})
  */
 const coldStart = async ({ repoRoot, config, runner, authenticate, now, reads }) => {
   const owner = repositorySlug(repoRoot).split("/")[0]
-  const [repositories, board, intake] = await Promise.all([
+  const [repositories, board] = await Promise.all([
     Promise.resolve(repositoryTargets({ config, rows: [], owner, authenticate })),
     reads.listTickets().then((tickets) => ({ tickets }), (error) => ({ error: redactSecrets(error.message).slice(0, 256) })),
-    Promise.resolve().then(() => reads.readIntakeMarks(repoRoot)).then((marks) => ({ marks }), (error) => ({ error: redactSecrets(error.message).slice(0, 256) })),
   ])
   const listed = await Promise.all(repositories.map((repository) => readRepository({ ...repository, rows: [], budget: null, runner, now })))
   const rows = listed.flatMap((snapshot, index) => (snapshot.pulls.pullRequests?.nodes ?? [])
@@ -413,19 +407,15 @@ const coldStart = async ({ repoRoot, config, runner, authenticate, now, reads })
   }))
   const queue = board.tickets?.filter((ticket) => ticket.status !== null && !["Done", "Canceled", "Duplicate"].includes(ticket.status))
     .map(({ number, title, status }) => ({ ticket: `#${number}`, title, status }))
-  if (queue?.some((ticket) => ["Todo", "Backlog"].includes(ticket.status))) nextActions.push(action("PLAN_QUEUE", "node tools/plan-queue.mjs --board --sleep"))
+  if (queue?.some((ticket) => ["Todo", "Backlog"].includes(ticket.status))) nextActions.push(action("PLAN_QUEUE", "node tools/plan-queue.mjs --board"))
   if (nextActions.length === 0) nextActions.push(action("NO_ACTION", "node tools/run-status.mjs"))
-  const marks = intake.marks
   return { status: "COLD_START", commandDirectory: repoRoot,
     repositories: snapshots.map(({ repositoryKey, status, openPullRequests, error }) => ({ repositoryKey, status, openPullRequests, error })),
     queue: queue ?? { error: board.error }, pullRequests, tickets,
-    intake: marks ? { ...Object.fromEntries(["gmail", "play", "appStore"].map((source) => [source, sourceSummary(marks[source])])),
-      wake: { seen: Object.fromEntries(Object.entries(marks.wake?.seen ?? {}).map(([source, keys]) => [source, keys.length])), sentryListedAt: marks.wake?.sentryListedAt ?? null } }
-      : { error: intake.error },
     nextActions }
 }
 
-const GITHUB_READS = { listTickets: () => listOpenTickets(), readTicketComments: (number) => readComments(number), readIntakeMarks: (repoRoot) => readIntake(repoRoot) }
+const GITHUB_READS = { listTickets: () => listOpenTickets(), readTicketComments: (number) => readComments(number) }
 
 export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, runner = runBounded, authenticate = githubEnvironment, now = Date.now(), reads = GITHUB_READS } = {}) => {
   const state = readRunState(repoRoot)
@@ -495,10 +485,9 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
   }
   const counts = readAdmissionCounts({ repoRoot, snapshots: snapshots.map((entry, index) => ({ ...entry, slug: repositories[index].slug })), limits: config.caps, now })
   if (state.remaining?.length > 0 && counts.slotFree && wakes.orphaned.filter(holdsTicketSlot).length === 0 && wakes.live.filter((source) => holdsTicketSlot(source) && (source.workerPid || (source.pending === true && source.what?.startsWith("worker ")))).length < config.caps.parallelTickets) {
-    nextActions.push(action("SLOT_FREE", `node tools/plan-queue.mjs --tickets ${quote(state.remaining.join(","))}${state.sleep ? " --sleep" : ""}`))
+    nextActions.push(action("SLOT_FREE", `node tools/plan-queue.mjs --tickets ${quote(state.remaining.join(","))}`))
   }
   const unsettled = rows.find((row) => observations.some((entry) => entry.repositoryKey === row.repositoryKey && entry.prNumber === row.prNumber && !["CLOSED", "MERGED"].includes(entry.status)))
-  if (state.autoWork === true && state.sleep === true && state.relay?.pending !== true) nextActions.push(action("INTAKE", "/auto-work"))
   const rank = (entry) => (READY_ACTIONS.includes(entry.type) ? READY_ACTIONS.indexOf(entry.type) : READY_ACTIONS.length)
   nextActions.sort((left, right) => rank(left) - rank(right))
   if (nextActions.length === 0) nextActions.push(action("NO_ACTION", wakes.live.length > 0 || !unsettled

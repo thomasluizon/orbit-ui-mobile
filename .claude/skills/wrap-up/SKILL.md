@@ -1,7 +1,7 @@
 ---
 name: wrap-up
-description: Close a working session in one command. Runs /progress, then /questions, then /handoff, in that order, and stops. Use when the owner says /wrap-up, wrap up, close out the session, or is about to stop for the day. Pass --crank through as --sleep --crank to keep maximum velocity active across context relays. Pass --sleep through to /handoff to prepare NEXT.md for an unattended next session entered through /sleep. It runs three skills; it never does the work they surface.
-argument-hint: "[--sleep] [--crank] [extra instructions for the NEXT session]"
+description: Close a working session in one command. Runs /progress, then /questions, then /handoff, in that order, and stops. Use when the owner says /wrap-up, wrap up, close out the session, or is about to stop for the day. Pass --sleep through to /handoff to start NEXT.md with /sleep, which sets the sleep mode of the delivery driver. It runs three skills; it never does the work they surface.
+argument-hint: "[--sleep] [extra instructions for the NEXT session]"
 effort: medium
 ---
 
@@ -26,16 +26,6 @@ Three skills, in this order, in one turn:
 else. Everything else is extra instructions for the NEXT session, and it is passed to `/handoff`
 too, verbatim. `/progress` and `/questions` take no arguments from here.
 
-`--crank` includes `--sleep` and passes through to `/handoff` as `--sleep --crank`.
-Before invoking `/handoff`, use `recordHandoffRequest` from `tools/lib/handoff-prompt.mjs`
-with this session's exact id, `{ command: "wrap-up", origin: "owner", sleep: true, crank: true }`
-and the current ISO timestamp. The owner prompt hook normally records this already.
-It enables crank on a matching active run while preserving every other field. With no run,
-it records successor intent only: start no queue work, create no wake source and invoke no
-`/sleep` or standalone `/crank` in this session. Read back the request to confirm the intent.
-`NEXT.md` carries the `## Crank` instructions required by `/handoff`. The successor invokes
-`/crank` immediately after `/sleep` entry. The mode has no time or relay count limit and
-remains active across context relays until `/crank --disable` or `/crank disable`.
 The progress and questions handovers below still apply.
 
 ## The order is the point
@@ -65,8 +55,8 @@ answer about, and nothing `$ARGUMENTS` describes. All of it goes into the handof
 the owner asks goes into `.claude/handoffs/NEXT.md`, not into the tree. The only exception is his
 explicit "do this now, then hand off".
 
-Under `--sleep`, `/handoff` prepares `NEXT.md` for an unattended next session entered through
-`/sleep`. This session still ends after step 3.
+Under `--sleep`, `/handoff` starts `NEXT.md` with `/sleep`, which sets the sleep mode of the delivery driver.
+This session still ends after step 3.
 
 ## Stopping early
 

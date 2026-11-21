@@ -59,8 +59,8 @@ mandatory generated artifacts across tickets merely to satisfy a number.
 
   `tools/plan-queue.mjs` reads the marker as `NOT_CODE_WORK` (the rule in
   `tools/lib/ticket-classifier-prompt.md`: an in-scope section says the work is operations work,
-  or says "no code in any repo") and defers the ticket, so neither
-  `/orchestrate` nor `/auto-work` admits it. Never put the marker under Out of scope, where the
+  or says "no code in any repo") and defers the ticket, so
+  `/orchestrate` does not admit it. Never put the marker under Out of scope, where the
   classifier does not read it.
 - blockedBy is an explicit relation, never prose: a ui perf fix that needs an api index first
   is a ui ticket blockedBy the api ticket.

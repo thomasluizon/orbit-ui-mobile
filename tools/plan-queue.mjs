@@ -11,10 +11,6 @@ const USAGE = `usage: plan-queue.mjs (--tickets ORB-1,ORB-2 | --project <name> |
   --board            every open ticket on the configured GitHub project
   --limit <n>        cap the tickets read for --project/--board (default 250)
   --format <fmt>     json (default) or markdown
-  --sleep            plan for an unattended run: a ticket that has to be talked through first
-                     is deferred NEEDS_CONVERSATION with its open questions, because nobody is
-                     awake to answer them. Attended, the same ticket is admitted and its
-                     questions travel with it for step 2b to ask
   --help, -h         print this usage and exit 0
 
 Exactly one of --tickets, --project or --board is required.
@@ -25,7 +21,7 @@ Prints ONE JSON object on stdout: scope, admitted, deferred, stacks, waves. Erro
               wave, unlocks, warnings, conversation
   deferred[]  identifier, reason, questions  (BLOCKED_OUTSIDE_QUEUE,
               UNSTACKABLE_BLOCKERS_IN_QUEUE, NO_REPO_LABEL, AMBIGUOUS_REPO, CLOSED,
-              NOT_REPRODUCED, NOT_CODE_WORK, MULTI_PR, NEEDS_CONVERSATION)
+              NOT_REPRODUCED, NOT_CODE_WORK, MULTI_PR)
   stacks[]    repo, branchBase, members[]   one stack per dependency chain within a repo
   waves[][]   identifiers that may run concurrently, each wave depending only on earlier ones
 
@@ -51,7 +47,7 @@ const argOf = (flag) => {
 }
 
 const VALUE_FLAGS = new Set(["--tickets", "--project", "--limit", "--format"])
-const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--board", "--sleep", "--help", "-h"])
+const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--board", "--help", "-h"])
 /**
  * A flag's VALUE is skipped before the unknown-option check, so `--limit -1` complains about the
  * limit rather than about an unknown option it is not.
@@ -62,7 +58,6 @@ if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}
 const ticketsArg = argOf("--tickets")
 const projectArg = argOf("--project")
 const board = process.argv.includes("--board")
-const sleep = process.argv.includes("--sleep")
 const format = argOf("--format") ?? "json"
 const limitArg = argOf("--limit") ?? "250"
 
@@ -188,15 +183,6 @@ for (const [id, entry] of fetched) {
     continue
   }
   const conversation = await classifyConversationFirst(issue.body, { labels: issue.labels })
-  if (conversation.conversationFirst && sleep) {
-    deferred.push({
-      identifier: id,
-      reason: "NEEDS_CONVERSATION",
-      detail: `reads as conversation-first (${conversation.signals.map((signal) => signal.kind).join(", ")}, from the ${conversation.source}) and nobody is awake to answer. Run it attended`,
-      questions: conversation.questions,
-    })
-    continue
-  }
   candidates.set(id, {
     ...entry,
     repo: repos[0].slice("repo:".length),

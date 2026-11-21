@@ -551,9 +551,6 @@ export const foreignRunHold = (sessionId, state, claudeDirectory = claudeConfigD
       return `${describeSession(nomineeId, nominee)} is the relay successor of session ${state.sessionId} and has not adopted the run yet; wait for that relay to finish, or say stop in session ${nomineeId}`
     }
   }
-  if (state.autoWork === true && state.ownerHandoff?.from === state.sessionId) {
-    return `session ${state.sessionId} handed off an auto-work run that no successor adopted yet; start that successor from the committed NEXT.md`
-  }
   return null
 }
 
@@ -695,13 +692,9 @@ const publishRunState = (state, repoRoot) => {
   const pullRequests = relaySuccessor
     ? [...new Map([...(previous.pullRequests ?? []), ...(state.pullRequests ?? [])].map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
     : state.pullRequests
-  // WHY: an older run record still holds intake marks until tools/migrate-run-state.mjs copies them to GitHub (thomasluizon/orbit-tickets#2152).
-  const inherited = preserveLedger
-    ? Object.fromEntries(["autoWork", "intake"].filter((key) => previous[key] !== undefined).map((key) => [key, previous[key]]))
-    : {}
   const unrelated = !preserveLedger && typeof state?.sessionId === "string" && state.sessionId !== "" && typeof previous?.sessionId === "string"
   const stranded = unrelated ? strandedOwnerQuestions(previous, state) : undefined
-  writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...inherited, ...state, ...(stranded ? { openOwnerQuestions: stranded } : {}),
+  writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...state, ...(stranded ? { openOwnerQuestions: stranded } : {}),
     ...(pullRequests ? { pullRequests } : {}), readinessLedger,
     ...(Object.keys(supersededSessions).length ? { supersededSessions } : {}) }, null, 2)}\n`)
 }
@@ -789,7 +782,7 @@ export const readWakeSources = (repoRoot = REPO_ROOT) => readWakeSourceStates(re
 
 /** Relay waiters observe work that can outlive the session and are stopped at succession. */
 export const BACKGROUND_RUN_WAITER = "background-run-waiter"
-export const isRelayWaiter = (source) => source.kind === "auto-work-waiter" || source.kind === "file-waiter" || source.kind === BACKGROUND_RUN_WAITER || source.what?.startsWith("CI ") === true
+export const isRelayWaiter = (source) => source.kind === "file-waiter" || source.kind === BACKGROUND_RUN_WAITER || source.what?.startsWith("CI ") === true
 
 export const registerWakeSource = (source, repoRoot = REPO_ROOT) => {
   try {

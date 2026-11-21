@@ -73,10 +73,6 @@ const VERDICTS = {
     "undeclared, inherits the session: security findings need judgment because missed authorization gaps may be invisible in output.",
   ".claude/skills/audit-tests/SKILL.md":
     "undeclared, inherits the session: the test audit judges coverage and opens tickets.",
-  ".claude/skills/auto-work/SKILL.md":
-    "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing.",
-  ".claude/skills/crank/SKILL.md":
-    "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing.",
   ".claude/skills/deep-research/SKILL.md":
     "undeclared, inherits the session: it fans out web-researcher subagents that carry their own sonnet/medium tuning, so the orchestrating half inheriting the session is defensible today.",
   ".claude/skills/dev-server/SKILL.md":
@@ -110,7 +106,7 @@ const VERDICTS = {
   ".claude/skills/second-opinion/SKILL.md":
     "current with nothing to declare: the reasoning happens in the other model, by construction. Declaring an effort here would tune the wrong side of the call.",
   ".claude/skills/sleep/SKILL.md":
-    "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available.",
+    "undeclared, inherits the session: it runs one driver command and says the printed state, so it needs no model or effort routing.",
   ".claude/skills/ticket/SKILL.md":
     "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it.",
   ".claude/skills/validate/SKILL.md":
