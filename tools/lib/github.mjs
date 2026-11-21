@@ -283,7 +283,10 @@ export const wholeDiffApproved = (pull, { wholeDiffRequests = {}, cleanMerges = 
     return position >= 0 && pull.commits.slice(position + 1).every((commit) => commit.parents === 2 && cleanMerges.includes(commit.sha))
   })
 
-const newestReview = (pull) => [...pull.reviews].sort((first, second) => first.submittedAt.localeCompare(second.submittedAt)).at(-1) ?? null
+/** A Pullfrog review that is a pass: its reply to a review thread is a COMMENTED review with an empty body and no BLOCKING comment. */
+export const isReviewPass = (review) => review.state !== "COMMENTED" || review.body.trim() !== "" || review.blocking.length > 0
+
+const newestReview = (pull) => [...pull.reviews].filter(isReviewPass).sort((first, second) => first.submittedAt.localeCompare(second.submittedAt)).at(-1) ?? null
 
 /** The first of major, minor and patch that differs between two dotted versions, or null when either is not numeric. */
 const semverChange = (from, to) => {
@@ -350,8 +353,14 @@ export const mergeBar = (pull, context = {}) => {
   return failed
 }
 
-/** The failing checks of a pull request, from the same newest run of each check that the merge bar reads. A check run of GitHub Actions is one job, so its id names the job inside the run of its details URL. */
-export const failedChecks = (pull) => newestChecks(pull.checks).map((check) => check.node)
+/**
+ * The failing checks of a pull request, from the same newest run of each check that the merge bar reads. A check run of
+ * GitHub Actions is one job, so its id names the job inside the run of its details URL. The Pullfrog approval check is
+ * never one: it fails when a review withholds the approval, so the review state owns it.
+ */
+export const failedChecks = (pull) => newestChecks(pull.checks)
+  .filter((check) => !(check.name === PULLFROG_APPROVAL.context && check.appId === PULLFROG_APPROVAL.appId))
+  .map((check) => check.node)
   .filter((node) => node.__typename === "CheckRun" && node.status === "COMPLETED" && !PASSING_CONCLUSIONS.has(node.conclusion))
   .map((node) => ({ name: node.name, conclusion: node.conclusion, jobId: node.databaseId, runId: /\/actions\/runs\/(\d+)/.exec(node.detailsUrl ?? "")?.[1] ?? null }))
 
@@ -382,7 +391,7 @@ export const deployedAt = async (repositoryKey, environment, task, seams = {}) =
   const slug = api.slugOf(repositoryKey)
   const query = `environment=${encodeURIComponent(environment)}&task=${encodeURIComponent(task)}&per_page=100`
   const deployments = parseJson("gh api deployments", await api.run(["api", `repos/${slug}/deployments?${query}`]))
-  for (const deployment of deployments) {
+  for (const deployment of [...deployments].sort((first, second) => second.created_at.localeCompare(first.created_at))) {
     const latest = parseJson("gh api deployment statuses", await api.run(["api", `repos/${slug}/deployments/${deployment.id}/statuses?per_page=1`]))[0]
     if (latest?.state === "success") return { id: deployment.id, sha: deployment.sha, createdAt: deployment.created_at }
   }
@@ -530,4 +539,52 @@ export const createTicket = async ({ title, body, labels, milestone = null, stat
   await setStatus(number, status, seams)
   if (blockers.length > 0) await api.run(["issue", "edit", String(number), "--repo", tickets.repository, "--add-blocked-by", blockers.join(",")])
   return { number, url: created, title, milestone: null, status }
+}
+
+const SENTRY_ORGANIZATION = "orbit-ai-habit-tracker"
+const SENTRY_REPO = { "orbit-api": "api", "orbit-web": "ui", "orbit-mobile": "ui" }
+const SENTRY_TITLE_LIMIT = 120
+const REVIEWER_SECRET = "CLAUDE_CODE_OAUTH_TOKEN"
+
+/** All pages of the unresolved Sentry issues of the organization: a page names the next one in its `Link` header with `results="true"`. */
+export const sentryIssues = async (fetchJson, token) => {
+  const issues = []
+  for (let url = `https://sentry.io/api/0/organizations/${SENTRY_ORGANIZATION}/issues/?query=is:unresolved`; url !== null;) {
+    const page = await fetchJson(url, { headers: { Authorization: `Bearer ${token}` } })
+    issues.push(...page.body)
+    url = /<([^>]+)>; rel="next"; results="true"/.exec(page.link ?? "")?.[1] ?? null
+  }
+  return issues
+}
+
+/** True when `text` holds `needle` and the next character does not continue a word or a number (an alert url ends in its number). */
+export const holds = (text, needle) => new RegExp(`${escapeRegex(needle)}(?![A-Za-z0-9])`).test(text)
+
+/** True when `text` names the Sentry short id as a whole word: `ORBIT-API-1A` is not named by `ORBIT-API-1AB`. */
+const namesShortId = (text, shortId) => new RegExp(`(?<![A-Za-z0-9])${escapeRegex(shortId)}(?![A-Za-z0-9])`).test(text)
+
+/** The `Bug` ticket for a Sentry issue, or null for a project with no repository. A ticket holds the issue when it names the short id, the permalink or the `/issues/<id>/` path. */
+export const sentryCandidate = (issue) => {
+  const repoKey = SENTRY_REPO[issue.project?.slug]
+  if (!repoKey) return null
+  const suffix = ` (Sentry ${issue.shortId})`
+  return {
+    repoKey,
+    title: `${issue.title.slice(0, SENTRY_TITLE_LIMIT - suffix.length)}${suffix}`,
+    body: `${issue.title}\n\n${issue.permalink}\n\nProject: ${issue.project.slug}`,
+    held: (text) => namesShortId(text, issue.shortId) || holds(text, issue.permalink) || holds(text, `/issues/${issue.id}/`),
+    label: issue.permalink,
+  }
+}
+
+/** Sets the reviewer secret of each repository from the token on stdin of `gh`. It prints each result and never the token. Returns the exit code. */
+export const setReviewerToken = async ({ token, slugs, runGh, out }) => {
+  let failures = 0
+  for (const slug of slugs) {
+    const result = await runGh(["secret", "set", REVIEWER_SECRET, "--repo", slug], token)
+    const done = result.status === 0 && !result.error
+    if (!done) failures += 1
+    out(`${slug}: ${done ? "set" : `failed, exit ${result.status ?? "none"}`}`)
+  }
+  return failures === 0 ? 0 : 3
 }

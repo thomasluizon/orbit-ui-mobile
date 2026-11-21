@@ -1,7 +1,7 @@
 /** The delivery driver's headless worker: its command, settings and environment, its clocks, and what a claude log says about how it stopped. */
 
-import { spawn } from "node:child_process"
-import { closeSync, existsSync, openSync, readdirSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -296,7 +296,44 @@ const defaultLogSize = (logFile) => {
   try { return statSync(logFile).size } catch { return null }
 }
 
-const KILL_REASONS = Object.freeze({ "hard-ceiling": "passed its hard ceiling", "no-progress": "made no progress", "log-cap": "wrote past the log cap" })
+export const KILL_REASONS = Object.freeze({ "hard-ceiling": "passed its hard ceiling", "no-progress": "made no progress", "log-cap": "wrote past the log cap" })
+
+/** Kills the whole process group of a worker. The driver calls it for a worker that it did not start. */
+export const killWorkerTree = killTree
+
+/** True when `pid` names a live process whose command line holds `claude`. A pid file that outlives a reboot can name an unrelated process, which is never a worker. */
+export const isWorkerProcess = (pid, { run = spawnSync } = {}) => {
+  try {
+    process.kill(pid, 0)
+  } catch {
+    return false
+  }
+  const listed = run("ps", ["-p", String(pid), "-o", "command="], { encoding: "utf8" })
+  return listed.status === 0 && /\bclaude\b/.test(listed.stdout ?? "")
+}
+
+/**
+ * The progress clocks of one worker: the log cap and the no-progress window. Each call samples once and returns the name of
+ * the clock that fired, or null. `launch` samples it on a timer. The driver samples it each tick for a worker that it did
+ * not start, so a restart of the driver leaves no worker without its clocks.
+ */
+export const progressWatch = ({ worktree, logFile, startedAt, clock = SYSTEM_CLOCK, limits = WORKER_LIMITS, fingerprint = defaultFingerprint, logSize = defaultLogSize }) => {
+  let lastFingerprint = null
+  let lastLogSize = 0
+  let lastProgressAt = startedAt
+  return async () => {
+    const size = logSize(logFile) ?? 0
+    if (size > limits.logCapBytes) return "log-cap"
+    const print = await fingerprint(worktree)
+    if (print !== lastFingerprint || size > lastLogSize) {
+      lastFingerprint = print
+      lastLogSize = size
+      lastProgressAt = clock.now()
+      return null
+    }
+    return clock.now() - lastProgressAt >= limits.noProgressMs ? "no-progress" : null
+  }
+}
 
 /**
  * Starts one worker in `worktree`, writes `order` on its stdin and its stream-json to `logFile`, and resolves when it is gone.
@@ -324,9 +361,7 @@ export const launch = ({ invocation, worktree, order, logFile, pidFile, clock = 
     let finished = false
     let escalation = null
     let sampling = false
-    let lastFingerprint = null
-    let lastLogSize = 0
-    let lastProgressAt = startedAt
+    const watch = progressWatch({ worktree, logFile, startedAt, clock, limits, fingerprint, logSize })
     const stop = (clockName) => {
       if (killed !== null || finished) return
       killed = clockName
@@ -338,16 +373,8 @@ export const launch = ({ invocation, worktree, order, logFile, pidFile, clock = 
       if (sampling || killed !== null || finished) return
       sampling = true
       try {
-        const size = logSize(logFile) ?? 0
-        if (size > limits.logCapBytes) return stop("log-cap")
-        const print = await fingerprint(worktree)
-        if (print !== lastFingerprint || size > lastLogSize) {
-          lastFingerprint = print
-          lastLogSize = size
-          lastProgressAt = clock.now()
-        } else if (clock.now() - lastProgressAt >= limits.noProgressMs) {
-          stop("no-progress")
-        }
+        const fired = await watch()
+        if (fired !== null) stop(fired)
       } finally {
         sampling = false
       }
@@ -372,3 +399,24 @@ export const launch = ({ invocation, worktree, order, logFile, pidFile, clock = 
     child.stdin?.on("error", () => { /* a worker that exits before it reads the order reports its own exit */ })
     child.stdin?.end(order)
   })
+
+/** The reading that the snapshot of the status line holds, or null. Its `email` only names the account that took it, and nothing prints it. */
+export const readSnapshot = (path) => {
+  try {
+    const snapshot = JSON.parse(readFileSync(path, "utf8"))
+    const window = snapshot.rateLimits?.seven_day
+    if (typeof window?.used_percentage !== "number" || !Number.isInteger(window.resets_at)) return null
+    return { utilization: window.used_percentage / 100, resetsAt: window.resets_at, at: Date.parse(snapshot.at), email: snapshot.email ?? null }
+  } catch {
+    return null
+  }
+}
+
+/** The first line of a failed log that is a usage-limit message, with the reset time it names; null when there is none. */
+export const usageLimitIn = (logText, isLimit = isUsageLimitMessage) => {
+  for (const line of logText.split("\n")) {
+    const message = line.replace(/^.*?\d{4}-\d\d-\d\dT[\d:.]+Z /, "").trim()
+    if (isLimit(message)) return { message, reset: /(?:resets?|until)\s+([^.\n·]+)/i.exec(message)?.[1]?.trim() ?? null }
+  }
+  return null
+}

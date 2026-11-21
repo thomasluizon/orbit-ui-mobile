@@ -51,6 +51,7 @@ import {
   workerInvocation,
   workerSettings,
 } from "../lib/worker.mjs"
+import { driverUnit } from "./_drive-tick.mjs"
 import { T, realOrchestratorConfig, root, same, toolPath, SELF } from "./_harness.mjs"
 
 const FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
@@ -357,6 +358,8 @@ const pullfrogAndDeploymentCases = async (seams) => {
   same("lib/github.mjs: no successful deployment gives null", await latest({ [newest.id]: "failure", [older.id]: "inactive" }), null)
   const recorded = scripted([...deploymentRoutes({}).slice(0, 2), [`deployments/${newest.id}/statuses`, () => json(FIXTURE.deployments.deploy.latestStatus)], [`deployments/${older.id}/statuses`, () => json(FIXTURE.deployments.deploy.supersededLatestStatus)]])
   same("lib/github.mjs: the newest deployment wins, and a superseded one reads as inactive in the recorded answers", [(await deployedAt("ui", "production", "deploy", seams(recorded.run))).id, FIXTURE.deployments.deploy.supersededLatestStatus[0].state, recorded.calls.length], [newest.id, "inactive", 2])
+  const unsorted = scripted([["deployments?environment=production&task=deploy", () => json([older, newest])], ...deploymentRoutes({ [newest.id]: "success", [older.id]: "success" })])
+  same("lib/github.mjs: the newest deployment wins when the API lists the older one first", (await deployedAt("ui", "production", "deploy", seams(unsorted.run))).sha, newest.sha)
   const failedNewest = scripted([...deploymentRoutes({}).slice(0, 2), [`deployments/${newest.id}/statuses`, () => json([{ ...FIXTURE.deployments.deploy.latestStatus[0], state: "failure" }])], [`deployments/${older.id}/statuses`, () => json(FIXTURE.deployments.deploy.supersededLatestStatus)]])
   same("lib/github.mjs: a failed newest deployment and a superseded older one leave no successful deployment", await deployedAt("ui", "production", "deploy", seams(failedNewest.run)), null)
   const askedFor = scripted(deploymentRoutes({ [newest.id]: "success", [FIXTURE.deployments["android-release"].list[0].id]: "success" }))
@@ -513,7 +516,10 @@ const dependabotCases = async (seams) => {
 
 const ciCases = (open, approved) => {
   const failed = failedChecks(open)
-  same("lib/github.mjs: a failed check names its run and its job", failed.map((check) => [check.name, check.conclusion, check.runId, check.jobId]), [["pullfrog-approval", "FAILURE", "44663065457", 136048537814]])
+  same("lib/github.mjs: the failed Pullfrog approval check is no failed check, its review owns it", failed, [])
+  const approval = open.checks.find((check) => check.name === "pullfrog-approval")
+  const unitTests = { ...approval, name: "Unit Tests", databaseId: 5, checkSuite: { app: { databaseId: 15368 } } }
+  same("lib/github.mjs: a failed check names its run and its job beside the failed approval check", failedChecks({ ...open, checks: [...open.checks, unitTests] }).map((check) => [check.name, check.conclusion, check.runId, check.jobId]), [["Unit Tests", "FAILURE", "44663065457", 5]])
   same("lib/github.mjs: a pull request with green checks has no failed check", failedChecks(approved), [])
   const stepsOf = (jobName, change = (steps) => steps) => FIXTURE.failedJobs.response.jobs.find((job) => job.name === jobName).steps.map((step) => ({ ...step })).map((step, position, steps) => change(steps)[position])
   const barrierSteps = stepsOf("Guard Migrations").filter((step) => step.conclusion === "failure").map((step) => step.name)
@@ -936,7 +942,7 @@ const orderCases = async () => {
 }
 
 const selfSufficiencyCases = () => {
-  const files = ["lib/worker.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
+  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/worker.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
   for (const file of files) {
     const path = toolPath(file)
     const found = readFileSync(path, "utf8").split("\n").map((line, index) => [index + 1, line]).filter(([, line]) => BANNED_TEXT.test(line))
@@ -949,7 +955,7 @@ const orderUnit = async () => {
   selfSufficiencyCases()
 }
 
-const UNITS = { "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
+const UNITS = { "drive.mjs": driverUnit, "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
 
 /** The runner calls cases() once for a module, so one call runs the unit of every registry row that names this module. */
 const registeredUnits = readFileSync(toolPath(SELF), "utf8").split("\n").flatMap((line) => /^\s*\["([^"]+)", "drive"\],?$/.exec(line)?.[1] ?? [])

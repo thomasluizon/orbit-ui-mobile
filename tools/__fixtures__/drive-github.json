@@ -54,5 +54,131 @@
     "nuget": ["Bump System.Formats.Cbor from 10.0.14 to 10.0.15\n\n---\nupdated-dependencies:\n- dependency-name: System.Formats.Cbor\n  dependency-version: 10.0.15\n  dependency-type: direct:production\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>"],
     "minor": ["chore(deps): bump astro from 7.3.5 to 7.4.12\n\nBumps [astro](https://github.com/withastro/astro/tree/HEAD/packages/astro) from 7.3.5 to 7.4.12.\n- [Release notes](https://github.com/withastro/astro/releases)\n- [Changelog](https://github.com/withastro/astro/blob/main/packages/astro/CHANGELOG.md)\n- [Commits](https://github.com/withastro/astro/commits/astro@7.4.12/packages/astro)\n\n---\nupdated-dependencies:\n- dependency-name: astro\n  dependency-version: 7.4.12\n  dependency-type: direct:production\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>","fix: build with Node.js 22.23.5 from one .node-version file\n\nAstro 7.4.12 exits on Node.js below 22.23.4. The engines range still\nallowed 22.22.3, the README told Render to pin NODE_VERSION=22.22.3,\nand CI asked setup-node for \"22\", which resolves to whatever 22 release\nthe runner has. The staging landing site builds on 22.22.3, so its next\nrelease fails at astro build. Production sets no NODE_VERSION and\nresolved the unbounded engines branch to Node.js 26.13.1.\n\n.node-version now holds 22.23.5, the newest 22 release and a security\nrelease. Every CI job that installs or runs the site reads it through\nnode-version-file, and Render reads it on both sites when no\nNODE_VERSION variable is set. The release jobs keep node-version 22:\nthey only call the Render API, and the commit they check out can\npredate .node-version. The engines floor moves to Astro's minimum,\n^22.23.4. The README build contract names .node-version.\n\nTracks thomasluizon/orbit-tickets#2074","chore(deps): remove the esbuild override that no package uses\n\nAstro 7.4.12 no longer depends on esbuild, and Vite lists it only as an\noptional peer, so no esbuild package is in the lockfile. The override\npinned nothing. npm audit still reports any esbuild that a later\ndependency adds.","docs: name the files that hold the Node.js version instead of copying their values","chore(deps): remove the vite override so Astro resolves Vite inside its range\n\nAstro 7.4.12 requires vite ^8.3.6. The exact override 8.1.6 forced a Vite outside that range and a second Rolldown copy. Without it npm resolves vite 8.3.8 and one rolldown 1.2.19. The override was the floor for GHSA-rq7h-c2jc-7f22; every version in ^8.3.6 is above the patched 8.3.3.","perf: keep the home page startup scripts inside the budget on Vite 8.3\n\nVite 8.3 ships a larger dynamic import preload helper. Three reductions keep the script graph below the earlier figure:\n\n- The preload lists keep only chunks that start a request. A chunk in the importer's static graph is already loaded, and import() requests its own chunk in the same task when no stylesheet waits.\n- The pricing copy helpers move to src/config/pricing-copy.ts, which only the deferred pricing script and the server page import.\n- applyTranslations sets the page language once.","perf: remove the unused pricing keys from the landing copy tables\n\nThe landing tables spread pricingCopy, but only pricingFor reads those six\nkeys, and it reads pricingCopy directly. The minifier kept the spread in\nthe startup i18n chunk, so the home page script graph is 32 bytes smaller.","refactor: remove the unreachable stylesheet branch from the preload plugin\n\nVite 8.3.8 appends a lazy chunk's stylesheets after resolveDependencies returns, so the branch that kept the target's own preload never ran. Both plugin comments now link the upstream Vite and Astro sources.","refactor: import the pricing module through its sibling path\n\npricing-copy.ts lives in src/config, so it imports ./pricing, the same way\nsrc/i18n/demo-copy.ts imports ./translations.\n\nThe landing composition harness resolved every specifier from src/scripts,\nso ./pricing loaded src/scripts/pricing.ts and recursed until the stack\noverflowed. The harness now resolves each specifier from the folder of the\nfile that imports it, as Node and Vite do.","test: cache each module before it runs in the composition test loader, as Node does for an import cycle"]
   },
-  "pullLabels": {"provenance":"gh api graphql -f query='query { repository(owner:\"thomasluizon\", name:\"orbit-ui-mobile\") { pullRequests(states: MERGED, last: 100) { nodes { number labels(first: 50) { nodes { name } } } } } }' on 2026-11-20; cut to one merged pull request that carries a label","response":{"data":{"repository":{"pr7":{"labels":{"nodes":[{"name":"parity:exempt"}]}}}}}}
+  "pullLabels": {"provenance":"gh api graphql -f query='query { repository(owner:\"thomasluizon\", name:\"orbit-ui-mobile\") { pullRequests(states: MERGED, last: 100) { nodes { number labels(first: 50) { nodes { name } } } } } }' on 2026-11-20; cut to one merged pull request that carries a label","response":{"data":{"repository":{"pr7":{"labels":{"nodes":[{"name":"parity:exempt"}]}}}}}},
+  "driverReads": {
+    "provenance": "Each member was recorded on 2026-11-20 with the command named in its own provenance key. Only key lists and one line format are kept, because the values of these reads belong to other work.",
+    "sentryIssues": {
+      "provenance": "GET https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is:unresolved&limit=2 with a read-only personal token, 2026-11-20T22:44:34.594Z",
+      "status": 200,
+      "link": "<https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is%3Aunresolved&limit=2&cursor=1795199346000:0:1>; rel=\"previous\"; results=\"false\"; cursor=\"1795199346000:0:1\", <https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is%3Aunresolved&limit=2&cursor=1795199194000:0:0>; rel=\"next\"; results=\"true\"; cursor=\"1795199194000:0:0\"",
+      "body": [
+        {
+          "id": "7811298321",
+          "shortId": "ORBIT-API-1Q",
+          "title": "Npgsql.NpgsqlException: Name or service not known",
+          "permalink": "https://orbit-ai-habit-tracker.sentry.io/issues/7811298321/",
+          "project": {
+            "slug": "orbit-api"
+          }
+        },
+        {
+          "id": "7811297239",
+          "shortId": "ORBIT-API-1K",
+          "title": "Health check database with status Unhealthy completed after 4439.8507ms with message 'Database unreachable'",
+          "permalink": "https://orbit-ai-habit-tracker.sentry.io/issues/7811297239/",
+          "project": {
+            "slug": "orbit-api"
+          }
+        }
+      ]
+    },
+    "claudeAuthStatus": {
+      "provenance": "claude auth status --json, claude 2.1.329, 2026-11-20; email, orgId and the home directory replaced, every key and type as recorded",
+      "output": {
+        "loggedIn": true,
+        "authMethod": "claude.ai",
+        "apiProvider": "firstParty",
+        "analyticsDisabled": false,
+        "projectsDirectory": "<home>/.claude/projects",
+        "configDirectory": "<home>/.claude",
+        "loginExpiresAt": "2026-12-18T09:43:08.795Z",
+        "consoleProfileSignInOffered": true,
+        "email": "owner@example.com",
+        "orgId": "00000000-0000-4000-8000-000000000001",
+        "orgName": "owner@example.com's Organization",
+        "subscriptionType": "max",
+        "storedClaudeAiLogin": true,
+        "planTier": "max_20x"
+      }
+    },
+    "mergedPulls": {
+      "provenance": "gh pr list --repo thomasluizon/orbit-ui-mobile --state merged --search '\"Tracks thomasluizon/orbit-tickets#\" in:body' --json number,body,mergedAt,headRefName --limit 1 (exit 0)",
+      "keys": [
+        "body",
+        "headRefName",
+        "mergedAt",
+        "number"
+      ]
+    },
+    "ticketBodies": {
+      "provenance": "gh issue list --repo thomasluizon/orbit-tickets --state all --limit 1 --json title,body --jq '.[0] | keys | join(\",\")' (exit 0), printed body,title",
+      "keys": [
+        "body",
+        "title"
+      ]
+    },
+    "dependabotAlert": {
+      "provenance": "gh api 'repos/thomasluizon/orbit-ui-mobile/dependabot/alerts?state=fixed&per_page=1' (exit 0); the three repositories had no open alert, so a fixed alert gave the field names",
+      "keys": [
+        "number",
+        "state",
+        "dependency",
+        "security_advisory",
+        "security_vulnerability",
+        "url",
+        "html_url",
+        "created_at",
+        "updated_at",
+        "dismissal_request",
+        "assignees",
+        "reachability",
+        "dismissed_at",
+        "dismissed_by",
+        "dismissed_reason",
+        "dismissed_comment",
+        "fixed_at",
+        "auto_dismissed_at"
+      ],
+      "summaryPath": "security_advisory.summary",
+      "packagePath": "dependency.package.name"
+    },
+    "codeScanningAlert": {
+      "provenance": "gh api 'repos/thomasluizon/orbit-ui-mobile/code-scanning/alerts?state=fixed&per_page=1' (exit 0); no alert was open",
+      "keys": [
+        "number",
+        "created_at",
+        "updated_at",
+        "url",
+        "html_url",
+        "state",
+        "fixed_at",
+        "dismissed_by",
+        "dismissed_at",
+        "dismissed_reason",
+        "dismissed_comment",
+        "rule",
+        "tool",
+        "most_recent_instance",
+        "instances_url",
+        "dismissal_approved_by",
+        "assignees",
+        "linked_pull_requests",
+        "linked_issues"
+      ],
+      "rulePath": "rule.description",
+      "pathPath": "most_recent_instance.location.path"
+    },
+    "failedRunLog": {
+      "provenance": "gh run view <id of the newest failed pullfrog.yml run> --repo thomasluizon/orbit-ui-mobile --log-failed (exit 0), first line; the line starts with a byte order mark",
+      "line": "pullfrog\tUNKNOWN STEP\t﻿2026-11-19T01:29:12.7980954Z Current runner version: '2.338.2'"
+    },
+    "headRefOid": {
+      "provenance": "gh pr view <number> --repo thomasluizon/orbit-ui-mobile --json headRefOid --jq .headRefOid (exit 0)",
+      "stdoutShape": "40 lowercase hexadecimal characters, then one newline"
+    }
+  },
+  "changesRequestedReview": {
+    "provenance": "gh api graphql with reviews(last: 100, author: \"pullfrog[bot]\") { nodes { state submittedAt body author { login } commit { oid } comments(first: 10) { nodes { path line body } } } } on thomasluizon/orbit-ui-mobile pull request 2514, review 6000389345, on 2026-11-20; bodies cut to 160 characters",
+    "node": {"state":"CHANGES_REQUESTED","submittedAt":"2026-11-20T22:45:22Z","body":"Three blocking classes in `tools/drive.mjs`: an order with no ticket crashes the tick and wedges the lane, a red `pullfrog-approval` check becomes a ci-fix orde","author":{"login":"pullfrog"},"commit":{"oid":"cfcbe9d5b7ea08366c48a9d562289358fd46cba2"},"comments":{"nodes":[{"body":"BLOCKING: correctness bug / production failure: an order whose `ticket` is null crashes the tick and wedges the lane.\n\nFailing state: a Dependabot pull request ","path":"tools/drive.mjs","line":null},{"body":"BLOCKING: correctness bug: a red `pullfrog-approval` check becomes a ci-fix order, so the review rules of section 9 never run.\n\nFailing state: Pullfrog posts a ","path":"tools/drive.mjs","line":399},{"body":"BLOCKING: missed requirement (body section 4 and the close test scenario): the close rule never runs for a ticket that has no driver `launch` comment while anot","path":"tools/drive.mjs","line":null}]}}
+  }
 }
