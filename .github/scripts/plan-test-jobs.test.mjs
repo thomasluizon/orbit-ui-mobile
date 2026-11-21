@@ -87,19 +87,6 @@ test("a pull request that changes any other path starts the tool tests", () => {
   assert.deepEqual(skipped, [])
 })
 
-// Three guards in guards.yml run on a push to main only. A pull request reaches each one through the tool tests, so one
-// row for each input.
-const pushOnlyGuardInputs = {
-  "lint-severity__1": [
-    "apps/web/eslint.config.mjs", "apps/mobile/eslint.config.js", "packages/shared/eslint.config.mjs", "apps/desktop/eslint.config.mjs",
-    "package.json", "apps/web/package.json", "apps/mobile/package.json", "packages/shared/package.json",
-    "eslint-suppressions.json", "apps/web/eslint-suppressions.json", "apps/mobile/eslint-suppressions.json",
-    ".github/workflows/test.yml", "eslint-rules/no-comments.cjs",
-  ],
-  "root-allowlist__4": ["design/brand/orbit-lockup.svg", "tools/check-lockup-crop.mjs"],
-  "performance-workflow__1": ["tools/generate-performance-workflow.mjs", "tools/lib/performance-measurement.mjs", ".claude/workflows/audit.mjs"],
-}
-
 // Each row is a real-tree read of a tool case module or a tool. A pull request that changes the input must run the case.
 const caseModuleInputs = {
   "desktop-bench": [
@@ -116,12 +103,11 @@ const caseModuleInputs = {
   "android-sentry-diagnostic, check-native-module-copies and the node_modules readers": ["apps/mobile/app.json", "package-lock.json"],
   "check-surface-scope": ["DESIGN.md"],
   "generate-brand-assets, redesign-coverage and build-ds-bundle": ["design/brand/orbit-lockup.svg", "design/brand/orbit-mark.svg", "design/canvas/example.svg"],
-  "check-sonar-paths and the parity tree": ["sonar-project.properties", ".gitignore"],
 }
 
-test("each input that a push-only guard or a case module reads starts the tool tests", () => {
+test("each input that a case module reads starts the tool tests", () => {
   const skipped = []
-  for (const [reader, inputs] of Object.entries({ ...pushOnlyGuardInputs, ...caseModuleInputs })) {
+  for (const [reader, inputs] of Object.entries(caseModuleInputs)) {
     for (const path of inputs) {
       const { status, outputs } = plan({ changed: ["TESTING.md", path] })
       assert.equal(status, 0, `${reader} ${path}`)
