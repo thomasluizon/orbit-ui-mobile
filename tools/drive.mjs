@@ -73,6 +73,9 @@ const MAX_FIX_LAUNCHES = 2
 const MERGED_TTL_MS = 10 * 60 * 1000
 const MERGED_READS_PER_TICK = 10
 const REMAINING_NONE = /^Remaining: none\s*$/m
+const REMAINING_LINE = /^Remaining:.*$/m
+/** A Remaining item that only the owner, another ticket or a release can meet starts with `owner:` or `blocked by` and a ticket reference. */
+const OWNER_ITEM = /^(owner:|blocked by\s+(#\d+|ORB-\d+))/i
 const MISSING_AFTER_RUN_MS = 15 * 60 * 1000
 const MISSING_AFTER_REQUEST_MS = 30 * 60 * 1000
 const TICKET_COMMENT_LIMIT = 65000
@@ -1060,6 +1063,25 @@ const runsLastOpen = (tickets, ticket) => {
   return tickets.filter((other) => other.number !== ticket.number && runsLastRank(other) < rank && (rank === 2 || other.repoKey === ticket.repoKey)).length
 }
 
+/** The Remaining line of a merged pull request, or `null` when its body has none. */
+const remainingLineOf = (pull) => REMAINING_LINE.exec(pull.body)?.[0].trim() ?? null
+
+/** True when a Remaining line lists items and every item waits on the owner, on another ticket or on a release. */
+const onlyOwnerItems = (line) => {
+  const items = line.replace(/^Remaining:/, "").split(";").map((item) => item.trim()).filter(Boolean)
+  return items.length > 0 && items.every((item) => OWNER_ITEM.test(item))
+}
+
+/** The reason that no build helps, or `null`. The last merged pull request leaves only owner items, or two merges in a row leave the same Remaining line. */
+const rebuildStopReason = (history) => {
+  const last = history.at(-1)
+  const line = last === undefined ? null : remainingLineOf(last)
+  if (line === null) return null
+  if (onlyOwnerItems(line)) return `${line} (only owner items are left)`
+  const before = history.length > 1 ? remainingLineOf(history.at(-2)) : null
+  return before === line ? `${line} (two merged pull requests in a row left the same line)` : null
+}
+
 /** What admission does with one ticket: an order, or the reason it waits. A part whose worker runs counts as an open part, so it blocks another part whose `Paths:` overlap and never starts twice. */
 const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null, running }) => {
   const labels = ticket.labels
@@ -1092,7 +1114,9 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   if (parts.length === 0) {
     const branch = ownBranch(null)
     if (held(branch)) return held(branch)
-    const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${/^Remaining:.*$/m.exec(history.at(-1).body)?.[0] ?? "Remaining: unknown"}`
+    const stopReason = rebuildStopReason(history)
+    if (stopReason !== null) return { reason: "a rebuild cannot meet the Remaining line", owner: `No build can meet the Remaining line of the last merged pull request: ${stopReason}` }
+    const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${remainingLineOf(history.at(-1)) ?? "Remaining: unknown"}`
     return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: remaining } }
   }
   const partDone = (entry) => (entry.find ? ticket.comments.some((comment) => comment.kind === "findings" && firstLine(bodyAfterMarker(comment)) === `Findings, part ${entry.number}`) : [...doneBranches].some((branch) => partBranch(ticket.number, entry.number).test(branch)))
