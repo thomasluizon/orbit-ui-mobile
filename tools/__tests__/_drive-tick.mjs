@@ -46,7 +46,7 @@ const partComment = (number, total, extra = "") => comment(null, `Part ${number}
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [] } = {}) => {
   const calls = []
   const messages = []
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
@@ -73,6 +73,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       readWorkerToken: async () => token,
       launch: (options) => { launched.push(options); return Promise.resolve({ exitCode: 0, killed: null, sessionId: "s1", utilization: 0.2, resetsAt: RESETS_AT, status: "allowed", result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null }, ...(limit ?? {}) }) },
       KILL_REASONS, WORKER_LIMITS,
+      worktreeOccupants: (worktree) => (calls.push(["occupants", worktree]), occupants),
       progressWatch: (options) => progressWatch({ ...options, fingerprint: async () => watched.fingerprint, logSize: () => watched.logBytes }),
       killWorkerTree: (pid, signal) => { calls.push(["kill", pid, signal]) },
       probe: async () => (calls.push(["probe"]), probeReading === undefined ? { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } : probeReading),
@@ -434,6 +435,61 @@ const workerCases = async () => {
   await recorded.run()
   await recorded.run()
   same("drive: one record comment for each pushed commit, oldest first", commentsOf(recorded.calls, 31).map((text) => text.split("\n")[1]), [`worker s1 -> ${"d".repeat(40)}`, `worker s1 -> ${NEXT_HEAD}`])
+}
+
+const pullfrogRun = (databaseId, createdOffset, updatedOffset, status = "completed") => ({ databaseId, displayTitle: `Respond to mention on #7 [run${databaseId}]`, status, conclusion: status === "completed" ? "success" : null, createdAt: iso(createdOffset), updatedAt: iso(updatedOffset) })
+
+const reviewRunCases = async () => {
+  const WHOLE = `${PLAIN} whole diff`
+  const approvedWithoutWholeDiff = (runs, reviewOffset = -8 * MINUTE) => scenario({
+    tickets: [ticket(7)], runs,
+    pulls: { ui: [pull(30, { changedFiles: 40, comments: [comment("ticket", "T"), comment("request", PLAIN, -30 * MINUTE), comment("request", WHOLE, -10 * MINUTE)], reviews: [review("APPROVED", HEAD, -12 * MINUTE), review("APPROVED", HEAD, reviewOffset, { body: "> No issues." })] })] },
+  })
+  const firstRun = pullfrogRun(1, -29 * MINUTE, -7 * MINUTE)
+
+  const earlierRun = approvedWithoutWholeDiff([firstRun, pullfrogRun(2, -9 * MINUTE, -9 * MINUTE, "in_progress")])
+  await earlierRun.run()
+  same("drive: a review from a run that began before the whole-diff request is not its answer, and the driver posts no request while the whole-diff run runs", [commentsOf(earlierRun.calls, 30).length, only(earlierRun.calls, "merge").length, only(earlierRun.calls, "editLabels").length], [0, 0, 0])
+
+  const noRunYet = approvedWithoutWholeDiff([firstRun])
+  await noRunYet.run()
+  same("drive: a review from an earlier run leaves the whole-diff request unanswered, so the driver waits and posts no second request", [commentsOf(noRunYet.calls, 30).length, only(noRunYet.calls, "merge").length], [0, 0])
+
+  const queued = approvedWithoutWholeDiff([firstRun, pullfrogRun(2, -9 * MINUTE, -9 * MINUTE, "queued")])
+  await queued.run()
+  same("drive: a queued Pullfrog run holds the request", commentsOf(queued.calls, 30).length, 0)
+
+  const answeredRun = scenario({
+    tickets: [ticket(7)], runs: [firstRun, pullfrogRun(2, -9 * MINUTE, -4 * MINUTE)],
+    pulls: { ui: [pull(30, { changedFiles: 40, comments: [comment("ticket", "T"), comment("request", PLAIN, -30 * MINUTE), comment("request", WHOLE, -10 * MINUTE)], reviews: [review("APPROVED", HEAD, -12 * MINUTE), review("APPROVED", HEAD, -5 * MINUTE, { body: "Whole diff: no blocking finding" })] })] },
+  })
+  await answeredRun.run()
+  same("drive: a whole-diff review from a run that began after the request answers it and opens the merge", [commentsOf(answeredRun.calls, 30).length, only(answeredRun.calls, "merge").length], [0, 1])
+
+  const lateRequest = scenario({ tickets: [ticket(7)], runs: [firstRun, pullfrogRun(2, -9 * MINUTE, -4 * MINUTE)], pulls: { ui: [pull(30, { changedFiles: 40, comments: [comment("ticket", "T"), comment("request", PLAIN, -30 * MINUTE), comment("request", WHOLE, -10 * MINUTE)], reviews: [review("APPROVED", HEAD, -12 * MINUTE), review("APPROVED", HEAD, -8 * MINUTE, { body: "> No issues." })] })] } })
+  await lateRequest.run()
+  same("drive: when the whole-diff run ends with no review, the review of the earlier run does not stand in for it", [only(lateRequest.calls, "merge").length, commentsOf(lateRequest.calls, 30).length], [0, 0])
+
+  const firstRequest = scenario({ tickets: [ticket(7)], runs: [pullfrogRun(3, -2 * MINUTE, -1 * MINUTE, "in_progress")], pulls: { ui: [pull(30, { reviews: [], comments: [comment("ticket", "T")] })] } })
+  await firstRequest.run()
+  same("drive: a run in progress holds the first request of a pull request", commentsOf(firstRequest.calls, 30).length, 0)
+
+  const idle = scenario({ tickets: [ticket(7)], runs: [pullfrogRun(3, -20 * MINUTE, -15 * MINUTE)], pulls: { ui: [pull(30, { reviews: [], comments: [comment("ticket", "T")] })] } })
+  await idle.run()
+  same("drive: a finished run holds nothing, so the first request goes out", commentsOf(idle.calls, 30).map((entry) => entry.split("\n")[1]), [PLAIN])
+}
+
+const worktreeOccupantCases = async () => {
+  const occupied = scenario({ tickets: [ticket(7)], occupants: [4242] })
+  await occupied.run()
+  same("drive: a process in the worktree of an order starts no worker and writes no launch comment", [occupied.launched.length, only(occupied.calls, "comment").length, only(occupied.calls, "git").some((entry) => entry.join(" ").includes("worktree add"))], [0, 0, false])
+  T("drive: the wait names the worktree and the pid", occupied.messages.some((line) => line.includes("another process holds the worktree") && line.includes("4242")))
+  const free = scenario({ tickets: [ticket(7)] })
+  await free.run()
+  same("drive: a worktree with no other process gets the worker", [free.launched.length, only(free.calls, "occupants").length], [1, 1])
+  const fixOccupied = scenario({ tickets: [ticket(7)], occupants: [4242], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "x" }] })] })] }, gitRoutes: [["worktree list", `worktree /r/wt\nHEAD ${HEAD}\nbranch refs/heads/chore/ticket-7-30\n`]] })
+  await fixOccupied.run()
+  same("drive: a fix order waits while a process holds the worktree of its pull request, and nothing merges into it", [fixOccupied.launched.length, only(fixOccupied.calls, "git").some((entry) => entry.join(" ").includes("merge --ff-only"))], [0, false])
 }
 
 const capCases = async () => {
@@ -1447,6 +1503,8 @@ export const driverUnit = async () => {
   await usageLimitCases()
   await workerCases()
   await capCases()
+  await reviewRunCases()
+  await worktreeOccupantCases()
   await reviewCases()
   await mergeCases()
   await updateCases()
