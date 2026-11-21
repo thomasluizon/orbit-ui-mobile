@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceDecision, parseArguments, rankTickets, recordStart, resultText, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceDecision, parseArguments, pushOutputs, rankTickets, recordStart, resultText, tick, ticketComment } from "../drive.mjs"
 import { isUsageLimitMessage, readSnapshot, usageLimitIn } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
@@ -75,7 +75,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       probe: async () => (calls.push(["probe"]), probeReading === undefined ? { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } : probeReading),
     },
     invocation: async () => ({ command: { executable: "claude", args: [] }, environment: {} }),
-    git: async (cwd, args) => { calls.push(["git", ...args]); const hit = gitRoutes.find(([text]) => args.join(" ").includes(text)); return hit ? { status: 0, stderr: "", stdout: hit[1] } : { status: args[0] === "rev-parse" && args.includes("--quiet") ? 1 : 0, stderr: "", stdout: args[0] === "rev-parse" ? HEAD : "" } },
+    git: async (cwd, args) => { calls.push(["git", ...args]); const hit = gitRoutes.find(([text]) => args.join(" ").includes(text)); return hit ? { status: 0, stderr: "", stdout: typeof hit[1] === "function" ? hit[1](args) : hit[1] } : { status: args[0] === "rev-parse" && args.includes("--quiet") ? 1 : 0, stderr: "", stdout: args[0] === "rev-parse" ? HEAD : "" } },
     gh: async (args) => { calls.push(["gh", args.join(" ")]); const hit = routes.find(([text]) => args.join(" ").includes(text)); if (hit) return typeof hit[1] === "function" ? hit[1](args) : hit[1]; if (args[0] === "pr" && args[1] === "list") return "[]"; if (args[0] === "issue") return "[]"; if (args[0] === "api") return "[]"; return "" },
     notify: async (message) => { calls.push(["notify", message]) },
     keychain: async () => null,
@@ -89,6 +89,18 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
   mem.lastIntakeAt = NOW
   return { env, mem, calls, messages, launched, run: async () => { const result = await tick(env, mem); await mem.running; if (process.env.DEBUG_DRIVE_TICK) console.error(messages.splice(0).join("\n")); return result } }
 }
+
+const BASH = JSON.parse(readFileSync(new URL("../__fixtures__/drive-worker.json", import.meta.url), "utf8")).bashToolRecords
+
+/** The stream-json lines of one Bash tool call, in the recorded shape: a tool_use in an assistant record, its tool_result in a user record. */
+const bashRun = (command, output, id = "toolu_1") => [
+  JSON.stringify({ type: BASH.toolUse.recordType, message: { content: [{ type: BASH.toolUse.block.type, id, name: BASH.toolUse.block.name, input: { [BASH.toolUse.block.inputKeys[0]]: command } }] } }),
+  JSON.stringify({ type: BASH.toolResult.recordType, message: { content: [{ type: BASH.toolResult.block.type, tool_use_id: id, content: output, is_error: false }] } }),
+].join("\n") + "\n"
+const FORBIDDEN_OUTPUT = "remote: Permission to thomasluizon/orbit-ui-mobile.git denied to x.\nfatal: unable to access: The requested URL returned error: 403"
+const resultLine = (text) => `${JSON.stringify({ type: "result", result: text })}\n`
+const clean = { exitCode: 0, killed: null, sessionId: "s1", utilization: null, resetsAt: null, result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null } }
+const heads = (before, after) => { const queue = [before, after]; return ["rev-parse", () => `${queue.length > 1 ? queue.shift() : queue[0]}\n`] }
 
 const only = (calls, name) => calls.filter((entry) => entry[0] === name)
 const commentsOf = (calls, number) => only(calls, "comment").filter((entry) => entry[2] === number).map((entry) => entry[3])
@@ -237,8 +249,8 @@ const workerCases = async () => {
   await decision.run()
   await decision.run()
   same("drive: NEEDS_DECISION gives needs:owner and one needs-owner comment", [only(decision.calls, "editLabels")[0]?.[3], commentsOf(decision.calls, 7).filter((text) => text.includes("needs-owner")).length], [{ add: [OWNER_LABEL] }, 1])
-  const forbidden = scenario({ tickets: [ticket(7)] })
-  forbidden.env.worker.launch = (options) => { writeFileSync(options.logFile, "remote: Permission to thomasluizon/orbit-ui-mobile.git denied to x.\nfatal: unable to access: The requested URL returned error: 403\n"); return Promise.resolve({ exitCode: 1, sessionId: "s", utilization: null, result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null } }) }
+  const forbidden = scenario({ tickets: [ticket(7)], gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", ""]] })
+  forbidden.env.worker.launch = (options) => { writeFileSync(options.logFile, bashRun("git push -u origin chore/ticket-7", FORBIDDEN_OUTPUT)); return Promise.resolve({ ...clean, exitCode: 1, sessionId: "s" }) }
   await forbidden.run()
   await forbidden.run()
   same("drive: a push that fails with HTTP 403 gives needs:owner and a notification", [only(forbidden.calls, "editLabels").length, only(forbidden.calls, "notify").length], [1, 1])
@@ -702,11 +714,102 @@ const laneAndReviewPassCases = async () => {
   await marked.run()
   same("drive: a pull request with no ticket and a needs-owner comment gets no second comment and no second notification", [commentsOf(marked.calls, 30).length, only(marked.calls, "notify").length], [0, 0])
 
-  const landed = scenario({ tickets: [ticket(7)], gitRoutes: [["ls-remote", `${HEAD}\trefs/heads/chore/ticket-7\n`], ["log --format=%H", `${NEXT_HEAD}\n`]], routes: [["--head chore/ticket-7", "31\n"]] })
-  landed.env.worker.launch = (options) => { writeFileSync(options.logFile, `${JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", content: "fatal: unable to access: The requested URL returned error: 403" }] } })}\n`); return Promise.resolve({ exitCode: 0, sessionId: "s1", utilization: null, result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null } }) }
+  const landed = scenario({ tickets: [ticket(7)], gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", `${NEXT_HEAD}\trefs/heads/chore/ticket-7\n`], ["log --format=%H", `${NEXT_HEAD}\n`]], routes: [["--head chore/ticket-7", "31\n"]] })
+  landed.env.worker.launch = (options) => { writeFileSync(options.logFile, bashRun("git push -u origin chore/ticket-7", FORBIDDEN_OUTPUT)); return Promise.resolve(clean) }
   await landed.run()
   await landed.run()
-  same("drive: a worker whose log reads the 403 text but whose push landed is not a failed push and gets its commit records", [only(landed.calls, "editLabels").length, only(landed.calls, "notify").length, commentsOf(landed.calls, 31).map((text) => text.split("\n")[1])], [0, 0, [`worker s1 -> ${NEXT_HEAD}`]])
+  same("drive: a worker whose git push printed the 403 text but whose commits are on the remote is not a failed push and gets its commit records", [only(landed.calls, "editLabels").length, only(landed.calls, "notify").length, commentsOf(landed.calls, 31).map((text) => text.split("\n")[1])], [0, 0, [`worker s1 -> ${NEXT_HEAD}`]])
+}
+
+const FAILED_PUSH_LOG = bashRun("git push -u origin chore/ticket-7", FORBIDDEN_OUTPUT)
+
+const logOnlyCases = async () => {
+  const readsText = bashRun("cat tools/drive.mjs", `const FORBIDDEN_PUSH = /The requested URL returned error: 403/`, "toolu_read")
+  const unpushed = [heads(HEAD, NEXT_HEAD), ["ls-remote", ""]]
+  const read = scenario({ tickets: [ticket(7)], gitRoutes: unpushed })
+  read.env.worker.launch = (options) => { writeFileSync(options.logFile, readsText); return Promise.resolve(clean) }
+  await read.run()
+  await read.run()
+  same("drive: a worker that read the 403 text in a file is not a failed push, even with commits that the remote lacks", [only(read.calls, "editLabels").length, only(read.calls, "notify").length], [0, 0])
+
+  const noCommit = scenario({ tickets: [ticket(7)], gitRoutes: [["ls-remote", ""]] })
+  noCommit.env.worker.launch = (options) => { writeFileSync(options.logFile, FAILED_PUSH_LOG); return Promise.resolve({ ...clean, exitCode: 1 }) }
+  await noCommit.run()
+  await noCommit.run()
+  same("drive: a worker with no commit since its launch has nothing to push, so its 403 text is not a failed push", [only(noCommit.calls, "editLabels").length, only(noCommit.calls, "notify").length], [0, 0])
+
+  const findLog = `${readsText}${resultLine("Area: tools\n\nsrc/a.mjs:3 | class | fix")}`
+  const find = scenario({ tickets: [ticket(7, { comments: [partComment(1, 1, "Kind: find")] })], gitRoutes: [["ls-remote", ""]] })
+  find.env.worker.launch = (options) => { writeFileSync(options.logFile, findLog); return Promise.resolve(clean) }
+  await find.run()
+  await find.run()
+  same("drive: a find order whose slice holds the 403 text posts its findings comment and gets no needs:owner", [only(find.calls, "editLabels").length, commentsOf(find.calls, 7).filter((text) => text.startsWith(marked("findings", "Findings, part 1"))).length], [0, 1])
+  same("drive: the push outputs of a log are those of its git push commands only", pushOutputs(`${readsText}${FAILED_PUSH_LOG}`), [FORBIDDEN_OUTPUT])
+}
+
+const runningWorkCases = async () => {
+  // A launch comment that the worker writes before it starts must reach the next tick's ticket read, the way GitHub returns it.
+  const never = (scene, tickets) => {
+    scene.env.worker.launch = (options) => { scene.launched.push(options); return new Promise(() => {}) }
+    const write = scene.env.github.comment
+    scene.env.github.comment = async (key, number, body) => {
+      await write(key, number, body)
+      if (key === "tickets" && body.startsWith("<!-- orbit-drive:launch -->")) tickets.find((entry) => entry.number === number).comments.push(comment("launch", body.split("\n")[1]))
+    }
+  }
+  const launchOf = (kind, branch) => comment("launch", JSON.stringify({ kind, part: null, branch }))
+  const blockingReview = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })
+
+  const fixTickets = [ticket(7, { comments: [launchOf("fix", "chore/ticket-7-30")] })]
+  const fix = scenario({ tickets: fixTickets, pulls: { ui: [pull(30, { reviews: [blockingReview] })] } })
+  never(fix, fixTickets)
+  await tick(fix.env, fix.mem)
+  await tick(fix.env, fix.mem)
+  same("drive: the second fix launch that still runs is not a third launch and gets no needs:owner on the next tick", [fix.launched.length, only(fix.calls, "editLabels").length, only(fix.calls, "notify").length, commentsOf(fix.calls, 7).filter((text) => text.includes("needs-owner")).length], [1, 0, 0, 0])
+
+  const buildTickets = [ticket(7, { comments: [launchOf("build", "chore/ticket-7")] })]
+  const build = scenario({ tickets: buildTickets })
+  never(build, buildTickets)
+  await tick(build.env, build.mem)
+  await tick(build.env, build.mem)
+  same("drive: the second build launch that still runs gets no needs:owner on the next tick", [build.launched.length, only(build.calls, "editLabels").length, only(build.calls, "notify").length], [1, 0, 0])
+
+  const capped = scenario({ tickets: [ticket(7, { comments: [launchOf("fix", "chore/ticket-7-30"), launchOf("fix", "chore/ticket-7-30")] })], pulls: { ui: [pull(30, { reviews: [blockingReview] })] } })
+  await capped.run()
+  same("drive: with the lane free and no worker running, two fix launches still give needs:owner", [capped.launched.length, only(capped.calls, "editLabels").length], [0, 2])
+  const cappedBuild = scenario({ tickets: [ticket(7, { comments: [launchOf("build", "chore/ticket-7"), launchOf("build", "chore/ticket-7")] })] })
+  await cappedBuild.run()
+  same("drive: with the lane free and no worker running, two build launches still give needs:owner", [cappedBuild.launched.length, only(cappedBuild.calls, "editLabels").length], [0, 1])
+}
+
+const paceStampCases = async () => {
+  let clock = NOW
+  const exitAt = (utilization) => ({ ...clean, utilization, resetsAt: RESETS_AT, status: "allowed" })
+  const run = scenario({ tickets: [ticket(7), ticket(8)], reading: { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE } })
+  run.env.now = () => clock
+  run.env.worker.launch = (options) => { run.launched.push(options); return Promise.resolve(exitAt(0.4)) }
+  run.env.snapshot = () => (clock >= NOW + 30 * MINUTE ? { utilization: 0.6, resetsAt: RESETS_AT, at: NOW + 30 * MINUTE, email: AUTH.email } : null)
+  await run.run()
+  clock = NOW + 40 * MINUTE
+  await run.run()
+  same("drive: a worker reading is stamped with its launch, so a snapshot taken during the run is newer and holds the pace", run.launched.length, 1)
+
+  const probed = scenario({ tickets: [ticket(7)], reading: null })
+  let probeClock = NOW
+  probed.env.now = () => probeClock
+  probed.env.worker.probe = async () => { probeClock = NOW + 2 * MINUTE; return { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } }
+  await probed.run()
+  same("drive: a probe reading is stamped with the time the probe started", probed.mem.reading.at, NOW)
+
+  const newer = scenario({ tickets: [ticket(7)] })
+  let newerClock = NOW
+  newer.env.now = () => newerClock
+  newer.env.worker.launch = (options) => { newer.launched.push(options); return Promise.resolve(exitAt(0.4)) }
+  await newer.run()
+  newer.mem.reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW + 10 * MINUTE, account: ACCOUNT.key }
+  newerClock = NOW + 40 * MINUTE
+  await newer.run()
+  same("drive: the reading of a worker that started before a newer reading does not replace it", newer.mem.reading.utilization, 0.1)
 }
 
 export const driverUnit = async () => {
@@ -726,4 +829,7 @@ export const driverUnit = async () => {
   await cliCases()
   await blockingClassCases()
   await laneAndReviewPassCases()
+  await logOnlyCases()
+  await runningWorkCases()
+  await paceStampCases()
 }

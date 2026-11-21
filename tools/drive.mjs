@@ -303,13 +303,14 @@ const trackAccount = async (env, mem, tickets) => {
 
 /** One pace probe. A reading with status `allowed` while the driver is paused resumes it. */
 const runProbe = async (env, mem, tickets) => {
-  mem.lastProbeAt = env.now()
+  const takenAt = env.now()
+  mem.lastProbeAt = takenAt
   const reading = await env.worker.probe({ invocation: await env.invocation() })
   if (reading === null) {
     await notifyOnce(env, mem, "Orbit driver: the pace probe returned no rate limit event, so no new build order starts.")
     return null
   }
-  mem.reading = { utilization: reading.utilization, resetsAt: reading.resetsAt, at: env.now(), account: mem.account?.key ?? null }
+  mem.reading = { utilization: reading.utilization, resetsAt: reading.resetsAt, at: takenAt, account: mem.account?.key ?? null }
   mem.probeOwed = false
   const paused = pauseIssue(tickets)
   if (paused && reading.status === "allowed") {
@@ -416,7 +417,7 @@ const checkPlan = async (env, repoKey, pull) => {
 }
 
 /** The ordered actions for one pull request. The plan writes nothing. */
-const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs }, pull) => {
+const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, busy }, pull) => {
   const dependabot = pull.author === "dependabot"
   const item = `${repoKey}#${pull.number}`
   if (pull.draft) return [{ type: "none", reason: "draft" }]
@@ -435,7 +436,10 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs }, pull
   const orderOrOwner = (order, classes) => {
     // A worker order is recorded on a ticket, so a pull request with no open ticket goes to the owner.
     if (ticket === null) return owner(`${item} needs a ${order.kind} order and no open ticket tracks it. Open: ${classes}`)
-    return launches.length >= MAX_FIX_LAUNCHES ? owner(`${item} used its ${MAX_FIX_LAUNCHES} fix launches. Open: ${classes}`) : [...actions, order]
+    if (launches.length < MAX_FIX_LAUNCHES) return [...actions, order]
+    // A launch that still runs is in the count, so a cap is read only when the lane is free and the last launch has its result.
+    if (busy) return [...actions, { type: "none", reason: "a worker runs: the fix launch cap waits for its result" }]
+    return owner(`${item} used its ${MAX_FIX_LAUNCHES} fix launches. Open: ${classes}`)
   }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
   if (need.approved) {
@@ -515,9 +519,9 @@ const executeAction = async (env, mem, ctx, pull, action) => {
 const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "behind" ? "update branch (next to merge)" : action.type)
 
 /** Plans and runs the actions of every open pull request of one repository. Returns the order candidates. */
-const pullActions = async (env, mem, repoKey, state, tickets) => {
+const pullActions = async (env, mem, repoKey, state, tickets, busy) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
-  const ctx = { repoKey, state, ticketMap, now: env.now(), updated: false, merged: false }
+  const ctx = { repoKey, state, ticketMap, now: env.now(), updated: false, merged: false, busy }
   const orders = []
   const repoPath = env.config.repos[repoKey]
   for (const pull of [...state.pulls].sort((left, right) => left.number - right.number)) {
@@ -609,37 +613,70 @@ const startWorker = async (env, mem, candidate) => {
   const stem = branch.replaceAll("/", "-")
   const invocation = await env.invocation(token)
   const account = mem.account?.key ?? null
+  // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
+  const startedAt = env.now()
   const running = env.worker.launch({ invocation, worktree, order: text, logFile: join(env.stateDir, "logs", `${stem}-${stamp}.log`), pidFile: join(env.stateDir, `${stem}.pid`) })
   log(env, `ticket#${ticket.number}`, `launch ${kind}`, `branch ${branch}, worktree ${worktree}`)
   mem.running = running.then((result) => {
     mem.running = null
-    mem.exits.push({ order, result, headBefore, worktree, account, logFile: join(env.stateDir, "logs", `${stem}-${stamp}.log`) })
+    mem.exits.push({ order, result, headBefore, worktree, account, startedAt, logFile: join(env.stateDir, "logs", `${stem}-${stamp}.log`) })
     mem.wake()
   })
 }
 
 const FORBIDDEN_PUSH = /The requested URL returned error: 403|remote: Permission to .* denied/
 
-/** True when the remote branch names the head of the worktree. */
-const pushLanded = async (env, worktree, branch) => {
-  const remote = await env.git(worktree, ["ls-remote", "origin", `refs/heads/${branch}`])
-  return remote.status === 0 && remote.stdout.split(/\s/)[0] === await gitText(env, worktree, ["rev-parse", "HEAD"])
+const GIT_PUSH = /\bgit\b[^|;&\n]*\bpush\b/
+
+const toolText = (content) => (typeof content === "string" ? content : Array.isArray(content) ? content.map((block) => (typeof block?.text === "string" ? block.text : "")).join("\n") : "")
+
+/** The output of every `git push` command in a stream-json log. Text that the worker read or wrote elsewhere never counts. */
+export const pushOutputs = (logText) => {
+  const pushes = new Set()
+  const outputs = []
+  for (const line of logText.split("\n")) {
+    if (!line.startsWith("{")) continue
+    let record
+    try { record = JSON.parse(line) } catch { continue }
+    for (const block of Array.isArray(record.message?.content) ? record.message.content : []) {
+      if (block.type === "tool_use" && block.name === "Bash" && GIT_PUSH.test(block.input?.command ?? "")) pushes.add(block.id)
+      if (block.type === "tool_result" && pushes.has(block.tool_use_id)) outputs.push(toolText(block.content))
+    }
+  }
+  return outputs
 }
+
+/** True when the worktree holds commits since the launch that the remote branch lacks. Only such a push can have failed. */
+const hasUnpushedCommits = async (env, worktree, branch, headBefore) => {
+  const head = await gitText(env, worktree, ["rev-parse", "HEAD"])
+  if (head === headBefore) return false
+  const remote = await env.git(worktree, ["ls-remote", "origin", `refs/heads/${branch}`])
+  if (remote.status !== 0) return false
+  const remoteHead = remote.stdout.split(/\s/)[0]
+  if (remoteHead === "") return true
+  if (remoteHead === head) return false
+  await env.git(worktree, ["fetch", "origin", branch])
+  return (await env.git(worktree, ["merge-base", "--is-ancestor", head, `origin/${branch}`])).status !== 0
+}
+
+/** A push failed with HTTP 403 when a `git push` command printed the message and its commits are not on the remote branch. */
+const pushForbidden = async (env, tail, worktree, branch, headBefore) => pushOutputs(tail).some((text) => FORBIDDEN_PUSH.test(text)) && await hasUnpushedCommits(env, worktree, branch, headBefore)
 
 /** What a worker's exit leaves to do: records, a pause, a question, or a findings comment. */
 const reapExit = async (env, mem, tickets, states, exit) => {
-  const { order, result, headBefore, worktree, logFile, account } = exit
+  const { order, result, headBefore, worktree, logFile, account, startedAt } = exit
   const { kind, repoKey, ticket, branch, part } = order
   const item = `ticket#${ticket.number}`
-  if (result.utilization !== null && account !== null) mem.reading = { utilization: result.utilization, resetsAt: result.resetsAt, at: env.now(), account }
+  const newerReading = mem.reading?.account === account && mem.reading.at > startedAt
+  if (result.utilization !== null && account !== null && !newerReading) mem.reading = { utilization: result.utilization, resetsAt: result.resetsAt, at: startedAt, account }
   log(env, item, "worker-exit", `${kind}, exit ${result.exitCode}${result.killReason ? `, killed: ${result.killReason}` : ""}`)
   const tail = tailOf(logFile)
   if (result.result.usageLimitReached || result.result.authenticationFailed) {
     const message = result.result.error ?? "the worker stopped"
     return pauseDriver(env, mem, tickets, { source: result.result.usageLimitReached ? "A worker" : "A worker sign-in", message, reset: workerApi.usageLimitIn(message)?.reset ?? null, account: account ?? undefined })
   }
-  // Text that the worker read can hold the 403 message, so only a push that did not land counts.
-  if (FORBIDDEN_PUSH.test(tail) && !await pushLanded(env, worktree, branch)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
+  // The 403 message can sit in a file that the worker read, so a push counts only from git state: its own output and commits that the remote lacks.
+  if (await pushForbidden(env, tail, worktree, branch, headBefore)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `NEEDS_DECISION: ${result.result.needsDecision}` })
   if (kind === "find") {
     const text = resultText(tail)
@@ -775,7 +812,7 @@ const ownerWorkNotices = async (env, mem, tickets) => {
   }
 }
 
-const admit = async (env, mem, tickets, states) => {
+const admit = async (env, mem, tickets, states, busy) => {
   const decisions = new Map()
   let chosen = null
   let held = false
@@ -786,6 +823,11 @@ const admit = async (env, mem, tickets, states) => {
       continue
     }
     const launches = launchesOf(ticket).filter((entry) => entry.branch === verdict.order.branch && entry.kind === verdict.order.kind)
+    if (launches.length >= MAX_ORDER_LAUNCHES && busy) {
+      // The newest launch may be the worker that still runs, so the cap waits for its result.
+      decisions.set(ticket.number, "wait: a worker runs and the order waits for its result")
+      continue
+    }
     if (launches.length >= MAX_ORDER_LAUNCHES) {
       decisions.set(ticket.number, "needs:owner: the order used its launches")
       await needsOwner(env, mem, { ticket, reason: `The ${verdict.order.kind} order of ${verdict.order.branch} launched ${launches.length} times without a result` })
@@ -879,7 +921,7 @@ export const tick = async (env, mem) => {
   const account = await trackAccount(env, mem, tickets)
   await reapExits(env, mem, tickets, states)
   const orders = []
-  for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets))
+  for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets, busy))
   await ownerWorkNotices(env, mem, tickets)
   mem.mergedReadsLeft = MERGED_READS_PER_TICK
   mem.mergedReadThisTick.clear()
@@ -887,7 +929,7 @@ export const tick = async (env, mem) => {
   const paused = pauseIssue(tickets)
   const holdReason = paused ? "the driver is paused" : account.ok ? null : account.reason
   if (paused && account.ok && !env.dryRun && mem.running === null && (mem.lastProbeAt === null || env.now() - mem.lastProbeAt >= HOUR_MS)) await runProbe(env, mem, tickets).catch((error) => log(env, "probe", "error", error.message))
-  const { chosen, decisions } = holdReason ? { chosen: null, decisions: new Map() } : await admit(env, mem, tickets.filter((ticket) => !closed.has(ticket.number)), states)
+  const { chosen, decisions } = holdReason ? { chosen: null, decisions: new Map() } : await admit(env, mem, tickets.filter((ticket) => !closed.has(ticket.number)), states, busy)
   for (const ticket of tickets) env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${closed.has(ticket.number) ? "close" : holdReason ? `wait: ${holdReason}` : decisions.get(ticket.number) ?? "wait"}`)
   const launchable = orders.filter(() => !holdReason).sort((left, right) => left.pull.number - right.pull.number)[0] ?? (holdReason ? null : chosen)
   if (launchable && busy) log(env, "lane", "wait", "a worker runs")

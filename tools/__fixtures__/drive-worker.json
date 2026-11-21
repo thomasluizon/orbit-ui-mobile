@@ -30,6 +30,11 @@
     "claudeMdExcludes": "claudeMdExcludes:()=>C(n()).optional().describe('Glob patterns or absolute paths of CLAUDE.md files to exclude from loading.",
     "autoMemoryEnabled": "autoMemoryEnabled:()=>O().optional()"
   },
+  "bashToolRecords": {
+    "provenance": "node script that read the newest Claude Code session transcripts under ~/.claude/projects (claude 2.1.329, 2026-11-20) and printed the first Bash tool_use block whose command held 'git push' with its tool_result block; the stream-json log of a worker carries the same assistant and user records; ids and content replaced, every key and type as printed",
+    "toolUse": { "recordType": "assistant", "block": { "type": "tool_use", "id": "toolu_id", "name": "Bash", "inputKeys": ["command", "description", "timeout"] } },
+    "toolResult": { "recordType": "user", "block": { "type": "tool_result", "tool_use_id": "toolu_id", "content": "a string", "is_error": false } }
+  },
   "workerCommandRun": {
     "provenance": "node script that runs the worker command of tools/lib/worker.mjs (workerInvocation with its real settings JSON, then --max-turns 1, prompt 'reply ok' on stdin) with CLAUDE_CONFIG_DIR set to an empty directory, on 2026-11-20: exit status 1, no unknown-option error; the fields below are those of the init and result lines",
     "exitStatus": 1,
