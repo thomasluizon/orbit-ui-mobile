@@ -1,6 +1,17 @@
+import { sign } from "node:crypto"
 import { setTimeout as delay } from "node:timers/promises"
 
 const API_ORIGIN = "https://api.appstoreconnect.apple.com"
+
+/** Signs the short-lived ES256 token the App Store Connect API requires for a team key. */
+export const appStoreToken = ({ keyId, issuerId, privateKey }) => {
+  if (!keyId || !issuerId || !privateKey) throw new Error("App Store Connect API credentials unavailable")
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url")
+  const issuedAt = Math.floor(Date.now() / 1000)
+  const unsigned = `${encode({ alg: "ES256", kid: keyId, typ: "JWT" })}.${encode({ iss: issuerId, iat: issuedAt, exp: issuedAt + 600, aud: "appstoreconnect-v1" })}`
+  const signature = sign("SHA256", Buffer.from(unsigned), { key: privateKey, dsaEncoding: "ieee-p1363" }).toString("base64url")
+  return `${unsigned}.${signature}`
+}
 
 // The waits before the second, third and fourth attempt of one request. Their count sets the attempt limit.
 const RETRY_WAITS_MS = [1_000, 4_000, 16_000]

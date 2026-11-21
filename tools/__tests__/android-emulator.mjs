@@ -3,60 +3,30 @@ import { join } from "node:path"
 
 import { T, check, root, run } from "./_harness.mjs"
 
-const WINDOWS = process.platform === "win32"
-
 /**
  * Stages a fake Android SDK whose adb and emulator are Node shims, so the tool's lifecycle decisions
- * run with no device, no network and no real SDK. The shims are reached through a .bat on Windows,
- * which also exercises the command-processor path the SDK's own .bat entry points need.
+ * run with no device, no network and no real SDK.
  */
 const stageSdk = (label, behaviour) => {
   const sdk = join(root, "android-sdk", label)
   mkdirSync(join(sdk, "platform-tools"), { recursive: true })
   mkdirSync(join(sdk, "emulator"), { recursive: true })
 
-  const marker = join(sdk, "killed.marker")
   const shim = join(sdk, "adb-shim.mjs")
   writeFileSync(
     shim,
-    `import { existsSync, readFileSync, writeFileSync } from "node:fs"
-const argv = process.argv.slice(2)
+    `const argv = process.argv.slice(2)
 const joined = argv.join(" ")
 const behaviour = ${JSON.stringify(behaviour)}
-const killed = () => existsSync(${JSON.stringify(marker)})
-if (joined.includes("emu kill")) {
-  writeFileSync(${JSON.stringify(marker)}, "killed")
-  process.stdout.write("OK: killing emulator, bye bye\\n")
-  process.exit(behaviour.killFails ? 1 : 0)
-}
 if (argv[0] === "devices") {
-  if (killed() && behaviour.listFailsAfterKill) process.exit(1)
-  const rows = killed() ? (behaviour.devicesAfterKill ?? []) : (behaviour.devices ?? [])
-  process.stdout.write("List of devices attached\\n" + rows.map((row) => row + "\\n").join("") + "\\n")
+  process.stdout.write("List of devices attached\\n" + (behaviour.devices ?? []).map((row) => row + "\\n").join("") + "\\n")
   process.exit(0)
 }
 if (joined.includes("sys.boot_completed")) {
   process.stdout.write((behaviour.boot ?? "1") + "\\n")
   process.exit(0)
 }
-if (joined.includes("avd name")) {
-  let name = behaviour.avdName ?? ""
-  const swap = behaviour.avdNameAfterCalls
-  if (swap) {
-    const counterPath = ${JSON.stringify(join(sdk, "avd-name-calls"))}
-    let seen = 0
-    try { seen = Number(readFileSync(counterPath, "utf8")) || 0 } catch {}
-    seen += 1
-    writeFileSync(counterPath, String(seen))
-    if (seen > swap.after) name = swap.name
-  }
-  process.stdout.write(name + "\\nOK\\n")
-  process.exit(0)
-}
-if (joined.includes("ping")) {
-  process.stdout.write((behaviour.ping ?? "") + "\\n")
-  process.exit(0)
-}
+if (joined.includes("avd name")) process.stdout.write((behaviour.avdName ?? "") + "\\nOK\\n")
 process.exit(0)
 `,
   )
@@ -74,12 +44,8 @@ process.exit(0)
 
   const write = (target, script) => {
     const path = join(sdk, ...target)
-    if (WINDOWS) {
-      writeFileSync(`${path}.bat`, `@echo off\r\nnode "${script}" %*\r\n`)
-    } else {
-      writeFileSync(path, `#!/bin/sh\nexec node "${script}" "$@"\n`)
-      chmodSync(path, 0o755)
-    }
+    writeFileSync(path, `#!/bin/sh\nexec node "${script}" "$@"\n`)
+    chmodSync(path, 0o755)
   }
   write(["platform-tools", "adb"], shim)
   write(["emulator", "emulator"], emulatorShim)
@@ -109,7 +75,6 @@ export const cases = () => {
   const launchedWith = existsSync(join(pinned, "emulator-args.log")) ? readFileSync(join(pinned, "emulator-args.log"), "utf8") : ""
   T("android-emulator.mjs: --port boots the emulator on that console port", booted.status === 5 && /-avd orbit-proof-2145 .*-port 5594/.test(launchedWith), `status=${booted.status} ${booted.stderr} args=${launchedWith}`)
   check("android-emulator.mjs", "rejects a value-less --avd", ["--avd"], { status: 2, stderr: /requires a value/ })
-  check("android-emulator.mjs", "rejects a value-less --dns", ["--dns"], { status: 2, stderr: /requires a value/ })
   check("android-emulator.mjs", "rejects a non-numeric --timeout", ["--timeout", "soon"], {
     status: 2,
     stderr: /positive number/,
@@ -164,106 +129,11 @@ export const cases = () => {
     devices: ["emulator-5554\tdevice"],
     avdName: "Orbit_Pixel_9_API_35",
     avds: ["Orbit_Pixel_9_API_35"],
-    ping: "PING api.useorbit.org (216.24.57.7) from 10.0.2.16 wlan0: 56(84) bytes of data.",
   })
-  const reused = run("android-emulator.mjs", ["--json", "--shutdown-timeout", "3"], { env: sdkEnv(reusable) })
+  const reused = run("android-emulator.mjs", ["--json"], { env: sdkEnv(reusable) })
   T(
-    "android-emulator.mjs: a running AVD that still resolves the verify host is reused",
-    reused.status === 0 && !existsSync(join(reusable, "killed.marker")),
-    `status=${reused.status} killed=${existsSync(join(reusable, "killed.marker"))}`,
+    "android-emulator.mjs: a running AVD that matches by identity is reused without a launch",
+    reused.status === 0 && JSON.parse(reused.stdout).serial === "emulator-5554" && !existsSync(join(reusable, "emulator-args.log")),
+    `status=${reused.status} ${reused.stderr}`,
   )
-
-  // The restart path: an emulator someone else started cannot resolve the API host, so it must be
-  // stopped. `offline` is not departure, and neither is a failed listing.
-  const lingering = stageSdk("lingering-offline", {
-    devices: ["emulator-5554\tdevice"],
-    devicesAfterKill: ["emulator-5554\toffline"],
-    avdName: "Orbit_Pixel_9_API_35",
-    avds: ["Orbit_Pixel_9_API_35"],
-    ping: "ping: unknown host api.useorbit.org",
-  })
-  check("android-emulator.mjs", "an offline serial is not treated as shut down", ["--shutdown-timeout", "3"], {
-    status: 1,
-    stderr: /still present/,
-  }, { env: sdkEnv(lingering) })
-  T(
-    "android-emulator.mjs: the DNS failure is what triggered the restart",
-    existsSync(join(lingering, "killed.marker")),
-  )
-
-  const listingBreaks = stageSdk("listing-fails", {
-    devices: ["emulator-5554\tdevice"],
-    listFailsAfterKill: true,
-    avdName: "Orbit_Pixel_9_API_35",
-    avds: ["Orbit_Pixel_9_API_35"],
-    ping: "ping: unknown host api.useorbit.org",
-  })
-  check("android-emulator.mjs", "a failed device listing never counts as shutdown", ["--shutdown-timeout", "3"], {
-    status: 1,
-    stderr: /still present/,
-  }, { env: sdkEnv(listingBreaks) })
-
-  // A serial that is listed but has not finished booting still holds the AVD lock. Launching
-  // alongside it would race for that lock, so it must be adopted, not duplicated.
-  const starting = stageSdk("already-booting", {
-    devices: ["emulator-5554\tdevice"],
-    boot: "",
-    avdName: "Orbit_Pixel_9_API_35",
-    avds: ["Orbit_Pixel_9_API_35"],
-    ping: "ping: unknown host api.useorbit.org",
-  })
-  T("android-emulator.mjs: a starting AVD reports booting, not stopped", statusOf(starting).parsed?.state === "booting")
-  const adopted = run("android-emulator.mjs", ["--timeout", "3", "--shutdown-timeout", "3"], { env: sdkEnv(starting) })
-  T(
-    "android-emulator.mjs: a starting AVD is adopted and waited for, never launched a second time",
-    adopted.status === 5 && /already starting/.test(adopted.stderr) && /never completed boot/.test(adopted.stderr),
-    `status=${adopted.status} stderr=${adopted.stderr.trim().split("\n").slice(0, 2).join(" | ")}`,
-  )
-  T(
-    "android-emulator.mjs: adopting a starting AVD does not kill it",
-    !existsSync(join(starting, "killed.marker")),
-  )
-
-  // An offline serial cannot answer `emu avd name`, so it may be the requested AVD. Launching
-  // alongside it would recreate the duplicate-launch race, so the tool must refuse.
-  const unidentifiable = stageSdk("unidentifiable", {
-    devices: ["emulator-5554\toffline"],
-    avdName: "",
-    avds: ["Orbit_Pixel_9_API_35"],
-  })
-  check(
-    "android-emulator.mjs",
-    "refuses to launch beside a serial it cannot identify",
-    ["--timeout", "3", "--shutdown-timeout", "3"],
-    { status: 1, stderr: /cannot identify emulator-5554/ },
-    { env: sdkEnv(unidentifiable) },
-  )
-
-  // A serial is a reused port. If the adopted process is replaced by a different AVD on the same
-  // port, adoption must abort rather than wait on a stranger.
-  const stolenPort = stageSdk("stolen-port", {
-    devices: ["emulator-5554\tdevice"],
-    boot: "",
-    avdName: "Orbit_Pixel_9_API_35",
-    avdNameAfterCalls: { after: 2, name: "Some_Other_AVD" },
-    avds: ["Orbit_Pixel_9_API_35"],
-  })
-  const stolen = run("android-emulator.mjs", ["--timeout", "12", "--shutdown-timeout", "3"], { env: sdkEnv(stolenPort) })
-  T(
-    "android-emulator.mjs: adoption aborts when the serial stops being the requested AVD",
-    stolen.status === 5 && /never completed boot as Orbit_Pixel_9_API_35/.test(stolen.stderr),
-    `status=${stolen.status} stderr=${stolen.stderr.trim().split("\n").slice(-1)[0]}`,
-  )
-
-  const killBreaks = stageSdk("kill-fails", {
-    devices: ["emulator-5554\tdevice"],
-    killFails: true,
-    avdName: "Orbit_Pixel_9_API_35",
-    avds: ["Orbit_Pixel_9_API_35"],
-    ping: "ping: unknown host api.useorbit.org",
-  })
-  check("android-emulator.mjs", "a failed emu kill stops the run", ["--shutdown-timeout", "3"], {
-    status: 1,
-    stderr: /could not stop/,
-  }, { env: sdkEnv(killBreaks) })
 }

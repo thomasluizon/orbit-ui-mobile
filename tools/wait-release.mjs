@@ -39,10 +39,7 @@ const workflowSha = values["--workflow-sha"] ?? sha
 const workflow = values["--workflow"] ?? "release"
 const serviceUrl = values["--service-url"]
 const validOrigin = (value) => {
-  try {
-    const url = new URL(value)
-    return url.protocol === "https:" && !url.username && !url.password && url.pathname === "/" && !url.search && !url.hash
-  } catch { return false }
+  try { return new URL(value).protocol === "https:" } catch { return false }
 }
 const ceilingMinutes = Number(values["--ceiling-minutes"] ?? 360)
 const pollSeconds = Number(values["--poll-seconds"] ?? 30)

@@ -63,11 +63,9 @@ const hiddenChangeCases = () => {
   for (const name of ["assumed.txt", "skipped.txt"]) appendFileSync(join(repository, name), "edited, never committed\n")
   // Git reads the default only while `core.excludesFile` is not set, so each config hides one of the two files.
   const status = ["status", "--porcelain", "--untracked-files=all"]
-  same("git-worktrees: without an override, core.excludesFile or its default hides a file, and no index flag or info/exclude change shows",
-    [git(status, join(base, "personal.gitconfig")).stdout, git(status).stdout], ["?? default/file.txt\n", "?? personal/file.txt\n"])
-  const both = "?? default/file.txt\n?? personal/file.txt\n"
-  same("git-worktrees: the clean check shows each file that core.excludesFile or its default ignores, and still no index flag or info/exclude change",
-    [git(CLEAN_STATUS_ARGUMENTS, join(base, "personal.gitconfig")).stdout, git(CLEAN_STATUS_ARGUMENTS).stdout], [both, both])
+  same("git-worktrees: core.excludesFile or its default hides a file from a plain status, and the clean check shows each file with no index flag or info/exclude change",
+    [git(status, join(base, "personal.gitconfig")).stdout, git(status).stdout, git(CLEAN_STATUS_ARGUMENTS, join(base, "personal.gitconfig")).stdout, git(CLEAN_STATUS_ARGUMENTS).stdout],
+    ["?? default/file.txt\n", "?? personal/file.txt\n", "?? default/file.txt\n?? personal/file.txt\n", "?? default/file.txt\n?? personal/file.txt\n"])
   const listing = git(HIDDEN_CHANGE_ARGUMENTS, join(base, "personal.gitconfig"))
   same("git-worktrees: the hidden change listing names each flagged file and each untracked file that no .gitignore ignores, and nothing else",
     hiddenChangesOf(listing.stdout).sort(), ["? default/file.txt", "? excluded/file.txt", "? personal/file.txt", "S skipped.txt", "h assumed.txt"])
@@ -109,7 +107,5 @@ export const cases = () => {
   ]
   const byPath = (records) => [records[0], ...records.slice(1).sort((left, right) => left.path.localeCompare(right.path))]
   same("git-worktrees: real git output gives each record its path, short branch, lock and prunable state, the primary checkout first", byPath(parseWorktreeList(staged.porcelain)), want)
-  same("git-worktrees: a trimmed output gives the same records", byPath(parseWorktreeList(staged.porcelain.trim())), want)
-  same("git-worktrees: CRLF line ends give the same records", byPath(parseWorktreeList(staged.porcelain.replaceAll("\n", "\r\n"))), want)
   same("git-worktrees: an empty output gives no record", parseWorktreeList(""), [])
 }

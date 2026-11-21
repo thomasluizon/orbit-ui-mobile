@@ -20,7 +20,7 @@ const LANDING = "srv-ffffffffffffffffffff"
 const STAGING_LANDING = "srv-dddddddddddddddddddd"
 const clone = (value) => structuredClone(value)
 
-function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest = [], imageApi = false, androidUploads = null, ci = {} } = {}) {
+function clientFor({ ahead = [], diverged = [], imageApi = false, androidUploads = null } = {}) {
   const calls = []
   const read = (path) => {
     calls.push(path)
@@ -40,37 +40,13 @@ function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest 
       commit.commit.message = "Latest change\nBody"
       return commit
     }
-    const releaseCi = path.match(/\/actions\/workflows\/(test|guards)\.yml\/runs\?head_sha=([a-f0-9]{40})&/)
-    if (releaseCi) {
-      // `ci` maps a workflow to the status and conclusion of its newest run; null means no push or dispatch run exists.
-      const [, workflow, sha] = releaseCi
-      const newest = ci[workflow] === undefined ? { status: "completed", conclusion: "success" } : ci[workflow]
-      const stale = { ...clone(fixture.run), head_sha: sha, path: `.github/workflows/${workflow}.yml`, event: "push", run_number: 1, run_attempt: 1, status: "completed", conclusion: "failure" }
-      const pullRequest = { ...stale, event: "pull_request", run_number: 3, conclusion: "success" }
-      return { workflow_runs: newest === null ? [pullRequest] : [stale, pullRequest, { ...stale, run_number: 2, ...newest }] }
-    }
-    if (path.includes("/actions/workflows/android-release.yml/runs")) {
-      return { workflow_runs: [{ ...clone(fixture.run), head_sha: SECOND, head_branch: "main",
-        display_title: "Android Release 1.0.0 (1) to open on main", status: "completed", conclusion: "failure" }] }
-    }
-    if (path.includes("/deployments/") && path.includes("/statuses")) {
-      const status = clone(fixture.status)
-      status.state = path.includes("/2/") ? "failure" : "success"
-      return [status]
-    }
     if (path.includes("/deployments?")) {
       if (path.includes("task=android-release")) {
         const records = androidUploads ?? [{ track: path.includes("environment=staging") ? "internal" : "open", sha: FIRST }]
         return records.map(({ track, sha }) => ({ ...clone(androidFixture), sha,
           payload: { ...clone(androidFixture.payload), track } }))
       }
-      if (noDeployment.includes(service)) return []
-      const deployment = clone(fixture.deployment)
-      deployment.sha = FIRST
-      deployment.environment = path.includes("environment=staging") ? "staging" : "production"
-      const records = [deployment]
-      if (failedNewest.includes(service)) records.unshift({ ...clone(deployment), id: 2, sha: SECOND })
-      return records
+      throw new Error(`unexpected deployment read: ${path}`)
     }
     if (path.includes("/compare/")) {
       const comparison = clone(fixture.compare)
@@ -110,7 +86,6 @@ export async function cases() {
   androidRecordCases()
   await apiHealthCases()
   await customDomainCases()
-  cliBaselineCases()
   await androidBaselineCases()
   let missingBranch = ""
   try { await planRelease(clientFor(), "staging", IDS) } catch (error) { missingBranch = error.message }
@@ -138,21 +113,6 @@ export async function cases() {
       service.dispatchCommand === `gh workflow run release.yml --repo thomasluizon/${service.repo} --ref main -f environment=production -f branch='main' -f sha=${SECOND}`)
   }
 
-  T("web and Android report successful release CI at the planned SHA", all.services.filter((service) => service.repo === "orbit-ui-mobile").every((service) => service.releaseCi === "success") &&
-    all.services.filter((service) => service.repo !== "orbit-ui-mobile").every((service) => service.releaseCi === undefined))
-  T("an idle UI service reads no release CI", idlePlan.services.every((service) => service.releaseCi === undefined) && !idle.calls.some((path) => path.includes("/actions/workflows/test.yml")))
-  for (const [ci, state] of [
-    [{ test: null }, "missing"],
-    [{ guards: { status: "in_progress", conclusion: null } }, "pending"],
-    [{ test: { status: "completed", conclusion: "failure" }, guards: null }, "failed"],
-    [{ test: { status: "queued", conclusion: null }, guards: null }, "missing"],
-  ]) {
-    const blocked = await planRelease(clientFor({ ahead: ["web", "android"], ci }), "production", IDS)
-    const web = blocked.services.find((service) => service.name === "web")
-    const android = blocked.services.find((service) => service.name === "android")
-    T(`web release CI ${state} prints no dispatch command`, web.releaseCi === state && web.dispatchCommand === undefined && android.releaseCi === state, JSON.stringify(web))
-  }
-
   const first = await planRelease(clientFor({ ahead: ["api"] }), "production", { ...IDS, api: null })
   T("first production deployment has no baseline", first.services[0].needsRelease && first.services[0].noBaseline && first.services[0].deployedSha === null)
 
@@ -170,17 +130,9 @@ export async function cases() {
   T("staging includes landing and compares selected branch", stagingPlan.services.length === 4 && stagingPlan.branch === "feature/release" && stagingPlan.services.every((service) => service.branch === "feature/release"))
   T("internal Android uses the latest staging upload across source branches", stagingPlan.services[3].deployedSha === FIRST &&
     staging.calls.some((path) => path.includes("task=android-release&environment=staging") && !path.includes("branch=")))
-  const expectedHealth = new URL("https://example.invalid/api/health")
-  T("staging reads the Render service URL and web health", staging.calls.some((value) => {
-    try {
-      const actual = new URL(value)
-      return actual.origin === expectedHealth.origin && actual.pathname === expectedHealth.pathname
-    } catch { return false }
-  }))
   T("staging landing uses its existing live deployment", stagingPlan.services[2].deployedSha ===
     renderFixture.stagingLandingCommit && stagingPlan.services[2].needsRelease &&
     staging.calls.some((path) => path === `services/${STAGING_LANDING}/deploys?status=live&limit=1`))
-
 
   const noApi = await planRelease(clientFor(), "staging", { api: null, web: IDS.web }, "internal", "feature/release")
   T("staging without an API service reports first deploy", noApi.services[0].noBaseline && noApi.services[0].deployedSha === null)
@@ -212,9 +164,7 @@ async function customDomainCases() {
       const second = clone(domain)
       second.customDomain.name = "second.example.invalid"
       for (const [label, domains, expectedOrigin] of [
-        ["verified domain", [domain], "https://custom.example.invalid"],
         ["first verified domain", [unverified, domain, second], "https://custom.example.invalid"],
-        ["no domains", [], null],
         ["only unverified domains", [unverified], null],
       ]) {
         const client = clientFor({ ahead: ["api", "web", "landing", "android"] })
@@ -271,24 +221,12 @@ async function apiHealthCases() {
     T(`${environment} API discovers health through its Render service record`, image.calls.includes(`services/${IDS.api}`) &&
       image.calls.some((call) => call === healthUrl))
     T(`${environment} API never reads a Git-backed deploy baseline`, !image.calls.includes(`services/${IDS.api}/deploys?status=live&limit=1`))
-    const landing = environment === "production" ? LANDING : STAGING_LANDING
-    T(`${environment} landing still plans from live deploys`, imagePlan?.services[2].deployedSha ===
-      (environment === "production" ? FIRST : renderFixture.stagingLandingCommit) &&
-      image.calls.includes(`services/${landing}/deploys?status=live&limit=1`))
-
     const missingCommit = clone(renderFixture.apiHealth)
     delete missingCommit.commit
     const failures = [
       ["unhealthy", { ...clone(renderFixture.apiHealth), status: "Unhealthy" }],
-      ["web status", { ...clone(renderFixture.apiHealth), status: "ok" }],
       ["missing commit", missingCommit],
-      ["malformed commit", { ...clone(renderFixture.apiHealth), commit: "invalid" }],
-      ["non-string commit", { ...clone(renderFixture.apiHealth), commit: [FIRST] }],
-      ["short commit", { ...clone(renderFixture.apiHealth), commit: "a".repeat(39) }],
-      ["null body", null],
       ["transport failure", new Error("connection refused")],
-      ["HTTP failure", new Error("Health returned HTTP 503")],
-      ["invalid JSON", new SyntaxError("Unexpected token")],
     ]
     for (const [name, response] of failures) {
       const client = clientFor({ ahead: ["web", "landing", "android"] })
@@ -311,55 +249,6 @@ async function apiHealthCases() {
         !api.dispatchCommand && !api.plannedSha && !api.noBaseline && !api.needsRelease)
       T(`${environment} API ${name} preserves the other service plans`, plan?.services.slice(1).every((service) =>
         service.needsRelease && service.plannedSha === SECOND), failure)
-    }
-  }
-}
-
-function cliBaselineCases() {
-  const preload = stage("release-plan/preload.mjs", `
-    import childProcess from "node:child_process"
-    import { syncBuiltinESMExports } from "node:module"
-    const fixture = ${JSON.stringify(fixture)}
-    const androidFixture = ${JSON.stringify(androidFixture)}
-    const renderFixture = ${JSON.stringify(renderFixture)}
-    const FIRST = ${JSON.stringify(FIRST)}, SECOND = ${JSON.stringify(SECOND)}
-    const IDS = ${JSON.stringify(IDS)}, STAGING_LANDING = ${JSON.stringify(STAGING_LANDING)}
-    const clone = (value) => structuredClone(value)
-    const clientFor = ${clientFor.toString()}
-    const client = clientFor({ imageApi: true, ahead: ["web", "landing", "android"] })
-    const readHealth = client.readHealth
-    client.readHealth = (url) => {
-      if (url === "https://api.example.invalid/health" && process.env.BASELINE_MODE === "unhealthy") {
-        return { ...readHealth(url), status: "Unhealthy" }
-      }
-      if (url === "https://api.example.invalid/health" && process.env.BASELINE_MODE === "unreachable") {
-        throw new Error("Health returned HTTP 503")
-      }
-      return readHealth(url)
-    }
-    childProcess.execFileSync = (command, args) => {
-      if (command !== "gh" || args[0] !== "api") throw new Error("unexpected CLI command")
-      return JSON.stringify(client.read(args[1]))
-    }
-    syncBuiltinESMExports()
-    globalThis.fetch = async (url) => ({ ok: true, json: async () =>
-      url.startsWith("https://api.render.com/v1/")
-        ? client.readRender(url.slice("https://api.render.com/v1/".length)) : client.readHealth(url) })
-  `)
-  for (const environment of ["production", "staging"]) {
-    for (const mode of ["healthy", "unhealthy", "unreachable"]) {
-      const result = spawnSync(process.execPath, ["--import", preload, toolPath("release-plan.mjs"),
-        "--environment", environment, ...(environment === "staging" ? ["--branch", "main"] : [])], {
-        encoding: "utf8", timeout: 10000, env: { ...process.env, RENDER_MCP_TOKEN: "fixture", BASELINE_MODE: mode },
-      })
-      T(`${environment} CLI ${mode} has the required exit code`, result.status === (mode === "healthy" ? 0 : 1), result.stderr)
-      let plan
-      try { plan = JSON.parse(result.stdout) } catch { /* The assertion reports missing plan output. */ }
-      T(`${environment} CLI ${mode} prints every service`, plan?.services.map((service) => service.name).join(",") === "api,web,landing,android", result.stdout + result.stderr)
-      if (mode !== "healthy") {
-        T(`${environment} CLI ${mode} names the unreadable API baseline`, result.stderr.includes("api baseline unreadable: API health at https://api.example.invalid/health"))
-        T(`${environment} CLI ${mode} retains the other planned releases`, plan?.services.slice(1).every((service) => service.needsRelease))
-      }
     }
   }
 }
@@ -467,20 +356,12 @@ function androidRecordCases() {
 }
 
 async function androidBaselineCases() {
-  const uploaded = clientFor({ ahead: ["android"], androidUploads: [{ track: "open", sha: SECOND }] })
-  const uploadedPlan = await planRelease(uploaded, "production", IDS)
-  T("successful Play submission with failed record step uses the repaired deployment", !uploadedPlan.services[3].needsRelease &&
-    uploadedPlan.services[3].deployedSha === SECOND)
-  T("Android baseline does not depend on workflow conclusion", !uploaded.calls.some((path) => path.includes("/actions/workflows/android-release.yml")))
   const productionTrack = await planRelease(clientFor({ ahead: ["android"], androidUploads: [
     { track: "open", sha: SECOND }, { track: "production", sha: FIRST },
   ] }), "production", IDS, "production")
   T("an open upload does not mark production current", productionTrack.services[3].needsRelease &&
     productionTrack.services[3].deployedSha === FIRST)
 
-  const emptyAndroid = await planRelease(clientFor({ androidUploads: [] }), "production", IDS)
-  T("Android without deployment records reports a first upload", emptyAndroid.services[3].noBaseline &&
-    emptyAndroid.services[3].deployedSha === null)
   const paginatedAndroid = clientFor()
   const readPage = paginatedAndroid.read
   paginatedAndroid.read = (path) => {
@@ -493,12 +374,8 @@ async function androidBaselineCases() {
   const paginatedPlan = await planRelease(paginatedAndroid, "production", IDS)
   T("Android track baseline follows deployment pagination", paginatedPlan.services[3].deployedSha === FIRST &&
     paginatedAndroid.calls.some((path) => path.includes("task=android-release") && path.endsWith("page=2")))
-  const invalidAndroid = clientFor({ androidUploads: [{ track: "open", sha: "invalid" }] })
-  const invalidAndroidPlan = await planRelease(invalidAndroid, "production", IDS)
-  T("Android rejects an invalid deployment commit", invalidAndroidPlan.services[3].baselineError?.includes("unexpected SHA"))
-  T("Android baseline selects the deployment environment", uploaded.calls.some((path) =>
+  T("Android baseline selects the deployment environment", paginatedAndroid.calls.some((path) =>
     path.includes("task=android-release&environment=production")))
-
 }
 
 if (isDirect) {

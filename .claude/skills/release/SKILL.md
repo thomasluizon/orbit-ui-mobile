@@ -16,10 +16,9 @@ Production uses `node tools/release-plan.mjs`, with `--track production` when th
 Show for each service:
 
 - the branch, the deployed SHA or absent baseline, the planned SHA (`plannedSha`) and the pinned `dispatchCommand`;
-- the unreleased commits and the Android track with its baseline;
-- `releaseCi` for web and Android: the PR Tests and Guards runs at the planned SHA.
+- the unreleased commits and the Android track with its baseline.
 
-When `releaseCi` is not `success`, web has no `dispatchCommand`. Wait for `pending`. For `missing` or `failed`, dispatch `test.yml` and `guards.yml` on the branch, then plan again. Dispatch Android only at `success`. An empty plan ends with no dispatch. Stop on a divergent production comparison or a remote read failure. For staging, show `deployedFromOtherBranch` when the live commit is outside the selected branch.
+Both release workflows refuse a SHA without a green Tests run and a green Guards run. After a refusal, dispatch `test.yml` and `guards.yml` on the branch, then dispatch the release again. An empty plan ends with no dispatch. Stop on a divergent production comparison or a remote read failure. For staging, show `deployedFromOtherBranch` when the live commit is outside the selected branch.
 
 ## Dispatch in plan order
 
