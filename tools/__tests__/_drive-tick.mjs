@@ -5,6 +5,7 @@ import { join } from "node:path"
 
 import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, recordStart, resultText, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
+import { bodyFindings } from "../lib/github.mjs"
 import { isUsageLimitMessage, isWorkerProcess, KILL_REASONS, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
@@ -508,6 +509,56 @@ const capCases = async () => {
   const text = commentsOf(capped.calls, 7).find((entry) => entry.includes("needs-owner")) ?? ""
   same("drive: a third fix launch on one pull request is refused with the open classes", [capped.launched.length, only(capped.calls, "editLabels").length, text.includes("tools/a.mjs:3") && text.includes("tools/b.mjs:9")], [0, 2, true])
   same("drive: launch records read back from the ticket comments", launchesOf(ticket(7, { comments: launched("build", 2) })).length, 2)
+}
+
+/** The two ticket states of this file's fixtures: a review whose finding sits in the body, a cap that the owner answers, and a whole-diff request that the owner session posted. */
+const ownerAndBodyCases = async () => {
+  const RECORDED = FIXTURE.bodyBlockingReviews
+  const recordedReviews = RECORDED.nodes.map((node) => review(node.state, RECORDED.head, Date.parse(node.submittedAt) - Date.parse("2026-11-21T17:00:00Z"), { body: node.body, blocking: [...node.comments.nodes.filter((entry) => entry.body.startsWith("BLOCKING:")), ...bodyFindings(node.body)] }))
+  same("drive: each recorded body holds one BLOCKING finding and no inline comment", RECORDED.nodes.map((node) => [node.comments.nodes.length, bodyFindings(node.body).length, bodyFindings(node.body)[0].path]), [[0, 1, null], [0, 1, null]])
+  const bodyFix = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { headSha: RECORDED.head, commits: [{ sha: RECORDED.head, parents: 1 }], reviews: recordedReviews })] } })
+  await bodyFix.run()
+  same("drive: two CHANGES_REQUESTED reviews with a body finding give one fix launch and no needs:owner", [bodyFix.launched.length, only(bodyFix.calls, "editLabels").length, commentsOf(bodyFix.calls, 30).length], [1, 0, 0])
+  T("drive: the fix order carries the full text of the body finding and names the review body", ["the review body", "BLOCKING: missed requirement", "Smallest fix: run the eye check"].every((text) => bodyFix.launched[0].order.includes(text)))
+  const bodyCap = scenario({ tickets: [ticket(7, { comments: [launchComment("fix", "chore/ticket-7-30"), launchComment("fix", "chore/ticket-7-30")] })], pulls: { ui: [pull(30, { headSha: RECORDED.head, commits: [{ sha: RECORDED.head, parents: 1 }], reviews: recordedReviews })] } })
+  await bodyCap.run()
+  T("drive: a capped pull request with a body finding names the review body in the open classes", needsOwnerComments(bodyCap.calls, 7).some((text) => text.includes("Open: the review body")))
+
+  const branch = "chore/ticket-7-30"
+  const finding = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })
+  const capReport = (offset, head = HEAD) => comment("needs-owner", `ui#30 at ${head}: ui#30 used its 2 fix launches. Open: tools/a.mjs:3`, offset)
+  const launches = [launchComment("fix", branch, -90 * MINUTE), launchComment("fix", branch, -80 * MINUTE)]
+  const answered = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "Use the second option for the label.", -30 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await answered.run()
+  same("drive: a capped pull request whose label the owner removed after a ticket comment gets one fix launch and no needs:owner", [answered.launched.length, answered.launched[0]?.order.includes("Use the second option for the label."), only(answered.calls, "editLabels").length], [1, true, 0])
+  const silent = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await silent.run()
+  same("drive: a capped pull request whose label the owner removed with no ticket comment gets needs:owner again", [silent.launched.length, only(silent.calls, "editLabels").length], [0, 2])
+  const before = scenario({ tickets: [ticket(7, { comments: [comment(null, "A note from before the cap.", -100 * MINUTE), ...launches, capReport(-60 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await before.run()
+  same("drive: an owner comment from before the cap report grants no launch", [before.launched.length, only(before.calls, "editLabels").length], [0, 2])
+  const extra = launchComment("fix", branch, -20 * MINUTE)
+  const cappedAgain = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "One more try.", -30 * MINUTE), extra, capReport(-10 * MINUTE, NEXT_HEAD)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await cappedAgain.run()
+  same("drive: the extra launch is used up, so a later cap with no new owner comment gives needs:owner", [cappedAgain.launched.length, only(cappedAgain.calls, "editLabels").length], [0, 2])
+  const askedTwice = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "One more try.", -30 * MINUTE), extra, capReport(-10 * MINUTE, NEXT_HEAD), comment(null, "And one more.", -5 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await askedTwice.run()
+  same("drive: a second owner comment after the second cap report grants a second extra launch with its own comment", [askedTwice.launched.length, askedTwice.launched[0]?.order.includes("And one more."), askedTwice.launched[0]?.order.includes("One more try.")], [1, true, false])
+
+  const OWNER_REQUEST = FIXTURE.ownerWholeDiffRequest
+  const at = Date.parse("2026-11-21T16:47:00Z")
+  const offsetOf = (stamp) => Date.parse(stamp) - at
+  const recorded = scenario({
+    tickets: [ticket(7, { comments: [launchComment("fix", branch), launchComment("fix", branch)] })],
+    runs: OWNER_REQUEST.runs.map((run) => ({ ...run, displayTitle: "Respond to mention on #7 [x]", createdAt: iso(offsetOf(run.createdAt)), updatedAt: iso(offsetOf(run.updatedAt)) })),
+    pulls: { ui: [pull(30, {
+      headSha: OWNER_REQUEST.head, commits: [{ sha: OWNER_REQUEST.reviews[0].commit, parents: 1 }, { sha: OWNER_REQUEST.head, parents: 1 }],
+      comments: [comment("ticket", "T"), ...OWNER_REQUEST.requests.map((request) => comment("request", request.body.split("\n")[1], offsetOf(request.createdAt)))],
+      reviews: OWNER_REQUEST.reviews.map((entry) => review(entry.state, entry.commit, offsetOf(entry.submittedAt), { body: entry.body })),
+    })] },
+  })
+  await recorded.run()
+  same("drive: a whole-diff request of the owner session that a whole-diff approval answers posts no second request and the pull request merges", [commentsOf(recorded.calls, 30).length, only(recorded.calls, "merge").length], [0, 1])
 }
 
 const reviewCases = async () => {
@@ -1725,6 +1776,7 @@ export const driverUnit = async () => {
   await reviewRunCases()
   await worktreeOccupantCases()
   await reviewCases()
+  await ownerAndBodyCases()
   await mergeCases()
   await updateCases()
   await ciCases()

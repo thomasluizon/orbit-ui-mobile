@@ -189,5 +189,86 @@
   "changesRequestedReview": {
     "provenance": "gh api graphql with reviews(last: 100, author: \"pullfrog[bot]\") { nodes { state submittedAt body author { login } commit { oid } comments(first: 10) { nodes { path line body } } } } on thomasluizon/orbit-ui-mobile pull request 2514, review 6000389345, on 2026-11-20; bodies cut to 160 characters",
     "node": {"state":"CHANGES_REQUESTED","submittedAt":"2026-11-20T22:45:22Z","body":"Three blocking classes in `tools/drive.mjs`: an order with no ticket crashes the tick and wedges the lane, a red `pullfrog-approval` check becomes a ci-fix orde","author":{"login":"pullfrog"},"commit":{"oid":"cfcbe9d5b7ea08366c48a9d562289358fd46cba2"},"comments":{"nodes":[{"body":"BLOCKING: correctness bug / production failure: an order whose `ticket` is null crashes the tick and wedges the lane.\n\nFailing state: a Dependabot pull request ","path":"tools/drive.mjs","line":null},{"body":"BLOCKING: correctness bug: a red `pullfrog-approval` check becomes a ci-fix order, so the review rules of section 9 never run.\n\nFailing state: Pullfrog posts a ","path":"tools/drive.mjs","line":399},{"body":"BLOCKING: missed requirement (body section 4 and the close test scenario): the close rule never runs for a ticket that has no driver `launch` comment while anot","path":"tools/drive.mjs","line":null}]}}
+  },
+  "bodyBlockingReviews": {
+    "provenance": "gh api graphql with reviews(first: 20) { nodes { state submittedAt body author { login } commit { oid } comments(first: 50) { nodes { body path line } } } } on thomasluizon/orbit-landing-page pull request 148, the two Pullfrog reviews at head c37be3baa19426ea55f573bbea66b5038f221cfd, on 2026-11-21; the footer after the Pullfrog divider is cut",
+    "head": "c37be3baa19426ea55f573bbea66b5038f221cfd",
+    "nodes": [
+      {
+        "state": "CHANGES_REQUESTED",
+        "submittedAt": "2026-11-21T16:55:39Z",
+        "body": "Request changes: one blocking finding. It is here in the body because `public/og-image.png` is binary and has no diff line for an inline comment. The ticket comment holds no part text, so this pass checked the ticket body only.\n\nBLOCKING: missed requirement (a feature with no test that fails without it). The feature of this pull request is the Orbit face on the link preview, but the suite passes on the old faceless card. With the `main` copy of `public/og-image.png` put back, `node --test tools/brand-assets.test.mjs` passes 6 of 6. The only check that reads the card is [`tools/brand-assets.test.mjs:82-104`](https://github.com/thomasluizon/orbit-landing-page/blob/c37be3baa19426ea55f573bbea66b5038f221cfd/tools/brand-assets.test.mjs#L82-L104). It asks only for 2400 by 1260, one pale pixel and one orange pixel, and the faceless card has all three. A later copy of a faceless or old card would pass CI. No other instance.\n\nSmallest fix: give the card the eye check that the Apple icon already has ([`tools/brand-assets.test.mjs:63-80`](https://github.com/thomasluizon/orbit-landing-page/blob/c37be3baa19426ea55f573bbea66b5038f221cfd/tools/brand-assets.test.mjs#L63-L80)). I measured row 554 of the new card. The planet runs from x 832 to x 962 and holds two canvas-coloured runs: 23px at x 863 and 22px at x 910. The old card has one 98px hollow run on that row. On that row, between x 820 and x 970, assert two dark runs of at least 2px with pale pixels on both sides of each.\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->",
+        "author": {
+          "login": "pullfrog"
+        },
+        "commit": {
+          "oid": "c37be3baa19426ea55f573bbea66b5038f221cfd"
+        },
+        "comments": {
+          "nodes": []
+        }
+      },
+      {
+        "state": "CHANGES_REQUESTED",
+        "submittedAt": "2026-11-21T16:58:55Z",
+        "body": "Request changes: the one blocking finding of the last review is still open. The head is still `c37be3b` and no commit has landed since that review. The finding is here in the body because `public/og-image.png` is binary and has no diff line to anchor an inline comment.\n\nBLOCKING: missed requirement (a feature with no test that fails without it). The feature is the Orbit face on the link preview, but the only check that reads the card, [`tools/brand-assets.test.mjs:82-104`](https://github.com/thomasluizon/orbit-landing-page/blob/c37be3baa19426ea55f573bbea66b5038f221cfd/tools/brand-assets.test.mjs#L82-L104), asks only for 2400 by 1260, one pale pixel and one orange pixel. I measured again at this head. The faceless `main` card (`c09c9bc`) is also 2400 by 1260, with 46229 pale pixels and 365 orange ones, so it passes. If someone copies a faceless or old card back in later, CI stays green. No other instance.\n\nRow 554 tells the two cards apart. Inside the planet, the new card has two canvas-coloured runs: 23px at x 863 and 22px at x 910. The `main` card has one 98px run at x 843.\n\nSmallest fix: run the eye check that the Apple icon already has ([`tools/brand-assets.test.mjs:63-80`](https://github.com/thomasluizon/orbit-landing-page/blob/c37be3baa19426ea55f573bbea66b5038f221cfd/tools/brand-assets.test.mjs#L63-L80)) on `public/og-image.png`. On row 554, between x 840 and x 960, count the runs whose red channel is below 60. Assert exactly two runs, each at least 2px wide. The new card gives 2 runs and the `main` card gives 1.\n\n<!-- PULLFROG_DIVIDER_DO_NOT_REMOVE_PLZ -->",
+        "author": {
+          "login": "pullfrog"
+        },
+        "commit": {
+          "oid": "c37be3baa19426ea55f573bbea66b5038f221cfd"
+        },
+        "comments": {
+          "nodes": []
+        }
+      }
+    ]
+  },
+  "ownerWholeDiffRequest": {
+    "provenance": "gh api graphql with reviews(first: 100) and comments(first: 100) on thomasluizon/orbit-ui-mobile pull request 2525 and gh run list --workflow pullfrog.yml on 2026-11-21; the Pullfrog reviews from 15:08:00Z to 16:46:00Z with the body cut to 60 characters, and the whole-diff requests before 16:38:00Z; the request at 16:37:37Z is the owner session's, and the driver posted its own at 16:47:11Z",
+    "head": "1a4937c1b0072dcc056b7b75b653d842603dd705",
+    "reviews": [
+      {
+        "state": "CHANGES_REQUESTED",
+        "submittedAt": "2026-11-21T15:08:33Z",
+        "commit": "d3b8f07ee04cc4d38853734037762fb4996be232",
+        "body": "Whole diff: one BLOCKING finding at `d3b8f07`. The narrowed "
+      },
+      {
+        "state": "COMMENTED",
+        "submittedAt": "2026-11-21T16:45:15Z",
+        "commit": "1a4937c1b0072dcc056b7b75b653d842603dd705",
+        "body": ""
+      },
+      {
+        "state": "APPROVED",
+        "submittedAt": "2026-11-21T16:45:29Z",
+        "commit": "1a4937c1b0072dcc056b7b75b653d842603dd705",
+        "body": "Whole diff: no BLOCKING finding at `1a4937c`. I checked the "
+      }
+    ],
+    "requests": [
+      {
+        "createdAt": "2026-11-21T14:59:12Z",
+        "body": "<!-- orbit-drive:request -->\n@pullfrog review whole diff"
+      },
+      {
+        "createdAt": "2026-11-21T14:59:19Z",
+        "body": "<!-- orbit-drive:request -->\n@pullfrog review"
+      },
+      {
+        "createdAt": "2026-11-21T16:37:37Z",
+        "body": "<!-- orbit-drive:request -->\n@pullfrog review whole diff"
+      }
+    ],
+      "runs": [
+      {
+        "databaseId": 44925609403,
+        "status": "completed",
+        "conclusion": "success",
+        "createdAt": "2026-11-21T16:37:43Z",
+        "updatedAt": "2026-11-21T16:45:53Z"
+      }
+    ]
   }
 }

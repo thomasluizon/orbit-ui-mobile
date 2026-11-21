@@ -42,7 +42,7 @@ const findingsSection = (findings) =>
   findings.length === 0 ? "" : `\n\n## Findings to apply\n\n${findings.map((comment) => trimmed(comment.body.replace(/^<!-- orbit-drive:[a-z-]+ -->\n?/, ""))).join("\n\n")}`
 
 const instanceList = (review) =>
-  review.blocking.map((finding) => `- ${finding.path}:${finding.line}\n\n${trimmed(finding.body).split("\n").map((line) => `  ${line}`).join("\n")}`).join("\n\n")
+  review.blocking.map((finding) => `- ${finding.path === null ? "the review body" : `${finding.path}:${finding.line}`}\n\n${trimmed(finding.body).split("\n").map((line) => `  ${line}`).join("\n")}`).join("\n\n")
 
 const checkSection = (check) => {
   const steps = check.failedSteps?.length > 0 ? ` (failed steps: ${check.failedSteps.join(", ")})` : ""
@@ -120,7 +120,7 @@ ${reads ? "**Delivery.** This is a read-only order. Change no file, make no comm
  * part it builds and the first line of each other part), the `findings` comments of an apply part, the work of its kind, and the brief.
  * Another comment of the driver never reaches the worker, so a later part does not read an earlier launch again.
  */
-export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, place, partNumber = null }) => {
+export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, ownerNote = null, place, partNumber = null }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
   if ((kind === "build part" || kind === "find") && !Number.isInteger(partNumber)) throw new Error(`a ${kind} order needs the number of its part`)
   if ((kind === "fix" && (pull === null || !(review?.blocking?.length > 0))) || (kind === "ci-fix" && (pull === null || !(failure?.checks?.length > 0))) || (kind === "merge-forward" && pull === null)) {
@@ -130,5 +130,5 @@ export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pu
     throw new Error(`the ticket has no comment for part ${partNumber}`)
   }
   const parts = kind === "build" ? "" : partSection(partComments, partNumber)
-  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber })}\n\n${renderBrief({ kind, place, ticket })}`
+  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber })}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the cap, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket })}`
 }
