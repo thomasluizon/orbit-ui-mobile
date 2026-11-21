@@ -53,7 +53,7 @@ import {
   worktreeOccupants,
 } from "../lib/worker.mjs"
 import { driverUnit, pinUnit } from "./_drive-tick.mjs"
-import { T, realOrchestratorConfig, root, same, toolPath, SELF } from "./_harness.mjs"
+import { T, realOrchestratorConfig, root, same, toolPath } from "./_harness.mjs"
 
 const FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
 const TICKETS = realOrchestratorConfig().tickets
@@ -980,12 +980,6 @@ const orderUnit = async () => {
 
 const UNITS = { "drive.mjs": driverUnit, "lib/driver-pin.mjs": pinUnit, "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
 
-/** The runner calls cases() once for a module, so one call runs the unit of every registry row that names this module. */
-const registeredUnits = readFileSync(toolPath(SELF), "utf8").split("\n").flatMap((line) => /^\s*\["([^"]+)", "drive"\],?$/.exec(line)?.[1] ?? [])
-
 export const cases = async () => {
-  for (const unit of registeredUnits) {
-    T(`registry: the drive row for ${unit} names a unit that has cases`, UNITS[unit] !== undefined, `row ${unit} has no cases in tools/__tests__/drive.mjs`)
-    await UNITS[unit]?.()
-  }
+  for (const unit of Object.values(UNITS)) await unit()
 }

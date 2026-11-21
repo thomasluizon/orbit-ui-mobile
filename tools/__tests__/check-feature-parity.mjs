@@ -320,8 +320,6 @@ function mappedOwnerRegressions(catalog) {
 }
 
 function workflowRegressions(workflow) {
-  const charter = run('check-gate-charter.mjs', [])
-  T('the parity workflow satisfies its declared changed-file scope', charter.status === 0, charter.stderr)
   const comparison = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__1')
   T(`${comparison.id} covers main pull requests`, comparison.if.includes("github.event_name == 'pull_request'") && comparison.if.includes("github.base_ref == 'main'"))
   T('main production and debt comparisons use the immutable queued base', comparison.run.includes('--production "HEAD^1" --base "HEAD^1"') && comparison.run.includes('"$BASE_REF" = main'))

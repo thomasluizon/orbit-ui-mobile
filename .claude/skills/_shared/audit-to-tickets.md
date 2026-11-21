@@ -7,9 +7,8 @@ approval. This is the single copy of that pipeline so the five skills cannot dri
 ticket satisfies the same 6.2 template `/ticket` applies and follows the same
 rules `/ticket` does.
 
-The private tracker is `thomasluizon/orbit-tickets`. Read
-`.claude/playbooks/planning-and-artifacts.md` for the ticket-writing rules if you have not written
-a 6.2 ticket before.
+The private tracker is `thomasluizon/orbit-tickets`. Follow `/ticket` for the ticket-writing
+rules if you have not written a 6.2 ticket before.
 
 ## 1. Draft one ticket per verified finding
 
@@ -45,23 +44,11 @@ mandatory generated artifacts across tickets merely to satisfy a number.
   infer it silently.
 - `repo:ui` tickets declare `parity:yes` (web + mobile in one PR) or `parity:no` with the
   adapter-only justification in the body.
-- A finding in `thomas-brain` or in the brain vault is coordinator work. Every worker gets a
-  worktree of one of the three code repositories, so no worker can change that file. The
-  orchestrating session makes the change by hand, then closes the ticket with
-  `node tools/complete-ticket.mjs --issue <ticket>`. The ticket gets
-  `repo:ui`, because the board needs one routing label, and `parity:no` with the reason "no app
-  surface changes". The first line of its Scope section is this marker, word for word, with the
-  path and the repository filled in:
-
-  > Coordinator work, ops-only: there is no code in any repo a worker can open for this. The
-  > orchestrating session changes `<path>` in `<thomas-brain or the brain vault>` by hand, and no
-  > worker runs this ticket.
-
-  `tools/plan-queue.mjs` reads the marker as `NOT_CODE_WORK` (the rule in
-  `tools/lib/ticket-classifier-prompt.md`: an in-scope section says the work is operations work,
-  or says "no code in any repo") and defers the ticket, so
-  `/orchestrate` does not admit it. Never put the marker under Out of scope, where the
-  classifier does not read it.
+- A finding in `thomas-brain` or in the brain vault is owner work. Every worker gets a
+  worktree of one of the three code repositories, so no worker can change that file. The ticket
+  gets `owner-work`, `repo:ui` (the board needs one routing label) and `parity:no` with the
+  reason "no app surface changes". The owner session changes the file by hand and closes the
+  ticket. The driver does not start a worker for it.
 - blockedBy is an explicit relation, never prose: a ui perf fix that needs an api index first
   is a ui ticket blockedBy the api ticket.
 

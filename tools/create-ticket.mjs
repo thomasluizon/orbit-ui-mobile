@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs"
 
-import { createTicket } from "./lib/github-issues.mjs"
+import { createTicket } from "./lib/github.mjs"
 
 const USAGE = `usage: create-ticket.mjs --title <text> --body-file <path|-> --label <name> [options]
 

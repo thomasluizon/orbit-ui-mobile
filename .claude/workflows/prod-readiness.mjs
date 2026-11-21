@@ -5,7 +5,7 @@ export const meta = {
     { title: 'Audits', detail: 'the four /audit workflows in parallel' },
     { title: 'Ops', detail: 'observability · multi-instance · background durability · staging · concurrency' },
     { title: 'A11y', detail: 'static WCAG 2.2 AA sweep — web + mobile' },
-    { title: 'Hygiene', detail: 'the candidates of tools/file-ledger.mjs --candidates — five repositories' },
+    { title: 'Hygiene', detail: 'the hygiene candidates — five repositories' },
     { title: 'Verify', detail: 'at most 60 skeptics: one per Blocker/High ops or a11y finding, then one per High or delete hygiene finding; default refuted' },
   ],
 }
@@ -18,18 +18,18 @@ if (!absolutePath(parsedArgs.roots?.ui) || !absolutePath(parsedArgs.roots?.api))
 const { ui: UI, api: API } = parsedArgs.roots
 const hygieneRepositories = parsedArgs.hygiene?.repositories ?? {}
 const isCount = (value) => Number.isInteger(value) && value >= 0
-// tools/file-ledger.mjs --candidates owns the kinds, the record rules and the cap. An entry carries the file of the
+// The candidate selector owns the kinds, the record rules and the cap. An entry carries the file of the
 // judged rows and the counts of every candidate, never the rows, so the args stay small for any repository size.
 for (const [key, repository] of Object.entries(hygieneRepositories)) {
   if (repository?.root == null) continue
   if (!absolutePath(repository.root)) throw new Error(`prod-readiness workflow requires an absolute hygiene root for ${key}`)
   if (repository.candidates !== undefined) {
-    throw new Error(`prod-readiness workflow takes no hygiene candidate rows for ${key}: pass the line that tools/file-ledger.mjs --candidates printed`)
+    throw new Error(`prod-readiness workflow takes no hygiene candidate rows for ${key}: pass the line that the candidate selector printed`)
   }
   const counts = Object.entries(repository.counts ?? {})
   const countsValid = counts.length > 0 && counts.every(([kind, count]) => /^[a-z]+$/.test(kind) && isCount(count?.judged) && isCount(count?.deferred))
   if (!absolutePath(repository.candidatesFile) || !countsValid) {
-    throw new Error(`prod-readiness workflow requires the candidatesFile and counts that tools/file-ledger.mjs --candidates printed for ${key}`)
+    throw new Error(`prod-readiness workflow requires the candidatesFile and counts that the candidate selector printed for ${key}`)
   }
 }
 
@@ -292,7 +292,7 @@ for (const c of HYGIENE_CHECKS) {
   const unjudged = Object.entries(counts).filter(([, count]) => count.deferred > 0)
   if (unjudged.length) {
     const kinds = unjudged.map(([kind, count]) => `${kind} ${count.deferred} of ${count.judged + count.deferred}`).join(', ')
-    hygieneDeferred.push({ check: `hygiene-${c.repository}`, path: c.name, reason: `candidates beyond the cap of tools/file-ledger.mjs --candidates were not judged (${kinds})` })
+    hygieneDeferred.push({ check: `hygiene-${c.repository}`, path: c.name, reason: `candidates beyond the cap of the candidate selector were not judged (${kinds})` })
   }
   hygieneSwept.push(c.repository)
   const judgedCount = Object.values(counts).reduce((total, count) => total + count.judged, 0)

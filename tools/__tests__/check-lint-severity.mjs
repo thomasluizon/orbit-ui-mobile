@@ -367,9 +367,9 @@ jobs:
   const lintSeverityJob = guardsWorkflow.split("      - id: ")
     .find((step) => step.startsWith("lint-severity__1")) ?? ""
   T(
-    `${TOOL}: PR enforcement belongs to the unfiltered tools suite and the guard retains push coverage`,
+    `${TOOL}: PR enforcement belongs to the tool tests, which plan-test-jobs starts for each input, and the guard retains push coverage`,
     lintSeverityJob.includes("github.event_name != 'pull_request'") &&
-      readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8").includes("run: node tools/test-tools.mjs --shard "),
+      readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8").includes("run: node tools/test-tools.mjs\n"),
     lintSeverityJob.trim(),
   )
   T(

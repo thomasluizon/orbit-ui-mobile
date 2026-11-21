@@ -6,7 +6,6 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 import yaml from "js-yaml"
-import { escapeRegex } from "../lib/escape-regex.mjs"
 import { guardGroups } from "./_guard-groups.mjs"
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
@@ -129,52 +128,6 @@ test("the actionlint configuration holds only the self-hosted runner labels and 
   assert.ok(Array.isArray(configuration["self-hosted-runner"].labels), "labels must be a list")
 })
 
-test("handoff-size: the step fails an oversized or machine-bound changed relay document and ignores an unchanged one", () => {
-  const job = guardGroups(workflow)["handoff-size"]
-  const prepare = job.steps.find((step) => step.name === "Resolve pull request changed paths")
-  const gate = job.steps.find((step) => step.name === "Changed specs and the relay prompt stay inside their byte ceilings and name no local file")
-  assert.ok(prepare?.run && gate?.run, "handoff-size must prepare changed paths and run its guard")
-  for (const [label, changes, passes] of [
-    ["an oversized changed spec fails", { ".claude/specs/grown.md": "x".repeat(41984) }, false],
-    ["an oversized changed prompt fails", { ".claude/handoffs/NEXT.md": "x".repeat(8300) }, false],
-    ["a spec at its ceiling passes", { ".claude/specs/grown.md": "x".repeat(40960) }, true],
-    ["an unchanged oversized spec elsewhere passes", { "notes.txt": "changed\n" }, true],
-    ["a changed prompt that names the old run carry fails", { ".claude/handoffs/NEXT.md": `Run \`$HOME/.orbit-${"run-carry"}/carry.sh\` first.\n` }, false],
-    ["a changed spec that names a scratchpad file fails", { ".claude/specs/grown.md": "Read `S note-2469-r20.md`.\n" }, false],
-  ]) {
-    const directory = mkdtempSync(join(tmpdir(), "guards-handoff-size-"))
-    try {
-      git(directory, "init", "-q")
-      git(directory, "config", "user.email", "test@example.invalid")
-      git(directory, "config", "user.name", "Test")
-      mkdirSync(join(directory, ".claude/specs"), { recursive: true })
-      writeFileSync(join(directory, ".claude/specs/legacy.md"), "x".repeat(50000))
-      git(directory, "add", ".claude/specs/legacy.md")
-      git(directory, "commit", "-qm", "base")
-      git(directory, "update-ref", "refs/remotes/origin/base", git(directory, "rev-parse", "HEAD"))
-      for (const [path, content] of Object.entries(changes)) {
-        mkdirSync(dirname(join(directory, path)), { recursive: true })
-        writeFileSync(join(directory, path), content)
-        git(directory, "add", path)
-      }
-      git(directory, "commit", "-qm", "change")
-      for (const file of [".github/scripts/changed-paths.sh", "tools/check-handoff-size.mjs", "tools/lib/handoff-prompt.mjs", "tools/lib/run-state.mjs"]) {
-        mkdirSync(dirname(join(directory, file)), { recursive: true })
-        copyFileSync(join(repositoryRoot, file), join(directory, file))
-      }
-      const environment = { ...process.env, RUNNER_TEMP: directory, BASE_REF: "base" }
-      const prepared = spawnSync("bash", ["-e", "-c", prepare.run], { cwd: directory, env: environment, encoding: "utf8" })
-      assert.equal(prepared.status, 0, `${label}: changed paths must resolve: ${prepared.stderr}`)
-      const guarded = spawnSync("bash", ["-e", "-c", gate.run], { cwd: directory, env: environment, encoding: "utf8" })
-      // WHY: GNU xargs reports a failed child as 123 and BSD xargs as 1; the step only has to fail (https://github.com/thomasluizon/orbit-tickets/issues/2064).
-      assert.equal(guarded.status === 0, passes, `${label}: exit ${guarded.status} ${guarded.stdout}${guarded.stderr}`)
-      if (!passes) assert.match(guarded.stderr, new RegExp(`\`${escapeRegex(Object.keys(changes)[0])}\` (?:within \\d+ B \\(it is \\d+ B\\)|without )`))
-    } finally {
-      rmSync(directory, { recursive: true, force: true })
-    }
-  }
-})
-
 function movedFileRepository(prefix, from, to) {
   const directory = mkdtempSync(join(tmpdir(), prefix))
   git(directory, "init", "-q")
@@ -253,7 +206,7 @@ test("feature parity runs for every input of the check and skips an unrelated ch
 
 test("each diff reader resolves paths before using them", () => {
   const readers = ["mobile-styles", "root-allowlist", "dashes", "mobile-fonts", "copy", "i18n-usage",
-    "expo-pin", "surface-manifest", "gate-charter"]
+    "expo-pin", "surface-manifest"]
   for (const jobId of readers) {
     const steps = guardGroups(workflow)[jobId].steps
     const preparation = steps.findIndex((step) => step.name === "Resolve pull request changed paths")
@@ -375,30 +328,28 @@ test("script guards share one checkout and install, and run after another guard 
   }
 })
 
-test("calibration stays advisory and React Doctor retains its time limit", () => {
-  assert.equal(guardGroups(workflow).calibration.steps.find((step) => step.name === "Report calibration drift")["continue-on-error"], true)
+test("React Doctor retains its time limit", () => {
   assert.equal(guardGroups(workflow)["react-doctor"].steps.find((step) => step.id === "react-doctor__1")["timeout-minutes"], 6)
 })
 
 test("pull requests run each source check through one owner", () => {
   assert.equal(guardGroups(workflow)["surface-scope-report"], undefined)
-  for (const id of ["lint-severity__1", "performance-workflow__1", "root-allowlist__4"]) {
-    const step = workflow.jobs.guards.steps.find((candidate) => candidate.id === id)
-    assert.equal(step.if, "${{ !cancelled() && (github.event_name != 'pull_request') }}")
-  }
-  assert.ok(testWorkflow.jobs["tool-tests"].steps.some((step) => step.run?.startsWith("node tools/test-tools.mjs --shard ")))
+  const pushOnly = workflow.jobs.guards.steps.filter((step) => step.if === "${{ !cancelled() && (github.event_name != 'pull_request') }}")
+  assert.deepEqual(pushOnly.map((step) => step.id).sort(), ["lint-severity__1", "performance-workflow__1", "root-allowlist__4"],
+    "a new push-only guard needs its inputs in pushOnlyGuardInputs of .github/scripts/plan-test-jobs.test.mjs")
+  assert.ok(testWorkflow.jobs["tool-tests"].steps.some((step) => step.run === "node tools/test-tools.mjs"))
   assert.ok(testWorkflow.jobs["web-tests"].steps.some((step) => step.name === "Run web shard with coverage"))
   assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === "./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage"))
   assert.equal(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run?.includes("turbo run test")), false)
 })
 
 test("every pull request runs the full-tree surface scope scan outside the cached unit task", () => {
-  const job = testWorkflow.jobs["hook-tests"]
+  const job = testWorkflow.jobs["tool-tests"]
   const step = job.steps.find((candidate) => candidate.run?.includes("node tools/check-surface-scope.mjs"))
-  assert.ok(step, "Tool and Hook Tests must execute the full-tree surface scope scan")
+  assert.ok(step, "Tool Tests must execute the full-tree surface scope scan")
   assert.equal(step.if, "${{ !cancelled() }}")
   assert.doesNotMatch(step.run, /changed-paths/, "a mobile-only change must still run the full-tree scan")
-  assert.equal(job.needs, undefined)
+  assert.equal(job.needs, "plan", "the scan waits for the plan only, never for a build")
   assert.equal(testWorkflow.on.pull_request.paths, undefined)
   const directory = mkdtempSync(join(tmpdir(), "surface-scope-step-"))
   try {

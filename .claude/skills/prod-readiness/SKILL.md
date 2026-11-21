@@ -153,8 +153,8 @@ Parse `$ARGUMENTS` into one `{scope}` token, forwarded to every child audit:
 | `orbit-ui-mobile` | `.claude/orchestrator.json` `repos.ui` |
 | `orbit-api` | `.claude/orchestrator.json` `repos.api` |
 | `orbit-landing-page` | `.claude/orchestrator.json` `repos.landing` |
-| `thomas-brain` | `.claude/orchestrator.json` `hygieneRoots.workshop` |
-| brain vault | `.claude/orchestrator.json` `hygieneRoots.vault` |
+| `thomas-brain` | `../thomas-brain` from the UI checkout |
+| brain vault | `../brain` from the UI checkout |
 
 Only the hygiene sweep (Phase 2d) reads the last three roots. The other phases read `ui` and `api`.
 
@@ -169,7 +169,7 @@ performance inventory item is `CODE_ONLY`, never a pass.
 
 Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
-From the UI checkout, run `node --input-type=module -e 'import { readOrchestratorConfig } from "./tools/lib/orchestrator-config.mjs"; console.log(JSON.stringify(readOrchestratorConfig().repos))'`. Use its absolute `ui` and `api` values as `roots`. Run Phase 2d steps 1 to 3 first and pass the lines that step 3 printed as `hygiene` (step 5).
+From the UI checkout, run `node --input-type=module -e 'import { readDriveConfig } from "./tools/lib/config.mjs"; console.log(JSON.stringify(readDriveConfig().repos))'`. Use its absolute `ui` and `api` values as `roots`. Run Phase 2d steps 1 to 3 first and pass the lines that step 3 printed as `hygiene` (step 5).
 
 ```
 Workflow({ scriptPath: '.claude/workflows/prod-readiness.mjs', args: {
@@ -194,7 +194,7 @@ same severity. The workflow returns:
   audits: [ { kind, findings, counts, coverage, deferred, rounds }, … ×4 ],
   opsFindings: [ { severity, check, title, location, risk, evidence, fix } ],
   a11yFindings: [ same shape, check "a11y-web" | "a11y-mobile" ],
-  hygieneFindings: [ same shape plus root, check "hygiene-<kind>" for a kind of tools/file-ledger.mjs --candidates ],
+  hygieneFindings: [ same shape plus root, check "hygiene-<kind>" for a kind of the hygiene candidates ],
   opsChecksRun, opsChecksFailed, a11yChecksRun, a11yChecksFailed, a11yNotApplicable,
   hygieneChecksRun, hygieneChecksFailed, hygieneDeferred,
   hygieneCandidates: { <repository key>: { <kind>: { judged, deferred } } },  (the counts that the tool printed)
@@ -421,23 +421,19 @@ the gate.
 
 ## Phase 2d: Repository hygiene sweep (session-run, read-only)
 
-The ledger is the finder: `tools/file-ledger.mjs` lists each tracked file of a repository with the signals that mark an old, outdated, duplicate or temporary file. This sweep covers five repositories: `orbit-ui-mobile`, `orbit-api`, `orbit-landing-page`, `thomas-brain` and the brain vault. It reads and deletes nothing. It sends one ticket for each verified finding through `.claude/skills/_shared/audit-to-tickets.md`, and the fix ticket does the delete or the update.
+The ledger tool that selected the candidates of this sweep is deleted, so the sweep cannot select candidates. Report the repository hygiene item as `NOT_RUN` and skip steps 2 to 5. The sweep covers five repositories: `orbit-ui-mobile`, `orbit-api`, `orbit-landing-page`, `thomas-brain` and the brain vault. It reads and deletes nothing. It sends one ticket for each verified finding through `.claude/skills/_shared/audit-to-tickets.md`, and the fix ticket does the delete or the update.
 
 The ledger rule, word for word, which each finder and each fix ticket applies:
 
 > Every tracked file starts as a suspect. The default verdict is delete or update. A file keeps its current form only with two written answers: (1) why it exists: the reader, consumer or need it serves today; (2) why it is correct exactly as it is: what was checked against the current code or the current decision. No answer to 1 means delete. An answer to 1 and none to 2 means update. "Nobody proved it is dead" is not an answer. A keep verdict without both answers is a defect. Before a delete, search for readers; a real reader is answer 1.
 
-**The fix proof.** Each hygiene fix ticket orders this proof in its acceptance criteria. The fix pull request fills `verdict`, `reader`, `checked` and `note` in each ledger row of its repository, and `node tools/file-ledger.mjs --verify <ledger> --repo <root> --base <commit> --other-ticket <ID>` exits 0. `--repo` is the root of the repository that the fix changes, because the default is `orbit-ui-mobile`. `--other-ticket <ID>` is the number of the fix ticket itself, copied from the ticket that the fix runs under (the `#N` that the pull request tracks): no other ticket owns the rows this fix does not judge, and each of those rows stays for the next hygiene sweep to judge. An untouched row takes the verdict `other-ticket` with that ID in its note instead of a `keep` with full evidence. The pull request body holds the summary that `--verify` prints. Each part that `--render <ledger> --repo <root> --base <commit> --out-dir <dir>` writes is one comment on the pull request. `--base` is the same commit that `--verify` took, because without it `--render` reads the merge base with `origin/main`, which a root with no `origin/main` does not have. The ledger stays in the scratchpad and is never committed. A fix in `thomas-brain` or the vault has no pull request: the orchestrating session runs the same `--verify` against that root and posts the summary and the `--render` parts on the ticket.
-
 **Scope-aware.** A narrow scope (`ui`, `api` or a path) runs this sweep for the matching repository only. Pass each other repository to the workflow with a `null` root and the reason `scope`, so it lands in the Deferred ledger. A root that is not on this machine lands there too, with the reason. The run does not fail and does not read as clean.
 
-1. **Resolve the roots.** Read `repos.ui`, `repos.api` and `repos.landing`, and `hygieneRoots.workshop` and `hygieneRoots.vault`, through `readOrchestratorConfig()` in `tools/lib/orchestrator-config.mjs`. The two new roots are not in `repos`: about 20 tools read `repos` as the set of ticket-routed code repositories.
+1. **Resolve the roots.** Read `repos.ui`, `repos.api` and `repos.landing` through `readDriveConfig()` in `tools/lib/config.mjs`. The workshop root is `../thomas-brain` and the vault root is `../brain`, each relative to the UI checkout. They are not in `repos`: about 20 tools read `repos` as the set of ticket-routed code repositories.
    Then prove that this session can read each root. Before the workflow starts, Read the `CLAUDE.md` file at each root that the scope includes. The `permissions.additionalDirectories` list in `.claude/settings.json` holds only `../orbit-api` and `../orbit-landing-page`, so a read under the other roots can wait for an approval or fail.
    - For a root that this session cannot read, name the grant for one run in the report: start the session with `claude --add-dir <root>`.
    - Pass that repository to the workflow with a `null` root and the reason `unreadable: start the session with claude --add-dir <root>`. It lands in the Deferred ledger and does not count as swept.
    - Do not add a hygiene root to `permissions` in `.claude/settings.json` or `.claude/settings.local.json`. The vault holds personal notes, and a shared grant lets each session and each worker in this repository read them.
-2. **Collect.** For each root that this session can read, run `node tools/file-ledger.mjs --repo <root>` with each other root that exists on this machine as `--also-search`: the tool exits 2 on a root that does not exist, and that root is already in the Deferred ledger. Keep each ledger in the scratchpad. Do not write a ledger to a repository.
-3. **Select the candidates.** For each ledger, run `node tools/file-ledger.mjs --candidates <ledger> --repo <root>` from this checkout. The tool owns the selection: the kinds and their signals, the untracked files, the record rules and the cap of judged rows (`node tools/file-ledger.mjs --help`, mode 4). It writes the judged rows to `.claude/sweeps/hygiene/<repository>.jsonl` in this checkout and prints one JSON line, `{ root, candidatesFile, counts }`. That folder is inside the working directory of this session, so a workflow agent reads it without an approval prompt, and git ignores it.
 4. **Never select by hand.** Do not trim, add or edit a candidate. The counts come from every candidate, so a row beyond the cap reads as deferred, never as judged or as absent.
 5. **Pass the candidates** to the workflow in the `hygiene` argument, as the skill passes `performanceMeasurement` today: `hygiene: { repositories: { ui: <the line the tool printed for ui>, api: …, landing: …, workshop: …, vault: … } }`. The workflow refuses candidate rows in `args`, and an entry without the `candidatesFile` and the `counts`, so the payload stays small for any repository size.
 6. **Read the result.** A finder that died puts its repository in `hygieneChecksFailed`: the coverage is unknown, and the item is never clean. A finder that cannot open its root, its candidates file or a candidate returns a `hygieneDeferred` entry with the check `hygiene-unreadable`, never an empty result. A finder that could open neither its root nor its candidates file, that read no row of the file, or that could open no candidate read nothing, so the workflow drops its findings and puts its repository in `hygieneChecksFailed` too. A finder that read fewer rows than the file holds adds a `hygiene-unreadable` entry for the rest. `hygieneCandidates` gives the judged and deferred count of each kind as the tool printed it, and a `hygieneDeferred` entry names each kind with candidates beyond the cap of the tool. A High or delete finding that the skeptic cap of 60 left without a skeptic is also a `hygieneDeferred` entry, never a finding.

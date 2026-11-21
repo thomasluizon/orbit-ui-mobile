@@ -41,8 +41,7 @@
   "packages/shared/CLAUDE.md": 5,
   "packages/shared/src/stores/version-gate-store.ts": 1,
   "packages/shared/src/utils/habit-request-builders.ts": 2,
-  "packages/shared/src/utils/habits.ts": 3,
+  "packages/shared/src/utils/habits.ts": 1,
   "packages/shared/src/utils/plural.ts": 1,
-  "sonar-project.properties": 1,
-  "tools/CONVENTIONS.md": 2
+  "sonar-project.properties": 1
 }

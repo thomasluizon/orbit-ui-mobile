@@ -161,12 +161,6 @@ jobs:
         name: "Dash Ban: Baseline only shrinks"
         run: node tools/check-dashes.mjs --check-baseline
         if: ${{ !cancelled() }}
-      - id: handoff-size__1
-        name: "Handoff Size: Changed specs and the relay prompt stay inside their byte ceilings and name no local file"
-        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
-        run: |
-          xargs -0 --no-run-if-empty node tools/check-handoff-size.mjs --files \
-            < "$RUNNER_TEMP/changed-paths-present.nul"
       - id: sonar-paths__1
         name: "Sonar Paths: Sonar paths exist"
         run: node tools/check-sonar-paths.mjs
@@ -211,11 +205,6 @@ jobs:
         name: "Lint Severity: Check local lint rules on branch pushes"
         if: ${{ !cancelled() && (github.event_name != 'pull_request') }}
         run: node tools/check-lint-severity.mjs
-      - id: calibration__1
-        name: "Harness Calibration: Report calibration drift"
-        continue-on-error: true
-        run: node tools/check-calibration.mjs
-        if: ${{ !cancelled() && (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'calibration:reseed')) }}
       - id: expo-pin__1
         name: "Expo SDK Pin: Dependencies resolve to the SDK 58 set"
         working-directory: apps/mobile
@@ -251,16 +240,6 @@ jobs:
         env:
           PULL_REQUEST_RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
         run: node tools/check-attribution.mjs --range "$PULL_REQUEST_RANGE"
-      - id: gate-charter__1
-        name: "Gate Charter: Changed gates obey the charter"
-        run: |
-          if [ '${{ github.event_name }}' != 'pull_request' ] || \
-             grep -Eq '^\.github/workflows/(guards|test|pr-metadata)\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$|^package(-lock)?\.json$' "$RUNNER_TEMP/changed-paths.txt"; then
-            node tools/check-gate-charter.mjs
-          else
-            echo "Gate charter skipped: no registered gate changed."
-          fi
-        if: ${{ !cancelled() }}
       - id: design-guard__1
         name: "Design Token Guard: Ban raw --slate-*, transition-all, h-screen in app code"
         run: |

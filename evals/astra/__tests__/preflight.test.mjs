@@ -96,21 +96,21 @@ it.each([
 })
 
 // A grader that cannot grade turns every graded attempt incomplete after its chat turn spends, so each graded run sends one
-// small rubric through the configured grader first. Producer: claude-grader.mjs fails closed when the worker account directory
-// names no existing directory (an unset variable is the main account, which these tests cannot reach without a real CLI call).
-const missingAccount = '/nonexistent/astra-worker-account'
-const missingAccountCause = 'Claude grading failed: ORBIT_WORKER_CLAUDE_CONFIG_DIR names no existing directory.'
+// small rubric through the configured grader first. Producer: claude-grader.mjs fails closed when the CLI is not installed
+// (a PATH with no `claude` stands for it, which these tests cannot otherwise reach without a real CLI call).
+const missingCliPath = '/nonexistent/astra-cli-path'
+const missingCliCause = 'Claude grading failed: installed executable unavailable (ENOENT).'
 const claudeGrader = `file://${fileURLToPath(new URL('../claude-grader.mjs', import.meta.url))}`
 const coreSuite = { suite: { tests: [{ metadata: { id: 'read-en', mustPass: true },
   vars: { credentialKey: 'ORBIT_EVAL_TOKEN', rubric: 'Describe Water only.' } }] } }
 
 it.each([
-  ['with a worker account directory that does not exist', claudeGrader, missingAccountCause],
+  ['with no installed CLI', claudeGrader, missingCliCause],
   ['with an unknown provider', 'offline', 'Could not identify provider'],
 ])('stops the full corpus run before an account check when the configured grader cannot grade: %s', async (_name, grader, cause) => {
   const requests = requestsFor()
   vi.stubEnv('ORBIT_EVAL_GRADER', grader)
-  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', missingAccount)
+  vi.stubEnv('PATH', missingCliPath)
   vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
   await expect(beforeAll(suiteFor(credentialKeys))).rejects.toThrow(cause)
   expect(requests.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/health'])
@@ -123,10 +123,10 @@ const cardSuite = { suite: { tests: [{ metadata: { id: 'owner-water-request-en',
 it.each([['a rubric', coreSuite], ['a same-title card answer', cardSuite]])('stops a core run with %s before an account check when the configured grader cannot grade', async (_name, suite) => {
   const requests = requestsFor()
   vi.stubEnv('ORBIT_EVAL_GRADER', claudeGrader)
-  vi.stubEnv('ORBIT_WORKER_CLAUDE_CONFIG_DIR', missingAccount)
+  vi.stubEnv('PATH', missingCliPath)
   vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
   await expect(beforeCoreRun(suite)).rejects.toThrow('The configured grader cannot grade, so the run stops before any chat '
-    + `turn spends: ${missingAccountCause}`)
+    + `turn spends: ${missingCliCause}`)
   expect(requests.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/health'])
 })
 

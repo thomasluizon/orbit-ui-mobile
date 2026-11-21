@@ -2,12 +2,10 @@
 import { setTimeout as wait } from "node:timers/promises"
 import { readGithub } from "./lib/github-read.mjs"
 import { redactSecrets } from "./lib/github-auth.mjs"
-import { REPO_ROOT, clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-release.mjs --repo api|ui|landing --run <id> --sha <planned-commit> [--workflow-sha <dispatch-commit>] [--service-url <origin>] [--workflow release|android] [--ceiling-minutes <n>] [--poll-seconds <n>]
 
-Watch one dispatched GitHub Actions release run through completion. Registers a harness wake source.
---sha is the planned deployed commit. --workflow-sha identifies the workflow dispatch ref (defaults to --sha).
+Watch one dispatched GitHub Actions release run through completion. --sha is the planned deployed commit. --workflow-sha identifies the workflow dispatch ref (defaults to --sha).
 Releases require --service-url, the selected service origin: verifies web/API health or landing orbit-build.
 --workflow android is UI-only and checks the workflow commit without a web service check.
 The run link is included in every result.
@@ -62,18 +60,13 @@ const result = { repo: values["--repo"], runId, sha, workflowSha, deployedSha: n
 const finish = (reason, code, error) => {
   if (finished) return
   finished = true
-  clearWakeSource(process.pid, REPO_ROOT)
   result.reason = reason
   if (error) result.error = redactSecrets(error, [process.env.GH_TOKEN, process.env.GITHUB_TOKEN])
   console.log(JSON.stringify(result))
   process.exit(code)
 }
-process.once("exit", () => clearWakeSource(process.pid, REPO_ROOT))
 process.once("SIGINT", () => finish("SIGINT", 130))
 process.once("SIGTERM", () => finish("SIGTERM", 143))
-if (!registerWakeSource({ pid: process.pid, what: `Release ${values["--repo"]} run ${runId}`, startedAt: new Date().toISOString() }, REPO_ROOT)) {
-  finish("WAKE_REGISTRATION_FAILED", 1)
-}
 
 const verifyDeployedCommit = async () => {
   if (workflow === "android") return

@@ -1,12 +1,11 @@
 import { readFileSync } from "node:fs"
-import { T, interruptGithubRead, orcaEnv, realOrchestratorConfig, run, stage, stageWithConfig, toolPath } from "./_harness.mjs"
-import { readWakeSources } from "../lib/run-state.mjs"
+import { T, interruptGithubRead, orcaEnv, run, stage, stageTool, toolPath } from "./_harness.mjs"
 
 const TOOL = "wait-release.mjs"
 const SHA = "a".repeat(40)
 const fixture = JSON.parse(readFileSync(toolPath("__tests__/release-fixture.json"), "utf8"))
 const staged = (name, responses, liveCommit = SHA, repository = "api", healthStatus = "Healthy", httpStatus = 200) => {
-  const installation = stageWithConfig(`wait-release-${name}`, TOOL, realOrchestratorConfig())
+  const installation = stageTool(`wait-release-${name}`, TOOL)
   const sequenceFile = stage(`wait-release/${name}-sequence`, "")
   const env = orcaEnv([{ match: `api repos/thomasluizon/${repository === "api" ? "orbit-api" : repository === "ui" ? "orbit-ui-mobile" : "orbit-landing-page"}/actions/runs/1`, stdoutSequence: responses.map(JSON.stringify), sequenceFile }])
   const health = repository === "api" ? { status: healthStatus, commit: liveCommit, checks: [
@@ -45,16 +44,14 @@ export async function cases() {
     const hung = staged(`hung-${signal}`, [])
     const env = orcaEnv([{ match: "api repos/", hangPidFile: pidFile, hangTreePidFile: descendantPidFile }])
     const observed = await interruptGithubRead({ path: hung.path, args, env, signal, pidFile, descendantPidFile })
-    T(`wait-release: ${signal} terminates the active GitHub tree and clears its wake`, observed.started &&
-      observed.status === code && observed.terminated && JSON.parse(observed.stdout).reason === signal &&
-      readWakeSources(hung.base).length === 0, JSON.stringify(observed))
+    T(`wait-release: ${signal} terminates the active GitHub tree`, observed.started &&
+      observed.status === code && observed.terminated && JSON.parse(observed.stdout).reason === signal, JSON.stringify(observed))
   }
   const completed = staged("completed", [workflowRun("queued"), workflowRun("completed", "success")])
   const completedResult = run(TOOL, args, { path: completed.path, env: completed.env })
   T("release waiter waits for completion", completedResult.status === 0 &&
     JSON.parse(completedResult.stdout).reason === "SUCCESS" &&
     Number(readFileSync(completed.sequenceFile, "utf8")) >= 2, completedResult.stderr)
-  T("release waiter clears its wake source", readWakeSources(completed.base).length === 0)
 
   for (const repository of ["api", "ui", "landing"]) {
     const installation = staged(`runtime-response-${repository}`, [workflowRun("completed", "success")], SHA, repository,
@@ -117,7 +114,7 @@ export async function cases() {
   const ceiling = staged("ceiling", [workflowRun("queued")])
   const ceilingResult = run(TOOL, [...args, "--ceiling-minutes", "0.0001"], { path: ceiling.path, env: ceiling.env })
   T("release waiter stops at its ceiling", ceilingResult.status === 3 &&
-    JSON.parse(ceilingResult.stdout).reason === "CEILING" && readWakeSources(ceiling.base).length === 0, ceilingResult.stderr)
+    JSON.parse(ceilingResult.stdout).reason === "CEILING", ceilingResult.stderr)
 
   const wrongHead = staged("wrong-head", [{ ...workflowRun("completed", "success"), head_sha: "b".repeat(40) }])
   const wrongResult = run(TOOL, args, { path: wrongHead.path, env: wrongHead.env })
@@ -138,14 +135,14 @@ export async function cases() {
       env: { ...installation.env, ...env, NODE_OPTIONS: installation.env.NODE_OPTIONS } })
     const body = JSON.parse(observed.stdout)
     T(`release waiter: ${label} recovers`, observed.status === 0 && body.reason === "SUCCESS" &&
-      body.transientErrors.count === 2 && body.transientErrors.last.length > 0 && readWakeSources(installation.base).length === 0, observed.stdout)
+      body.transientErrors.count === 2 && body.transientErrors.last.length > 0, observed.stdout)
   }
   const outage = staged("outage", [])
   const outageEnv = orcaEnv([{ match: "api repos/", stderr: "gh: HTTP 503", exit: 1 }])
   const outageResult = run(TOOL, [...args, "--ceiling-minutes", "0.01"], { path: outage.path, env: outageEnv })
   const outageBody = JSON.parse(outageResult.stdout)
   T("release waiter: persistent outage reaches ceiling", outageResult.status === 3 && outageBody.reason === "CEILING" &&
-    outageBody.transientErrors.count > 0 && readWakeSources(outage.base).length === 0, outageResult.stdout)
+    outageBody.transientErrors.count > 0, outageResult.stdout)
   for (const [label, failure] of [
     ["unauthorized", { stderr: "gh: HTTP 401", exit: 1 }],
     ["forbidden", { stderr: "gh: HTTP 403", exit: 1 }],

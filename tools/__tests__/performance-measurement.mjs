@@ -107,7 +107,7 @@ export const cases = async () => {
     const skill = readFileSync(join(REPO_ROOT, ".claude", "skills", name, "SKILL.md"), "utf8")
     T(
       `performance-measurement: ${name} resolves checkout roots before starting its workflow`,
-      skill.includes('readOrchestratorConfig().repos') &&
+      skill.includes('readDriveConfig().repos') &&
         skill.includes("roots: { ui: '<resolved ui>', api: '<resolved api>' }"),
     )
   }

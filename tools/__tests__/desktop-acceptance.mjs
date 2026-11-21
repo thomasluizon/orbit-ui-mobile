@@ -10,10 +10,10 @@ import { load } from 'js-yaml'
 import { JSDOM } from 'jsdom'
 import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, claimedKey, deliverKey } from '../desktop-bench/acceptance-contract.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root, stage } from './_harness.mjs'
-import { keyDeliveryCases, paletteDeliveryCases } from './desktop-acceptance-keys.mjs'
-import { networkCases } from './desktop-acceptance-network.mjs'
-import { pushPhaseCases } from './desktop-acceptance-push.mjs'
-import { windowBarProbeCases } from './desktop-acceptance-window-bar.mjs'
+import { keyDeliveryCases, paletteDeliveryCases } from './_desktop-acceptance-keys.mjs'
+import { networkCases } from './_desktop-acceptance-network.mjs'
+import { pushPhaseCases } from './_desktop-acceptance-push.mjs'
+import { windowBarProbeCases } from './_desktop-acceptance-window-bar.mjs'
 import { runChild } from '../desktop-bench/child-limit.mjs'
 
 function rejects(label, operation) {
@@ -865,7 +865,7 @@ export async function cases() {
   const suite = readFileSync(fileURLToPath(import.meta.url), 'utf8')
   const producerTests = readdirSync(join(REPO_ROOT, 'tools/desktop-bench')).filter((file) => /^test-.*\.ts$/.test(file) &&
     readFileSync(join(REPO_ROOT, 'tools/desktop-bench', file), 'utf8').includes("from 'node:test'"))
-  T('Tool and Hook Tests starts every producer test file in tools/desktop-bench', producerTests.length > 0 &&
+  T('Tool Tests starts every producer test file in tools/desktop-bench', producerTests.length > 0 &&
     producerTests.every((file) => suite.includes(`join(REPO_ROOT, 'tools/desktop-bench/${file}')`)), JSON.stringify(producerTests))
   const nativeFiles = [...nativeRuns.matchAll(/node --import tsx tools\/desktop-bench\/(test-[\w-]+\.ts)/g)].map((match) => match[1]).sort()
   T('every producer test file with a platform gate runs on the runner of each platform it names, and no other file runs there',
@@ -882,7 +882,7 @@ export async function cases() {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  configure({ toolsDir: resolve(dirname(fileURLToPath(import.meta.url)), '..'), self: 'desktop-acceptance' })
+  configure({ toolsDir: resolve(dirname(fileURLToPath(import.meta.url)), '..') })
   await cases()
   process.exitCode = failureCount() === 0 ? 0 : 1
 }

@@ -33,7 +33,6 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/astra-conversation-participants.md` | Astra participant avatar owners, continuation spacing, text, block and running tool trace alignment, and pending reply replacement. |
 | `design/astra-one-small-step-surfaces.md` | Astra starting-step block owners, complete request actions, text disclosure and platform verification boundaries. |
 | `design/astra-block-copy-surfaces.md` | Astra reply code-block copy owners, independent confirmations, user and description exclusions, and platform verification boundaries. |
-| `.claude/mcp.json.example` | Template for the gitignored `.mcp.json`: the three MCP servers that `/investigate` calls (render, sentry, csharp-lsp). |
 | `design/astra-pending-reply-surfaces.md` | Astra pending reply owners, terminal replacements, polite announcement ownership and hermetic verification boundaries. |
 | `design/astra-mark-only-surfaces.md` | Assistant action labels, inline form-fill icons, localized prompts and the habit-detail composer owners (the composer has no collapse control). |
 | `design/astra-preview-surfaces.md` | Astra preview item semantics, counted actions, breakdown footer disclosure, deletion confirmation, revision, terminal outcomes and responsive parity. |
@@ -62,15 +61,11 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `TESTING.md` | Test authoring rules, suite catalog, CI ownership and local verification commands. |
 | `architecture.json` | Generated route and screen map, plus endpoints, dependencies, i18n ownership, and test coverage; NOT committed (#470). Run `node tools/arch-map.mjs` once, then read it INSTEAD of exploring the codebase; it also writes `architecture.html` and the `architecture.mmd` diagram. Its first key is a `provenance` block whose `generatedFrom` hashes every input the generator read, so a copy can be checked against the tree in front of you. |
 | `.claude/rules/core.md` | Always-loaded judgement and D89/D90 operating-contract pointers. |
-| `.claude/calibration.json` | Agent and skill model calibration, effort settings and launch contracts. |
-| `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules; generated architecture maps are read locally and never committed. |
-| `.claude/skills/orchestrate/SKILL.md` | Ticket execution by hand, worker dispatch, verification, review and readiness procedures. The delivery driver runs the board. |
-| `.claude/skills/handoff/SKILL.md` | Spec-driven handoff, living work orders, in-flight inventory and session relay procedures. |
-| `.claude/skills/sleep/SKILL.md` | Sets the sleep mode of the delivery driver on or off, and says its state in one line. |
-| `.claude/skills/wrap-up/SKILL.md` | Closes a session in one command: `/progress`, then `/questions`, then `/handoff`, with `--sleep` passed through to the last one. An open chain extends both reporting passes across every relay and the current session before owner handoff closes it. |
-| `.claude/skills/questions/SKILL.md` | Owner decision criteria, the relay mode that filters the owner question queue without asking, and the procedure for unavoidable manual actions. |
+| `.claude/skills/ticket/SKILL.md` | Ticket writing: body sections, labels, parts and the create command. |
+| `.claude/skills/orchestrate/SKILL.md` | Start, stop, update and status of the delivery driver. |
+| `.claude/skills/handoff/SKILL.md` | The one prompt that carries an owner session into the next session. |
+| `.claude/skills/wrap-up/SKILL.md` | Closes a session in one command: `/progress`, then `/handoff`. |
 | `.claude/skills/progress/SKILL.md` | Product-level progress reporting from live delivery artifacts: what got merged, what is built but not merged, and with `--remaining` what is still pending on the board. |
-| `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop; D90 suspends human steps 1/3/7/8, keeps 2/4/5/6 and the ui-skills sweep. |
 | `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
 | `.claude/skills/ios-generate/SKILL.md` | Local staging simulator build, install, launch and process verification through Xcode Device Hub. |
@@ -81,25 +76,15 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.github/pull_request_template.md` | The two body sections every pull request fills: what changed and the test evidence. |
 | `tools/README.md` | Catalog of every script in `tools/`: what each one does and how to call it. |
 | `tools/CONVENTIONS.md` | The contract every `tools/` script follows: `--help`, exit codes, stdin for large payloads and the gate rules. |
-| `tools/lib/ticket-classifier-prompt.md` | The prompt that `tools/lib/ticket-executability.mjs` sends to classify whether a worker can execute a ticket; its digest is calibrated. |
 | `tools/desktop-bench/README.md` | Desktop performance acceptance: how `run.mjs` measures the native release shells against one hermetic web build. |
 | `apps/desktop/README.md` | The Tauri desktop shell: which deployed app it loads, external links, Google sign-in, updates, native reminders, the build and an updater release. |
 | `design/brand/README.md` | The source Orbit and Astra marks, their variants, the raster and manual upload exports and the three type families. |
 | `packages/decode-uri-component/README.md` | Why the CommonJS port of `decode-uri-component` 0.5.0 exists for Expo Router and where its code comes from. |
 | `packages/shared/scripts/__fixtures__/README.md` | Provenance of the producer fixtures: the `orbit-api` commit they come from; evidence, never runtime inputs. |
-| `.claude/pending-lessons.md` | Staged lesson candidates that the SessionStart hook surfaces until each one graduates or is dropped. |
-| `.claude/hooks/_lib/README.md` | The shared rule core of the session hooks and the thin adapter contract of each hook file. |
-| `.claude/handoffs/NEXT.md` | The relay prompt that `/handoff` writes for the next session; read it only to start that session. |
-| `.claude/playbooks/README.md` | The on-demand judgement tier: which playbook to read for which activity, and the tier contract. |
-| `.claude/playbooks/debugging.md` | Standing rules for a bug, a triage, `/investigate` and a merge conflict. |
-| `.claude/playbooks/review-and-audit.md` | Standing rules for `/audit-*`, `/prod-readiness`, a Pullfrog review to act on and any fan-out assessment. |
-| `.claude/playbooks/planning-and-artifacts.md` | Standing rules for `/ticket`, `/orchestrate`, ticket writing, prototyping, ADRs and handoff. |
-| `.claude/playbooks/context-engineering.md` | Standing rules for authoring anything an agent reads: a rule, playbook, skill, agent, tool or ticket. |
 | `.claude/playbooks/operations.md` | Standing rules for launching a worker, waiting on CI, merging, releasing, infrastructure and a browser, console or device. |
 | `.claude/rules/product-and-content.md` | Path-scoped rules for i18n copy, the landing page, JSON-LD, the design system and any subtraction pass. |
 | `.claude/skills/_shared/audit-to-tickets.md` | The shared synthesis contract of every `/audit-*` and `/prod-readiness` run: findings become GitHub tickets behind one approval gate. |
 | `.claude/skills/_shared/gate-owned-exclusions.md` | The D11 list of what the gates own, so no audit flags it. |
-| `.claude/skills/_shared/scope-completeness.md` | The search and evidence contract that `/ticket` and `/orchestrate` run before work starts. |
 | `.claude/skills/_shared/verification-protocol.md` | The shared verify, coverage and Deferred ledger layer of every audit skill. |
 | `.claude/skills/audit-performance/checklist.md` | The pattern list that `/audit-performance` walks; its only consumer. |
 | `.claude/skills/audit-security/checklist.md` | The category list that `/audit-security` walks; its only consumer. |

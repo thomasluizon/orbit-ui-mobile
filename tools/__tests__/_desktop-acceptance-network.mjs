@@ -9,7 +9,7 @@ import { join, win32 } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { T, REPO_ROOT, root } from './_harness.mjs'
-import { dnsCases } from './desktop-acceptance-dns.mjs'
+import { dnsCases } from './_desktop-acceptance-dns.mjs'
 
 const runnerSource = () => readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
 

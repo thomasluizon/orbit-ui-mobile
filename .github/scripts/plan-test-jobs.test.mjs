@@ -6,7 +6,8 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 
-const script = resolve(dirname(fileURLToPath(import.meta.url)), "plan-test-jobs.mjs")
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
+const script = resolve(root, ".github/scripts/plan-test-jobs.mjs")
 const tasks = {
   "@orbit/web#test": "web0", "@orbit/mobile#test": "mobile0", "@orbit/desktop#test": "desktop0",
   "@orbit/shared#test": "shared0", "@orbit/eslint-rules#test": "rules0", "@orbit/shared#build": "build0",
@@ -63,31 +64,94 @@ test("a push or a dispatch runs every scope without a changed path list", () => 
   }
 })
 
-test("a pull request whose whole diff is the relay record skips the tool test shards and nothing else runs", () => {
-  for (const changed of [[".claude/handoffs/NEXT.md"], [".claude/handoffs/NEXT.md", ".claude/specs/orbit-prod-release.md"], [".claude/specs/relay.md"]]) {
+const skipPaths = JSON.parse(readFileSync(join(root, ".github/scripts/tool-tests-skip-paths.json"), "utf8"))
+
+test("a pull request that changes only unread documents skips the tool tests", () => {
+  assert.ok(skipPaths.length > 0)
+  for (const changed of [[skipPaths[0]], skipPaths, [skipPaths[0], skipPaths[skipPaths.length - 1]]]) {
     const { status, outputs } = plan({ changed })
     assert.equal(status, 0, changed.join())
-    assert.deepEqual([outputs.web, outputs["type-check"], outputs.lint, outputs.tools], ["false", "false", "false", "false"], changed.join())
+    assert.equal(outputs.tools, "false", changed.join())
   }
 })
 
-test("a relay record beside any other path runs the tool test shards", () => {
-  for (const other of ["tools/example.mjs", ".claude/specs/old/plan.md", ".claude/handoffs/OTHER.md", "TESTING.md", ".github/workflows/test.yml", "apps/web/app/page.tsx"]) {
-    const { status, outputs } = plan({ changed: [".claude/handoffs/NEXT.md", ".claude/specs/relay.md", other] })
-    assert.equal(status, 0, other)
-    assert.equal(outputs.tools, "true", other)
+test("a pull request that changes any other path starts the tool tests", () => {
+  const skipped = []
+  for (const path of ["tools/example.mjs", ".claude/skills/example/SKILL.md", ".github/workflows/guards.yml", "eslint-rules/no-comments.cjs", "lefthook.yml", "TESTING.md", "README.md", "DESIGN.md", "a-path-that-no-list-names.txt"]) {
+    for (const changed of [[path], [skipPaths[0], path]]) {
+      const { status, outputs } = plan({ changed })
+      assert.equal(status, 0, changed.join())
+      if (outputs.tools !== "true") skipped.push(changed.join())
+    }
+  }
+  assert.deepEqual(skipped, [])
+})
+
+// Three guards in guards.yml run on a push to main only. A pull request reaches each one through the tool tests, so one
+// row for each input.
+const pushOnlyGuardInputs = {
+  "lint-severity__1": [
+    "apps/web/eslint.config.mjs", "apps/mobile/eslint.config.js", "packages/shared/eslint.config.mjs", "apps/desktop/eslint.config.mjs",
+    "package.json", "apps/web/package.json", "apps/mobile/package.json", "packages/shared/package.json",
+    "eslint-suppressions.json", "apps/web/eslint-suppressions.json", "apps/mobile/eslint-suppressions.json",
+    ".github/workflows/test.yml", "eslint-rules/no-comments.cjs",
+  ],
+  "root-allowlist__4": ["design/brand/orbit-lockup.svg", "tools/check-lockup-crop.mjs"],
+  "performance-workflow__1": ["tools/generate-performance-workflow.mjs", "tools/lib/performance-measurement.mjs", ".claude/workflows/audit.mjs"],
+}
+
+// Each row is a real-tree read of a tool case module or a tool. A pull request that changes the input must run the case.
+const caseModuleInputs = {
+  "desktop-bench": [
+    "apps/desktop/src-tauri/src/main.rs", "apps/desktop/src-tauri/src/bench_viewport.rs", "apps/desktop/src-tauri/build.rs",
+    "apps/desktop/src-tauri/Cargo.toml", "apps/web/scripts/build-hermetic.mjs",
+  ],
+  "desktop-acceptance": ["apps/desktop/locales/en.json", "apps/desktop/locales/pt-BR.json", "apps/web/scripts/build-hermetic.mjs"],
+  "feature parity tree": [
+    "apps/web/app/page.tsx", "apps/web/components/profile/profile-api-keys.tsx", "apps/mobile/app/index.tsx", "apps/mobile/components/profile/profile-api-keys.tsx",
+    "packages/shared/src/parity-controls.tsx", "packages/shared/src/i18n/en.json", "packages/shared/src/i18n/pt-BR.json",
+  ],
+  "check-i18n-usage": ["apps/web/app/step-up/step-up-screen.tsx", "apps/mobile/app/step-up.tsx"],
+  "android-boot": ["apps/mobile/lib/api-base.ts", "packages/shared/src/i18n/en.json"],
+  "android-sentry-diagnostic, check-native-module-copies and the node_modules readers": ["apps/mobile/app.json", "package-lock.json"],
+  "check-surface-scope": ["DESIGN.md"],
+  "generate-brand-assets, redesign-coverage and build-ds-bundle": ["design/brand/orbit-lockup.svg", "design/brand/orbit-mark.svg", "design/canvas/example.svg"],
+  "check-sonar-paths and the parity tree": ["sonar-project.properties", ".gitignore"],
+}
+
+test("each input that a push-only guard or a case module reads starts the tool tests", () => {
+  const skipped = []
+  for (const [reader, inputs] of Object.entries({ ...pushOnlyGuardInputs, ...caseModuleInputs })) {
+    for (const path of inputs) {
+      const { status, outputs } = plan({ changed: ["TESTING.md", path] })
+      assert.equal(status, 0, `${reader} ${path}`)
+      if (outputs.tools !== "true") skipped.push(`${reader} reads ${path}`)
+    }
+  }
+  assert.deepEqual(skipped, [])
+})
+
+// An allowlist of tool inputs can never be shown complete, so the scope is every path except a short list of unread
+// documents. A path stays on that list only while no file under tools/ or .github/scripts/ names it.
+test("no file that the tool tests or the CI scripts read names a path of the skip list", () => {
+  const listed = spawnSync("git", ["-C", root, "ls-files", "--", "tools", ".github/scripts"], { encoding: "utf8" })
+  assert.equal(listed.status, 0, listed.stderr)
+  const own = new Set([".github/scripts/tool-tests-skip-paths.json", ".github/scripts/plan-test-jobs.mjs", ".github/scripts/plan-test-jobs.test.mjs"])
+  const readers = listed.stdout.split("\n").filter((path) => path && !own.has(path))
+  assert.ok(readers.includes("tools/test-tools.mjs") && readers.some((path) => path.startsWith(".github/scripts/")), "the scan reads the tools and the CI scripts")
+  for (const skipPath of skipPaths) {
+    assert.deepEqual(readers.filter((path) => readFileSync(join(root, path), "utf8").includes(skipPath)), [], `a reader names ${skipPath}`)
   }
 })
 
 // GitHub reads these in the message of a push or of the head commit of a pull request (docs.github.com, "Skipping
 // workflow runs"). A squash merge copies every commit message of the pull request to main, so a marker that a hook
 // wrote on one relay commit would stop the main push runs of PR Tests, Guards and CodeQL that a release requires.
-test("no tool, hook or CI script writes a GitHub skip instruction into a commit message", () => {
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
-  const listed = spawnSync("git", ["-C", root, "ls-files", "--", "lefthook.yml", "tools", ".claude/hooks", ".github/scripts"], { encoding: "utf8" })
+test("no tool or CI script writes a GitHub skip instruction into a commit message", () => {
+  const listed = spawnSync("git", ["-C", root, "ls-files", "--", "lefthook.yml", "tools", ".github/scripts"], { encoding: "utf8" })
   assert.equal(listed.status, 0, listed.stderr)
   const sources = listed.stdout.split("\n").filter((path) => path === "lefthook.yml" ||
-    (/\.[cm]?js$/.test(path) && !/(^|\/)(__tests__|__fixtures__)\/|\.test\.mjs$|^\.claude\/hooks\/test-hooks\.mjs$/.test(path)))
+    (/\.[cm]?js$/.test(path) && !/(^|\/)(__tests__|__fixtures__)\/|\.test\.mjs$/.test(path)))
   assert.ok(sources.includes("lefthook.yml") && sources.includes("tools/test-tools.mjs"), "the scan reads the hook configuration and the tools")
   const instruction = /\[(skip ci|ci skip|no ci|skip actions|actions skip)\]|skip-checks: ?true/i
   const marked = sources.filter((path) => instruction.test(readFileSync(join(root, path), "utf8")))

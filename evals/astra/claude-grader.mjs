@@ -1,19 +1,16 @@
 import { execFile } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { isHalfAnswer } from './half-answer.mjs'
 
 const GRADER_MODEL = 'claude-opus-5-5'
 const GRADER_TIMEOUT_MILLISECONDS = 120000
-// The variable that names the worker account directory: workers.claude.configDirEnv of .claude/orchestrator.json, which
-// tools/launch-worker.mjs reads. claude-grader.test.mjs holds the two names equal.
-export const WORKER_CONFIG_VARIABLE = 'ORBIT_WORKER_CLAUDE_CONFIG_DIR'
 const rubricSchema = readFileSync(new URL('./grader-schema.json', import.meta.url), 'utf8')
 // The card question read of same-title-card.mjs asks for one key, `half`; isHalfAnswer checks the strict shape.
 const halfSchema = JSON.stringify({ type: 'object', additionalProperties: false, properties: { half: { type: 'string' } }, required: ['half'] })
 // Each variable that the CLI selects ahead of the sign-in in its config directory starts with one of these names. The
-// worker launch removes the same variables through workerAccountEnvironment of tools/lib/orchestrator-config.mjs, and
+// worker launch removes the same variables through workerEnvironment of tools/lib/config.mjs, and
 // claude-grader.test.mjs holds the grader equal to that function.
 const accountOverride = /^(?:ANTHROPIC_|CLAUDE_CODE_|CCR_|AWS_BEARER_TOKEN_BEDROCK$)/u
 
@@ -34,21 +31,13 @@ const failedResult = (result) => [result?.terminal_reason, Number.isInteger(resu
 
 class GradeFailure extends Error {}
 
-// The child environment, with the account rule of workerAccountEnvironment in tools/lib/orchestrator-config.mjs: the sign-in
-// of the chosen account is the only credential the CLI can select, and no Orbit eval secret reaches it. A set variable names
-// the worker account directory. Unset or empty, the child runs on the main account: CLAUDE_CONFIG_DIR is removed, so the CLI
-// reads its default config, as a worker launch does in single-account mode. A set variable that names no directory fails closed.
-// The prompt holds Astra's answer, untrusted text, so the attachment guard is set after the filter that removes a runner value.
+// The child environment, with the account rule of workerEnvironment in tools/lib/config.mjs: the sign-in of the main account
+// is the only credential the CLI can select, and no Orbit eval secret reaches it. CLAUDE_CONFIG_DIR is removed, so the CLI
+// reads its default config. The prompt holds Astra's answer, untrusted text, so the attachment guard is set after the filter
+// that removes a runner value.
 export function graderEnvironment(environment = process.env) {
-  const directory = environment[WORKER_CONFIG_VARIABLE]?.trim()
   const kept = Object.entries(environment).filter(([key]) => !key.startsWith('ORBIT_EVAL_') && !accountOverride.test(key) && key !== 'CLAUDE_CONFIG_DIR')
-  const scoped = { ...Object.fromEntries(kept), CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' }
-  if (!directory) return scoped
-  const configDirectory = resolve(directory)
-  if (!statSync(configDirectory, { throwIfNoEntry: false })?.isDirectory()) {
-    throw new GradeFailure(`${WORKER_CONFIG_VARIABLE} names no existing directory`)
-  }
-  return { ...scoped, CLAUDE_CONFIG_DIR: configDirectory }
+  return { ...Object.fromEntries(kept), CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' }
 }
 
 function runCli(prompt, schema, environment, directory, signal) {

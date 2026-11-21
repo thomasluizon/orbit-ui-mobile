@@ -3,14 +3,16 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
+import { fileURLToPath } from 'node:url'
 
 const usage = `usage: plan-test-jobs.mjs --event <name> --turbo-dry <file> --workflow <file> [--changed-files <file>]
 
   Prints the PR Tests plan as GITHUB_OUTPUT lines. Each test group gets a result cache key built from its
   Turbo task hashes (turbo run test --dry=json) and the workflow file. A pull request also gets one flag per
-  path scope (web, type-check, lint, tools), true when a changed path is an input of that scope. The tool
-  test shards read every path except the relay record (.claude/handoffs/NEXT.md and .claude/specs/*.md),
-  whose text the hook tests still scan. Every other event runs every scope. --changed-files is required for pull_request: one path per line.
+  path scope (web, type-check, lint, tools), true when a changed path is an input of that scope. The tools scope
+  holds every path except the unread documents that tool-tests-skip-paths.json lists, so a pull request that
+  changes only those documents skips the tool tests.
+  Every other event runs every scope. --changed-files is required for pull_request: one path per line.
 
 exit codes: 0 plan printed, 1 missing Turbo task or unreadable input, 2 invalid arguments`
 
@@ -19,7 +21,6 @@ const scopes = {
   web: [/^(apps\/web|packages\/shared)\//, /^(package|package-lock|turbo|tsconfig\.base)\.json$/, /^tools\/check-hermetic-web-build\.mjs$/, /^\.github\/(scripts\/plan-layout-shards\.mjs|layout-shard-timings\.json)$/],
   'type-check': [/^(apps|packages|eslint-rules)\/.+\.([cm]?[jt]sx?|json)$/, /(^|\/)tsconfig[^/]*\.json$/, /^(package|package-lock|turbo)\.json$/],
   lint: [/^(apps\/(web|mobile)|packages\/shared)\/.+\.[cm]?[jt]sx?$/, /^apps\/desktop\/(?!src-tauri\/).+\.[cm]?[jt]sx?$/],
-  tools: [/^(?!\.claude\/(handoffs\/NEXT|specs\/[^/]+)\.md$)/],
 }
 const testGroups = {
   'web-unit': ['@orbit/web#test'],
@@ -71,6 +72,8 @@ try {
     const runs = !changed || changed.some((path) => workflowFile.test(path) || patterns.some((pattern) => pattern.test(path)))
     lines.push(`${scope}=${runs}`)
   }
+  const skipPaths = new Set(JSON.parse(readFileSync(fileURLToPath(new URL('tool-tests-skip-paths.json', import.meta.url)), 'utf8')))
+  lines.push(`tools=${!changed || changed.some((path) => !skipPaths.has(path))}`)
   console.log(lines.join('\n'))
 } catch (error) {
   console.error(`plan-test-jobs: ${error.message}`)

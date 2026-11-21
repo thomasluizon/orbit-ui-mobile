@@ -97,7 +97,6 @@ export const renderBrief = ({ kind, place, ticket }) => {
 **Checks.** Run only the focused checks of your change. CI runs every full suite. Judge each check by its exit code.
 - Vitest: \`npx vitest related <changed source files> --run\` in each changed workspace. Never start Vitest without a file name.
 - Tools: \`node tools/test-tools.mjs --only <case module>\` for each case module that covers a changed tool or reads a changed file. Never run the complete tools suite.
-- Hooks: \`node .claude/hooks/test-hooks.mjs\` after a change to \`.claude/**\` or a tracked \`*.md\` file.
 - The type check and the lint of each changed workspace.
 ${reads ? "" : "- Spend at most 25 minutes on verification. Report each command with its exit code.\n"}- Open no browser. Start no dev server. Run no production CLI.
 - Never write a deployment barrier: \`.github/migration-contracts.json\` and \`.github/migration-locks.json\`.
