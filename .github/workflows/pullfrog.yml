@@ -21,47 +21,16 @@ jobs:
       id-token: write
       contents: read
     env:
-      # add at least one provider API key
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
-      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-      MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-
-      # for Amazon Bedrock (https://docs.pullfrog.com/bedrock)
-      # AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
-      # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      # AWS_REGION: us-east-1
-      # BEDROCK_MODEL_ID: <bedrock-model-id>
-
-      # for Google Vertex AI (https://docs.pullfrog.com/vertex)
-      # VERTEX_SERVICE_ACCOUNT_JSON: >-
-      #   ${{ secrets.VERTEX_SERVICE_ACCOUNT_JSON }}
-      # GOOGLE_CLOUD_PROJECT: my-project
-      # VERTEX_LOCATION: global
-      # VERTEX_MODEL_ID: <vertex-model-id>
+      CLAUDE_CODE_PROMPT_CACHE_TTL: 5m
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          fetch-depth: 1
-      # Claude is the reviewer, on the Claude Max subscription in CLAUDE_CODE_OAUTH_TOKEN. `model`
-      # and `effort` are inputs that this release's action.yml declares. `model` takes the raw
-      # specifier anthropic/claude-opus-5-5, which this release maps back to its claude-opus alias,
-      # so the alias ladder (low, medium, high, xhigh, max) governs effort. `effort: xhigh` is
-      # position 0.75, which lands on the xhigh rung of that five-rung ladder. Both inputs override
-      # the repository config. An Anthropic model with a Claude credential runs on the claude-code
-      # harness, which keeps the reviewfrog specialist sub-agent. The repository stores no
-      # ANTHROPIC_API_KEY, so the subscription pays. The step pins a release commit because a
-      # moving tag is an unpinned dependency. A failed Claude step fails the job, and no other
-      # engine reviews in its place.
+          fetch-depth: 0
+      # This step runs the Claude reviewer on the subscription token.
+      # The step pins a release commit, because a moving tag is an unpinned dependency.
       - name: Run agent
         id: claude
         uses: pullfrog/pullfrog@44b58efe7fe431053c58aafa05e51e190f969685 # v0, release 0.1.130
