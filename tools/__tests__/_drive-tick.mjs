@@ -815,6 +815,21 @@ const closeCases = async () => {
   const rest = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed([merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: the settings screen`, "chore/ticket-7")]) })
   await rest.run()
   T("drive: a merged pull request without Remaining: none re-admits the ticket on a new branch with the remaining list", only(rest.calls, "closeTicket").length === 0 && rest.launched.length === 1 && /ticket-7-r2/.test(rest.launched[0].worktree) && /the settings screen/.test(orderText(rest)))
+  const heldFor = async (label, pullsMerged, text) => {
+    const scene = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed(pullsMerged) })
+    await scene.run()
+    same(`drive: ${label}`, [scene.launched.length, only(scene.calls, "editLabels").map((entry) => entry[3]), needsOwnerComments(scene.calls, 7).length, needsOwnerComments(scene.calls, 7).every((entry) => entry.includes(text))], [0, [{ add: [OWNER_LABEL] }], 1, true])
+  }
+  const listing = "Remaining: the App Store card needs the live listing URL, and the pt-BR copy needs /second-opinion."
+  await heldFor("two merged pull requests with the same Remaining line launch no build and set needs:owner once", [merged(147, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7"), { ...merged(151, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7-r2"), mergedAt: iso(-1800 * 1000) }], listing)
+  await heldFor("a Remaining line of owner items only launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL`, "chore/ticket-7")], "owner: set the listing URL")
+  await heldFor("a Remaining line that blocks on another ticket launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL; blocked by #9`, "chore/ticket-7")], "blocked by #9")
+  const mixed = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed([merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL; the settings screen`, "chore/ticket-7")]) })
+  await mixed.run()
+  T("drive: a Remaining line with one item that a worker can do launches one build", mixed.launched.length === 1 && only(mixed.calls, "editLabels").length === 0 && /the settings screen/.test(orderText(mixed)))
+  const differing = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed([merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: the import and the export`, "chore/ticket-7"), { ...merged(31, `Tracks ${REPOSITORY}#7\n\nRemaining: the export`, "chore/ticket-7-r2"), mergedAt: iso(-1800 * 1000) }]) })
+  await differing.run()
+  same("drive: two merged pull requests with different Remaining lines launch one build", [differing.launched.length, only(differing.calls, "editLabels").length], [1, 0])
   const outside = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("APPROVED", HEAD, -5 * MINUTE, { body: "Verdict\n\n## Outside this change\n\nsrc/x.mjs:4 loses data.\n" })] })] } })
   await outside.run()
   const created = only(outside.calls, "createTicket")[0]?.[1]
