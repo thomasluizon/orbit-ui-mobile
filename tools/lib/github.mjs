@@ -563,7 +563,7 @@ export const holds = (text, needle) => new RegExp(`${escapeRegex(needle)}(?![A-Z
 /** True when `text` names the Sentry short id as a whole word: `ORBIT-API-1A` is not named by `ORBIT-API-1AB`. */
 const namesShortId = (text, shortId) => new RegExp(`(?<![A-Za-z0-9])${escapeRegex(shortId)}(?![A-Za-z0-9])`).test(text)
 
-/** The `Bug` ticket for a Sentry issue, or null for a project with no repository. A ticket holds the issue when it names the short id, the permalink or the `/issues/<id>/` path. */
+/** The `Bug` ticket for a Sentry issue, or null for a project with no repository. A ticket holds the issue when it names the short id, the permalink or the `/issues/<id>/` path. A regressed issue also carries `regressedAt`, the time of its last event. */
 export const sentryCandidate = (issue) => {
   const repoKey = SENTRY_REPO[issue.project?.slug]
   if (!repoKey) return null
@@ -574,6 +574,7 @@ export const sentryCandidate = (issue) => {
     body: `${issue.title}\n\n${issue.permalink}\n\nProject: ${issue.project.slug}`,
     held: (text) => namesShortId(text, issue.shortId) || holds(text, issue.permalink) || holds(text, `/issues/${issue.id}/`),
     label: issue.permalink,
+    ...(issue.substatus === "regressed" ? { regressedAt: Date.parse(issue.lastSeen) } : {}),
   }
 }
 
