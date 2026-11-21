@@ -18,7 +18,7 @@ Start the three tiers in order. Gate each tier on the one before it. Start the l
 - Create the container only when it is absent: `docker run -d --name orbit-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=orbit -p 5432:5432 postgres:17`. Gate on `docker exec orbit-postgres pg_isready -U postgres` printing `accepting connections`.
 - Gate the API on `http://localhost:5000/health` returning 200. Allow about 60 seconds on the first start. The API applies migrations on start in Development. A manual `dotnet ef database update` needs `--connection "Host=localhost;Port=5432;Database=orbit;Username=postgres;Password=postgres"`, because `dotnet ef` does not read the Development settings of the API.
 - Read `<web-port>` with `node tools/orca-web-port.mjs` before you start or check web. A linked worktree with no assignment is an error. Gate web on that URL returning HTML.
-- The BFF proxy reads `API_BASE` and defaults to `http://localhost:5000`. Read the value with `node tools/orca-web-port.mjs --api-base`. If it is not a localhost value, warn the owner. Never edit the `.env` files.
+- The BFF proxy reads `API_BASE` and defaults to `http://localhost:5000`. Never read or edit the `.env` files.
 - The database and the API are shared across worktrees. This skill isolates only the web port.
 
 ## Mode (from `$ARGUMENTS`)

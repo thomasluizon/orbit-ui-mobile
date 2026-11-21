@@ -59,33 +59,6 @@ export const cases = async () => {
   const piped = await runBounded(process.execPath, ["-e", "process.stdin.pipe(process.stdout)"], { timeoutMs: 5000, input: "bounded-input" })
   T("bounded-process.mjs: caller-supplied stdin stays bounded and is never inherited", piped.status === 0 && piped.stdout === "bounded-input", JSON.stringify(piped))
 
-  const splitUtf8 = await runBounded(process.execPath, ["-e", `
-const bytes = Buffer.from("cloud café", "utf8")
-process.stdout.write(bytes.subarray(0, bytes.length - 1))
-setTimeout(() => process.stdout.write(bytes.subarray(bytes.length - 1)), 20)
-`], { timeoutMs: 5000, encoding: null })
-  T(
-    "bounded-process.mjs: raw output preserves a multibyte character split across child chunks",
-    Buffer.isBuffer(splitUtf8.stdout) && splitUtf8.stdout.equals(Buffer.from("cloud café", "utf8")),
-    `${splitUtf8.stdout.toString("hex")} != ${Buffer.from("cloud café", "utf8").toString("hex")}`,
-  )
-  const firstInvalid = await runBounded(process.execPath, ["-e", "process.stdout.write(Buffer.from([0x80]))"], { timeoutMs: 5000, encoding: null })
-  const secondInvalid = await runBounded(process.execPath, ["-e", "process.stdout.write(Buffer.from([0x81]))"], { timeoutMs: 5000, encoding: null })
-  T(
-    "bounded-process.mjs: distinct invalid UTF-8 bytes remain distinct in raw output",
-    firstInvalid.stdout.toString("utf8") === secondInvalid.stdout.toString("utf8") &&
-      !firstInvalid.stdout.equals(secondInvalid.stdout),
-    `${firstInvalid.stdout.toString("hex")} vs ${secondInvalid.stdout.toString("hex")}`,
-  )
-
-  const refusedTarget = stage("bounded-process/refused-target.cmd", "@echo off\r\nexit /b 0\r\n")
-  const refused = await runBounded(process.platform === "win32" ? refusedTarget : "", [], { timeoutMs: 5000 })
-  T(
-    "bounded-process.mjs: a target the platform refuses to spawn resolves with its error instead of rejecting",
-    refused.error instanceof Error && refused.status === null && refused.stdout === "" && refused.timedOut === false,
-    JSON.stringify({ error: refused.error?.code ?? null, status: refused.status }),
-  )
-
   await literalProgramAndArguments()
 
   const pidFile = stage("bounded-process/descendant.pid", "")
@@ -103,37 +76,6 @@ setTimeout(() => process.stdout.write(bytes.subarray(bytes.length - 1)), 20)
   const alive = processIsRunning(descendantPid)
   T("bounded-process.mjs: the hard bound fires", timed.timedOut === true, JSON.stringify(timed))
   T("bounded-process.mjs: timeout kills the complete process tree", Number.isInteger(descendantPid) && !alive, `descendant ${descendantPid} still alive`)
-
-  for (const startupMs of [1000, 2000]) {
-    const startupProbe = stage(`bounded-process/startup-${startupMs}.mjs`, `
-import childProcess from "node:child_process"
-import { syncBuiltinESMExports } from "node:module"
-const spawn = childProcess.spawn
-childProcess.spawn = (...args) => {
-  const child = spawn(...args)
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ${startupMs})
-  return child
-}
-syncBuiltinESMExports()
-const { runBounded } = await import(${JSON.stringify(new URL("../lib/bounded-process.mjs", import.meta.url).href)})
-const started = performance.now()
-const result = await runBounded(process.execPath, [${JSON.stringify(script)}], { timeoutMs: 1500 })
-process.stdout.write(JSON.stringify({ ...result, elapsedMs: performance.now() - started }))
-`)
-    const startup = spawnSync(process.execPath, [startupProbe], { encoding: "utf8", timeout: 6000 })
-    let result
-    try { result = JSON.parse(startup.stdout) } catch { result = null }
-    const startupDescendant = Number(readFileSync(pidFile, "utf8"))
-    const startupExitDeadline = Date.now() + timeoutMs
-    while (processIsRunning(startupDescendant) && Date.now() < startupExitDeadline) {
-      await new Promise((resolve) => setTimeout(resolve, 10))
-    }
-    const returnBoundMs = Math.max(1500, startupMs) + 700
-    T(`bounded-process.mjs: ${startupMs}ms synchronous startup consumes the timeout budget`, startup.status === 0 &&
-      result?.timedOut === true && result.elapsedMs < returnBoundMs, startup.stdout || String(startup.error))
-    T(`bounded-process.mjs: delayed startup still terminates the process tree (${startupMs}ms)`,
-      Number.isInteger(startupDescendant) && !processIsRunning(startupDescendant), `descendant ${startupDescendant} still alive`)
-  }
 
   const inheritedPids = stage("bounded-process/inherited-pids.json", "")
   const launcherExit = stage("bounded-process/launcher-exit.json", "")

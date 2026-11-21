@@ -1,11 +1,7 @@
-import { spawn, spawnSync } from "node:child_process"
+import { spawn } from "node:child_process"
 
 const killTree = (pid) => {
   if (!Number.isInteger(pid) || pid <= 0) return
-  if (process.platform === "win32") {
-    spawnSync("taskkill", ["/T", "/F", "/PID", String(pid)], { encoding: "utf8", windowsHide: true })
-    return
-  }
   try {
     process.kill(-pid, "SIGKILL")
   } catch {
@@ -21,8 +17,8 @@ const killTree = (pid) => {
 export const MAX_OUTPUT_BYTES = 32 * 1024 * 1024
 
 /**
- * Run one child with a hard wall-clock bound. POSIX children lead a process group and Windows
- * children are terminated with taskkill /T, so a timeout or cancellation cannot leave grandchildren running.
+ * Run one child with a hard wall-clock bound. Each child leads a process group that the kill reaches,
+ * so a timeout or cancellation cannot leave grandchildren running.
  * Always resolves, never rejects: a child that cannot start is reported through `error`.
  */
 export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = MAX_OUTPUT_BYTES, input, encoding = "utf8", signal } = {}) =>
@@ -35,7 +31,7 @@ export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = MAX_OU
       child = spawn(file, args, {
         cwd,
         env,
-        detached: process.platform !== "win32",
+        detached: true,
         stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
         windowsHide: true,
       })

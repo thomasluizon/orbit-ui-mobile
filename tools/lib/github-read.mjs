@@ -25,24 +25,12 @@ const retryAfter = (headers) => {
 const attempt = async (args, environment, options) => {
   options.signal.throwIfAborted()
   if (Date.now() >= options.deadline) throw ceiling()
-  const rest = args[0] === "api" ? options.rest : null
-  const cached = rest?.cache?.get(args[1])
-  const reservation = await rest?.beforeRequest?.(options)
-  options.signal.throwIfAborted()
-  if (Date.now() >= options.deadline) throw ceiling()
-  if (cached?.etag) args = [...args, "--header", `If-None-Match: ${cached.etag}`]
   const result = await runBounded(environment.GH_BIN || "gh", args, {
     env: environment, timeoutMs: Math.min(30000, options.deadline - Date.now()), maxBuffer: 8 * 1024 * 1024,
     signal: options.signal,
   })
   options.signal.throwIfAborted()
   const response = responseParts(result.stdout)
-  await rest?.afterResponse?.(response, reservation, options)
-  // gh exits 1 for a successful conditional read with an empty 304 body.
-  if (!result.error && !result.timedOut && !result.overflowed && response.status === 304) {
-    if (!cached) throw new Error("GitHub returned 304 without a cached response")
-    return cached.body
-  }
   if (result.timedOut || result.error || result.overflowed || result.status !== 0) {
     const text = result.stderr || result.error?.message || (result.timedOut ? "gh timed out" : response.body || `exit ${result.status}`)
     const status = response.status ?? Number(/\bHTTP (\d{3})\b/.exec(text)?.[1])
@@ -59,9 +47,7 @@ const attempt = async (args, environment, options) => {
     throw error
   }
   try {
-    const body = JSON.parse(response.body)
-    if (rest?.cache && response.headers.has("etag")) rest.cache.set(args[1], { etag: response.headers.get("etag"), body })
-    return body
+    return JSON.parse(response.body)
   } catch (error) {
     throw new Error(`GitHub read ${args.join(" ")} returned invalid JSON: ${error.message}`)
   }
@@ -103,7 +89,7 @@ const retryRead = async (operation, options) => {
   }
 }
 
-/** Admission retries are bounded per read; waiters supply their shared wall-clock ceiling. */
+/** Each read retries a transient failure within its own deadline; a waiter passes its shared wall-clock ceiling. */
 export const readGithub = (path, environment, options = {}) =>
   retryRead((settings) => attempt(["api", path, "--include"], environment, settings), options)
 
@@ -113,7 +99,7 @@ export const readGithubPull = (slug, number, environment, options = {}) => retry
   } catch (error) {
     if (!error.fallbackAllowed) throw error
     if (error.retryAfterMs !== null) await pause(error.retryAfterMs, settings)
-    // Tracks #1640: GitHub can serve GraphQL while the single-pull REST endpoint is unavailable.
+    // Fallback: GitHub can serve GraphQL while the single-pull REST endpoint is unavailable.
     const pull = await attempt(["pr", "view", String(number), "--repo", slug, "--json", "state,headRefOid,baseRefName"], environment, settings)
     if (typeof pull?.baseRefName !== "string" || typeof pull?.headRefOid !== "string" || !["OPEN", "CLOSED", "MERGED"].includes(pull.state)) {
       throw new Error(`GitHub pull request #${number} GraphQL read had an unexpected shape`)
