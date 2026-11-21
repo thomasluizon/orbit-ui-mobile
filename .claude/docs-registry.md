@@ -2,7 +2,7 @@
 
 **At a glance:** every repository doc that `CLAUDE.md` does not load, with its purpose and when to read it. `CLAUDE.md` points here.
 
-The harness loads each `CLAUDE.md`, each agent under `.claude/agents/` and each skill's `SKILL.md` by itself, so one of those has a row only when a procedure reads it by path.
+The harness loads each `CLAUDE.md` and each skill's `SKILL.md` by itself, so one of those has a row only when a procedure reads it by path.
 
 Grep a doc's `At a glance` header before loading it. Registry rows and glance headers describe stable purposes; update them only when a purpose changes. Record amendments in the document body.
 
@@ -51,7 +51,6 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/specs/orbit-prod-release.md` | Production release rules, capability restoration scope and release verification. |
 | `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and production and staging Render releases. |
 | `packages/shared/CONTRACT_DRIFT.md` | Pinned API snapshot check and automated rebaseline. |
-| `.claude/skills/audit-code-quality/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `gating-matrix.json` | Generated inventory of PayGate methods, config keys, and feature flags at the `thomasluizon/orbit-api` repository root; run `node tools/gating-matrix.mjs` there to create it. |
 | `FEATURES.md` | Retained Astra and MCP tool-count inventory and social compatibility references that no generated artifact carries; verify every count against its named `orbit-api` source. |
 | `.claude/skills/flag/SKILL.md` | Inspect and change production or staging feature flags through admin Orbit MCP, with before and after verification. |
@@ -80,10 +79,5 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `packages/shared/scripts/__fixtures__/README.md` | Provenance of the producer fixtures: the `orbit-api` commit they come from; evidence, never runtime inputs. |
 | `.claude/playbooks/operations.md` | Standing rules for launching a worker, waiting on CI, merging, releasing, infrastructure and a browser, console or device. |
 | `.claude/rules/product-and-content.md` | Path-scoped rules for i18n copy, the landing page, JSON-LD, the design system and any subtraction pass. |
-| `.claude/skills/_shared/audit-to-tickets.md` | The shared synthesis contract of every `/audit-*` and `/prod-readiness` run: findings become GitHub tickets behind one approval gate. |
-| `.claude/skills/_shared/gate-owned-exclusions.md` | The D11 list of what the gates own, so no audit flags it. |
-| `.claude/skills/_shared/verification-protocol.md` | The shared verify, coverage and Deferred ledger layer of every audit skill. |
-| `.claude/skills/audit-performance/checklist.md` | The pattern list that `/audit-performance` walks; its only consumer. |
 | `.claude/skills/audit-security/checklist.md` | The category list that `/audit-security` walks; its only consumer. |
-| `.claude/skills/audit-tests/rubric.md` | The intelligent-test rubric that `/audit-tests` scores against; its only consumer. |
 | **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined in `CLAUDE.md`. |
