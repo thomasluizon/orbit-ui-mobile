@@ -168,6 +168,10 @@ const githubUnit = async () => {
   const { state: openState, calls: openCalls } = await readPulls([2509])
   same("lib/github.mjs: one read holds every open pull request when the numbers are known", [openCalls.length, openState.numbers, openState.defaultBranch, openState.slug], [1, [2509], "main", UI])
   same("lib/github.mjs: a pull request keeps its identity fields", [open.number, open.state, open.draft, open.author, open.headRef, open.headSha, open.baseRef, open.mergeState, open.changedFiles, open.files.length], [2509, "OPEN", false, "thomasluizon", "feature/ticket-2181-pace-governor", "a4c62a196324df595f5597e00863abc65f86435f", "main", "DIRTY", 23, 23])
+  const rolled = stateResponse([2509])
+  rolled.data.repository.pr2509.commits.nodes = FIXTURE.commitRollups.nodes
+  same("lib/github.mjs: a commit keeps the state of its own check rollup, from the recorded answer", (await readPulls([2509], [2509, 2510], rolled)).state.pulls[0].commits.map((commit) => [commit.sha.slice(0, 7), commit.parents, commit.checkState]), [["fffd31f", 1, "FAILURE"], ["21741e7", 1, "SUCCESS"]])
+  same("lib/github.mjs: a commit with no rollup in the answer has a null check state", open.commits.map((commit) => commit.checkState).every((state) => state === null), true)
   same("lib/github.mjs: behindBy comes from the comparison that names this head and this base tip", open.behindBy, 1)
   const labelled = stateResponse([2509])
   labelled.data.repository.pr2509.labels = FIXTURE.pullLabels.response.data.repository.pr7.labels
@@ -933,7 +937,7 @@ const orderCases = async () => {
 
   const fix = order("fix", { pull: PULL, review: REVIEW })
   T("lib/order.mjs: a fix order lists every class and every instance of the review", ["src/a.ts:10", "src/b.ts:22", "src/c.ts:3", "src/d.ts:8", "BLOCKING: correctness bug", "BLOCKING: broken contract", "BLOCKING: missed requirement"].every((text) => fix.includes(text)), fix)
-  T("lib/order.mjs: a fix order names the head and asks for one commit, one red table test per class, one push", fix.includes(PULL.headSha) && /in one commit/.test(fix) && /one table test per class/.test(fix) && /Push once/.test(fix) && /Merge `origin\/main`/.test(fix))
+  T("lib/order.mjs: a fix order names the head and asks for one commit, one red test per class, one push", fix.includes(PULL.headSha) && /in one commit/.test(fix) && /fails without the fix, and run it red before the fix/.test(fix) && /Push once/.test(fix) && /Merge `origin\/main`/.test(fix))
   const ciFix = order("ci-fix", { pull: PULL, failure: FAILURE })
   T("lib/order.mjs: a ci-fix order names each failed check, its failed steps and the last 60 log lines", ciFix.includes("### Unit Tests (failed steps: Run Domain Tests)") && ciFix.includes("### Lint\n") && ciFix.includes("log line 79") && ciFix.includes("log line 20") && !ciFix.includes("log line 19\n"))
   const forward = order("merge-forward", { pull: PULL, failure: FAILURE })

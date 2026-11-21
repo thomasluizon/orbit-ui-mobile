@@ -40,6 +40,8 @@ const pull = (number, extra = {}) => ({
   comments: [comment("ticket", "Ticket"), comment("request", PLAIN, -20 * MINUTE)], ...extra,
 })
 const PLAIN = "@pullfrog review"
+/** The record of the one rerun that comes before a launch. The run of `check` is 9001. */
+const RERAN = comment("record", "driver rerun 9001")
 
 const ticket = (number, extra = {}) => ({ number, title: `Ticket ${number}`, body: "Do the work.", labels: ["repo:ui", "Improvement"], repoKey: "ui", blockedBy: [], comments: [], ...extra })
 const blocker = (number, open = true, labels = []) => ({ number, open, labels, repoKey: "ui" })
@@ -754,7 +756,7 @@ const mergeCases = async () => {
   await major.run()
   same("drive: a Dependabot major gets needs:owner and no merge", [only(major.calls, "merge").length, only(major.calls, "notify").length], [0, 1])
 
-  const red = scenario({ tickets: [ticket(7, { labels: ["repo:ui", OWNER_LABEL] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL], checks: [check("Unit Tests", "FAILURE"), approvalCheck()] })] } })
+  const red = scenario({ tickets: [ticket(7, { labels: ["repo:ui", OWNER_LABEL] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL], checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), RERAN] })] } })
   await red.run()
   same("drive: a needs:owner pull request with a red check gets a ci-fix order and no merge", [red.launched.length, only(red.calls, "merge").length, /ci-fix/.test(orderText(red))], [1, 0, true])
   const blocked = scenario({ tickets: [ticket(7, { labels: ["repo:ui", OWNER_LABEL] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL], reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] })] } })
@@ -781,8 +783,8 @@ const updateCases = async () => {
 
 const ciCases = async () => {
   const failing = (extra = {}) => pull(30, { checks: [check("Unit Tests", "FAILURE", extra), approvalCheck()] })
-  const run = async (steps, routes = [], name = "Unit Tests") => {
-    const scene = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check(name, "FAILURE"), approvalCheck()] })] }, failedSteps: steps, routes })
+  const run = async (steps, routes = [], name = "Unit Tests", rerun = false) => {
+    const scene = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check(name, "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), ...(rerun ? [RERAN] : [])] })] }, failedSteps: steps, routes })
     await scene.run()
     return scene
   }
@@ -793,9 +795,9 @@ const ciCases = async () => {
   same("drive: a run that was rerun once becomes a ci-fix order", [only(again.calls, "rerunFailed").length, again.launched.length], [0, 1])
   const gateway = await run(["Install"], [["--log-failed", "error: HTTP 504: Gateway Timeout\n"]])
   same("drive: a GitHub 504 gets one rerun", only(gateway.calls, "rerunFailed").length, 1)
-  const barrier = await run(["Require deployment barriers for schema contractions"], [], "Guard Migrations")
+  const barrier = await run(["Require deployment barriers for schema contractions"], [], "Guard Migrations", true)
   same("drive: a Guard Migrations barrier failure gives needs:owner and no order", [barrier.launched.length, only(barrier.calls, "editLabels").length], [0, 2])
-  const other = await run(["Unit tests"], [["--log-failed", "AssertionError: expected 1 to be 2\n"]])
+  const other = await run(["Unit tests"], [["--log-failed", "AssertionError: expected 1 to be 2\n"]], "Unit Tests", true)
   T("drive: any other failure gives one ci-fix order with the failed lines", other.launched.length === 1 && /AssertionError/.test(orderText(other)) && only(other.calls, "rerunFailed").length === 0)
   const conflict = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { mergeState: "DIRTY" })] } })
   await conflict.run()
@@ -1009,15 +1011,103 @@ const cliCases = async () => {
   T("drive: the state directory of the tick tests exists only inside the test root", !existsSync(join(root, "drive-tick-state-missing")))
 }
 
+/** The class rule that every fix order and ci-fix order holds, in the words of the owner answers that cleared each cap. */
+const CLASS_WORDS = [/Fix the whole class of each finding in this round/, /Search the whole tree for every instance of the class/, /Fix each instance/, /List each path in the commit message/, /Add a test that fails without the fix/]
+
+const classCases = async () => {
+  const finding = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: the scope list lacks tools" }] })
+  const fix = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await fix.run()
+  T("drive: the fix order for one finding tells the worker to fix the whole class, search the tree, list each path and add a failing test", fix.launched.length === 1 && CLASS_WORDS.every((words) => words.test(orderText(fix))))
+  const red = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), RERAN] })] } })
+  await red.run()
+  T("drive: the ci-fix order for one failed check holds the same class rule", red.launched.length === 1 && CLASS_WORDS.every((words) => words.test(orderText(red))))
+}
+
+/** Heads whose only new commit is a clean merge of the base, from the recorded pull requests: landing#150 and ui#2528. */
+const LANDING_150 = { green: "41b79887268f02d4d4a13d57b1cdc1ae28cbc8f4", merge: "8cc8daa7cc4dd7b5ec516c6d8a97355da33905e8", base: "8dbc88950 feat: name the iPhone, Mac and Windows apps in the structured data and llms.txt" }
+const UI_2528 = { green: "836e0465a928746a014253d3ae73f5f605d17522", merge: "11b42534c774cd77425cdb12535f31c162141cb6", base: "3f4e5d6c7 chore(tools): a base commit of main" }
+
+const baseMergeCases = async () => {
+  const launch = (kind, branch) => comment("launch", JSON.stringify({ kind, part: null, branch }))
+  const merged = (recorded, key, { checks, comments, tickets, steps = ["Run tests"], routes = [] }) => {
+    const branch = `chore/ticket-7-30`
+    const scene = scenario({
+      tickets: tickets ?? [ticket(7, { repoKey: key, labels: [`repo:${key}`, "Improvement"] })],
+      pulls: { [key]: [pull(30, { headRef: branch, headSha: recorded.merge, commits: [{ sha: recorded.green, parents: 1, checkState: "SUCCESS" }, { sha: recorded.merge, parents: 2, checkState: "FAILURE" }], reviews: [], checks, comments })] },
+      gitRoutes: [["--remerge-diff", ""], ["log --no-merges", `${recorded.base}\n`]], failedSteps: steps, routes,
+    })
+    return scene
+  }
+  const build = [check("Build", "FAILURE"), approvalCheck()]
+  const capped = (branch) => [launch("fix", branch), launch("ci-fix", branch)]
+
+  // landing#150: Build is red after the merge of 8dbc88950, and the branch had used its two fix launches.
+  const landing = merged(LANDING_150, "landing", { checks: build, comments: [comment("ticket", "T"), RERAN], tickets: [ticket(7, { repoKey: "landing", labels: ["repo:landing", "Improvement"], comments: capped("chore/ticket-7-30") })], routes: [["--log-failed", "Error: the page lists the iPhone app twice\n"]] })
+  await landing.run()
+  const launchRecord = JSON.parse(commentsOf(landing.calls, 7).find((text) => text.startsWith("<!-- orbit-drive:launch -->")).split("\n")[1])
+  same("drive: landing#150, Build red after the merge of 8dbc88950 with the cap spent, gets a ci-fix order that the cap does not count and no needs:owner", [landing.launched.length, only(landing.calls, "editLabels").length, only(landing.calls, "notify").length, launchRecord.kind, launchRecord.baseMerge], [1, 0, 0, "ci-fix", LANDING_150.merge])
+  T("drive: the base-merge ci-fix order names the green commit and the base commits that the merge brought in", orderText(landing).includes(LANDING_150.base) && orderText(landing).includes(LANDING_150.green) && /clean merge of `origin\/main`/.test(orderText(landing)))
+  const markedLaunch = (head) => comment("launch", JSON.stringify({ kind: "ci-fix", part: null, branch: "chore/ticket-7-30", baseMerge: head }))
+  const headTable = [
+    ["a free launch at an older head", [markedLaunch("0000000000000000000000000000000000000000")], [1, 0]],
+    ["a free launch at this head", [markedLaunch(LANDING_150.merge)], [0, 2]],
+    ["six free launches at this head", Array.from({ length: 6 }, () => markedLaunch(LANDING_150.merge)), [0, 2]],
+  ]
+  for (const [label, extra, expected] of headTable) {
+    const again = merged(LANDING_150, "landing", { checks: build, comments: [comment("ticket", "T"), RERAN], tickets: [ticket(7, { repoKey: "landing", labels: ["repo:landing", "Improvement"], comments: [...capped("chore/ticket-7-30"), ...extra] })] })
+    await again.run()
+    same(`drive: with the cap spent and ${label}, the base-merge ci-fix gives [launches, label writes]`, [again.launched.length, only(again.calls, "editLabels").length], expected)
+  }
+  const own = scenario({ tickets: [ticket(7, { comments: capped("chore/ticket-7-30") })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-30", headSha: UI_2528.merge, commits: [{ sha: UI_2528.green, parents: 1, checkState: "FAILURE" }, { sha: UI_2528.merge, parents: 2, checkState: "FAILURE" }], reviews: [], checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), RERAN] })] }, gitRoutes: [["--remerge-diff", ""], ["log --no-merges", "3f4e5d6c7 a base commit\n"]] })
+  await own.run()
+  same("drive: a clean merge on top of a red commit is the fault of the change, so the cap holds", [own.launched.length, only(own.calls, "editLabels").length], [0, 2])
+  const fix = scenario({ tickets: [ticket(7, { comments: capped("chore/ticket-7-30") })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-30", headSha: UI_2528.merge, commits: [{ sha: UI_2528.green, parents: 1, checkState: "SUCCESS" }, { sha: UI_2528.merge, parents: 2, checkState: "SUCCESS" }], reviews: [review(CHANGES_REQUESTED, UI_2528.merge, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] })] }, gitRoutes: [["--remerge-diff", ""]] })
+  await fix.run()
+  same("drive: a review finding on a clean merge head is still counted against the cap", [fix.launched.length, only(fix.calls, "editLabels").length], [0, 2])
+
+  // ui#2528: Tool Tests is red only on github-auth at the clean merge 11b42534c.
+  const toolTests = (extra) => merged(UI_2528, "ui", { checks: [check("Tool Tests", "FAILURE"), approvalCheck()], tickets: [ticket(7, { comments: capped("chore/ticket-7-30") })], routes: [["--log-failed", "not ok github-auth: the token cache expired before the read\n"]], steps: ["Run tool tests"], ...extra })
+  const first = toolTests({ comments: [comment("ticket", "T")] })
+  await first.run()
+  same("drive: ui#2528, Tool Tests red at the clean merge, gets one rerun of the run before any launch, no needs:owner", [only(first.calls, "rerunFailed"), first.launched.length, only(first.calls, "editLabels").length], [[["rerunFailed", "ui", "9001"]], 0, 0])
+  const suspect = commentsOf(first.calls, 30).find((text) => text.includes("driver flake-suspect")) ?? ""
+  T("drive: the rerun records the suspect check with its failed lines", suspect.includes("driver flake-suspect 9001 Tool Tests") && suspect.includes("github-auth"))
+  const record = comment("record", suspect.split("\n").slice(1).join("\n"))
+  const flaky = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check("Tool Tests", "SUCCESS"), approvalCheck()], comments: [comment("ticket", "T"), RERAN, record] })] } })
+  await flaky.run()
+  const filed = only(flaky.calls, "createTicket")[0]?.[1]
+  same("drive: a suspect check that passes on the rerun at the same head files one Bug ticket and records it", [filed?.title, filed?.labels, filed?.body.includes("github-auth"), commentsOf(flaky.calls, 30).filter((text) => text.includes("driver flake-filed 9001 Tool Tests")).length, flaky.launched.length, only(flaky.calls, "editLabels").length], ["Flaky check: Tool Tests", ["repo:ui", "Bug"], true, 1, 0, 0])
+  const filedOnce = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check("Tool Tests", "SUCCESS"), approvalCheck()], comments: [comment("ticket", "T"), RERAN, record, comment("record", "driver flake-filed 9001 Tool Tests")] })] } })
+  await filedOnce.run()
+  same("drive: a flake that has its filed record gets no second ticket", only(filedOnce.calls, "createTicket").length, 0)
+  const flakeTable = [
+    ["an open ticket of the same check in the same repository", { ...ticket(8), title: "Flaky check: Tool Tests", repoKey: "ui" }, 0],
+    ["an open ticket of the same check in another repository", { ...ticket(8), title: "Flaky check: Tool Tests", repoKey: "api", labels: ["repo:api", "Bug"] }, 1],
+  ]
+  for (const [label, other, created] of flakeTable) {
+    const held = scenario({ tickets: [ticket(7), other], pulls: { ui: [pull(30, { checks: [check("Tool Tests", "SUCCESS"), approvalCheck()], comments: [comment("ticket", "T"), RERAN, record] })] } })
+    await held.run()
+    same(`drive: ${label} gives [tickets filed, filed records]`, [only(held.calls, "createTicket").length, commentsOf(held.calls, 30).filter((text) => text.includes("driver flake-filed")).length], [created, 1])
+  }
+  const stillRed = toolTests({ comments: [comment("ticket", "T"), RERAN] })
+  await stillRed.run()
+  same("drive: Tool Tests still red after the rerun at the clean merge gets a ci-fix order that the cap does not count", [only(stillRed.calls, "rerunFailed").length, stillRed.launched.length, only(stillRed.calls, "editLabels").length], [0, 1, 0])
+  T("drive: that ci-fix order names the base commit of the merge", orderText(stillRed).includes(UI_2528.base))
+  const infra = merged(UI_2528, "ui", { checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T")], steps: ["Set up job"] })
+  await infra.run()
+  T("drive: a setup failure gets a rerun and no flake record", only(infra.calls, "rerunFailed").length === 1 && !commentsOf(infra.calls, 30).some((text) => text.includes("flake-suspect")))
+}
+
 const blockingClassCases = async () => {
   const redUnit = [check("Unit Tests", "FAILURE"), approvalCheck()]
-  const dependabot = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", checks: redUnit })] } })
+  const dependabot = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", checks: redUnit, comments: [comment("ticket", "T"), RERAN] })] } })
   await dependabot.run()
   same("drive: a Dependabot pull request with a red check gives needs:owner and does not wedge the lane", [dependabot.launched.map((entry) => entry.worktree), only(dependabot.calls, "editLabels").map((entry) => entry.slice(1, 3))], [["/r/orbit-worktrees/ui/chore-ticket-8"], [["ui", 30]]])
   const conflict = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", mergeState: "DIRTY" })] } })
   await conflict.run()
   same("drive: a Dependabot pull request with a conflict gives needs:owner and does not wedge the lane", [conflict.launched.length, only(conflict.calls, "editLabels").length], [1, 1])
-  const closedTicket = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { checks: redUnit })] } })
+  const closedTicket = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { checks: redUnit, comments: [comment("ticket", "T"), RERAN] })] } })
   await closedTicket.run()
   same("drive: a pull request whose tracked ticket is closed gets needs:owner and no fix order", [closedTicket.launched.map((entry) => entry.worktree), only(closedTicket.calls, "editLabels").map((entry) => entry.slice(1, 3))], [["/r/orbit-worktrees/ui/chore-ticket-8"], [["ui", 30]]])
   const noOrder = scenario({ tickets: [], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] })] } })
@@ -1117,10 +1207,10 @@ const laneAndReviewPassCases = async () => {
     scene.env.github.editLabels = async (...args) => { scene.calls.push(["editLabels", ...args]); throw new Error("Unknown label(s): needs:owner") }
     return scene
   }
-  const unlabelled = refusedLabel([comment("ticket", "T")])
+  const unlabelled = refusedLabel([comment("ticket", "T"), RERAN])
   await unlabelled.run()
   same("drive: a pull request with no ticket whose label write fails still gets one needs-owner comment and one notification", [commentsOf(unlabelled.calls, 30).filter((text) => text.includes("needs-owner")).length, only(unlabelled.calls, "notify").length], [1, 1])
-  const marked = refusedLabel([comment("ticket", "T"), comment("needs-owner", "The check failed.")])
+  const marked = refusedLabel([comment("ticket", "T"), RERAN, comment("needs-owner", "The check failed.")])
   await marked.run()
   await marked.run()
   same("drive: a pull request with no ticket and a needs-owner comment gets no second comment and no second notification", [commentsOf(marked.calls, 30).length, only(marked.calls, "notify").length], [0, 0])
@@ -1795,6 +1885,8 @@ export const driverUnit = async () => {
   await usageLimitCases()
   await workerCases()
   await capCases()
+  await classCases()
+  await baseMergeCases()
   await reviewRunCases()
   await worktreeOccupantCases()
   await reviewCases()

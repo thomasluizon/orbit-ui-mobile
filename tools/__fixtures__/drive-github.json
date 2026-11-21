@@ -270,5 +270,32 @@
         "updatedAt": "2026-11-21T16:45:53Z"
       }
     ]
+  },
+  "commitRollups": {
+    "note": "Recorded answer of the GraphQL read of the last two commits of a pull request, with the statusCheckRollup state of each commit",
+    "nodes": [
+      {
+        "commit": {
+          "oid": "fffd31f496b8dd5520b6ac673a9297bdfeab6745",
+          "parents": {
+            "totalCount": 1
+          },
+          "statusCheckRollup": {
+            "state": "FAILURE"
+          }
+        }
+      },
+      {
+        "commit": {
+          "oid": "21741e792903a4149c5c230b464e85b27075222d",
+          "parents": {
+            "totalCount": 1
+          },
+          "statusCheckRollup": {
+            "state": "SUCCESS"
+          }
+        }
+      }
+    ]
   }
 }
