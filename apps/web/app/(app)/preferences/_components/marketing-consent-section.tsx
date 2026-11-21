@@ -68,7 +68,7 @@ export function MarketingConsentSection({
         <PillButton size="sm" variant="ghost" onClick={() => mutation.mutate(false)}>
           {t('profile.marketingEmails.decline')}
         </PillButton>
-        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42. */}
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil emailYes controls this label under D42. */}
         <PillButton size="sm" variant={acceptVariant} onClick={() => mutation.mutate(true)}>
           {t('profile.marketingEmails.accept')}
         </PillButton>

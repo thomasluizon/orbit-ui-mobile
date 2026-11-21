@@ -1226,7 +1226,7 @@ The step question of a one-question flow uses `display-heading` as it is.
 `display-heading` is Space Grotesk 500, -0.02em, fg-1: 28px/1.18 in the compact
 shell and 34px/1.15 wide. `allowance` is Space Grotesk 600, -0.02em, fg-1, tabular:
 34px/1.05 compact and 44px/1.02 wide. These values come from
-`design/canvas/Orbit Pro.dc.html` lines 37, 48, 131 and 142.
+the compact and wide heading and allowance styles of `design/canvas/Orbit Pro.dc.html`.
 Both roles retain the upgrade screen's existing `sm` boundary: 40rem on web,
 640 logical pixels on mobile. The drawing names compact and wide presentations without a
 transition width; preserving the existing boundary is the implementation mapping.

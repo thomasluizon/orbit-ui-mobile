@@ -49,7 +49,7 @@ a:hover{color:var(--fg-1)}
         <div style="display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;flex:0 0 auto">
           <div style="flex:1;min-width:0;display:flex;flex-direction:column">
             <p style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--fg-3)">{{ eyebrow }}</p>
-            <p data-mock="true" style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3)">{{ periodLabel }}</p>
+            <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3)">{{ periodLabel }}</p>
           </div>
           <span data-wr-close="1" style="display:contents">
             <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onClose }}" dc-props="{{ closeProps }}" hint-size="44px,44px">
@@ -76,30 +76,16 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Wrapped closes a period and is meant to feel worth it. It is not a report: one figure per page, no table, no comparison against other people, and no advice. A cover chooses the period and starts the player; the player is six to eight pages, paged by hand, and a person can leave at any point.</p>
-      <p><span style="color:var(--fg-3)">reaching it&nbsp;&nbsp;</span>three real routes, none of them a nav row. The closed period notification is the primary way in and Progresso carries the fallback entry at its top, decided 2026-08-20 and still the authority. The app also reaches it from the retrospective surface (retrospective-dashboard.tsx:264), with its back going to the profile (page.tsx:30), and Perfil's more of Orbit group added its row on 2026-08-21. More than one route is not a contradiction; the earlier sentence here reading as if the screen had no entry is deleted.</p>
-      <p><span style="color:var(--fg-3)">cover&nbsp;&nbsp;</span>the entry screen the app renders before the player (page.tsx:32-41, all of wrapped-cover.tsx): the mark, the eyebrow, the title and subtitle, the period chips, and one Start action with the four states the app has around it. Loading (wrapped-cover.tsx:77-81) is the skeleton. Failure (:83-95) states the fix and retries, wired the way page.tsx:40 wires refetch. Empty (:97-104) is the satellite glyph and one line, and it is the isRecapShareEmpty case (share-card.ts:87-91, no completions, no active days AND no goal completions): Start stays visible and disabled with that line as its adjacent reason, because the app refuses to start the player on an empty period (page.tsx:38). Ready enables Start, which is what opens the player; nothing else does.</p>
-      <p><span style="color:var(--fg-3)">period&nbsp;&nbsp;</span>chosen, never pinned: RECAP_SHARE_PERIODS (share-card.ts:5) is week, month and year, drawn as chips on the cover (wrapped-cover.tsx:56-65), and choosing one reloads the recap without entering the player (page.tsx:23-26). The eyebrow, the period line and every page's words follow the chosen period, and the period line states the rolling window the API actually serves (RetrospectivePeriodRange.Resolve ends today; month is today.AddDays(-30) at :28), so nothing is stamped with a calendar month the data does not hold. The API itself knows FIVE periods (RetrospectivePeriodRange.cs:13 adds quarter and semester); two have no chip anywhere in the app, so no chip is invented for them here.</p>
-      <p><span style="color:var(--fg-3)">pages&nbsp;&nbsp;</span>the app builds the slide list at buildWrappedSlides:28-46: intro, completions, active days, consistency, streak, the top habit when the period has one, and share. This document draws all of them plus the goals page it already carried, so the count is seven or eight, and Pager takes the real count rather than a constant. Active days is metrics.activeDays with the completion rate in its line (wrapped-slide.tsx:64-75). The streak page draws TWO numbers: the figure is bestStreak and the line under it carries currentStreak (:85-94). The top habit is metrics.topHabits[0] with its emoji, its name clamped to two lines and its own completion rate (:95-119), the only page that names one of the person's own habits; it exists only when the period has one, which is what moves the count. The goals page reads RecapResponse.GoalCompletions, produced by GetRecapQuery.cs:22, :167 and :245-259.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>cover, cover loading, cover failed, cover empty, the pages by name, the share page's rendering, failed, unsupported and sheet, reduced motion and thin period. Hover, focus-visible and press are live. NO plan axis, because there is no gate: Wrapped calls the recap (GamificationController.cs:55), whose handler carries no gate at all and whose own comment says Free / ungated (GetRecapQuery.cs:28). The retrospective Pro gate (PayGateService.cs:141) has exactly one caller, GetRetrospectiveQuery.cs:58, and Wrapped is not it. A screen with no gate does not grow a dead switch.</p>
-      <p><span style="color:var(--fg-3)">figures&nbsp;&nbsp;</span>every drawn figure names its producer in the recap metrics: total completions, active days with the completion rate, best and current streak, the weekday consistency array, the top habit, and goal completions. RecapResponse.GoalCompletions is declared at GetRecapQuery.cs:22; :167 calls CountGoalCompletionsAsync, and :245-259 counts completed goals inside the requested period. The period cannot be served as a calendar period either (the rolling window above). An earlier sentence here said the retrospective endpoint's Pro gate stood between people and Wrapped; that was FALSE, the gate's one caller is the retrospective and Wrapped calls the ungated recap, and the sentence is gone.</p>
-      <p><span style="color:var(--fg-3)">needs api&nbsp;&nbsp;</span>#341 still owes the parts of a closed period payload the recap does not serve: a true calendar period rather than a rolling window, and past periods kept reachable permanently. The recap already serves goal completions through GetRecapQuery.cs:22, :167 and :245-259, and access outside the Pro gate is already true because the recap is ungated. Wrapped no longer waits on #341 for the goal figure; nothing in the drawing changes, and the drawing is what the remaining API work has to serve.</p>
-      <p><span style="color:var(--fg-3)">weekday&nbsp;&nbsp;</span>the consistency array is indexed by weekday starting Monday, not by seven consecutive dates, and the page is drawn with Columns, whose contract carries no date, start, interval or ordering prop, so the set cannot be handed a time axis and cannot become a chart whose gaps carry meaning. The labels are weekday initials, the copy names the strongest and the weakest weekday, and no date appears anywhere on that page. Reading it as a week would be a factual error about what the array holds, and the component is what makes that misreading unbuildable.</p>
-      <p><span style="color:var(--fg-3)">player&nbsp;&nbsp;</span>driven three ways, and they are the same action. Tap zones cover the page (wrapped-player.tsx:115-133): a left zone goes back and is disabled on the first page, the right zone is twice its width and goes forward, and on the last page both are gone, so the share is never under an invisible button. The keyboard pages too (:36-40): right arrow forward, left arrow back, Escape closes, and focus lands on the close control when the player opens (:32-34). Pager stays at the foot carrying the same paging, the segments and the last page rule, which is the recorded decision; the zones and the keys sit on top of it, so paging by any of the three is one action, not three behaviours.</p>
-      <p><span style="color:var(--fg-3)">delight&nbsp;&nbsp;</span>this is the one place the budget is spent in full, and it is still transform and opacity only: each page's parts rise 16px on a short stagger and the ring sweeps once. Nothing fades: every part is fully opaque at rest and only its position or its length animates, so a paused timeline, a slow device or a dropped frame shows the page offset rather than empty. The ring carries no fill mode at all, so its resting style is the finished one, and Columns draws its resting state with no entrance of its own, so the weekday set arrives whole inside its block's rise. It is spent per page rather than once, which is the whole difference between this screen and every other one.</p>
-      <p><span style="color:var(--fg-3)">reduced motion&nbsp;&nbsp;</span>every page arrives at its final state with no rise, no stagger and no sweep. Nothing is removed but the movement, and no page depends on motion to be understood.</p>
-      <p><span style="color:var(--fg-3)">empty and thin&nbsp;&nbsp;</span>two different things. Empty is no completions, no active days and no goal completions (isRecapShareEmpty, share-card.ts:87-91), and the app refuses to start the player at all (page.tsx:38), so empty lives on the COVER, before anything is paged. A nonzero goal completion count is activity and keeps the player available. Thin is a period with a little in it: the player runs, the figures render as they are with no encouragement and no padding, the weekday page states plainly that there is not enough to compare, and the top habit page is simply absent when no habit stands out. It never says a small number is good, and it never says it is bad.</p>
-      <p><span style="color:var(--fg-3)">sharing&nbsp;&nbsp;</span>sharing outward is the reason this screen survived the cut, and it ships on both platforms today: the card is rendered on the device and handed to the platform as a PNG. The share IS the referral loop: the shared link is {BaseUrl}/r/{referralCode}?recap={period} (GetRecapQuery.cs:57), the person's referral code is generated right there if they have none (:38), and wrapped-slide.tsx:212 hands that link to the platform beside the image. The card carries a picture and the share carries an invitation, which is what makes this a growth loop rather than an export. It is not the social layer, which was internal, is deleted, and is absent here: no feed, no friends, no cheers, no in app recipient, and no way to send anything to another Orbit account. The share leaves the product entirely, which is the point of it.</p>
-      <p><span style="color:var(--fg-3)">card&nbsp;&nbsp;</span>the shared artefact is one composed image, not the pages. It carries the period, the mark, the figure that matters most and the two that support it, at 9 by 16 so a story frame does not crop it. It holds no controls at all, because it becomes a file: nothing in it can be tapped, and nothing in it depends on the app being open. The pager is how a person reads the period; the card is what leaves. Its weekday renders in the three letter form (seg, Mon), and the weekday page uses the same form so the two never disagree: that is a layout decision on this card, not a style preference. The weekday sentence is the card's widest line and the first to break, and three letters always fit in both languages, so nobody should lengthen it back.</p>
-      <p><span style="color:var(--fg-3)">share states&nbsp;&nbsp;</span>the share page carries share and download SIDE BY SIDE (wrapped-slide.tsx:236-260): share renders only when the platform can share files, and when it cannot, download becomes the filled action, never a fallback screen, because the image is made on the device either way. Both actions go busy while the image renders (:239-243), and a failure is one line above them stating the fix (:230-234). The hand off draws the platform's own sheet with the file it is handing over, its destination list neutral slots named as the system's rather than invented brand targets, and saving states the file it saved.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action. On the cover it is Start; in the player it is Pager's forward control, and on the last page forwardSlot replaces that control with the share, download beside it as a plain action, or download filled where the platform cannot share. Current position is Pager's current segment and the selected period chip. The figures themselves are neutral, because every one of them is a completed fact and completion never takes the accent; the ring sweeps in the accent while travelling and lands fg-1.</p>
-      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32 48, gap only. The display figures sit at 60 and 44, the largest in the product, which is the licence this screen has and no other screen does.</p>
-      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. The weekday columns are Columns' neutral fg-3 fills over the bg-well track, with no currentId passed, because a closed period has no current position.</p>
-      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every figure carries data-mock: the completions, the active days and their rate, both streak numbers, the goal count, the top habit's rate, the period line and the card's numbers. The seven weekday rates render inside Columns, which takes plain numbers, so they carry no marker until the component takes a node.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 every drawn figure names its producer, including goal completions from GetRecapQuery.cs:22, :167 and :245-259. 2 the weekday page cannot be read as a timeline. 3 the empty period has no habit or goal activity and cannot start the player, while a goal-only period can start it and the thin one reads without judgement. 4 no gate, so no plan switch: the recap is free today and the axis does not invent one.</p>
-      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>Pager owns the segments, the controls and the last page rule, and Columns owns the weekday set. Still composed: 1 no shell fits, because this screen replaces the shell rather than sitting in it, which is why neither shell appears. 2 the cover is composed from the mark, the chips and Button, since no cover component exists and EmptyState's shape carries no period picker. 3 the tap zones are composed transparent buttons, aria hidden and out of the tab order, because Pager already carries the accessible controls for the same action. 4 Pager composes its segments directly above its controls, so the segment row sits at the foot rather than as a story-style top strip, which is not a system component and is not rebuilt here.</p>
-      <p><span style="color:var(--fg-3)">decided&nbsp;&nbsp;</span>the closed period notification is the way in and Progresso carries the fallback entry (2026-08-20). Every past period stays reachable, permanently (Thomas, 2026-08-20); nothing currently stores this, so it is part of the #341 api work. The last page's primary action is the share (2026-08-20).</p>
-      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the pages should auto advance, which every story format does and which this one deliberately does not, because it is a close rather than a broadcast. Whether quarter and semester, the two periods the API knows and the app never offers, should ever get chips.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Wrapped closes a period and is meant to feel worth it. It is not a report: one figure per page, no table, no comparison against other people and no advice. A cover chooses the period and starts the player. The player has six to eight pages, paged by hand, and a person can leave at any point. The pages do not auto advance, because this is a close and not a broadcast. There is no plan gate: the recap is free.</p>
+      <p><span style="color:var(--fg-3)">reaching it&nbsp;&nbsp;</span>The notification of a closed period is the way in. Progresso carries the fallback entry at its top. Every past period stays reachable.</p>
+      <p><span style="color:var(--fg-3)">weekday&nbsp;&nbsp;</span>The consistency array is indexed by weekday starting Monday, not by consecutive dates. Columns takes no date and no ordering, so the page cannot be read as a timeline. The labels are weekday initials, and no date appears on that page.</p>
+      <p><span style="color:var(--fg-3)">player&nbsp;&nbsp;</span>Tap zones, the arrow keys and Pager are one action, not three behaviours. On the last page both tap zones are gone, so the share is never under an invisible button.</p>
+      <p><span style="color:var(--fg-3)">delight&nbsp;&nbsp;</span>This is the one place where the delight budget is spent in full, with transform and opacity only. The parts of each page rise 16px on a short stagger, and the ring sweeps once. Under reduced motion, every page arrives at its final state.</p>
+      <p><span style="color:var(--fg-3)">empty and thin&nbsp;&nbsp;</span>Empty is no completions, no active days and no goal completions. Empty lives on the cover, and Start stays visible and disabled with its reason beside it. A thin period runs the player: the figures render as they are, with no encouragement and no padding, and the top habit page is absent when no habit stands out.</p>
+      <p><span style="color:var(--fg-3)">sharing&nbsp;&nbsp;</span>Sharing outward is the reason this screen exists. The device renders the card and hands it to the platform as a PNG, with a link that carries the referral code. There is no feed, no friends, no cheers and no in app recipient.</p>
+      <p><span style="color:var(--fg-3)">card&nbsp;&nbsp;</span>The shared card is one composed image, 9 by 16, so a story frame does not crop it. It carries the period, the mark, the figure that matters most and the two that support it. It holds no controls. Its weekday uses the three letter form, and the weekday page uses the same form.</p>
+      <p><span style="color:var(--fg-3)">share states&nbsp;&nbsp;</span>The share page carries share and download side by side. Share shows only when the platform can share files. Where it cannot, download becomes the filled action.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>One filled action. On the cover it is Start. In the player it is the forward control of Pager, and on the last page the share replaces it. The share is the primary action of the last page. The figures are neutral, because completion never takes the accent.</p>
     </div>
   </sc-if>
 
@@ -108,7 +94,6 @@ a:hover{color:var(--fg-1)}
 <script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
 const H = React.createElement;
 const F = React.Fragment;
-const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 
 /* Producers: the recap metrics (GetRecapQuery, ungated) carry totalCompletions, activeDays, the
    completion rate, bestStreak, currentStreak, the weekday consistency array and topHabits.
@@ -232,7 +217,7 @@ class Component extends DCLogic {
     page: 0, share: null, saved: false, rendering: false };
 
   componentDidMount() {
-    /* The keyboard drives the player (wrapped-player.tsx:36-40): arrows page, Escape closes. */
+    /* The keyboard drives the player: arrows page, Escape closes. */
     this._keys = (e) => {
       const s = this.state;
       if (s.view !== 'player') return;
@@ -278,18 +263,18 @@ class Component extends DCLogic {
   }
   next = () => this.setState((p) => ({ page: Math.min(this.count() - 1, p.page + 1) }));
   prev = () => this.setState((p) => ({ page: Math.max(0, p.page - 1) }));
-  /* Focus lands on close when the player opens (wrapped-player.tsx:32-34). */
+  /* Focus lands on close when the player opens. */
   startPlayer = () => this.setState({ view: 'player', page: 0, share: null, saved: false, rendering: false },
     () => setTimeout(() => { const b = document.querySelector('[data-wr-close] button'); if (b) b.focus(); }, 50));
   closePlayer = () => this.setState({ view: 'cover', coverPhase: 'ready', share: null, saved: false, rendering: false });
-  /* Choosing a period reloads the recap and stays out of the player (page.tsx:23-26). */
+  /* Choosing a period reloads the recap and stays out of the player. */
   pickPeriod = (p) => {
     if (p === this.state.period && this.state.coverPhase === 'ready') return;
     clearTimeout(this._cvT);
     this.setState({ period: p, view: 'cover', coverPhase: 'loading' });
     this._cvT = setTimeout(() => this.setState({ coverPhase: 'ready' }), 600);
   };
-  /* Both actions go busy while the image renders (wrapped-slide.tsx:239-243). */
+  /* Both actions go busy while the image renders. */
   pressShare = () => {
     clearTimeout(this._rdT);
     this.setState({ rendering: true, saved: false });
@@ -308,7 +293,7 @@ class Component extends DCLogic {
   figure(value, label, body, reduced, big) {
     return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' } },
       H('p', { style: Object.assign({ fontFamily: 'var(--font-display)', fontSize: big ? 60 : 44,
-        lineHeight: 1, fontWeight: 600, letterSpacing: '-0.03em' }, this.rise(0, reduced)) }, mock(value)),
+        lineHeight: 1, fontWeight: 600, letterSpacing: '-0.03em' }, this.rise(0, reduced)) }, value),
       H('p', { style: Object.assign({ fontSize: 'var(--fs-lg)', color: 'var(--fg-2)' },
         this.rise(1, reduced)) }, label),
       H('p', { style: Object.assign({ fontSize: 'var(--fs-base)', lineHeight: 1.55, color: 'var(--fg-3)',
@@ -335,7 +320,7 @@ class Component extends DCLogic {
 
   ringPage(t, data, reduced) {
     const body = data.streak > 1
-      ? H(F, null, t.p3Body(String(data.current))[0], mock(String(data.current)), t.p3Body(String(data.current))[2])
+      ? H(F, null, t.p3Body(String(data.current))[0], String(data.current), t.p3Body(String(data.current))[2])
       : t.p3Zero;
     return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'flex-start' } },
       H('svg', { width: 88, height: 88, viewBox: '0 0 34 34', 'aria-hidden': 'true',
@@ -347,7 +332,7 @@ class Component extends DCLogic {
       this.figure(String(data.streak), t.p3Label, body, reduced, false));
   }
 
-  /* metrics.topHabits[0]: emoji, name clamped to two lines, its own rate (wrapped-slide.tsx:95-119). */
+  /* metrics.topHabits[0]: emoji, name clamped to two lines, its own rate. */
   topHabitPage(t, data, reduced) {
     const th = data.topHabit;
     const name = th[t.lang === 'en' ? 'en' : 'pt'];
@@ -361,7 +346,7 @@ class Component extends DCLogic {
       H('p', { style: Object.assign({ fontSize: 'var(--fs-lg)', color: 'var(--fg-2)' }, this.rise(2, reduced)) }, t.pThLabel),
       H('p', { style: Object.assign({ fontSize: 'var(--fs-base)', lineHeight: 1.55, color: 'var(--fg-3)',
         textWrap: 'pretty', maxWidth: '40ch' }, this.rise(3, reduced)) },
-        H(F, null, t.pThBody('')[0], mock(th.rate), t.pThBody('')[2])));
+        H(F, null, t.pThBody('')[0], th.rate, t.pThBody('')[2])));
   }
 
   cardNode(t, per, data, thin) {
@@ -370,7 +355,7 @@ class Component extends DCLogic {
     let bi = 0;
     rates.forEach((v, i) => { if (v > rates[bi]) bi = i; });
     const fig = (value, label) => H('div', { style: { display: 'flex', alignItems: 'baseline', gap: 8 } },
-      H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-display)', fontSize: 34,
+      H('p', { style: { fontFamily: 'var(--font-display)', fontSize: 34,
         lineHeight: 1, fontWeight: 600, letterSpacing: '-0.02em' } }, value),
       H('p', { style: { fontSize: 'var(--fs-base)', color: 'var(--fg-2)' } }, label));
     return H('div', { role: 'img', 'aria-label': t.cardLabel,
@@ -382,12 +367,12 @@ class Component extends DCLogic {
         H('p', { translate: 'no', style: { fontFamily: 'var(--font-display)', fontSize: 20,
           fontWeight: 600, letterSpacing: '-0.02em' } }, 'Orbit'),
         H('span', { style: { flex: 1 } }),
-        H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
+        H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
           color: 'var(--fg-3)' } }, per.line)),
       H('div', { style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
         justifyContent: 'center', gap: 24 } },
         H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
-          H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-display)', fontSize: 88,
+          H('p', { style: { fontFamily: 'var(--font-display)', fontSize: 88,
             lineHeight: 0.92, fontWeight: 600, letterSpacing: '-0.04em' } }, String(data.completions)),
           H('p', { style: { fontSize: 'var(--fs-lg)', color: 'var(--fg-2)', textWrap: 'pretty' } },
             t.cardCompletions(per.unit))),
@@ -435,9 +420,9 @@ class Component extends DCLogic {
             boxShadow: 'inset 0 0 0 1px var(--hairline)', display: 'grid', placeItems: 'center' } },
             H('div', { style: { transform: 'scale(0.15)', transformOrigin: 'center' } }, card)),
           H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
-            H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-mono)',
+            H('p', { style: { fontFamily: 'var(--font-mono)',
               fontSize: 'var(--fs-sm)', color: 'var(--fg-1)' } }, t.fileName),
-            H('p', { 'data-mock': 'true', style: { fontFamily: 'var(--font-mono)',
+            H('p', { style: { fontFamily: 'var(--font-mono)',
               fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, t.fileMeta))),
         H('div', { 'aria-hidden': 'true', style: { display: 'flex', gap: 12 } },
           [0, 1, 2, 3].map((i) => H('div', { key: i, style: { flex: 1, height: 56,
@@ -528,9 +513,9 @@ class Component extends DCLogic {
         H('p', { style: Object.assign({ fontSize: 'var(--fs-base)', lineHeight: 1.55,
           color: 'var(--fg-3)' }, this.rise(2, reduced)) }, t.p1Body)),
       H('div', { key: 'p2' }, this.figure(String(data.completions), t.p2Label(per.unit), t.p2Body, reduced, true)),
-      /* Active days: the figure, with the completion rate in its line (wrapped-slide.tsx:64-75). */
+      /* Active days: the figure, with the completion rate in its line. */
       H('div', { key: 'pad' }, this.figure(String(data.activeDays), t.pAdLabel,
-        H(F, null, t.pAdBody('')[0], mock(data.rate), t.pAdBody('')[2]), reduced, true)),
+        H(F, null, t.pAdBody('')[0], data.rate, t.pAdBody('')[2]), reduced, true)),
       H('div', { key: 'p4' }, this.weekdayPage(t, data, reduced, thin)),
       H('div', { key: 'p3' }, this.ringPage(t, data, reduced)),
     ];
@@ -553,7 +538,7 @@ class Component extends DCLogic {
         : wide
           ? H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } }, dlPlain, shareBtn)
           : H('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 8 } }, shareBtn, dlPlain),
-      /* Tap zones (wrapped-player.tsx:115-133): left back, disabled on the first page; right twice as
+      /* Tap zones: left back, disabled on the first page; right twice as
          wide, forward; both gone on the last page. Pointer convenience only, so out of the tab order:
          Pager below carries the accessible controls for the same action. */
       tapZones: last ? null : H('div', { 'aria-hidden': 'true',

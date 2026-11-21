@@ -64,7 +64,7 @@ function MarketingConsentContent({
           >
             {t('profile.marketingEmails.decline')}
           </PillButton>
-          {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42. */}
+          {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil emailYes controls this label under D42. */}
           <PillButton size="sm" disabled={isPending} onClick={() => onChange(true)}>
             {t('profile.marketingEmails.accept')}
           </PillButton>
