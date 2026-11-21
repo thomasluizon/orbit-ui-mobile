@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, recordStart, resultText, setSleep, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, recordStart, resultText, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
 import { isUsageLimitMessage, isWorkerProcess, KILL_REASONS, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
@@ -1545,6 +1545,15 @@ const selfUpdateCases = async () => {
   const broken = driverScene({ driver: { update: true, smoke: false } })
   const brokenResult = await broken.run()
   same("drive: a new commit that does not start is checked out again at once, with one notification and one issue", [brokenResult.switched, broken.checkouts(), pinOf(broken).rolledBack, pinOf(broken).from, pinOf(broken).to, only(broken.calls, "notify").length, only(broken.calls, "createTicket").length], [false, [`checkout --detach ${NEW_PIN}`, `checkout --detach ${OLD_PIN}`], true, NEW_PIN, OLD_PIN, 1, 1])
+
+  const unrunnable = driverScene({ driver: { update: true } })
+  const savedPath = process.env.PATH
+  const preflight = []
+  unrunnable.env.smoke = async () => (await main(smokeArguments("/r/driver").slice(2), { err: (line) => preflight.push(line) })) === 0
+  process.env.PATH = "/no/such/directory"
+  let unrunnableResult
+  try { unrunnableResult = await unrunnable.run() } finally { process.env.PATH = savedPath }
+  same("drive: a new commit that exits 3 before the start code is checked out again, with one notification and one issue", [unrunnableResult.switched, unrunnable.checkouts(), pinOf(unrunnable).rolledBack, only(unrunnable.calls, "notify").length, only(unrunnable.calls, "createTicket").length, preflight.some((line) => line.startsWith("Missing from PATH")), smokeArguments("/r/driver").includes("--help")], [false, [`checkout --detach ${NEW_PIN}`, `checkout --detach ${OLD_PIN}`], true, 1, 1, true, false])
 
   const dry = driverScene({ dryRun: true })
   const printed = []

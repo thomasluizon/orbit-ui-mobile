@@ -24,7 +24,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { partOf, renderOrder } from "./lib/order.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --sleep on | --sleep off | --reviewer-token] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --sleep on | --sleep off | --reviewer-token | --preflight] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, and merges at the
   owner's bar. It never idles: a free worker slot and an admissible order start a worker on the same tick. The line
@@ -47,6 +47,8 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
               --sleep off makes the driver send one notification that lists the items held, each with its link.
   --reviewer-token  read a Claude OAuth token on stdin and set CLAUDE_CODE_OAUTH_TOKEN in the three repositories;
               print each repository's result and never the token
+  --preflight  run the checks that a loop start runs before the first tick (the tools on PATH and the configuration), then exit 0.
+              The driver runs it on a new commit before it switches to that commit.
   --help, -h  print this usage and exit 0
 
 exit codes: 0 done, 2 usage error, 3 missing tool, configuration or credential`
@@ -1332,7 +1334,7 @@ const reportRollback = async (env, { failedSha, previousSha, error, reason }) =>
 
 /**
  * At the end of a tick with no worker of its own running, moves the driver to the newer driver commit of origin/main. The
- * new commit must start (`--help` exits 0); when it does not, the driver goes back at once and stays up. Returns true when
+ * new commit must start (`--preflight` exits 0); when it does not, the driver goes back at once and stays up. Returns true when
  * the driver must exit with code 0, so launchd starts the new version. A launch record on disk survives the switch.
  */
 const switchDriver = async (env, mem) => {
@@ -1342,7 +1344,7 @@ const switchDriver = async (env, mem) => {
   await checkoutPin(env, next)
   if (!(await env.smoke(env.driverWorktree))) {
     await checkoutPin(env, head)
-    await reportRollback(env, { failedSha: next, previousSha: head, error: "tools/drive.mjs --help did not exit 0", reason: "The new version did not start." })
+    await reportRollback(env, { failedSha: next, previousSha: head, error: "tools/drive.mjs --preflight did not exit 0", reason: "The new version did not start." })
     return false
   }
   writePin(env.stateDir, { from: head, to: next, at: new Date(env.now()).toISOString(), rolledBack: false })
@@ -1385,6 +1387,9 @@ export const recordStart = async (env, tickets = []) => {
   return true
 }
 
+/** The command that checks a commit of the driver the way a loop start does. */
+export const smokeArguments = (worktree) => [process.execPath, join(worktree, "tools", "drive.mjs"), "--preflight"]
+
 const toolOnPath = (name, pathText = process.env.PATH ?? "") => pathText.split(delimiter).some((directory) => directory !== "" && existsSync(join(directory, name)))
 export const missingTools = (pathText) => REQUIRED_TOOLS.filter((name) => !toolOnPath(name, pathText))
 
@@ -1395,7 +1400,7 @@ export const parseArguments = (argv) => {
     if (!SLEEP_WORDS.includes(argv[sleepAt + 1]) || rest.length > 0) return { error: `--sleep takes one word, on or off, and no other argument` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "sleep", word: argv[sleepAt + 1] }
   }
-  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token"])
+  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight"])
   const given = argv.filter((argument) => argument !== "--help" && argument !== "-h")
   const unknown = given.filter((argument) => !modes.has(argument))
   if (unknown.length > 0 || given.length > 1) return { error: `unknown or conflicting argument: ${(unknown[0] ?? given[1])}` }
@@ -1443,7 +1448,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
   return {
     config, dryRun, stateDir, home, github: githubApi, worker: workerApi, now: () => Date.now(), lines: [],
     driverWorktree: dirname(dirname(fileURLToPath(import.meta.url))), selfUpdate: false,
-    smoke: async (worktree) => (await runBounded(process.execPath, [join(worktree, "tools", "drive.mjs"), "--help"], { timeoutMs: 60 * 1000 })).status === 0,
+    smoke: async (worktree) => { const [file, ...args] = smokeArguments(worktree); return (await runBounded(file, args, { timeoutMs: 60 * 1000 })).status === 0 },
     log: (line) => console.log(line),
     slugOf: (key) => (key === "tickets" ? config.tickets.repository : repositorySlug(config.repos[key])),
     git: (cwd, args) => runBounded("git", ["-C", cwd, ...args], { timeoutMs: 300 * 1000 }),
@@ -1483,6 +1488,7 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   if (missing.length > 0) { err(`Missing from PATH: ${missing.join(", ")}`); return 3 }
   let env
   try { env = realEnvironment({ dryRun: parsed.mode === "dry-run" }) } catch (error) { err(error.message); return 3 }
+  if (parsed.mode === "preflight") return 0
   const mem = createMemory()
   env.selfUpdate = parsed.mode === "loop"
   if (parsed.mode === "allow-over-limit") return allowOverLimit(env, { out, err })
