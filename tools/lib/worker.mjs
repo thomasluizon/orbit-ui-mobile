@@ -246,7 +246,7 @@ export const logEvent = (logFile) => {
   return readEvent(kept.join("\n"))
 }
 
-/** The one-turn pace probe: the worker command, settings and environment, the prompt "reply ok" and one turn. A reading, or null when the output holds no event. */
+/** The one-turn probe: the worker command, settings and environment, the prompt "reply ok" and one turn. A reading, or null when the output holds no event. */
 export const probe = async ({ invocation, cwd = tmpdir(), run = runBounded } = {}) => {
   const { command, environment } = invocation
   const result = await run(command.executable, [...command.args, "--max-turns", "1"], { cwd, env: environment, input: PROBE_PROMPT, timeoutMs: PROBE_TIMEOUT_MS })

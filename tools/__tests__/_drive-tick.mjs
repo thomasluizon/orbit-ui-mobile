@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, createMemory, launchesOf, main, marked, missingTools, orderCost, pathsOverlap, paceDecision, parseArguments, pushOutputs, rankTickets, recordStart, resultText, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, allowOverLimit, createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, recordStart, resultText, setSleep, tick, ticketComment } from "../drive.mjs"
 import { isUsageLimitMessage, isWorkerProcess, KILL_REASONS, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
@@ -15,7 +15,6 @@ const AUTH = READS.claudeAuthStatus.output
 const ACCOUNT = accountFrom(AUTH)
 const NOW = Date.parse("2026-11-19T12:00:00Z")
 const RESETS_AT = Math.floor((NOW + 3.5 * 24 * 3600 * 1000) / 1000)
-const LINE = 0.475
 const REPOSITORY = "thomasluizon/orbit-tickets"
 const HEAD = "a".repeat(40)
 const NEXT_HEAD = "b".repeat(40)
@@ -47,7 +46,7 @@ const partComment = (number, total, extra = "") => comment(null, `Part ${number}
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, history = null } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false } = {}) => {
   const calls = []
   const messages = []
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
@@ -86,14 +85,14 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     fetchJson: async () => ({ body: [], link: null }),
     snapshot: () => null,
     authStatus: async () => structuredClone(auth),
-    workerLive: () => readdirSync(stateDir).filter((name) => name.endsWith(".pid")).some((name) => env.processAlive(JSON.parse(readFileSync(join(stateDir, name), "utf8")).pid)),
     processAlive: (pid) => { try { process.kill(pid, 0); return true } catch { return false } },
   }
   const mem = createMemory()
   mem.reading = reading === null ? null : { account: ACCOUNT.key, ...reading }
-  if (history !== null) mem.history = structuredClone(history)
+  if (allowance !== null) writeFileSync(join(stateDir, "over-limit.json"), `${JSON.stringify(allowance)}\n`)
+  if (sleeping) writeFileSync(join(stateDir, "sleep.json"), `${JSON.stringify({ on: true, since: iso(-60 * MINUTE) })}\n`)
   mem.lastIntakeAt = NOW
-  return { env, mem, calls, messages, launched, watched, run: async () => { const result = await tick(env, mem); await mem.running; if (process.env.DEBUG_DRIVE_TICK) console.error(messages.splice(0).join("\n")); return result } }
+  return { env, mem, calls, messages, launched, watched, run: async () => { const result = await tick(env, mem); await Promise.all(mem.running.values()); if (process.env.DEBUG_DRIVE_TICK) console.error(messages.splice(0).join("\n")); return result } }
 }
 
 const BASH = JSON.parse(readFileSync(new URL("../__fixtures__/drive-worker.json", import.meta.url), "utf8")).bashToolRecords
@@ -151,7 +150,7 @@ const admissionCases = async () => {
   await wait("accepts a closed blocker", [ticket(7, { blockedBy: [blocker(5, false)] })], "/r/orbit-worktrees/ui/chore-ticket-7")
   await wait("refuses a ticket that an open pull request tracks", [ticket(7)], null, { pulls: { ui: [pull(30)] } })
   await wait("holds a deploy-first blocker that is not deployed", [ticket(7, { blockedBy: [blocker(5, false, ["deploy-first:production/deploy"])] })], null, { unmet: [{ environment: "production", task: "deploy" }] })
-  await wait("takes a Bug before a longer chain", [ticket(9, { labels: ["repo:ui", "Bug"] }), ticket(7), ticket(8, { blockedBy: [blocker(7)] })], "/r/orbit-worktrees/ui/fix-ticket-9")
+  await wait("takes a Bug before a longer chain", [ticket(9, { labels: ["repo:ui", "Bug"] }), ticket(7), ticket(8, { blockedBy: [blocker(7)] })], "/r/orbit-worktrees/ui/fix-ticket-9", { reading: { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - MINUTE } })
   const runsLast = async (label, tickets, expected) => {
     const scene = scenario({ tickets, dryRun: true })
     const printed = []
@@ -208,91 +207,168 @@ const admissionCases = async () => {
 
 const OWNER_LABEL = "needs:owner"
 
-const paceCases = async () => {
-  const at = (utilization, extra = {}) => paceDecision({ reading: { utilization, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE, ...extra }, now: NOW })
-  same("drive: pace admits under the line with a gap of 0", [at(0.3).action, at(0.3).gapMs], ["admit", 0])
-  const justLaunched = { readings: [], launches: [NOW - 30 * MINUTE] }
-  const slowed = paceDecision({ reading: { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, now: NOW, history: justLaunched })
-  same("drive: pace slows over the line, and the gap spreads what is left over the hours to the reset", [slowed.action, slowed.left.toFixed(2), slowed.hours, slowed.cost, Math.round(slowed.gapMs / MINUTE), Math.round((slowed.nextAt - NOW) / MINUTE)], ["slow", "0.35", 84, 0.01, 144, 114])
-  same("drive: the line is the share of the week gone times 0.95", at(0.3).line.toFixed(3), "0.475")
-  const weekEnd = Math.floor((NOW + 99.6 * 3600 * 1000) / 1000)
-  const example = paceDecision({ reading: { utilization: 0.63, resetsAt: weekEnd, at: NOW - 5 * MINUTE }, now: NOW, history: justLaunched })
-  same("drive: a reading of 0.63 with 99.6 hours left gives a gap of about 3.1 hours, so about 8 orders a day", [example.action, (example.gapMs / (3600 * 1000)).toFixed(1), Math.round(24 / (example.gapMs / (3600 * 1000)))], ["slow", "3.1", 8])
-  same("drive: with no earlier launch an order starts at once, even over the line", paceDecision({ reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, now: NOW }).action, "admit")
-  const gapOf = (launchAgo) => paceDecision({ reading: { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, now: NOW, history: { readings: [], launches: [NOW - launchAgo] } }).action
-  same("drive: an order starts once the time since the last build or find launch reaches the gap", [gapOf(143 * MINUTE), gapOf(144 * MINUTE), gapOf(5 * 3600 * 1000)], ["slow", "admit", "admit"])
-  const empty = paceDecision({ reading: { utilization: 0.96, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, now: NOW, history: { readings: [], launches: [NOW - 5 * 3600 * 1000] } })
-  same("drive: with nothing left the gap is 6 hours and an order still starts when it has passed", [empty.gapMs / (3600 * 1000), empty.action, paceDecision({ reading: { utilization: 0.96, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, now: NOW, history: { readings: [], launches: [NOW - 6 * 3600 * 1000] } }).action], [6, "slow", "admit"])
-  same("drive: a gap never passes 6 hours", paceDecision({ reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, now: NOW, history: justLaunched }).gapMs / (3600 * 1000), 6)
+const STOP_ISSUE_TITLE = "Driver stopped: weekly usage reached 90%"
+const pending = () => new Promise(() => {})
+const eventLine = (utilization) => `${JSON.stringify({ type: "rate_limit_event", rate_limit_info: { status: "allowed", unifiedWindows: { seven_day: { utilization, resetsAt: RESETS_AT } } } })}\n`
 
-  const readingAt = (hoursAgo, utilization, resetsAt = RESETS_AT) => ({ at: NOW - hoursAgo * 3600 * 1000, utilization, resetsAt })
-  const launchesAgo = (...hours) => hours.map((hoursAgo) => NOW - hoursAgo * 3600 * 1000)
-  const newest = { utilization: 0.33, resetsAt: RESETS_AT, at: NOW }
-  same("drive: the cost is the rise over the last 48 hours divided by the orders in that span", orderCost({ history: { readings: [readingAt(40, 0.3), readingAt(0, 0.33)], launches: launchesAgo(30, 20, 10) }, newest, now: NOW }).toFixed(3), "0.010")
-  same("drive: a larger rise gives a larger cost", orderCost({ history: { readings: [readingAt(40, 0.27), readingAt(0, 0.33)], launches: launchesAgo(30, 20, 10) }, newest, now: NOW }).toFixed(3), "0.020")
-  same("drive: under 3 orders in the span the cost is 0.01", orderCost({ history: { readings: [readingAt(40, 0.1), readingAt(0, 0.33)], launches: launchesAgo(30, 20) }, newest, now: NOW }), 0.01)
-  same("drive: a reading older than 48 hours and a launch outside the readings do not count", orderCost({ history: { readings: [readingAt(60, 0.0), readingAt(40, 0.3), readingAt(0, 0.33)], launches: launchesAgo(70, 30, 20, 10) }, newest, now: NOW }).toFixed(3), "0.010")
-  same("drive: the readings of the old week do not count, so a reset gives the default cost", orderCost({ history: { readings: [readingAt(40, 0.9, RESETS_AT - 7 * 24 * 3600), readingAt(0, 0.33)], launches: launchesAgo(30, 20, 10) }, newest, now: NOW }), 0.01)
-  same("drive: the cost uses the default when the readings show no rise", orderCost({ history: { readings: [readingAt(40, 0.4), readingAt(0, 0.33)], launches: launchesAgo(30, 20, 10) }, newest, now: NOW }), 0.01)
-  const measured = paceDecision({ reading: { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, now: NOW, history: { readings: [readingAt(40, 0.3), readingAt(0.1, 0.6)], launches: launchesAgo(30, 20, 10, 1) } })
-  same("drive: the decision uses the measured cost, and the 6 hour cap holds", [measured.cost.toFixed(3), Math.round(measured.gapMs / MINUTE)], ["0.075", 360])
+/** A scene whose workers never exit, so each tick sees the workers of the ticks before it. */
+const runningScene = (options) => {
+  const scene = scenario(options)
+  scene.env.worker.launch = (launchOptions) => { scene.launched.push(launchOptions); writeFileSync(launchOptions.logFile, scene.logText?.() ?? ""); return pending() }
+  return scene
+}
 
-  same("drive: a stale reading over the line asks for one probe", paceDecision({ reading: { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - 2 * 3600 * 1000 }, now: NOW }).action, "probe")
-  same("drive: a stale reading under the line asks for one probe", paceDecision({ reading: { utilization: 0.3, resetsAt: RESETS_AT, at: NOW - 2 * 3600 * 1000 }, now: NOW }).action, "probe")
-  const staleOver = { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - 2 * 3600 * 1000 }
-  const afterProbe = (extra) => paceDecision({ now: NOW, lastProbeAt: NOW - 10 * MINUTE, ...extra })
-  same("drive: a stale reading probes at most once an hour, and after a probe its own gap applies", [afterProbe({ reading: { ...staleOver, utilization: 0.3 } }).action, afterProbe({ reading: staleOver }).action, afterProbe({ reading: staleOver, history: justLaunched }).action, Math.round(afterProbe({ reading: staleOver, history: justLaunched }).gapMs / MINUTE)], ["admit", "admit", "slow", 144])
-  const staleInGap = (extra) => paceDecision({ reading: staleOver, now: NOW, history: justLaunched, ...extra })
-  same("drive: a stale reading asks for no probe while the gap lasts, and asks for one once it has passed", [staleInGap().action, staleInGap({ now: NOW + 331 * MINUTE }).action], ["slow", "probe"])
-  same("drive: a stale reading probes again after an hour", paceDecision({ reading: staleOver, now: NOW, lastProbeAt: NOW - 61 * MINUTE }).action, "probe")
-  const noReadingAfterProbe = afterProbe({ reading: null, history: { readings: [], launches: [NOW - 5 * 3600 * 1000] } })
-  same("drive: a probe that gave no reading and no reading ever use a gap of 6 hours and never hold", [noReadingAfterProbe.action, noReadingAfterProbe.gapMs / (3600 * 1000), afterProbe({ reading: null }).action, afterProbe({ reading: null, history: { readings: [], launches: [NOW - 6 * 3600 * 1000] } }).action], ["slow", 6, "admit", "admit"])
-  const pastReset = afterProbe({ reading: { utilization: 0.2, resetsAt: Math.floor(NOW / 1000) - 10, at: NOW - 5 * MINUTE }, history: justLaunched })
-  same("drive: a reading past its reset time with no probe left uses a gap of 6 hours", [pastReset.action, pastReset.gapMs / (3600 * 1000)], ["slow", 6])
-  same("drive: a probe that is due still asks for the probe before any gap", [paceDecision({ reading: null, now: NOW, history: justLaunched }).action, paceDecision({ reading: null, now: NOW, lastProbeAt: NOW - 61 * MINUTE, history: justLaunched }).action], ["probe", "probe"])
-  same("drive: a reading from the old week probes", paceDecision({ reading: { utilization: 0.9, resetsAt: Math.floor(NOW / 1000) - 10, at: NOW - 5 * MINUTE }, now: NOW }).action, "probe")
-  same("drive: no reading probes", paceDecision({ reading: null, now: NOW }).action, "probe")
-  const later = paceDecision({ reading: { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - 7 * 3600 * 1000 }, now: NOW + 40 * 3600 * 1000 })
-  same("drive: after a long gap the line passes the reading and one probe follows", [later.action, later.line > 0.6], ["probe", true])
+const slotCases = async () => {
+  const at = (utilization, extra = {}) => paceState({ reading: { utilization, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE, ...extra }, now: NOW })
+  same("drive: the line is the share of the week gone times 0.90", at(0.3).line.toFixed(3), "0.450")
+  same("drive: 1 slot above the line and under 0.10 below it, 2 slots at 0.10 under, 3 slots at 0.20 under", [0.6, 0.45, 0.4, 0.35, 0.3, 0.25, 0.05, 0].map((utilization) => at(utilization).slots), [1, 1, 1, 2, 2, 3, 3, 3])
+  same("drive: a reading that is over 1 hour old with no worker running allows 1 slot, and a running worker keeps the headroom", [paceState({ reading: { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 2 * 3600 * 1000 }, now: NOW }).slots, paceState({ reading: { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 2 * 3600 * 1000 }, now: NOW, workersRun: true }).slots], [1, 3])
+  same("drive: no reading allows 1 slot, never stops and is unknown", [paceState({ reading: null, now: NOW })].map((pace) => [pace.slots, pace.stopped, pace.state])[0], [1, false, "unknown"])
+  const ended = paceState({ reading: { utilization: 0.97, resetsAt: Math.floor(NOW / 1000) - 10, at: NOW - 5 * MINUTE }, now: NOW })
+  same("drive: a reading of a week that has ended never stops", [ended.stopped, ended.state, ended.slots], [false, "reset", 1])
+  same("drive: 0.89 runs and 0.90 stops, at any age of the reading", [at(0.89).stopped, at(0.9).stopped, at(0.97).stopped, at(0.9, { at: NOW - 5 * 3600 * 1000 }).stopped], [false, true, true, true])
+  const allowed = (resetsAt) => paceState({ reading: { utilization: 0.93, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, now: NOW, allowance: { resetsAt } })
+  same("drive: an allow file of the current week lifts the stop with 1 slot, and an allow file of an old week does not", [allowed(RESETS_AT).stopped, allowed(RESETS_AT).state, allowed(RESETS_AT).slots, allowed(RESETS_AT - 7 * 24 * 3600).stopped, allowed(RESETS_AT - 7 * 24 * 3600).state], [false, "allowed", 1, true, "stopped"])
 
-  const slowScene = scenario({ tickets: [ticket(7)], reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE }, history: justLaunched })
-  await slowScene.run()
-  same("drive: during a gap no build order starts and no probe runs", [slowScene.launched.length, only(slowScene.calls, "probe").length], [0, 0])
-  same("drive: an admission logs one pace line with the utilization, left, hours, cost, gap and next launch", slowScene.messages.filter((line) => line.includes(" pace slow (")), [`${iso(0)} pace slow (utilization 0.900, left 0.050, hours 84.0, cost 0.010, gap 360 min, next build ${iso(330 * MINUTE)})`])
-  const firstOrder = scenario({ tickets: [ticket(7)], reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE } })
-  await firstOrder.run()
-  same("drive: over the line with no earlier launch the order starts and its launch is kept in the history", [firstOrder.launched.length, firstOrder.mem.history.launches], [1, [NOW]])
-  const dryGap = scenario({ tickets: [ticket(7)], reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE }, history: justLaunched, dryRun: true })
-  await dryGap.run()
-  same("drive: the dry run prints the next build time and the gap in minutes", dryGap.messages.filter((line) => line.startsWith("ticket ")), [`ticket ${REPOSITORY}#7: pace slow: next build at ${iso(330 * MINUTE)} (gap 360 min)`])
-  const fixDuringGap = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })] })] }, reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE }, history: justLaunched })
-  await fixDuringGap.run()
-  same("drive: a fix order runs during a gap and adds no build launch to the history", [fixDuringGap.launched.length, fixDuringGap.mem.history.launches], [1, justLaunched.launches])
-  const probed = scenario({ tickets: [ticket(7)], reading: { utilization: 0.3, resetsAt: RESETS_AT, at: NOW - 3 * 3600 * 1000 } })
-  await probed.run()
-  same("drive: a stale reading probes once and then admits", [only(probed.calls, "probe").length, probed.launched.length], [1, 1])
-  const silent = scenario({ tickets: [ticket(7)], reading: null, probeReading: null })
+  const launches = async (utilization, count, extra = {}) => {
+    const scene = scenario({ tickets: Array.from({ length: count }, (_, index) => ticket(index + 7)), reading: { utilization, resetsAt: RESETS_AT, at: NOW - MINUTE }, ...extra })
+    await scene.run()
+    return scene
+  }
+  same("drive: a free slot and an admissible order over the line start a worker on the same tick, and only 1 of 3 orders", (await launches(0.6, 3)).launched.length, 1)
+  same("drive: 0.10 under the line gives 2 workers and 0.20 under it gives 3, never more", [(await launches(0.35, 4)).launched.length, (await launches(0.25, 4)).launched.length, (await launches(0, 5)).launched.length], [2, 3, 3])
+  const logged = await launches(0.35, 1)
+  same("drive: a worker that exits during a tick makes the loop start the next tick at once", logged.mem.woken, true)
+  same("drive: a tick logs one pace line with the utilization, the line, the slots, the running workers, the free slots and the stop state", logged.messages.filter((line) => line.includes(" pace ")), [`${iso(0)} pace below (utilization 0.350, line 0.450, slots 2, running 0, free 2, stop no)`])
+
+  const fills = runningScene({ tickets: [ticket(7), ticket(8), ticket(9)], reading: { utilization: 0.25, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await tick(fills.env, fills.mem)
+  fills.env.github.readTickets = async () => [ticket(7), ticket(8), ticket(9), ticket(10)]
+  await tick(fills.env, fills.mem)
+  same("drive: with 3 workers running no fourth worker starts, and a worker never starts twice on one branch", [fills.launched.length, new Set(fills.launched.map((entry) => entry.worktree)).size], [3, 3])
+  fills.mem.reading = { ...fills.mem.reading, utilization: 0.1 }
+  await tick(fills.env, fills.mem)
+  same("drive: 3 workers still fill every slot when a fourth order waits", fills.launched.length, 3)
+
+  const withParts = (first, second) => [ticket(7, { comments: [partComment(1, 2, `Paths: ${first}`), partComment(2, 2, `Paths: ${second}`)] })]
+  const overlapping = runningScene({ tickets: withParts("apps/web/", "apps/web/a.ts"), reading: { utilization: 0.25, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await tick(overlapping.env, overlapping.mem)
+  await tick(overlapping.env, overlapping.mem)
+  same("drive: two parts of one ticket whose Paths overlap never run together", overlapping.launched.map((entry) => entry.worktree.split("/").at(-1)), ["chore-ticket-7-part-1"])
+  const disjoint = runningScene({ tickets: withParts("apps/web/", "apps/mobile/"), reading: { utilization: 0.25, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await tick(disjoint.env, disjoint.mem)
+  await tick(disjoint.env, disjoint.mem)
+  same("drive: two parts of one ticket with disjoint Paths run together, each on its own branch", disjoint.launched.map((entry) => entry.worktree.split("/").at(-1)), ["chore-ticket-7-part-1", "chore-ticket-7-part-2"])
+  const unlisted = runningScene({ tickets: [ticket(7, { comments: [partComment(1, 2), partComment(2, 2)] })], reading: { utilization: 0.25, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await tick(unlisted.env, unlisted.mem)
+  await tick(unlisted.env, unlisted.mem)
+  same("drive: a part with no Paths line waits for the part that runs", unlisted.launched.length, 1)
+}
+
+const stopCases = async () => {
+  const blocking = [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }]
+  const stopScene = (extra = {}) => scenario({
+    tickets: [ticket(7), ticket(8), ticket(9)],
+    pulls: { ui: [
+      pull(30, { reviews: [], comments: [comment("ticket", "T")] }),
+      pull(31, { tracks: 8, headRef: "chore/ticket-8-31", reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking })] }),
+      pull(32, { headRef: "chore/ticket-7-32", mergeState: "DIRTY" }),
+      pull(40, { headRef: "chore/ticket-7-40" }),
+    ] },
+    reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE }, ...extra,
+  })
+  const stopped = stopScene()
+  keepWrites(stopped, [])
+  await stopped.run()
+  const stopIssue = only(stopped.calls, "createTicket")[0]?.[1]
+  const message = `Weekly usage reached 90% (0.900, resets ${new Date(RESETS_AT * 1000).toISOString()}). The driver stopped. Tell the owner session to continue over 90%.`
+  same("drive: at 0.90 no worker of any kind starts, no Pullfrog request is posted and no probe runs", [stopped.launched.length, commentsOf(stopped.calls, 30).length, only(stopped.calls, "probe").length], [0, 0, 0])
+  same("drive: at 0.90 a pull request that meets the bar still merges", only(stopped.calls, "merge").map((entry) => entry.slice(1, 3)), [["ui", 40]])
+  same("drive: at 0.90 the driver sends one notification and opens one needs:owner issue with the stop text", [only(stopped.calls, "notify").map((entry) => entry[1]), stopIssue?.title, stopIssue?.labels, stopIssue?.body], [[message], STOP_ISSUE_TITLE, [OWNER_LABEL], message])
+  same("drive: at 0.90 the ticket lines and the pull request lines say the stop holds", [stopped.env.lines.filter((line) => line.startsWith(`ticket ${REPOSITORY}#9:`)), stopped.env.lines.find((line) => line.startsWith("pull ui#30"))], [[`ticket ${REPOSITORY}#9: wait: the weekly usage stop holds every worker`], "pull ui#30: wait: the weekly usage stop holds Pullfrog requests"])
+
+  const issue = ticket(60, { title: STOP_ISSUE_TITLE, labels: [OWNER_LABEL], repoKey: null })
+  const known = stopScene({ tickets: [ticket(7), ticket(8), ticket(9), issue] })
+  await known.run()
+  same("drive: an open stop issue gets no second issue and no second notification", [only(known.calls, "createTicket").length, only(known.calls, "notify").length], [0, 0])
+
+  const week = { resetsAt: RESETS_AT, account: ACCOUNT.key }
+  const allowed = scenario({ tickets: [ticket(7), ticket(8), issue], reading: { utilization: 0.93, resetsAt: RESETS_AT, at: NOW - MINUTE }, allowance: week })
+  await allowed.run()
+  same("drive: an allow file of the current week resumes with 1 worker and closes the stop issue with a comment", [allowed.launched.length, only(allowed.calls, "closeTicket"), commentsOf(allowed.calls, 60).map((text) => /allowed use over 90%/.test(text))], [1, [["closeTicket", 60]], [true]])
+  const oldWeek = scenario({ tickets: [ticket(7)], reading: { utilization: 0.93, resetsAt: RESETS_AT, at: NOW - MINUTE }, allowance: { resetsAt: RESETS_AT - 7 * 24 * 3600, account: ACCOUNT.key } })
+  await oldWeek.run()
+  same("drive: an allow file of an old week is ignored, so the stop applies again from 0.90", [oldWeek.launched.length, only(oldWeek.calls, "createTicket").length], [0, 1])
+  const reset = scenario({ tickets: [ticket(7), issue], reading: { utilization: 0.93, resetsAt: Math.floor(NOW / 1000) - 10, at: NOW - 3 * 3600 * 1000 } })
+  await reset.run()
+  same("drive: a new week closes the stop issue with a comment and starts a worker", [only(reset.calls, "closeTicket"), commentsOf(reset.calls, 60).map((text) => /week reset/.test(text)), reset.launched.length], [[["closeTicket", 60]], [true], 1])
+
+  const dry = stopScene({ dryRun: true })
+  await dry.run()
+  same("drive: the dry run prints the free slots and the stop state and writes nothing", [dry.messages.filter((line) => line.includes(" pace ")).map((line) => line.slice(line.indexOf("(") + 1)), dry.calls.filter((entry) => ["createTicket", "notify", "comment", "merge"].includes(entry[0])).length], [["utilization 0.900, line 0.450, slots 1, running 0, free 0, stop yes)"], 0])
+
+  const midRun = runningScene({ tickets: [ticket(7), ticket(8)], reading: { utilization: 0.5, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  midRun.logText = () => eventLine(0.5)
+  await tick(midRun.env, midRun.mem)
+  writeFileSync(midRun.launched[0].logFile, eventLine(0.92))
+  midRun.mem.reading = { ...midRun.mem.reading, at: NOW - 5 * MINUTE }
+  await tick(midRun.env, midRun.mem)
+  same("drive: the event in the log of a running worker updates the reading, so the stop begins while the worker runs", [midRun.launched.length, only(midRun.calls, "createTicket").length, midRun.mem.reading.utilization], [1, 1, 0.92])
+}
+
+const probeCases = async () => {
+  const noReading = scenario({ tickets: [ticket(7), ticket(8)], reading: null })
+  await noReading.run()
+  same("drive: a start with no reading runs one probe first, then admits with the slots that the reading gives", [only(noReading.calls, "probe").length, noReading.launched.length], [1, 3 - 1])
+  const silent = scenario({ tickets: [ticket(7), ticket(8)], reading: null, probeReading: null })
   await silent.run()
-  same("drive: a probe with no reading ever still starts an order under a gap of 6 hours, with one notification", [silent.launched.length, only(silent.calls, "notify").length, silent.messages.filter((line) => line.includes(" pace admit (")).length], [1, 1, 1])
-  const silentSlow = scenario({ tickets: [ticket(7)], reading: null, probeReading: null, history: justLaunched })
-  await silentSlow.run()
-  same("drive: with no reading ever the gap is 6 hours since the last launch, so a recent launch slows the order", [silentSlow.launched.length, only(silentSlow.calls, "notify").length, silentSlow.messages.filter((line) => line.includes(" pace slow (")).length], [0, 1, 1])
-  const staleSilent = scenario({ tickets: [ticket(7)], reading: { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - 3 * 3600 * 1000 }, probeReading: null, history: { readings: [], launches: [NOW - 150 * MINUTE] } })
-  await staleSilent.run()
-  same("drive: a probe with no reading keeps the gap of the newest reading, sends one notification and starts the order once the gap has passed", [only(staleSilent.calls, "probe").length, only(staleSilent.calls, "notify").length, staleSilent.launched.length], [1, 1, 1])
-  const staleSilentSlow = scenario({ tickets: [ticket(7)], reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - 3 * 3600 * 1000 }, probeReading: null, history: justLaunched })
-  await staleSilentSlow.run()
-  same("drive: a stale reading inside a gap runs no probe, sends no notification and starts no order", [only(staleSilentSlow.calls, "probe").length, only(staleSilentSlow.calls, "notify").length, staleSilentSlow.launched.length, staleSilentSlow.messages.some((line) => line.includes(" pace hold"))], [0, 0, 0, false])
-  staleSilentSlow.env.now = () => NOW + 331 * MINUTE
-  await staleSilentSlow.run()
-  same("drive: once the gap has passed one probe with no reading sends one notification and the order starts", [only(staleSilentSlow.calls, "probe").length, only(staleSilentSlow.calls, "notify").length, staleSilentSlow.launched.length], [1, 1, 1])
-  const snapshotScene = scenario({ tickets: [ticket(7)], reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - 3 * 3600 * 1000 } })
-  snapshotScene.env.snapshot = () => ({ utilization: 0.2, resetsAt: RESETS_AT, at: NOW - MINUTE, email: AUTH.email })
-  await snapshotScene.run()
-  same("drive: the newer snapshot reading wins over the older worker reading", snapshotScene.launched.length, 1)
+  same("drive: a probe with no reading never stops the driver: it runs 1 worker and sends one notification", [silent.launched.length, only(silent.calls, "notify").length, silent.messages.filter((line) => line.includes(" pace unknown (")).length], [1, 1, 1])
+  await silent.run()
+  same("drive: a probe with no reading is not repeated inside the hour", only(silent.calls, "probe").length, 1)
+  const stale = scenario({ tickets: [ticket(7), ticket(8), ticket(9)], reading: { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 3 * 3600 * 1000 } })
+  await stale.run()
+  same("drive: a reading over 1 hour old runs no probe and starts 1 worker, which gives the next reading", [only(stale.calls, "probe").length, stale.launched.length], [0, 1])
+  const snapshot = scenario({ tickets: [ticket(7)], reading: null })
+  snapshot.env.snapshot = () => ({ utilization: 0.95, resetsAt: RESETS_AT, at: NOW - MINUTE, email: AUTH.email })
+  await snapshot.run()
+  same("drive: a snapshot of the logged-in account at 0.95 stops the driver without a probe", [only(snapshot.calls, "probe").length, snapshot.launched.length, only(snapshot.calls, "createTicket").length], [0, 0, 1])
+
   writeFileSync(SNAPSHOT, JSON.stringify({ at: iso(0), email: "someone@example.test", rateLimits: { seven_day: { used_percentage: 54, resets_at: RESETS_AT } } }))
   same("drive: the snapshot reads a percent as a fraction and keeps the email for the account comparison", readSnapshot(SNAPSHOT), { utilization: 0.54, resetsAt: RESETS_AT, at: NOW, email: "someone@example.test" })
   same("drive: an unreadable snapshot gives no reading", readSnapshot(join(root, "no-such-snapshot.json")), null)
+}
+
+const allowCommandCases = async () => {
+  const run = async (scene) => {
+    const out = []
+    const err = []
+    const code = await allowOverLimit(scene.env, { out: (line) => out.push(line), err: (line) => err.push(line) })
+    return { code, out, err, saved: existsSync(join(scene.env.stateDir, "over-limit.json")) ? JSON.parse(readFileSync(join(scene.env.stateDir, "over-limit.json"), "utf8")) : null }
+  }
+  const fromSnapshot = scenario({ reading: null })
+  fromSnapshot.env.snapshot = () => ({ utilization: 0.93, resetsAt: RESETS_AT, at: NOW - MINUTE, email: AUTH.email })
+  const written = await run(fromSnapshot)
+  same("drive: --allow-over-limit writes the current resetsAt beside the pid files and runs no probe", [written.code, written.saved?.resetsAt, written.saved?.account, only(fromSnapshot.calls, "probe").length, written.out.length], [0, RESETS_AT, ACCOUNT.key, 0, 1])
+  const probed = await run(scenario({ reading: null }))
+  same("drive: --allow-over-limit with no reading takes one probe", [probed.code, probed.saved?.resetsAt], [0, RESETS_AT])
+  const none = await run(scenario({ reading: null, probeReading: null }))
+  same("drive: --allow-over-limit with no reading anywhere writes no file and exits 3", [none.code, none.saved, none.err.length], [3, null, 1])
+  const signedOut = await run(scenario({ reading: null, auth: { ...AUTH, loggedIn: false } }))
+  same("drive: --allow-over-limit while Claude is signed out writes no file and exits 3", [signedOut.code, signedOut.saved], [3, null])
+  same("drive: --allow-over-limit is a mode, and the usage names the rule and no gap", [parseArguments(["--allow-over-limit"]).mode, /never idles/.test(await usageText()), /gap|one worker at a time/.test(await usageText())], ["allow-over-limit", true, false])
+}
+
+const usageText = async () => {
+  const lines = []
+  await main(["--help"], { out: (line) => lines.push(line) })
+  return lines.join("\n")
+}
+
+const paceCases = async () => {
+  await slotCases()
+  await stopCases()
+  await probeCases()
+  await allowCommandCases()
 }
 
 const usageLimitCases = async () => {
@@ -328,6 +404,9 @@ const usageLimitCases = async () => {
   const pullfrogStop = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [run], routes: [["--log-failed", logLine]] })
   await pullfrogStop.run()
   same("drive: a Pullfrog run that stops at a usage limit pauses the driver", [only(pullfrogStop.calls, "createTicket").length, only(pullfrogStop.calls, "notify").length], [1, 1])
+  const pullfrogStopWithOrder = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [run], routes: [["--log-failed", logLine]] })
+  await pullfrogStopWithOrder.run()
+  same("drive: the tick that finds a Pullfrog usage limit starts no worker and adds no launch comment", [only(pullfrogStopWithOrder.calls, "createTicket").length, pullfrogStopWithOrder.launched.length], [1, 0])
   same("drive: the result text is the last result line of a log", resultText(`{"type":"assistant"}\n${JSON.stringify({ type: "result", result: "area\nfinding" })}\n`), "area\nfinding")
 }
 
@@ -615,11 +694,16 @@ const accountCases = async () => {
 
   const changed = scenario({ tickets: [ticket(7)], auth: other })
   changed.mem.account = ACCOUNT
-  changed.mem.history = { readings: [{ at: NOW - 3600 * 1000, utilization: 0.5, resetsAt: RESETS_AT }], launches: [NOW - 3600 * 1000] }
+  changed.mem.reading = { account: ACCOUNT.key, at: NOW - 3600 * 1000, utilization: 0.5, resetsAt: RESETS_AT }
   changed.env.snapshot = () => ({ utilization: 0.1, resetsAt: RESETS_AT, at: NOW - MINUTE, email: AUTH.email })
   await changed.run()
-  same("drive: a change of organization drops the old pace history", changed.mem.history.readings.every((entry) => entry.at >= NOW - MINUTE) && changed.mem.history.launches.length === 1, true)
+  same("drive: a change of organization drops the old reading and keeps the reading of the new account", [changed.mem.reading.account, changed.mem.reading.utilization], [accountFrom(other).key, 0.1])
   same("drive: a change of organization drops the old readings and probes before the next build order", [only(changed.calls, "probe").length, changed.launched.length, changed.messages.filter((line) => line.includes("account changed")).length], [1, 1, 1])
+  const owedStop = scenario({ tickets: [ticket(7), ticket(8)], reading: null, probeReading: null, limit: { utilization: 0.95 } })
+  owedStop.mem.account = { ...ACCOUNT, key: "0000000000000000", email: "previous@example.com" }
+  await owedStop.run()
+  await owedStop.run()
+  same("drive: a probe that is owed and returns no reading does not hide a worker reading at 0.95 from the 90% stop", [owedStop.launched.length, only(owedStop.calls, "createTicket").length, owedStop.messages.some((line) => /pace stopped/.test(line))], [1, 1, true])
   same("drive: the change line names the organization and the plan and never the email", [changed.messages.some((line) => line.includes("orgId 00000000-0000-4000-8000-000000000002, max")), JSON.stringify([changed.messages, changed.calls]).includes(AUTH.email)], [true, false])
 
   const sameAccount = scenario({ tickets: [ticket(7)] })
@@ -741,7 +825,7 @@ const blockingClassCases = async () => {
     await scene.run()
     same(`drive: a ticket with no launch comment whose merged pull request says Remaining: none closes ${label}`, only(scene.calls, "closeTicket"), [["closeTicket", 8]])
   }
-  const cached = scenario({ tickets: [ticket(7), ticket(9)] })
+  const cached = scenario({ tickets: [ticket(7), ticket(9)], reading: { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - MINUTE }, limit: { utilization: 0.6 } })
   await cached.run()
   await cached.run()
   same("drive: a later tick reuses the merged pull request read of a ticket that waits", cached.calls.filter((entry) => entry[0] === "gh" && entry[1].includes('orbit-tickets#9"')).length, 1)
@@ -895,14 +979,14 @@ const runningWorkCases = async () => {
 const paceStampCases = async () => {
   let clock = NOW
   const exitAt = (utilization) => ({ ...clean, utilization, resetsAt: RESETS_AT, status: "allowed" })
-  const run = scenario({ tickets: [ticket(7), ticket(8)], reading: { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE } })
+  const run = scenario({ tickets: [ticket(7), ticket(8)], reading: { utilization: 0.5, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE } })
   run.env.now = () => clock
   run.env.worker.launch = (options) => { run.launched.push(options); return Promise.resolve(exitAt(0.4)) }
   run.env.snapshot = () => (clock >= NOW + 30 * MINUTE ? { utilization: 0.6, resetsAt: RESETS_AT, at: NOW + 30 * MINUTE, email: AUTH.email } : null)
   await run.run()
   clock = NOW + 40 * MINUTE
   await run.run()
-  same("drive: a worker reading is stamped with its launch, so a snapshot taken during the run is newer and holds the pace", run.launched.length, 1)
+  same("drive: a worker reading is stamped with its launch, so a snapshot taken during the run is newer and sets the pace", run.messages.filter((line) => line.includes(" pace ")).map((line) => /utilization (\S+),/.exec(line)[1]), ["0.500", "0.600"])
 
   const probed = scenario({ tickets: [ticket(7)], reading: null })
   let probeClock = NOW
@@ -1216,8 +1300,7 @@ const orphanClockCases = async () => {
   const started = scenario({ tickets: [ticket(7)] })
   leftBehind(started)
   live(started, 90)
-  started.mem.runningStem = "chore-ticket-7"
-  started.mem.running = new Promise(() => {})
+  started.mem.running.set("chore-ticket-7", new Promise(() => {}))
   await tick(started.env, started.mem)
   same("drive: a worker that this process started keeps its own timers and is never killed by the tick", signals(started), [])
 
@@ -1248,25 +1331,14 @@ const paceRestartCases = async () => {
   await restarted.run()
   same("drive: a restart inside the hour keeps the saved reading, so it probes no second time and starts the worker", [only(probeOnce.calls, "probe").length, only(restarted.calls, "probe").length, restarted.launched.length], [1, 0, 1])
 
-  const overLine = { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE }
-  const gapFirst = scenario({ tickets: [ticket(7)], reading: overLine })
-  await gapFirst.run()
-  const gapRestarted = scenario({ tickets: [ticket(7)], reading: overLine, stateDirectory: gapFirst.env.stateDir })
-  await gapRestarted.run()
-  same("drive: a restart keeps the last build launch, so the gap still holds the next build order", [gapFirst.launched.length, gapRestarted.mem.history.launches, gapRestarted.launched.length], [1, [NOW], 0])
-
-  const reapedFirst = scenario({ tickets: [ticket(7)], reading: overLine })
-  await reapedFirst.run()
-  const leftoverEvent = `${JSON.stringify({ type: "rate_limit_event", rate_limit_info: { status: "allowed", unifiedWindows: { seven_day: { utilization: 0.9, resetsAt: RESETS_AT } } } })}\n`
-  leftBehind(reapedFirst, {}, leftoverEvent)
-  const reapedRestarted = scenario({ tickets: [ticket(7)], reading: null, stateDirectory: reapedFirst.env.stateDir })
-  reapedRestarted.env.now = () => NOW + 10 * MINUTE
-  await reapedRestarted.run()
-  same("drive: a restart that reaps a worker with a reading before it knows the account still keeps the last build launch, so the gap holds the next build order", [reapedFirst.launched.length, reapedRestarted.launched.length], [1, 0])
+  const stoppedFirst = scenario({ tickets: [ticket(7)], reading: null, probeReading: { utilization: 0.93, resetsAt: RESETS_AT, status: "allowed" } })
+  await stoppedFirst.run()
+  const stoppedRestarted = scenario({ tickets: [ticket(7)], reading: null, stateDirectory: stoppedFirst.env.stateDir })
+  await stoppedRestarted.run()
+  same("drive: a restart keeps the saved reading at 0.93, so the stop holds with no probe and no worker", [stoppedFirst.launched.length, only(stoppedRestarted.calls, "probe").length, stoppedRestarted.launched.length, stoppedRestarted.mem.reading.utilization], [0, 0, 0, 0.93])
 
   const OTHER_AUTH = { ...AUTH, orgId: "00000000-0000-4000-8000-000000000002" }
   const OTHER_KEY = accountFrom(OTHER_AUTH).key
-  const ownReading = (scene) => scene.mem.history.readings.map((entry) => entry.utilization)
   const foreignEvent = `${JSON.stringify({ type: "rate_limit_event", rate_limit_info: { status: "allowed", unifiedWindows: { seven_day: { utilization: 0.05, resetsAt: RESETS_AT } } } })}\n`
   const savedPace = (scene) => JSON.parse(readFileSync(join(scene.env.stateDir, "pace.json"), "utf8"))
 
@@ -1274,20 +1346,20 @@ const paceRestartCases = async () => {
   switchedMidRun.mem.account = { key: OTHER_KEY, email: AUTH.email, orgId: OTHER_AUTH.orgId }
   leftBehind(switchedMidRun, {}, foreignEvent)
   await switchedMidRun.run()
-  same("drive: a worker of the old account that exits after a login switch adds no reading, no mem reading and no saved reading to the new account", [ownReading(switchedMidRun).includes(0.05), switchedMidRun.mem.reading?.utilization === 0.05, savedPace(switchedMidRun).history.readings.some((entry) => entry.utilization === 0.05), savedPace(switchedMidRun).account], [false, false, false, OTHER_KEY])
+  same("drive: a worker of the old account that exits after a login switch adds no mem reading and no saved reading to the new account", [switchedMidRun.mem.reading?.utilization === 0.05, savedPace(switchedMidRun).reading?.utilization === 0.05, savedPace(switchedMidRun).account], [false, false, OTHER_KEY])
 
-  const costFirst = scenario({ tickets: [ticket(7)], reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  const costFirst = scenario({ tickets: [ticket(7)], reading: null, probeReading: { utilization: 0.4, resetsAt: RESETS_AT, status: "allowed" } })
   await costFirst.run()
   const restartAfterSwitch = scenario({ tickets: [ticket(7)], reading: null, auth: OTHER_AUTH, stateDirectory: costFirst.env.stateDir })
   leftBehind(restartAfterSwitch, {}, foreignEvent)
   await restartAfterSwitch.run()
-  same("drive: a restart after a login switch reads the account first, so a leftover worker of the old account adds no reading and no launch stamp to the new account", [ownReading(restartAfterSwitch).includes(0.05), ownReading(restartAfterSwitch).includes(0.9), restartAfterSwitch.mem.history.launches.length, savedPace(restartAfterSwitch).account, savedPace(restartAfterSwitch).history.readings.some((entry) => entry.utilization === 0.05 || entry.utilization === 0.9)], [false, false, 1, OTHER_KEY, false])
+  same("drive: a restart after a login switch reads the account first, so a leftover worker of the old account and the saved reading of the old account add no reading to the new account", [restartAfterSwitch.mem.reading.utilization, savedPace(restartAfterSwitch).reading.utilization, savedPace(restartAfterSwitch).account, only(restartAfterSwitch.calls, "probe").length], [0.1, 0.1, OTHER_KEY, 1])
 
   const unreadable = scenario({ tickets: [ticket(7)], reading: null })
   unreadable.env.authStatus = async () => { throw new Error("no claude") }
   const unreadablePath = leftBehind(unreadable, {}, foreignEvent)
   await unreadable.run()
-  same("drive: a start that cannot read the account reaps nothing, so no reading is recorded before the account is known", [existsSync(unreadablePath), ownReading(unreadable), unreadable.mem.reading, existsSync(join(unreadable.env.stateDir, "pace.json"))], [true, [], null, false])
+  same("drive: a start that cannot read the account reaps nothing, so no reading is recorded before the account is known", [existsSync(unreadablePath), unreadable.mem.reading, existsSync(join(unreadable.env.stateDir, "pace.json"))], [true, null, false])
 
   const pausedTicket = ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null })
   const rejected = { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" }
@@ -1306,12 +1378,72 @@ const paceRestartCases = async () => {
   const stale = scenario({ tickets: [ticket(7)], reading: null, stateDirectory: probeOnce.env.stateDir })
   stale.env.now = () => NOW + 2 * 3600 * 1000
   await stale.run()
-  same("drive: a saved reading older than an hour is probed again", only(stale.calls, "probe").length, 1)
+  same("drive: a saved reading older than an hour is not probed again, and its worker gives the next reading", [only(stale.calls, "probe").length, stale.launched.length], [0, 1])
+}
+
+const sleepCases = async () => {
+  const ISSUE_URL = (number) => `https://github.com/${REPOSITORY}/issues/${number}`
+  const heldItems = (scene) => (existsSync(join(scene.env.stateDir, "sleep-items.json")) ? JSON.parse(readFileSync(join(scene.env.stateDir, "sleep-items.json"), "utf8")) : [])
+  const slept = (comments) => comments.length
+  const tickets = [ticket(7), ticket(8, { comments: [launchComment("build", "chore/ticket-8", -7200 * 1000), launchComment("build", "chore/ticket-8", -3600 * 1000)] }), ticket(9)]
+  const scene = scenario({ tickets, sleeping: true, gitRoutes: [["ls-remote", `${HEAD}\trefs/heads/chore/ticket-7\n`]] })
+  keepWrites(scene, tickets)
+  leftBehind(scene, {}, resultLine("Done.\nNEEDS_DECISION: Raise the price?"))
+  await scene.run()
+  same("drive: sleep on: a NEEDS_DECISION and a launch cap get a label and one comment each, and no notification", [only(scene.calls, "notify").length, only(scene.calls, "editLabels").map((entry) => entry.slice(1, 3).join(":")).sort(), slept(needsOwnerComments(scene.calls, 7)), slept(needsOwnerComments(scene.calls, 8))], [0, ["tickets:7", "tickets:8"], 1, 1])
+  same("drive: sleep on: the driver keeps working on every other item", scene.launched.map((entry) => entry.worktree.split("/").at(-1)), ["chore-ticket-9"])
+  same("drive: sleep on: each held item keeps its link for the wake notification", heldItems(scene).map((item) => item.link).sort(), [ISSUE_URL(7), ISSUE_URL(8)])
+  const repeated = [ticket(8, { comments: [launchComment("build", "chore/ticket-8", -7200 * 1000), launchComment("build", "chore/ticket-8", -3600 * 1000)] })]
+  const again = scenario({ tickets: repeated, sleeping: true })
+  keepWrites(again, repeated)
+  await again.run()
+  await again.run()
+  same("drive: sleep on: a later tick holds no second item, posts no second comment and sends no notification", [heldItems(again).length, slept(needsOwnerComments(again.calls, 8)), only(again.calls, "notify").length], [1, 1, 0])
+
+  const lines = []
+  same("drive: --sleep off prints the state it reads back and the count of held items", [setSleep(scene.env, "off", { out: (line) => lines.push(line) }), readSleep(scene.env.stateDir).on, lines], [0, false, ["Sleep is off. The driver sends one notification for 2 held items on its next tick."]])
+  await scene.run()
+  const woken = only(scene.calls, "notify")
+  same("drive: sleep off: one notification lists every item held during the sleep, each with its link", [woken.length, woken[0]?.[1].startsWith("Orbit driver: sleep ended. 2 items need you: "), woken[0]?.[1].includes(ISSUE_URL(7)), woken[0]?.[1].includes(ISSUE_URL(8)), woken[0]?.[1].includes("NEEDS_DECISION: Raise the price?")], [1, true, true, true, true])
+  await scene.run()
+  same("drive: sleep off: the list is empty after the notification, so the next tick sends no second wake notification", [only(scene.calls, "notify").filter((entry) => entry[1].includes("sleep ended")).length, heldItems(scene)], [1, []])
+
+  const stopped = scenario({ tickets: [ticket(7)], sleeping: true, reading: { utilization: 0.92, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await stopped.run()
+  same("drive: sleep on: the 90% stop opens its needs:owner issue, holds its link and sends no notification", [only(stopped.calls, "createTicket").map((entry) => entry[1].labels), only(stopped.calls, "notify").length, heldItems(stopped).map((item) => item.link), stopped.launched.length], [[[OWNER_LABEL]], 0, [ISSUE_URL(99)], 0])
+
+  const signedOut = scenario({ tickets: [ticket(7)], sleeping: true, auth: { ...AUTH, loggedIn: false } })
+  await signedOut.run()
+  same("drive: sleep on: a signed-out login opens its issue and sends no notification", [only(signedOut.calls, "createTicket").length, only(signedOut.calls, "notify").length, heldItems(signedOut).length], [1, 0, 1])
+
+  const ownerWork = scenario({ tickets: [ticket(40, { labels: ["repo:ui", "owner-work"] })], sleeping: true })
+  await ownerWork.run()
+  same("drive: sleep on: an owner-work notice is posted and its notification is held", [commentsOf(ownerWork.calls, 40).length, only(ownerWork.calls, "notify").length, heldItems(ownerWork).map((item) => item.link)], [1, 0, [ISSUE_URL(40)]])
+
+  const awake = scenario({ tickets: [ticket(7)] })
+  await awake.run()
+  same("drive: sleep off with nothing held sends no notification and keeps no list", [only(awake.calls, "notify").length, heldItems(awake)], [0, []])
+
+  const dry = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", OWNER_LABEL] })], sleeping: true, dryRun: true })
+  await dry.run()
+  same("drive: the dry run with sleep on writes no list and prints the sleep state", [heldItems(dry), dry.messages.filter((line) => line.includes(" sleep on ")).length], [[], 1])
+
+  const cli = scenario({})
+  const outputs = []
+  const out = (line) => outputs.push(line)
+  const on = setSleep(cli.env, "on", { out })
+  const since = readSleep(cli.env.stateDir).since
+  cli.env.now = () => NOW + 5 * MINUTE
+  setSleep(cli.env, "on", { out })
+  same("drive: --sleep on writes sleep.json, prints the state, and a second on keeps the first start", [on, readSleep(cli.env.stateDir), since, outputs.length, /^Sleep is on since /.test(outputs[0])], [0, { on: true, since }, iso(0), 2, true])
+  same("drive: --sleep takes on or off and nothing else", [parseArguments(["--sleep", "on"]), parseArguments(["--sleep", "off"]).word, parseArguments(["--sleep"]).error !== undefined, parseArguments(["--sleep", "maybe"]).error !== undefined, parseArguments(["--sleep", "on", "--once"]).error !== undefined], [{ help: false, mode: "sleep", word: "on" }, "off", true, true, true])
+  same("drive: the usage states the sleep flag", /--sleep on\|off/.test(await usageText()), true)
 }
 
 export const driverUnit = async () => {
   await admissionCases()
   await paceCases()
+  await sleepCases()
   await usageLimitCases()
   await workerCases()
   await capCases()
