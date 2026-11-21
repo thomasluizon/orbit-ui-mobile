@@ -153,7 +153,7 @@ export const orderCost = ({ history, newest, now }) => {
 
 /**
  * The pace decision: `admit`, `slow` or `probe`, never a stop. Over `line` (share of the week gone times 0.95) the gap is
- * cost x hours / left, at most 6 hours. With no usable reading the gap is 6 hours. A probe is due at most once an hour.
+ * cost x hours / left, at most 6 hours. With no usable reading the gap is 6 hours. A stale reading gets one probe, at most once an hour, and only once its gap has passed.
  */
 export const paceDecision = ({ reading, now, lastProbeAt = null, history = { readings: [], launches: [] } }) => {
   const end = reading === null ? null : reading.resetsAt * 1000
@@ -175,7 +175,7 @@ export const paceDecision = ({ reading, now, lastProbeAt = null, history = { rea
   const cost = orderCost({ history, newest: reading, now })
   const gapMs = reading.utilization <= line ? 0 : left <= 0 ? PACE_MAX_GAP_MS : Math.min(PACE_MAX_GAP_MS, Math.max(0, (cost * hours * HOUR_MS) / left))
   const decided = gapFrom({ utilization: reading.utilization, line, left, hours, cost }, gapMs)
-  if (now - reading.at > HOUR_MS && probeDue) return { action: "probe", ...decided }
+  if (now - reading.at > HOUR_MS && probeDue && decided.nextAt <= now) return { action: "probe", ...decided }
   return { action: decided.nextAt > now ? "slow" : "admit", ...decided }
 }
 

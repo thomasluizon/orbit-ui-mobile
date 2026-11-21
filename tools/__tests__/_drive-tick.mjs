@@ -225,6 +225,8 @@ const paceCases = async () => {
   const staleOver = { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - 2 * 3600 * 1000 }
   const afterProbe = (extra) => paceDecision({ now: NOW, lastProbeAt: NOW - 10 * MINUTE, ...extra })
   same("drive: a stale reading probes at most once an hour, and after a probe its own gap applies", [afterProbe({ reading: { ...staleOver, utilization: 0.3 } }).action, afterProbe({ reading: staleOver }).action, afterProbe({ reading: staleOver, history: justLaunched }).action, Math.round(afterProbe({ reading: staleOver, history: justLaunched }).gapMs / MINUTE)], ["admit", "admit", "slow", 144])
+  const staleInGap = (extra) => paceDecision({ reading: staleOver, now: NOW, history: justLaunched, ...extra })
+  same("drive: a stale reading asks for no probe while the gap lasts, and asks for one once it has passed", [staleInGap().action, staleInGap({ now: NOW + 331 * MINUTE }).action], ["slow", "probe"])
   same("drive: a stale reading probes again after an hour", paceDecision({ reading: staleOver, now: NOW, lastProbeAt: NOW - 61 * MINUTE }).action, "probe")
   const noReadingAfterProbe = afterProbe({ reading: null, history: { readings: [], launches: [NOW - 5 * 3600 * 1000] } })
   same("drive: a probe that gave no reading and no reading ever use a gap of 6 hours and never hold", [noReadingAfterProbe.action, noReadingAfterProbe.gapMs / (3600 * 1000), afterProbe({ reading: null }).action, afterProbe({ reading: null, history: { readings: [], launches: [NOW - 6 * 3600 * 1000] } }).action], ["slow", 6, "admit", "admit"])
@@ -263,12 +265,10 @@ const paceCases = async () => {
   same("drive: a probe with no reading keeps the gap of the newest reading, sends one notification and starts the order once the gap has passed", [only(staleSilent.calls, "probe").length, only(staleSilent.calls, "notify").length, staleSilent.launched.length], [1, 1, 1])
   const staleSilentSlow = scenario({ tickets: [ticket(7)], reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - 3 * 3600 * 1000 }, probeReading: null, history: justLaunched })
   await staleSilentSlow.run()
-  same("drive: a probe with no reading during the gap of the newest reading starts no order and holds nothing", [only(staleSilentSlow.calls, "probe").length, only(staleSilentSlow.calls, "notify").length, staleSilentSlow.launched.length, staleSilentSlow.messages.some((line) => line.includes(" pace hold"))], [1, 1, 0, false])
+  same("drive: a stale reading inside a gap runs no probe, sends no notification and starts no order", [only(staleSilentSlow.calls, "probe").length, only(staleSilentSlow.calls, "notify").length, staleSilentSlow.launched.length, staleSilentSlow.messages.some((line) => line.includes(" pace hold"))], [0, 0, 0, false])
+  staleSilentSlow.env.now = () => NOW + 331 * MINUTE
   await staleSilentSlow.run()
-  same("drive: the next tick inside the hour does not probe or notify again", [only(staleSilentSlow.calls, "probe").length, only(staleSilentSlow.calls, "notify").length], [1, 1])
-  staleSilentSlow.env.now = () => NOW + 61 * MINUTE
-  await staleSilentSlow.run()
-  same("drive: an hour after a failed probe the driver probes again and notifies once more", [only(staleSilentSlow.calls, "probe").length, only(staleSilentSlow.calls, "notify").length], [2, 2])
+  same("drive: once the gap has passed one probe with no reading sends one notification and the order starts", [only(staleSilentSlow.calls, "probe").length, only(staleSilentSlow.calls, "notify").length, staleSilentSlow.launched.length], [1, 1, 1])
   const snapshotScene = scenario({ tickets: [ticket(7)], reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - 3 * 3600 * 1000 } })
   snapshotScene.env.snapshot = () => ({ utilization: 0.2, resetsAt: RESETS_AT, at: NOW - MINUTE, email: AUTH.email })
   await snapshotScene.run()
