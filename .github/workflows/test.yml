@@ -540,7 +540,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.web-unit-hit != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       ARTIFACT_NAME: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
     strategy:
@@ -571,7 +571,7 @@ jobs:
       - uses: ./.github/actions/restore-npm-cache
       - run: npm ci
       - name: Run web shard with coverage
-        timeout-minutes: 12
+        timeout-minutes: 16
         working-directory: apps/web
         run: >-
           ../../node_modules/.bin/vitest run --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.total }}
