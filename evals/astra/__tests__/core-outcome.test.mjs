@@ -887,8 +887,8 @@ describe('an offer of the assistant in the preview', () => {
     expect(merged.status).toBe('pass')
   })
 
-  // The evidence of an attempt keeps the held previews so that an extended grader regrades them offline with gradePreview
-  // (astra-eval SKILL.md). The evidence keeps no tool arguments of the trace for that, so it keeps the fields that the held writes name.
+  // The evidence of an attempt keeps the held previews so that an extended grader regrades them offline with gradePreview.
+  // The evidence keeps no tool arguments of the trace for that, so it keeps the fields that the held writes name.
   it.each([
     ['the reminder flag that an offer derives', offeredReminder, (item) => repeatReminder(item),
       { pass: true, reason: 'The held previews hold exactly the requested changes.' }],
