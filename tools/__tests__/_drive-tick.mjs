@@ -15,6 +15,9 @@ const RECORDED_CHANGES_REQUESTED = FIXTURE.changesRequestedReview.node
 const CHANGES_REQUESTED = RECORDED_CHANGES_REQUESTED.state
 const AUTH = READS.claudeAuthStatus.output
 const ACCOUNT = accountFrom(AUTH)
+const WORKER_AUTH = { ...AUTH, email: "worker.account@example.test", orgId: "00000000-0000-4000-8000-000000000003" }
+const WORKER_ACCOUNT = accountFrom(WORKER_AUTH)
+const WORKER_DIRECTORY = "/home/x/.claude-orbit-workers"
 const NOW = Date.parse("2026-11-19T12:00:00Z")
 const RESETS_AT = Math.floor((NOW + 3.5 * 24 * 3600 * 1000) / 1000)
 const REPOSITORY = "thomasluizon/orbit-tickets"
@@ -48,7 +51,7 @@ const partComment = (number, total, extra = "") => comment(null, `Part ${number}
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], driver = null } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined } = {}) => {
   const calls = []
   const messages = []
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
@@ -78,21 +81,28 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       worktreeOccupants: (worktree) => (calls.push(["occupants", worktree]), occupants),
       progressWatch: (options) => progressWatch({ ...options, fingerprint: async () => watched.fingerprint, logSize: () => watched.logBytes }),
       killWorkerTree: (pid, signal) => { calls.push(["kill", pid, signal]) },
-      probe: async () => (calls.push(["probe"]), probeReading === undefined ? { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } : probeReading),
+      probe: async ({ invocation } = {}) => {
+        const onWorker = invocation?.environment?.CLAUDE_CONFIG_DIR === WORKER_DIRECTORY
+        calls.push(["probe", onWorker ? "worker" : "main"])
+        const chosen = onWorker ? workerProbeReading : probeReading
+        return chosen === undefined ? { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } : chosen
+      },
     },
-    invocation: async () => ({ command: { executable: "claude", args: [] }, environment: {} }),
+    invocation: async (token, name = "main") => ({ command: { executable: "claude", args: [] }, environment: name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {} }),
     git: async (cwd, args) => { calls.push(["git", ...args]); const hit = gitRoutes.find(([text]) => args.join(" ").includes(text)); return hit ? { status: 0, stderr: "", stdout: typeof hit[1] === "function" ? hit[1](args) : hit[1] } : { status: args[0] === "rev-parse" && args.includes("--quiet") ? 1 : 0, stderr: "", stdout: args[0] === "rev-parse" ? HEAD : "" } },
     gh: async (args) => { calls.push(["gh", args.join(" ")]); const hit = routes.find(([text]) => args.join(" ").includes(text)); if (hit) return typeof hit[1] === "function" ? hit[1](args) : hit[1]; if (args[0] === "pr" && args[1] === "list") return "[]"; if (args[0] === "issue") return "[]"; if (args[0] === "api") return "[]"; return "" },
     notify: async (message) => { calls.push(["notify", message]) },
     keychain: async () => null,
     fetchJson: async () => ({ body: [], link: null }),
     snapshot: () => null,
-    authStatus: async () => structuredClone(auth),
+    // With no `workerAuth` the second login is the main login, which the driver counts once.
+    authStatus: async (name = "main") => structuredClone(name === "worker" ? workerAuth ?? auth : auth),
     processAlive: (pid) => { try { process.kill(pid, 0); return true } catch { return false } },
   }
   if (driver !== null) Object.assign(env, { driverWorktree: "/r/driver", selfUpdate: driver.update ?? false, smoke: async () => driver.smoke ?? true })
   const mem = createMemory()
   mem.reading = reading === null ? null : { account: ACCOUNT.key, ...reading }
+  if (workerReading !== null) mem.worker.reading = { account: WORKER_ACCOUNT.key, ...workerReading }
   if (allowance !== null) writeFileSync(join(stateDir, "over-limit.json"), `${JSON.stringify(allowance)}\n`)
   if (sleeping) writeFileSync(join(stateDir, "sleep.json"), `${JSON.stringify({ on: true, since: iso(-60 * MINUTE) })}\n`)
   mem.lastIntakeAt = NOW
@@ -243,7 +253,7 @@ const slotCases = async () => {
   same("drive: 0.10 under the line gives 2 workers and 0.20 under it gives 3, never more", [(await launches(0.35, 4)).launched.length, (await launches(0.25, 4)).launched.length, (await launches(0, 5)).launched.length], [2, 3, 3])
   const logged = await launches(0.35, 1)
   same("drive: a worker that exits during a tick makes the loop start the next tick at once", logged.mem.woken, true)
-  same("drive: a tick logs one pace line with the utilization, the line, the slots, the running workers, the free slots and the stop state", logged.messages.filter((line) => line.includes(" pace ")), [`${iso(0)} pace below (utilization 0.350, line 0.450, slots 2, running 0, free 2, stop no)`])
+  same("drive: a tick logs one pace line with the utilization, the line, the slots, the running workers, the free slots and the stop state", logged.messages.filter((line) => line.includes(" pace ")), [`${iso(0)} pace below (main ${ACCOUNT.key}: utilization 0.350, line 0.450, slots 2, running 0, free 2, stop no; worker none)`])
 
   const fills = runningScene({ tickets: [ticket(7), ticket(8), ticket(9)], reading: { utilization: 0.25, resetsAt: RESETS_AT, at: NOW - MINUTE } })
   await tick(fills.env, fills.mem)
@@ -285,7 +295,7 @@ const stopCases = async () => {
   keepWrites(stopped, [])
   await stopped.run()
   const stopIssue = only(stopped.calls, "createTicket")[0]?.[1]
-  const message = `Weekly usage reached 90% (0.900, resets ${new Date(RESETS_AT * 1000).toISOString()}). The driver stopped. Tell the owner session to continue over 90%.`
+  const message = `Weekly usage of the main account reached 90% (0.900, resets ${new Date(RESETS_AT * 1000).toISOString()}). The main account starts no worker and Pullfrog posts no request. Tell the owner session to continue over 90%.`
   same("drive: at 0.90 no worker of any kind starts, no Pullfrog request is posted and no probe runs", [stopped.launched.length, commentsOf(stopped.calls, 30).length, only(stopped.calls, "probe").length], [0, 0, 0])
   same("drive: at 0.90 a pull request that meets the bar still merges", only(stopped.calls, "merge").map((entry) => entry.slice(1, 3)), [["ui", 40]])
   same("drive: at 0.90 the driver sends one notification and opens one needs:owner issue with the stop text", [only(stopped.calls, "notify").map((entry) => entry[1]), stopIssue?.title, stopIssue?.labels, stopIssue?.body], [[message], STOP_ISSUE_TITLE, [OWNER_LABEL], message])
@@ -309,7 +319,7 @@ const stopCases = async () => {
 
   const dry = stopScene({ dryRun: true })
   await dry.run()
-  same("drive: the dry run prints the free slots and the stop state and writes nothing", [dry.messages.filter((line) => line.includes(" pace ")).map((line) => line.slice(line.indexOf("(") + 1)), dry.calls.filter((entry) => ["createTicket", "notify", "comment", "merge"].includes(entry[0])).length], [["utilization 0.900, line 0.450, slots 1, running 0, free 0, stop yes)"], 0])
+  same("drive: the dry run prints the free slots and the stop state and writes nothing", [dry.messages.filter((line) => line.includes(" pace ")).map((line) => line.slice(line.indexOf("(") + 1)), dry.calls.filter((entry) => ["createTicket", "notify", "comment", "merge"].includes(entry[0])).length], [[`main ${ACCOUNT.key}: utilization 0.900, line 0.450, slots 1, running 0, free 0, stop yes; worker none)`], 0])
 
   const midRun = runningScene({ tickets: [ticket(7), ticket(8)], reading: { utilization: 0.5, resetsAt: RESETS_AT, at: NOW - MINUTE } })
   midRun.logText = () => eventLine(0.5)
@@ -1786,6 +1796,90 @@ export const pinUnit = async () => {
   await rollbackCases()
 }
 
+
+/** The config directory of the environment that a launch got: the worker directory, or null for the main account. */
+const accountOfLaunch = (options) => options.invocation.environment.CLAUDE_CONFIG_DIR ?? null
+
+const twoAccountCases = async () => {
+  const below = { utilization: 0.35, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }
+  const stoppedReading = { utilization: 0.92, resetsAt: RESETS_AT, at: NOW - MINUTE }
+  const waitingPull = pull(30, { reviews: [], tracks: 8, headRef: "chore/ticket-8-30" })
+
+  const mainStopped = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [waitingPull] }, reading: stoppedReading, workerAuth: WORKER_AUTH, workerReading: { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await mainStopped.run()
+  same("drive: main at 0.92 and the worker account at 0.10 start one worker with CLAUDE_CONFIG_DIR set to the worker directory", mainStopped.launched.map(accountOfLaunch), [WORKER_DIRECTORY])
+  same("drive: main at 0.92 posts no Pullfrog request while the worker account works", commentsOf(mainStopped.calls, 30).length, 0)
+  T("drive: the weekly stop of the main account still opens its one stop issue", only(mainStopped.calls, "createTicket").some((entry) => entry[1].title === STOP_ISSUE_TITLE))
+
+  const both = scenario({ tickets: [ticket(7), ticket(8), ticket(9), ticket(10), ticket(11)], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  await both.run()
+  same("drive: both accounts below their lines give the sum of their slots, and the worker account fills first", both.launched.map(accountOfLaunch), [WORKER_DIRECTORY, WORKER_DIRECTORY, null, null])
+  const line = both.messages.find((entry) => entry.includes(" pace "))
+  same("drive: the pace line names both accounts by key with their slots and stop state", [line.includes(`main ${ACCOUNT.key}: utilization 0.350, line 0.450, slots 2, running 0, free 2, stop no`), line.includes(`worker ${WORKER_ACCOUNT.key}: utilization 0.350, line 0.450, slots 2, running 0, free 2, stop no`)], [true, true])
+  same("drive: no log line, issue or notification holds an email of either account", JSON.stringify([both.messages, both.calls]).match(/@example/g), null)
+
+  const running = scenario({ tickets: [ticket(7), ticket(8), ticket(9)], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  leftBehind(running, {}, "", "chore-ticket-6")
+  running.env.processAlive = () => true
+  writeFileSync(join(running.env.stateDir, "chore-ticket-6.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/r/orbit-worktrees/ui/chore-ticket-6", startedAt: iso(-MINUTE) })}\n`)
+  await running.run()
+  const runningLine = running.messages.find((entry) => entry.includes(" pace "))
+  same("drive: a running worker holds a slot of its own account only", [runningLine.includes(`main ${ACCOUNT.key}: utilization 0.350, line 0.450, slots 2, running 1, free 1`), runningLine.includes(`worker ${WORKER_ACCOUNT.key}: utilization 0.350, line 0.450, slots 2, running 0, free 2`), running.launched.length], [true, true, 2])
+
+  const limited = { exitCode: 1, result: { usageLimitReached: true, authenticationFailed: false, error: "You've hit your limit. Resets 4am (America/Sao_Paulo)", needsDecision: null } }
+  const capTickets = [ticket(7, { comments: [launchComment("build", "chore/ticket-7")] })]
+  const hit = scenario({ tickets: capTickets, reading: below, workerAuth: WORKER_AUTH, workerReading: below, workerProbeReading: { utilization: 0.35, resetsAt: RESETS_AT, status: "rejected" } })
+  keepWrites(hit, capTickets)
+  hit.env.worker.launch = (options) => { hit.launched.push(options); return Promise.resolve({ ...clean, ...(accountOfLaunch(options) === null ? {} : limited), utilization: 0.35, resetsAt: RESETS_AT }) }
+  await hit.run()
+  await hit.run()
+  same("drive: a worker that ends on a usage limit on the worker account starts again on the main account", hit.launched.map(accountOfLaunch), [WORKER_DIRECTORY, null])
+  same("drive: the worker account is stopped until its resetsAt, and the main account is not", [hit.mem.worker.stoppedUntil, hit.mem.stoppedUntil], [RESETS_AT * 1000, null])
+  same("drive: a usage limit with a second account opens no pause issue, and the refund keeps the launch off the cap", [only(hit.calls, "createTicket").length, launchesOf(capTickets[0]).length, only(hit.calls, "comment").filter((entry) => entry[3].startsWith(marked("needs-owner", ""))).length], [0, 2, 0])
+  T("drive: the stopped account shows in the pace line with its stop and its end", hit.messages.filter((entry) => entry.includes(" pace ")).at(-1).includes(`worker ${WORKER_ACCOUNT.key}:`) && hit.messages.filter((entry) => entry.includes(" pace ")).at(-1).includes(`stop yes (usage limit until ${new Date(RESETS_AT * 1000).toISOString()})`))
+  same("drive: a restart keeps the stop of the worker account", JSON.parse(readFileSync(join(hit.env.stateDir, "pace.json"), "utf8")).worker.stoppedUntil, RESETS_AT * 1000)
+
+  const refundTicket = ticket(7, { comments: [launchComment("build", "chore/ticket-7"), comment("launch-refund", JSON.stringify({ kind: "build", part: null, branch: "chore/ticket-7" })), launchComment("build", "chore/ticket-8")] })
+  same("drive: a refund takes back the newest launch of its branch and kind only", launchesOf(refundTicket).map((entry) => entry.branch), ["chore/ticket-8"])
+
+  const lone = scenario({ tickets: [ticket(7)], limit: limited })
+  await lone.run()
+  await lone.run()
+  same("drive: with one account a usage limit still pauses the driver and counts the launch", [only(lone.calls, "createTicket").length, lone.mem.stoppedUntil], [1, null])
+
+  const resetAt = scenario({ tickets: [ticket(7)], reading: stoppedReading, workerAuth: WORKER_AUTH, workerReading: { utilization: 0.97, resetsAt: Math.floor(NOW / 1000) - 60, at: NOW - 3 * 3600 * 1000 } })
+  resetAt.mem.worker.stoppedUntil = NOW - 1000
+  await resetAt.run()
+  same("drive: after the reset of the worker account the driver starts work on it by itself, and the old stop ends", [resetAt.launched.map(accountOfLaunch), resetAt.mem.worker.stoppedUntil], [[WORKER_DIRECTORY], null])
+
+  const probes = scenario({ tickets: [ticket(7)], reading: below, workerAuth: WORKER_AUTH, workerProbeReading: { utilization: 0.2, resetsAt: RESETS_AT, status: "allowed" } })
+  await probes.run()
+  same("drive: the worker account has its own probe, and its reading sets its own slots", [only(probes.calls, "probe"), probes.mem.worker.reading.utilization, probes.mem.worker.reading.account], [[["probe", "worker"]], 0.2, WORKER_ACCOUNT.key])
+
+  const marked_ = scenario({ tickets: [ticket(7)], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  marked_.mem.worker.stoppedUntil = RESETS_AT * 1000
+  await marked_.run()
+  same("drive: a probe that reads status allowed ends the usage-limit stop early, so a limit of the 5-hour window does not hold an account for days", [only(marked_.calls, "probe"), marked_.mem.worker.stoppedUntil], [[["probe", "worker"]], null])
+
+  const absent = scenario({ tickets: [ticket(7)], reading: below, workerAuth: { ...WORKER_AUTH, loggedIn: false } })
+  await absent.run()
+  same("drive: a signed-out worker account gives no slot, no probe and no issue", [absent.launched.map(accountOfLaunch), only(absent.calls, "probe").length, only(absent.calls, "createTicket").length], [[null], 0, 0])
+
+  const allowedWorker = scenario({ tickets: [ticket(7), ticket(8)], reading: stoppedReading, workerAuth: WORKER_AUTH, workerReading: { utilization: 0.93, resetsAt: RESETS_AT, at: NOW - MINUTE }, allowance: { worker: { resetsAt: RESETS_AT, account: WORKER_ACCOUNT.key } } })
+  await allowedWorker.run()
+  same("drive: the allowance of the worker account lets it run 1 worker over 90% while the main account stays stopped", [allowedWorker.launched.map(accountOfLaunch), allowedWorker.messages.find((entry) => entry.includes(" pace ")).includes(`worker ${WORKER_ACCOUNT.key}: utilization 0.930`)], [[WORKER_DIRECTORY], true])
+
+  const allow = scenario({ reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  allow.env.snapshot = () => null
+  const said = []
+  const code = await allowOverLimit(allow.env, { out: (text) => said.push(text), err: (text) => said.push(text) }, "worker")
+  const saved = JSON.parse(readFileSync(join(allow.env.stateDir, "over-limit.json"), "utf8"))
+  const codeMain = await allowOverLimit(allow.env, { out: (text) => said.push(text), err: (text) => said.push(text) })
+  const both_ = JSON.parse(readFileSync(join(allow.env.stateDir, "over-limit.json"), "utf8"))
+  same("drive: --allow-over-limit worker writes the week of the worker account, and the main flag keeps it", [code, saved.worker.account, saved.resetsAt, codeMain, both_.account, both_.worker.account], [0, WORKER_ACCOUNT.key, undefined, 0, ACCOUNT.key, WORKER_ACCOUNT.key])
+  same("drive: --allow-over-limit takes an optional account word", [parseArguments(["--allow-over-limit", "worker"]), parseArguments(["--allow-over-limit"]), parseArguments(["--allow-over-limit", "other"]).error !== undefined], [{ help: false, mode: "allow-over-limit", account: "worker" }, { help: false, mode: "allow-over-limit" }, true])
+}
+
 export const driverUnit = async () => {
   await admissionCases()
   await checkOnlyCases()
@@ -1822,4 +1916,5 @@ export const driverUnit = async () => {
   await orderOfApiCases()
   await orphanClockCases()
   await paceRestartCases()
+  await twoAccountCases()
 }
