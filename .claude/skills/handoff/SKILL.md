@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Carry a long-running effort into a fresh session. Updates the effort's spec file in this repo with everything durable the session established, then writes a short prompt that points at it. Use at the end of a session, when context is running out, or when the user says /handoff, hand this off, continue this in a new session. Pass --sleep to prepare NEXT.md for an unattended next session entered through /sleep. It writes a spec and a prompt, then ends the session without doing the work they describe.
+description: Carry a long-running effort into a fresh session. Updates the effort's spec file in this repo with everything durable the session established, then writes a short prompt that points at it. Use at the end of a session, when context is running out, or when the user says /handoff, hand this off, continue this in a new session. Pass --sleep to start NEXT.md with /sleep, which sets the sleep mode of the delivery driver. It writes a spec and a prompt, then ends the session without doing the work they describe.
 argument-hint: "[--sleep] [--relay] [extra instructions for the NEXT session]"
 effort: high
 ---
@@ -8,8 +8,8 @@ effort: high
 # /handoff
 
 **Input**: `$ARGUMENTS`. Empty means the next session continues what this session was doing.
-`--sleep` or `/sleep` anywhere in it means `NEXT.md` must be a complete prompt for an unattended
-next session whose entry point is `/sleep`. Nobody has to add anything before it runs. Anything else
+`--sleep` or `/sleep` anywhere in it means `NEXT.md` must be a complete prompt whose first line is
+`/sleep`, which sets the sleep mode of the delivery driver. Nobody has to add anything before it runs. Anything else
 is extra work for the NEXT session. You never do that work now.
 
 An owner `/handoff` runs `node tools/relay-session.mjs --owner-check` first, before it writes

@@ -494,7 +494,7 @@ the tickets UP FRONT. What a worker hits mid-run (a dependency that turns out to
 that was already broken, an API whose real response contradicts the ticket) surfaces later: as a
 `NEEDS_DECISION` question when it is a decision (step 7), or as a failed verdict when it is a defect.
 This gate removes the class of failure that was knowable before the first worktree, and nothing
-else, and it is not a promise of an uninterrupted night.
+else, and it is not a promise of an uninterrupted run.
 
 ## Step 2. Scope review, judged for every admitted ticket before any worker spawns
 
@@ -1279,7 +1279,7 @@ review, because it is the only required check there. A check that ran and failed
 `rollup.failing` and a running one in `rollup.pending`, so either drops delivery's `pass` to false
 and the signature never appears. Only a check ABSENT from the rollup entirely reads this way.
 
-**A merge admitted here does NOT end the night on its own. Record the merge sha.** The Stop hook
+**A merge admitted here does NOT settle the run on its own. Record the merge sha.** The Stop hook
 reads the receipt and never the pull request state: `require-wake-source.mjs:30-37` takes READY only
 from `readinessReport(receipt).verdict`, which stays `CI_STALE` forever because the check will never
 publish, and the ledger row is append only. Write the merge commit sha as the
@@ -1305,15 +1305,15 @@ the run end as BLOCKED, reported as blocked rather than as finished. A blocked e
 legitimate ending; a dishonest one is not. Both bars are the same bar: a fact this run writes down,
 never a verdict it asserts about its own work.
 
-**A night when Pullfrog cannot run ends on that receipt, and it is the expected result rather than
+**A run when Pullfrog cannot run ends on that receipt, and it is the expected result rather than
 a fault.** The recorder reads checks and reviews, never a claim in a comment, so it cannot verify a
 named substitute reviewer and does not pretend to. Teaching it to accept the claim would make the
 recorder trust evidence it cannot check, which is worse than a written exception a human reads, and
 it would undo the reason `reviewChecksFor` supplies the check at all (#429). So on such a
-night expect exactly one `CI_STALE`, confirm the rest of the rollup is green at the exact head,
+run expect exactly one `CI_STALE`, confirm the rest of the rollup is green at the exact head,
 confirm the comment names the substitution and its evidence, and record that reasoning in the run
-record. An operator who meets an unexplained blocked receipt at 03:00 has no way back to it. The
-receipt stays `CI_STALE` after the merge, so what ends the night is the ledger row, carrying either
+record. An operator who meets an unexplained blocked receipt later has no way back to it. The
+receipt stays `CI_STALE` after the merge, so what settles the run is the ledger row, carrying either
 the `merged` sha or the `blocker` string. Nothing else clears it.
 
 If a pull request closes without a merge, confirm that state and write `closed: true` and a
@@ -1383,7 +1383,7 @@ Print one summary and stop:
   longer says how a row left the queue: a pull request merged under the step 9 exception carries a
   receipt that can never read READY, and its ledger row is settled by the sha instead. The Stop hook
   prints a MERGED banner naming each sha, so this bullet and that banner must agree.
-- **The stack layout**, so the merge order is stated rather than worked out at 08:00.
+- **The stack layout**, so the merge order is stated rather than worked out later.
 - Every ticket skipped, with its reason: a deferral from step 1 or a genuine delivery blocker.
 - Every `CLOUD_TASK_EMPTY` failure by name, with ticket, task title, summary counts, named targets,
   classification, and retry task/outcome from the decision run notes of the ticket and durable receipts. Include failures
@@ -1397,7 +1397,7 @@ Print one summary and stop:
 
 Post each ticket outcome as a decision run note on its ticket (`--kind decision --issue <ref>`) as the
 queue runs, not at the end. A summary assembled only at the end does not survive a context reset in the
-middle of the night.
+middle of the run.
 
 ## Step 12. Teardown
 
