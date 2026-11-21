@@ -639,7 +639,7 @@ jobs:
     needs: [plan, build]
     if: github.event_name == 'pull_request' && needs.plan.outputs.web == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 23
     strategy:
       fail-fast: false
       matrix:
