@@ -540,6 +540,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.web-unit-hit != 'true'
     runs-on: ubuntu-latest
+    # The worst shard step took 697 s on main. The step limit is 960 s. The job limit adds 240 s for setup and reports.
     timeout-minutes: 20
     env:
       ARTIFACT_NAME: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
