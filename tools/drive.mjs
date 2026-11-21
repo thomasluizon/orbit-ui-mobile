@@ -458,7 +458,6 @@ const runProbe = async (env, mem, tickets) => {
 const findPullByBranch = (states, branch) => states.flatMap((state) => state.pulls.map((pull) => ({ state, pull }))).find(({ pull }) => pull.headRef === branch)
 
 const requestsOf = (pull) => pull.comments.filter((entry) => entry.kind === "request").map((entry) => ({ ...entry, whole: /whole diff/.test(bodyAfterMarker(entry)) })).sort((left, right) => left.createdAt.localeCompare(right.createdAt))
-const newestAt = (reviews) => reviews.reduce((newest, review) => (review.submittedAt > newest ? review.submittedAt : newest), "")
 
 /** The review passes of a pull request, without the replies that Pullfrog posts to its own threads. */
 const passesOf = (pull) => pull.reviews.filter(isReviewPass)
@@ -476,8 +475,26 @@ const wholeDiffRequestTimes = (pull) => {
   return times
 }
 
-/** The whole-diff requests for the head that a later review pass answered. */
-const answeredWholeDiffRequests = (pull) => requestsOf(pull).filter((request) => request.whole && commitBefore(pull, request) === pull.headSha && passesOf(pull).some((entry) => entry.submittedAt > request.createdAt)).length
+/**
+ * The Pullfrog run that posted a review: a run that began before the review and still ran at it. Two runs can hold one review
+ * when they overlap, and the older one is taken, so a review never counts for a request that the older run did not answer.
+ * Null when no run holds it, as for a run beyond the list.
+ */
+const runOfReview = (runs, review) => runs
+  .filter((run) => run.createdAt <= review.submittedAt && (run.status !== "completed" || run.updatedAt >= review.submittedAt))
+  .sort((left, right) => left.createdAt.localeCompare(right.createdAt))[0] ?? null
+
+/** True when a review pass answers a request: its run began after the request. A review with no known run answers each request before it. */
+const answers = (runs, pass, request) => {
+  const run = runOfReview(runs, pass)
+  return run === null ? pass.submittedAt > request.createdAt : run.createdAt >= request.createdAt
+}
+
+/** The requests that no review pass answers. */
+const unansweredRequests = (pull, runs) => requestsOf(pull).filter((request) => !passesOf(pull).some((pass) => answers(runs, pass, request)))
+
+/** The whole-diff requests for the head that a review pass answered. */
+const answeredWholeDiffRequests = (pull, runs) => requestsOf(pull).filter((request) => request.whole && commitBefore(pull, request) === pull.headSha && passesOf(pull).some((entry) => answers(runs, entry, request))).length
 
 /** The shas of the two-parent commits of a pull request whose remerge diff is empty. */
 const cleanMergesOf = async (env, repoPath, pull) => {
@@ -498,7 +515,7 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
   const passes = passesOf(pull)
   const atHead = passes.filter((review) => review.commit === pull.headSha).sort((left, right) => left.submittedAt.localeCompare(right.submittedAt))
   const latest = atHead.at(-1) ?? null
-  const sinceReview = requestsOf(pull).filter((entry) => entry.createdAt > newestAt(passes))
+  const sinceReview = unansweredRequests(pull, runs)
   const waiting = () => {
     const lastRequest = sinceReview.at(-1)
     const after = runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(lastRequest.createdAt))
@@ -514,7 +531,7 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
     const context = { wholeDiffRequests: wholeDiffRequestTimes(pull), cleanMerges: pull.cleanMerges ?? [] }
     if (!needsWholeDiff(pull, { fixLaunches }) || wholeDiffApproved(pull, context)) return { approved: true }
     // A whole-diff pass that lacks its "Whole diff:" line gets one re-request, then the owner.
-    if (answeredWholeDiffRequests(pull) >= 2) return { owner: "Pullfrog answered two whole-diff requests at this head with no whole-diff review" }
+    if (answeredWholeDiffRequests(pull, runs) >= 2) return { owner: "Pullfrog answered two whole-diff requests at this head with no whole-diff review" }
     return demand(WHOLE_DIFF_REQUEST, "an approval-head pass is owed")
   }
   if (latest.state === CHANGES_REQUESTED && latest.blocking.length > 0) return { fix: latest }
@@ -561,7 +578,9 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   const blockers = ticket?.blockedBy.filter((blocker) => blocker.open).map((blocker) => blocker.number) ?? []
   if (blockers.length > 0) return [{ type: "none", reason: `blocked by ${blockers.join(", ")}` }]
   const hasTicketComment = pull.comments.some((entry) => entry.kind === "ticket")
-  const request = (text) => ({ type: "request", text, ticketComment: !dependabot && ticket !== null && !hasTicketComment })
+  // A second run on one head costs a full review and answers nothing new, so no request goes out while a run for the pull request is queued or in progress.
+  const runBusy = runs.some((run) => run.status !== "completed")
+  const request = (text) => (runBusy ? { type: "none", reason: "a Pullfrog run is in progress" } : { type: "request", text, ticketComment: !dependabot && ticket !== null && !hasTicketComment })
   if (pull.baseRef !== state.defaultBranch && !state.pulls.some((other) => other.headRef === pull.baseRef)) {
     return [{ type: "retarget", base: state.defaultBranch }, { type: "update" }, request(PLAIN_REQUEST)]
   }
@@ -667,8 +686,7 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
   for (const pull of [...state.pulls].sort((left, right) => left.number - right.number)) {
     const item = `${repoKey}#${pull.number}`
     try {
-      const awaiting = requestsOf(pull).some((entry) => entry.createdAt > newestAt(passesOf(pull)))
-      const runs = pull.draft || !awaiting ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
+      const runs = pull.draft ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
       if (!pull.draft && pull.reviews.some((review) => review.state === "APPROVED")) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       const planned = await planPull(env, mem, { ...ctx, runs }, pull)
       const plan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
@@ -720,18 +738,24 @@ const gitText = async (env, cwd, args) => {
   return result.stdout.trim()
 }
 
-/** The worktree of an order: a build order adds one from `origin/main`, the rest reuse the pull request's. */
-const prepareWorktree = async (env, repoKey, branch, fresh) => {
+/** The path of the worktree of an order, read without a change: the listed worktree of the branch, or the path that a build order adds. */
+const worktreePathOf = async (env, repoKey, branch) => {
   const repoPath = env.config.repos[repoKey]
   const listed = parseWorktreeList(await gitText(env, repoPath, ["worktree", "list", "--porcelain"])).find((entry) => entry.branch === branch)
+  return { listed: listed !== undefined, path: listed?.path ?? join(dirname(repoPath), "orbit-worktrees", repoKey, branch.replaceAll("/", "-")) }
+}
+
+/** The worktree of an order: a build order adds one from `origin/main`, the rest reuse the pull request's. */
+const prepareWorktree = async (env, repoKey, branch, fresh, place) => {
+  const repoPath = env.config.repos[repoKey]
+  const { listed, path } = place
   if (listed) {
     if (!fresh) {
-      await gitText(env, listed.path, ["fetch", "origin", branch])
-      await gitText(env, listed.path, ["merge", "--ff-only", `origin/${branch}`])
+      await gitText(env, path, ["fetch", "origin", branch])
+      await gitText(env, path, ["merge", "--ff-only", `origin/${branch}`])
     }
-    return listed.path
+    return path
   }
-  const path = join(dirname(repoPath), "orbit-worktrees", repoKey, branch.replaceAll("/", "-"))
   if (fresh) {
     await gitText(env, repoPath, ["fetch", "origin", "main"])
     await gitText(env, repoPath, ["worktree", "add", "-b", branch, path, "origin/main"])
@@ -755,9 +779,13 @@ const startWorker = async (env, mem, candidate) => {
     await notifyOnce(env, mem, "Orbit driver: the Keychain item orbit-worker-github-token is missing, so no worker starts.")
     return log(env, `ticket#${ticket.number}`, "refused", "no worker token in the Keychain")
   }
+  const location = await worktreePathOf(env, repoKey, branch)
+  // A second process in one worktree races the first on its files and its commits, so the launch waits for the next tick.
+  const occupants = env.worker.worktreeOccupants(location.path, { stateDirectory: env.stateDir })
+  if (occupants.length > 0) return log(env, `ticket#${ticket.number}`, "wait", `another process holds the worktree ${location.path}: pid ${occupants.join(", ")}`)
   await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, at: new Date(env.now()).toISOString() })))
   ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null })), createdAt: new Date(env.now()).toISOString() })
-  const worktree = await prepareWorktree(env, repoKey, branch, pull === null)
+  const worktree = await prepareWorktree(env, repoKey, branch, pull === null, location)
   const headBefore = await gitText(env, worktree, ["rev-parse", "HEAD"])
   const stem = branch.replaceAll("/", "-")
   const place = { repoKey, repoPath: env.config.repos[repoKey], worktree, branch, base: "main" }
