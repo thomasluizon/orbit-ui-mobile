@@ -450,7 +450,7 @@ no-time wording and gutter geometry rather than the calendar's state or disclosu
 
 ## Identity amendment
 
-One amendment covers every active drawing. Each Astra glyph, each hollow Orbit mark, each "Astra" label, the conversation header mark, the participant mark, the empty thread mark and the conversation entry follow `DESIGN.md` Identity: Orbit is the app, the AI and the mascot, and there is one mark. A drawing that shows a retired mark or the old second name draws the mascot and the name Orbit when a surface is built. The drawing `Orbit Astra Conversation.dc.html` keeps its file name only because `tools/redesign-groups.json` maps surface ids to it.
+One amendment covers every active drawing. Each Astra glyph, each hollow Orbit mark, each "Astra" label, the conversation header mark, the participant mark, the empty thread mark and the conversation entry follow `DESIGN.md` Identity: Orbit is the app, the AI and the mascot, and there is one mark. A drawing that shows a retired mark or the old second name draws the mascot and the name Orbit when a surface is built.
 
 ## The create flow drawing
 

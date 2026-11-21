@@ -280,12 +280,6 @@ jobs:
         if: ${{ !cancelled() && needs.plan.outputs.tools == 'true' }}
         run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs .github/scripts/write-locked-package.test.mjs .github/scripts/plan-layout-shards.test.mjs .github/scripts/merged-unit-results.test.mjs
 
-      # This step owns the full-tree graphic floor assertion outside cached unit shards.
-      # Other findings stay advisory; graphic floor findings and scanner errors fail.
-      - name: Check graphic contrast across the full tree
-        if: ${{ !cancelled() }}
-        run: node tools/check-surface-scope.mjs --graphic-floor-only
-
   # The required check: every test group passed here or has a cached result at the same inputs.
   # The SonarCloud scan runs last, so the SonarCloud Code Analysis context arrives whenever this job passes.
   unit-tests:

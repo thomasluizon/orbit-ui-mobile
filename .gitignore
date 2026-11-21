@@ -59,8 +59,6 @@ temporary screenshots/
 
 # Local diagnostic artifacts stay uncommitted. Visual completion comes from
 # the owner reviewing the running surface on seeded data, not screenshot files.
-# The surface inventory in .claude/manifests/ stays committed so coverage
-# tooling and later sessions share the same surface list.
 .artifacts/
 
 # Expo
@@ -105,4 +103,3 @@ error.log
 /architecture.json
 /architecture.html
 /architecture.mmd
-/.claude/manifests/feature-parity.json

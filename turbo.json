@@ -40,8 +40,7 @@
         "$TURBO_ROOT$/design/canvas/Orbit Widget Android.dc.html",
         "$TURBO_ROOT$/design/canvas/_ds/*/tokens/typography.css",
         "$TURBO_ROOT$/eslint-rules/*.cjs",
-        "$TURBO_ROOT$/evals/astra/catalog.yaml",
-        "$TURBO_ROOT$/tools/feature-parity-rules.json"
+        "$TURBO_ROOT$/evals/astra/catalog.yaml"
       ]
     },
     "@orbit/desktop#test": {
@@ -96,7 +95,7 @@
         "$TURBO_ROOT$/tsconfig.base.json",
         "$TURBO_ROOT$/DESIGN.md",
         "$TURBO_ROOT$/design/brand/png/orbit-platform-icon-512.png",
-        "$TURBO_ROOT$/tools/{arch-map,check-surface-scope}.mjs",
+        "$TURBO_ROOT$/tools/arch-map.mjs",
         "$TURBO_ROOT$/tools/lib/escape-regex.mjs",
         "$TURBO_ROOT$/apps/mobile/**/*.{ts,tsx,js,jsx}",
         "$TURBO_ROOT$/apps/desktop/**/*.{ts,tsx}",

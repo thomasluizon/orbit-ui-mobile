@@ -94,15 +94,10 @@ const caseModuleInputs = {
     "apps/desktop/src-tauri/Cargo.toml", "apps/web/scripts/build-hermetic.mjs",
   ],
   "desktop-acceptance": ["apps/desktop/locales/en.json", "apps/desktop/locales/pt-BR.json", "apps/web/scripts/build-hermetic.mjs"],
-  "feature parity tree": [
-    "apps/web/app/page.tsx", "apps/web/components/profile/profile-api-keys.tsx", "apps/mobile/app/index.tsx", "apps/mobile/components/profile/profile-api-keys.tsx",
-    "packages/shared/src/parity-controls.tsx", "packages/shared/src/i18n/en.json", "packages/shared/src/i18n/pt-BR.json",
-  ],
   "check-i18n-usage": ["apps/web/app/step-up/step-up-screen.tsx", "apps/mobile/app/step-up.tsx"],
   "android-boot": ["apps/mobile/lib/api-base.ts", "packages/shared/src/i18n/en.json"],
   "android-sentry-diagnostic, check-native-module-copies and the node_modules readers": ["apps/mobile/app.json", "package-lock.json"],
-  "check-surface-scope": ["DESIGN.md"],
-  "generate-brand-assets, redesign-coverage and build-ds-bundle": ["design/brand/orbit-lockup.svg", "design/brand/orbit-mark.svg", "design/canvas/example.svg"],
+  "generate-brand-assets and build-ds-bundle": ["design/brand/orbit-lockup.svg", "design/brand/orbit-mark.svg", "design/canvas/example.svg"],
 }
 
 test("each input that a case module reads starts the tool tests", () => {
