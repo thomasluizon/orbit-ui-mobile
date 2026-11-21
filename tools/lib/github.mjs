@@ -26,7 +26,7 @@ const PULL_FIELDS = (number) => `number state isDraft headRefName headRefOid bas
   labels(first: 50) { nodes { name } }
   mergeCommit { oid }
   files(first: 100) { nodes { path } }
-  commits(last: 100) { nodes { commit { oid parents(first: 3) { totalCount } } } }
+  commits(last: 100) { nodes { commit { oid parents(first: 3) { totalCount } statusCheckRollup { state } } } }
   baseRef { name target { __typename oid }
     compare(headRef: "refs/pull/${number}/head") { behindBy baseTarget { oid } headTarget { oid } }
     branchProtectionRule { requiredStatusChecks { context app { databaseId } } } }
@@ -182,7 +182,7 @@ const normalizePull = (raw, ticketRepository) => {
     tracks: tracksOf(raw.body ?? "", ticketRepository),
     changedFiles: raw.changedFiles,
     files: nodes(raw.files).map((file) => file.path),
-    commits: nodes(raw.commits).map(({ commit }) => ({ sha: commit.oid, parents: commit.parents.totalCount })),
+    commits: nodes(raw.commits).map(({ commit }) => ({ sha: commit.oid, parents: commit.parents.totalCount, checkState: commit.statusCheckRollup?.state ?? null })),
     mergeCommit: raw.mergeCommit?.oid ?? null,
     checks: nodes(raw.statusCheckRollup?.contexts),
     checksComplete: raw.statusCheckRollup === null || raw.statusCheckRollup?.contexts?.pageInfo?.hasNextPage === false,
@@ -386,6 +386,11 @@ export const failedChecks = (pull) => newestChecks(pull.checks)
   .map((check) => check.node)
   .filter((node) => node.__typename === "CheckRun" && node.status === "COMPLETED" && !PASSING_CONCLUSIONS.has(node.conclusion))
   .map((node) => ({ name: node.name, conclusion: node.conclusion, jobId: node.databaseId, runId: /\/actions\/runs\/(\d+)/.exec(node.detailsUrl ?? "")?.[1] ?? null }))
+
+/** The newest passing check runs of a pull request, each with the id of its workflow run. A check of another kind has a null run id. */
+export const passedChecks = (pull) => newestChecks(pull.checks)
+  .filter((check) => check.passed && check.node.__typename === "CheckRun")
+  .map((check) => ({ name: check.name, runId: /\/actions\/runs\/(\d+)/.exec(check.node.detailsUrl ?? "")?.[1] ?? null }))
 
 /** What to do about one failed check, from the names of its failed steps: a rerun for the setup step, the owner for a barrier, otherwise a fix order. */
 export const classifyCheckFailure = ({ name, failedSteps }) => {
