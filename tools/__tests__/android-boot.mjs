@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { join } from "node:path"
+import yaml from "js-yaml"
 import { fatalLogcat, firstScreenRendered, notRespondingWaitControl } from "../android-boot.mjs"
-import { REPO_ROOT, root, stage, T, toolPath } from "./_harness.mjs"
+import { BASH, REPO_ROOT, root, stage, T, toolPath } from "./_harness.mjs"
 
 const packageName = "org.useorbit.app"
 const firstRoute = ["en", "pt-BR"].map((locale) => JSON.parse(readFileSync(join(REPO_ROOT, "packages/shared/src/i18n", `${locale}.json`), "utf8")).onboarding.flow.what)
@@ -134,6 +135,37 @@ function checkApplicationNotResponding(onboarding) {
   T("android-boot: the app's own ANR dialog is never dismissed", own.taps.length === 0 && own.dismissals.length === 0, own.taps.join("|"))
 }
 
+function checkProofVersion(startup) {
+  const steps = startup.jobs.boot.steps
+  const index = steps.findIndex((step) => step.name === "Select the last successful production app version")
+  T("android-startup: selects an accepted version before prebuild", index >= 0 && index < steps.findIndex((step) => step.name === "Prepare a build without Play credentials"))
+  if (index < 0) return
+  // Complete gh --json displayTitle response shape, observed from successful main release runs.
+  const runs = [
+    { displayTitle: "Android Release 1.3.139 (199) to internal on main" },
+    { displayTitle: "Android Release 1.3.138 (198) to open on main" },
+    { displayTitle: "Android Release 1.3.137 (197) to open on main" },
+  ]
+  for (const [name, response, status, expected] of [
+    ["released", runs, 0, "1.3.138"], ["production", [{ displayTitle: "Android Release 1.3.137 (197) to production on main" }], 0, "1.3.137"],
+    ["missing", [], 0, null], ["internal-only", runs.slice(0, 1), 0, null],
+    ["unrecognized", [{ displayTitle: "Unrecognized release title" }], 0, null], ["unavailable", [], 1, null],
+  ]) {
+    const environment = stage(`proof-version/${name}`, "")
+    const result = spawnSync(BASH, ["-c", `gh() { printf '%s' "$RELEASE_RUNS"; return "$GH_STATUS"; }\n${steps[index].run}`], {
+      encoding: "utf8", env: { ...process.env, RELEASE_RUNS: JSON.stringify(response), GH_STATUS: String(status), GH_REPO: "fixture/repository", GITHUB_ENV: environment },
+    })
+    const exported = readFileSync(environment, "utf8")
+    T(`android-startup: proof version ${name}`, expected ? result.status === 0 && exported.trim() === `ORBIT_APP_VERSION=${expected}` : result.status !== 0 && exported === "", result.stdout + result.stderr)
+    if (expected) {
+      const config = spawnSync(process.execPath, ["-e", `process.stdout.write(require('./apps/mobile/app.config.js')().version)`], {
+        cwd: REPO_ROOT, encoding: "utf8", env: { ...process.env, ORBIT_APP_VERSION: exported.trim().split("=")[1] },
+      })
+      T("android-startup: the selected version reaches the actual Expo configuration", config.status === 0 && config.stdout === expected, config.stderr)
+    }
+  }
+}
+
 export const cases = () => {
   for (const label of labels) T("android-boot: accepts the actual first route input label in each locale", firstScreenRendered(hierarchy(label), packageName, labels))
   T("android-boot: accepts an accessibility description", firstScreenRendered(hierarchy("", { "content-desc": labels[0] }), packageName, labels))
@@ -153,5 +185,7 @@ export const cases = () => {
   ]) T(`android-boot: rejects ${failure}`, fatalLogcat(failure))
   T("android-boot: accepts normal startup logs", !fatalLogcat("I ReactNativeJS: Running application\nI ReactNative: Application context initialized"))
   T("android-boot: accepts the recorded handled console error after a surviving first screen", !fatalLogcat(readFileSync(join(REPO_ROOT, "tools/__tests__/fixtures/android-startup-console-error.txt"), "utf8")))
+  const startup = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/android-startup.yml"), "utf8"))
   checkRecordedStartup()
+  checkProofVersion(startup)
 }

@@ -235,6 +235,11 @@ function buildVariableCases(successful, overridden, callerSupplied) {
     T(`ios-simulator: ${label} receives the ios-staging value before the repository value`,
       Object.entries(expected).every(([name, value]) => environment[name] === value), JSON.stringify(environment))
   }
+  const partialCaller = exercise("caller-turnstile", {}, [], { EXPO_PUBLIC_TURNSTILE_SITE_KEY: "sentinel-turnstile-caller" })
+  T("ios-simulator: one caller value wins while the others still resolve from GitHub",
+    partialCaller.status === 0 && built(partialCaller).EXPO_PUBLIC_TURNSTILE_SITE_KEY === "sentinel-turnstile-caller" &&
+    built(partialCaller).EXPO_PUBLIC_GOOGLE_CLIENT_ID === "sentinel-google-repository", partialCaller.stderr)
+
   const missingTurnstile = exercise("missing-turnstile", {
     stagingVariables: stagingVariables.filter((entry) => entry.name !== "EXPO_PUBLIC_TURNSTILE_SITE_KEY"),
     repositoryVariables: [...repositoryVariables.filter((entry) => entry.name !== "EXPO_PUBLIC_TURNSTILE_SITE_KEY"),
@@ -245,7 +250,7 @@ function buildVariableCases(successful, overridden, callerSupplied) {
     !missingTurnstile.calls.some((call) => call.args.includes("bootstatus") || call.args.includes("prebuild")), missingTurnstile.stderr)
 
   for (const [label, result] of [
-    ["success", successful], ["caller", overridden], ["missing Turnstile", missingTurnstile],
+    ["success", successful], ["caller", overridden], ["partial caller", partialCaller], ["missing Turnstile", missingTurnstile],
   ]) {
     T(`ios-simulator: no build variable value reaches stdout or stderr (${label})`,
       !sentinel.test(result.stdout) && !sentinel.test(result.stderr), `${result.stdout}\n${result.stderr}`)
