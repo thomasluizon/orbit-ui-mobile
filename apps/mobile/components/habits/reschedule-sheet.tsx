@@ -125,7 +125,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-          {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Hoje.dc.html:723-724 (D42) */}
+          {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Hoje.dc.html rsPro (D42) */}
           <PillButton
             variant={filledVariant}
             size="sm"
@@ -158,7 +158,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
         <PillButton variant="ghost" size="sm" disabled={updateHabit.isPending} onClick={() => closeSheet()}>
           {t('habits.reschedule.dismiss')}
         </PillButton>
-        {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Hoje.dc.html:723-724 (D42) */}
+        {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Hoje.dc.html rsUse (D42) */}
         <PillButton
           variant={filledVariant}
           size="sm"

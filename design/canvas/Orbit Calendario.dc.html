@@ -316,31 +316,14 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Calendário answers where the time actually went. Four views of one content, the shipping four (page.tsx:56): month, week, range and agenda, switched with SegmentedControl because they are views of the same thing. It is an orientation view and a way to fix one specific day, not a second habit list: one ring per day, never one ring per habit per day, and the only loggable list on the screen belongs to the selected day in the month view.</p>
-      <p><span style="color:var(--fg-3)">layout&nbsp;&nbsp;</span>At both widths the centred title returns to today: the month in Mês, the span in Semana, Período and Agenda. The adjacent month-picker chevron retains month and year selection. No separate Hoje control appears, and the return action does nothing on the current day or span. The full-width equal-segment selector is the last header line. The shell options and bell share one trailing row. Repeat, Google Calendar and legend live in disclosure; the day card has a 24 inset and three plain figures follow it.</p>
-      <p><span style="color:var(--fg-3)">views&nbsp;&nbsp;</span>Week follows the Google Calendar week pattern: names and status rings sit at their hours, named any-time chips sit in each day's lane inside the grid, and +N opens the day. One hour scroller fills the space below the header group, with the weekday header and lane pinned only while together they occupy at most half the hour viewport, otherwise scrolling with the hours, a single today date disc and the now line opened in the upper third. Future blocks keep a transparent fill and ghost hairline. Range shares the centred header: a fourteen day span stated as two dates, paged as a span, its days as read only cells with the three figures computed over the same span. Agenda lists the days ahead with each habit opening its full entry details. The agenda is drawn at BOTH widths: the shipping build gates it to desktop (page.tsx:77 folds it back to month below the breakpoint, :259 pushes the tab only when isDesktop), and that gate is a parity defect the code should lose, because the parity contract allows navigation chrome, the palette and hover affordances, and a whole view is none of those. The recurring toggle (show-recurring-toggle.tsx) is a real switch deciding whether recurring habits appear at all; every habit in this fixture recurs, so turning it off empties the month honestly rather than hiding what the switch means. Paging works by swipe as well as by the chevrons (page.tsx:263-268): a sideways drag past 60px pages the month.</p>
-      <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>In the compact shell, Hoje has one fixed round Astra button stacked directly above the create habit button (#2077); wide web reaches Astra from its sidebar Astra row. Habit detail keeps its own composer and chips. Hoje suggestions and composer disclosure live inside the conversation. This surface has no composer dock or chips; its last content clears the tab bar at compact widths or the column bottom on wide web. An open Astra conversation stays full screen when destinations change: it covers the compact shell and replaces the wide destination column while the sidebar stays visible.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>loading, month, week, range, agenda, a month with nothing in it, error, the read only day, and the selected day with its habits and its imported events. A plan axis sits beside the state, free or Pro, defaulting to free; the old sync boundary state came off the axis because the boundary is the free side of the plan, not a state of the month. Reached by using the screen: the views through the switcher, paging by swipe as well as by the chevrons, the recurring toggle, and the day route out. A day is always selected in the month view, opening on today.</p>
-      <p><span style="color:var(--fg-3)">ring&nbsp;&nbsp;</span>the month response is a list of habits and a dictionary of logs, with no per day status in it, so every ring here is arithmetic done on the device, from one count per day that the cell, the month figures and the day card all read. Logging a habit on the open day moves its arc, turns the cell to the full disc when the last one lands, and moves both figures with it. Nothing on the screen speaks as if the server judged the day: the labels count, they do not rank, and no cell carries a word like good or bad. Four shapes carry the four outcomes and colour only reinforces them: no ring at all for a day with nothing scheduled, a hollow ring for a day with nothing logged, a partial arc for a day part done, and a filled neutral disc for a day fully logged. The arc sweeps the exact completed over scheduled proportion and is never rounded: a ring can draw any angle, so rounding would buy no legibility and would lose the difference between one of three and two of three. The legend lists the three marks and the loggable well; it does not list the day with nothing scheduled, because that day carries no mark and a swatch for it would be an empty circle explaining an absence. Completion is neutral, so the full day is fg-1 and the accent is spent on the unfinished arc. The cells take the raw done and scheduled counts, and DayCell derives both the outcome and the exact fraction, so a hand computed outcome cannot drift from the arc.</p>
-      <p><span style="color:var(--fg-3)">excluded&nbsp;&nbsp;</span>a habit with no schedule never appears, and the log dictionary is built for top level habits only, so a sub habit's completion never reaches a cell. No cell claims to summarise what is inside a habit, and the selected day lists top level habits only for the same reason.</p>
-      <p><span style="color:var(--fg-3)">day&nbsp;&nbsp;</span>Habit names own the headline and times the supporting line, with a completion ring and no status word. Rows use minimum heights and grow at 200% text. Imported event titles get the full width first, then up to two lines and an ellipsis with full text one tap away.</p>
-      <p><span style="color:var(--fg-3)">boundary&nbsp;&nbsp;</span>only the last seven days can be logged, and the type now enforces it: a loggable day is a DayCell button that requires onPress, every other day is role img and rejects one, so a dead handler is a type error rather than a discipline this document remembers. The window is stated before anything is tapped: the seven loggable cells sit on a raised well, a read only cell carries its outcome in its accessible name, and the legend names the difference. The read only day card shows what happened with no completion control, no error and no explanation, because nothing failed and nothing is being refused. Navigation is not bounded: paging back and forward is free, since the restriction is on writing.</p>
-      <p><span style="color:var(--fg-3)">settings&nbsp;&nbsp;</span>the week start and the clock are the person's own settings, resolved on the server, so neither is assumed. The grid rotates to the week start rather than hardcoding Monday, and every time on the screen is formatted by the clock setting rather than fixed to 24 hours. Both are drawn as tweaks so either can be checked.</p>
-      <p><span style="color:var(--fg-3)">freeze&nbsp;&nbsp;</span>no freeze is drawn here. A freeze marks a user day and the history the API serves reaches back thirty days, while this grid pages back much further, so a marker would appear on recent cells and vanish on older months: the same day would tell two different stories depending on when it was opened. Freezes live on Progresso, which is always inside that window.</p>
-      <p><span style="color:var(--fg-3)">events&nbsp;&nbsp;</span>Read-only event rows have no leading glyph; time and source sit beneath the full-width title. At most three appear in the day card, followed by an entry to all events.</p>
-      <p><span style="color:var(--fg-3)">pro&nbsp;&nbsp;</span>Calendar sync keeps its Pro gate. Connection, last sync and automatic sync live only in the Google Calendar disclosure. They never occupy the day card.</p>
-      <p><span style="color:var(--fg-3)">loading&nbsp;&nbsp;</span>The grid and day card use shaped loading placeholders. A cached complete day reserves its habit rows with their real title wrapping. Without a cached day, the day card reserves the empty-day line until the schedule arrives. Pending events reserve the localized empty-events line; incoming events may grow it. The figure loading state preserves its layout.</p>
-      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>An empty month keeps its dates and paging. A no-data line replaces figures without inventing zeroes. The legend remains reachable in the options disclosure.</p>
-      <p><span style="color:var(--fg-3)">rate&nbsp;&nbsp;</span>the three figures are the shipping three (page.tsx:244-251): best streak, total logs, missed, all computed on the device from the same per day counts the rings read, over the days that had something scheduled, up to and including today. The month rate this document used to draw is not among them and is gone from this screen; the reasoning about what window a month rate covers, counting only scheduled days and only lived days, stays recorded here for the surfaces that actually render one, like the habit detail’s 30 day rate.</p>
-      <p><span style="color:var(--fg-3)">tiles&nbsp;&nbsp;</span>Three plain figures use whole one-line captions and tabular values. Change the number of columns when labels need room; never clamp or split a caption.</p>
-      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. 44 is the cell and the touch token, the ring inside it is 34, and the grid gap is 4 so a week reads as a run rather than seven separate objects.</p>
-      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>12 on wells and event rows, 20 on the day card and the tiles, 28 on the shell, 999 on the cells and interactive.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: current position is the Calendário tab, today's ring and the selected cell, which takes the same tint and ring the day pills use elsewhere; unfinished progress is the partial arc. In the ordinary state there is no filled action at all, which is correct for a view whose job is orientation, and the two states that need one, the empty month and the sync boundary, carry exactly one. Wide: the single column sits beside the sidebar create, which is the one filled action, so those two step down to secondary.</p>
-      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. The day number on a full cell is the canvas colour on fg-1, which is the same pairing the done disc uses elsewhere. fg-4 carries only the future numbers and the weekday header, both on the canvas, and no state depends on it alone.</p>
-      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>data-mock rides the year, both tile values and the read only day's times. Day numerals render inside DayCell, the loggable day's times inside CheckRow and event times inside EventRow, which take plain strings, so those carry no marker until the components take a node. Base date Monday 17 August 2026, which puts the loggable window on the 11th to the 17th. The two tile figures are computed from the same per day count the rings read. A past month is generated from the same weekday shape the current month's fixture follows, so paging back shows a fully lived month rather than a repeat of this one.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 one ring per day, and no cell asserts anything the month response does not carry. 2 whether a day can be logged is visible before it is tapped, and a day that cannot be logged is not a control at all. 3 no freeze appears on a surface that can page outside the freeze window.</p>
-      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: it already carried CanvasControls’ plans axis and ListRow’s trailing slot, so nothing was re-synced, the fourth consecutive check that needed none. One stale claim in this paragraph is corrected: it said neither ListRow nor DayCell has a trailing status slot, and ListRow HAS one whose contract names this exact case, so the read only ring now rides it rather than the value slot. Still composed around the system: 1 DayCell has no selected treatment, so the selected day’s tint and ring ride a wrapper span, selection being the screen’s state rather than the day’s. 2 DayCell states loggability through control affordances a phone cannot show before touch, so the raised well behind the seven loggable cells rides the same wrapper and the legend still names it. 3 DayCell has no future variant in the loggable union here, so the future numeral stays composed in the month grid. 4 the week’s clock grid, the any-time strip and the agenda’s day groups are composed, since no time grid or agenda component exists. 5 the sync line is composed from a well, the refresh glyph and a Switch.</p>
-      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>the schedule read returns instances 90 days ahead, so paging forward runs out of schedule after three months, and whether the chevron should stop there is a product call and is not drawn. The values googleCalendarAutoSyncStatus can carry are the app’s, so the sync line states the connection and the last time rather than drawing a status ladder it cannot name. The range span is drawn at fourteen days; the shipping range view’s own span controls live in its header, and their exact vocabulary is the app’s.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Calendário answers where the time actually went. Month, week, range and agenda are four views of one content, switched with SegmentedControl. It is an orientation view and a way to fix one day, not a second habit list: one ring per day, never one per habit per day.</p>
+      <p><span style="color:var(--fg-3)">views&nbsp;&nbsp;</span>Agenda lists the days ahead and is drawn at both widths, because a whole view is not navigation chrome and parity binds it. Range is a fourteen day span paged as a span. Paging works by swipe as well as by the chevrons.</p>
+      <p><span style="color:var(--fg-3)">ring&nbsp;&nbsp;</span>the month response has no per day status, so every ring is arithmetic done on the device. No cell carries a word like good or bad. Four shapes carry the outcomes and colour only reinforces them: no ring for nothing scheduled, a hollow ring for nothing logged, a partial arc for part done, a filled neutral disc for fully logged. The arc is never rounded. Completion is neutral, so the full day is fg-1.</p>
+      <p><span style="color:var(--fg-3)">boundary&nbsp;&nbsp;</span>only the last seven days can be logged. A loggable day is a DayCell button that requires onPress, and every other day is role img and rejects one. The seven loggable cells sit on a raised well, and the legend names the difference. The read only day card has no completion control and no explanation, because nothing failed. Paging is not bounded.</p>
+      <p><span style="color:var(--fg-3)">excluded&nbsp;&nbsp;</span>a habit with no schedule never appears, and a sub habit's completion never reaches a cell.</p>
+      <p><span style="color:var(--fg-3)">freeze&nbsp;&nbsp;</span>no freeze is drawn here. The history the API serves reaches back thirty days while this grid pages back further. Freezes live on Progresso.</p>
+      <p><span style="color:var(--fg-3)">pro&nbsp;&nbsp;</span>Calendar sync keeps its Pro gate. Connection, last sync and automatic sync live only in the Google Calendar disclosure and never occupy the day card. At most three imported events appear in the day card, followed by an entry to all events.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>current position is the Calendário tab, today's ring and the selected cell. Unfinished progress is the partial arc. The ordinary state has no filled action.</p>
     </div>
   </sc-if>
 
@@ -353,13 +336,9 @@ const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
 const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 
-/* Monday 17 August 2026. 1 August 2026 is a Saturday. */
 const YEAR = 2026, MONTH = 7, TODAY = 17, WINDOW = 7;
-/* Scheduled occurrences per weekday, Sunday first: the shape the current month's fixture follows. */
 const SCHED_BY_DOW = [0, 5, 5, 5, 5, 5, 3];
-/* A past month is fully lived, so every scheduled day in it carries a completion count. */
 const PAST_LOG = [5, 4, 5, 3, 5, 5, 2, 5, 4, 5];
-/* [scheduled, logged] per day of the current month up to today. Nothing here is a status. */
 const FIX = [null, [3, 3], [0, 0], [5, 5], [5, 4], [5, 5], [5, 2], [5, 0], [3, 3], [0, 0], [5, 5],
   [5, 5], [5, 3], [5, 5], [5, 1], [3, 0], [0, 0], [5, 3]];
 
@@ -368,10 +347,8 @@ const HABITS = [
   { pt: 'Rotina da casa', en: 'House routine', t: '09:00' },
   { pt: 'Caminhada', en: 'Walk', t: '18:00' },
   { pt: 'Alongamento', en: 'Stretching', t: '21:00' },
-  /* A habit to avoid: on a day it speaks its own vocabulary (calendar-day-detail.tsx:74-79). */
   { pt: 'Doce depois do jantar', en: 'Sweets after dinner', t: '20:00', bad: true },
 ];
-/* One habit with no due time: on the week's clock it sits in the any-time strip, never at an hour. */
 const UNTIMED = { pt: 'Violão', en: 'Guitar', days: [2, 4, 6] };
 const EVENTS = {
   17: [{ t: '10:00', pt: 'Reunião de equipe', en: 'Team meeting' }, { t: '15:30', pt: 'Dentista', en: 'Dentist' }],
@@ -399,7 +376,7 @@ const T = {
     events: 'Na sua agenda',
     paywall: ['Sincronizar com o Google Calendar faz parte do Orbit Pro.', 'Com ele, os seus compromissos aparecem ao lado dos hábitos do dia.'],
     paywallAction: 'Ver o Pro',
-    statDays: 'Dias completos', statRate: 'Taxa do mês',
+    statDays: 'Dias completos',
     emptyStat: 'sem dados',
     emptyMonth: 'Nenhum hábito estava programado neste mês.',
     futureMonth: 'Este mês ainda não chegou.',
@@ -418,14 +395,6 @@ const T = {
     syncAuto: 'Sincronizar sozinho',
     rangePrev: 'Período anterior', rangeNext: 'Período seguinte',
     swipeHint: 'Arraste para o lado para mudar o mês',
-    composerWords: {
-      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
-      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
-      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
-      busyReason: 'O Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
-      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
-    },
-    chips: ['Registrar ontem', 'O que faltou nesta semana', 'Mudar os horários', 'Sincronizar a agenda'],
   },
   en: {
     intl: 'en-GB', lang: 'en',
@@ -447,7 +416,7 @@ const T = {
     events: 'On your calendar',
     paywall: ['Syncing with Google Calendar is part of Orbit Pro.', 'With it, your commitments show up beside the habits for the day.'],
     paywallAction: 'See Pro',
-    statDays: 'Days complete', statRate: 'Month rate',
+    statDays: 'Days complete',
     emptyStat: 'no data',
     emptyMonth: 'No habit was scheduled in this month.',
     futureMonth: 'This month has not arrived yet.',
@@ -466,14 +435,6 @@ const T = {
     syncAuto: 'Sync on its own',
     rangePrev: 'Previous range', rangeNext: 'Next range',
     swipeHint: 'Swipe sideways to change the month',
-    composerWords: {
-      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
-      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
-      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
-      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
-      offlineReason: 'No connection. Astra comes back when the connection does.',
-    },
-    chips: ['Log yesterday', 'What slipped this week', 'Change the times', 'Sync my calendar'],
   },
 };
 
@@ -496,7 +457,6 @@ class Component extends DCLogic {
     view: (next.state === 'week' || next.state === 'range' || next.state === 'agenda') ? next.state : 'month' });
   goPro = () => { window.location.href = encodeURI('Orbit Pro.dc.html'); };
   goHoje = () => { window.location.href = encodeURI('Orbit Hoje.dc.html'); };
-  /* Paging by swipe as well as by the chevrons (page.tsx:263-268): a sideways drag past 60px pages. */
   swipeDown = (e) => { this._sw = { x: e.clientX, y: e.clientY }; };
   swipeUp = (e) => {
     const sw = this._sw;
@@ -507,7 +467,6 @@ class Component extends DCLogic {
     this.setState((p) => ({ mOff: (p.mOff || 0) + (dx < 0 ? 1 : -1), sel: null }));
   };
 
-  /* The clock is the person's setting, so no time is written in one format and read in another. */
   fmt(t, h12) {
     if (!h12) return t;
     const p = t.split(':');
@@ -517,11 +476,9 @@ class Component extends DCLogic {
     return h + ':' + p[1] + ' ' + ap;
   }
 
-  /* Scheduled occurrences for one day. An account with no habits schedules nothing in any month. */
   schedFor(off, y, m, d) {
     if (this._empty) return 0;
-    /* show-recurring-toggle.tsx: with recurring off, this fixture schedules nothing, because every
-       habit in it recurs; the grid empties honestly rather than hiding the toggle's meaning. */
+    /* With recurring off, this fixture schedules nothing, because every habit in it recurs. */
     if (!this.state.recOn) return 0;
     if (off > 0) return 0;
     if (off === 0) { const f = FIX[d]; return f ? f[0] : 0; }
@@ -535,8 +492,7 @@ class Component extends DCLogic {
     return Math.min(sched, PAST_LOG[(d - 1) % PAST_LOG.length]);
   }
 
-  /* One done-count per day: the fixture plus whatever has been logged since. The ring, the month
-     figures and the day card all read this, so a log cannot move one and leave the others behind. */
+  /* One done-count per day, read by the ring, the month figures and the day card. */
   doneFor(off, y, m, d) {
     const sched = this.schedFor(off, y, m, d);
     if (!sched) return 0;
@@ -662,7 +618,6 @@ class Component extends DCLogic {
               H('span', { style: { flex: 1, height: 1.5, background: 'var(--primary)' } })) : null)))));
   }
 
-  /* The range view with its own header (page.tsx:324): a fourteen day span, paged as a span. */
   rangeNode(t, weekStart) {
     const D = window.OrbitDesignSystem_918bd5;
     const s = this.state;
@@ -699,8 +654,6 @@ class Component extends DCLogic {
           H(window.OrbitNativeMobile.PlainFigure, { label: t.statMiss, value: mock(String(Math.max(0, sched - done))) }))));
   }
 
-  /* The agenda: the days ahead as a list. Drawn at BOTH widths: the shipping desktop only gate
-     (page.tsx:77,:259) is a parity defect, not a sanctioned divergence. */
   agendaNode(t, h12) {
     const D = window.OrbitDesignSystem_918bd5;
     const s = this.state;
@@ -745,7 +698,7 @@ class Component extends DCLogic {
       stateAxis: ['loading', 'month', 'week', 'range', 'agenda', 'empty month', 'error', 'read only day', 'selected day'],
       planAxis: ['free', 'Pro'],
       is412: s.width === '412', isWide: s.width === 'wide',
-      n7: 7, n16: 16, n20: 20, n24: 24, n44: 44, n5: 5, noop: () => {},
+      n7: 7, n20: 20, n44: 44, n5: 5, noop: () => {},
       showReport: this.props.showReport !== false,
       gridLabel: t.grid, loadingLabel: t.loading, createLabel: t.create,
       cellWords: t.cellWords, navLabelWord: t.navLabel, paletteWord: t.palette,
@@ -762,15 +715,12 @@ class Component extends DCLogic {
     const error = st === 'error';
     const readOnlyDay = st === 'read only day';
     const pro = s.plan === 'Pro';
-    /* Calendar sync is Pro (D70 item 4): free draws the boundary where the events would sit, Pro
-       draws the events, the sync state and the last sync time. */
+    /* Calendar sync is Pro: free draws the boundary where the events would sit. */
     const paywall = !pro;
     const view = s.view || 'month';
     const isMonth = view === 'month';
     const filled = s.width === '412' ? 'primary' : 'secondary';
 
-    /* Paging is free in both directions and stays free on an account with no habits: the dates are
-       real, so the chrome keeps its shape when the rings have nothing to draw. */
     this._empty = emptyMonth;
     const mOff = s.mOff || 0;
     const first = new Date(YEAR, MONTH + mOff, 1);
@@ -780,14 +730,10 @@ class Component extends DCLogic {
     const sel = s.sel != null ? s.sel : (isCurrent ? (readOnlyDay ? 6 : TODAY) : isPast ? monthLen : 1);
     const firstLog = TODAY - WINDOW + 1;
     const selLive = isCurrent && sel >= firstLog && sel <= TODAY;
-    const selFuture = isFuture || (isCurrent && sel > TODAY);
 
     const lead = (first.getDay() - weekStart + 7) % 7;
     const weeks = Math.ceil((lead + monthLen) / 7);
-    /* DayCell derives the outcome and the exact arc from done/scheduled, and the seven day window is
-       the discriminated union: a loggable cell is a button requiring onPress, everything else is
-       role img and takes none. Selection and the loggable well are the screen's state, not the day's,
-       so both ride a wrapper around the cell. */
+    /* DayCell derives the outcome and the arc from done and scheduled. Selection and the loggable well ride a wrapper around the cell. */
     const cells = [];
     if (!loading) {
       for (let i = 0; i < lead; i++) cells.push({ pad: true, d0: 0 });
@@ -814,8 +760,6 @@ class Component extends DCLogic {
     }
 
     const sw = (extra) => ({ width: 14, height: 14, flex: '0 0 auto', borderRadius: 'var(--r-pill)', ...extra });
-    /* Only the marks are listed. A day with nothing due carries no mark, so a swatch for it would be
-       an empty circle explaining an absence, and its own label already says so. */
     const legend = [
       { word: t.legend.full, swatch: sw({ background: 'var(--fg-1)' }) },
       { word: t.legend.partial, swatch: sw({ boxSizing: 'border-box', border: '1.5px solid var(--status-empty)', borderTopColor: 'var(--primary)', borderRightColor: 'var(--primary)' }) },
@@ -823,10 +767,7 @@ class Component extends DCLogic {
       { word: t.legend.live, swatch: sw({ background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }) },
     ];
 
-    /* The month rate: completions over scheduled OCCURRENCES, counting only days that had something
-       scheduled, up to and including today in the current month and the whole of a past month, since
-       every day in a past month has been lived. Days with nothing scheduled are not successes, and
-       days not yet lived are not failures, so neither enters the divisor. */
+    /* Counts only days that had something scheduled, up to today in the current month. */
     const lastCounted = isCurrent ? TODAY : isPast ? monthLen : 0;
     let sched = 0, done = 0, bestRun = 0, run = 0;
     for (let d = 1; d <= lastCounted; d++) {
@@ -845,16 +786,12 @@ class Component extends DCLogic {
       const key = mOff + ':' + sel + ':' + i;
       const on = s.logs[key] != null ? s.logs[key] : i < selBase;
       const time = this.fmt(h.t, h12);
-      /* A habit to avoid speaks its own words on a day (calendar-day-detail.tsx:74-79): completed
-         reads indulged, missed reads resisted, against done and not logged for an ordinary habit. */
       const word = h.bad ? (on ? t.statusIndulged : t.statusResisted) : (on ? t.statusDone : t.statusEmpty);
       const ringStatus = h.bad ? (on ? 'bad' : 'done') : (on ? 'done' : 'empty');
       return {
         label: t.lang === 'en' ? h.en : h.pt,
         time: time, done: on,
         valueText: mock(time),
-        /* ListRow's trailing slot is this exact case by its own contract: a row about a day carrying
-           its StatusRing, the ring as the row's passenger. */
         ring: H(D.StatusRing, { status: ringStatus, size: 24, label: word }),
         toggle: () => this.setState((p) => ({ logs: Object.assign({}, p.logs, { [key]: !on }) })),
       };
@@ -929,7 +866,6 @@ class Component extends DCLogic {
       emptyLine: (isFuture && !emptyMonth) ? t.futureMonth : t.emptyMonth,
       showEmptyAction: emptyMonth && !isFuture,
 
-      /* Four views of the same content (page.tsx:56), so the switcher is SegmentedControl. */
       viewSwitch: (!error) ? H(window.OrbitNativeMobile.SegmentedControl, { label: t.viewLabel, value: view,
         onChange: (id) => this.setState({ view: id, st: ['week', 'range', 'agenda'].indexOf(st) >= 0 ? 'month' : st }),
         options: ['month', 'week', 'range', 'agenda'].map((id) => ({ id: id, label: t.views[id] })) }) : null,
@@ -952,7 +888,6 @@ class Component extends DCLogic {
       dayRows: dayRows,
 
       hasEvents: !paywall && evs.length > 0, events: evs,
-      /* goToDay (calendar-day-detail.tsx:241): the day card's route out, onto Hoje. */
       goDayRow: H('div', null,
         H(window.OrbitNativeMobile.ListRow, { icon: 'arrow-up-right', title: t.goDay, chevron: false, onClick: this.goHoje })),
       showPaywall: paywall,
@@ -961,7 +896,6 @@ class Component extends DCLogic {
 
       showStats: !error && isMonth,
       statState: loading ? 'loading' : (emptyMonth || isFuture || !s.recOn) ? 'empty' : 'default',
-      /* page.tsx:244-251: best streak, total logs, missed. All three from the same per day counts. */
       statBestValue: mock(String(bestRun)),
       statLogsValue: mock(String(done)),
       statMissValue: mock(String(Math.max(0, sched - done))),
