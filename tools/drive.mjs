@@ -152,26 +152,31 @@ export const orderCost = ({ history, newest, now }) => {
 }
 
 /**
- * The pace decision: `admit`, `slow`, `hold` or `probe`. Under `line` (the share of the week gone times 0.95) the gap between
- * build or find orders is 0. Over it, the gap spreads the `left` utilization (0.95 minus the reading) over the hours to the
- * reset: cost x hours / left, at most 6 hours, and 6 hours when nothing is left. The driver slows and never stops.
- * `hold` means no usable reading after a probe. `history` holds the readings and the launch times of this account.
+ * The pace decision: `admit`, `slow` or `probe`, never a stop. Over `line` (share of the week gone times 0.95) the gap is
+ * cost x hours / left, at most 6 hours. With no usable reading the gap is 6 hours. A probe is due at most once an hour.
  */
 export const paceDecision = ({ reading, now, lastProbeAt = null, history = { readings: [], launches: [] } }) => {
-  const probeOrHold = lastProbeAt !== null && now - lastProbeAt < HOUR_MS ? "hold" : "probe"
-  const unknown = { utilization: reading?.utilization ?? null, line: null, left: null, hours: null, cost: null, gapMs: null, nextAt: null }
-  if (reading === null || reading.resetsAt * 1000 <= now) return { action: probeOrHold, ...unknown }
-  const end = reading.resetsAt * 1000
+  const end = reading === null ? null : reading.resetsAt * 1000
+  const usable = end !== null && end > now
+  const probeDue = lastProbeAt === null || now - lastProbeAt >= HOUR_MS
+  const gapFrom = (figures, gapMs) => {
+    const lastLaunch = history.launches.length === 0 ? null : Math.max(...history.launches)
+    const nextAt = lastLaunch === null ? now : Math.max(now, lastLaunch + gapMs)
+    return { ...figures, gapMs, nextAt }
+  }
+  if (!usable) {
+    const unknown = { utilization: reading?.utilization ?? null, line: null, left: null, hours: null, cost: null }
+    const decided = gapFrom(unknown, PACE_MAX_GAP_MS)
+    return { action: probeDue ? "probe" : decided.nextAt > now ? "slow" : "admit", ...decided }
+  }
   const line = ((now - (end - WEEK_MS)) / WEEK_MS) * PACE_FACTOR
   const left = PACE_FACTOR - reading.utilization
   const hours = (end - now) / HOUR_MS
   const cost = orderCost({ history, newest: reading, now })
   const gapMs = reading.utilization <= line ? 0 : left <= 0 ? PACE_MAX_GAP_MS : Math.min(PACE_MAX_GAP_MS, Math.max(0, (cost * hours * HOUR_MS) / left))
-  const lastLaunch = history.launches.length === 0 ? null : Math.max(...history.launches)
-  const nextAt = lastLaunch === null ? now : Math.max(now, lastLaunch + gapMs)
-  const decided = { utilization: reading.utilization, line, left, hours, cost, gapMs, nextAt }
-  if (now - reading.at > HOUR_MS) return { action: probeOrHold, ...decided }
-  return { action: nextAt > now ? "slow" : "admit", ...decided }
+  const decided = gapFrom({ utilization: reading.utilization, line, left, hours, cost }, gapMs)
+  if (now - reading.at > HOUR_MS && probeDue) return { action: "probe", ...decided }
+  return { action: decided.nextAt > now ? "slow" : "admit", ...decided }
 }
 
 const newestReading = (...readings) => readings.filter(Boolean).sort((left, right) => right.at - left.at)[0] ?? null
@@ -390,7 +395,8 @@ const runProbe = async (env, mem, tickets) => {
   savePace(env, mem)
   const reading = await env.worker.probe({ invocation: await env.invocation() })
   if (reading === null) {
-    await notifyOnce(env, mem, "Orbit driver: the pace probe returned no rate limit event, so no new build order starts.")
+    log(env, "pace", "probe-failed", "no rate limit event, so the gap of the newest reading applies and the probe repeats after 1 hour")
+    if (!env.dryRun) await env.notify("Orbit driver: the pace probe returned no rate limit event, so the gap of the newest reading applies. The driver probes again in 1 hour.")
     return null
   }
   setReading(env, mem, { utilization: reading.utilization, resetsAt: reading.resetsAt, at: takenAt, account: mem.account?.key ?? null })
@@ -1015,11 +1021,10 @@ const admit = async (env, mem, tickets, states, busy) => {
   return { chosen, decisions }
 }
 
-/** What a held or slowed order says in the dry run and the ticket lines. */
+/** What a slowed order says in the dry run and the ticket lines. */
 const paceWait = (pace) => {
   if (pace.action === "probe") return "would probe the pace, then admit when the gap allows"
-  if (pace.action === "slow") return `pace slow: next build at ${new Date(pace.nextAt).toISOString()} (gap ${minutes(pace.gapMs)} min)`
-  return "hold: no weekly pace reading"
+  return `pace slow: next build at ${new Date(pace.nextAt).toISOString()} (gap ${minutes(pace.gapMs)} min)`
 }
 
 /** The pace decision from the newest of the worker reading and the snapshot, with its one log line. */
