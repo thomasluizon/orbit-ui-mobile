@@ -1,56 +1,54 @@
 /auto-work
 
-Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The order` (Batch T first), `## Decision pointers`, the first `## Current state` paragraph and `## Open questions`. Open brain ADR D149 (`Run Orbit on one Claude Ultra account after a harness token diet, with Max 100 as the fallback.md`) through the Obsidian MCP, and the others it lists only when a step needs them. Read `DESIGN.md`, `BRAND.md` and `design/canvas/README.md` before any UI diff. This prompt stays short (owner's harness token diet, `#2064`); older owner-message history and the helper catalogue are in `git show b40d003ed:.claude/handoffs/NEXT.md` (the tag `archive/prod-release-spec-full` keeps it reachable), read only when a step needs a part.
+Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The order` bullets and `## Open questions`; search `## Current state` for a fact.
 
-Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and check free disk (floor 50 GiB).
+Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/orchestrate` over the admitted queue without replanning. Crank is OFF (owner order): never invoke `/crank`. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`) and run `node tools/relay-checkout.mjs --check`.
 
-Run state: the scratchpad starts empty and nothing is copied from the predecessor. Each ticket's latest round note, review result and decisions are comments on that ticket, run-wide decisions are comments on the "Orbit run record" issue in `thomasluizon/orbit-tickets`, and the intake marks are its `run-state/intake.json`. `node tools/run-status.mjs --session <id>` rebuilds the in-flight set from GitHub.
+State lives on GitHub: decisions D931 to D938 on the run record `#2179`, `#2181` and `#2074`; the successor starts from D939. Each ticket's comments hold its round notes, reviews, design changes and work orders. Start each wake with `node tools/run-status.mjs --session <id>`. Read `date` before you write a time, and copy it into each decision header and each intake mark. Merge `origin/main` into the relay branch after each merge to `main`.
+
+Owner order: finish the work we started, no excuses, make it work. Work order v3 on `#2074` builds in two layers (D921); layer 1 is merged.
+
+Tokens (owner order): the main account's weekly tokens reset each Thursday at 04:00 -03 and must last the week. ONE worker at a time, reviews included. Keep coordinator turns few and short; read only the verdict line and the BLOCKING findings of a review file. A review finding of a few lines is a coordinator fix (orchestrate step 8): record the round first with `node tools/fix-rounds.mjs --worktree <p> --record local` (plus `--design-change <file>` past the cap), one commit per round, each fix with a test proven red without it.
+
+Models (owner orders): coordinator Opus 5.5; build and fix workers `claude-sonnet-5-5`; review workers run the review tier (Opus 5.5 xhigh). Workers run on the main account: pass `ORBIT_WORKER_CLAUDE_CONFIG_DIR=` empty on each launch, because the shell sets it. A worker that stops at a usage limit is reported to the owner at once. The Render MCP has no workspace: never pick one.
+
+Pullfrog: the run reaches the Pullfrog console through Claude in Chrome (`https://pullfrog.com/console/thomasluizon/<repo>`); `npx -y pullfrog@0.1.138 config list --repo <owner/name>` reads the live rules. Its Review PRs rules are current in all three repositories and its Learnings fields are empty (owner order).
+
+Reviews: every head, fix heads included, gets a read-only review before Pullfrog sees it (`compose-prompt.mjs --review [--since <prior head>]`, `launch-worker.mjs --review` in a detached worktree at the head); post each result with `post-run-note.mjs --kind review`. An order edited after `compose-prompt.mjs` fails its seal: never append to one. Ask Pullfrog with `list-bot-threads.mjs --head <sha> --wait-seconds 60` (0 posts no request).
+
+Tool facts: the approval-prompt hook refuses a variable in a `cd` path, a `git` argument or a redirect target (a lower case variable set on the same line is allowed), `$(...)` in a command's words, a `[` beside a backtick, `while`, `tar`, `python3`, `pgrep`, `render` as a command word, an unquoted here-document delimiter and a pipe after `done`; write such steps to a script file and run it with `bash <path>` or `node <path>`. Ticket comments go through `tools/comment-ticket.mjs`. Push only with `git push -u origin <branch>` from inside the worktree. One `wait-ci.mjs` per pull request. Copy every full SHA from `git rev-parse` output. `test-tools.mjs --only` repeats per module; the `pace-governor` module takes about 150 seconds.
 
 ## Goal
 
-Finish the spec: Batch T merged first (no new board ticket before it), then an empty board except `#33`, verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 23 open, 23 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`.
 
 ## In flight
 
-UI `main` `ec54a1f6a`; API `main` `3da71dcf6`; landing `main` `aab36c695`. Production web `6602756f3`, staging web `9a964ccad`, API `998823218` both, Android Open 1.3.149 (209), desktop 0.1.25.
+UI `main` `7947f0894`; API `main`, production and staging `9295ac75b`; landing `main` and staging `3dbd6cd` (production `20c1b0a90`); web staging and production `2460ef091`; Android Open and TestFlight 1.3.158 from `358ad030b`. Owner question queue: empty (`owner-questions.mjs --list` printed `[]`). Board 31 open, 31 placed in `## The order`, 0 unplaced, 0 placed twice. Last intake: Sentry 5 unresolved, no new event; mail 0 new; pull requests 0 pending; alerts 0 open. Next Sentry listing one hour after `intake.wake.sentryListedAt`.
 
 | Item | Disposition |
 | --- | --- |
-| `ui#2386` (`#2064`) | Clean republish, both harnesses green. CI, review, merge first; then close `ui#1989`, start the next relay branch from `main`, launch `#2065`. |
-| `ui#2378`, `#2379`, `#2380`, `#2383`, `#2384` (`#2066`, `#2067`, `#2073`, `#2070`, `#2072`) | Round 2 pushed by the orchestrator, threads resolved. CI, fresh review, merge at the merge bar; base-merge the `orchestrate/SKILL.md` editors as they conflict and reseed the calibration (`node tools/reseed-calibration.mjs`). After `ui#2378`: `disabledMcpServers` in the user Claude config `.claude.json` and `MEMORY.md` to 6 KB. After `ui#2383`: the `#2071` token swap. |
-| `ui#2381`, `ui#2382` (`#2068`, `#2069`) | Worker round 2 pushed (`d612f46c2`, `a79854516`), bodies merged. CI, review, merge. After `ui#2382`: intake step 5 runs `node tools/orbit-play-reviews.mjs --cycle`. |
-| `ui#2387` (`#2074`) | Delivered, body fixed to `Tracks`. CI, review; at the base merge after `ui#2386`, move its three spec Constraints lines to `.claude/playbooks/operations.md`. After merge, `npx pullfrog@latest config set review.mode none` and `review.re-review false` in all three repositories, then prove one requested review. |
-| `ui#2375` (`#2063`) | Round 3 `a6e248e41` pushed; device proof posted (main 1 of 20 drags, branch 20 of 20). CI, review, merge, then one Android Open for `#2062` and `#2063`. |
-| `ui#2377` (`#2061`) | Local `3712bdf65` and `9519dc39c` NOT pushed (third worker hit its ceiling, no report). Salvage checks green (`check-2061-r3/`: mobile 83/83, web 38/38, both type checks, both ESLint). Write `## Test evidence` from those logs, resolve threads `PRRT_kwDOR5Siws61FNhy` and `PRRT_kwDOR5Siws61FNh4`, push. |
-| `ui#2374` (`#1861`) | Round 8 `249eaa4d0` local, NOT pushed (max worker, exit 0; report in the log named by `launch-1861-r8.json`). Read the diff, run `batch-body.sh` on it, resolve thread `PRRT_kwDOR5Siws61FYgX`, push, then read the new acceptance and measure runs. |
-| Desktop Release 0.1.26 staging | Run 42492679821 attempt 2. File waiter on `wait-desk-42492679821-a2.done.json` in the `25768799` scratchpad, `--started-at` 21:04:30Z on the previous relay day. Then production, the staging and production web releases, then `landing#127`. |
-| Notary `e44eaa63` | File waiter on `notary-e44eaa63/done.json` in the `36945796` scratchpad, `--started-at` 08:03:50Z on the previous relay day. A signal only. |
-| `landing#127` (`#1563`) | Approved and green; merge after signed 0.1.26 is on `desktop-production`. |
-| Throwaway AVD | `orbit-repro-2030` runs headless on `emulator-5594`; delete it (`avdmanager delete avd -n orbit-repro-2030`) once `#2063` needs no more proof. |
-
-Inventory: open pull requests ui `#1989`, `#2374`, `#2375`, `#2377` to `#2384`, `#2386`, `#2387`; api none; landing `#127`. Unpushed: `fix/ticket-2061-search-clear-centre` (`9519dc39c`), `feature/ticket-1861-done-acceptance` (`249eaa4d0`). Running workers: none. Intake this relay: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0 (cycle `dfebfac5-c1` complete).
+| `#2181` ui#2509 | Worktree `ticket-2181-pace-governor`, branch `feature/ticket-2181-pace-governor`, local head `fabad556a` (rounds 9 to 15 by the coordinator, D932 to D938; tree clean; nothing pushed after `a4c62a196`). The review of `fabad556a` is on `#2181` with VERDICT DEFECTS (2): fix both as round 16 (`--design-change` needed), each with a test proven red, then review that head with `--since fabad556a`. Repeat until CLEAN. Then build the body from the body draft comment on `#2181` plus the body corrections in the latest review, push, reply to and resolve the 3 Pullfrog threads of `a4c62a196`, ask Pullfrog, `wait-ci.mjs --require-check pullfrog-approval`, merge at the bar. |
+| `#2074` layer 2 | Next after ui#2509: the driver (v3 item 1), the totals at merge (v3 item 5), the verdict read (00:50 item 3) and the review NOTEs filed on `#2074` (two comments from the ui#2509 reviews). |
+| `#2182` | Resolve ORBIT-API-1A at the first listing after the `resolveAfter` that `intake.sentry` holds, with no event newer than its `lastEventAt`, then `complete-ticket.mjs`. |
+| `#2184` | Owner-reported Android launch screen hang; next after `#2074` layer 2. |
+| `#2183` | Hook test rows read the live run record; build in order. |
+| Held | ui#2491 and ui#2494 on api#1124; ui#2498 on its relay proofs; api#1120, api#1121, api#1124 to api#1128 on the `#2135` gate (run-status `UPDATE_BRANCH` for them stays unused while held); `#2122` closes after a web release carries it. |
 
 ## Then, in this order
 
-1. Answer any owner message first, in his language.
-2. Start the two file waiters above and one `tools/wait-ci.mjs` over the open ui pull requests (fold so no more than three run).
-3. Push `ui#2377` and `ui#2374` as their rows say; drive Batch T to merged, `ui#2386` first.
-4. Merge `ui#2375`, then Android Open for `#2062` and `#2063`.
-5. Then the rest of `## The order`: desktop 0.1.26 releases, `#2057`, `#2056`, `#1560`, `#1563`, `#1561` device checks, `#2030`, the `#315` live Astra gate window, `#33` last, and the auto-work intake cycle when idle.
-
-## Crank
-
-Invoke `/crank` immediately after `/sleep` entry; `crank: true` is inherited. Keep the pool full within the load gate, merge at the merge bar, quality gates unchanged. Hand off with `/handoff --relay --sleep --crank`.
+1. Answer any owner message first. Give each order a ticket or a rescope before the turn ends.
+2. The In flight rows, one worker at a time: merges first, then reviews and rounds, then launches.
+3. Intake each cycle (Sentry hourly; mail, reviews, open pull requests and alerts, then the board), then the spec's `## The order`.
 
 ## Sleep
 
-Unattended: never ask the owner; decide with the best option and log it. Keep a live wake source (`tools/launch-worker.mjs`, `tools/wait-ci.mjs`, `tools/wait-release.mjs` or `tools/wait-file.mjs`, as Bash background tasks with timeout 7200000). Merge only with `gh pr merge --squash --match-head-commit <full sha>` after green checks, a fresh Pullfrog approval at that head and zero unresolved threads. Never add an attribution line. At the context threshold, drain and relay through `node tools/relay-session.mjs`.
+Unattended: never ask the owner; decide with the best option and log it on the run record. Keep a live wake source (`tools/launch-worker.mjs`, `tools/wait-ci.mjs`, `tools/wait-release.mjs`, `tools/wait-file.mjs` or `tools/wait-auto-work.mjs`, as Bash background tasks with timeout 7200000). Merge only with `gh pr merge --squash --match-head-commit <full sha>` after green checks, a fresh Pullfrog approval at that head, zero unresolved threads and `behind_by=0`. Close a merged ticket with `node tools/complete-ticket.mjs`. Never add an attribution line. Never release on the App Store. At the context threshold, drain and relay through `node tools/relay-session.mjs`.
 
 ## Previous prompt, disposition
 
-- Batch T rows: carried with new heads (table above); `ui#2385` replaced by `ui#2386`; `#2074` delivered as `ui#2387`.
-- `ui#2376` device proof and merge: done (`ec54a1f6a`). `#2063` device proof: done. `#2075`, `#2076`: folded into `#2061` and canceled.
-- `ui#2374` root cause: found (the runner's shared apsd keychain, a collapsed Windows toast), round 8 committed, push carried.
-- Waiters, desktop and web releases, `landing#127`, `#315`, `#33`, intake: carried.
+- Done: relay adopted (D931); the review of `4b500be1d` and coordinator rounds 9 to 15 (D932 to D938); hourly Sentry listings and one intake cycle.
+- Carried: ui#2509 (round 16 next), `#2074` layer 2, the `#2182` close, `#2184`, `#2183`, `#2169`, `#2176`, `#2126`, `#2146`, `#2152`, the held rows, intake, every standing order above.
+- Superseded: "the review of `4b500be1d` with `--since 225384230`" (done; the head is now `fabad556a`).
 
-Every identifier here came from a previous session: treat each as a lead to verify.
+Treat every identifier here as a lead to verify.

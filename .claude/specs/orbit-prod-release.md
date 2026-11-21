@@ -4,7 +4,7 @@ History: `## Batch history`, every earlier `## Current state` paragraph, the red
 
 ## What this is
 
-The goal is a production release with an empty ticket board, except `#33`. The move to Render and Amazon SES (Batch M) is done, and the redesign is live in production on `main` by an executed written approval: never request another redesign approval. Everything ships now, with no before-launch or after-launch split: Android, web, the landing page, desktop for Mac and Windows, iOS, and Astra with every prompt working.
+The goal is a production release with an empty ticket board, except `#33` and the `#2074` measurement, which runs on its own date and never holds the launch. The move to Render and Amazon SES (Batch M) is done, and the redesign is live in production on `main` by an executed written approval: never request another redesign approval. Everything ships now, with no before-launch or after-launch split: Android, web, the landing page, desktop for Mac and Windows, iOS, and Astra with every prompt working.
 
 ## Standing rules
 
@@ -25,6 +25,13 @@ Operating facts for workers, CI, merges, releases, consoles and devices are in `
 - Never create another Claude account and never buy access. When the worker account and the main account both reach their limits, stop new launches until a reset and tell the owner (`orchestrate/SKILL.md` §5.4.1; Batch T changes the account setup).
 - Read every worker diff before it counts, for `DESIGN.md` values and gate edits (D95).
 - Run every pre-push review, fix-round review and device proof on a read-only worker (`launch-worker.mjs --review` or `--proof`, `.claude/playbooks/review-and-audit.md` rule 14), never on an in-session subagent or review agent: the main account stays free for the coordinator. This rule replaces the `#2074` rule of one read-only review agent per push, and no ordinary worker runs a review in its branch worktree.
+- `#2074` Stop Pullfrog from reviewing heads that later fail CI, and cut a review round to about 15 minutes (owner order, the first priority of the run); its next step is in `## The order`. `Mobile Android Build` on `main` failed once on a Maven Central 429: a second one is root-caused here.
+- Every worker tier in `.claude/orchestrator.json` runs `claude-sonnet-5-5` (owner decision). Never move a worker tier to Fable or Opus unless the owner orders it in chat. Heavy build and fix work, review fix rounds included (`compose-prompt.mjs --review-batch`), goes to workers on that account through `tools/launch-worker.mjs`, which reports `usageLimitReached`; past `caps.workerLaunchesPerBranch` pass `--relaunch-reason`.
+- The coordinator relays at a soft 300000 tokens of context, at its first quiet point, with a 360000 hard ceiling (owner order of 19 November 2026, settled by measurement, a devil's advocate and `/second-opinion`; `#2180` carries the evidence and the config change). Never propose another pair without a new measurement of the plan's cache-read weight.
+- Speed with quality (owner order, the newest comment on `#2074`): the code is right the first time, and a pull request never spends a day in review rounds. The local review before a push reads the whole diff as Pullfrog does, and every confirmed defect is BLOCKING (wrong behaviour, a missed edge case, a test that passes with its guard removed, a comment that contradicts the code, an unused export); a NOTE is only taste. A fix round fixes every instance of each class in the diff, each with a test proven red with its guard removed. A defect class that comes from guessing at free text gets a structured input or a deletion, never one more pattern. A false statement in a pull request body is fixed by the coordinator. A worker runs the focused tests of its change, and CI runs the full suites.
+- Crank is off and `/sleep` stays on (owner order): the main account's weekly tokens must last until its weekly reset. The weekly tokens must last the whole week (owner order of 19 November 2026, after 21% spent in one morning): at most 1 worker runs at once, reviews included, and open pull requests reach the merge bar before a new ticket starts. Pullfrog runs on the main account token. While the worker account is at its weekly limit, workers run on the main account (`ORBIT_WORKER_CLAUDE_CONFIG_DIR` unset at launch).
+- Run tooling (Batch T and Batch 0b) is the priority of the run (owner order). Never hold ready work for an ordering preference: a pull request at the merge bar merges at once (owner order, `#2171`); new launches follow the 3-worker pace.
+- `/progress` reports only what merged and what is built but not merged, in product terms, with no pull request, ticket or version numbers; `/progress --remaining` reports the open board the same way (owner order, `#2170`).
 
 ### The owner
 
@@ -33,24 +40,27 @@ Operating facts for workers, CI, merges, releases, consoles and devices are in `
 - When the owner says a step is done, close on it and never re-ask how. Never list or remind the owner of the `#33` videos. When the owner asks "why", answer with evidence from the source and correct any earlier claim it contradicts.
 - Write and approve every piece of user-facing copy in both locales: write it against `BRAND.md`, the brain decisions and `/humanizer`, and approve it with `/second-opinion` framed as a claimed copy defect (so `DISAGREE` means approved), with the verdict posted on the pull request before merge. Never hold copy for the owner. pt-BR reads as a Brazilian product writer wrote it; a word-for-word translation is a defect, including API pushes and e-mails. Add no visible string out of place.
 - Orbit has no ads; Orbit Pro is the only monetization. Ad code is dead code to delete.
-- Orbit has no X brand account and gets none. The brand profiles are LinkedIn, Instagram `@useorbitapp`, Facebook, Discord and the Workspace mailbox. The founder account is the owner's to create and post to by hand; the run drafts its posts.
+- Orbit keeps its Instagram and X accounts on `contact@useorbit.org` and posts there only for new features and the launch; the focus is the founder (dev) accounts, where the owner posts by hand and the run drafts the posts (owner decision). The founder accounts use the founder e-mail the owner set (done; never ask again). The other brand profiles are LinkedIn, Facebook, Discord and the Workspace mailbox.
 
 ### Product rules no other document holds
 
 - General habits never offer Skip; dated habits keep Skip (`#1920`). General items are undated one-time tasks under Task date choices; Habit frequency offers only Every and Times per, without the repeating General hint. The habit form rules are in `design/habit-form-surfaces.md`.
-- Calendário is one centred column (the month grid on top, the selected day below it, the view selector folded into the month header, 24px card padding). The Perfil Suporte row opens the support form. Sobre carries no internal naming note.
+- Calendário is one centred column (the month grid on top, the selected day below it, the view selector under the Orbit line row (`#2122`), 24px card padding). The Perfil Suporte row opens the support form. Sobre carries no internal naming note.
 - Owner removals that `tools/feature-parity-rules.json` cites by exact text: Perfil is grouped into sub-menus, and the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies. A floating control no drawing has (the web back-to-top button) is deleted, not restyled. `#1422`: Remove the Hoje jump pill; the centred date label returns to today across the app.
 - The Astra button exists only in the compact shell (Android and web below 1024), replaces the Hoje composer, and sits fixed directly above the create habit button, never dragged or moved (`#2042`, `#2077`).
 - Every input is simple first (levels, not a wall of options), keeps correct spacing including hover spacing, and asks human questions instead of system labels. A set of options never wraps onto a second line, and every no-wrap rule has a test that fails the pull request.
 - The app feels like a native mobile app at compact widths: less on each screen, secondary content in sheets, menus and drawers, and breathing room around every group (brain ADR `Native mobile review answers on suggestion chips, the Avisos bell and long typed text.md`). `DESIGN.md` is wrong wherever it permits the opposite. Where a control sits is the run's decision.
+- Every screen works on every device size, the smallest first: the owner's iPhone is an SE 2020 (375 x 667 points). An iOS proof runs on an SE-size simulator first, then a large iPhone, with the keyboard closed and open.
 - Hovering a nested control never keeps its parent card's hover active (`#2057`).
+- No surface draws a spinner: a loading state is a skeleton, and a control that waits keeps its label and takes the skeleton look (owner order, `#2120`).
 - Keep locale out of auth and deep-link URLs. Gate both listing and revoking API keys behind the emailed code.
-- The landing page follows the long-scroll reference `lp.pierre.finance/lp/converse` in Orbit's design with Astra as the focus, never a description beside a phone mockup. Nothing on it changes without a visitor action, except the hero side cards, which float from page load and tilt toward a fine pointer (stopped under reduced motion and off-screen); the phone does not float, never scrolls on its own, and draws every component at the app's logical size.
+- The landing page follows the long-scroll reference `lp.pierre.finance/lp/converse` in Orbit's design, never a description beside a phone mockup. The mascot rebrand is a tone change with motion, never an icon swap (owner order, the `#2126` work order): Orbit leads the page, the live Orbit moves from page load, and each section has its own entrance and scroll motion; reduced motion keeps a still version. The phone never scrolls on its own and draws every component at the app's logical size.
 
 ### Platforms and releases
 
 - Route all work to `main` in every repository; `redesign/main` is retired.
 - Nothing deploys on a merge or a push; `/release` and `/android-release` own every deploy. Android fixes merged to `main` ship to the Open track, Orbit's main Android channel. The production track stays empty until the owner orders a launch.
+- iOS and Android are always at the same release stage (owner rule). While Android is on the Play Open track, iOS is in TestFlight beta. Orbit goes to everyone on the App Store only when the owner orders the Android production release, in the same order: an App Review approval never starts a release and never needs a question about its date.
 - One mobile release ships Android and iOS at the same `app_version` from the same `main` commit. Each store keeps its own build counter: Android `versionCode`, iOS `CFBundleVersion`. Release Android first, then iOS at the Android version. Release one platform alone only for a defect specific to that platform, and pass `platform_only_reason` so the run records why. A platform-only release uses the `nextVersion` of `mobile-version-pair.js plan`, above the newest version of both platforms, so one version never names two code states. Both release workflows pass the commit they build to `apps/mobile/scripts/mobile-version-pair.js check`, which refuses a version that breaks this rule. A version that either platform already carries takes only the commit of its newest record, and a record without a commit refuses its version. `.claude/skills/android-release/SKILL.md` and `.claude/skills/ios-release/SKILL.md` own the procedure.
 - The beta fleet permits a simpler deploy order while the owner is the only user, including relaxing deploy-API-first. Keep the full code contract.
 - The live Astra eval gate (`#315`) runs once, after every other ticket that changes the code is done and the `#1916` call-cost fix is live, with one attempt per case and failing cases rerun once. Its eval spend ceiling is 2 USD for that run and returns to 0.50 USD a day after it; fix rounds replay recorded provider responses offline. No paid-key probe runs without a written cost estimate. The iOS app does not hold the gate.
@@ -61,47 +71,63 @@ Reconcile the open board with these batches before each handoff. Place each new 
 
 ### Batch T: the harness token diet (owner order, priority 1)
 
-In-flight work finishes as normal. Then no new board ticket is admitted until every diet ticket below is merged. Brain ADR D149 holds the measurements and the account plan.
+No diet ticket holds admission: `#2071` is closed; `#2074` merged in the API, and its UI and landing pull requests plus the measurement are open. Brain ADR D149 holds the measurements and the account plan.
 
-- `#2064` Cut the production release spec to 40 KB and `NEXT.md` to 8 KB, with a size guard. Next: CI, review and merge of `ui#2386`; then close the relay docs pull request `ui#1989` and start the next relay branch from `main`.
-- `#2065` Lower the coordinator relay threshold to 200k tokens. Next: after `#2064` merges, `/orchestrate`.
-- `#2066` Cut fixed context per call: unused connectors off, `CLAUDE.md` to 6 KB, `MEMORY.md` trimmed. Next: CI, review, merge of `ui#2378`; then the orchestrator sets `disabledMcpServers` for this project in the user Claude config `.claude.json` and trims `MEMORY.md` to 6 KB.
-- `#2067` Run the default and mechanical worker tiers on Sonnet 5.5. Next: CI, review, merge of `ui#2379` (base-merged after `ui#2380`, calibration reseeded); the first default-tier launch after the merge proves Sonnet with `--effort high`.
-- `#2068` Cache ticket classifier results on disk by body hash. Next: CI, review, merge of `ui#2381`.
-- `#2069` Wake the auto-work coordinator only when an intake source has a new item. Next: CI, review, merge of `ui#2382`; then intake step 5 runs `node tools/orbit-play-reviews.mjs --cycle`.
-- `#2070` Run workers on the main account when no worker account exists. Next: CI, review, merge of `ui#2383`.
-- `#2071` Move the Pullfrog token in all three repositories to the main account, before 4 December 2026. Next: after `ui#2383` merges, the orchestrator runs `claude setup-token` and `gh secret set` from stdin, then a small worker for the skill text.
-- `#2072` Measure Pullfrog rounds to approval per pull request. Next: CI, review, merge of `ui#2384`.
-- `#2074` Stop Pullfrog from reviewing heads that later fail CI. Next: CI, review, merge of `ui#2387` after a base merge; then `npx pullfrog@latest config set review.mode none` and `review.re-review false` in all three repositories, and prove one requested review.
-
+- `#2074` Stop Pullfrog from reviewing heads that later fail CI, and cut a review round to about 15 minutes (owner order, the first priority of the run). Work order v3 builds in two layers (D921). Layer 1 is merged (`ui#2510`, `7947f0894`): the Opus 5.5 xhigh review tier, the review on every head, the live Pullfrog rules in each local order, the process identity without setuid `ps`, one fix launch per head. Next, layer 2: the driver off the coordinator (v3 item 1), the totals at merge (v3 item 5), the verdict read (00:50 item 3) and the review NOTEs filed on the ticket.
+- `#2181` Pace worker launches to the weekly token budget line. Next: `ui#2509` is local at `fabad556a` (coordinator rounds 9 to 15, D932 to D938 on the ticket; nothing pushed after `a4c62a196`). The review of `fabad556a` (on the ticket) has 2 BLOCKING findings: fix them as round 16 with a test proven red each, review that head (`--since fabad556a`), repeat until CLEAN, then write the body from the body draft comment plus the corrections in the latest reviews, push, reply to and resolve the 3 Pullfrog threads of `a4c62a196` (round 4 fixed them), ask Pullfrog, wait, merge. Review NOTEs go to `#2074`.
+- `#2152` Keep all run state on GitHub so any computer can continue the run, and stop carrying the scratchpad (owner order, the next priority after `#2074`). Next: manual steps 1 and 2 of `ui#2488` are done (run record `#2179`, the `#2135` baseline in `run-file.mjs`), and `ui#2505` (the hermetic launch gate of every launcher test) is merged. Step 3 waits until repository tools replace the loop tools; until then the coordinator keeps the predecessor scratchpad that holds the bodies, replies and review orders, even when `tools/stale-files.mjs` lists it. A measurement-mode work order (ticket comment) is queued: `compose-prompt.mjs` has no sealed order for a measurement launch.
+- `#2173` Relay without draining the workers (workers detached with a completion file; the successor watches them). Next: `ui#2498` is pushed; Pullfrog found no code defect and approves after the proofs. Merge condition: the live relay proofs A and B (scratchpad `body-2498-main1.md` lines 35 to 55); they need the branch code in the orchestrating checkout and a real relay. Before it merges, its test `tools/__tests__/launch-worker-detached.mjs` must stop every process it detaches (a leaked `detached-nesting-worker.cjs` stub lived 30 hours; ticket comment).
 ### Batch R: owner review findings
 
 A finding from an owner review or a rendered sweep that shows broken behaviour lands here.
 
+No open ticket.
+
 ### Batch 0b: the harness and the standing syncs
 
+- `#2183` Keep the attended git-guardrail hook rows off the live run record of the checkout. Next: build it (the cause is verified in the ticket).
 The gates every later batch runs through. Re-read each ticket against the tree before you build it.
+
+
+
+Worker hard ceiling: a long build passes `--hard-ceiling-minutes 150` to `tools/launch-worker.mjs`. A second red of `android-release-certificate.test.ts:39` (`beforeAll`) gives that hook its own time limit; a third hang of "Run median TBT and script budget gates" gives that step its own time limit.
 
 ### Batch 0c: live defects in the shipped product, on `main`
 
 An Android fix is followed by an Android Open release and an iOS TestFlight build at the same version, unless the defect is specific to Android.
 
-- `#2062` Keep the keyboard up while typing in habit search. Next: `ui#2376` is green and approved; the device proof on the throwaway AVD at the owner size (red on `verify-main-501e-staging.apk`, green on `verify-branch-2376-staging.apk`), merge, Android Open.
-- `#2063` Make every drag of the floating Astra button move it. Next: `ui#2375` round 3 pushed; CI, review, the device proof (20 drags), merge, Android Open.
-- `#2061` Centre the clear X in the habit search empty state. Next: on `ui#2377`, read the unpushed round 2 commit `3712bdf65`, fix the test alias thread if it is still open, resolve both threads, push, CI, review, merge, Android Open; fold `#2075` and `#2076` into it and close them.
-- `#2057` Hovering a nested control must not keep its parent card's hover active. Next: `ui#2366` is merged; close after Android Open 1.3.148 or later and the next web release carry it.
-- `#2056` An old macOS app cannot update because the sign-in page opens Cloudflare in Chrome first. Next: `ui#2365` is merged; close once desktop 0.1.26 and the web release that carries the gate are live.
-- `#2030` Show the update and later buttons on the Android update sheet. Next: CI, a fresh review and merge of `ui#2351`, then Android Open; read `android_update_sheet_shown` from the owner's device once it runs 205 or later.
+
+- `#2182` Answer a broken read argument with a validation message (Sentry ORBIT-API-1A). Released: API production and staging serve `9295ac75b`. Next: resolve ORBIT-API-1A at the first Sentry listing after the 24-hour watch that intake.sentry holds (resolveAfter) with no new event, then close.
+- `#2184` Open Orbit on Android past the launch screen every time (owner report; a force stop cleared it). Next: after `#2074`, reproduce on the shipped Open build, fix the boot step that never settles and bound the boot, then ship Android Open and TestFlight.
+- `#2127` Stop the assistant from asking the opposite of a choice the person already made (live defect, owner order). Next: `api#1111` is merged and live in production (`1d2a826b8`). The staging capture passed 4 of 5 (run 5 replied with a log-only list card, the `#2129` class); per the plan no old-path fix round runs: the case is a must-pass case of `#2135`. Close when the new path passes it.
+- `#2129` Make the assistant do the job from a short request, without the person teaching it each step (live defect, owner order; the class of `#2127`; this ticket owns the agreed plan and its build). Next: build the plan step by step (scratchpad `orbit-ai-build-steps.md`, `best-impl-orbit-ai-final.md`; the newest owner comment orders the lanes): 2-api `#2154`, 3a `#2155`, 3b `#2161`, 4a `#2162`, 4b `#2163`, 5-api `#2159`, 6-api `#2160`, 5-ui `#2164`, 6-ui `#2165`, step 7 `#2166` to `#2169`. The eval ceiling of this build is 1.20 USD a day; rows 3a, 3b and 4 gate at k=1; gate rules A1 and B1 are decided (ticket comment). The crisis support word boundaries are a separate pull request after `#2159`. The rate criterion of `core/merge.mjs:133` needs a tolerance decision before the first row that compares a rate.
+- `#2154` Give the assistant short record references so a miscopied record ID still reaches the right record (Orbit AI step 2-api). Next: `api#1121` is green and approved at `9e4b6486f`. Its gate is the full core set.
+- `#2155` Make each preview approve on the first try, in English and Portuguese, from every route that shows one (Orbit AI step 3a). Next: `api#1120` is green and approved at `d7596be4f`, behind `main`. Its merge gate is the core set at k=1: the gate tool and the grader are on `main`; it needs the baseline of `#2135`.
+- `#2159` Let the model alone decide when to act and when to ask, behind a per-account flag (Orbit AI step 5-api). Next: `api#1124` is green and approved at `925ff6d49`. Merge order: `#2155`, `#2154`, then this.
+- `#2160` Prepare a whole request as one complete preview from one typed change list, behind the flag (Orbit AI step 6-api). Next: `api#1126` is pushed at `850fb2ad3` (round 4, notes filed), stacked on the api#1124 branch, Pullfrog asked. The provider probe passed for both shapes, so check 7 chooses: the core set runs on each shape, then a launch removes the other shape and adds the pinned schema baseline. Retarget it to `main` when api#1124 merges.
+- `#2161` Show which record a preview changes when several records share one title, on each client and each route (Orbit AI step 3b). Next: `api#1128` is open at `077323076`, stacked on the api#1120 branch: the whole review, CI, Pullfrog. It gates at k=1, and the coordinator approves its eight strings before the merge.
+- `#2162` Let each habit change join one approval, with effects that cannot break the set or stay after a rollback (Orbit AI step 4a). Next: `api#1125` is pushed at `02185b4a0`, stacked on the api#1120 branch (fix round 1, notes filed, green): ask Pullfrog. Before the merge, confirm in the CI log that `HabitEffectPostgresTests` ran on PostgreSQL. Retarget it to `main` when api#1120 merges. It gates at k=1.
+- `#2163` Let each goal, tag, checklist template, profile and notification change join one approval (Orbit AI step 4b). Next: `api#1127` is open at `f26ff95a6`, stacked on the api#1125 branch; it also stops the model call inside the idempotency transaction of the keyed MCP route (work order comment): the whole review, CI, Pullfrog.
+- `#2164` Export the flag-off and the flag-on tool catalogs and name the path of an eval run (Orbit AI step 5-ui). Next: `ui#2491` at `8ba7a99db`: Pullfrog found no code defect and fails only on the merge-order gate below. Before the merge, regenerate the catalog at the API `main` commit that holds `#2159`.
+- `#2165` Follow the typed change list in the eval catalog exporter and in the trace readers (Orbit AI step 6-ui). Next: `ui#2494` is pushed at `ed2c469eb` (round 2 with the ui#2491 base merge), stacked on the ui#2491 branch, Pullfrog asked.
+- `#2169` Add corpus cases for each family with its own code and delete the tool-name grade (step 7, part 4). Next: `#2167` merged (`ui#2500`, `1d13bec4c`); the board still blocks it on `#2160`, `#2164` and `#2165`; its ticket comments list the tool-name halves and review notes that ui#2500 left to it, and the `evals/astra` install defect (no `vite` in its lockfile, so the offline suite cannot start in a fresh worktree). Its live run needs `#2160`, `#2164` and `#2165`.
 
 ### Batch 2a: the API contracts the UI waits on
 
 API first, deploy, then the UI half in Batch 2b.
 
+No open ticket.
+
 ### Batch 2b: every other ticket that changes what a person sees
 
 Includes the packaging milestone ("Packaging: caps, quotas and tiers") and the PostHog work.
 
+- `#2176` Apply the unslop-ui skill to the whole app, on web and mobile in both languages (owner order). Next: `#2122` merged, so launch it when the worker slot is free.
+
 ### Batch 3: the landing page and the Play listing
+
+No open ticket.
+
 
 ### Batch 5: Astra
 
@@ -111,21 +137,31 @@ Milestone "562 Astra" and every Astra or MCP tool ticket. After every Astra tick
 
 A deletion ships as a deprecation, then a code removal, then a table drop, each in its own release. A DTO contraction waits on the `MinSupportedVersion` raise being live in the Play fleet. Accept the SonarCloud `S1133` issues a deprecation raises with a comment naming the removal part.
 
+No open ticket.
+
+### Batch M: the Orbit mascot rebrand (owner order: started, in ticket order)
+Each ticket is its body plus its work-order comments: one pull request each, never split, except `#2122`, which merges in its seven parts. `#2126` starts now and `#2125` starts after `#2144` (owner order; the other tickets keep the ticket order). The API releases first.
+- `#2146` Give the Orbit conversation entry a background and make the Orbit in the Hoje summary line move (owner order on the live app: it targets `main` and ships at once). `ui#2484` is merged and production web serves it; the Android proof passed, and the web proof at 375 on staging (same commit) passed every step except the dark fill, 1.09:1, while the circle edge is 3.66:1 dark and 3.48:1 light (both posted on the ticket). The edge reaches 3:1 against `--bg-card` and the page in both themes (decision on the ticket), and the pair Android Open 1.3.158 plus TestFlight 1.3.158 carries the change. Next: the Android proof deviations into `operations.md` `# Android devices and Play`, then close.
+- `#2122` Move every destination to the Orbit logic: Hoje, conversation, Calendário, Progresso and the rest. `ui#2453` merged as `3e55f1f80`. Next: close it with `complete-ticket.mjs` once a web release carries it.
+- `#2123` Finish the rebrand in the app: rename, guard, remove the old paths and clean the source. Next: after `#2122`.
+- `#2124` Finish the rebrand in the API: flag row, brand files and a cleanup of every file. Next: after `#2123`.
+- `#2125` Change Orbit outside the app: stores, external logos, thomas-brain and the vault. Next: Parts 1 and 2 are merged (`thomasluizon/thomas-brain#13`, `96e7fcb86`; that repository has no Pullfrog and no branch protection); the seven review notes are on the ticket. Part 5 (the vault) is complete (`thomasluizon/brain#2`, `8fd185e`; its five open review notes are on the ticket). Parts 3 and 4 (the store pages, the outside logos with Sentry) are coordinator work after `#2123`. The `thomas-brain` listing files equal the live Play text; the store rewrite states the Pro allowance as 250 a week (ticket comment).
+- `#2126` Rebuild the landing page around Orbit and clean every file. Next: landing staging serves `3dbd6cd`; the new build needs no new CSP hash (its 3 style and 7 style attribute hashes are in `orbit-api/infra/landing-csp.tf`, and it has no inline script). The rendered check on staging failed on three defects (the trust strip cut at 768, the week card clip at 768 and 1440, the hero float loop that never stops): one landing pull request from the work order comment, the rendered check again, the production landing release, close. `og-image.png` stays for `#2125`.
+
 ### Batch 7: the production readiness run
 
-- `#315` Run `/prod-readiness` once the board is clear. Next: Android Open 1.3.148 or later from a `main` commit whose push runs passed, then the live Astra gate window once the other tickets that change the code are done.
-- `#33` Record the 7 demo clips and 2 landing videos. Next: after every other ticket, the run writes the scripts, the owner records, and the run edits every video.
+- `#315` Run `/prod-readiness` once the board is clear. Next: Android Open 1.3.148 or later from a `main` commit whose push runs passed, then the live Astra gate window once the other tickets that change the code are done. First regenerate `evals/astra/catalog.yaml` at the evaluated API commit; a card question the grader cannot read is a grader limit.
+- `#33` Record the 7 demo clips and 2 landing videos. Next: after every ticket that changes code (the `#2074` measurement is independent), the run writes the scripts, the owner records, the run edits every video to the best result, and the editing method becomes thomas-brain skills. Blocked by `#2123` and `#2147`.
+- `#2147` Remake every store image with the Orbit mascot (owner order: at the end, after every other ticket, before the videos). Next: blocked by every open code ticket; it finishes before `#33`.
 
 ### Batch 8: new platforms, iOS first, then desktop
 
-- `#1561` Ship Orbit for iPhone and iPad to TestFlight, with push and the home-screen widget. Next: CI, review and merge of `ui#2370`, which rides the next Android Open, then the real-device checks through TestFlight once the owner installs it.
-- `#1560` Ship a real native Orbit desktop app for Windows and macOS. Next: `ui#2364` is merged; desktop 0.1.26 staging (run 42492679821 attempt 2 waits on Apple notarization of aarch64), then production, then the staging and production web releases; answer the three `ui#2369` threads in one round.
-- `#1861` Add the Done action to Repeat every reminders in the macOS and Windows desktop app. Next: `ui#2374` round 7 `f25ab7e4c` is pushed; read the macOS `pushDiagnostics`, `push-apsctl-status.log` and `push-unified.log` artifacts to find where the done reminder stops, fix that cause and the open `AdministratorsState` test thread in one round.
-- `#1563` Show the App Store badge and the Mac and Windows downloads on the landing page. Next: merge `landing#127` after signed desktop 0.1.26 is on `desktop-production`, then release the landing; the App Store card follows the App Store listing.
+- `#1561` Ship Orbit for iPhone and iPad to TestFlight, with push and the home-screen widget, and the production app on the owner's iPhone (owner order). The iPhone app is a launch requirement. Next: the real-device checks once the owner installs it, and the profiling step for Sentry `ORBIT-MOBILE-R` (a 3 s hang on the App Review iPhone; ticket comment of 12 November 2026). The iPad findings in the ticket comments (unread badge font scale, "Widget do Android" label) stay in scope. App Review approved iOS 1.3.152 (app store version `f093e30c-9704-4ff5-bf4a-e858784c0ecc`, `PENDING_DEVELOPER_RELEASE`, `MANUAL`): it waits for the owner's Android launch order. iOS 1.3.157 (7) is in the outside group `Orbit beta` and waits for Beta App Review. Add each later build with scratchpad `asc-external-group.mjs group <build id>`, then `submit <build id>`. `ui#2489` (App Store Connect retry) is merged. `ui#2496` (the iPad sign-in field, Sentry `ORBIT-MOBILE-Y`) is merged: the mobile pair carries it; resolve the Sentry issue after the carrying build shows no new event. Scratchpad tools: `asc-api.mjs` (the team key of the iOS signing folder in the home directory), `asc-pro.sh on|off`.
+- `#1563` Show the App Store badge and the Mac and Windows downloads on the landing page. Next: `landing#127` is live in production landing `7fb212c42`; the App Store card follows the App Store listing (`#1561`).
 
 ## How the work runs
 
-Use `/sleep` or `/auto-work` for unattended work and `/orchestrate` for one ticket at a time. Pullfrog reviews each pull request. `/handoff` replaces the one `## Current state` paragraph in this spec and overwrites `.claude/handoffs/NEXT.md`; it never appends.
+Use `/sleep` or `/auto-work` for unattended work and `/orchestrate` for one ticket at a time. Pullfrog reviews each pull request. `/handoff` replaces the one `## Current state` paragraph in this spec and overwrites `.claude/handoffs/NEXT.md`; it never appends. The session chain ledger lives untracked at .git/orbit-session-chain.json.
 
 ## Decision pointers
 
@@ -165,13 +201,14 @@ Code facts that no gate or owner document states:
 - `tools/check-i18n-usage.mjs` resolves only literal translation keys.
 - Web and Android mirror files read as duplication to Sonar: list each mirror pair in `sonar.cpd.exclusions`. Shared logic belongs in a React-free core in `packages/shared`; each app keeps only its React wiring.
 
+
 ## Current state
 
-Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `0e43371b0`, API `main` `3da71dcf6`, landing `main` `aab36c695`; staging web `9a964ccad`, production web `6602756f3`; staging and production API `998823218`; Android Open 1.3.149 (209); desktop production and staging 0.1.25 (0.1.26 staging run 42492679821 attempt 2 waits on Apple notarization of aarch64); TestFlight Orbit Staging 1.3.149 (4). Batch T: `#2073` merged (`ui#2380`); the other diet pull requests are in CI and review rounds (see Batch T). `ui#2375` (`#2063`) merged and waits for one Android Open release with `#2062`. Intake: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0. The session chain ledger lives untracked at `.git/orbit-session-chain.json`.
+UI `main` `7947f0894` (`#2074` layer 1); API `main`, production and staging `9295ac75b`; landing `main` and staging `3dbd6cd`, production `20c1b0a90`; web staging and production `2460ef091`; Android Open and TestFlight 1.3.158 from `358ad030b`. The review loop decision (D918, D919 on `#2074`): Pullfrog gave 711 reviews on 158 merged pull requests, fix rounds are the largest worker cost, and work order v3 builds in two layers. Each local review of a fix head reads the whole diff and so finds a new class most rounds; fix every instance of the class, keep NOTEs out of the round unless this branch made them, and file the rest on `#2074`. Every head gets a read-only review before Pullfrog sees it: `git worktree add --detach` at the head, `compose-prompt.mjs --review [--since <reviewed head>]`, `launch-worker.mjs --review` with `ORBIT_WORKER_CLAUDE_CONFIG_DIR=` empty, then `post-run-note.mjs --kind review`; the review tier is Opus 5.5 xhigh and the order carries the live Pullfrog rules. A coordinator fix records its round first with `node tools/fix-rounds.mjs --worktree <p> --record local` (plus `--design-change <file>` past the cap of 3) and keeps one commit per round; a worker fix round posts its note with `post-run-note.mjs --kind round-note`, then `compose-prompt.mjs --review-batch` and `launch-worker.mjs --fix-round`. A launch past `caps.workerLaunchesPerBranch` needs `--relaunch-reason`, and a launch refused at that cap still exits 0, so read its log. `list-bot-threads.mjs --wait-seconds 0` posts no request; `--wait-seconds 60` does. `test-tools.mjs --parallel` cannot combine with `--only`, and a branch with an uncommitted merge of `main` fails the stale-checkout guard of the tool tests until the merge commit exists. Write a timestamp only from `date` output. One worker at a time, reviews included: the weekly tokens of the main account reset Thursday 04:00 -03 and must last the week. Assistant pull requests (api#1120, api#1121, api#1124 to api#1128) wait on the core set gate of `#2135`. The session chain ledger lives untracked at .git/orbit-session-chain.json.
 
 ## Open questions
 
-No owner question is open. Owner-only steps, never reminded: cancel the second Claude account on 4 December 2026; cancel ChatGPT Plus if it still bills; open TestFlight for the `#1561` device checks; record the `#33` videos when the run asks.
+No owner question is open. When Pullfrog's token reaches its limit, run the scratchpad `token-swap.py` (the run record queue block names its folder), give the owner its link and write the code he pastes beside it. A failed `@pullfrog review` request still counts as the head's request for `tools/list-bot-threads.mjs`: post a new request comment by hand. The Apple and Windows logos on the landing downloads panel are a settled owner order (`#2090`): a review objection to them on trademark grounds gets the standing reply and is never raised with the owner again. A step for the owner names the literal value (the code, the number, the field label on the screen), and the run does the step itself first when an API can. The owner signed in to App Store Connect in Chrome. The Pullfrog workflow secret `CLAUDE_CODE_OAUTH_TOKEN` holds a fresh main account token in all three repositories (scratchpad `token-swap.py`, owner Authorize click). Owner-only steps, never reminded: cancel the second Claude account on 4 December 2026; open TestFlight for the `#1561` device checks; record the `#33` videos when the run asks.
 
 Settled decisions that still bind:
 
@@ -179,3 +216,6 @@ Settled decisions that still bind:
 - No Mac App Store and no Windows code-signing certificate; the Apple Developer Program only.
 - No CircleCI token rotation and no Render MCP key rotation. Astra gets no email connection.
 - Gmail web in `claude-in-chrome` reaches the owner's Orbit account mailbox; the Gmail MCP stays on the work mailbox.
+- An OAuth Authorize click on the owner's own account is his: give him the link and take the code he pastes.
+- The conversation entry is the live Orbit at 48 on a solid circle background (owner order, `#2146`), in a 60 press target above the create button, and the Orbit of the Hoje summary line moves with it, named `Falar com o Orbit` / `Talk to Orbit` and never "the Orbit button"; wide web keeps the labeled sidebar row. The owner comments on `#2120` and `#2122` hold the detail.
+- Each Claude account has one weekly reset: use it at 100% (on the main account at about 98%, before the coordinator stops) when about 3 days or more remain before the normal reset (claude.ai, Settings, Usage, "Redefinição semanal").
