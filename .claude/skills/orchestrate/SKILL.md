@@ -46,7 +46,7 @@ Report the state, the commit, the free worker slots and each ticket that waits o
 ## What the owner session does
 
 - Writes tickets with `/ticket`.
-- Answers each `needs:owner` item in a ticket comment, then removes the label. A pull request that used its 2 fix launches gets one more launch for each such comment that follows the cap report. The order carries the comment.
+- Answers each `needs:owner` item in a ticket comment, then removes the label. A pull request that used its 2 fix launches gets one more launch for each such comment that follows the cap report. Each cap report states the launch count, so a granted launch that ends at the same head gets a new report. The order carries the comment.
 - Runs releases.
 - Runs each `owner-work` ticket when the driver notifies.
 - Starts and stops the driver.

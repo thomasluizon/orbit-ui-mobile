@@ -655,7 +655,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     // A launch that still runs is in the count, so a cap is read only when no worker runs on the branch and the last launch has its result.
     if (running.branches.has(pull.headRef)) return [...actions, { type: "none", reason: "a worker runs on the branch: the fix launch cap waits for its result" }]
     // The owner removed the label with no comment after the cap report, so the label goes back.
-    return [...actions, { type: "needs-owner", reason: `${item} used its ${MAX_FIX_LAUNCHES} fix launches. Open: ${classes}`, relabel: true }]
+    return [...actions, { type: "needs-owner", reason: `${item} used its ${MAX_FIX_LAUNCHES} fix launches. Launches: ${launches.length}. Open: ${classes}`, relabel: true }]
   }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
   if (need.approved) {

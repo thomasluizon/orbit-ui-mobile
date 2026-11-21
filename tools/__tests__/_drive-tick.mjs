@@ -526,7 +526,7 @@ const ownerAndBodyCases = async () => {
 
   const branch = "chore/ticket-7-30"
   const finding = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })
-  const capReport = (offset, head = HEAD) => comment("needs-owner", `ui#30 at ${head}: ui#30 used its 2 fix launches. Open: tools/a.mjs:3`, offset)
+  const capReport = (offset, head = HEAD, count = 2) => comment("needs-owner", `ui#30 at ${head}: ui#30 used its 2 fix launches. Launches: ${count}. Open: tools/a.mjs:3`, offset)
   const launches = [launchComment("fix", branch, -90 * MINUTE), launchComment("fix", branch, -80 * MINUTE)]
   const answered = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "Use the second option for the label.", -30 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await answered.run()
@@ -538,10 +538,17 @@ const ownerAndBodyCases = async () => {
   await before.run()
   same("drive: an owner comment from before the cap report grants no launch", [before.launched.length, only(before.calls, "editLabels").length], [0, 2])
   const extra = launchComment("fix", branch, -20 * MINUTE)
-  const cappedAgain = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "One more try.", -30 * MINUTE), extra, capReport(-10 * MINUTE, NEXT_HEAD)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  const cappedAgain = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "One more try.", -30 * MINUTE), extra, capReport(-10 * MINUTE, NEXT_HEAD, 3)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await cappedAgain.run()
   same("drive: the extra launch is used up, so a later cap with no new owner comment gives needs:owner", [cappedAgain.launched.length, only(cappedAgain.calls, "editLabels").length], [0, 2])
-  const askedTwice = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "One more try.", -30 * MINUTE), extra, capReport(-10 * MINUTE, NEXT_HEAD), comment(null, "And one more.", -5 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  const sameHead = (...later) => scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "One more try.", -30 * MINUTE), extra, ...later] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  const stuck = sameHead()
+  await stuck.run()
+  same("drive: a granted launch that leaves the head the same gives a new cap report with the launch count and a notification", [stuck.launched.length, needsOwnerComments(stuck.calls, 7).map((text) => /Launches: 3\. Open: tools\/a\.mjs:3/.test(text)), only(stuck.calls, "notify").length], [0, [true], 1])
+  const stuckAnswered = sameHead(capReport(-10 * MINUTE, HEAD, 3), comment(null, "The answer to the question.", -5 * MINUTE))
+  await stuckAnswered.run()
+  same("drive: an owner comment after the second cap report at the same head grants the next launch with its comment", [stuckAnswered.launched.length, stuckAnswered.launched[0]?.order.includes("The answer to the question."), only(stuckAnswered.calls, "editLabels").length], [1, true, 0])
+  const askedTwice = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "One more try.", -30 * MINUTE), extra, capReport(-10 * MINUTE, NEXT_HEAD, 3), comment(null, "And one more.", -5 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await askedTwice.run()
   same("drive: a second owner comment after the second cap report grants a second extra launch with its own comment", [askedTwice.launched.length, askedTwice.launched[0]?.order.includes("And one more."), askedTwice.launched[0]?.order.includes("One more try.")], [1, true, false])
 
@@ -1262,7 +1269,7 @@ const gatedReportCases = async () => {
 
   const capped = scenario({ tickets: [ticket(7, { ...gated, comments: [launchComment("fix", "chore/ticket-7-30"), launchComment("fix", "chore/ticket-7-30")] })], pulls: { ui: [pull(30, { reviews: [blockingChanges()] })] } })
   await capped.run()
-  same("drive: a fix cap on a ticket that already carries needs:owner labels the pull request, posts the open classes and notifies", [only(capped.calls, "editLabels").map((entry) => entry.slice(1, 3)), needsOwnerComments(capped.calls, 7).map((text) => /used its 2 fix launches. Open: tools\/a.mjs:3/.test(text)), only(capped.calls, "notify").length], [[["ui", 30]], [true], 1])
+  same("drive: a fix cap on a ticket that already carries needs:owner labels the pull request, posts the open classes and notifies", [only(capped.calls, "editLabels").map((entry) => entry.slice(1, 3)), needsOwnerComments(capped.calls, 7).map((text) => /used its 2 fix launches. Launches: 2. Open: tools\/a.mjs:3/.test(text)), only(capped.calls, "notify").length], [[["ui", 30]], [true], 1])
 
   const repeatTickets = [ticket(7, { ...gated, comments: [launchComment("fix", "chore/ticket-7-30"), launchComment("fix", "chore/ticket-7-30")] })]
   const repeated = scenario({ tickets: repeatTickets, pulls: { ui: [pull(30, { reviews: [blockingChanges()] })] } })
