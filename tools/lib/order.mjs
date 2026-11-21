@@ -79,7 +79,7 @@ const deliverySection = ({ ticket, kind }) => {
   const pushes = pushesToOpenPull(kind)
   const pullRequest = pushes
     ? "Push to the branch of the open pull request. Open no other pull request."
-    : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` (never \`Closes\`), \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open.`
+    : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` (never \`Closes\`), \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start each item that waits on the owner, on another ticket or on a release with \`owner:\` or \`blocked by #<ticket>\`.`
   return `**Delivery.** Commit after each coherent piece. ${pullRequest} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge, never force-push, never \`--no-verify\`. Write to GitHub only with ${pushes ? "`git push`" : "`git push` and `gh pr create`"}.`
 }
 
