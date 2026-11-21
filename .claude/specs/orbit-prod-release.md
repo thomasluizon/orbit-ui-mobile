@@ -17,7 +17,7 @@ Operating facts for workers, CI, merges, releases, consoles and devices are in `
 - Choose the complete, correct implementation; speed changes scheduling, never quality. Fix a harness defect in the current run; file a separate ticket only for a real capability gap. Research before you experiment.
 - New reports about the shipped product outrank the queue. A defect the owner reports in the live app targets `main`, is fixed at its root, is reproduced red then green on a device or the real path, and ships at once through the production releases. Never repeat a paraphrased report as a verified cause; read the original report.
 - Fix every unresolved Sentry issue at its root, then resolve it in Sentry after the carrying release shows no new event.
-- The `#315` readiness run is the last before launch: its merged ticket set is the complete launch list, filed once. Run no further `/prod-readiness` or `/audit-*` before launch. A defect found while fixing goes into the open ticket for its area (a worker that files its own ticket gets it folded back and canceled); only a live production defect gets its own ticket.
+- A defect found while fixing goes into the open ticket for its area (a worker that files its own ticket gets it folded back and canceled); only a live production defect gets its own ticket.
 - Never create orders, phases, rules, gates or approval steps the owner did not give. Build an order in full or not at all.
 - Operate every platform through Terraform, CLIs, APIs and MCPs, and do every step yourself that needs no password, 2FA, payment or legal identity choice from the owner. Before you name anything as waiting on the owner, verify it against the code and every installed tool. "Waiting on the owner" means only what the owner personally can do now, never a third party such as Apple.
 - Record every infrastructure decision and research result in the brain as it is made.
@@ -110,7 +110,6 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 
 ### Batch 7: the production readiness run
 
-- `#315` Run `/prod-readiness` once the board is clear. Next: Android Open 1.3.148 or later from a `main` commit whose push runs passed, then the live Astra gate window once the other tickets that change the code are done.
 - `#33` Record the 7 demo clips and 2 landing videos. Next: after every other ticket, the run writes the scripts, the owner records, and the run edits every video.
 
 ### Batch 8: new platforms, iOS first, then desktop
