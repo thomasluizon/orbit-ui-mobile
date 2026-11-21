@@ -500,6 +500,12 @@ const readWorkerAccount = async (env, mem) => {
   }
 }
 
+/** The end of a usage-limit stop: the `resetsAt` of the account when it lies ahead, else one hour from now. */
+const limitEnd = (env, mem, name) => {
+  const resetsMs = (stateOf(mem, name).reading?.resetsAt ?? 0) * 1000
+  return resetsMs > env.now() ? resetsMs : env.now() + HOUR_MS
+}
+
 /** Stops an account until `until` (epoch ms). A worker that ended on a usage limit sets it, and a probe that reads status allowed ends it early. */
 const stopAccount = async (env, mem, name, until, source) => {
   const state = stateOf(mem, name)
@@ -898,7 +904,11 @@ const pullfrogLimit = async (env, mem, tickets, repoKey, runs) => {
     // A run that stops at a limit ends on the message. Text that the run only read or echoed sits far before the end.
     const found = workerApi.usageLimitIn(logText.split("\n").slice(-PULLFROG_LOG_END_LINES).join("\n"))
     if (found) {
-      await pauseDriver(env, mem, tickets, { source: "Pullfrog", ...found })
+      // Pullfrog runs on the main account. With a second account only the main account stops, and the worker account keeps its slots.
+      if (knownAccounts(mem).length > 1) {
+        log(env, repoKey, "pullfrog-limit", found.message)
+        if (!env.dryRun) await stopAccount(env, mem, MAIN, limitEnd(env, mem, MAIN), "Pullfrog hit a usage limit")
+      } else await pauseDriver(env, mem, tickets, { source: "Pullfrog", ...found })
       return true
     }
   }
@@ -1086,8 +1096,7 @@ const enforceOrphanClocks = async (env, mem) => {
 const stopAndRefund = async (env, mem, ticket, exit, result) => {
   const { kind, branch, partNumber, prNumber, account } = exit
   const name = nameOfKey(mem, account)
-  const resetsMs = (stateOf(mem, name).reading?.resetsAt ?? 0) * 1000
-  const until = result.result.usageLimitReached && resetsMs > env.now() ? resetsMs : env.now() + HOUR_MS
+  const until = result.result.usageLimitReached ? limitEnd(env, mem, name) : env.now() + HOUR_MS
   await stopAccount(env, mem, name, until, result.result.usageLimitReached ? "a worker hit a usage limit" : "a worker sign-in failed")
   const body = marked("launch-refund", JSON.stringify({ kind, part: partNumber, branch, pr: prNumber }))
   await env.github.comment("tickets", ticket.number, body)
@@ -1521,7 +1530,7 @@ export const tick = async (env, mem) => {
   for (const name of ACCOUNT_NAMES) {
     const state = stateOf(mem, name)
     const probeDue = state.lastProbeAt === null || env.now() - state.lastProbeAt >= HOUR_MS
-    const owed = paces[name].state === "unknown" || state.probeOwed || state.stoppedUntil !== null || (name === MAIN && paused && running.workers.length === 0)
+    const owed = paces[name].state === "unknown" || state.probeOwed || state.stoppedUntil !== null || (name === MAIN && paused && paces[name].running === 0)
     if (!account.ok || env.dryRun || paces[name].weekly || paces[name].state === "absent" || !probeDue || !owed) continue
     await runProbe(env, mem, tickets, name).catch((error) => log(env, "probe", "error", error.message))
     paces[name] = decidePace(env, mem, running, allowances, name)

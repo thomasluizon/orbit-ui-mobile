@@ -1875,6 +1875,21 @@ const twoAccountCases = async () => {
     same(`drive: ${label} start one worker on the worker account and post no Pullfrog request`, [scene.launched.map(accountOfLaunch), commentsOf(scene.calls, 30).length], [[WORKER_DIRECTORY], 0])
   }
 
+  const limitLine = `${READS.failedRunLog.line.replace(/Z .*$/, "Z ")}You've hit your limit. Resets 4am (America/Sao_Paulo)`
+  const failedRun = { databaseId: 77, displayTitle: "Respond to mention on #7 [abc]", status: "completed", conclusion: "failure", createdAt: iso(-10 * MINUTE), updatedAt: iso(-5 * MINUTE) }
+  const pullfrogLimited = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun], routes: [["--log-failed", limitLine]], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  await pullfrogLimited.run()
+  same("drive: with two accounts a Pullfrog usage limit opens no pause issue and stops only the main account until its resetsAt", [only(pullfrogLimited.calls, "createTicket").length, pullfrogLimited.mem.stoppedUntil, pullfrogLimited.mem.worker.stoppedUntil], [0, RESETS_AT * 1000, null])
+  same("drive: with two accounts a Pullfrog usage limit leaves the worker account its slots and posts no Pullfrog request", [pullfrogLimited.launched.map(accountOfLaunch), commentsOf(pullfrogLimited.calls, 30).length], [[WORKER_DIRECTORY], 0])
+
+  const oldPause = ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null, body: `A worker stopped.\n\nAccount: ${ACCOUNT.key}` })
+  const pausedWithWorker = scenario({ tickets: [oldPause, ticket(7)], reading: below, workerAuth: WORKER_AUTH, workerReading: below, probeReading: { utilization: 0.35, resetsAt: RESETS_AT, status: "allowed" } })
+  leftBehind(pausedWithWorker, { account: WORKER_ACCOUNT.key }, "", "chore-ticket-6")
+  pausedWithWorker.env.processAlive = () => true
+  writeFileSync(join(pausedWithWorker.env.stateDir, "chore-ticket-6.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/r/orbit-worktrees/ui/chore-ticket-6", startedAt: iso(-MINUTE) })}\n`)
+  await pausedWithWorker.run()
+  same("drive: a worker that runs on the worker account does not hold the probe that ends a pause of the main account", [only(pausedWithWorker.calls, "probe"), only(pausedWithWorker.calls, "closeTicket").length], [[["probe", "main"]], 1])
+
   const warning = { utilization: 0.8, resetsAt: RESETS_AT, status: "allowed_warning" }
   const workerWarned = scenario({ tickets: [ticket(7)], reading: below, workerAuth: WORKER_AUTH, workerReading: below, workerProbeReading: warning })
   workerWarned.mem.worker.stoppedUntil = RESETS_AT * 1000
