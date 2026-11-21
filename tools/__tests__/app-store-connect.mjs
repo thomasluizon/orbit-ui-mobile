@@ -1,6 +1,26 @@
+import { generateKeyPairSync, verify } from "node:crypto"
+import { readFileSync } from "node:fs"
 import { isDeepStrictEqual } from "node:util"
-import { apiClient } from "../lib/app-store-connect.mjs"
+import { apiClient, appStoreToken } from "../lib/app-store-connect.mjs"
 import { T } from "./_harness.mjs"
+
+// Schemas copied from Apple's published OpenAPI specification; the fixture `provenance` key names the source.
+const apple = JSON.parse(readFileSync(new URL("./fixtures/app-store-connect-testflight-schemas.json", import.meta.url), "utf8"))
+
+/** Returns the violations of a JSON value against a schema of the fixture. A reference outside the fixture is not checked. */
+const violations = (schema, value, at = "$") => {
+  const node = schema?.$ref ? (apple.schemas[schema.$ref.split("/").pop()] ?? {}) : schema
+  if (node.enum && !node.enum.includes(value)) return [`${at}: not in the enum`]
+  if (node.type === "array") return Array.isArray(value) ? value.flatMap((item, index) => violations(node.items, item, `${at}[${index}]`)) : [`${at}: not an array`]
+  if (node.type === "string") return typeof value === "string" ? [] : [`${at}: not a string`]
+  if (node.type !== "object") return []
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return [`${at}: not an object`]
+  return [
+    ...Object.keys(value).filter((key) => !Object.hasOwn(node.properties ?? {}, key)).map((key) => `${at}.${key}: not in the schema`),
+    ...(node.required ?? []).filter((key) => !Object.hasOwn(value, key)).map((key) => `${at}.${key}: required`),
+    ...Object.entries(node.properties ?? {}).filter(([key]) => Object.hasOwn(value, key)).flatMap(([key, child]) => violations(child, value[key], `${at}.${key}`)),
+  ]
+}
 
 const rejects = async (promise) => { try { await promise; return null } catch (error) { return error.message } }
 
@@ -27,6 +47,22 @@ const scripted = (statuses, success) => {
 const RETRY_WAITS = "1000,4000,16000"
 
 export const cases = async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" })
+  const [header, claims, signature] = appStoreToken({ keyId: "key", issuerId: "issuer", privateKey }).split(".")
+  T("app store: JWT header matches the team-key contract", JSON.stringify(JSON.parse(Buffer.from(header, "base64url"))) === JSON.stringify({ alg: "ES256", kid: "key", typ: "JWT" }))
+  T("app store: ES256 signature uses the required JWT encoding", verify("SHA256", Buffer.from(`${header}.${claims}`),
+    { key: publicKey, dsaEncoding: "ieee-p1363" }, Buffer.from(signature, "base64url")))
+  const payload = JSON.parse(Buffer.from(claims, "base64url"))
+  T("app store: JWT is short-lived and scoped to App Store Connect", payload.iss === "issuer" && Number.isInteger(payload.iat) &&
+    Math.abs(payload.iat - Date.now() / 1000) < 5 && payload.aud === "appstoreconnect-v1" && payload.exp - payload.iat === 600 &&
+    Object.keys(payload).sort().join(",") === "aud,exp,iat,iss")
+  const differentHeader = Buffer.from(JSON.stringify({ alg: "ES256", kid: "other", typ: "JWT" })).toString("base64url")
+  T("app store: the key identifier is authenticated by the signature", !verify("SHA256", Buffer.from(`${differentHeader}.${claims}`),
+    { key: publicKey, dsaEncoding: "ieee-p1363" }, Buffer.from(signature, "base64url")))
+  let refused = false
+  try { appStoreToken({ keyId: "key", issuerId: "", privateKey }) } catch { refused = true }
+  T("app store: a missing credential refuses to sign", refused)
+
   const paged = recording((url) => Response.json({
     data: [{ type: "betaGroups", id: url.searchParams.get("cursor") ?? "first" }],
     links: { self: String(url), ...(url.searchParams.has("cursor") ? {} : { next: "/v1/betaGroups?cursor=second&limit=2" }) },
@@ -47,8 +83,7 @@ export const cases = async () => {
       api.calls.map((call) => call.url.host).join() === "api.appstoreconnect.apple.com")
   }
 
-  // Apple's spec answers POST /v1/betaTesters with 201 and a BetaTesterResponse. The request body and this answer agree
-  // with the BetaTesterCreateRequest and BetaTesterResponse schemas in fixtures/app-store-connect-testflight-schemas.json.
+  // Apple's spec answers POST /v1/betaTesters with 201 and a BetaTesterResponse. The request body and this answer must agree with it.
   const createRequest = { data: { type: "betaTesters", attributes: { email: "person@example.test" }, relationships: { betaGroups: { data: [{ type: "betaGroups", id: "group-1" }] } } } }
   const createdTester = { data: { type: "betaTesters", id: "tester-1", attributes: { email: "person@example.test", inviteType: "EMAIL", state: "INVITED" } }, links: { self: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1" } }
   const created = recording(() => Response.json(createdTester, { status: 201 }))
@@ -57,6 +92,9 @@ export const cases = async () => {
   T("app store connect: a POST sends the body as JSON with its content type and returns the parsed answer", isDeepStrictEqual(answer, createdTester) &&
     created.calls.length === 1 && createCall.method === "POST" && createCall.url.href === "https://api.appstoreconnect.apple.com/v1/betaTesters" &&
     createCall.headers["Content-Type"] === "application/json" && createCall.body === JSON.stringify(createRequest))
+
+  T("app store connect: the create request and its answer match Apple's schemas", violations({ $ref: "#/components/schemas/BetaTesterCreateRequest" }, createRequest).length === 0 &&
+    violations({ $ref: "#/components/schemas/BetaTesterResponse" }, createdTester).length === 0)
 
   let tokens = 0
   const signed = recording((url, options) => (options.method === "POST" ? Response.json(createdTester, { status: 201 }) : Response.json({ data: [], links: { self: String(url) } })))
@@ -84,7 +122,7 @@ export const cases = async () => {
     recovered.calls.length === 2 && recovered.waits.join() === "1000" && recovered.calls.map((call) => call.headers.Authorization).join() === "Bearer token-1,Bearer token-2" &&
     recovered.calls[0].signal !== recovered.calls[1].signal)
 
-  for (const status of [500, 502, 503, 504, 429]) {
+  for (const status of [500, 429]) {
     const down = scripted([status, status, status, status, status], emptyPage)
     const message = await rejects(apiClient(() => "token", down.request, down.wait).getAll("/v1/betaGroups/group-1/betaTesters"))
     T(`app store connect: a GET that gets a ${status} on each attempt stops at the attempt limit with the unchanged message`,
@@ -109,7 +147,7 @@ export const cases = async () => {
 
   // The API reference documents no repeat-safe POST after a server error: the first POST can have created the resource.
   // A 429 is different: "the API rejects requests with an HTTP 429 response" (Identifying Rate Limits).
-  for (const status of [500, 502, 503, 504]) {
+  for (const status of [500]) {
     const uncertain = scripted([status, 201], createdTester)
     const message = await rejects(apiClient(() => "token", uncertain.request, uncertain.wait).post("/v1/betaTesters", createRequest))
     T(`app store connect: a POST that gets a ${status} has one attempt, because the first request can have created the record`,

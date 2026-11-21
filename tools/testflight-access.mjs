@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import { appendFileSync } from "node:fs"
 import { pathToFileURL } from "node:url"
-import { apiClient } from "./lib/app-store-connect.mjs"
-import { appStoreToken } from "./lib/app-store-connect-token.mjs"
+import { apiClient, appStoreToken } from "./lib/app-store-connect.mjs"
 
 const USAGE = `usage: testflight-access.mjs --app-id <apple id> --version <x.y.z> --build <number> [--timeout-minutes <n>]
 Runs after the iOS Release upload. Waits until App Store Connect shows the uploaded build as VALID, then
