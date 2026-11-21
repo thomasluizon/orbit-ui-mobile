@@ -20,10 +20,8 @@
 body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
-.native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
+.native-control:hover:not(:disabled):not(.native-tab){background:var(--bg-hover)}
 .native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-.native-send:hover:not(:disabled){background:var(--primary-hover)}
-.native-send:active:not(:disabled){background:var(--primary-pressed)}
 .native-tab:hover .native-tab-indicator{background:var(--bg-hover)}
 </style>
 <script src="./native-mobile.js"></script>
@@ -35,7 +33,7 @@ a:hover{color:var(--fg-1)}
   <div data-screen-label="Sobreposições" style="display:flex;gap:32px;align-items:flex-start">
 
     <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
-      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" notice="{{ notice }}" composer="{{ composer }}" sheets="{{ overlay }}" hint-size="412px,820px">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" notice="{{ notice }}" sheets="{{ overlay }}" hint-size="412px,820px">
         <div style="display:flex;flex-direction:column;gap:12px;padding:16px">
           <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ hostTitle }}</p>
           <div style="display:flex;flex-direction:column;gap:12px">
@@ -73,20 +71,12 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>The overlay primitives in a real list rather than as specimens: the sheet at short and long content, the overflow menu in both of its presentations, and the confirmation that appears only for something irreversible. Every overlay here is opened from a row, because that is the only way to see whether it opens where it should.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>menu, menu not overdue, sheet short, sheet long, confirm irreversible, reversible acted. A plan axis sits beside the state, free or Pro, defaulting to free, because the menu carries one real gate. Switch the width control on the menu state to see its two presentations, and switch between the two menu states to see the reschedule item appear and leave.</p>
-      <p><span style="color:var(--fg-3)">menu&nbsp;&nbsp;</span>one component, two presentations, chosen by width rather than by caller: a bottom sheet at 412, where a popover would sit under a thumb, and a popover anchored to the row at the wide width, where a sheet would move the whole screen for one small choice. The items are Hoje’s, item for item, because two documents drawing one surface draw the same surface and Hoje traced the list against both platforms: add sub habit, move parent, skip, reschedule, edit, duplicate, select, open sub habits, and delete last, destructive, behind the separator. Log and view details are absent by design: the ring already logs and the row body already opens the detail, so an item for either is a second control for something the row already does. Reschedule appears ONLY on the overdue row, because onReschedule passes only when habit.isOverdue (habit-list.tsx:906), which is why the fixture carries one overdue walk and why the menu on Leitura is one item shorter; open sub habits shows only where sub habits exist, and opens the drill, never the expand. Select stays, and stays hidden while selection is already on (this host never enters selection, so it shows); it is called out here so a third document cannot lose it by copying a seven item fixture. Dismissing changes nothing: the scrim, the catcher and Escape all leave the row exactly as it was.</p>
-      <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>add a sub habit follows the plan (startAddSubHabit, habit-list.tsx:702): on free the item carries the Pro badge through Menu’s own badge slot and ROUTES to Orbit Pro, on Pro it opens creation, drawn here as the item without the badge. The badge contract is the point: a badged item stays a real button, fires onSelect, and ignores disabled while the badge is present, so the gate can never be drawn as a dead control. This is the document’s one gate, and the only reason it carries the plan axis.</p>
-      <p><span style="color:var(--fg-3)">first line&nbsp;&nbsp;</span>a live defect, drawn as fixed. An overlay used to open with its body already scrolled, so its own first line was above the fold and a person met the middle of a sentence. The sheet now opens with its scroller at the top every time it opens, and the title is outside the scroller, so the first line is structurally reachable rather than reachable by luck. The long content state is the one that proves it: it opens at the top with 14 items below.</p>
-      <p><span style="color:var(--fg-3)">one scroller&nbsp;&nbsp;</span>the second live defect, drawn as fixed. A caller used to nest its own scroll container inside the sheet's, which produced two scrollbars, a trapped inner region and a body that could not be reached at all on a short screen. The sheet owns the only scroller: content passed to it lays out and grows, and nothing inside it declares its own overflow. The long state's 14 rows are a plain column for exactly that reason.</p>
-      <p><span style="color:var(--fg-3)">confirmation&nbsp;&nbsp;</span>only for something irreversible, and the test is reversibility rather than importance. Skipping a habit advances the schedule and can be skipped back, so it acts immediately and the row simply changes. Deleting takes the subtree with it and cannot be undone from any screen, so it asks once and names what goes. A confirmation on a reversible action teaches people to dismiss confirmations, which is what makes the irreversible one dangerous.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>at most one filled action per overlay, and the confirmation's is destructive rather than accent, so the accent never lands on a deletion. The menu carries none: every item is an equal choice, and marking one would be a guess.</p>
-      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24, gap only. The sheet keeps 24 of padding and 28 of top radius, the popover 20, and every row keeps the 44 touch minimum.</p>
-      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>status-bad carries the delete label and the destructive button, each paired with position and a word. The scrim is the token value, unchanged.</p>
-      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>the habit times, the item count inside the long sheet and the overdue word’s time carry data-mock. The overdue row also states atrasado in words in its meta strip, because colour on the ring alone is not a carrier.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 every overlay opens showing its own first line. 2 no overlay contains a second scroll container. 3 a reversible action never asks.</p>
-      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: it already carried Menu’s badge, CanvasControls’ plans axis and Toast’s discriminated kind, so nothing was re-synced. The Toast call here was checked against Toast.d.ts and was already the contract’s shape for a reversible skip with a way back: kind neutral by default, one message, the undo as actionLabel and onAction, dismissed by this document’s own state change and never a timer; nothing was stale in it, unlike the Composer call sites an earlier pass found. 1 Menu owns both presentations, so nothing is composed for it here, which is the point of this document. 2 closed: Sheet’s open accepts only the literal true, so a kept and toggled instance does not type check, and every sheet here is mounted on open and unmounted on close, which keeps the first line and one scroller proofs honest. 3 there is no popover positioner in the system beyond Menu’s own, so an anchored overlay that is not a menu would have to compose one.</p>
-      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether a long sheet should show a shadow or a hairline at its scroll edge, which no token currently covers. Whether the popover should flip above the row near the bottom of the viewport, which Menu decides internally and this document does not exercise.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>The overlay primitives in a real list, not as specimens: the sheet at short and long content, the overflow menu in both presentations, and the confirmation for something irreversible. Every overlay opens from a row, because that is the only way to see whether it opens where it should. The plan axis exists because the menu carries one real gate.</p>
+      <p><span style="color:var(--fg-3)">menu&nbsp;&nbsp;</span>The menu is one component with two presentations, chosen by width and not by the caller: a bottom sheet at 412, where a popover would sit under a thumb, and a popover anchored to the row at wide width. The items are the items of Hoje, in order: add sub habit, move parent, skip, reschedule, edit, duplicate, select, open sub habits, and delete last, destructive, behind the separator. Log and view details are absent, because the ring already logs and the row body already opens the detail. Reschedule shows ONLY on an overdue row. Open sub habits shows only where sub habits exist. Dismissing changes nothing.</p>
+      <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>Add sub habit follows the plan. On free, the item carries the Pro badge and ROUTES to Orbit Pro. On Pro, it opens creation without the badge. A badged item stays a real button and ignores disabled, so the gate is never a dead control.</p>
+      <p><span style="color:var(--fg-3)">sheet&nbsp;&nbsp;</span>The sheet owns the only scroller. Content passed to it lays out and grows, and nothing inside it declares its own overflow. The sheet opens with its scroller at the top every time, and the title sits outside the scroller, so the first line is always reachable.</p>
+      <p><span style="color:var(--fg-3)">confirmation&nbsp;&nbsp;</span>Ask only for something irreversible. The test is reversibility, not importance. Skipping a habit can be skipped back, so it acts at once and the row changes. Deleting takes the subtree with it and cannot be undone, so it asks once and names what goes.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>At most one filled action per overlay. The filled action of the confirmation is destructive, not accent, so the accent never lands on a deletion. The menu has no filled item: every item is an equal choice.</p>
     </div>
   </sc-if>
 
@@ -95,7 +85,6 @@ a:hover{color:var(--fg-1)}
 <script type="text/x-dc" data-dc-script data-props="{&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
 const H = React.createElement;
 const F = React.Fragment;
-const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
 const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 
@@ -107,7 +96,7 @@ const T = {
     hostTitle: 'Hoje',
     rows: [
       { e: '\uD83D\uDCA7', name: 'Água da manhã', time: '08:00', done: true },
-      /* The overdue row: reschedule appears only here (habit-list.tsx:906). */
+      /* The overdue row: reschedule appears only here. */
       { e: '\uD83D\uDEB6', name: 'Caminhada', time: '18:00', done: false, overdue: true },
       { e: null, name: 'Alongamento', time: '21:00', done: false },
       { e: '\uD83D\uDCD6', name: 'Leitura da noite', time: '22:00', done: false, kids: true },
@@ -129,14 +118,6 @@ const T = {
     cancel: 'Cancelar', del: 'Apagar',
     skipped: 'A caminhada foi pulada e saiu do dia. Pular de volta desfaz.',
     undo: 'Desfazer',
-    composerWords: {
-      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
-      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
-      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
-      busyReason: 'O Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
-      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
-    },
-    chips: ['Pular a caminhada', 'Mudar o horário', 'Ver a semana'],
   },
   en: {
     lang: 'en', tabs: ['Today', 'Calendar', 'Progress', 'Profile'],
@@ -166,14 +147,6 @@ const T = {
     cancel: 'Cancel', del: 'Delete',
     skipped: 'The walk was skipped and left the day. Skipping back undoes it.',
     undo: 'Undo',
-    composerWords: {
-      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
-      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
-      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
-      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
-      offlineReason: 'No connection. Astra comes back when the connection does.',
-    },
-    chips: ['Skip the walk', 'Change the time', 'See the week'],
   },
 };
 
@@ -246,12 +219,7 @@ class Component extends DCLogic {
     /* The overflow menu, through the component's own props: one item list, two presentations, and the
        anchored one positions itself against the row it belongs to. */
     if (!this._anchors) { this._anchors = t.rows.map(() => React.createRef()); setTimeout(() => this.syncAnchor(), 0); }
-    /* Hoje's menu, item for item, because two documents drawing one surface draw the same surface:
-       add sub habit, move parent, skip, reschedule, edit, duplicate, select, open sub habits, delete
-       last behind the separator. Log and view details are absent by design: the ring already logs and
-       the row body already opens the detail. Reschedule appears ONLY on the overdue row, because
-       onReschedule passes only when habit.isOverdue (habit-list.tsx:906). Add a sub habit follows the
-       plan (startAddSubHabit, habit-list.tsx:702): the badge marks a ROUTE, never a dead control. */
+    /* The menu of Hoje, item for item. Reschedule appears only on the overdue row. Add a sub habit follows the plan: the badge marks a ROUTE, never a dead control. */
     const menuRow = t.rows[s.row] || {};
     const menuItems = [
       { id: 'sub', icon: 'subtask', label: t.items.sub,
@@ -290,7 +258,7 @@ class Component extends DCLogic {
       actions: H(D.Button, { size: 'sm', variant: 'ghost', onClick: this.close }, t.cancel) },
       H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
         H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-4)',
-          paddingBottom: 4 } }, t.longCount(mock(String(TIMES.length)))),
+          paddingBottom: 4 } }, t.longCount(String(TIMES.length))),
         TIMES.map((time) => H(D.RadioRow, { key: time, label: time,
           selected: time === '18:00', onSelect: this.close })),
         H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-3)',
@@ -316,8 +284,8 @@ class Component extends DCLogic {
         title: r.name,
         /* Overdue states itself in words in the meta strip, never colour alone. */
         meta: r.overdue
-          ? H(F, null, mock(r.time), ' \u00B7 ', H('span', { style: { color: 'var(--status-overdue)' } }, t.overdueWord))
-          : mock(r.time),
+          ? H(F, null, r.time, ' \u00B7 ', H('span', { style: { color: 'var(--status-overdue)' } }, t.overdueWord))
+          : r.time,
         trailing: H(D.StatusRing, { status: r.overdue ? 'overdue' : r.done ? 'done' : 'empty', size: 30,
           label: r.overdue ? t.overdueWord : r.done ? t.statusDone : t.statusEmpty }),
         onMenu: () => this.setState({ open: 'menu', row: i }),
@@ -332,8 +300,6 @@ class Component extends DCLogic {
       /* A reversible action acts at once and reports itself in the notice slot; it never asks first. */
       notice: s.toast ? H(D.Toast, { message: t.skipped, actionLabel: t.undo,
         onAction: () => this.setState({ gone: [], toast: false }) }) : null,
-      composer: H(D.Composer, { state: 'resting', chips: t.chips, words: t.composerWords,
-        onOpen: () => {}, onChipPress: () => {} }),
 
       astraRow: H(window.OrbitNativeMobile.AstraRow),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),

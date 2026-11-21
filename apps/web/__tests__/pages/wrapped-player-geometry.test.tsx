@@ -235,7 +235,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         : [messages.wrapped.previous, messages.wrapped.next])
 
       const pagerPadding = viewport.height <= 400 ? 12 : 16
-      expect(measured.pagerPadding, `slide ${slide.id} pager vertical padding under the in-flow notice (Orbit Wrapped.dc.html:66, 12 at 400 px height or less)`)
+      expect(measured.pagerPadding, `slide ${slide.id} pager vertical padding under the in-flow notice (Orbit Wrapped.dc.html pager, 12 at 400 px height or less)`)
         .toEqual({ top: 0, bottom: pagerPadding })
       expect(measured.noticeToPagerSpace, `slide ${slide.id} space between the notice and the pager`)
         .toBeGreaterThanOrEqual(SPACING.s8)
@@ -337,7 +337,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
       pagerBottom: pager.getBoundingClientRect().bottom,
     }))
     const pagerPadding = viewport.height <= 400 ? 12 : 16
-    expect(measured, 'pager vertical padding (Orbit Wrapped.dc.html:66, 12 at 400 px height or less)')
+    expect(measured, 'pager vertical padding (Orbit Wrapped.dc.html pager, 12 at 400 px height or less)')
       .toMatchObject({ top: pagerPadding, bottom: pagerPadding })
     expect(measured.pagerBottom).toBeLessThanOrEqual(viewport.height)
   })

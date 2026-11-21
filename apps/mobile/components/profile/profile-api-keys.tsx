@@ -275,7 +275,7 @@ function ApiKeyAccessContent({
   if (!hasProAccess) {
     return (
       <RowList>
-        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 108 controls this label under D42. */}
+        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil keysUnlock controls this label under D42. */}
         <ListRow
           compact
           title={t('profile.apiKeys.unlock')}
