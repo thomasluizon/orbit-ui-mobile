@@ -113,13 +113,17 @@ const recordsOf = (ticket, kind) => (ticket?.comments ?? []).filter((entry) => e
 })
 
 /**
- * The launch records on a ticket, parsed from its `launch` comments. A `launch-refund` comment takes back the newest launch of
- * its branch and kind: a worker that ended on a usage limit did no work, so its launch counts toward no cap.
+ * The launch records on a ticket, read in comment order. A `launch-refund` comment takes back the newest launch of its branch and
+ * kind that comes before it: a worker that ended on a usage limit did no work, so its launch counts toward no cap.
  */
 export const launchesOf = (ticket) => {
-  const launches = recordsOf(ticket, "launch")
-  for (const refund of recordsOf(ticket, "launch-refund")) {
-    const at = launches.findLastIndex((launch) => launch.branch === refund.branch && launch.kind === refund.kind)
+  const launches = []
+  for (const entry of ticket?.comments ?? []) {
+    if (entry.kind !== "launch" && entry.kind !== "launch-refund") continue
+    let record
+    try { record = JSON.parse(bodyAfterMarker(entry)) } catch { continue }
+    if (entry.kind === "launch") { launches.push(record); continue }
+    const at = launches.findLastIndex((launch) => launch.branch === record.branch && launch.kind === record.kind)
     if (at >= 0) launches.splice(at, 1)
   }
   return launches
@@ -1624,7 +1628,7 @@ export const tick = async (env, mem) => {
       else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
     }
     const waiting = [...mem.waiting, ...unstarted]
-    await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || stoppedAll, waiting }).catch((error) => log(env, "stall", "error", error.message))
+    await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || paces.main.stopped, waiting }).catch((error) => log(env, "stall", "error", error.message))
   }
   if (!env.dryRun && env.now() - mem.lastIntakeAt >= HOUR_MS) {
     mem.lastIntakeAt = env.now()

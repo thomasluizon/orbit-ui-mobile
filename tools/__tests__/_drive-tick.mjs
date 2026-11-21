@@ -1901,6 +1901,19 @@ const twoAccountCases = async () => {
   same("drive: main at 0.92 posts no Pullfrog request while the worker account works", commentsOf(mainStopped.calls, 30).length, 0)
   T("drive: the weekly stop of the main account still opens its one stop issue", only(mainStopped.calls, "createTicket").some((entry) => entry[1].title === STOP_ISSUE_TITLE))
 
+  // The main account holds the Pullfrog request while the worker account has slots: the hold is chosen, so no stall issue opens.
+  const stallOf = async (label, { reading, usageLimit }) => {
+    const stateDirectory = join(root, `drive-stall-${++scenarios}`)
+    mkdirSync(stateDirectory, { recursive: true })
+    writeFileSync(join(stateDirectory, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
+    const scene = scenario({ tickets: [ticket(8)], pulls: { ui: [waitingPull] }, stateDirectory, reading, workerAuth: WORKER_AUTH, workerReading: below, probeReading: { utilization: 0.5, resetsAt: RESETS_AT, status: "rejected" } })
+    if (usageLimit) scene.mem.stoppedUntil = NOW + 60 * MINUTE
+    await scene.run()
+    same(`drive: ${label} and 61 minutes with no action open no stall issue`, [scene.launched.length, commentsOf(scene.calls, 30).length, only(scene.calls, "createTicket").filter(([, input]) => input.title === STALL).length], [0, 0, 0])
+  }
+  await stallOf("main at 0.92 with the worker account at 0.35 and one pull request waiting for its first review", { reading: stoppedReading })
+  await stallOf("main stopped by a usage limit with the worker account at 0.35 and one pull request waiting for its first review", { reading: below, usageLimit: true })
+
   const both = scenario({ tickets: [ticket(7), ticket(8), ticket(9), ticket(10), ticket(11)], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
   await both.run()
   same("drive: both accounts below their lines give the sum of their slots, and the worker account fills first", both.launched.map(accountOfLaunch), [WORKER_DIRECTORY, WORKER_DIRECTORY, null, null])
@@ -1928,6 +1941,11 @@ const twoAccountCases = async () => {
   same("drive: a usage limit with a second account opens no pause issue, and the refund keeps the launch off the cap", [only(hit.calls, "createTicket").length, launchesOf(capTickets[0]).length, only(hit.calls, "comment").filter((entry) => entry[3].startsWith(marked("needs-owner", ""))).length], [0, 2, 0])
   T("drive: the stopped account shows in the pace line with its stop and its end", hit.messages.filter((entry) => entry.includes(" pace ")).at(-1).includes(`worker ${WORKER_ACCOUNT.key}:`) && hit.messages.filter((entry) => entry.includes(" pace ")).at(-1).includes(`stop yes (usage limit until ${new Date(RESETS_AT * 1000).toISOString()})`))
   same("drive: a restart keeps the stop of the worker account", JSON.parse(readFileSync(join(hit.env.stateDir, "pace.json"), "utf8")).worker.stoppedUntil, RESETS_AT * 1000)
+
+  const ciFix = (head = null, offset = -3600 * 1000) => comment("launch", JSON.stringify({ kind: "ci-fix", part: null, branch: "chore/ticket-7-30", ...(head ? { baseMerge: head } : {}) }), offset)
+  const ciRefund = () => comment("launch-refund", JSON.stringify({ kind: "ci-fix", part: null, branch: "chore/ticket-7-30" }))
+  same("drive: a refund takes back the launch before it, not the free launch that follows", launchesOf(ticket(7, { comments: [ciFix(), ciRefund(), ciFix("H3")] })).map((entry) => entry.baseMerge ?? null), ["H3"])
+  same("drive: a refund between two launches of one head keeps the later launch", launchesOf(ticket(7, { comments: [ciFix("H1"), ciRefund(), ciFix("H1"), ciFix()] })).map((entry) => entry.baseMerge ?? null), ["H1", null])
 
   const refundTicket = ticket(7, { comments: [launchComment("build", "chore/ticket-7"), comment("launch-refund", JSON.stringify({ kind: "build", part: null, branch: "chore/ticket-7" })), launchComment("build", "chore/ticket-8")] })
   same("drive: a refund takes back the newest launch of its branch and kind only", launchesOf(refundTicket).map((entry) => entry.branch), ["chore/ticket-8"])
