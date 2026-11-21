@@ -40,7 +40,7 @@ a:hover{color:var(--fg-1)}
   <div data-screen-label="Celebração" style="display:flex;gap:32px;align-items:flex-start">
 
     <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
-      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" notice="{{ panel }}" composer="{{ composer }}" hint-size="412px,820px">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" notice="{{ panel }}" hint-size="412px,820px">
         <div style="display:flex;flex-direction:column;gap:12px;padding:16px">
           <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ hostTitle }}</p>
           <div style="display:flex;flex-direction:column;gap:12px">
@@ -76,19 +76,15 @@ a:hover{color:var(--fg-1)}
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
       <p><span style="color:var(--fg-3)">case&nbsp;&nbsp;</span>this one is worth interrupting someone for because each of its four triggers is a threshold the person cannot see themselves cross, and each crosses at most a few times a month, so the interruption costs less than the silence would.</p>
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>one celebration survives of seven. It has exactly four triggers: a streak milestone, a goal completing, a level up, and everything due today being done. An individual habit completion has no celebration. The first confirmed completion that extends today's account streak by one gets a daily streak moment instead: the previous number moves to the new number beside a day ring, in the same notice slot, with 16px padding, a 12px gap and a 28px tabular figure. It dismisses after 2500ms and its once-per-day receipt survives reloads. Past-day logs, slips, undo and unchanged streaks never trigger it. A milestone keeps the existing panel and suppresses the daily moment.</p>
-      <p><span style="color:var(--fg-3)">triggers&nbsp;&nbsp;</span>four remain the milestone and completion panel contract: CelebrationKind (celebration-queue.ts:1-6) also carries daily-streak for the transient daily moment, alongside streak, all-done, goal-completed and level-up. The streak milestone comes from AppConstants.StreakMilestoneTiers, and that list is [7, 14, 30, 90, 100, 365] (AppConstants.cs:90): the 30 drawn here is a tier, and no number outside the list may ever be drawn as one.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>streak, goal, level, day done, queued next, reduced motion, dismissed. Each state is the same panel with a different fact in it, because a person learning one shape learns all four. Queued next is also reached by using the screen: closing the first panel promotes the second. NO plan axis: none of the four triggers is gated and none differs between plans, so the absent switch is a decision.</p>
-      <p><span style="color:var(--fg-3)">shape&nbsp;&nbsp;</span>it is a panel in the shell’s notice slot, pinned above the tab bar or active selection tray, clear of Hoje's stacked Astra and create buttons, not a modal: no scrim, nothing behind it disabled, and the day’s list stays live and tappable underneath. Skipping it is a tap on the close control or simply carrying on; it never waits for an answer. When two triggers land on the same log the panels QUEUE, one at a time: the shared store gives every kind a priority (celebration-queue.ts:61-70: streak 0, goal completed and all done 2, level up 3), sortCelebrationQueue:75 orders by that priority and then by arrival, and enqueueCelebrationItem:167 queues an item behind whatever is active, promoting the next when the active one completes. Two panels are never on screen together, and the queued next state draws exactly that: a streak panel first, the level up behind it, in the store’s own order. The host around the panel is scenery: its rows, menus, tab bar, sidebar create and palette are wired to nothing, said here once so nobody hunts for dead controls, while the panel’s own close is a real state change and the composer drawing is superseded by #2005: Hoje's fixed Astra entry opens the conversation-owned composer.</p>
-      <p><span style="color:var(--fg-3)">motion&nbsp;&nbsp;</span>500ms total movement: the fully opaque panel rises 12px over 280ms ease-out while the daily figure cross-fades by 12px and the measured neutral ring sweeps once. Manual exit retargets the live position toward +12px and opacity zero over 220ms ease-in. The daily exit starts at 2280ms and retains layout through 2500ms. Hover or keyboard focus cancels automatic exit, restores the static fact and starts a fresh 2500ms schedule only after all pause reasons end. Manual exit is committed; repeated close never restarts it. It does not fade in, because a panel whose resting state is invisible disappears entirely the moment a timeline is paused or a frame is dropped, and the static cue is the whole point of this one. Nothing loops, nothing bounces, nothing throws particles.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>one celebration survives of seven. It has exactly four triggers: a streak milestone, a goal completing, a level up, and everything due today being done. An individual habit completion has no celebration. The first confirmed completion that extends today's account streak by one gets a daily streak moment instead: the previous number moves to the new number beside a day ring, in the same notice slot. It dismisses after 2500ms and its once-per-day receipt survives reloads. Past-day logs, slips, undo and unchanged streaks never trigger it. A milestone keeps the existing panel and suppresses the daily moment.</p>
+      <p><span style="color:var(--fg-3)">triggers&nbsp;&nbsp;</span>four remain the milestone and completion panel contract. CelebrationKind also carries daily-streak for the transient daily moment, alongside streak, all-done, goal-completed and level-up. The streak milestone comes from STREAK_CELEBRATION_MILESTONES in packages/shared, which holds [7, 14, 30, 90, 100, 365]. The 30 drawn here is one of them, and no number outside the list may be drawn as a milestone.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>streak, goal, level, day done, queued next, reduced motion, dismissed. Each state is the same panel with a different fact in it. Queued next is reached by closing the first panel, which promotes the second. No plan axis: no trigger is gated and none differs between plans.</p>
+      <p><span style="color:var(--fg-3)">shape&nbsp;&nbsp;</span>it is a panel in the shell's notice slot, pinned above the tab bar or active selection tray, and not a modal: no scrim, nothing behind it disabled, and the day's list stays live underneath. Skipping it is a tap on the close control or simply carrying on. When two triggers land on the same log the panels queue, one at a time, in the shared store's priority order (streak first, goal completed and all done next, level up last) and then by arrival. Two panels are never on screen together. The host around the panel is scenery: its rows, menus, tab bar, sidebar create and palette are wired to nothing, while the panel's own close is a real state change.</p>
+      <p><span style="color:var(--fg-3)">motion&nbsp;&nbsp;</span>500ms total movement: the fully opaque panel rises 12px over 280ms ease-out while the daily figure cross-fades by 12px and the neutral ring sweeps once. Manual exit moves toward +12px and opacity zero over 220ms ease-in. The daily exit starts at 2280ms and keeps layout through 2500ms. Hover or keyboard focus cancels automatic exit and starts a fresh 2500ms schedule only after all pause reasons end. Repeated close never restarts a manual exit. It does not fade in, because a panel whose resting state is invisible disappears when a timeline pauses. Nothing loops, nothing bounces, nothing throws particles.</p>
       <p><span style="color:var(--fg-3)">static cue&nbsp;&nbsp;</span>the motion is never the message. The completed ring, the figure and the one line all state the fact and hold after the motion ends, so a person who looks up late, or whose screen was off, reads the same thing.</p>
-      <p><span style="color:var(--fg-3)">reduced motion&nbsp;&nbsp;</span>a dignified static state on both platforms, not a degraded one: the same panel, the same ring at its final value, the same line, arriving at full opacity with no rise, numeral change or sweep, and dismissing immediately on manual close. Live preference changes settle a held fact without resetting its deadline or immediately complete a pending exit. Backgrounding settles the final fact and resume compares the original deadline without replay or reannouncement. Account replacement and invalidation discard presentation and callbacks immediately.</p>
+      <p><span style="color:var(--fg-3)">reduced motion&nbsp;&nbsp;</span>a dignified static state on both platforms: the same panel, the same ring at its final value, the same line, arriving at full opacity with no rise, numeral change or sweep, and dismissing immediately on manual close. Backgrounding settles the final fact, and resume does not replay or reannounce it.</p>
       <p><span style="color:var(--fg-3)">voice&nbsp;&nbsp;</span>no exclamation mark anywhere, in either locale. The line states what happened and stops; it does not congratulate, does not say keep going, and does not name the person.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>none. Every one of the four triggers is a completion, and completion never takes the accent, so the ring lands neutral at fg-1 and the only control is a ghost close. The single sweep stays neutral throughout. A still monochrome native 16px OrbitMark sits centred in the 44px ring, never the padded artwork in a 24px box.</p>
-      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24, gap only. The panel is 24 of padding at 20 radius, the ring is 44, and the close control keeps its distinct 48px target and clipped hover/press fill. Daily content retains 16px padding, 12px gap and the 28px figure with a localized day unit. Text grows without clipping at 200%.</p>
-      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock: the streak day count, the goal figure, the level number, the day’s habit count and the allowance number inside the composer’s limit reason.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 a single habit log produces a daily moment only when it extends the account streak for today, at most once per day; a milestone uses the milestone panel instead. 2 it reads correctly with motion disabled and with the animation already finished. 3 nothing in it takes the accent and nothing in it blocks.</p>
-      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>1 the system has no celebration component, and that is a decision rather than a hole: one screen uses this shape, and a component is extracted on the third real use, not the first. It must not become a Toast either: a Toast carries one message line and at most one action, while this panel carries a completed ring, an eyebrow and a line, and the ring is the static cue that lets the celebration survive with motion disabled. 2 ProgressRing takes a value and holds no entrance, so the sweep is an SVG arc with one keyframe. 3 closed: both shells carry a notice slot now, pinned directly above the composer and never in its place, and the panel rides it with the composer restored beside it, so Astra's front door stays on screen while the celebration shows.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>none. Every trigger is a completion, and completion never takes the accent, so the ring lands neutral at fg-1 and the only control is a ghost close. A still monochrome 16px OrbitMark sits centred in the 44px ring.</p>
       <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the day done trigger should fire on a day with a single habit due, where the threshold is real but thin.</p>
     </div>
   </sc-if>
@@ -107,15 +103,6 @@ const T = {
     lang: 'pt-BR', tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'],
     account: 'Marina', create: 'Criar hábito', menu: 'Mais opções',
     navLabel: 'Navegação principal', palette: 'Buscar',
-    composerWords: {
-      placeholder: 'Peça algo ao Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
-      fieldLabel: 'Falar com o Astra', chipsLabel: 'Sugestões do Astra',
-      open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
-      busyReason: 'O Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
-      offlineReason: 'Sem conexão. O Astra volta quando a conexão voltar.',
-    },
-    chips: ['Como foi a semana', 'Planejar amanhã', 'Criar um hábito novo', 'Mudar o horário da caminhada'],
-    limit: ['As ', '5', ' mensagens de hoje foram usadas.'],
     hostTitle: 'Hoje',
     rows: [
       { e: '\uD83D\uDCA7', name: 'Água da manhã', time: '08:00' },
@@ -134,15 +121,6 @@ const T = {
     lang: 'en', tabs: ['Today', 'Calendar', 'Progress', 'Profile'],
     account: 'Marina', create: 'Create habit', menu: 'More options',
     navLabel: 'Main navigation', palette: 'Search',
-    composerWords: {
-      placeholder: 'Ask Astra for something', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
-      fieldLabel: 'Talk to Astra', chipsLabel: 'Astra suggestions',
-      open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
-      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
-      offlineReason: 'No connection. Astra comes back when the connection does.',
-    },
-    chips: ['How the week went', 'Plan tomorrow', 'Create a new habit', 'Change the walk time'],
-    limit: ["Today's ", '5', ' messages have been used.'],
     hostTitle: 'Today',
     rows: [
       { e: '\uD83D\uDCA7', name: 'Morning water', time: '08:00' },
@@ -210,9 +188,7 @@ class Component extends DCLogic {
   }
   componentWillUnmount() { clearInterval(this._t); this.stopTimers(); }
 
-  /* Two triggers on one log QUEUE in the shared store's own order: priority then arrival
-     (celebration-queue.ts:70-80, sortCelebrationQueue:82). A streak (0) outranks a level up (3),
-     so the queued next state holds those two. */
+  /* Two triggers on one log queue in the shared store's order: priority, then arrival. A streak outranks a level up, so the queued next state holds those two. */
   onCC = (next) => {
     this.pauses.clear();
     this.setState({ mode: next.mode, width: next.width, st: next.state, loc: next.locale,
@@ -251,7 +227,7 @@ class Component extends DCLogic {
     if (!D) return base;
 
     const reduced = st === 'reduced motion';
-    /* One panel at a time: completing the active one promotes the next (enqueueCelebrationItem:184). */
+    /* One panel at a time: completing the active one promotes the next. */
     const kind = s.gone ? null : s.queue[s.qi];
     const fact = kind ? t[kind] : null;
 
@@ -291,12 +267,6 @@ class Component extends DCLogic {
 
     return Object.assign(base, {
       panel: panel,
-      /* The canvas amendment moves this composer into the conversation. Hoje's fixed Astra
-         entry replaces the dock; this export retains the shared composer drawing. */
-      composer: H(D.Composer, { state: 'resting', chips: t.chips.slice(0, 4),
-        limitReason: H('span', null, t.limit[0], mock(t.limit[1]), t.limit[2]),
-        words: t.composerWords,
-        onOpen: () => {}, onChipPress: () => {} }),
       hostRows: t.rows.map((r) => ({
         icon: r.e, title: r.name, meta: mock(r.time),
         trailing: H(D.StatusRing, { status: 'done', size: 30, label: t.statusDone }),

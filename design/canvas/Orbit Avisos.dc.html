@@ -137,23 +137,18 @@ a:hover{color:var(--fg-1)}
   <aside aria-label="Sidebar bell example">{{ sidebarBell }}</aside>
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Avisos answers what did I miss. It is a list of things that happened while the person was away, and every row leads somewhere: the payload carries a title, a body, a link, an optional habit, a read flag and a timestamp, and the row renders all six of those and nothing invented.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>unread, all read, one item, full list, detail, delete queued, clear all, empty, loading. Hover, focus-visible and press are live. Reached by using the screen rather than the axis: the sheet by tapping a row, the queued delete from a row’s own control or the sheet’s, the undo from the toast, the row coming back when it is taken, and the cleared list from the clear all confirmation. No plan axis: this screen has no gate, and a screen with no gate does not grow a dead switch.</p>
-      <p><span style="color:var(--fg-3)">bell&nbsp;&nbsp;</span>one control, two placements: the mobile shell header and the web sidebar. The count is a neutral pill, fg-1 with canvas text, because an unread count is not a next action, not a current position and not progress toward anything, so none of the accent's four roles covers it. At zero the pill is absent rather than showing a nought, since a nought is a number a person does not need. The count is capped in copy at 9 and over, because the exact figure past that changes nothing a person would do.</p>
-      <p><span style="color:var(--fg-3)">read&nbsp;&nbsp;</span>read and unread differ by more than colour, in three ways at once: an unread row carries a filled dot in a reserved column, its title is a weight step up, and it sits on the card surface while a read row sits flat on the canvas. The dot column is reserved on every row, so nothing shifts when a row is read, and the list never reorders under the person's thumb. Mark all read is drawn in the options menu, absent at zero unread rather than disabled, the same rule the sign in screen's resend follows: never offer a control that would do nothing. The endpoint and the control both ship today, so the earlier claim here that no endpoint exposes it was wrong: NotificationController.cs:44 is [HttpPut("read-all")], handled by MarkAllNotificationsReadCommand, the bell renders the control at apps/web/components/navigation/notification-bell.tsx:278-282 and apps/mobile/components/navigation/notification-bell.tsx:66, 278, and apps/mobile/lib/offline-queue.ts:183 queues it while offline. No decision removed it, and a capability the app has today is never dropped without one.</p>
-      <p><span style="color:var(--fg-3)">acts&nbsp;&nbsp;</span>a row opens the notification’s own sheet (notification-detail-modal.tsx): the mono timestamp eyebrow with the target beside it, the body in full rather than truncated forever, and the three shipping actions, view (:54-55) as the primary leading to the row’s stated target, mark as read (:59-60), absent once the row is read, and delete (:63-64), destructive and last. A row can also be deleted where it sits: each row carries a real 44px delete, a SIBLING of the row body in ListRow’s action treatment, never nested inside it, its glyph in status-bad paired with the word in its accessible name. The delete is QUEUED, not immediate (notification-bell.tsx:186-192 through pending-notification-deletes.ts): the row leaves at once, a neutral Toast in the shell’s notice slot carries notifications.deleteQueued with notifications.deleteUndo as its action, taking the undo brings the row back, and the toast leaves when the queue commits or the undo lands, never on its own timer, which is the component’s rule. Clear all (useDeleteAllNotifications, the showDeleteAllConfirm gate at notification-bell.tsx:159,165) sits beside mark all read, absent when the list is empty rather than disabled, and it asks first, names how many go, and says there is no way back, because there is not one: the undoable delete says it can be undone, and the one that cannot says that instead.</p>
-      <p><span style="color:var(--fg-3)">links&nbsp;&nbsp;</span>every link points at one of the four destinations or at a habit, and the row states its target in mono so the destination is visible before the tap. The streak notification goes to Progresso, which is where the streak and its repair live. This is drawn as fixed: the shipping payload still writes links to routes the four destination shell removed, so an existing notification can land nowhere, and ticket #334 files the API cleanup.</p>
-      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>the mark at 96, one line, and no action, because there is nothing for a person to do about an empty inbox and an action here would be an invitation to somewhere they were not going. It parks no figure and no upgrade call.</p>
-      <p><span style="color:var(--fg-3)">loading&nbsp;&nbsp;</span>the list's own shape, three lines per row, aria-busy, no spinner. The bell keeps its count while the list loads, since the count arrives with the unread total rather than with the list.</p>
-      <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>Avisos is a pushed screen with back, title and a trailing dots-vertical options button. Mark all read and clear all live in its menu; clear all keeps confirmation. The page never repeats its destination bell. The bell examples show the root header and sidebar placements, with a neutral count pill absent at zero and capped at 9+.</p>
-      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. Rows are 16 of padding with an 8 gap between them, the dot column is 8 wide, and the row keeps a 44 minimum.</p>
-      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>12 on the rows, 20 on the empty state's own surface, 28 on the shell, 999 on the bell, the pill and the dot.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: current position on the Hoje tab and the focus ring. The sheet’s view action is the one filled action while the sheet is open; the list itself has none, because every row is the action. The delete controls carry status-bad on the glyph only, paired with the word in the accessible name. Wide: the sidebar create is the one filled action, so the sheet’s view steps down to the neutral fill.</p>
-      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>the unread title is fg-1 on the card at 15.9:1 and the read title is fg-2 on the canvas at 9.6:1. <b>Amended 2026-09-09:</b> the body, the timestamp and the target were drawn in fg-3 and fg-4 and are now fg-2, which is what both platforms ship. The unread row is a hover CHILD inside a card wrapper, so its hovered surface COMPOSITES to #313133 rather than replacing it. On that stack fg-3 measures 4.03:1 and fg-4 1.98:1, both under their floors, while fg-2 measures 7.86:1 and fg-1 11.82:1. So every line on this row is fg-2 or fg-1. The target icon moves with them, from fg-4 (1.98:1, under the 3.0 graphic floor) to fg-3 (4.03:1).</p>
-      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: the bell count, every timestamp, the count inside the clear all question, and the figures inside the notification bodies. Base date Monday 17 August 2026, clock read as 19:20.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 every row leads to a destination that exists, and the sheet’s view goes there. 2 read and unread are distinguishable with colour removed. 3 the bell never shows a nought and never carries the accent. 4 the undoable delete offers its undo, and clear all promises nothing it cannot do.</p>
-      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>The root and sidebar bell examples are composed beside the document. Notification rows, count semantics and their loading shape remain composed around the exported primitives.</p>
-      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether a notification whose habit has since been deleted should render at all, since the payload keeps the habit id and the row would lead nowhere.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Avisos answers what did I miss. It is a list of things that happened while the person was away, and every row leads somewhere. The payload carries a title, a body, a link, an optional habit, a read flag and a timestamp, and the row renders all six and nothing invented.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>unread, all read, one item, full list, detail, delete queued, clear all, empty, loading. Hover, focus-visible and press are live. No plan axis: this screen has no gate.</p>
+      <p><span style="color:var(--fg-3)">bell&nbsp;&nbsp;</span>one control, two placements: the mobile shell header and the web sidebar. The count is a neutral pill, fg-1 with canvas text, because an unread count is not a next action, a position or progress. At zero the pill is absent. The count is capped in copy at 9 and over.</p>
+      <p><span style="color:var(--fg-3)">read&nbsp;&nbsp;</span>read and unread differ by more than colour: an unread row carries a filled dot in a reserved column, its title is a weight step up, and it sits on the card surface while a read row sits flat on the canvas. The dot column is reserved on every row, so nothing shifts when a row is read. Mark all read is in the options menu and absent at zero unread. It queues while offline.</p>
+      <p><span style="color:var(--fg-3)">acts&nbsp;&nbsp;</span>a row opens the notification's own sheet: the mono timestamp eyebrow with the target, the body in full, and three actions. View is the primary and leads to the stated target. Mark as read is absent once the row is read. Delete is destructive and last. Each row also carries a real 44px delete, a sibling of the row body, its glyph in status-bad paired with the word in its accessible name. The delete is queued: the row leaves at once, a neutral Toast offers the undo, and the toast leaves when the queue commits or the undo lands, never on its own timer. Clear all is absent when the list is empty. It asks first, names how many go, and says there is no way back.</p>
+      <p><span style="color:var(--fg-3)">links&nbsp;&nbsp;</span>every link points at one of the four destinations or at a habit, and the row states its target in mono. The streak notification goes to Progresso.</p>
+      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>the mark at 96, one line, and no action, because nothing is left for a person to do in an empty inbox. It parks no figure and no upgrade call.</p>
+      <p><span style="color:var(--fg-3)">loading&nbsp;&nbsp;</span>the list's own shape, three lines per row, aria-busy, no spinner. The bell keeps its count while the list loads.</p>
+      <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>Avisos is a pushed screen with back, title and a trailing dots-vertical options button. Mark all read and clear all live in its menu, and clear all keeps its confirmation.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>current position on the Hoje tab and the focus ring on the 412 shell. The sheet's view action is the one filled action while the sheet is open. The list has none, because every row is the action. Wide: the sidebar create is the filled action, so the sheet's view steps down to the neutral fill.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>the unread title is fg-1 on the card and the read title is fg-2 on the canvas. The body, the timestamp and the target are fg-2, because the unread row is a hover child inside a card wrapper and fg-3 and fg-4 fall under their floors on its hovered surface. The target icon is fg-3.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether a notification whose habit was deleted should render at all, since the row would lead nowhere.</p>
     </div>
   </sc-if>
 
@@ -166,14 +161,13 @@ const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
 const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 
-/* Every link points at one of the four destinations or at a habit. The streak goes to /progress. */
 const ITEMS = [
   { id: 'streak', route: 'progresso', icon: 'layout-dashboard', when: '2 h', read: false,
     pt: ['A sua sequência está em 12 dias', 'Você tem 2 congelamentos guardados para usar em um dia perdido.'],
     en: ['Your streak is at 12 days', 'You have 2 freezes saved to spend on a missed day.'] },
   { id: 'walk', route: 'habit', habitPt: 'Caminhada', habitEn: 'Walk', icon: 'circle-dot', when: '4 h', read: false,
-    pt: ['A caminhada não aconteceu às 18:00', 'O Astra pode mover para as 20:00 se hoje à noite for melhor.'],
-    en: ['The walk did not happen at 18:00', 'Astra can move it to 20:00 if tonight works better.'] },
+    pt: ['A caminhada não aconteceu às 18:00', 'O Orbit pode mover para as 20:00 se hoje à noite for melhor.'],
+    en: ['The walk did not happen at 18:00', 'Orbit can move it to 20:00 if tonight works better.'] },
   { id: 'summary', route: 'hoje', icon: 'home', when: '9 h', read: false,
     pt: ['3 hábitos para hoje', 'A água já está registrada. Faltam 2.'],
     en: ['3 habits for today', 'The water is logged. 2 to go.'] },
@@ -252,7 +246,6 @@ const T = {
   },
 };
 
-/* Rows lead to a document that exists. */
 const DOCS = { hoje: 'Orbit Hoje.dc.html', calendario: 'Orbit Calendario.dc.html',
   progresso: 'Orbit Progresso.dc.html', perfil: 'Orbit Perfil.dc.html', habit: 'Orbit Habit Detail.dc.html' };
 
@@ -286,9 +279,7 @@ class Component extends DCLogic {
   };
 
   goTo = (route) => { window.location.href = encodeURI(DOCS[route] || DOCS.hoje); };
-  /* The delete is QUEUED (pending-notification-deletes.ts, notification-bell.tsx:186-192): the row
-     leaves at once, the toast carries the undo, and the undo brings the row back. The timer below is
-     the pending queue committing, not the toast dismissing itself. */
+  /* The delete is queued: the row leaves at once, the toast carries the undo, and the undo brings the row back. The timer below is the pending queue committing. */
   queueDelete = (id) => {
     clearTimeout(this._qT);
     this.setState((p) => ({ hidden: Object.assign({}, p.hidden, { [id]: true }), toast: id, detail: null }));
@@ -306,7 +297,6 @@ class Component extends DCLogic {
 
   bellNode(t, count) {
     const D = window.OrbitDesignSystem_918bd5;
-    /* An unread count is not an action, a position or progress, so it takes none of the accent. */
     return H('button', { type: 'button', 'aria-label': count > 0 ? t.bellCount(count) : t.bell,
       onClick: () => {},
       style: { position: 'relative', width: 44, height: 44, flex: '0 0 auto', display: 'grid',
@@ -368,10 +358,7 @@ class Component extends DCLogic {
           rowStyle: 'flex:1;min-width:0;display:flex;align-items:flex-start;gap:12px;min-height:44px;padding:16px;border:0;cursor:pointer;font-family:var(--font-sans);border-radius:var(--r-well);transition:background-color var(--dur-hover) var(--ease-standard);background:var(--p-transparent)',
           titleStyle: 'flex:1;min-width:0;font-size:16px;line-height:1.4;text-wrap:pretty;'
             + (unread ? 'font-weight:500;color:var(--fg-1)' : 'font-weight:400;color:var(--fg-2)'),
-          /* The row opens the notification's own sheet (notification-detail-modal.tsx). */
           open: () => this.setState({ detail: it.id }),
-          /* ListRow's action treatment on a composed row: a real 44px button, a SIBLING of the row
-             body, never nested inside it; status-bad on the glyph, the word in the accessible name. */
           delBtn: H('button', { type: 'button', 'aria-label': t.delAria(copy[0]),
             onClick: () => this.queueDelete(it.id),
             style: { width: 44, minHeight: 44, alignSelf: 'center', flex: '0 0 auto', display: 'grid',
@@ -411,8 +398,6 @@ class Component extends DCLogic {
               H(F, null, t.clearBody(mock(String(rows.length)))[0], t.clearBody(mock(String(rows.length)))[1], t.clearBody('')[2])))
         : detailIt
         ? (() => {
-            /* notification-detail-modal.tsx: the mono timestamp eyebrow, the body in full, and the
-               three actions, view leading to the row's stated target, mark as read, and delete. */
             const copy = en ? detailIt.en : detailIt.pt;
             const where = detailIt.route === 'habit' ? (en ? detailIt.habitEn : detailIt.habitPt) : t.routes[detailIt.route];
             const isRead = s.read[detailIt.id] != null ? s.read[detailIt.id] : (st === 'all read' ? true : detailIt.read);

@@ -2,8 +2,6 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="orbit-item-type" content="Full quiet One-time task / Habit or Tarefa única / Hábito below the full-width title, without a badge or type ellipsis. Existing status, count, check and menu remain. Rows grow at large text.">
-<meta name="orbit-hierarchy" content="Each visible ancestor adds one 16px leading step after root padding 8: wells 8,24,40 and list text edges 84,100,116. Supporting metadata follows once. The boundary uses measured content width and at least one scaled child-title em, with a 24px title minimum. At 320 with 284px row content, normal text keeps depths 0 through 2; 200% text stops at depth 1. The boundary disclosure opens the existing drill. Wider contexts retain further levels within the data limit. Drill resets local depth to 0; detail children use depth 1. The narrow boundary uses the full-width supporting metadata footer and first-title-line controls at normal text too. Controls remain 48px, bodies radius 20, family gaps 4/12, without connector lines.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
 </head>
@@ -336,41 +334,36 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Hoje answers what do I do now. Astra's line, the date as a control, the habits due, a quiet group with no schedule, then the fixed round Astra entry above the create button. No number that is not needed to act in the next minute, which is why no streak count and no done count appear anywhere on it.</p>
-      <p><span style="color:var(--fg-3)">views&nbsp;&nbsp;</span>Below the shell actions and above the date pager, a full-width SegmentedControl offers Hoje, Todos and Geral on web and Android at every width. Each segment label is one word on one line at the default text size. The choice persists in activeView. The pager, date-bound notices and proactive line belong only to Hoje. Todos groups scheduled habits by date, with overdue work first; Geral lists habits with no set day independently of the preference to include them on Hoje. Completed one-time habits in Todos and completed habits in Geral stay behind Show completed. Both retain the same nested habit panels, in-place logging, row menus, search, selection and creation; Geral defaults creation to no set day. At every width, the header search control expands an Input above the switch and filters the selected view in place, preserving its date and frequency scope. Wide web keeps the global command palette in the sidebar separately.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>default, no notice, read only, returning, select, batch failed, loading, no habits, all done, error, offline, at limit, conversation, menu, list controls, move parent, parent prompt, drill, drill failed, the reschedule sheet in its four states, duplicate, skip, postpone, log anyway, detail, and six for creation: from the FAB, from a sentence in the conversation, proposed unasked, unresolved, asking Astra, and at the daily ceiling. A plan axis sits beside the state, free or Pro, defaulting to free because that is the account most people have and the harder case to get right; it is an account fact that survives a state change, the way the locale does, and it moves exactly three gates: the reschedule sheet, the slip alert, and add a sub habit. Hover, focus-visible and press are live, not painted. Tomorrow and the read only past are reached with the date control, show completed with the list menu, the flexible skip question by skipping Violão, and the drill’s empty state by clearing a drilled list, so none of those sit on the axis.</p>
-      <p><span style="color:var(--fg-3)">line&nbsp;&nbsp;</span>Astra's proactive content is one clause and one action, at 14 in fg-2 with the action inline as an underlined text control: no fill, no pill, no accent, since the create FAB owns the one filled action. It renders 42 tall against the date control's 53, so it sits under the date in weight as well as in order. At 412 in pt-BR the clause and the action measure 367 against 338 of available width, so the action wraps to a second line; fitting one line would cost either the habit name or the time, so it wraps instead. The inline action is a text target inside a sentence, which is where WCAG's inline exception applies, so it carries no 44 box.</p>
-      <p><span style="color:var(--fg-3)">date&nbsp;&nbsp;</span>one day back, one day forward, and a centred date label that returns to today when another day is selected. The label does nothing on today and replaces the separate Hoje jump control. Navigation is free in both directions: the schedule read returns instances up to 90 days ahead, so seeing tomorrow is a shipping capability, and a limit on writing is not a limit on reading. Day name over the numeric date, so a person knows which day they are logging. Astra's line belongs to today, so any other day carries none.</p>
-      <p><span style="color:var(--fg-3)">create&nbsp;&nbsp;</span>at 412 the FAB takes the shell's fab slot, which floats it at the right edge 16 above the bottom chrome, with the neutral round Astra entry above it, so neither covers the other or the tab bar and they coexist without either giving ground. The scroller carries 96 of clearance below the last row against the 76 the FAB occupies, so at the end of the list the last habit sits 20 clear of it. At the wide width the sidebar create is the single filled action and there is no FAB.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Hoje answers what do I do now. Orbit's line, the date as a control, the habits due, a quiet group with no schedule, then the create button. No number that is not needed to act in the next minute, which is why no streak count and no done count appear anywhere on it.</p>
+      <p><span style="color:var(--fg-3)">views&nbsp;&nbsp;</span>shipped in code and not drawn here: below the shell actions a full-width SegmentedControl offers Hoje, Todos and Geral on web and Android. Todos groups scheduled habits by date with overdue work first, and Geral lists habits with no set day. Completed one time habits in Todos and completed habits in Geral stay behind Show completed. This drawing draws the Hoje view only.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>default, no notice, read only, returning, select, batch failed, loading, no habits, all done, error, offline, at limit, conversation, menu, list controls, move parent, parent prompt, drill, drill failed, the reschedule sheet in its four states, duplicate, skip, postpone, log anyway, detail, and six for creation: from the FAB, from a sentence in the conversation, proposed unasked, unresolved, asking Orbit, and at the daily ceiling. A plan axis sits beside the state, free or Pro, defaulting to free because that is the account most people have and the harder case to get right; it is an account fact that survives a state change, the way the locale does, and it moves exactly three gates: the reschedule sheet, the slip alert, and add a sub habit. Hover, focus-visible and press are live, not painted. Tomorrow and the read only past are reached with the date control, show completed with the list menu, the flexible skip question by skipping Violão, and the drill’s empty state by clearing a drilled list, so none of those sit on the axis.</p>
+      <p><span style="color:var(--fg-3)">line&nbsp;&nbsp;</span>Orbit's proactive content is one clause and one action, at 14 in fg-2 with the action inline as an underlined text control: no fill, no pill, no accent, since the create FAB owns the one filled action. It renders 42 tall against the date control's 53, so it sits under the date in weight as well as in order. At 412 in pt-BR the clause and the action measure 367 against 338 of available width, so the action wraps to a second line; fitting one line would cost either the habit name or the time, so it wraps instead. The inline action is a text target inside a sentence, which is where WCAG's inline exception applies, so it carries no 44 box.</p>
+      <p><span style="color:var(--fg-3)">date&nbsp;&nbsp;</span>one day back, one day forward, and a centred date label that returns to today when another day is selected. The label does nothing on today and replaces the separate Hoje jump control. Navigation is free in both directions: the schedule read returns instances up to 90 days ahead, so seeing tomorrow is a shipping capability, and a limit on writing is not a limit on reading. Day name over the numeric date, so a person knows which day they are logging. Orbit's line belongs to today, so any other day carries none.</p>
+      <p><span style="color:var(--fg-3)">create&nbsp;&nbsp;</span>at 412 the FAB takes the shell's fab slot, which floats it at the right edge 16 above the bottom chrome, clear of the tab bar. The scroller carries 96 of clearance below the last row against the 76 the FAB occupies, so at the end of the list the last habit sits 20 clear of it. At the wide width the sidebar create is the single filled action and there is no FAB.</p>
       <p><span style="color:var(--fg-3)">boundary&nbsp;&nbsp;</span>a boundary is a row treatment, never a navigation treatment. Seven days back is the last loggable day and it says so before the person tries; from the eighth day back the rows go read only, the neutral notice states the limit, the habit checks render at the disabled dimming and nothing is tappable. On a future day the refusal is per row rather than per day, because the write refuses a forward log only when the habit repeats: the repeating rows dim and the one off stays tappable. The notice states that without naming a schedule type, since those four names never render. No error in either case, because nothing failed.</p>
-      <p><span style="color:var(--fg-3)">description and feedback amendment&nbsp;&nbsp;</span>The canonical web and Android row renders title, stored description preview, then existing metadata. Flatten through stripInlineMarkdown without changing the source; omit normalized-empty content and its gap. The preview is inert Geist Sans 14/400, line height 1.55, fg-3 at rest and fg-2 during row feedback, with a 4px stack gap. Use one naturally ellipsized line at default text and up to two above 130%, growing the row and wrapping oversized prose tokens as a last resort. Preserve 17px root and 14px child titles, full-name access, the single depth inset and per-depth supporting metadata below the preview. The existing detail disclosure retains full text and copy. Body hover and press replace the complete radius-20 row surface, including the trailing region, clearing content by 8px inline and 4px vertically and neighbours by 4px. The painted web row owns its 380ms background and inset-outline hover transition in both directions, with a strong feedback hairline and immediate press and reduced-motion paint. Sibling completion, disclosure, menu and selection controls paint only themselves. The selection checkbox retains independent hover feedback in checked and unchecked states, restoring on exit and cancelled press without activating selection or detail. The 28px check, its fill and 48px target share their centre within 1px; at default text the target centres on the whole row, including descriptions. Large text keeps first-title-line control alignment. This amendment specifies production composition; the exported HabitRow receives no ignored preview prop.</p>
-      <p><span style="color:var(--fg-3)">metadata composition amendment&nbsp;&nbsp;</span>After the title and optional stored preview, one quiet 12px Geist Mono metadata flow begins with Task/Tarefa or Habit/Hábito once. Existing time, status and child progress retain their order. A real nonempty checklist appends one decorative ListChecks glyph and its actual checked/total count, including zero and complete counts; duplicate entries count independently. Empty checklists add no token, separator or gap. Checking every item never logs the habit. The metadata foreground carries the glyph at stroke 1.5, sized 16px normally and 24px above 130% text. Whole type and count tokens wrap with natural row growth and no ellipsis. The measured inline depth boundary or actual whole-token overflow in a narrow heading reuses the full-width supporting footer and its first-title-line controls; ordinary default rows retain whole-row centring. Primary and selection names include the existing localized Checklist progress once, with decorative and visual duplicates hidden. This amendment specifies the production composition without adding an ignored export prop.</p>
       <p><span style="color:var(--fg-3)">completion feedback amendment&nbsp;&nbsp;</span>Leaf and parent completion controls retain their transparent 48px target. Hover and press paint only inside the visible 28px radius-12 check, never a halo. Empty checks use bg-hover with their 1px status border intact and partial progress readable. Completed checks layer bg-hover-opaque over the resting neutral fill beneath the checkmark. One 2px focus outline follows the check with a 2px outward offset, inside the target. Press scales to 0.96 when motion is enabled; reduced motion preserves immediate paint without scale. Disabled, read-only and selection-status checks add no interaction paint. The row body feedback and all row content retain their existing composition.</p>
-      <p><span style="color:var(--fg-3)">habit standard&nbsp;&nbsp;</span>The owner comment “esse e o novo padrao dos habitos” on <a href="https://www.figma.com/design/aLwwyaY3Dtw1NVesAWsNO7?node-id=7-72">landing Figma rows 7:72 and 7:84</a> defines the habit row: a 28px rounded-square check with radius 12 and a 1px empty-status border, current done fill and canvas-colour check, inside the existing 48px target. Partial parent progress follows that perimeter; overdue, bad, disabled and unavailable meanings and labels stay intact. Every row, including an inline child, owns a radius 20 body with a 1px hairline border and the current card surface fill. Family grouping carries no additional fill or border, with 4px between its rows and 12px between families so perimeters never touch. One inset focus indicator follows the check shape. Typography, emoji wells, touch floors and actions stay unchanged; other progress indicators stay circular. This note supersedes the exported circular habit glyph and shared family panel treatment in the export.</p>
-      <p><span style="color:var(--fg-3)">controls&nbsp;&nbsp;</span>four controls on a row, each doing one thing. The row body opens the detail, the three dot opens the overflow, the chevron expands a top level parent and drills anywhere else. The trailing rounded-square check is the only thing that logs, one tap, optimistic and deterministic, and on a parent the check is a control too (habit-row-trailing): every child done logs it, done unlogs it, and with children still open it asks whether to log the habit anyway. The two press gestures cannot fight because the rule is drawn (habit-list.tsx:443): hold and move reorders, at 300ms with a 5px tolerance on touch and a 5px drag with a pointer, and holding STILL for 500ms selects. A dragged row goes to 50 percent and lifts above its neighbours, an open parent collapses while it moves so its sub habits travel with it, and the order is written on release. Dragging is off while selection is on; in selection the habit check stops being a control, the whole row toggles the checkbox, and the overflow button is absent rather than disabled.</p>
-      <p><span style="color:var(--fg-3)">menu&nbsp;&nbsp;</span>the shipping order: add sub habit, move parent, skip, reschedule, edit, duplicate, select, open sub habits, and delete last, destructive, behind the separator. Log and view details are gone: the habit check already logs and the row body already opens the detail. Skip and reschedule drop on a read only day, and reschedule appears ONLY on an overdue row, the gate the app ships: onReschedule passes only when habit.isOverdue (habit-list.tsx:906). Skip and duplicate ask their questions instead of acting silently, and open sub habits opens the drill, never the expand. Add a sub habit follows the plan (startAddSubHabit, habit-list.tsx:702): on free the item carries the Pro badge in the Menu item’s badge slot, a real button that reads as a route before the tap, and tapping it leaves for the Pro document; on Pro it opens creation. The menu is the system Menu, a bottom sheet at 412 and an anchored popover at the wide width.</p>
+      <p><span style="color:var(--fg-3)">habit standard&nbsp;&nbsp;</span>the habit row is a 28px rounded-square check with radius 12 and a 1px empty-status border, current done fill and canvas-colour check, inside the existing 48px target. Partial parent progress follows that perimeter, and overdue, bad, disabled and unavailable meanings and labels stay intact. Every row, including an inline child, owns a radius 20 body with a 1px hairline border and the current card surface fill. Family grouping carries no additional fill or border, with 4px between its rows and 12px between families so perimeters never touch. One inset focus indicator follows the check shape. Other progress indicators stay circular.</p>
+      <p><span style="color:var(--fg-3)">controls&nbsp;&nbsp;</span>four controls on a row, each doing one thing. The row body opens the detail, the three dot opens the overflow, the chevron expands a top level parent and drills anywhere else. The trailing rounded-square check is the only thing that logs, one tap, optimistic and deterministic, and on a parent the check is a control too (habit-row-trailing): every child done logs it, done unlogs it, and with children still open it asks whether to log the habit anyway. The two press gestures cannot fight because the rule is drawn: hold and move reorders, at 300ms with a 5px tolerance on touch and a 5px drag with a pointer, and holding STILL for 500ms selects. A dragged row goes to 50 percent and lifts above its neighbours, an open parent collapses while it moves so its sub habits travel with it, and the order is written on release. Dragging is off while selection is on; in selection the habit check stops being a control, the whole row toggles the checkbox, and the overflow button is absent rather than disabled.</p>
+      <p><span style="color:var(--fg-3)">menu&nbsp;&nbsp;</span>the shipping order: add sub habit, move parent, skip, reschedule, edit, duplicate, select, open sub habits, and delete last, destructive, behind the separator. Log and view details are gone: the habit check already logs and the row body already opens the detail. Skip and reschedule drop on a read only day, and reschedule appears ONLY on an overdue row, the gate the app ships. Skip and duplicate ask their questions instead of acting silently, and open sub habits opens the drill, never the expand. Add a sub habit follows the plan: on free the item carries the Pro badge in the Menu item’s badge slot, a real button that reads as a route before the tap, and tapping it leaves for the Pro document; on Pro it opens creation. The menu is the system Menu, a bottom sheet at 412 and an anchored popover at the wide width.</p>
       <p><span style="color:var(--fg-3)">drill&nbsp;&nbsp;</span>open the sub habits replaces the list with that parent’s own list, and it is a stack: Rotina da casa holds Banheiro, and Banheiro drills again, so a person can go in twice. A round back button and the parent’s name with a mono done count under it; deeper than one, a home line returns to all habits in one tap. The rows are that parent’s sub habits, flat, with an add a sub habit action under them; that action sits behind the same plan gate as the menu’s, so on free it carries the Pro badge and routes to the upgrade rather than opening creation. Its three states: loading is the row skeleton on every entry, failed is one line plus try again, and empty, reached by clearing a drilled list, is one line plus the same add action. Expand and collapse stays the disclosure on a top level parent, a different thing.</p>
       <p><span style="color:var(--fg-3)">list&nbsp;&nbsp;</span>the list menu sits on the date row, the utility control, with exactly the four shipping items: select or cancel select, expand all or collapse all, refresh, and show completed. Show completed brings the completed rows back with their neutral done checks, which makes their leaving read as a filter rather than as loss. Refresh swaps the list for its skeleton and back.</p>
       <p><span style="color:var(--fg-3)">move&nbsp;&nbsp;</span>move parent matches move-parent-overlay.tsx: the habit being moved named at the top, a search field once there are more than eight destinations, root not counted (SEARCH_THRESHOLD = 8), case and accent insensitive, keeping a match’s ancestors and always the root, and one centred line when nothing matches. The root row is its own thing, a home glyph in a transparent 30px well with a 1px hairline, above a destinations eyebrow; the tree below is pre-order at 20px per level, and a row with selectable children carries that count in mono. The current parent carries its one word tag and stays disabled with its existing reason. A disabled personal destination with a reason keeps its leading mark, title, radio and separate name disclosure on the primary line. The primary line reserves the disclosure height. Child count and current tag flow beneath it, then the complete reason occupies the full remaining radio width on its own supporting line. These rows grow with text, retain their real depth inset and keep the full name in disclosure; no metadata or control competes beside the reason. Selection is real: the chosen row takes the tint, the ring and the radio glyph, one at a time. All three refusals are disabled rows at 50 percent with the reason stated on the row: the habit itself, everything inside it, and the depth ceiling, honest against this fixture because moving Rotina da casa (a 3 level subtree) under Anki (depth 3) passes maxHabitDepth = 5. Buscar o remédio, the completed one time habit, is absent as a destination, not disabled (isHabitSelectableAsMoveTarget). The footer is cancel and confirm: confirm waits for a target and takes loading while the move is in flight.</p>
-      <p><span style="color:var(--fg-3)">reschedule&nbsp;&nbsp;</span>an Astra sheet with four states (reschedule-sheet.tsx), reached from the row menu on an overdue row, never from a merely open one. The gate is hasProAccess, and the plan axis draws it from both sides: on free the menu opens the sheet on its upsell, one paragraph on what Pro does beside not now; on Pro the menu opens it on working and it settles on the plan after a beat, the same transition retry takes, so the real flow is reachable by using the screen and not only by jumping the axis. Its head is the Astra glyph, the name and the small AI mark. Working is one line plus a skeleton where the card will be. Failed is one line plus try again and not now. The plan is a tinted card wrapped in Proposed carrying the new date, a middle dot and the time when there is one, and the new frequency sentence under it; then Astra’s reason in prose, then the AI fine print. Use this plan takes loading while it saves. All four states stay on the axis as a jump table for review. Every number in it is mock.</p>
+      <p><span style="color:var(--fg-3)">reschedule&nbsp;&nbsp;</span>an Orbit sheet with four states (reschedule-sheet.tsx), reached from the row menu on an overdue row, never from a merely open one. The gate is hasProAccess, and the plan axis draws it from both sides: on free the menu opens the sheet on its upsell, one paragraph on what Pro does beside not now; on Pro the menu opens it on working and it settles on the plan after a beat, the same transition retry takes, so the real flow is reachable by using the screen and not only by jumping the axis. Its head is the Orbit glyph, the name and the small AI mark. Working is one line plus a skeleton where the card will be. Failed is one line plus try again and not now. The plan is a tinted card wrapped in Proposed carrying the new date, a middle dot and the time when there is one, and the new frequency sentence under it; then Orbit’s reason in prose, then the AI fine print. Use this plan takes loading while it saves. All four states stay on the axis as a jump table for review. Every number in it is mock.</p>
       <p><span style="color:var(--fg-3)">parent&nbsp;&nbsp;</span>when the last child of a parent completes and the parent is due today and not itself done, a confirm asks whether to complete the parent too: log when any child was actually logged, skip when every child was skipped. It fires once per parent per day and the ledger clears when the date changes. So the all done state cannot hold a hollow parent: by the time the due list empties, the parent completed or this prompt is on screen.</p>
-      <p><span style="color:var(--fg-3)">create&nbsp;&nbsp;</span>the FAB opens it; a create sentence in a composer chip opens it carrying that sentence; Astra proposes it unasked with every value proposed. Two plain-language type radios before the focal title, the consumed words marked inside it, one preview sentence, tappable correction, an emoji well that is the control (a plus when empty, the picker behind it), and ONE disclosure holding everything else in this order: exact time, reminders, checklist items, sub habits, the bad habit toggle, the slip alert, tags, goal linking, end date, description. Reminders are two things: with a due time, a master switch and offset chips over the ten shipping presets plus a custom number and unit, default at the time plus 15 min, and the LAST offset cannot be removed, its reason beside it, because reminders on with nothing set is a lie; with no time, absolute clock times, each added through a small form of a time field and the two when chips whose add waits for a time, at most 5, with both refusals from validateScheduledReminders said in words: the same time on the same day twice, and a non time. A timed habit that also holds clock times nests them with no second switch. Checklist items are real inputs that retype in place, each duplicable, removable and draggable, up to 50, the cap stated in place; templates are the person’s own: load one, save the current items under a name, absent while the list is empty, and delete one, in a listed sheet that scrolls at any count. Sub habits stop at 20 and tags at 5, each cap stated the same way. The slip alert follows the plan (slip-alert-section.tsx:21): on free a row with the Pro badge, a route to the upgrade and never a disabled control; on Pro the real switch, shield glyph, its label and the description under it, and it turns on and off. The goal link stays ungated on both sides: D70 moved goals out of the paywall, and a gate a decision removed does not come back. Colour swatches stay deleted. The parser runs on every keystroke, calls nothing and costs nothing, and a value the device read renders as typed. When it resolves nothing the screen says so and offers the pills, the stepper and the explicit ask with its cost line beside it: Astra is a fallback the person asks for, and only that ask spends a message (SuggestHabitSetupCommand.cs:35). The ask reads for a beat and settles as a proposal, marked as Astra’s read and proposed until touched. At the daily ceiling the notice states the allowance, the ask alone goes quiet, and the pills, the stepper, the disclosure and the create action stay live, with the local read still running. The editable date sits before More details and uses the task due date or habit start anchor. Habit keeps fixed, count-based and distinct General schedules under that disclosure. Explicit Astra dates use neutral Proposed ink and a trailing intrinsic Use date action. One surface with Orbit Habit Create, which is the authority for it.</p>
-      <p><span style="color:var(--fg-3)">detail&nbsp;&nbsp;</span>opens from the row body, and a sub habit’s body opens ITS detail with the parent one step back. One surface with Orbit Habit Detail, which is the authority for it. The header is the emoji control: a 76px well opening a picker with a search that clears, the eleven category chips and a grid, and a plus when the habit has no emoji, because there the well is an empty control and not a label. Beside the name and its rename in place sit the summary line, the tags as plain word pills with no colour dot (colour as data is dead), and the ring that logs, a real 44px button named by its action and direction, built on HabitRow’s pairing. The strip is DayStrip in its habit scope at 30 days, the window the third number describes, and the walk’s slipping line states the circumstance in words, no red. The reschedule block appears only on the slipping habit and follows the plan: the proposal with its reason, accept and not now on Pro; the upgrade route in the shipping sheet’s words on free, never an empty space. Then the drawer’s order: the interactive checklist with its reset rule stated only where Habit.cs:186-190 makes it true (a flexible habit’s list does not reset), the three numbers with their three states behind the frequency-or-general gate (a one time task draws no grid, Alongamento draws the one centred no data line, and every open runs the loading row for a beat), the reminders it holds, the end date, the linked goals as rows that leave for Progresso, the sub habits as HabitRows whose rings log through onLog and whose overflow holds log, open and delete (a third level drills), the whole history as a month calendar, and the ask Astra row into the conversation. The editable half is creation’s field set behind ONE disclosure in creation’s order; the checklist swaps into it while it is open so one list is never drawn twice, and sub habits keep their one section above rather than a second, smaller copy. The manual cadence edits live inside the disclosure. The start anchor remains a read-only DateRow here without an immutability claim; create and edit forms expose an editable date before details. Delete is last.</p>
+      <p><span style="color:var(--fg-3)">create&nbsp;&nbsp;</span>the FAB opens it; a create sentence in a composer chip opens it carrying that sentence; Orbit proposes it unasked with every value proposed. Two plain-language type radios before the focal title, the consumed words marked inside it, one preview sentence, tappable correction, an emoji well that is the control (a plus when empty, the picker behind it), and ONE disclosure holding everything else in this order: exact time, reminders, checklist items, sub habits, the bad habit toggle, the slip alert, tags, goal linking, end date, description. Reminders are two things: with a due time, a master switch and offset chips over the ten shipping presets plus a custom number and unit, default at the time plus 15 min, and the LAST offset cannot be removed, its reason beside it, because reminders on with nothing set is a lie; with no time, absolute clock times, each added through a small form of a time field and the two when chips whose add waits for a time, at most 5, with both refusals from validateScheduledReminders said in words: the same time on the same day twice, and a non time. A timed habit that also holds clock times nests them with no second switch. Checklist items are real inputs that retype in place, each duplicable, removable and draggable, up to 50, the cap stated in place; templates are the person’s own: load one, save the current items under a name, absent while the list is empty, and delete one, in a listed sheet that scrolls at any count. Sub habits stop at 20 and tags at 5, each cap stated the same way. The slip alert follows the plan: on free a row with the Pro badge, a route to the upgrade and never a disabled control; on Pro the real switch, shield glyph, its label and the description under it, and it turns on and off. The goal link stays ungated on both sides. Colour swatches stay deleted. The parser runs on every keystroke, calls nothing and costs nothing, and a value the device read renders as typed. When it resolves nothing the screen says so and offers the pills, the stepper and the explicit ask with its cost line beside it: Orbit is a fallback the person asks for, and only that ask spends a message. The ask reads for a beat and settles as a proposal, marked as Orbit’s read and proposed until touched. At the daily ceiling the notice states the allowance, the ask alone goes quiet, and the pills, the stepper, the disclosure and the create action stay live, with the local read still running. The editable date sits before More details and uses the task due date or habit start anchor. Habit keeps fixed, count-based and distinct General schedules under that disclosure. Explicit Orbit dates use neutral Proposed ink and a trailing intrinsic Use date action. One surface with Orbit Habit Create, which is the authority for it.</p>
+      <p><span style="color:var(--fg-3)">detail&nbsp;&nbsp;</span>opens from the row body, and a sub habit’s body opens ITS detail with the parent one step back. One surface with Orbit Habit Detail, which is the authority for it. The header is the emoji control: a 76px well opening a picker with a search that clears, the eleven category chips and a grid, and a plus when the habit has no emoji, because there the well is an empty control and not a label. Beside the name and its rename in place sit the summary line, the tags as plain word pills with no colour dot (colour as data is dead), and the ring that logs, a real 44px button named by its action and direction, built on HabitRow’s pairing. The strip is DayStrip in its habit scope at 30 days, the window the third number describes, and the walk’s slipping line states the circumstance in words, no red. The reschedule block appears only on the slipping habit and follows the plan: the proposal with its reason, accept and not now on Pro; the upgrade route in the shipping sheet’s words on free, never an empty space. Then the drawer’s order: the interactive checklist with its reset rule stated only where it is true (a flexible habit’s list does not reset), the three numbers with their three states behind the frequency-or-general gate (a one time task draws no grid, Alongamento draws the one centred no data line, and every open runs the loading row for a beat), the reminders it holds, the end date, the linked goals as rows that leave for Progresso, the sub habits as HabitRows whose rings log through onLog and whose overflow holds log, open and delete (a third level drills), the whole history as a month calendar, and the ask Orbit row into the conversation. The editable half is creation’s field set behind ONE disclosure in creation’s order; the checklist swaps into it while it is open so one list is never drawn twice, and sub habits keep their one section above rather than a second, smaller copy. The manual cadence edits live inside the disclosure. The start anchor remains a read-only DateRow here without an immutability claim; create and edit forms expose an editable date before details. Delete is last.</p>
       <p><span style="color:var(--fg-3)">rows&nbsp;&nbsp;</span>six treatments: pending as the bare status-empty ring, done as an fg-1 disc with a check, overdue and bad as hollow rings in their own colour with an empty middle, read only as the dimmed untappable indicator, and a parent as a ring of done over total that becomes the neutral done disc once the parent itself is logged. No glyph sits inside a ring, so overdue and bad also state themselves in words in the meta strip, 18:00 · atrasado and aconteceu hoje, the word in the status colour. A habit with no emoji gets its title’s first letter from HabitRow itself, fg-3 at 500. The ring that logs is HabitRow’s own onLog button, a real sibling of the row body named by its action and direction; only a parent’s fraction ring stays composed in the trailing slot, since onLog draws the StatusRing alone. Visible descendants cascade by one 16px leading step per ancestor, owned once by the canonical row after its 8px root padding. Wells, titles, descriptions and supporting metadata share each depth edge. Measured content width and text scale bound expansion with at least one scaled child-title em of title space, with a 24px minimum. At 320 with 284px row content, normal text keeps three levels inline; 200% text keeps two. A boundary parent opens the existing drill, whose direct children reset to depth 0. Wider contexts retain further levels within the data limit. Leaves reserve no disclosure column. Independent radius-20 bodies, 48px controls and 4/12px family gaps remain, without tree lines. Rows reorder by dragging with the whole row as the handle, and a duplicate arrives as an unlogged copy directly under its source.</p>
-      <p><span style="color:var(--fg-3)">returning&nbsp;&nbsp;</span>lands on today, not on the gap. Astra names the circumstance once, as a count of days rather than of misses, and the one action goes to Progresso, where the repair lives. The rows carry only their times, so nothing on the screen counts what was missed, and the conversation chips carry the ways back. The threshold is three days with nothing logged, decided 2026-08-20: three days is about where a routine is lost rather than interrupted, and a person who lost a week is not left unacknowledged until the ninth.</p>
-      <p><span style="color:var(--fg-3)">bulk&nbsp;&nbsp;</span>selection mode occupies the pinned slot with a floating tray: log, skip, delete, plus the count, and select all opposite it: one plain underlined word that flips to deselect all once everything visible is selected. Log and skip carry no confirmation because both are reversible, and a skip advances the schedule so the row leaves the day. Delete carries one confirmation, and it names that the subtree goes too. The partially failed batch is drawn on the Astra path, where the per-item result already lives: a glyph on every row and a retry whose label states it covers only the two that failed.</p>
+      <p><span style="color:var(--fg-3)">returning&nbsp;&nbsp;</span>lands on today, not on the gap. Orbit names the circumstance once, as a count of days rather than of misses, and the one action goes to Progresso, where the repair lives. The rows carry only their times, so nothing on the screen counts what was missed. The threshold is three days with nothing logged.</p>
+      <p><span style="color:var(--fg-3)">bulk&nbsp;&nbsp;</span>selection mode occupies the pinned slot with a floating tray: log, skip, delete, plus the count, and select all opposite it: one plain underlined word that flips to deselect all once everything visible is selected. Log and skip carry no confirmation because both are reversible, and a skip advances the schedule so the row leaves the day. Delete carries one confirmation, and it names that the subtree goes too. The partially failed batch is drawn on the Orbit path, where the per-item result already lives: a glyph on every row and a retry whose label states it covers only the two that failed.</p>
       <p><span style="color:var(--fg-3)">offline&nbsp;&nbsp;</span>the row mutates optimistically with no pending mark, and a neutral Toast in the shell's notice slot, above the tab bar and separate from the floating controls, says the log was kept on the device. The conversation composer takes its own offline state. No full page offline screen.</p>
-      <p><span style="color:var(--fg-3)">at limit&nbsp;&nbsp;</span>the daily Astra allowance, five free, drawn as the composer's boundary state with neutral tokens, no upgrade action and no return time, because no endpoint returns that moment. The list stays fully usable, since the core loop never calls the model.</p>
-      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>two moments, each with everything the app shows. No habits yet is the mark, a title, one body line and TWO actions, ask Astra filled and create manually quiet (habit-list.tsx:1044), centred in the space the list would occupy; the load failure is centred the same way. All done is a title, the line that everything due today is done, and a quiet action to tomorrow’s habits (habit-list.tsx:1032), over an EMPTY due list: with show completed off a completed row leaves, 1400 ms after its tap so it never vanishes under the thumb, and the list menu brings the rows back. The anytime group stays, since nothing of it was due.</p>
-      <p><span style="color:var(--fg-3)">conversation&nbsp;&nbsp;</span>The conversation opens full screen at both widths, from Hoje's fixed round Astra entry in the compact shell, the wide sidebar Astra row, the proactive line, the no-habits action or the local habit-detail entry. Compact covers the tab bar; wide web keeps the sidebar and replaces the destination column. Both frames bind the same conversation node, including conversation and batch failed states, with its own header, live chips and composer. It takes precedence over the detail dialog; closing it restores the underlying view. The wide composer slot binds only wideBottom, the active selection tray with exit, select-all, delete, log and skip controls; resting wide Hoje passes nothing. Habit detail keeps its own composer at every width.</p>
-      <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32 48, gap only. 44 is the touch and column token, 68 and 52 the row tokens. Group gap 24 against in-group 12.</p>
-      <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>8 the selection box and chips, 12 wells and the notice, 20 panels and the tray, 28 shell and sheet, 999 interactive.</p>
+      <p><span style="color:var(--fg-3)">at limit&nbsp;&nbsp;</span>the daily Orbit allowance, five free, drawn as the composer's boundary state with neutral tokens, no upgrade action and no return time, because no endpoint returns that moment. The list stays fully usable, since the core loop never calls the model.</p>
+      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>two moments, each with everything the app shows. No habits yet is the mark, a title, one body line and TWO actions, ask Orbit filled and create manually quiet, centred in the space the list would occupy; the load failure is centred the same way. All done is a title, the line that everything due today is done, and a quiet action to tomorrow’s habits, over an EMPTY due list: with show completed off a completed row leaves, 1400 ms after its tap so it never vanishes under the thumb, and the list menu brings the rows back. The anytime group stays, since nothing of it was due.</p>
+      <p><span style="color:var(--fg-3)">conversation&nbsp;&nbsp;</span>The conversation opens full screen at both widths, from the wide sidebar Orbit row, the proactive line, the no-habits action or the local habit-detail entry. Compact covers the tab bar; wide web keeps the sidebar and replaces the destination column. Both frames bind the same conversation node, including conversation and batch failed states, with its own header, live chips and composer. It takes precedence over the detail dialog; closing it restores the underlying view. The wide composer slot binds only wideBottom, the active selection tray with exit, select-all, delete, log and skip controls; resting wide Hoje passes nothing. Habit detail keeps its own composer at every width.</p>
       <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: the create FAB is the one filled action, so the proactive line's action is a quiet underlined text control with no fill and no pill. Where another action owns the fill the FAB stands down rather than doubling: the tray's log in selection, the empty state's create, the retry on error, while loading, and behind an open surface, where the create button or the accept owns it. A selected day pill is not an action, so it takes the selected tint and ring rather than a fill. Also accented at 412: current position on the Hoje tab, the parent ring while it is unfinished, and conversation composer focus and send. Wide: the sidebar create is the one filled action, so every other filled action steps down to the neutral fg-1 fill. Completion is neutral: the done disc is fg-1 and the parent ring turns fg-1 at 100 percent.</p>
-      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover #B74E12, 6.09:1 pressed #A24716. primary-soft on the canvas 4.58:1 and nowhere above it. Light status-overdue #7D5700 measures 6.219:1 on #FAFAFA and 4.874:1 on hover, with white on it at 6.491:1. The fg-4 graphic limits closed on 2026-09-10 with --track-empty: dark #8B8B8E reaches 3.821:1 on a hover child inside a card and light #7E7E82 reaches 3.036:1 on a canvas hover. The fg-3 hover limit closed on 2026-09-09 at 4.57:1. The read only rings sit under WCAG's inactive-control exemption at the disabled dimming.</p>
-      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it. Base date Monday 17 August 2026, clock read as 19:20, which is what makes the 18:00 walk overdue. showCompleted starts off, the shipped default. The fixture nests three levels, Rotina da casa into Banheiro into Pia and Espelho, so the drill goes in twice and the move sheet’s depth refusal is real; Estudos runs Inglês into Anki for the same reason. Violão is the flexible habit, Ligar para a mãe the one off, and Buscar o remédio the completed one time habit the move sheet must not offer. The strip, the stats, the reminders held and the month calendar are per habit fixtures.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 nothing here is a number a person does not need to act now. 2 the ring is one tap with no model call, and the same outcome asked of Astra is one bulk operation. 3 one filled action per view, and completion never takes the accent. The contract asks for three shipping tests but the system never enumerates them, so these three are a reading, not a citation.</p>
-      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>1 HabitRow offers no disclosure column and no selection control, so both are composed beside it; the selection box is the system Checkbox as a presentational span. 2 BlockFrame carries the Astra glyph, so a person-fired batch has no neutral result container. 3 ShellWide has no sheets slot and the system has no desktop dialog, so confirmations reuse Sheet against a wrapper at the wide width. 4 ShellWide carries no notification bell, which the IA lists for the web sidebar. 5 closed this round: HabitRow’s onLog makes the log ring a real sibling button on every leaf row; only the parent’s fraction ring stays composed in the trailing slot, itself now a sibling, because onLog draws the StatusRing alone. 6 forms has no field that marks parsed words, so the create input is a mirror of highlighted text under a transparent textarea. 7 there is no neutral component for a phrase the parser could not resolve. 8 closed this round: ListRow’s action is a real per-row sibling button, so the template sheet’s rows are ListRows with a delete action rather than hand composed rows. 9 the mirrored bundle went stale a THIRD time: checked before use per instruction, it lacked RadioRow’s leading, depth, meta, tag and disabled with reason props and Input’s trailing slot, both already in the source; this round the whole mirror, bundle and tokens, was re-synced from the source project rather than patched piecemeal, and a FOURTH time this round: the mirror lacked CanvasControls’ plans axis, the source carried it, checked before use as instructed, and the mirror was re-synced from source again. 10 closed this round: Menu items took a badge, rendered through the neutral Badge at the row’s inline end and never disabling the item, so the free account’s add sub habit shows Pro before the tap the way the slip row and the drill’s add row do. The mirror missed it, a FIFTH stale round: checked before use as instructed, found without the badge, re-synced from source, and confirmed carrying it before this document leaned on it. A SIXTH stale round followed: checked before use, the mirror lacked both HabitRow’s onLog with logLabel and ListRow’s action while the source carried them; the whole mirror was re-synced and confirmed carrying both before either was used. A seventh check this round found the mirror already carrying ListRow’s action and HabitRow’s onLog, the first check since the audit began that needed no re-sync. Also composed here: the ask Astra row (ListRow’s icon slot takes a Tabler name, not the Astra glyph), the emoji grid and its category chips (no system picker exists), and the 76px header well (the system’s wells are internal to their rows).</p>
-      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>The 100 item bulk cap cannot be drawn against this list. At limit and offline both turn the proactive line off. The 90 day read horizon is a clamp on the forward chevron. The tabs and the sidebar go nowhere drawn in this document. The three Pro upgrade routes, the slip alert row, the reschedule sheet’s Pro action and the free account’s add a sub habit in both places, all take one route: they leave this document for Orbit Pro, because a gated tap that does nothing is a dead control. Confirming a move takes loading and closes without re-parenting the fixture, and a duplicate’s copy joins the list but not the move tree. Row drag is real and writes the order; the checklist item’s drag handle is drawn but item drag is not simulated. Saved templates live in this document’s state, so they reset with it. The reschedule plan, the strip, the stats and the calendar are fixtures, and the reschedule working and failed states sit on the axis as jumps; on Pro the menu reaches working and the plan live, and failed stays axis only because the fixture’s suggestion always returns. The pure skip variant of the parent prompt is reachable only by skipping every child. The invalid time refusal exists in the add form’s check, but a native time field cannot type a non time, so only the duplicate refusal fires live. The create ask settles on a fixture suggestion after a beat, and disclosure edits made on a detail live in this document’s state.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>primary-soft on the canvas 4.58:1 and nowhere above it. Light status-overdue #7D5700 measures 6.219:1 on #FAFAFA. The read only rings sit under the inactive-control exemption at the disabled dimming.</p>
+      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it. Base date Monday 17 August 2026, clock read as 19:20, which is what makes the 18:00 walk overdue. showCompleted starts off. The fixture nests three levels, Rotina da casa into Banheiro into Pia and Espelho, so the drill goes in twice and the move sheet's depth refusal is real. Violão is the flexible habit, Ligar para a mãe the one off, and Buscar o remédio the completed one time habit the move sheet must not offer.</p>
+      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>composed around the system: 1 HabitRow offers no disclosure column and no selection control, so both sit beside it. 2 BlockFrame carries the Orbit glyph, so a person-fired batch has no neutral result container. 3 ShellWide has no sheets slot, so confirmations reuse Sheet against a wrapper. 4 forms has no field that marks parsed words, so the create input mirrors highlighted text under a transparent textarea. 5 no neutral component exists for a phrase the parser could not resolve.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>The 100 item bulk cap cannot be drawn against this list. At limit and offline both turn the proactive line off. The 90 day read horizon is a clamp on the forward chevron. The tabs and the sidebar go nowhere drawn in this document. Gated taps leave this document for Orbit Pro: the slip alert row, the reschedule sheet's Pro action and the free account's add a sub habit. Row drag is real and writes the order. Confirming a move takes loading and closes without re-parenting the fixture. Saved templates live in this document's state, so they reset with it. The reschedule plan, the strip, the stats and the calendar are fixtures.</p>
     </div>
   </sc-if>
 
@@ -456,14 +449,14 @@ const STR = {
     allDone: 'Tudo que era para hoje está feito.',
     quiet: 'A qualquer momento',
     menu: 'Mais opções', loading: 'Carregando', close: 'Fechar conversa',
-    conversationLabel: 'Astra',
+    conversationLabel: 'Orbit',
     navLabel: 'Navegação principal', palette: 'Buscar',
     composerWords: {
-      placeholder: 'Peça à Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
-      fieldLabel: 'Peça à Astra', chipsLabel: 'Sugestões da Astra',
+      placeholder: 'Peça ao Orbit', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
+      fieldLabel: 'Peça ao Orbit', chipsLabel: 'Sugestões do Orbit',
       open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
-      busyReason: 'A Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
-      offlineReason: 'Sem conexão. A Astra volta quando a conexão voltar.',
+      busyReason: 'O Orbit responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
+      offlineReason: 'Sem conexão. O Orbit volta quando a conexão voltar.',
     },
     limit: ['As ', '5', ' mensagens de hoje foram usadas.'],
     offlineToast: 'Sem conexão. A marcação foi salva no aparelho.',
@@ -477,16 +470,16 @@ const STR = {
     refreshList: 'Atualizar', showDone: 'Mostrar concluídos', hideDone: 'Ocultar concluídos',
     selectAll: 'Selecionar tudo', deselectAll: 'Desmarcar tudo',
     allDoneTitle: 'Por hoje é isso', allDoneGo: 'Ver amanhã',
-    noHabitsBody: 'Comece com um hábito pequeno ou peça uma rotina ao Astra.',
-    noHabitsAsk: 'Perguntar ao Astra', noHabitsManual: 'Criar manualmente',
+    noHabitsBody: 'Comece com um hábito pequeno ou peça uma rotina ao Orbit.',
+    noHabitsAsk: 'Perguntar ao Orbit', noHabitsManual: 'Criar manualmente',
     log: 'Registrar', skip: 'Pular', del: 'Apagar', cancel: 'Cancelar',
     selected: (n) => [mock(n), n === 1 ? ' selecionado' : ' selecionados'],
     delTitle: 'Apagar os hábitos selecionados?',
     delBody: (n) => [mock(n), ' hábitos e tudo dentro deles saem da sua lista. Não há como restaurar por aqui.'],
     of: (a, b) => [mock(a), ' de ', mock(b)],
     astra: {
-      'default': [['A caminhada não aconteceu às ', '18:00', '.'], 'Mover para 20:00'],
-      returning: [['', '3', ' dias sem registros.'], 'Ver no Progresso'],
+      'default': [['A caminhada não aconteceu às ', '18:00', '.']],
+      returning: [['', '3', ' dias sem registros.']],
     },
     chips: {
       'default': ['Mover a caminhada para hoje à noite', 'Registrar a leitura', 'Registrar ontem', 'Adiar tudo para amanhã', 'Reduzir a rotina da casa', 'Criar hábito de manhã'],
@@ -533,14 +526,14 @@ const STR = {
     allDone: 'Everything due today is done.',
     quiet: 'Anytime',
     menu: 'More options', loading: 'Loading', close: 'Close conversation',
-    conversationLabel: 'Astra',
+    conversationLabel: 'Orbit',
     navLabel: 'Main navigation', palette: 'Search',
     composerWords: {
-      placeholder: 'Ask Astra', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
-      fieldLabel: 'Ask Astra', chipsLabel: 'Astra suggestions',
+      placeholder: 'Ask Orbit', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
+      fieldLabel: 'Ask Orbit', chipsLabel: 'Orbit suggestions',
       open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
-      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
-      offlineReason: 'No connection. Astra comes back when the connection does.',
+      busyReason: 'Orbit answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
+      offlineReason: 'No connection. Orbit comes back when the connection does.',
     },
     limit: ["Today's ", '5', ' messages have been used.'],
     offlineToast: 'No connection. The log is saved on the device.',
@@ -554,16 +547,16 @@ const STR = {
     refreshList: 'Refresh', showDone: 'Show completed', hideDone: 'Hide completed',
     selectAll: 'Select all', deselectAll: 'Deselect all',
     allDoneTitle: 'That is it for today', allDoneGo: 'See tomorrow',
-    noHabitsBody: 'Start with one small habit or ask Astra for a routine.',
-    noHabitsAsk: 'Ask Astra', noHabitsManual: 'Create manually',
+    noHabitsBody: 'Start with one small habit or ask Orbit for a routine.',
+    noHabitsAsk: 'Ask Orbit', noHabitsManual: 'Create manually',
     log: 'Log', skip: 'Skip', del: 'Delete', cancel: 'Cancel',
     selected: (n) => [mock(n), ' selected'],
     delTitle: 'Delete the selected habits?',
     delBody: (n) => [mock(n), ' habits and everything inside them leave your list. There is no way to restore this here.'],
     of: (a, b) => [mock(a), ' of ', mock(b)],
     astra: {
-      'default': [['The walk did not happen at ', '18:00', '.'], 'Move to 20:00'],
-      returning: [['', '3', ' days with nothing logged.'], 'See it on Progress'],
+      'default': [['The walk did not happen at ', '18:00', '.']],
+      returning: [['', '3', ' days with nothing logged.']],
     },
     chips: {
       'default': ['Move the walk to tonight', 'Log the reading', 'Log yesterday', 'Push everything to tomorrow', 'Trim the house routine', 'Create a morning habit'],
@@ -731,10 +724,10 @@ const X = {
     drillDoneOf: (a, b) => [mock(a), ' de ', mock(b), ' feitos'],
     drillEmpty: 'Nenhum sub-hábito ainda',
     drillFailedMsg: 'Não deu para carregar os sub-hábitos. Verifique a conexão e tente de novo.',
-    rsFree: 'Com o Pro, o Astra transforma um hábito atrasado em um plano realista.',
+    rsFree: 'Com o Pro, o Orbit transforma um hábito atrasado em um plano realista.',
     rsPro: 'Conhecer o Pro', rsWorking: 'Procurando um plano realista.',
     rsFailed: 'Nenhum plano pôde ser sugerido.', rsUse: 'Usar este plano',
-    rsFine: 'O Astra pode errar. Revise o plano antes de usar.',
+    rsFine: 'O Orbit pode errar. Revise o plano antes de usar.',
     rsReason: ['A caminhada não aconteceu ', '3', ' vezes depois das ', '18:00', '. De manhã, antes do trabalho, a agenda costuma estar livre.'],
     rsDate: ['qui, 20 ago', '07:30'], rsFreq: 'toda terça e quinta',
     dupTitle: (n) => 'Duplicar ' + n + '?', dupGo: 'Duplicar',
@@ -768,9 +761,9 @@ const X = {
     placeholder: 'Correr 3 vezes por semana',
     understood: 'O Orbit entendeu',
     unclear: 'O Orbit não encontrou a frequência nesta frase. Escolha os dias ou um número de vezes por semana.',
-    understoodAstra: 'O Astra entendeu',
-    ask: 'Pedir ao Astra', askCost: ['Usa 1 das ', '5', ' mensagens de hoje.'],
-    parsingLabel: 'O Astra está lendo a frase',
+    understoodAstra: 'O Orbit entendeu',
+    ask: 'Pedir ao Orbit', askCost: ['Usa 1 das ', '5', ' mensagens de hoje.'],
+    parsingLabel: 'O Orbit está lendo a frase',
     dayShort: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
     dayFull: PT_DAY,
     pickDay: (d) => PT_DAY[d],
@@ -801,18 +794,18 @@ const X = {
     ],
     startLabel: 'Início',
     createAction: 'Criar hábito',
-    limitCreate: ['As ', '5', ' mensagens de hoje foram usadas. O Orbit lê a frase no aparelho, e criar um hábito não usa mensagem: só pedir ao Astra usa. Escolha os dias ou um número de vezes por semana.'],
+    limitCreate: ['As ', '5', ' mensagens de hoje foram usadas. O Orbit lê a frase no aparelho, e criar um hábito não usa mensagem: só pedir ao Orbit usa. Escolha os dias ou um número de vezes por semana.'],
     breakdown: 'O que tem dentro',
     subs: ['Louça', 'Roupa lavada', 'Banheiro'],
-    emojiLabel: 'Emoji proposto pelo Astra',
-    proposedBy: 'Proposto pelo Astra',
+    emojiLabel: 'Emoji proposto pelo Orbit',
+    proposedBy: 'Proposto pelo Orbit',
     detailKicker: 'Hábito',
     holding: 'Últimos 30 dias',
     stripWords: { done: 'feito', missed: 'sem registro', notScheduled: 'não programado' },
     slipLine: ['Nenhum registro nos últimos ', '3', ' dias. A sequência voltou para ', '0', ' e a taxa dos últimos ', '30', ' dias caiu.'],
     noDataYet: 'Ainda sem dados',
     moreOpts: 'Mais opções', openOne: 'Abrir', unlogOne: 'Desfazer registro',
-    askAstra: 'Perguntar ao Astra',
+    askAstra: 'Perguntar ao Orbit',
     allDays: 'Todos os dias', monFri: 'Seg a sex', flexSum: (n) => [mock(n), 'x por semana'],
     emoTitle: 'Escolher emoji', emoSearch: 'Buscar emoji', emoClear: 'Limpar a busca',
     emoNone: 'Nenhum emoji com esse nome', emoWellLabel: (n) => 'Escolher emoji para ' + n,
@@ -847,10 +840,10 @@ const X = {
     drillDoneOf: (a, b) => [mock(a), ' of ', mock(b), ' done'],
     drillEmpty: 'No sub habits yet',
     drillFailedMsg: 'We could not load the sub habits. Check the connection and try again.',
-    rsFree: 'With Pro, Astra turns a missed habit into a realistic plan.',
+    rsFree: 'With Pro, Orbit turns a missed habit into a realistic plan.',
     rsPro: 'See Pro', rsWorking: 'Looking for a realistic plan.',
     rsFailed: 'No plan could be suggested.', rsUse: 'Use this plan',
-    rsFine: 'Astra can be wrong. Review the plan before using it.',
+    rsFine: 'Orbit can be wrong. Review the plan before using it.',
     rsReason: ['The walk did not happen ', '3', ' times after ', '18:00', '. In the morning, before work, the schedule is usually free.'],
     rsDate: ['Thu, 20 Aug', '07:30'], rsFreq: 'every Tuesday and Thursday',
     dupTitle: (n) => 'Duplicate ' + n + '?', dupGo: 'Duplicate',
@@ -884,9 +877,9 @@ const X = {
     placeholder: 'Run 3 times a week',
     understood: 'Orbit understood',
     unclear: 'Orbit did not find how often in this phrase. Pick the days or a number of times a week.',
-    understoodAstra: 'Astra understood',
-    ask: 'Ask Astra', askCost: ['Uses 1 of today\'s ', '5', ' messages.'],
-    parsingLabel: 'Astra is reading the phrase',
+    understoodAstra: 'Orbit understood',
+    ask: 'Ask Orbit', askCost: ['Uses 1 of today\'s ', '5', ' messages.'],
+    parsingLabel: 'Orbit is reading the phrase',
     dayShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
     dayFull: EN_DAY,
     pickDay: (d) => EN_DAY[d],
@@ -917,18 +910,18 @@ const X = {
     ],
     startLabel: 'Start',
     createAction: 'Create habit',
-    limitCreate: ["Today's ", '5', ' messages have been used. Orbit reads the phrase on the device, and creating a habit uses no message: only asking Astra does. Pick the days or a number of times a week.'],
+    limitCreate: ["Today's ", '5', ' messages have been used. Orbit reads the phrase on the device, and creating a habit uses no message: only asking Orbit does. Pick the days or a number of times a week.'],
     breakdown: 'What is inside',
     subs: ['Dishes', 'Laundry', 'Bathroom'],
-    emojiLabel: 'Emoji proposed by Astra',
-    proposedBy: 'Proposed by Astra',
+    emojiLabel: 'Emoji proposed by Orbit',
+    proposedBy: 'Proposed by Orbit',
     detailKicker: 'Habit',
     holding: 'Last 30 days',
     stripWords: { done: 'done', missed: 'nothing logged', notScheduled: 'not scheduled' },
     slipLine: ['Nothing logged in the last ', '3', ' days. The streak went back to ', '0', ' and the last ', '30', ' days\' rate is down.'],
     noDataYet: 'No data yet',
     moreOpts: 'More options', openOne: 'Open', unlogOne: 'Undo the log',
-    askAstra: 'Ask Astra',
+    askAstra: 'Ask Orbit',
     allDays: 'Every day', monFri: 'Mon to Fri', flexSum: (n) => [mock(n), 'x a week'],
     emoTitle: 'Choose an emoji', emoSearch: 'Search emoji', emoClear: 'Clear the search',
     emoNone: 'No emoji with that name', emoWellLabel: (n) => 'Choose an emoji for ' + n,
@@ -1041,8 +1034,8 @@ class Component extends DCLogic {
     this._dmT = setTimeout(() => this.setState({ dMetricsLoading: false }), 700);
   };
   goGoal = () => { window.location.href = encodeURI('Orbit Progresso.dc.html'); };
-  /* The explicit fallback: the ONE action that spends a message (SuggestHabitSetupCommand.cs:35).
-     It reads for a beat and settles on Astra's suggestion, proposed until touched. */
+  /* The explicit fallback: the ONE action that spends a message.
+     It reads for a beat and settles on Orbit's suggestion, proposed until touched. */
   onAsk = () => {
     clearTimeout(this._akT);
     this.setState({ askPhase: 'parsing' });
@@ -1062,7 +1055,7 @@ class Component extends DCLogic {
   /* The one upgrade route: every plan-gated tap leaves for the Pro document. Never a silent no-op. */
   goPro = () => { window.location.href = encodeURI('Orbit Pro.dc.html'); };
   closeMenu = () => this.setState({ menu: null });
-  /* One pointer engine for the two row gestures, so they cannot fight (habit-list.tsx:443):
+  /* One pointer engine for the two row gestures, so they cannot fight:
      hold and move reorders (touch: 300ms delay + 5px tolerance; pointer: a 5px drag), and holding
      STILL for 500ms selects. The whole row is the handle; dragging is off while selection is on. */
   gDown = (e, key, group) => {
@@ -1331,11 +1324,11 @@ class Component extends DCLogic {
     const selected = ctx.sel.indexOf(key) >= 0;
     const hasDisc = !copy && kids.length > 0;
     /* Expand and collapse is the disclosure on a TOP LEVEL parent; anywhere else a sub habit with its
-       own subs opens the drill, a different thing (habit-list.tsx:948). */
+       own subs opens the drill, a different thing. */
     const expandable = hasDisc && depth === 0 && !ctx.drill;
     return {
       key: key, depth: depth,
-      /* No emoji: pass nothing and HabitRow draws the title's first letter itself (fix 2026-08-21). */
+      /* No emoji: pass nothing and HabitRow draws the title's first letter itself. */
       icon: h.e || null,
       title: name,
       meta: H('span', { style: { display: 'flex', flexDirection: 'column', gap: 4, whiteSpace: 'normal', overflow: 'visible' } }, H('span', { style: { color: 'var(--fg-3)' } }, h.oneTime ? (t.lang === 'en' ? 'One-time task' : 'Tarefa única') : (t.lang === 'en' ? 'Habit' : 'Hábito')), meta ? H('span', null, meta) : null), trailing: trailing, status: status, statusLabel: statusLabel, onLog: onLog, logLabel: logLabel,
@@ -1519,7 +1512,7 @@ class Component extends DCLogic {
     const english = t.lang === 'en';
     const candidate = s.cDateCandidate;
     const atLimit = s.st === 'at limit' || (this._view && this._view.origin === 'limit');
-    const proposalLabel = english ? 'Astra suggested this date.' : 'Astra sugeriu esta data.';
+    const proposalLabel = english ? 'Orbit suggested this date.' : 'Orbit sugeriu esta data.';
     const pickerLabel = s.cItemType === 'habit' ? (english ? 'Starts on' : 'Começar em') : (english ? 'Do on' : 'Fazer em');
     return H('section', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
       H('label', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
@@ -1537,7 +1530,7 @@ class Component extends DCLogic {
         H(D.Button, { variant: 'ghost', size: 'sm', style: { width: 'auto' }, onClick: () => this.setState({ cSelectedDate: candidate, cDatePhrase: '', cDateCandidate: null, cDateAccepted: true }) }, english ? 'Use date' : 'Usar data')) : null,
       !candidate && s.cDatePhrase ? H('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 16 } },
         atLimit ? H(D.CapacityNotice, { message: H(F, null, x.limitCreate[0], mock(x.limitCreate[1]), x.limitCreate[2]) }) : null,
-        H(D.Button, { variant: 'ghost', size: 'sm', disabled: atLimit, onClick: () => this.setState({ cDateCandidate: '2026-08-26', cDateAccepted: false }) }, english ? 'Ask Astra' : 'Consultar Astra'),
+        H(D.Button, { variant: 'ghost', size: 'sm', disabled: atLimit, onClick: () => this.setState({ cDateCandidate: '2026-08-26', cDateAccepted: false }) }, english ? 'Ask Orbit' : 'Consultar o Orbit'),
         H('p', { style: { fontSize: 12, color: 'var(--fg-3)' } }, x.askCost[0], mock(x.askCost[1]), x.askCost[2])) : null);
   }
   discNode(t, x, parsed, det) {
@@ -1624,7 +1617,7 @@ class Component extends DCLogic {
     const badRow = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
       H(D.Switch, { label: x.fBad, checked: s.badOn, onChange: (n) => this.setState({ badOn: n }) }),
       H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.fBadHint));
-    /* Slip alert follows the plan (slip-alert-section.tsx:21): on free the row is a route to the
+    /* Slip alert follows the plan: on free the row is a route to the
        upgrade, never a disabled control; on Pro it is the real switch, shield glyph and description
        under the label. */
     const slip = s.plan === 'Pro'
@@ -1679,7 +1672,7 @@ class Component extends DCLogic {
   /* The row overflow: the nine shipping items in the shipping order, delete last behind the separator.
      Log and view details are not items: the habit check already logs and the row body already opens the detail.
      Skip and reschedule drop on a read only day (both are writes), and reschedule appears ONLY on an
-     overdue habit (habit-list.tsx:906 passes onReschedule only when habit.isOverdue). */
+     overdue habit. */
   menuNode(t, x) {
     const key = this._menuKey;
     const info = this._rows[key] || {};
@@ -1696,7 +1689,7 @@ class Component extends DCLogic {
     if (info.hasKids) items.push({ id: 'drill', label: x.menu.drill, icon: 'list-tree' });
     items.push({ id: 'del', label: x.menu.del, icon: 'trash', destructive: true });
     return this.menuShell(info.name || x.menuTitle, items, (id) => {
-      /* startAddSubHabit (habit-list.tsx:702): a free account goes to the upgrade route, a Pro
+      /* Add a sub habit: a free account goes to the upgrade route, a Pro
          account to creation. */
       if (id === 'sub') { if (this.state.plan === 'Pro') this.openCreate('sub', ''); else this.goPro(); }
       else if (id === 'move') this.setState({ moveKey: key, moveSel: null, moveQ: '', moveBusy: false });
@@ -1753,7 +1746,7 @@ class Component extends DCLogic {
       H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, log ? x.promptLog(name) : x.promptSkip(name)));
   }
 
-  /* Skip is two different questions, decided by the habit itself (habit-list.tsx:772): a one off is
+  /* Skip is two different questions, decided by the habit itself: a one off is
      postponed to tomorrow, a flexible habit spends a week slot, everything else advances the due date. */
   skipConfirmNode(t, x, filled) {
     const D = window.OrbitDesignSystem_918bd5;
@@ -1801,7 +1794,7 @@ class Component extends DCLogic {
       H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, x.logAnywayBody(name)));
   }
 
-  /* The reschedule sheet is an Astra surface with four states (reschedule-sheet.tsx): the free account's
+  /* The reschedule sheet is an Orbit surface with four states (reschedule-sheet.tsx): the free account's
      route to Pro, working, failed, and a proposed plan. The proposed schedule is an inferred value. */
   reschedNode(t, x, filled) {
     const D = window.OrbitDesignSystem_918bd5;
@@ -1811,7 +1804,7 @@ class Component extends DCLogic {
     const head = H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
       H('span', { style: { display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
         H(D.AstraGlyph, { size: 20 })),
-      H('span', { translate: 'no', style: { fontWeight: 500 } }, 'Astra'),
+      H('span', { translate: 'no', style: { fontWeight: 500 } }, 'Orbit'),
       H(window.OrbitNativeMobile.Badge, null, 'AI'));
     let body = null, actions = null;
     if (phase === 'free') {
@@ -1995,7 +1988,7 @@ class Component extends DCLogic {
     const astra = origin === 'astra';
     const askDone = s.askPhase === 'done';
     /* The local read runs on every keystroke, even at the ceiling: the ceiling quiets the fallback
-       ask and nothing else (SuggestHabitSetupCommand.cs:35). Astra's read exists only after that ask,
+       ask and nothing else. Orbit's read exists only after that ask,
        and it settles as a proposal, never as typed. */
     const parsed = astra ? { tokens: [], mode: 'daily', days: [], qty: null, time: '09:00', emoji: '\uD83E\uDDF9' }
       : askDone ? { tokens: [], mode: 'daily', days: [], qty: null, time: null, emoji: '\uD83D\uDCA7' }
@@ -2059,7 +2052,7 @@ class Component extends DCLogic {
         H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
           x.subs.map((sub, i) => H('p', { key: i, style: { fontSize: 'var(--fs-sm)', padding: '8px 12px',
             background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } }, sub)))) : null);
-    /* A value the device read renders as typed; only Astra's read wears the proposed state, and the
+    /* A value the device read renders as typed; only Orbit's read wears the proposed state, and the
        first touch resolves it. */
     const preview = sentence
       ? ((resolved || !(astra || askDone)) ? inner : H(D.Proposed, { scope: 'block', label: x.proposedBy }, inner))
@@ -2070,7 +2063,7 @@ class Component extends DCLogic {
             ? H(D.CapacityNotice, { message: H(F, null, x.limitCreate[0], mock(x.limitCreate[1]), x.limitCreate[2]) })
             : H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)', padding: 12,
                 background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } }, x.unclear),
-              /* Astra is the explicit fallback and the ONE action that spends a message: the ceiling
+              /* Orbit is the explicit fallback and the ONE action that spends a message: the ceiling
              quiets this ask alone, with the reason stated in the notice above it. */
           atLimit
             ? H('div', null, H(D.Button, { variant: 'secondary', size: 'sm', disabled: true }, x.ask))
@@ -2141,7 +2134,7 @@ class Component extends DCLogic {
       if (isParent && !logged && !allKidsDone) return this.setState({ confirmLogAnyway: key });
       this.toggleStatus(key, info.status || 'empty', h.bad);
       /* Logging resets the checklist ONLY when the habit has a frequency, is not flexible and the due
-         date advances (Habit.cs:186-190). A flexible habit's list does not reset on a log. */
+         date advances . A flexible habit's list does not reset on a log. */
       if (willLog && dtl.chk && !h.flex && !h.oneTime) this.setState((p) => ({
         dchk: Object.assign({}, p.dchk, { [src]: (p.dItems[src] || dtl.chk[lang]).map(() => false) }) }));
     };
@@ -2263,7 +2256,7 @@ class Component extends DCLogic {
   ckAppend = (arr) => {
     const v = this._view;
     if (v && v.kind === 'detail') {
-      const t = T[this.state.loc] || T['pt-BR'];
+      const t = STR[this.state.loc] || STR['pt-BR'];
       const det = this.detCtx(t, v.key);
       det.write(det.items.concat(arr).slice(0, 50), det.checked.concat(arr.map(() => false)).slice(0, 50));
     } else this.setState((p) => ({ ckItems: p.ckItems.concat(arr).slice(0, 50) }));
@@ -2308,13 +2301,13 @@ class Component extends DCLogic {
               setChecked(arr, (arr.every(Boolean) && info.status !== 'done') ? { dLogNow: key } : null);
             } }))),
         /* Logging resets this list only when the habit has a frequency, is not flexible and the due
-           date advances (Habit.cs:186-190), so the rule line renders only where it is true. */
+           date advances , so the rule line renders only where it is true. */
         (!hh.flex && !hh.oneTime) ? H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55,
           color: 'var(--fg-3)', textWrap: 'pretty' } }, x.checklistRule) : null));
     }
     /* The figures render only when the habit has a frequency or is a general one (the drawer's own
        gate), and it holds three states: the numbers, a loading row, and ONE centred no data line,
-       never three zeros. The third number is the 30 day rate (HabitMetricsCalculator.cs:29). */
+       never three zeros. The third number is the 30 day rate. */
     if (!hh.oneTime) {
       const stat = dtl.stat;
       if (!s.dMetricsLoading && !stat) {
@@ -2627,7 +2620,7 @@ class Component extends DCLogic {
     return H('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0,
       width: '100%', maxWidth: 740, marginInline: 'auto', background: 'var(--bg)' } },
       H(window.OrbitNativeMobile.NavHeader, {
-        title: H('span', { translate: 'no' }, 'Astra'),
+        title: H('span', { translate: 'no' }, 'Orbit'),
         trailing: H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.close, onClick: this.closeConv,
           style: { width: 48, height: 48, paddingInline: 0, boxShadow: 'none' } }, H(D.Icon, { name: 'x', size: 20 })),
       }),
@@ -2659,7 +2652,7 @@ class Component extends DCLogic {
         'detail', 'create', 'create from chat', 'create proposed', 'create unclear', 'create asking',
         'create at limit'],
       is412: s.width === '412', isWide: s.width === 'wide',
-      n5: 5, n16: 16, n18: 18, n20: 20, noop: () => {},
+      n5: 5, n20: 20, noop: () => {},
       showReport: this.props.showReport !== false,
     };
     if (!D) return base;
@@ -2749,8 +2742,7 @@ class Component extends DCLogic {
     return Object.assign(base, {
       hasAstra: hasAstra,
       astraLine: H(F, null, line[0], mock(line[1]), line[2], line[3] ? mock(line[3]) : null, line[4] || null),
-      astraAction: t.astra[aKey][1],
-      astraDestination: st === 'returning' ? t.tabs[2] : 'Astra',
+      astraDestination: st === 'returning' ? t.tabs[2] : 'Orbit',
       onAstraAction: st === 'returning' ? this.goGoal : this.openConv,
       rootHeader: H(window.OrbitNativeMobile.BellRow, {},
         H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Search' : 'Buscar', onClick: () => { window.location.href = 'Orbit Busca.dc.html'; } }, H(D.Icon, { name: 'search', size: 24 })),
@@ -2780,7 +2772,6 @@ class Component extends DCLogic {
       goNext: () => this.setState((p) => ({ off: Math.min(90, p.off + 1), prompted: [], promptKey: null })),
       goToday: () => { if (off !== 0) this.setState({ off: 0, prompted: [], promptKey: null }); },
       openControls: this.openControls,
-      ctrlProps: { 'aria-label': t.listOptions, style: { width: 44, height: 44, paddingInline: 0 } },
 
       hasBoundary: (off === -7 || readOnly || off > 0) && !drillOn,
       boundaryMessage: readOnly ? t.readOnly : off > 0 ? t.future : t.lastEditable,
@@ -2791,7 +2782,7 @@ class Component extends DCLogic {
       showQuiet: live && quietRows.length > 0, quietTitle: t.quiet, quietRows: quietRows,
       showSkeleton: busy, loadingLabel: t.loading,
       showNoHabits: st === 'no habits', noHabitsTitle: t.noHabits, noHabitsBody: t.noHabitsBody,
-      /* No habits: a title, a body line and TWO actions, ask Astra and create manually (habit-list.tsx:1044). */
+      /* No habits: a title, a body line and TWO actions, ask Orbit and create manually. */
       noHabitsAction: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' } },
         H(D.Button, { size: 'sm', variant: filled, onClick: this.openConv }, t.noHabitsAsk),
         H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.openCreate('fab') }, t.noHabitsManual)),
