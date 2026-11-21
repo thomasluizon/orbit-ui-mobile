@@ -9,6 +9,8 @@ const COMMAND_TIMEOUT_MS = 30000
 const COMMAND_MAX_BUFFER = 32 * 1024 * 1024
 const PASSING_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"])
 const PULLFROG_APPROVAL = { context: "pullfrog-approval", appId: 1768019 }
+/** The merge bar failure that only a Pullfrog pass at the head clears: the required check exists only on a commit that Pullfrog reviewed. */
+export const APPROVAL_CHECK_MISSING = `required-check-missing:${PULLFROG_APPROVAL.context}`
 const WHOLE_DIFF_FILES = 30
 const WHOLE_DIFF_WINDOW_BYTES = 200
 const MANIFEST_FILE = /(?:^|\/)(?:package\.json|package-lock\.json|Directory\.Packages\.props|packages\.lock\.json|[^/]+\.csproj)$/
