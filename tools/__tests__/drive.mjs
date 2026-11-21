@@ -358,6 +358,8 @@ const pullfrogAndDeploymentCases = async (seams) => {
   same("lib/github.mjs: no successful deployment gives null", await latest({ [newest.id]: "failure", [older.id]: "inactive" }), null)
   const recorded = scripted([...deploymentRoutes({}).slice(0, 2), [`deployments/${newest.id}/statuses`, () => json(FIXTURE.deployments.deploy.latestStatus)], [`deployments/${older.id}/statuses`, () => json(FIXTURE.deployments.deploy.supersededLatestStatus)]])
   same("lib/github.mjs: the newest deployment wins, and a superseded one reads as inactive in the recorded answers", [(await deployedAt("ui", "production", "deploy", seams(recorded.run))).id, FIXTURE.deployments.deploy.supersededLatestStatus[0].state, recorded.calls.length], [newest.id, "inactive", 2])
+  const unsorted = scripted([["deployments?environment=production&task=deploy", () => json([older, newest])], ...deploymentRoutes({ [newest.id]: "success", [older.id]: "success" })])
+  same("lib/github.mjs: the newest deployment wins when the API lists the older one first", (await deployedAt("ui", "production", "deploy", seams(unsorted.run))).sha, newest.sha)
   const failedNewest = scripted([...deploymentRoutes({}).slice(0, 2), [`deployments/${newest.id}/statuses`, () => json([{ ...FIXTURE.deployments.deploy.latestStatus[0], state: "failure" }])], [`deployments/${older.id}/statuses`, () => json(FIXTURE.deployments.deploy.supersededLatestStatus)]])
   same("lib/github.mjs: a failed newest deployment and a superseded older one leave no successful deployment", await deployedAt("ui", "production", "deploy", seams(failedNewest.run)), null)
   const askedFor = scripted(deploymentRoutes({ [newest.id]: "success", [FIXTURE.deployments["android-release"].list[0].id]: "success" }))

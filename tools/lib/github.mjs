@@ -391,7 +391,7 @@ export const deployedAt = async (repositoryKey, environment, task, seams = {}) =
   const slug = api.slugOf(repositoryKey)
   const query = `environment=${encodeURIComponent(environment)}&task=${encodeURIComponent(task)}&per_page=100`
   const deployments = parseJson("gh api deployments", await api.run(["api", `repos/${slug}/deployments?${query}`]))
-  for (const deployment of deployments) {
+  for (const deployment of [...deployments].sort((first, second) => second.created_at.localeCompare(first.created_at))) {
     const latest = parseJson("gh api deployment statuses", await api.run(["api", `repos/${slug}/deployments/${deployment.id}/statuses?per_page=1`]))[0]
     if (latest?.state === "success") return { id: deployment.id, sha: deployment.sha, createdAt: deployment.created_at }
   }

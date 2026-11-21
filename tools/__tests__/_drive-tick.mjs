@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join } from "node:path"
 
 import { accountFrom, createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceDecision, parseArguments, pushOutputs, rankTickets, recordStart, resultText, tick, ticketComment } from "../drive.mjs"
-import { isUsageLimitMessage, readSnapshot, usageLimitIn } from "../lib/worker.mjs"
+import { isUsageLimitMessage, isWorkerProcess, KILL_REASONS, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
 const FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
@@ -47,13 +47,14 @@ const partComment = (number, total, extra = "") => comment(null, `Part ${number}
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null } = {}) => {
   const calls = []
   const messages = []
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
   const states = Object.fromEntries(["ui", "api", "landing"].map((key) => [key, { repositoryKey: key, slug: `thomasluizon/${key}`, defaultBranch: "main", numbers: (pulls[key] ?? []).map((entry) => entry.number), pulls: pulls[key] ?? [] }]))
   const launched = []
-  const stateDir = join(root, `drive-tick-state-${++scenarios}`)
+  const stateDir = stateDirectory ?? join(root, `drive-tick-state-${++scenarios}`)
+  const watched = { fingerprint: "a", logBytes: 0 }
   mkdirSync(join(stateDir, "logs"), { recursive: true })
   const config = { tickets: { repository: REPOSITORY }, repos: { ui: "/r/ui", api: "/r/api", landing: "/r/landing" } }
   const env = {
@@ -72,6 +73,9 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     worker: {
       readWorkerToken: async () => token,
       launch: (options) => { launched.push(options); return Promise.resolve({ exitCode: 0, killed: null, sessionId: "s1", utilization: 0.2, resetsAt: RESETS_AT, status: "allowed", result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null }, ...(limit ?? {}) }) },
+      KILL_REASONS, WORKER_LIMITS,
+      progressWatch: (options) => progressWatch({ ...options, fingerprint: async () => watched.fingerprint, logSize: () => watched.logBytes }),
+      killWorkerTree: (pid, signal) => { calls.push(["kill", pid, signal]) },
       probe: async () => (calls.push(["probe"]), probeReading === undefined ? { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } : probeReading),
     },
     invocation: async () => ({ command: { executable: "claude", args: [] }, environment: {} }),
@@ -82,12 +86,13 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     fetchJson: async () => ({ body: [], link: null }),
     snapshot: () => null,
     authStatus: async () => structuredClone(auth),
-    workerLive: () => false,
+    workerLive: () => readdirSync(stateDir).filter((name) => name.endsWith(".pid")).some((name) => env.processAlive(JSON.parse(readFileSync(join(stateDir, name), "utf8")).pid)),
+    processAlive: (pid) => { try { process.kill(pid, 0); return true } catch { return false } },
   }
   const mem = createMemory()
   mem.reading = reading === null ? null : { account: ACCOUNT.key, ...reading }
   mem.lastIntakeAt = NOW
-  return { env, mem, calls, messages, launched, run: async () => { const result = await tick(env, mem); await mem.running; if (process.env.DEBUG_DRIVE_TICK) console.error(messages.splice(0).join("\n")); return result } }
+  return { env, mem, calls, messages, launched, watched, run: async () => { const result = await tick(env, mem); await mem.running; if (process.env.DEBUG_DRIVE_TICK) console.error(messages.splice(0).join("\n")); return result } }
 }
 
 const BASH = JSON.parse(readFileSync(new URL("../__fixtures__/drive-worker.json", import.meta.url), "utf8")).bashToolRecords
@@ -874,8 +879,7 @@ const blockingChanges = () => review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blo
 const needsOwnerComments = (calls, number) => commentsOf(calls, number).filter((text) => text.startsWith(marked("needs-owner", "")))
 
 /** Writes the record that an earlier driver process left beside its pid file. */
-const leftBehind = (scene, extra = {}, logText = "") => {
-  const stem = "chore-ticket-7"
+const leftBehind = (scene, extra = {}, logText = "", stem = "chore-ticket-7") => {
   const logFile = join(scene.env.stateDir, "logs", `${stem}-left.log`)
   writeFileSync(logFile, logText)
   const path = join(scene.env.stateDir, `${stem}.launch.json`)
@@ -995,6 +999,186 @@ const echoedLimitCases = async () => {
   same("drive: a limit message at the end of a failed Pullfrog log pauses the driver", only(ending.calls, "createTicket").length, 1)
 }
 
+const reasonKeyCases = async () => {
+  const missed = (offsets = [-80, -50]) => [comment("ticket", "T"), ...offsets.map((minutes) => comment("request", PLAIN, minutes * MINUTE))]
+  const missedPull = (number, extra = {}) => pull(number, { headRef: `chore/ticket-7-part-${number}`, reviews: [], comments: missed(), ...extra })
+  const reports = (scene) => needsOwnerComments(scene.calls, 7).map((text) => text.split("\n")[1])
+
+  const two = scenario({ tickets: [ticket(7)], pulls: { ui: [missedPull(30), missedPull(31)] } })
+  await two.run()
+  same("drive: two pull requests of one ticket that both miss a review in one tick are two reports, each labelled and notified", [only(two.calls, "editLabels").map((entry) => entry.slice(1, 3).join(":")), reports(two), only(two.calls, "notify").length], [["tickets:7", "ui:30", "ui:31"], [`ui#30 at ${HEAD}: Pullfrog gave no review after two requests`, `ui#31 at ${HEAD}: Pullfrog gave no review after two requests`], 2])
+
+  const later = scenario({ tickets: [ticket(7, { comments: [comment("needs-owner", "Pullfrog gave no review after two requests")] })], pulls: { ui: [missedPull(31)] } })
+  await later.run()
+  same("drive: a later pull request of the ticket is reported after an earlier report with the same plain reason", [reports(later), only(later.calls, "editLabels").map((entry) => entry.slice(1, 3).join(":")), only(later.calls, "notify").length], [[`ui#31 at ${HEAD}: Pullfrog gave no review after two requests`], ["tickets:7", "ui:31"], 1])
+
+  const reportedAtOldHead = comment("needs-owner", `ui#30 at ${HEAD}: Pullfrog gave no review after two requests`)
+  const newHead = scenario({ tickets: [ticket(7, { comments: [reportedAtOldHead] })], pulls: { ui: [missedPull(30, { headSha: NEXT_HEAD })] } })
+  await newHead.run()
+  same("drive: a later head of the same pull request is a new report", [reports(newHead), only(newHead.calls, "notify").length], [[`ui#30 at ${NEXT_HEAD}: Pullfrog gave no review after two requests`], 1])
+
+  const restarted = scenario({ tickets: [ticket(7, { comments: [reportedAtOldHead] })], pulls: { ui: [missedPull(30)] } })
+  await restarted.run()
+  same("drive: the same report at the same head after a restart posts no comment and sends no notification", [needsOwnerComments(restarted.calls, 7).length, only(restarted.calls, "notify").length, only(restarted.calls, "editLabels").length], [0, 0, 0])
+
+  const decisionLog = resultLine("Done.\nNEEDS_DECISION: Raise the price?")
+  const asked = [ticket(7, { comments: [comment("needs-owner", "chore/ticket-7-part-1: NEEDS_DECISION: Raise the price?")] })]
+  const secondPart = scenario({ tickets: asked })
+  leftBehind(secondPart, { branch: "chore/ticket-7-part-2", partNumber: 2 }, decisionLog, "chore-ticket-7-part-2")
+  await secondPart.run()
+  same("drive: the same question from another part of the ticket is a new report", needsOwnerComments(secondPart.calls, 7).map((text) => text.split("\n")[1]), ["chore/ticket-7-part-2: NEEDS_DECISION: Raise the price?"])
+  const sameBranch = scenario({ tickets: asked })
+  leftBehind(sameBranch, { branch: "chore/ticket-7-part-1", partNumber: 1 }, decisionLog, "chore-ticket-7-part-1")
+  await sameBranch.run()
+  same("drive: the same question from the same branch after a restart is not reported twice", needsOwnerComments(sameBranch.calls, 7).length, 0)
+}
+
+const orderOfApiCases = async () => {
+  const merged = (number, remaining, ago, branch) => ({ number, body: `Tracks ${REPOSITORY}#7\n\n${remaining}`, mergedAt: iso(-ago * 24 * 3600 * 1000), headRefName: branch })
+  const newer = merged(45, "Remaining: the export", 1, "chore/ticket-7-r2")
+  const older = merged(40, "Remaining: the import and the export", 2, "chore/ticket-7")
+  for (const [label, listing] of [["newest first", [newer, older]], ["oldest first", [older, newer]]]) {
+    const scene = scenario({ tickets: [ticket(7)], routes: [mergedRoute(7, listing)] })
+    await scene.run()
+    const remaining = /Remaining after the merged pull requests: (Remaining: [^\n]*)/.exec(orderText(scene))?.[1]
+    same(`drive: a re-admitted ticket takes the Remaining line of the newest merge when the search lists them ${label}`, [scene.launched.length, remaining, scene.launched[0]?.worktree.endsWith("chore-ticket-7-r3")], [1, "Remaining: the export", true])
+  }
+
+  const requests = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [], comments: [comment("ticket", "T"), comment("request", PLAIN, -5 * MINUTE), comment("request", PLAIN, -80 * MINUTE)] })] } })
+  await requests.run()
+  same("drive: the newest review request decides a miss when the API lists the comments out of order", [needsOwnerComments(requests.calls, 7).length, only(requests.calls, "comment").length, only(requests.calls, "editLabels").length], [0, 0, 0])
+
+  const edited = [comment(null, "Part 1 of 1: the edited part", -3600 * 1000), comment(null, "Part 1 of 1: the first version\nKind: find", -7200 * 1000)]
+  const part = scenario({ tickets: [ticket(7, { comments: edited })] })
+  await part.run()
+  same("drive: the newest comment of a part decides its kind when the API lists the comments out of order", only(part.calls, "comment").map((entry) => JSON.parse(entry[3].split("\n")[1]).kind), ["build part"])
+}
+
+const orphanClockCases = async () => {
+  const live = (scene, ageMinutes, stem = "chore-ticket-7") => writeFileSync(join(scene.env.stateDir, `${stem}.pid`), `${JSON.stringify({ pid: process.pid, worktree: "/w", startedAt: iso(-ageMinutes * MINUTE) })}\n`)
+  const signals = (scene) => only(scene.calls, "kill").map((entry) => entry[2])
+  const orphan = (ageMinutes, extra = {}) => {
+    const scene = scenario({ tickets: [ticket(7)], ...extra })
+    const record = leftBehind(scene)
+    live(scene, ageMinutes)
+    return { scene, record }
+  }
+
+  const old = orphan(46)
+  await old.scene.run()
+  same("drive: a worker that outlived a restart past the hard ceiling gets SIGTERM and holds the lane", [signals(old.scene), old.scene.launched.length, existsSync(old.record)], [["SIGTERM"], 0, true])
+  await old.scene.run()
+  same("drive: a worker that survives SIGTERM gets SIGKILL on the next tick", signals(old.scene), ["SIGTERM", "SIGKILL"])
+  old.scene.env.processAlive = () => false
+  await old.scene.run()
+  same("drive: the reap of a killed worker names the clock and frees the lane", [old.scene.messages.some((line) => line.includes(`worker-exit (build, exit null, killed: ${KILL_REASONS["hard-ceiling"]})`)), old.scene.launched.length], [true, 1])
+
+  const young = orphan(20)
+  await young.scene.run()
+  await young.scene.run()
+  same("drive: a worker that outlived a restart inside every clock is left alone", [signals(young.scene), existsSync(young.record)], [[], true])
+
+  const stalled = orphan(20)
+  let clock = NOW
+  stalled.scene.env.now = () => clock
+  await stalled.scene.run()
+  clock = NOW + 11 * MINUTE
+  await stalled.scene.run()
+  same("drive: a worker that outlived a restart and made no progress for ten minutes gets SIGTERM", signals(stalled.scene), ["SIGTERM"])
+
+  const moving = orphan(20)
+  let movingClock = NOW
+  moving.scene.env.now = () => movingClock
+  await moving.scene.run()
+  movingClock = NOW + 11 * MINUTE
+  moving.scene.watched.fingerprint = "b"
+  await moving.scene.run()
+  same("drive: a worker that outlived a restart and changed its worktree is progressing", signals(moving.scene), [])
+
+  const growing = orphan(20)
+  let growingClock = NOW
+  growing.scene.env.now = () => growingClock
+  await growing.scene.run()
+  growingClock = NOW + 11 * MINUTE
+  growing.scene.watched.logBytes = 1024
+  await growing.scene.run()
+  same("drive: a worker that outlived a restart and grew its log is progressing", signals(growing.scene), [])
+
+  const heavy = orphan(5)
+  heavy.scene.watched.logBytes = WORKER_LIMITS.logCapBytes + 1
+  await heavy.scene.run()
+  same("drive: a worker that outlived a restart past the log cap gets SIGTERM", signals(heavy.scene), ["SIGTERM"])
+
+  const two = scenario({ tickets: [ticket(7), ticket(8)] })
+  leftBehind(two, {}, "", "chore-ticket-7")
+  leftBehind(two, { ticketNumber: 8, branch: "chore/ticket-8", worktree: "/r/orbit-worktrees/ui/chore-ticket-8" }, "", "chore-ticket-8")
+  live(two, 50, "chore-ticket-7")
+  live(two, 5, "chore-ticket-8")
+  await two.run()
+  same("drive: with two workers left behind only the one past a clock is killed", [signals(two), two.messages.filter((line) => line.includes(" kill ")).map((line) => /ticket#(\d+)/.exec(line)[1])], [["SIGTERM"], ["7"]])
+
+  const stale = scenario({ tickets: [] })
+  const staleRecord = leftBehind(stale)
+  live(stale, 90)
+  stale.env.processAlive = () => false
+  await stale.run()
+  same("drive: a pid file whose pid is not a worker process is stale, so it is never killed and its record is reaped", [signals(stale), existsSync(staleRecord)], [[], false])
+
+  const started = scenario({ tickets: [ticket(7)] })
+  leftBehind(started)
+  live(started, 90)
+  started.mem.runningStem = "chore-ticket-7"
+  started.mem.running = new Promise(() => {})
+  await tick(started.env, started.mem)
+  same("drive: a worker that this process started keeps its own timers and is never killed by the tick", signals(started), [])
+
+  const dry = scenario({ tickets: [ticket(7)], dryRun: true })
+  leftBehind(dry)
+  live(dry, 90)
+  await dry.run()
+  same("drive: a dry run kills no worker", signals(dry), [])
+
+  const clockOf = (limits, startedAt = 0) => { const state = { now: startedAt, print: "a", bytes: 0 }; return { state, watch: progressWatch({ worktree: "/w", logFile: "/l", startedAt, clock: { now: () => state.now }, limits, fingerprint: async () => state.print, logSize: () => state.bytes }) } }
+  const watched = clockOf(WORKER_LIMITS)
+  const readings = []
+  for (const [moment, print, bytes] of [[0, "a", 0], [9 * MINUTE, "a", 0], [10 * MINUTE, "a", 0], [11 * MINUTE, "b", 0], [20 * MINUTE, "b", 0], [21 * MINUTE, "b", 0], [22 * MINUTE, "b", WORKER_LIMITS.logCapBytes + 1]]) {
+    watched.state.now = moment
+    watched.state.print = print
+    watched.state.bytes = bytes
+    readings.push(await watched.watch())
+  }
+  same("lib/worker.mjs: the progress watch fires no-progress after ten quiet minutes, restarts on change and fires log-cap past the cap", readings, [null, null, "no-progress", null, null, "no-progress", "log-cap"])
+  const ps = (stdout, status = 0) => () => ({ status, stdout })
+  same("lib/worker.mjs: a pid counts as a worker only when it is alive and its command line holds claude", [isWorkerProcess(process.pid, { run: ps("claude -p --model claude-sonnet-5-5\n") }), isWorkerProcess(process.pid, { run: ps("/usr/bin/vim notes.txt\n") }), isWorkerProcess(process.pid, { run: ps("", 1) }), isWorkerProcess(2 ** 31 - 2, { run: ps("claude -p\n") })], [true, false, false, false])
+}
+
+const paceRestartCases = async () => {
+  const probeOnce = scenario({ tickets: [ticket(7)], reading: null })
+  await probeOnce.run()
+  const restarted = scenario({ tickets: [ticket(7)], reading: null, stateDirectory: probeOnce.env.stateDir })
+  await restarted.run()
+  same("drive: a restart inside the hour keeps the saved reading, so it probes no second time and starts the worker", [only(probeOnce.calls, "probe").length, only(restarted.calls, "probe").length, restarted.launched.length], [1, 0, 1])
+
+  const pausedTicket = ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null })
+  const rejected = { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" }
+  const pausedFirst = scenario({ tickets: [pausedTicket, ticket(7)], probeReading: rejected })
+  await pausedFirst.run()
+  const pausedAgain = scenario({ tickets: [pausedTicket, ticket(7)], probeReading: rejected, stateDirectory: pausedFirst.env.stateDir })
+  await pausedAgain.run()
+  same("drive: a paused driver that restarts inside the hour does not probe again", [only(pausedFirst.calls, "probe").length, only(pausedAgain.calls, "probe").length], [1, 0])
+
+  const otherAccount = scenario({ tickets: [ticket(7)], reading: null, auth: { ...AUTH, orgId: "00000000-0000-4000-8000-000000000002" } })
+  await otherAccount.run()
+  const switched = scenario({ tickets: [ticket(7)], reading: null, stateDirectory: otherAccount.env.stateDir })
+  await switched.run()
+  same("drive: a saved reading and probe time of another account do not count after a restart on a new login", [only(otherAccount.calls, "probe").length, only(switched.calls, "probe").length], [1, 1])
+
+  const stale = scenario({ tickets: [ticket(7)], reading: null, stateDirectory: probeOnce.env.stateDir })
+  stale.env.now = () => NOW + 2 * 3600 * 1000
+  await stale.run()
+  same("drive: a saved reading older than an hour is probed again", only(stale.calls, "probe").length, 1)
+}
+
 export const driverUnit = async () => {
   await admissionCases()
   await paceCases()
@@ -1021,4 +1205,8 @@ export const driverUnit = async () => {
   await branchKeyCases()
   await restartCases()
   await echoedLimitCases()
+  await reasonKeyCases()
+  await orderOfApiCases()
+  await orphanClockCases()
+  await paceRestartCases()
 }

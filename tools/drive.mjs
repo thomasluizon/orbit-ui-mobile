@@ -80,7 +80,8 @@ export const launchesOf = (ticket) => (ticket?.comments ?? []).filter((entry) =>
 /** Parts of a ticket, oldest comment first, one entry for each part number. */
 const partsOf = (ticket) => {
   const byNumber = new Map()
-  for (const entry of ticket.comments) {
+  // The owner's comments are read oldest first, whatever order the API lists them in, so a later comment of a part replaces an earlier one.
+  for (const entry of [...ticket.comments].sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
     const part = entry.kind === null ? partOf(entry) : null
     if (part) byNumber.set(part.number, { ...part, comment: entry, paths: pathsOf(entry.body), find: /^Kind: find\s*$/m.test(entry.body) })
   }
@@ -215,7 +216,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: null, runningStem: null, results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false })
+export const createMemory = () => ({ running: null, runningStem: null, results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, orphans: new Map(), paceLoaded: false })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -228,10 +229,12 @@ const notifyOnce = async (env, mem, message) => {
 /**
  * Writes one `needs-owner` comment, labels the ticket and the pull request `needs:owner` when they lack it, and notifies.
  * The comment is the mark that stops a repeat: a ticket that an owner gate already labelled still gets each new report.
- * A ticket repeats only for the same reason; a pull request with no ticket carries one report, whatever its reason.
+ * A ticket repeats only for the same reason, and a report on a pull request names it and its head. A pull request with no
+ * ticket carries one report, whatever its reason.
  */
-const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason }) => {
+const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason: plainReason }) => {
   const item = pull ? `${repoKey}#${pull.number}` : `ticket#${ticket.number}`
+  const reason = ticket && pull ? `${item} at ${pull.headSha}: ${plainReason}` : plainReason
   log(env, item, "needs-owner", reason)
   const comments = ticket ? ticket.comments : pull.comments
   if (env.dryRun || comments.some((entry) => entry.kind === "needs-owner" && (ticket === null || bodyAfterMarker(entry).trim() === reason))) return
@@ -245,6 +248,25 @@ const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reaso
   await env.github.comment(ticket ? "tickets" : repoKey, ticket ? ticket.number : pull.number, marked("needs-owner", reason))
   comments.push({ kind: "needs-owner", body: marked("needs-owner", reason), createdAt: new Date(env.now()).toISOString() })
   await env.notify(`Orbit driver needs you: ${reason}`)
+}
+
+const PACE_FILE = "pace.json"
+
+/** Keeps the newest reading and the time of the last probe beside the pid files, so a restart does not probe again inside the hour. */
+const savePace = (env, mem) => {
+  if (!env.dryRun) writeFileSync(join(env.stateDir, PACE_FILE), `${JSON.stringify({ account: mem.account?.key ?? null, lastProbeAt: mem.lastProbeAt, reading: mem.reading })}\n`)
+}
+
+/** Loads the saved pace once after a start, and only when the account that saved it is the account that is logged in. */
+const loadPace = (env, mem) => {
+  if (mem.paceLoaded) return
+  mem.paceLoaded = true
+  try {
+    const saved = JSON.parse(readFileSync(join(env.stateDir, PACE_FILE), "utf8"))
+    if (saved.account !== mem.account.key) return
+    mem.lastProbeAt ??= saved.lastProbeAt ?? null
+    mem.reading ??= saved.reading ?? null
+  } catch { /* a first start has no file */ }
 }
 
 const pauseIssue = (tickets) => tickets.find((ticket) => ticket.title === PAUSE_TITLE) ?? null
@@ -302,6 +324,7 @@ const trackAccount = async (env, mem, tickets) => {
     mem.probeOwed = true
   }
   mem.account = account
+  loadPace(env, mem)
   const paused = pauseIssue(tickets)
   if (paused !== null && pauseAccount(paused) !== null && pauseAccount(paused) !== account.key) {
     log(env, "driver", "resume", "the Claude account changed")
@@ -315,6 +338,7 @@ const trackAccount = async (env, mem, tickets) => {
 const runProbe = async (env, mem, tickets) => {
   const takenAt = env.now()
   mem.lastProbeAt = takenAt
+  savePace(env, mem)
   const reading = await env.worker.probe({ invocation: await env.invocation() })
   if (reading === null) {
     await notifyOnce(env, mem, "Orbit driver: the pace probe returned no rate limit event, so no new build order starts.")
@@ -322,6 +346,7 @@ const runProbe = async (env, mem, tickets) => {
   }
   mem.reading = { utilization: reading.utilization, resetsAt: reading.resetsAt, at: takenAt, account: mem.account?.key ?? null }
   mem.probeOwed = false
+  savePace(env, mem)
   const paused = pauseIssue(tickets)
   if (paused && reading.status === "allowed") {
     await closeIssue(env, tickets, paused, `The probe reads status allowed (${Math.round(reading.utilization * 100)} percent of the week). The driver resumes.`)
@@ -332,7 +357,7 @@ const runProbe = async (env, mem, tickets) => {
 
 const findPullByBranch = (states, branch) => states.flatMap((state) => state.pulls.map((pull) => ({ state, pull }))).find(({ pull }) => pull.headRef === branch)
 
-const requestsOf = (pull) => pull.comments.filter((entry) => entry.kind === "request").map((entry) => ({ ...entry, whole: /whole diff/.test(bodyAfterMarker(entry)) }))
+const requestsOf = (pull) => pull.comments.filter((entry) => entry.kind === "request").map((entry) => ({ ...entry, whole: /whole diff/.test(bodyAfterMarker(entry)) })).sort((left, right) => left.createdAt.localeCompare(right.createdAt))
 const newestAt = (reviews) => reviews.reduce((newest, review) => (review.submittedAt > newest ? review.submittedAt : newest), "")
 
 /** The review passes of a pull request, without the replies that Pullfrog posts to its own threads. */
@@ -704,7 +729,43 @@ const launchRecords = (env) => readdirSync(env.stateDir).filter((name) => name.e
 /** True while the worker of a record runs: this process started it and holds its promise, or its pid file names a live process. */
 const workerRuns = (env, mem, stem) => {
   if (mem.runningStem === stem) return true
-  try { process.kill(JSON.parse(readFileSync(join(env.stateDir, `${stem}.pid`), "utf8")).pid, 0); return true } catch { return false }
+  return pidFileOf(env, stem) !== null
+}
+
+/** The pid file of a worker whose process is alive, or null. A pid file whose pid names another program is a stale file, not a worker. */
+const pidFileOf = (env, stem) => {
+  try {
+    const file = JSON.parse(readFileSync(join(env.stateDir, `${stem}.pid`), "utf8"))
+    return env.processAlive(file.pid) ? file : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * A worker that this process did not start has no timer here, so each tick checks its three clocks from its pid file, its
+ * launch record and its log: the hard ceiling, the log cap and the no-progress window. It gets SIGTERM at a clock and
+ * SIGKILL on the next tick if it still lives. The reap then reads its log and counts the launch.
+ */
+const enforceOrphanClocks = async (env, mem) => {
+  if (env.dryRun) return
+  for (const { stem, record } of launchRecords(env)) {
+    if (mem.runningStem === stem) continue
+    const file = pidFileOf(env, stem)
+    if (file === null) continue
+    try {
+      const entry = mem.orphans.get(stem) ?? { watch: env.worker.progressWatch({ worktree: record.worktree, logFile: record.logFile, startedAt: env.now(), clock: { now: env.now } }), reason: null }
+      mem.orphans.set(stem, entry)
+      if (entry.reason !== null) { env.worker.killWorkerTree(file.pid, "SIGKILL"); continue }
+      const reason = env.now() - Date.parse(file.startedAt) >= env.worker.WORKER_LIMITS.hardCeilingMs ? "hard-ceiling" : await entry.watch()
+      if (reason === null) continue
+      entry.reason = reason
+      log(env, `ticket#${record.ticketNumber}`, "kill", `a worker that this process did not start ${env.worker.KILL_REASONS[reason]}: ${record.branch}`)
+      env.worker.killWorkerTree(file.pid, "SIGTERM")
+    } catch (error) {
+      log(env, `ticket#${record.ticketNumber}`, "error", error.message)
+    }
+  }
 }
 
 /** The exit of a worker that this process did not wait for: the session, the reading and the verdict that its log holds. */
@@ -717,7 +778,7 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   const ticket = tickets.find((entry) => entry.number === exit.ticketNumber) ?? { number: exit.ticketNumber, title: "", body: "", labels: [], comments: [], blockedBy: [] }
   const item = `ticket#${ticket.number}`
   const newerReading = mem.reading?.account === account && mem.reading.at > startedAt
-  if (result.utilization !== null && account !== null && !newerReading) mem.reading = { utilization: result.utilization, resetsAt: result.resetsAt, at: startedAt, account }
+  if (result.utilization !== null && account !== null && !newerReading) { mem.reading = { utilization: result.utilization, resetsAt: result.resetsAt, at: startedAt, account }; savePace(env, mem) }
   log(env, item, "worker-exit", `${kind}, exit ${result.exitCode}${result.killReason ? `, killed: ${result.killReason}` : ""}`)
   const tail = tailOf(logFile)
   if (result.result.usageLimitReached || result.result.authenticationFailed) {
@@ -726,7 +787,7 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   }
   // The 403 message can sit in a file that the worker read, so a push counts only from git state: its own output and commits that the remote lacks.
   if (await pushForbidden(env, tail, worktree, branch, headBefore)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
-  if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `NEEDS_DECISION: ${result.result.needsDecision}` })
+  if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `${branch}: NEEDS_DECISION: ${result.result.needsDecision}` })
   if (kind === "find") {
     const text = resultText(tail)
     // A result that failed (an API error) is not a findings report: the part stays pending for its next launch.
@@ -752,12 +813,12 @@ const removeWorktrees = async (env, repoKey, branches) => {
   }
 }
 
-/** The merged pull requests that track a ticket. */
+/** The merged pull requests that track a ticket, oldest merge first: the search lists them by relevance, so the order is sorted here. */
 const mergedFor = async (env, ticket) => {
   const repository = env.config.tickets.repository
   const out = await env.gh(["pr", "list", "--repo", env.slugOf(ticket.repoKey), "--state", "merged", "--search", `"Tracks ${repository}#${ticket.number}" in:body`, "--json", "number,body,mergedAt,headRefName", "--limit", "50"])
   const pattern = new RegExp(`Tracks ${escapeRegex(repository)}#${ticket.number}(?!\\d)`)
-  return JSON.parse(out).filter((pull) => pattern.test(pull.body))
+  return JSON.parse(out).filter((pull) => pattern.test(pull.body)).sort((left, right) => Date.parse(left.mergedAt) - Date.parse(right.mergedAt) || left.number - right.number)
 }
 
 /**
@@ -805,7 +866,7 @@ const ticketVerdict = async (env, mem, states, ticket, { settled = false } = {})
   if (parts.length === 0) {
     const branch = ownBranch(null)
     if (held(branch)) return held(branch)
-    const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${history.map((pull) => /^Remaining:.*$/m.exec(pull.body)?.[0] ?? "").filter(Boolean).at(-1) ?? "Remaining: unknown"}`
+    const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${/^Remaining:.*$/m.exec(history.at(-1).body)?.[0] ?? "Remaining: unknown"}`
     return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: remaining } }
   }
   const partDone = (entry) => (entry.find ? ticket.comments.some((comment) => comment.kind === "findings" && firstLine(bodyAfterMarker(comment)) === `Findings, part ${entry.number}`) : [...doneBranches].some((branch) => partBranch(ticket.number, entry.number).test(branch)))
@@ -965,14 +1026,17 @@ const reapExits = async (env, mem) => {
   const { tickets, states } = await readWorld(env, mem)
   for (const { stem, record } of gone) {
     rmSync(launchRecordPath(env, stem), { force: true })
-    const result = mem.results.get(stem) ?? exitFromLog(record.logFile)
+    const killedBy = mem.orphans.get(stem)?.reason ?? null
+    const result = mem.results.get(stem) ?? { ...exitFromLog(record.logFile), killed: killedBy, killReason: killedBy === null ? null : env.worker.KILL_REASONS[killedBy] }
     mem.results.delete(stem)
+    mem.orphans.delete(stem)
     await reapExit(env, mem, tickets, states, { ...record, result }).catch((error) => log(env, `ticket#${record.ticketNumber}`, "error", error.message))
   }
 }
 
 export const tick = async (env, mem) => {
   env.lines = []
+  await enforceOrphanClocks(env, mem)
   // A worker that runs when the read starts holds the lane for this whole tick, whatever the read shows.
   const busy = mem.running !== null || env.workerLive()
   let world
@@ -1051,7 +1115,9 @@ const realEnvironment = ({ dryRun = false } = {}) => {
   mkdirSync(join(stateDir, "logs"), { recursive: true })
   const home = homedir()
   const live = () => readdirSync(stateDir).filter((name) => name.endsWith(".pid")).some((name) => {
-    try { process.kill(JSON.parse(readFileSync(join(stateDir, name), "utf8")).pid, 0); return true } catch { rmSync(join(stateDir, name), { force: true }); return false }
+    try { if (workerApi.isWorkerProcess(JSON.parse(readFileSync(join(stateDir, name), "utf8")).pid)) return true } catch { /* an unreadable pid file is stale */ }
+    rmSync(join(stateDir, name), { force: true })
+    return false
   })
   return {
     config, dryRun, stateDir, home, github: githubApi, worker: workerApi, now: () => Date.now(), lines: [],
@@ -1068,6 +1134,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
       try { return JSON.parse(result.stdout) } catch { throw new Error(`claude auth status --json gave no JSON (exit ${result.status ?? "none"})`) }
     },
     workerLive: live,
+    processAlive: workerApi.isWorkerProcess,
     invocation: async (token) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only" }),
     sleep: (ms, mem) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); mem.wake = () => { clearTimeout(timer); resolve() } }),
   }
