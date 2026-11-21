@@ -87,17 +87,21 @@ test("a pull request that changes any other path starts the tool tests", () => {
   assert.deepEqual(skipped, [])
 })
 
-// Every row is a real-tree read of a tool case module, a tool or a guard of guards.yml that runs on a push to main only.
-// A pull request reaches each one through the tool tests, so one row for each input.
-const toolInputs = {
-  "lint-severity__1 (a push-only guard)": [
+// Three guards in guards.yml run on a push to main only. A pull request reaches each one through the tool tests, so one
+// row for each input.
+const pushOnlyGuardInputs = {
+  "lint-severity__1": [
     "apps/web/eslint.config.mjs", "apps/mobile/eslint.config.js", "packages/shared/eslint.config.mjs", "apps/desktop/eslint.config.mjs",
     "package.json", "apps/web/package.json", "apps/mobile/package.json", "packages/shared/package.json",
     "eslint-suppressions.json", "apps/web/eslint-suppressions.json", "apps/mobile/eslint-suppressions.json",
     ".github/workflows/test.yml", "eslint-rules/no-comments.cjs",
   ],
-  "root-allowlist__4 (a push-only guard)": ["design/brand/orbit-lockup.svg", "tools/check-lockup-crop.mjs"],
-  "performance-workflow__1 (a push-only guard)": ["tools/generate-performance-workflow.mjs", "tools/lib/performance-measurement.mjs", ".claude/workflows/audit.mjs"],
+  "root-allowlist__4": ["design/brand/orbit-lockup.svg", "tools/check-lockup-crop.mjs"],
+  "performance-workflow__1": ["tools/generate-performance-workflow.mjs", "tools/lib/performance-measurement.mjs", ".claude/workflows/audit.mjs"],
+}
+
+// Each row is a real-tree read of a tool case module or a tool. A pull request that changes the input must run the case.
+const caseModuleInputs = {
   "desktop-bench": [
     "apps/desktop/src-tauri/src/main.rs", "apps/desktop/src-tauri/src/bench_viewport.rs", "apps/desktop/src-tauri/build.rs",
     "apps/desktop/src-tauri/Cargo.toml", "apps/web/scripts/build-hermetic.mjs",
@@ -115,9 +119,9 @@ const toolInputs = {
   "check-sonar-paths and the parity tree": ["sonar-project.properties", ".gitignore"],
 }
 
-test("each input that a tool, a guard or a case module reads starts the tool tests", () => {
+test("each input that a push-only guard or a case module reads starts the tool tests", () => {
   const skipped = []
-  for (const [reader, inputs] of Object.entries(toolInputs)) {
+  for (const [reader, inputs] of Object.entries({ ...pushOnlyGuardInputs, ...caseModuleInputs })) {
     for (const path of inputs) {
       const { status, outputs } = plan({ changed: ["TESTING.md", path] })
       assert.equal(status, 0, `${reader} ${path}`)
