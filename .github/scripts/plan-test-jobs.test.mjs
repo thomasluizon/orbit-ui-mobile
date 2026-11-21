@@ -6,7 +6,8 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 
-const script = resolve(dirname(fileURLToPath(import.meta.url)), "plan-test-jobs.mjs")
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
+const script = resolve(root, ".github/scripts/plan-test-jobs.mjs")
 const tasks = {
   "@orbit/web#test": "web0", "@orbit/mobile#test": "mobile0", "@orbit/desktop#test": "desktop0",
   "@orbit/shared#test": "shared0", "@orbit/eslint-rules#test": "rules0", "@orbit/shared#build": "build0",
@@ -63,42 +64,79 @@ test("a push or a dispatch runs every scope without a changed path list", () => 
   }
 })
 
-test("a pull request that changes no tool input skips the tool tests", () => {
-  for (const changed of [["apps/web/app/page.tsx"], ["TESTING.md", "DESIGN.md"], ["packages/shared/src/i18n/en.json", "README.md"]]) {
+const skipPaths = JSON.parse(readFileSync(join(root, ".github/scripts/tool-tests-skip-paths.json"), "utf8"))
+
+test("a pull request that changes only unread documents skips the tool tests", () => {
+  assert.ok(skipPaths.length > 0)
+  for (const changed of [[skipPaths[0]], skipPaths, [skipPaths[0], skipPaths[skipPaths.length - 1]]]) {
     const { status, outputs } = plan({ changed })
     assert.equal(status, 0, changed.join())
     assert.equal(outputs.tools, "false", changed.join())
   }
 })
 
-test("each tool input starts the tool tests", () => {
-  for (const path of ["tools/example.mjs", ".claude/skills/example/SKILL.md", ".github/workflows/guards.yml", "eslint-rules/no-comments.cjs", "lefthook.yml", "package.json", "apps/web/eslint.config.mjs"]) {
-    const { status, outputs } = plan({ changed: ["TESTING.md", path] })
-    assert.equal(status, 0, path)
-    assert.equal(outputs.tools, "true", path)
+test("a pull request that changes any other path starts the tool tests", () => {
+  const skipped = []
+  for (const path of ["tools/example.mjs", ".claude/skills/example/SKILL.md", ".github/workflows/guards.yml", "eslint-rules/no-comments.cjs", "lefthook.yml", "TESTING.md", "README.md", "DESIGN.md", "a-path-that-no-list-names.txt"]) {
+    for (const changed of [[path], [skipPaths[0], path]]) {
+      const { status, outputs } = plan({ changed })
+      assert.equal(status, 0, changed.join())
+      if (outputs.tools !== "true") skipped.push(changed.join())
+    }
   }
+  assert.deepEqual(skipped, [])
 })
 
-// Three guards in guards.yml run on a push to main only. A pull request reaches each one through the tool tests, so the
-// tools scope must start for every input of each guard. One row for each input.
-const pushOnlyGuardInputs = {
-  "lint-severity__1": [
+// Every row is a real-tree read of a tool case module, a tool or a guard of guards.yml that runs on a push to main only.
+// A pull request reaches each one through the tool tests, so one row for each input.
+const toolInputs = {
+  "lint-severity__1 (a push-only guard)": [
     "apps/web/eslint.config.mjs", "apps/mobile/eslint.config.js", "packages/shared/eslint.config.mjs", "apps/desktop/eslint.config.mjs",
     "package.json", "apps/web/package.json", "apps/mobile/package.json", "packages/shared/package.json",
     "eslint-suppressions.json", "apps/web/eslint-suppressions.json", "apps/mobile/eslint-suppressions.json",
     ".github/workflows/test.yml", "eslint-rules/no-comments.cjs",
   ],
-  "root-allowlist__4": ["design/brand/orbit-lockup.svg", "tools/check-lockup-crop.mjs"],
-  "performance-workflow__1": ["tools/generate-performance-workflow.mjs", "tools/lib/performance-measurement.mjs", ".claude/workflows/audit.mjs"],
+  "root-allowlist__4 (a push-only guard)": ["design/brand/orbit-lockup.svg", "tools/check-lockup-crop.mjs"],
+  "performance-workflow__1 (a push-only guard)": ["tools/generate-performance-workflow.mjs", "tools/lib/performance-measurement.mjs", ".claude/workflows/audit.mjs"],
+  "desktop-bench": [
+    "apps/desktop/src-tauri/src/main.rs", "apps/desktop/src-tauri/src/bench_viewport.rs", "apps/desktop/src-tauri/build.rs",
+    "apps/desktop/src-tauri/Cargo.toml", "apps/web/scripts/build-hermetic.mjs",
+  ],
+  "desktop-acceptance": ["apps/desktop/locales/en.json", "apps/desktop/locales/pt-BR.json", "apps/web/scripts/build-hermetic.mjs"],
+  "feature parity tree": [
+    "apps/web/app/page.tsx", "apps/web/components/profile/profile-api-keys.tsx", "apps/mobile/app/index.tsx", "apps/mobile/components/profile/profile-api-keys.tsx",
+    "packages/shared/src/parity-controls.tsx", "packages/shared/src/i18n/en.json", "packages/shared/src/i18n/pt-BR.json",
+  ],
+  "check-i18n-usage": ["apps/web/app/step-up/step-up-screen.tsx", "apps/mobile/app/step-up.tsx"],
+  "android-boot": ["apps/mobile/lib/api-base.ts", "packages/shared/src/i18n/en.json"],
+  "android-sentry-diagnostic, check-native-module-copies and the node_modules readers": ["apps/mobile/app.json", "package-lock.json"],
+  "check-surface-scope": ["DESIGN.md"],
+  "generate-brand-assets, redesign-coverage and build-ds-bundle": ["design/brand/orbit-lockup.svg", "design/brand/orbit-mark.svg", "design/canvas/example.svg"],
+  "check-sonar-paths and the parity tree": ["sonar-project.properties", ".gitignore"],
 }
 
-test("each input of a guard that runs on a push only starts the tool tests", () => {
-  for (const [guard, inputs] of Object.entries(pushOnlyGuardInputs)) {
+test("each input that a tool, a guard or a case module reads starts the tool tests", () => {
+  const skipped = []
+  for (const [reader, inputs] of Object.entries(toolInputs)) {
     for (const path of inputs) {
-      const { status, outputs } = plan({ changed: ["apps/web/app/page.tsx", path] })
-      assert.equal(status, 0, `${guard} ${path}`)
-      assert.equal(outputs.tools, "true", `${guard} reads ${path}`)
+      const { status, outputs } = plan({ changed: ["TESTING.md", path] })
+      assert.equal(status, 0, `${reader} ${path}`)
+      if (outputs.tools !== "true") skipped.push(`${reader} reads ${path}`)
     }
+  }
+  assert.deepEqual(skipped, [])
+})
+
+// An allowlist of tool inputs can never be shown complete, so the scope is every path except a short list of unread
+// documents. A path stays on that list only while no file under tools/ or .github/scripts/ names it.
+test("no file that the tool tests or the CI scripts read names a path of the skip list", () => {
+  const listed = spawnSync("git", ["-C", root, "ls-files", "--", "tools", ".github/scripts"], { encoding: "utf8" })
+  assert.equal(listed.status, 0, listed.stderr)
+  const own = new Set([".github/scripts/tool-tests-skip-paths.json", ".github/scripts/plan-test-jobs.mjs", ".github/scripts/plan-test-jobs.test.mjs"])
+  const readers = listed.stdout.split("\n").filter((path) => path && !own.has(path))
+  assert.ok(readers.includes("tools/test-tools.mjs") && readers.some((path) => path.startsWith(".github/scripts/")), "the scan reads the tools and the CI scripts")
+  for (const skipPath of skipPaths) {
+    assert.deepEqual(readers.filter((path) => readFileSync(join(root, path), "utf8").includes(skipPath)), [], `a reader names ${skipPath}`)
   }
 })
 
@@ -106,7 +144,6 @@ test("each input of a guard that runs on a push only starts the tool tests", () 
 // workflow runs"). A squash merge copies every commit message of the pull request to main, so a marker that a hook
 // wrote on one relay commit would stop the main push runs of PR Tests, Guards and CodeQL that a release requires.
 test("no tool or CI script writes a GitHub skip instruction into a commit message", () => {
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
   const listed = spawnSync("git", ["-C", root, "ls-files", "--", "lefthook.yml", "tools", ".github/scripts"], { encoding: "utf8" })
   assert.equal(listed.status, 0, listed.stderr)
   const sources = listed.stdout.split("\n").filter((path) => path === "lefthook.yml" ||
