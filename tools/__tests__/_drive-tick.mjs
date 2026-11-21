@@ -3,7 +3,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, allowOverLimit, createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, recordStart, resultText, setSleep, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, recordStart, resultText, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
+import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
 import { isUsageLimitMessage, isWorkerProcess, KILL_REASONS, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
@@ -46,7 +47,7 @@ const partComment = (number, total, extra = "") => comment(null, `Part ${number}
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [] } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], driver = null } = {}) => {
   const calls = []
   const messages = []
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
@@ -88,6 +89,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     authStatus: async () => structuredClone(auth),
     processAlive: (pid) => { try { process.kill(pid, 0); return true } catch { return false } },
   }
+  if (driver !== null) Object.assign(env, { driverWorktree: "/r/driver", selfUpdate: driver.update ?? false, smoke: async () => driver.smoke ?? true })
   const mem = createMemory()
   mem.reading = reading === null ? null : { account: ACCOUNT.key, ...reading }
   if (allowance !== null) writeFileSync(join(stateDir, "over-limit.json"), `${JSON.stringify(allowance)}\n`)
@@ -1575,6 +1577,140 @@ const sleepCases = async () => {
   same("drive: --sleep on writes sleep.json, prints the state, and a second on keeps the first start", [on, readSleep(cli.env.stateDir), since, outputs.length, /^Sleep is on since /.test(outputs[0])], [0, { on: true, since }, iso(0), 2, true])
   same("drive: --sleep takes on or off and nothing else", [parseArguments(["--sleep", "on"]), parseArguments(["--sleep", "off"]).word, parseArguments(["--sleep"]).error !== undefined, parseArguments(["--sleep", "maybe"]).error !== undefined, parseArguments(["--sleep", "on", "--once"]).error !== undefined], [{ help: false, mode: "sleep", word: "on" }, "off", true, true, true])
   same("drive: the usage states the sleep flag", /--sleep on\|off/.test(await usageText()), true)
+}
+
+const OLD_PIN = "1".repeat(40)
+const NEW_PIN = "2".repeat(40)
+const LATER_PIN = "3".repeat(40)
+const DRIVER_FILE = "tools/lib/worker.mjs"
+
+/** A scene whose driver worktree holds `head` and whose origin/main is `main`; `files` is what `git diff --name-only` lists. A checkout moves the head. */
+const driverScene = ({ head = OLD_PIN, main = NEW_PIN, files = [DRIVER_FILE], driver = { update: true }, ...extra } = {}) => {
+  const state = { head }
+  const scene = scenario({ ...extra, driver, gitRoutes: [["rev-parse HEAD", () => `${state.head}\n`], ["rev-parse origin/main", `${main}\n`], ["diff --name-only", (args) => (typeof files === "function" ? files(args) : files).join("\n")], ["checkout --detach", (args) => { state.head = args[2]; return "" }]] })
+  return Object.assign(scene, { state, checkouts: () => scene.calls.filter((entry) => entry[0] === "git" && entry[1] === "checkout").map((entry) => entry.slice(1).join(" ")) })
+}
+
+const pinOf = (scene) => readPin(scene.env.stateDir)
+const driverLines = (scene) => scene.messages.filter((line) => / driver (switch|rollback) /.test(line))
+
+const selfUpdateCases = async () => {
+  same("drive: only a change under tools/drive.mjs, tools/lib or tools/__fixtures__/drive- is a driver change", [
+    ["tools/drive.mjs"], ["tools/lib/worker.mjs"], ["tools/__fixtures__/drive-github.json"], ["apps/web/a.ts", "tools/lib/a/b.mjs"],
+  ].map(changesDriver).concat([["tools/__fixtures__/other.json"], ["tools/__tests__/drive.mjs"], ["tools/drive-notes.md"], ["apps/web/tools/drive.mjs"], []].map(changesDriver)), [true, true, true, true, false, false, false, false, false])
+  same("drive: the last line of an error message is the one that has text", [lastLine("first\n  second  \n\n"), lastLine(""), lastLine(undefined), lastLine("x".repeat(400)).length], ["second", "", "", 300])
+
+  const switching = driverScene()
+  const result = await switching.run()
+  same("drive: a main commit that changes the driver is checked out detached at the end of a tick with no worker, and the tick says to exit", [result.switched, switching.checkouts(), pinOf(switching).from, pinOf(switching).to, pinOf(switching).rolledBack, driverLines(switching).length, switching.calls.some((entry) => entry[0] === "git" && entry[1] === "fetch" && entry.includes("main"))], [true, [`checkout --detach ${NEW_PIN}`], OLD_PIN, NEW_PIN, false, 1, true])
+
+  const busy = driverScene()
+  const recordPath = leftBehind(busy, {})
+  writeFileSync(join(busy.env.stateDir, "chore-ticket-7.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/w", startedAt: iso(0) })}\n`)
+  const busyResult = await busy.run()
+  same("drive: no switch while a worker runs, and its launch record stays", [busyResult.switched, busy.checkouts(), pinOf(busy), existsSync(recordPath)], [false, [], null, true])
+
+  const owned = driverScene()
+  owned.mem.running.set("chore-ticket-7", Promise.resolve())
+  same("drive: no switch while a worker of this process runs", [(await owned.run()).switched, owned.checkouts()], [false, []])
+
+  const unrelated = driverScene({ files: ["apps/web/page.tsx", "tools/__tests__/drive.mjs"] })
+  same("drive: a main commit that changes no driver file is no switch", [(await unrelated.run()).switched, unrelated.checkouts(), pinOf(unrelated)], [false, [], null])
+
+  const current = driverScene({ main: OLD_PIN })
+  same("drive: a main that equals the pin is no switch", [(await current.run()).switched, current.checkouts()], [false, []])
+
+  const once = driverScene({ driver: { update: false } })
+  same("drive: a run that is not the loop never switches", [(await once.run()).switched, once.checkouts()], [false, []])
+
+  const broken = driverScene({ driver: { update: true, smoke: false } })
+  const brokenResult = await broken.run()
+  same("drive: a new commit that does not start is checked out again at once, with one notification and one issue", [brokenResult.switched, broken.checkouts(), pinOf(broken).rolledBack, pinOf(broken).from, pinOf(broken).to, only(broken.calls, "notify").length, only(broken.calls, "createTicket").length], [false, [`checkout --detach ${NEW_PIN}`, `checkout --detach ${OLD_PIN}`], true, NEW_PIN, OLD_PIN, 1, 1])
+
+  const unrunnable = driverScene({ driver: { update: true } })
+  const savedPath = process.env.PATH
+  const preflight = []
+  unrunnable.env.smoke = async () => (await main(smokeArguments("/r/driver").slice(2), { err: (line) => preflight.push(line) })) === 0
+  process.env.PATH = "/no/such/directory"
+  let unrunnableResult
+  try { unrunnableResult = await unrunnable.run() } finally { process.env.PATH = savedPath }
+  same("drive: a new commit that exits 3 before the start code is checked out again, with one notification and one issue", [unrunnableResult.switched, unrunnable.checkouts(), pinOf(unrunnable).rolledBack, only(unrunnable.calls, "notify").length, only(unrunnable.calls, "createTicket").length, preflight.some((line) => line.startsWith("Missing from PATH")), smokeArguments("/r/driver").includes("--help")], [false, [`checkout --detach ${NEW_PIN}`, `checkout --detach ${OLD_PIN}`], true, 1, 1, true, false])
+
+  const dry = driverScene({ dryRun: true })
+  const printed = []
+  dry.env.log = (line) => printed.push(line)
+  await dry.run()
+  same("drive: a dry run prints the pinned commit and the newer driver commit, and fetches and writes nothing", [printed.filter((line) => line.startsWith("driver pin")), dry.checkouts(), pinOf(dry), dry.calls.some((entry) => entry[0] === "git" && entry[1] === "fetch")], [[`driver pin ${OLD_PIN.slice(0, 9)}: main has a newer driver commit ${NEW_PIN.slice(0, 9)}`], [], null, false])
+  const dryNone = driverScene({ dryRun: true, files: ["apps/web/page.tsx"] })
+  const printedNone = []
+  dryNone.env.log = (line) => printedNone.push(line)
+  await dryNone.run()
+  same("drive: a dry run says when main has no newer driver commit", printedNone.filter((line) => line.startsWith("driver pin")), [`driver pin ${OLD_PIN.slice(0, 9)}: main has no newer driver commit`])
+}
+
+/** A start of the new version that then ends with exit code 1 and `error`. */
+const crashOnce = async (scene, error = "boom: cannot read x") => {
+  const rolledBack = await guardStart(scene.env)
+  if (!rolledBack) endRun(scene.env.stateDir, { exitCode: 1, error, now: NOW })
+  return rolledBack
+}
+
+const rollbackCases = async () => {
+  const switched = (extra = {}) => {
+    const scene = driverScene({ head: NEW_PIN, main: NEW_PIN, ...extra })
+    writeFileSync(join(scene.env.stateDir, "pin.json"), `${JSON.stringify({ from: OLD_PIN, to: NEW_PIN, at: iso(-5 * MINUTE), rolledBack: false })}\n`)
+    return scene
+  }
+
+  const twice = switched()
+  const early = [await crashOnce(twice), await crashOnce(twice), await guardStart(twice.env)]
+  same("drive: two crashes of the new version within ten minutes are no rollback", [early, twice.checkouts(), only(twice.calls, "notify").length], [[false, false, false], [], 0])
+
+  const rolled = switched()
+  const outcomes = []
+  for (let crash = 0; crash < 3; crash++) outcomes.push(await crashOnce(rolled))
+  outcomes.push(await guardStart(rolled.env))
+  same("drive: three crashes within ten minutes check the previous commit out, write the pin, send one notification and open one needs:owner issue", [outcomes, rolled.checkouts(), pinOf(rolled).rolledBack, pinOf(rolled).from, pinOf(rolled).to, only(rolled.calls, "notify").length, only(rolled.calls, "createTicket").length, only(rolled.calls, "createTicket")[0]?.[1].labels], [[false, false, false, true], [`checkout --detach ${OLD_PIN}`], true, NEW_PIN, OLD_PIN, 1, 1, [OWNER_LABEL]])
+  const issue = only(rolled.calls, "createTicket")[0][1]
+  T("drive: the rollback issue names both commits and the last error line", [OLD_PIN, NEW_PIN, "boom: cannot read x"].every((part) => issue.body.includes(part)), issue.body)
+  same("drive: the rollback logs one line", driverLines(rolled).length, 1)
+
+  const afterwards = driverScene({ head: OLD_PIN, main: NEW_PIN, stateDirectory: rolled.env.stateDir })
+  same("drive: after a rollback the driver does not switch to the same commit again", [(await afterwards.run()).switched, afterwards.checkouts()], [false, []])
+  const sinceFailed = (args) => (args.includes(NEW_PIN) ? [] : [DRIVER_FILE])
+  const quiet = driverScene({ head: OLD_PIN, main: LATER_PIN, files: sinceFailed, stateDirectory: rolled.env.stateDir })
+  const quietResult = await quiet.run()
+  const quietPrinted = []
+  const quietDry = driverScene({ head: OLD_PIN, main: LATER_PIN, files: sinceFailed, stateDirectory: rolled.env.stateDir, dryRun: true })
+  quietDry.env.log = (line) => quietPrinted.push(line)
+  await quietDry.run()
+  same("drive: after a rollback a main commit is compared with the commit that failed, so a commit with no driver file is no switch, in a tick and in a dry run", [quietResult.switched, quiet.checkouts(), only(quiet.calls, "notify").length, quietPrinted.filter((line) => line.startsWith("driver pin"))], [false, [], 0, [`driver pin ${OLD_PIN.slice(0, 9)}: main has no newer driver commit, rolled back from ${NEW_PIN.slice(0, 9)}`]])
+  const later = driverScene({ head: OLD_PIN, main: LATER_PIN, files: (args) => (args.includes(NEW_PIN) ? [DRIVER_FILE] : []), stateDirectory: rolled.env.stateDir })
+  const laterResult = await later.run()
+  same("drive: a later main commit after a rollback is tried", [laterResult.switched, later.checkouts(), pinOf(later).from, pinOf(later).to, pinOf(later).rolledBack], [true, [`checkout --detach ${LATER_PIN}`], OLD_PIN, LATER_PIN, false])
+
+  const slow = switched()
+  writeFileSync(join(slow.env.stateDir, "pin.json"), `${JSON.stringify({ from: OLD_PIN, to: NEW_PIN, at: iso(-20 * MINUTE), rolledBack: false })}\n`)
+  for (let crash = 0; crash < 3; crash++) await crashOnce(slow)
+  same("drive: crashes more than ten minutes after the switch are no rollback", [await guardStart(slow.env), slow.checkouts()], [false, []])
+
+  const foreign = switched()
+  writeFileSync(join(foreign.env.stateDir, "pin.json"), `${JSON.stringify({ from: OLD_PIN, to: LATER_PIN, at: iso(-5 * MINUTE), rolledBack: false })}\n`)
+  for (let crash = 0; crash < 3; crash++) await crashOnce(foreign)
+  same("drive: crashes of a commit that is not the pin are no rollback", [await guardStart(foreign.env), foreign.checkouts()], [false, []])
+
+  const clean = switched()
+  for (let run = 0; run < 4; run++) { await guardStart(clean.env); endRun(clean.env.stateDir, { exitCode: 0, error: null, now: NOW }) }
+  same("drive: runs that end with code 0 are no crash", [await guardStart(clean.env), clean.checkouts()], [false, []])
+
+  const killed = switched()
+  for (let run = 0; run < 3; run++) await guardStart(killed.env)
+  same("drive: a run that wrote no exit code is a crash", [await guardStart(killed.env), killed.checkouts()], [true, [`checkout --detach ${OLD_PIN}`]])
+}
+
+export const pinUnit = async () => {
+  await selfUpdateCases()
+  await rollbackCases()
 }
 
 export const driverUnit = async () => {
