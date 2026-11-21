@@ -9,7 +9,8 @@ const usage = `usage: plan-test-jobs.mjs --event <name> --turbo-dry <file> --wor
   Prints the PR Tests plan as GITHUB_OUTPUT lines. Each test group gets a result cache key built from its
   Turbo task hashes (turbo run test --dry=json) and the workflow file. A pull request also gets one flag per
   path scope (web, type-check, lint, tools), true when a changed path is an input of that scope. The tool
-  tests read every path under tools/, .claude/, .github/ and eslint-rules/, lefthook.yml, package.json and each eslint.config file.
+  tests read every path under tools/, .claude/, .github/ and eslint-rules/, lefthook.yml, each package.json, each
+  eslint-suppressions.json, each eslint.config file and design/brand/orbit-lockup.svg.
   Every other event runs every scope. --changed-files is required for pull_request: one path per line.
 
 exit codes: 0 plan printed, 1 missing Turbo task or unreadable input, 2 invalid arguments`
@@ -19,7 +20,7 @@ const scopes = {
   web: [/^(apps\/web|packages\/shared)\//, /^(package|package-lock|turbo|tsconfig\.base)\.json$/, /^tools\/check-hermetic-web-build\.mjs$/, /^\.github\/(scripts\/plan-layout-shards\.mjs|layout-shard-timings\.json)$/],
   'type-check': [/^(apps|packages|eslint-rules)\/.+\.([cm]?[jt]sx?|json)$/, /(^|\/)tsconfig[^/]*\.json$/, /^(package|package-lock|turbo)\.json$/],
   lint: [/^(apps\/(web|mobile)|packages\/shared)\/.+\.[cm]?[jt]sx?$/, /^apps\/desktop\/(?!src-tauri\/).+\.[cm]?[jt]sx?$/],
-  tools: [/^(tools|\.claude|\.github|eslint-rules)\//, /^(lefthook\.yml|package\.json)$/, /(^|\/)eslint\.config\.[cm]?[jt]s$/],
+  tools: [/^(tools|\.claude|\.github|eslint-rules)\//, /^lefthook\.yml$/, /(^|\/)(package|eslint-suppressions)\.json$/, /(^|\/)eslint\.config\.[cm]?[jt]s$/, /^design\/brand\/orbit-lockup\.svg$/],
 }
 const testGroups = {
   'web-unit': ['@orbit/web#test'],

@@ -232,7 +232,8 @@ jobs:
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
   # The required check Tool Tests runs on every pull request and push. It reports a conclusion even when the plan finds
-  # no change under tools/, .claude/, .github/, eslint-rules/, lefthook.yml, package.json or an eslint.config file: the tools harness and the
+  # no change under tools/, .claude/, .github/, eslint-rules/, lefthook.yml, design/brand/orbit-lockup.svg, a package.json, an
+  # eslint-suppressions.json or an eslint.config file: the tools harness and the
   # workflow behavior tests are skipped and the job succeeds. The full-tree graphic floor scan runs on every pull request.
   tool-tests:
     name: Tool Tests

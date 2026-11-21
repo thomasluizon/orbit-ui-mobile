@@ -79,6 +79,29 @@ test("each tool input starts the tool tests", () => {
   }
 })
 
+// Three guards in guards.yml run on a push to main only. A pull request reaches each one through the tool tests, so the
+// tools scope must start for every input of each guard. One row for each input.
+const pushOnlyGuardInputs = {
+  "lint-severity__1": [
+    "apps/web/eslint.config.mjs", "apps/mobile/eslint.config.js", "packages/shared/eslint.config.mjs", "apps/desktop/eslint.config.mjs",
+    "package.json", "apps/web/package.json", "apps/mobile/package.json", "packages/shared/package.json",
+    "eslint-suppressions.json", "apps/web/eslint-suppressions.json", "apps/mobile/eslint-suppressions.json",
+    ".github/workflows/test.yml", "eslint-rules/no-comments.cjs",
+  ],
+  "root-allowlist__4": ["design/brand/orbit-lockup.svg", "tools/check-lockup-crop.mjs"],
+  "performance-workflow__1": ["tools/generate-performance-workflow.mjs", "tools/lib/performance-measurement.mjs", ".claude/workflows/audit.mjs"],
+}
+
+test("each input of a guard that runs on a push only starts the tool tests", () => {
+  for (const [guard, inputs] of Object.entries(pushOnlyGuardInputs)) {
+    for (const path of inputs) {
+      const { status, outputs } = plan({ changed: ["apps/web/app/page.tsx", path] })
+      assert.equal(status, 0, `${guard} ${path}`)
+      assert.equal(outputs.tools, "true", `${guard} reads ${path}`)
+    }
+  }
+})
+
 // GitHub reads these in the message of a push or of the head commit of a pull request (docs.github.com, "Skipping
 // workflow runs"). A squash merge copies every commit message of the pull request to main, so a marker that a hook
 // wrote on one relay commit would stop the main push runs of PR Tests, Guards and CodeQL that a release requires.

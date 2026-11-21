@@ -334,10 +334,9 @@ test("React Doctor retains its time limit", () => {
 
 test("pull requests run each source check through one owner", () => {
   assert.equal(guardGroups(workflow)["surface-scope-report"], undefined)
-  for (const id of ["lint-severity__1", "performance-workflow__1", "root-allowlist__4"]) {
-    const step = workflow.jobs.guards.steps.find((candidate) => candidate.id === id)
-    assert.equal(step.if, "${{ !cancelled() && (github.event_name != 'pull_request') }}")
-  }
+  const pushOnly = workflow.jobs.guards.steps.filter((step) => step.if === "${{ !cancelled() && (github.event_name != 'pull_request') }}")
+  assert.deepEqual(pushOnly.map((step) => step.id).sort(), ["lint-severity__1", "performance-workflow__1", "root-allowlist__4"],
+    "a new push-only guard needs its inputs in pushOnlyGuardInputs of .github/scripts/plan-test-jobs.test.mjs")
   assert.ok(testWorkflow.jobs["tool-tests"].steps.some((step) => step.run === "node tools/test-tools.mjs"))
   assert.ok(testWorkflow.jobs["web-tests"].steps.some((step) => step.name === "Run web shard with coverage"))
   assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === "./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage"))
