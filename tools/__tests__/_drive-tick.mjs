@@ -587,6 +587,87 @@ const reviewCases = async () => {
   same("drive: a whole-diff review submitted before the request does not count", only(early.calls, "merge").length, 0)
 }
 
+/** The recorded state of ui#2522: approved before a clean base merge made the head, and the head has no pullfrog-approval check run. */
+const RECORDED_APPROVED = "3".repeat(40)
+const RECORDED_HEAD = "9".repeat(40)
+const withoutApprovalCheck = (extra = {}) => pull(30, { headSha: RECORDED_HEAD, commits: [{ sha: RECORDED_APPROVED, parents: 2 }, { sha: RECORDED_HEAD, parents: 2 }], checks: [check("Unit Tests")], mergeState: "BLOCKED", reviews: [review("APPROVED", RECORDED_APPROVED, -40 * MINUTE)], comments: [comment("ticket", "T"), comment("request", PLAIN, -60 * MINUTE)], ...extra })
+const runOf = (status, startedAgo, endedAgo = startedAgo) => ({ databaseId: 77, displayTitle: "Respond to mention on #7 [x]", status, conclusion: status === "completed" ? "success" : null, createdAt: iso(-startedAgo * MINUTE), updatedAt: iso(-endedAgo * MINUTE) })
+const checkRecord = (head, offset) => comment("record", `driver check request ${head}`, offset)
+
+const checkOnlyCases = async () => {
+  const run = async (extra, runs = []) => {
+    const scene = scenario({ tickets: [ticket(7)], runs, gitRoutes: [["--remerge-diff", ""]], pulls: { ui: [withoutApprovalCheck(extra)] } })
+    await scene.run()
+    return scene
+  }
+  const texts = (scene) => commentsOf(scene.calls, 30).map((text) => text.split("\n").slice(0, 2).join("|"))
+  const request = marked("request", PLAIN).split("\n").join("|")
+  const asked = [request, marked("record", `driver check request ${RECORDED_HEAD}`).split("\n").join("|")]
+  const first = await run({})
+  same("drive: an approval before a clean base merge and no approval check gets one plain request", [texts(first), only(first.calls, "merge").length], [[request], 0])
+  const flight = await run({}, [runOf("in_progress", 1, 0)])
+  same("drive: the same state with a Pullfrog run in flight gets no request", [commentsOf(flight.calls, 30).length, only(flight.calls, "merge").length], [0, 0])
+  // GitHub names the current head as the commit of an older review, so the review looks satisfied while the check is absent.
+  const sameCommit = await run({ reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] })
+  same("drive: an approval that GitHub reports at the head with no approval check gets one plain request and its record", [texts(sameCommit), only(sameCommit.calls, "merge").length], [asked, 0])
+  const settling = await run({ reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] }, [runOf("completed", 6, 3)])
+  same("drive: a run that ended 3 minutes ago gets no request yet", commentsOf(settling.calls, 30).length, 0)
+  const waiting = await run({ reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)], comments: [comment("ticket", "T"), checkRecord(RECORDED_HEAD, -10 * MINUTE)] })
+  same("drive: a check request younger than 30 minutes with no run waits", commentsOf(waiting.calls, 30).length, 0)
+  const again = await run({ reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)], comments: [comment("ticket", "T"), checkRecord(RECORDED_HEAD, -31 * MINUTE)] })
+  same("drive: 30 minutes after the first check request with no run gives one re-request", texts(again), asked)
+  const afterRun = await run({ reviews: [review("APPROVED", RECORDED_HEAD, -80 * MINUTE)], comments: [comment("ticket", "T"), checkRecord(RECORDED_HEAD, -50 * MINUTE)] }, [runOf("completed", 45, 20)])
+  same("drive: 15 minutes after the run of the first check request ended gives one re-request", texts(afterRun), asked)
+  const owner = await run({ reviews: [review("APPROVED", RECORDED_HEAD, -90 * MINUTE)], comments: [comment("ticket", "T"), checkRecord(RECORDED_HEAD, -80 * MINUTE), checkRecord(RECORDED_HEAD, -40 * MINUTE)] })
+  same("drive: a second miss at the same head gives needs:owner and no request", [commentsOf(owner.calls, 30).filter((text) => text.includes("request")).length, only(owner.calls, "editLabels").length], [0, 2])
+  const other = await run({ reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)], comments: [comment("ticket", "T"), checkRecord("8".repeat(40), -80 * MINUTE), checkRecord("8".repeat(40), -40 * MINUTE)] })
+  same("drive: the check requests of an older head do not count against a new head", texts(other), asked)
+  const behind = pull(30, { headSha: RECORDED_HEAD, behindBy: 1, mergeState: "BLOCKED", checks: [check("Unit Tests")], reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)], comments: [comment("ticket", "T")] })
+  const stale = scenario({ tickets: [ticket(7)], routes: [["--json headRefOid", `${NEXT_HEAD}\n`]], pulls: { ui: [behind] } })
+  await stale.run()
+  same("drive: a head that is behind with no approval check is updated before any request", [only(stale.calls, "updateBranch").length, commentsOf(stale.calls, 30).filter((text) => text.includes("request")).length], [1, 0])
+  const red = await run({ checks: [check("Unit Tests", "FAILURE")] })
+  same("drive: a red check gets no check-only request", commentsOf(red.calls, 30).filter((text) => text.includes("request")).length, 0)
+  const labelled = await run({ labels: [OWNER_LABEL], reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] })
+  same("drive: a needs:owner pull request gets no check-only request", commentsOf(labelled.calls, 30).length, 0)
+}
+
+const STALL = "Driver stalled: no worker, request or merge for 60 minutes"
+
+const stallCases = async () => {
+  const stalled = async (offset, { extra = {}, runs = [runOf("in_progress", 1, 0)], tickets = [ticket(7)], sleeping = false } = {}) => {
+    const stateDirectory = join(root, `drive-stall-${++scenarios}`)
+    mkdirSync(stateDirectory, { recursive: true })
+    if (offset !== null) writeFileSync(join(stateDirectory, "activity.json"), JSON.stringify({ at: NOW + offset }))
+    const scene = scenario({ tickets, runs, stateDirectory, sleeping, pulls: { ui: [withoutApprovalCheck(extra)] } })
+    await scene.run()
+    scene.stateDirectory = stateDirectory
+    return scene
+  }
+  const created = (scene) => only(scene.calls, "createTicket").filter(([, input]) => input.title === STALL)
+  const first = await stalled(null)
+  same("drive: the first tick starts the clock and opens no stall issue", [created(first).length, JSON.parse(readFileSync(join(first.stateDirectory, "activity.json"), "utf8")).at], [0, NOW])
+  const young = await stalled(-59 * MINUTE)
+  same("drive: 59 minutes of waiting with no action opens no stall issue", created(young).length, 0)
+  const late = await stalled(-61 * MINUTE)
+  const [[, issue]] = created(late)
+  same("drive: 61 minutes with no action opens one needs:owner stall issue that names the waiting pull request", [created(late).length, issue.labels, issue.body.includes("ui#30: wait: a Pullfrog run is in progress")], [1, [OWNER_LABEL], true])
+  T("drive: the stall is logged with the reason of the waiting item", late.messages.some((line) => / driver stall \(ui#30: wait: a Pullfrog run is in progress\)/.test(line)), late.messages.join(" | "))
+  same("drive: the stall issue sends one notification", only(late.calls, "notify").length, 1)
+  const open = await stalled(-61 * MINUTE, { tickets: [ticket(7), { ...ticket(41, { labels: [OWNER_LABEL] }), title: STALL }] })
+  same("drive: an open stall issue is not opened twice", created(open).length, 0)
+  const asleep = await stalled(-61 * MINUTE, { sleeping: true })
+  same("drive: while sleep is on the stall issue opens and no notification goes out", [created(asleep).length, only(asleep.calls, "notify").length, JSON.parse(readFileSync(join(asleep.stateDirectory, "sleep-items.json"), "utf8")).length], [1, 0, 1])
+  const acting = await stalled(-61 * MINUTE, { runs: [], extra: { reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
+  same("drive: a request in the tick resets the clock and opens no stall issue", [created(acting).length, commentsOf(acting.calls, 30).length > 0, JSON.parse(readFileSync(join(acting.stateDirectory, "activity.json"), "utf8")).at], [0, true, NOW])
+  const closing = await stalled(-61 * MINUTE, { runs: [], extra: { reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] }, tickets: [ticket(7), { ...ticket(41, { labels: [OWNER_LABEL] }), title: STALL }] })
+  same("drive: an action closes the open stall issue", only(closing.calls, "closeTicket"), [["closeTicket", 41]])
+  const quiet = await stalled(-61 * MINUTE, { tickets: [ticket(7)], extra: { labels: [OWNER_LABEL] } })
+  same("drive: a pull request that waits on the owner is no stall", created(quiet).length, 0)
+  const merging = await stalled(-61 * MINUTE, { runs: [], extra: { checks: [check("Unit Tests"), approvalCheck()], mergeState: "CLEAN", reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
+  same("drive: a merge resets the clock", [only(merging.calls, "merge").length, created(merging).length], [1, 0])
+}
+
 const mergeCases = async () => {
   const bar = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30)] } })
   await bar.run()
@@ -1634,6 +1715,8 @@ export const pinUnit = async () => {
 
 export const driverUnit = async () => {
   await admissionCases()
+  await checkOnlyCases()
+  await stallCases()
   await paceCases()
   await sleepCases()
   await usageLimitCases()
