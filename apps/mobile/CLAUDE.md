@@ -1,87 +1,26 @@
-# apps/mobile - Expo SDK 58 + Expo Router
+# apps/mobile: Expo SDK 58 and Expo Router
 
-Mobile client for Android and iOS 17.4 or later. Direct calls to `orbit-api` (no BFF). Auth via SecureStore. SQLite offline queue.
+Android and iOS 17.4 or later client. It calls `orbit-api` directly, with no BFF. Tokens live in SecureStore. An SQLite queue holds offline mutations.
 
-## Conventions
+## Facts the code does not show
 
-- **Named exports only.** `kebab-case` filenames, `PascalCase` components.
-- **All user-facing strings through i18n** (react-i18next). Read locale via `i18n.language`, not `useDeviceLocale`. Never hardcode display text.
-- **All mutations through `apiClient`** (`lib/api-client.ts`). Never call `fetch` directly.
-- **Imports:** types from `@orbit/shared/types`, query keys from `@orbit/shared/query`, endpoints from `@orbit/shared/api`.
+- Android ships through Google Play. iPhone and iPad ship to internal TestFlight. Keep Android-only native modules behind platform guards.
+- `android/` and `ios/` are Expo prebuild output. Make a native fix in app config or a config plugin.
+- `ORBIT_APP_VARIANT=staging` selects the staging app `org.useorbit.app.staging`. The default is production `org.useorbit.app`. `app.config.js` derives both from `app.json`.
+- Only the access token enters the iOS widget Keychain group. The refresh token stays private to the app.
+- Play builds include the x86_64 emulator slice. The full local path is `/android-generate --emulator`.
+- An elevated child inside an `overflow: 'hidden'` parent disappears on Android. Use `elevation: 0` on the child, or shadow the parent.
+- The app resizes and has no orientation lock. Use `useWindowDimensions` for render-time geometry. Never cache `Dimensions.get()` at module scope.
+- ICU syntax treats an apostrophe before `{`, `}` or `#` as a quote. Double it. Test mobile strings through the app's i18n instance.
+- Hermes has no `Intl.ListFormat` or other new `Intl` constructors, but Vitest on Node has them. Shared code that builds one passes the tests and throws on a device. Polyfills load from `index.js` before `expo-router/entry`.
+- Android ignores an accessibility node with zero opacity or fully off-screen. Announce through `AccessibilityInfo.announceForAccessibility`. Android's key map has arrow keys but no Home or End.
+- Expo SAF copy deletes an existing destination document. Android Auto Backup restores SharedPreferences but not SecureStore, so AsyncStorage state is never restored.
+- expo-router resolves a bare `/` to the first group index whatever `Stack.Protected` hides. A replace to a guarded-out route does nothing. Navigate from an unguarded screen to an explicit destination.
 
-## Key files
+## Bottom sheets
 
-| What | Where |
-|---|---|
-| App shell + nav | `app/_layout.tsx` + `components/navigation/bottom-tab-bar.tsx` |
-| Design tokens (near-black canvas, warm orange accent, light/dark via createTokensV2) | `lib/theme.ts` (consumes `@orbit/shared/theme`) |
-| Theme provider | `lib/theme-provider.tsx` |
-| API client | `lib/api-client.ts` |
-| Offline queue (SQLite) | `lib/queued-api-mutation.ts` |
-| Auth storage | SecureStore — see `lib/secure-store.ts` |
-| TanStack Query hooks | `hooks/use-*.ts` |
-| Zustand stores | `stores/*-store.ts` |
-| Primitives (mirror of `apps/web/components/`) | `components/*` |
-
-## Platform reality
-
-- **Native platforms.** Android ships through Google Play. iPhone and iPad target internal TestFlight; their adapters use Universal Links, APNs, WidgetKit and an install marker to reset surviving app and widget Keychain credentials. Keep Android-only native modules behind platform guards.
-- **iOS variants.** The bundle identifiers are `org.useorbit.app` and `org.useorbit.app.staging`, with Associated Domains matching each variant's web host. `ORBIT_APPLE_TEAM_ID` supplies the enrolled team and `ORBIT_IOS_APP_STORE_ID` supplies that variant's numeric store listing ID. OTA updates stay disabled. Release through `/android-release`, which hands the same `app_version` and commit to `/ios-release`; a platform-only release needs a defect specific to that platform and a new version above both platforms. Signing credentials must exist first.
-- **iOS widget.** `plugins/with-ios-widget.js` generates the WidgetKit target during prebuild. Each variant uses `group.<bundleIdentifier>.widget` for its shared container and Keychain access group, with extension identifier `<bundleIdentifier>.widget`. Only the access token enters that Keychain group; the refresh token stays private to the app. Habit mutations use the existing widget sync adapter and reload the timeline. Generated `ios/` files are build output.
-- **Android release variants.** `ORBIT_APP_VARIANT=staging` selects the internal-track app `org.useorbit.app.staging`, launcher name "Orbit Staging", scheme `orbit-staging`, and App Links on `app-staging.useorbit.org`. The default production variant keeps `org.useorbit.app`, launcher name "Orbit", scheme `orbit`, and App Links on `app.useorbit.org`; the open and production tracks use it. `app.config.js` derives both from `app.json`. The widget library namespace `org.useorbit.app.widget` is independent of the installed app package.
-- **Play builds include the x86_64 emulator slice.** The release and startup-proof workflows set Gradle's `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64` so the release boot gate can run the shipping AAB on an x86_64 emulator before Play submission. `app.json` keeps ARM defaults for local builds; `npm run android:apk:emulator` selects the local emulator ABI. Full path: `/android-generate --emulator`.
-- **Bottom-sheet modals use TrueSheet (`@lodev09/react-native-true-sheet`), NOT `@gorhom/bottom-sheet`.** gorhom's `present()` + portal silently no-op on the New Architecture (Fabric/Bridgeless) in release builds (rAF-gated mount never flushes). The shared wrapper is `components/ui/sheet.tsx` — the single styling seam for all sheets; sheet content uses core `ScrollView`/`TextInput`. Don't reintroduce gorhom.
-- **Never navigate from a sheet in the same tick as closing it, and never unmount a presented one.** Direct navigation from a presented TrueSheet requires the react-native-screens patch (https://sheet.lodev09.com/guides/navigation); this app ships without it, so finish native dismissal before navigation. `Sheet` owns the whole close path: take `{ sheetRef, closeSheet }` from `useSheetHost()` (`components/ui/sheet.tsx`), pass `ref={sheetRef}`, then call `closeSheet()` to close, or `closeSheet(action)` when something has to run after the sheet is gone. A close that no tap started (an effect, or a finished operation) passes the action twice, `closeSheet(action, action)`: `dismiss()` can reject (`VIEW_NOT_FOUND` while the sheet still mounts), and the second action finishes the close anyway, because unmounting a `TrueSheet` drops and dismisses its native view on Android (`TrueSheetView.onDropInstance`); the rejection means nothing presented yet. That is the one sanctioned unmount of a presented sheet. On iOS, an unmount of a presented `TrueSheet` recycles its view and leaves the presented controller on screen, where it takes every touch (`TrueSheetView.mm` `prepareForRecycle`). The React Native `Modal` in `NativeWindowHost` has the same failure when `visible` changes during a transition, so on iOS the host changes `visible` only after the previous `onShow` or `onDismiss` (`RCTModalHostViewComponentView.mm` `ensurePresentedOnlyIfNeeded`). A decorative layer never presents a native controller: TrueSheet presents from the topmost presented controller (`TrueSheetView.mm` `findPresentingViewController`), so a sheet that opens during a `Modal` crossfade becomes that `Modal`'s child, and the `Modal` removal dismisses the sheet instead of itself. The theme crossfade is an in-tree overlay in `lib/theme-provider.tsx`. A global prompt stays mounted and takes `suppressed` from `OverlayLayer` into its open condition, also after sign-out. When the open condition of a sheet reads state that its close path does not own (a query, a store, a route, an overlay reservation), render it through `useSheetPresence(open)` (`components/ui/sheet-presence.ts`) with `key={sheetKey}` and `ref={sheetRef}`: the hook closes the sheet natively when the condition turns false and unmounts it after the dismissal. `onClose` fires only from the completed native dismissal, so never call it yourself and never flip the open state directly. Apply D136: "Reproduce a device bug on the exact shipped build before calling it fixed." Reference wiring: `app/(tabs)/calendar.tsx`.
-- **Android elevation + `overflow: 'hidden'`** is a documented React Native bug: elevated children inside `overflow: 'hidden'` parents disappear on Android. Use `elevation: 0` on the child, or shadow the parent.
-- **Android and iOS ship resizable and without an orientation lock.** iPad supports all four orientations, Split View and Slide Over. Keep the compact four-tab shell at every width, primary content readable in landscape and large windows, cap long-form columns, and use `useWindowDimensions` for render-time geometry. Never cache `Dimensions.get()` at module scope.
-- **Edge-to-edge system bars come from `edgeToEdgeEnabled=true`.** The release fixes config plugin removes Expo's deprecated transparent system-bar color attributes after prebuild. Keep fixed headers and bottom bars on safe-area insets, and keep TrueSheet on automatic inset adjustment.
-
-## State management
-
-- **Server state:** TanStack Query. One hook per resource in `hooks/use-*.ts`. Query keys from `@orbit/shared/query/keys.ts`.
-- **Client state:** Zustand stores in `stores/*-store.ts`.
-- **Offline queue:** mutations queued in SQLite via `queued-api-mutation.ts` when offline; flushed on reconnect. Use for any mutation that should survive flaky connectivity.
-
-## API access
-
-```ts
-import { apiClient } from "@/lib/api-client"
-import { API } from "@orbit/shared/api"
-
-const habit = await apiClient<Habit>(API.habits.get(id))
-```
-
-- `apiClient` reads the JWT from SecureStore and attaches `Authorization: Bearer ...`.
-- For mutations that should be retried offline, use `performQueuedApiMutation` from `lib/queued-api-mutation.ts`.
-
-## Styling
-
-- **`StyleSheet.create` / inline styles** consuming the token bag. The Mobile StyleSheet Guard enforces this styling approach.
-- **Tokens via `useAppTheme()` from `lib/use-app-theme.ts`** — returns the single warm orange token bag resolved for light or dark mode.
-- **`createTokensV2(scheme, mode)`** in `lib/theme.ts` is the source of truth; consumes `@orbit/shared/theme` (color-schemes + neutral-ramp).
-
-## React 19 / React Compiler rules
-
-React 19 forbids several patterns that worked before. The compiler will fail the build if you violate them:
-
-- **`react-hooks/refs`** — never read `.current` during render. Use `useMemo` to create stable instances (e.g., `Animated.Value`).
-- **`react-hooks/set-state-in-effect`** — don't `setState` synchronously inside `useEffect` cleanup or main body. Defer with `void Promise.resolve().then(() => setState(...))` or use the "Adjusting state when a prop changes" pattern: compare prev snapshot during render, setState only on transitions.
-- **`react-hooks/preserve-manual-memoization`** — drop unnecessary `useCallback` / `useMemo`; the compiler auto-memoizes.
-- **`react-hooks/static-components`** — components must be stable at module level.
-
-## Patterns to mirror
-
-| Want to add… | Look at… |
-|---|---|
-| New screen | `app/(tabs)/index.tsx` |
-| New API call hook | `hooks/use-habits.ts` |
-| New Zustand store | `stores/ui-store.ts` |
-| New primitive | `components/ui/section-label.tsx` |
-| Offline-safe mutation | `hooks/use-habits.ts` (search for `performQueuedApiMutation`) |
-| Theme-aware component | `components/ui/theme-toggle.tsx` |
-
-## Testing
-
-- Vitest. Config: `vitest.config.ts`.
-- React Native's testing-library wraps RN primitives; query by accessibility role or test ID, never by visual class.
-- Don't mock the API client at the fetch level — mock at the hook level via `vi.mock('@/hooks/use-...')`.
+- Use TrueSheet (`@lodev09/react-native-true-sheet`), never `@gorhom/bottom-sheet`. Its `present()` silently does nothing on the New Architecture in release builds. `components/ui/sheet.tsx` is the one styling seam.
+- Never navigate in the same tick as a close. Never unmount a presented sheet. Take `{ sheetRef, closeSheet }` from `useSheetHost()`. Call `closeSheet()`, or `closeSheet(action)` for work after the close. A close that no tap started passes the action twice: `closeSheet(action, action)`.
+- On iOS, an unmounted presented sheet leaves its controller on screen, and that controller takes every touch. A decorative layer never presents a native controller, because a sheet that opens during a `Modal` crossfade becomes that `Modal`'s child.
+- When the open condition reads state that the close path does not own, render the sheet through `useSheetPresence(open)` (`components/ui/sheet-presence.ts`). Pass `key={sheetKey}` and `ref={sheetRef}`. Never call `onClose` yourself.
+- Reference wiring: `app/(tabs)/calendar.tsx`.

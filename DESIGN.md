@@ -326,6 +326,7 @@ in that order. Calendar sync opens the Calendários sheet, its one home, and kee
 Mais do Orbit rows carry no descriptions that repeat their titles. Sign out is the final top-level row. Each setting
 has one home; the retired Preferências, Avançado and Recursos de IA pages redirect to the new
 sub-screens and never carry a second copy.
+The Suporte row opens the support form. Sobre carries no internal naming note.
 
 ### Progresso overview and detail navigation
 
@@ -670,6 +671,8 @@ badge or ellipsis on type. Existing status words and parent counts remain. Rows 
 The paired owners and capability audit are in `design/habit-form-surfaces.md`.
 
 ### Habit detail and controlled editing
+
+General habits never offer Skip; dated habits keep Skip. General items are undated one-time tasks under the Task date choices. Habit frequency offers only Every and Times per, without the repeating General hint.
 
 Habit detail opens as a concise read and completion surface: full title, plain Task/Habit type,
 useful schedule and due facts, selectable stored description, one interactive checklist and existing
@@ -1276,6 +1279,8 @@ price response does not shift the layout.
 - **In the compact shell (Android at every width, web below 1024), a screen shows one primary task.** Name it before building. Filters, sync status, legends, attachments and per-item extras go behind one visible, labelled entry into a sheet or menu. Each view keeps one primary view switch inline (for example Mês, Semana, Período, Agenda). Each group gets 24 of space from the next. Before a new element joins a compact screen, answer: what does the person lose if it leaves?
 - **Row heights are minimum heights, never fixed heights.** Rows grow with text size; every screen works at 200% text without clipping or overlap. At the default text size, restructure labels into separate rows or move controls to disclosure instead of wrapping or shrinking them; at large accessibility text a label may wrap inside the taller row, as the large-text rule in **Voice** says.
 - **Disclosure preserves selection.** Closing a sheet or menu keeps the selected date, view mode, scroll position and draft.
+- **Every input is simple first.** Offer levels, not a wall of options. Keep correct spacing, hover spacing included. Ask human questions, not system labels.
+- **The app feels like a native mobile app at compact widths.** Put less on each screen, secondary content in sheets, menus and drawers, and breathing room around every group. This rule wins where any other text in this file permits the opposite.
 
 - **A card is not a layout primitive.** Group with space and alignment first. A card earns its place only when its content is a genuinely separable, actionable object. This is the upstream rule that stops eight identical rectangles.
 - **Group with space, not lines**, in this order: negative space, then a background shape when a group must read as one unit, then a separator line as a last resort for dense data. When a separator is genuinely earned, keep it quiet, and **never pair it with a large gap: the gap already did the job**.
@@ -1860,7 +1865,7 @@ while focused (#1607, #1668). Orbit's idle loop is not a status animation. It ne
 
 ### Hover, and why it is not governed by the frequency gate
 
-**A clickable thing with no hover state is a defect.** A hover transition is feedback, not decoration, so the frequency gate does not suppress it: the gate subtracts animations that play at you, and a hover state answers you. Every interactive element carries one.
+**A clickable thing with no hover state is a defect.** A hover transition is feedback, not decoration, so the frequency gate does not suppress it: the gate subtracts animations that play at you, and a hover state answers you. Every interactive element carries one. Hovering a nested control never keeps its parent card's hover active.
 
 **A hover reads slower than a press.** The durations below are deliberately longer than the movement scale: a press is a confirmation and wants to be immediate, while a hover is an invitation and wants to arrive. Use the durations below.
 
@@ -2091,6 +2096,8 @@ autocomplete, with one accessible editable field. Provider suggestions remain op
 **Paywall.** At most 3 plans. Mark exactly one recommended and style it with the composed TierCard selected treatment. Write bullets as outcomes, not feature names, 3 to 6 visible per plan. Keep the CTA verb identical across every tier. Pair the monthly/annual toggle with an explicit savings callout: the arithmetic is visible, never implied.
 
 **Landing hero (`orbit-landing-page`).** A 3-second message gate: the headline and CTA are readable within 3 seconds, with no visual treatment between the visitor and the offer. If a treatment competes, reduce the treatment, not the copy.
+
+**Landing structure (`orbit-landing-page`).** The page is one long scroll in Orbit's design with the Orbit AI as the focus, never a description beside a phone mockup. Nothing on it changes without a visitor action, except the hero side cards. They float from page load and tilt toward a fine pointer, and they stop under reduced motion and off screen. The phone does not float, never scrolls on its own, and draws every component at the app's logical size.
 
 **Landing reference galleries.** `saaspo.com` and `saasframe.io` are recorded references for **landing and marketing surfaces only**, and for the shape of a spec rather than its content. **Never cite either for a product surface.** Marketing calm is not product density.
 
