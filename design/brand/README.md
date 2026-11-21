@@ -43,10 +43,8 @@ consumer's to add. A logo file that carries its own padding cannot be aligned to
 Both numbers are solved from the curve extrema, not measured off a render. A pixel measurement
 rounds to the render grid and can clip the `O`'s overshoot at 24.292.
 
-**`tools/check-lockup-crop.mjs` holds this.** It parses the committed file, re-solves the bounds and
-fails if any edge is off by more than 1e-6. It runs in `guards.yml` and on pre-commit. The gate reads
-the shipped bytes so rounded generator values cannot hide a clipped edge. Run that check when
-regenerating the lockup; a raster cannot prove the bounds are correct.
+Re-solve the bounds from the committed file when you regenerate the lockup.
+A raster cannot prove the bounds are correct.
 
 **The lockup's wordmark is outlined**, so it renders identically without Space Grotesk installed and
 carries no `<text>`. It cannot be restyled, re-tracked or re-set; a different wordmark size is a new

@@ -94,8 +94,7 @@ error.log
 # foglamp scan (edit token in scan.lock.json is a secret)
 .foglamp/
 
-# Agent scratch. The patterns keep local git status quiet, but they are not the gate: the closed
-# root allowlist in tools/root-allowlist.json rejects every undeclared root file regardless of name.
+# Agent scratch. The patterns keep local git status quiet.
 .tmp-*
 .tmp_*
 .sess-*
