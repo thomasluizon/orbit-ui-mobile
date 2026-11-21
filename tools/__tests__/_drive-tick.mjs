@@ -220,6 +220,7 @@ const slotCases = async () => {
   same("drive: a free slot and an admissible order over the line start a worker on the same tick, and only 1 of 3 orders", (await launches(0.6, 3)).launched.length, 1)
   same("drive: 0.10 under the line gives 2 workers and 0.20 under it gives 3, never more", [(await launches(0.35, 4)).launched.length, (await launches(0.25, 4)).launched.length, (await launches(0, 5)).launched.length], [2, 3, 3])
   const logged = await launches(0.35, 1)
+  same("drive: a worker that exits during a tick makes the loop start the next tick at once", logged.mem.woken, true)
   same("drive: a tick logs one pace line with the utilization, the line, the slots, the running workers, the free slots and the stop state", logged.messages.filter((line) => line.includes(" pace ")), [`${iso(0)} pace below (utilization 0.350, line 0.450, slots 2, running 0, free 2, stop no)`])
 
   const fills = runningScene({ tickets: [ticket(7), ticket(8), ticket(9)], reading: { utilization: 0.25, resetsAt: RESETS_AT, at: NOW - MINUTE } })

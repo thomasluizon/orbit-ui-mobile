@@ -153,7 +153,7 @@ export const paceState = ({ reading, now, allowance = null, workersRun = false }
   if (end === null || end <= now) return { state: end === null ? "unknown" : "reset", utilization: reading?.utilization ?? null, resetsAt: reading?.resetsAt ?? null, line: null, slots: 1, stopped: false }
   const line = ((now - (end - WEEK_MS)) / WEEK_MS) * WEEKLY_CAP
   const under = line - reading.utilization
-  const headroom = under >= 2 * SLOT_STEP - SLOT_EPSILON ? 3 : under >= SLOT_STEP - SLOT_EPSILON ? 2 : 1
+  const headroom = Math.min(MAX_WORKERS, Math.max(1, 1 + Math.floor((under + SLOT_EPSILON) / SLOT_STEP)))
   const stale = !workersRun && now - reading.at > HOUR_MS
   const over = reading.utilization >= WEEKLY_CAP - SLOT_EPSILON
   const allowed = allowance !== null && Math.abs(allowance.resetsAt - reading.resetsAt) < RESET_TOLERANCE_SECONDS
@@ -233,7 +233,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, orphans: new Map(), paceLoaded: false })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, orphans: new Map(), paceLoaded: false })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -709,6 +709,7 @@ const startWorker = async (env, mem, candidate) => {
   mem.running.set(stem, running.then((result) => {
     mem.running.delete(stem)
     mem.results.set(stem, result)
+    mem.woken = true
     mem.wake()
   }))
 }
@@ -1280,10 +1281,12 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   let stopping = false
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { stopping = true; mem.wake() })
   do {
+    mem.woken = false
     try { await tick(env, mem) } catch (error) { log(env, "tick", "error", error.message) }
     if (parsed.mode === "dry-run") return 0
     if (parsed.mode === "once") { await Promise.all(mem.running.values()); await reapExits(env, mem).catch((error) => log(env, "tick", "error", error.message)); return 0 }
-    if (!stopping) await env.sleep(TICK_MS, mem)
+    // A worker that exited during the tick frees its slot, so the next tick starts at once.
+    if (!stopping && !mem.woken) await env.sleep(TICK_MS, mem)
   } while (!stopping)
   return 0
 }
