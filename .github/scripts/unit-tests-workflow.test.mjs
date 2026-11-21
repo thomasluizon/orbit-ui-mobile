@@ -103,7 +103,7 @@ test("configured Chromium shards split recorded time evenly and leave room for g
   const { shard: indexes, total: [count] } = web.strategy.matrix
   assert.deepEqual(indexes, Array.from({ length: count }, (_, index) => index + 1))
   const step = stepNamed(web.steps, "Run web shard with coverage")
-  assert.equal(step["timeout-minutes"], 12)
+  assert.equal(step["timeout-minutes"], 16)
   const budgetCommand = stepNamed(unitSteps, "Enforce web test file budget").run.match(/^node \.github\/scripts\/check-web-test-budget\.mjs \S+ (\d+)$/)
   assert.ok(budgetCommand, "the workflow must supply a per-file budget")
   const fileBudgetMs = Number(budgetCommand[1])
@@ -272,6 +272,7 @@ test("required checks report on every pull request through job conditions, never
   for (const step of unitSteps) assert.doesNotMatch(String(step.if ?? ""), /outputs\.(web|type-check|lint)\b|base_ref/, `${step.name ?? step.uses}: Unit Tests and its scan never follow a path scope`)
   // Each limit above 15 minutes is 1.5 times the measured worst run that its workflow comment names.
   const measuredAboveFifteen = {
+    "web-tests": [20, "Web unit holds a 16 minute step plus setup and report time: the worst shard step took 697 s on main, and 960 s step limit plus 240 s setup is 1200 s"],
     "unit-tests": [16, "Unit Tests holds the tests and the scan: 619 s at worst on main, times 1.5"],
   }
   for (const [id, job] of Object.entries(workflow.jobs)) {

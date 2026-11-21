@@ -63,7 +63,5 @@ This never crosses an identity, authorization, manual-step or redaction limit a 
 The delivery driver (`tools/drive.mjs`) starts a headless Claude worker for each ticket, and that worker writes every code change.
 The owner session writes no code for a ticket (`/orchestrate` controls the driver).
 A bare ticket stays local.
-Redesign queues run as parallel local worktrees: Cloud stays disabled (D96) and nothing uses Codex (D149).
-Until shipping, D90 suspends D76 steps 1/3/7/8 and D88's hold; steps 2/4/5/6 stand. No human wait; screens merge like groundwork. D76/D88 then return.
 `design/canvas/`, authoritative `DESIGN.md` under D42, step 6 ui-skills sweep, Pullfrog and gates still apply.
 `hot.md` and brain ADRs are the decision record.

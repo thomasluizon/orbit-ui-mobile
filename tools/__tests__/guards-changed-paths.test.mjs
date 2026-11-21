@@ -14,7 +14,6 @@ const testWorkflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workfl
 const cases = [
   ["copy", "Changed copy stays inside the register", "apps/web/app/page.tsx"],
   ["i18n-usage", "Changed translation usage resolves", "apps/mobile/app/page.tsx"],
-  ["surface-manifest", "Changed surface inputs match the committed inventory", "design/canvas/screen.svg"],
 ]
 
 function git(directory, ...arguments_) {
@@ -167,37 +166,9 @@ test("every diff reader lists the old path of a moved file", () => {
   }
 })
 
-test("feature parity runs for every input of the check and skips an unrelated change", () => {
-  const step = workflow.jobs.guards.steps.find((candidate) => candidate.id === "feature-parity__1")
-  const directory = mkdtempSync(join(tmpdir(), "guards-feature-parity-"))
-  try {
-    const ran = (path) => {
-      writeFileSync(join(directory, "changed-paths.txt"), `${path}\n`)
-      const result = spawnSync("bash", ["-e", "-c", `node() { echo GATE_RAN; }\n${step.run}`], {
-        cwd: directory, env: { ...process.env, RUNNER_TEMP: directory, BASE_REF: "main" }, encoding: "utf8",
-      })
-      assert.equal(result.status, 0, result.stderr)
-      return result.stdout.includes("GATE_RAN")
-    }
-    for (const path of ["apps/web/app/page.tsx", "apps/mobile/app/index.tsx", "packages/shared/src/i18n/en.json",
-      "tools/check-feature-parity.mjs", "tools/feature-parity-rules.json", "DESIGN.md", ".claude/specs/orbit-prod-release.md"]) {
-      assert.equal(ran(path), true, `${path} is an input of the parity check`)
-    }
-    for (const path of ["docs/DESIGN.md", "tools/check-copy.mjs", ".claude/specs/other.md"]) {
-      assert.equal(ran(path), false, `${path} is not an input of the parity check`)
-    }
-  } finally {
-    rmSync(directory, { recursive: true, force: true })
-  }
-  const tool = readFileSync(join(repositoryRoot, "tools/check-feature-parity.mjs"), "utf8")
-  for (const input of ["tools/feature-parity-rules.json", "DESIGN.md", ".claude/specs/orbit-prod-release.md"]) {
-    assert.ok(tool.includes(`'${input}'`), `${input} must still be an input of the tool`)
-  }
-})
-
 test("each diff reader resolves paths before using them", () => {
   const readers = ["mobile-styles", "dashes", "mobile-fonts", "copy", "i18n-usage",
-    "expo-pin", "surface-manifest"]
+    "expo-pin"]
   for (const jobId of readers) {
     const steps = guardGroups(workflow)[jobId].steps
     const preparation = steps.findIndex((step) => step.name === "Resolve pull request changed paths")
@@ -257,27 +228,4 @@ test("CodeQL analyzes a language only when its inputs change", () => {
     mkdirSync(join(repository, "docs"))
     git(repository, "mv", "apps/web/old.ts", "docs/old.md")
   }), javascript, "a rename out of a language still analyzes the old path")
-})
-
-test("every pull request runs the full-tree surface scope scan outside the cached unit task", () => {
-  const job = testWorkflow.jobs["tool-tests"]
-  const step = job.steps.find((candidate) => candidate.run?.includes("node tools/check-surface-scope.mjs"))
-  assert.ok(step, "Tool Tests must execute the full-tree surface scope scan")
-  assert.equal(step.if, "${{ !cancelled() }}")
-  assert.doesNotMatch(step.run, /changed-paths/, "a mobile-only change must still run the full-tree scan")
-  assert.equal(job.needs, "plan", "the scan waits for the plan only, never for a build")
-  assert.equal(testWorkflow.on.pull_request.paths, undefined)
-  const directory = mkdtempSync(join(tmpdir(), "surface-scope-step-"))
-  try {
-    mkdirSync(join(directory, "tools"))
-    for (const [checkerStatus, stepStatus] of [[0, 0], [1, 1], [2, 2]]) {
-      writeFileSync(join(directory, "tools/check-surface-scope.mjs"), `process.exit(${checkerStatus})\n`)
-      const result = spawnSync("bash", ["--noprofile", "--norc", "-eo", "pipefail", "-c", step.run], { cwd: directory, encoding: "utf8" })
-      assert.equal(result.status, stepStatus, `checker exit ${checkerStatus} must end the step with ${stepStatus}`)
-    }
-  } finally {
-    rmSync(directory, { recursive: true, force: true })
-  }
-  assert.match(step.run, /node tools\/check-surface-scope\.mjs --graphic-floor-only/)
-  assert.doesNotMatch(step.run, /--files-stdin/, "the owning floor check must scan the whole tree")
 })

@@ -40,4 +40,4 @@ Each row has a web and Android presentation. Cancellation and payment-failure de
 
 Web state composition and Chromium geometry live in `apps/web/__tests__/pages/upgrade.test.tsx`. Android composition and Yoga geometry live in `apps/mobile/__tests__/screens/upgrade-screen.test.tsx`. Both cover the presentation matrix in English and Brazilian Portuguese, light and dark, at compact and wide widths. Notice and dashboard tests cover individual entitlement explanations and provider behavior.
 
-Vitest geometry does not grant whole-screen visual or physical-device acceptance. Those remain separate inspection responsibilities under the active visual-delivery contract.
+Vitest geometry does not grant whole-screen visual or physical-device acceptance. Those remain separate inspection responsibilities.

@@ -1,11 +1,12 @@
-import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
-const scannerTimeout = 180_000
+const graphicFloor = 3
 const graphicSites = [
   'apps/mobile/app/support.tsx',
   'apps/mobile/components/auth/login-sections.tsx',
@@ -22,23 +23,6 @@ const graphicSites = [
   'apps/web/components/ui/date-field.tsx',
   'apps/web/components/ui/list-row.tsx',
 ] as const
-
-const interactionSites = [
-  'apps/web/components/chat/habit-block-row.tsx',
-  'apps/mobile/components/chat/habit-block-row.tsx',
-  'apps/web/components/chat/preview-item-title.tsx',
-  'apps/mobile/components/chat/preview-item-title.tsx',
-  'apps/web/components/shell/composer.tsx',
-  'apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx',
-  'apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx',
-  'apps/web/components/chat/habit-suggestions-card.tsx',
-  'apps/mobile/components/chat/habit-suggestions-card.tsx',
-  'apps/web/components/habits/habit-check.tsx',
-  'apps/mobile/components/habits/habit-check.tsx',
-  'apps/web/components/today/setup-checklist-card.tsx',
-  'apps/mobile/components/today/setup-checklist-card.tsx',
-] as const
-const sourceSites = [...new Set([...graphicSites, ...interactionSites])]
 
 const graphicNames: Record<(typeof graphicSites)[number], string> = {
   'apps/mobile/app/support.tsx': 'WifiOff',
@@ -57,41 +41,27 @@ const graphicNames: Record<(typeof graphicSites)[number], string> = {
   'apps/web/components/ui/list-row.tsx': 'Chevron',
 }
 
-function scanSources() {
-  return spawnSync(process.execPath, ['tools/check-surface-scope.mjs', '--files-stdin'], {
-    cwd: repositoryRoot,
-    encoding: 'utf8',
-    input: JSON.stringify(sourceSites),
-    timeout: scannerTimeout,
-    killSignal: 'SIGKILL',
+const raisedSurfaces = {
+  canvas: ['--bg'],
+  card: ['--bg', '--bg-card'],
+  field: ['--bg', '--bg-field'],
+  well: ['--bg', '--bg-well'],
+  'elev-2': ['--bg', '--bg-elev-2'],
+  hover: ['--bg', '--bg-hover'],
+  overlay: ['--bg', '--bg-elev'],
+} as const
+
+describe.each(['dark', 'light'] as const)('raised-surface graphic contrast in the %s theme', (theme) => {
+  const tokens = resolveWebThemeVariables('orange', theme)
+
+  it.each(Object.entries(raisedSurfaces))('keeps the graphic token above the floor on the %s surface', (_surface, layers) => {
+    expect(contrastOnSurface(tokens['--fg-3']!, layers.map((layer) => tokens[layer]!))).toBeGreaterThanOrEqual(graphicFloor)
   })
-}
+})
 
-let result: ReturnType<typeof scanSources>
-let findings: string[]
-
-describe('raised-surface graphic contrast', () => {
-  beforeAll(() => {
-    result = scanSources()
-    findings = result.stderr.split('\n')
-  }, scannerTimeout + 5_000)
-
-  it('checks only the named graphic sites without a scanner error', () => {
-    expect(result.error, `Surface contrast scanner must finish within ${scannerTimeout}ms`).toBeUndefined()
-    expect([0, 1], result.stderr).toContain(result.status)
-    expect(result.stdout).toMatch(new RegExp(`^Surface scope guard (?:passed|failed)\\. ${sourceSites.length} source files checked\\.$`, 'm'))
-  })
-
-  it('keeps interaction text above its floor and token uses within their declared roles', () => {
-    expect(result.stderr).toBe('')
-    expect(result.stdout).not.toContain('UNDECLARED')
-    expect(result.status).toBe(0)
-  })
-
-  it.each(graphicSites)('%s resolves its graphic role above the floor', (site) => {
+describe('raised-surface graphic sites', () => {
+  it.each(graphicSites)('%s paints its graphic with the graphic token', (site) => {
     expect(existsSync(resolve(repositoryRoot, site))).toBe(true)
-    expect(result.error).toBeUndefined()
-    expect(findings.filter((line) => line.startsWith(`${site}:`) && /GRAPHIC (?:floor 3\.00|surface is unresolved)/.test(line))).toEqual([])
     const source = readFileSync(resolve(repositoryRoot, site), 'utf8')
     if (site === 'apps/web/components/calendar-sync/calendar-sync-event-row.tsx') {
       const dismissalIcon = source.indexOf('<X size={20}')

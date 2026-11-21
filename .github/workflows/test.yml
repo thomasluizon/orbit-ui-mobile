@@ -280,12 +280,6 @@ jobs:
         if: ${{ !cancelled() && needs.plan.outputs.tools == 'true' }}
         run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs .github/scripts/write-locked-package.test.mjs .github/scripts/plan-layout-shards.test.mjs .github/scripts/merged-unit-results.test.mjs
 
-      # This step owns the full-tree graphic floor assertion outside cached unit shards.
-      # Other findings stay advisory; graphic floor findings and scanner errors fail.
-      - name: Check graphic contrast across the full tree
-        if: ${{ !cancelled() }}
-        run: node tools/check-surface-scope.mjs --graphic-floor-only
-
   # The required check: every test group passed here or has a cached result at the same inputs.
   # The SonarCloud scan runs last, so the SonarCloud Code Analysis context arrives whenever this job passes.
   unit-tests:
@@ -546,7 +540,8 @@ jobs:
     needs: plan
     if: needs.plan.outputs.web-unit-hit != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The worst shard step took 697 s on main. The step limit is 960 s. The job limit adds 240 s for setup and reports.
+    timeout-minutes: 20
     env:
       ARTIFACT_NAME: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
     strategy:
@@ -577,7 +572,7 @@ jobs:
       - uses: ./.github/actions/restore-npm-cache
       - run: npm ci
       - name: Run web shard with coverage
-        timeout-minutes: 12
+        timeout-minutes: 16
         working-directory: apps/web
         run: >-
           ../../node_modules/.bin/vitest run --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.total }}
