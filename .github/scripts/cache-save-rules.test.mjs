@@ -1602,8 +1602,8 @@ test("the remote inventory has one sorted line for each remote action in use, an
   }
 })
 
-test("the cache tests run in the hook tests job, and the restore action exists for every caller", () => {
-  const run = load(".github/workflows/test.yml").jobs["hook-tests"].steps.map((step) => step.run ?? "").join("\n")
+test("the cache tests run in the Tool Tests job, and the restore action exists for every caller", () => {
+  const run = load(".github/workflows/test.yml").jobs["tool-tests"].steps.map((step) => step.run ?? "").join("\n")
   for (const file of ["cache-save-rules.test.mjs", "sweep-actions-caches.test.mjs", "android-boot-action.test.mjs"]) {
     assert.ok(run.includes(`.github/scripts/${file}`), file)
   }

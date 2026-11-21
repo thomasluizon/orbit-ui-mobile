@@ -147,7 +147,7 @@ a request path, over-fetching, stale/over-eager cache invalidation, and waterfal
 
 Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
-From the UI checkout, run `node --input-type=module -e 'import { readOrchestratorConfig } from "./tools/lib/orchestrator-config.mjs"; console.log(JSON.stringify(readOrchestratorConfig().repos))'`. Use its absolute `ui` and `api` values as `roots`.
+From the UI checkout, run `node --input-type=module -e 'import { readDriveConfig } from "./tools/lib/config.mjs"; console.log(JSON.stringify(readDriveConfig().repos))'`. Use its absolute `ui` and `api` values as `roots`.
 
 ```
 Workflow({ scriptPath: '.claude/workflows/audit.mjs', args: {

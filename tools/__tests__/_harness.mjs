@@ -3,60 +3,26 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync,
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 
-/** Run files (the migration record) go to a directory in each test checkout's git directory, never to GitHub. */
-process.env.ORBIT_TEST_RUN_FILES = "1"
-
-/**
- * Injected by the runner. These are live bindings: configure() runs before any case
- * module is imported, so every module reads the runner's own resolution.
- */
+/** Injected by the runner. These are live bindings: configure() runs before any case module is imported. */
 export let TOOLS_DIR = ""
 export let REPO_ROOT = ""
-export let SELF = ""
 
-export const configure = ({ toolsDir, self }) => {
+export const configure = ({ toolsDir }) => {
   TOOLS_DIR = toolsDir
   REPO_ROOT = resolve(toolsDir, "..")
-  SELF = self
 }
 
 /** The one path helper case modules use, so injection failure surfaces as a wrong path. */
 export const toolPath = (file) => join(TOOLS_DIR, file)
 
-/**
- * The file ledger tool and every module it imports, as paths under tools/. A staged copy without an
- * import fails with ERR_MODULE_NOT_FOUND, so a new import of the tool shows here as a red suite.
- */
-export const FILE_LEDGER_FILES = ["file-ledger.mjs", "lib/doc-references.mjs"]
-
-/** Case keys naming a file that is not in tools/. A skip here would exit 0 on a typo. */
-export const orphanCaseKeys = (caseKeys, toolsDir) => caseKeys.filter((file) => !existsSync(join(toolsDir, file)))
-
 export const EM_DASH = String.fromCharCode(0x2014)
 
 let fails = 0
-
-/**
- * Every assertion is attributed to the case module the runner is currently driving, so the
- * runner can name a module that asserted nothing at all. One module owns exactly one unit,
- * so the scope is the whole attribution: nothing is inferred from an assertion's wording.
- */
-const RUNNER_TALLY_KEY = "(runner)"
-const tally = new Map()
-let currentScope = null
-
-export const beginToolScope = (tool) => {
-  currentScope = tool
-}
-export const endToolScope = () => {
-  currentScope = null
-}
-export const assertionTally = () => Object.fromEntries(tally)
+let assertions = 0
 
 export const T = (name, ok, detail = "") => {
   if (!ok) fails++
-  const tool = currentScope ?? RUNNER_TALLY_KEY
-  tally.set(tool, (tally.get(tool) ?? 0) + 1)
+  assertions++
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : `\n     ${detail}`}`)
 }
 
@@ -185,158 +151,6 @@ export const BASH = resolveBash()
  */
 export const realOrchestratorConfig = () => JSON.parse(readFileSync(join(REPO_ROOT, ".claude", "orchestrator.json"), "utf8"))
 
-/**
- * The variable that names the claude worker's account directory. Every staged launch reads a
- * fixture directory through it, so no gate case can start a process under the owner's real account.
- */
-export const WORKER_CONFIG_DIRECTORY_VARIABLE = realOrchestratorConfig().workers.claude.configDirEnv
-export const WORKER_CONFIG_DIRECTORY = dirname(stage("worker-account/.claude.json", "{}\n"))
-process.env[WORKER_CONFIG_DIRECTORY_VARIABLE] = WORKER_CONFIG_DIRECTORY
-
-/** Build the REST ticket read from the same normalized issue value each case already asserts. */
-export const githubIssueReadPlan = (value, repository = "thomasluizon/orbit-tickets") => {
-  const issue = typeof value === "string" ? JSON.parse(value) : value
-  const compact = {
-    body: issue.body,
-    html_url: issue.url,
-    labels: issue.labels.map((label) => ({ name: label.name })),
-    number: issue.number,
-    state: issue.state,
-    state_reason: issue.stateReason,
-    closed_at: issue.closedAt ?? null,
-    title: issue.title,
-  }
-  const dependencyEntry = (relation, connection) => ({
-    match: `api --paginate repos/${repository}/issues/${issue.number}/dependencies/${relation}`,
-    stdout: JSON.stringify(connection.nodes.map((dependency) => dependency.number)),
-    ticketEnvelope: "issueDependencyNumbers",
-  })
-  return [
-    { match: `api repos/${repository}/issues/${issue.number} --jq`, stdout: JSON.stringify(compact), ticketEnvelope: "restIssue" },
-    dependencyEntry("blocked_by", issue.blockedBy),
-    dependencyEntry("blocking", issue.blocking),
-  ]
-}
-
-let ghEnvelopeManifest
-
-const ghEnvelopes = () => {
-  if (!ghEnvelopeManifest) {
-    ghEnvelopeManifest = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-issue-envelopes.json"), "utf8"))
-  }
-  return ghEnvelopeManifest.commands
-}
-
-const jsonType = (value) => {
-  if (value === null) return "null"
-  if (Array.isArray(value)) return "array"
-  return typeof value === "object" ? "object" : typeof value
-}
-
-const ISSUE_STATES = new Set(["OPEN", "CLOSED"])
-const STATE_REASONS = new Set(["COMPLETED", "NOT_PLANNED", "DUPLICATE", "REOPENED"])
-const BOARD_STATUSES = new Set(["Backlog", "Todo", "In Progress", "In Review", "Done", "Canceled", "Duplicate"])
-
-const assertRecordedGhValue = (command, value, recordedPaths, path = "$") => {
-  const actualType = jsonType(value)
-  const recorded = recordedPaths[path]
-  if (!recorded) throw new Error(`gh fixture ${command} asserts unrecorded key ${path}`)
-  if (!recorded.types.includes(actualType)) {
-    const expected = recorded.types.join(" | ")
-    throw new Error(`gh fixture ${command} asserts type ${actualType} at ${path}; recorded types: ${expected}`)
-  }
-  if (/(?:^|\.)state$/.test(path) && typeof value === "string" && !ISSUE_STATES.has(value)) {
-    throw new Error(`gh fixture ${command} asserts unsupported enum at ${path}: ${JSON.stringify(value)}`)
-  }
-  if (/\.stateReason$/.test(path) && value !== null && (typeof value !== "string" || !STATE_REASONS.has(value))) {
-    throw new Error(`gh fixture ${command} asserts unsupported enum at ${path}: ${JSON.stringify(value)}`)
-  }
-  if (/\.status$/.test(path) && typeof value === "string" && !BOARD_STATUSES.has(value)) {
-    throw new Error(`gh fixture ${command} asserts unsupported enum at ${path}: ${JSON.stringify(value)}`)
-  }
-  if (actualType === "array") {
-    for (const item of value) assertRecordedGhValue(command, item, recordedPaths, `${path}[]`)
-    return
-  }
-  if (actualType !== "object") return
-  for (const [key, child] of Object.entries(value)) {
-    assertRecordedGhValue(command, child, recordedPaths, `${path}.${key}`)
-  }
-}
-
-const ghEnvelopeName = (command, entry) => {
-  if (entry.ticketEnvelope === "restIssue" || entry.ticketEnvelope === "issueDependencyNumbers") {
-    if (!/\bapi\b/.test(command)) throw new Error(`gh fixture ${command} applies ${entry.ticketEnvelope} to a non-API command`)
-    return entry.ticketEnvelope
-  }
-  if (entry.ticketEnvelope === "issueProjectItems" || entry.ticketEnvelope === "boardState") {
-    if (!/\bapi\s+graphql\b/.test(command)) throw new Error(`gh fixture ${command} applies ${entry.ticketEnvelope} to a non-GraphQL command`)
-    return entry.ticketEnvelope
-  }
-  /** Before the generic issue view; the lookahead keeps a multi-field list like `--json comments,body` out of this envelope. */
-  if (/\bissue\s+view\b[\s\S]*--json\s+comments(?=\s|$)/.test(command)) return "issueViewComments"
-  if (/\bissue\s+view\b/.test(command)) return (entry.exit ?? 0) === 0 ? "issueView" : "issueViewError"
-  if (/\bissue\s+list\b/.test(command)) return "issueList"
-  if (/\bproject\s+item-list\b/.test(command)) return "projectItemList"
-  if (/\blabel\s+list\b/.test(command)) return "labelList"
-  // Writes deliberately have NO envelope. Recording one would mean mutating real tickets, and the
-  // recorder is read-only, so a write stub proves itself with the explicit exit-code-only escape
-  // instead of against an invented success object.
-  return null
-}
-
-/**
- * What counts as a ticket command at all. Anything matching this must either resolve to a recorded
- * envelope or declare the explicit exit-code-only escape. `gh pr ...` and everything else is not a
- * ticket command and is left alone, which is what keeps the PR stubs working.
- */
-const TICKET_COMMAND = /\b(?:issue|project|label)\s+[a-z-]+/
-
-/**
- * Every stubbed GitHub ticket reply is checked against tools/__fixtures__/gh-issue-envelopes.json,
- * which is RECORDED output from the real gh CLI. This is the guard against the most expensive
- * mistake available here: inventing a field and adding the mock that agrees with the invention,
- * so the harness stays green over a defect. The fixture is never regenerated to make a case pass.
- */
-const assertGhTicketStub = (entry) => {
-  const command = String(entry.match)
-  const envelopeName = ghEnvelopeName(command, entry)
-  const output = envelopeName === "issueViewError" ? String(entry.stderr ?? "") : String(entry.stdout ?? "")
-  /**
-   * The read-only recorder cannot create an issue to capture this write output. The exact installed
-   * GitHub CLI v2.97.0 source does provide it: pkg/cmd/issue/create/create.go ends the successful
-   * submit path with `fmt.Fprintln(opts.IO.Out, newIssue.URL)`. Keep this narrower than the generic
-   * exit-code escape so no JSON field can be invented under it.
-   */
-  if (entry.verifiedTicketOutput === "issueCreateUrl") {
-    if (!/\bissue\s+create\b/.test(command)) throw new Error(`gh fixture ${command} applies issueCreateUrl to a non-create command`)
-    if (!/^https:\/\/github\.com\/thomasluizon\/orbit-tickets\/issues\/[1-9]\d*\/?\r?\n?$/.test(output)) {
-      throw new Error(`gh fixture ${command} asserts an invalid verified issue-create URL`)
-    }
-    return
-  }
-  if (entry.ignoreTicketShape === true && output === "") return
-  if (!envelopeName) {
-    if (TICKET_COMMAND.test(command)) {
-      throw new Error(`gh fixture ${command} has no recorded invocation envelope; record one, or declare ignoreTicketShape: true with empty output`)
-    }
-    return
-  }
-  const envelope = ghEnvelopes()[envelopeName]
-  if (!envelope) throw new Error(`gh fixture ${command} has no recorded invocation envelope (${envelopeName})`)
-  if (envelopeName === "issueViewError") {
-    assertRecordedGhValue(command, output, envelope.paths)
-    return
-  }
-  let response
-  try {
-    response = JSON.parse(output)
-  } catch {
-    throw new Error(`gh fixture ${command} has non-JSON stdout`)
-  }
-  assertRecordedGhValue(command, response, envelope.paths)
-}
-
 export const ORCA_SHIM = stage(
   "orca-shim.cjs",
   `const { existsSync, readFileSync, rmSync, writeFileSync, writeSync } = require("node:fs")
@@ -375,12 +189,6 @@ if (match.hangTreePidFile) {
   if (match.hangPidFile) writeFileSync(match.hangPidFile, String(process.pid))
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
 }
-if (match.overflowStdoutBytes) {
-  if (match.stderr) writeSync(2, match.stderr)
-  const chunk = Buffer.alloc(1024 * 1024, "x")
-  for (let written = 0; written < match.overflowStdoutBytes; written += chunk.length) writeSync(1, chunk)
-  process.exit(0)
-}
 process.stderr.write(match.stderr || "")
 process.exit(match.exit ?? 0)
 `,
@@ -388,11 +196,9 @@ process.exit(match.exit ?? 0)
 
 /**
  * NODE_OPTIONS treats a backslash inside quotes as an escape, so the shim path goes in POSIX form.
- * The same shim answers `gh`, because it keys on the command line and nothing else: verify-delivery.mjs
- * shells out to `gh pr list`, and a stub plan entry matching `pr list --head` answers it.
+ * The same shim answers `gh`, because it keys on the command line and nothing else.
  */
 export const orcaEnv = (plan) => {
-  for (const entry of plan) assertGhTicketStub(entry)
   return {
     ORCA_BIN: process.execPath,
     GH_BIN: process.execPath,
@@ -447,40 +253,13 @@ export const check = (file, name, argv, expect, options = {}) => {
   return result
 }
 
-/**
- * The launch gate every staged launch uses. launch-worker.mjs waits at passLaunchGate for the configured spacing
- * since the previous launch of the checkout, so a staged config that keeps the shipped 45 seconds makes each
- * second launch of one case module sleep. The load ceiling is far above any real load.
- */
-export const HERMETIC_LAUNCH_GATE = { loadMax: 1_000_000, spacingSeconds: 0 }
-
-/** The tool that passes the launch gate. A staged copy of it must never wait at the real gate. */
-const LAUNCH_GATE_TOOL = "launch-worker.mjs"
-
-export const stageWithConfig = (label, tool, config) => {
-  const hermetic = config.launchGate?.loadMax === HERMETIC_LAUNCH_GATE.loadMax && config.launchGate?.spacingSeconds === HERMETIC_LAUNCH_GATE.spacingSeconds
-  if (tool === LAUNCH_GATE_TOOL && !hermetic) {
-    throw new Error(`stageWithConfig("${label}"): ${tool} passes the launch gate, so the staged config needs launchGate: HERMETIC_LAUNCH_GATE (${JSON.stringify(HERMETIC_LAUNCH_GATE)}), got ${JSON.stringify(config.launchGate)}`)
-  }
+/** A copy of one tool and of tools/lib under the fixture root, so a case can run the tool beside a stub of its sibling files. */
+export const stageTool = (label, tool) => {
   const base = join(root, "staged", label)
   mkdirSync(join(base, "tools"), { recursive: true })
-  mkdirSync(join(base, ".claude"), { recursive: true })
-  writeFileSync(join(base, ".claude", "orchestrator.json"), `${JSON.stringify(config, null, 2)}\n`)
-  cpSync(join(REPO_ROOT, ".claude", "linear-to-github-map.json"), join(base, ".claude", "linear-to-github-map.json"))
   cpSync(join(TOOLS_DIR, tool), join(base, "tools", tool))
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
-  return { path: join(base, "tools", tool), base, configPath: join(base, ".claude", "orchestrator.json") }
-}
-
-/**
- * A subagent transcript in the shape that Claude Code 2.1.325 writes. The fixture holds lines of a real subagent
- * transcript with each value replaced and each path a token. The agent works in `worktree` through `cd` and absolute
- * file paths, visits `otherRepository` once, and every entry carries the session directory as `cwd`.
- */
-export const subagentTranscript = ({ worktree, sessionDirectory, otherRepository, scratchpad }) => {
-  const tokens = { WORKTREE: worktree, SESSION_DIRECTORY: sessionDirectory, OTHER_REPOSITORY: otherRepository, SCRATCHPAD: scratchpad }
-  return readFileSync(new URL("./fixtures/claude-subagent-transcript.jsonl", import.meta.url), "utf8")
-    .replace(/\{\{([A-Z_]+)\}\}/g, (_token, name) => JSON.stringify(tokens[name]).slice(1, -1))
+  return { path: join(base, "tools", tool), base }
 }
 
 /** A real git repository with a bare origin and one commit on main, under the fixture root. */
@@ -504,3 +283,4 @@ export const stageRepo = (label) => {
 }
 
 export const failureCount = () => fails
+export const assertionCount = () => assertions

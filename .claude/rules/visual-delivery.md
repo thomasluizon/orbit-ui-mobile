@@ -30,7 +30,7 @@ A visual verification against an empty or one-row DB is **structurally invalid**
 ### 4. Human inspection follows the active redesign contract
 During the remainder of the thirteen-screen redesign, D90 suspends D76 steps **1, 3, 7 and 8** and
 D88's per-screen hold. No screen waits for the owner's conversation, inspection or approval. Steps
-**2, 4, 5 and 6** remain mandatory, as detailed in `.claude/playbooks/redesign-screen.md`: subagent
+**2, 4, 5 and 6** remain mandatory: subagent
 judgement against the canvas and `DESIGN.md` under D42, decisions in the ticket before code, a build
 from that ticket, and the ui-skills sweep. Pullfrog and every gate still apply. Screens may merge
 on groundwork terms through the authorized merge workflow; worker merge prohibitions still apply.

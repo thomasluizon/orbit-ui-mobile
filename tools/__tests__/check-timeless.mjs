@@ -3,7 +3,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symli
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { REPO_ROOT, T, toolPath } from "./_harness.mjs"
+import { T, toolPath } from "./_harness.mjs"
 
 const checker = toolPath("check-timeless.mjs")
 const run = (cwd, args, input) => spawnSync(process.execPath, [join(cwd, "tools", "check-timeless.mjs"), ...args], { cwd, input, encoding: "utf8" })
@@ -198,13 +198,6 @@ export const cases = () => {
   T("a Write in a repository without the checker is not checked", writeHook(skipped, join(outside, "new.md"), `Ask ${owner}.\n`).status === 0)
   rmSync(skipped, { recursive: true, force: true })
   rmSync(outside, { recursive: true, force: true })
-
-  const settings = JSON.parse(readFileSync(join(REPO_ROOT, ".claude", "settings.json"), "utf8"))
-  const staleTextMatchers = (event) => (settings.hooks[event] ?? [])
-    .filter(({ hooks }) => hooks.some(({ command }) => command.includes("forbid-stale-text.mjs")))
-    .map(({ matcher }) => matcher)
-  T("the settings check a Write before it lands", JSON.stringify(staleTextMatchers("PreToolUse")) === JSON.stringify(["Write"]), JSON.stringify(staleTextMatchers("PreToolUse")))
-  T("the settings check an Edit after it lands", JSON.stringify(staleTextMatchers("PostToolUse")) === JSON.stringify(["Edit|MultiEdit"]), JSON.stringify(staleTextMatchers("PostToolUse")))
 
   const growing = fixture("growing-comment", "sample.js", Array.from({ length: 6 }, (_, index) => `// reason ${index}`).join("\n") + "\n")
   const seventh = "// reason 6\n"

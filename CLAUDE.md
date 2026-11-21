@@ -4,7 +4,7 @@ Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android, 
 
 ## Maximum implementation (overrides global rule 4, "surgical changes")
 
-Fix anything broken, stale, or wrong that you find in the same PR; never call it "out of scope" or "pre-existing." Exception: `/audit-*` reports against its rubric and does not fix mid-pass. A review round fixes only BLOCKING findings and files the rest (`review-and-audit.md` rule 14). Do everything yourself (MCP servers, CLIs, APIs); involve me only when no other way exists.
+Fix anything broken, stale, or wrong that you find in the same PR; never call it "out of scope" or "pre-existing." Exception: `/audit-*` reports against its rubric and does not fix mid-pass. A review round fixes only BLOCKING findings and files the rest. Do everything yourself (MCP servers, CLIs, APIs); involve me only when no other way exists.
 
 ## The workflow (D1-D9)
 
@@ -25,7 +25,7 @@ ESLint `local/*`, `guards.yml` and Roslyn `ORBIT0001..0005` enforce the mechanic
 5. **Error handling at boundaries only.** Validate user input and external APIs, trust your types inside, never swallow an error.
 6. **Naming.** Descriptive, no abbreviations, never `data`/`info`/`temp`/`obj`/`helper`/`util` as a final name.
 7. **DRY at the right level.** Cross-app code goes to `packages/shared`, cross-component to `apps/<platform>/components/`, never for one caller.
-8. **Never assume an external interface.** Confirm a field, flag, exit code or response shape from a CLI, API or library you did not write against the real response or the installed source, never memory or `--help`. Never write the fixture that agrees with a guess; cannot confirm it, do not read it. Evidence format: `review-and-audit.md` rule 13. Nothing writes inside `node_modules`; `node tools/check-dependency-edits.mjs` proves the tree matches the lockfile.
+8. **Never assume an external interface.** Confirm a field, flag, exit code or response shape from a CLI, API or library you did not write against the real response or the installed source, never memory or `--help`. Never write the fixture that agrees with a guess; cannot confirm it, do not read it. Nothing writes inside `node_modules`; `node tools/check-dependency-edits.mjs` proves the tree matches the lockfile.
 9. **Simplest implementation** that fully meets the current requirements.
 10. **Grow the system in layers.** Start from the smallest version that works end to end, and never trade a working product for unfinished complexity.
 11. **Use the dependencies already here**, then an established library, before you write your own.
@@ -42,11 +42,11 @@ Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureS
 
 - Backend support: a paired, cross-linked `orbit-api` PR in the same task.
 - Branches `feature/`|`fix/`|`chore/`; `main` is protected; squash-merge only; never `--no-verify`/`--no-gpg-sign`; never reuse a squash-merged branch.
-- **Admin merge is forbidden except inside the `/merge-prs` skill after the owner invokes it** for an approved frozen PR set, with only `gh pr merge --admin --squash --match-head-commit <sha>`. Outside it, STOP and ask the owner. Never use `PUT /repos/{owner}/{repo}/pulls/{number}/merge` or GraphQL `mergePullRequest`.
+- **Admin merge is forbidden.** Only the delivery driver merges, at the merge bar. When a merge needs more, STOP and ask the owner. Never use `PUT /repos/{owner}/{repo}/pulls/{number}/merge` or GraphQL `mergePullRequest`.
 - Pullfrog, not the writer session, reviews every PR in GitHub Actions. Its `pullfrog-approval` check is required on `main` in both code repositories; no PR changes its instructions. Fix the code when it is red.
 
 ## Tooling
 
-- Tools follow `tools/CONVENTIONS.md`, cataloged in `tools/README.md`. After you change `tools/**` or `.claude/**`, RUN `node tools/test-tools.mjs --only <module>` per changed tool and per module that reads a changed file (`grep -rl <file name> tools/__tests__`; a full run: `--parallel auto`). RUN `node .claude/hooks/test-hooks.mjs` after a change to `.claude/**`, a tracked `*.md` file, or another file it reads or imports.
+- Tools follow `tools/CONVENTIONS.md`, cataloged in `tools/README.md`. After you change `tools/**` or `.claude/**`, RUN `node tools/test-tools.mjs --only <module>` per changed tool and per module that reads a changed file (`grep -rl <file name> tools/__tests__`).
 - Testing: Vitest unit and behavior tests for every feature, no new E2E against prod. Locally run only focused tests (`vitest related`); CI runs every full suite. `TESTING.md` is the catalog.
 - **Research reports do not live in this repo**: they go stale silently, then get cited as authority. Durable knowledge is an ADR in the brain vault.

@@ -1,577 +1,98 @@
 #!/usr/bin/env node
 
-import { existsSync, readdirSync, readFileSync } from "node:fs"
-import { spawnSync } from "node:child_process"
-import { dirname, join, relative, resolve } from "node:path"
+import { spawn } from "node:child_process"
+import { readdirSync } from "node:fs"
 import { availableParallelism } from "node:os"
-import { performance } from "node:perf_hooks"
-import { fileURLToPath, pathToFileURL } from "node:url"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
 
-import { localShardCount, parseShard, partitionModules, runShardsInParallel, TIMINGS_MARKER } from "./lib/test-shards.mjs"
+const USAGE = `usage: test-tools.mjs [--only <module>]...
 
-const startedAt = performance.now()
-let assertionCount = () => 0
-process.on("exit", () => {
-  const elapsedSeconds = (performance.now() - startedAt) / 1000
-  console.log(`Assertions: ${assertionCount()} | Elapsed: ${elapsedSeconds.toFixed(3)}s`)
-})
+  Runs every case module of tools/__tests__ in its own process, at most one process for each core.
+  A case module is a file whose name does not start with _ and does not end with .test.mjs.
+  It exports cases(). Hermetic: no network, worktree, or ticket system.
 
-const USAGE = `usage: test-tools.mjs
-
-  Executes scripts in tools/ and asserts their CLI contract and decision paths.
-  With no --only flags, runs the complete gate. Hermetic: no network, worktree, or ticket system.
-
-  --only <name>  run one registered case module; repeat to select more
-  --shard <i/n>  run shard i of n (1-based). The shards partition every case module, so
-                 running all n shards runs every module once. Cannot combine with --only
-  --parallel <n> run the complete gate as shards 1/n to n/n in n processes at one time, print each
-                 shard's output when it ends, and fail when one shard fails. The partition is the one the
-                 CI shards use, with a count of its own: CI runs the tool-tests matrix of test.yml, and
-                 --parallel auto starts one shard for each core, up to 8. Use it for a full local run.
-                 More shards than free cores fail the timed cases from CPU starvation.
-                 Cannot combine with --only or --shard
-  --list         print the selected case module names, one per line, and exit 0 without running them
-  --help, -h     print this usage and exit 0
-
-  The shard partition reads tools/test-tools-timings.json. Every run prints one "# tool-timings"
-  JSON line; node tools/record-tool-timings.mjs <run-id>... merges those lines from every shard of
-  one or more CI runs into that file, with the median seconds of each module.
+  --only <module>  run one case module, named by its file name without .mjs; repeat to select more
+  --help, -h       print this usage and exit 0
 
 exit codes: 0 every check passed, 1 a failing check, 2 usage error`
 
-if (process.argv.includes("--help") || process.argv.includes("-h")) {
+const TOOLS_DIR = dirname(fileURLToPath(import.meta.url))
+const TESTS_DIR = join(TOOLS_DIR, "__tests__")
+const MODULE_TIMEOUT_MS = 10 * 60 * 1000
+const ASSERTIONS_LINE = /^Assertions: (\d+)$/m
+
+const usageError = (message) => {
+  console.error(`test-tools: ${message}\n\n${USAGE}`)
+  process.exit(2)
+}
+
+/** The child: runs the cases of one module and exits 1 on a failed assertion, on none, or on a module without cases(). */
+const runModule = async (name) => {
+  const { configure, failureCount, assertionCount } = await import("./__tests__/_harness.mjs")
+  configure({ toolsDir: TOOLS_DIR, self: "test-tools.mjs" })
+  const loaded = await import(`./__tests__/${name}.mjs`)
+  if (typeof loaded.cases !== "function") {
+    console.error(`test-tools: tools/__tests__/${name}.mjs exports no cases()`)
+    process.exit(1)
+  }
+  await loaded.cases()
+  console.log(`Assertions: ${assertionCount()}`)
+  if (assertionCount() === 0) {
+    console.error(`test-tools: tools/__tests__/${name}.mjs ran no assertion`)
+    process.exit(1)
+  }
+  process.exit(failureCount() === 0 ? 0 : 1)
+}
+
+const startModule = (name) => new Promise((resolve) => {
+  const child = spawn(process.execPath, [join(TOOLS_DIR, "test-tools.mjs"), "--module", name], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true })
+  let output = ""
+  child.stdout.on("data", (chunk) => { output += chunk })
+  child.stderr.on("data", (chunk) => { output += chunk })
+  const timer = setTimeout(() => child.kill("SIGKILL"), MODULE_TIMEOUT_MS)
+  child.once("error", (error) => resolve({ name, status: 1, output: `${output}${error.message}\n` }))
+  child.once("close", (status, signal) => {
+    clearTimeout(timer)
+    resolve({ name, status: status ?? signal, output })
+  })
+})
+
+const args = process.argv.slice(2)
+if (args.includes("--help") || args.includes("-h")) {
   console.log(USAGE)
   process.exit(0)
 }
+if (args[0] === "--module") await runModule(args[1])
 
-const TOOLS_DIR = dirname(fileURLToPath(import.meta.url))
-const SELF = "test-tools.mjs"
-const LIB_DIR = join(TOOLS_DIR, "lib")
-
-/**
- * Each covered unit's decision-path module: [path under tools/, module under tools/__tests__/].
- * A library under tools/lib/ is registered by its relative path, because it has no CLI for the
- * universal contract to check and this registry is the only coverage it can carry.
- * A unit can own several modules so the CI shards can balance a slow suite; its first row owns the contract.
- */
-const CASE_MODULES = [
-  ["desktop-bench/run.mjs", "desktop-bench"],
-  ["desktop-bench/acceptance.mjs", "desktop-acceptance"],
-  ["lib/ci-budget.mjs", "ci-budget"],
-  ["lib/parity-scope.mjs", "parity-scope"],
-  ["lib/pullfrog-rules.mjs", "pullfrog-rules"],
-  ["lib/escape-regex.mjs", "escape-regex"],
-  ["lib/github-read.mjs", "github-read"],
-  ["drive.mjs", "drive"],
-  ["lib/driver-pin.mjs", "drive"],
-  ["lib/config.mjs", "drive"],
-  ["lib/github.mjs", "drive"],
-  ["lib/worker.mjs", "drive"],
-  ["lib/order.mjs", "drive"],
-  ["select-artifact-attempts.mjs", "select-artifact-attempts"],
-  ["lib/background-runs.mjs", "background-runs"],
-  ["add-ticket-to-project.mjs", "add-ticket-to-project"],
-  ["android-emulator.mjs", "android-emulator"],
-  ["android-boot.mjs", "android-boot"],
-  ["ios-simulator.mjs", "ios-simulator"],
-  ["android-sentry-diagnostic.mjs", "android-sentry-diagnostic"],
-  ["arch-map.mjs", "arch-map"],
-  ["board-view.mjs", "board-view"],
-  ["check-attribution.mjs", "check-attribution"],
-  ["check-handoff-size.mjs", "check-handoff-size"],
-  ["comment-fix.mjs", "comment-fix"],
-  ["lib/launch-gate.mjs", "launch-gate"],
-  ["lib/run-files.mjs", "run-files"],
-  ["lib/run-notes.mjs", "run-notes"],
-  ["post-run-note.mjs", "post-run-note"],
-  ["lib/run-migration.mjs", "run-migration"],
-  ["migrate-run-state.mjs", "migrate-run-state"],
-  ["run-file.mjs", "run-file"],
-  ["check-calibration.mjs", "check-calibration"],
-  ["check-feature-parity.mjs", "check-feature-parity"],
-  ["check-feature-parity.mjs", "check-feature-parity-web"],
-  ["check-feature-parity.mjs", "check-feature-parity-mobile"],
-  ["check-dashes.mjs", "check-dashes"],
-  ["check-copy.mjs", "check-copy"],
-  ["check-docker-registries.mjs", "check-docker-registries"],
-  ["check-dependency-edits.mjs", "check-dependency-edits"],
-  ["check-gradients.mjs", "check-gradients"],
-  ["check-gate-charter.mjs", "check-gate-charter"],
-  ["check-hermetic-web-build.mjs", "check-hermetic-web-build"],
-  ["check-surface-scope.mjs", "check-surface-scope"],
-  ["check-timeless.mjs", "check-timeless"],
-  ["check-i18n-usage.mjs", "check-i18n-usage"],
-  ["check-lockup-crop.mjs", "check-lockup-crop"],
-  ["check-lint-severity.mjs", "check-lint-severity"],
-  ["check-native-module-copies.mjs", "check-native-module-copies"],
-  ["check-android-bundle.mjs", "check-android-bundle"],
-  ["check-push-target.mjs", "check-push-target"],
-  ["check-root-allowlist.mjs", "check-root-allowlist"],
-  ["file-ledger.mjs", "file-ledger"],
-  ["fix-rounds.mjs", "fix-rounds"],
-  ["lib/doc-references.mjs", "doc-references"],
-  ["check-sonar-paths.mjs", "check-sonar-paths"],
-  ["check-workspace-overrides.mjs", "check-workspace-overrides"],
-  ["materialize-cloud-result.mjs", "materialize-cloud-result"],
-  ["merge-review-batch-body.mjs", "merge-review-batch-body"],
-  ["comment-ticket.mjs", "comment-ticket"],
-  ["compose-prompt.mjs", "compose-prompt"],
-  ["collect-session-evidence.mjs", "collect-session-evidence"],
-  ["complete-ticket.mjs", "complete-ticket"],
-  ["create-milestone.mjs", "create-milestone"],
-  ["create-ticket.mjs", "create-ticket"],
-  ["create-worktree.mjs", "create-worktree"],
-  ["generate-brand-assets.mjs", "generate-brand-assets"],
-  ["generate-performance-workflow.mjs", "generate-performance-workflow"],
-  ["label-ticket.mjs", "label-ticket"],
-  ["relate-ticket.mjs", "relate-ticket"],
-  ["launch-worker.mjs", "launch-worker"],
-  ["launch-worker.mjs", "launch-worker-review"],
-  ["wait-ci.mjs", "wait-ci"],
-  ["submit-cloud-worker.mjs", "submit-cloud-worker"],
-  ["wait-release.mjs", "wait-release"],
-  ["wait-file.mjs", "wait-file"],
-  ["wait-background-runs.mjs", "wait-background-runs"],
-  ["lib/app-store-connect-token.mjs", "app-store-connect-token"],
-  ["lib/app-store-connect.mjs", "app-store-connect"],
-  ["testflight-access.mjs", "testflight-access"],
-  ["lib/admission.mjs", "admission"],
-  ["lib/attribution-lines.mjs", "attribution-lines"],
-  ["lib/claude-usage-limit.mjs", "claude-usage-limit"],
-  ["lib/cloud-worker.mjs", "cloud-worker"],
-  ["lib/orchestrator-config.mjs", "orchestrator-config"],
-  ["lib/performance-measurement.mjs", "performance-measurement"],
-  ["lib/bounded-process.mjs", "bounded-process"],
-  ["lib/test-shards.mjs", "test-shards"],
-  ["lib/github-auth.mjs", "github-auth"],
-  ["lib/github-issues.mjs", "github-issues"],
-  ["lib/github-rate-limit.mjs", "github-rate-limit"],
-  ["lib/github-target.mjs", "github-target"],
-  ["lib/handoff-prompt.mjs", "handoff-prompt"],
-  ["lib/identifier-ledger.mjs", "identifier-ledger"],
-  ["lib/integration-branch.mjs", "integration-branch"],
-  ["lib/manual-steps.mjs", "manual-steps"],
-  ["lib/readiness-receipt.mjs", "readiness-receipt"],
-  ["lib/research-run.mjs", "research-run"],
-  ["lib/review-run.mjs", "review-run"],
-  ["lib/run-state.mjs", "run-state"],
-  ["lib/session-context.mjs", "session-context"],
-  ["lib/relay-cost.mjs", "relay-cost"],
-  ["measure-relay-cost.mjs", "measure-relay-cost"],
-  ["lib/session-chain.mjs", "session-chain"],
-  ["lib/owner-questions.mjs", "owner-questions-core"],
-  ["owner-questions.mjs", "owner-questions"],
-  ["lib/relay-checkout.mjs", "relay-checkout-core"],
-  ["relay-checkout.mjs", "relay-checkout"],
-  ["lib/progress-window.mjs", "progress-window-core"],
-  ["progress-window.mjs", "progress-window"],
-  ["relay-session.mjs", "relay-session"],
-  ["lib/ticket-executability.mjs", "ticket-executability"],
-  ["lib/win-spawn-target.mjs", "win-spawn-target"],
-  ["list-bot-threads.mjs", "list-bot-threads"],
-  ["orca-web-port.mjs", "orca-web-port"],
-  ["plan-queue.mjs", "plan-queue"],
-  ["record-readiness.mjs", "record-readiness"],
-  ["record-merge.mjs", "record-merge"],
-  ["run-status.mjs", "run-status"],
-  ["start-relay-successor.mjs", "start-relay-successor"],
-  ["record-gh-fixtures.mjs", "record-gh-fixtures"],
-  ["record-tool-timings.mjs", "record-tool-timings"],
-  ["record-classifier-fixtures.mjs", "record-classifier-fixtures"],
-  ["release-plan.mjs", "release-plan"],
-  ["redesign-coverage.mjs", "redesign-coverage"],
-  ["reseed-calibration.mjs", "reseed-calibration"],
-  ["review-rounds.mjs", "review-rounds"],
-  ["resolve-bot-thread.mjs", "resolve-bot-thread"],
-  ["salvage-worker.mjs", "salvage-worker"],
-  ["surface-manifest.mjs", "surface-manifest"],
-  ["sync-issue-state.mjs", "sync-issue-state"],
-  ["teardown-worktree.mjs", "teardown-worktree"],
-  ["lib/stale-files.mjs", "stale-files-core"],
-  ["lib/git-worktrees.mjs", "git-worktrees"],
-  ["stale-files.mjs", "stale-files"],
-  ["update-ticket.mjs", "update-ticket"],
-  ["verify-delivery.mjs", "verify-delivery"],
-  ["test-tools.mjs", "test-tools"],
-]
-
-const REPOSITORY_CASE_MODULES = [
-  [".github/workflows/release.yml", "check-release-workflow"],
-  [".maestro/protected-route-redirect.yaml", "protected-route-redirect"],
-  ["design/canvas/tools/build-ds-bundle.mjs", "build-ds-bundle"],
-]
-
-const TIMINGS_PATH = join(TOOLS_DIR, "test-tools-timings.json")
-
-const usageError = (message) => {
-  console.error(`test-tools: ${message}\n`)
-  console.error(USAGE)
-  process.exit(2)
-}
-
-const requestedModules = []
-let shardText
-let parallelText
-let listOnly = false
-for (let index = 2; index < process.argv.length; index++) {
-  const argument = process.argv[index]
-  if (argument === "--list") {
-    listOnly = true
-  } else if (argument === "--only" || argument === "--shard" || argument === "--parallel") {
-    const value = process.argv[++index]
-    if (!value || value.startsWith("-")) usageError(`${argument} requires ${{ "--only": "a case-module name", "--shard": "a value like 2/4", "--parallel": "a shard count or auto" }[argument]}`)
-    if (argument === "--only") requestedModules.push(value)
-    else if (argument === "--shard") shardText = value
-    else parallelText = value
-  } else {
-    usageError(`unknown option: ${argument}`)
-  }
-}
-const shard = shardText === undefined ? null : parseShard(shardText)
-if (shardText !== undefined && !shard) usageError(`--shard needs i/n with 1 <= i <= n, got ${shardText}`)
-if (shard && requestedModules.length > 0) usageError("--shard cannot combine with --only")
-const parallelCount = parallelText === undefined ? null : parallelText === "auto" ? localShardCount(availableParallelism()) : Number(parallelText)
-if (parallelText !== undefined && !(Number.isInteger(parallelCount) && parallelCount >= 1 && parallelCount <= 32)) {
-  usageError(`--parallel needs a whole shard count from 1 to 32 or auto, got ${parallelText}`)
-}
-if (parallelCount !== null && (shard || requestedModules.length > 0 || listOnly)) usageError("--parallel cannot combine with --only, --shard or --list")
-
-if (parallelCount !== null) {
-  let assertions = 0
-  assertionCount = () => assertions
-  const result = await runShardsInParallel(parallelCount, (shardName) => [join(TOOLS_DIR, SELF), "--shard", shardName], (shardName, status, output) => {
-    console.log(`\n# shard ${shardName} (exit ${status})\n${output.trimEnd()}`)
-  })
-  assertions = result.assertions
-  console.log(`\n${result.failed.length === 0 ? `ORBIT TOOLS GATE OK (${parallelCount} parallel shards)` : `ORBIT TOOLS GATE FAILED (shards ${result.failed.join(", ")})`}`)
-  process.exit(result.failed.length === 0 ? 0 : 1)
-}
-
-const validModules = [...new Set([...CASE_MODULES, ...REPOSITORY_CASE_MODULES].map(([, module]) => module))]
-const unknownModules = [...new Set(requestedModules.filter((name) => !validModules.includes(name)))]
-if (unknownModules.length > 0) {
-  console.error(`test-tools: unknown case module(s): ${unknownModules.join(", ")}`)
-  console.error(`Valid case modules: ${validModules.join(", ")}`)
-  process.exit(2)
-}
-
-const requestedSet = new Set(requestedModules)
-const measuredSeconds = shard ? JSON.parse(readFileSync(TIMINGS_PATH, "utf8")).seconds : {}
-/** The case-module names this run executes, or null for every module. */
-const selection = shard
-  ? new Set(partitionModules({ modules: validModules, seconds: measuredSeconds, shardCount: shard.count })[shard.index - 1])
-  : requestedSet.size > 0 ? requestedSet : null
-const isSelected = (module) => selection === null || selection.has(module)
-// One test module can cover several files. It runs once, under the first file that names it.
-const selectedCaseModules = CASE_MODULES.filter(([, module], position) => isSelected(module) && CASE_MODULES.findIndex(([, other]) => other === module) === position)
-const selectedRepositoryModules = REPOSITORY_CASE_MODULES.filter(([, module]) => isSelected(module))
-
-if (listOnly) {
-  for (const [, module] of [...selectedCaseModules, ...selectedRepositoryModules]) console.log(module)
-  process.exit(0)
-}
-
-// Loaded after CLI validation, so --help and a bad argument stage no fixture root.
-const { BASH, T, assertionTally, beginToolScope, check, configure, endToolScope, failureCount, orphanCaseKeys, stage, toolPath } =
-  await import("./__tests__/_harness.mjs")
-
-configure({ toolsDir: TOOLS_DIR, self: SELF })
-assertionCount = () => Object.values(assertionTally()).reduce((total, count) => total + count, 0)
-
-const moduleSeconds = {}
-/** [path under tools/, module name, cases()] in registry order. */
-const gateCases = []
-for (const [file, module] of selectedCaseModules) {
-  const loaded = await import(`./__tests__/${module}.mjs`)
-  if (typeof loaded.cases !== "function") {
-    console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
-    process.exit(1)
-  }
-  gateCases.push([file, module, loaded.cases])
-}
-
-const repositoryCases = {}
-for (const [file, module] of selectedRepositoryModules) {
-  const loaded = await import(`./__tests__/${module}.mjs`)
-  if (typeof loaded.cases !== "function") {
-    console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
-    process.exit(1)
-  }
-  repositoryCases[file] = loaded.cases
-}
-
-/** argv that must be refused before the tool does any work. One row per tools/ script. */
-const INVALID_INPUT = {
-  "android-boot.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "select-artifact-attempts.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "progress-window.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "start-relay-successor.mjs": { argv: ["--launch", "invalid"], status: 2 },
-  "relay-checkout.mjs": { argv: ["--unknown"], status: 2 },
-  "relay-session.mjs": { argv: ["--model", "untrusted"], status: 2 },
-  "owner-questions.mjs": { argv: ["--list", "--record"], status: 2 },
-  "measure-relay-cost.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "add-ticket-to-project.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "android-emulator.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "ios-simulator.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "android-sentry-diagnostic.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "board-view.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-feature-parity.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-attribution.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-handoff-size.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "comment-fix.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "post-run-note.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "migrate-run-state.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "run-file.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-calibration.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-docker-registries.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-timeless.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-dependency-edits.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-gradients.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-gate-charter.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-hermetic-web-build.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-surface-scope.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-i18n-usage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-lockup-crop.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-lint-severity.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-root-allowlist.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "file-ledger.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-sonar-paths.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-workspace-overrides.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-native-module-copies.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-android-bundle.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "comment-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "compose-prompt.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "collect-session-evidence.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "complete-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "relate-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "create-milestone.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "create-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "create-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "generate-brand-assets.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "generate-performance-workflow.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "label-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "drive.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "launch-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "wait-ci.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "materialize-cloud-result.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "merge-review-batch-body.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "testflight-access.mjs": { argv: ["--app-id", "abc", "--version", "1.0.0", "--build", "1"], status: 2 },
-  "wait-file.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "fix-rounds.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "wait-background-runs.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "wait-release.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "list-bot-threads.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "orca-web-port.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "plan-queue.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "run-status.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "record-readiness.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "record-merge.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "record-classifier-fixtures.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "record-gh-fixtures.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "record-tool-timings.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "release-plan.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "reseed-calibration.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "resolve-bot-thread.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "review-rounds.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "salvage-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "sync-issue-state.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "submit-cloud-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "stale-files.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "update-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "verify-delivery.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-}
-
-const scripts = readdirSync(TOOLS_DIR)
-  .filter((file) => /\.(mjs|sh|ps1)$/.test(file) && file !== SELF)
+const startedAt = Date.now()
+const available = readdirSync(TESTS_DIR)
+  .filter((file) => file.endsWith(".mjs") && !file.startsWith("_") && !file.endsWith(".test.mjs"))
+  .map((file) => file.slice(0, -".mjs".length))
   .sort()
-const libraries = existsSync(LIB_DIR) ? readdirSync(LIB_DIR).filter((file) => file.endsWith(".mjs")).sort() : []
-const registeredCaseFiles = new Set(CASE_MODULES.map(([file]) => file))
-// A script with no case module has only the universal contract. A shard takes every nth one, so exactly one shard checks it.
-const shardContractScripts = scripts.filter((file) => !registeredCaseFiles.has(file))
-  .filter((_, position) => shard !== null && position % shard.count === shard.index - 1)
-/** The first registered module of each unit, which owns that unit's universal contract. */
-const moduleOfFile = {}
-for (const [file, module] of CASE_MODULES) moduleOfFile[file] ??= module
-const contractScripts = selection === null
-  ? scripts
-  : scripts.filter((file) => (moduleOfFile[file] ? isSelected(moduleOfFile[file]) : shardContractScripts.includes(file)))
-const addSeconds = (module, milliseconds) => {
-  if (module) moduleSeconds[module] = (moduleSeconds[module] ?? 0) + milliseconds / 1000
+const requested = []
+for (let index = 0; index < args.length; index++) {
+  if (args[index] !== "--only") usageError(`unknown argument ${args[index]}`)
+  const value = args[++index]
+  if (!value || value.startsWith("-")) usageError("--only requires a module name")
+  if (!available.includes(value)) usageError(`unknown module ${value}`)
+  requested.push(value)
 }
-if (shard) console.log(`# shard ${shard.index}/${shard.count}: ${selection.size} case modules`)
-console.log("# structural coverage")
-const uncovered = scripts.filter((file) => !INVALID_INPUT[file])
-T(
-  `every tools/ script has coverage (${scripts.length} scripts)`,
-  uncovered.length === 0,
-  `no COVERAGE entry for: ${uncovered.join(", ")}\n     Add one to INVALID_INPUT (and a CASE_MODULES row plus a tools/__tests__ module if it has decision paths) in tools/${SELF}.`,
-)
-T("the coverage guard actually enumerated scripts", scripts.length > 0, "tools/ resolved to zero scripts, so this gate proved nothing")
-const staleRows = Object.keys(INVALID_INPUT).filter((file) => !scripts.includes(file))
-T(
-  "every COVERAGE entry names a tools/ script that exists",
-  staleRows.length === 0,
-  `INVALID_INPUT rows with no tools/ script: ${staleRows.join(", ")}\n     Delete the row, or restore the script it claims to cover.`,
-)
-const uncoveredLibraries = libraries.filter((file) => !registeredCaseFiles.has(`lib/${file}`))
-T(
-  `every tools/lib/ module has a case module (${libraries.length} modules)`,
-  uncoveredLibraries.length === 0,
-  `no CASE_MODULES row for: ${uncoveredLibraries.map((file) => `lib/${file}`).join(", ")}\n     A library has no CLI, so a case module is the only coverage it can carry.`,
-)
-/** Each .mjs source below `directory`, without the fixture directories, whose files are test data. */
-const sourceFiles = (directory) => readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
-  entry.isDirectory() ? (/^(?:__)?fixtures(?:__)?$/.test(entry.name) ? [] : sourceFiles(join(directory, entry.name))) : entry.name.endsWith(".mjs") ? [join(directory, entry.name)] : [])
-// A doc comment describes the declaration directly below it, so a comment that ends directly above another comment describes nothing.
-const strandedComments = sourceFiles(TOOLS_DIR).flatMap((path) => readFileSync(path, "utf8").split("\n")
-  .flatMap((line, index, lines) => index > 0 && /^\s*\/\*\*/.test(line) && /\*\/\s*$/.test(lines[index - 1]) ? [`${relative(TOOLS_DIR, path)}:${index}`] : []))
-T(
-  "no comment in tools/ ends directly above a doc comment",
-  strandedComments.length === 0,
-  `a comment ends directly above a doc comment at: ${strandedComments.join(", ")}\n     Merge the two comments, or move the upper one to the declaration that it describes.`,
-)
-// An import that names its bindings: a named import of a literal path, or a destructured dynamic import of a literal or a computed path.
-// A literal path resolves from the importer. A computed path counts when it names `lib/<module>.mjs` (not `_lib/`).
-const NAMED_IMPORT = /(?:import\s*\{([^}]*)\}\s*from|\{([^}]*)\}\s*=\s*await\s+import\()\s*(?:["'`]([^"'`?$]+)["'`?]|[^;\n]*?(?<!\w)lib\/([A-Za-z0-9_-]+)\.mjs)/g
-// A namespace import, or a dynamic import kept whole, whose argument names `lib/<module>.mjs` (not `_lib/`).
-const WHOLE_IMPORT = /(?:import\s*\*\s*as\s+\w+\s+from\s*|(?<!\}\s*=\s*await\s+)import\()[^;\n]*?(?<!\w)lib\/([A-Za-z0-9_-]+)\.mjs/g
-/** Adds to `imported` each name that `source`, the text of the file at `path`, imports from a module in `exported`. */
-const creditImports = (source, path, exported, imported) => {
-  for (const match of source.matchAll(NAMED_IMPORT)) {
-    const names = imported.get(match[3] ? resolve(dirname(path), match[3]) : join(LIB_DIR, `${match[4]}.mjs`))
-    for (const part of names ? (match[1] ?? match[2]).split(",") : []) names.add(part.trim().split(/\s+as\s+|\s*:\s*/)[0])
-  }
-  // A namespace reads its names as members, so each export name that the importing file holds counts.
-  for (const match of source.matchAll(WHOLE_IMPORT)) {
-    const module = join(LIB_DIR, `${match[1]}.mjs`)
-    for (const name of exported.get(module) ?? []) if (new RegExp(`\\b${name}\\b`).test(source)) imported.get(module).add(name)
+const selected = requested.length > 0 ? [...new Set(requested)] : available
+
+const queue = [...selected]
+const results = []
+const worker = async () => {
+  for (let name = queue.shift(); name !== undefined; name = queue.shift()) {
+    const result = await startModule(name)
+    results.push(result)
+    console.log(result.status === 0 ? `ok   ${name}` : `FAIL ${name} (exit ${result.status})\n${result.output.trimEnd()}`)
   }
 }
-/** The names that each tools/lib module exports, and the names that another source file imports from it. */
-const libraryImports = async () => {
-  const repositoryRoot = join(TOOLS_DIR, "..")
-  const modules = libraries.map((file) => join(LIB_DIR, file))
-  const exported = new Map(await Promise.all(modules.map(async (path) => [path, Object.keys(await import(pathToFileURL(path).href))])))
-  const imported = new Map(modules.map((path) => [path, new Set()]))
-  const naming = spawnSync("git", ["-C", repositoryRoot, "grep", "-l", "-E", "lib/[A-Za-z0-9_-]+\\.mjs", "--", "*.mjs", "*.js", "*.cjs", "*.ts", "*.tsx"], { encoding: "utf8" })
-  if (naming.status !== 0) throw new Error(`git grep for tools/lib importers failed: ${naming.stderr.trim()}`)
-  // A tools/lib module imports a sibling as `./<module>.mjs`, which the search does not name, so each module is read too.
-  for (const path of new Set([...naming.stdout.split("\n").filter(Boolean).map((file) => join(repositoryRoot, file)), ...modules])) {
-    creditImports(readFileSync(path, "utf8"), path, exported, imported)
-  }
-  return modules.flatMap((path) => exported.get(path).filter((name) => !imported.get(path).has(name)).map((name) => `${relative(TOOLS_DIR, path)} ${name}`))
-}
-// A destructured dynamic import credits only the names that it destructures, whether its path is literal, computed or a template.
-// The fixture module does not exist, so this text gives no credit to a real tools/lib module in the check above.
-const importFixtureModule = join(LIB_DIR, "import-fixture.mjs")
-const importFixtures = [
-  ["a computed path", 'const { fixtureAlpha, fixtureBeta } = await import(pathToFileURL(toolPath("lib/import-fixture.mjs")).href)'],
-  ["a literal path", 'const { fixtureAlpha, fixtureBeta } = await import("../lib/import-fixture.mjs")'],
-  ["a template path", "const { fixtureAlpha, fixtureBeta: beta } = await import(`${root}/tools/lib/import-fixture.mjs`)"],
-]
-for (const [shape, line] of importFixtures) {
-  const fixtureImported = new Map([[importFixtureModule, new Set()]])
-  const source = `${line}\n// fixtureGamma is named here, but not imported.\n`
-  creditImports(source, join(TOOLS_DIR, "__tests__", "importer.mjs"), new Map([[importFixtureModule, ["fixtureAlpha", "fixtureBeta", "fixtureGamma"]]]), fixtureImported)
-  const credited = [...fixtureImported.get(importFixtureModule)].sort()
-  T(
-    `a destructured dynamic import of ${shape} credits each name that it destructures, and no other name`,
-    credited.join(",") === "fixtureAlpha,fixtureBeta",
-    `credited ${JSON.stringify(credited)} to lib/import-fixture.mjs from: ${line}`,
-  )
-}
-const unimportedExports = await libraryImports()
-T(
-  `another file imports each export of a tools/lib/ module (${libraries.length} modules)`,
-  unimportedExports.length === 0,
-  `no importer for: ${unimportedExports.join(", ")}\n     Drop the export when the module uses the name itself, or delete the code that nothing uses.`,
-)
+await Promise.all(Array.from({ length: Math.min(availableParallelism(), selected.length) }, worker))
 
-console.log("\n# universal contract (tools/CONVENTIONS.md)")
-T("a real bash is resolvable", Boolean(BASH) || !contractScripts.some((file) => file.endsWith(".sh")), "no working bash found; set ORBIT_BASH to one (the PATH bash on Windows is the WSL stub)")
-for (const file of contractScripts) {
-  if (file.endsWith(".sh") && !BASH) continue
-  const contractStartedAt = performance.now()
-  check(file, "--help exits 0 with usage on stdout", ["--help"], { status: 0, stdout: /usage|Usage/ })
-  const invalid = INVALID_INPUT[file]
-  if (invalid) check(file, "invalid input is refused", invalid.argv, { status: invalid.status })
-  addSeconds(moduleOfFile[file], performance.now() - contractStartedAt)
-}
-
-console.log("\n# decision paths")
-T(
-  "a path resolved inside a case module equals the runner's",
-  toolPath(SELF) === join(TOOLS_DIR, SELF) && existsSync(toolPath(SELF)),
-  `the module resolved ${toolPath(SELF)}, the runner resolved ${join(TOOLS_DIR, SELF)}; TOOLS_DIR was not injected`,
-)
-const caseKeyProbe = dirname(stage("case-key-guard/present.mjs", "#!/usr/bin/env node\n"))
-T(
-  "a case key naming a real tools/ script is not an orphan",
-  orphanCaseKeys(["present.mjs"], caseKeyProbe).length === 0,
-  `orphanCaseKeys reported ${orphanCaseKeys(["present.mjs"], caseKeyProbe).join(", ")} for a staged, existing script`,
-)
-T(
-  "a case key naming no real tools/ script is reported by name",
-  orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(",") === "absent.mjs",
-  `orphanCaseKeys reported ${orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(", ")} instead of absent.mjs`,
-)
-const orphanedCaseKeys = orphanCaseKeys(CASE_MODULES.map(([file]) => file), TOOLS_DIR)
-T(
-  "every registered case key names a real tools/ file",
-  orphanedCaseKeys.length === 0,
-  `CASE_MODULES rows with no tools/ file: ${orphanedCaseKeys.join(", ")}\n     A skipped key exits 0 while its cases never run. Delete the row or restore the file.`,
-)
-
-/** Modules whose cases() ran no assertion: an assertion that stops running prints nothing at all. */
-const silentModules = []
-const runCases = async (file, module, cases) => {
-  beginToolScope(file)
-  const assertionsBefore = assertionTally()[file] ?? 0
-  const caseStartedAt = performance.now()
-  await cases()
-  addSeconds(module, performance.now() - caseStartedAt)
-  if ((assertionTally()[file] ?? 0) === assertionsBefore) silentModules.push(module)
-  endToolScope()
-}
-for (const [file, module, cases] of gateCases) {
-  if (!orphanedCaseKeys.includes(file)) await runCases(file, module, cases)
-}
-const missingRepositoryCaseFiles = Object.keys(repositoryCases).filter(
-  (file) => !existsSync(join(TOOLS_DIR, "..", file)),
-)
-T(
-  "every registered repository case key names a file that exists",
-  missingRepositoryCaseFiles.length === 0,
-  `repository case rows with no file: ${missingRepositoryCaseFiles.join(", ")}`,
-)
-const moduleOfRepositoryFile = Object.fromEntries(REPOSITORY_CASE_MODULES)
-for (const [file, cases] of Object.entries(repositoryCases)) await runCases(file, moduleOfRepositoryFile[file], cases)
-
-T(
-  "every registered case module ran at least one assertion",
-  silentModules.length === 0,
-  `case modules that asserted nothing: ${silentModules.join(", ")}\n     An assertion that stops running prints nothing at all. Restore the cases.`,
-)
-
-const printedTally = assertionTally()
-const failures = failureCount()
-console.log("\n# assertion coverage")
-for (const [tool, count] of Object.entries(printedTally).sort(([left], [right]) => left.localeCompare(right))) {
-  console.log(`${String(count).padStart(4)}  ${tool}`)
-}
-// One machine-readable line per run: tools/record-tool-timings.mjs merges these lines from every shard of a CI run into tools/test-tools-timings.json.
-const roundedSeconds = (value) => Math.round(value * 10) / 10
-const measuredModuleSeconds = Object.fromEntries(
-  Object.entries(moduleSeconds).sort(([left], [right]) => left.localeCompare(right)).map(([module, value]) => [module, roundedSeconds(value)]),
-)
-const fixedSeconds = (performance.now() - startedAt) / 1000 - Object.values(moduleSeconds).reduce((total, value) => total + value, 0)
-console.log(`${TIMINGS_MARKER}${JSON.stringify({ shard: shardText ?? "all", fixedSeconds: roundedSeconds(fixedSeconds), seconds: measuredModuleSeconds })}`)
-console.log(`\n${failures === 0 ? "ORBIT TOOLS GATE OK" : `ORBIT TOOLS GATE FAILED (${failures})`}`)
-process.exit(failures === 0 ? 0 : 1)
+const failed = results.filter((result) => result.status !== 0).map((result) => result.name).sort()
+const assertions = results.reduce((total, result) => total + Number(ASSERTIONS_LINE.exec(result.output)?.[1] ?? 0), 0)
+console.log(`\nAssertions: ${assertions} | Modules: ${results.length} | Elapsed: ${((Date.now() - startedAt) / 1000).toFixed(1)}s`)
+console.log(failed.length === 0 ? "ORBIT TOOLS GATE OK" : `ORBIT TOOLS GATE FAILED (${failed.join(", ")})`)
+process.exit(failed.length === 0 ? 0 : 1)

@@ -8,7 +8,6 @@ import { join, resolve } from "node:path"
 import { runBounded } from "./bounded-process.mjs"
 import { workerEnvironment } from "./config.mjs"
 import { escapeRegex } from "./escape-regex.mjs"
-import { processIsAlive, workerLaunchDirectory } from "./run-state.mjs"
 
 const MODEL = "claude-sonnet-5-5"
 const EFFORT = "high"
@@ -314,7 +313,7 @@ export const isWorkerProcess = (pid, { run = spawnSync } = {}) => {
   return listed.status === 0 && /\bclaude\b/.test(listed.stdout ?? "")
 }
 
-/** The process ids that hold a worktree: a live driver pid file, a live launcher reservation, or a process whose command line names the path. */
+/** The process ids that hold a worktree: a live driver pid file, or a process whose command line names the path. */
 export const worktreeOccupants = (worktree, { stateDirectory, run = spawnSync, alive = isWorkerProcess, ownPid = process.pid }) => {
   const path = resolve(worktree)
   const pids = new Set()
@@ -324,10 +323,6 @@ export const worktreeOccupants = (worktree, { stateDirectory, run = spawnSync, a
       if (resolve(file.worktree) === path && alive(file.pid)) pids.add(file.pid)
     } catch { /* a pid file that cannot be read names no worker */ }
   }
-  try {
-    const reservation = JSON.parse(readFileSync(join(workerLaunchDirectory(path), "occupied-worktree.json"), "utf8"))
-    for (const pid of [reservation.launcherPid, reservation.workerPid]) if (processIsAlive(pid)) pids.add(pid)
-  } catch { /* no reservation, or one that cannot be read, holds no launcher */ }
   const listed = run("ps", ["-axo", "pid,command"], { encoding: "utf8" })
   if (listed.status !== 0) throw new Error(`ps failed: ${(listed.stderr ?? "").trim()}`)
   const named = new RegExp(`${escapeRegex(path)}(?![\\w.-])`)

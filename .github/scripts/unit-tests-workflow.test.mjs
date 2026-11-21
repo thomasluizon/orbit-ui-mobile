@@ -260,7 +260,7 @@ test("a push or a dispatch on main saves the unit results of the merged pull req
 test("required checks report on every pull request through job conditions, never a workflow path filter", () => {
   assert.equal(workflow.on.pull_request.paths, undefined)
   assert.ok(Object.hasOwn(workflow.on, "push") && Object.hasOwn(workflow.on, "workflow_dispatch"))
-  const required = { build: "Build", "type-check": "Type Check", lint: "Lint", "unit-tests": "Unit Tests", "tool-hook-tests": "Tool and Hook Tests" }
+  const required = { build: "Build", "type-check": "Type Check", lint: "Lint", "unit-tests": "Unit Tests", "tool-tests": "Tool Tests" }
   for (const [id, name] of Object.entries(required)) {
     assert.equal(workflow.jobs[id].name, name)
     assert.equal(workflow.jobs[id].strategy, undefined, `${name} must keep its literal check name when its condition skips it`)
@@ -268,9 +268,7 @@ test("required checks report on every pull request through job conditions, never
   assert.equal(workflow.jobs.build.if, "needs.plan.outputs.web == 'true'")
   assert.equal(workflow.jobs["type-check"].if, "needs.plan.outputs.type-check == 'true'")
   assert.equal(workflow.jobs.lint.if, "github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true'")
-  assert.equal(workflow.jobs["tool-hook-tests"].if, "${{ !cancelled() }}")
-  assert.equal(workflow.jobs["tool-tests"].if, "needs.plan.outputs.tools == 'true'")
-  assert.equal(workflow.jobs["hook-tests"].if, undefined, "the hook tests scan every tracked doc, the relay record among them")
+  assert.equal(workflow.jobs["tool-tests"].if, "${{ !cancelled() }}", "Tool Tests reports a conclusion when the plan finds no tool input")
   for (const step of unitSteps) assert.doesNotMatch(String(step.if ?? ""), /outputs\.(web|type-check|lint)\b|base_ref/, `${step.name ?? step.uses}: Unit Tests and its scan never follow a path scope`)
   // Each limit above 15 minutes is 1.5 times the measured worst run that its workflow comment names.
   const measuredAboveFifteen = {
@@ -629,7 +627,7 @@ test("the web test timings upload only after the web report selection ran", () =
   assert.equal(stepNamed(unitSteps, "Upload web test timings").if, "${{ !cancelled() && steps.select-web-reports.outcome == 'success' }}")
 })
 
-// The review rule "a file over 1000 lines" in .claude/playbooks/review-and-audit.md: the merged result steps live in a local action.
+// A file over 1000 lines is too long to review: the merged result steps live in a local action.
 test("test.yml stays within 1000 lines, so the merged unit result steps stay in their local action", () => {
   const lines = readFileSync(resolve(root, ".github/workflows/test.yml"), "utf8").trimEnd().split("\n").length
   assert.ok(lines <= 1000, `test.yml has ${lines} lines`)

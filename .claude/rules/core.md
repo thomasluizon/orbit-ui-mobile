@@ -1,8 +1,8 @@
 # Standing rules: the always-loaded core
 
 Tracked rules, prompts, specs and comments state current requirements without dated incidents,
-attributed quotes, session IDs or personal machine paths. Post timed run evidence to its ticket or
-the run record issue (`node tools/post-run-note.mjs`), never to a file on one computer.
+attributed quotes, session IDs or personal machine paths. Post timed run evidence to its ticket,
+never to a file on one computer.
 
 **At a glance:** the judgement that loads on EVERY turn. Everything else lives in
 `.claude/playbooks/`: **read the playbook yourself** when you start that activity, because no file
@@ -10,11 +10,6 @@ path predicts it.
 
 | playbook | read it when |
 |---|---|
-| `debugging.md` | a bug, a triage, `/investigate`, a merge conflict |
-| `review-and-audit.md` | `/audit-*`, a Pullfrog review to act on, before every push of a pull request head, any fan-out assessment |
-| `planning-and-artifacts.md` | `/ticket`, `/orchestrate`, ticket writing, ADRs |
-| `redesign-screen.md` | any of the thirteen redesign screens: the D76 loop and its ui-skills sweep |
-| `context-engineering.md` | authoring anything the agent reads: a rule, playbook, skill, agent, tool, ticket |
 | `operations.md` | launching a worker, waiting on CI, merging, releasing, infrastructure, a browser, console or device |
 
 ### 1. No red-capable command, no hypothesising
@@ -32,7 +27,6 @@ Every GitHub or ticket-tracker identifier you pass to a tool (node id, PR number
 issue key) is COPIED from output produced in the same run. Never from memory, never reconstructed.
 **A `||` fallback that retries a failed write is forbidden**: it makes the write the probe. Node ids
 are globally unique, so a wrong one can hit a stranger's repository.
-Gates: `.claude/hooks/forbid-invented-identifier.mjs`, `tools/lib/github-target.mjs`.
 
 ### 4. Never re-flag what a gate already enforces
 
@@ -66,12 +60,10 @@ This never crosses an identity, authorization, manual-step or redaction limit a 
 
 ### 9. Carry the standing operating contract (D89, D90)
 
-Enter through `/orchestrate`: a headless Claude worker writes every code change, on the worker account when one
-is configured and on the main account when none is (`orchestrate/SKILL.md` §5.4.1);
-the orchestrating session never edits code itself, except a review fix (`orchestrate/SKILL.md` step 8).
+The delivery driver (`tools/drive.mjs`) starts a headless Claude worker for each ticket, and that worker writes every code change.
+The owner session writes no code for a ticket (`/orchestrate` controls the driver).
 A bare ticket stays local.
 Redesign queues run as parallel local worktrees: Cloud stays disabled (D96) and nothing uses Codex (D149).
-D76 covers the thirteen redesign screens; groundwork runs autonomously. See `.claude/playbooks/redesign-screen.md`.
 Until shipping, D90 suspends D76 steps 1/3/7/8 and D88's hold; steps 2/4/5/6 stand. No human wait; screens merge like groundwork. D76/D88 then return.
 `design/canvas/`, authoritative `DESIGN.md` under D42, step 6 ui-skills sweep, Pullfrog and gates still apply.
-`hot.md` and brain ADRs are the decision record. Every `/handoff` carries this contract before its task, pointing here and to the playbook.
+`hot.md` and brain ADRs are the decision record.

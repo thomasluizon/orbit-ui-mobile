@@ -231,50 +231,21 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
-  # Each shard runs a deterministic share of the tools harness case modules.
-  # tools/test-tools-timings.json holds the median CI seconds per module over the runs in its sourceRuns field, and the
-  # tools harness fails when that snapshot projects the slowest shard past its budget. timeout-minutes is the live guard.
-  # Regenerate the snapshot with node tools/record-tool-timings.mjs <run-id>.... Tool and Hook Tests below keeps the required check name.
-  # Run 42961275542 (four shards) took 4:31 to 5:25 end to end per shard, and the harness step took 215 to 260 s.
-  # The 8 minute limit is about 1.5 times the slowest end to end time of 325 s.
-  # npm ci with --prefer-offline --no-audit took 27 to 48 s in the layout shards of runs 44216168902 and 44221130214;
-  # plain npm ci took 90 to 168 s in these shards, and pushed shard 2 of runs 44217309946 and 44149853753 past the limit.
-  # A pull request whose whole diff is the relay record skips the shards; no commit message carries a skip marker,
-  # because a squash merge copies every message to main and the marker would stop the main push workflows.
+  # The required check Tool Tests runs on every pull request and push. It reports a conclusion even when the plan finds
+  # no change under tools/, .claude/, .github/, eslint-rules/, lefthook.yml, package.json or an eslint.config file: the tools harness and the
+  # workflow behavior tests are skipped and the job succeeds. The full-tree graphic floor scan runs on every pull request.
   tool-tests:
-    name: Tool tests (${{ matrix.shard }}/${{ matrix.total }})
+    name: Tool Tests
+    if: ${{ !cancelled() }}
     needs: plan
-    if: needs.plan.outputs.tools == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
-        total: [4]
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - name: Require the plan
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+        run: test "$PLAN_RESULT" = success
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          package-manager-cache: false
-
-      - uses: ./.github/actions/restore-npm-cache
-
-      - name: Use the repository npm version
-        run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
-
-      - run: npm ci --prefer-offline --no-audit --fund=false
-
-      - name: Run tools harness shard
-        run: node tools/test-tools.mjs --shard ${{ matrix.shard }}/${{ matrix.total }}
-
-  hook-tests:
-    name: Hook and workflow tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 6
-    steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 2
@@ -301,7 +272,12 @@ jobs:
             echo "Dependency tree check skipped: no package manifest changed."
           fi
 
+      - name: Run the tools harness
+        if: needs.plan.outputs.tools == 'true'
+        run: node tools/test-tools.mjs
+
       - name: Test CI workflow behavior
+        if: ${{ !cancelled() && needs.plan.outputs.tools == 'true' }}
         run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/check-critical-production-cves.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs .github/scripts/write-locked-package.test.mjs .github/scripts/plan-layout-shards.test.mjs .github/scripts/merged-unit-results.test.mjs
 
       # This step owns the full-tree graphic floor assertion outside cached unit shards.
@@ -309,31 +285,6 @@ jobs:
       - name: Check graphic contrast across the full tree
         if: ${{ !cancelled() }}
         run: node tools/check-surface-scope.mjs --graphic-floor-only
-
-      - name: Run hooks harness
-        if: ${{ !cancelled() }}
-        run: node .claude/hooks/test-hooks.mjs
-
-  tool-hook-tests:
-    name: Tool and Hook Tests
-    if: ${{ !cancelled() }}
-    needs: [plan, tool-tests, hook-tests]
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Require every tool shard and the hook tests
-        env:
-          PLAN_RESULT: ${{ needs.plan.result }}
-          TOOLS_PLANNED: ${{ needs.plan.outputs.tools }}
-          TOOL_RESULT: ${{ needs.tool-tests.result }}
-          HOOK_RESULT: ${{ needs.hook-tests.result }}
-        run: |
-          test "$PLAN_RESULT" = success
-          if [ "$TOOL_RESULT" != success ] && { [ "$TOOL_RESULT" != skipped ] || [ "$TOOLS_PLANNED" != false ]; }; then
-            echo "::error::The tool test shards ended $TOOL_RESULT and the plan did not skip them."
-            exit 1
-          fi
-          test "$HOOK_RESULT" = success
 
   # The required check: every test group passed here or has a cached result at the same inputs.
   # The SonarCloud scan runs last, so the SonarCloud Code Analysis context arrives whenever this job passes.

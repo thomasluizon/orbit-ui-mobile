@@ -4,8 +4,8 @@ export const parityPlatform = (path) =>
   /^apps\/(web|mobile)\/(app|components|hooks|stores|lib)\/.+\.(?:ts|tsx|js|jsx|mjs|cjs|css)$/.exec(path)?.[1]
 
 // The platform adapters and layout-shell divergences that justify `parity:exempt`.
-// The PR Metadata gate and tools/verify-delivery.mjs test the `## Parity` section against these,
-// the gate error and the local worker order list them, and the orchestrate skill points here.
+// The PR Metadata gate tests the `## Parity` section against these,
+// the gate error and the local worker order list them.
 export const parityExemptTerms = [
   "BFF",
   "direct API",

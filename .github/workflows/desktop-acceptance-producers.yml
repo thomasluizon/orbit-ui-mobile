@@ -1,7 +1,7 @@
 name: Desktop Acceptance Producers
 
 # The producer test files that gate cases on process.platform run here on the platforms they name.
-# Tool and Hook Tests runs every producer test file on ubuntu-latest, where those cases skip.
+# Tool Tests runs every producer test file on ubuntu-latest, where those cases skip.
 # This job runs beside the installed acceptance VMs, so it adds no time to them.
 on:
   workflow_dispatch:

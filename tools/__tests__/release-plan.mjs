@@ -7,8 +7,7 @@ import { BASH, T, check, configure, failureCount, stage, toolPath } from "./_har
 import { planRelease, stagingServiceIds, productionServiceIds } from "../release-plan.mjs"
 
 const isDirect = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href
-if (isDirect) configure({ toolsDir: resolve(dirname(fileURLToPath(import.meta.url)), ".."),
-  self: resolve(dirname(fileURLToPath(import.meta.url)), "../test-tools.mjs") })
+if (isDirect) configure({ toolsDir: resolve(dirname(fileURLToPath(import.meta.url)), "..") })
 const { cases: workflowCases } = await import("./check-release-workflow.mjs")
 
 const fixture = JSON.parse(readFileSync(toolPath("__tests__/release-fixture.json"), "utf8"))

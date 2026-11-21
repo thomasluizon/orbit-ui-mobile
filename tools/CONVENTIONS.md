@@ -1,62 +1,19 @@
-# tools/ conventions
-
-> **At a glance** - the contract every script in `tools/` follows so an agent can call it blind.
-> - One clear purpose per script; if it grows a second job, split it.
-> - Always: `--help`/`-h`, meaningful exit codes, non-interactive, cwd-safe.
-> - POSIX `.sh` is the baseline; add a `.ps1` twin only when it must run in the user's PowerShell shell.
-> - Large payloads come in on stdin, never argv; secrets never appear in argv.
-> - A tool that GATES on work being done derives its verdict from artifacts on disk, never from a status field (see "Gate tools" below).
-> - This contract is EXECUTED, not trusted: `test-tools.mjs` runs every script here and fails on a missing `--help`, a swallowed bad argument, or an uncovered new tool.
-
-A tool here is something an agent invokes without reading its source. That only works if every tool obeys the same contract.
+# Tool conventions
 
 ## The contract
 
-- **Single purpose.** One script does one thing. A second responsibility means a second script (or a shared step), not a flag matrix.
-- **`--help` / `-h`.** Print usage and exit `0`. Cover every flag, the stdin shape, and the exit codes. This is the tool's spec.
-- **Meaningful exit codes.** `0` on success; non-zero on failure, with distinct codes for distinct failure classes when a caller would branch on them. Write errors to stderr, results to stdout, so output can be piped.
-- **Non-interactive.** Never prompt. No `read`, no `Read-Host`, no confirmation gates. Every input arrives as a flag, an argument, or stdin. A destructive action takes an explicit `--yes`-style flag rather than asking.
-- **Cwd-safe.** Resolve paths from the script's own location (`dirname "$0"` in bash, `$PSScriptRoot` in PowerShell), not the caller's working directory, so the tool runs from anywhere.
-- **stdin for big payloads.** A claim, a diff, a dossier, a file list goes in on stdin, not as a giant argv string. Small scalars (a repo slug, a PR number, `--model`) are fine as arguments.
-- **No secrets in argv.** Tokens and keys are visible in the process table and shell history. Read them from the environment or a file, never a positional argument or flag value.
+Each tool in `tools/`:
 
-## Gate tools
+- Has one purpose.
+- Prints usage and exits 0 on `--help`.
+- Exits 0 on success, 1 on a failed check and 2 on invalid input.
+- Is non-interactive and never waits for input.
+- Gives the same result from any working directory.
+- Reads a large payload from stdin.
+- Takes no secret in argv.
 
-A tool whose job is to answer "is this work done?" obeys one extra rule: **the verdict is computed from artifacts on disk, never read from a status field.** An editable checklist cannot prove completion.
+## Tests
 
-Every gate is registered in `gate-charter.json`. A pull request gate normally fails only for changed files.
-The dash and Sonar path inventories block across the whole tree so a deleted file cannot retain an exemption.
-The contract snapshot, architecture inventory, graphic contrast floor and critical dependency audit retain their blocking
-whole-tree checks. Other whole-tree findings remain advisory. A committed inventory
-declares its regeneration command, and every numeric threshold names the source that owns it. `check-gate-charter.mjs` enforces
-the closed registry across check tools, local ESLint rules, session hooks and the registered guard step groups in `guards.yml` and the separate `pr-metadata.yml` job.
+A tool with decision paths has `tools/__tests__/<tool>.mjs`. The file exports `cases`. The test is hermetic: it uses no network, no worktree of the repository and no write outside a temporary root. It takes its helpers from `tools/__tests__/_harness.mjs`.
 
-The pattern, as implemented by `surface-manifest.mjs` + `redesign-coverage.mjs`:
-
-- **Derive the expected inventory from the codebase**, not from a hand-written list. A hand-written list omits what the author forgot; a glob does not.
-- **Store the expectation, compute the completion.** The manifest is the denominator. The numerator is computed from committed artifacts, never read from a status field a run can set.
-- **Make the evidence hard to fake by accident.** Presence alone is weak: assert the relationship both ways, so an inventory entry with no assignment AND an assignment naming nothing in the inventory each fail. A one-sided check passes a manifest that has silently drifted.
-- **Report the shortfall precisely** — every unverified item with its reason — so the ratio is the output, not a boolean an agent can round up.
-
-## POSIX vs PowerShell
-
-- **`.sh` is the baseline.** It runs in CI and in Git Bash on Windows. Keep it POSIX-ish and give it LF line endings.
-- **Add a `.ps1` twin only when the tool must run in the user's primary PowerShell shell** (the interactive path). The twin mirrors the `.sh` interface exactly: same flags, same stdin shape, same exit codes. Do not maintain a `.ps1` for a script that only ever runs in the bash loop.
-- Prefer delegating to an existing vetted helper (a `.mjs`, a `gh` call) over reimplementing its logic in shell. The wrappers stay thin.
-
-## The gate
-
-`test-tools.mjs` is the executable half of this document and keeps a broken tool from merging on prose alone: a reviewer reads, this runs the code. It is a thin runner: it resolves `TOOLS_DIR` once from its own location, injects it into the shared prelude at `__tests__/_harness.mjs`, and loads one case module per tool from `__tests__/<tool>.mjs`, so a case body never re-derives its own directory. It proves, per script, that `--help` exits `0` with usage on stdout and that invalid input is refused before the tool does any work, then exercises each tool's real decision paths with orca stubbed and every side effect staged in a temp dir. It also enumerates `tools/*.{mjs,sh,ps1}` and fails on any script with no coverage entry, so tool N+1 cannot land uncovered, and fails naming any registered case key that matches no real script, so a renamed or deleted tool cannot silently drop its cases.
-
-A new tool therefore lands with its coverage in the same PR: an `INVALID_INPUT` row in the runner (the argv that must be refused, and the exit code), plus, when the tool has decision paths worth driving, a `__tests__/<tool>.mjs` module exporting its cases and a `CASE_MODULES` row registering it. Import every helper from `__tests__/_harness.mjs` rather than copying one into a second module, and keep the cases hermetic: no network, no worktree, no Linear, no writes outside the suite's temp root.
-
-## Adding one
-
-The desktop measurement tool lives under `desktop-bench/` with one CLI, `run.mjs`.
-Its parsing, aggregation, origin isolation and fixture cases are registered under the tools harness.
-Benchmark workloads run only in native shells against loopback hermetic services, never a deployed
-environment. Keep Electron dependencies and generated shell source in the temporary output workspace.
-Every successful summary requires five or more cold and warm observations per shell. Missing
-measurements fail the run. Stop owned processes in `finally` and remove the hermetic web build.
-
-Scaffold the script to this contract by hand and add its catalog row to `README.md` in the same change. Do not abstract across tools on the first shared line (rule 6, extract on the third real use); two twenty-line wrappers do not need a shared library.
+`node tools/test-tools.mjs` finds each test by its file name. A file whose name starts with `_` or ends with `.test.mjs` is not a case module.

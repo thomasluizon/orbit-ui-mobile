@@ -1,6 +1,6 @@
 # Orbit prod release
 
-History: `## Batch history`, every earlier `## Current state` paragraph, the redesign gate runbook, the answered open questions and the retired rules are in git at the tag `archive/prod-release-spec-full` (`git show archive/prod-release-spec-full:.claude/specs/orbit-prod-release.md`), which keeps the relay branch history reachable after its pull request closes. This spec holds only what is in force. `node tools/check-handoff-size.mjs` keeps it at 40,960 B or less.
+History: `## Batch history`, every earlier `## Current state` paragraph, the gate runbook, the answered open questions and the retired rules are in git at the tag `archive/prod-release-spec-full` (`git show archive/prod-release-spec-full:.claude/specs/orbit-prod-release.md`), which keeps the relay branch history reachable after its pull request closes. This spec holds only what is in force.
 
 ## What this is
 
@@ -8,7 +8,7 @@ The goal is a production release with an empty ticket board, except `#33`. The m
 
 ## Standing rules
 
-Operating facts for workers, CI, merges, releases, consoles and devices are in `.claude/playbooks/operations.md`; hermetic layout facts are in `TESTING.md`. The skills own their procedures (`/orchestrate`, `/sleep`, `/handoff`, `/progress`, `/questions`, `/release`, `/android-release`, `/flag`, `/merge-prs`); this list never restates them.
+Operating facts for workers, CI, merges, releases, consoles and devices are in `.claude/playbooks/operations.md`; hermetic layout facts are in `TESTING.md`. The skills own their procedures (`/orchestrate`, `/handoff`, `/progress`, `/release`, `/android-release`, `/flag`); this list never restates them.
 
 ### The run
 
@@ -24,7 +24,6 @@ Operating facts for workers, CI, merges, releases, consoles and devices are in `
 - The owner is the only active Orbit user before launch: read every fleet signal (PostHog versions, Sentry release counts) as the owner's usage, and a build missing from devices as the owner's phone not updated yet.
 - Never create another Claude account and never buy access. When the worker account and the main account both reach their limits, stop new launches until a reset and tell the owner (`orchestrate/SKILL.md` §5.4.1; Batch T changes the account setup).
 - Read every worker diff before it counts, for `DESIGN.md` values and gate edits (D95).
-- Run every pre-push review, fix-round review and device proof on a read-only worker (`launch-worker.mjs --review` or `--proof`, `.claude/playbooks/review-and-audit.md` rule 14), never on an in-session subagent or review agent: the main account stays free for the coordinator. This rule replaces the `#2074` rule of one read-only review agent per push, and no ordinary worker runs a review in its branch worktree.
 
 ### The owner
 
@@ -63,7 +62,6 @@ Reconcile the open board with these batches before each handoff. Place each new 
 
 In-flight work finishes as normal. Then no new board ticket is admitted until every diet ticket below is merged. Brain ADR D149 holds the measurements and the account plan.
 
-- `#2064` Cut the production release spec to 40 KB and `NEXT.md` to 8 KB, with a size guard. Next: CI, review and merge of `ui#2386`; then close the relay docs pull request `ui#1989` and start the next relay branch from `main`.
 - `#2065` Lower the coordinator relay threshold to 200k tokens. Next: after `#2064` merges, `/orchestrate`.
 - `#2066` Cut fixed context per call: unused connectors off, `CLAUDE.md` to 6 KB, `MEMORY.md` trimmed. Next: CI, review, merge of `ui#2378`; then the orchestrator sets `disabledMcpServers` for this project in the user Claude config `.claude.json` and trims `MEMORY.md` to 6 KB.
 - `#2067` Run the default and mechanical worker tiers on Sonnet 5.5. Next: CI, review, merge of `ui#2379` (base-merged after `ui#2380`, calibration reseeded); the first default-tier launch after the merge proves Sonnet with `--effort high`.
@@ -124,7 +122,7 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 
 ## How the work runs
 
-The delivery driver runs the board and `/sleep` steers it. Use `/orchestrate` for one ticket at a time. Pullfrog reviews each pull request. `/handoff` replaces the one `## Current state` paragraph in this spec and overwrites `.claude/handoffs/NEXT.md`; it never appends.
+The delivery driver runs the board. Use `/orchestrate` for one ticket at a time. Pullfrog reviews each pull request. `/handoff` prints one prompt and writes nothing in the repository.
 
 ## Decision pointers
 

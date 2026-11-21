@@ -1,130 +1,48 @@
 import { existsSync, readFileSync } from "node:fs"
 
-import { T, check, githubIssueReadPlan, orcaEnv, stage } from "./_harness.mjs"
+import { T, REPO_ROOT, check, orcaEnv, stage } from "./_harness.mjs"
 
 const TOOL = "create-ticket.mjs"
-const LABELS = JSON.stringify([{ name: "repo:ui" }, { name: "Improvement" }])
-const BLOCKER = JSON.stringify({
-  blockedBy: { nodes: [], totalCount: 0 },
-  blocking: { nodes: [], totalCount: 0 },
-  body: "Blocker body",
-  labels: [{ name: "repo:ui" }],
-  number: 221,
-  state: "OPEN",
-  stateReason: null,
-  title: "Existing blocker",
-  url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
-})
-const EMPTY_PROJECT = JSON.stringify({ items: [], totalCount: 0 })
-/** Blocker validation only proves the issue exists and discards the ticket, so it must not hydrate
- * board items. The marker survives exactly while no board read happens. */
-const boardReadMarker = stage("create-ticket/board-read", "must remain")
+const RECORDED = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
+const ISSUE_URL = "https://github.com/thomasluizon/orbit-tickets/issues/900\n"
 
-const readPlan = ({ labels = LABELS, milestones = "Harness Context and Calibration\n", blocker = BLOCKER } = {}) => [
-  { match: "label list --repo thomasluizon/orbit-tickets --limit 1000 --json name", stdout: labels },
-  { match: "api repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100", stdout: milestones },
-  ...githubIssueReadPlan(blocker),
-  { match: "project item-list 2 --owner thomasluizon", stdout: EMPTY_PROJECT, removePath: boardReadMarker },
-]
-
-const createPlan = (label, overrides = {}) => {
-  const createdMarker = stage(`create-ticket/${label}-created`, "pending")
-  const boardMarker = stage(`create-ticket/${label}-board`, "pending")
-  const statusMarker = stage(`create-ticket/${label}-status`, "pending")
-  const relationMarker = stage(`create-ticket/${label}-relation`, "pending")
+/** The gh calls of one creation, in order. A call that ran removes its marker file, so a marker that remains names a call that never ran. */
+const createPlan = (label, { labels = RECORDED.ticketOperations.labels, boardExit = 0 } = {}) => {
+  const markers = Object.fromEntries(["created", "board", "status"].map((step) => [step, stage(`create-ticket/${label}-${step}`, "pending")]))
   const bodyCapture = stage(`create-ticket/${label}-body`, "")
   return {
-    markers: { createdMarker, boardMarker, statusMarker, relationMarker, bodyCapture },
+    markers,
+    bodyCapture,
     plan: [
-      ...readPlan(overrides),
-      {
-        match: "issue create --repo thomasluizon/orbit-tickets",
-        stdout: overrides.createdOutput ?? "https://github.com/thomasluizon/orbit-tickets/issues/900\n",
-        verifiedTicketOutput: "issueCreateUrl",
-        removePath: createdMarker,
-        stdinFile: bodyCapture,
-      },
-      {
-        match: "project item-add 2 --owner thomasluizon --url https://github.com/thomasluizon/orbit-tickets/issues/900",
-        stdout: "",
-        exit: overrides.boardExit ?? 0,
-        ignoreTicketShape: true,
-        removePath: boardMarker,
-      },
-      {
-        match: "project item-edit 2 --owner thomasluizon --url https://github.com/thomasluizon/orbit-tickets/issues/900 --field Status --value Todo",
-        stdout: "",
-        exit: overrides.statusExit ?? 0,
-        ignoreTicketShape: true,
-        removePath: statusMarker,
-      },
-      {
-        match: "issue edit 900 --repo thomasluizon/orbit-tickets --add-blocked-by 221",
-        stdout: "",
-        exit: overrides.relationExit ?? 0,
-        ignoreTicketShape: true,
-        removePath: relationMarker,
-      },
+      { match: "label list --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(labels) },
+      { match: "issue create --repo thomasluizon/orbit-tickets", stdout: ISSUE_URL, removePath: markers.created, stdinFile: bodyCapture },
+      { match: "DriveProjectItems", stdout: JSON.stringify(RECORDED.ticketStatus.projectItems) },
+      { match: "DriveAddItem", stdout: JSON.stringify({ data: RECORDED.ticketOperations.addItem.data }), exit: boardExit, removePath: markers.board },
+      { match: "DriveStatus", stdout: JSON.stringify(RECORDED.ticketStatus.update), removePath: markers.status },
     ],
   }
 }
 
-const argv = (bodyFile) => [
-  "--title", "Repair the harness",
-  "--body-file", bodyFile,
-  "--label", "repo:ui",
-  "--label", "Improvement",
-  "--milestone", "Harness Context and Calibration",
-  "--blocked-by", "ORB-215",
-]
+const argv = (bodyFile) => ["--title", "Repair the harness", "--body-file", bodyFile, "--label", "repo:ui", "--label", "Improvement"]
 
-export const cases = async () => {
+export const cases = () => {
   check(TOOL, "refuses a missing label argument", ["--title", "x", "--body-file", "-"], { status: 2, stderr: /usage: create-ticket\.mjs/ })
   check(TOOL, "refuses a missing body file", ["--title", "x", "--body-file", "missing.md", "--label", "repo:ui"], { status: 2, stderr: /body could not be read/ })
 
   const bodyFile = stage("create-ticket/ticket.md", "Full ticket body\n")
   const success = createPlan("success")
-  const result = check(
-    TOOL,
-    "creates one issue, configures its board state, and writes its resolved blockers",
-    argv(bodyFile),
-    { status: 0, stdout: /"number": 900[\s\S]*"milestone": "Harness Context and Calibration"[\s\S]*"status": "Todo"/ },
-    { env: orcaEnv(success.plan) },
-  )
+  const result = check(TOOL, "creates one issue and sets its board state", argv(bodyFile), { status: 0, stdout: /"number": 900[\s\S]*"status": "Todo"/ }, { env: orcaEnv(success.plan), cwd: REPO_ROOT })
   T(
-    `${TOOL}: every successful creation write ran and the body travelled through stdin`,
-    !existsSync(success.markers.createdMarker) &&
-      !existsSync(success.markers.boardMarker) &&
-      !existsSync(success.markers.statusMarker) &&
-      !existsSync(success.markers.relationMarker) &&
-      readFileSync(success.markers.bodyCapture, "utf8") === "Full ticket body\n",
+    `${TOOL}: every creation write ran and the body travelled through stdin`,
+    Object.values(success.markers).every((marker) => !existsSync(marker)) && readFileSync(success.bodyCapture, "utf8") === "Full ticket body\n",
     result.stderr,
   )
 
-  const missingLabel = createPlan("missing-label", { labels: JSON.stringify([{ name: "repo:ui" }]) })
-  check(TOOL, "an unknown label refuses before issue creation", argv(bodyFile), { status: 1, stderr: /Unknown ticket label\(s\): Improvement/ }, { env: orcaEnv(missingLabel.plan) })
-  T(`${TOOL}: the missing-label refusal wrote nothing`, existsSync(missingLabel.markers.createdMarker))
-
-  const missingMilestone = createPlan("missing-milestone", { milestones: "Launch\n" })
-  check(TOOL, "an unknown milestone refuses before issue creation", argv(bodyFile), { status: 1, stderr: /create it as a separate explicit action first/ }, { env: orcaEnv(missingMilestone.plan) })
-  T(`${TOOL}: the missing-milestone refusal wrote nothing`, existsSync(missingMilestone.markers.createdMarker))
-
-  const unknownBlocker = createPlan("unknown-blocker")
-  const unknownBlockerArgv = argv(bodyFile)
-  unknownBlockerArgv[unknownBlockerArgv.length - 1] = "ORB-999999"
-  check(TOOL, "an unmapped blocker refuses before issue creation", unknownBlockerArgv, { status: 1, stderr: /Unknown migrated ticket ORB-999999/ }, { env: orcaEnv(unknownBlocker.plan) })
-  T(`${TOOL}: the unknown-blocker refusal wrote nothing`, existsSync(unknownBlocker.markers.createdMarker))
+  const unknownLabel = createPlan("unknown-label", { labels: [{ name: "repo:ui" }] })
+  check(TOOL, "an unknown label refuses before issue creation", argv(bodyFile), { status: 1, stderr: /Unknown ticket label\(s\): Improvement/ }, { env: orcaEnv(unknownLabel.plan) })
+  T(`${TOOL}: the unknown-label refusal wrote nothing`, existsSync(unknownLabel.markers.created))
 
   const boardFailure = createPlan("board-failure", { boardExit: 1 })
-  check(TOOL, "a failed board add stops the creation sequence", argv(bodyFile), { status: 1, stderr: /project item-add .* failed/ }, { env: orcaEnv(boardFailure.plan) })
-  T(
-    `${TOOL}: a failed board add writes no status or relation afterward`,
-    existsSync(boardFailure.markers.statusMarker) && existsSync(boardFailure.markers.relationMarker),
-  )
-
-  const statusFailure = createPlan("status-failure", { statusExit: 1 })
-  check(TOOL, "a failed Status write stops before relations", argv(bodyFile), { status: 1, stderr: /project item-edit .* failed/ }, { env: orcaEnv(statusFailure.plan) })
-  T(`${TOOL}: a failed Status write leaves the relation untouched`, existsSync(statusFailure.markers.relationMarker))
-
-  T(`${TOOL}: blocker validation reads no Projects board item`, existsSync(boardReadMarker))
+  check(TOOL, "a failed board add stops the creation sequence", argv(bodyFile), { status: 1, stderr: /DriveAddItem[\s\S]* failed/ }, { env: orcaEnv(boardFailure.plan) })
+  T(`${TOOL}: a failed board add writes no Status afterward`, existsSync(boardFailure.markers.status))
 }

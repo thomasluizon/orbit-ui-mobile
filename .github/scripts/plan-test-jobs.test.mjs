@@ -63,31 +63,31 @@ test("a push or a dispatch runs every scope without a changed path list", () => 
   }
 })
 
-test("a pull request whose whole diff is the relay record skips the tool test shards and nothing else runs", () => {
-  for (const changed of [[".claude/handoffs/NEXT.md"], [".claude/handoffs/NEXT.md", ".claude/specs/orbit-prod-release.md"], [".claude/specs/relay.md"]]) {
+test("a pull request that changes no tool input skips the tool tests", () => {
+  for (const changed of [["apps/web/app/page.tsx"], ["TESTING.md", "DESIGN.md"], ["packages/shared/src/i18n/en.json", "README.md"]]) {
     const { status, outputs } = plan({ changed })
     assert.equal(status, 0, changed.join())
-    assert.deepEqual([outputs.web, outputs["type-check"], outputs.lint, outputs.tools], ["false", "false", "false", "false"], changed.join())
+    assert.equal(outputs.tools, "false", changed.join())
   }
 })
 
-test("a relay record beside any other path runs the tool test shards", () => {
-  for (const other of ["tools/example.mjs", ".claude/specs/old/plan.md", ".claude/handoffs/OTHER.md", "TESTING.md", ".github/workflows/test.yml", "apps/web/app/page.tsx"]) {
-    const { status, outputs } = plan({ changed: [".claude/handoffs/NEXT.md", ".claude/specs/relay.md", other] })
-    assert.equal(status, 0, other)
-    assert.equal(outputs.tools, "true", other)
+test("each tool input starts the tool tests", () => {
+  for (const path of ["tools/example.mjs", ".claude/skills/example/SKILL.md", ".github/workflows/guards.yml", "eslint-rules/no-comments.cjs", "lefthook.yml", "package.json", "apps/web/eslint.config.mjs"]) {
+    const { status, outputs } = plan({ changed: ["TESTING.md", path] })
+    assert.equal(status, 0, path)
+    assert.equal(outputs.tools, "true", path)
   }
 })
 
 // GitHub reads these in the message of a push or of the head commit of a pull request (docs.github.com, "Skipping
 // workflow runs"). A squash merge copies every commit message of the pull request to main, so a marker that a hook
 // wrote on one relay commit would stop the main push runs of PR Tests, Guards and CodeQL that a release requires.
-test("no tool, hook or CI script writes a GitHub skip instruction into a commit message", () => {
+test("no tool or CI script writes a GitHub skip instruction into a commit message", () => {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
-  const listed = spawnSync("git", ["-C", root, "ls-files", "--", "lefthook.yml", "tools", ".claude/hooks", ".github/scripts"], { encoding: "utf8" })
+  const listed = spawnSync("git", ["-C", root, "ls-files", "--", "lefthook.yml", "tools", ".github/scripts"], { encoding: "utf8" })
   assert.equal(listed.status, 0, listed.stderr)
   const sources = listed.stdout.split("\n").filter((path) => path === "lefthook.yml" ||
-    (/\.[cm]?js$/.test(path) && !/(^|\/)(__tests__|__fixtures__)\/|\.test\.mjs$|^\.claude\/hooks\/test-hooks\.mjs$/.test(path)))
+    (/\.[cm]?js$/.test(path) && !/(^|\/)(__tests__|__fixtures__)\/|\.test\.mjs$/.test(path)))
   assert.ok(sources.includes("lefthook.yml") && sources.includes("tools/test-tools.mjs"), "the scan reads the hook configuration and the tools")
   const instruction = /\[(skip ci|ci skip|no ci|skip actions|actions skip)\]|skip-checks: ?true/i
   const marked = sources.filter((path) => instruction.test(readFileSync(join(root, path), "utf8")))

@@ -100,7 +100,7 @@ const statusOf = (sdk) => {
 }
 
 export const cases = () => {
-  // A device proof pins its throwaway emulator to the console port the launcher chose (launch-worker.mjs --proof).
+  // A device proof pins its throwaway emulator to the console port the caller chose.
   for (const [label, value] of [["an odd port", "5595"], ["a port below the emulator range", "5552"], ["a port above it", "5684"], ["a word", "next"]]) {
     check("android-emulator.mjs", `rejects ${label} for --port`, ["--port", value], { status: 2, stderr: /--port needs an even console port from 5554 to 5682/ })
   }

@@ -506,7 +506,7 @@ export const cases = async () => {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  configure({ toolsDir: resolve(dirname(fileURLToPath(import.meta.url)), '..'), self: 'desktop-bench' })
+  configure({ toolsDir: resolve(dirname(fileURLToPath(import.meta.url)), '..') })
   await cases()
   process.exitCode = failureCount() === 0 ? 0 : 1
 }
