@@ -58,20 +58,16 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Two surfaces for finding something, in one document because they are the same surface at two entry points: search, which had a control in the sidebar and no result anywhere, and the command palette, which is that field plus the actions and destinations. At 412 they are the same sheet reached from the same field.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>searching, no results, one result, many results, palette resting, palette typing, palette loading, the log page, the skip page, palette no match. Hover, focus-visible and press are live. Reached by using the screen rather than the axis: the second page by choosing log a habit or skip a habit, the way back out of it by its own back control or Escape, and the active item by the arrows. No plan axis: this screen has no gate, and a screen with no gate does not grow a dead switch.</p>
-      <p><span style="color:var(--fg-3)">match field&nbsp;&nbsp;</span>the API already returns which field matched, and the app has never rendered it. Every result states it: the title, the description, a tag, or a child habit. A row whose title does not contain the query would otherwise look like a mistake, and a person cannot tell a tag hit from a description hit by looking at the name. The fragment is quoted beside the field name only where the API returns one: SearchMatchField(string Field, string? Value) passes a null Value for title (HabitScheduleFilters.cs:255) and description (:257), the tag name for tag (:260), and the child habit's title for child (:284). So a title or description hit states the field and quotes nothing, which still answers why the row came back, and the line keeps one shape on all four rows.</p>
-      <p><span style="color:var(--fg-3)">results&nbsp;&nbsp;</span>one vocabulary for every result: the emoji well, the habit name, then the match line in mono. A child habit match names the parent, because that is the thing the person will navigate to. Rows lead to the habit detail, which is the only place a habit can be acted on.</p>
-      <p><span style="color:var(--fg-3)">searching&nbsp;&nbsp;</span>the field keeps what was typed and the list below it holds its own shape, so nothing jumps when the results land. It is three dots on a row rather than a spinner over the screen, because the query is fast and the field must stay usable while it runs.</p>
-      <p><span style="color:var(--fg-3)">no results&nbsp;&nbsp;</span>states the query back, says nothing matched, and offers the one action that makes sense from a search that failed: create a habit with that name. It parks no mark and no illustration, because this is a transient state inside a field, not a destination.</p>
-      <p><span style="color:var(--fg-3)">palette&nbsp;&nbsp;</span>at the wide width it is a centred overlay opened from the sidebar control or Ctrl K; at 412 there is no keyboard shortcut, so it is the same list reached from the search field. FOUR groups in the app’s order (command-menu.tsx): the habits (:122), holding their shape with the skeleton while they load (CommandHabitSkeleton, :118); create (:194-205), which here is create habit alone, because D69 item 9 removed the create goal entry, so a goal is made from a habit or by asking, and that half is a decision rather than a loss; actions (:209-221), log a habit and skip a habit; and the destinations (:224-226). Choosing log a habit or skip a habit does not act: CommandPage (:15) opens a SECOND page listing the habits to act on, with a back control (:155) and the page’s own word in the field’s chrome (:113), and choosing a habit there is what logs or skips it (:140-141). The single log everything action this document used to draw did something the palette never does, and it is gone. When nothing matches at all, the palette says so with its own line (command.empty, :188), which is not the same thing as a group being absent.</p>
-      <p><span style="color:var(--fg-3)">keyboard&nbsp;&nbsp;</span>the palette is a listbox: one item is active at a time, the active item takes the selected tint and ring rather than a fill, arrows move the active item without moving focus out of the field, Enter chooses it, and Escape backs out of a page before it closes the palette. The foot carries the hint row the app draws (CommandKeyHint, :247), keycap and word pairs starting with the up and down arrows, not one escape line.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>current position on the active palette item and the focused field ring. One filled action in the no results state, which is the create; none anywhere else, because a list of results is a list of actions and marking one of them would be a guess.</p>
-      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>the match line sits at fg-3 on the canvas and the quoted fragment at fg-2, so the quote reads above its label. No status colour appears; nothing here is an error, including no results.</p>
-      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>the result count and every quoted fragment carry data-mock, along with the query itself.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 every result states which field matched. 2 no result leads anywhere except a habit or one of the four destinations. 3 the field stays usable while a query is running.</p>
-      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: it already carried Input’s trailing slot, so nothing was re-synced. The old gap 1 said forms has no search field, so the field was a composed input; Input’s trailing slot closed that, and both the search field and the palette field are now the same Input the move sheet on Hoje uses, with the glyph in the slot. Still composed around the system: 1 there is no result row, so it is composed from a well, an emoji and a mono match line. 2 there is no palette or listbox in overlay, so the palette is composed from an elevated panel; Menu is an overflow menu and the wrong semantics for a filterable list. 3 the page chip in the field’s chrome and the keycap pairs are composed, since neither has a component.</p>
-      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether a tag hit should offer to filter by that tag rather than open the one habit, which no surface currently supports. Whether the palette should search logs and notes as well as habits, which the endpoint does not cover.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Two surfaces for finding something, in one document because they are the same surface at two entry points: search, and the command palette, which is that field plus the actions and destinations. At 412 they are the same sheet reached from the same field.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>searching, no results, one result, many results, palette resting, palette typing, palette loading, the log page, the skip page, palette no match. Hover, focus-visible and press are live. No plan axis: this screen has no gate.</p>
+      <p><span style="color:var(--fg-3)">match field&nbsp;&nbsp;</span>the API returns which field matched. Every result states it: the title, the description, a tag or a child habit. A row whose title does not contain the query would otherwise look like a mistake. The fragment is quoted beside the field name only where the API returns one, the tag name or the child habit title. A title or description hit quotes nothing, so the line keeps one shape on all four rows.</p>
+      <p><span style="color:var(--fg-3)">results&nbsp;&nbsp;</span>one vocabulary for every result: the emoji well, the habit name, then the match line in mono. A child habit match names the parent. Rows lead to the habit detail, the only place a habit can be acted on.</p>
+      <p><span style="color:var(--fg-3)">searching&nbsp;&nbsp;</span>the field keeps what was typed and the list holds its own shape, so nothing jumps when the results land. It is three dots on a row and not a spinner over the screen, because the field must stay usable while the query runs.</p>
+      <p><span style="color:var(--fg-3)">no results&nbsp;&nbsp;</span>states the query back, says nothing matched, and offers one action: create a habit with that name. It parks no mark and no illustration, because this is a transient state inside a field and not a destination.</p>
+      <p><span style="color:var(--fg-3)">palette&nbsp;&nbsp;</span>at the wide width it is a centred overlay opened from the sidebar control or Ctrl K. At 412 there is no keyboard shortcut, so it is the same list reached from the search field. Four groups in the app's order: the habits, with a skeleton while they load; create, which is create habit alone, because a goal is made from a habit or by asking; actions, log a habit and skip a habit; and the destinations. Log a habit and skip a habit open a second page that lists the habits to act on, with a back control and the page's word in the field's chrome, and choosing a habit there acts. When nothing matches, the palette says so with its own line.</p>
+      <p><span style="color:var(--fg-3)">keyboard&nbsp;&nbsp;</span>the palette is a listbox: one item is active at a time and takes the selected tint and ring, arrows move it without moving focus out of the field, Enter chooses it, and Escape backs out of a page before it closes the palette. The foot carries keycap and word pairs.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>current position on the active palette item and the focused field ring. One filled action in the no results state, the create. None elsewhere.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether a tag hit should filter by that tag and not open the one habit, and whether the palette should search logs and notes as well as habits.</p>
     </div>
   </sc-if>
 
@@ -84,10 +80,7 @@ const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
 const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 
-/* The API returns which field matched. These are the four it can return. */
-/* SearchMatchField(string Field, string? Value): Value is null for title (HabitScheduleFilters.cs:255)
-   and description (:257), so those two rows carry no fragment; tag (:260) carries the tag name and
-   child (:284) the child habit's title. */
+/* Value is null for title and description, so those two rows carry no fragment. Tag carries the tag name and child the child habit's title. */
 const RESULTS = [
   { e: '\uD83D\uDEB6', pt: 'Caminhada', en: 'Walk', field: 'title' },
   { e: '\uD83C\uDFC3', pt: 'Corrida do parque', en: 'Park run', field: 'description' },
@@ -180,8 +173,6 @@ class Component extends DCLogic {
     text: null, active: 0, paletteOpen: PALETTE_STATES.indexOf(next.state) >= 0,
     pPage: next.state === 'palette log page' ? 'log' : next.state === 'palette skip page' ? 'skip' : null });
 
-  /* The one search field everywhere in the product: Input with its trailing slot carrying the glyph,
-     the same object the move sheet on Hoje uses. */
   field(t, value, onChange, placeholder, label, onKeyDown) {
     const D = window.OrbitDesignSystem_918bd5;
     return H(D.Input, { value: value, onChange: onChange, placeholder: placeholder,
@@ -204,8 +195,6 @@ class Component extends DCLogic {
       H('span', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
         H('span', { style: { fontSize: 'var(--fs-md)', color: 'var(--fg-1)', whiteSpace: 'nowrap',
           overflow: 'hidden', textOverflow: 'ellipsis' } }, name),
-        /* Why this row came back: the field the API said matched, then the fragment where the API
-           returns one. Value is null for title and description, so those two quote nothing. */
         H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
           color: 'var(--fg-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
           t.fields[r.field],
@@ -289,10 +278,7 @@ class Component extends DCLogic {
               H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
                 rows.map((r) => this.resultRow(r, t, D)))));
 
-    /* The palette: the same field plus the four shipping groups (command-menu.tsx), one active item
-       at a time. Choosing log a habit or skip a habit does not act: it opens the second page
-       (CommandPage, :15), listing the habits to act on, with a back control (:155) and the page's
-       word in the field's chrome (:113); choosing a habit there acts (:140-141). */
+    /* The palette: the same field plus the four shipping groups, one active item at a time. Choosing log a habit or skip a habit opens a second page that lists the habits to act on; choosing a habit there acts. */
     const page = s.pPage;
     const pLoading = st === 'palette loading';
     const pq = s.text != null ? s.text : (st === 'palette no match' ? 'zzz'
@@ -311,8 +297,6 @@ class Component extends DCLogic {
     const picksFlat = [];
     const closeAll = () => this.setState({ paletteOpen: false, pPage: null, text: null, active: 0 });
     const openPage = (pg) => this.setState({ pPage: pg, text: null, active: 0 });
-    /* Arrows move the active item without moving focus out of the field; Enter chooses; Escape backs
-       out of a page before it closes the palette. */
     const onKeys = (e) => {
       if (e.key === 'ArrowDown') { e.preventDefault(); this.setState((p) => ({ active: p.active + 1 })); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); this.setState((p) => ({ active: p.active - 1 })); }
@@ -345,12 +329,12 @@ class Component extends DCLogic {
         style: { flex: 1, minHeight: 0, overflowY: 'auto', padding: 8,
           display: 'flex', flexDirection: 'column', gap: 8 } },
         pLoading
-          /* CommandHabitSkeleton (:118): the habit group holds its shape while the habits load. */
+          /* The habit group holds its shape while the habits load. */
           ? this.paletteGroup(t.groupHabits,
               H('div', { style: { paddingInline: 4 } },
                 H(D.Skeleton, { variant: 'settings', rows: 3, label: t.loadingHabits })), D)
           : total === 0
-            /* command.empty (:188): nothing matches at all, which is not a group being absent. */
+            /* command.empty: nothing matches at all, which is not a group being absent. */
             ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', padding: 12 } }, t.noMatch)
             : page
               ? this.paletteGroup(t.groupHabits,
@@ -364,7 +348,7 @@ class Component extends DCLogic {
                     pActions.map((a) => row(a.label, a.icon, a.label, () => openPage(a.page))), D) : null,
                   pPlaces.length ? this.paletteGroup(t.groupPlaces,
                     pPlaces.map((p, i) => row(p, ICONS[i], p, closeAll)), D) : null)),
-      /* CommandKeyHint (:247): the hint pairs at the foot, starting with the arrows. */
+      /* CommandKeyHint: the hint pairs at the foot, starting with the arrows. */
       H('div', { style: { flex: '0 0 auto', display: 'flex', gap: 16, padding: '8px 16px',
         boxShadow: 'inset 0 1px 0 var(--hairline)' } },
         t.hints.map((hp, i) => H('span', { key: i, style: { display: 'inline-flex', alignItems: 'center',
@@ -392,7 +376,6 @@ class Component extends DCLogic {
           H(D.Icon, { name: 'arrow-left', size: 20 })),
         H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-lg)', fontWeight: 500 } },
           t.searchLabel)),
-      /* At 412 there is no shortcut, so the palette is the same list under the same field. */
       resultsNode: (isPalette && s.width === '412') ? paletteInner : results,
       paletteNode: paletteNode,
       onPalette: () => this.setState({ paletteOpen: true, text: null, active: 0, pPage: null }),
