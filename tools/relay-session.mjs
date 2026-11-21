@@ -10,7 +10,7 @@ import { readSessionContext, readSessionMetrics } from "./lib/session-context.mj
 import { readDrainBlockers } from "./lib/background-runs.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
 import { questionFilterGaps } from "./lib/owner-questions.mjs"
-import { HANDOFF_PROMPT_PATH, checkoutSpecVersions, handoffAutoWork, handoffCrank, openingSpecPaths, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
+import { HANDOFF_PROMPT_PATH, checkoutSpecVersions, openingSpecPaths, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
 import { REPO_ROOT, acquireRelayLock, clearWakeSource, foreignRunHold, isRelayWaiter, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, updateRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: relay-session.mjs [--retry-wake | --owner-check | --close-chain | --close-terminal <payload>]
@@ -25,13 +25,13 @@ const USAGE = `usage: relay-session.mjs [--retry-wake | --owner-check | --close-
   and model and permission mode from machine observations. Accepts no model claim.
   --retry-wake   background wake source until the failed relay's ten minute retry time
   --owner-check refuse, before an owner handoff writes anything, while another session's
-                unattended run or unadopted auto-work handoff owns this checkout's run state;
+                unattended run owns this checkout's run state;
                 the refusal names the owner's next step. An unattended run counts only while
                 a Claude session record names its live process, or while a live relay nominee
                 has not adopted it yet. Beside another session's unattended run, it also refuses
                 when CLAUDE_CONFIG_DIR/sessions holds no record of this session, because then it
                 cannot see whether that run is live. Reads only; writes nothing
-  --close-chain repeat that check, prepare owner auto-work intake carry, then record and close
+  --close-chain repeat that check, then record and close
                 this session's open chain. Needs no question filter, and no run state when no
                 chain is open
   --close-terminal <payload> internal detached cleanup; base64 JSON with repoRoot,
@@ -191,9 +191,9 @@ const assertDrained = (repoRoot, sessionId) => {
   if (blockersMessage.length) throw new Error(`relay drain has ${blockersMessage.join("; ")}`)
 }
 
-const provePromptPublished = (repoRoot, execute, crank, autoWork) => {
+const provePromptPublished = (repoRoot, execute) => {
   const prompt = readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8")
-  const missing = validateHandoffPrompt(prompt, { sleep: true, crank, autoWork, specVersions: checkoutSpecVersions(repoRoot) })
+  const missing = validateHandoffPrompt(prompt, { sleep: true, specVersions: checkoutSpecVersions(repoRoot) })
   if (missing.length) throw new Error(`NEXT.md misses: ${missing.join("; ")}`)
   const paths = [HANDOFF_PROMPT_PATH, ...openingSpecPaths(prompt)]
   for (const path of paths) {
@@ -226,10 +226,8 @@ const successorCommand = (model, permissionMode, successorSessionId, repoRoot) =
 
 const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds }) => {
   const now = new Date().toISOString()
-  const crank = handoffCrank(readHandoffRequest(sessionId, repoRoot), readRunState(repoRoot))
-  const autoWork = handoffAutoWork(readHandoffRequest(sessionId, repoRoot), readRunState(repoRoot))
-  recordHandoffRequest(sessionId, { command: "handoff", origin: "context-relay", sleep: true, crank, autoWork }, now, repoRoot)
-  const prompt = provePromptPublished(repoRoot, execute, crank, autoWork)
+  recordHandoffRequest(sessionId, { command: "handoff", origin: "context-relay", sleep: true }, now, repoRoot)
+  const prompt = provePromptPublished(repoRoot, execute)
   const successorSessionId = randomUUID()
   const command = successorCommand(metrics.lastCall.model, previous.relay.permissionMode, successorSessionId, repoRoot)
   assertDrained(repoRoot, sessionId)
@@ -321,7 +319,6 @@ const main = async () => {
   if (args[0] === "--close-chain") {
     const owned = state?.sessionId === sessionId
     if (conflict) throw new Error(conflict)
-    prepareOwnerHandoffRun(sessionId)
     if (!openSessionChain(sessionId)) return
     if (!owned) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
     if (readHandoffRequest(sessionId)?.origin !== "owner") throw new Error("chain closure requires an owner-origin handoff")

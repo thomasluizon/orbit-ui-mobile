@@ -34,11 +34,9 @@ Session hooks block commands or edits before they happen.
 | `rules-approval.mjs` | an unattended run refuses each shell command that Claude Code holds for an approval, and each tool that waits for the answer of a person | forbid-approval-prompt (PreToolUse Bash, Monitor, and each tool in `PERSON_PROMPT_TOOLS`) |
 | `working-directories.mjs` | the directories that the settings files add to the working directories of a session | forbid-approval-prompt |
 | `repo-roots.mjs` | which repository owns a path, and the linked worktree that resolves to its main checkout | orchestrator-guardrails, forbid-worker-browser, forbid-invented-identifier |
-| `rules-handoff.mjs` | a committed or stopping `NEXT.md` matches the handoff mode the owner asked for | require-handoff-prompt (PreToolUse Bash, Monitor, PowerShell; Stop) |
-| `handoff-git.mjs` | every `NEXT.md` version a commit could record, and the newest committed one on any branch | require-handoff-prompt |
-| `rules-relay.mjs` | the context relay: drain sources, thresholds, and the superseded session | relay-at-threshold (PostToolUse, Stop), require-wake-source (Stop), forbid-superseded-session (PreToolUse, UserPromptSubmit) |
+| `rules-relay.mjs` | the context relay: drain sources, thresholds, and the superseded session | require-wake-source (Stop), forbid-superseded-session (PreToolUse, UserPromptSubmit) |
 | `rules-sleep.mjs` | an unattended run never ends a turn with no live wake source | require-wake-source (Stop) |
-| `shell-subset.mjs` | the modelled shell subset (`readCommand`, `walkCommands`) for the git rule, the approval rule and the handoff gate, with no part run | git-guardrails, forbid-approval-prompt, require-handoff-prompt |
+| `shell-subset.mjs` | the modelled shell subset (`readCommand`, `walkCommands`) for the git rule and the approval rule, with no part run | git-guardrails, forbid-approval-prompt |
 | `command-expander.mjs` | the text inspector: shell bodies read as words and commands for the other rules, with no part run | the shell rules above |
 | `io.mjs` | payload normalizers | each adapter |
 
@@ -219,25 +217,13 @@ In an attended session it refuses such a command only when the text, with its he
 in the same command that `expandCommands` finds. A `;`, `|` or line end inside quotes or a substitution does not end that command. It also
 refuses such a command when the text of one command that `expandCommands` finds is a `git worktree remove` with a force word. So the
 default commit form of Claude Code, `git commit -m "$(cat <<'EOF' ... EOF)"`, and a git command with a variable argument pass
-attended, and the handoff gate reads such a commit from its text. A variable that holds a push or a hygiene flag is not read in an
+attended. A variable that holds a push or a hygiene flag is not read in an
 attended session. The rule reads a `PowerShell` command with the same bash grammar: this is a deliberate choice, because a
 cmdlet is not in `KNOWN_COMMAND_WORDS`. So an unattended run refuses each cmdlet, and an attended session refuses a cmdlet line
 only when its text names git and a push or a hygiene marker.
 The rule never resolves a `-C` path in Node: it gives git the directory after the `cd` model and each raw `-C` word, as
 `git -C <dir> -C <w1> ... -C <wn> remote get-url --push <remote>`, because git applies `-C` with `chdir`, which follows a
 symlink before it reads `..`. The shell `cd` reads `..` by text, so the `cd` model does the same.
-The handoff gate reads each git command that can record the index, `RECORDING_SUBCOMMANDS` of `rules-handoff.mjs` (`commit`,
-`merge`, `cherry-pick`, `revert`, `rebase`, `am`, `pull` and `stash`), with the same reader, `readGitCommands`, and gives git the same
-chain: the directory after the `cd` model, then each `-C` word after a lower case variable and `~` are replaced. `git stash`
-records the index in a stash commit, and `git merge --ff-only refs/stash` can put that commit on the branch, so the gate judges
-each form of `stash` that records: no word, an option, `push`, `save` and `create`. `list`, `show`, `drop`, `pop`, `apply`,
-`clear`, `branch` and `store` record nothing. Text that runs no such command, such as an `echo` or a `gh` body, gives no chain.
-In an unattended run, the gate refuses a command outside the subset that names one of these subcommands, with the same rewrite
-advice. In an attended session, the gate reads the chain of such a command from its text.
-Each chain keeps its subcommand. When a handoff doc under `.claude/specs/` or `.claude/handoffs/` changed, the adapter
-`require-handoff-prompt.mjs` merges `origin/main` into the relay branch, but only before a `git commit`. It never runs before
-a merge, a pull, a rebase, a cherry-pick, a revert, an `am` or a stash, so the hook never moves HEAD before the command that
-the agent asked for, and a `git pull` on `main` passes.
 In a protected repository, the push rule allows only `git push origin <branch>`, `git push -u origin <branch>` and
 `git push origin HEAD:<branch>`, where `<branch>` is a plain branch name that is not `main` or `master`. A push in the same command as a
 `git config` or `git remote` change is refused.

@@ -304,9 +304,9 @@ child.unref()
   T(`${TOOL}: native launch failure fails closed`, missingBinary.status === 0 && missingVerdict?.kind === "CLASSIFIER_ERROR", missingBinary.stderr || missingBinary.stdout || String(missingBinary.error))
   /** The queue contract has to name the reason, or the deferral arrives at 03:00 with no meaning. */
   T(
-    `${TOOL}: the orchestrate contract documents NEEDS_CONVERSATION as a sleep-only deferral`,
-    /NEEDS_CONVERSATION/.test(orchestrateContract) && /--sleep.{0,20}only/i.test(orchestrateContract),
-    "the queue contract lost the conversation-first deferral row",
+    `${TOOL}: the orchestrate contract names the conversation-first warning`,
+    /CONVERSATION FIRST/.test(orchestrateContract),
+    "the queue contract lost the conversation-first warning",
   )
   T(
     `${TOOL}: the orchestrate contract writes the conversation decisions back to the ticket`,

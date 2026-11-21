@@ -2,7 +2,6 @@ import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { escapeRegex } from "../lib/escape-regex.mjs"
-import { readRunState } from "../lib/run-state.mjs"
 
 import { T, check, realOrchestratorConfig, root, stage, stageWithConfig } from "./_harness.mjs"
 
@@ -34,8 +33,6 @@ const stubGh = (failing, message) => {
 export const cases = () => {
   const staged = stageWithConfig("migrate-run-state", TOOL, realOrchestratorConfig())
   mkdirSync(join(staged.base, ".git"), { recursive: true })
-  const liveRecord = { sessionId: "live", intake: { gmail: { completed: {}, pending: {}, highWater: "m2" } } }
-  const runState = stage("staged/migrate-run-state/.git/orbit-orchestrate-run.json", JSON.stringify(liveRecord))
   const manifest = stage("migrate-run-state/manifest.json", JSON.stringify([{ kind: "review", file: stage("migrate-run-state/review.md", "Looks fine.\n"), issue: 2152, head: HEAD }]))
   check(TOOL, "an invalid manifest item exits 2 before any GitHub call", ["--manifest", manifest], { status: 2, stderr: /VERDICT/ }, { path: staged.path })
   check(TOOL, "a manifest that is not an array exits 2", ["--manifest", stage("migrate-run-state/object.json", "{}")], { status: 2, stderr: /must be a JSON array/ }, { path: staged.path })
@@ -55,23 +52,15 @@ export const cases = () => {
   { status: 2, stderr: /cannot be read: ENOENT/ }, { path: staged.path, env: { GH_BIN: join(root, "migrate-run-state", "no-such-gh") } })
   check(TOOL, "a manifest item with an unknown repo key exits 2 before any GitHub call", ["--manifest",
     stage("migrate-run-state/unknown-repo.json", JSON.stringify([{ kind: "body", file: decision, repo: "nowhere", pr: 2486 }]))], { status: 2, stderr: /unknown repo key nowhere/ }, { path: staged.path })
-  T(`${TOOL}: a refused run leaves the live run record untouched`, JSON.parse(readFileSync(runState, "utf8")).intake.gmail.highWater === "m2")
-  check(TOOL, "--run-state is not an option: the migration reads and clears one record", ["--run-state", runState], { status: 2, stderr: /unknown option or missing value: --run-state/ }, { path: staged.path })
+  check(TOOL, "--run-state is not an option", ["--run-state", "record.json"], { status: 2, stderr: /unknown option or missing value: --run-state/ }, { path: staged.path })
   check(TOOL, "the usage names no --run-state option", ["--help"], { status: 0, stdout: /^(?![\s\S]*--run-state)/ }, { path: staged.path })
   const succeeded = stageWithConfig("migrate-run-state-applied", TOOL, realOrchestratorConfig())
-  stage("staged/migrate-run-state-applied/.git/orbit-orchestrate-run.json", JSON.stringify(liveRecord))
   const printed = check(TOOL, "a successful --apply posts each item and prints the posted list", ["--apply", "--manifest", applyManifest], { status: 0 },
     { path: succeeded.path, env: { GH_BIN: stubGh(null) } })
-  const record = readRunState(succeeded.base)
-  T(`${TOOL}: a successful --apply clears the intake of this checkout's own run record`, record !== null && record.sessionId === "live" && record.intake === null)
   const runFile = (name) => JSON.parse(readFileSync(join(succeeded.base, ".git", "orbit-test-run-files", "run-state", name), "utf8"))
   T(`${TOOL}: a successful --apply records each posted item in run-state/migration.json`,
     JSON.stringify(Object.values(runFile("migration.json").posted)) === JSON.stringify([{ kind: "decision", target: "#2152" }]) && JSON.parse(printed.stdout).posted.length === 1)
-  T(`${TOOL}: a successful --apply moves the marks to the intake file`, runFile("intake.json").gmail.highWater === "m2")
-  T(`${TOOL}: a successful --apply leaves the run record of another checkout alone`, readRunState(staged.base)?.intake?.gmail?.highWater === "m2")
   const dry = stageWithConfig("migrate-run-state-dry", TOOL, realOrchestratorConfig())
-  stage("staged/migrate-run-state-dry/.git/orbit-orchestrate-run.json", JSON.stringify(liveRecord))
   check(TOOL, "a dry run exits 0", ["--manifest", applyManifest], { status: 0 }, { path: dry.path, env: { GH_BIN: stubGh(null) } })
-  T(`${TOOL}: a dry run keeps the intake of the run record`, readRunState(dry.base)?.intake?.gmail?.highWater === "m2")
   T(`${TOOL}: a dry run records no posted item`, !existsSync(join(dry.base, ".git", "orbit-test-run-files", "run-state", "migration.json")))
 }
