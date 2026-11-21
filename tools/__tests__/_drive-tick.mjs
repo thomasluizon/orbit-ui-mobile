@@ -102,6 +102,26 @@ const resultLine = (text) => `${JSON.stringify({ type: "result", result: text })
 const clean = { exitCode: 0, killed: null, sessionId: "s1", utilization: null, resetsAt: null, result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null } }
 const heads = (before, after) => { const queue = [before, after]; return ["rev-parse", () => `${queue.length > 1 ? queue.shift() : queue[0]}\n`] }
 
+/** Makes the fake GitHub keep the driver's writes to the tickets, so the next tick reads them the way GitHub returns them. */
+const keepWrites = (scene, tickets) => {
+  const { comment: write, editLabels: relabel, createTicket: create } = scene.env.github
+  const find = (key, number) => (key === "tickets" ? tickets.find((entry) => entry.number === number) : undefined)
+  scene.env.github.comment = async (key, number, body) => {
+    await write(key, number, body)
+    const kind = /^<!-- orbit-drive:(\w+) -->/.exec(body)?.[1] ?? null
+    find(key, number)?.comments.push(comment(kind, kind === null ? body : body.split("\n").slice(1).join("\n")))
+  }
+  scene.env.github.editLabels = async (key, number, change) => {
+    await relabel(key, number, change)
+    find(key, number)?.labels.push(...(change.add ?? []))
+  }
+  scene.env.github.createTicket = async (input) => {
+    const created = await create(input)
+    tickets.push({ ...ticket(created.number, { title: input.title, body: input.body, labels: input.labels }), repoKey: null })
+    return created
+  }
+}
+
 const only = (calls, name) => calls.filter((entry) => entry[0] === name)
 const commentsOf = (calls, number) => only(calls, "comment").filter((entry) => entry[2] === number).map((entry) => entry[3])
 const orderText = (scene) => scene.launched[0]?.order ?? ""
@@ -748,14 +768,9 @@ const logOnlyCases = async () => {
 }
 
 const runningWorkCases = async () => {
-  // A launch comment that the worker writes before it starts must reach the next tick's ticket read, the way GitHub returns it.
   const never = (scene, tickets) => {
+    keepWrites(scene, tickets)
     scene.env.worker.launch = (options) => { scene.launched.push(options); return new Promise(() => {}) }
-    const write = scene.env.github.comment
-    scene.env.github.comment = async (key, number, body) => {
-      await write(key, number, body)
-      if (key === "tickets" && body.startsWith("<!-- orbit-drive:launch -->")) tickets.find((entry) => entry.number === number).comments.push(comment("launch", body.split("\n")[1]))
-    }
   }
   const launchOf = (kind, branch) => comment("launch", JSON.stringify({ kind, part: null, branch }))
   const blockingReview = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })
@@ -812,6 +827,45 @@ const paceStampCases = async () => {
   same("drive: the reading of a worker that started before a newer reading does not replace it", newer.mem.reading.utilization, 0.1)
 }
 
+const reapOutcomeCases = async () => {
+  const stopped = { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null }
+  const outcome = async (label, { tickets = [ticket(7)], result = {}, log = null, gitRoutes = [] }, expected) => {
+    const scene = scenario({ tickets, gitRoutes })
+    keepWrites(scene, tickets)
+    scene.env.worker.launch = (options) => {
+      scene.launched.push(options)
+      if (log !== null) writeFileSync(options.logFile, log)
+      return Promise.resolve({ ...clean, ...result })
+    }
+    await scene.run()
+    await scene.run()
+    same(`drive: ${label}`, [scene.launched.length, only(scene.calls, "editLabels").length, only(scene.calls, "notify").length], expected)
+    return scene
+  }
+  await outcome("a worker that ends with NEEDS_DECISION is not launched again by the tick that reaps it", { result: { result: { ...stopped, needsDecision: "Raise the price?" } } }, [1, 1, 1])
+  await outcome("a worker whose push failed with HTTP 403 is not launched again by the tick that reaps it", { result: { exitCode: 1 }, log: FAILED_PUSH_LOG, gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", ""]] }, [1, 1, 1])
+  const findTickets = [ticket(7, { comments: [partComment(1, 1, "Kind: find")] })]
+  const finder = await outcome("a find worker whose findings the reap posts is not launched again by the tick that reaps it", { tickets: findTickets, log: resultLine("Area: tools\n\nsrc/a.mjs:3 | class | fix") }, [1, 0, 0])
+  same("drive: the reap of a find worker posts one findings comment", commentsOf(finder.calls, 7).filter((text) => text.startsWith(marked("findings", "Findings, part 1"))).length, 1)
+  const limited = await outcome("a worker that stops at a usage limit is not launched again by the tick that reaps it", { result: { exitCode: 1, result: { ...stopped, usageLimitReached: true, error: "You've hit your limit. Resets 4am (America/Sao_Paulo)" } } }, [1, 0, 1])
+  same("drive: the reap of a usage limit opens one pause issue", only(limited.calls, "createTicket").length, 1)
+  await outcome("a killed worker gets exactly one new launch from the tick that reaps it", { result: { exitCode: null, killed: "hard-ceiling", killReason: "passed its hard ceiling" } }, [2, 0, 0])
+
+  const failedFindTickets = [ticket(7, { comments: [partComment(1, 1, "Kind: find")] })]
+  const failedFind = await outcome("a find worker that ends on an API error posts no findings and gets its second launch", { tickets: failedFindTickets, result: { exitCode: 1, result: { ...stopped, error: "API Error: 529 Overloaded" } }, log: `${JSON.stringify({ type: "result", is_error: true, result: "API Error: 529 Overloaded" })}\n` }, [2, 0, 0])
+  same("drive: an API error result is never posted as the findings of a part", commentsOf(failedFind.calls, 7).filter((text) => text.includes("Findings, part")).length, 0)
+}
+
+const unreadLogCases = async () => {
+  const failedRun = { databaseId: 79, displayTitle: "Respond to mention on #7 [abc]", status: "completed", conclusion: "failure", createdAt: iso(-10 * MINUTE), updatedAt: iso(-5 * MINUTE) }
+  let reads = 0
+  const scene = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun], routes: [["--log-failed", () => { if (reads++ === 0) throw new Error("gh run view failed: HTTP 502"); return "You've hit your limit. Resets 4am (America/Sao_Paulo)" }]] })
+  await scene.run()
+  same("drive: a failed Pullfrog log that cannot be read does not pause the driver", only(scene.calls, "createTicket").length, 0)
+  await scene.run()
+  same("drive: a failed Pullfrog log that could not be read is read again on the next tick and pauses the driver", only(scene.calls, "createTicket").length, 1)
+}
+
 export const driverUnit = async () => {
   await admissionCases()
   await paceCases()
@@ -832,4 +886,6 @@ export const driverUnit = async () => {
   await logOnlyCases()
   await runningWorkCases()
   await paceStampCases()
+  await reapOutcomeCases()
+  await unreadLogCases()
 }

@@ -552,8 +552,16 @@ const pullActions = async (env, mem, repoKey, state, tickets, busy) => {
 /** A failed Pullfrog run is read once: a usage-limit message pauses the driver. */
 const pullfrogLimit = async (env, mem, tickets, repoKey, runs) => {
   for (const run of runs.filter((entry) => entry.status === "completed" && entry.conclusion === "failure" && !mem.checkedRuns.has(entry.databaseId))) {
+    let logText
+    try {
+      logText = await env.gh(["run", "view", String(run.databaseId), "--repo", env.slugOf(repoKey), "--log-failed"])
+    } catch (error) {
+      // A log that was not read is read again on the next tick: only a read log marks its run as checked.
+      log(env, repoKey, "pullfrog-log-unread", error.message)
+      continue
+    }
     mem.checkedRuns.add(run.databaseId)
-    const found = workerApi.usageLimitIn(await env.gh(["run", "view", String(run.databaseId), "--repo", env.slugOf(repoKey), "--log-failed"]))
+    const found = workerApi.usageLimitIn(logText)
     if (found) {
       await pauseDriver(env, mem, tickets, { source: "Pullfrog", ...found })
       return true
@@ -665,7 +673,9 @@ const pushForbidden = async (env, tail, worktree, branch, headBefore) => pushOut
 /** What a worker's exit leaves to do: records, a pause, a question, or a findings comment. */
 const reapExit = async (env, mem, tickets, states, exit) => {
   const { order, result, headBefore, worktree, logFile, account, startedAt } = exit
-  const { kind, repoKey, ticket, branch, part } = order
+  const { kind, repoKey, branch, part } = order
+  // The ticket as this read holds it, so a label that the owner wrote is seen and the launch tick's copy is never written.
+  const ticket = tickets.find((entry) => entry.number === order.ticket.number) ?? order.ticket
   const item = `ticket#${ticket.number}`
   const newerReading = mem.reading?.account === account && mem.reading.at > startedAt
   if (result.utilization !== null && account !== null && !newerReading) mem.reading = { utilization: result.utilization, resetsAt: result.resetsAt, at: startedAt, account }
@@ -680,7 +690,8 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `NEEDS_DECISION: ${result.result.needsDecision}` })
   if (kind === "find") {
     const text = resultText(tail)
-    if (text !== "") await env.github.comment("tickets", ticket.number, marked("findings", `Findings, part ${part.number}\n\n${text}`))
+    // A result that failed (an API error) is not a findings report: the part stays pending for its next launch.
+    if (text !== "" && result.result.error === null) await env.github.comment("tickets", ticket.number, marked("findings", `Findings, part ${part.number}\n\n${text}`))
     return removeWorktrees(env, repoKey, [branch])
   }
   const shas = (await gitText(env, worktree, ["log", "--format=%H", `${headBefore}..HEAD`])).split("\n").filter(Boolean).reverse()
@@ -896,30 +907,30 @@ const readWorld = async (env, mem) => {
   return { tickets, states }
 }
 
-const reapExits = async (env, mem, tickets, states) => {
-  for (const exit of mem.exits.splice(0)) await reapExit(env, mem, tickets, states, exit).catch((error) => log(env, `ticket#${exit.order.ticket.number}`, "error", error.message))
-}
-
-/** Reads the world once and reaps the exits of workers that ended since the last tick. */
-const reapPending = async (env, mem) => {
+/**
+ * Reaps the exits of workers that ended since the last tick. A tick reaps before it reads GitHub for its own steps, so
+ * every later step reads what the reap wrote. The reap has its own read, and it takes one only when an exit waits.
+ */
+const reapExits = async (env, mem) => {
+  if (mem.exits.length === 0) return
   const { tickets, states } = await readWorld(env, mem)
-  await reapExits(env, mem, tickets, states)
+  for (const exit of mem.exits.splice(0)) await reapExit(env, mem, tickets, states, exit).catch((error) => log(env, `ticket#${exit.order.ticket.number}`, "error", error.message))
 }
 
 export const tick = async (env, mem) => {
   env.lines = []
   // A worker that runs when the read starts holds the lane for this whole tick, whatever the read shows.
   const busy = mem.running !== null || env.workerLive()
-  let tickets
-  let states
+  let world
   try {
-    ({ tickets, states } = await readWorld(env, mem))
+    await reapExits(env, mem)
+    world = await readWorld(env, mem)
   } catch (error) {
     log(env, "tick", "retry", error.message)
     return { retried: true }
   }
+  const { tickets, states } = world
   const account = await trackAccount(env, mem, tickets)
-  await reapExits(env, mem, tickets, states)
   const orders = []
   for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets, busy))
   await ownerWorkNotices(env, mem, tickets)
@@ -1046,7 +1057,7 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   do {
     try { await tick(env, mem) } catch (error) { log(env, "tick", "error", error.message) }
     if (parsed.mode === "dry-run") return 0
-    if (parsed.mode === "once") { await mem.running; await reapPending(env, mem).catch((error) => log(env, "tick", "error", error.message)); return 0 }
+    if (parsed.mode === "once") { await mem.running; await reapExits(env, mem).catch((error) => log(env, "tick", "error", error.message)); return 0 }
     if (!stopping) await env.sleep(TICK_MS, mem)
   } while (!stopping)
   return 0
