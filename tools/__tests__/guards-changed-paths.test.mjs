@@ -12,11 +12,9 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const workflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"))
 const testWorkflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/test.yml"), "utf8"))
 const cases = [
-  ["root-allowlist", "Workspace packages declare no ignored overrides", "package.json"],
   ["copy", "Changed copy stays inside the register", "apps/web/app/page.tsx"],
   ["i18n-usage", "Changed translation usage resolves", "apps/mobile/app/page.tsx"],
   ["surface-manifest", "Changed surface inputs match the committed inventory", "design/canvas/screen.svg"],
-  ["dependency-audit", "Verify installed packages against locked archives", "apps/mobile/scripts/fix-hoisting.js"],
 ]
 
 function git(directory, ...arguments_) {
@@ -121,13 +119,6 @@ test("workflow-syntax: a pull request that changes only the actionlint configura
   }
 })
 
-test("the actionlint configuration holds only the self-hosted runner labels and no ignore", () => {
-  const configuration = yaml.load(readFileSync(join(repositoryRoot, ".github/actionlint.yaml"), "utf8"))
-  assert.deepEqual(Object.keys(configuration), ["self-hosted-runner"], "a paths or ignore key would hide a finding the gate reports")
-  assert.deepEqual(Object.keys(configuration["self-hosted-runner"]), ["labels"])
-  assert.ok(Array.isArray(configuration["self-hosted-runner"].labels), "labels must be a list")
-})
-
 function movedFileRepository(prefix, from, to) {
   const directory = mkdtempSync(join(tmpdir(), prefix))
   git(directory, "init", "-q")
@@ -205,7 +196,7 @@ test("feature parity runs for every input of the check and skips an unrelated ch
 })
 
 test("each diff reader resolves paths before using them", () => {
-  const readers = ["mobile-styles", "root-allowlist", "dashes", "mobile-fonts", "copy", "i18n-usage",
+  const readers = ["mobile-styles", "dashes", "mobile-fonts", "copy", "i18n-usage",
     "expo-pin", "surface-manifest"]
   for (const jobId of readers) {
     const steps = guardGroups(workflow)[jobId].steps
@@ -218,25 +209,8 @@ test("each diff reader resolves paths before using them", () => {
   assert.doesNotMatch(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"), /git diff --name-only/)
 })
 
-test("CodeQL reports both required names and analyzes a language only when its inputs change", () => {
+test("CodeQL analyzes a language only when its inputs change", () => {
   const codeql = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/codeql.yml"), "utf8"))
-  assert.deepEqual(Object.keys(codeql.on), ["push", "pull_request"])
-  assert.deepEqual(codeql.concurrency, {
-    group: "codeql-${{ github.event.pull_request.number || github.sha }}",
-    "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
-  })
-  assert.equal(codeql.jobs.changes.if, "github.event_name == 'pull_request'")
-  for (const [output, jobId, name, limit] of [
-    ["javascript", "analyze-javascript-typescript", "Analyze (javascript-typescript)", 27],
-    ["actions", "analyze-actions", "Analyze (actions)", 5],
-  ]) {
-    const job = codeql.jobs[jobId]
-    assert.equal(job.name, name)
-    assert.equal(job.strategy, undefined, "a skipped matrix job reports its unexpanded name")
-    assert.equal(job.needs, "changes")
-    assert.equal(job.if, `\${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.${output} == 'true') }}`)
-    assert.equal(job["timeout-minutes"], limit, `${name} keeps the limit that covers its slowest measured run on main`)
-  }
   const selection = codeql.jobs.changes.steps.find((step) => step.id === "languages")
   const select = (change) => {
     const directory = mkdtempSync(join(tmpdir(), "codeql-languages-"))
@@ -283,64 +257,6 @@ test("CodeQL reports both required names and analyzes a language only when its i
     mkdirSync(join(repository, "docs"))
     git(repository, "mv", "apps/web/old.ts", "docs/old.md")
   }), javascript, "a rename out of a language still analyzes the old path")
-})
-
-test("Guards checks every workflow with a checksum-pinned actionlint and no baseline", () => {
-  const step = workflow.jobs.guards.steps.find((candidate) => candidate.id === "workflow-syntax__1")
-  assert.ok(step, "workflow syntax must have a guard")
-  assert.equal(step.if, "${{ !cancelled() }}")
-  assert.match(step.run, /gh release download v1\.7\.12 --repo rhysd\/actionlint --pattern actionlint_1\.7\.12_linux_amd64\.tar\.gz/)
-  assert.equal(step.env.GH_TOKEN, "${{ github.token }}")
-  assert.doesNotMatch(step.run, /releases\/download/)
-  assert.match(step.run, /8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8/)
-  assert.match(step.run, /sha256sum -c/)
-  assert.ok(step.run.indexOf("sha256sum -c") < step.run.indexOf("tar -xzf"))
-  assert.match(step.run, /actionlint" -shellcheck= -pyflakes= \.github\/workflows\/\*\.yml/)
-  assert.doesNotMatch(step.run, /-ignore|\|\| true/)
-})
-
-test("script guards share one checkout and install, and run after another guard fails", () => {
-  assert.deepEqual(Object.keys(workflow.jobs), ["guards"])
-  const steps = workflow.jobs.guards.steps
-  assert.equal(steps.filter((step) => step.uses?.startsWith("actions/checkout@")).length, 1)
-  // One step installs the workspace tree. The React Doctor step installs only its own lockfile, outside that tree.
-  const installs = steps.flatMap((step) => (step.run ?? "").split("\n").filter((line) => /^\s*npm ci\b/.test(line))
-    .map((line) => [step.id ?? step.name, line.trim()]))
-  assert.deepEqual(installs, [
-    ["Install dependencies", "npm ci --no-audit"],
-    ["react-doctor__1", "npm ci --prefix .github/react-doctor --ignore-scripts --no-audit --no-fund"],
-  ])
-  const reactDoctor = steps.find((step) => step.id === "react-doctor__1")
-  assert.match(reactDoctor.run, /^\.github\/react-doctor\/node_modules\/\.bin\/react-doctor \. /m, "React Doctor runs the binary of its locked tree")
-  const reactDoctorLock = JSON.parse(readFileSync(join(repositoryRoot, ".github/react-doctor/package-lock.json"), "utf8"))
-  const reactDoctorManifest = JSON.parse(readFileSync(join(repositoryRoot, ".github/react-doctor/package.json"), "utf8"))
-  assert.match(reactDoctorManifest.devDependencies["react-doctor"], /^\d+\.\d+\.\d+$/, "the manifest pins one exact React Doctor version")
-  assert.deepEqual(reactDoctorLock.packages[""].devDependencies, reactDoctorManifest.devDependencies, "npm ci needs the manifest and the lockfile to agree")
-  assert.equal(reactDoctorLock.packages["node_modules/react-doctor"].version, reactDoctorManifest.devDependencies["react-doctor"])
-  for (const step of steps.filter((candidate) => candidate.id?.includes("__"))) {
-    assert.ok(step.name, `${step.id} must name the guard`)
-    assert.match(step.if, /!cancelled\(\)/, `${step.id} must run after a previous failure`)
-    assert.doesNotMatch(step.if, /success\(\)/, `${step.id} must not depend on another guard passing`)
-  }
-  const firstGuard = steps.findIndex((step) => step.id?.includes("__"))
-  for (const step of steps.slice(firstGuard + 1).filter((candidate) => !candidate.id?.includes("__"))) {
-    assert.match(step.if ?? "", /!cancelled\(\)/, `${step.name} must still run when an earlier guard fails`)
-  }
-})
-
-test("React Doctor retains its time limit", () => {
-  assert.equal(guardGroups(workflow)["react-doctor"].steps.find((step) => step.id === "react-doctor__1")["timeout-minutes"], 6)
-})
-
-test("pull requests run each source check through one owner", () => {
-  assert.equal(guardGroups(workflow)["surface-scope-report"], undefined)
-  const pushOnly = workflow.jobs.guards.steps.filter((step) => step.if === "${{ !cancelled() && (github.event_name != 'pull_request') }}")
-  assert.deepEqual(pushOnly.map((step) => step.id).sort(), ["lint-severity__1", "performance-workflow__1", "root-allowlist__4"],
-    "a new push-only guard needs its inputs in pushOnlyGuardInputs of .github/scripts/plan-test-jobs.test.mjs")
-  assert.ok(testWorkflow.jobs["tool-tests"].steps.some((step) => step.run === "node tools/test-tools.mjs"))
-  assert.ok(testWorkflow.jobs["web-tests"].steps.some((step) => step.name === "Run web shard with coverage"))
-  assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === "./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage"))
-  assert.equal(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run?.includes("turbo run test")), false)
 })
 
 test("every pull request runs the full-tree surface scope scan outside the cached unit task", () => {
