@@ -1300,8 +1300,10 @@ const newerDriverCommit = async (env, { fetch }) => {
   if (fetch) await gitText(env, env.driverWorktree, ["fetch", "origin", "main"])
   const head = await gitText(env, env.driverWorktree, ["rev-parse", "HEAD"])
   const main = await gitText(env, env.driverWorktree, ["rev-parse", "origin/main"])
-  if (head === main || rolledBackFrom(readPin(env.stateDir), main)) return { head, next: null }
-  const files = (await gitText(env, env.driverWorktree, ["diff", "--name-only", head, main])).split("\n").filter(Boolean)
+  const pin = readPin(env.stateDir)
+  if (head === main || rolledBackFrom(pin, main)) return { head, next: null }
+  // After a rollback the head is the old commit, so the driver files of the failed commit would count as new: compare with the failed commit.
+  const files = (await gitText(env, env.driverWorktree, ["diff", "--name-only", pin?.rolledBack ? pin.from : head, main])).split("\n").filter(Boolean)
   return { head, next: changesDriver(files) ? main : null }
 }
 

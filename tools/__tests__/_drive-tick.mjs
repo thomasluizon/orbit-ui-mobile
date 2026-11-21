@@ -1506,7 +1506,7 @@ const DRIVER_FILE = "tools/lib/worker.mjs"
 /** A scene whose driver worktree holds `head` and whose origin/main is `main`; `files` is what `git diff --name-only` lists. A checkout moves the head. */
 const driverScene = ({ head = OLD_PIN, main = NEW_PIN, files = [DRIVER_FILE], driver = { update: true }, ...extra } = {}) => {
   const state = { head }
-  const scene = scenario({ ...extra, driver, gitRoutes: [["rev-parse HEAD", () => `${state.head}\n`], ["rev-parse origin/main", `${main}\n`], ["diff --name-only", files.join("\n")], ["checkout --detach", (args) => { state.head = args[2]; return "" }]] })
+  const scene = scenario({ ...extra, driver, gitRoutes: [["rev-parse HEAD", () => `${state.head}\n`], ["rev-parse origin/main", `${main}\n`], ["diff --name-only", (args) => (typeof files === "function" ? files(args) : files).join("\n")], ["checkout --detach", (args) => { state.head = args[2]; return "" }]] })
   return Object.assign(scene, { state, checkouts: () => scene.calls.filter((entry) => entry[0] === "git" && entry[1] === "checkout").map((entry) => entry.slice(1).join(" ")) })
 }
 
@@ -1596,7 +1596,15 @@ const rollbackCases = async () => {
 
   const afterwards = driverScene({ head: OLD_PIN, main: NEW_PIN, stateDirectory: rolled.env.stateDir })
   same("drive: after a rollback the driver does not switch to the same commit again", [(await afterwards.run()).switched, afterwards.checkouts()], [false, []])
-  const later = driverScene({ head: OLD_PIN, main: LATER_PIN, stateDirectory: rolled.env.stateDir })
+  const sinceFailed = (args) => (args.includes(NEW_PIN) ? [] : [DRIVER_FILE])
+  const quiet = driverScene({ head: OLD_PIN, main: LATER_PIN, files: sinceFailed, stateDirectory: rolled.env.stateDir })
+  const quietResult = await quiet.run()
+  const quietPrinted = []
+  const quietDry = driverScene({ head: OLD_PIN, main: LATER_PIN, files: sinceFailed, stateDirectory: rolled.env.stateDir, dryRun: true })
+  quietDry.env.log = (line) => quietPrinted.push(line)
+  await quietDry.run()
+  same("drive: after a rollback a main commit is compared with the commit that failed, so a commit with no driver file is no switch, in a tick and in a dry run", [quietResult.switched, quiet.checkouts(), only(quiet.calls, "notify").length, quietPrinted.filter((line) => line.startsWith("driver pin"))], [false, [], 0, [`driver pin ${OLD_PIN.slice(0, 9)}: main has no newer driver commit, rolled back from ${NEW_PIN.slice(0, 9)}`]])
+  const later = driverScene({ head: OLD_PIN, main: LATER_PIN, files: (args) => (args.includes(NEW_PIN) ? [DRIVER_FILE] : []), stateDirectory: rolled.env.stateDir })
   const laterResult = await later.run()
   same("drive: a later main commit after a rollback is tried", [laterResult.switched, later.checkouts(), pinOf(later).from, pinOf(later).to, pinOf(later).rolledBack], [true, [`checkout --detach ${LATER_PIN}`], OLD_PIN, LATER_PIN, false])
 
