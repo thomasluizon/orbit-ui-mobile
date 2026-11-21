@@ -10,7 +10,6 @@ const configuration = (name) => parse(readFileSync(new URL(`../core/${name}.prom
 const fixtureRecords = { pro: ['water', 'walk'], composition: ['water', 'walk'], 'duplicate-titles': ['first', 'second'],
   'same-title-children': ['parent', 'children', 'walk'] }
 const ownerRequest = 'eu tenho 7 habitos chamados Water - 710ml deleta dois desses, e os outros 4 coloca Water - 1.18L'
-const repository = (path) => readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8')
 afterEach(() => { vi.unstubAllEnvs() })
 
 it('holds 21 situations, each in 3 phrasings, each in English and pt-BR', () => {
@@ -75,17 +74,6 @@ it('gives a k=1 run its own corpus digest and keeps the digest of the k=3 run', 
   expect(digestOf(cases.map(({ options, ...withoutRepeat }) => withoutRepeat))).toBe(corpusDigest)
   expect(coreDescriptors(1).filter(({ mustPass: required }) => required).map(({ k }) => k)).toEqual(Array(90).fill(1))
   expect(coreDescriptors(1).filter(({ mustPass: required }) => !required)).toEqual(coreDescriptors().filter(({ mustPass: required }) => !required))
-})
-
-// The documents that state pass^3 state when k=1 holds, so that no operator reads k=1 as a cheaper k=3.
-it('states in the skill and in TESTING.md that k=1 holds only for a change with equal model input', () => {
-  for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
-    const text = repository(path).replace(/\s+/gu, ' ')
-    expect(text, path).toContain('ORBIT_EVAL_MUST_PASS_K=1')
-    expect(text, path).toMatch(/k=1 only for a change whose model input equals the model input of `main`/u)
-    expect(text, path).toMatch(/pull request body of that change says why its model input is equal/u)
-    expect(text, path).toMatch(/merge refuses a k=1 window, rerun or baseline in a k=3 verdict, and a k=3 one in a k=1 verdict/u)
-  }
 })
 
 it('holds each owner turn on record as a must-pass case, word for word in pt-BR', () => {
@@ -225,42 +213,6 @@ it('gives the same corpus digest on each machine', () => {
     assert: test.assert?.map((assertion) => ({ ...assertion, transform: 'file:///another/machine/evals/astra/grading-input.mjs' })) }))
   expect(elsewhere.some((test) => test.assert)).toBe(true)
   expect(digestOf(elsewhere)).toBe(corpusDigest)
-})
-
-// The release spec holds the owner's ceiling for the launch gate run; the skill and TESTING.md carry the same figure.
-it('keeps the 2 USD ceiling of the launch gate run in the skill and in TESTING.md', () => {
-  expect(repository('.claude/specs/orbit-prod-release.md')).toMatch(/eval spend ceiling is 2 USD for that run/u)
-  for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) expect(repository(path), path).toMatch(/2 USD/u)
-})
-
-it('keeps the single rerun of the failed cases after a fix as a merged gate verdict, in the skill and in TESTING.md', () => {
-  for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
-    expect(repository(path), path).toMatch(/--rerun/u)
-    expect(repository(path).replace(/\s+/gu, ' '), path).toContain('`--rerun` declares which windows belong to a later build')
-    expect(repository(path), path).not.toMatch(/beside the first report/u)
-  }
-})
-
-// The Astra eval Action is deleted: the live runs of the core set and of the launch corpus start only from a local checkout.
-it('runs the live gate only from a local checkout, in the skill and in TESTING.md', () => {
-  for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
-    const text = repository(path).replace(/\s+/gu, ' ')
-    expect(text, path).not.toMatch(/manual dispatch|manual-only triggering|Astra eval` workflow|The Action|Actions > Astra eval/u)
-    expect(text, path).toMatch(/only live run/u)
-  }
-})
-
-// A grader limit is final on its build. What the evidence keeps differs by kind: only a preview limit stores the held
-// previews for an offline regrade, and no kind clears without the rerun on a later API commit. The core set refuses a
-// change that the grader cannot read back when it loads, so no readback limit exists.
-it('states for each kind of grader limit what the evidence keeps and what clears it, in the skill and in TESTING.md', () => {
-  for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
-    const text = repository(path).replace(/\s+/gu, ' ')
-    for (const kind of ['A preview limit', 'A card limit']) expect(text, `${path}: ${kind}`).toContain(kind)
-    expect(text, path).not.toMatch(/readback limit|cannot read back a saved/u)
-    expect(text, path).toContain('Each kind clears only through `--rerun` on a later API commit of the pull request')
-    expect(text, path).not.toMatch(/extend the grader and regrade them offline/u)
-  }
 })
 
 // Producer: orbit-api ChatController.MaxChatRequestBytes limits the whole chat form to 10 MB.

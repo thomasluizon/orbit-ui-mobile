@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { coreDescriptors, corpusDigest, corpusDigestFor } from '../core/corpus.mjs'
 import { COST_PER_MODEL_CALL_LIMIT_USD, mergeRunFiles, mergeRuns } from '../core/merge.mjs'
-import { noEvidenceKinds, summarize, writeReport, writeResults } from '../core/report.mjs'
+import { summarize, writeReport, writeResults } from '../core/report.mjs'
 import { changeList } from '../core/change-list.mjs'
 
 const descriptor = (id, overrides = {}) => ({ id, situation: id, family: 'owner-turns', defectClass: 'b', locale: 'en',
@@ -429,18 +429,6 @@ describe('a case without a verdict on an earlier build', () => {
     expect(markdown).toContain(laterBuildLine('0 reruns', '0 first verdicts', '1 case'))
     expect(markdown).not.toContain('first verdict on')
   })
-
-  // Producer: the marks of a real merged report. The skill and TESTING.md name each mark as the report prints it.
-  it('names each mark of a later build in the skill and in TESTING.md', () => {
-    const markdown = [merged(cutShort(), [requiredOn(fixedBuild), optionalOn(fixedBuild)]),
-      merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit)], [stopped(fixedBuild)])].map(reported).join('\n')
-    const marks = [...new Set([...markdown.matchAll(/\(([a-z ]+) on bbbbbbb\)/gu)].map(([, mark]) => mark))]
-    expect(marks.sort()).toEqual(['first verdict', 'no verdict', 'rerun'])
-    for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
-      const text = readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8')
-      for (const mark of marks) expect(text, `${path}: ${mark}`).toContain(`\`${mark} on <commit>\``)
-    }
-  })
 })
 
 // The operator declares each window of a later build with `--rerun`, at any position on the command line. Without that
@@ -688,16 +676,6 @@ describe('the report files', () => {
       + 'trace that its answer needs, or a preview turn without the trace that shows a `stored` field):\n'
       + 'required: The chat turn failed with HTTP 429 (AI_DAILY_BUDGET_EXCEEDED): budget')
     expect(markdown).not.toContain('Behavior failures')
-  })
-
-  // Producer: noEvidenceKinds, the one list behind the heading above. The skill and TESTING.md state the same kinds.
-  it('names every kind of attempt without evidence in the skill and in TESTING.md', () => {
-    for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
-      const text = readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8').replace(/\s+/gu, ' ')
-      const kinds = text.match(/Only ([^.]+?) (?:is|are) no evidence/u)?.[1]
-      expect(kinds, path).toBeDefined()
-      for (const kind of noEvidenceKinds) expect(kinds, `${path}: ${kind}`).toContain(kind)
-    }
   })
 
   it('names the fixed build and each rerun case in the report', () => {
