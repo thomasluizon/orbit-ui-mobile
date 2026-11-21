@@ -553,13 +553,13 @@ const runProbe = async (env, mem, tickets, name = MAIN) => {
   }
   setReading(env, mem, { utilization: reading.utilization, resetsAt: reading.resetsAt, at: takenAt, account: state.account?.key ?? null })
   state.probeOwed = false
-  if (reading.status === "allowed" && state.stoppedUntil !== null) {
+  if ((reading.status === "allowed" || reading.status === "allowed_warning") && state.stoppedUntil !== null) {
     state.stoppedUntil = null
     savePace(env, mem)
     log(env, "account", `${name}-resume`, "the probe reads status allowed")
   }
   const paused = pauseIssue(tickets)
-  if (name === MAIN && paused && reading.status === "allowed") {
+  if (name === MAIN && paused && (reading.status === "allowed" || reading.status === "allowed_warning")) {
     await closeIssue(env, tickets, paused, `The probe reads status allowed (${Math.round(reading.utilization * 100)} percent of the week). The driver resumes.`)
     log(env, "driver", "resume", "the probe reads status allowed")
   }
@@ -1531,7 +1531,7 @@ export const tick = async (env, mem) => {
   logPace(env, paces)
   const stoppedAll = ACCOUNT_NAMES.every((name) => paces[name].state === "absent" || paces[name].stopped)
   const orders = []
-  for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets, { running, stopped: paces.main.weekly }))
+  for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets, { running, stopped: paces.main.stopped }))
   await ownerWorkNotices(env, mem, tickets)
   mem.mergedReadsLeft = MERGED_READS_PER_TICK
   mem.mergedReadThisTick.clear()

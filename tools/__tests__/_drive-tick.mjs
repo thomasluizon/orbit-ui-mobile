@@ -1861,6 +1861,29 @@ const twoAccountCases = async () => {
   await marked_.run()
   same("drive: a probe that reads status allowed ends the usage-limit stop early, so a limit of the 5-hour window does not hold an account for days", [only(marked_.calls, "probe"), marked_.mem.worker.stoppedUntil], [[["probe", "worker"]], null])
 
+  const rejected = { utilization: 0.35, resetsAt: RESETS_AT, status: "rejected" }
+  const mainLimited = async (extra) => {
+    const unasked = pull(30, { reviews: [], comments: [comment("ticket", "T")], tracks: 8, headRef: "chore/ticket-8-30" })
+    const scene = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [unasked] }, runs: [pullfrogRun(3, -20 * MINUTE, -15 * MINUTE)], reading: below, workerAuth: WORKER_AUTH, workerReading: below, probeReading: rejected, ...extra })
+    scene.mem.stoppedUntil = RESETS_AT * 1000
+    await scene.run()
+    return scene
+  }
+  const requestRule = [["the main account stopped by a usage limit, the worker account below its line", {}], ["the main account stopped by a usage limit, the worker account at 0.10", { workerReading: { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - MINUTE } }]]
+  for (const [label, extra] of requestRule) {
+    const scene = await mainLimited(extra)
+    same(`drive: ${label} start one worker on the worker account and post no Pullfrog request`, [scene.launched.map(accountOfLaunch), commentsOf(scene.calls, 30).length], [[WORKER_DIRECTORY], 0])
+  }
+
+  const warning = { utilization: 0.8, resetsAt: RESETS_AT, status: "allowed_warning" }
+  const workerWarned = scenario({ tickets: [ticket(7)], reading: below, workerAuth: WORKER_AUTH, workerReading: below, workerProbeReading: warning })
+  workerWarned.mem.worker.stoppedUntil = RESETS_AT * 1000
+  const mainWarned = scenario({ tickets: [ticket(7)], reading: below, workerAuth: WORKER_AUTH, workerReading: below, probeReading: warning })
+  mainWarned.mem.stoppedUntil = RESETS_AT * 1000
+  const pausedWarned = scenario({ tickets: [ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null }), ticket(7)], probeReading: warning })
+  await Promise.all([workerWarned.run(), mainWarned.run(), pausedWarned.run()])
+  same("drive: a probe that reads allowed_warning ends a usage-limit stop and a Pullfrog pause like allowed", [workerWarned.mem.worker.stoppedUntil, mainWarned.mem.stoppedUntil, only(pausedWarned.calls, "closeTicket").length], [null, null, 1])
+
   const absent = scenario({ tickets: [ticket(7)], reading: below, workerAuth: { ...WORKER_AUTH, loggedIn: false } })
   await absent.run()
   same("drive: a signed-out worker account gives no slot, no probe and no issue", [absent.launched.map(accountOfLaunch), only(absent.calls, "probe").length, only(absent.calls, "createTicket").length], [[null], 0, 0])
