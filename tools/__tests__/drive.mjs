@@ -50,6 +50,7 @@ import {
   workerEnvironmentFor,
   workerInvocation,
   workerSettings,
+  worktreeOccupants,
 } from "../lib/worker.mjs"
 import { driverUnit } from "./_drive-tick.mjs"
 import { T, realOrchestratorConfig, root, same, toolPath, SELF } from "./_harness.mjs"
@@ -829,7 +830,29 @@ const launchCases = async () => {
   same("lib/worker.mjs: an error event of the child gives a spawn error", [(await errored.run).spawnError], ["ENOENT"])
 }
 
+const occupantCases = () => {
+  const stateDirectory = join(root, "occupant-state")
+  const worktree = join(root, "occupant-worktrees", "chore-ticket-7")
+  mkdirSync(stateDirectory, { recursive: true })
+  mkdirSync(worktree, { recursive: true })
+  const listing = (...rows) => ({ status: 0, stdout: `  PID COMMAND\n${rows.join("\n")}\n`, stderr: "" })
+  const occupants = (rows, extra = {}) => worktreeOccupants(worktree, { stateDirectory, run: () => listing(...rows), alive: () => false, ownPid: 1, ...extra })
+  same("lib/worker.mjs: a worktree with no process on its path has no occupant", occupants(["  10 /usr/bin/vim notes.txt"]), [])
+  same("lib/worker.mjs: a process whose command names the worktree is an occupant", occupants([` 4242 claude --add-dir ${worktree}`, " 10 /usr/bin/vim notes.txt"]), [4242])
+  same("lib/worker.mjs: a process that names a file under the worktree is an occupant", occupants([` 4243 node ${join(worktree, "a.mjs")}`]), [4243])
+  same("lib/worker.mjs: a sibling path that starts with the same text is no occupant", occupants([` 4244 node ${worktree}-b/a.mjs`, ` 4245 node ${worktree}2`]), [])
+  same("lib/worker.mjs: the driver's own process is never an occupant", occupants([` 77 node ${worktree}`], { ownPid: 77 }), [])
+  writeFileSync(join(stateDirectory, "chore-ticket-7.pid"), `${JSON.stringify({ pid: 555, worktree })}\n`)
+  writeFileSync(join(stateDirectory, "chore-ticket-8.pid"), `${JSON.stringify({ pid: 556, worktree: join(root, "other") })}\n`)
+  writeFileSync(join(stateDirectory, "broken.pid"), "not json")
+  same("lib/worker.mjs: a live pid file of the worktree is an occupant and a pid file of another worktree is not", occupants([], { alive: () => true }), [555])
+  same("lib/worker.mjs: a dead pid file is no occupant", occupants([], { alive: () => false }), [])
+  const failed = (() => { try { worktreeOccupants(worktree, { stateDirectory, run: () => ({ status: 1, stdout: "", stderr: "denied" }), alive: () => false }); return "" } catch (error) { return error.message } })()
+  same("lib/worker.mjs: a ps that fails is an error, so the launch waits", failed, "ps failed: denied")
+}
+
 const workerUnit = async () => {
+  occupantCases()
   settingsCases()
   await skillAndEnvironmentCases()
   eventCases()
