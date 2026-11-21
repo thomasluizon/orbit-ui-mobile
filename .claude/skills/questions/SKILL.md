@@ -23,7 +23,7 @@ anywhere in the run.
 Run `node tools/owner-questions.mjs --list`. It prints the queue of the open session chain and the
 current run state: one row per distinct question, with every source and what it blocks. The run
 state counts when this session owns it. It also counts for a run whose session is no longer live,
-and that no relay successor or unadopted auto-work handoff holds. A live session of another run
+and that no relay successor holds. A live session of another run
 keeps its own queue, and `--list` gives the reason on stderr. Add every row to the candidate list,
 apply the same filter, and give every row a disposition. Keep the chain open until the owner's
 `/handoff` completes.

@@ -7,7 +7,7 @@ import { closeRelayTerminal, relaySession } from "../relay-session.mjs"
 import { adoptRelayRun, appendChainEntry, confirmChainSuccessor, openSessionChain, readSessionChain, writeSessionChain } from "../lib/session-chain.mjs"
 import { ownerQuestionCandidates, questionFilterGaps, recordQuestionFilter } from "../lib/owner-questions.mjs"
 import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, updateRunState, writeRunState } from "../lib/run-state.mjs"
-import { readHandoffRequest, recordHandoffRequest } from "../lib/handoff-prompt.mjs"
+import { recordHandoffRequest } from "../lib/handoff-prompt.mjs"
 import { T, realOrchestratorConfig, stageRepo, stageWithConfig, subagentTranscript, toolPath } from "./_harness.mjs"
 import { ANSWERABLE, PRODUCT, exitedPid, reusedPidRecord, stageClaudeSessions } from "./owner-questions-core.mjs"
 import { checkRelayStop } from "../../.claude/hooks/_lib/rules-relay.mjs"
@@ -21,14 +21,14 @@ const prompt = "/sleep\nRead .claude/specs/relay.md. Every identifier is a lead 
 const relayThreshold = realOrchestratorConfig().relay.softTokens
 
 /** `chain` earlier sessions each relayed with the same `questions`; `filter` records every candidate as queued. */
-const fixture = (label, { tokens = relayThreshold, calls = 20, crank = false, crankPrompt = crank, autoWork = false, questions = ["An owner question."], chain = 0, filter = true } = {}) => {
+const fixture = (label, { tokens = relayThreshold, calls = 20, questions = ["An owner question."], chain = 0, filter = true } = {}) => {
   const repo = stageRepo(`relay-${label}`)
   const checkout = repo.path
   repo.git(["checkout", "-qb", "relay-docs"])
   mkdirSync(join(checkout, ".claude", "handoffs"), { recursive: true })
   mkdirSync(join(checkout, ".claude", "specs"), { recursive: true })
   writeFileSync(join(checkout, ".claude", "orchestrator.json"), JSON.stringify(realOrchestratorConfig()))
-  writeFileSync(join(checkout, ".claude", "handoffs", "NEXT.md"), (autoWork ? prompt.replace("/sleep\n", "/auto-work\n") : prompt) + (crankPrompt ? "## Crank\nInvoke /crank immediately after /sleep entry.\n" : ""))
+  writeFileSync(join(checkout, ".claude", "handoffs", "NEXT.md"), prompt)
   writeFileSync(join(checkout, ".claude", "specs", "relay.md"), "# Relay\n## Open questions\nAn owner question.\n")
   repo.git(["add", ".claude/handoffs/NEXT.md", ".claude/specs/relay.md", ".claude/orchestrator.json"])
   repo.git(["commit", "-qm", "handoff"])
@@ -36,7 +36,7 @@ const fixture = (label, { tokens = relayThreshold, calls = 20, crank = false, cr
   const transcriptPath = join(checkout, ".git", "transcript.jsonl")
   writeFileSync(transcriptPath, Array.from({ length: calls }, (_, index) => JSON.stringify({ type: "assistant", timestamp: new Date(Date.now() - (calls - index) * 1000).toISOString(),
     message: { id: `call-${index}`, model: "claude-opus-5-5", usage: { ...usage, cache_read_input_tokens: tokens - 670 } } })).join("\n") + "\n")
-  writeRunState({ sessionId: "predecessor", sleep: true, crank, autoWork, intake: { gmail: { completed: ["message-1"] } }, remaining: ["#1091"], openOwnerQuestions: questions,
+  writeRunState({ sessionId: "predecessor", sleep: true, remaining: ["#1091"], openOwnerQuestions: questions,
     relay: { from: "predecessor", pending: true, measuredTokens: tokens, permissionMode: "bypassPermissions", transcriptPath, triggeredAt: new Date().toISOString() } }, checkout)
   for (let index = 1; index <= chain; index++) {
     appendChainEntry({ sessionId: `earlier-${index}`, openOwnerQuestions: questions }, checkout)
@@ -280,7 +280,7 @@ const ownerHandoffCases = () => {
     const installation = stageWithConfig(`relay-owner-${++staged}`, "relay-session.mjs", realOrchestratorConfig())
     mkdirSync(join(installation.base, ".git"), { recursive: true })
     if (state) writeRunState(state(installation.base), installation.base)
-    recordHandoffRequest("owner", { command: "wrap-up", sleep: true, crank: false, origin: "owner" }, new Date().toISOString(), installation.base)
+    recordHandoffRequest("owner", { command: "wrap-up", sleep: true, origin: "owner" }, new Date().toISOString(), installation.base)
     const invoke = (flag) => spawnSync(process.execPath, [installation.path, flag], { encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "owner", CLAUDE_CONFIG_DIR: claudeDirectory } })
     return { checkout: installation.base, invoke }
   }
@@ -288,7 +288,7 @@ const ownerHandoffCases = () => {
   const finishedRun = (checkout) => {
     const transcriptPath = join(checkout, ".git", "finished.jsonl")
     writeFileSync(transcriptPath, `${JSON.stringify({ type: "assistant", timestamp: new Date().toISOString(), message: { id: "call-0", model: "claude-opus-5-5", usage } })}\n`)
-    return { sessionId: "finished", sleep: false, autoWork: false, transcriptPath, openOwnerQuestions: [...ANSWERABLE, PRODUCT] }
+    return { sessionId: "finished", sleep: false, transcriptPath, openOwnerQuestions: [...ANSWERABLE, PRODUCT] }
   }
 
   const unowned = ownerCheckout(finishedRun)
@@ -313,24 +313,21 @@ const ownerHandoffCases = () => {
     walk(repo.path)
     return JSON.stringify({ files, origin: repo.git(["ls-remote", "origin"]).stdout })
   }
-  const nextSteps = {
-    sleep: "session unattended runs unattended in this checkout; say stop in that session, then run this handoff again",
-    "auto-work handoff": "session unattended handed off an auto-work run that no successor adopted yet; start that successor from the committed NEXT.md, then run this handoff again",
-  }
-  for (const [label, run] of [["sleep", { sleep: true }], ["auto-work handoff", { sleep: false, autoWork: true, ownerHandoff: { from: "unattended", promptHash: "bound" } }]]) {
-    const repo = stageRepo(`relay-owner-check-${label.replace(/\W+/g, "-")}`)
+  const nextStep = "session unattended runs unattended in this checkout; say stop in that session, then run this handoff again"
+  for (const [label, run] of [["sleep", { sleep: true }]]) {
+    const repo = stageRepo(`relay-owner-check-${label}`)
     cpSync(toolPath("lib"), join(repo.path, "tools", "lib"), { recursive: true })
     cpSync(toolPath("relay-session.mjs"), join(repo.path, "tools", "relay-session.mjs"))
     writeRunState({ sessionId: "unattended", ...run }, repo.path)
-    recordHandoffRequest("owner", { command: "wrap-up", sleep: true, crank: false, origin: "owner" }, new Date().toISOString(), repo.path)
+    recordHandoffRequest("owner", { command: "wrap-up", sleep: true, origin: "owner" }, new Date().toISOString(), repo.path)
     const before = snapshot(repo)
     const checked = spawnSync(process.execPath, [join(repo.path, "tools", "relay-session.mjs"), "--owner-check"], { encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "owner", CLAUDE_CONFIG_DIR: liveClaude } })
     T(`relay-session: --owner-check beside another session's ${label} names the owner's next step and writes or pushes nothing`, checked.status === 1 &&
-      checked.stderr === `RELAY_FAILED: ${nextSteps[label]}\n` && snapshot(repo) === before, checked.stderr)
+      checked.stderr === `RELAY_FAILED: ${nextStep}\n` && snapshot(repo) === before, checked.stderr)
     const beside = ownerCheckout(() => ({ sessionId: "unattended", ...run }))
     const refused = beside.invoke("--close-chain")
-    T(`relay-session: --close-chain beside another session's ${label} repeats that refusal and binds no carry for the owner`, refused.status === 1 &&
-      refused.stderr === `RELAY_FAILED: ${nextSteps[label]}\n` && readRunState(beside.checkout).ownerHandoff?.from !== "owner", refused.stderr)
+    T(`relay-session: --close-chain beside another session's ${label} repeats that refusal`, refused.status === 1 &&
+      refused.stderr === `RELAY_FAILED: ${nextStep}\n`, refused.stderr)
   }
   const reusedPid = reusedPidRecord(process.pid)
   for (const [label, sessions] of [["has no session record", {}], ["has a session record of a process that exited", { unattended: exitedPid() }],
@@ -352,15 +349,6 @@ const ownerHandoffCases = () => {
   const relayingCheck = relaying.invoke("--owner-check")
   T("relay-session: a pending relay whose predecessor died holds the run while its nominee is live", relayingCheck.status === 1 &&
     relayingCheck.stderr === "RELAY_FAILED: session nominee is the relay successor of session unattended and has not adopted the run yet; wait for that relay to finish, or say stop in session nominee, then run this handoff again\n", relayingCheck.stderr)
-  const adopted = { ownerHandoff: { from: "earlier", promptHash: "bound", successorSessionId: "stopped" } }
-  for (const [label, record] of [["a stopped auto-work run", {}], ["an adopted, then stopped auto-work run", adopted]]) {
-    const stopped = ownerCheckout(() => ({ sessionId: "stopped", sleep: false, autoWork: true, ...record }))
-    const stoppedCheck = stopped.invoke("--owner-check")
-    const stoppedClose = stopped.invoke("--close-chain")
-    T(`relay-session: ${label} of another session never blocks an owner handoff`, stoppedCheck.status === 0 && stoppedClose.status === 0 &&
-      JSON.stringify(readRunState(stopped.checkout).ownerHandoff) === JSON.stringify(record.ownerHandoff), `${stoppedCheck.stderr} ${stoppedClose.stderr}`)
-  }
-
   const foreignChain = ownerCheckout(finishedRun)
   appendChainEntry({ sessionId: "earlier" }, foreignChain.checkout)
   confirmChainSuccessor("earlier", "owner", "term_owner", 1, foreignChain.checkout)
@@ -391,38 +379,6 @@ export const cases = async () => {
     const staged = fixture(label, options)
     T(`relay-session: refuses ${label}`, message.test(await failure({ repoRoot: staged.checkout, sessionId: "predecessor" })))
   }
-  for (const source of ["state", "request"]) {
-    const missing = fixture(`crank-missing-${source}`, { crank: source === "state", crankPrompt: false })
-    if (source === "request") recordHandoffRequest("predecessor", { command: "handoff", sleep: true, crank: true }, new Date().toISOString(), missing.checkout)
-    const operations = []
-    const message = await failure({ repoRoot: missing.checkout, sessionId: "predecessor", execute: executeFor(missing.checkout, { commands: operations }) })
-    T(`relay-session: crank from ${source} refuses a prompt without its section`, /NEXT.md misses:.*## Crank/.test(message), String(message))
-    T(`relay-session: crank from ${source} launches no successor before prompt validation`, operations.length === 0)
-    T(`relay-session: crank from ${source} is retained in the relay request`, readHandoffRequest("predecessor", missing.checkout)?.crank === true)
-  }
-  for (const newerRequest of [false, true]) {
-    const staged = fixture(`crank-disable-${newerRequest}`, { crank: true, crankPrompt: newerRequest })
-    recordHandoffRequest("predecessor", { command: "handoff", origin: "context-relay", sleep: true, crank: true }, new Date().toISOString(), staged.checkout)
-    writeRunState({ ...readRunState(staged.checkout), crank: false }, staged.checkout)
-    if (newerRequest) recordHandoffRequest("predecessor", { command: "handoff", origin: "owner", sleep: true, crank: true }, new Date().toISOString(), staged.checkout)
-    const operations = []
-    const message = await failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: operations }), wait: async () => {}, confirmMilliseconds: 10 })
-    T(`relay-session: ${newerRequest ? "newer request enables" : "disable supersedes threshold"} through publication and entry`, message === null && readRunState(staged.checkout).crank === newerRequest, String(message))
-    T("relay-session: published relay request matches the latest mode", readHandoffRequest("predecessor", staged.checkout)?.crank === newerRequest)
-    T("relay-session: successor receives the matching committed prompt", operations.some((args) => args[1] === "send" && args.includes("--text") && args[args.indexOf("--text") + 1].includes("## Crank") === newerRequest))
-  }
-  const cranked = fixture("crank-success", { crank: true })
-  const automatic = fixture("auto-work-success", { autoWork: true })
-  const automaticResult = await relaySession({ repoRoot: automatic.checkout, sessionId: "predecessor", execute: executeFor(automatic.checkout), wait: async () => {}, confirmMilliseconds: 10 })
-  T("relay-session: published auto-work prompt survives real adoption", readRunState(automatic.checkout).autoWork === true && readRunState(automatic.checkout).intake.gmail.completed[0] === "message-1" && readRunState(automatic.checkout).sessionId === automaticResult.successorSessionId)
-  const crankedOperations = []
-  const crankedResult = await relaySession({ repoRoot: cranked.checkout, sessionId: "predecessor", execute: executeFor(cranked.checkout, { commands: crankedOperations }), wait: async () => {}, confirmMilliseconds: 10 })
-  T("relay-session: crank successor inherits the durable mode and queue", readRunState(cranked.checkout).crank === true && readRunState(cranked.checkout).sessionId === crankedResult.successorSessionId && readRunState(cranked.checkout).remaining[0] === "#1091")
-  T("relay-session: successor receives crank instructions after sleep entry", crankedOperations.some((args) => args[1] === "send" && args.includes("--text") && args[args.indexOf("--text") + 1].includes("## Crank\nInvoke /crank immediately after /sleep entry.")))
-  const disabled = readRunState(cranked.checkout)
-  writeRunState({ ...disabled, crank: false, relay: { ...disabled.relay, pending: true, successorSessionId: "disabled-successor" } }, cranked.checkout)
-  adoptRelayRun("disabled-successor", cranked.checkout)
-  T("relay-session: disabling remains false through the next adoption", readRunState(cranked.checkout).crank === false && readRunState(cranked.checkout).remaining[0] === "#1091")
   const successful = fixture("success")
   const commands = []
   let reported = false
@@ -470,29 +426,24 @@ export const cases = async () => {
   }
 
   const canceled = fixture("owner-cancel")
-  mkdirSync(join(canceled.checkout, ".claude", "hooks"), { recursive: true })
-  cpSync(toolPath("lib"), join(canceled.checkout, "tools", "lib"), { recursive: true })
-  cpSync(new URL("../../.claude/hooks/_lib", import.meta.url), join(canceled.checkout, ".claude", "hooks", "_lib"), { recursive: true })
-  cpSync(new URL("../../.claude/hooks/record-handoff-request.mjs", import.meta.url), join(canceled.checkout, ".claude", "hooks", "record-handoff-request.mjs"))
   const cancellationCommands = []
   const cancelExecute = executeFor(canceled.checkout, { confirm: false, commands: cancellationCommands })
   let rejectedEntry = false
   let rejectedOrdinaryWrite = false
-  let ownerHookSucceeded = false
+  let ownerCancelRecorded = false
   const canceledError = await failure({ repoRoot: canceled.checkout, sessionId: "predecessor", confirmMilliseconds: 1, wait: async () => {},
     execute: (binary, args, cwd, environment) => {
       if (args[1] === "send" && args.includes("--text")) {
         const nominated = readRunState(canceled.checkout).relay.successorSessionId
-        const hook = spawnSync(process.execPath, [join(canceled.checkout, ".claude", "hooks", "record-handoff-request.mjs")], {
-          input: JSON.stringify({ session_id: "predecessor", prompt: "/handoff --sleep", transcript_path: canceled.transcriptPath }), encoding: "utf8" })
-        ownerHookSucceeded = hook.status === 0 && readRunState(canceled.checkout).relay.canceledByOwner === true
+        updateRunState((state) => ({ ...state, sleep: false, relay: { ...state.relay, pending: false, canceledByOwner: true } }), canceled.checkout, { sessionId: "predecessor" })
+        ownerCancelRecorded = readRunState(canceled.checkout).relay.canceledByOwner === true
         try { adoptRelayRun(nominated, canceled.checkout) } catch (error) { rejectedEntry = /cancel/i.test(error.message) }
         try { writeRunState({ sessionId: nominated, sleep: false, relay: { from: "predecessor" } }, canceled.checkout) }
         catch (error) { rejectedOrdinaryWrite = /cancel/i.test(error.message) }
       }
       return cancelExecute(binary, args, cwd, environment)
     } })
-  T("relay-session: real owner hook cancels a nominated relay", ownerHookSucceeded)
+  T("relay-session: an owner cancel on the run record cancels a nominated relay", ownerCancelRecorded)
   T("relay-session: canceled nominee cannot enter sleep or replace the stopped run", rejectedEntry && rejectedOrdinaryWrite)
   const canceledState = readRunState(canceled.checkout)
   T("relay-session: timeout cleanup preserves owner cancellation", /did not confirm/.test(canceledError) && canceledState.sessionId === "predecessor" && canceledState.sleep === false && canceledState.relay.pending === false && canceledState.relay.canceledByOwner === true)

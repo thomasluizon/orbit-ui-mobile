@@ -120,17 +120,17 @@ const RACE_TRIALS = 30
 const RACE_BATCH = 10
 
 /**
- * One process saves wake marks in a loop while this process writes `autoWork: false` from a read of
+ * One process counts saves in a loop while this process writes `sleep: false` from a read of
  * its own. Unless the two read-change-writes are serialized, the saver writes back its stale copy.
  */
-const raceDisableAgainstWakeSaves = async () => {
+const raceStopAgainstSaves = async () => {
   const saver = join(root, "run-state", "race-saver", "wake-saver.mjs")
   mkdirSync(join(root, "run-state", "race-saver"), { recursive: true })
-  writeFileSync(saver, `import { saveWakeMarks } from ${JSON.stringify(pathToFileURL(join(TOOLS_DIR, "lib", "auto-work-wake.mjs")).href)}
+  writeFileSync(saver, `import { updateRunState } from ${JSON.stringify(pathToFileURL(join(TOOLS_DIR, "lib", "run-state.mjs")).href)}
 const repoRoot = process.argv[2]
 let saves = 0
 for (;;) {
-  try { saveWakeMarks({ seen: { board: [\`k\${saves}\`] }, failures: {}, sentryListedAt: null }, repoRoot) } catch (error) {
+  try { updateRunState((state) => ({ ...state, saves }), repoRoot) } catch (error) {
     console.log(JSON.stringify({ saves, stop: error.message })); break
   }
   if (++saves === 1) console.log("SAVING")
@@ -139,7 +139,7 @@ for (;;) {
 `)
   const trial = async (index) => {
     const repoRoot = stageCheckout(`race-${index}`)
-    writeRunState({ sessionId: "auto", sleep: true, autoWork: true, remaining: [] }, repoRoot)
+    writeRunState({ sessionId: "saver", sleep: true, remaining: [] }, repoRoot)
     const child = spawn(process.execPath, [saver, repoRoot], { stdio: ["ignore", "pipe", "pipe"] })
     let output = ""
     const saving = new Promise((resolve) => child.stdout.on("data", (chunk) => {
@@ -149,9 +149,9 @@ for (;;) {
     const closed = new Promise((resolve) => child.once("close", resolve))
     await Promise.race([saving, closed])
     await wait(index % 7 * 5)
-    writeRunState({ ...readRunState(repoRoot), autoWork: false }, repoRoot)
+    writeRunState({ ...readRunState(repoRoot), sleep: false }, repoRoot)
     await closed
-    return { exercised: output.includes("SAVING"), kept: readRunState(repoRoot).autoWork === false, output: output.trim() }
+    return { exercised: output.includes("SAVING"), kept: readRunState(repoRoot).sleep === false, output: output.trim() }
   }
   const outcomes = []
   for (let start = 0; start < RACE_TRIALS; start += RACE_BATCH) {
@@ -289,28 +289,28 @@ export const cases = async () => {
   await darwinProcessReadCases()
   strandedQueueCases()
   sessionRecordCases()
-  const raced = await raceDisableAgainstWakeSaves()
+  const raced = await raceStopAgainstSaves()
   const lost = raced.filter((outcome) => !outcome.kept)
-  T(`${TOOL}: every race trial saved wake marks before the disable`, raced.every((outcome) => outcome.exercised),
+  T(`${TOOL}: every race trial saved before the stop`, raced.every((outcome) => outcome.exercised),
     JSON.stringify(raced.filter((outcome) => !outcome.exercised)))
-  T(`${TOOL}: a concurrent wake save loses no disable in ${RACE_TRIALS} trials`, lost.length === 0,
+  T(`${TOOL}: a concurrent save loses no stop in ${RACE_TRIALS} trials`, lost.length === 0,
     `lost ${lost.length} of ${RACE_TRIALS}: ${JSON.stringify(lost.slice(0, 3))}`)
   const nested = stageCheckout("nested-write")
-  writeRunState({ sessionId: "s", sleep: true, autoWork: true }, nested)
+  writeRunState({ sessionId: "s", sleep: true }, nested)
   let nestedError = null
   try {
-    updateRunState((state) => { writeRunState({ ...state, autoWork: false }, nested); return { ...state, crank: true } }, nested)
+    updateRunState((state) => { writeRunState({ ...state, sleep: false }, nested); return { ...state, probe: true } }, nested)
   } catch (error) { nestedError = error.message }
   const afterNested = readRunState(nested)
   T(`${TOOL}: a writer called inside a held update throws and writes nothing`,
-    nestedError?.includes("already held by this process") === true && afterNested.autoWork === true && afterNested.crank === undefined,
+    nestedError?.includes("already held by this process") === true && afterNested.sleep === true && afterNested.probe === undefined,
     JSON.stringify({ nestedError, afterNested }))
-  writeRunState({ ...afterNested, crank: false }, nested)
-  T(`${TOOL}: the lock is released after a refused nested write`, readRunState(nested).crank === false)
+  writeRunState({ ...afterNested, probe: false }, nested)
+  T(`${TOOL}: the lock is released after a refused nested write`, readRunState(nested).probe === false)
   const adopted = (label) => {
     const repoRoot = stageCheckout(label)
-    writeRunState({ sessionId: "relay-p", sleep: true, crank: false, transcriptPath: "/transcripts/p.jsonl" }, repoRoot)
-    writeRunState({ sessionId: "relay-s", sleep: true, crank: false, transcriptPath: "/transcripts/s.jsonl", relay: { from: "relay-p", pending: false } }, repoRoot)
+    writeRunState({ sessionId: "relay-p", sleep: true, probe: false, transcriptPath: "/transcripts/p.jsonl" }, repoRoot)
+    writeRunState({ sessionId: "relay-s", sleep: true, probe: false, transcriptPath: "/transcripts/s.jsonl", relay: { from: "relay-p", pending: false } }, repoRoot)
     return repoRoot
   }
   const withCallerEnvironment = (sessionId, action) => {
@@ -323,34 +323,24 @@ export const cases = async () => {
     }
   }
   const predecessorRun = adopted("superseded-environment")
-  const crankRefusal = withCallerEnvironment("relay-p", () => updateRunState((state) => ({ ...state, crank: true }), predecessorRun))
+  const probeRefusal = withCallerEnvironment("relay-p", () => updateRunState((state) => ({ ...state, probe: true }), predecessorRun))
   const logRefusal = withCallerEnvironment("relay-p", () => updateRunState((state) => ({ ...state, transcriptPath: "/transcripts/p.jsonl" }), predecessorRun))
   const afterRefusal = readRunState(predecessorRun)
   T(`${TOOL}: a superseded session named by CLAUDE_CODE_SESSION_ID cannot spread its update into the successor's run`,
-    crankRefusal?.message === "session is superseded; run state write refused" && logRefusal?.message === crankRefusal.message &&
-      afterRefusal.sessionId === "relay-s" && afterRefusal.crank === false && afterRefusal.transcriptPath === "/transcripts/s.jsonl",
-    JSON.stringify({ crankRefusal: crankRefusal?.message, logRefusal: logRefusal?.message, afterRefusal }))
+    probeRefusal?.message === "session is superseded; run state write refused" && logRefusal?.message === probeRefusal.message &&
+      afterRefusal.sessionId === "relay-s" && afterRefusal.probe === false && afterRefusal.transcriptPath === "/transcripts/s.jsonl",
+    JSON.stringify({ probeRefusal: probeRefusal?.message, logRefusal: logRefusal?.message, afterRefusal }))
   const explicitRun = adopted("superseded-option")
-  const explicitRefusal = withCallerEnvironment("relay-s", () => updateRunState((state) => ({ ...state, crank: true }), explicitRun, { sessionId: "relay-p" }))
+  const explicitRefusal = withCallerEnvironment("relay-s", () => updateRunState((state) => ({ ...state, probe: true }), explicitRun, { sessionId: "relay-p" }))
   T(`${TOOL}: an explicit superseded sessionId option wins over the environment and is refused`,
-    explicitRefusal?.message === "session is superseded; run state write refused" && readRunState(explicitRun).crank === false,
+    explicitRefusal?.message === "session is superseded; run state write refused" && readRunState(explicitRun).probe === false,
     JSON.stringify({ explicitRefusal: explicitRefusal?.message, after: readRunState(explicitRun) }))
-  const successorWrite = withCallerEnvironment("relay-s", () => updateRunState((state) => ({ ...state, crank: true, transcriptPath: "/transcripts/s2.jsonl" }), adopted("successor-update")))
+  const successorWrite = withCallerEnvironment("relay-s", () => updateRunState((state) => ({ ...state, probe: true, transcriptPath: "/transcripts/s2.jsonl" }), adopted("successor-update")))
   T(`${TOOL}: the successor itself can still update its run`,
-    successorWrite?.sessionId === "relay-s" && successorWrite.crank === true && successorWrite.transcriptPath === "/transcripts/s2.jsonl", JSON.stringify(successorWrite))
-  const anonymousWrite = withCallerEnvironment(undefined, () => updateRunState((state) => ({ ...state, crank: true }), adopted("anonymous-update")))
+    successorWrite?.sessionId === "relay-s" && successorWrite.probe === true && successorWrite.transcriptPath === "/transcripts/s2.jsonl", JSON.stringify(successorWrite))
+  const anonymousWrite = withCallerEnvironment(undefined, () => updateRunState((state) => ({ ...state, probe: true }), adopted("anonymous-update")))
   T(`${TOOL}: an update with no caller id keeps the unchecked behaviour`,
-    anonymousWrite?.sessionId === "relay-s" && anonymousWrite.crank === true, JSON.stringify(anonymousWrite?.message ?? anonymousWrite))
-  const autoCheckout = stageCheckout("auto-work")
-  writeRunState({ sessionId: "auto-parent", autoWork: true, crank: false, intake: { gmail: { completed: ["message-1"] } } }, autoCheckout)
-  writeRunState({ sessionId: "auto-parent", remaining: [] }, autoCheckout)
-  T("auto-work state: ordinary updates retain mode and source cursors", readRunState(autoCheckout).autoWork === true && readRunState(autoCheckout).intake?.gmail.completed[0] === "message-1")
-  writeRunState({ sessionId: "auto-child", relay: { from: "auto-parent" } }, autoCheckout)
-  T("auto-work state: relay writes inherit mode and cursors", readRunState(autoCheckout).autoWork === true && readRunState(autoCheckout).intake?.gmail.completed[0] === "message-1")
-  writeRunState({ sessionId: "auto-child", autoWork: false }, autoCheckout)
-  T("auto-work state: explicit disable wins", readRunState(autoCheckout).autoWork === false)
-  writeRunState({ sessionId: "unrelated" }, autoCheckout)
-  T("auto-work state: unrelated sessions do not inherit", readRunState(autoCheckout).autoWork === undefined && readRunState(autoCheckout).intake === undefined)
+    anonymousWrite?.sessionId === "relay-s" && anonymousWrite.probe === true, JSON.stringify(anonymousWrite?.message ?? anonymousWrite))
   const corruptRoot = stageCheckout("corrupt")
   writeFileSync(runStatePath(corruptRoot), "not json")
   let corruptError

@@ -1,51 +1,28 @@
 ---
 name: handoff
-description: Carry a long-running effort into a fresh session. Updates the effort's spec file in this repo with everything durable the session established, then writes a short prompt that points at it. Use at the end of a session, when context is running out, or when the user says /handoff, hand this off, continue this in a new session. Pass --crank to preserve maximum velocity across relays; it includes --sleep. Pass --sleep to prepare NEXT.md for an unattended next session entered through /sleep. It writes a spec and a prompt, then ends the session without doing the work they describe.
-argument-hint: "[--sleep] [--crank] [--relay] [extra instructions for the NEXT session]"
+description: Carry a long-running effort into a fresh session. Updates the effort's spec file in this repo with everything durable the session established, then writes a short prompt that points at it. Use at the end of a session, when context is running out, or when the user says /handoff, hand this off, continue this in a new session. Pass --sleep to start NEXT.md with /sleep, which sets the sleep mode of the delivery driver. It writes a spec and a prompt, then ends the session without doing the work they describe.
+argument-hint: "[--sleep] [--relay] [extra instructions for the NEXT session]"
 effort: high
 ---
 
 # /handoff
 
 **Input**: `$ARGUMENTS`. Empty means the next session continues what this session was doing.
-`--sleep` or `/sleep` anywhere in it means `NEXT.md` must be a complete prompt for an unattended
-next session whose entry point is `/sleep`. Nobody has to add anything before it runs. Anything else
+`--sleep` or `/sleep` anywhere in it means `NEXT.md` must be a complete prompt whose first line is
+`/sleep`, which sets the sleep mode of the delivery driver. Nobody has to add anything before it runs. Anything else
 is extra work for the NEXT session. You never do that work now.
 
 An owner `/handoff` runs `node tools/relay-session.mjs --owner-check` first, before it writes
-anything. The check refuses while another live session runs unattended in this checkout, while a
-live relay successor did not adopt the run yet, or while another session holds an auto-work handoff
-that no successor adopted yet. Beside another session's unattended run, it also refuses when it
+anything. The check refuses while another live session runs unattended in this checkout, or while a
+live relay successor did not adopt the run yet. Beside another session's unattended run, it also refuses when it
 cannot find this session's own Claude session record, because then it cannot see whether that run is
 live. If it refuses, write and push nothing, and give the owner its message, which names his next
 step.
 
-`--crank` or `/crank` includes `--sleep`. Read the current session's run state with
-`readRunState` from `tools/lib/run-state.mjs`: `crank: true` includes it automatically,
-including on a context relay. The prompt then carries a `## Crank` section telling the next
-session to invoke `/crank` immediately after `/sleep` entry, before queue work.
-Use `handoffCrank` from `tools/lib/handoff-prompt.mjs` to resolve a recorded request against
-the matching run. A later disable wins over an older true request; recording a newer explicit
-true request enables the run again. With no run, record crank intent through
-`recordHandoffRequest` for this session only. Start no queue work and invoke no `/sleep` or
-standalone `/crank` while preparing this handoff.
-
 ## Context relay mode
 
-If `handoffAutoWork` from `tools/lib/handoff-prompt.mjs` resolves the matching run to true,
-the unattended prompt starts with exactly `/auto-work` instead of `/sleep`. Retain the Sleep
-section and the existing relay procedure. The intake source marks, pending items and the review
-workflow identity live in `run-state/intake.json` in the tickets repository, so the successor reads
-them there; never copy or reset them in the prompt.
-The successor enters `/sleep` through the auto-work skill. Crank remains independently inherited.
-For an owner-started handoff, `relay-session.mjs --close-chain` prepares a durable adoption record
-even without an open reporting chain. It binds the current predecessor to the exact committed
-`NEXT.md` contents. The successor's `/sleep` entry calls `adoptOwnerHandoffRun` with its actual
-incoming prompt before any ordinary state write. The record can be consumed once; changed
-prompts, unrelated runs and disabled auto-work cannot inherit it. Keep intake out of tracked text.
-
-`--relay` is the unattended context transition requested by `relay-at-threshold.mjs`.
-It includes `--sleep`, and `--crank` automatically when the run state has `crank: true`.
+`--relay` is the unattended context transition that `tools/relay-session.mjs` completes.
+It includes `--sleep`.
 It never asks the owner anything, and it never ends the session before a successor
 is confirmed. This is the exception to the owner handoff's ending
 rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
@@ -75,8 +52,8 @@ An owner `/handoff` never runs `/questions --relay`. Only the owner's own `/ques
 queue: `/wrap-up` runs it before this skill, and a bare owner `/handoff` runs none. In both
 modes, every row that `node tools/owner-questions.mjs --list` prints goes in the spec's
 `## Open questions`, with who must answer and what it blocks. When this session owns no run, the
-list also holds the queue of a run whose session is no longer live, and that no relay successor or
-unadopted auto-work handoff holds. Remove a question from that section
+list also holds the queue of a run whose session is no longer live, and that no relay successor
+holds. Remove a question from that section
 only when a filter or the owner settled it. Keep the owner-only steps and the settled decisions that
 the section also holds.
 
@@ -93,7 +70,6 @@ turn with `node tools/relay-session.mjs --retry-wake` as a background task and r
 exits, at least ten minutes later. Launch nothing during that wait. After two failures near
 the auto compact point, the hook records the fallback and permits ordinary continuation.
 
-An owner-origin `/handoff` clears a pending drain through `record-handoff-request.mjs`.
 After an owner handoff has finished its committed and pushed outputs, run
 `node tools/relay-session.mjs --close-chain` before the final reply. When this session has an open
 reporting chain, the tool records the session and closes that chain; with no open chain it records
@@ -308,15 +284,13 @@ disposition in the new prompt, in a `## Previous prompt, disposition` section:
 | superseded | what replaced it: a later instruction or a state change |
 
 **An instruction that is not stale is never dropped, and never replaced by a skill's default.** A
-ranking such as `/orchestrate --auto`'s leverage order is a default, not a decision, and it never fills
+ranking such as the leverage order of `plan-queue.mjs --board` is a default, not a decision, and it never fills
 the gap an instruction left.
 
 ## What belongs in the prompt
 
-Short. It points at the spec and says what to do next. Its shape is enforced, not advised: a hook
-records the mode from the owner's own `/handoff` or `/wrap-up` prompt, and `git commit` of
-`NEXT.md`, and the stop after it, are refused while the prompt misses any requirement below
-(`tools/lib/handoff-prompt.mjs`, `.claude/hooks/require-handoff-prompt.mjs`).
+Short. It points at the spec and says what to do next. Its shape is checked by `validateHandoffPrompt` in
+`tools/lib/handoff-prompt.mjs`: the prompt misses no requirement below.
 
 0. Under `--sleep`, the first line is exactly `/sleep`, so pasting the file starts the run with
    nothing added. An attended prompt never starts with a slash command.
@@ -335,23 +309,7 @@ records the mode from the owner's own `/handoff` or `/wrap-up` prompt, and `git 
 6. Under `--sleep`, a `## Sleep` section. Any other `$ARGUMENTS` get their own section too.
 7. A `## Previous prompt, disposition` section (above), a `## Goal` section with the `gh issue list`
    query, and a `## In flight` section.
-8. Under `--crank`, or when the current run state has `crank: true`, a `## Crank` section
-   whose body invokes `/crank` immediately after `/sleep` entry. This also requires every
-   `--sleep` prompt rule. Context relays preserve the same flags.
-   A cranked prompt orders no hold of ready work. `validateHandoffPrompt` refuses `X FIRST`, a
-   merge of one item before, ahead of, after or once another, and a hold of one item until another,
-   and its message quotes the clause. It is a tripwire for these phrasings, not the guarantee: write
-   no hold in any wording. Why: the successor obeys the prompt, so one such line keeps every
-   pull request at the merge bar waiting for the named one, and crank permits no wait except the
-   merge bar, the admission caps, the load gate and a relay drain. Say what state each item is in
-   and let `run-status.mjs` report `MERGE_NOW`. A real dependency is a ticket relation or a
-   stacked base. Deploy-API-first is one: an API item that merges before a UI or landing item
-   is stated and accepted. An earlier order that is finished or replaced keeps its disposition
-   word, `done` or `superseded`, after the order as its label (`: done`, `(superseded)`), or a
-   leading `Superseded:`. The word elsewhere on the line, such as a finished CI, does not settle
-   the order. A start order that names the cap, such as `Queue order under the cap: #2171 first,
-   then #2172`, holds no ready work and is accepted; the same line with a merge word is refused.
-9. One line: every identifier here came from a previous session, treat each as a lead to verify.
+8. One line: every identifier here came from a previous session, treat each as a lead to verify.
 
 **Always name the entry point. Never restate what it does.** A session that does not know its entry
 point starts by inventing its own way of working. Naming `/orchestrate` carries everything it does:
@@ -359,9 +317,8 @@ its review loop, its merge bar, its worker contract, who writes code. Repeating 
 bloat that pushes out the delta only this session has. Cutting the restatement and the pointer
 together is the failure mode; keep the pointer.
 
-Under `--sleep` the entry point is the sleep skill, and it is the only one. It invokes the work
-skill itself, so the prompt must not present the two as siblings. Under `--crank`, invoke
-`/crank` immediately after sleep entry as a mode of the adopted run.
+Under `--sleep` the entry point is the sleep skill, and it is the only one. It switches the
+delivery driver to sleep mode, so the prompt must not tell the successor to start another loop.
 
 ## The goal is always the same: finish the spec
 
@@ -432,8 +389,7 @@ handoff and needs to know his tree is not clean. Nothing else, before or after.
 
 ### Under `--sleep`, prepare the next session's prompt
 
-Make `/sleep` the prompt's first line and only entry point, or `/auto-work` while that mode is
-enabled, and give it a `## Sleep` section. State the goal, the in-flight inventory, and the next
+Make `/sleep` the prompt's first line and only entry point, and give it a `## Sleep` section. State the goal, the in-flight inventory, and the next
 actions completely enough for an unattended next session to start without anyone adding instructions.
 `--sleep` changes `NEXT.md`; after committing, reply and end this session as usual.
 
