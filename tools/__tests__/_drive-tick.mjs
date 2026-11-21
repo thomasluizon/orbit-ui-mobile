@@ -1914,6 +1914,14 @@ const twoAccountCases = async () => {
   await stallOf("main at 0.92 with the worker account at 0.35 and one pull request waiting for its first review", { reading: stoppedReading })
   await stallOf("main stopped by a usage limit with the worker account at 0.35 and one pull request waiting for its first review", { reading: below, usageLimit: true })
 
+  // A launch that fails on the worker account is no hold the driver chose, so it stays on the stall clock while the main account is stopped.
+  const failing = join(root, `drive-stall-${++scenarios}`)
+  mkdirSync(failing, { recursive: true })
+  writeFileSync(join(failing, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
+  const failed = scenario({ tickets: [ticket(7)], occupants: [4242], stateDirectory: failing, reading: stoppedReading, workerAuth: WORKER_AUTH, workerReading: below })
+  await failed.run()
+  same("drive: main at 0.92 and the worker account at 0.35 with a worktree that another process holds on every tick open one stall issue after 61 minutes", [failed.launched.length, only(failed.calls, "createTicket").filter(([, input]) => input.title === STALL).length], [0, 1])
+
   const both = scenario({ tickets: [ticket(7), ticket(8), ticket(9), ticket(10), ticket(11)], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
   await both.run()
   same("drive: both accounts below their lines give the sum of their slots, and the worker account fills first", both.launched.map(accountOfLaunch), [WORKER_DIRECTORY, WORKER_DIRECTORY, null, null])

@@ -1627,8 +1627,9 @@ export const tick = async (env, mem) => {
       if (reason === null) { mem.acted = true; free[name] -= 1 }
       else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
     }
-    const waiting = [...mem.waiting, ...unstarted]
-    await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || paces.main.stopped, waiting }).catch((error) => log(env, "stall", "error", error.message))
+    // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.
+    const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...unstarted]
+    await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || stoppedAll, waiting }).catch((error) => log(env, "stall", "error", error.message))
   }
   if (!env.dryRun && env.now() - mem.lastIntakeAt >= HOUR_MS) {
     mem.lastIntakeAt = env.now()
