@@ -336,7 +336,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
         <Text style={[styles.rescueBody, { color: tokens.fg2 }]}>{t('habits.reschedule.freePrompt')}</Text>
         <View style={styles.rescueActions}><ActionRow>
           {notNow}
-          {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Habit Detail.dc.html:857 (D42) */}
+          {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Habit Detail.dc.html rsPro (D42) */}
           <PillButton accessibilityRole="link" variant={actionVariant} size="sm" onClick={() => router.push('/upgrade')}>{t('habits.reschedule.upgrade')}</PillButton>
         </ActionRow></View>
       </View>

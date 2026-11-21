@@ -126,19 +126,13 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Four surfaces a person meets when something is wrong or missing: the update gate, a page that does not exist, a generic failure, and a refusal for rate limiting. Each states the fix. None of them apologises, and none of them says oops, sorry or something went wrong.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>update, update soft, not found, failure, throttle. The update state renders differently at each width, which is the point: switch the width control to see both halves of the divergence, and the soft update is a 412 shape, because the store check it comes from does not exist in a browser. NO plan axis: none of the five is a plan boundary, because a rate limit is not a ceiling a plan lifts, so the absent switch is a decision.</p>
-      <p><span style="color:var(--fg-3)">update&nbsp;&nbsp;</span>the gate has TWO independent sources. The server gate: MinimumVersionMiddleware.cs:26 reads the X-App-Version header, :41 compares it against the configured floor, and :53-63 answers 426 with minVersion in the body. Web picks that up at api-fetch.ts:88-91 and draws a DISMISSIBLE banner with a reload (update-available-banner.tsx:24,53), because the web app is brought up to date in place by loading it again, and a blocker would take a working session away for a fix that takes a second. Mobile picks it up at api-client.ts:222 and draws a NON DISMISSIBLE full screen blocker with a store action (upgrade-required-screen.tsx:23), because a build that is too old cannot talk to the API at all. That gate is FAIL SAFE and currently OPEN: a missing or unparseable header is always allowed and the floor defaults to 0.0.0 (MinimumVersionMiddleware.cs:17-20 and :38-39), so nobody is blocked today. The STORE check never touches the API: use-version-check.ts:41 asks Google Play directly and :49 asks the iTunes lookup, and two more mobile shapes come from it. The SOFT update, an update that exists and is not forced (version-update-drawer.tsx:77), is a dismissible drawer with a store action, drawn here on Sheet because dismissibility is the point. The FORCED store update, when Play reports an update priority of 4 or higher (use-version-check.ts:88), starts Play’s own immediate update flow (version-update-drawer.tsx:86-90), which is Play’s screen and not Orbit’s, so no drawing of it belongs here. Three mobile shapes, one web shape, all traced.</p>
-      <p><span style="color:var(--fg-3)">not found&nbsp;&nbsp;</span>says the page does not exist, names the likeliest cause in plain words, and offers the one destination that always exists, routed to Hoje. One deliberate divergence from the shipping screen: apps/web/app/not-found.tsx:19 draws a satellite glyph at 104, but the system holds no satellite and DESIGN.md allows exactly two identity carriers, the orbital mark and the Astra glyph, so the mark is drawn instead and this sentence is what keeps the drawing from being read as a claim about the shipping screen.</p>
-      <p><span style="color:var(--fg-3)">failure&nbsp;&nbsp;</span>the boundary this state draws is apps/web/app/global-error.tsx. It states that the request did not finish and that nothing was changed, which is the fact a person actually needs, then offers the retry, which goes busy while it runs. The reference code is real, not invented: every failing response carries x-orbit-request-id, set for the version gate at MinimumVersionMiddleware.cs:55 and for a rate limit at DistributedRateLimitAttribute.cs:79, and the client reads it (login-form-helpers.ts:89). It sits in mono at fg-4 because a person contacting support needs it, but it is never the headline.</p>
-      <p><span style="color:var(--fg-3)">throttle&nbsp;&nbsp;</span>the server refuses with more than a countdown: DistributedRateLimitAttribute.cs:73-97 sends a Retry-After header in seconds AND a body carrying retryAfterUtc, limit, count and requestId. The screen CHOOSES to show only the countdown, whose producer is retryAfterUtc: the limit and the current count explain nothing a person can act on, and the moment to try again is the whole fix. It does not guess which action tripped the limit, because the response does not say that, and it does not blame the person. The retry control is present and disabled while the countdown runs, so the way back is visible without being pressable. Backgrounding cannot desynchronise the countdown, because retryAfterUtc is an absolute moment and the remaining time is recomputed from it at any instant.</p>
-      <p><span style="color:var(--fg-3)">voice&nbsp;&nbsp;</span>every one of the four names the circumstance, states the fix, and stops. No exclamation mark, no apology, no reassurance the product cannot back up.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action per state, always the way forward: the store button, the reload, the destination, the retry. The throttle state has none, because its only action is disabled, and a disabled accent would be an invitation the screen cannot honour.</p>
-      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. No status colour appears on any of the four: an old build, a missing page, a failed request and a rate limit are all boundaries, and status-bad is reserved for a habit a person is avoiding.</p>
-      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>the countdown, both version numbers in the mobile blocker, the version in the web banner and the reference code all carry data-mock, and no other number renders on any of the five surfaces.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 each surface states a fix a person can act on. 2 the mobile gate cannot be dismissed and the web banner can. 3 the throttle states no reason.</p>
-      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>1 there is no banner component, so the web gate is composed and rides the shell's header slot. 2 Sheet is dismissible by design, so the mobile blocker is composed as a full bleed layer in the sheets slot with no close affordance and no scrim tap. 3 ErrorState centres a message and one action, which suits an inline failure but not a full screen, so these four are composed.</p>
-      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the web banner should become a blocker after some number of dismissals, which no client currently tracks.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Four surfaces for something wrong or missing: the update gate, a missing page, a generic failure and a rate limit. Each states the fix and none apologises.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>update, update soft, not found, failure, throttle. The soft update is a 412 shape, because the store check does not exist in a browser. No plan axis.</p>
+      <p><span style="color:var(--fg-3)">update&nbsp;&nbsp;</span>the gate has two independent sources. The server gate answers 426 with minVersion. Web draws a dismissible banner with a reload. Mobile draws a non dismissible full screen blocker with a store action. The store check never touches the API, and its soft update is a dismissible drawer on Sheet. A forced store update starts Play's own flow, which is not drawn here.</p>
+      <p><span style="color:var(--fg-3)">not found&nbsp;&nbsp;</span>says the page does not exist, names the likeliest cause in plain words, and offers the one destination that always exists, routed to Hoje. The shipping screen draws a satellite glyph, which the system does not hold, so this drawing uses the orbital mark.</p>
+      <p><span style="color:var(--fg-3)">failure&nbsp;&nbsp;</span>the boundary this state draws is the global error screen. It states that the request did not finish and that nothing was changed, then offers the retry. The reference code is the real x-orbit-request-id, in mono at fg-4.</p>
+      <p><span style="color:var(--fg-3)">throttle&nbsp;&nbsp;</span>the screen shows only the countdown, because the limit and the count give a person nothing to act on. The retry control is present and disabled while the countdown runs. The countdown is recomputed from the absolute retryAfterUtc, so backgrounding cannot desynchronise it.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action per state, the way forward. The throttle state has none.</p>
     </div>
   </sc-if>
 
@@ -235,7 +229,6 @@ class Component extends DCLogic {
     this.setState({ retrying: true });
     this._rT = setTimeout(() => this.setState({ retrying: false }), 900);
   };
-  /* The store hand off: the action goes busy while the platform's own flow takes over. */
   onStore = () => {
     clearTimeout(this._sT);
     this.setState({ storeBusy: true });
@@ -267,8 +260,6 @@ class Component extends DCLogic {
     const isSoft = st === 'update soft';
     const filled = s.width === '412' ? 'primary' : 'secondary';
 
-    /* The server gate on mobile: a full bleed layer with no close affordance and no dismiss on scrim
-       (upgrade-required-screen.tsx:23). */
     const blocker = (isUpdate && s.width === '412') ? H('div', { role: 'alertdialog', 'aria-modal': 'true',
       style: { position: 'absolute', inset: 0, zIndex: 4, background: 'var(--bg)', display: 'flex',
         flexDirection: 'column', justifyContent: 'center', gap: 24, padding: 32 } },
@@ -280,8 +271,6 @@ class Component extends DCLogic {
       H(D.Button, { variant: 'primary', loading: s.storeBusy, onClick: this.onStore,
         style: { width: '100%' } }, t.upAction)) : null;
 
-    /* The SOFT update, from the store check rather than the server gate (version-update-drawer.tsx:77):
-       an update exists and is not forced, so the drawer is dismissible, which is why it rides Sheet. */
     const softDrawer = (isSoft && s.width === '412' && !s.softDismissed)
       ? H(D.Sheet, { open: true, title: t.softTitle,
           onClose: () => this.setState({ softDismissed: true }),
@@ -293,8 +282,6 @@ class Component extends DCLogic {
           H('p', { style: { lineHeight: 1.55, paddingBottom: 8 } }, t.softBody))
       : null;
 
-    /* The server gate on web: a dismissible banner with a reload, because reloading fixes it in place
-       (update-available-banner.tsx:24,53). Reloading picks up the new version, so the banner leaves. */
     const banner = (isUpdate && s.width === 'wide' && !s.dismissed) ? H('div', { role: 'status',
       style: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 24px',
         background: 'var(--bg-well)', boxShadow: 'inset 0 -1px 0 var(--hairline)' } },

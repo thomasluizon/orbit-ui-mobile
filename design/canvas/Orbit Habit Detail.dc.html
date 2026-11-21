@@ -2,10 +2,6 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="orbit-astra-action-contract" content="Actions and composer entries retain AstraGlyph without appended branding. Named sidebar navigation retains the visible Astra name and sibling destination treatment (#1687). Useful action text remains. Icon-only entry and send retain separate accessible action names. Input prompts omit the brand. Habit detail can collapse to one compact mark row, preserving its draft and device preference (#1668). Deterministic proposal acceptance remains unchanged.">
-<meta name="orbit-item-type" content="Full quiet Task / Habit or Tarefa / Hábito below the full-width title, without a badge or type ellipsis. Existing status, count, check and menu remain. Rows grow at large text.">
-<meta name="orbit-detail-contract" content="Read title, Task/Habit type, facts, selectable description, one immediate completion checklist and sub-habits. One named pencil opens the complete controlled editor with Save and Cancel. Structural clear is editor-only. History, statistics and reminders remain read facts.">
-<meta name="orbit-detail-description-contract" content="Full selectable source and newlines stay visible with no disclosure. Only validated absolute HTTP/HTTPS spans are links, independently named and reachable. Web opens a new tab with noopener noreferrer; native opening failures retain the text and offer Retry. Copy preserves the original source. Check is the sole visible success cue; one visually hidden localized live region announces success. Errors remain visible with manual-copy recovery. Account or description replacement clears stale status.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
 </head>
@@ -61,24 +57,19 @@ a:hover{color:var(--fg-1)}
 
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
-      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Read and use one habit, then open its complete editor from one named pencil. The read surface retains description, completion, one checklist and sub-habits. More details holds read facts and history. The contextual Astra entry and explicit rescue proposal keep their independent operation boundaries.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>holding, slipping, sub habits, checklist, no data, metrics loading, delete, loading, error, at the daily limit. A plan axis sits beside the state, free or Pro, defaulting to free, and it moves exactly two gates: the reschedule and the slip alert inside the editor. Sub-habit creation is available on every plan. Renaming, the emoji picker, the disclosure, a sub habit as the subject and the delete question are reached by using the screen rather than the axis.</p>
-      <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>A static emoji well and completion control share the controls row with one type-aware Edit habit or Edit task pencil. The full-width title is a reading heading. Plain Task/Habit type and useful schedule or due facts follow it. Stored description is selectable prose with its source and line breaks. Title and emoji edits belong to the full editor.</p>
-      <p><span style="color:var(--fg-3)">description&nbsp;&nbsp;</span>The complete source remains directly visible without expand or collapse. Valid absolute HTTP/HTTPS spans are independent underlined links, preserving every source character and wrapping long URLs at enlarged text. Unsupported or malformed destinations stay inert. Web links use a new tab with noopener noreferrer; native opening failures retain the source and offer Retry. Copy description copies the original source. Its Check is the only visible success cue, with one visually hidden localized announcement; pending, visible failure and manual-selection recovery remain. Account or description changes clear feedback. This read-content amendment leaves inert row previews and the controlled editor unchanged.</p>
-      <p><span style="color:var(--fg-3)">strip&nbsp;&nbsp;</span>DayStrip in its habit scope, 30 days, the same period as the third number, so the picture and the number describe one window. A freeze marks a user and a date (StreakFreeze.Create), never a habit, so frozen is absent from the habit union and no snowflake can appear here; the freeze lives on Progresso where the day is the subject.</p>
-      <p><span style="color:var(--fg-3)">numbers&nbsp;&nbsp;</span>the shipping three (HabitDetailStatsGrid): the current streak, labelled free of relapse on a habit to avoid, the longest streak, and the 30 day rate, which IS monthlyCompletionRate (HabitMetricsCalculator.cs:29). Three states: the numbers, the same card with a loading value in each of its three rows, and ONE centred no data line when metrics is null, never three zeros. The card renders only when the habit has a frequency or is a general one, so a one time task draws none.</p>
-      <p><span style="color:var(--fg-3)">slipping&nbsp;&nbsp;</span>drawn from the numbers, not a status: the streak at zero, the rate down, nothing logged for three days. The line names the circumstance and never the person, and it carries no red. The reschedule appears only here, because the app offers it only on an overdue habit (habit-list.tsx:906), and it needs Pro (reschedule-sheet.tsx:119): on Pro it is a proposal carrying its reason, with accept and not now; on free the same place carries the upgrade route in the shipping sheet's words, never an empty space.</p>
-      <p><span style="color:var(--fg-3)">checklist&nbsp;&nbsp;</span>One read checklist. Its body and checkbox complete the same item exactly once. Uncheck all remains immediate, including the existing final-item log question. Labels wrap in full, so readable text has no disclosure arrow. Structure, duplication, deletion, clear and real reorder belong to the draft editor. Each checked value travels with its item.</p>
-      <p><span style="color:var(--fg-3)">inside&nbsp;&nbsp;</span>each child is a HabitRow at depth 1 whose ring logs through onLog, a real sibling button; its body makes it the subject of this screen with the parent one step back, and its overflow holds log, open and delete. A child with its own children drills rather than nesting a third level inline. Add a sub habit opens creation on every plan, using Hoje's create surface without a Pro badge or upgrade route.</p>
-      <p><span style="color:var(--fg-3)">goals&nbsp;&nbsp;</span>linked goals are plain rows that leave for the goal in Progresso, one per linked goal. The manual progress stepper is deleted from this screen: the app does not edit goal progress here, and D69 item 8 gave goals to Progresso. The reasoning that produced it, only GoalType.Streak can derive and every other goal moves by hand, is kept for Progresso's own round as ticket #340.</p>
-      <p><span style="color:var(--fg-3)">calendar&nbsp;&nbsp;</span>the whole history as a month of DayCells under MonthGrid: month back and forward, days outside the month shown as such, future days future, and a logged day tappable, answering when it was logged. The strip answers whether this one is holding right now; the calendar answers what it has looked like.</p>
-      <p><span style="color:var(--fg-3)">disclosure&nbsp;&nbsp;</span>More details contains read facts. The pencil opens the existing full form in a sheet at compact and wide widths. It retains type, title, emoji, editable start or due date, fixed/count/General cadence, exact and end time, every reminder, checklist/templates, tags/goals, end-date clear, description and avoidance/slip constraints. Save commits the habit draft together; Cancel restores its persisted read view. Explicit shared-object management remains independently committed. Pending Save keeps its name. Rejection retains the draft. Transport uncertainty is stated and reconciled by real readback; native accepted queue work remains waiting to sync.</p>
-      <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>free is the default because it is the account most people have and the harder case to get right. Every gated tap leaves this document for Orbit Pro through one route; a gated affordance is never a disabled control and never a silent no-op. The goal link stays ungated on both sides: D70 moved goals out of the paywall, and a gate a decision removed does not come back.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: one filled action, the reschedule's accept on Pro and the upgrade button on free, only in the slipping state; otherwise none. A selected day pill takes the tint and ring. Completion is neutral everywhere: the done disc, the checked box and a finished arc are fg-1. Wide: the sidebar create is the one filled action, so the body's filled steps down to the neutral secondary.</p>
-      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11 hover, 6.09 pressed. status-bad marks only the delete row and the destructive menu item. The strip's missed ring uses status-empty, dark #8B8B8E and light #7E7E82, which both clear 3:1 on every reachable composed surface. Overdue states itself in words in the slipping line, never colour alone.</p>
-      <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: the tiles, the counts, the reminder times, the proposal's date and time. Values inside TimeField, DateRow and DayStrip render as the components' own plain values. Base date Monday 17 August 2026.</p>
-      <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle went stale a SIXTH round: checked before use as instructed, it lacked both contracts this round leans on, HabitRow's onLog with logLabel and ListRow's action, though the source carried them; the whole mirror was re-synced from the source project and confirmed carrying both before this document leaned on either. Still composed around the system: 1 the header's 76px emoji well, since the system's wells are internal to their rows. 2 the header ring button, built by hand on HabitRow's pairing because the pairing lives inside HabitRow and the header is not a row. 3 the ask Astra row, because ListRow's icon slot takes a Tabler name and this row carries the Astra glyph. 4 the emoji grid and its category chips, since no system picker exists. 5 the parent's fraction ring is ProgressRing in a composed button, because onLog draws only the StatusRing.</p>
-      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>delete asks and then closes without removing the fixture, and accepting the reschedule closes the proposal without rewriting the schedule. The composer's conversation and the ask Astra row leave for the conversation document rather than opening an overlay here. The back control at the root leaves for Hoje. The checklist drag handle is drawn but item drag is not simulated. The metrics loading row is also reached live for a beat whenever a subject opens.</p>
+      <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Read and use one habit, then open its complete editor from one named pencil. More details holds read facts and history.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>holding, slipping, sub habits, checklist, no data, metrics loading, delete, loading, error, at the daily limit. A plan axis, free or Pro, defaults to free and moves two gates: the reschedule and the slip alert inside the editor.</p>
+      <p><span style="color:var(--fg-3)">description&nbsp;&nbsp;</span>the complete source stays visible without expand or collapse. Valid absolute HTTP/HTTPS spans are independent underlined links, and malformed destinations stay inert. Web links open a new tab with noopener noreferrer, and a native opening failure keeps the source and offers Retry. Copy description copies the original source.</p>
+      <p><span style="color:var(--fg-3)">strip&nbsp;&nbsp;</span>DayStrip in its habit scope, 30 days, the same period as the third number. A freeze marks a user and never a habit, so no snowflake appears here.</p>
+      <p><span style="color:var(--fg-3)">numbers&nbsp;&nbsp;</span>the current streak, labelled free of relapse on a habit to avoid, the longest streak, and the 30 day rate. Metrics null draws one centred no data line, never three zeros.</p>
+      <p><span style="color:var(--fg-3)">slipping&nbsp;&nbsp;</span>drawn from the numbers, not a status: the streak at zero, the rate down, nothing logged for three days. The line names the circumstance and never the person, and it carries no red. The reschedule appears only here and needs Pro. On Pro it is a proposal with its reason, accept and not now. On free the same place carries the upgrade route.</p>
+      <p><span style="color:var(--fg-3)">checklist&nbsp;&nbsp;</span>One read checklist. Its body and checkbox complete the same item once. Uncheck all stays immediate.</p>
+      <p><span style="color:var(--fg-3)">inside&nbsp;&nbsp;</span>each child is a HabitRow at depth 1 whose ring logs through onLog. A child with its own children drills and does not nest a third level inline. Add a sub habit opens creation on every plan, without a Pro badge.</p>
+      <p><span style="color:var(--fg-3)">goals&nbsp;&nbsp;</span>linked goals are plain rows that leave for the goal in Progresso. The manual progress stepper is not on this screen.</p>
+      <p><span style="color:var(--fg-3)">disclosure&nbsp;&nbsp;</span>More details contains read facts. The pencil opens the full form in a sheet at compact and wide widths. Save commits the draft together, and Cancel restores the persisted read view.</p>
+      <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>free is the default because it is the harder case to get right. Every gated tap leaves this document for Orbit Pro through one route, and a gated affordance is never a disabled control or a silent no-op. The goal link stays ungated.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action on 412, the reschedule accept on Pro and the upgrade button on free, only in the slipping state. Completion is neutral everywhere. Wide: the sidebar create is the filled action.</p>
+      <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>delete asks and then closes without removing the fixture, and accepting the reschedule closes the proposal without rewriting the schedule. The composer and the ask Orbit row leave for the conversation document.</p>
     </div>
   </sc-if>
 
@@ -107,8 +98,7 @@ function stripFor(days, slipping, intl) {
   return { days: out, labels: labels };
 }
 
-/* The emoji picker's options: [category id, pt label, en label, [[emoji, pt keyword, en keyword]...]].
-   The eleven category ids are habit-emoji-options.ts's. */
+/* The emoji picker's options: [category id, pt label, en label, [[emoji, pt keyword, en keyword]...]]. */
 const EMO = [
   ['smileys', 'Carinhas', 'Smileys', [['\uD83D\uDE42', 'leve', 'easy'], ['\uD83D\uDE0C', 'calmo', 'calm'], ['\uD83D\uDE34', 'sono', 'sleep'], ['\uD83E\uDD13', 'foco', 'focus'], ['\uD83D\uDE24', 'força', 'push'], ['\uD83D\uDE00', 'sorriso', 'smile']]],
   ['body', 'Corpo', 'Body', [['\uD83D\uDCAA', 'força', 'strength'], ['\uD83E\uDDB7', 'dentes', 'teeth'], ['\uD83D\uDC63', 'passos', 'steps'], ['\uD83E\uDEC0', 'coração', 'heart'], ['\uD83E\uDDE0', 'mente', 'mind'], ['\uD83D\uDC40', 'olhos', 'eyes']]],
@@ -158,7 +148,7 @@ const T = {
     dayNames: ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'],
     tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina', create: 'Criar hábito',
     navLabel: 'Navegação principal', palette: 'Buscar',
-    kicker: 'Hábito', back: 'Voltar', rename: 'Renomear', done: 'Pronto', moreOpts: 'Mais opções',
+    kicker: 'Hábito', back: 'Voltar', done: 'Pronto', moreOpts: 'Mais opções',
     status: { done: 'feito', empty: 'pendente', overdue: 'atrasado', bad: 'aconteceu hoje' },
     ringLog: (n) => 'Registrar ' + n, ringUnlog: (n) => 'Desfazer o registro de ' + n,
     allDays: 'Todos os dias', monFri: 'Seg a sex',
@@ -167,14 +157,14 @@ const T = {
     slipLine: ['Nenhum registro nos últimos ', '3', ' dias. A sequência voltou para ', '0', ' e a taxa dos últimos ', '30', ' dias caiu.'],
     dStreak: 'Sequência atual', dFree: 'Sem recaída', dBest: 'Maior sequência',
     noDataYet: 'Ainda sem dados',
-    proposedBy: 'Proposto pelo Astra',
-    rsFree: 'Com o Pro, o Astra transforma um hábito atrasado em um plano realista.',
+    proposedBy: 'Proposto pelo Orbit',
+    rsFree: 'Com o Pro, o Orbit transforma um hábito atrasado em um plano realista.',
     rsPro: 'Conhecer o Pro', rsUse: 'Usar este plano', notNow: 'Não agora',
-    rsFine: 'O Astra pode errar. Revise o plano antes de usar.',
+    rsFine: 'O Orbit pode errar. Revise o plano antes de usar.',
     rsReason: ['A caminhada não aconteceu ', '3', ' vezes depois das ', '18:00', '. De manhã, antes do trabalho, a agenda costuma estar livre.'],
     rsDate: ['qui, 20 ago', '07:30'], rsFreq: 'toda terça e quinta',
     dDescOpen: 'Abrir a descrição inteira',
-    fChecklist: 'Itens', dUncheck: 'Desmarcar todos os itens', dClear: 'Limpar a lista',
+    fChecklist: 'Itens', dUncheck: 'Desmarcar todos os itens',
     dClearTitle: 'Limpar a lista de itens?', dClearGo: 'Limpar',
     dClearBody: 'Os itens saem deste hábito. Não há como restaurar por aqui.',
     dLogNowBody: 'Todos os itens estão feitos. Registrar o hábito agora?',
@@ -188,7 +178,7 @@ const T = {
     dLoggedAt: (v) => ['Registrado às ', mock(v)],
     dayWords: { none: 'nenhum feito', partial: 'parcial', full: 'completo', notScheduled: 'não programado',
       future: 'ainda por vir', of: 'de', today: 'hoje', selected: 'selecionado', readOnly: 'somente leitura' },
-    askAstra: 'Perguntar ao Astra',
+    askAstra: 'Perguntar ao Orbit',
     factCadence: 'Frequência',
     dayOn: (d, names) => names[d] + ', ativo', dayOff: (d, names) => names[d] + ', inativo',
     moreDetails: 'Mais detalhes',
@@ -215,7 +205,7 @@ const T = {
     fGoal: 'Ligar a uma meta', goalNone: 'Nenhuma', goalTitle: 'Metas',
     fEnd: 'Data de término', fDesc: 'Descrição',
     emoTitle: 'Escolher emoji', emoSearch: 'Buscar emoji', emoClear: 'Limpar a busca',
-    emoNone: 'Nenhum emoji com esse nome', emoWellLabel: (n) => 'Escolher emoji para ' + n,
+    emoNone: 'Nenhum emoji com esse nome',
     startLabel: 'Início',
     del: 'Apagar hábito', delTitle: 'Apagar este hábito?',
     delBody: 'O hábito e tudo dentro dele saem da sua lista. Não há como restaurar por aqui.',
@@ -224,11 +214,11 @@ const T = {
     error: 'Não foi possível carregar este hábito. Verifique a conexão e tente de novo.',
     retry: 'Tentar de novo',
     composerWords: {
-      placeholder: 'Peça à Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
-      fieldLabel: 'Peça à Astra', chipsLabel: 'Sugestões da Astra',
+      placeholder: 'Peça ao Orbit', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
+      fieldLabel: 'Peça ao Orbit', chipsLabel: 'Sugestões do Orbit',
       open: 'Abrir conversa', send: 'Enviar', sending: 'Enviando', waitReply: 'Aguarde a resposta',
-      busyReason: 'A Astra responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
-      offlineReason: 'Sem conexão. A Astra volta quando a conexão voltar.',
+      busyReason: 'O Orbit responde uma mensagem por vez. Nada fica na fila, então mande de novo quando a resposta chegar.',
+      offlineReason: 'Sem conexão. O Orbit volta quando a conexão voltar.',
     },
     chips: ['Mover para 20:00', 'Reduzir para 3 vezes', 'Pausar esta semana', 'Renomear'],
     limit: ['As ', '5', ' mensagens de hoje foram usadas.'],
@@ -240,7 +230,7 @@ const T = {
     dayNames: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
     tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina', create: 'Create habit',
     navLabel: 'Main navigation', palette: 'Search',
-    kicker: 'Habit', back: 'Back', rename: 'Rename', done: 'Done', moreOpts: 'More options',
+    kicker: 'Habit', back: 'Back', done: 'Done', moreOpts: 'More options',
     status: { done: 'done', empty: 'pending', overdue: 'overdue', bad: 'happened today' },
     ringLog: (n) => 'Log ' + n, ringUnlog: (n) => 'Undo the log for ' + n,
     allDays: 'Every day', monFri: 'Mon to Fri',
@@ -249,14 +239,14 @@ const T = {
     slipLine: ['Nothing logged in the last ', '3', ' days. The streak went back to ', '0', ' and the last ', '30', ' days\' rate is down.'],
     dStreak: 'Current streak', dFree: 'Days free', dBest: 'Longest streak',
     noDataYet: 'No data yet',
-    proposedBy: 'Proposed by Astra',
-    rsFree: 'With Pro, Astra turns a missed habit into a realistic plan.',
+    proposedBy: 'Proposed by Orbit',
+    rsFree: 'With Pro, Orbit turns a missed habit into a realistic plan.',
     rsPro: 'See Pro', rsUse: 'Use this plan', notNow: 'Not now',
-    rsFine: 'Astra can be wrong. Review the plan before using it.',
+    rsFine: 'Orbit can be wrong. Review the plan before using it.',
     rsReason: ['The walk did not happen ', '3', ' times after ', '18:00', '. In the morning, before work, the schedule is usually free.'],
     rsDate: ['Thu, 20 Aug', '07:30'], rsFreq: 'every Tuesday and Thursday',
     dDescOpen: 'Open the full description',
-    fChecklist: 'Items', dUncheck: 'Uncheck all the items', dClear: 'Clear the list',
+    fChecklist: 'Items', dUncheck: 'Uncheck all the items',
     dClearTitle: 'Clear the item list?', dClearGo: 'Clear',
     dClearBody: 'The items leave this habit. There is no way to restore this here.',
     dLogNowBody: 'Every item is done. Log the habit now?',
@@ -270,7 +260,7 @@ const T = {
     dLoggedAt: (v) => ['Logged at ', mock(v)],
     dayWords: { none: 'none done', partial: 'partial', full: 'complete', notScheduled: 'not scheduled',
       future: 'upcoming', of: 'of', today: 'today', selected: 'selected', readOnly: 'read only' },
-    askAstra: 'Ask Astra',
+    askAstra: 'Ask Orbit',
     factCadence: 'Frequency',
     dayOn: (d, names) => names[d] + ', on', dayOff: (d, names) => names[d] + ', off',
     moreDetails: 'More details',
@@ -297,7 +287,7 @@ const T = {
     fGoal: 'Link to a goal', goalNone: 'None', goalTitle: 'Goals',
     fEnd: 'End date', fDesc: 'Description',
     emoTitle: 'Choose an emoji', emoSearch: 'Search emoji', emoClear: 'Clear the search',
-    emoNone: 'No emoji with that name', emoWellLabel: (n) => 'Choose an emoji for ' + n,
+    emoNone: 'No emoji with that name',
     startLabel: 'Start',
     del: 'Delete habit', delTitle: 'Delete this habit?',
     delBody: 'The habit and everything inside it leave your list. There is no way to restore this here.',
@@ -306,11 +296,11 @@ const T = {
     error: 'We could not load this habit. Check the connection and try again.',
     retry: 'Try again',
     composerWords: {
-      placeholder: 'Ask Astra', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
-      fieldLabel: 'Ask Astra', chipsLabel: 'Astra suggestions',
+      placeholder: 'Ask Orbit', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
+      fieldLabel: 'Ask Orbit', chipsLabel: 'Orbit suggestions',
       open: 'Open the conversation', send: 'Send', sending: 'Sending', waitReply: 'Wait for the reply',
-      busyReason: 'Astra answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
-      offlineReason: 'No connection. Astra comes back when the connection does.',
+      busyReason: 'Orbit answers one message at a time. Nothing is queued, so send it again once the reply arrives.',
+      offlineReason: 'No connection. Orbit comes back when the connection does.',
     },
     chips: ['Move to 20:00', 'Cut to 3 times', 'Pause this week', 'Rename'],
     limit: ["Today's ", '5', ' messages have been used.'],
@@ -320,7 +310,7 @@ const T = {
 class Component extends DCLogic {
   state = { mode: 'dark', width: '412', st: 'holding', loc: 'pt-BR', plan: 'free',
     stack: [], logs: {}, mLoading: false, reschedGone: false, confirm: false,
-    editing: false, editorOpen: false, editSnapshot: null, names: {}, days: null, dtDescOpen: false, disc: false, childMenu: null,
+    editorOpen: false, editSnapshot: null, names: {}, days: null, disc: false, childMenu: null,
     emo: {}, emoOpen: false, emoQ: '', emoCat: null,
     checks: {}, itemsOv: {}, cleared: {}, clearAsk: false, logNow: false,
     calM: { y: 2026, m: 7 }, calSel: null,
@@ -345,7 +335,7 @@ class Component extends DCLogic {
      describe one habit. */
   seed = (id, stack) => {
     const h = HB[id] || {};
-    return { stack: stack, mLoading: true, reschedGone: false, editing: false, dtDescOpen: false,
+    return { stack: stack, mLoading: true, reschedGone: false,
       disc: false, childMenu: null, emoOpen: false, calM: { y: 2026, m: 7 }, calSel: null,
       days: h.days ? h.days.slice() : null, fTime: null, remOn: true, remSel: [0, 15], remCustom: [],
       sched: h.rem && h.rem.fixed ? h.rem.fixed.map((r) => ({ time: r[0], when: r[1] === 'same' ? 'same_day' : 'day_before' })) : [],
@@ -371,7 +361,7 @@ class Component extends DCLogic {
 
   onCC = (next) => {
     clearTimeout(this._mT);
-    const seeded = Object.assign({ mode: next.mode, width: next.width, st: next.state, locOld: null,
+    const seeded = Object.assign({ mode: next.mode, width: next.width, st: next.state,
       loc: next.locale, plan: next.plan || 'free',
       logs: {}, checks: {}, itemsOv: {}, cleared: {}, emo: {}, clearAsk: false, logNow: false, confirm: next.state === 'delete',
       tplOpen: false, tplList: null, tplSaving: false, tplName: '', goalOpen: false, emoQ: '', emoCat: null },
@@ -395,7 +385,7 @@ class Component extends DCLogic {
     this.setState((p) => {
       const patch = { logs: Object.assign({}, p.logs, { [id]: !was }) };
       /* Logging resets the checklist ONLY when the habit has a frequency, is not flexible and the due
-         date advances (Habit.cs:186-190). */
+         date advances. */
       if (!was && h.chk && !h.flex && !h.oneTime) {
         patch.checks = Object.assign({}, p.checks, { [id]: this.itemsOf(id).map(() => false) });
       }
@@ -630,7 +620,7 @@ class Component extends DCLogic {
     const badRow = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
       H(D.Switch, { label: x.fBad, checked: s.badOn, onChange: (n) => this.setState({ badOn: n }) }),
       H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.fBadHint));
-    /* Slip alert follows the plan (slip-alert-section.tsx:21): on free the row is a route to the
+    /* Slip alert follows the plan: on free the row is a route to the
        upgrade, never a disabled control; on Pro it is the real switch. */
     const slip = s.plan === 'Pro'
       ? H('div', { style: { display: 'flex', gap: 12, alignItems: 'flex-start' } },

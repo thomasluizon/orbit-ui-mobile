@@ -73,13 +73,13 @@ export function NotificationDetailModal({
       actions={
         <>
           {canMarkAsRead ? (
-            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:213 (D42) */
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html markRead (D42) */
             <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
               {t('notifications.markAsRead')}
             </Button>
           ) : null}
           {canView ? (
-            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:209 (D42) */
+            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html openIn (D42) */
             <Button variant={width >= 1024 ? 'secondary' : 'primary'} size="sm" onClick={handleView}>
               {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
             </Button>
