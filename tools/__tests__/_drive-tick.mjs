@@ -1,6 +1,6 @@
 /** Table tests of the delivery driver's tick: the fake seams, the scenarios and their exact writes. */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { accountFrom, createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceDecision, parseArguments, pushOutputs, rankTickets, recordStart, resultText, tick, ticketComment } from "../drive.mjs"
@@ -108,7 +108,7 @@ const keepWrites = (scene, tickets) => {
   const find = (key, number) => (key === "tickets" ? tickets.find((entry) => entry.number === number) : undefined)
   scene.env.github.comment = async (key, number, body) => {
     await write(key, number, body)
-    const kind = /^<!-- orbit-drive:(\w+) -->/.exec(body)?.[1] ?? null
+    const kind = /^<!-- orbit-drive:([a-z-]+) -->/.exec(body)?.[1] ?? null
     find(key, number)?.comments.push(comment(kind, kind === null ? body : body.split("\n").slice(1).join("\n")))
   }
   scene.env.github.editLabels = async (key, number, change) => {
@@ -417,9 +417,10 @@ const updateCases = async () => {
   const scene = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [behind(31, { body: "Tracks thomasluizon/orbit-tickets#8", tracks: 8 }), behind(30)] }, routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
   await scene.run()
   same("drive: only the oldest pull request that fails only on behind is updated, and the update is recorded", [only(scene.calls, "updateBranch"), commentsOf(scene.calls, 30)], [[["updateBranch", "ui", 30]], [marked("record", `driver update-branch -> ${NEXT_HEAD}`)]])
-  const child = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { baseRef: "chore/ticket-7-part-1", reviews: [], comments: [comment("ticket", "T")] })] } })
+  const child = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { baseRef: "chore/ticket-7-part-1", reviews: [], comments: [comment("ticket", "T")] })] }, routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
   await child.run()
-  same("drive: a child whose base pull request merged is retargeted to main and asked for a first pass", [only(child.calls, "retarget"), commentsOf(child.calls, 30)], [[["retarget", "ui", 30, "main"]], [marked("request", PLAIN)]])
+  same("drive: a child whose base pull request merged is retargeted to main, updated, and asked for a first pass", [only(child.calls, "retarget"), only(child.calls, "updateBranch"), commentsOf(child.calls, 30)], [[["retarget", "ui", 30, "main"]], [["updateBranch", "ui", 30]], [marked("record", `driver update-branch -> ${NEXT_HEAD}`), marked("request", PLAIN)]])
+  same("drive: the retargeted child is updated before its first request", child.calls.map((entry) => entry[0]).filter((name) => ["retarget", "updateBranch", "comment"].includes(name)), ["retarget", "updateBranch", "comment", "comment"])
   const stacked = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1" }), pull(30, { baseRef: "chore/ticket-7-part-1" })] } })
   await stacked.run()
   same("drive: a child whose base pull request is open stays on its base", only(stacked.calls, "retarget").length, 0)
@@ -866,6 +867,134 @@ const unreadLogCases = async () => {
   same("drive: a failed Pullfrog log that could not be read is read again on the next tick and pauses the driver", only(scene.calls, "createTicket").length, 1)
 }
 
+const launchComment = (kind, branch, offset = -3600 * 1000, part = null) => comment("launch", JSON.stringify({ kind, part, branch }), offset)
+const mergedPull = (number, branch, remaining) => ({ number: 40, body: `Tracks ${REPOSITORY}#${number}\n\n${remaining}`, mergedAt: iso(-60 * 1000), headRefName: branch })
+const mergedRoute = (number, history) => ["--state merged", (args) => (args.join(" ").includes(`#${number}"`) ? JSON.stringify(history) : "[]")]
+const blockingChanges = () => review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })
+const needsOwnerComments = (calls, number) => commentsOf(calls, number).filter((text) => text.startsWith(marked("needs-owner", "")))
+
+/** Writes the record that an earlier driver process left beside its pid file. */
+const leftBehind = (scene, extra = {}, logText = "") => {
+  const stem = "chore-ticket-7"
+  const logFile = join(scene.env.stateDir, "logs", `${stem}-left.log`)
+  writeFileSync(logFile, logText)
+  const path = join(scene.env.stateDir, `${stem}.launch.json`)
+  writeFileSync(path, `${JSON.stringify({ kind: "build", repoKey: "ui", ticketNumber: 7, partNumber: null, branch: "chore/ticket-7", prNumber: null, worktree: "/r/orbit-worktrees/ui/chore-ticket-7", headBefore: HEAD, logFile, account: ACCOUNT.key, startedAt: NOW - 30 * MINUTE, ...extra })}\n`)
+  return path
+}
+
+const gatedReportCases = async () => {
+  const gated = { labels: ["repo:ui", "Improvement", OWNER_LABEL] }
+  const decisionTickets = [ticket(7, gated)]
+  const decision = scenario({ tickets: decisionTickets, pulls: { ui: [pull(30, { reviews: [blockingChanges()] })] } })
+  keepWrites(decision, decisionTickets)
+  decision.env.worker.launch = (options) => { decision.launched.push(options); return Promise.resolve({ ...clean, result: { ...clean.result, needsDecision: "Raise the price?" } }) }
+  await decision.run()
+  await decision.run()
+  same("drive: a NEEDS_DECISION from a fix worker on a ticket that already carries needs:owner still reports the question once", [needsOwnerComments(decision.calls, 7).length, only(decision.calls, "notify").length], [1, 1])
+
+  const capped = scenario({ tickets: [ticket(7, { ...gated, comments: [launchComment("fix", "chore/ticket-7-30"), launchComment("fix", "chore/ticket-7-30")] })], pulls: { ui: [pull(30, { reviews: [blockingChanges()] })] } })
+  await capped.run()
+  same("drive: a fix cap on a ticket that already carries needs:owner labels the pull request, posts the open classes and notifies", [only(capped.calls, "editLabels").map((entry) => entry.slice(1, 3)), needsOwnerComments(capped.calls, 7).map((text) => /used its 2 fix launches. Open: tools\/a.mjs:3/.test(text)), only(capped.calls, "notify").length], [[["ui", 30]], [true], 1])
+
+  const repeatTickets = [ticket(7, { ...gated, comments: [launchComment("fix", "chore/ticket-7-30"), launchComment("fix", "chore/ticket-7-30")] })]
+  const repeated = scenario({ tickets: repeatTickets, pulls: { ui: [pull(30, { reviews: [blockingChanges()] })] } })
+  keepWrites(repeated, repeatTickets)
+  await repeated.run()
+  await repeated.run()
+  same("drive: the same gated report on a later tick posts no second comment and no second notification", [needsOwnerComments(repeated.calls, 7).length, only(repeated.calls, "notify").length], [1, 1])
+
+  const removedTickets = [ticket(7, { ...gated, comments: [comment("needs-owner", "The owner already answered this.")] })]
+  const removed = scenario({ tickets: removedTickets, pulls: { ui: [pull(30, { reviews: [blockingChanges()] })] } })
+  removed.env.worker.launch = (options) => { removed.launched.push(options); return Promise.resolve({ ...clean, result: { ...clean.result, needsDecision: "A new question?" } }) }
+  keepWrites(removed, removedTickets)
+  await removed.run()
+  await removed.run()
+  same("drive: a different reason on the same ticket is a new report", needsOwnerComments(removed.calls, 7).length, 1)
+}
+
+const branchKeyCases = async () => {
+  const twice = [launchComment("build", "chore/ticket-7"), launchComment("build", "chore/ticket-7")]
+  const untracked = scenario({ tickets: [ticket(7, { comments: twice })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7", tracks: null, body: "Tracks #7" })] } })
+  await untracked.run()
+  same("drive: an open pull request on the order's branch with no Tracks line keeps the order on that branch and gives needs:owner", [untracked.launched.length, only(untracked.calls, "editLabels").map((entry) => entry.slice(1, 3)), needsOwnerComments(untracked.calls, 7).map((text) => /ui#30/.test(text) && /Tracks/.test(text))], [0, [["tickets", 7]], [true]])
+
+  const parts = [partComment(1, 2, "Paths: apps/web/a.ts"), partComment(2, 2, "Paths: apps/mobile/b.ts")]
+  const rotated = scenario({ tickets: [ticket(7, { comments: [...parts, launchComment("build part", "chore/ticket-7-part-1", -7200 * 1000, 1)] })], routes: [mergedRoute(7, [mergedPull(7, "chore/ticket-7-part-1-r2", "Remaining: Part 2 of 2")])] })
+  await rotated.run()
+  same("drive: a part that merged on a rotated branch is done, so the next tick builds the next part", rotated.launched.map((entry) => entry.worktree), ["/r/orbit-worktrees/ui/chore-ticket-7-part-2"])
+
+  const inFlight = scenario({ tickets: [ticket(7, { comments: parts })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1-r2" })] } })
+  await inFlight.run()
+  same("drive: an open part pull request on a rotated branch is that part's own, so a next part with disjoint Paths starts", inFlight.launched.map((entry) => entry.worktree), ["/r/orbit-worktrees/ui/chore-ticket-7-part-2"])
+
+  const named = scenario({ tickets: [ticket(7, { comments: parts })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-2-r2", reviews: [], comments: [] })] } })
+  await named.run()
+  same("drive: the ticket comment of a pull request on a rotated part branch carries its own part", commentsOf(named.calls, 30)[0]?.includes("Part 2 of 2: part 2") === true, true)
+}
+
+const restartCases = async () => {
+  const reaped = async (label, extra, logText, tickets, check) => {
+    const scene = scenario({ tickets, gitRoutes: [["ls-remote", `${HEAD}\trefs/heads/chore/ticket-7\n`]] })
+    keepWrites(scene, tickets)
+    const path = leftBehind(scene, extra, logText)
+    await scene.run()
+    same(`drive: a worker that ended while the driver was stopped: ${label}`, [existsSync(path), ...check(scene)], [false, ...check.expected])
+    return scene
+  }
+  const findTickets = () => [ticket(7, { comments: [partComment(1, 1, "Kind: find")] })]
+  const findCheck = (scene) => [commentsOf(scene.calls, 7).filter((text) => text.startsWith(marked("findings", "Findings, part 1"))).length, scene.launched.length]
+  findCheck.expected = [1, 0]
+  await reaped("its findings are posted once and the part does not run again", { kind: "find", partNumber: 1, branch: "chore/ticket-7-part-1" }, `${resultLine("Area: tools\n\nsrc/a.mjs:3 | class | fix")}`, findTickets(), findCheck)
+
+  const decisionCheck = (scene) => [needsOwnerComments(scene.calls, 7).filter((text) => text.includes("NEEDS_DECISION: Raise the price?")).length, only(scene.calls, "notify").length, scene.launched.length]
+  decisionCheck.expected = [1, 1, 0]
+  await reaped("its NEEDS_DECISION question reaches the owner and the ticket does not run again", {}, resultLine("Done.\nNEEDS_DECISION: Raise the price?"), [ticket(7)], decisionCheck)
+
+  const limitLog = `${JSON.stringify({ type: "result", is_error: true, result: "You've hit your limit. Resets 4am (America/Sao_Paulo)" })}\n`
+  const limitCheck = (scene) => [only(scene.calls, "createTicket").length, scene.launched.length]
+  limitCheck.expected = [1, 0]
+  await reaped("its usage limit opens the pause issue", {}, limitLog, [ticket(7)], limitCheck)
+
+  const sessionLog = `${JSON.stringify({ type: "system", session_id: "s9" })}\n${resultLine("Done.")}`
+  const recordScene = scenario({ tickets: [ticket(7)], gitRoutes: [["rev-parse", `${NEXT_HEAD}\n`], ["log --format=%H", `${NEXT_HEAD}\n`], ["ls-remote", `${NEXT_HEAD}\trefs/heads/chore/ticket-7\n`]] })
+  leftBehind(recordScene, { prNumber: 31 }, sessionLog)
+  await recordScene.run()
+  same("drive: a worker that ended while the driver was stopped gets its commit records from its log", commentsOf(recordScene.calls, 31).map((text) => text.split("\n")[1]), [`worker s9 -> ${NEXT_HEAD}`])
+
+  const alive = scenario({ tickets: [ticket(7)] })
+  const path = leftBehind(alive, {}, resultLine("Done.\nNEEDS_DECISION: Raise the price?"))
+  writeFileSync(join(alive.env.stateDir, "chore-ticket-7.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/w", startedAt: iso(0) })}\n`)
+  await alive.run()
+  same("drive: a launch record whose worker still runs is not reaped", [existsSync(path), needsOwnerComments(alive.calls, 7).length], [true, 0])
+
+  const dry = scenario({ tickets: [ticket(7)], dryRun: true })
+  const dryPath = leftBehind(dry, {}, resultLine("Done.\nNEEDS_DECISION: Raise the price?"))
+  await dry.run()
+  same("drive: a dry run reaps no launch record", [existsSync(dryPath), only(dry.calls, "comment").length], [true, 0])
+
+  const started = scenario({ tickets: [ticket(7)] })
+  await started.run()
+  const records = readdirSync(started.env.stateDir).filter((name) => name.endsWith(".launch.json"))
+  same("drive: a launch writes its record beside the pid file, with what a reap needs", records.length === 1 ? Object.keys(JSON.parse(readFileSync(join(started.env.stateDir, records[0]), "utf8"))).sort() : records, ["account", "branch", "headBefore", "kind", "logFile", "partNumber", "prNumber", "repoKey", "startedAt", "ticketNumber", "worktree"])
+
+  const failedRun = (offset) => ({ databaseId: 81, displayTitle: "Respond to mention on #7 [abc]", status: "completed", conclusion: "failure", createdAt: iso(offset), updatedAt: iso(offset + 3 * MINUTE) })
+  const oldRun = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [], comments: [comment("ticket", "T"), comment("request", PLAIN, -20 * MINUTE)] })] }, runs: [failedRun(-40 * MINUTE)], routes: [["--log-failed", "You've hit your limit. Resets 4am (America/Sao_Paulo)"]] })
+  await oldRun.run()
+  same("drive: a failed Pullfrog run from before the newest request is not read again after a restart, so it pauses nothing", [only(oldRun.calls, "createTicket").length, oldRun.calls.filter((entry) => entry[0] === "gh" && entry[1].includes("--log-failed")).length], [0, 0])
+}
+
+const echoedLimitCases = async () => {
+  const failedRun = { databaseId: 82, displayTitle: "Respond to mention on #7 [abc]", status: "completed", conclusion: "failure", createdAt: iso(-10 * MINUTE), updatedAt: iso(-5 * MINUTE) }
+  const echoed = ["You've hit your limit. Resets 4am (America/Sao_Paulo)", ...Array.from({ length: 80 }, (_, index) => `step line ${index}`)].join("\n")
+  const scene = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun], routes: [["--log-failed", echoed]] })
+  await scene.run()
+  same("drive: a limit message that a failed Pullfrog log only echoes far before its end is not a stop at a limit", only(scene.calls, "createTicket").length, 0)
+  const ending = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun], routes: [["--log-failed", `${Array.from({ length: 80 }, (_, index) => `step line ${index}`).join("\n")}\nYou've hit your limit. Resets 4am (America/Sao_Paulo)`]] })
+  await ending.run()
+  same("drive: a limit message at the end of a failed Pullfrog log pauses the driver", only(ending.calls, "createTicket").length, 1)
+}
+
 export const driverUnit = async () => {
   await admissionCases()
   await paceCases()
@@ -888,4 +1017,8 @@ export const driverUnit = async () => {
   await paceStampCases()
   await reapOutcomeCases()
   await unreadLogCases()
+  await gatedReportCases()
+  await branchKeyCases()
+  await restartCases()
+  await echoedLimitCases()
 }

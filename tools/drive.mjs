@@ -65,6 +65,7 @@ const CHANGES_REQUESTED = "CHANGES_REQUESTED"
 const PLAIN_REQUEST = "@pullfrog review"
 const WHOLE_DIFF_REQUEST = "@pullfrog review whole diff"
 const TAIL_BYTES = 256 * 1024
+const PULLFROG_LOG_END_LINES = 40
 
 export const marked = (kind, text) => `<!-- orbit-drive:${kind} -->\n${text}`
 const firstLine = (text) => text.split("\n", 1)[0]
@@ -181,6 +182,10 @@ export const resultText = (logText) => {
   return ""
 }
 
+/** The branch of a part of a ticket, as the driver names it, with or without a rotation suffix. */
+const partBranch = (ticketNumber, partNumber) => new RegExp(`ticket-${ticketNumber}-part-${partNumber}(-r\\d+)?$`)
+
+/** The first branch of a ticket that no merged pull request used. An open pull request keeps its order on the same branch. */
 const branchName = (ticket, part, used) => {
   const type = BRANCH_TYPE[ticket.labels.find((label) => BRANCH_TYPE[label])] ?? "chore"
   const base = `${type}/ticket-${ticket.number}${part === null ? "" : `-part-${part}`}`
@@ -210,7 +215,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: null, exits: [], lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false })
+export const createMemory = () => ({ running: null, runningStem: null, results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -220,13 +225,17 @@ const notifyOnce = async (env, mem, message) => {
   if (!env.dryRun) await env.notify(message)
 }
 
-/** Labels the ticket (and the pull request) `needs:owner`, then writes one `needs-owner` comment. Nothing repeats once the ticket carries the label. */
+/**
+ * Writes one `needs-owner` comment, labels the ticket and the pull request `needs:owner` when they lack it, and notifies.
+ * The comment is the mark that stops a repeat: a ticket that an owner gate already labelled still gets each new report.
+ * A ticket repeats only for the same reason; a pull request with no ticket carries one report, whatever its reason.
+ */
 const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason }) => {
   const item = pull ? `${repoKey}#${pull.number}` : `ticket#${ticket.number}`
   log(env, item, "needs-owner", reason)
-  // Without a ticket, the label and the comment are the only marks that stop a repeat; a failed label write leaves the comment as the mark.
-  if (env.dryRun || (ticket ? ticket.labels.includes(OWNER) : pull.labels.includes(OWNER) || pull.comments.some((entry) => entry.kind === "needs-owner"))) return
-  if (ticket) {
+  const comments = ticket ? ticket.comments : pull.comments
+  if (env.dryRun || comments.some((entry) => entry.kind === "needs-owner" && (ticket === null || bodyAfterMarker(entry).trim() === reason))) return
+  if (ticket && !ticket.labels.includes(OWNER)) {
     await env.github.editLabels("tickets", ticket.number, { add: [OWNER] })
     ticket.labels.push(OWNER)
   }
@@ -234,6 +243,7 @@ const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reaso
     try { await env.github.editLabels(repoKey, pull.number, { add: [OWNER] }); pull.labels.push(OWNER) } catch (error) { log(env, item, "label-failed", error.message) }
   }
   await env.github.comment(ticket ? "tickets" : repoKey, ticket ? ticket.number : pull.number, marked("needs-owner", reason))
+  comments.push({ kind: "needs-owner", body: marked("needs-owner", reason), createdAt: new Date(env.now()).toISOString() })
   await env.notify(`Orbit driver needs you: ${reason}`)
 }
 
@@ -428,7 +438,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, busy }
   const hasTicketComment = pull.comments.some((entry) => entry.kind === "ticket")
   const request = (text) => ({ type: "request", text, ticketComment: !dependabot && ticket !== null && !hasTicketComment })
   if (pull.baseRef !== state.defaultBranch && !state.pulls.some((other) => other.headRef === pull.baseRef)) {
-    return [{ type: "retarget", base: state.defaultBranch }, request(PLAIN_REQUEST)]
+    return [{ type: "retarget", base: state.defaultBranch }, { type: "update" }, request(PLAIN_REQUEST)]
   }
   const launches = launchesOf(ticket).filter((entry) => entry.branch === pull.headRef && FIX_KINDS.includes(entry.kind))
   const actions = []
@@ -484,10 +494,17 @@ const outsideTicket = async (env, repoKey, pull) => {
   await env.github.createTicket({ title: `Outside this change: ${slug}#${pull.number}`, body: `Pullfrog reported blocking-class defects outside ${slug}#${pull.number}:\n\n${sections.map((text) => `> ${text.split("\n").join("\n> ")}`).join("\n\n")}`, labels: [`repo:${repoKey}`, "Bug"] })
 }
 
+/** Merges the base branch into a pull request and records the merge commit that this makes. */
+const updateBranch = async (env, repoKey, pull) => {
+  await env.github.updateBranch(repoKey, pull.number)
+  const head = (await env.gh(["pr", "view", String(pull.number), "--repo", env.slugOf(repoKey), "--json", "headRefOid", "--jq", ".headRefOid"])).trim()
+  if (head !== pull.headSha) await env.github.comment(repoKey, pull.number, marked("record", `driver update-branch -> ${head}`))
+}
+
 const executeAction = async (env, mem, ctx, pull, action) => {
   const { repoKey, ticketMap } = ctx
   const ticket = pull.tracks === null ? null : ticketMap.get(pull.tracks) ?? null
-  const part = ticket === null ? null : partsOf(ticket).find((entry) => new RegExp(`ticket-\\d+-part-${entry.number}$`).test(pull.headRef)) ?? null
+  const part = ticket === null ? null : partsOf(ticket).find((entry) => partBranch(ticket.number, entry.number).test(pull.headRef)) ?? null
   switch (action.type) {
     case "retarget": return env.github.retarget(repoKey, pull.number, action.base)
     case "resolve-threads": return env.github.resolveThreads(action.ids)
@@ -498,14 +515,12 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       await env.github.rerunFailed(repoKey, action.runId)
       return env.github.comment(repoKey, pull.number, marked("record", `driver rerun ${action.runId}`))
     case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason })
-    case "behind": {
+    // The child still holds its parent's commits, so main is merged in before the first pass reads its diff.
+    case "update": return updateBranch(env, repoKey, pull)
+    case "behind":
       if (ctx.updated) return log(env, `${repoKey}#${pull.number}`, "wait", "another pull request is next to merge")
       ctx.updated = true
-      await env.github.updateBranch(repoKey, pull.number)
-      const head = (await env.gh(["pr", "view", String(pull.number), "--repo", env.slugOf(repoKey), "--json", "headRefOid", "--jq", ".headRefOid"])).trim()
-      if (head !== pull.headSha) await env.github.comment(repoKey, pull.number, marked("record", `driver update-branch -> ${head}`))
-      return undefined
-    }
+      return updateBranch(env, repoKey, pull)
     case "merge":
       await env.github.merge(repoKey, pull.number, pull.headSha)
       ctx.merged = true
@@ -516,7 +531,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
   }
 }
 
-const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "behind" ? "update branch (next to merge)" : action.type)
+const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "behind" ? "update branch (next to merge)" : action.type === "update" ? "update branch (retargeted child)" : action.type)
 
 /** Plans and runs the actions of every open pull request of one repository. Returns the order candidates. */
 const pullActions = async (env, mem, repoKey, state, tickets, busy) => {
@@ -531,7 +546,9 @@ const pullActions = async (env, mem, repoKey, state, tickets, busy) => {
       const runs = pull.draft || !awaiting ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
       if (!pull.draft && pull.reviews.some((review) => review.state === "APPROVED")) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       const plan = await planPull(env, mem, { ...ctx, runs }, pull)
-      const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs)
+      const newestRequest = requestsOf(pull).reduce((newest, entry) => (entry.createdAt > newest ? entry.createdAt : newest), "")
+      // A run from before the newest request is settled history: a request that came after it started a new run.
+      const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${pausedByLog ? " (Pullfrog hit a usage limit)" : ""}`)
       for (const action of plan) {
         if (action.type === "order") orders.push(action)
@@ -561,7 +578,8 @@ const pullfrogLimit = async (env, mem, tickets, repoKey, runs) => {
       continue
     }
     mem.checkedRuns.add(run.databaseId)
-    const found = workerApi.usageLimitIn(logText)
+    // A run that stops at a limit ends on the message. Text that the run only read or echoed sits far before the end.
+    const found = workerApi.usageLimitIn(logText.split("\n").slice(-PULLFROG_LOG_END_LINES).join("\n"))
     if (found) {
       await pauseDriver(env, mem, tickets, { source: "Pullfrog", ...found })
       return true
@@ -615,19 +633,24 @@ const startWorker = async (env, mem, candidate) => {
   ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null })), createdAt: new Date(env.now()).toISOString() })
   const worktree = await prepareWorktree(env, repoKey, branch, pull === null)
   const headBefore = await gitText(env, worktree, ["rev-parse", "HEAD"])
+  const stem = branch.replaceAll("/", "-")
   const place = { repoKey, repoPath: env.config.repos[repoKey], worktree, branch, base: "main" }
   const text = renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, place, partNumber: part?.number ?? null })
   const stamp = new Date(env.now()).toISOString().replace(/[:.]/g, "-")
-  const stem = branch.replaceAll("/", "-")
+  const logFile = join(env.stateDir, "logs", `${stem}-${stamp}.log`)
   const invocation = await env.invocation(token)
   const account = mem.account?.key ?? null
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
-  const running = env.worker.launch({ invocation, worktree, order: text, logFile: join(env.stateDir, "logs", `${stem}-${stamp}.log`), pidFile: join(env.stateDir, `${stem}.pid`) })
+  // What a reap needs lives on disk beside the pid file, so a worker that outlives a restart of the driver is still reaped.
+  writeFileSync(launchRecordPath(env, stem), `${JSON.stringify({ kind, repoKey, ticketNumber: ticket.number, partNumber: part?.number ?? null, branch, prNumber: pull?.number ?? null, worktree, headBefore, logFile, account, startedAt })}\n`)
+  const running = env.worker.launch({ invocation, worktree, order: text, logFile, pidFile: join(env.stateDir, `${stem}.pid`) })
   log(env, `ticket#${ticket.number}`, `launch ${kind}`, `branch ${branch}, worktree ${worktree}`)
+  mem.runningStem = stem
   mem.running = running.then((result) => {
     mem.running = null
-    mem.exits.push({ order, result, headBefore, worktree, account, startedAt, logFile: join(env.stateDir, "logs", `${stem}-${stamp}.log`) })
+    mem.runningStem = null
+    mem.results.set(stem, result)
     mem.wake()
   })
 }
@@ -670,12 +693,28 @@ const hasUnpushedCommits = async (env, worktree, branch, headBefore) => {
 /** A push failed with HTTP 403 when a `git push` command printed the message and its commits are not on the remote branch. */
 const pushForbidden = async (env, tail, worktree, branch, headBefore) => pushOutputs(tail).some((text) => FORBIDDEN_PUSH.test(text)) && await hasUnpushedCommits(env, worktree, branch, headBefore)
 
+const launchRecordPath = (env, stem) => join(env.stateDir, `${stem}.launch.json`)
+const RECORD_SUFFIX = ".launch.json"
+
+/** The launch records on disk, each with the stem of its branch. */
+const launchRecords = (env) => readdirSync(env.stateDir).filter((name) => name.endsWith(RECORD_SUFFIX)).flatMap((name) => {
+  try { return [{ stem: name.slice(0, -RECORD_SUFFIX.length), record: JSON.parse(readFileSync(join(env.stateDir, name), "utf8")) }] } catch { return [] }
+})
+
+/** True while the worker of a record runs: this process started it and holds its promise, or its pid file names a live process. */
+const workerRuns = (env, mem, stem) => {
+  if (mem.runningStem === stem) return true
+  try { process.kill(JSON.parse(readFileSync(join(env.stateDir, `${stem}.pid`), "utf8")).pid, 0); return true } catch { return false }
+}
+
+/** The exit of a worker that this process did not wait for: the session, the reading and the verdict that its log holds. */
+const exitFromLog = (logFile) => ({ spawnError: null, exitCode: null, killed: null, killReason: null, ...workerApi.logEvent(logFile), result: workerApi.logFinalResult(logFile) })
+
 /** What a worker's exit leaves to do: records, a pause, a question, or a findings comment. */
 const reapExit = async (env, mem, tickets, states, exit) => {
-  const { order, result, headBefore, worktree, logFile, account, startedAt } = exit
-  const { kind, repoKey, branch, part } = order
-  // The ticket as this read holds it, so a label that the owner wrote is seen and the launch tick's copy is never written.
-  const ticket = tickets.find((entry) => entry.number === order.ticket.number) ?? order.ticket
+  const { kind, repoKey, branch, partNumber, prNumber, headBefore, worktree, logFile, account, startedAt, result } = exit
+  // The ticket as this read holds it, so a label that the owner wrote is seen. A ticket that is closed by now keeps a bare stand-in.
+  const ticket = tickets.find((entry) => entry.number === exit.ticketNumber) ?? { number: exit.ticketNumber, title: "", body: "", labels: [], comments: [], blockedBy: [] }
   const item = `ticket#${ticket.number}`
   const newerReading = mem.reading?.account === account && mem.reading.at > startedAt
   if (result.utilization !== null && account !== null && !newerReading) mem.reading = { utilization: result.utilization, resetsAt: result.resetsAt, at: startedAt, account }
@@ -691,12 +730,12 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   if (kind === "find") {
     const text = resultText(tail)
     // A result that failed (an API error) is not a findings report: the part stays pending for its next launch.
-    if (text !== "" && result.result.error === null) await env.github.comment("tickets", ticket.number, marked("findings", `Findings, part ${part.number}\n\n${text}`))
+    if (text !== "" && result.result.error === null) await env.github.comment("tickets", ticket.number, marked("findings", `Findings, part ${partNumber}\n\n${text}`))
     return removeWorktrees(env, repoKey, [branch])
   }
   const shas = (await gitText(env, worktree, ["log", "--format=%H", `${headBefore}..HEAD`])).split("\n").filter(Boolean).reverse()
   const found = findPullByBranch(states, branch)
-  const number = order.pull?.number ?? found?.pull.number ?? Number((await env.gh(["pr", "list", "--repo", env.slugOf(repoKey), "--head", branch, "--json", "number", "--jq", ".[0].number"])).trim())
+  const number = prNumber ?? found?.pull.number ?? Number((await env.gh(["pr", "list", "--repo", env.slugOf(repoKey), "--head", branch, "--json", "number", "--jq", ".[0].number"])).trim())
   if (shas.length > 0 && Number.isInteger(number) && number > 0 && result.sessionId) await recordCommits(env, repoKey, number, result.sessionId, shas)
 }
 
@@ -759,16 +798,21 @@ const ticketVerdict = async (env, mem, states, ticket, { settled = false } = {})
   const history = await mergedHistory(env, mem, ticket, { fresh: true })
   if (tracking.length === 0 && history.some((pull) => REMAINING_NONE.test(pull.body))) return stop("a merged pull request says Remaining: none")
   const doneBranches = new Set(history.map((pull) => pull.headRefName))
-  const used = new Set([...doneBranches, ...state.pulls.map((pull) => pull.headRef)])
+  // An open pull request keeps the order on its branch, so the cap counts every launch of one piece of work. One with no `Tracks` line goes to the owner.
+  const ownBranch = (part) => branchName(ticket, part, doneBranches)
+  const untracked = (branch) => state.pulls.find((pull) => pull.headRef === branch && pull.tracks !== ticket.number)
+  const held = (branch) => { const pull = untracked(branch); return pull === undefined ? null : { reason: `${ticket.repoKey}#${pull.number} is open on ${branch} with no Tracks line for this ticket`, owner: `Pull request ${ticket.repoKey}#${pull.number} is open on ${branch} with no \`Tracks ${env.config.tickets.repository}#${ticket.number}\` line. Add the line or close it.` } }
   if (parts.length === 0) {
+    const branch = ownBranch(null)
+    if (held(branch)) return held(branch)
     const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${history.map((pull) => /^Remaining:.*$/m.exec(pull.body)?.[0] ?? "").filter(Boolean).at(-1) ?? "Remaining: unknown"}`
-    return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch: branchName(ticket, null, used), extra: remaining } }
+    return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: remaining } }
   }
-  const partDone = (entry) => (entry.find ? ticket.comments.some((comment) => comment.kind === "findings" && firstLine(bodyAfterMarker(comment)) === `Findings, part ${entry.number}`) : [...doneBranches].some((branch) => new RegExp(`ticket-${ticket.number}-part-${entry.number}$`).test(branch)))
-  const inFlight = (entry) => tracking.some((pull) => new RegExp(`ticket-${ticket.number}-part-${entry.number}$`).test(pull.headRef))
+  const partDone = (entry) => (entry.find ? ticket.comments.some((comment) => comment.kind === "findings" && firstLine(bodyAfterMarker(comment)) === `Findings, part ${entry.number}`) : [...doneBranches].some((branch) => partBranch(ticket.number, entry.number).test(branch)))
+  const inFlight = (entry) => tracking.some((pull) => partBranch(ticket.number, entry.number).test(pull.headRef))
   const pending = parts.filter((entry) => !partDone(entry) && !inFlight(entry))
   const openParts = parts.filter(inFlight)
-  const foreign = tracking.some((pull) => !parts.some((entry) => inFlight(entry) && new RegExp(`ticket-${ticket.number}-part-${entry.number}$`).test(pull.headRef)))
+  const foreign = tracking.some((pull) => !parts.some((entry) => partBranch(ticket.number, entry.number).test(pull.headRef)))
   for (const entry of pending) {
     const earlierDone = parts.filter((other) => other.number < entry.number).every(partDone)
     let free = earlierDone && openParts.length === 0 && !foreign
@@ -776,7 +820,7 @@ const ticketVerdict = async (env, mem, states, ticket, { settled = false } = {})
       free = true
       for (const other of openParts) if (await pathsOverlap(env, env.config.repos[ticket.repoKey], entry.paths, other.paths)) free = false
     }
-    if (free) return { order: { kind: entry.find ? "find" : "build part", repoKey: ticket.repoKey, ticket, part: entry, branch: branchName(ticket, entry.number, used), extra: "" } }
+    if (free) return held(ownBranch(entry.number)) ?? { order: { kind: entry.find ? "find" : "build part", repoKey: ticket.repoKey, ticket, part: entry, branch: ownBranch(entry.number), extra: "" } }
   }
   return stop(pending.length > 0 ? "the next part waits for an open part" : tracking.length > 0 ? "an open pull request tracks it" : "no part is left to run")
 }
@@ -830,7 +874,8 @@ const admit = async (env, mem, tickets, states, busy) => {
   for (const ticket of rankTickets(tickets)) {
     const verdict = await ticketVerdict(env, mem, states, ticket, { settled: chosen !== null || held })
     if (verdict.reason) {
-      decisions.set(ticket.number, `wait: ${verdict.reason}`)
+      decisions.set(ticket.number, verdict.owner ? `needs:owner: ${verdict.reason}` : `wait: ${verdict.reason}`)
+      if (verdict.owner) await needsOwner(env, mem, { ticket, reason: verdict.owner })
       continue
     }
     const launches = launchesOf(ticket).filter((entry) => entry.branch === verdict.order.branch && entry.kind === verdict.order.kind)
@@ -908,13 +953,22 @@ const readWorld = async (env, mem) => {
 }
 
 /**
- * Reaps the exits of workers that ended since the last tick. A tick reaps before it reads GitHub for its own steps, so
- * every later step reads what the reap wrote. The reap has its own read, and it takes one only when an exit waits.
+ * Reaps every worker whose launch record is on disk and whose process is gone, after a restart of the driver too. A tick
+ * reaps before it reads GitHub for its own steps, so every later step reads what the reap wrote. The reap has its own
+ * read, and it takes one only when a record waits.
  */
 const reapExits = async (env, mem) => {
-  if (mem.exits.length === 0) return
+  // A dry run writes nothing, so it leaves every record for the driver that runs.
+  if (env.dryRun) return
+  const gone = launchRecords(env).filter(({ stem }) => !workerRuns(env, mem, stem))
+  if (gone.length === 0) return
   const { tickets, states } = await readWorld(env, mem)
-  for (const exit of mem.exits.splice(0)) await reapExit(env, mem, tickets, states, exit).catch((error) => log(env, `ticket#${exit.order.ticket.number}`, "error", error.message))
+  for (const { stem, record } of gone) {
+    rmSync(launchRecordPath(env, stem), { force: true })
+    const result = mem.results.get(stem) ?? exitFromLog(record.logFile)
+    mem.results.delete(stem)
+    await reapExit(env, mem, tickets, states, { ...record, result }).catch((error) => log(env, `ticket#${record.ticketNumber}`, "error", error.message))
+  }
 }
 
 export const tick = async (env, mem) => {
