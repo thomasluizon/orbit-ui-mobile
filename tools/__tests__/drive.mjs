@@ -5,6 +5,7 @@ import { join } from "node:path"
 
 import { readDriveConfig, workerEnvironment } from "../lib/config.mjs"
 import {
+  bodyFindings,
   classifyCheckFailure,
   closeTicket,
   comment,
@@ -193,6 +194,15 @@ const githubUnit = async () => {
   const { state: syntheticState } = await readPulls([2509], [2509, 2510], synthetic)
   same("lib/github.mjs: a review comment that starts with BLOCKING: is kept with its path and line", syntheticState.pulls[0].reviews[0].blocking.map((entry) => [entry.path, entry.line, entry.body.split("\n")[0]]), [["src/a.mjs", 4, "BLOCKING: a class"]])
   same("lib/github.mjs: a driver comment is kept with its marker kind", syntheticState.pulls[0].comments.map((entry) => entry.kind), [null, "request"])
+
+  const withBody = stateResponse([2509])
+  const bodyReviews = withBody.data.repository.pr2509.reviews.nodes
+  bodyReviews.length = 0
+  bodyReviews.push(...FIXTURE.bodyBlockingReviews.nodes.map((node) => ({ ...node, commit: { oid: FIXTURE.bodyBlockingReviews.head } })))
+  const bodyState = (await readPulls([2509], [2509, 2510], withBody)).state.pulls[0].reviews
+  same("lib/github.mjs: a BLOCKING paragraph of a review body is a finding with no path and no line, and its text runs to the Pullfrog divider", bodyState.map((review) => [review.blocking.length, review.blocking[0].path, review.blocking[0].line, review.blocking[0].body.startsWith("BLOCKING: missed requirement"), review.blocking[0].body.includes("Smallest fix:"), review.blocking[0].body.includes("PULLFROG_DIVIDER")]), [[1, null, null, true, true, false], [1, null, null, true, true, false]])
+  same("lib/github.mjs: bodyFindings splits at the next BLOCKING line, stops at a heading, and ignores a BLOCKING word inside a line", bodyFindings("Two classes. BLOCKING: not at a line start.\n\nBLOCKING: first\nmore of first\n\nBLOCKING: second\n\n## Outside this change\n\nnot a finding").map((entry) => entry.body), ["BLOCKING: first\nmore of first", "BLOCKING: second"])
+  same("lib/github.mjs: a body with no BLOCKING line gives no finding", [bodyFindings("").length, bodyFindings("No BLOCKING finding remains.").length], [0, 0])
 
   const unknown = await readPulls([2509, 2510], [])
   same("lib/github.mjs: a number the last tick did not know costs one more read for those numbers only", [unknown.calls.length, unknown.calls[0].text.includes("pr2509"), unknown.calls[1].text.includes("pr2509"), unknown.calls[1].text.includes("pr2510")], [2, false, true, true])
@@ -900,6 +910,9 @@ const orderCases = async () => {
     T(`lib/order.mjs: the ${kind} brief matches no name of a ticket, a feature or a project`, !BANNED_TEXT.test(brief), (BANNED_TEXT.exec(brief) ?? [])[0])
     T(`lib/order.mjs: the ${kind} brief names the place and no draft`, brief.includes(PLACE.worktree) && brief.includes(PLACE.branch) && !brief.includes("--draft ") && (!kind.startsWith("build") || brief.includes("non-draft")))
   }
+
+  const noted = order("fix", { pull: PULL, review: { blocking: [{ path: null, line: null, body: "BLOCKING: body finding" }] }, ownerNote: "Use the second option.\n" })
+  T("lib/order.mjs: a fix order names a body finding by the review body and carries the owner comment of a granted launch", noted.includes("- the review body\n\n  BLOCKING: body finding") && noted.includes("## Owner comment") && noted.includes("Use the second option.") && !order("fix", { pull: PULL, review: { blocking: [{ path: "a.mjs", line: 1, body: "BLOCKING: x" }] } }).includes("## Owner comment"))
 
   const build = order("build", { partComments: [] })
   T("lib/order.mjs: a build order holds the title, the ticket body and the brief, and no part section", build.startsWith("# A ticket title\n\nThe ticket body") && build.includes("Second paragraph.") && build.includes("## Brief") && !build.includes("## Parts"))
