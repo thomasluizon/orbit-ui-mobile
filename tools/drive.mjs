@@ -320,15 +320,16 @@ const notifyOnce = async (env, mem, message) => {
 /**
  * Writes one `needs-owner` comment, labels the ticket and the pull request `needs:owner` when they lack it, and notifies.
  * The comment is the mark that stops a repeat: a ticket that an owner gate already labelled still gets each new report.
- * A ticket repeats only for the same reason, and a report on a pull request names it and its head. A pull request with no
- * ticket carries one report, whatever its reason.
+ * A ticket repeats only for the same reason, and a pull request report names it and its head. With no ticket, one report only.
+ * A `relabel` report restores a removed label and writes no comment and sends no notification.
  */
-const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason: plainReason }) => {
+const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason: plainReason, relabel = false }) => {
   const item = pull ? `${repoKey}#${pull.number}` : `ticket#${ticket.number}`
   const reason = ticket && pull ? `${item} at ${pull.headSha}: ${plainReason}` : plainReason
   log(env, item, "needs-owner", reason)
   const comments = ticket ? ticket.comments : pull.comments
-  if (env.dryRun || comments.some((entry) => entry.kind === "needs-owner" && (ticket === null || bodyAfterMarker(entry).trim() === reason))) return
+  const reported = comments.some((entry) => entry.kind === "needs-owner" && (ticket === null || bodyAfterMarker(entry).trim() === reason))
+  if (env.dryRun || (reported && !relabel)) return
   if (ticket && !ticket.labels.includes(OWNER)) {
     await env.github.editLabels("tickets", ticket.number, { add: [OWNER] })
     ticket.labels.push(OWNER)
@@ -336,6 +337,7 @@ const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reaso
   if (pull && !pull.labels.includes(OWNER)) {
     try { await env.github.editLabels(repoKey, pull.number, { add: [OWNER] }); pull.labels.push(OWNER) } catch (error) { log(env, item, "label-failed", error.message) }
   }
+  if (reported) return
   await env.github.comment(ticket ? "tickets" : repoKey, ticket ? ticket.number : pull.number, marked("needs-owner", reason))
   comments.push({ kind: "needs-owner", body: marked("needs-owner", reason), createdAt: new Date(env.now()).toISOString() })
   holdItem(env, { link: ticket ? issueLink(env, ticket.number) : `https://github.com/${env.slugOf(repoKey)}/pull/${pull.number}`, reason })
@@ -476,11 +478,18 @@ const passesOf = (pull) => pull.reviews.filter(isReviewPass)
 /** The commit of the newest review pass before a request. */
 const commitBefore = (pull, request) => passesOf(pull).filter((entry) => entry.submittedAt < request.createdAt).sort((left, right) => left.submittedAt.localeCompare(right.submittedAt)).at(-1)?.commit
 
-/** The time of the first whole-diff request for each head sha: the head is the commit of the newest review pass before the request. */
-const wholeDiffRequestTimes = (pull) => {
+/**
+ * The head that a request is for: the commit of the first review pass that answers it, whoever posted it. A request that the owner
+ * session posts right after a push has no review at the new head yet, so the pass that answers it names the head. A request that no
+ * pass answers is for the commit of the newest pass before it.
+ */
+const requestCommit = (pull, runs, request) => passesOf(pull).sort((left, right) => left.submittedAt.localeCompare(right.submittedAt)).find((pass) => answers(runs, pass, request))?.commit ?? commitBefore(pull, request)
+
+/** The time of the first whole-diff request for each head sha, from the owner session and from the driver. */
+const wholeDiffRequestTimes = (pull, runs) => {
   const times = {}
   for (const request of requestsOf(pull).filter((entry) => entry.whole)) {
-    const commit = commitBefore(pull, request)
+    const commit = requestCommit(pull, runs, request)
     if (commit !== undefined && (times[commit] === undefined || request.createdAt < times[commit])) times[commit] = request.createdAt
   }
   return times
@@ -505,7 +514,7 @@ const answers = (runs, pass, request) => {
 const unansweredRequests = (pull, runs) => requestsOf(pull).filter((request) => !passesOf(pull).some((pass) => answers(runs, pass, request)))
 
 /** The whole-diff requests for the head that a review pass answered. */
-const answeredWholeDiffRequests = (pull, runs) => requestsOf(pull).filter((request) => request.whole && commitBefore(pull, request) === pull.headSha && passesOf(pull).some((entry) => answers(runs, entry, request))).length
+const answeredWholeDiffRequests = (pull, runs) => requestsOf(pull).filter((request) => request.whole && requestCommit(pull, runs, request) === pull.headSha && passesOf(pull).some((entry) => answers(runs, entry, request))).length
 
 /** The shas of the two-parent commits of a pull request whose remerge diff is empty. */
 const cleanMergesOf = async (env, repoPath, pull) => {
@@ -539,7 +548,7 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
   const demand = (text, why) => (sinceReview.length === 0 ? { request: text, why } : waiting())
   if (latest === null) return demand(PLAIN_REQUEST, "no Pullfrog review at this head")
   if (latest.state === "APPROVED") {
-    const context = { wholeDiffRequests: wholeDiffRequestTimes(pull), cleanMerges: pull.cleanMerges ?? [] }
+    const context = { wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [] }
     if (!needsWholeDiff(pull, { fixLaunches }) || wholeDiffApproved(pull, context)) return { approved: true }
     // A whole-diff pass that lacks its "Whole diff:" line gets one re-request, then the owner.
     if (answeredWholeDiffRequests(pull, runs) >= 2) return { owner: "Pullfrog answered two whole-diff requests at this head with no whole-diff review" }
@@ -601,6 +610,23 @@ const checkPlan = async (env, repoKey, pull) => {
   return rerun.size > 0 ? { rerun: [...rerun] } : { checks }
 }
 
+/**
+ * The owner comments on the ticket that follow a fix cap report of the pull request, oldest first. The cap report is the comment
+ * that goes with the label. Each owner comment after it grants one more fix launch, and a later cap report asks for the next one.
+ */
+const capGrants = (ticket, item) => {
+  const grants = []
+  let capped = false
+  for (const entry of [...ticket.comments].sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
+    if (entry.kind === "needs-owner") capped ||= bodyAfterMarker(entry).includes(`${item} used its ${MAX_FIX_LAUNCHES} fix launches.`)
+    else if (entry.kind === null && capped && partOf(entry) === null) {
+      grants.push(entry)
+      capped = false
+    }
+  }
+  return grants
+}
+
 /** The ordered actions for one pull request. The plan writes nothing. */
 const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, running }, pull) => {
   const dependabot = pull.author === "dependabot"
@@ -623,10 +649,13 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   const orderOrOwner = (order, classes) => {
     // A worker order is recorded on a ticket, so a pull request with no open ticket goes to the owner.
     if (ticket === null) return owner(`${item} needs a ${order.kind} order and no open ticket tracks it. Open: ${classes}`)
-    if (launches.length < MAX_FIX_LAUNCHES) return [...actions, order]
+    // An owner comment after a cap report grants one more launch, and that launch carries the comment.
+    const grants = capGrants(ticket, item)
+    if (launches.length < MAX_FIX_LAUNCHES + grants.length) return [...actions, launches.length < MAX_FIX_LAUNCHES ? order : { ...order, ownerNote: grants[launches.length - MAX_FIX_LAUNCHES].body }]
     // A launch that still runs is in the count, so a cap is read only when no worker runs on the branch and the last launch has its result.
     if (running.branches.has(pull.headRef)) return [...actions, { type: "none", reason: "a worker runs on the branch: the fix launch cap waits for its result" }]
-    return owner(`${item} used its ${MAX_FIX_LAUNCHES} fix launches. Open: ${classes}`)
+    // The owner removed the label with no comment after the cap report, so the label goes back.
+    return [...actions, { type: "needs-owner", reason: `${item} used its ${MAX_FIX_LAUNCHES} fix launches. Launches: ${launches.length}. Open: ${classes}`, relabel: true }]
   }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
   if (need.approved) {
@@ -636,7 +665,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
       for (const thread of open) thread.resolved = true
     }
   }
-  if (need.fix) return orderOrOwner({ type: "order", kind: "fix", repoKey, pull, ticket, review: need.fix }, need.fix.blocking.map((entry) => `${entry.path}:${entry.line}`).join(", "))
+  if (need.fix) return orderOrOwner({ type: "order", kind: "fix", repoKey, pull, ticket, review: need.fix }, need.fix.blocking.map((entry) => (entry.path === null ? "the review body" : `${entry.path}:${entry.line}`)).join(", "))
   const checks = await checkPlan(env, repoKey, pull)
   if (checks?.owner) return owner(checks.owner)
   if (checks?.rerun) return [...actions, ...checks.rerun.map((runId) => ({ type: "rerun", runId }))]
@@ -645,7 +674,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (need.owner) return owner(need.owner)
   if (need.request) return [...actions, request(need.request)]
   if (need.wait) return [...actions, { type: "none", reason: need.wait }]
-  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull), cleanMerges: pull.cleanMerges ?? [], blockers: [], ticketLabels: ticket?.labels ?? [], updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
+  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], ticketLabels: ticket?.labels ?? [], updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
   const bar = mergeBar(pull, context)
   if (dependabot && bar.includes("dependabot-major")) return owner(`Dependabot pull request ${item} is a major update`)
   if (bar.length === 0) return [...actions, { type: "merge" }]
@@ -699,7 +728,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "rerun":
       await env.github.rerunFailed(repoKey, action.runId)
       return env.github.comment(repoKey, pull.number, marked("record", `driver rerun ${action.runId}`))
-    case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason })
+    case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason, relabel: action.relabel })
     // The child still holds its parent's commits, so main is merged in before the first pass reads its diff.
     case "update": return updateBranch(env, repoKey, pull)
     case "behind":
@@ -840,7 +869,7 @@ const startWorker = async (env, mem, candidate) => {
   const headBefore = await gitText(env, worktree, ["rev-parse", "HEAD"])
   const stem = branch.replaceAll("/", "-")
   const place = { repoKey, repoPath: env.config.repos[repoKey], worktree, branch, base: "main" }
-  const text = renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, place, partNumber: part?.number ?? null })
+  const text = renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null, place, partNumber: part?.number ?? null })
   const stamp = new Date(env.now()).toISOString().replace(/[:.]/g, "-")
   const logFile = join(env.stateDir, "logs", `${stem}-${stamp}.log`)
   const invocation = await env.invocation(token)
@@ -1467,7 +1496,7 @@ export const recordStart = async (env, tickets = []) => {
   if (starts.filter((time) => now - Date.parse(time) < RESTART_WINDOW_MS).length < 3) return false
   await say(env, "Orbit driver restarted three times in ten minutes.")
   if (!tickets.some((ticket) => ticket.title === RESTART_TITLE)) {
-    const created = await env.github.createTicket({ title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/orbit-drive.log.", labels: [OWNER] })
+    const created = await env.github.createTicket({ title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/brain-automations/orbit-drive.log.", labels: [OWNER] })
     holdItem(env, { link: issueLink(env, created.number), reason: RESTART_TITLE })
   }
   return true
