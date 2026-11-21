@@ -50,6 +50,11 @@ const checkSection = (check) => {
   return `### ${check.name}${steps}${lines.length === 0 ? "" : `\n\n\`\`\`\n${lines.join("\n")}\n\`\`\``}`
 }
 
+/** The instruction of every fix order: the review or the check names one instance, and the worker fixes the class. */
+export const CLASS_RULE = "Fix the whole class of each finding in this round. Name the class. Search the whole tree for every instance of the class. Fix each instance. List each path in the commit message. Add a test that fails without the fix, and run it red before the fix."
+
+const baseMergeSection = (baseMerge) => `The head is a clean merge of \`origin/main\`. The branch was green at \`${baseMerge.before}\` before the merge. The merge brought in these base commits:\n\n${baseMerge.commits.map((line) => `- ${line}`).join("\n")}\n\nThe cause is one of these commits and how it meets this branch. Find it and fix it.\n\n`
+
 /** The part of the order that belongs to one kind: what to do first and what to fix. */
 const kindSection = ({ kind, pull, review, failure, partNumber }) => {
   switch (kind) {
@@ -58,9 +63,9 @@ const kindSection = ({ kind, pull, review, failure, partNumber }) => {
     case "build part":
       return `Build Part ${partNumber} of this ticket and no other part. Rebase on \`origin/main\` before the first push.`
     case "fix":
-      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each class lists every instance.\n\n${instanceList(review)}\n\nFix every instance of every class in one commit. Write one table test per class, and run it red before the fix. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Merge \`origin/main\`. Push once.`
+      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each finding names one instance of a class. The class can have more instances.\n\n${instanceList(review)}\n\n${CLASS_RULE} Fix every class in one commit. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Merge \`origin/main\`. Push once.`
     case "ci-fix":
-      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.checks.map(checkSection).join("\n\n")}\n\nFix the cause. Merge \`origin/main\`. Push once.`
+      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.baseMerge ? baseMergeSection(failure.baseMerge) : ""}${failure.checks.map(checkSection).join("\n\n")}\n\n${CLASS_RULE} Merge \`origin/main\`. Push once.`
     case "merge-forward":
       return `The pull request ${pull.number} has the head \`${pull.headSha}\`. It conflicts with \`origin/main\`${failure?.conflicts?.length > 0 ? ` in: ${failure.conflicts.join(", ")}` : ""}. Merge \`origin/main\` into the branch and resolve the conflicts. Run the focused checks. Push once.`
     case "find":

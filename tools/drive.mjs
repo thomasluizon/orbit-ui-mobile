@@ -19,7 +19,7 @@ import { escapeRegex } from "./lib/escape-regex.mjs"
 import { WORKTREE_REMOVE_ARGUMENTS, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { partOf, renderOrder } from "./lib/order.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -74,6 +74,8 @@ const REPOSITORY_KEYS = ["ui", "api", "landing"]
 const FIX_KINDS = ["fix", "ci-fix", "merge-forward"]
 const MAX_ORDER_LAUNCHES = 2
 const MAX_FIX_LAUNCHES = 2
+const FLAKE_LOG_LINES = 40
+const BASE_COMMIT_LIMIT = 30
 const MERGED_TTL_MS = 10 * 60 * 1000
 const MERGED_READS_PER_TICK = 10
 const REMAINING_NONE = /^Remaining: none\s*$/m
@@ -700,7 +702,8 @@ const checkPlan = async (env, repoKey, pull) => {
   const failed = failedChecks(pull)
   if (failed.length === 0) return null
   const checks = []
-  const rerun = new Set()
+  // One rerun comes before any launch. A check that failed for a test, not for the setup or a gateway, is a suspect: a pass on the rerun at the same head proves a flake.
+  const rerun = new Map()
   for (const check of failed) {
     const failedSteps = check.runId === null ? [] : await env.github.readFailedSteps(repoKey, check.runId, check.jobId)
     const verdict = classifyCheckFailure({ name: check.name, failedSteps })
@@ -708,10 +711,45 @@ const checkPlan = async (env, repoKey, pull) => {
     const logLines = verdict === "rerun" || check.runId === null ? [] : await failedLogLines(env, repoKey, check.runId)
     const gatewayTimeout = logLines.some((line) => /HTTP 504|504 Gateway/.test(line))
     const already = pull.comments.some((entry) => entry.kind === "record" && bodyAfterMarker(entry) === `driver rerun ${check.runId}`)
-    if ((verdict === "rerun" || gatewayTimeout) && check.runId !== null && !already) rerun.add(check.runId)
+    if (check.runId !== null && !already) rerun.set(check.runId, [...(rerun.get(check.runId) ?? []), ...(verdict === "rerun" || gatewayTimeout ? [] : [{ name: check.name, lines: logLines.slice(-FLAKE_LOG_LINES) }])])
     else checks.push({ name: check.name, failedSteps, logLines })
   }
-  return rerun.size > 0 ? { rerun: [...rerun] } : { checks }
+  return rerun.size > 0 ? { rerun: [...rerun].map(([runId, suspects]) => ({ runId, suspects })) } : { checks }
+}
+
+/**
+ * The base merge that the head of a red pull request is, or null. The head is a clean merge of the base, and the newest commit
+ * before the clean merges had a green rollup, so the base commits that the merge brought in broke the check, not the change.
+ * Returns the green commit and the base commits as `<short sha> <subject>` lines.
+ */
+const baseMergeOf = async (env, repoPath, pull) => {
+  const clean = pull.cleanMerges ?? []
+  let index = pull.commits.length - 1
+  if (index < 1 || !clean.includes(pull.commits[index].sha)) return null
+  index -= 1
+  // A clean merge with no rollup of its own had no check run, so the commit before it decides.
+  while (index > 0 && pull.commits[index].checkState === null && clean.includes(pull.commits[index].sha)) index -= 1
+  const before = pull.commits[index]
+  if (before.checkState !== "SUCCESS") return null
+  const listed = await env.git(repoPath, ["log", "--no-merges", "--format=%h %s", `${before.sha}..${pull.headSha}`])
+  const commits = listed.status === 0 ? listed.stdout.split("\n").filter(Boolean) : []
+  return commits.length === 0 ? null : { before: before.sha, commits: commits.slice(0, BASE_COMMIT_LIMIT) }
+}
+
+/** The flake records of a pull request: a suspect names its run, its check and the failed lines, a filed record closes it. */
+const flakeKey = (runId, name) => `${runId} ${name}`
+
+/** The actions that file a Bug ticket for each suspect check that passed on the rerun of the same run. */
+const flakeActions = (pull) => {
+  const records = pull.comments.filter((entry) => entry.kind === "record").map((entry) => bodyAfterMarker(entry))
+  const filed = new Set(records.filter((text) => text.startsWith("driver flake-filed ")).map((text) => text.slice("driver flake-filed ".length)))
+  const passed = passedChecks(pull)
+  return records.filter((text) => text.startsWith("driver flake-suspect ")).flatMap((text) => {
+    const key = firstLine(text).slice("driver flake-suspect ".length)
+    const run = key.slice(0, key.indexOf(" "))
+    const name = key.slice(run.length + 1)
+    return !filed.has(key) && passed.some((check) => check.name === name && check.runId === run) ? [{ type: "file-flake", runId: run, name, lines: text.split("\n").slice(1).join("\n") }] : []
+  })
 }
 
 /**
@@ -748,18 +786,22 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     return [{ type: "retarget", base: state.defaultBranch }, { type: "update" }, request(PLAIN_REQUEST)]
   }
   const launches = launchesOf(ticket).filter((entry) => entry.branch === pull.headRef && FIX_KINDS.includes(entry.kind))
-  const actions = []
+  // A ci-fix launch for a base merge is no fault of the change, so the cap does not count it. Its mark holds the head it ran at.
+  const counted = launches.filter((entry) => !entry.baseMerge)
+  const actions = flakeActions(pull)
   const owner = (reason) => [...actions, { type: "needs-owner", reason }]
   const orderOrOwner = (order, classes) => {
     // A worker order is recorded on a ticket, so a pull request with no open ticket goes to the owner.
     if (ticket === null) return owner(`${item} needs a ${order.kind} order and no open ticket tracks it. Open: ${classes}`)
     // An owner comment after a cap report grants one more launch, and that launch carries the comment.
+    // The free launch runs once for each head, so a worker that pushes nothing meets the cap at its next launch.
+    if (order.failure?.baseMerge && !launches.some((entry) => entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
     const grants = capGrants(ticket, item)
-    if (launches.length < MAX_FIX_LAUNCHES + grants.length) return [...actions, launches.length < MAX_FIX_LAUNCHES ? order : { ...order, ownerNote: grants[launches.length - MAX_FIX_LAUNCHES].body }]
+    if (counted.length < MAX_FIX_LAUNCHES + grants.length) return [...actions, counted.length < MAX_FIX_LAUNCHES ? order : { ...order, ownerNote: grants[counted.length - MAX_FIX_LAUNCHES].body }]
     // A launch that still runs is in the count, so a cap is read only when no worker runs on the branch and the last launch has its result.
     if (running.branches.has(pull.headRef)) return [...actions, { type: "none", reason: "a worker runs on the branch: the fix launch cap waits for its result" }]
     // The owner removed the label with no comment after the cap report, so the label goes back.
-    return [...actions, { type: "needs-owner", reason: `${item} used its ${MAX_FIX_LAUNCHES} fix launches. Launches: ${launches.length}. Open: ${classes}`, relabel: true }]
+    return [...actions, { type: "needs-owner", reason: `${item} used its ${MAX_FIX_LAUNCHES} fix launches. Launches: ${counted.length}. Open: ${classes}`, relabel: true }]
   }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
   if (need.approved) {
@@ -772,8 +814,11 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (need.fix) return orderOrOwner({ type: "order", kind: "fix", repoKey, pull, ticket, review: need.fix }, need.fix.blocking.map((entry) => (entry.path === null ? "the review body" : `${entry.path}:${entry.line}`)).join(", "))
   const checks = await checkPlan(env, repoKey, pull)
   if (checks?.owner) return owner(checks.owner)
-  if (checks?.rerun) return [...actions, ...checks.rerun.map((runId) => ({ type: "rerun", runId }))]
-  if (checks?.checks) return orderOrOwner({ type: "order", kind: "ci-fix", repoKey, pull, ticket, failure: { checks: checks.checks } }, checks.checks.map((check) => check.name).join(", "))
+  if (checks?.rerun) return [...actions, ...checks.rerun.map(({ runId, suspects }) => ({ type: "rerun", runId, suspects }))]
+  if (checks?.checks) {
+    const baseMerge = await baseMergeOf(env, env.config.repos[repoKey], pull)
+    return orderOrOwner({ type: "order", kind: "ci-fix", repoKey, pull, ticket, failure: { checks: checks.checks, ...(baseMerge === null ? {} : { baseMerge }) } }, checks.checks.map((check) => check.name).join(", "))
+  }
   if (pull.mergeState === "DIRTY") return orderOrOwner({ type: "order", kind: "merge-forward", repoKey, pull, ticket, failure: {} }, "merge conflict with the base branch")
   if (need.owner) return owner(need.owner)
   if (need.request) return [...actions, request(need.request)]
@@ -816,6 +861,18 @@ const updateBranch = async (env, repoKey, pull) => {
   if (head !== pull.headSha) await env.github.comment(repoKey, pull.number, marked("record", `driver update-branch -> ${head}`))
 }
 
+/** Files one Bug ticket for a check that failed and then passed on a rerun at the same head, unless an open ticket holds it. */
+const fileFlake = async (env, ctx, pull, action) => {
+  const title = `Flaky check: ${action.name}`
+  const slug = env.slugOf(ctx.repoKey)
+  if (!ctx.tickets.some((ticket) => ticket.title === title && ticket.repoKey === ctx.repoKey) && !ctx.flaky.has(title)) {
+    ctx.flaky.add(title)
+    const body = `The check "${action.name}" failed on ${slug}#${pull.number} at the head \`${pull.headSha}\` and passed on a rerun of the run ${action.runId} at the same head. The test is flaky.\n\nFailed lines:\n\n\`\`\`\n${action.lines}\n\`\`\`\n\nFind the test that failed. Remove the timing or the shared state that makes it fail.`
+    await env.github.createTicket({ title, body, labels: [`repo:${ctx.repoKey}`, "Bug"] })
+  }
+  await env.github.comment(ctx.repoKey, pull.number, marked("record", `driver flake-filed ${flakeKey(action.runId, action.name)}`))
+}
+
 const executeAction = async (env, mem, ctx, pull, action) => {
   const { repoKey, ticketMap } = ctx
   const ticket = pull.tracks === null ? null : ticketMap.get(pull.tracks) ?? null
@@ -831,7 +888,10 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       return undefined
     case "rerun":
       await env.github.rerunFailed(repoKey, action.runId)
-      return env.github.comment(repoKey, pull.number, marked("record", `driver rerun ${action.runId}`))
+      await env.github.comment(repoKey, pull.number, marked("record", `driver rerun ${action.runId}`))
+      for (const suspect of action.suspects ?? []) await env.github.comment(repoKey, pull.number, marked("record", `driver flake-suspect ${flakeKey(action.runId, suspect.name)}\n${suspect.lines.join("\n")}`))
+      return undefined
+    case "file-flake": return fileFlake(env, ctx, pull, action)
     case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason, relabel: action.relabel })
     // The child still holds its parent's commits, so main is merged in before the first pass reads its diff.
     case "update": return updateBranch(env, repoKey, pull)
@@ -858,14 +918,14 @@ const isWaiting = (pull, tickets) => !pull.draft && (pull.tracks !== null || pul
 /** Plans and runs the actions of every open pull request of one repository. Returns the order candidates. While the weekly stop holds, a Pullfrog request waits. */
 const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped }) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
-  const ctx = { repoKey, state, ticketMap, now: env.now(), updated: false, merged: false, running }
+  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), updated: false, merged: false, running }
   const orders = []
   const repoPath = env.config.repos[repoKey]
   for (const pull of [...state.pulls].sort((left, right) => left.number - right.number)) {
     const item = `${repoKey}#${pull.number}`
     try {
       const runs = pull.draft ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
-      if (!pull.draft && pull.reviews.some((review) => review.state === "APPROVED")) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
+      if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       const planned = await planPull(env, mem, { ...ctx, runs }, pull)
       const plan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
       const newestRequest = requestsOf(pull).reduce((newest, entry) => (entry.createdAt > newest ? entry.createdAt : newest), "")
@@ -971,8 +1031,9 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
     log(env, `ticket#${ticket.number}`, "wait", reason)
     return reason
   }
-  await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, at: new Date(env.now()).toISOString() })))
-  ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null })), createdAt: new Date(env.now()).toISOString() })
+  const baseMergeMark = order.baseMergeHead ? { baseMerge: order.baseMergeHead } : {}
+  await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark, at: new Date(env.now()).toISOString() })))
+  ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark })), createdAt: new Date(env.now()).toISOString() })
   const worktree = await prepareWorktree(env, repoKey, branch, pull === null, location)
   const headBefore = await gitText(env, worktree, ["rev-parse", "HEAD"])
   const stem = branch.replaceAll("/", "-")
