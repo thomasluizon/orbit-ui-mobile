@@ -26,7 +26,7 @@ import * as workerApi from "./lib/worker.mjs"
 const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --reviewer-token] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, runs one worker at a
-  time inside the weekly pace, and merges at the owner's bar. It spends no tokens while it waits.
+  time at a weekly pace, and merges at the owner's bar. It spends no tokens while it waits.
 
   (no flag)   run the loop: one tick each 120 seconds until stopped
   --dry-run   read everything, print one line for each open ticket and pull request with the action the driver would
@@ -43,6 +43,11 @@ const TICK_MS = 120 * 1000
 const HOUR_MS = 60 * 60 * 1000
 const WEEK_MS = 7 * 24 * HOUR_MS
 const PACE_FACTOR = 0.95
+const PACE_SPAN_MS = 48 * HOUR_MS
+const PACE_MAX_GAP_MS = 6 * HOUR_MS
+const PACE_DEFAULT_COST = 0.01
+const PACE_MIN_ORDERS = 3
+const PACE_RESET_TOLERANCE_SECONDS = 3600
 const REQUIRED_TOOLS = ["node", "git", "gh", "claude", "security", "osascript", "caffeinate"]
 const REPOSITORY_KEYS = ["ui", "api", "landing"]
 const FIX_KINDS = ["fix", "ci-fix", "merge-forward"]
@@ -133,14 +138,45 @@ export const rankTickets = (tickets) => {
   return [...tickets].sort((left, right) => Number(right.labels.includes("Bug")) - Number(left.labels.includes("Bug")) || lengths.get(right.number) - lengths.get(left.number) || left.number - right.number)
 }
 
-/** The pace decision: `admit`, `hold` or `probe`. `line` is the share of the week gone times 0.95. */
-export const paceDecision = ({ reading, now, lastProbeAt = null }) => {
-  const probeOrHold = lastProbeAt !== null && now - lastProbeAt < HOUR_MS ? "hold" : "probe"
-  if (reading === null || reading.resetsAt * 1000 <= now) return { action: probeOrHold, utilization: reading?.utilization ?? null, line: null }
-  const end = reading.resetsAt * 1000
+/**
+ * The utilization that one admitted build or find order uses: over the readings of the last 48 hours in the current
+ * week, the rise divided by the orders launched in that span. Under 3 orders, or with no rise, it is the default.
+ */
+export const orderCost = ({ history, newest, now }) => {
+  const week = history.readings.filter((entry) => now - entry.at <= PACE_SPAN_MS && Math.abs(entry.resetsAt - newest.resetsAt) < PACE_RESET_TOLERANCE_SECONDS).sort((left, right) => left.at - right.at)
+  if (week.length < 2) return PACE_DEFAULT_COST
+  const [first, last] = [week[0], week.at(-1)]
+  const orders = history.launches.filter((at) => at >= first.at && at <= last.at).length
+  const cost = orders < PACE_MIN_ORDERS ? 0 : (last.utilization - first.utilization) / orders
+  return cost > 0 ? cost : PACE_DEFAULT_COST
+}
+
+/**
+ * The pace decision: `admit`, `slow` or `probe`, never a stop. Over `line` (share of the week gone times 0.95) the gap is
+ * cost x hours / left, at most 6 hours. With no usable reading the gap is 6 hours. A stale reading gets one probe, at most once an hour, and only once its gap has passed.
+ */
+export const paceDecision = ({ reading, now, lastProbeAt = null, history = { readings: [], launches: [] } }) => {
+  const end = reading === null ? null : reading.resetsAt * 1000
+  const usable = end !== null && end > now
+  const probeDue = lastProbeAt === null || now - lastProbeAt >= HOUR_MS
+  const gapFrom = (figures, gapMs) => {
+    const lastLaunch = history.launches.length === 0 ? null : Math.max(...history.launches)
+    const nextAt = lastLaunch === null ? now : Math.max(now, lastLaunch + gapMs)
+    return { ...figures, gapMs, nextAt }
+  }
+  if (!usable) {
+    const unknown = { utilization: reading?.utilization ?? null, line: null, left: null, hours: null, cost: null }
+    const decided = gapFrom(unknown, PACE_MAX_GAP_MS)
+    return { action: probeDue ? "probe" : decided.nextAt > now ? "slow" : "admit", ...decided }
+  }
   const line = ((now - (end - WEEK_MS)) / WEEK_MS) * PACE_FACTOR
-  if (reading.utilization > line) return { action: "hold", utilization: reading.utilization, line }
-  return { action: now - reading.at > HOUR_MS ? probeOrHold : "admit", utilization: reading.utilization, line }
+  const left = PACE_FACTOR - reading.utilization
+  const hours = (end - now) / HOUR_MS
+  const cost = orderCost({ history, newest: reading, now })
+  const gapMs = reading.utilization <= line ? 0 : left <= 0 ? PACE_MAX_GAP_MS : Math.min(PACE_MAX_GAP_MS, Math.max(0, (cost * hours * HOUR_MS) / left))
+  const decided = gapFrom({ utilization: reading.utilization, line, left, hours, cost }, gapMs)
+  if (now - reading.at > HOUR_MS && probeDue && decided.nextAt <= now) return { action: "probe", ...decided }
+  return { action: decided.nextAt > now ? "slow" : "admit", ...decided }
 }
 
 const newestReading = (...readings) => readings.filter(Boolean).sort((left, right) => right.at - left.at)[0] ?? null
@@ -216,7 +252,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: null, runningStem: null, results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, orphans: new Map(), paceLoaded: false })
+export const createMemory = () => ({ running: null, runningStem: null, results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, orphans: new Map(), paceLoaded: false, history: { readings: [], launches: [] } })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -252,9 +288,26 @@ const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reaso
 
 const PACE_FILE = "pace.json"
 
-/** Keeps the newest reading and the time of the last probe beside the pid files, so a restart does not probe again inside the hour. */
+/** Keeps the newest reading, the time of the last probe and the pace history beside the pid files, so a restart neither probes again inside the hour nor forgets the last launch. */
 const savePace = (env, mem) => {
-  if (!env.dryRun) writeFileSync(join(env.stateDir, PACE_FILE), `${JSON.stringify({ account: mem.account?.key ?? null, lastProbeAt: mem.lastProbeAt, reading: mem.reading })}\n`)
+  if (!env.dryRun && mem.paceLoaded) writeFileSync(join(env.stateDir, PACE_FILE), `${JSON.stringify({ account: mem.account?.key ?? null, lastProbeAt: mem.lastProbeAt, reading: mem.reading, history: mem.history })}\n`)
+}
+
+/** Adds the readings of this account that the history lacks, drops what is older than the span, and saves. */
+const recordReadings = (env, mem, readings) => {
+  const now = env.now()
+  const known = new Set(mem.history.readings.map((entry) => `${entry.at}:${entry.utilization}:${entry.resetsAt}`))
+  for (const { at, utilization, resetsAt } of readings) if (!known.has(`${at}:${utilization}:${resetsAt}`)) mem.history.readings.push({ at, utilization, resetsAt })
+  mem.history.readings = mem.history.readings.filter((entry) => now - entry.at <= PACE_SPAN_MS)
+  mem.history.launches = mem.history.launches.filter((at) => now - at <= PACE_SPAN_MS)
+}
+
+/** Makes a reading the newest of the logged-in account, keeps it in the pace history and saves the pace. A reading of another account is dropped. */
+const setReading = (env, mem, reading) => {
+  if (reading.account !== mem.account?.key) return
+  mem.reading = reading
+  recordReadings(env, mem, [reading])
+  savePace(env, mem)
 }
 
 /** Loads the saved pace once after a start, and only when the account that saved it is the account that is logged in. */
@@ -266,6 +319,7 @@ const loadPace = (env, mem) => {
     if (saved.account !== mem.account.key) return
     mem.lastProbeAt ??= saved.lastProbeAt ?? null
     mem.reading ??= saved.reading ?? null
+    if (saved.history) mem.history = { readings: saved.history.readings ?? [], launches: saved.history.launches ?? [] }
   } catch { /* a first start has no file */ }
 }
 
@@ -290,18 +344,38 @@ const closeIssue = async (env, tickets, issue, text) => {
 }
 
 /**
- * Reads the default Claude login each tick. A change of account drops the readings of the old one, ends a usage-limit
- * pause that the old one hit, and owes a probe before the next build or find order. A logged-out login stops every worker.
- * Returns `{ ok, reason }`: with `ok` false the tick starts no worker.
+ * Reads the default Claude login at the start of each tick, before any reap. A change of account drops the readings of the
+ * old one and owes a probe before the next build or find order; the saved pace loads once the account is known.
+ * Returns the status, or `null` when the login cannot be read.
  */
-const trackAccount = async (env, mem, tickets) => {
+const readAccount = async (env, mem) => {
   let status
   try {
     status = await env.authStatus()
   } catch (error) {
     log(env, "account", "unreadable", error.message)
-    return { ok: false, reason: "the Claude login cannot be read" }
+    return null
   }
+  if (status.loggedIn !== true) return status
+  const account = accountFrom(status)
+  if (mem.account !== null && mem.account.key !== account.key) {
+    log(env, "account", "changed", `orgId ${account.orgId}, ${account.subscriptionType}`)
+    mem.reading = null
+    mem.history = { readings: [], launches: [] }
+    mem.lastProbeAt = null
+    mem.probeOwed = true
+  }
+  mem.account = account
+  loadPace(env, mem)
+  return status
+}
+
+/**
+ * Acts on the login that `readAccount` read: ends a usage-limit pause that another account hit, and stops every worker
+ * while the login is signed out. Returns `{ ok, reason }`: with `ok` false the tick starts no worker.
+ */
+const trackAccount = async (env, mem, tickets, status) => {
+  if (status === null) return { ok: false, reason: "the Claude login cannot be read" }
   const loginIssue = tickets.find((ticket) => ticket.title === LOGIN_TITLE) ?? null
   if (status.loggedIn !== true) {
     log(env, "account", "logged-out", "no worker starts")
@@ -316,17 +390,8 @@ const trackAccount = async (env, mem, tickets) => {
   }
   mem.notified.delete(LOGIN_MESSAGE)
   if (loginIssue !== null && !env.dryRun) await closeIssue(env, tickets, loginIssue, "Claude is logged in again. The driver starts workers again.")
-  const account = accountFrom(status)
-  if (mem.account !== null && mem.account.key !== account.key) {
-    log(env, "account", "changed", `orgId ${account.orgId}, ${account.subscriptionType}`)
-    mem.reading = null
-    mem.lastProbeAt = null
-    mem.probeOwed = true
-  }
-  mem.account = account
-  loadPace(env, mem)
   const paused = pauseIssue(tickets)
-  if (paused !== null && pauseAccount(paused) !== null && pauseAccount(paused) !== account.key) {
+  if (paused !== null && pauseAccount(paused) !== null && pauseAccount(paused) !== mem.account.key) {
     log(env, "driver", "resume", "the Claude account changed")
     mem.probeOwed = true
     if (!env.dryRun) await closeIssue(env, tickets, paused, "The Claude account changed, so the pause ends. The driver probes the new account before the next build order.")
@@ -341,12 +406,12 @@ const runProbe = async (env, mem, tickets) => {
   savePace(env, mem)
   const reading = await env.worker.probe({ invocation: await env.invocation() })
   if (reading === null) {
-    await notifyOnce(env, mem, "Orbit driver: the pace probe returned no rate limit event, so no new build order starts.")
+    log(env, "pace", "probe-failed", "no rate limit event, so the gap of the newest reading applies and the probe repeats after 1 hour")
+    if (!env.dryRun) await env.notify("Orbit driver: the pace probe returned no rate limit event, so the gap of the newest reading applies. The driver probes again in 1 hour.")
     return null
   }
-  mem.reading = { utilization: reading.utilization, resetsAt: reading.resetsAt, at: takenAt, account: mem.account?.key ?? null }
+  setReading(env, mem, { utilization: reading.utilization, resetsAt: reading.resetsAt, at: takenAt, account: mem.account?.key ?? null })
   mem.probeOwed = false
-  savePace(env, mem)
   const paused = pauseIssue(tickets)
   if (paused && reading.status === "allowed") {
     await closeIssue(env, tickets, paused, `The probe reads status allowed (${Math.round(reading.utilization * 100)} percent of the week). The driver resumes.`)
@@ -656,6 +721,7 @@ const startWorker = async (env, mem, candidate) => {
   }
   await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, at: new Date(env.now()).toISOString() })))
   ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null })), createdAt: new Date(env.now()).toISOString() })
+  if (!FIX_KINDS.includes(kind)) { mem.history.launches.push(env.now()); savePace(env, mem) }
   const worktree = await prepareWorktree(env, repoKey, branch, pull === null)
   const headBefore = await gitText(env, worktree, ["rev-parse", "HEAD"])
   const stem = branch.replaceAll("/", "-")
@@ -778,7 +844,7 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   const ticket = tickets.find((entry) => entry.number === exit.ticketNumber) ?? { number: exit.ticketNumber, title: "", body: "", labels: [], comments: [], blockedBy: [] }
   const item = `ticket#${ticket.number}`
   const newerReading = mem.reading?.account === account && mem.reading.at > startedAt
-  if (result.utilization !== null && account !== null && !newerReading) { mem.reading = { utilization: result.utilization, resetsAt: result.resetsAt, at: startedAt, account }; savePace(env, mem) }
+  if (result.utilization !== null && account !== null && !newerReading) setReading(env, mem, { utilization: result.utilization, resetsAt: result.resetsAt, at: startedAt, account })
   log(env, item, "worker-exit", `${kind}, exit ${result.exitCode}${result.killReason ? `, killed: ${result.killReason}` : ""}`)
   const tail = tailOf(logFile)
   if (result.result.usageLimitReached || result.result.authenticationFailed) {
@@ -954,23 +1020,31 @@ const admit = async (env, mem, tickets, states, busy) => {
       decisions.set(ticket.number, `queued: ${verdict.order.kind}`)
       continue
     }
-    const pace = decidePace(env, mem)
+    let pace = decidePace(env, mem)
     if (pace.action === "probe" && !env.dryRun) {
-      const fresh = await runProbe(env, mem, tickets)
-      pace.action = fresh !== null && paceDecision({ reading: fresh, now: env.now(), lastProbeAt: mem.lastProbeAt }).action === "admit" ? "admit" : "hold"
-      log(env, "pace", pace.action, "after the probe")
+      await runProbe(env, mem, tickets)
+      pace = decidePace(env, mem)
     }
     held = pace.action !== "admit"
     if (!held) chosen = verdict.order
-    decisions.set(ticket.number, held ? (pace.action === "probe" ? "would probe the pace, then admit if under the line" : "hold: over the weekly pace line") : `admit ${verdict.order.kind} on ${verdict.order.branch}`)
+    decisions.set(ticket.number, held ? paceWait(pace) : `admit ${verdict.order.kind} on ${verdict.order.branch}`)
   }
   return { chosen, decisions }
 }
 
+/** What a slowed order says in the dry run and the ticket lines. */
+const paceWait = (pace) => {
+  if (pace.action === "probe") return "would probe the pace, then admit when the gap allows"
+  return `pace slow: next build at ${new Date(pace.nextAt).toISOString()} (gap ${minutes(pace.gapMs)} min)`
+}
+
 /** The pace decision from the newest of the worker reading and the snapshot, with its one log line. */
 const decidePace = (env, mem) => {
-  const pace = paceDecision({ reading: mem.probeOwed ? null : newestReading(...readingsOfAccount(env, mem)), now: env.now(), lastProbeAt: mem.lastProbeAt })
-  log(env, "pace", pace.action, `utilization ${pace.utilization === null ? "unknown" : pace.utilization.toFixed(3)}, line ${pace.line === null ? "unknown" : pace.line.toFixed(3)}`)
+  const readings = readingsOfAccount(env, mem).filter(Boolean)
+  recordReadings(env, mem, readings)
+  const pace = paceDecision({ reading: mem.probeOwed ? null : newestReading(...readings), now: env.now(), lastProbeAt: mem.lastProbeAt, history: mem.history })
+  const figure = (value, digits) => (value === null ? "unknown" : value.toFixed(digits))
+  log(env, "pace", pace.action, `utilization ${figure(pace.utilization, 3)}, left ${figure(pace.left, 3)}, hours ${figure(pace.hours, 1)}, cost ${figure(pace.cost, 3)}, gap ${pace.gapMs === null ? "unknown" : `${minutes(pace.gapMs)} min`}, next build ${pace.nextAt === null ? "unknown" : new Date(pace.nextAt).toISOString()}`)
   return { ...pace }
 }
 
@@ -1019,8 +1093,9 @@ const readWorld = async (env, mem) => {
  * read, and it takes one only when a record waits.
  */
 const reapExits = async (env, mem) => {
-  // A dry run writes nothing, so it leaves every record for the driver that runs.
-  if (env.dryRun) return
+  // A dry run writes nothing, so it leaves every record for the driver that runs. Until the account is known, a reading of a worker
+  // belongs to no account, so the records wait for the tick that reads it.
+  if (env.dryRun || mem.account === null) return
   const gone = launchRecords(env).filter(({ stem }) => !workerRuns(env, mem, stem))
   if (gone.length === 0) return
   const { tickets, states } = await readWorld(env, mem)
@@ -1039,6 +1114,7 @@ export const tick = async (env, mem) => {
   await enforceOrphanClocks(env, mem)
   // A worker that runs when the read starts holds the lane for this whole tick, whatever the read shows.
   const busy = mem.running !== null || env.workerLive()
+  const status = await readAccount(env, mem)
   let world
   try {
     await reapExits(env, mem)
@@ -1048,7 +1124,7 @@ export const tick = async (env, mem) => {
     return { retried: true }
   }
   const { tickets, states } = world
-  const account = await trackAccount(env, mem, tickets)
+  const account = await trackAccount(env, mem, tickets, status)
   const orders = []
   for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets, busy))
   await ownerWorkNotices(env, mem, tickets)
