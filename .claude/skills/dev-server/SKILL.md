@@ -28,6 +28,12 @@ Start the three tiers in order. Gate each tier on the one before it. Start the l
 - `status`: check `docker ps --filter name=orbit-postgres`, the `/health` URL and the web URL, then report each tier.
 - `down`: stop the background API and web tasks. Stop the database with `docker stop orbit-postgres` only when asked. Never remove the container.
 
+## Browser and consoles
+
+Do console and dashboard steps yourself through `claude-in-chrome`. Hand over only a field that needs the owner's password, 2FA, payment or legal choice, in one line, after a fresh screenshot.
+Work in one tab of the open Chrome window, never a new window or a popup. Run `list_connected_browsers` first and select the local macOS browser.
+If `document.visibilityState` reads hidden, animations stall and timers slow down. Run `document.getAnimations().forEach((a) => a.finish())` or use a visible window.
+
 ## Visual checks
 
 Judge UI by rendered sweeps of staging against `DESIGN.md` and the drawings, but merge and release fixes with no screenshot gate.

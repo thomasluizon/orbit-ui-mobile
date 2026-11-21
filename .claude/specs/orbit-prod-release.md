@@ -8,7 +8,7 @@ The goal is a production release with an empty ticket board, except `#33`. The m
 
 ## Standing rules
 
-Operating facts for workers, CI, merges, releases, consoles and devices are in `.claude/playbooks/operations.md`; hermetic layout facts are in `TESTING.md`. The skills own their procedures (`/orchestrate`, `/handoff`, `/progress`, `/release`, `/android-release`, `/flag`); this list never restates them.
+Operating facts for workers, CI, merges, releases, consoles and devices are in `.claude/skills/release/reference.md`; hermetic layout facts are in `TESTING.md`. The skills own their procedures (`/orchestrate`, `/handoff`, `/progress`, `/release`, `/android-release`, `/flag`); this list never restates them.
 
 ### The run
 

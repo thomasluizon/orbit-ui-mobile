@@ -30,7 +30,7 @@ function plan({ event = "pull_request", changed = [], hashes = tasks, workflow =
 }
 
 test("a docs or tools change starts no web build, type check or lint", () => {
-  const { status, outputs } = plan({ changed: ["TESTING.md", "tools/README.md", ".claude/playbooks/operations.md"] })
+  const { status, outputs } = plan({ changed: ["TESTING.md", "tools/README.md", ".claude/rules/product-and-content.md"] })
   assert.equal(status, 0)
   assert.deepEqual([outputs.web, outputs["type-check"], outputs.lint], ["false", "false", "false"])
 })
@@ -96,7 +96,7 @@ const caseModuleInputs = {
   "desktop-acceptance": ["apps/desktop/locales/en.json", "apps/desktop/locales/pt-BR.json", "apps/web/scripts/build-hermetic.mjs"],
   "check-i18n-usage": ["apps/web/app/step-up/step-up-screen.tsx", "apps/mobile/app/step-up.tsx"],
   "android-boot": ["apps/mobile/lib/api-base.ts", "packages/shared/src/i18n/en.json"],
-  "android-sentry-diagnostic, check-native-module-copies and the node_modules readers": ["apps/mobile/app.json", "package-lock.json"],
+  "check-native-module-copies and the node_modules readers": ["apps/mobile/app.json", "package-lock.json"],
   "generate-brand-assets and build-ds-bundle": ["design/brand/orbit-lockup.svg", "design/brand/orbit-mark.svg", "design/canvas/example.svg"],
 }
 
