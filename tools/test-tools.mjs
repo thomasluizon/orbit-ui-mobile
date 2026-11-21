@@ -63,6 +63,7 @@ const CASE_MODULES = [
   ["lib/escape-regex.mjs", "escape-regex"],
   ["lib/github-read.mjs", "github-read"],
   ["drive.mjs", "drive"],
+  ["lib/driver-pin.mjs", "drive"],
   ["lib/config.mjs", "drive"],
   ["lib/github.mjs", "drive"],
   ["lib/worker.mjs", "drive"],

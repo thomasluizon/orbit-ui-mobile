@@ -11,9 +11,10 @@ import { createHash } from "node:crypto"
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { delimiter, dirname, join } from "node:path"
-import { pathToFileURL } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { readDriveConfig } from "./lib/config.mjs"
+import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
 import { WORKTREE_REMOVE_ARGUMENTS, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
@@ -23,7 +24,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { partOf, renderOrder } from "./lib/order.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --sleep on | --sleep off | --reviewer-token] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --sleep on | --sleep off | --reviewer-token | --preflight] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, and merges at the
   owner's bar. It never idles: a free worker slot and an admissible order start a worker on the same tick. The line
@@ -31,9 +32,12 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   it is 0.10 under the line and 3 while it is 0.20 under it. It stops only at 90% of the week: it starts no worker,
   posts no Pullfrog request and runs no probe, and it still merges a pull request that meets the bar.
 
-  (no flag)   run the loop: one tick each 120 seconds until stopped
+  (no flag)   run the loop: one tick each 120 seconds until stopped. At the end of a tick with no worker running, the driver
+              checks out a newer driver commit of origin/main in its own worktree and exits 0, so launchd starts the new version.
+              A new version that crashes three times in ten minutes is rolled back to the previous commit.
   --dry-run   read everything, print one line for each open ticket and pull request with the action the driver would
-              take and one line with the free worker slots and the stop state; write nothing and spawn nothing
+              take, one line with the free worker slots and the stop state and one line with the pinned commit of the driver
+              and whether main has a newer driver commit; write nothing and spawn nothing
   --once      run one real tick, wait for the workers that the tick started, then exit
   --probe     run one probe and print the reading (utilization, resetsAt, age)
   --allow-over-limit  let the driver continue over 90% in the current week, with 1 worker. The owner session runs it
@@ -43,6 +47,8 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
               --sleep off makes the driver send one notification that lists the items held, each with its link.
   --reviewer-token  read a Claude OAuth token on stdin and set CLAUDE_CODE_OAUTH_TOKEN in the three repositories;
               print each repository's result and never the token
+  --preflight  run the checks that a loop start runs before the first tick (the tools on PATH and the configuration), then exit 0.
+              The driver runs it on a new commit before it switches to that commit.
   --help, -h  print this usage and exit 0
 
 exit codes: 0 done, 2 usage error, 3 missing tool, configuration or credential`
@@ -1278,8 +1284,92 @@ export const tick = async (env, mem) => {
     mem.lastIntakeAt = env.now()
     await intake(env, mem).catch((error) => log(env, "intake", "error", error.message))
   }
+  if (env.dryRun && env.driverWorktree) env.lines.push(await pinLine(env).catch((error) => `driver pin unreadable (${error.message})`))
   if (env.dryRun) for (const line of env.lines) env.log(line)
-  return { retried: false, lines: env.lines }
+  const switched = await switchDriver(env, mem).catch((error) => (log(env, "driver", "switch-error", error.message), false))
+  return { retried: false, lines: env.lines, switched }
+}
+
+const shortSha = (sha) => sha.slice(0, 9)
+
+/**
+ * The commit of origin/main to switch to: it differs from the pin, it changes a driver file, and it is not the commit that
+ * the last rollback left. Returns null when there is none. A real tick fetches first; a dry run reads the last fetch.
+ */
+const newerDriverCommit = async (env, { fetch }) => {
+  if (fetch) await gitText(env, env.driverWorktree, ["fetch", "origin", "main"])
+  const head = await gitText(env, env.driverWorktree, ["rev-parse", "HEAD"])
+  const main = await gitText(env, env.driverWorktree, ["rev-parse", "origin/main"])
+  const pin = readPin(env.stateDir)
+  if (head === main || rolledBackFrom(pin, main)) return { head, next: null }
+  // After a rollback the head is the old commit, so the driver files of the failed commit would count as new: compare with the failed commit.
+  const files = (await gitText(env, env.driverWorktree, ["diff", "--name-only", pin?.rolledBack ? pin.from : head, main])).split("\n").filter(Boolean)
+  return { head, next: changesDriver(files) ? main : null }
+}
+
+/** The dry-run line: the pinned commit of the driver and whether main has a newer driver commit. */
+const pinLine = async (env) => {
+  const { head, next } = await newerDriverCommit(env, { fetch: false })
+  const pin = readPin(env.stateDir)
+  return `driver pin ${shortSha(head)}: ${next === null ? "main has no newer driver commit" : `main has a newer driver commit ${shortSha(next)}`}${pin?.rolledBack ? `, rolled back from ${shortSha(pin.from)}` : ""}`
+}
+
+/** Checks a commit out in the worktree of the driver, detached and never on a branch. */
+const checkoutPin = (env, sha) => gitText(env, env.driverWorktree, ["checkout", "--detach", sha])
+
+/**
+ * Writes the rollback pin, tells the owner once and opens one issue. The pin comes first, so a failed report loses nothing:
+ * a report that fails is logged and the driver is already on the previous commit.
+ */
+const reportRollback = async (env, { failedSha, previousSha, error, reason }) => {
+  writePin(env.stateDir, { from: failedSha, to: previousSha, at: new Date(env.now()).toISOString(), rolledBack: true, error })
+  log(env, "driver", "rollback", `from ${shortSha(failedSha)} to ${shortSha(previousSha)}: ${error}`)
+  const title = `Driver rolled back to ${shortSha(previousSha)}`
+  try {
+    await say(env, `Orbit driver rolled back from ${shortSha(failedSha)} to ${shortSha(previousSha)}: ${error}`)
+    const created = await env.github.createTicket({ title, body: `The driver went back from ${failedSha} to ${previousSha}. ${reason}\n\nLast error: ${error}\n\nThe driver does not switch to ${failedSha} again. A later commit of main that changes the driver is tried.`, labels: [OWNER] })
+    holdItem(env, { link: issueLink(env, created.number), reason: title })
+  } catch (reportError) {
+    log(env, "driver", "rollback-report-failed", reportError.message)
+  }
+}
+
+/**
+ * At the end of a tick with no worker of its own running, moves the driver to the newer driver commit of origin/main. The
+ * new commit must start (`--preflight` exits 0); when it does not, the driver goes back at once and stays up. Returns true when
+ * the driver must exit with code 0, so launchd starts the new version. A launch record on disk survives the switch.
+ */
+const switchDriver = async (env, mem) => {
+  if (!env.selfUpdate || env.dryRun || mem.running.size > 0 || runningWorkers(env, mem).workers.length > 0) return false
+  const { head, next } = await newerDriverCommit(env, { fetch: true })
+  if (next === null) return false
+  await checkoutPin(env, next)
+  if (!(await env.smoke(env.driverWorktree))) {
+    await checkoutPin(env, head)
+    await reportRollback(env, { failedSha: next, previousSha: head, error: "tools/drive.mjs --preflight did not exit 0", reason: "The new version did not start." })
+    return false
+  }
+  writePin(env.stateDir, { from: head, to: next, at: new Date(env.now()).toISOString(), rolledBack: false })
+  log(env, "driver", "switch", `from ${shortSha(head)} to ${shortSha(next)}`)
+  return true
+}
+
+/**
+ * The start code of a loop run. It moves the previous run into the crash list. When the new version of the last switch crashed
+ * three times within ten minutes of it, it checks the previous commit out, reports once and returns true: the driver exits 0.
+ * Otherwise it writes the record of this run.
+ */
+export const guardStart = async (env) => {
+  const head = await gitText(env, env.driverWorktree, ["rev-parse", "HEAD"])
+  const crashes = crashesOfSwitch({ pin: readPin(env.stateDir), head, crashes: collectCrash(env.stateDir, env.now()) })
+  if (crashes.length > 0) {
+    const pin = readPin(env.stateDir)
+    await checkoutPin(env, pin.from)
+    await reportRollback(env, { failedSha: head, previousSha: pin.from, error: crashes.at(-1).error, reason: `The new version ended with an error ${crashes.length} times within 10 minutes of the switch.` })
+    return true
+  }
+  startRun(env.stateDir, { sha: head, pid: process.pid, now: env.now() })
+  return false
 }
 
 /** Appends the start time and reports three starts in ten minutes. */
@@ -1299,6 +1389,9 @@ export const recordStart = async (env, tickets = []) => {
   return true
 }
 
+/** The command that checks a commit of the driver the way a loop start does. */
+export const smokeArguments = (worktree) => [process.execPath, join(worktree, "tools", "drive.mjs"), "--preflight"]
+
 const toolOnPath = (name, pathText = process.env.PATH ?? "") => pathText.split(delimiter).some((directory) => directory !== "" && existsSync(join(directory, name)))
 export const missingTools = (pathText) => REQUIRED_TOOLS.filter((name) => !toolOnPath(name, pathText))
 
@@ -1309,7 +1402,7 @@ export const parseArguments = (argv) => {
     if (!SLEEP_WORDS.includes(argv[sleepAt + 1]) || rest.length > 0) return { error: `--sleep takes one word, on or off, and no other argument` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "sleep", word: argv[sleepAt + 1] }
   }
-  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token"])
+  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight"])
   const given = argv.filter((argument) => argument !== "--help" && argument !== "-h")
   const unknown = given.filter((argument) => !modes.has(argument))
   if (unknown.length > 0 || given.length > 1) return { error: `unknown or conflicting argument: ${(unknown[0] ?? given[1])}` }
@@ -1356,6 +1449,8 @@ const realEnvironment = ({ dryRun = false } = {}) => {
   const home = homedir()
   return {
     config, dryRun, stateDir, home, github: githubApi, worker: workerApi, now: () => Date.now(), lines: [],
+    driverWorktree: dirname(dirname(fileURLToPath(import.meta.url))), selfUpdate: false,
+    smoke: async (worktree) => { const [file, ...args] = smokeArguments(worktree); return (await runBounded(file, args, { timeoutMs: 60 * 1000 })).status === 0 },
     log: (line) => console.log(line),
     slugOf: (key) => (key === "tickets" ? config.tickets.repository : repositorySlug(config.repos[key])),
     git: (cwd, args) => runBounded("git", ["-C", cwd, ...args], { timeoutMs: 300 * 1000 }),
@@ -1395,7 +1490,9 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   if (missing.length > 0) { err(`Missing from PATH: ${missing.join(", ")}`); return 3 }
   let env
   try { env = realEnvironment({ dryRun: parsed.mode === "dry-run" }) } catch (error) { err(error.message); return 3 }
+  if (parsed.mode === "preflight") return 0
   const mem = createMemory()
+  env.selfUpdate = parsed.mode === "loop"
   if (parsed.mode === "allow-over-limit") return allowOverLimit(env, { out, err })
   if (parsed.mode === "sleep") return setSleep(env, parsed.word, { out })
   if (parsed.mode === "probe") {
@@ -1404,8 +1501,29 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
     out(`utilization ${reading.utilization}, resetsAt ${reading.resetsAt} (${new Date(reading.resetsAt * 1000).toISOString()}), age 0 minutes, status ${reading.status}`)
     return 0
   }
-  if (await env.worker.readWorkerToken() === null && parsed.mode !== "dry-run") { err("The Keychain item orbit-worker-github-token is missing."); return 3 }
-  if (parsed.mode !== "dry-run") {
+  if (parsed.mode !== "loop") return runDriver(env, mem, parsed.mode, err)
+  if (await guardStart(env)) return 0
+  const outcome = { exitCode: null, error: null }
+  const keepError = (text) => { outcome.error = lastLine(text); err(text) }
+  // A signal ends the run with code 0 at once, so a SIGKILL that follows a slow tick is no crash.
+  for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => endRun(env.stateDir, { exitCode: 0, error: null, now: env.now() }))
+  try {
+    outcome.exitCode = await runDriver(env, mem, "loop", keepError)
+    return outcome.exitCode
+  } catch (error) {
+    // The entry point exits with 3 on a thrown error.
+    outcome.exitCode = 3
+    outcome.error = lastLine(error.message)
+    throw error
+  } finally {
+    endRun(env.stateDir, { ...outcome, now: env.now() })
+  }
+}
+
+/** The ticks of one run: one tick for `--dry-run` and `--once`, the loop for the rest. Returns the exit code. */
+const runDriver = async (env, mem, mode, err) => {
+  if (await env.worker.readWorkerToken() === null && mode !== "dry-run") { err("The Keychain item orbit-worker-github-token is missing."); return 3 }
+  if (mode !== "dry-run") {
     await recordStart(env, await env.github.readTickets().catch(() => []))
     spawn("caffeinate", ["-i", "-w", String(process.pid)], { detached: true, stdio: "ignore" }).unref()
   }
@@ -1413,9 +1531,11 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { stopping = true; mem.wake() })
   do {
     mem.woken = false
-    try { await tick(env, mem) } catch (error) { log(env, "tick", "error", error.message) }
-    if (parsed.mode === "dry-run") return 0
-    if (parsed.mode === "once") { await Promise.all(mem.running.values()); await reapExits(env, mem).catch((error) => log(env, "tick", "error", error.message)); return 0 }
+    let result = null
+    try { result = await tick(env, mem) } catch (error) { log(env, "tick", "error", error.message) }
+    if (mode === "dry-run") return 0
+    if (mode === "once") { await Promise.all(mem.running.values()); await reapExits(env, mem).catch((error) => log(env, "tick", "error", error.message)); return 0 }
+    if (result?.switched) return 0
     // A worker that exited during the tick frees its slot, so the next tick starts at once.
     if (!stopping && !mem.woken) await env.sleep(TICK_MS, mem)
   } while (!stopping)
