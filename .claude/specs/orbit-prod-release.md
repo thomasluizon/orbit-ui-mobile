@@ -8,7 +8,7 @@ The goal is a production release with an empty ticket board, except `#33`. The m
 
 ## Standing rules
 
-Operating facts for workers, CI, merges, releases, consoles and devices are in `.claude/playbooks/operations.md`; hermetic layout facts are in `TESTING.md`. The skills own their procedures (`/orchestrate`, `/sleep`, `/crank`, `/auto-work`, `/handoff`, `/progress`, `/questions`, `/release`, `/android-release`, `/flag`, `/merge-prs`); this list never restates them.
+Operating facts for workers, CI, merges, releases, consoles and devices are in `.claude/playbooks/operations.md`; hermetic layout facts are in `TESTING.md`. The skills own their procedures (`/orchestrate`, `/sleep`, `/handoff`, `/progress`, `/questions`, `/release`, `/android-release`, `/flag`, `/merge-prs`); this list never restates them.
 
 ### The run
 
@@ -68,7 +68,6 @@ In-flight work finishes as normal. Then no new board ticket is admitted until ev
 - `#2066` Cut fixed context per call: unused connectors off, `CLAUDE.md` to 6 KB, `MEMORY.md` trimmed. Next: CI, review, merge of `ui#2378`; then the orchestrator sets `disabledMcpServers` for this project in the user Claude config `.claude.json` and trims `MEMORY.md` to 6 KB.
 - `#2067` Run the default and mechanical worker tiers on Sonnet 5.5. Next: CI, review, merge of `ui#2379` (base-merged after `ui#2380`, calibration reseeded); the first default-tier launch after the merge proves Sonnet with `--effort high`.
 - `#2068` Cache ticket classifier results on disk by body hash. Next: CI, review, merge of `ui#2381`.
-- `#2069` Wake the auto-work coordinator only when an intake source has a new item. Next: CI, review, merge of `ui#2382`; then intake step 5 runs `node tools/orbit-play-reviews.mjs --cycle`.
 - `#2070` Run workers on the main account when no worker account exists. Next: CI, review, merge of `ui#2383`.
 - `#2071` Move the Pullfrog token in all three repositories to the main account, before 4 December 2026. Next: after `ui#2383` merges, the orchestrator runs `claude setup-token` and `gh secret set` from stdin, then a small worker for the skill text.
 - `#2072` Measure Pullfrog rounds to approval per pull request. Next: CI, review, merge of `ui#2384`.
@@ -125,7 +124,7 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 
 ## How the work runs
 
-Use `/sleep` or `/auto-work` for unattended work and `/orchestrate` for one ticket at a time. Pullfrog reviews each pull request. `/handoff` replaces the one `## Current state` paragraph in this spec and overwrites `.claude/handoffs/NEXT.md`; it never appends.
+The delivery driver runs the board and `/sleep` steers it. Use `/orchestrate` for one ticket at a time. Pullfrog reviews each pull request. `/handoff` replaces the one `## Current state` paragraph in this spec and overwrites `.claude/handoffs/NEXT.md`; it never appends.
 
 ## Decision pointers
 
@@ -167,7 +166,7 @@ Code facts that no gate or owner document states:
 
 ## Current state
 
-Latest handoff: a relay with the chain open, the run in `/sleep` with `crank: true` and `autoWork: true`. UI `main` `0e43371b0`, API `main` `3da71dcf6`, landing `main` `aab36c695`; staging web `9a964ccad`, production web `6602756f3`; staging and production API `998823218`; Android Open 1.3.149 (209); desktop production and staging 0.1.25 (0.1.26 staging run 42492679821 attempt 2 waits on Apple notarization of aarch64); TestFlight Orbit Staging 1.3.149 (4). Batch T: `#2073` merged (`ui#2380`); the other diet pull requests are in CI and review rounds (see Batch T). `ui#2375` (`#2063`) merged and waits for one Android Open release with `#2062`. Intake: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0. The session chain ledger lives untracked at `.git/orbit-session-chain.json`.
+Latest handoff: a relay with the chain open. UI `main` `0e43371b0`, API `main` `3da71dcf6`, landing `main` `aab36c695`; staging web `9a964ccad`, production web `6602756f3`; staging and production API `998823218`; Android Open 1.3.149 (209); desktop production and staging 0.1.25 (0.1.26 staging run 42492679821 attempt 2 waits on Apple notarization of aarch64); TestFlight Orbit Staging 1.3.149 (4). Batch T: `#2073` merged (`ui#2380`); the other diet pull requests are in CI and review rounds (see Batch T). `ui#2375` (`#2063`) merged and waits for one Android Open release with `#2062`. Intake: Sentry `ORBIT-MOBILE-Q` only (no new event), mail 0, Play 0. The session chain ledger lives untracked at `.git/orbit-session-chain.json`.
 
 ## Open questions
 

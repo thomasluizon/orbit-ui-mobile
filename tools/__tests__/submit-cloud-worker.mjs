@@ -516,11 +516,11 @@ export const cases = async () => {
     "the visible task abandon action is missing or releases before terminal observation",
   )
   T(
-    `${TOOL}: the combined sleep and cloud contract launches one registered receipt watcher`,
-    normalizedSchedulerContract.includes("Under combined `--sleep --cloud`") &&
+    `${TOOL}: the cloud contract launches one registered receipt watcher`,
+    normalizedSchedulerContract.includes("Under `--cloud`, immediately launch `--watch`") &&
       normalizedSchedulerContract.includes("--watch <receiptPath>") &&
       normalizedSchedulerContract.includes("Submission alone is not a wake source"),
-    "the cloud path has no durable unattended wake contract",
+    "the cloud path has no durable receipt watcher contract",
   )
   const entry = fixture("success")
   const stdinLog = stage("submit-cloud/success-stdin.txt", "")

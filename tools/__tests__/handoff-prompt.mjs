@@ -3,10 +3,9 @@ import { join } from "node:path"
 
 import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../lib/handoff-prompt.mjs"
 import * as handoff from "../lib/handoff-prompt.mjs"
-import { readRunState, writeRunState } from "../lib/run-state.mjs"
-import { appendChainEntry, closeSessionChain, confirmChainSuccessor, supersededSession } from "../lib/session-chain.mjs"
+import { readRunState } from "../lib/run-state.mjs"
 
-import { T, realOrchestratorConfig, root, run, same, stageWithConfig } from "./_harness.mjs"
+import { T, root, same } from "./_harness.mjs"
 
 const UNIT = "lib/handoff-prompt.mjs"
 
@@ -19,51 +18,49 @@ const sleepPrompt = [
 
 export const cases = () => {
   T(`${UNIT}: a question mentioning handoff is not an invocation`, parseHandoffRequest("we are working always using /handoff, wrap-up, etc etc\n\nwhat happens when the spec is finished?") === null)
-  T(`${UNIT}: /wrap-up --sleep records a sleep request`, JSON.stringify(parseHandoffRequest("/wrap-up --sleep")) === JSON.stringify({ command: "wrap-up", sleep: true, crank: false }))
+  T(`${UNIT}: /wrap-up --sleep records a sleep request`, JSON.stringify(parseHandoffRequest("/wrap-up --sleep")) === JSON.stringify({ command: "wrap-up", sleep: true }))
   T(`${UNIT}: /handoff with other arguments stays attended`, parseHandoffRequest("/handoff finish the calendar")?.sleep === false)
   T(`${UNIT}: a non-handoff command records nothing`, parseHandoffRequest("/sleep") === null)
   for (const [label, prompt, expected] of [
     ["a leading word is a mention", "RUN /wrap-up --sleep", null],
     ["a polite prefix is a mention", "please /handoff", null],
-    ["a command on the second line is read", "Finish this task.\n/wrap-up --sleep", { command: "wrap-up", sleep: true, crank: false }],
+    ["a command on the second line is read", "Finish this task.\n/wrap-up --sleep", { command: "wrap-up", sleep: true }],
     ["an inline code mention is ignored", "Read `/handoff --relay --sleep` in NEXT.md.", null],
     ["a longer inline delimiter is ignored", "Read ``/wrap-up --sleep `example` ``.", null],
     ["a fenced code mention is ignored", "Example:\n```text\n/wrap-up --sleep\n```", null],
     ["a tilde fenced mention is ignored", "Example:\n~~~text\n/handoff --sleep\n~~~", null],
     ["an unfinished fence stays quoted", "```text\n/handoff --sleep", null],
     ["a shorter fence cannot end a longer fence", "````text\n```\n/handoff --sleep\n````", null],
-    ["a real command after a fence is read", "```text\n/wrap-up --sleep\n```\n/handoff", { command: "handoff", sleep: false, crank: false }],
+    ["a real command after a fence is read", "```text\n/wrap-up --sleep\n```\n/handoff", { command: "handoff", sleep: false }],
     ["a pasted content mention is ignored", '<pasted_content source="NEXT.md">\n/handoff --relay --sleep\n</pasted_content>', null],
     ["an unfinished pasted block stays quoted", "<pasted_content>\n/wrap-up --sleep", null],
-    ["a real command after a pasted block is read", "<pasted_content>\n/wrap-up --sleep\n</pasted_content>\n/handoff", { command: "handoff", sleep: false, crank: false }],
+    ["a real command after a pasted block is read", "<pasted_content>\n/wrap-up --sleep\n</pasted_content>\n/handoff", { command: "handoff", sleep: false }],
     ["a nested pasted block keeps the outer block quoted", "<pasted_content>\n<pasted_content>\nquoted\n</pasted_content>\n/handoff --sleep\n</pasted_content>", null],
     ["an unfinished outer pasted block stays quoted past a nested close", "<pasted_content>\n<pasted_content>\nquoted\n</pasted_content>\n/handoff --sleep", null],
-    ["a real command after a nested pasted block is read", "<pasted_content>\n<pasted_content>\n/wrap-up\n</pasted_content>\n/wrap-up --sleep\n</pasted_content>\n/handoff", { command: "handoff", sleep: false, crank: false }],
+    ["a real command after a nested pasted block is read", "<pasted_content>\n<pasted_content>\n/wrap-up\n</pasted_content>\n/wrap-up --sleep\n</pasted_content>\n/handoff", { command: "handoff", sleep: false }],
     ["a pasted close with another id does not end the block", '<pasted_content id="a1">\n</pasted_content id="b2">\n/handoff --sleep\n</pasted_content id="a1">', null],
-    ["a real command after an id-tagged pasted block is read", '<pasted_content id="a1">\n/handoff\n</pasted_content id="a1">\n/wrap-up --sleep', { command: "wrap-up", sleep: true, crank: false }],
+    ["a real command after an id-tagged pasted block is read", '<pasted_content id="a1">\n/handoff\n</pasted_content id="a1">\n/wrap-up --sleep', { command: "wrap-up", sleep: true }],
     ["a skill path is ignored", ".claude/skills/handoff/SKILL.md", null],
     ["a command-shaped path is ignored", "Read /handoff/SKILL.md and /wrap-up.md", null],
     ["a command suffix is ignored", "/handoff-extra --sleep", null],
     ["a parenthesized mention is ignored", "please (/handoff)", null],
     ["a parenthesized sleep mention is ignored", "please (/handoff --sleep)", null],
     ["a parenthesized wrap-up mention is ignored", "please (/wrap-up /sleep)", null],
-    ["a sleep option suffix stays attended", "/handoff --sleep-later", { command: "handoff", sleep: false, crank: false }],
-    ["the first command keeps its own arguments", "/handoff then /wrap-up --sleep", { command: "handoff", sleep: false, crank: false }],
-    ["the first sleep command wins", "/wrap-up --sleep then /handoff", { command: "wrap-up", sleep: true, crank: false }],
-    ["a mention before a real command is ignored", "`/handoff --sleep`\n/wrap-up", { command: "wrap-up", sleep: false, crank: false }],
-    ["sleep inside code is ignored", "/handoff `--sleep`", { command: "handoff", sleep: false, crank: false }],
-    ["the slash sleep argument stays supported", "/handoff /sleep", { command: "handoff", sleep: true, crank: false }],
+    ["a sleep option suffix stays attended", "/handoff --sleep-later", { command: "handoff", sleep: false }],
+    ["the first command keeps its own arguments", "/handoff then /wrap-up --sleep", { command: "handoff", sleep: false }],
+    ["the first sleep command wins", "/wrap-up --sleep then /handoff", { command: "wrap-up", sleep: true }],
+    ["a mention before a real command is ignored", "`/handoff --sleep`\n/wrap-up", { command: "wrap-up", sleep: false }],
+    ["sleep inside code is ignored", "/handoff `--sleep`", { command: "handoff", sleep: false }],
+    ["the slash sleep argument stays supported", "/handoff /sleep", { command: "handoff", sleep: true }],
     ["another command keeps an inline handoff a mention", "/progress then /handoff", null],
-    ["expanded command tags stay supported", "<command-name>/wrap-up</command-name>\n<command-args>--sleep</command-args>", { command: "wrap-up", sleep: true, crank: false }],
+    ["expanded command tags stay supported", "<command-name>/wrap-up</command-name>\n<command-args>--sleep</command-args>", { command: "wrap-up", sleep: true }],
     ["pasted expanded tags are ignored", "<pasted_content><command-name>/wrap-up</command-name><command-args>--sleep</command-args></pasted_content>", null],
-    ["a typed command before expanded tags wins", "/handoff\n<command-name>/wrap-up</command-name><command-args>--sleep</command-args>", { command: "handoff", sleep: false, crank: false }],
-    ["expanded tags before a typed command win", "<command-name>/handoff</command-name><command-args></command-args>\n/wrap-up --sleep", { command: "handoff", sleep: false, crank: false }],
+    ["a typed command before expanded tags wins", "/handoff\n<command-name>/wrap-up</command-name><command-args>--sleep</command-args>", { command: "handoff", sleep: false }],
+    ["expanded tags before a typed command win", "<command-name>/handoff</command-name><command-args></command-args>\n/wrap-up --sleep", { command: "handoff", sleep: false }],
   ]) {
     same(`${UNIT}: ${label}`, parseHandoffRequest(prompt), expected)
   }
   T(`${UNIT}: a complete sleep prompt has no missing requirement`, validateHandoffPrompt(sleepPrompt, { sleep: true }).length === 0, JSON.stringify(validateHandoffPrompt(sleepPrompt, { sleep: true })))
-  T(`${UNIT}: auto-work refuses a sleep-only relay`, validateHandoffPrompt(sleepPrompt, { sleep: true, autoWork: true }).length > 0)
-  T(`${UNIT}: auto-work accepts its entry point`, validateHandoffPrompt(sleepPrompt.replace("/sleep\n", "/auto-work\n"), { sleep: true, autoWork: true }).length === 0)
   const parenthesizedSleep = validateHandoffPrompt(sleepPrompt, { sleep: parseHandoffRequest("please (/handoff --sleep)")?.sleep })
   T(`${UNIT}: a parenthesized sleep handoff accepts an unattended prompt`, parenthesizedSleep.length === 0, JSON.stringify(parenthesizedSleep))
   const withoutSleepLine = validateHandoffPrompt(sleepPrompt.replace("/sleep\n", "# NEXT\n"), { sleep: true })
@@ -121,180 +118,12 @@ export const cases = () => {
   T(`${UNIT}: a checkout publishes its working copy of the spec`, handoff.checkoutSpecVersions(specRoot)(".claude/specs/example.md")[0]?.length === 41984)
   T(`${UNIT}: a spec the checkout lacks has no version`, handoff.checkoutSpecVersions(specRoot)(".claude/specs/missing.md").length === 0)
 
-  for (const invocation of ["/handoff --crank", "/wrap-up --crank", "/handoff /crank", "<command-name>/handoff</command-name><command-args>--crank</command-args>"]) {
-    const request = parseHandoffRequest(invocation)
-    T(`${UNIT}: ${invocation} enables crank and sleep`, request?.crank === true && request.sleep === true)
-  }
-  for (const invocation of ["/handoff", "/handoff --crank-later", "/handoff /crank/SKILL.md", "/handoff `--crank`", "/handoff then /wrap-up --crank"]) {
-    T(`${UNIT}: ${invocation} leaves crank disabled`, parseHandoffRequest(invocation)?.crank === false)
-  }
-  const crankPrompt = `${sleepPrompt}\n## Crank\nInvoke /crank immediately after /sleep entry.\n`
-  T(`${UNIT}: crank requires its section`, validateHandoffPrompt(sleepPrompt, { crank: true }).some((item) => item.includes("## Crank")))
-  T(`${UNIT}: a crank section must invoke the skill`, validateHandoffPrompt(`${sleepPrompt}\n## Crank\nContinue quickly.`, { crank: true }).some((item) => item.includes("/crank")))
-  T(`${UNIT}: a command outside the crank section does not satisfy it`, validateHandoffPrompt(`${sleepPrompt}\nInvoke /crank.\n## Crank\nContinue.`, { crank: true }).length > 0)
-  T(`${UNIT}: a different heading cannot stand in for Crank`, validateHandoffPrompt(crankPrompt.replace("## Crank", "## Crankiness"), { crank: true }).some((item) => item.includes("## Crank")))
-  T(`${UNIT}: a skill path is not a crank invocation`, validateHandoffPrompt(crankPrompt.replace("Invoke /crank immediately", "Read /crank/SKILL.md immediately"), { crank: true }).some((item) => item.includes("/crank")))
-  T(`${UNIT}: a complete crank prompt passes`, validateHandoffPrompt(crankPrompt, { crank: true }).length === 0)
-  T(`${UNIT}: crank implies the literal sleep first line`, validateHandoffPrompt(crankPrompt.replace("/sleep\n", "# Next\n"), { sleep: false, crank: true }).some((item) => item.includes("first line")))
-  T(`${UNIT}: crank implies the sleep section`, validateHandoffPrompt(crankPrompt.replace("## Sleep", "## Attended"), { crank: true }).some((item) => item.includes("## Sleep")))
-  T(`${UNIT}: disabled crank permits an ordinary sleep prompt`, validateHandoffPrompt(sleepPrompt, { sleep: true, crank: false }).length === 0)
-
-  const withInFlight = (line) => crankPrompt.replace("## In flight\n\nnone", `## In flight\n\n${line}`)
-  const holdsOf = (line, modes = { crank: true }) => validateHandoffPrompt(withInFlight(line), modes).filter((item) => item.includes("ordering hold"))
-  for (const [label, line, quoted] of [
-    ["an item named FIRST", "- ui#2486 FIRST, then the other approved pull requests", "ui#2486 FIRST"],
-    ["a lower-case first at the end of a clause", "- merge ui#2486 first, then ui#2488", "merge ui#2486 first"],
-    ["a merge before another item", "- Merge ui#2486 before ui#2488.", "Merge ui#2486 before ui#2488"],
-    ["a merge held until another item", "- Do not merge ui#2488 until ui#2486 merges", "Do not merge ui#2488 until ui#2486 merges"],
-    ["a merge after another item", "- Merge ui#2488 after ui#2486", "Merge ui#2488 after ui#2486"],
-    ["a wait for one merge, then a merge", "- Wait for ui#2486 to merge, then merge ui#2488", "Wait for ui#2486 to merge, then merge ui#2488"],
-    ["a merge once another item is in main", "- Merge ui#2488 only once ui#2486 is in main", "Merge ui#2488 only once ui#2486 is in main"],
-    ["an item that lands ahead of another", "- ui#2487 must land ahead of ui#2488", "ui#2487 must land ahead of ui#2488"],
-    ["a user interface merge before the API merge it depends on", "- Merge ui#2488 before api#412", "Merge ui#2488 before api#412"],
-    ["a merge of a bare ticket before another bare ticket", "- Merge #2486 before #2488", "Merge #2486 before #2488"],
-    ["a hold behind another item", "- Hold ui#2488 until ui#2486 is in main, then merge", "Hold ui#2488 until ui#2486 is in main, then merge"],
-    ["a merge order whose condition ends with done", "- Merge ui#2486 before ui#2488 once its CI is done", "Merge ui#2486 before ui#2488 once its CI is done"],
-    ["a user interface item named FIRST before an API item", "- ui#2488 FIRST, then api#412", "ui#2488 FIRST"],
-    ["an API item named FIRST with no user interface item after it", "- api#412 FIRST", "api#412 FIRST"],
-    ["an API item named FIRST before another API item", "- api#412 FIRST, then api#413", "api#412 FIRST"],
-    ["an API item named FIRST before an API item that precedes a user interface item", "- api#412 FIRST, then api#413 and ui#2488", "api#412 FIRST"],
-    ["a merge of a bare ticket before a user interface item after an API item that is green", "- api#412 is green, merge #2486 before ui#2488", "api#412 is green, merge #2486 before ui#2488"],
-    ["a merge of a bare ticket before a user interface item after an API item that deployed", "- api#412 deployed, then merge #2486 before ui#2488", "api#412 deployed, then merge #2486 before ui#2488"],
-    ["an item named FIRST before a sentence about a finished release", "- ui#2486 FIRST. The release of ui#2480 is done.", "ui#2486 FIRST"],
-    ["a merge order that names the cap", "- Queue order under the cap: merge ui#2486 first, then ui#2488", "Queue order under the cap: merge ui#2486 first"],
-    ["an item named FIRST after a ticket note", "- ui#2486 (#2074) FIRST, then the other approved pull requests", "ui#2486 (#2074) FIRST"],
-    ["an item named FIRST after a ticket note at the end of a clause", "- merge at the bar, ui#2486 (#2074) FIRST", "merge at the bar, ui#2486 (#2074) FIRST"],
-    ["an item named first after a ticket note that names the ticket", "- ui#2486 (ticket #2074) first, then ui#2488", "ui#2486 (ticket #2074) first"],
-    ["an item named FIRST before a sentence that names the cap", "- ui#2486 FIRST. Keep the pool full under the cap.", "ui#2486 FIRST"],
-  ]) {
-    const refused = holdsOf(line)
-    T(`${UNIT}: crank refuses ${label}`, refused.length === 1 && refused[0].includes(`\`${quoted}\``) && refused[0].includes("MERGE_NOW"), JSON.stringify(refused))
-    T(`${UNIT}: the same prompt with ${label} passes without crank`, validateHandoffPrompt(withInFlight(line), { sleep: true, crank: false }).length === 0 && holdsOf(line, { sleep: true }).length === 0)
-  }
-  T(`${UNIT}: crank accepts the prompt once the ordering hold is gone`, validateHandoffPrompt(withInFlight("- ui#2486: approved, CI green\n- ui#2488: approved, CI green"), { crank: true }).length === 0)
-  T(`${UNIT}: crank names each ordering hold once per line`, holdsOf("- ui#2486 FIRST\n- merge ui#2490 before ui#2491").length === 2)
-  for (const [label, line] of [
-    ["an ordinal that is not an order", "- ui#2486 is the first of three pull requests of #2074"],
-    ["a first line of a ticket", "- ui#2486: the first review round ended"],
-    ["a retarget before the parent branch is deleted", "- Retarget ui#2488 to main before the branch of ui#2486 is deleted"],
-    ["a fact about a later round", "- ui#2484: review round 2 after the fix of #2146"],
-    ["a past merge", "- ui#2486 merged before ui#2488 was approved"],
-    ["a superseded order", "- `ui#2486 FIRST`: superseded, crank holds no ready work"],
-    ["a finished order", "- merge ui#2486 before ui#2488: done, both merged"],
-    ["a superseded label before the quoted order", "- Superseded: \"ui#2486 FIRST\", crank holds no ready work"],
-    ["a finished hold", "- Hold ui#2488 until ui#2486 is in main, then merge (done)"],
-    ["a start order under the cap", "- Queue order under the cap: #2171 first, then #2172"],
-    ["a past merge, then a status", "- ui#2486 merged, then ui#2488 was behind main"],
-    ["a merge bar wait", "- ui#2488: wait for the review check, then merge"],
-    ["a pull request named with its ticket", "- ui#2484 (#2146): wait for CI before the merge"],
-    ["an API item that lands ahead of a user interface item", "- api#412 must land ahead of ui#2488"],
-    ["an API merge and deploy before a user interface merge", "- api#88 merges and deploys before ui#2490 (deploy-API-first)"],
-    ["a user interface merge after its API merge", "- Merge ui#2488 after api#412"],
-    ["a wait for the API merge, then the landing merge", "- Wait for api#412 to merge, then merge landing#31"],
-    ["a user interface merge held until its API merge", "- Hold ui#2488 until api#412 is merged and deployed"],
-    ["an API merge and deploy first, then a user interface merge", "- api#412 merges and deploys first, then ui#2488"],
-    ["an API item named FIRST before a user interface item", "- api#412 FIRST, then ui#2488"],
-    ["an API merge first, then a landing merge", "- Merge api#412 first, then landing#31"],
-    ["an API item named FIRST before a user interface item with a ticket after it", "- api#412 FIRST, then ui#2488 (#2171)"],
-    ["an API item named FIRST with a ticket before the user interface item", "- api#412 FIRST (ticket #2171), then ui#2488"],
-    ["an API item with a ticket note named FIRST before a user interface item", "- api#412 (#2171) FIRST, then ui#2488"],
-    ["an API merge with a ticket before a user interface merge", "- Merge api#412 (#2171) before ui#2488"],
-    ["an API merge and deploy with a ticket before a user interface merge", "- api#412 (#2171) merges and deploys before ui#2490"],
-    ["a user interface hold with a ticket until its API merge", "- Hold ui#2488 (#2172) until api#412 is merged and deployed"],
-    ["a user interface merge with a ticket after its API merge", "- Merge ui#2488 (#2172) after api#412"],
-    ["a wait for an API merge with a ticket, then a user interface merge", "- Wait for api#412 (#2171) to merge, then merge ui#2488"],
-    ["an API merge and deploy first with a ticket, then a user interface merge", "- api#412 merges and deploys first (#2171), then ui#2488"],
-    ["a ticket that stays open until its pull request merges", "- `#1628` stays open until `ui#1959` merges and a later build carries it"],
-  ]) {
-    T(`${UNIT}: crank accepts ${label}`, holdsOf(line).length === 0, JSON.stringify(holdsOf(line)))
-  }
-
   const repoRoot = join(root, "handoff-prompt", "checkout")
   mkdirSync(join(repoRoot, ".git"), { recursive: true })
   T(`${UNIT}: an unrecorded session reads as no request`, readHandoffRequest("s1", repoRoot) === null)
   recordHandoffRequest("s1", { command: "handoff", sleep: true }, "2026-01-01T00:00:00Z", repoRoot)
   T(`${UNIT}: a recorded request is read back for its own session`, readHandoffRequest("s1", repoRoot)?.sleep === true && readHandoffRequest("s2", repoRoot) === null)
-  recordHandoffRequest("s1", { command: "wrap-up", sleep: true, crank: true }, "2026-01-01T00:01:00Z", repoRoot)
-  T(`${UNIT}: crank intent without a run never initializes the sleep lifecycle`, readRunState(repoRoot) === null)
-  writeRunState({ sessionId: "s1", crank: false, sleep: false, remaining: ["#1"], relay: { pending: false } }, repoRoot)
-  recordHandoffRequest("s2", { command: "handoff", sleep: true, crank: true }, "2026-01-01T00:02:00Z", repoRoot)
-  T(`${UNIT}: another session cannot enable the run`, readRunState(repoRoot).crank === false)
-  recordHandoffRequest("s1", { command: "wrap-up", sleep: true, crank: true }, "2026-01-01T00:03:00Z", repoRoot)
-  const enabled = readRunState(repoRoot)
-  T(`${UNIT}: a newer explicit request enables the matching run and preserves its lifecycle`, enabled.crank === true && enabled.sleep === false && enabled.remaining[0] === "#1" && enabled.relay.pending === false)
-  recordHandoffRequest("s1", { command: "handoff", sleep: true, crank: false }, "2026-01-01T00:04:00Z", repoRoot)
-  T(`${UNIT}: an ordinary handoff request never disables an active crank mode`, readRunState(repoRoot).crank === true)
-
-  for (const variant of ["successor", "unrelated prompt", "changed prompt", "unrelated run", "disabled"]) {
-    const installation = stageWithConfig(`owner-intake-${variant}`, "relay-session.mjs", realOrchestratorConfig())
-    const prompt = sleepPrompt.replace("/sleep\n", "/auto-work\n")
-    const promptPath = join(installation.base, ".claude/handoffs/NEXT.md")
-    mkdirSync(join(installation.base, ".claude/handoffs"), { recursive: true })
-    writeFileSync(promptPath, prompt)
-    const intake = { gmail: { completed: { old: { classification: "praise" } }, pending: { new: { draftId: "draft", sendAttempted: true } } },
-      play: { workflowCycle: "collection-cycle", workflowRun: 42 }, reviewReplies: { workflowCycle: "reply-cycle" } }
-    writeRunState({ sessionId: "owner-parent", sleep: false, autoWork: true, crank: false, intake }, installation.base)
-    recordHandoffRequest("owner-parent", { ...parseHandoffRequest("/handoff --sleep"), origin: "owner" }, "2026-01-01T00:00:00Z", installation.base)
-    const closed = run("relay-session.mjs", ["--close-chain"], { path: installation.path, env: { CLAUDE_CODE_SESSION_ID: "owner-parent" } })
-    T(`${UNIT}: owner handoff ${variant} prepares without an open relay chain`, closed.status === 0, closed.stderr)
-    if (variant === "changed prompt") writeFileSync(promptPath, `${prompt}\nChanged scope.\n`)
-    if (variant === "unrelated run") writeRunState({ sessionId: "another-run", sleep: true, autoWork: true }, installation.base)
-    if (variant === "disabled") writeRunState({ ...readRunState(installation.base), autoWork: false }, installation.base)
-    const adopted = handoff.adoptOwnerHandoffRun?.("owner-child", variant === "unrelated prompt" ? "/auto-work" : prompt, installation.base) ?? false
-    if (!adopted) writeRunState({ sessionId: "owner-child", sleep: true }, installation.base)
-    const successor = readRunState(installation.base)
-    if (variant === "successor") {
-      T(`${UNIT}: owner-started successor retains every intake record`, adopted && successor.sleep === true && successor.autoWork === true &&
-        successor.crank === false && JSON.stringify(successor.intake) === JSON.stringify(intake), JSON.stringify(successor))
-      writeRunState({ sessionId: "owner-child", sleep: true }, installation.base)
-      T(`${UNIT}: ordinary successor writes preserve the restored intake`, JSON.stringify(readRunState(installation.base).intake) === JSON.stringify(intake))
-      T(`${UNIT}: owner handoff cannot be adopted twice`, handoff.adoptOwnerHandoffRun?.("third-session", prompt, installation.base) === false)
-    } else T(`${UNIT}: ${variant} cannot inherit stale intake`, !adopted && successor.intake === undefined)
-  }
-
-  for (const priorChain of [false, true]) {
-    const installation = stageWithConfig(`owner-fence-${priorChain}`, "relay-session.mjs", realOrchestratorConfig())
-    const checkout = installation.base
-    const prompt = sleepPrompt.replace("/sleep\n", "/auto-work\n")
-    mkdirSync(join(checkout, ".claude/handoffs"), { recursive: true })
-    writeFileSync(join(checkout, ".claude/handoffs/NEXT.md"), prompt)
-    if (priorChain) {
-      appendChainEntry({ sessionId: "earlier-session" }, checkout)
-      confirmChainSuccessor("earlier-session", "owner-parent", "term_parent", 1, checkout)
-      closeSessionChain("owner-parent", checkout)
-    }
-    const predecessor = { sessionId: "owner-parent", sleep: false, autoWork: true,
-      intake: { gmail: { pending: { message: { sendAttempted: true } } } } }
-    writeRunState(predecessor, checkout)
-    recordHandoffRequest("owner-parent", { command: "handoff", sleep: true, origin: "owner" }, "2026-01-01T00:00:00Z", checkout)
-    T(`${UNIT}: owner fence ${priorChain} prepares`, handoff.prepareOwnerHandoffRun("owner-parent", checkout))
-    T(`${UNIT}: owner fence ${priorChain} adopts`, handoff.adoptOwnerHandoffRun("owner-child", prompt, checkout))
-    const assertFenced = (stage, successorId) => {
-      T(`${UNIT}: owner fence ${priorChain} ${stage} supersedes predecessor`, supersededSession("owner-parent", checkout)?.sessionId === successorId)
-      const successor = JSON.stringify(readRunState(checkout))
-      let failure
-      try { writeRunState({ ...predecessor, intake: {} }, checkout) } catch (error) { failure = error.message }
-      T(`${UNIT}: owner fence ${priorChain} ${stage} refuses stale write`, /superseded/.test(failure ?? ""), failure ?? "write accepted")
-      T(`${UNIT}: owner fence ${priorChain} ${stage} preserves successor and send attempt`, JSON.stringify(readRunState(checkout)) === successor)
-      if (failure === undefined) writeRunState(JSON.parse(successor), checkout)
-    }
-    assertFenced("on adoption", "owner-child")
-    writeRunState({ sessionId: "owner-child", sleep: true }, checkout)
-    assertFenced("after ordinary update", "owner-child")
-    writeRunState({ ...readRunState(checkout), sessionId: "relay-child", relay: { from: "owner-child", pending: false, successorTerminal: "term_next" } }, checkout)
-    assertFenced("after another transfer", "relay-child")
-    T(`${UNIT}: owner fence ${priorChain} keeps successor writable`, readRunState(checkout).intake.gmail.pending.message.sendAttempted === true)
-  }
-
-  const oversized = stageWithConfig("owner-oversized-spec", "relay-session.mjs", realOrchestratorConfig()).base
-  mkdirSync(join(oversized, ".claude/handoffs"), { recursive: true })
-  mkdirSync(join(oversized, ".claude/specs"), { recursive: true })
-  writeFileSync(join(oversized, ".claude/handoffs/NEXT.md"), sleepPrompt.replace("/sleep\n", "/auto-work\n"))
-  writeFileSync(join(oversized, ".claude/specs/example.md"), "x".repeat(41984))
-  writeRunState({ sessionId: "oversized-parent", sleep: false, autoWork: true }, oversized)
-  recordHandoffRequest("oversized-parent", { command: "handoff", sleep: true, origin: "owner" }, "2026-01-01T00:00:00Z", oversized)
-  let refusal = ""
-  try { handoff.prepareOwnerHandoffRun("oversized-parent", oversized) } catch (error) { refusal = error.message }
-  T(`${UNIT}: an owner handoff refuses a spec over its ceiling`, refusal.includes("`.claude/specs/example.md` within 40960 B (it is 41984 B)"), refusal || "prepared")
-  T(`${UNIT}: a refused owner handoff records no handoff`, readRunState(oversized).ownerHandoff === undefined)
+  recordHandoffRequest("s1", { command: "wrap-up", sleep: false }, "2026-01-01T00:01:00Z", repoRoot)
+  T(`${UNIT}: a newer request replaces the earlier one of the same session`, readHandoffRequest("s1", repoRoot)?.command === "wrap-up" && readHandoffRequest("s1", repoRoot)?.sleep === false)
+  T(`${UNIT}: recording a request never writes a run record`, readRunState(repoRoot) === null)
 }

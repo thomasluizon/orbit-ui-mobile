@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
-import { spawn, spawnSync } from "node:child_process"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
 import { performance } from "node:perf_hooks"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -15,20 +15,17 @@ import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
 import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
-import { checkHandoffCommit, checkHandoffStop, gitCommitChains } from "./_lib/rules-handoff.mjs"
-import { newestCommittedPrompt, promptsForCommit, specsForCommit, topLevelOf } from "./_lib/handoff-git.mjs"
-import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
+import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkReadOnlyRun, checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { PERSON_PROMPT_TOOLS, REMOVAL_CHECK_TOOLS, REMOVAL_RULES, checkApprovalPrompt, checkPersonPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
 import { additionalWorkingDirectories } from "./_lib/working-directories.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
-import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
 import { proofOrder, reviewOrder } from "../../tools/lib/review-run.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
 import { takeCleanupLock } from "../../tools/lib/stale-files.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
-import { adoptRelayRun, appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain } from "../../tools/lib/session-chain.mjs"
+import { adoptRelayRun, appendChainEntry, confirmChainSuccessor } from "../../tools/lib/session-chain.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -97,7 +94,7 @@ const monitorSplit = settings.hooks.PreToolUse.flatMap((entry) => guardsOn([entr
   ? [{ ...entry, matcher: "Bash" }, { ...entry, matcher: "Monitor", hooks: entry.hooks.filter((hook) => hookFileOf(hook) !== "git-guardrails.mjs") }]
   : [entry])
 T("wiring: the Monitor check names a Bash guard that a copy leaves off Monitor", missingFromMonitor(monitorSplit), ["git-guardrails.mjs"])
-T("wiring: the Monitor check is not vacuous", BASH_GUARDS.length >= 8 && BASH_GUARDS.every(Boolean), true)
+T("wiring: the Monitor check is not vacuous", BASH_GUARDS.length >= 7 && BASH_GUARDS.every(Boolean), true)
 
 const metadataWorkflow = readFileSync(join(repoRoot, ".github/workflows/pr-metadata.yml"), "utf8")
 T("parity gate: metadata invokes the live-label validator", metadataWorkflow.includes("node .github/scripts/check-pr-metadata.mjs"), true)
@@ -755,7 +752,7 @@ for (const command of ["env FOO=1 git status", "env -- FOO=1 git status", "nice 
   "exec git status", "nohup npm test", "env FOO=1 nice -n 5 timeout 60 git status"]) {
   T(`subset: the wrapper options in ${JSON.stringify(command)} are modelled`, readCommand(command).notModelled, "")
 }
-// Each way that the subset can run a program in a directory other than the shell directory is refused by the git rule, the handoff gate
+// Each way that the subset can run a program in a directory other than the shell directory is refused by the git rule
 // and the approval rule. `find -execdir` and `-okdir` run in the directory of each found file, `env -C` and `sudo -D` in the named directory,
 // `sudo` in the `runcwd` of its policy, `pkexec` in the home directory of the user, and `make -C` in the named directory.
 for (const [name, command] of [
@@ -798,9 +795,9 @@ for (const [name, command] of [
   ["`xargs nice` before a program", "printf '%s\\n' x | xargs nice ls; git commit -m x"],
   ["`xargs` with no command word", "printf '%s\\n' x | xargs -n 1; git commit -m x"],
 ]) {
-  T(`subset other directory: ${name} is refused by the git rule, the handoff gate and the approval rule`,
-    [Boolean(checkGitCommand(command, fromBrain)?.notModelled), gitCommitChains(command, { cwd: "/work/brain" }).notModelled !== "", checkApprovalPrompt(command, { cwd: "/work/brain" })?.rule],
-    [true, true, "not-modelled"])
+  T(`subset other directory: ${name} is refused by the git rule and the approval rule`,
+    [Boolean(checkGitCommand(command, fromBrain)?.notModelled), checkApprovalPrompt(command, { cwd: "/work/brain" })?.rule],
+    [true, "not-modelled"])
 }
 // The controls: a computed word of `find` that cannot be an action, and an `xargs` whose program reads no program from its words, stay modelled.
 for (const command of ['find "$DST/apps" -maxdepth 1 -name "*.tmp"', 'wt=/work/x; find "$wt" -name "*.tmp"', "find apps/*/src -name x", 'x=-name; find . "$x" a',
@@ -820,12 +817,11 @@ T("subset other directory: `sudo` is not in the list of the command words that t
 // The controls: each wrapper and `find -exec` and `-ok` run their command in the shell directory, so the `cd` model holds in each rule.
 for (const wrapper of ["env A=1", "env --", "nice -n 5", "nohup", "time -p", "timeout 60", "stdbuf -o L", "setsid", "ionice -c 3", "exec", "command", "find . -maxdepth 0 -exec", "find . -maxdepth 0 -ok"]) {
   const tail = wrapper.startsWith("find") ? " \\;" : ""
-  T(`subset other directory: \`${wrapper}\` keeps the \`cd\` model in the handoff gate, the git rule and the approval rule`, [
-    gitCommitChains(`cd /work/b; ${wrapper} git commit -m x${tail}`, { cwd: "/work/brain" }),
+  T(`subset other directory: \`${wrapper}\` keeps the \`cd\` model in the git rule and the approval rule`, [
     blocks(checkGitCommand(`cd /work/orbit-ui-mobile; ${wrapper} git push origin main${tail}`, fromBrain)),
     checkGitCommand(`cd /work/orbit-ui-mobile; ${wrapper} git push origin fix/x${tail}`, fromBrain),
     checkApprovalPrompt(`cd /work/checkouts/repo/x; ${wrapper} rm -rf ..${tail}`, { cwd: "/work/checkouts/repo", home: "/fixture-home", windows: false })?.rule,
-  ], [{ chains: [{ chain: ["/work/b"], subcommand: "commit" }], notModelled: "" }, true, null, "working-directory"])
+  ], [true, null, "working-directory"])
 }
 // A program that runs code from a file or from its arguments, such as `npm`, gives no invocation that a rule reads, in any directory:
 // `./README.md` names that limit. The documented procedure `npm test --prefix evals/astra` stays modelled.
@@ -2309,8 +2305,6 @@ T("sleep-stop: a registered but DEAD wake source is not one", blocks(stop({ stat
 T("sleep-stop: a dead launcher with a live worker is reported separately",
   checkSleepStop({ state: sleeping, orphanedWakeSources: [{ pid: 100, workerPid: 200 }], sessionId: "s1", isWakeSourceAlive: dead })?.message.includes("orphaned worker pid 200"), true)
 T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping, remaining: [] }, sessionId: "s1", isWakeSourceAlive: dead }), null)
-T("auto-work: empty queue still requires a wake source", blocks(stop({ state: { ...sleeping, remaining: [], autoWork: true } })), true)
-T("auto-work: disabled mode restores queue exhaustion", checkSleepStop({ state: { ...sleeping, remaining: [], autoWork: false }, sessionId: "s1", isWakeSourceAlive: dead }), null)
 const salvaged = { ...sleeping, remaining: [], pullRequests: [{ repositoryKey: "ui", prNumber: 690, receiptPath: "C:/receipt.json" }] }
 T("sleep-stop: an open pull request with no READY receipt blocks the queue from reading as done", blocks(stop({ state: salvaged })), true)
 T("sleep-stop: the refusal names the repository-qualified pull request and receipt debt", stop({ state: salvaged })?.message.includes("ui#690") && stop({ state: salvaged })?.message.includes("READY final-head receipt"), true)
@@ -2696,12 +2690,12 @@ const runHookResult = (file, input, env) =>
     env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
   })
 const runHook = (file, payload, env) => runHookResult(file, JSON.stringify(payload), env).status
-for (const hook of ["git-guardrails", "orchestrator-guardrails", "forbid-invented-identifier", "forbid-worker-browser", "forbid-node-modules-write", "forbid-approval-prompt", "forbid-raw-ticket-mutation", "forbid-ef-migration-raw-index", "require-handoff-prompt", "require-wake-source", "forbid-superseded-session"]) {
+for (const hook of ["git-guardrails", "orchestrator-guardrails", "forbid-invented-identifier", "forbid-worker-browser", "forbid-node-modules-write", "forbid-approval-prompt", "forbid-raw-ticket-mutation", "forbid-ef-migration-raw-index", "require-wake-source", "forbid-superseded-session"]) {
   const result = runHookResult(`${hook}.mjs`, "not json")
   T(`adapter ${hook}: malformed stdin blocks`, result.status, 2)
   T(`adapter ${hook}: failure identifies the hook`, result.stderr.includes(hook), true)
 }
-for (const hook of ["surface-pending-lessons", "record-handoff-request", "relay-at-threshold", "clean-stale-files"]) {
+for (const hook of ["surface-pending-lessons", "clean-stale-files"]) {
   T(`reminder ${hook}: malformed stdin allows`, runHookResult(`${hook}.mjs`, "not json").status, 0)
 }
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
@@ -2926,7 +2920,6 @@ for (const command of ["git push origin plain", "git push -u origin plain", "git
 T("adapter git-guardrails symbolic ref: git -C <clone> push origin plain from the directory above -> 0, 0", fromSymbolicClone(`git -C ${symbolicClone} push origin plain`, symbolicFixture), [0, 0])
 T("adapter git-guardrails symbolic ref: the refusal names the ref that git resolves the word to",
   runHookResult("git-guardrails.mjs", JSON.stringify(bash("git push origin sneaky", symbolicClone))).stderr.includes("git resolves `sneaky` to `refs/heads/main`"), true)
-T("handoff git: the top level follows the -C chain as git does", topLevelOf([openCheckout, "link/.."]), realpathSync(protectedCheckout))
 // `find -execdir` runs git in the directory that holds each found file, here the protected checkout, which the `cd` model cannot know.
 // The git rule refuses it attended and in a worker run, and the approval rule refuses it in a worker run.
 for (const command of [`find ${protectedCheckout} -maxdepth 1 -name apps -execdir git push origin main \\;`, `find ${protectedCheckout} -maxdepth 1 -name apps -execdir git push --force origin HEAD:main \\;`,
@@ -3106,7 +3099,7 @@ T("adapter identifier: a removed ledger blocks the id again -> 2", runLedgerHook
  * a session id that does not match is treated as a previous run's and ignored.
  */
 const WAKE_HOOK = "require-wake-source.mjs"
-const { PENDING_WAKE_SOURCE_MAX_AGE_MS, acquireRelayLock, clearWakeSource, readWakeSources, readWakeSourceStates, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
+const { PENDING_WAKE_SOURCE_MAX_AGE_MS, clearWakeSource, readWakeSources, readWakeSourceStates, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
 // Exercise the real adapter in an isolated checkout so another run cannot mask a bad identity.
 const wakeCheckout = join(root, "wake-identity")
@@ -3128,7 +3121,7 @@ T("relay fixture: local origin initializes", stagingGit(["init", "--bare", wakeO
 T("relay fixture: local origin is configured", stagingGit(["remote", "add", "origin", wakeOrigin], wakeCheckout).status, 0)
 T("relay fixture: main is published locally", stagingGit(["push", "origin", "HEAD:refs/heads/main"], wakeCheckout).status, 0)
 T("relay fixture: base configuration is available", stagingGit(["update-ref", "refs/remotes/origin/redesign/main", "HEAD"], wakeCheckout).status, 0)
-for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "record-handoff-request.mjs", "require-handoff-prompt.mjs", "forbid-approval-prompt.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
+for (const name of ["forbid-superseded-session.mjs", "forbid-approval-prompt.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
 // The staged checkout owns its run record, so the run that executes this suite cannot change the verdict.
 const APPROVAL_HOOK = "forbid-approval-prompt.mjs"
 const approvalHook = (payload, env = {}) => spawnSync(process.execPath, [join(wakeHooks, APPROVAL_HOOK)], {
@@ -3236,7 +3229,7 @@ T("adapter approval: an unreadable run record fails closed -> 2", approvalHook(h
 T("adapter person prompt: an unreadable run record fails closed -> 2", approvalHook(ownerQuestion()).status, 2)
 T("adapter approval: an unreadable run record still allows a safe command -> 0", approvalHook({ ...heldRemoval(), tool_input: { command: "npm test" } }).status, 0)
 rmSync(runStatePath(wakeCheckout))
-const relayState = { autoWork: false, sessionId: "relay-parent", sleep: true, remaining: ["#1091"] }
+const relayState = { sessionId: "relay-parent", sleep: true, remaining: ["#1091"] }
 /** The shipped thresholds, so the crossing tests follow the real values instead of a copy of them. */
 const { softTokens: relaySoft, hardTokens: relayHard } = JSON.parse(readFileSync(join(repoRoot, ".claude", "orchestrator.json"), "utf8")).relay
 const relayOptions = { enabled: true, softTokens: relaySoft, hardTokens: relayHard, state: relayState, sessionId: relayState.sessionId, measuredTokens: relayHard }
@@ -3267,15 +3260,14 @@ T("relay soft: a turn end with an empty queue and no live wake source is not qui
 /** Every turn end the relay calls quiet is one the sleep gate allows. A refused stop would turn the relay into RELAY_DRAIN. */
 const openPullRequest = { repositoryKey: "ui", prNumber: 1, receiptPath: "/absent/receipt.json" }
 const quietAgreement = []
-for (const [name, state] of [["queue left", relayState], ["empty queue", { ...relayState, remaining: [] }], ["empty queue, open pull request", { ...relayState, remaining: [], pullRequests: [openPullRequest] }],
-  ["empty queue, auto-work", { ...relayState, remaining: [], autoWork: true }], ["queue left, auto-work", { ...relayState, autoWork: true }]]) {
+for (const [name, state] of [["queue left", relayState], ["empty queue", { ...relayState, remaining: [] }], ["empty queue, open pull request", { ...relayState, remaining: [], pullRequests: [openPullRequest] }],]) {
   for (const wakeSources of [[], launcher]) {
     const verdict = checkRelayStop({ ...midTurn, hookEventName: "Stop", state, wakeSources })
     if (verdict.begin) quietAgreement.push([name, wakeSources.length, Boolean(checkSleepStop({ state, wakeSources, sessionId: relayState.sessionId, isWakeSourceAlive: () => true })?.block)])
   }
 }
 T("relay soft: a quiet point is never a stop the sleep gate refuses", quietAgreement.filter(([, , refused]) => refused), [])
-T("relay soft: the quiet points that agreed were reached with a live wake source only", quietAgreement.every(([, sources]) => sources > 0) && quietAgreement.length === 5, true)
+T("relay soft: the quiet points that agreed were reached with a live wake source only", quietAgreement.every(([, sources]) => sources > 0) && quietAgreement.length === 3, true)
 T("relay soft: a launcher without a wake source is not quiet", checkRelayStop({ ...midTurn, hookEventName: "Stop", wakeSources: launcher, orphaned: [{ pid: 2, workerPid: 3 }] }).arm, true)
 T("relay soft: a turn that a Stop hook keeps open is not quiet", checkRelayStop({ ...midTurn, hookEventName: "Stop", wakeSources: launcher, stopHookActive: true }).arm, true)
 T("relay hard: one token below the ceiling mid-turn only arms", checkRelayStop({ ...midTurn, measuredTokens: relayHard - 1 }).begin, undefined)
@@ -3303,388 +3295,7 @@ writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: [] },
 T("adapter wake-source: an exhausted queue -> 0", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 0)
 writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }, wakeCheckout)
 T("adapter wake-source: another session's record -> 0", isolatedRelayHook(WAKE_HOOK, { ...stopPayload, session_id: "someone-else" }).status, 0)
-const requestFile = join(wakeCheckout, ".git", "orbit-handoff-request.json")
-writeFileSync(requestFile, "{")
-const corruptRequestStop = isolatedRelayHook("require-handoff-prompt.mjs", { ...stopPayload, hook_event_name: "Stop" })
-T("handoff adapter: corrupt request blocks", corruptRequestStop.status, 2)
-T("handoff adapter: an internal request-read throw blocks a valid tool payload", isolatedRelayHook("require-handoff-prompt.mjs", { ...stopPayload, hook_event_name: "PreToolUse", tool_input: { command: "git status" } }).status, 2)
-T("handoff adapter: corrupt request names path", corruptRequestStop.stderr.includes(requestFile), true)
-rmSync(requestFile)
-const { newestCommittedPrompt: readCommittedPrompt } = await import("./_lib/handoff-git.mjs")
-let promptReadFailed = false
-try { readCommittedPrompt(root) } catch { promptReadFailed = true }
-T("handoff reader: git failure throws instead of proving no prompt", promptReadFailed, true)
-writeRunState(relayState, wakeCheckout)
-writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: relaySoft - 671 } } }) + "\n")
-T("relay adapter: one token below the soft threshold prints nothing", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
-writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: relayUsage } }) + "\n")
-T("relay adapter: concurrent wake hook never says to launch on crossing", isolatedRelayHook(WAKE_HOOK).stderr, "")
-const crossing = isolatedRelayHook("relay-at-threshold.mjs")
-const feedback = JSON.parse(crossing.stdout)
-T("relay adapter: the hard ceiling emits documented Stop feedback", feedback.hookSpecificOutput.hookEventName, "Stop")
-T("relay adapter: feedback names relay", feedback.hookSpecificOutput.additionalContext.includes("relay"), true)
-T("relay adapter: machine origin enforces sleep prompt", readHandoffRequest("relay-parent", wakeCheckout).origin, "context-relay")
-T("relay adapter: measured pending state is persisted", readRunState(wakeCheckout).relay.measuredTokens, relayHard)
-const stopRelayState = readRunState(wakeCheckout)
-const stopRelayRequest = readHandoffRequest("relay-parent", wakeCheckout)
-const postToolRelayHooks = settings.hooks.PostToolUse
-  .filter((entry) => new RegExp(entry.matcher ?? ".*").test("Bash"))
-  .flatMap((entry) => entry.hooks)
-  .filter((hook) => hook.command.includes("relay-at-threshold.mjs"))
-T("relay post-tool: Bash matches exactly one relay check", postToolRelayHooks.length, 1)
-T("relay post-tool: reads, edits, agents and MCP tools each match once", ["Read", "Edit", "Write", "Agent", "mcp__server__tool"].map((toolName) =>
-  settings.hooks.PostToolUse.filter((entry) => new RegExp(entry.matcher ?? ".*").test(toolName))
-    .flatMap((entry) => entry.hooks).filter((hook) => hook.command.includes("relay-at-threshold.mjs")).length), [1, 1, 1, 1, 1])
-const postToolPayload = { session_id: relayPayload.session_id, transcript_path: relayTranscript, cwd: wakeCheckout,
-  permission_mode: relayPayload.permission_mode, hook_event_name: "PostToolUse", tool_name: "Bash",
-  tool_input: { command: "true" }, tool_response: { stdout: "", stderr: "", interrupted: false }, tool_use_id: "tool-call", duration_ms: 1 }
-const relayTimeoutMilliseconds = postToolRelayHooks[0].timeout * 1000
-T("relay: configured timeout is explicitly positive", Number.isFinite(relayTimeoutMilliseconds) && relayTimeoutMilliseconds > 0, true)
-T("relay: Stop and PostToolUse share the timeout", settings.hooks.Stop.flatMap((entry) => entry.hooks)
-  .filter((hook) => hook.command.includes("relay-at-threshold.mjs")).map((hook) => hook.timeout), [postToolRelayHooks[0].timeout])
-const postToolRelay = () => isolatedRelayHook("relay-at-threshold.mjs", postToolPayload, relayTimeoutMilliseconds)
-writeRunState(relayState, wakeCheckout)
-writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: relaySoft - 671 } } }) + "\n")
-T("relay post-tool: below the soft threshold prints nothing", postToolRelay().stdout, "")
-T("relay post-tool: below the soft threshold preserves state", readRunState(wakeCheckout).relay, undefined)
-const transcriptPadding = JSON.stringify({ type: "user", message: { content: "x".repeat(1024 * 1024) } }) + "\n"
-writeFileSync(relayTranscript, transcriptPadding.repeat(12) + JSON.stringify({ type: "assistant", message: { id: "call", usage: relayUsage } }) + "\n" + transcriptPadding)
-T("relay post-tool: performance fixture exceeds ten MiB", statSync(relayTranscript).size > 10 * 1024 * 1024, true)
-const subagentCrossing = isolatedRelayHook("relay-at-threshold.mjs", { ...postToolPayload, agent_id: "review-subagent", agent_type: "Explore" })
-T("relay post-tool: a subagent tool call at the threshold prints nothing", subagentCrossing.stdout, "")
-T("relay post-tool: a subagent tool call leaves the parent relay state", readRunState(wakeCheckout).relay, undefined)
-T("relay post-tool: a subagent tool call records no handoff request", readHandoffRequest("relay-parent", wakeCheckout), stopRelayRequest)
-// Each sample begins a fresh relay, including configuration checks and the lock's process identity probe.
-const relayMeasurements = Array.from({ length: 3 }, (_, index) => {
-  writeRunState(relayState, wakeCheckout)
-  const started = performance.now()
-  const result = postToolRelay()
-  const milliseconds = performance.now() - started
-  console.log(`relay post-tool timing: ${statSync(relayTranscript).size} bytes in ${milliseconds.toFixed(1)} ms (sample ${index + 1}, budget ${relayTimeoutMilliseconds / 2} ms)`)
-  T(`relay post-tool: sample ${index + 1} crosses and persists without diagnostics`,
-    { status: result.status, stderr: result.stderr, feedback: JSON.parse(result.stdout || "{}").hookSpecificOutput, relay: readRunState(wakeCheckout).relay },
-    { status: 0, stderr: "", feedback: { hookEventName: "PostToolUse", additionalContext: feedback.hookSpecificOutput.additionalContext },
-      relay: { ...stopRelayState.relay, triggeredAt: readRunState(wakeCheckout).relay?.triggeredAt } })
-  return { result, milliseconds }
-})
-writeRunState({ ...relayState, crank: true }, wakeCheckout)
-postToolRelay()
-T("relay crank: threshold records durable crank mode", readHandoffRequest("relay-parent", wakeCheckout)?.crank, true)
-T("relay crank: threshold preserves run mode", readRunState(wakeCheckout).crank, true)
-writeRunState({ ...relayState, autoWork: true }, wakeCheckout)
-postToolRelay()
-T("relay auto-work: threshold records durable mode", readHandoffRequest("relay-parent", wakeCheckout)?.autoWork, true)
-writeRunState({ ...readRunState(wakeCheckout), autoWork: false }, wakeCheckout)
-writeRunState(stopRelayState, wakeCheckout)
-recordHandoffRequest("relay-parent", stopRelayRequest, stopRelayRequest.recordedAt, wakeCheckout)
-const postToolCrossing = relayMeasurements.at(-1).result
-T("relay post-tool: large transcript finishes inside half its timeout", relayMeasurements.every(({ milliseconds }) => milliseconds < relayTimeoutMilliseconds / 2), true)
-T("relay post-tool: crossing succeeds without diagnostics", { status: postToolCrossing.status, stderr: postToolCrossing.stderr }, { status: 0, stderr: "" })
-T("relay post-tool: mid-turn crossing emits the same drain instruction", JSON.parse(postToolCrossing.stdout || "{}").hookSpecificOutput,
-  { hookEventName: "PostToolUse", additionalContext: feedback.hookSpecificOutput.additionalContext })
-const midTurnState = readRunState(wakeCheckout)
-T("relay post-tool: pending state equals Stop state except trigger time",
-  { ...midTurnState, relay: { ...midTurnState.relay, triggeredAt: stopRelayState.relay.triggeredAt } }, stopRelayState)
-T("relay post-tool: handoff request equals Stop request with its trigger time",
-  readHandoffRequest("relay-parent", wakeCheckout), { ...stopRelayRequest, recordedAt: midTurnState.relay?.triggeredAt })
-registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
-T("relay post-tool: pending worker drain injects nothing", postToolRelay().stdout, "")
-T("relay post-tool: Stop does not re-begin a mid-turn relay", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
-T("relay post-tool: pending checks preserve relay state", readRunState(wakeCheckout), midTurnState)
-T("relay post-tool: pending checks preserve handoff request", readHandoffRequest("relay-parent", wakeCheckout), { ...stopRelayRequest, recordedAt: midTurnState.relay?.triggeredAt })
-clearWakeSource(process.pid, wakeCheckout)
-T("relay post-tool: drained workers receive completion context", JSON.parse(postToolRelay().stdout || "{}").hookSpecificOutput,
-  { hookEventName: "PostToolUse", additionalContext: checkRelayStop({ ...relayOptions, state: midTurnState }).message })
-const hardRelayTranscript = readFileSync(relayTranscript, "utf8")
-const hardRelayState = readRunState(wakeCheckout)
-const hardRelayRequest = readHandoffRequest("relay-parent", wakeCheckout)
-const softCall = (tokens = relaySoft) => writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: usageAt(tokens) } }) + "\n")
-const stopRelay = () => isolatedRelayHook("relay-at-threshold.mjs", relayPayload, relayTimeoutMilliseconds)
-softCall()
-writeRunState(relayState, wakeCheckout)
-const armed = postToolRelay()
-T("relay soft adapter: a mid-turn crossing prints the arming context", JSON.parse(armed.stdout || "{}").hookSpecificOutput?.additionalContext?.includes("armed"), true)
-T("relay soft adapter: arming persists the mark and starts no drain", { armed: readRunState(wakeCheckout).relay.armed, pending: readRunState(wakeCheckout).relay.pending, armedTokens: readRunState(wakeCheckout).relay.armedTokens }, { armed: true, pending: undefined, armedTokens: relaySoft })
-T("relay soft adapter: arming records no handoff request", readHandoffRequest("relay-parent", wakeCheckout), hardRelayRequest)
-T("relay soft adapter: a second mid-turn call stays silent", postToolRelay().stdout, "")
-T("relay soft adapter: a turn end with open work and no wake source stays armed", { stdout: stopRelay().stdout, pending: readRunState(wakeCheckout).relay.pending }, { stdout: "", pending: undefined })
-registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
-const quiet = stopRelay()
-T("relay soft adapter: a quiet turn end begins the relay", { pending: readRunState(wakeCheckout).relay.pending, forced: readRunState(wakeCheckout).relay.forced, quiet: JSON.parse(quiet.stdout || "{}").hookSpecificOutput?.additionalContext?.includes("quiet point") }, { pending: true, forced: false, quiet: true })
-T("relay soft adapter: the pending relay keeps the arming time and size", { armedAt: typeof readRunState(wakeCheckout).relay.armedAt, armedTokens: readRunState(wakeCheckout).relay.armedTokens }, { armedAt: "string", armedTokens: relaySoft })
-T("relay soft adapter: the quiet relay records the machine handoff request", readHandoffRequest("relay-parent", wakeCheckout).origin, "context-relay")
-clearWakeSource(process.pid, wakeCheckout)
-writeRunState({ ...relayState, relay: { armed: true, armedTokens: relaySoft } }, wakeCheckout)
-softCall(relaySoft - 1)
-postToolRelay()
-T("relay soft adapter: falling below the soft threshold clears the mark", readRunState(wakeCheckout).relay.armed, false)
-const changedRecordPreload = join(wakeCheckout, "changed-record-relay.mjs")
-writeFileSync(changedRecordPreload, `
-import fs from "node:fs"
-import { syncBuiltinESMExports } from "node:module"
-const originalReaddir = fs.readdirSync
-let changed = false
-fs.readdirSync = function (path, ...args) {
-  if (!changed && String(path).endsWith("orbit-wake-sources")) {
-    changed = true
-    const record = JSON.parse(fs.readFileSync(process.env.RELAY_STATE_PATH, "utf8"))
-    fs.writeFileSync(process.env.RELAY_STATE_PATH, JSON.stringify({ ...record, relay: { failures: 1 } }))
-  }
-  return originalReaddir.call(this, path, ...args)
-}
-syncBuiltinESMExports()
-`)
-const changedRecordHook = (payload) => spawnSync(process.execPath, ["--import", pathToFileURL(changedRecordPreload).href, join(wakeHooks, "relay-at-threshold.mjs")], {
-  input: JSON.stringify(payload), encoding: "utf8", timeout: relayTimeoutMilliseconds,
-  env: { ...process.env, RELAY_STATE_PATH: runStatePath(wakeCheckout) },
-})
-softCall()
-writeRunState(relayState, wakeCheckout)
-const armChanged = changedRecordHook(postToolPayload)
-T("relay soft adapter: a record that changed after the arm verdict skips the arm write and its message", { stdout: armChanged.stdout, relay: readRunState(wakeCheckout).relay }, { stdout: "", relay: { failures: 1 } })
-writeRunState({ ...relayState, relay: { armed: true, armedAt: "2026-01-01T09:00:00Z", armedTokens: relaySoft } }, wakeCheckout)
-registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
-const requestBeforeBegin = readHandoffRequest("relay-parent", wakeCheckout)
-const beginChanged = changedRecordHook(relayPayload)
-T("relay soft adapter: a record that changed after the begin verdict skips the begin write, its message and its handoff request",
-  { stdout: beginChanged.stdout, relay: readRunState(wakeCheckout).relay, request: readHandoffRequest("relay-parent", wakeCheckout) }, { stdout: "", relay: { failures: 1 }, request: requestBeforeBegin })
-clearWakeSource(process.pid, wakeCheckout)
-writeRunState(hardRelayState, wakeCheckout)
-writeFileSync(relayTranscript, hardRelayTranscript)
-recordHandoffRequest("relay-parent", hardRelayRequest, hardRelayRequest.recordedAt, wakeCheckout)
-const backgroundLaunches = JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "claude-background-launches.json"), "utf8"))
-const claudeDirectory = join(wakeCheckout, ".git", "claude")
-mkdirSync(join(claudeDirectory, "sessions"), { recursive: true })
-writeFileSync(join(claudeDirectory, "sessions", `${process.pid}.json`), JSON.stringify({ pid: process.pid, sessionId: relayPayload.session_id }))
-const backgroundHook = (payload) => spawnSync(process.execPath, [join(wakeHooks, "relay-at-threshold.mjs")], {
-  input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: claudeDirectory },
-})
-for (const [type, tool] of [["workflow", "Workflow"], ["subagent", "Agent"]]) {
-  writeRunState(relayState, wakeCheckout)
-  const response = backgroundLaunches[type]
-  const launched = backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: tool, tool_response: response })
-  T(`relay adapter: ${type} threshold names the background drain`, launched.stdout.includes(type), true)
-  const id = response.taskId ?? response.agentId
-  const waiting = { ...relayPayload, background_tasks: [{ id, type, status: "running", description: "Background work" }] }
-  T(`relay adapter: live ${type} Stop cannot complete drain`, backgroundHook(waiting).stdout, "")
-  T(`relay adapter: live ${type} PostToolUse cannot complete drain`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout, "")
-  T(`relay adapter: finished ${type} completes on authoritative empty Stop`, backgroundHook(relayPayload).stdout.includes("drain is complete"), true)
-  backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: tool, tool_response: response })
-  const recordPath = join(wakeCheckout, ".git", "orbit-background-runs", relayPayload.session_id, `${id}.json`)
-  const record = JSON.parse(readFileSync(recordPath, "utf8"))
-  writeFileSync(recordPath, JSON.stringify({ ...record, processStartIdentity: "previous process" }))
-  T(`relay adapter: stale ${type} does not strand the pending drain`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout.includes("drain is complete"), true)
-}
-// A subagent that waits on a prompt stays live in every Stop payload and writes no more transcript.
-writeRunState(relayState, wakeCheckout)
-backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Agent", tool_response: backgroundLaunches.subagent })
-const heldAgent = backgroundLaunches.subagent.agentId
-const heldStop = { ...relayPayload, background_tasks: [{ id: heldAgent, type: "subagent", status: "running", description: "Background work" }] }
-const heldRecordPath = join(wakeCheckout, ".git", "orbit-background-runs", relayPayload.session_id, `${heldAgent}.json`)
-const heldRecord = JSON.parse(readFileSync(heldRecordPath, "utf8"))
-const wakeStop = (payload) => spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], { input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: claudeDirectory } })
-T("stuck limit: the launch record names the subagent transcript", heldRecord.transcript, join(dirname(relayTranscript), relayPayload.session_id, "subagents", `agent-${heldAgent}.jsonl`))
-T("stuck limit: a live subagent below the limit holds the drain", backgroundHook(heldStop).stdout, "")
-const unwatchedDrain = wakeStop(heldStop)
-T("stuck limit: a drain that waits on a subagent with no waiter refuses the turn end", { status: unwatchedDrain.status, names: unwatchedDrain.stderr.includes("node tools/wait-background-runs.mjs") && unwatchedDrain.stderr.includes(`subagent ${heldAgent}`) }, { status: 2, names: true })
-// A whole second: Node 22 utimes cuts the fraction to microseconds after a float multiply, so a millisecond time can read back 1 ms early.
-const silentTime = new Date(Math.floor((Date.now() - 31 * 60_000) / 1000) * 1000)
-const silentSince = silentTime.toISOString()
-// The held agent works in its own worktree and branch. Every entry of its transcript carries the coordinator checkout as `cwd`.
-const heldWorktree = join(root, "wake-identity-held-agent")
-T("stuck limit: the agent worktree is created", stagingGit(["worktree", "add", "-b", "fix/held-agent", heldWorktree], wakeCheckout).status, 0)
-T("stuck limit: the agent commits in its worktree", stagingGit(["commit", "--allow-empty", "-m", "agent work"], heldWorktree).status, 0)
-const headOf = (directory) => stagingGit(["rev-parse", "HEAD"], directory).stdout.trim()
-const transcriptTokens = { WORKTREE: heldWorktree, SESSION_DIRECTORY: wakeCheckout, OTHER_REPOSITORY: wakeOrigin, SCRATCHPAD: root }
-const heldTranscript = readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "claude-subagent-transcript.jsonl"), "utf8")
-  .replace(/\{\{([A-Z_]+)\}\}/g, (_token, name) => JSON.stringify(transcriptTokens[name]).slice(1, -1))
-writeFileSync(heldRecordPath, JSON.stringify({ ...heldRecord, observedAt: new Date(Date.now() - 29 * 60_000).toISOString() }))
-T("stuck limit: a subagent with no transcript on disk holds the drain below the limit", backgroundHook(heldStop).stdout, "")
-writeFileSync(heldRecordPath, JSON.stringify({ ...heldRecord, observedAt: new Date(silentTime.getTime() - 60_000).toISOString() }))
-mkdirSync(dirname(heldRecord.transcript), { recursive: true })
-writeFileSync(heldRecord.transcript, heldTranscript)
-utimesSync(heldRecord.transcript, silentTime, silentTime)
-const releasedDrain = backgroundHook(heldStop)
-T("stuck limit: 30 minutes with no transcript progress completes the drain", releasedDrain.stdout.includes("drain is complete"), true)
-T("stuck limit: the drain message names the stuck subagent for the handoff", releasedDrain.stdout.includes(`subagent ${heldAgent}`) && releasedDrain.stdout.includes("stuckBackgroundRuns"), true)
-T("stuck limit: the drain message names the worktree and the branch of the agent", releasedDrain.stdout.includes(`worktree ${JSON.stringify(heldWorktree).slice(1, -1)}`) && releasedDrain.stdout.includes("branch fix/held-agent"), true)
-// The agent branch has no upstream, and no remote holds its one commit.
-T("stuck limit: the drain message says what the worktree holds that no remote holds", releasedDrain.stdout.includes("uncommitted changes 0, unpushed commits 1"), true)
-T("stuck limit: the run state records the worktree, branch and last commit of the stuck subagent, not of the coordinator",
-  readRunState(wakeCheckout).stuckBackgroundRuns?.map((run) => [run.id, run.type, run.sessionId, run.worktree, run.branch, run.lastCommit, run.lastProgressAt]),
-  [[heldAgent, "subagent", relayPayload.session_id, heldWorktree, "fix/held-agent", headOf(heldWorktree), silentSince]])
-T("stuck limit: the agent and the coordinator have different last commits", headOf(heldWorktree) === headOf(wakeCheckout), false)
-T("stuck limit: the turn end no longer waits on the stuck subagent", wakeStop(heldStop).status, 0)
-// The guard broken: with no limit the same silent subagent holds the drain, as it did before the limit existed.
-const stuckLimitSource = readFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), "utf8")
-const stuckLimitLine = "export const STUCK_RUN_MILLISECONDS = 30 * 60_000"
-T("stuck limit: the broken guard targets the production limit", stuckLimitSource.includes(stuckLimitLine), true)
-writeFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), stuckLimitSource.replace(stuckLimitLine, "export const STUCK_RUN_MILLISECONDS = Infinity"))
-T("stuck limit: with the limit removed the silent subagent holds the drain again", backgroundHook(heldStop).stdout, "")
-T("stuck limit: with the limit removed the turn end waits again", wakeStop(heldStop).status, 2)
-writeFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), stuckLimitSource)
-T("stuck limit: with the limit restored the drain completes again", backgroundHook(heldStop).stdout.includes("drain is complete"), true)
-// The relay rule reads no drain below the soft threshold and no Stop rule reads one without a pending relay, so the
-// hooks spend no transcript read and no git process on it there. A drain read records the silent subagent as stuck.
-const drainedState = readRunState(wakeCheckout)
-const heldToolCall = { ...heldStop, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }
-softCall(relaySoft - 1)
-for (const [event, run] of [["a PostToolUse below the soft threshold", () => backgroundHook(heldToolCall)], ["a Stop below the soft threshold", () => backgroundHook(heldStop)], ["a turn end with no pending relay", () => wakeStop(heldStop)]]) {
-  writeRunState(relayState, wakeCheckout)
-  run()
-  T(`stuck limit: ${event} reads no drain`, readRunState(wakeCheckout).stuckBackgroundRuns, undefined)
-}
-writeRunState(relayState, wakeCheckout)
-softCall(relaySoft)
-backgroundHook(heldToolCall)
-T("stuck limit: a PostToolUse at the soft threshold reads the drain", readRunState(wakeCheckout).stuckBackgroundRuns?.map((run) => run.id), [heldAgent])
-writeFileSync(relayTranscript, hardRelayTranscript)
-writeRunState(drainedState, wakeCheckout)
-backgroundHook(relayPayload)
-const backgroundModulePath = join(wakeCheckout, "tools", "lib", "background-runs.mjs")
-const backgroundModuleSource = readFileSync(backgroundModulePath, "utf8")
-const probeMarker = join(claudeDirectory, "identity-probe-entered")
-const recorderTranscript = readFileSync(relayTranscript, "utf8")
-writeFileSync(relayTranscript, Array.from({ length: 20 }, (_, index) => JSON.stringify({ type: "assistant", message: { id: `recorder-${index}`, usage: relayUsage } })).join("\n") + "\n")
-for (const [type, tool] of [["workflow", "Workflow"], ["subagent", "Agent"]]) {
-  writeRunState(relayState, wakeCheckout)
-  rmSync(probeMarker, { force: true })
-  const probeEntry = "const sessionOwner = (sessionId, claudeDirectory) => {"
-  T("relay recorder: slow probe injection targets the production identity lookup", backgroundModuleSource.includes(probeEntry), true)
-  writeFileSync(backgroundModulePath, backgroundModuleSource.replace(probeEntry, `${probeEntry}
-    writeFileSync(${JSON.stringify(probeMarker)}, "entered")
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60000)
-  `))
-  let interrupted
-  try {
-    interrupted = spawnSync(process.execPath, [join(wakeHooks, "relay-at-threshold.mjs")], {
-      input: JSON.stringify({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: tool, tool_response: backgroundLaunches[type] }),
-      encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: claudeDirectory }, timeout: 1500, killSignal: "SIGKILL",
-    })
-  } finally { writeFileSync(backgroundModulePath, backgroundModuleSource) }
-  T(`relay recorder: ${type} launch times out inside the identity probe`, existsSync(probeMarker) && interrupted.error?.code === "ETIMEDOUT", true)
-  const id = backgroundLaunches[type].taskId ?? backgroundLaunches[type].agentId
-  const crossing = backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} })
-  T(`relay recorder: interrupted ${type} launch is named at the threshold before Stop`, crossing.stdout.includes(`${type} ${id}`), true)
-  T(`relay recorder: interrupted ${type} launch holds the pending drain before Stop`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout, "")
-  const refused = spawnSync(process.execPath, [realpathSync(join(wakeCheckout, "tools", "relay-session.mjs"))], {
-    encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: relayPayload.session_id },
-  })
-  T(`relay recorder: relay CLI refuses the interrupted ${type} launch by id`, { status: refused.status, stderr: refused.stderr },
-    { status: 1, stderr: `RELAY_FAILED: relay drain has background ${type} ${id}\n` })
-  T(`relay recorder: owning Stop settles interrupted ${type} launch`, backgroundHook(relayPayload).stdout.includes("drain is complete"), true)
-}
-writeFileSync(relayTranscript, recorderTranscript)
-writeRunState(midTurnState, wakeCheckout)
-writeRunState({ ...midTurnState, relay: { ...midTurnState.relay, lastAttemptAt: new Date().toISOString() } }, wakeCheckout)
-T("relay post-tool: retry cooldown injects nothing", postToolRelay().stdout, "")
-writeRunState(relayState, wakeCheckout)
-const releaseRelayLock = acquireRelayLock(wakeCheckout)
-try {
-  T("relay post-tool: occupied relay lock cannot begin another drain", postToolRelay().stdout, "")
-  T("relay post-tool: occupied relay lock preserves state", readRunState(wakeCheckout).relay, undefined)
-} finally { releaseRelayLock() }
-writeRunState(relayState, wakeCheckout)
-registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
-const crossingBarrier = join(wakeCheckout, ".git", "crossing-barrier")
-mkdirSync(crossingBarrier)
-const concurrentRelayPreload = join(wakeCheckout, "concurrent-relay.mjs")
-writeFileSync(concurrentRelayPreload, `
-import fs from "node:fs"
-import { syncBuiltinESMExports } from "node:module"
-import { join } from "node:path"
-const originalRead = fs.readFileSync
-let synchronized = false
-fs.readFileSync = function (path, ...args) {
-  const contents = originalRead.call(this, path, ...args)
-  if (!synchronized && path === process.env.RELAY_STATE_PATH) {
-    synchronized = true
-    fs.writeFileSync(join(process.env.RELAY_BARRIER_PATH, String(process.pid)), "ready")
-    const deadline = Date.now() + 500
-    while (fs.readdirSync(process.env.RELAY_BARRIER_PATH).length < 2 && Date.now() < deadline) {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5)
-    }
-    if (fs.readdirSync(process.env.RELAY_BARRIER_PATH).length < 2) process.exit(1)
-  }
-  return contents
-}
-syncBuiltinESMExports()
-`)
-const concurrentRelayHook = () => new Promise((resolve, reject) => {
-  const child = spawn(process.execPath, ["--import", pathToFileURL(concurrentRelayPreload).href, join(wakeHooks, "relay-at-threshold.mjs")],
-    { env: { ...process.env, RELAY_STATE_PATH: runStatePath(wakeCheckout), RELAY_BARRIER_PATH: crossingBarrier } })
-  let stdout = ""
-  child.stdout.on("data", (chunk) => { stdout += chunk })
-  child.on("error", reject)
-  child.on("close", (status) => resolve({ status, stdout }))
-  child.stdin.end(JSON.stringify(postToolPayload))
-})
-const parallelCrossings = await Promise.all([concurrentRelayHook(), concurrentRelayHook()])
-T("relay post-tool: concurrent hooks both exit successfully", parallelCrossings.map((result) => result.status), [0, 0])
-T("relay post-tool: concurrent crossings begin exactly once", parallelCrossings.filter((result) => result.stdout.includes(feedback.hookSpecificOutput.additionalContext)).length, 1)
-clearWakeSource(process.pid, wakeCheckout)
-appendChainEntry({ sessionId: "relay-parent" }, wakeCheckout)
-const closeOwnerChain = () => spawnSync(process.execPath, [realpathSync(join(wakeCheckout, "tools", "relay-session.mjs")), "--close-chain"], {
-  env: { ...process.env, CLAUDE_CODE_SESSION_ID: "relay-parent" }, encoding: "utf8",
-})
-const wakePromptPath = join(wakeCheckout, ".claude", "handoffs", "NEXT.md")
-mkdirSync(join(wakeCheckout, ".claude", "handoffs"), { recursive: true })
-const adapterSleepPrompt = "/sleep\nRead .claude/specs/relay.md. Every identifier is a lead to verify.\n## Sleep\nContinue.\n## Goal\ngh issue list\n## In flight\nNone.\n## Previous prompt, disposition\nCarried.\n"
-writeFileSync(wakePromptPath, adapterSleepPrompt)
-const adapterCommit = { ...relayPayload, hook_event_name: "PreToolUse", cwd: wakeCheckout, tool_input: { command: "git commit -m handoff" } }
-writeRunState({ ...readRunState(wakeCheckout), crank: true }, wakeCheckout)
-recordHandoffRequest("relay-parent", { command: "handoff", origin: "context-relay", sleep: true, crank: true }, "2026-01-01T10:00:00Z", wakeCheckout)
-T("handoff crank adapter: current run requires crank instructions", isolatedRelayHook("require-handoff-prompt.mjs", adapterCommit).status, 2)
-writeFileSync(wakePromptPath, `${adapterSleepPrompt}## Crank\nInvoke /crank immediately after /sleep entry.\n`)
-T("handoff crank adapter: complete crank instructions pass", isolatedRelayHook("require-handoff-prompt.mjs", adapterCommit).status, 0)
-writeFileSync(wakePromptPath, adapterSleepPrompt)
-writeRunState({ ...readRunState(wakeCheckout), crank: false }, wakeCheckout)
-T("handoff crank adapter: disabling restores sleep requirements", isolatedRelayHook("require-handoff-prompt.mjs", adapterCommit).status, 0)
-T("handoff crank fixture: ordinary sleep prompt stages", stagingGit(["--literal-pathspecs", "add", ".claude/handoffs/NEXT.md"], wakeCheckout).status, 0)
-T("handoff crank fixture: ordinary sleep prompt commits", stagingGit(["commit", "-m", "sleep handoff"], wakeCheckout).status, 0)
-T("handoff crank adapter: disabling permits Stop after ordinary sleep prompt commit", isolatedRelayHook("require-handoff-prompt.mjs", { ...relayPayload, hook_event_name: "Stop" }).status, 0)
-writeFileSync(wakePromptPath, `${adapterSleepPrompt}\n`)
-T("handoff crank: disable supersedes the threshold request for Stop", checkHandoffStop({ request: readHandoffRequest("relay-parent", wakeCheckout), state: readRunState(wakeCheckout), headPrompt: adapterSleepPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" }), null)
-recordHandoffRequest("relay-parent", { command: "handoff", origin: "owner", sleep: true, crank: true }, "2026-01-01T10:06:00Z", wakeCheckout)
-T("handoff crank: a newer explicit request enables the same run", readRunState(wakeCheckout).crank, true)
-T("handoff crank adapter: newer request requires crank again", isolatedRelayHook("require-handoff-prompt.mjs", adapterCommit).status, 2)
-T("handoff crank: newer request requires crank for Stop", blocks(checkHandoffStop({ request: readHandoffRequest("relay-parent", wakeCheckout), state: readRunState(wakeCheckout), headPrompt: adapterSleepPrompt, headPromptCommittedAt: "2026-01-01T10:07:00Z" })), true)
-writeRunState({ ...readRunState(wakeCheckout), crank: false }, wakeCheckout)
-recordHandoffRequest("relay-parent", { command: "handoff", origin: "context-relay", sleep: true, crank: false }, new Date().toISOString(), wakeCheckout)
-rmSync(wakePromptPath)
-const relayClosure = closeOwnerChain()
-T("handoff adapter: a context relay cannot close the chain", { status: relayClosure.status, refused: relayClosure.stderr.includes("chain closure requires an owner-origin handoff") }, { status: 1, refused: true })
 const ownerPrompt = { ...relayPayload, hook_event_name: "UserPromptSubmit", prompt: "Finish the report.\n/wrap-up --sleep" }
-isolatedRelayHook("record-handoff-request.mjs", ownerPrompt)
-const ownerRequest = readHandoffRequest("relay-parent", wakeCheckout)
-T("relay adapter: own-line wrap-up records the owner's sleep request", { command: ownerRequest.command, sleep: ownerRequest.sleep, origin: ownerRequest.origin }, { command: "wrap-up", sleep: true, origin: "owner" })
-T("relay adapter: owner handoff clears drain", readRunState(wakeCheckout).relay.pending, false)
-T("relay adapter: owner handoff takes the run out of unattended mode", readRunState(wakeCheckout).sleep, false)
-T("relay adapter: owner origin supersedes machine request", readHandoffRequest("relay-parent", wakeCheckout).origin, "owner")
-const ownerClosure = closeOwnerChain()
-T("handoff adapter: own-line wrap-up closes the owner's chain", { status: ownerClosure.status, stderr: ownerClosure.stderr, chain: openSessionChain("relay-parent", wakeCheckout) }, { status: 0, stderr: "", chain: null })
-for (const [index, prompt] of [
-  "we are working always using /handoff, wrap-up, etc etc\n\nwhat happens when the spec is finished?",
-  "Read `/handoff --relay --sleep` and `/wrap-up` in NEXT.md.",
-  "```text\n/wrap-up --sleep\n```",
-  '<pasted_content source="NEXT.md">\n/handoff --relay --sleep\n</pasted_content>',
-  ".claude/skills/handoff/SKILL.md",
-  "<pasted_content>\n<pasted_content>\nquoted\n</pasted_content>\n/handoff --sleep\n</pasted_content>",
-].entries()) {
-  const sessionId = `handoff-mention-${index}`
-  writeRunState({ sessionId, sleep: true, relay: { pending: true } }, wakeCheckout)
-  T(`handoff adapter: mention ${index} exits quietly`, isolatedRelayHook("record-handoff-request.mjs", { ...ownerPrompt, session_id: sessionId, prompt }).status, 0)
-  T(`handoff adapter: mention ${index} records nothing`, readHandoffRequest(sessionId, wakeCheckout), null)
-  T(`handoff adapter: mention ${index} preserves the unattended drain`, { sleep: readRunState(wakeCheckout).sleep, pending: readRunState(wakeCheckout).relay.pending }, { sleep: true, pending: true })
-}
-writeRunState({ sessionId: "handoff-parenthesized", sleep: true, relay: { pending: true } }, wakeCheckout)
-isolatedRelayHook("record-handoff-request.mjs", { ...ownerPrompt, session_id: "handoff-parenthesized", prompt: "/handoff --sleep" })
-const parenthesizedRequest = readHandoffRequest("handoff-parenthesized", wakeCheckout)
-T("handoff adapter: a direct sleep handoff records an unattended owner request", { command: parenthesizedRequest?.command, sleep: parenthesizedRequest?.sleep, origin: parenthesizedRequest?.origin }, { command: "handoff", sleep: true, origin: "owner" })
-writeRunState({ ...relayState, relay: { pending: true } }, wakeCheckout)
-const unreadable = isolatedRelayHook("relay-at-threshold.mjs", { ...relayPayload, transcript_path: join(wakeCheckout, "absent.jsonl") })
-T("relay adapter: unreadable transcript fails open with one stderr line", { status: unreadable.status, stdout: unreadable.stdout, lines: unreadable.stderr.trim().split("\n").length }, { status: 0, stdout: "", lines: 1 })
-T("relay adapter: unreadable transcript explains the skipped relay", unreadable.stderr.startsWith("Context relay skipped:"), true)
 appendChainEntry({ sessionId: "relay-parent" }, wakeCheckout)
 writeRunState({ ...relayState, relay: { pending: true, successorSessionId: "relay-child", successorTerminal: "term_live" } }, wakeCheckout)
 adoptRelayRun("relay-child", wakeCheckout)
@@ -3699,37 +3310,6 @@ T("superseded adapter: Bash is denied", deniedTool.hookSpecificOutput.permission
 T("superseded adapter: refusal names live terminal", deniedTool.hookSpecificOutput.permissionDecisionReason.includes("term_live"), true)
 T("superseded adapter: typed prompt is blocked", JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", ownerPrompt).stdout).decision, "block")
 T("superseded adapter: live successor remains usable", isolatedRelayHook("forbid-superseded-session.mjs", { ...ownerPrompt, session_id: "relay-child" }).stdout, "")
-for (const priorChain of [false, true]) {
-  const checkout = join(root, `owner-handoff-fence-${priorChain}`)
-  const hooks = join(checkout, ".claude/hooks")
-  mkdirSync(hooks, { recursive: true })
-  cpSync(join(repoRoot, "tools/lib"), join(checkout, "tools/lib"), { recursive: true })
-  cpSync(join(hooksDir, "_lib"), join(hooks, "_lib"), { recursive: true })
-  cpSync(join(hooksDir, "forbid-superseded-session.mjs"), join(hooks, "forbid-superseded-session.mjs"))
-  cpSync(join(repoRoot, ".claude/orchestrator.json"), join(checkout, ".claude/orchestrator.json"))
-  const prompt = adapterSleepPrompt.replace("/sleep\n", "/auto-work\n")
-  mkdirSync(join(checkout, ".claude/handoffs"), { recursive: true })
-  writeFileSync(join(checkout, ".claude/handoffs/NEXT.md"), prompt)
-  if (priorChain) {
-    appendChainEntry({ sessionId: "owner-ancestor" }, checkout)
-    confirmChainSuccessor("owner-ancestor", "owner-predecessor", "term_owner", 1, checkout)
-    closeSessionChain("owner-predecessor", checkout)
-  }
-  writeRunState({ sessionId: "owner-predecessor", sleep: false, autoWork: true,
-    intake: { gmail: { pending: { message: { sendAttempted: true } } } } }, checkout)
-  recordHandoffRequest("owner-predecessor", { command: "handoff", sleep: true, origin: "owner" }, "2026-01-01T00:00:00Z", checkout)
-  T(`owner fence adapter ${priorChain}: prepares`, prepareOwnerHandoffRun("owner-predecessor", checkout), true)
-  T(`owner fence adapter ${priorChain}: adopts`, adoptOwnerHandoffRun("owner-successor", prompt, checkout), true)
-  const invoke = (sessionId, event) => JSON.parse(spawnSync(process.execPath, [join(hooks, "forbid-superseded-session.mjs")], {
-    input: JSON.stringify({ session_id: sessionId, hook_event_name: event, tool_name: "Bash", tool_input: { command: "true" } }), encoding: "utf8",
-  }).stdout || "{}")
-  for (const ordinaryWrite of [false, true]) {
-    if (ordinaryWrite) writeRunState({ sessionId: "owner-successor", sleep: true }, checkout)
-    T(`owner fence adapter ${priorChain}/${ordinaryWrite}: predecessor tool is denied`, invoke("owner-predecessor", "PreToolUse").hookSpecificOutput?.permissionDecision, "deny")
-    T(`owner fence adapter ${priorChain}/${ordinaryWrite}: predecessor prompt is blocked`, invoke("owner-predecessor", "UserPromptSubmit").decision, "block")
-    T(`owner fence adapter ${priorChain}/${ordinaryWrite}: successor remains usable`, invoke("owner-successor", "PreToolUse"), {})
-  }
-}
 writeFileSync(runStatePath(wakeCheckout), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
 const wakeFile = join(wakeSourceDirectory(wakeCheckout), `${process.pid}.json`)
 const isolatedWakeStop = ({ preload = null, env = {} } = {}) => spawnSync(
@@ -4162,21 +3742,21 @@ for (const hit of markerHits) T(`conflict markers: ${hit}`, false)
 T("conflict markers: no unresolved merge markers are committed", markerHits.length === 0, true)
 
 // Handoff prompt gate: the owner's requested mode decides what NEXT.md must look like.
-T("handoff request: typed /wrap-up --sleep asks for sleep", parseHandoffRequest("/wrap-up --sleep"), { command: "wrap-up", sleep: true, crank: false })
-T("handoff request: typed /handoff alone is attended", parseHandoffRequest("/handoff"), { command: "handoff", sleep: false, crank: false })
-T("handoff request: expanded command tags are read", parseHandoffRequest("<command-message>wrap-up</command-message>\n<command-name>/wrap-up</command-name>\n<command-args>--sleep</command-args>"), { command: "wrap-up", sleep: true, crank: false })
+T("handoff request: typed /wrap-up --sleep asks for sleep", parseHandoffRequest("/wrap-up --sleep"), { command: "wrap-up", sleep: true })
+T("handoff request: typed /handoff alone is attended", parseHandoffRequest("/handoff"), { command: "handoff", sleep: false })
+T("handoff request: expanded command tags are read", parseHandoffRequest("<command-message>wrap-up</command-message>\n<command-name>/wrap-up</command-name>\n<command-args>--sleep</command-args>"), { command: "wrap-up", sleep: true })
 T("handoff request: another command is not a handoff", parseHandoffRequest("/progress --full"), null)
 T("handoff request: a plain reply is not a handoff", parseHandoffRequest("proceed"), null)
 for (const [label, prompt, expected] of [
   ["a leading word is a mention", "RUN /wrap-up --sleep", null],
   ["a polite prefix is a mention", "please /handoff", null],
-  ["a command on the second line is read", "Finish this task.\n/wrap-up --sleep", { command: "wrap-up", sleep: true, crank: false }],
+  ["a command on the second line is read", "Finish this task.\n/wrap-up --sleep", { command: "wrap-up", sleep: true }],
   ["an inline code mention is ignored", "Read `/handoff --relay --sleep` in NEXT.md.", null],
   ["a fenced code mention is ignored", "Example:\n```text\n/wrap-up --sleep\n```", null],
   ["a pasted content mention is ignored", '<pasted_content source="NEXT.md">\n/handoff --relay --sleep\n</pasted_content>', null],
   ["a skill path is ignored", ".claude/skills/handoff/SKILL.md", null],
-  ["the first command keeps its own arguments", "/handoff then /wrap-up --sleep", { command: "handoff", sleep: false, crank: false }],
-  ["the first sleep command wins", "/wrap-up --sleep then /handoff", { command: "wrap-up", sleep: true, crank: false }],
+  ["the first command keeps its own arguments", "/handoff then /wrap-up --sleep", { command: "handoff", sleep: false }],
+  ["the first sleep command wins", "/wrap-up --sleep then /handoff", { command: "wrap-up", sleep: true }],
 ]) T(`handoff request: ${label}`, parseHandoffRequest(prompt), expected)
 
 const goodSleepPrompt = [
@@ -4186,20 +3766,6 @@ const goodSleepPrompt = [
   "## Carried", "", "Every identifier in this prompt came from a previous session: treat each as a lead to verify.",
 ].join("\n")
 const attendedPrompt = goodSleepPrompt.replace("/sleep\n\n", "").replace("## Sleep\n\nUnattended.\n\n", "")
-const goodCrankPrompt = `${goodSleepPrompt}\n## Crank\nInvoke /crank immediately after /sleep entry.\n`
-for (const source of [{ request: { crank: true } }, { request: { sleep: true }, state: { crank: true } }, { state: { crank: true } }]) {
-  const commit = (text) => checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", ...source, promptsForCommit: () => [text] })
-  T("handoff crank: commit refuses a sleep prompt without crank instructions", blocks(commit(goodSleepPrompt)), true)
-  T("handoff crank: commit accepts the complete crank prompt", commit(goodCrankPrompt), null)
-  T("handoff crank: commit requires sleep even when a section is present", blocks(commit(goodCrankPrompt.replace("/sleep\n", "# Next\n"))), true)
-  if (source.request) {
-    const stop = (text) => checkHandoffStop({ ...source, request: { ...source.request, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: text, headPromptCommittedAt: "2026-01-01T10:05:00Z" })
-    T("handoff crank: stop refuses missing crank instructions", blocks(stop(goodSleepPrompt)), true)
-    T("handoff crank: stop accepts crank instructions", stop(goodCrankPrompt), null)
-  }
-}
-T("handoff crank: disabled state accepts the default sleep prompt", checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true }, state: { crank: false }, promptsForCommit: () => [goodSleepPrompt] }), null)
-
 T("handoff prompt: a complete sleep prompt passes", validateHandoffPrompt(goodSleepPrompt, { sleep: true }), [])
 T("handoff prompt: a sleep prompt must start with /sleep", validateHandoffPrompt(goodSleepPrompt.replace("/sleep\n", "# NEXT\n"), { sleep: true }).some((item) => item.includes("/sleep")), true)
 T("handoff prompt: a sleep prompt needs its own Sleep section", validateHandoffPrompt(goodSleepPrompt.replace("## Sleep", "## Unattended"), { sleep: true }).some((item) => item.includes("## Sleep")), true)
@@ -4210,202 +3776,14 @@ T("handoff prompt: an unrecorded mode checks only the shared rules", validateHan
 T("handoff prompt: a blank line before /sleep fails the literal first line", validateHandoffPrompt(`\n${goodSleepPrompt}`, { sleep: true }).some((item) => item.includes("/sleep")), true)
 T("handoff prompt: an indented /sleep fails the literal first line", validateHandoffPrompt(goodSleepPrompt.replace("/sleep\n", "  /sleep\n"), { sleep: true }).some((item) => item.includes("/sleep")), true)
 
-const handoffCommit = (command, request, text) => checkHandoffCommit({ command, cwd: "/repo", request, promptsForCommit: () => (text === null ? [] : [text]) })
-T("handoff commit: a sleep request refuses a prompt without /sleep", blocks(handoffCommit("git commit -m docs -- .claude/handoffs/NEXT.md", { sleep: true }, goodSleepPrompt.replace("/sleep\n", "# NEXT\n"))), true)
-T("handoff commit: a sleep request accepts a complete prompt", handoffCommit("git commit -m docs -- .claude/handoffs/NEXT.md", { sleep: true }, goodSleepPrompt), null)
-T("handoff commit: a commit that leaves NEXT.md alone passes", handoffCommit("git commit -m fix -- src/a.ts", { sleep: true }, null), null)
-T("handoff commit: a command that commits nothing passes", handoffCommit("git status --short", { sleep: true }, "anything"), null)
-T("handoff commit: a failing working copy blocks even when the staged prompt passes", blocks(checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true }, promptsForCommit: () => [goodSleepPrompt, attendedPrompt] })), true)
-T("handoff commit: -C names the directory the commit runs in", gitCommitChains("git -C /other/repo commit -m x", { cwd: "/repo" }),
-  { chains: [{ chain: ["/repo", "/other/repo"], subcommand: "commit" }], notModelled: "" })
-const commitChains = (command, options) => gitCommitChains(command, { cwd: "/work/a", home: "/fixture-home", ...options }).chains.map(({ chain }) => chain)
-for (const [name, command, want] of [
-  ["a `cd` before the commit moves the directory", "cd /work/b; git commit -m x", [["/work/b"]]],
-  ["a relative `cd` reads `..` by text", "cd ../b && git commit -m x", [["/work/b"]]],
-  ["a `-C` variable that the line sets gives its value", 'wt=/work/b; git -C "$wt" commit -m x', [["/work/a", "/work/b"]]],
-  ["a `-C ~/...` word gives the home directory", "git -C ~/repo commit -m x", [["/work/a", "/fixture-home/repo"]]],
-  ["a relative `-C` word stays for git to read", "git -C l/.. commit -m x", [["/work/a", "l/.."]]],
-  ["an echo of a commit text gives no chain", 'echo "git -C /nowhere commit"', []],
-  ["a gh body that names a commit gives no chain", 'gh pr comment 1 -b "git -C /nowhere then commit"', []],
-  ["an echo with `..` gives no chain", 'echo "git -C .. push, then commit"', []],
-  ["a commit after a wrapper gives its chain", "env A=1 nice -n 5 git -C /work/c commit -m x", [["/work/a", "/work/c"]]],
-  ["each commit of a line gives its own chain", "cd /work/b; git commit -m x; cd /work/c; git commit -m y", [["/work/b"], ["/work/c"]]],
-  ["a commit that runs twice in one directory gives one chain", "git commit -m x || git commit -m y", [["/work/a"]]],
-  ["a git command that is not a commit gives no chain", "git -C /work/b status && git log --grep commit", []],
-  // Each git subcommand that can record the index in a commit is judged as `git commit` is.
-  ["`git merge --continue` gives its chain", "git merge --continue", [["/work/a"]]],
-  ["`git merge` of a branch gives its chain", "git merge --no-edit origin/main", [["/work/a"]]],
-  ["`git cherry-pick --continue` gives its chain", "cd /work/b; git cherry-pick --continue", [["/work/b"]]],
-  ["`git revert --continue` gives its chain", "git -C /work/c revert --continue", [["/work/a", "/work/c"]]],
-  ["`git rebase --continue` gives its chain", 'wt=/work/b; git -C "$wt" rebase --continue', [["/work/a", "/work/b"]]],
-  ["`git am --continue` gives its chain", "git am --continue", [["/work/a"]]],
-  ["`git pull` gives its chain", "git pull origin main", [["/work/a"]]],
-  ["each recording subcommand of a line gives its own chain", "git -C /work/b merge --continue; git -C /work/c commit -m x", [["/work/a", "/work/b"], ["/work/a", "/work/c"]]],
-  ["a git command that records nothing gives no chain", "git stash list; git status; git log --merges", []],
-  // `git stash` records the index in a stash commit, and an allowed `git merge --ff-only refs/stash` puts that commit on the branch.
-  ["`git stash` gives its chain", "git stash", [["/work/a"]]],
-  ["`git stash push` gives its chain", "cd /work/b; git stash push -m x", [["/work/b"]]],
-  ["`git stash save` gives its chain", "git -C /work/c stash save x", [["/work/a", "/work/c"]]],
-  ["`git stash create` gives its chain", "git stash create", [["/work/a"]]],
-  ["`git stash` with an option first gives its chain", "git stash -m x", [["/work/a"]]],
-  ["`git stash` with a pathspec gives its chain", "git stash -- .claude/handoffs", [["/work/a"]]],
-  ["a `git stash` form that records nothing gives no chain", "git stash list; git stash show; git stash pop; git stash apply; git stash drop; git stash clear; git stash branch b; git stash store x", []],
-]) T(`handoff chain: ${name}`, commitChains(command), want)
-T("handoff chain: each chain keeps its subcommand", gitCommitChains("git pull; git -C /work/b merge x; git stash; git commit -m y", { cwd: "/work/a" }).chains,
-  [{ chain: ["/work/a"], subcommand: "pull" }, { chain: ["/work/a", "/work/b"], subcommand: "merge" }, { chain: ["/work/a"], subcommand: "stash" }, { chain: ["/work/a"], subcommand: "commit" }])
-// The checkout refresh merges `origin/main`. It runs only before `git commit`, never before the subcommand that the agent asked for.
-const refreshedChains = []
-T("handoff commit: each recording subcommand is judged, and only a commit refreshes the checkout", checkHandoffCommit({ command: "git pull; git -C /work/b merge x; git stash; git -C /work/c commit -m y",
-  cwd: "/work/a", request: { sleep: true }, promptsForCommit: () => [goodSleepPrompt], refreshCheckout: (chain) => refreshedChains.push(chain) }), null)
-T("handoff commit: the refresh reads only the commit chain", refreshedChains, [["/work/a", "/work/c"]])
-// An attended line outside the subset is read from its text: each git command of the text gives its own chain.
-for (const [name, command, want] of [
-  ["a merge before the commit refreshes the commit chain", 'git merge "$B" && git commit -m y', [["/work/a"]]],
-  ["a `git stash list` before the commit refreshes the commit chain", 'git stash list "$X"; git commit -m y', [["/work/a"]]],
-]) {
-  const refreshed = []
-  T(`handoff commit attended text: ${name}`, [checkHandoffCommit({ command, cwd: "/work/a", unattended: false, promptsForCommit: () => [],
-    refreshCheckout: (chain) => refreshed.push(chain) }), refreshed], [null, want])
-}
-T("handoff chain: an attended `git stash list` outside the subset gives no chain", gitCommitChains('git stash list "$X"', { cwd: "/work/a", unattended: false }), { chains: [], notModelled: "" })
-T("handoff chain: an unattended recording subcommand outside the subset names the construct", gitCommitChains('git -C "$WT" merge --continue', { cwd: "/work/a" }),
-  { chains: [], notModelled: "a variable in a `git` argument" })
-T("handoff chain: an attended recording subcommand outside the subset is read from its text", gitCommitChains('git -C "$WT" rebase --continue', { cwd: "/work/a", unattended: false }),
-  { chains: [{ chain: ["/work/a", "$WT"], subcommand: "rebase" }], notModelled: "" })
-T("handoff chain: an unattended commit outside the subset names the construct", gitCommitChains('git -C "$WT" commit -m x', { cwd: "/work/a" }), { chains: [], notModelled: "a variable in a `git` argument" })
-T("handoff chain: an attended commit outside the subset is read from its text", gitCommitChains('git -C "$WT" commit -m x', { cwd: "/work/a", unattended: false }),
-  { chains: [{ chain: ["/work/a", "$WT"], subcommand: "commit" }], notModelled: "" })
-T("handoff chain: text outside the subset that names no commit gives no chain", gitCommitChains('echo "$(cat <<\'EOF\'\nx\nEOF\n)"', { cwd: "/work/a" }), { chains: [], notModelled: "" })
-T("handoff commit: an unattended commit outside the subset is refused with the rewrite", checkHandoffCommit({ command: 'git -C "$WT" commit -m x', cwd: "/repo", request: { sleep: true },
-  promptsForCommit: () => [goodSleepPrompt] })?.message.includes(PLAIN_SUBSET_ADVICE), true)
-const judgedChains = []
-T("handoff commit: each commit of the line is judged in its own directory", checkHandoffCommit({ command: "cd /work/b; git commit -m x; git -C /work/c commit -m y", cwd: "/work/a", request: { sleep: true },
-  promptsForCommit: (chain) => { judgedChains.push(chain); return [goodSleepPrompt] } }), null)
-T("handoff commit: the judged chains follow the `cd` model", judgedChains, [["/work/b"], ["/work/b", "/work/c"]])
-
-T("handoff stop: a failing prompt committed after the request refuses the stop", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" })), true)
-T("handoff stop: a prompt committed before the request is not judged", checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T09:00:00Z" }), null)
-T("handoff stop: no recorded request allows the stop", checkHandoffStop({ request: null, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" }), null)
-
-const handoffSpecPath = ".claude/specs/orbit-prod-release.md"
-const specCommit = (versions, prompt = goodSleepPrompt) => checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true },
-  promptsForCommit: () => [prompt], specsForCommit: (chain, path) => (chain.join("|") === "/repo" && path === handoffSpecPath ? versions : []) })
-T("handoff size: a commit of a 41984 B spec is refused with its name and size", /`\.claude\/specs\/orbit-prod-release\.md` within 40960 B \(it is 41984 B\)/.test(specCommit(["x".repeat(41984)])?.message ?? ""), true)
-T("handoff size: a commit of a 40960 B spec passes", specCommit(["x".repeat(40960)]), null)
-T("handoff size: an oversized working copy blocks even when the staged spec fits", blocks(specCommit(["small", "x".repeat(40961)])), true)
-T("handoff size: a commit of an 8300 B prompt is refused", /`\.claude\/handoffs\/NEXT\.md` within 8192 B \(it is 8300 B\)/.test(specCommit([], `${goodSleepPrompt}\n${"x".repeat(8299 - goodSleepPrompt.length)}`)?.message ?? ""), true)
-T("handoff size: a commit of an 8192 B prompt passes", specCommit([], `${goodSleepPrompt}\n${"x".repeat(8191 - goodSleepPrompt.length)}`), null)
-T("handoff size: a stop after an oversized committed spec is refused", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: goodSleepPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z", headSpecVersions: () => ["x".repeat(41984)] })), true)
-
-// The shared origin: a base commit, then a main commit that edits shared.txt and .claude/specs/merge.md.
-const operationOrigin = join(root, "operation-commit-origin.git")
-const originSeed = join(root, "operation-commit-seed")
-const inOriginSeed = (...args) => spawnSync("git", ["-C", originSeed, ...args], { encoding: "utf8" })
-const originSetup = [
-  () => spawnSync("git", ["init", "-q", "--bare", operationOrigin], { encoding: "utf8" }),
-  () => spawnSync("git", ["init", "-q", "--initial-branch=main", originSeed], { encoding: "utf8" }),
-  () => inOriginSeed("config", "user.email", "hooks@example.invalid"),
-  () => inOriginSeed("config", "user.name", "Hook Test"),
-  () => inOriginSeed("remote", "add", "origin", operationOrigin),
-  () => { mkdirSync(join(originSeed, ".claude", "specs"), { recursive: true }); writeFileSync(join(originSeed, ".claude", "specs", "merge.md"), "spec\n"); writeFileSync(join(originSeed, "shared.txt"), "base\n"); return inOriginSeed("add", ".claude/specs/merge.md", "shared.txt") },
-  () => inOriginSeed("commit", "-qm", "base"),
-  () => { writeFileSync(join(originSeed, "shared.txt"), "main\n"); writeFileSync(join(originSeed, ".claude", "specs", "merge.md"), "main spec\n"); return inOriginSeed("commit", "-qam", "main change") },
-  () => inOriginSeed("push", "-q", "-u", "origin", "main"),
-]
-T("open operation commit: origin fixture builds", originSetup.map((step) => step().status), originSetup.map(() => 0))
-
-// A conflicted merge of main, cherry-pick, revert or rebase stages a spec edit that the operation carries, and the commit
-// that concludes it authors no handoff docs. The reftable ref backend keeps CHERRY_PICK_HEAD and REVERT_HEAD in its ref
-// store, not as files, so every case runs under both backends. A rebase stop leaves HEAD detached.
-const writeFixture = (checkout, files) => { for (const [path, text] of Object.entries(files)) writeFileSync(join(checkout, path), text) }
-const openOperationCases = [
-  { name: "merge", stagedSpec: ".claude/specs/merge.md", start: ["merge", "--no-edit", "origin/main"], prepare: (inCheckout, checkout) => [
-    () => inCheckout("checkout", "-qb", "feature", "origin/main~1"),
-    () => { writeFixture(checkout, { "shared.txt": "feature\n" }); return inCheckout("commit", "-qam", "feature change") },
-  ] },
-  { name: "cherry-pick", stagedSpec: ".claude/specs/merge.md", start: ["cherry-pick", "release"], prepare: (inCheckout, checkout) => [
-    () => inCheckout("checkout", "-qb", "release", "origin/main"),
-    () => { writeFixture(checkout, { "shared.txt": "release\n", ".claude/specs/merge.md": "release spec\n" }); return inCheckout("commit", "-qam", "release fix") },
-    () => inCheckout("checkout", "-qb", "backport", "origin/main"),
-    () => { writeFixture(checkout, { "shared.txt": "backport\n" }); return inCheckout("commit", "-qam", "backport work") },
-  ] },
-  { name: "revert", stagedSpec: ".claude/specs/merge.md", start: ["revert", "--no-edit", "release~1"], prepare: (inCheckout, checkout) => [
-    () => inCheckout("checkout", "-qb", "release", "origin/main"),
-    () => { writeFixture(checkout, { "shared.txt": "release\n", ".claude/specs/merge.md": "release spec\n" }); return inCheckout("commit", "-qam", "release fix") },
-    () => { writeFixture(checkout, { "shared.txt": "later\n" }); return inCheckout("commit", "-qam", "later work") },
-  ] },
-  { name: "rebase", stagedSpec: ".claude/specs/feature.md", start: ["rebase", "origin/main"], prepare: (inCheckout, checkout) => [
-    () => inCheckout("checkout", "-qb", "feature", "origin/main~1"),
-    () => { writeFixture(checkout, { "shared.txt": "feature\n", ".claude/specs/feature.md": "feature spec\n" }); return inCheckout("add", "shared.txt", ".claude/specs/feature.md") },
-    () => inCheckout("commit", "-qm", "feature work"),
-  ] },
-]
-for (const refFormat of ["files", "reftable"]) {
-  for (const { name, stagedSpec, start, prepare } of openOperationCases) {
-    const label = refFormat === "files" ? `${name} commit` : `${name} commit (reftable)`
-    const checkout = join(root, `${name}-commit-checkout-${refFormat}`)
-    const inCheckout = (...args) => spawnSync("git", ["-C", checkout, ...args], { encoding: "utf8", env: { ...process.env, GIT_EDITOR: "true" } })
-    const setup = [
-      () => spawnSync("git", ["clone", "-q", `--ref-format=${refFormat}`, operationOrigin, checkout], { encoding: "utf8" }),
-      () => inCheckout("config", "user.email", "hooks@example.invalid"),
-      () => inCheckout("config", "user.name", "Hook Test"),
-      ...prepare(inCheckout, checkout),
-    ]
-    T(`${label}: fixture builds`, setup.map((step) => step().status), setup.map(() => 0))
-    T(`${label}: the checkout uses the ${refFormat} ref backend`, inCheckout("rev-parse", "--show-ref-format").stdout.trim(), refFormat)
-    T(`${label}: the ${name} stops on a conflict`, inCheckout(...start).status, 1)
-    writeFixture(checkout, { "shared.txt": "resolved\n" })
-    T(`${label}: the resolution stages`, inCheckout("add", "shared.txt").status, 0)
-    T(`${label}: the index holds the spec edit the ${name} carries`, inCheckout("diff", "--cached", "--name-only", "--", ".claude/specs/").stdout.trim(), stagedSpec)
-    const commitHook = spawnSync(process.execPath, [join(hooksDir, "require-handoff-prompt.mjs")], { cwd: checkout, encoding: "utf8",
-      input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: `${name}-commit-fixture-${refFormat}`, cwd: checkout, tool_input: { command: "git commit --no-edit" } }) })
-    T(`${label}: the commit that concludes the ${name} passes the handoff gate`, { status: commitHook.status, stderr: commitHook.stderr }, { status: 0, stderr: "" })
-    T(`${label}: the ${name} is open before it concludes`, operationInProgress(checkout), true)
-    T(`${label}: the ${name} concludes`, inCheckout(name, "--continue").status, 0)
-    T(`${label}: no operation is open after the ${name} concludes`, operationInProgress(checkout), false)
-  }
-}
-
-const specGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-spec-"))
-const inSpecRepo = (...args) => spawnSync("git", ["-C", specGitRepo, ...args], { encoding: "utf8" })
-inSpecRepo("init", "-q", "-b", "main")
-inSpecRepo("config", "user.email", "hooks@test.invalid")
-inSpecRepo("config", "user.name", "hooks")
-mkdirSync(join(specGitRepo, ".claude", "specs"), { recursive: true })
-mkdirSync(join(specGitRepo, ".claude", "handoffs"), { recursive: true })
-T("handoff git: a spec in neither the index nor the tree has no version", specsForCommit([specGitRepo], handoffSpecPath), [])
-writeFileSync(join(specGitRepo, handoffSpecPath), "staged\n")
-inSpecRepo("add", handoffSpecPath)
-writeFileSync(join(specGitRepo, handoffSpecPath), "working\n")
-T("handoff git: a staged spec and its working copy are both versions", specsForCommit([specGitRepo], handoffSpecPath), ["staged\n", "working\n"])
-writeFileSync(join(specGitRepo, ".claude", "handoffs", "NEXT.md"), goodSleepPrompt)
-inSpecRepo("add", ".claude")
-T("handoff fixture: the spec handoff commits", inSpecRepo("commit", "-q", "-m", "handoff").status, 0)
-T("handoff git: the committed handoff reads its spec at that commit", newestCommittedPrompt(specGitRepo).specVersions(handoffSpecPath), ["working\n"])
-T("handoff git: a spec absent at that commit has no version", newestCommittedPrompt(specGitRepo).specVersions(".claude/specs/absent.md"), [])
-
 const handoffRepo = join(root, "handoff-repo")
 mkdirSync(join(handoffRepo, ".git"), { recursive: true })
 recordHandoffRequest("s-handoff", { command: "wrap-up", sleep: true }, "2026-01-01T10:00:00Z", handoffRepo)
 T("handoff request: a recorded request reads back for its session", readHandoffRequest("s-handoff", handoffRepo), { command: "wrap-up", sleep: true, recordedAt: "2026-01-01T10:00:00Z" })
 T("handoff request: another session sees no request", readHandoffRequest("s-other", handoffRepo), null)
 
-const intentOnlyHook = (prompt) => spawnSync(process.execPath, [join(wakeHooks, "record-handoff-request.mjs")], {
-  input: JSON.stringify({ session_id: "intent-only", prompt }), encoding: "utf8",
-})
-const activeBeforeIntent = readRunState(wakeCheckout)
-rmSync(join(wakeCheckout, ".git", "orbit-orchestrate-run.json"))
-T("wrap-up crank: no-run owner request records successfully", intentOnlyHook("/wrap-up --crank").status, 0)
-T("wrap-up crank: no-run path records successor intent", readHandoffRequest("intent-only", wakeCheckout)?.crank, true)
-T("wrap-up crank: successor intent creates no active run", readRunState(wakeCheckout), null)
-T("wrap-up crank: successor intent creates no wake obligation", checkSleepStop({ state: readRunState(wakeCheckout), sessionId: "intent-only" }), null)
-T("wrap-up crank: successor intent requires crank instructions", blocks(checkHandoffCommit({ command: "git commit -m handoff", cwd: wakeCheckout, request: readHandoffRequest("intent-only", wakeCheckout), promptsForCommit: () => [goodSleepPrompt] })), true)
-T("wrap-up crank: complete successor instructions pass", checkHandoffCommit({ command: "git commit -m handoff", cwd: wakeCheckout, request: readHandoffRequest("intent-only", wakeCheckout), promptsForCommit: () => [goodCrankPrompt] }), null)
-T("standalone crank: routes to its skill rather than recording a handoff", { status: intentOnlyHook("/crank").status, request: parseHandoffRequest("/crank") }, { status: 0, request: null })
-const crankSkill = readFileSync(join(repoRoot, ".claude", "skills", "crank", "SKILL.md"), "utf8")
-T("standalone crank: no-run entry retains the canonical sleep lifecycle", /If enabling with no active[^.]+invoke `?\.claude\/skills\/sleep\/SKILL\.md`? first/s.test(crankSkill), true)
 const wrapUpSkill = readFileSync(join(repoRoot, ".claude", "skills", "wrap-up", "SKILL.md"), "utf8")
-T("wrap-up crank: instructions never enter sleep to establish a run", !/enter `\/sleep` through/.test(wrapUpSkill), true)
+T("wrap-up sleep: instructions never enter sleep to establish a run", !/enter `\/sleep` through/.test(wrapUpSkill), true)
 const handoffSkill = readFileSync(join(repoRoot, ".claude", "skills", "handoff", "SKILL.md"), "utf8")
 const relayPassInvocations = handoffSkill.replace(/\s+/g, " ").split(/(?<=\.) /).filter((sentence) => sentence.includes("invoke `/questions --relay`"))
 T("handoff owner path: only a --relay handoff invokes the relay questions pass", relayPassInvocations.length > 0 && relayPassInvocations.every((sentence) => sentence.startsWith("With `--relay`,")), true)
@@ -4417,182 +3795,6 @@ T("handoff open questions: every listed row enters the spec, only a filter or th
   openQuestionsRule.includes("every row that `node tools/owner-questions.mjs --list` prints goes in the spec's `## Open questions`") &&
   openQuestionsRule.includes("Remove a question from that section only when a filter or the owner settled it.") &&
   openQuestionsRule.includes("Keep the owner-only steps and the settled decisions that the section also holds.") && !openQuestionsRule.includes("holds exactly the rows"), true)
-writeRunState(activeBeforeIntent, wakeCheckout)
-
-const handoffGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-git-"))
-const inHandoffRepo = (...args) => spawnSync("git", ["-C", handoffGitRepo, ...args], { encoding: "utf8" })
-inHandoffRepo("init", "-q", "-b", "integration")
-inHandoffRepo("config", "user.email", "hooks@test.invalid")
-inHandoffRepo("config", "user.name", "hooks")
-mkdirSync(join(handoffGitRepo, ".claude", "handoffs"), { recursive: true })
-const handoffFile = join(handoffGitRepo, ".claude", "handoffs", "NEXT.md")
-writeFileSync(handoffFile, attendedPrompt)
-inHandoffRepo("add", ".")
-inHandoffRepo("commit", "-q", "-m", "handoff")
-const handoffOrigin = join(root, "handoff-origin.git")
-T("handoff fixture: local origin initializes", inHandoffRepo("init", "--bare", handoffOrigin).status, 0)
-T("handoff fixture: local origin is configured", inHandoffRepo("remote", "add", "origin", handoffOrigin).status, 0)
-T("handoff fixture: main is published locally", inHandoffRepo("push", "origin", "HEAD:refs/heads/main").status, 0)
-T("handoff git: an unchanged NEXT.md yields no version to judge", promptsForCommit([handoffGitRepo]), [])
-writeFileSync(handoffFile, "# NEXT\n")
-T("handoff git: an unstaged edit yields the working copy", promptsForCommit([handoffGitRepo]), ["# NEXT\n"])
-const handoffHook = join(hooksDir, "require-handoff-prompt.mjs")
-const handoffHookRun = (command) => spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: handoffGitRepo, tool_input: { command } }), encoding: "utf8" }).status
-T("handoff hook: a directory pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- .claude/handoffs"), 2)
-T("handoff hook: the same commit from Bash and from Monitor is refused", bashAndMonitor("require-handoff-prompt.mjs", "git commit -m x -- .claude/handoffs", { cwd: handoffGitRepo, extra: { hook_event_name: "PreToolUse", session_id: "s-handoff-none" } }), [2, 2])
-T("handoff hook: a glob pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- '.claude/*'"), 2)
-inHandoffRepo("add", ".")
-writeFileSync(handoffFile, attendedPrompt)
-T("handoff git: a staged edit and a different working copy yield both versions", promptsForCommit([handoffGitRepo]), ["# NEXT\n", attendedPrompt])
-T("handoff hook: an index-only commit of a staged invalid prompt is refused", handoffHookRun("git commit -m x"), 2)
-inHandoffRepo("add", ".")
-T("handoff hook: a commit that leaves a valid prompt passes", handoffHookRun("git commit -m x -- .claude/handoffs"), 0)
-inHandoffRepo("checkout", "-q", "-b", "feature", "HEAD~0")
-inHandoffRepo("checkout", "-q", "integration")
-writeFileSync(handoffFile, goodSleepPrompt)
-spawnSync("git", ["-C", handoffGitRepo, "commit", "-q", "-am", "sleep handoff"], { encoding: "utf8", env: { ...process.env, GIT_COMMITTER_DATE: "2030-01-01T00:00:00Z" } })
-inHandoffRepo("checkout", "-q", "feature")
-T("handoff git: the newest committed prompt is read from another branch", newestCommittedPrompt(handoffGitRepo).text, goodSleepPrompt)
-const copiedHandoffHooks = join(handoffGitRepo, ".claude/hooks")
-cpSync(hooksDir, copiedHandoffHooks, { recursive: true })
-cpSync(join(repoRoot, "tools/lib"), join(handoffGitRepo, "tools/lib"), { recursive: true })
-if (process.env.HANDOFF_GIT_FIXTURE) cpSync(process.env.HANDOFF_GIT_FIXTURE, join(copiedHandoffHooks, "_lib/handoff-git.mjs"))
-recordHandoffRequest("show-failure", { sleep: true }, new Date(0).toISOString(), handoffGitRepo)
-const committedBlob = inHandoffRepo("rev-parse", "integration:.claude/handoffs/NEXT.md").stdout.trim()
-T("handoff fixture: committed prompt resolves to a blob", /^[0-9a-f]{40}$/.test(committedBlob), true)
-const objectPath = inHandoffRepo("rev-parse", "--git-path", `objects/${committedBlob.slice(0, 2)}/${committedBlob.slice(2)}`).stdout.trim()
-rmSync(resolve(handoffGitRepo, objectPath))
-T("handoff fixture: git log still reads the committed prompt metadata", inHandoffRepo("log", "-1", "--format=%H%n%cI", "--branches", "--remotes", "HEAD", "--", ".claude/handoffs/NEXT.md").status, 0)
-T("handoff fixture: git show really fails for the missing blob", inHandoffRepo("show", `integration:.claude/handoffs/NEXT.md`).status !== 0, true)
-const failedShowStop = spawnSync(process.execPath, [join(copiedHandoffHooks, "require-handoff-prompt.mjs")], { input: JSON.stringify({ hook_event_name: "Stop", session_id: "show-failure" }), encoding: "utf8" })
-T("handoff hook: failing git show with a live request blocks Stop", failedShowStop.status, 2)
-rmSync(handoffGitRepo, { recursive: true, force: true })
-
-// The handoff gate reads the directory of a commit as the shell and the git rule read it: the `cd` model, a variable, `~`, and no commit in quoted text.
-const chainHome = mkdtempSync(join(tmpdir(), "orbit-handoff-chain-"))
-const chainRepository = (name, stagedPrompt) => {
-  const repository = join(chainHome, name)
-  const inRepository = (...args) => spawnSync("git", ["-C", repository, ...args], { encoding: "utf8" }).status
-  mkdirSync(join(repository, ".claude", "handoffs"), { recursive: true })
-  writeFileSync(join(repository, ".claude", "handoffs", "NEXT.md"), attendedPrompt)
-  const steps = [inRepository("init", "-q", "-b", "main"), inRepository("config", "user.email", "hooks@test.invalid"), inRepository("config", "user.name", "hooks"),
-    inRepository("add", "."), inRepository("commit", "-q", "-m", "handoff")]
-  if (stagedPrompt !== undefined) {
-    writeFileSync(join(repository, ".claude", "handoffs", "NEXT.md"), stagedPrompt)
-    steps.push(inRepository("add", "."))
-  }
-  T(`handoff chain fixture: the ${name} repository builds`, steps, steps.map(() => 0))
-  return repository
-}
-const stagedChainRepository = chainRepository("staged", "# NEXT\n")
-const cleanChainRepository = chainRepository("clean")
-const plainChainDirectory = join(chainHome, "plain")
-mkdirSync(plainChainDirectory)
-T("handoff chain fixture: the staged repository stages an invalid NEXT.md", spawnSync("git", ["-C", stagedChainRepository, "diff", "--cached", "--name-only"], { encoding: "utf8" }).stdout.trim(), ".claude/handoffs/NEXT.md")
-const chainHook = (command, cwd, env = {}) => {
-  const result = spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd, tool_input: { command } }),
-    encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", HOME: chainHome, ...env } })
-  return { status: result.status, refusal: result.stderr.split("\n")[0] }
-}
-const handoffMismatch = "BLOCKED: .claude/handoffs/NEXT.md does not match the unrecorded handoff the owner asked for."
-const handoffChainRows = [
-  ["a `cd` to the checkout with a staged invalid NEXT.md is refused", `cd ${stagedChainRepository}; git commit -m x`, cleanChainRepository, {}, { status: 2, refusal: handoffMismatch }],
-  ["control: the same commit from the clean checkout passes", "git commit -m x", cleanChainRepository, {}, { status: 0, refusal: "" }],
-  ["control: the same commit in the staged checkout is refused", "git commit -m x", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
-  ["a `-C` variable that the line sets passes", `wt=${cleanChainRepository}; git -C "$wt" commit -m x --dry-run`, plainChainDirectory, {}, { status: 0, refusal: "" }],
-  ["a `-C` variable that names the staged checkout is refused", `wt=${stagedChainRepository}; git -C "$wt" commit -m x`, plainChainDirectory, {}, { status: 2, refusal: handoffMismatch }],
-  ["a `-C ~/...` path passes", "git -C ~/clean commit -m x --dry-run", plainChainDirectory, {}, { status: 0, refusal: "" }],
-  ["a `-C ~/...` path that names the staged checkout is refused", "git -C ~/staged commit -m x", plainChainDirectory, {}, { status: 2, refusal: handoffMismatch }],
-  ["an echo of a commit text passes", 'echo "git -C /nowhere commit"', plainChainDirectory, {}, { status: 0, refusal: "" }],
-  ["a gh body that names a commit passes", 'gh pr comment 1 -b "git -C /nowhere then commit"', plainChainDirectory, {}, { status: 0, refusal: "" }],
-  ["an echo with `..` outside a repository passes", 'echo "git -C .. push, then commit"', plainChainDirectory, {}, { status: 0, refusal: "" }],
-  ["an unattended commit outside the subset is refused with the rewrite", 'git -C "$WT" commit -m x', cleanChainRepository, { ORBIT_LAUNCH_WORKER: "1" },
-    { status: 2, refusal: "BLOCKED commit (the handoff gate cannot read it):" }],
-  ["an attended commit outside the subset is read from its text", "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
-  ["control: that attended commit in the clean checkout passes", "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", cleanChainRepository, {}, { status: 0, refusal: "" }],
-  ["an unattended text outside the subset that runs no commit passes", 'echo "$(cat <<\'EOF\'\nx\nEOF\n)"', plainChainDirectory, { ORBIT_LAUNCH_WORKER: "1" }, { status: 0, refusal: "" }],
-  // `git merge --continue` and the other recording subcommands record the staged NEXT.md, so the gate judges them as a commit.
-  ["`git merge --continue` with a staged invalid NEXT.md is refused", "git merge --continue", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
-  ["`git merge --continue` with a staged invalid NEXT.md is refused in a worker run", "git merge --continue", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
-  ["`git -C` to the staged checkout with `rebase --continue` is refused", `git -C ${stagedChainRepository} rebase --continue`, cleanChainRepository, {}, { status: 2, refusal: handoffMismatch }],
-  ["control: `git merge --continue` in the clean checkout passes", "git merge --continue", cleanChainRepository, {}, { status: 0, refusal: "" }],
-  // `git stash` records the staged NEXT.md in a stash commit, so the gate judges it as a commit.
-  ["`git stash` with a staged invalid NEXT.md is refused", "git stash", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
-  ["`git stash` with a staged invalid NEXT.md is refused in a worker run", "git stash", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
-  ["`git stash push` with a staged invalid NEXT.md is refused in a worker run", "git stash push -m x", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
-  ["`git stash create` with a staged invalid NEXT.md is refused in a worker run", "git stash create", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
-  ["control: `git stash list` with a staged invalid NEXT.md passes", "git stash list", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 0, refusal: "" }],
-  // `find -execdir` runs git in the directory of the found file, so a worker run refuses it as not modelled.
-  ["an unattended `find -execdir` commit is refused with the rewrite", `find ${stagedChainRepository} -maxdepth 1 -name .claude -execdir git commit -m x \\;`, cleanChainRepository,
-    { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: "BLOCKED commit (the handoff gate cannot read it):" }],
-  ["an unattended `{}` after `find -exec` in a commit is refused with the rewrite", `find ${stagedChainRepository} -maxdepth 0 -exec git -C {} commit -m x \\;`, cleanChainRepository,
-    { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: "BLOCKED commit (the handoff gate cannot read it):" }],
-]
-for (const [name, command, cwd, env, want] of handoffChainRows) T(`handoff chain hook: ${name}`, chainHook(command, cwd, env), want)
-// Attended, the handoff gate reads a command outside the subset from its text. The git rule in the same matcher passes such a commit when its
-// text names no push and no hygiene marker, so the verdict of the handoff gate decides the tool call.
-T("handoff chain hook: the git rule in the same matcher passes the attended heredoc commit that the handoff gate refuses",
-  [runHook("git-guardrails.mjs", bash("git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", stagedChainRepository)), chainHook("git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", stagedChainRepository, {}).status], [0, 2])
-T("handoff chain hook: the git rule in the same matcher passes an attended `find -execdir` commit",
-  runHook("git-guardrails.mjs", bash(`find ${stagedChainRepository} -maxdepth 1 -name .claude -execdir git commit -m x \\;`, cleanChainRepository)), 0)
-T("handoff chain hook: the unattended refusal names the plain subset rewrite",
-  spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: cleanChainRepository, tool_input: { command: 'git -C "$WT" commit -m x' } }),
-    encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "1" } }).stderr.includes(PLAIN_SUBSET_ADVICE), true)
-// The checkout refresh runs only before `git commit`. The fixture: branch `feature/x` with an unstaged spec edit, a branch `other`, and an
-// `origin/main` one commit ahead. Only the hook runs, never the command, so HEAD moves only when the hook itself merges.
-const refreshOrigin = join(chainHome, "refresh-origin.git")
-const refreshSeed = join(chainHome, "refresh-seed")
-const refreshCheckout = join(chainHome, "refresh")
-const inRefresh = (directory, ...args) => spawnSync("git", ["-C", directory, ...args], { encoding: "utf8" })
-const refreshSetup = [
-  () => spawnSync("git", ["init", "-q", "--bare", "-b", "main", refreshOrigin], { encoding: "utf8" }),
-  () => spawnSync("git", ["init", "-q", "-b", "main", refreshSeed], { encoding: "utf8" }),
-  () => inRefresh(refreshSeed, "config", "user.email", "hooks@test.invalid"),
-  () => inRefresh(refreshSeed, "config", "user.name", "hooks"),
-  () => { mkdirSync(join(refreshSeed, ".claude", "specs"), { recursive: true }); writeFileSync(join(refreshSeed, ".claude", "specs", "a.md"), "spec\n"); return inRefresh(refreshSeed, "add", ".") },
-  () => inRefresh(refreshSeed, "commit", "-qm", "base"),
-  () => inRefresh(refreshSeed, "remote", "add", "origin", refreshOrigin),
-  () => inRefresh(refreshSeed, "push", "-q", "origin", "main"),
-  () => spawnSync("git", ["clone", "-q", refreshOrigin, refreshCheckout], { encoding: "utf8" }),
-  () => inRefresh(refreshCheckout, "config", "user.email", "hooks@test.invalid"),
-  () => inRefresh(refreshCheckout, "config", "user.name", "hooks"),
-  () => inRefresh(refreshCheckout, "checkout", "-qb", "other"),
-  () => { writeFileSync(join(refreshCheckout, "other.txt"), "other\n"); return inRefresh(refreshCheckout, "add", "other.txt") },
-  () => inRefresh(refreshCheckout, "commit", "-qm", "other"),
-  () => inRefresh(refreshCheckout, "checkout", "-qb", "feature/x", "main"),
-  () => { writeFileSync(join(refreshSeed, "ahead.txt"), "ahead\n"); return inRefresh(refreshSeed, "add", "ahead.txt") },
-  () => inRefresh(refreshSeed, "commit", "-qm", "main ahead"),
-  () => inRefresh(refreshSeed, "push", "-q", "origin", "main"),
-  () => { writeFileSync(join(refreshCheckout, ".claude", "specs", "a.md"), "edited spec\n"); return inRefresh(refreshCheckout, "status", "--short") },
-]
-T("handoff refresh fixture: the relay checkout builds", refreshSetup.map((step) => step().status), refreshSetup.map(() => 0))
-const refreshHead = () => inRefresh(refreshCheckout, "rev-parse", "HEAD").stdout.trim()
-const refreshStart = { "feature/x": inRefresh(refreshCheckout, "rev-parse", "feature/x").stdout.trim(), main: inRefresh(refreshCheckout, "rev-parse", "main").stdout.trim() }
-/** Each row starts on `branch` at its first commit, behind `origin/main`, with the unstaged spec edit, so a merge by the hook moves HEAD in each row. */
-const refreshRun = (command, env = {}, branch = "feature/x") => {
-  const reset = [inRefresh(refreshCheckout, "checkout", "-qf", branch).status, inRefresh(refreshCheckout, "reset", "-q", "--hard", refreshStart[branch]).status]
-  writeFileSync(join(refreshCheckout, ".claude", "specs", "a.md"), "edited spec\n")
-  const before = refreshHead()
-  const { status, refusal } = chainHook(command, refreshCheckout, env)
-  return { reset, status, refusal, headUnchanged: refreshHead() === before }
-}
-for (const [name, command, env] of [
-  ["an attended `git pull`", "git pull", {}],
-  ["an attended `git pull --ff-only` of the branch", "git pull --ff-only origin feature/x", {}],
-  ["a worker `git merge` of a branch", "git merge --no-edit other", { ORBIT_LAUNCH_WORKER: "1" }],
-  ["an attended `git merge` of a branch", "git merge --no-edit other", {}],
-  ["an attended `git rebase`", "git rebase --onto other other~0 feature/x", {}],
-  ["a worker `git cherry-pick --continue` with no open operation", "git cherry-pick --continue", { ORBIT_LAUNCH_WORKER: "1" }],
-  ["a worker `git stash`", "git stash", { ORBIT_LAUNCH_WORKER: "1" }],
-]) T(`handoff refresh hook: ${name} with an unstaged spec edit passes and leaves HEAD unchanged`, refreshRun(command, env), { reset: [0, 0], status: 0, refusal: "", headUnchanged: true })
-T("handoff refresh hook: an attended `git pull` on `main` with a spec edit passes", refreshRun("git pull", {}, "main"), { reset: [0, 0], status: 0, refusal: "", headUnchanged: true })
-T("handoff refresh hook: a worker `git merge` on `main` with a spec edit passes", refreshRun("git merge --no-edit other", { ORBIT_LAUNCH_WORKER: "1" }, "main"),
-  { reset: [0, 0], status: 0, refusal: "", headUnchanged: true })
-// The control: a `git commit` with the spec edit refreshes the relay branch, so the hook merges `origin/main` before it.
-T("handoff refresh hook: the control `git commit` with an unstaged spec edit merges `origin/main` first", [refreshRun("git commit -m x"),
-  inRefresh(refreshCheckout, "merge-base", "--is-ancestor", "origin/main", "HEAD").status], [{ reset: [0, 0], status: 0, refusal: "", headUnchanged: false }, 0])
-rmSync(chainHome, { recursive: true, force: true })
-
 const timelessHook = join(hooksDir, "forbid-stale-text.mjs")
 T("relative sibling roots resolve from the primary checkout", siblingRoots.includes(join(primaryCommonDirectory, "..", "..", "orbit-api")), true)
 const staleName = ["Tho", "mas"].join("")
@@ -4764,6 +3966,19 @@ rmSync(cleanupAdoption, { force: true })
 rmSync(cleanupRunState, { force: true })
 
 T("monitor parity: each guard on the Bash matcher refuses one command from Bash and from Monitor in a test", BASH_GUARDS.filter((file) => !monitorRefusalGuards.has(file)), [])
+
+// The driver replaced the relay and the handoff gate: no file, settings entry, library row or skill line may name them.
+const removedHandoffFiles = [
+  ".claude/hooks/require-handoff-prompt.mjs", ".claude/hooks/relay-at-threshold.mjs", ".claude/hooks/record-handoff-request.mjs",
+  ".claude/hooks/_lib/rules-handoff.mjs", ".claude/hooks/_lib/handoff-git.mjs",
+]
+const removedHandoffReaders = [".claude/settings.json", ".claude/hooks/_lib/README.md", ".claude/skills/handoff/SKILL.md", "tools/gate-charter.json"]
+const removedHandoffNames = removedHandoffFiles.map((path) => path.split("/").pop())
+for (const path of removedHandoffFiles) T(`removed handoff hooks: ${path} does not exist`, existsSync(join(repoRoot, path)), false)
+for (const path of removedHandoffReaders) {
+  T(`removed handoff hooks: ${path} names none of the removed files`,
+    removedHandoffNames.filter((name) => readFileSync(join(repoRoot, path), "utf8").includes(name)), [])
+}
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

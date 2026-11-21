@@ -109,8 +109,6 @@ export const classifyConversationFirst = async (body) => body.includes("STUB_CLA
   T(`${TOOL}: async classifier deferrals keep their reason`, nonCode?.deferred[0]?.reason === "NOT_CODE_WORK")
   const labeledNonCode = planOf(execute(["ORB-1"], [ticket("ORB-1", { body: "STUB_NOT_CODE_WORK", labels: ["repo:ui", "needs:no-conversation"] })]))
   T(`${TOOL}: a conversation label does not suppress executability`, labeledNonCode?.deferred[0]?.reason === "NOT_CODE_WORK")
-  const classifierSleep = planOf(execute(["ORB-1"], [ticket("ORB-1", { body: "STUB_CLASSIFIER_ERROR" })], ["--sleep"]))
-  T(`${TOOL}: classifier errors defer under sleep`, classifierSleep?.deferred[0]?.reason === "NEEDS_CONVERSATION")
   const classifierAttended = planOf(execute(["ORB-1"], [ticket("ORB-1", { body: "STUB_CLASSIFIER_ERROR" })]))
   T(`${TOOL}: classifier errors warn attended runs`, classifierAttended?.admitted[0]?.warnings?.some((warning) => warning.includes("CONVERSATION FIRST (CLASSIFIER_ERROR)")))
   const liveClassifier = stageWithConfig("plan-queue-classifier-error", TOOL, realOrchestratorConfig())
@@ -119,8 +117,6 @@ export const classifyConversationFirst = async (body) => body.includes("STUB_CLA
   chmodSync(failedCli, 0o755)
   const labeledClassifier = ticket("ORB-1", { body: "## Scope\n\n- Fix labeled code", labels: ["repo:ui", "needs:no-conversation"] })
   const executeFailure = (flags = []) => run(TOOL, ["--tickets", "ORB-1", ...flags], { path: liveClassifier.path, env: { ORBIT_TICKET_STUB: JSON.stringify([labeledClassifier]), ORBIT_CLASSIFIER_CLAUDE_BIN: failedCli } })
-  const labeledClassifierSleep = planOf(executeFailure(["--sleep"]))
-  T(`${TOOL}: off label cannot admit an unreadable ticket under sleep`, labeledClassifierSleep?.deferred[0]?.reason === "NEEDS_CONVERSATION")
   const labeledClassifierAttended = planOf(executeFailure())
   T(`${TOOL}: off label cannot hide an attended classifier warning`, labeledClassifierAttended?.admitted[0]?.warnings?.some((warning) => warning.includes("CONVERSATION FIRST (CLASSIFIER_ERROR)")))
 

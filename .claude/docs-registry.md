@@ -64,14 +64,10 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/rules/core.md` | Always-loaded judgement and D89/D90 operating-contract pointers. |
 | `.claude/calibration.json` | Agent and skill model calibration, effort settings and launch contracts. |
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules; generated architecture maps are read locally and never committed. |
-| `.claude/skills/orchestrate/SKILL.md` | Ticket execution, worker dispatch, verification, review, readiness and session relay procedures. |
+| `.claude/skills/orchestrate/SKILL.md` | Ticket execution by hand, worker dispatch, verification, review and readiness procedures. The delivery driver runs the board. |
 | `.claude/skills/handoff/SKILL.md` | Spec-driven handoff, living work orders, in-flight inventory and session relay procedures. |
-| `.claude/skills/crank/SKILL.md` | Maximum orchestrator scheduling within existing caps and quality gates, with durable relay inheritance and an explicit disable mode. |
-| `.claude/skills/sleep/SKILL.md` | Unattended orchestrator entry, session adoption and owner reporting. |
-| `.claude/skills/auto-work/SKILL.md` | Continuous Sentry, mailbox, store-review, pull request, security alert and board intake on the canonical sleep lifecycle, with durable source marks and registered idle wakeups. |
-| `.claude/skills/auto-work/disposition-and-setup.md` | Cold text of auto-work: how to classify a pending message or review and who may send a reply, and the one-time Gmail grant. Read it on a pending item or a failed grant. |
-| `.claude/skills/sleep/wake-report.md` | Cold text of sleep: the two-part report written when the owner says stop. |
-| `.claude/skills/wrap-up/SKILL.md` | Closes a session in one command: `/progress`, then `/questions`, then `/handoff`, with `--sleep` and `--crank` passed through to the last one. An open chain extends both reporting passes across every relay and the current session before owner handoff closes it. |
+| `.claude/skills/sleep/SKILL.md` | Sets the sleep mode of the delivery driver on or off, and says its state in one line. |
+| `.claude/skills/wrap-up/SKILL.md` | Closes a session in one command: `/progress`, then `/questions`, then `/handoff`, with `--sleep` passed through to the last one. An open chain extends both reporting passes across every relay and the current session before owner handoff closes it. |
 | `.claude/skills/questions/SKILL.md` | Owner decision criteria, the relay mode that filters the owner question queue without asking, and the procedure for unavoidable manual actions. |
 | `.claude/skills/progress/SKILL.md` | Product-level progress reporting from live delivery artifacts: what got merged, what is built but not merged, and with `--remaining` what is still pending on the board. |
 | `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop; D90 suspends human steps 1/3/7/8, keeps 2/4/5/6 and the ui-skills sweep. |

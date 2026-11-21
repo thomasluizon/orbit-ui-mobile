@@ -78,7 +78,6 @@ const coldStartCases = async ({ repo, options, authenticate, readCalls, setRespo
   const reads = {
     listTickets: async () => [{ number: 1092, title: "Fixture ticket", status: "In Review" }, { number: 1093, title: "Next ticket", status: "Todo" }, { number: 1, title: "Finished", status: "Done" }],
     readTicketComments: async (number) => { commentsRead.push(number); return number === 1092 ? [{ body: roundNote, createdAt: "2026-10-01T20:00:00Z", author: "owner" }, { body: review, createdAt: "2026-10-01T20:30:00Z", author: "owner" }] : [] },
-    readIntakeMarks: () => ({ gmail: { pending: { m2: {} }, completed: { m1: {} }, highWater: "m2" }, wake: { seen: { mail: ["m2"], board: ["#1092 x", "#1093 y"] }, sentryListedAt: "2026-10-01T19:00:00Z" } }),
   }
   const cold = await runStatus({ ...options, sessionId: "", authenticate, runner, reads })
   T("run-status: a checkout with no run record rebuilds the run from GitHub", cold.status === "COLD_START", JSON.stringify(cold))
@@ -88,13 +87,11 @@ const coldStartCases = async ({ repo, options, authenticate, readCalls, setRespo
   T("run-status: a cold start carries the latest round note and review of each in-flight ticket", cold.tickets.length === 1 && cold.tickets[0].ticket === "#1092" &&
     cold.tickets[0].latestRoundNote.round === "2" && cold.tickets[0].latestRoundNote.head === head.headRefOid && cold.tickets[0].latestReview.verdict === "clean" && cold.tickets[0].latestReport === null, JSON.stringify(cold.tickets))
   T("run-status: a cold start lists the board queue without finished tickets and plans it", JSON.stringify(cold.queue.map((ticket) => ticket.ticket)) === JSON.stringify(["#1092", "#1093"]) &&
-    cold.nextActions.some((entry) => entry.type === "PLAN_QUEUE" && entry.command === "node tools/plan-queue.mjs --board --sleep"), JSON.stringify(cold.queue))
+    cold.nextActions.some((entry) => entry.type === "PLAN_QUEUE" && entry.command === "node tools/plan-queue.mjs --board"), JSON.stringify(cold.queue))
   const closedSet = /The action set is closed:\n([\s\S]*?)\n\n/.exec(readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8"))?.[1] ?? ""
   const named = new Set(closedSet.match(/`[A-Z_]+`/g)?.map((name) => name.slice(1, -1)))
   T("run-status: the closed action set of the orchestrate skill names each cold start action", cold.nextActions.every((entry) => named.has(entry.type)),
     JSON.stringify(cold.nextActions.map((entry) => entry.type).filter((type) => !named.has(type))))
-  T("run-status: a cold start summarizes the intake marks from the tickets repository", JSON.stringify(cold.intake.gmail) === JSON.stringify({ pending: 1, completed: 1, highWater: "m2" }) &&
-    cold.intake.wake.seen.board === 2 && cold.intake.play.pending === 0, JSON.stringify(cold.intake))
   T("run-status: a cold start writes no run record", !existsSync(join(repo.path, ".git", "orbit-orchestrate-run.json")))
   await newComputerWorktreeCases({ repo, options, authenticate, runner, reads, head })
   const failing = await runStatus({ ...options, sessionId: "", authenticate, runner, reads: { ...reads, listTickets: async () => { throw new Error("board read failed ghp_abcdefghijklmnopqrstuvwx") } } })
@@ -143,17 +140,9 @@ export const cases = async () => {
   const linkedStatus = await snapshot({ repoRoot: linked })
   T("run-status: linked worktrees never read the main checkout's run", linkedStatus.mainCheckout === repo.path && linkedStatus.warning.includes("linked worktree"))
 
-  for (const [label, modes, expected] of [
-    ["plain sleep", {}, "NO_ACTION"],
-    ["auto-work idle wake", { autoWork: true }, "INTAKE"],
-    ["disabled auto-work", { autoWork: false }, "NO_ACTION"],
-    ["auto-work relay drain", { autoWork: true, relay: { pending: true } }, "NO_ACTION"],
-  ]) {
-    writeFileSync(runStatePath(repo.path), JSON.stringify({ sessionId, sleep: true, remaining: [], ...modes }))
-    const idle = await snapshot()
-    T(`run-status: ${label} selects ${expected}`, idle.nextActions.length === 1 && idle.nextActions[0].type === expected, JSON.stringify(idle.nextActions))
-    if (expected === "INTAKE") T("run-status: idle intake invokes the canonical skill", idle.nextActions[0].command === "/auto-work")
-  }
+  writeFileSync(runStatePath(repo.path), JSON.stringify({ sessionId, sleep: true, remaining: [] }))
+  const idle = await snapshot()
+  T("run-status: a plain sleep run with nothing to do selects NO_ACTION", idle.nextActions.length === 1 && idle.nextActions[0].type === "NO_ACTION", JSON.stringify(idle.nextActions))
   rmSync(runStatePath(repo.path))
 
   const number = 1459

@@ -8,8 +8,7 @@ const USAGE = `usage: owner-questions.mjs --list | --record
 
   Lists and filters the owner question queue of the current run.
   Reads session identity from CLAUDE_CODE_SESSION_ID. The run state counts when this session
-  owns it, or when its session is no longer live and no relay nominee or unadopted auto-work
-  handoff holds it. A live session of another run keeps its own queue, attended or not. A
+  owns it, or when its session is no longer live and no relay nominee holds it. A live session of another run keeps its own queue, attended or not. A
   session counts as gone only when this session finds its own Claude session record in
   CLAUDE_CONFIG_DIR/sessions.
   --list      print the candidates as a JSON array on stdout: one row per distinct question

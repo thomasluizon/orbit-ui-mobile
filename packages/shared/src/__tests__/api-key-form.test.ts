@@ -104,8 +104,14 @@ describe('apiKeyFormSchema', () => {
 describe('the expiry day of the date picker', () => {
   const now = Date.UTC(2026, 10, 15, 22, 30)
 
-  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'], now }) })
-  afterEach(() => { vi.useRealTimers() })
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(now)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
 
   it.each([
     ['UTC', '2099-12-31', '2099-12-31T23:59:59'],

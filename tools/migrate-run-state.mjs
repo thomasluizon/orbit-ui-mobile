@@ -10,13 +10,12 @@ import { addComment, createRunRecord, findRunRecord } from "./lib/github-issues.
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { runFiles } from "./lib/run-files.mjs"
 import { ManifestError, MANIFEST_KINDS, migrateRunState } from "./lib/run-migration.mjs"
-import { REPO_ROOT, runStatePath, updateRunState } from "./lib/run-state.mjs"
+import { REPO_ROOT } from "./lib/run-state.mjs"
 
 const USAGE = `usage: migrate-run-state.mjs [--apply] [--manifest <file>]
 
   Moves a run's working state from this computer to GitHub, once. Without --apply it is a dry run: it
-  reads and validates everything, prints the plan as JSON, and writes nothing. The intake marks come from
-  the run record of this checkout (.git/orbit-orchestrate-run.json); a missing record moves no marks.
+  reads and validates everything, prints the plan as JSON, and writes nothing.
 
   --manifest <file>   a JSON array of the live scratchpad items to post, each with its file:
                         {"kind":"round-note","file":"<path>","issue":2152,"round":2,"head":"<40-hex sha>","pullfrogThreads":0}
@@ -28,16 +27,14 @@ const USAGE = `usage: migrate-run-state.mjs [--apply] [--manifest <file>]
                       A round-note item's pullfrogThreads is the count of Pullfrog threads in that round's batch
                       (default 0); launch-worker.mjs --fix-round reads it to record the kind pullfrog or local.
                       Kinds: ${MANIFEST_KINDS.join(", ")}. Every item is validated before the first write
-  --apply             find or create the closed "Orbit run record" issue, merge the intake marks into
-                      run-state/intake.json in the tickets repository (a mark already there wins), post every
+  --apply             find or create the closed "Orbit run record" issue, post every
                       manifest item (a note to its ticket or the run record, a body to its pull request, a
-                      reply through tools/resolve-bot-thread.mjs), then clear the intake marks of the local run
-                      record so nothing carries them again. Each posted item is recorded in
+                      reply through tools/resolve-bot-thread.mjs). Each posted item is recorded in
                       run-state/migration.json as it posts, so a rerun after a failure posts only the items that
                       did not post
   --help, -h          print this usage and exit 0
 
-Prints one JSON object: apply, runRecord, intake, items, and with --apply the items posted.
+Prints one JSON object: apply, runRecord, items, and with --apply the items posted.
 
 exit codes: 0 planned or applied, 1 a GitHub read or write failed, 2 usage error or an invalid manifest item`
 
@@ -59,16 +56,14 @@ for (let index = 0; index < argv.length; index++) {
   else fail(2, `${USAGE}\n\nunknown option or missing value: ${flag}`)
 }
 
-const readJson = (path, label, missing) => {
+const readJson = (path, label) => {
   try {
     return JSON.parse(readFileSync(path, "utf8"))
   } catch (error) {
-    if (error.code === "ENOENT" && missing !== undefined) return missing
     fail(2, `migrate-run-state: cannot read the ${label} ${path}: ${error.message}`)
   }
 }
 
-const runState = readJson(runStatePath(), "run record", null)
 const manifest = options.manifest === null ? [] : readJson(options.manifest, "manifest")
 if (!Array.isArray(manifest)) fail(2, "migrate-run-state: the manifest must be a JSON array")
 
@@ -105,12 +100,8 @@ try {
 }
 let result
 try {
-  result = await migrateRunState({ localIntake: runState?.intake ?? {}, manifest, apply: options.apply, actions, store: runFiles() })
+  result = await migrateRunState({ manifest, apply: options.apply, actions, store: runFiles() })
 } catch (error) {
   fail(error instanceof ManifestError ? 2 : 1, `migrate-run-state: ${redactSecrets(error.message)}`)
-}
-if (options.apply && runState?.intake != null) {
-  // The marks now live on GitHub. A same-session write inherits the old key, so null replaces it instead of a delete.
-  updateRunState((state) => (state ? { ...state, intake: null } : undefined))
 }
 console.log(JSON.stringify(result, null, 2))

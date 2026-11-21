@@ -1,14 +1,13 @@
 /**
- * The one-time move of a run's working state from one computer to GitHub (thomasluizon/orbit-tickets#2152): the intake
- * marks of the local run record go to the intake file, and each live scratchpad note goes to its ticket, its pull
- * request or the run record issue. A dry run reads and validates everything and writes nothing.
+ * The one-time move of a run's working state from one computer to GitHub (thomasluizon/orbit-tickets#2152): each live
+ * scratchpad note goes to its ticket, its pull request or the run record issue. A dry run reads and validates
+ * everything and writes nothing.
  */
 
 import { createHash } from "node:crypto"
 import { readFileSync } from "node:fs"
 
-import { withoutMailContent } from "./auto-work-intake.mjs"
-import { INTAKE_FILE, readRunJson, updateRunJson } from "./run-files.mjs"
+import { readRunJson, updateRunJson } from "./run-files.mjs"
 import { composeRunNote, RUN_RECORD_TITLE } from "./run-notes.mjs"
 
 export const MANIFEST_KINDS = ["round-note", "review", "report", "decision", "body", "reply"]
@@ -17,27 +16,6 @@ const MIGRATION_FILE = "run-state/migration.json"
 /** A manifest item that is invalid: the caller exits 2 for it, and 1 for every other failure (a GitHub read or write). */
 export class ManifestError extends Error {}
 const THREAD = /^PRRT_[A-Za-z0-9_-]+$/
-
-const mergeSource = (remote, local) => {
-  if (remote === undefined) return local
-  if (local === undefined) return remote
-  const completed = { ...local.completed, ...remote.completed }
-  const pending = Object.fromEntries(Object.entries({ ...local.pending, ...remote.pending }).filter(([id]) => !completed[id]))
-  return { ...local, ...remote, completed, pending, highWater: remote.highWater ?? local.highWater ?? null }
-}
-
-/**
- * The intake file after the local marks join it. A mark already on GitHub wins, a completed item never returns to
- * pending, and the waiter's seen keys stay as GitHub has them when it has any. A pending Gmail message joins as its marks
- * only: the intake file never holds mail content.
- */
-export const mergeIntake = (remote, local) => {
-  const merged = { ...remote }
-  for (const [source, marks] of Object.entries(withoutMailContent(local) ?? {})) {
-    merged[source] = source === "wake" ? remote?.wake ?? marks : mergeSource(remote?.[source], marks)
-  }
-  return merged
-}
 
 const positive = (value, label) => {
   if (!Number.isInteger(value) || value <= 0) throw new ManifestError(`${label} must be a positive integer`)
@@ -71,23 +49,18 @@ const itemKey = ({ kind, target, text }) => createHash("sha256").update(`${kind}
 
 /**
  * The whole migration. `actions` carries every GitHub write and the run record lookup, so a test drives the real
- * order of operations: every item is validated first, then the run record is found or created, then the intake
- * marks merge, then each item posts. `apply` false returns the plan and writes nothing. Each posted item is recorded in
+ * order of operations: every item is validated first, then the run record is found or created, then each item posts. `apply` false returns the plan and writes nothing. Each posted item is recorded in
  * `${MIGRATION_FILE}` right after it posts, so a rerun after a failure midway posts only the items that did not post.
  */
-export const migrateRunState = async ({ localIntake, manifest = [], apply = false, actions, store, readText }) => {
+export const migrateRunState = async ({ manifest = [], apply = false, actions, store, readText }) => {
   const items = manifest.map((item) => planItem(item, { readText }))
-  const remote = readRunJson(INTAKE_FILE, store).value ?? {}
-  const merged = mergeIntake(remote, localIntake ?? {})
-  const intakeChanges = JSON.stringify(merged) !== JSON.stringify(remote)
   const record = await actions.findRunRecord(RUN_RECORD_TITLE)
   const done = readRunJson(MIGRATION_FILE, store).value?.posted ?? {}
-  const plan = { apply, runRecord: record ? `#${record.number}` : "create", intake: { sources: Object.keys(localIntake ?? {}), changes: intakeChanges },
+  const plan = { apply, runRecord: record ? `#${record.number}` : "create",
     items: items.map((item) => ({ kind: item.kind, target: item.target, file: item.file, alreadyPosted: itemKey(item) in done })) }
   if (!apply) return plan
   const runRecord = record ?? await actions.createRunRecord(RUN_RECORD_TITLE,
     "Run-wide decisions and the owner questions that no ticket owns, one decision run note per comment (node tools/post-run-note.mjs --kind decision --run-record). This issue stays closed so no open-ticket count includes it.\n")
-  if (intakeChanges) updateRunJson(INTAKE_FILE, (current) => mergeIntake(current ?? {}, localIntake ?? {}), "intake: migrate the local run record marks", store)
   const posted = []
   for (const item of items) {
     const key = itemKey(item)

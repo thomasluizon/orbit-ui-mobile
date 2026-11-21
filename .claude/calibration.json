@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-20",
+  "calibratedAt": "2026-11-21",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -201,20 +201,6 @@
       "calibratedAt": "2026-11-20",
       "verdict": "undeclared, inherits the session: the test audit judges coverage and opens tickets."
     },
-    ".claude/skills/auto-work/SKILL.md": {
-      "model": null,
-      "effort": null,
-      "digest": "80e0c561f50a9454",
-      "calibratedAt": "2026-11-20",
-      "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
-    },
-    ".claude/skills/crank/SKILL.md": {
-      "model": null,
-      "effort": null,
-      "digest": "fa51d4318bd76ad9",
-      "calibratedAt": "2026-11-20",
-      "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
-    },
     ".claude/skills/deep-research/SKILL.md": {
       "model": null,
       "effort": null,
@@ -246,8 +232,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "14d9ae044ab0ec4d",
-      "calibratedAt": "2026-11-20",
+      "digest": "ab4816a953802edd",
+      "calibratedAt": "2026-11-21",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -288,8 +274,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "1e9f774359ef3be8",
-      "calibratedAt": "2026-11-20",
+      "digest": "898cf334a4e8ac61",
+      "calibratedAt": "2026-11-21",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -309,8 +295,8 @@
     ".claude/skills/questions/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "68a0c60525394119",
-      "calibratedAt": "2026-11-20",
+      "digest": "782f919172c084c6",
+      "calibratedAt": "2026-11-21",
       "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision."
     },
     ".claude/skills/release/SKILL.md": {
@@ -330,9 +316,9 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "26ef4a176643945a",
-      "calibratedAt": "2026-11-20",
-      "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
+      "digest": "9bd4bba839444c90",
+      "calibratedAt": "2026-11-21",
+      "verdict": "undeclared, inherits the session: it runs one driver command and says the printed state, so it needs no model or effort routing."
     },
     ".claude/skills/ticket/SKILL.md": {
       "model": null,
@@ -351,8 +337,8 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "800ef238ec4c0a37",
-      "calibratedAt": "2026-11-20",
+      "digest": "fe639a011b7ed0ff",
+      "calibratedAt": "2026-11-21",
       "verdict": "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep."
     }
   }
