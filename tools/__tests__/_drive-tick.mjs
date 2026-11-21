@@ -1232,6 +1232,31 @@ const paceRestartCases = async () => {
   await reapedRestarted.run()
   same("drive: a restart that reaps a worker with a reading before it knows the account still keeps the last build launch, so the gap holds the next build order", [reapedFirst.launched.length, reapedRestarted.launched.length], [1, 0])
 
+  const OTHER_AUTH = { ...AUTH, orgId: "00000000-0000-4000-8000-000000000002" }
+  const OTHER_KEY = accountFrom(OTHER_AUTH).key
+  const ownReading = (scene) => scene.mem.history.readings.map((entry) => entry.utilization)
+  const foreignEvent = `${JSON.stringify({ type: "rate_limit_event", rate_limit_info: { status: "allowed", unifiedWindows: { seven_day: { utilization: 0.05, resetsAt: RESETS_AT } } } })}\n`
+  const savedPace = (scene) => JSON.parse(readFileSync(join(scene.env.stateDir, "pace.json"), "utf8"))
+
+  const switchedMidRun = scenario({ tickets: [ticket(7)], reading: null, auth: OTHER_AUTH })
+  switchedMidRun.mem.account = { key: OTHER_KEY, email: AUTH.email, orgId: OTHER_AUTH.orgId }
+  leftBehind(switchedMidRun, {}, foreignEvent)
+  await switchedMidRun.run()
+  same("drive: a worker of the old account that exits after a login switch adds no reading, no mem reading and no saved reading to the new account", [ownReading(switchedMidRun).includes(0.05), switchedMidRun.mem.reading?.utilization === 0.05, savedPace(switchedMidRun).history.readings.some((entry) => entry.utilization === 0.05), savedPace(switchedMidRun).account], [false, false, false, OTHER_KEY])
+
+  const costFirst = scenario({ tickets: [ticket(7)], reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await costFirst.run()
+  const restartAfterSwitch = scenario({ tickets: [ticket(7)], reading: null, auth: OTHER_AUTH, stateDirectory: costFirst.env.stateDir })
+  leftBehind(restartAfterSwitch, {}, foreignEvent)
+  await restartAfterSwitch.run()
+  same("drive: a restart after a login switch reads the account first, so a leftover worker of the old account adds no reading and no launch stamp to the new account", [ownReading(restartAfterSwitch).includes(0.05), ownReading(restartAfterSwitch).includes(0.9), restartAfterSwitch.mem.history.launches.length, savedPace(restartAfterSwitch).account, savedPace(restartAfterSwitch).history.readings.some((entry) => entry.utilization === 0.05 || entry.utilization === 0.9)], [false, false, 1, OTHER_KEY, false])
+
+  const unreadable = scenario({ tickets: [ticket(7)], reading: null })
+  unreadable.env.authStatus = async () => { throw new Error("no claude") }
+  const unreadablePath = leftBehind(unreadable, {}, foreignEvent)
+  await unreadable.run()
+  same("drive: a start that cannot read the account reaps nothing, so no reading is recorded before the account is known", [existsSync(unreadablePath), ownReading(unreadable), unreadable.mem.reading, existsSync(join(unreadable.env.stateDir, "pace.json"))], [true, [], null, false])
+
   const pausedTicket = ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null })
   const rejected = { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" }
   const pausedFirst = scenario({ tickets: [pausedTicket, ticket(7)], probeReading: rejected })

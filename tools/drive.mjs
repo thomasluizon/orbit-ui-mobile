@@ -302,8 +302,9 @@ const recordReadings = (env, mem, readings) => {
   mem.history.launches = mem.history.launches.filter((at) => now - at <= PACE_SPAN_MS)
 }
 
-/** Makes a reading the newest of the account, keeps it in the pace history and saves the pace. */
+/** Makes a reading the newest of the logged-in account, keeps it in the pace history and saves the pace. A reading of another account is dropped. */
 const setReading = (env, mem, reading) => {
+  if (reading.account !== mem.account?.key) return
   mem.reading = reading
   recordReadings(env, mem, [reading])
   savePace(env, mem)
@@ -343,18 +344,38 @@ const closeIssue = async (env, tickets, issue, text) => {
 }
 
 /**
- * Reads the default Claude login each tick. A change of account drops the readings of the old one, ends a usage-limit
- * pause that the old one hit, and owes a probe before the next build or find order. A logged-out login stops every worker.
- * Returns `{ ok, reason }`: with `ok` false the tick starts no worker.
+ * Reads the default Claude login at the start of each tick, before any reap. A change of account drops the readings of the
+ * old one and owes a probe before the next build or find order; the saved pace loads once the account is known.
+ * Returns the status, or `null` when the login cannot be read.
  */
-const trackAccount = async (env, mem, tickets) => {
+const readAccount = async (env, mem) => {
   let status
   try {
     status = await env.authStatus()
   } catch (error) {
     log(env, "account", "unreadable", error.message)
-    return { ok: false, reason: "the Claude login cannot be read" }
+    return null
   }
+  if (status.loggedIn !== true) return status
+  const account = accountFrom(status)
+  if (mem.account !== null && mem.account.key !== account.key) {
+    log(env, "account", "changed", `orgId ${account.orgId}, ${account.subscriptionType}`)
+    mem.reading = null
+    mem.history = { readings: [], launches: [] }
+    mem.lastProbeAt = null
+    mem.probeOwed = true
+  }
+  mem.account = account
+  loadPace(env, mem)
+  return status
+}
+
+/**
+ * Acts on the login that `readAccount` read: ends a usage-limit pause that another account hit, and stops every worker
+ * while the login is signed out. Returns `{ ok, reason }`: with `ok` false the tick starts no worker.
+ */
+const trackAccount = async (env, mem, tickets, status) => {
+  if (status === null) return { ok: false, reason: "the Claude login cannot be read" }
   const loginIssue = tickets.find((ticket) => ticket.title === LOGIN_TITLE) ?? null
   if (status.loggedIn !== true) {
     log(env, "account", "logged-out", "no worker starts")
@@ -369,18 +390,8 @@ const trackAccount = async (env, mem, tickets) => {
   }
   mem.notified.delete(LOGIN_MESSAGE)
   if (loginIssue !== null && !env.dryRun) await closeIssue(env, tickets, loginIssue, "Claude is logged in again. The driver starts workers again.")
-  const account = accountFrom(status)
-  if (mem.account !== null && mem.account.key !== account.key) {
-    log(env, "account", "changed", `orgId ${account.orgId}, ${account.subscriptionType}`)
-    mem.reading = null
-    mem.history = { readings: [], launches: [] }
-    mem.lastProbeAt = null
-    mem.probeOwed = true
-  }
-  mem.account = account
-  loadPace(env, mem)
   const paused = pauseIssue(tickets)
-  if (paused !== null && pauseAccount(paused) !== null && pauseAccount(paused) !== account.key) {
+  if (paused !== null && pauseAccount(paused) !== null && pauseAccount(paused) !== mem.account.key) {
     log(env, "driver", "resume", "the Claude account changed")
     mem.probeOwed = true
     if (!env.dryRun) await closeIssue(env, tickets, paused, "The Claude account changed, so the pause ends. The driver probes the new account before the next build order.")
@@ -1082,8 +1093,9 @@ const readWorld = async (env, mem) => {
  * read, and it takes one only when a record waits.
  */
 const reapExits = async (env, mem) => {
-  // A dry run writes nothing, so it leaves every record for the driver that runs.
-  if (env.dryRun) return
+  // A dry run writes nothing, so it leaves every record for the driver that runs. Until the account is known, a reading of a worker
+  // belongs to no account, so the records wait for the tick that reads it.
+  if (env.dryRun || mem.account === null) return
   const gone = launchRecords(env).filter(({ stem }) => !workerRuns(env, mem, stem))
   if (gone.length === 0) return
   const { tickets, states } = await readWorld(env, mem)
@@ -1102,6 +1114,7 @@ export const tick = async (env, mem) => {
   await enforceOrphanClocks(env, mem)
   // A worker that runs when the read starts holds the lane for this whole tick, whatever the read shows.
   const busy = mem.running !== null || env.workerLive()
+  const status = await readAccount(env, mem)
   let world
   try {
     await reapExits(env, mem)
@@ -1111,7 +1124,7 @@ export const tick = async (env, mem) => {
     return { retried: true }
   }
   const { tickets, states } = world
-  const account = await trackAccount(env, mem, tickets)
+  const account = await trackAccount(env, mem, tickets, status)
   const orders = []
   for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets, busy))
   await ownerWorkNotices(env, mem, tickets)
