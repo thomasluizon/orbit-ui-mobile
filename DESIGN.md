@@ -2097,7 +2097,7 @@ autocomplete, with one accessible editable field. Provider suggestions remain op
 
 **Landing hero (`orbit-landing-page`).** A 3-second message gate: the headline and CTA are readable within 3 seconds, with no visual treatment between the visitor and the offer. If a treatment competes, reduce the treatment, not the copy.
 
-**Landing structure (`orbit-landing-page`).** The page is one long scroll in Orbit's design with the Orbit AI as the focus, never a description beside a phone mockup. Nothing on it changes without a visitor action, except the hero side cards. They float from page load and tilt toward a fine pointer, and they stop under reduced motion and off screen. The phone does not float, never scrolls on its own, and draws every component at the app's logical size.
+**Landing structure (`orbit-landing-page`).** The page follows the long-scroll reference `lp.pierre.finance/lp/converse` in Orbit's design, with the Orbit AI as the focus, never a description beside a phone mockup. Nothing on it changes without a visitor action, except the hero side cards. They float from page load and tilt toward a fine pointer, and they stop under reduced motion and off screen. The phone does not float, never scrolls on its own, and draws every component at the app's logical size.
 
 **Landing reference galleries.** `saaspo.com` and `saasframe.io` are recorded references for **landing and marketing surfaces only**, and for the shape of a spec rather than its content. **Never cite either for a product surface.** Marketing calm is not product density.
 
