@@ -1219,7 +1219,6 @@ export const tick = async (env, mem) => {
   const { tickets, states } = world
   const account = await trackAccount(env, mem, tickets, status)
   const paused = pauseIssue(tickets)
-  const holdReason = paused ? "the driver is paused" : account.ok ? null : account.reason
   if (account.ok) readRunningReadings(env, mem, running)
   const allowance = readAllowance(env)
   let pace = decidePace(env, mem, running, allowance)
@@ -1237,6 +1236,7 @@ export const tick = async (env, mem) => {
   mem.mergedReadsLeft = MERGED_READS_PER_TICK
   mem.mergedReadThisTick.clear()
   const closed = await closeFinishedTickets(env, mem, tickets, states)
+  const holdReason = paused || pauseIssue(tickets) ? "the driver is paused" : account.ok ? null : account.reason
   const room = holdReason ? 0 : pace.free
   const fixOrders = room === 0 ? [] : orders.filter((order) => !running.branches.has(order.pull.headRef)).sort((left, right) => left.pull.number - right.pull.number).slice(0, room)
   const full = pace.stopped ? "the weekly usage stop holds every worker" : "every free worker slot is taken"

@@ -404,6 +404,9 @@ const usageLimitCases = async () => {
   const pullfrogStop = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [run], routes: [["--log-failed", logLine]] })
   await pullfrogStop.run()
   same("drive: a Pullfrog run that stops at a usage limit pauses the driver", [only(pullfrogStop.calls, "createTicket").length, only(pullfrogStop.calls, "notify").length], [1, 1])
+  const pullfrogStopWithOrder = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [run], routes: [["--log-failed", logLine]] })
+  await pullfrogStopWithOrder.run()
+  same("drive: the tick that finds a Pullfrog usage limit starts no worker and adds no launch comment", [only(pullfrogStopWithOrder.calls, "createTicket").length, pullfrogStopWithOrder.launched.length], [1, 0])
   same("drive: the result text is the last result line of a log", resultText(`{"type":"assistant"}\n${JSON.stringify({ type: "result", result: "area\nfinding" })}\n`), "area\nfinding")
 }
 
