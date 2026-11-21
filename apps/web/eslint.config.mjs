@@ -200,8 +200,7 @@ export default [
       "local/max-button-words": ["error", { controls: maxButtonWordControls }],
       "local/no-text-icon-action": "error",
 
-      // `error` with zero recorded violations. The baseline that once carried them is deleted,
-      // and tools/check-lint-severity.mjs fails if one ever returns.
+      // `error` with zero recorded violations. No suppression baseline exists.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/175
       "local/spacing-scale": "error",
 

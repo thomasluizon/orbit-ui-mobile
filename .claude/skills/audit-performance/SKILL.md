@@ -180,13 +180,6 @@ actually exists, the query is already projected); loops until dry. It returns:
 critic ran and returned empty. Anything else (e.g. `criticErrors ≥ 2` from a rate-limit)
 reports as "coverage UNKNOWN, ${convergenceReason}": a dead verifier is not a clean pass.
 
-**Fallback (no `Workflow` tool):** normalize the same production measurement with
-`tools/lib/performance-measurement.mjs`, run the measured-hotpaths finder first, require its
-complete source/context mapping and apply it with `applyMeasuredQueryContexts`, then run the
-fan-out inline with `audit-readonly` finders (Haiku, 3 concurrent) over the four code slices
-against `checklist.md`, Haiku skeptics per High finding, and a completeness pass. Keep the
-same findings and verdict shape. The fallback keeps the primary path's agent type on
-purpose: an audit reads, so its workers carry no write, edit, or shell tools either way.
 
 ---
 

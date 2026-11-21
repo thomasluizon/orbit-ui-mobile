@@ -25,7 +25,7 @@ ESLint `local/*`, `guards.yml` and Roslyn `ORBIT0001..0005` enforce the mechanic
 5. **Error handling at boundaries only.** Validate user input and external APIs, trust your types inside, never swallow an error.
 6. **Naming.** Descriptive, no abbreviations, never `data`/`info`/`temp`/`obj`/`helper`/`util` as a final name.
 7. **DRY at the right level.** Cross-app code goes to `packages/shared`, cross-component to `apps/<platform>/components/`, never for one caller.
-8. **Never assume an external interface.** Confirm a field, flag, exit code or response shape from a CLI, API or library you did not write against the real response or the installed source, never memory or `--help`. Never write the fixture that agrees with a guess; cannot confirm it, do not read it. Nothing writes inside `node_modules`; `node tools/check-dependency-edits.mjs` proves the tree matches the lockfile.
+8. **Never assume an external interface.** Confirm a field, flag, exit code or response shape from a CLI, API or library you did not write against the real response or the installed source, never memory or `--help`. Never write the fixture that agrees with a guess; cannot confirm it, do not read it. Nothing writes inside `node_modules`.
 9. **Simplest implementation** that fully meets the current requirements.
 10. **Grow the system in layers.** Start from the smallest version that works end to end, and never trade a working product for unfinished complexity.
 11. **Use the dependencies already here**, then an established library, before you write your own.
