@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, allowOverLimit, createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, recordStart, resultText, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, allowOverLimit, createMemory, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, recordStart, resultText, setSleep, tick, ticketComment } from "../drive.mjs"
 import { isUsageLimitMessage, isWorkerProcess, KILL_REASONS, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
@@ -46,7 +46,7 @@ const partComment = (number, total, extra = "") => comment(null, `Part ${number}
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false } = {}) => {
   const calls = []
   const messages = []
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
@@ -90,6 +90,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
   const mem = createMemory()
   mem.reading = reading === null ? null : { account: ACCOUNT.key, ...reading }
   if (allowance !== null) writeFileSync(join(stateDir, "over-limit.json"), `${JSON.stringify(allowance)}\n`)
+  if (sleeping) writeFileSync(join(stateDir, "sleep.json"), `${JSON.stringify({ on: true, since: iso(-60 * MINUTE) })}\n`)
   mem.lastIntakeAt = NOW
   return { env, mem, calls, messages, launched, watched, run: async () => { const result = await tick(env, mem); await Promise.all(mem.running.values()); if (process.env.DEBUG_DRIVE_TICK) console.error(messages.splice(0).join("\n")); return result } }
 }
@@ -1372,9 +1373,69 @@ const paceRestartCases = async () => {
   same("drive: a saved reading older than an hour is not probed again, and its worker gives the next reading", [only(stale.calls, "probe").length, stale.launched.length], [0, 1])
 }
 
+const sleepCases = async () => {
+  const ISSUE_URL = (number) => `https://github.com/${REPOSITORY}/issues/${number}`
+  const heldItems = (scene) => (existsSync(join(scene.env.stateDir, "sleep-items.json")) ? JSON.parse(readFileSync(join(scene.env.stateDir, "sleep-items.json"), "utf8")) : [])
+  const slept = (comments) => comments.length
+  const tickets = [ticket(7), ticket(8, { comments: [launchComment("build", "chore/ticket-8", -7200 * 1000), launchComment("build", "chore/ticket-8", -3600 * 1000)] }), ticket(9)]
+  const scene = scenario({ tickets, sleeping: true, gitRoutes: [["ls-remote", `${HEAD}\trefs/heads/chore/ticket-7\n`]] })
+  keepWrites(scene, tickets)
+  leftBehind(scene, {}, resultLine("Done.\nNEEDS_DECISION: Raise the price?"))
+  await scene.run()
+  same("drive: sleep on: a NEEDS_DECISION and a launch cap get a label and one comment each, and no notification", [only(scene.calls, "notify").length, only(scene.calls, "editLabels").map((entry) => entry.slice(1, 3).join(":")).sort(), slept(needsOwnerComments(scene.calls, 7)), slept(needsOwnerComments(scene.calls, 8))], [0, ["tickets:7", "tickets:8"], 1, 1])
+  same("drive: sleep on: the driver keeps working on every other item", scene.launched.map((entry) => entry.worktree.split("/").at(-1)), ["chore-ticket-9"])
+  same("drive: sleep on: each held item keeps its link for the wake notification", heldItems(scene).map((item) => item.link).sort(), [ISSUE_URL(7), ISSUE_URL(8)])
+  const repeated = [ticket(8, { comments: [launchComment("build", "chore/ticket-8", -7200 * 1000), launchComment("build", "chore/ticket-8", -3600 * 1000)] })]
+  const again = scenario({ tickets: repeated, sleeping: true })
+  keepWrites(again, repeated)
+  await again.run()
+  await again.run()
+  same("drive: sleep on: a later tick holds no second item, posts no second comment and sends no notification", [heldItems(again).length, slept(needsOwnerComments(again.calls, 8)), only(again.calls, "notify").length], [1, 1, 0])
+
+  const lines = []
+  same("drive: --sleep off prints the state it reads back and the count of held items", [setSleep(scene.env, "off", { out: (line) => lines.push(line) }), readSleep(scene.env.stateDir).on, lines], [0, false, ["Sleep is off. The driver sends one notification for 2 held items on its next tick."]])
+  await scene.run()
+  const woken = only(scene.calls, "notify")
+  same("drive: sleep off: one notification lists every item held during the sleep, each with its link", [woken.length, woken[0]?.[1].startsWith("Orbit driver: sleep ended. 2 items need you: "), woken[0]?.[1].includes(ISSUE_URL(7)), woken[0]?.[1].includes(ISSUE_URL(8)), woken[0]?.[1].includes("NEEDS_DECISION: Raise the price?")], [1, true, true, true, true])
+  await scene.run()
+  same("drive: sleep off: the list is empty after the notification, so the next tick sends no second wake notification", [only(scene.calls, "notify").filter((entry) => entry[1].includes("sleep ended")).length, heldItems(scene)], [1, []])
+
+  const stopped = scenario({ tickets: [ticket(7)], sleeping: true, reading: { utilization: 0.92, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await stopped.run()
+  same("drive: sleep on: the 90% stop opens its needs:owner issue, holds its link and sends no notification", [only(stopped.calls, "createTicket").map((entry) => entry[1].labels), only(stopped.calls, "notify").length, heldItems(stopped).map((item) => item.link), stopped.launched.length], [[[OWNER_LABEL]], 0, [ISSUE_URL(99)], 0])
+
+  const signedOut = scenario({ tickets: [ticket(7)], sleeping: true, auth: { ...AUTH, loggedIn: false } })
+  await signedOut.run()
+  same("drive: sleep on: a signed-out login opens its issue and sends no notification", [only(signedOut.calls, "createTicket").length, only(signedOut.calls, "notify").length, heldItems(signedOut).length], [1, 0, 1])
+
+  const ownerWork = scenario({ tickets: [ticket(40, { labels: ["repo:ui", "owner-work"] })], sleeping: true })
+  await ownerWork.run()
+  same("drive: sleep on: an owner-work notice is posted and its notification is held", [commentsOf(ownerWork.calls, 40).length, only(ownerWork.calls, "notify").length, heldItems(ownerWork).map((item) => item.link)], [1, 0, [ISSUE_URL(40)]])
+
+  const awake = scenario({ tickets: [ticket(7)] })
+  await awake.run()
+  same("drive: sleep off with nothing held sends no notification and keeps no list", [only(awake.calls, "notify").length, heldItems(awake)], [0, []])
+
+  const dry = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", OWNER_LABEL] })], sleeping: true, dryRun: true })
+  await dry.run()
+  same("drive: the dry run with sleep on writes no list and prints the sleep state", [heldItems(dry), dry.messages.filter((line) => line.includes(" sleep on ")).length], [[], 1])
+
+  const cli = scenario({})
+  const outputs = []
+  const out = (line) => outputs.push(line)
+  const on = setSleep(cli.env, "on", { out })
+  const since = readSleep(cli.env.stateDir).since
+  cli.env.now = () => NOW + 5 * MINUTE
+  setSleep(cli.env, "on", { out })
+  same("drive: --sleep on writes sleep.json, prints the state, and a second on keeps the first start", [on, readSleep(cli.env.stateDir), since, outputs.length, /^Sleep is on since /.test(outputs[0])], [0, { on: true, since }, iso(0), 2, true])
+  same("drive: --sleep takes on or off and nothing else", [parseArguments(["--sleep", "on"]), parseArguments(["--sleep", "off"]).word, parseArguments(["--sleep"]).error !== undefined, parseArguments(["--sleep", "maybe"]).error !== undefined, parseArguments(["--sleep", "on", "--once"]).error !== undefined], [{ help: false, mode: "sleep", word: "on" }, "off", true, true, true])
+  same("drive: the usage states the sleep flag", /--sleep on\|off/.test(await usageText()), true)
+}
+
 export const driverUnit = async () => {
   await admissionCases()
   await paceCases()
+  await sleepCases()
   await usageLimitCases()
   await workerCases()
   await capCases()

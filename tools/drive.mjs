@@ -23,7 +23,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { partOf, renderOrder } from "./lib/order.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --reviewer-token] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --sleep on | --sleep off | --reviewer-token] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, and merges at the
   owner's bar. It never idles: a free worker slot and an admissible order start a worker on the same tick. The line
@@ -38,6 +38,9 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   --probe     run one probe and print the reading (utilization, resetsAt, age)
   --allow-over-limit  let the driver continue over 90% in the current week, with 1 worker. The owner session runs it
               when the owner says so. A new week ends it.
+  --sleep on|off  sleep mode of the owner. While it is on the driver sends no notification and asks nothing: each item for
+              the owner still gets its needs:owner label and one comment, and the driver keeps working on every other item.
+              --sleep off makes the driver send one notification that lists the items held, each with its link.
   --reviewer-token  read a Claude OAuth token on stdin and set CLAUDE_CODE_OAUTH_TOKEN in the three repositories;
               print each repository's result and never the token
   --help, -h  print this usage and exit 0
@@ -53,6 +56,9 @@ const MAX_WORKERS = 3
 const SLOT_EPSILON = 1e-9
 const RESET_TOLERANCE_SECONDS = 3600
 const ALLOW_FILE = "over-limit.json"
+const SLEEP_FILE = "sleep.json"
+const SLEEP_ITEMS_FILE = "sleep-items.json"
+const SLEEP_WORDS = ["on", "off"]
 const REQUIRED_TOOLS = ["node", "git", "gh", "claude", "security", "osascript", "caffeinate"]
 const REPOSITORY_KEYS = ["ui", "api", "landing"]
 const FIX_KINDS = ["fix", "ci-fix", "merge-forward"]
@@ -237,10 +243,67 @@ export const createMemory = () => ({ running: new Map(), results: new Map(), las
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
+/** The sleep state of the owner: `on` while `sleep.json` says so. The owner session writes the file with `--sleep on` and `--sleep off`. */
+export const readSleep = (stateDir) => {
+  try {
+    const saved = JSON.parse(readFileSync(join(stateDir, SLEEP_FILE), "utf8"))
+    return { on: saved.on === true, since: typeof saved.since === "string" ? saved.since : null }
+  } catch {
+    return { on: false, since: null }
+  }
+}
+
+const readSleepItems = (stateDir) => {
+  try {
+    const saved = JSON.parse(readFileSync(join(stateDir, SLEEP_ITEMS_FILE), "utf8"))
+    return Array.isArray(saved) ? saved : []
+  } catch {
+    return []
+  }
+}
+
+/** Sends one notification, except while sleep is on: then the driver logs it and sends nothing. */
+const say = async (env, message) => {
+  if (readSleep(env.stateDir).on) return log(env, "sleep", "held", message)
+  await env.notify(message)
+}
+
+/** While sleep is on, keeps one `needs:owner` item with its link for the notification that sleep off sends. Awake, it keeps nothing. */
+const holdItem = (env, { link, reason }) => {
+  if (env.dryRun || !readSleep(env.stateDir).on) return
+  const items = readSleepItems(env.stateDir)
+  if (items.some((item) => item.link === link && item.reason === reason)) return
+  writeFileSync(join(env.stateDir, SLEEP_ITEMS_FILE), `${JSON.stringify([...items, { link, reason }])}\n`)
+}
+
+const issueLink = (env, number) => `https://github.com/${env.slugOf("tickets")}/issues/${number}`
+
+/** After `--sleep off`: one notification that lists every item held during the sleep, each with its link, then the list is empty. */
+const reportSleep = async (env) => {
+  const sleep = readSleep(env.stateDir)
+  if (sleep.on) return log(env, "sleep", "on", `since ${sleep.since}: no notification, ${readSleepItems(env.stateDir).length} held`)
+  if (env.dryRun) return
+  const items = readSleepItems(env.stateDir)
+  if (items.length === 0) return
+  log(env, "sleep", "ended", `${items.length} ${items.length === 1 ? "item needs" : "items need"} the owner`)
+  await env.notify(`Orbit driver: sleep ended. ${items.length} ${items.length === 1 ? "item needs" : "items need"} you: ${items.map((item) => `${item.reason.slice(0, 100)} ${item.link}`).join("; ")}`)
+  writeFileSync(join(env.stateDir, SLEEP_ITEMS_FILE), "[]\n")
+}
+
+/** Writes `sleep.json` for `--sleep on` or `--sleep off` and prints the state it reads back. */
+export const setSleep = (env, word, { out }) => {
+  const before = readSleep(env.stateDir)
+  writeFileSync(join(env.stateDir, SLEEP_FILE), `${JSON.stringify({ on: word === "on", since: word === "on" && before.on ? before.since : new Date(env.now()).toISOString() })}\n`)
+  const after = readSleep(env.stateDir)
+  const held = readSleepItems(env.stateDir).length
+  out(after.on ? `Sleep is on since ${after.since}. The driver sends no notification and keeps working.` : `Sleep is off. The driver sends one notification for ${held} held ${held === 1 ? "item" : "items"} on its next tick.`)
+  return after.on === (word === "on") ? 0 : 3
+}
+
 const notifyOnce = async (env, mem, message) => {
   if (mem.notified.has(message)) return
   mem.notified.add(message)
-  if (!env.dryRun) await env.notify(message)
+  if (!env.dryRun) await say(env, message)
 }
 
 /**
@@ -264,7 +327,8 @@ const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reaso
   }
   await env.github.comment(ticket ? "tickets" : repoKey, ticket ? ticket.number : pull.number, marked("needs-owner", reason))
   comments.push({ kind: "needs-owner", body: marked("needs-owner", reason), createdAt: new Date(env.now()).toISOString() })
-  await env.notify(`Orbit driver needs you: ${reason}`)
+  holdItem(env, { link: ticket ? issueLink(env, ticket.number) : `https://github.com/${env.slugOf(repoKey)}/pull/${pull.number}`, reason })
+  await say(env, `Orbit driver needs you: ${reason}`)
 }
 
 const PACE_FILE = "pace.json"
@@ -299,8 +363,9 @@ const pauseIssue = (tickets) => tickets.find((ticket) => ticket.title === PAUSE_
 const pauseDriver = async (env, mem, tickets, { source, message, reset, account = mem.account?.key ?? null }) => {
   log(env, "driver", "pause", `${source}: ${message}`)
   if (env.dryRun || pauseIssue(tickets)) return
-  await env.notify(`Orbit driver paused: ${source} stopped. ${message}`)
+  await say(env, `Orbit driver paused: ${source} stopped. ${message}`)
   const created = await env.github.createTicket({ title: PAUSE_TITLE, body: `${source} stopped.\n\nMessage: ${message}\n\nReset time named by the message: ${reset ?? "none named"}${account === null ? "" : `\n\nAccount: ${account}`}`, labels: [OWNER] })
+  holdItem(env, { link: issueLink(env, created.number), reason: PAUSE_TITLE })
   tickets.push({ number: created.number, title: PAUSE_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: account === null ? "" : `Account: ${account}` })
 }
 
@@ -352,6 +417,7 @@ const trackAccount = async (env, mem, tickets, status) => {
       await notifyOnce(env, mem, LOGIN_MESSAGE)
       if (loginIssue === null) {
         const created = await env.github.createTicket({ title: LOGIN_TITLE, body: "The default Claude login is signed out. Run claude auth login, then the driver starts workers again.", labels: [OWNER] })
+        holdItem(env, { link: issueLink(env, created.number), reason: LOGIN_TITLE })
         tickets.push({ number: created.number, title: LOGIN_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: "" })
       }
     }
@@ -376,7 +442,7 @@ const runProbe = async (env, mem, tickets) => {
   const reading = await env.worker.probe({ invocation: await env.invocation() })
   if (reading === null) {
     log(env, "pace", "probe-failed", "no rate limit event, so the driver runs 1 worker and probes again after 1 hour")
-    if (!env.dryRun) await env.notify("Orbit driver: the probe returned no rate limit event, so the driver runs 1 worker. It probes again in 1 hour.")
+    if (!env.dryRun) await say(env, "Orbit driver: the probe returned no rate limit event, so the driver runs 1 worker. It probes again in 1 hour.")
     return null
   }
   setReading(env, mem, { utilization: reading.utilization, resetsAt: reading.resetsAt, at: takenAt, account: mem.account?.key ?? null })
@@ -975,7 +1041,8 @@ const ownerWorkNotices = async (env, mem, tickets) => {
     log(env, `ticket#${ticket.number}`, "notice", "owner-work with every blocker closed")
     if (env.dryRun) continue
     await env.github.comment("tickets", ticket.number, marked("notice", "Every blocker of this owner-work ticket is closed. It is ready for your session."))
-    await env.notify(`Orbit driver: owner-work ticket ${ticket.number} is ready.`)
+    holdItem(env, { link: issueLink(env, ticket.number), reason: `owner-work ticket ${ticket.number} is ready` })
+    await say(env, `Orbit driver: owner-work ticket ${ticket.number} is ready.`)
   }
 }
 
@@ -1042,8 +1109,9 @@ const syncStop = async (env, tickets, pace) => {
     log(env, "driver", "stop", `weekly usage ${pace.utilization.toFixed(3)} is at 90%`)
     if (env.dryRun || issue !== null) return
     const message = `Weekly usage reached 90% (${pace.utilization.toFixed(3)}, resets ${new Date(pace.resetsAt * 1000).toISOString()}). The driver stopped. Tell the owner session to continue over 90%.`
-    await env.notify(message)
+    await say(env, message)
     const created = await env.github.createTicket({ title: STOP_TITLE, body: message, labels: [OWNER] })
+    holdItem(env, { link: issueLink(env, created.number), reason: STOP_TITLE })
     tickets.push({ number: created.number, title: STOP_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: message })
     return
   }
@@ -1135,6 +1203,7 @@ const reapExits = async (env, mem) => {
 
 export const tick = async (env, mem) => {
   env.lines = []
+  await reportSleep(env)
   await enforceOrphanClocks(env, mem)
   // The workers that run when the read starts keep their slots for this whole tick, whatever the read shows.
   const running = runningWorkers(env, mem)
@@ -1192,8 +1261,11 @@ export const recordStart = async (env, tickets = []) => {
   starts = [...starts, new Date(now).toISOString()].filter((time) => now - Date.parse(time) < 24 * HOUR_MS)
   writeFileSync(path, `${JSON.stringify(starts)}\n`)
   if (starts.filter((time) => now - Date.parse(time) < RESTART_WINDOW_MS).length < 3) return false
-  await env.notify("Orbit driver restarted three times in ten minutes.")
-  if (!tickets.some((ticket) => ticket.title === RESTART_TITLE)) await env.github.createTicket({ title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/orbit-drive.log.", labels: [OWNER] })
+  await say(env, "Orbit driver restarted three times in ten minutes.")
+  if (!tickets.some((ticket) => ticket.title === RESTART_TITLE)) {
+    const created = await env.github.createTicket({ title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/orbit-drive.log.", labels: [OWNER] })
+    holdItem(env, { link: issueLink(env, created.number), reason: RESTART_TITLE })
+  }
   return true
 }
 
@@ -1201,6 +1273,12 @@ const toolOnPath = (name, pathText = process.env.PATH ?? "") => pathText.split(d
 export const missingTools = (pathText) => REQUIRED_TOOLS.filter((name) => !toolOnPath(name, pathText))
 
 export const parseArguments = (argv) => {
+  const sleepAt = argv.indexOf("--sleep")
+  if (sleepAt >= 0) {
+    const rest = argv.filter((argument, index) => index !== sleepAt && index !== sleepAt + 1 && argument !== "--help" && argument !== "-h")
+    if (!SLEEP_WORDS.includes(argv[sleepAt + 1]) || rest.length > 0) return { error: `--sleep takes one word, on or off, and no other argument` }
+    return { help: argv.includes("--help") || argv.includes("-h"), mode: "sleep", word: argv[sleepAt + 1] }
+  }
   const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token"])
   const given = argv.filter((argument) => argument !== "--help" && argument !== "-h")
   const unknown = given.filter((argument) => !modes.has(argument))
@@ -1289,6 +1367,7 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   try { env = realEnvironment({ dryRun: parsed.mode === "dry-run" }) } catch (error) { err(error.message); return 3 }
   const mem = createMemory()
   if (parsed.mode === "allow-over-limit") return allowOverLimit(env, { out, err })
+  if (parsed.mode === "sleep") return setSleep(env, parsed.word, { out })
   if (parsed.mode === "probe") {
     const reading = await env.worker.probe({ invocation: await env.invocation() })
     if (reading === null) { out("The probe returned no rate limit event."); return 0 }
