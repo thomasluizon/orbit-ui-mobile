@@ -176,5 +176,9 @@
       "provenance": "gh pr view <number> --repo thomasluizon/orbit-ui-mobile --json headRefOid --jq .headRefOid (exit 0)",
       "stdoutShape": "40 lowercase hexadecimal characters, then one newline"
     }
+  },
+  "changesRequestedReview": {
+    "provenance": "gh api graphql with reviews(last: 100, author: \"pullfrog[bot]\") { nodes { state submittedAt body author { login } commit { oid } comments(first: 10) { nodes { path line body } } } } on thomasluizon/orbit-ui-mobile pull request 2514, review 6000389345, on 2026-11-20; bodies cut to 160 characters",
+    "node": {"state":"CHANGES_REQUESTED","submittedAt":"2026-11-20T22:45:22Z","body":"Three blocking classes in `tools/drive.mjs`: an order with no ticket crashes the tick and wedges the lane, a red `pullfrog-approval` check becomes a ci-fix orde","author":{"login":"pullfrog"},"commit":{"oid":"cfcbe9d5b7ea08366c48a9d562289358fd46cba2"},"comments":{"nodes":[{"body":"BLOCKING: correctness bug / production failure: an order whose `ticket` is null crashes the tick and wedges the lane.\n\nFailing state: a Dependabot pull request ","path":"tools/drive.mjs","line":null},{"body":"BLOCKING: correctness bug: a red `pullfrog-approval` check becomes a ci-fix order, so the review rules of section 9 never run.\n\nFailing state: Pullfrog posts a ","path":"tools/drive.mjs","line":399},{"body":"BLOCKING: missed requirement (body section 4 and the close test scenario): the close rule never runs for a ticket that has no driver `launch` comment while anot","path":"tools/drive.mjs","line":null}]}}
   }
 }

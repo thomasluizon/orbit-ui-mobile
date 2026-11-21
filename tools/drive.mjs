@@ -61,6 +61,7 @@ const RESTART_TITLE = "Driver restarted three times in ten minutes"
 const LOGIN_TITLE = "Driver stopped: Claude is not logged in"
 const LOGIN_MESSAGE = "Orbit driver: Claude is not logged in, so no worker starts."
 const OWNER = "needs:owner"
+const CHANGES_REQUESTED = "CHANGES_REQUESTED"
 const PLAIN_REQUEST = "@pullfrog review"
 const WHOLE_DIFF_REQUEST = "@pullfrog review whole diff"
 const TAIL_BYTES = 256 * 1024
@@ -223,7 +224,8 @@ const notifyOnce = async (env, mem, message) => {
 const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason }) => {
   const item = pull ? `${repoKey}#${pull.number}` : `ticket#${ticket.number}`
   log(env, item, "needs-owner", reason)
-  if (env.dryRun || (ticket ? ticket.labels.includes(OWNER) : pull.labels.includes(OWNER))) return
+  // Without a ticket, the label and the comment are the only marks that stop a repeat; a failed label write leaves the comment as the mark.
+  if (env.dryRun || (ticket ? ticket.labels.includes(OWNER) : pull.labels.includes(OWNER) || pull.comments.some((entry) => entry.kind === "needs-owner"))) return
   if (ticket) {
     await env.github.editLabels("tickets", ticket.number, { add: [OWNER] })
     ticket.labels.push(OWNER)
@@ -379,8 +381,8 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
     if (answeredWholeDiffRequests(pull) >= 2) return { owner: "Pullfrog answered two whole-diff requests at this head with no whole-diff review" }
     return demand(WHOLE_DIFF_REQUEST, "an approval-head pass is owed")
   }
-  if (latest.state === "REQUEST_CHANGES" && latest.blocking.length > 0) return { fix: latest }
-  const unusable = atHead.filter((review) => review.state === "COMMENTED" || (review.state === "REQUEST_CHANGES" && review.blocking.length === 0))
+  if (latest.state === CHANGES_REQUESTED && latest.blocking.length > 0) return { fix: latest }
+  const unusable = atHead.filter((review) => review.state === "COMMENTED" || (review.state === CHANGES_REQUESTED && review.blocking.length === 0))
   if (unusable.length >= 2) return { owner: "Pullfrog gave a review with no BLOCKING comment twice at the same head" }
   return demand(PLAIN_REQUEST, "the last review at this head names no BLOCKING class")
 }

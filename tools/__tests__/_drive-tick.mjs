@@ -7,7 +7,10 @@ import { accountFrom, createMemory, launchesOf, main, marked, missingTools, path
 import { isUsageLimitMessage, readSnapshot, usageLimitIn } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
-const READS = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8")).driverReads
+const FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
+const READS = FIXTURE.driverReads
+const RECORDED_CHANGES_REQUESTED = FIXTURE.changesRequestedReview.node
+const CHANGES_REQUESTED = RECORDED_CHANGES_REQUESTED.state
 const AUTH = READS.claudeAuthStatus.output
 const ACCOUNT = accountFrom(AUTH)
 const NOW = Date.parse("2026-11-19T12:00:00Z")
@@ -165,7 +168,7 @@ const paceCases = async () => {
   const held = scenario({ tickets: [ticket(7)], reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE } })
   await held.run()
   same("drive: a hold starts no build order and runs no probe", [held.launched.length, only(held.calls, "probe").length], [0, 0])
-  const fixDuringHold = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("REQUEST_CHANGES", HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })] })] }, reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  const fixDuringHold = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })] })] }, reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE } })
   await fixDuringHold.run()
   same("drive: a fix order runs during a hold", fixDuringHold.launched.length, 1)
   const probed = scenario({ tickets: [ticket(7)], reading: { utilization: 0.3, resetsAt: RESETS_AT, at: NOW - 3 * 3600 * 1000 } })
@@ -201,7 +204,7 @@ const usageLimitCases = async () => {
   const stillPaused = scenario({ tickets: [pausedTicket, ticket(7)], probeReading: { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" } })
   await stillPaused.run()
   same("drive: a probe with another status keeps the pause and starts no worker", [only(stillPaused.calls, "closeTicket").length, stillPaused.launched.length], [0, 0])
-  const pausedFix = scenario({ tickets: [pausedTicket, ticket(7)], pulls: { ui: [pull(30, { reviews: [review("REQUEST_CHANGES", HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] })] }, probeReading: { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" } })
+  const pausedFix = scenario({ tickets: [pausedTicket, ticket(7)], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] })] }, probeReading: { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" } })
   await pausedFix.run()
   same("drive: a pause stops every order kind", pausedFix.launched.length, 0)
   const merging = scenario({ tickets: [pausedTicket, ticket(7)], pulls: { ui: [pull(30)] }, probeReading: { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" } })
@@ -253,7 +256,7 @@ const capCases = async () => {
   const third = scenario({ tickets: [ticket(7, { comments: launched("build", 2) })] })
   await third.run()
   same("drive: the third launch of an order is refused with needs:owner", [third.launched.length, only(third.calls, "editLabels").length], [0, 1])
-  const fixReview = review("REQUEST_CHANGES", HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }, { path: "tools/b.mjs", line: 9, body: "BLOCKING: two" }] })
+  const fixReview = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }, { path: "tools/b.mjs", line: 9, body: "BLOCKING: two" }] })
   const capped = scenario({ tickets: [ticket(7, { comments: [...launched("fix", 1, "chore/ticket-7-30"), ...launched("ci-fix", 1, "chore/ticket-7-30")] })], pulls: { ui: [pull(30, { reviews: [fixReview] })] } })
   await capped.run()
   const text = commentsOf(capped.calls, 7).find((entry) => entry.includes("needs-owner")) ?? ""
@@ -263,16 +266,16 @@ const capCases = async () => {
 
 const reviewCases = async () => {
   const blocking = (path, line) => ({ path, line, body: `BLOCKING: class at ${path}` })
-  const three = review("REQUEST_CHANGES", HEAD, -5 * MINUTE, { blocking: [blocking("a.mjs", 1), blocking("b.mjs", 2), blocking("c.mjs", 3)] })
+  const three = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [blocking("a.mjs", 1), blocking("b.mjs", 2), blocking("c.mjs", 3)] })
   const fix = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [three] })] } })
   await fix.run()
-  T("drive: REQUEST_CHANGES with three BLOCKING classes gives one fix order that lists every instance", fix.launched.length === 1 && ["a.mjs:1", "b.mjs:2", "c.mjs:3"].every((text) => fix.launched[0].order.includes(text)))
+  T("drive: CHANGES_REQUESTED with three BLOCKING classes gives one fix order that lists every instance", fix.launched.length === 1 && ["a.mjs:1", "b.mjs:2", "c.mjs:3"].every((text) => fix.launched[0].order.includes(text)))
 
   const commented = (state = "COMMENTED") => review(state, HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })
   const first = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented()], comments: [comment("ticket", "T")] })] } })
   await first.run()
   same("drive: a COMMENTED review with no BLOCKING gets one re-request", commentsOf(first.calls, 30).map((text) => text.split("\n")[1]), [PLAIN])
-  const second = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented(), review("REQUEST_CHANGES", HEAD, -1 * MINUTE)], comments: [comment("ticket", "T")] })] } })
+  const second = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented(), review(CHANGES_REQUESTED, HEAD, -1 * MINUTE)], comments: [comment("ticket", "T")] })] } })
   await second.run()
   same("drive: a second review with no BLOCKING gives needs:owner", [commentsOf(second.calls, 30).length, only(second.calls, "editLabels").length], [0, 2])
 
@@ -369,7 +372,7 @@ const mergeCases = async () => {
   const red = scenario({ tickets: [ticket(7, { labels: ["repo:ui", OWNER_LABEL] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL], checks: [check("Unit Tests", "FAILURE"), approvalCheck()] })] } })
   await red.run()
   same("drive: a needs:owner pull request with a red check gets a ci-fix order and no merge", [red.launched.length, only(red.calls, "merge").length, /ci-fix/.test(orderText(red))], [1, 0, true])
-  const blocked = scenario({ tickets: [ticket(7, { labels: ["repo:ui", OWNER_LABEL] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL], reviews: [review("REQUEST_CHANGES", HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] })] } })
+  const blocked = scenario({ tickets: [ticket(7, { labels: ["repo:ui", OWNER_LABEL] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL], reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] })] } })
   await blocked.run()
   same("drive: a needs:owner pull request with a BLOCKING review gets a fix order and no merge", [blocked.launched.length, only(blocked.calls, "merge").length], [1, 0])
   const met = scenario({ tickets: [ticket(7, { labels: ["repo:ui", OWNER_LABEL] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL] })] } })
@@ -594,7 +597,7 @@ const blockingClassCases = async () => {
   const closedTicket = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { checks: redUnit })] } })
   await closedTicket.run()
   same("drive: a pull request whose tracked ticket is closed gets needs:owner and no fix order", [closedTicket.launched.map((entry) => entry.worktree), only(closedTicket.calls, "editLabels").map((entry) => entry.slice(1, 3))], [["/r/orbit-worktrees/ui/chore-ticket-8"], [["ui", 30]]])
-  const noOrder = scenario({ tickets: [], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", reviews: [review("REQUEST_CHANGES", HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] })] } })
+  const noOrder = scenario({ tickets: [], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] })] } })
   await noOrder.run()
   same("drive: a Dependabot pull request with a BLOCKING review gets needs:owner and no fix order", [noOrder.launched.length, only(noOrder.calls, "editLabels").length], [0, 1])
 
@@ -665,7 +668,7 @@ const laneAndReviewPassCases = async () => {
   await twoAnswers.run()
   same("drive: two whole-diff requests answered with no whole-diff review give needs:owner and no third request", [commentsOf(twoAnswers.calls, 30).filter((text) => text.includes("review")).length, only(twoAnswers.calls, "editLabels").length], [0, 2])
 
-  const repliesBeforeChanges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [reviewReply(-9 * MINUTE), reviewReply(-8 * MINUTE), review("REQUEST_CHANGES", HEAD, -5 * MINUTE)] })] } })
+  const repliesBeforeChanges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [reviewReply(-9 * MINUTE), reviewReply(-8 * MINUTE), review(CHANGES_REQUESTED, HEAD, -5 * MINUTE)] })] } })
   await repliesBeforeChanges.run()
   same("drive: thread replies before a review with no BLOCKING comment do not count as a second unusable review", [commentsOf(repliesBeforeChanges.calls, 30).map((text) => text.split("\n")[1]), only(repliesBeforeChanges.calls, "editLabels").length], [[PLAIN], 0])
 
@@ -677,6 +680,27 @@ const laneAndReviewPassCases = async () => {
   const repliesThenStop = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [reviewReply(-8 * MINUTE), reviewReply(-7 * MINUTE)] })] }, runs: [failedRun], routes: [["--log-failed", "You've hit your limit. Resets 4am (America/Sao_Paulo)"]] })
   await repliesThenStop.run()
   same("drive: a Pullfrog run that replies to two threads and stops at a usage limit pauses the driver", [only(repliesThenStop.calls, "createTicket").length, only(repliesThenStop.calls, "editLabels").length], [1, 0])
+
+  const recordedBlocking = RECORDED_CHANGES_REQUESTED.comments.nodes.filter((entry) => entry.body.startsWith("BLOCKING:")).map((entry) => ({ path: entry.path, line: entry.line, body: entry.body }))
+  const recordedChanges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review(RECORDED_CHANGES_REQUESTED.state, HEAD, -5 * MINUTE, { body: RECORDED_CHANGES_REQUESTED.body, blocking: recordedBlocking })] })] } })
+  await recordedChanges.run()
+  same("drive: a recorded CHANGES_REQUESTED Pullfrog review with BLOCKING comments gives one fix order and no request", [recordedBlocking.length > 0, recordedChanges.launched.length, commentsOf(recordedChanges.calls, 30).length], [true, 1, 0])
+  const unusableChanges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -9 * MINUTE), review(CHANGES_REQUESTED, HEAD, -5 * MINUTE)] })] } })
+  await unusableChanges.run()
+  same("drive: two CHANGES_REQUESTED reviews with no BLOCKING comment at one head give needs:owner and no third request", [commentsOf(unusableChanges.calls, 30).filter((text) => text.includes("review")).length, only(unusableChanges.calls, "editLabels").map((entry) => entry[1])], [0, ["tickets", "ui"]])
+
+  const refusedLabel = (comments) => {
+    const scene = scenario({ tickets: [], pulls: { landing: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", comments, checks: [check("Unit Tests", "FAILURE")] })] } })
+    scene.env.github.editLabels = async (...args) => { scene.calls.push(["editLabels", ...args]); throw new Error("Unknown label(s): needs:owner") }
+    return scene
+  }
+  const unlabelled = refusedLabel([comment("ticket", "T")])
+  await unlabelled.run()
+  same("drive: a pull request with no ticket whose label write fails still gets one needs-owner comment and one notification", [commentsOf(unlabelled.calls, 30).filter((text) => text.includes("needs-owner")).length, only(unlabelled.calls, "notify").length], [1, 1])
+  const marked = refusedLabel([comment("ticket", "T"), comment("needs-owner", "The check failed.")])
+  await marked.run()
+  await marked.run()
+  same("drive: a pull request with no ticket and a needs-owner comment gets no second comment and no second notification", [commentsOf(marked.calls, 30).length, only(marked.calls, "notify").length], [0, 0])
 
   const landed = scenario({ tickets: [ticket(7)], gitRoutes: [["ls-remote", `${HEAD}\trefs/heads/chore/ticket-7\n`], ["log --format=%H", `${NEXT_HEAD}\n`]], routes: [["--head chore/ticket-7", "31\n"]] })
   landed.env.worker.launch = (options) => { writeFileSync(options.logFile, `${JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", content: "fatal: unable to access: The requested URL returned error: 403" }] } })}\n`); return Promise.resolve({ exitCode: 0, sessionId: "s1", utilization: null, result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null } }) }
