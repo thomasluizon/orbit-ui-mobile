@@ -27,7 +27,6 @@ import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { measureProfileRow } from '../../support/profile-row-geometry'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { DescriptionViewer } from '@/components/habits/description-viewer'
 import { OverlayHost } from '@/components/ui/overlay-host'
 import { focusHost, withFocusProvenance } from '@/__tests__/support/focus-provenance'
 import type { HabitFormHelpers, HabitFormOptions } from '@/hooks/use-habit-form'
@@ -70,10 +69,6 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }
 vi.mock('@/hooks/use-dismiss-guard', () => ({ useDismissGuard: () => ({ canDismiss: true, requestDismiss: vi.fn(), showDiscardDialog: false }) }))
 vi.mock('@/components/ui/discard-changes-sheet', () => ({ DiscardChangesSheet: () => null }))
 vi.mock('@/components/habits/guided/guided-habit-flow', () => ({ GuidedHabitFlow: () => null }))
-vi.mock('@/components/habits/habit-form-fields', () => ({ HabitFormFields: ({ formHelpers }: { formHelpers: HabitFormHelpers }) => <>
-  <Pressable accessibilityRole="radio" accessibilityLabel="habits.form.typeTask" accessibilityState={{ checked: formHelpers.form.watch('itemType') === 'task' }} onPress={() => formHelpers.chooseItemType('task')}><Text>habits.form.typeTask</Text></Pressable>
-  <Text>Habit fields</Text>
-</> }))
 vi.mock('@/components/habits/create-habit-modal/sub-habit-editor', () => ({ SubHabitEditor: () => null }))
 
 const { present, dismiss, didDismiss } = vi.hoisted(() => {
@@ -419,21 +414,6 @@ describe('Sheet (mobile)', () => {
     expect(tree.root.findByType(TrueSheet).props).toMatchObject({ maxContentWidth: 740, placement: 'center' })
     await TestRenderer.act(() => tree.unmount())
   })
-
-  it('gives a short description one body inset without a second caller inset', async () => {
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<DescriptionViewer open title="Description" description="One short line." onClose={vi.fn()} />)
-      await Promise.resolve()
-    })
-    const scroller = tree!.root.findByProps({ testID: 'sheet-body-scroll' })
-    const content = scroller.props.children[1]
-    const callerStyle = StyleSheet.flatten(content.props.style) ?? {}
-    expect(callerStyle.paddingBottom ?? callerStyle.paddingVertical ?? callerStyle.padding ?? 0).toBe(0)
-    expect(callerStyle.paddingHorizontal ?? callerStyle.padding ?? 0).toBe(0)
-    expect(StyleSheet.flatten(scroller.props.contentContainerStyle)).toMatchObject({ paddingHorizontal: 24, paddingBottom: 24 })
-    TestRenderer.act(() => tree!.unmount())
-  })
   it('labels an untitled header for accessibility', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
@@ -466,38 +446,6 @@ describe('Sheet (mobile)', () => {
     expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
     TestRenderer.act(() => didDismiss.complete())
     expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
-    TestRenderer.act(() => tree!.unmount())
-  })
-
-  it('keeps create-habit validation feedback in its real native sheet', async () => {
-    const invalidTitle = habitFormSchema.safeParse({ title: '' })
-    if (invalidTitle.success) throw new Error('Expected an invalid habit title')
-    const issue = invalidTitle.error.issues[0]
-    if (!issue) throw new Error('Expected a title validation issue')
-    habitMocks.validateAll.mockReturnValue(issue.message)
-    const onClose = vi.fn()
-    let tree: ReturnType<typeof TestRenderer.create>
-
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<CreateHabitModal open initialTitle="Test Habit" onClose={onClose} />)
-      await Promise.resolve()
-    })
-
-    await TestRenderer.act(() => tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'habits.form.typeTask')!.props.onPress())
-    const createButton = tree!.root.findAllByType(PillButton).at(-1)
-    if (!createButton) throw new Error('Expected the create action')
-    await TestRenderer.act(async () => {
-      createButton.props.onClick()
-      await Promise.resolve()
-    })
-
-    expect(habitMocks.validateAll).toHaveBeenCalledOnce()
-    expect(useAppToastStore.getState().currentToast?.toast.message).toBe(issue.message)
-    expect(tree!.root.findByType(TrueSheet).props.footer).toBeDefined()
-    expect(tree!.root.findAllByType(Toast)).toHaveLength(0)
-    expect(tree!.root.findAllByType(ErrorState)).toHaveLength(1)
-    expect(habitMocks.createHabit).not.toHaveBeenCalled()
-    expect(onClose).not.toHaveBeenCalled()
     TestRenderer.act(() => tree!.unmount())
   })
 

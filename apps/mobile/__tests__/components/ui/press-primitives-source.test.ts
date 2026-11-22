@@ -20,7 +20,6 @@ const PRESS_SCALE_OWNERS = ['components/ui/motion-pressable.tsx', 'components/mo
 const PRESS_SCALE_WRITE = /scale:[^,}\]]*\b0\.9[69]\b|orbitalMotion\.press\.scale|pressedScale|PressedScale/
 
 const LISTED_PRESS_CONTROLS = [
-  'components/ui/status-dot.tsx',
   'components/ui/year-picker.tsx',
   'components/ui/select-check.tsx',
   'components/ui/picker-row.tsx',
@@ -39,14 +38,11 @@ const LISTED_PRESS_CONTROLS = [
   'components/habits/habit-checklist.tsx',
   'components/habits/selection-tray.tsx',
   'components/habit-list/habit-drill.tsx',
-  'components/habits/checklist-templates.tsx',
   'components/habits/habit-form-fields/reminder-section.tsx',
   'components/habits/habit-form-fields/scheduled-reminder-section.tsx',
   'components/habits/create-habit-modal/sub-habit-editor.tsx',
   'components/onboarding/onboarding-create-habit.tsx',
   'components/goals/goal-detail-sections.tsx',
-  'components/goals/edit-goal-modal/edit-goal-deadline-field.tsx',
-  'components/habits/create-goal-from-habit/goal-deadline-field.tsx',
   'components/shell/composer.tsx',
   'components/message-bubble.tsx',
   'components/referral/referral-drawer.tsx',

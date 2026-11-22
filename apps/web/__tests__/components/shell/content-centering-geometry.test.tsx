@@ -10,7 +10,6 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { HabitListEmptyState } from '@/components/habits/habit-list/empty-state'
 import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
-import { HabitCreateActions } from '@/components/habits/habit-create-actions'
 import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
 import { ProfileSettingsFrame } from '@/components/profile/profile-settings-frame'
@@ -96,33 +95,6 @@ describe('page content centring and add control clearance', () => {
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
-
-  it.each([412, 480, 740, 840, 1100, 841, 1101])('centres columns within their usable containers at %ipx', async (width) => {
-    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>
-      <ShellWide items={[]} activeId="hoje" navLabel="Navegação" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}>
-        <HabitCreateFrame presentation="screen" open fromConversation={false} leaving={false} actionRefreshKey="test" onNavigate={vi.fn()} onReturn={vi.fn()}
-          actions={<HabitCreateActions presentation="screen" pending={false} empty={false} subHabit={false} online formId="create" onCancel={vi.fn()} />}>
-          <form id="create"><label>Hábito<input /></label></form>
-        </HabitCreateFrame>
-      </ShellWide>
-    </NextIntlClientProvider>)
-    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
-    try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      const columns = await page.evaluate(() => [...document.querySelectorAll('[data-shell-column], [data-habit-create-screen], [data-habit-create-action]')].map(element => {
-        const bounds = element.getBoundingClientRect()
-        const parent = element.parentElement!
-        const available = parent.getBoundingClientRect()
-        const style = getComputedStyle(parent)
-        return { left: bounds.left, right: bounds.right, availableLeft: available.left + parseFloat(style.paddingLeft),
-          availableRight: available.left + parent.clientWidth - parseFloat(style.paddingRight) }
-      }))
-      expect(columns).toHaveLength(3)
-      for (const column of columns) {
-        expect.soft(column.left + column.right, JSON.stringify(column)).toBeCloseTo(column.availableLeft + column.availableRight, 1)
-      }
-    } finally { await page.close() }
-  })
 
   it.each([412, 1352].flatMap(width => [false, true].map(floating => ({ width, floating }))))(
     'aligns the notice with its measurable parent at $width, floating=$floating', async ({ width, floating }) => {
@@ -279,50 +251,6 @@ describe('page content centring and add control clearance', () => {
       } finally { await page.close() }
     },
   )
-
-  it.each(windows)('centres Todos actions and the create form at $width by $height', async (viewport) => {
-    for (const messages of [ptBR, en]) {
-      const { container, unmount } = render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
-        <ShellWide nav={false}>
-          <HabitListEmptyState title={messages.habits.emptyState} description="" actionLabel={messages.habits.createManually} onAction={vi.fn()} askOrbitLabel={messages.habits.askOrbit} onAskOrbit={vi.fn()} />
-          <HabitCreateFrame presentation="screen" open fromConversation={false} leaving={false} actionRefreshKey="test" onNavigate={vi.fn()} onReturn={vi.fn()}
-            actions={<HabitCreateActions presentation="screen" pending={false} empty={false} subHabit={false} online formId="create" onCancel={vi.fn()} />}>
-            <form id="create"><label>Hábito<input /></label></form>
-          </HabitCreateFrame>
-        </ShellWide>
-      </NextIntlClientProvider>)
-      const page = await browser.newPage({ reducedMotion: 'reduce', viewport })
-      try {
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        await loadAppFonts(page)
-        const geometry = await page.evaluate(() => {
-          const box = (element: Element) => { const r = element.getBoundingClientRect(); return { left: r.left, right: r.right } }
-          const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
-          const column = { left: scroller.getBoundingClientRect().left, right: scroller.getBoundingClientRect().left + scroller.clientWidth }
-          const actions = [...document.querySelectorAll('[data-slot="action-row"] button')].map((button) => {
-            const bounds = button.getBoundingClientRect()
-            return { ...box(button), centre: bounds.top + bounds.height / 2 }
-          })
-          const lines = [...new Set(actions.map(({ centre }) => centre))].map((centre) => {
-            const row = actions.filter((action) => action.centre === centre)
-            return { left: Math.min(...row.map((action) => action.left)), right: Math.max(...row.map((action) => action.right)) }
-          })
-          return { column, lines, form: box(document.querySelector('form')!), submit: box(document.querySelector('[data-habit-create-action] button')!) }
-        })
-        const orbitAction = page.getByRole('button', { name: messages.habits.askOrbit, exact: true })
-        expect(await orbitAction.textContent()).toBe(messages.habits.askOrbit)
-        expect(await orbitAction.locator('[data-asset^="orbit-mascot"]').count(), 'Orbit never sits on the filled ask action').toBe(0)
-        const target = await orbitAction.boundingBox()
-        expect(target!.width).toBeGreaterThan(48)
-        expect(target!.x + target!.width).toBeLessThanOrEqual(viewport.width)
-        expect(geometry.lines.length).toBeGreaterThan(0)
-        for (const line of geometry.lines) expectCentred(line, geometry.column)
-        expectCentred(geometry.form, geometry.column)
-        if (viewport.width < 640) expectCentred(geometry.submit, geometry.column)
-        else expect(geometry.submit.left).toBe(geometry.form.left)
-      } finally { await page.close(); unmount() }
-    }
-  })
 
   it.each(windows)('centres calendar navigation, figures and shared content at $width by $height', async (viewport) => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>

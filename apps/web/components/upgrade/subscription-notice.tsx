@@ -8,7 +8,7 @@ import { formatBillingDate } from './styles'
 
 type UpgradeTranslations = ReturnType<typeof useTranslations>
 
-/** The lapsed notice and the payment issue notice. With the guided flows on, Orbit sits above it in Parado: never sad, and never Feliz. */
+/** The lapsed notice and the payment issue notice. Orbit sits above it in Parado: never sad, and never Feliz. */
 export function SubscriptionNotice({ status, locale, onResubscribe, t }: Readonly<{
   status: SubscriptionStatus | null
   locale: string

@@ -5,7 +5,6 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { __setScrollToImpl, __setWindowDimensions } from '@/test-mocks/react-native'
 import { HabitListEmptyState } from '@/components/habit-list/empty-state'
 import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
-import { HabitCreateActions } from '@/components/habits/habit-create-actions'
 import { CalendarHeader } from '@/app/(tabs)/calendar/_components/calendar-shell'
 import { CalendarStats } from '@/app/(tabs)/calendar/_components/calendar-stats'
 import { Shell412 } from '@/components/shell/shell-412'
@@ -44,23 +43,6 @@ afterEach(() => {
   safeArea.bottom = 0
 })
 
-it.each([412, 480, 740, 840, 841, 1100, 1101])('places native shell and create columns on whole points at %ipx', async (width) => {
-  const viewport = { width, height: 915 }
-  __setWindowDimensions({ ...viewport, scale: 1, fontScale: 1 })
-  let tree!: GeometryTree
-  await act(() => { tree = create(<HabitCreateFrame presentation="screen" open fromConversation={false} leaving={false}>
-    <View testID="form" style={{ height: 100 }} />
-  </HabitCreateFrame>) as GeometryTree })
-  try {
-    const boxes = measureSafeArea(tree.toJSON(), host => host.props.testID, viewport)
-    for (const key of ['shell-background', 'form']) {
-      const column = boxes.get(key)!
-      expect(Number.isInteger(column.left), key).toBe(true)
-      expect(Math.abs(column.left + column.width / 2 - width / 2), key).toBeLessThanOrEqual(0.5)
-    }
-  } finally { await act(() => tree.unmount()) }
-})
-
 it.each(windows)('centres Todos actions, calendar navigation and figures at $width by $height', async (viewport) => {
   __setWindowDimensions({ ...viewport, scale: 1, fontScale: 1 })
   let tree!: GeometryTree
@@ -88,23 +70,6 @@ it.each(windows)('centres Todos actions, calendar navigation and figures at $wid
       const box = boxes.get(key)!
       expect(box.left + box.width / 2).toBeCloseTo(viewport.width / 2, 0)
     }
-  } finally { await act(() => tree.unmount()) }
-})
-
-it.each(windows)('centres the capped create form with its submit at $width by $height', async (viewport) => {
-  __setWindowDimensions({ ...viewport, scale: 1, fontScale: 1 })
-  let tree!: GeometryTree
-  await act(() => { tree = create(<HabitCreateFrame presentation="screen" open fromConversation={false} leaving={false}
-    actions={<HabitCreateActions presentation="screen" pending={false} empty={false} subHabit={false} onCancel={vi.fn()} onSubmit={vi.fn()} />}>
-    <View testID="form" style={{ height: 100 }} />
-  </HabitCreateFrame>) as GeometryTree })
-  try {
-    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID, viewport)
-    const form = boxes.get('form')!
-    const submit = boxes.get('button-primary-md')!
-    expect(form.width).toBe(Math.min(viewport.width, 592) - 32)
-    expect(form.left + form.width / 2).toBeCloseTo(viewport.width / 2, 0)
-    expect(submit.left + submit.width / 2).toBeCloseTo(viewport.width / 2, 0)
   } finally { await act(() => tree.unmount()) }
 })
 

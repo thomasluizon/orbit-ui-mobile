@@ -51,7 +51,6 @@ vi.mock('@/hooks/use-tags', () => ({
   useCreateTag: () => ({ mutateAsync: vi.fn(), isPending: false }), useUpdateTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteTag: () => ({ mutateAsync: vi.fn(), isPending: false }), useAssignTags: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
-vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => null, useLinkableGoals: () => ({ data: [], isSuccess: true, isLoading: false, isError: false, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
   useChecklistTemplates: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
@@ -108,13 +107,6 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
 
 describe('the create surface', () => {
-  it('renders the current form with the flag off', async () => {
-    state.flag = false
-    mountCreate()
-    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
-    expect(document.querySelector('[data-question-flow]')).toBeNull()
-    expect(screen.getByRole('button', { name: /habits?\.create|Criar/ })).toBeInTheDocument()
-  })
 
   it('renders the one-question flow in the flow host with the flag on', async () => {
     mountCreate()
@@ -603,13 +595,6 @@ describe('the create surface', () => {
 })
 
 describe('the edit surface', () => {
-  it('renders the current form with the flag off', async () => {
-    state.flag = false
-    mountEdit()
-    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
-    expect(document.querySelector('[data-question-flow]')).toBeNull()
-    expect(screen.getByRole('button', { name: ptBR.common.save })).toBeInTheDocument()
-  })
 
   it('opens on the summary with the stored values and closes an unchanged edit with no discard question', async () => {
     const { closed } = mountEdit()

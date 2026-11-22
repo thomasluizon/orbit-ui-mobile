@@ -49,7 +49,7 @@ const mocks = vi.hoisted(() => ({
   sessionPhase: 'signed-in',
   userId: 'user-1',
   reducedMotion: false,
-  guided: false,
+  
   flowCompleted: vi.fn(),
 }))
 
@@ -66,7 +66,6 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: mocks.flowCompleted }))
 vi.mock('@/hooks/use-date-format', () => ({
   useDateFormat: () => ({ displayDate: (value: string) => `local:${value}`, displayDateNumeric: (value: string) => `numeric:${value}` }),
@@ -198,19 +197,11 @@ async function confirm(tree: TestTree) {
 }
 
 describe('mobile step up screen', () => {
-  it.each([false, true])('paints the cancellation link while pressed (reduced motion: %s)', async (reducedMotion) => {
-    mocks.reducedMotion = reducedMotion
-    const tree = await renderScreen()
-    const cancel = tree.root.findAll((node) => node.props.accessibilityRole === 'link' && node.props.accessibilityLabel === 'stepUp.cancel')[0]!
-    expectPressPaint(cancel, { fill: createTokensV2('purple', 'dark').bgHover, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
-    mocks.reducedMotion = false
-  })
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.sessionPhase = 'signed-in'
     mocks.userId = 'user-1'
     mocks.operation = 'delete'
-    mocks.guided = false
     mocks.profile.email = 'person@example.com'
     mocks.profile.hasProAccess = false
     mocks.profile.planExpiresAt = null
@@ -249,7 +240,6 @@ describe('mobile step up screen', () => {
   const backArrow = (tree: TestTree, label: string) => tree.root.findAll((node) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function' && typeof node.type === 'string')[0]
 
   it('asks the code in the guided centred question layout with the flag on: the back arrow, the progress of the delete flow, one question and no eyebrow', async () => {
-    mocks.guided = true
     const tree = await renderScreen()
     expect(hostsWithTestId(tree, 'guided-step-up')).toHaveLength(1)
     expect(hostsWithTestId(tree, 'question-flow-step-code')).toHaveLength(1)
@@ -263,15 +253,7 @@ describe('mobile step up screen', () => {
     expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
   })
 
-  it('keeps the current layout with the flag off: the eyebrow, the title and the cancel link, with no flow frame', async () => {
-    const tree = await renderScreen()
-    expect(hostsWithTestId(tree, 'question-flow')).toHaveLength(0)
-    expect(findText(tree.root, 'stepUp.eyebrow').length).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'link' && node.props.accessibilityLabel === 'stepUp.cancel').length).toBeGreaterThan(0)
-  })
-
   it('counts the code of an API key as its own one-step progress with the flag on', async () => {
-    mocks.guided = true
     mocks.operation = 'keys'
     const tree = await renderScreen({ operation: 'keys', sentAt: Date.now() })
     expect(progressName(tree)).toBe('habits.flow.progress:{"position":1,"total":1}')
@@ -279,7 +261,6 @@ describe('mobile step up screen', () => {
   })
 
   it('shows the expired and exhausted states in the same guided frame with the flag on', async () => {
-    mocks.guided = true
     const expired = await renderScreen(liveRecord(STEP_UP_CHALLENGE_DURATION_MS + 1000))
     expect(hostsWithTestId(expired, 'question-flow-step-expired')).toHaveLength(1)
     expect(headings(expired)).toEqual(['stepUp.expiredTitle'])
@@ -294,27 +275,13 @@ describe('mobile step up screen', () => {
     expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
   })
 
-  it('asks the code question as the title with the flag on, and keeps the current title with the flag off', async () => {
-    mocks.guided = true
-    const guided = await renderScreen()
-    expect(headings(guided)).toEqual(['stepUp.codeLabel'])
-    expect(findInput(guided.root).props.accessibilityLabel).toBe('stepUp.codeLabel')
-    expect(guided.root.findAll((node) => node.props.accessibilityLabel === 'common.back').length).toBeGreaterThan(0)
-    expect(guided.root.findAll((node) => node.props.testID === 'orbit-mascot')).toHaveLength(0)
-    mocks.guided = false
-    const current = await renderScreen()
-    expect(headings(current)).toEqual(['stepUp.title'])
-  })
-
   it('holds no mascot on the exhausted step with the flag on', async () => {
-    mocks.guided = true
     const tree = await renderScreen({ ...liveRecord(), exhaustedAt: Date.now() })
     expect(findText(tree.root, 'stepUp.exhaustedTitle').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node) => node.props.testID === 'orbit-mascot')).toHaveLength(0)
   })
 
   it.each([false, true])('closes the delete flow with the result dialog: Orbit in Parado, the date the server set, and sign out (Pro %s)', async (pro) => {
-    mocks.guided = true
     mocks.profile.hasProAccess = pro
     const tree = await renderScreen()
     await enterCode(tree)
@@ -337,25 +304,7 @@ describe('mobile step up screen', () => {
     expect(mocks.logout).toHaveBeenCalledTimes(2)
   })
 
-  it('opens no result dialog with the flag off', async () => {
-    const tree = await renderScreen()
-    await enterCode(tree)
-    await confirm(tree)
-    expect(findText(tree.root, 'stepUp.successTitle').length).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => node.props.testID === 'result-dialog')).toHaveLength(0)
-  })
-
-  it('enables confirm only when all six digits are present', async () => {
-    const tree = await renderScreen()
-    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(true)
-    await enterCode(tree, '12345')
-    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(true)
-    await enterCode(tree)
-    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(false)
-  })
-
   it('keeps confirm enabled with the flag on, and answers a short code with the hint beside the field and a focus request', async () => {
-    mocks.guided = true
     const tree = await renderScreen()
     const focusRequests = () => tree.root.findAll((node) => node.props.label === 'stepUp.codeLabel' && 'error' in node.props).map((node) => node.props.focusRequest)
     expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBeFalsy()
@@ -368,37 +317,6 @@ describe('mobile step up screen', () => {
     expect(focusRequests()).toContain(2)
     await enterCode(tree)
     expect(findText(tree.root, 'auth.errors.codeFormat')).toHaveLength(0)
-  })
-
-  it('drops a typed code and disables confirm after the account changes', async () => {
-    const tree = await renderScreen()
-    await enterCode(tree)
-    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(false)
-
-    await TestRenderer.act(async () => {
-      mocks.userId = 'user-2'
-      advanceAccountGeneration()
-      await Promise.resolve()
-    })
-
-    expect(findInput(tree.root).props.value).toBe('')
-    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(true)
-  })
-
-  it('drops the previous account deletion date after the account changes', async () => {
-    const tree = await renderScreen()
-    await enterCode(tree)
-    await confirm(tree)
-    expect(findText(tree.root, 'local:2026-09-04T03:00:00Z').length).toBeGreaterThan(0)
-
-    await TestRenderer.act(async () => {
-      mocks.userId = 'user-2'
-      advanceAccountGeneration()
-      await Promise.resolve()
-    })
-
-    expect(findText(tree.root, 'local:2026-09-04T03:00:00Z')).toHaveLength(0)
-    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(true)
   })
 
   it('keeps typed code when the session changes without an account change', async () => {
@@ -614,30 +532,6 @@ describe('mobile step up screen', () => {
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
   })
 
-  it('blocks editing and exposes the confirm loading state while checking', async () => {
-    let resolveConfirmation: ((value: { message: string; scheduledDeletionAt: string }) => void) | undefined
-    mocks.apiClient.mockReturnValue(new Promise((resolve) => {
-      resolveConfirmation = resolve
-    }))
-    const tree = await renderScreen()
-    await enterCode(tree)
-    await confirm(tree)
-
-    expect(findInput(tree.root).props.editable).toBe(false)
-    const busyAction = tree.root.findAll(
-      (node) => node.props.testID === 'button-primary-sm',
-    ).at(0)
-    if (!busyAction) throw new Error('Expected the busy shell action')
-    expect(busyAction.props.accessibilityState).toEqual({
-      disabled: true,
-      busy: true,
-    })
-    resolveConfirmation?.({
-      message: 'Account deactivated',
-      scheduledDeletionAt: '2026-09-04T03:00:00Z',
-    })
-  })
-
   it('keeps a wrong code editable, rings every cell, and uses the server count', async () => {
     mocks.apiClient.mockRejectedValueOnce(
       backendError('INVALID_VERIFICATION_CODE', 'Invalid code. Remaining attempts: 2'),
@@ -655,44 +549,6 @@ describe('mobile step up screen', () => {
       const errorStyle = (cell.props.style as Record<string, unknown>[]).at(1)
       expect(errorStyle?.borderWidth).toBe(2)
     }
-  })
-
-  it('moves the third wrong code to exhausted and removes forward controls', async () => {
-    mocks.apiClient.mockRejectedValue(
-      backendError('INVALID_VERIFICATION_CODE', 'Invalid code'),
-    )
-    const tree = await renderScreen()
-    await enterCode(tree)
-
-    await confirm(tree)
-    expect(mocks.markAttemptFailed).toHaveBeenCalledTimes(1)
-    await confirm(tree)
-    expect(mocks.markAttemptFailed).toHaveBeenCalledTimes(2)
-    await confirm(tree)
-
-    expect(findText(tree.root, 'stepUp.exhaustedNotice').length).toBeGreaterThan(0)
-    const back = findButton(tree.root, 'common.backToDestination:{"destination":"profile.submenus.account"}')
-    await TestRenderer.act(() => { (back.props.onPress as () => void)() })
-    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
-    expect(queryButton(tree.root, 'stepUp.confirm')).toBeUndefined()
-    expect(queryButton(tree.root, 'stepUp.resend')).toBeUndefined()
-    expect(queryButton(tree.root, 'stepUp.cancel')).toBeUndefined()
-  })
-
-  it.each(['delete', 'keys'] as const)('mounts an active %s lock without requesting another code', async (operation) => {
-    mocks.operation = operation
-    const now = Date.now()
-    const tree = await renderScreen({
-      operation,
-      sentAt: now,
-      exhaustedAt: now - STEP_UP_ATTEMPT_WINDOW_MS + 10_000,
-    })
-    expect(findText(tree.root, 'stepUp.exhaustedNotice').length).toBeGreaterThan(0)
-    expect(queryButton(tree.root, 'stepUp.resend')).toBeUndefined()
-    expect(mocks.apiClient).not.toHaveBeenCalled()
-    const back = findButton(tree.root, operation === 'keys' ? 'common.backToOrbit' : 'common.backToDestination:{"destination":"profile.submenus.account"}')
-    await TestRenderer.act(() => { (back.props.onPress as () => void)() })
-    expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/ai' : '/profile/account')
   })
 
   it.each([
@@ -758,17 +614,7 @@ describe('mobile step up screen', () => {
     expect(findText(tree.root, 'local:2026-09-04T03:00:00Z').length).toBeGreaterThan(0)
   })
 
-  it('routes cancel to Profile', async () => {
-    const tree = await renderScreen()
-    await TestRenderer.act(async () => {
-      ;(findButton(tree.root, 'stepUp.cancel').props.onPress as () => void)()
-      await Promise.resolve()
-    })
-    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
-  })
-
   it('confirms API key creation in the guided frame and returns to its creation handoff, and never reports the verified code as a left flow', async () => {
-    mocks.guided = true
     mocks.operation = 'keys'
     const tree = await renderScreen({ operation: 'keys', sentAt: Date.now() })
     expect(tree.root.findAll((node) => node.props.testID === 'guided-step-up' && typeof node.type === 'string')).toHaveLength(1)

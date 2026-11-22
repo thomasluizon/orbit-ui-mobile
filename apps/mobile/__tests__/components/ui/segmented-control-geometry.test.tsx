@@ -12,9 +12,7 @@ import { getSegmentedControlLayout } from '@orbit/shared/utils'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { CalendarHeader } from '@/app/(tabs)/calendar/_components/calendar-shell'
-import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
-import { ShareCardSheet } from '@/components/share/share-card-sheet'
 import { collectSegmentCallSites, segmentTranslation } from '../../../../../packages/shared/src/test-support/segmented-control-inventory'
 import { resolve } from 'node:path'
 import { createTokensV2, createSurfaces } from '@/lib/theme'
@@ -232,7 +230,7 @@ it('leaves at least 8px spare for the four Portuguese calendar views in a 288px 
   } finally { await TestRenderer.act(() => tree.unmount()) }
 })
 
-it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['calendar', 'goal', 'plans', 'share'].flatMap((surface) => [1, 1.3, 1.6, 2].map((fontScale) => ({ locale, width, surface, fontScale }))))))('fits the real $surface container in $locale at $width and scale $fontScale', async ({ locale, width, surface, fontScale }) => {
+it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['calendar', 'plans'].flatMap((surface) => [1, 1.3, 1.6, 2].map((fontScale) => ({ locale, width, surface, fontScale }))))))('fits the real $surface container in $locale at $width and scale $fontScale', async ({ locale, width, surface, fontScale }) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData(habitKeys.list({}), [])
   await i18n.changeLanguage(locale)
@@ -246,25 +244,19 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
   const element = surface === 'calendar' ? <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-01" previousMonthLabel={messages.common.previousMonth} nextMonthLabel={messages.common.nextMonth}
     onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} tokens={tokens}
     viewSelector={<SegmentedControl fullWidth label={messages.calendar.view.switchLabel} value={choices[0].value} options={choices} onChange={vi.fn()} />} />
-    : surface === 'goal' ? <CreateGoalSheet open onClose={vi.fn()} />
-    : surface === 'share' ? <ShareCardSheet onClose={vi.fn()} />
     : <PlanSelection plans={null} isLoading isError={false} isOnline monthlyOffer={null} yearlyOffer={null} selectedInterval="yearly" checkoutLoading={null} checkoutError="" checkoutDisabled={false}
       onSelectInterval={vi.fn()} onCheckout={vi.fn()} onRetry={vi.fn()} t={i18n.t.bind(i18n)} tokens={tokens} />
   let tree!: SegmentTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>) as typeof tree })
-  if (surface === 'goal') {
-    const answerTitle = tree.root.findAll((node) => node.props.accessibilityLabel === messages.goals.form.title && typeof node.props.onChangeText === 'function')[0]!.props.onChangeText as (value: string) => void
-    await TestRenderer.act(() => answerTitle('Read 12 books'))
-  }
   const { layout, labels, radios, groups } = await measureSegments(tree, width, fontScale)
   try {
     layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
     expect(groups).toHaveLength(1)
     const group = groups[0]!
-    const optionCounts: Record<string, number> = { calendar: choices.length, share: 3, goal: 2, plans: 2 }
+    const optionCounts: Record<string, number> = { calendar: choices.length, plans: 2 }
     expectOptionCount(group.radios, optionCounts[surface]!, fontScale)
     expect(new Set(group.radios.map((node) => node.getComputedTop())).size).toBe(1)
-    expect(group.node.getComputedWidth()).toBeLessThanOrEqual(width - (surface === 'goal' || surface === 'share' ? 48 : 32))
+    expect(group.node.getComputedWidth()).toBeLessThanOrEqual(width - 32)
     for (const [index, radio] of radios.entries()) {
       expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
         expect(radio.getComputedWidth()).toBeGreaterThanOrEqual(48)

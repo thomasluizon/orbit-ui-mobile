@@ -141,16 +141,6 @@ describe('OverlayLayer gates', () => {
     expect(isMounted(withRetention, 'OnboardingActionsProvider')).toBe(true)
   })
 
-  it('shows only the pending final step after a signed-out flush', async () => {
-    const instance = await renderLayer({ hasCompletedOnboarding: true, showPendingPro: true })
-    expect(instance.root.findAll((node) => node.type === 'OnboardingFlow')).toHaveLength(1)
-    expect(instance.root.findAll((node) => node.type === 'OnboardingFlow')[0]!.props.finalStepOnly).toBe(true)
-    expect(instance.root.findAll((node) => node.type === 'OnboardingFlow')[0]!.props.guided).toBe(true)
-    for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS, 'TrialExpiredModal']) {
-      expect(suppression(instance, overlay)).toBe(true)
-    }
-  })
-
   it('waits for the account flag before showing another message', async () => {
     const instance = await renderLayer({ hasCompletedOnboarding: true, pendingProLoaded: false })
     for (const overlay of [...POST_ONBOARDING_PROMPTS, ...GAMIFICATION_OVERLAYS, 'TrialExpiredModal']) {

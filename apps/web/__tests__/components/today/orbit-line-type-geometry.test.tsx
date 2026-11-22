@@ -75,10 +75,4 @@ describe('the Orbit line row type role', () => {
     expect(row.rowHeight).toBeCloseTo(row.lineHeight * 2 + 16, 0)
     expect(row.overflow).toBe(false)
   })
-
-  it('keeps the current 14px line with the guided flows off', async () => {
-    const row = await measure(pt.todayOrbit.returningBounded, false)
-    expect(row.fontSize).toBe('14px')
-    expect(row.lineHeight).toBeCloseTo(21.7, 1)
-  })
 })

@@ -62,17 +62,4 @@ describe('the root Orbit line row on Android', () => {
     expect(withTimingCalls).toHaveLength(0)
     expect(hostByTestId(tree.root, 'today-orbit-slot').props.accessibilityLabel).toBe('Nada marcado nesse dia.')
   })
-
-  it('keeps the still Orbit at 48 and never fades the sentence with the guided flows off', () => {
-    const tree = render(<TodayOrbitLine text="Dia 2: tudo feito." destination="Abrir conversa" mascotState="descansando" />)
-    TestRenderer.act(() => tree.update(<TodayOrbitLine text="Nada marcado nesse dia." destination="Abrir conversa" mascotState="descansando" />))
-    const mascot = hostByTestId(tree.root, 'orbit-mascot')
-    expect(mascot.props.width).toBe(48)
-    expect(mascot.props['data-orbit-face']).toBe('rig')
-    expect(mascot.props['data-orbit-loop']).toBe('still')
-    expect(withTimingCalls).toHaveLength(0)
-    expect(hostByTestId(tree.root, 'today-orbit-slot').props.accessibilityLabel).toBe('Nada marcado nesse dia.')
-    const sentence = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Nada marcado nesse dia.')[0]!
-    expect(StyleSheet.flatten(sentence.props.style as StyleProp<TextStyle>)).toMatchObject({ fontSize: 14, lineHeight: 14 * 1.55 })
-  })
 })

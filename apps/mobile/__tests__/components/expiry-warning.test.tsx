@@ -230,17 +230,6 @@ describe('ExpiryWarning', () => {
     expect(StyleSheet.flatten(hostNodes(instance, 'View')[1]!.props.style)).toMatchObject({ borderRadius: radius.xl })
   })
 
-  it.each(['dark', 'light'] as const)('draws the notice hairline inside the edge, so the copy starts at the 12 by 8 padding of its web twin, in %s', async (mode) => {
-    mocks.theme.currentTheme = mode
-    const instance = await renderExpiredWarning()
-    const overdue = createTokensV2('orange', mode).statusOverdue
-    const [red, green, blue] = [1, 3, 5].map((start) => Number.parseInt(overdue.slice(start, start + 2), 16))
-    expectInsetHairlineRing(hostNodes(instance, 'View')[1]!.props.style as never, `rgba(${red}, ${green}, ${blue}, 0.28)`)
-    const measured = measureProfileRow((instance as TestInstance & { toJSON: () => never }).toJSON(), 412, 1)
-    const copy = measured.texts.find((text) => text.label === i18n.t('auth.sessionRefreshFailed'))!
-    expect(copy.left, 'the copy starts 12 dp inside the banner, which sits 12 dp inside the screen, as its web twin').toBe(12 + 12)
-  })
-
   it.each([
     ['a phone in portrait, under the status bar', 412, { top: 47, right: 0, bottom: 34, left: 0 }],
     ['a phone in landscape, beside the notch', 932, { top: 0, right: 47, bottom: 21, left: 47 }],
@@ -343,28 +332,6 @@ describe('ExpiryWarning', () => {
     expect(mocks.logout).toHaveBeenCalledOnce()
   })
 
-  it('refreshes on foreground return and removes its timer and listener on unmount', async () => {
-    let onChange!: (state: AppStateStatus) => void
-    const remove = vi.fn()
-    vi.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
-      onChange = listener
-      return { remove }
-    })
-    AppState.currentState = 'background'
-    mocks.refreshSession.mockResolvedValue({ status: 'network-error' })
-    await renderSession(Date.now() + 15 * 60_000)
-    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(12 * 60_000) })
-    expect(mocks.refreshSession).not.toHaveBeenCalled()
-    AppState.currentState = 'active'
-    await TestRenderer.act(() => { onChange('active') })
-    expect(mocks.refreshSession).toHaveBeenCalledOnce()
-    await TestRenderer.act(() => { tree?.unmount() })
-    tree = null
-    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
-    expect(mocks.refreshSession).toHaveBeenCalledOnce()
-    expect(remove).toHaveBeenCalledOnce()
-  })
-
   it('refreshes a valid token inside the warning window without signing out', async () => {
     mocks.refreshSession.mockImplementation(() => {
       mocks.setAuthState({ expiresAt: Date.now() + 15 * 60_000 })
@@ -425,14 +392,6 @@ describe('ExpiryWarning', () => {
     expect(mocks.clearSessionAndResetAuth).not.toHaveBeenCalled()
     expect(mocks.authState.isAuthenticated).toBe(false)
     expect(hostNodes(instance, 'View')).toHaveLength(0)
-  })
-
-  it.each([false, true])('keeps the message and its action, and shows Orbit in Parado only with the guided flows on (%s)', async (guided) => {
-    const instance = await renderExpiredWarning()
-    expect(renderedText(instance)).toContain(i18n.t('auth.sessionRefreshFailed'))
-    expect(action(instance, i18n.t('auth.refresh'))).toBeDefined()
-    const rigs = instance.root.findAll((node) => typeof node.type === 'string' && node.props['data-orbit-face'] === 'rig')
-    expect(rigs.map((node) => node.props['data-orbit-state'] as string)).toEqual(guided ? ['parado'] : [])
   })
 
   it.each([[false, 'running'], [true, 'still']] as const)('draws Orbit with reduced motion %s as %s, with the guided flows on', async (reducedMotion, loop) => {

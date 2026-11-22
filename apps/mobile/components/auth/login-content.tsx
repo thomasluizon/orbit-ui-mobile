@@ -9,7 +9,7 @@ export interface LoginCallback {
   loading?: boolean
 }
 
-/** With `orbit_guided_flows` on, sign-in is the one-question flow. With it off, the current surface shows. */
+/** Sign-in is the one-question flow. With it off, the current surface shows. */
 export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
   return <GuidedLoginContent callback={callback} />
 }

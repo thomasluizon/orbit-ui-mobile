@@ -195,15 +195,6 @@ describe('the plan question of the Android upgrade route', () => {
     tree.unmount()
   })
 
-  it.each([[1024, false], [412, true]] as const)('keeps the primary action in the block at %i wide (guided flows off: %s), with no footer', (width, flagOff) => {
-    if (flagOff) 
-    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
-    const tree = renderNavigation(<UpgradeScreen />)
-    expect(byTestId(tree, 'upgrade-plan-footer')).toBeUndefined()
-    expect(scrollers(tree).some((scroller) => primaryIn(scroller, 'Subscribe Annual, recommended').length === 1)).toBe(true)
-    tree.unmount()
-  })
-
   it('hugs the label of the primary in the wide shell, at most 360 wide', () => {
     __setWindowDimensions({ width: 1024, height: 915, scale: 1, fontScale: 1 })
     const tree = renderNavigation(<UpgradeScreen />)
@@ -487,24 +478,4 @@ describe('the dashboards and the notices of the Android route with the guided fl
 })
 
 describe('the Android upgrade route with the guided flows off', () => {
-  it('keeps the current full-surface billing error, with its Orbit in Parado', () => {
-    mocks.statusError = true
-    mocks.status = null
-    const tree = renderNavigation(<UpgradeScreen />)
-    expect(screenText(tree)).toContain("Couldn't load billing details")
-    expect(byTestId(tree, 'upgrade-load-failed')).toBeUndefined()
-    expect(orbitStates(tree)).toEqual(['parado'])
-    tree.unmount()
-  })
-
-  it('keeps the current pitch, the title of the header as a header and the done toast of a verified purchase', () => {
-    const tree = renderNavigation(<UpgradeScreen />)
-    expect(headers(tree).some((node) => renderedText(node) === 'Orbit Pro')).toBe(true)
-    expect(byTestId(tree, 'upgrade-block')).toBeUndefined()
-    expect(byTestId(tree, 'upgrade-orbit-line')).toBeUndefined()
-    confirmPurchase()
-    expect(mocks.showSuccess).toHaveBeenCalledTimes(1)
-    expect(byTestId(tree, 'result-dialog')).toBeUndefined()
-    tree.unmount()
-  })
 })

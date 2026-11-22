@@ -83,20 +83,6 @@ describe('daily summary on Hoje', () => {
     expect(mocks.refetch).toHaveBeenCalledTimes(1)
   })
 
-  it('routes free accounts to Pro without requesting a summary', () => {
-    mocks.profile = createMockProfile({ hasProAccess: false })
-    render(<TodayAISummary date="2026-08-29" />)
-    expect(screen.getByRole('link', { name: 'summary.freePrompt' })).toHaveAttribute('href', '/upgrade')
-    expect(mocks.useSummary).not.toHaveBeenCalled()
-  })
-
-  it.each([[false, 'summary.freePrompt', 'summary.guided.freePrompt'], [true, 'summary.guided.freePrompt', 'summary.freePrompt']])('reads the free prompt of its own copy set with the guided flows %s', (guided, shown, hidden) => {
-    mocks.profile = createMockProfile({ hasProAccess: false })
-    render(<TodayAISummary date="2026-08-29" />)
-    expect(screen.getByRole('link', { name: shown })).toHaveAttribute('href', '/upgrade')
-    expect(screen.queryByRole('link', { name: hidden })).not.toBeInTheDocument()
-  })
-
   it.each(['disabled', 'profile pending'])('withholds the summary when %s', (state) => {
     mocks.profile = state === 'disabled' ? createMockProfile({ hasProAccess: true, aiSummaryEnabled: false }) : undefined
     const { container } = render(<TodayAISummary date="2026-08-29" />)

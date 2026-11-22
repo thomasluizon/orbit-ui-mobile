@@ -12,7 +12,7 @@ export interface WrappedCoverProps {
   onRetry: () => void
 }
 
-/** The cover of the Wrapped route. `orbit_guided_flows` picks the guided cover; off, the current cover renders. */
+/** The cover of the Wrapped route. */
 export function WrappedCover(props: Readonly<WrappedCoverProps>) {
   return <GuidedWrappedCover {...props} />
 }

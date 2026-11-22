@@ -146,15 +146,6 @@ describe('WrappedPage', () => {
     expect(screen.getByTestId('player')).toBeInTheDocument()
   })
 
-  it('keeps the cover mounted while the player plays with the flag off, as the base route does', async () => {
-    render(<WrappedPage />)
-    await act(async () => {})
-    fireEvent.click(screen.getByRole('button', { name: 'start' }))
-    await act(async () => {})
-    expect(screen.getByTestId('player')).toBeInTheDocument()
-    expect(screen.getByTestId('period')).toBeInTheDocument()
-  })
-
   it('unmounts the cover while the player plays with the flag on, and a period change after playback stops it and switches the fetched period', async () => {
     const view = render(<WrappedPage />)
     await act(async () => {})

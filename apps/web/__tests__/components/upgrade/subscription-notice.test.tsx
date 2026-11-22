@@ -19,16 +19,6 @@ const t = ((key: string, params?: Record<string, unknown>) =>
   params ? `${key}:${JSON.stringify(params)}` : key) as ReturnType<typeof useTranslations>
 
 describe('lapsed subscription notice', () => {
-  it('marks the AI allowance and Pro benefit at their existing sizes', () => {
-    const { container } = render(<SubscriptionNotice status={status} locale="en" t={t} />)
-    const allowance = screen.getByText('upgrade.billing.lapsed.lostMessages:{"limit":7}').closest('li')!
-    expect(allowance.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('width', '16')
-    const benefit = screen.getByText('upgrade.outcomes.orbit').closest('li')!
-    expect(benefit.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('width', '20')
-    expect(container.querySelectorAll('[data-asset^="orbit-mascot"]')).toHaveLength(2)
-    expect(screen.getByRole('heading', { name: 'upgrade.included' })).toBeInTheDocument()
-    expect(container.querySelector('[data-icon="minus"]')).not.toBeInTheDocument()
-  })
 
   it.each([0, 4, 5])('omits usage and capacity notices at %i of 5 messages', (aiMessagesUsed) => {
     render(<SubscriptionNotice status={{ ...status, aiMessagesUsed, aiMessagesLimit: 5 }} locale="en" t={t} />)
@@ -47,18 +37,6 @@ describe('lapsed subscription notice', () => {
     } finally {
       motion.reducedMotion = false
     }
-  })
-
-  it.each([false, true])('keeps the notice and its action, and shows Orbit in Parado only with the guided flows on (%s)', (guided) => {
-    const onResubscribe = vi.fn()
-    render(<SubscriptionNotice status={status} locale="en" onResubscribe={onResubscribe} t={t} />)
-    const notice = document.querySelector<HTMLElement>('[data-subscription-notice]')!
-    expect(within(notice).getByRole('heading', { name: 'upgrade.billing.lapsed.title' })).toBeInTheDocument()
-    expect(within(notice).getByText('upgrade.billing.lapsed.paymentFix')).toBeInTheDocument()
-    expect(notice.querySelectorAll('[data-orbit-face="rig"][data-orbit-state="parado"]')).toHaveLength(guided ? 1 : 0)
-    expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
-    fireEvent.click(within(notice).getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
-    expect(onResubscribe).toHaveBeenCalledTimes(1)
   })
 
   it('lists each lost entitlement separately with the current message allowance', () => {

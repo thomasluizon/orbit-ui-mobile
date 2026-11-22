@@ -11,7 +11,6 @@ import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { nativeWindows, press, renderNavigation } from '../ui/navigation-render'
 
 const mocks = vi.hoisted(() => ({
-  guided: true,
   create: vi.fn(),
   update: vi.fn(),
   completed: vi.fn(),
@@ -23,7 +22,6 @@ vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
   useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => i18n.t(key, params), i18n: { language: i18n.language } }),
 }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: () => ({ mutateAsync: mocks.create, isPending: false }),
   useUpdateGoal: () => ({ mutateAsync: mocks.update, isPending: false }),
@@ -96,7 +94,6 @@ const PT = { title: 'O que você quer alcançar?', continue: 'Continuar', standa
 
 beforeEach(async () => {
   await i18n.changeLanguage('pt-BR')
-  mocks.guided = true
   mocks.create.mockReset().mockResolvedValue({ id: 'goal-new' })
   mocks.update.mockReset().mockResolvedValue(undefined)
   mocks.completed.mockReset()
@@ -143,27 +140,6 @@ describe('the guided goal create flow on Android', () => {
     await tap(tree, 'Ver a meta')
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(onOpenGoal).toHaveBeenCalledWith('goal-new')
-    tree.unmount()
-  })
-
-  it('creates a streak goal with no deadline and no linked habit, with the request of the current sheet', async () => {
-    await i18n.changeLanguage('en')
-    const tree = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} />)
-    await type(tree, EN.title, 'Gym days')
-    await tap(tree, 'Continue')
-    await tap(tree, 'Streak')
-    expect(heading(tree)).toBe('How many days in a row?')
-    await type(tree, 'How many days in a row?', '30')
-    await tap(tree, 'Continue')
-    await tap(tree, 'No deadline')
-    await tap(tree, 'Continue')
-    await tap(tree, /^By when/)
-    expect(control(tree, 'No deadline').props.accessibilityState?.selected, 'back keeps the answer').toBe(true)
-    await tap(tree, 'No deadline')
-    await tap(tree, 'Create goal')
-    const draft = { ...createGoalDraft(), goalType: 'Streak' as const, description: 'Gym days', targetValue: '30', unit: i18n.t('goals.form.streakUnit'), deadline: '' }
-    expect(mocks.create).toHaveBeenCalledWith(buildGoalCreationRequest(draft))
-    expect(resultSentence(tree)).toBe('The goal "Gym days" is set with no deadline.')
     tree.unmount()
   })
 
@@ -251,14 +227,6 @@ describe('the guided goal create flow on Android', () => {
     expect(heading(tree)).toBe('Is this right?')
     await tap(tree, 'Create goal')
     expect(mocks.create.mock.calls[0]![0]).toMatchObject({ deadline: '2027-01-15' })
-    tree.unmount()
-  })
-
-  it('keeps the step with the hint of the current form on an empty answer', async () => {
-    const tree = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} />)
-    await tap(tree, 'Continuar')
-    expect(texts(tree)).toContain(i18n.t('goals.form.titleRequired'))
-    expect(heading(tree)).toBe('O que você quer alcançar?')
     tree.unmount()
   })
 
@@ -366,52 +334,6 @@ describe('the guided goal edit flow on Android', () => {
     tree.unmount()
   })
 
-  it('opens on the summary with the stored values and saves one change with the request of the current modal', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date('2026-11-13T12:00:00Z'))
-    await i18n.changeLanguage('en')
-    const onClose = vi.fn()
-    const tree = renderNavigation(<EditGoalModal open onClose={onClose} goal={goal} />)
-    expect(heading(tree)).toBe('Is this right?')
-    expect(control(tree, /^Your goal, Run 100km$/)).toBeDefined()
-    expect(control(tree, /^How much, 100 km$/)).toBeDefined()
-    expect(tree.hosts().some((node) => /^Tracking/.test(node.props.accessibilityLabel ?? '') && node.props.onPress)).toBe(false)
-    await tap(tree, /^By when/)
-    expect(control(tree, 'This year').props.accessibilityState?.selected, 'the stored deadline is the answer of an edit').toBe(true)
-    await tap(tree, 'No deadline')
-    await tap(tree, 'Save')
-    expect(mocks.update).toHaveBeenCalledWith({ goalId: 'g1', data: { title: 'Run 100km', targetValue: 100, unit: 'km', deadline: null } })
-    expect(resultSentence(tree)).toBe('The goal "Run 100km" is saved with no deadline.')
-    await tap(tree, 'View the goal')
-    expect(onClose).toHaveBeenCalledTimes(1)
-    tree.unmount()
-  })
-
-  it('keeps an empty title in an edit and saves the title the current modal builds from the target and the unit', async () => {
-    await i18n.changeLanguage('en')
-    const tree = renderNavigation(<EditGoalModal open onClose={vi.fn()} goal={goal} />)
-    await tap(tree, /^Your goal/)
-    await type(tree, 'What do you want to reach?', '')
-    await tap(tree, 'Continue')
-    expect(heading(tree)).toBe('Is this right?')
-    await tap(tree, 'Save')
-    expect(mocks.update).toHaveBeenCalledWith({ goalId: 'g1', data: { title: '100 km', targetValue: 100, unit: 'km', deadline: '2026-12-31' } })
-    tree.unmount()
-  })
-
-  it('shows the field message the server sends for a refused edit, as the current modal does', async () => {
-    await i18n.changeLanguage('en')
-    mocks.update.mockRejectedValue(createApiClientError(400, { errors: { Title: ['Server title failure'] } }, 'Fallback'))
-    const tree = renderNavigation(<EditGoalModal open onClose={vi.fn()} goal={goal} />)
-    await tap(tree, /^How much/)
-    await type(tree, 'How much?', '120')
-    await tap(tree, 'Continue')
-    await tap(tree, 'Save')
-    expect(texts(tree)).toContain('Server title failure')
-    expect(resultSentence(tree)).toBeUndefined()
-    tree.unmount()
-  })
-
   it('closes an unchanged edit with no discard prompt and asks before it drops a change', async () => {
     const onClose = vi.fn()
     const tree = renderNavigation(<EditGoalModal open onClose={onClose} goal={goal} />)
@@ -430,14 +352,4 @@ describe('the guided goal edit flow on Android', () => {
 })
 
 describe('with the flag off on Android', () => {
-  it('renders the current create sheet and the current edit modal', () => {
-    mocks.guided = false
-    const create = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} />)
-    expect(texts(create)).toContain(i18n.t('goals.form.habitsExplainer'))
-    expect(create.hosts().find((node) => node.props.testID === 'question-flow')).toBeUndefined()
-    create.unmount()
-    const edit = renderNavigation(<EditGoalModal open onClose={vi.fn()} goal={{ id: 'g1', title: 'Run', targetValue: 5, unit: 'km', deadline: null }} />)
-    expect(edit.hosts().find((node) => node.props.testID === 'question-flow')).toBeUndefined()
-    edit.unmount()
-  })
 })

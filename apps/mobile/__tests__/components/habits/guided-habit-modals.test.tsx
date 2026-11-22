@@ -42,7 +42,6 @@ vi.mock('@/hooks/use-tags', () => ({
   useCreateTag: () => ({ mutateAsync: vi.fn(), isPending: false }), useUpdateTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
-vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => null, useLinkableGoals: () => ({ data: [], isSuccess: true, isLoading: false, isError: false, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
   useChecklistTemplates: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
@@ -101,13 +100,6 @@ beforeEach(async () => {
 afterEach(() => { vi.useRealTimers() })
 
 describe('the Android create surface', () => {
-  it('renders the current form with the flag off', async () => {
-    state.flag = false
-    const tree = mountCreate()
-    await settle()
-    expect(hasTestId(tree, 'question-flow')).toBe(false)
-    tree.unmount()
-  })
 
   it('renders the one-question flow in the flow host with the flag on', async () => {
     const tree = mountCreate()
@@ -608,13 +600,6 @@ describe('the discard sheet of a guided habit flow on Android', () => {
 })
 
 describe('the Android edit surface', () => {
-  it('renders the current form with the flag off', async () => {
-    state.flag = false
-    const tree = mountEdit()
-    await settle()
-    expect(hasTestId(tree, 'question-flow')).toBe(false)
-    tree.unmount()
-  })
 
   it('opens on the summary, saves the time change only and closes with the result dialog for the change', async () => {
     state.saved = { ...storedHabit, dueTime: '20:00', children: [] }

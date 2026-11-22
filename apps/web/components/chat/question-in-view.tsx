@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 
 const useStepChange = createUseStepChange({ useEffect, useRef })
 
-/** With the guided flows on, a block of several questions shows one question at a time. */
+/** A block of several questions shows one question at a time. */
 export function useQuestionInView(questions: readonly Question[], state: QuestionBlockState) {
   const enabled = questions.length > 1
   const [inView, setInView] = useState(() => startQuestionInView(questions, state))

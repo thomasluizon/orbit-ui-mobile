@@ -58,7 +58,7 @@ function StartAction({ wide, loading, onStart, onMeasure }: Readonly<{ wide: boo
 }
 
 /**
- * The Wrapped cover under `orbit_guided_flows`: Orbit, the title of the period, the Orbit line and the period question in one centred block.
+ * The Wrapped cover: Orbit, the title of the period, the Orbit line and the period question in one centred block.
  * Compact, the start action is pinned under the scroller and spans the column. Wide, two equal spaces hold the block in the centre of the
  * column, and the start action hangs 24 under the block, hugging its label. The action sits out of the flow of the lower space, so the two
  * spaces stay equal; both are never shorter than the action, so it stays in the scroll range.

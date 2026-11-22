@@ -185,13 +185,4 @@ describe('the guided milestone share prompt on Android', () => {
     await renderer.act(() => { root.update(<MilestoneSharePrompt suppressed />) })
     expect(byTestId(root, 'milestone-share-dialog')).toHaveLength(0)
   })
-
-  it('renders the current sheet with the flag off: no centred dialog and no Orbit in Feliz', async () => {
-    const root = await openPrompt()
-
-    expect(hosts(root).find((node) => String(node.type) === 'Sheet')?.props.title).toBe(ptBR.milestoneShare.title)
-    expect(byTestId(root, 'milestone-share-dialog')).toHaveLength(0)
-    expect(feliz(root)).toHaveLength(0)
-    expect(control(root, ptBR.milestoneShare.later)).toBeTruthy()
-  })
 })

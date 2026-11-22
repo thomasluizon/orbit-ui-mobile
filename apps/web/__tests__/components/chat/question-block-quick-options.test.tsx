@@ -35,14 +35,6 @@ async function answerEverything(quick: boolean) {
   return send.send as ReturnType<typeof vi.fn>
 }
 
-it('answers a single-choice and a yes or no question with quick options that send the payload the radio list sends', async () => {
-  const quick = await answerEverything(true)
-  cleanup()
-  const list = await answerEverything(false)
-  expect(quick).toHaveBeenCalledTimes(1)
-  expect(quick.mock.calls[0]).toEqual(list.mock.calls[0])
-})
-
 it('marks the pressed quick option as selected, moves to the next question, and keeps the answer on the way back', () => {
   render(element(interaction()))
   fireEvent.click(within(optionGroup('When?')).getByRole('button', { name: /Morning/ }))
@@ -85,15 +77,6 @@ it('moves focus between quick options with the arrow keys and selects only on a 
   expect(options.every(option => option.getAttribute('aria-pressed') === 'false')).toBe(true)
 })
 
-it('keeps the radio list and every question in view while the flag is off', () => {
-  render(element(interaction()))
-  expect(screen.getByRole('radiogroup', { name: 'When?' })).toBeInTheDocument()
-  expect(document.querySelector('[data-option-group]')).toBeNull()
-  expect(document.querySelectorAll('[data-question-invalid]')).toHaveLength(block.questions.length)
-  expect(screen.queryByRole('button', { name: en.chat.question.next })).toBeNull()
-  expect(screen.getByText(`0 of ${block.questions.length} questions answered`)).toBeInTheDocument()
-})
-
 it('sets the recommended note under the quick options in the type of the Recommended line of the row layout', () => {
   render(element(interaction()))
   const note = within(question('When?') as HTMLElement).getByText(new RegExp(`: ${en.chat.placement.recommended}$`))
@@ -122,12 +105,6 @@ it('moves focus to the new question after the previous and the next control, and
   previous.focus()
   fireEvent.click(previous)
   expect(question(block.questions[block.questions.length - 2]!.prompt)).toHaveFocus()
-})
-
-it('leaves focus where it is while the flag is off and a single answer follows', () => {
-  render(element(interaction()))
-  fireEvent.click(within(screen.getByRole('radiogroup', { name: 'When?' })).getByRole('radio', { name: /Morning/ }))
-  expect(document.body).toHaveFocus()
 })
 
 it('keeps the arrow keys working on a slider that the person reaches after the focus moved to its question', () => {

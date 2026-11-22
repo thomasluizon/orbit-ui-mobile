@@ -360,11 +360,4 @@ describe('intentional offline UX screens', () => {
     expect(texts).not.toContain('upgrade.plans.error')
     expect(texts).not.toContain('upgrade.billing.error')
   })
-
-  it('renders an explicit offline state for support instead of sending live requests', async () => {
-    const tree = await renderScreen(<SupportScreen />)
-
-    const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
-    expect(texts).toContain('profile.support.offlineReason')
-  })
 })

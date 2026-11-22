@@ -122,27 +122,6 @@ afterEach(() => {
 })
 
 describe('the Android Avisos inbox with the guided flows off', () => {
-  it('renders the current rows: no row motion, no settle layer and a dot only on an unread row', () => {
-    mount()
-    expect(rowNames()).toEqual(['First. unread', 'Second. unread', 'Third. read'])
-    expect(byTestId('notification-row-motion')).toHaveLength(0)
-    expect(hosts((node) => String(node.type) === 'LayoutAnimationConfig')).toHaveLength(0)
-    expect(byTestId('notification-unread-surface')).toHaveLength(0)
-    expect(byTestId('notification-unread-mark')).toHaveLength(0)
-    expect(byTestId('notification-unread-dot')).toHaveLength(2)
-  })
-
-  it('renders the current failed state with no Orbit, and the count of the bell with no roll', async () => {
-    queryClient.clear()
-    serve([], true)
-    mount()
-    await advance(0)
-    expect(texts()).toContain(en.notifications.loadError)
-    expect(mascots(byTestId('notification-empty')[0])).toHaveLength(0)
-    seed([createMockNotification({ id: 'one', isRead: false })])
-    await advance(0)
-    expect(byTestId('notification-count-roll')).toHaveLength(0)
-  })
 })
 
 describe('the Android Avisos inbox on the Orbit logic', () => {

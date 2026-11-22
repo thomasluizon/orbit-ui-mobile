@@ -45,16 +45,6 @@ beforeEach(() => {
 afterEach(() => { Reflect.deleteProperty(navigator, 'onLine'); vi.useRealTimers() })
 
 describe('the search route with the guided flows off', () => {
-  it.each(['en', 'pt-BR'] as const)('renders the current surface in %s: the title is the heading and no Orbit shows', async (locale) => {
-    mocks.query.mockReturnValue(result([habit('walk', 'Walk')]))
-    const { container, messages } = mount(locale)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(messages.habits.search.title)
-    expect(container.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
-    expect(container.querySelector('[data-search-block]')).toBeNull()
-    type('walk')
-    expect(await screen.findByText(locale === 'en' ? '1 habit' : '1 hábito')).toBeInTheDocument()
-    expect(container.querySelector('[data-search-orbit-line]')).toBeNull()
-  })
 })
 
 describe('the search route on the Orbit logic', () => {

@@ -72,7 +72,7 @@ function useOrbitRest(isOnline: boolean) {
   return { reason: rest ? t(rest) : undefined, mascotState: rest ? 'descansando' as const : 'parado' as const }
 }
 
-/** The Orbit line of Calendário: Orbit at 48 and one fact about the selected day or the shown month. A press opens the conversation with that period offered above the composer. With the guided flows off, Calendário has no line. */
+/** The Orbit line of Calendário: Orbit at 48 and one fact about the selected day or the shown month. A press opens the conversation with that period offered above the composer. */
 export function CalendarOrbitLine(props: Readonly<CalendarOrbitLineProps>) {
   return <CalendarOrbitLineRow {...props} />
 }

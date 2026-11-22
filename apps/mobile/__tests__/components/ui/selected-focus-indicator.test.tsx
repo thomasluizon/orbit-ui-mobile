@@ -8,8 +8,6 @@ import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-det
 import { buildHabitUnderstandingLabels, formatLocaleDate, HOURS_24, MINUTES, padTimePart } from '@orbit/shared/utils'
 import { TimeField } from '@/components/ui/time-field'
 import { DateField } from '@/components/ui/date-field'
-import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goal-type-selector'
-import { createStyles as createGoalStyles } from '@/components/habits/create-goal-from-habit/styles'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { createStyles } from '@/components/habits/habit-form-fields/styles'
@@ -189,12 +187,5 @@ it.each([false, true])('disabled RadioRow retains its selection perimeter, selec
   TestRenderer.act(() => { tree = TestRenderer.create(<RadioRow label="Radio" selected={selected} disabled reason="Sending" />) })
   const row = tree!.root.findAllByType('View').find((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'radio')
   expect(ringCount(row)).toBe(selected ? 1 : 0)
-  TestRenderer.act(() => tree!.unmount())
-})
-
-it.each(['Standard', 'Streak'] as const)('goal type choices keep their selection ring under focus, selected %s', (goalType) => {
-  let tree: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<GoalTypeSelector styles={createGoalStyles(tokens)} goalType={goalType} onTypeChange={vi.fn()} />) })
-  verifyAllChoices(tree)
   TestRenderer.act(() => tree!.unmount())
 })

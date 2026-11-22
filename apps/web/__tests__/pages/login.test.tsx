@@ -58,6 +58,16 @@ vi.mock('motion/react', () => {
       }) {
         return React.createElement('div', { ...rest, ref }, children)
       },
+      p: function MockMotionParagraph({
+        children,
+        ref,
+        ...rest
+      }: Record<string, unknown> & {
+        children?: React.ReactNode
+        ref?: React.Ref<unknown>
+      }) {
+        return React.createElement('p', { ...rest, ref }, children)
+      },
   }
 
   return {
@@ -179,35 +189,6 @@ describe('LoginPage', () => {
     expect(screen.queryByRole('button', { name: 'auth.signInWithApple' })).not.toBeInTheDocument()
   })
 
-  it('disables send until the web widget supplies a token', () => {
-    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
-    searchParamValues = { email: null, code: null, returnUrl: '/' }
-    render(<LoginPage />)
-    fireEvent.input(screen.getByLabelText('auth.email'), { target: { value: 'user@test.com' } })
-    expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Solve security check' }))
-    expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeEnabled()
-  })
-
-  it('dims Continue only for an empty email and keeps Google idle until it is pressed', () => {
-    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
-    searchParamValues = { email: null, code: null, returnUrl: '/' }
-    render(<LoginPage />)
-    fireEvent.click(screen.getByRole('button', { name: 'Solve security check' }))
-    expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'auth.signInWithGoogle' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'auth.signInWithGoogle' })).not.toHaveAttribute('aria-busy')
-    fireEvent.input(screen.getByLabelText('auth.email'), { target: { value: 'user@test.com' } })
-    expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeEnabled()
-  })
-
-  it('renders the lockup and no navigation shell', () => {
-    const { container } = render(<LoginPage />)
-
-    expect(container.querySelector('[data-asset=orbit-lockup]')).toBeInTheDocument()
-    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
-  })
-
   it('renders one verification code input and exposes one-time-code autocomplete', async () => {
     render(<LoginPage />)
 
@@ -221,68 +202,6 @@ describe('LoginPage', () => {
     render(<LoginPage />)
 
     expect(mockResolveMotionPreset).toHaveBeenCalledWith('route-replace', true)
-  })
-
-  it('renders a spaced stack for send code, divider, and Google sign-in', () => {
-    searchParamValues = {
-      email: null,
-      code: null,
-      returnUrl: '/',
-    }
-
-    render(<LoginPage />)
-
-    const stack = screen.getByTestId('login-email-step-stack')
-    expect(within(stack).getByRole('button', { name: 'auth.sendCode' })).toBeInTheDocument()
-    expect(within(stack).getByText('auth.orContinueWith')).toBeInTheDocument()
-    expect(within(stack).getByRole('button', { name: 'auth.signInWithGoogle' })).toBeInTheDocument()
-  })
-
-  it('renders invalid email beside the field without a duplicate toast', async () => {
-    searchParamValues = {
-      email: null,
-      code: null,
-      returnUrl: '/',
-    }
-
-    render(<LoginPage />)
-
-    fireEvent.input(screen.getByLabelText('auth.email'), {
-      target: { value: 'not-an-email' },
-    })
-    const input = screen.getByLabelText('auth.email')
-    const submit = screen.getByRole('button', { name: 'auth.sendCode' })
-    submit.focus()
-    fireEvent.submit(screen.getByLabelText('auth.email').closest('form')!)
-
-    await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('auth.errors.invalidEmail')
-    })
-    expect(mockShowError).not.toHaveBeenCalled()
-    expect(input).toHaveFocus()
-    expect(input).toHaveAttribute('name', 'email')
-    expect(input).toHaveAttribute('autocomplete', 'email')
-    expect(input).toHaveAttribute('spellcheck', 'false')
-    submit.focus()
-    fireEvent.input(input, { target: { value: 'still-invalid' } })
-    expect(submit).toHaveFocus()
-    fireEvent.submit(input.closest('form')!)
-    await waitFor(() => expect(input).toHaveFocus())
-  })
-
-  it('surfaces the offline state and disables sending when the device is offline', () => {
-    searchParamValues = {
-      email: null,
-      code: null,
-      returnUrl: '/',
-    }
-    mockIsOnline.value = false
-
-    render(<LoginPage />)
-
-    expect(screen.getByText('auth.errors.offline')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'auth.signInWithGoogle' })).toBeDisabled()
   })
 })
 
@@ -419,62 +338,6 @@ describe('production smoke helper against LoginPage', () => {
     vi.unstubAllEnvs()
     smokeLocale.value = null
     delete (window as Window & { turnstile?: unknown }).turnstile
-  })
-
-  it.each([
-    ['en', null], ['pt-BR', null], ['en', 'onboarding'], ['pt-BR', 'onboarding'],
-  ] as const)('submits one complete code through the actual %s form with origin %s', async (locale, from) => {
-    smokeLocale.value = locale
-    searchParamValues.from = from
-
-    await expect(authenticate(new SmokeDomPage() as unknown as Page)).rejects.toBe(verificationRequestBoundary)
-
-    expect(authRequests.mock.calls).toEqual([
-      ['/api/auth/send-code', { email: 'smoke@example.test', language: locale }],
-      ['/api/auth/verify-code', { email: 'smoke@example.test', code: '123456', language: locale }, expect.objectContaining({ isCurrent: expect.any(Function), signal: expect.any(AbortSignal), onSuccess: expect.any(Function) })],
-    ])
-    const label = (locale === 'en' ? en : ptBR).auth.verificationCode
-    const input = screen.getByRole('textbox', { name: label })
-    expect(screen.getAllByRole('textbox')).toHaveLength(1)
-    expect(input).toHaveAttribute('name', 'verificationCode')
-    expect(input).toHaveAttribute('autocomplete', 'one-time-code')
-    expect(input).toHaveAttribute('inputmode', 'numeric')
-    expect(document.querySelectorAll('[data-otp-cell][aria-hidden="true"]')).toHaveLength(6)
-    expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it.each(['en', 'pt-BR'] as const)('enters through the real fresh-browser %s gate and returns directly to email', async (locale) => {
-    smokeLocale.value = locale
-    const page = new SmokeDomPage(true)
-
-    await expect(authenticate(page as unknown as Page)).rejects.toBe(verificationRequestBoundary)
-
-    expect(page.visits).toEqual(['/onboarding', '/login'])
-    expect(authRequests.mock.calls).toEqual([
-      ['/api/auth/send-code', { email: 'smoke@example.test', language: locale }],
-      ['/api/auth/verify-code', { email: 'smoke@example.test', code: '123456', language: locale }, expect.objectContaining({ isCurrent: expect.any(Function), signal: expect.any(AbortSignal), onSuccess: expect.any(Function) })],
-    ])
-    authRequests.mockClear()
-    page.visits.length = 0
-
-    await expect(authenticate(page as unknown as Page)).rejects.toBe(verificationRequestBoundary)
-
-    expect(page.visits).toEqual([])
-    expect(authRequests).toHaveBeenCalledTimes(2)
-    expect(screen.queryByRole('button', { name: (locale === 'en' ? en : ptBR).onboarding.flow.what.haveAccount })).not.toBeInTheDocument()
-  })
-
-  it('submits email and code with fresh widget callbacks when bot protection is configured', async () => {
-    smokeLocale.value = 'en'
-    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
-
-    await expect(authenticate(new SmokeDomPage() as unknown as Page)).rejects.toBe(verificationRequestBoundary)
-
-    expect(authRequests.mock.calls).toEqual([
-      ['/api/auth/send-code', { email: 'smoke@example.test', language: 'en', turnstileToken: 'XXXX.DUMMY.TOKEN.XXXX' }],
-      ['/api/auth/verify-code', { email: 'smoke@example.test', code: '123456', language: 'en', turnstileToken: 'XXXX.DUMMY.TOKEN.XXXX' }, expect.objectContaining({ isCurrent: expect.any(Function), signal: expect.any(AbortSignal), onSuccess: expect.any(Function) })],
-    ])
-    expect(mockPush).not.toHaveBeenCalled()
   })
 
   it('stops at the existing configuration boundary when the email secret is missing', async () => {

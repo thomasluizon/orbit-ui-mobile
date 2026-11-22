@@ -111,16 +111,6 @@ describe('HabitListEmptyState', () => {
     }
     expect(tree.root.findAllByType('AnimatedView').map(node => node.props['data-orbit-hop'])).toEqual(['still'])
   })
-  it.each([412, 1440])('draws the base Orbit at 96 with no hop at %s while the flag is off, even when the completed day celebration is active', (width) => {
-    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
-    TestRenderer.act(() => { useUIStore.getState().enqueueCelebration('all-done', { count: 3 }) })
-    const tree = render(<HabitListAllDone />)
-    expect(tree.root.findAllByType(OrbitMascot)[0]!.props).toMatchObject({ size: 96, state: 'feliz' })
-    const mark = tree.root.findAll(node => node.props.testID === 'completed-day-mark')[0]!
-    expect(StyleSheet.flatten(mark.props.style as StyleProp<TextStyle>)).toMatchObject({ width: 96, height: orbitMascotHeight(96) })
-    expect(tree.root.findAll(node => node.props.testID === 'completed-day-hop')).toHaveLength(0)
-    expect(tree.root.findAllByType('AnimatedView').map(node => node.props['data-orbit-hop'])).toEqual([])
-  })
   it('hops once when everything due today is done, and stays still for another celebration, on a later visit and under reduced motion', () => {
     const hop = (tree: TestTree) => tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'completed-day-hop')[0]!.props['data-orbit-hop']
     const tree = render(<HabitListAllDone />)

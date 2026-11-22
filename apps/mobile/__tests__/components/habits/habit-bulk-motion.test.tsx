@@ -92,16 +92,5 @@ describe('one animation for an Android bulk action of the selection tray', () =>
     expect(groupRuns()).toHaveLength(0)
     await tree.unmount()
   })
-
-  it('keeps the current motion of each row with the flag off', async () => {
-    const tree = await mount(<Rows done={false} />)
-    clearRuns()
-    await tree.store(() => useUIStore.getState().beginBulkMotion())
-    await tree.update(<Rows done />)
-    await tree.store(() => useUIStore.getState().endBulkMotion())
-    expect(checkPops()).toBe(50)
-    expect(tree.hosts().some((node) => node.props.testID === 'list-bulk-settle')).toBe(false)
-    await tree.unmount()
-  })
 })
 

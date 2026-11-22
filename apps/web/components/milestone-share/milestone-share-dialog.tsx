@@ -37,7 +37,7 @@ interface MilestoneShareDialogProps {
   ref?: Ref<SheetHandle>
 }
 
-/** The milestone share prompt under `orbit_guided_flows`: a centred dialog with Orbit in Feliz, with no hop, above the card. */
+/** The milestone share prompt: a centred dialog with Orbit in Feliz, with no hop, above the card. */
 export function MilestoneShareDialog({ card, actions, onDismiss, ref }: Readonly<MilestoneShareDialogProps>) {
   const t = useTranslations()
   return (

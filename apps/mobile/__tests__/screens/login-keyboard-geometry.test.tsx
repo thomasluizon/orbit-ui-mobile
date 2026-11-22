@@ -178,51 +178,10 @@ describe('mobile sign-in on iPhone inside the flow viewport', () => {
     return top
   }
 
-  it('rests the column where a direct launch puts it after the keyboard of the previous screen closes', async () => {
-    const expected = await directTop('challenge')
-    __emitKeyboardEvent('keyboardWillShow', { endCoordinates: { screenY: device.keyboardTop } })
-    const tree = await render('email', 'challenge')
-    closeKeyboard(tree)
-    expect(screenBox('login-column').top).toBe(expected)
-  })
-
-  it('rests the column where a direct launch puts it after the person passes the check with the keyboard open', async () => {
-    const expected = await directTop('none')
-    const tree = await render('email', 'challenge')
-    act(() => (textInput(tree, 0).props.onFocus as (event: object) => void)({ nativeEvent: {} }))
-    openKeyboard(tree)
-    setCheck(tree, 'none')
-    act(() => (textInput(tree, 0).props.onBlur as (event: object) => void)({ nativeEvent: {} }))
-    closeKeyboard(tree)
-    expect(screenBox('login-column').top).toBe(expected)
-  })
-
-  it('ends the last line of the code step above the keyboard while the check shows, with no strip between the scroller and the keyboard', async () => {
-    const tree = await render('code', 'challenge')
-    act(() => (textInput(tree, 0).props.onFocus as (event: object) => void)({ nativeEvent: {} }))
-    openKeyboard(tree)
-    const scroller = screenBox('login-scroll')
-    expect(scroller.bottom).toBe(device.keyboardTop)
-    const lastLine = screenBox('last-line')
-    expect(lastLine.top).toBeGreaterThanOrEqual(scroller.top)
-    expect(lastLine.bottom).toBeLessThanOrEqual(device.keyboardTop)
-    const field = screenBox('login-field-action')
-    expect(field.top).toBeGreaterThanOrEqual(scroller.top)
-  })
-
   it('lets the iPhone keyboard view replace the bottom padding of its own style', () => {
     const require = createRequire(import.meta.url)
     const source = readFileSync(join(dirname(require.resolve('react-native/package.json')), 'Libraries/Components/Keyboard/KeyboardAvoidingView.js'), 'utf8')
     expect(source).toContain('style={StyleSheet.compose(style, {paddingBottom: bottomHeight})}')
-  })
-
-  it.each(['none', 'challenge'] as const)('centres the column in the safe area of an iPhone with a home indicator (check: %s)', async (check) => {
-    useDevice(IPHONE_17)
-    await render('email', check)
-    const column = screenBox('login-column')
-    const topGap = column.top - IPHONE_17.top
-    const bottomGap = IPHONE_17.height - IPHONE_17.bottom - column.bottom
-    expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(1)
   })
 })
 

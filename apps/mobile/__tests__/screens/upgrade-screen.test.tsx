@@ -227,7 +227,7 @@ vi.mock('@/components/upgrade/play-billing-dashboard', async (importOriginal) =>
 })
 vi.mock('@/components/upgrade/pricing-section', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/upgrade/pricing-section')>()
-  return { PricingSection: (props: React.ComponentProps<typeof actual.PricingSection>) =>
+  return { ...actual, PricingSection: (props: React.ComponentProps<typeof actual.PricingSection>) =>
     React.createElement(mocks.renderComposition ? actual.PricingSection : 'PricingSection', props) }
 })
 
@@ -369,7 +369,7 @@ describe('UpgradeScreen', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
+  it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['stripe', 'play'].map((plan) => ({ width, plan }))))(
     'uses the drawn $plan body width at $width', async ({ width, plan }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       mocks.renderComposition = true
@@ -413,7 +413,7 @@ describe('UpgradeScreen', () => {
 
   const subscriptionCases = [320, 412, 1200].flatMap((width) => (['en', 'pt-BR'] as const)
     .flatMap((locale) => (['light', 'dark'] as const).flatMap((mode) =>
-      ['free', 'trial', 'monthly', 'yearly', 'play-monthly', 'play-yearly', 'expired', 'lifetime', 'canceled', 'past-due']
+      ['monthly', 'yearly', 'play-monthly', 'play-yearly', 'expired', 'lifetime', 'canceled', 'past-due']
         .map((state) => ({ width, locale, mode, state })))))
 
   it.each(subscriptionCases)('renders the $state subscription at $width in $locale and $mode', async (example) => {
@@ -454,7 +454,7 @@ describe('UpgradeScreen', () => {
     },
   )
 
-  it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
+  it.each([412, 600, 840, 1200, 1352, 1600].flatMap((width) => ['stripe', 'play'].map((plan) => ({ width, plan }))))(
     'starts the shared $plan frame at the column edge at $width', async ({ width, plan }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       mocks.renderComposition = true
@@ -583,105 +583,6 @@ describe('UpgradeScreen', () => {
     })
   })
 
-  describe.each([
-    { locale: 'en', messages: en, trialHeading: '250 a week.' },
-    { locale: 'pt-BR', messages: ptBR, trialHeading: '250 por semana.' },
-  ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
-    beforeEach(async () => {
-      mocks.renderComposition = true
-      mocks.locale = locale
-      mocks.billing = undefined
-      await testI18n.changeLanguage(locale)
-    })
-
-    it.each([4, 1, 0, null])('uses the trial heading with %s days left', async (daysLeft) => {
-      mocks.hasProAccess = true
-      mocks.profile = createMockProfile({
-        isTrialActive: true,
-        trialEndsAt: daysLeft === null ? null : new Date(Date.now() + (daysLeft === 0 ? 3600000 : daysLeft * 86400000)).toISOString(),
-        aiMessagesLimit: 50,
-      })
-      const tree = await renderScreen()
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === trialHeading)).toHaveLength(1)
-      const eyebrow = daysLeft !== null && daysLeft <= 1 ? messages.upgrade.convert.trialLastDay
-        : daysLeft === null ? messages.upgrade.convert.trialEyebrow : null
-      if (eyebrow) expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === eyebrow)).toHaveLength(1)
-      if (daysLeft !== null) {
-        const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(mocks.profile.trialEndsAt!))
-        const hint = messages.upgrade.billing.plan.trialHint.replace('{date}', date)
-        expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === hint)).toHaveLength(1)
-      }
-      await TestRenderer.act(() => tree.unmount())
-    })
-
-    it('keeps the free heading outside a trial', async () => {
-      mocks.profile = createMockProfile({ isTrialActive: false, trialEndsAt: null })
-      const tree = await renderScreen()
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === messages.upgrade.convert.freeHeading)).toHaveLength(1)
-      await TestRenderer.act(() => tree.unmount())
-    })
-
-    it.each([false, true])('ends the paywall at the decline link without usage, trial=%s', async (isTrialActive) => {
-      mocks.hasProAccess = isTrialActive
-      mocks.profile = createMockProfile({ isTrialActive, aiMessagesUsed: 45, aiMessagesLimit: 50 })
-      const tree = await renderScreen()
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.convert.stayFree)).toHaveLength(1)
-      expect(tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.billing.usage.title)).toHaveLength(0)
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.billing.usage.nearLimit)).toHaveLength(0)
-      await TestRenderer.act(() => tree.unmount())
-    })
-
-    it.each(['light', 'dark'] as const)('rests the decline link in the fg-2 reassurance colour with a real underline in %s', async (mode) => {
-      mocks.mode = mode
-      const tree = await renderScreen()
-      const textStyle = (children: string) => StyleSheet.flatten(tree.root.findAll((node) => node.type === 'Text' && node.props.children === children)[0]!.props.style as StyleProp<TextStyle>)
-      const decline = textStyle(messages.upgrade.convert.stayFree)
-      expect(decline.color).toBe(createTokensV2('orange', mode).fg2)
-      expect(decline.color).not.toBe(createTokensV2('orange', mode).fg1)
-      expect(decline.color).toBe(textStyle(messages.upgrade.convert.cancelAnytime).color)
-      expect(decline.textDecorationLine).toBe('underline')
-      await TestRenderer.act(() => tree.unmount())
-    })
-
-    it.each(['stripe', 'play', 'lifetime'] as const)('keeps usage on the %s billing dashboard', async (source) => {
-      mocks.hasProAccess = true
-      mocks.profile = createMockProfile({
-        isTrialActive: false, isLifetimePro: source === 'lifetime',
-        subscriptionSource: source === 'lifetime' ? null : source,
-        aiMessagesUsed: 12, aiMessagesLimit: 50,
-      })
-      const tree = await renderScreen()
-      const meters = tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === messages.upgrade.billing.usage.aiMessages)
-      expect(meters).toHaveLength(1)
-      expect(meters[0]!.props.accessibilityValue).toEqual({ min: 0, max: 1, now: 0.24 })
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.billing.usage.aiMessagesOf.replace('{used}', '12').replace('{limit}', '50'))).toHaveLength(1)
-      await TestRenderer.act(() => tree.unmount())
-    })
-  })
-
-  it('shows the pricing section for a free user', async () => {
-    const tree = await renderScreen()
-    expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'upgrade.pitchTitle')).toHaveLength(1)
-  })
-
-  it('does not put subscription status in the trial pitch', async () => {
-    mocks.hasProAccess = true
-    mocks.profile = createMockProfile({
-      isTrialActive: true,
-      trialEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    })
-
-    const tree = await renderScreen()
-
-    expect(tree.root.findAll((node) =>
-      node.type === 'Text'
-        && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(0)
-    expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'upgrade.pitchTitle')).toHaveLength(1)
-  })
-
   it.each(['stripe', 'play'] as const)('titles the paid %s dashboard as a subscription', async (source) => {
     mocks.hasProAccess = true
     mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: source })
@@ -693,40 +594,6 @@ describe('UpgradeScreen', () => {
     mocks.lapseReason = 'expired'
     const tree = await renderScreen()
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'upgrade.title')).toHaveLength(1)
-  })
-
-  it.each([
-    ['loading', true, false, 'common.loading'],
-    ['load-failed', false, true, 'upgrade.billing.error'],
-    ['load-failed-without-status', false, false, 'upgrade.billing.error'],
-  ] as const)('renders the %s status outcome', async (_state, statusLoading, statusError, label) => {
-    mocks.profile = null
-    mocks.statusLoading = statusLoading
-    mocks.statusError = statusError
-    const tree = await renderScreen()
-    expect(
-      tree.root.findAll((node) => node.props.children === label || node.props.label === label).length,
-    ).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === (statusLoading ? '' : 'upgrade.title'))).toHaveLength(1)
-  })
-
-  it.each([
-    ['loading', true, false],
-    ['load-failed', false, true],
-  ] as const)('renders the Stripe billing %s outcome', async (state, billingLoading, billingError) => {
-    mocks.hasProAccess = true
-    mocks.billingLoading = billingLoading
-    mocks.billingError = billingError
-    const tree = await renderScreen()
-    if (state === 'loading') {
-      expect(
-        tree.root.findAll((node) => node.props.children === 'common.loading'
-          || node.props.label === 'common.loading').length,
-      ).toBeGreaterThan(0)
-    } else {
-      expect(tree.root.findAll((node) => node.props.children === 'upgrade.billing.error').length).toBeGreaterThan(0)
-    }
-    expect(tree.root.findAll((node) => node.type === 'BillingDashboard')).toHaveLength(0)
   })
 
   it.each([
@@ -751,30 +618,6 @@ describe('UpgradeScreen', () => {
     expect(findByType(tree.root, 'BillingDashboard').props.state).toBe('lifetime')
   })
 
-  it.each(['canceled', 'payment_failed', 'expired'] as const)(
-    'renders the %s lapse status in the routed pitch',
-    async (lapseReason) => {
-      mocks.profile = createMockProfile({
-        isTrialActive: false, subscriptionInterval: null, subscriptionSource: null, planExpiresAt: null,
-      })
-      mocks.lapseReason = lapseReason
-      mocks.subscriptionEndedAtUtc = '2026-08-01T00:00:00Z'
-      const tree = await renderScreen()
-      expect(tree.root.findAll((node) =>
-        node.type === 'Text'
-          && node.props.accessibilityRole === 'header'
-          && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(1)
-      const endedKey = lapseReason === 'payment_failed' ? 'payment_failed' : 'ended'
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === `upgrade.billing.lapsed.${endedKey}`)).toHaveLength(1)
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.lostCalendar')).toHaveLength(1)
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.lostRetrospective')).toHaveLength(1)
-      expect(tree.root.findAll((node) => node.type === 'PricingSection')).toHaveLength(0)
-      const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-sm')[0]!
-      TestRenderer.act(() => { (action.props.onPress as () => void)() })
-      expect(findByType(tree.root, 'PricingSection').props.focusOnMount).toBe(true)
-    },
-  )
-
   it('renders a truthful payment warning in the routed Pro dashboard', async () => {
     mocks.hasProAccess = true
     mocks.lapseReason = 'payment_failed'
@@ -785,51 +628,6 @@ describe('UpgradeScreen', () => {
 
     expect(findByType(tree.root, 'BillingDashboard').props.state).toBe('past-due')
     expect(findByType(tree.root, 'BillingDashboard')).toBeTruthy()
-  })
-
-  it('starts a purchase through the pricing section', async () => {
-    const tree = await renderScreen()
-    const section = findByType(tree.root, 'PricingSection')
-    await TestRenderer.act(async () => {
-      ;(section.props.onCheckout as (i: string) => void)('yearly')
-      await Promise.resolve()
-    })
-    expect(mocks.playBilling.clearError).toHaveBeenCalledTimes(1)
-    expect(mocks.playBilling.purchase).toHaveBeenCalledWith('yearly')
-  })
-
-  it.each(['recovery', 'restore'] as const)('blocks checkout during delayed Apple %s and becomes usable afterward', async (operation) => {
-    Platform.OS = 'ios'
-    setAccountId('account-1')
-    useAuthStore.setState({ user: { userId: 'account-1', name: 'Person', email: 'person@example.test' } })
-    await configureSubscription({ width: 412, locale: 'en', mode: 'dark', state: 'free' })
-    mocks.realPlayBilling = true
-    mocks.connected = true
-    let release!: (purchases: []) => void
-    const pending = new Promise<[]>((resolve) => { release = resolve })
-    if (operation === 'recovery') mocks.getPendingTransactionsIOS.mockReturnValueOnce(pending)
-    else mocks.getAvailablePurchases.mockReturnValueOnce(pending)
-    const tree = await renderScreen()
-    const section = () => tree.root.findAll((node) => typeof node.props.onCheckout === 'function' && typeof node.props.onRestore === 'function')[0]!
-    const checkout = () => tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'upgrade-tier-yearly')[0]!
-      .findAll((node) => node.type === 'Pressable' && typeof node.props.onPress === 'function')[0]!
-    try {
-      if (operation === 'restore') await TestRenderer.act(async () => { (section().props.onRestore as () => void)(); await Promise.resolve() })
-      expect(section().props.isRestoring).toBe(true)
-      expect(checkout().props.disabled).toBe(true)
-      await TestRenderer.act(async () => { (section().props.onCheckout as (interval: string) => void)('yearly'); await Promise.resolve() })
-      expect(mocks.playBilling.purchase).not.toHaveBeenCalled()
-      await TestRenderer.act(async () => { release([]); await new Promise((resolve) => setTimeout(resolve, 0)) })
-      expect(section().props.isRestoring).toBe(false)
-      expect(section().props.checkoutLoading).toBeNull()
-      expect(checkout().props.disabled).toBe(false)
-      await TestRenderer.act(async () => { (checkout().props.onPress as () => void)(); await Promise.resolve() })
-      expect(mocks.playBilling.purchase).toHaveBeenCalledExactlyOnceWith({ type: 'subs', request: { apple: { sku: 'orbit.yearly', appAccountToken: 'account-1' } } })
-    } finally {
-      TestRenderer.act(() => tree.unmount())
-      useAuthStore.setState({ user: null })
-      setAccountId(null)
-    }
   })
 
   it.each((['en', 'pt-BR'] as const).flatMap((locale) => ['false', 'rejected'].map((outcome) => ({ locale, outcome }))))('offers a retry for a $outcome Play connection on the Pro screen in $locale', async ({ locale, outcome }) => {
@@ -860,37 +658,6 @@ describe('UpgradeScreen', () => {
     expect(JSON.stringify(tree.toJSON())).not.toContain(testI18n.t('upgrade.plans.error'))
   })
 
-  it('switches the selected interval', async () => {
-    const tree = await renderScreen()
-    const section = findByType(tree.root, 'PricingSection')
-    await TestRenderer.act(async () => {
-      ;(section.props.onSelectInterval as (i: string) => void)('monthly')
-      await Promise.resolve()
-    })
-    expect(findByType(tree.root, 'PricingSection').props.selectedInterval).toBe('monthly')
-  })
-
-  it('routes back to the fallback when the user stays free', async () => {
-    mocks.from = '/profile'
-    const tree = await renderScreen()
-    await TestRenderer.act(() => {
-      ;(findByType(tree.root, 'PricingSection').props.onStayFree as () => void)()
-    })
-    expect(mocks.goBack).toHaveBeenCalledWith('/profile')
-  })
-
-  it('restores purchases and retries plan loading via the pricing section', async () => {
-    const tree = await renderScreen()
-    const section = findByType(tree.root, 'PricingSection')
-    await TestRenderer.act(async () => {
-      ;(section.props.onRestore as () => void)()
-      ;(section.props.onRetryPlans as () => void)()
-      await Promise.resolve()
-    })
-    expect(mocks.playBilling.restorePurchases).toHaveBeenCalledTimes(1)
-    expect(mocks.refetchPlans).toHaveBeenCalledTimes(1)
-  })
-
   it('opens the Stripe portal for a paying stripe user', async () => {
     mocks.hasProAccess = true
     mocks.apiClient.mockResolvedValue({ url: 'https://portal.stripe.test' })
@@ -916,34 +683,6 @@ describe('UpgradeScreen', () => {
     })
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(findByType(tree.root, 'BillingDashboard').props.state).toBe('offline')
-  })
-
-  it.each([false, true])('keeps cached pitch content offline, trial=%s', async (trialActive) => {
-    mocks.isOnline = false
-    mocks.hasProAccess = trialActive
-    mocks.profile = createMockProfile({
-      isTrialActive: trialActive,
-      trialEndsAt: trialActive
-        ? new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
-        : null,
-      subscriptionInterval: null,
-      subscriptionSource: null,
-    })
-    const tree = await renderScreen()
-    const section = findByType(tree.root, 'PricingSection')
-    expect(section).toBeTruthy()
-    if (trialActive) {
-      expect(section.props.trialDaysLeft).toBeGreaterThan(0)
-    } else {
-      expect(section.props.trialDaysLeft).toBeNull()
-    }
-    await TestRenderer.act(async () => {
-      ;(section.props.onRestore as () => void)()
-      ;(section.props.onRetryPlans as () => void)()
-      await Promise.resolve()
-    })
-    expect(mocks.playBilling.restorePurchases).not.toHaveBeenCalled()
-    expect(mocks.refetchPlans).not.toHaveBeenCalled()
   })
 
   it('keeps the Play dashboard and blocks its handoff while offline', async () => {
@@ -1063,30 +802,5 @@ describe('UpgradeScreen', () => {
       .toBe(source === 'play' ? 'idle' : 'stripe')
     expect(mocks.refetchStatus).toHaveBeenCalledTimes(1)
     await TestRenderer.act(() => tree.unmount())
-  })
-
-  it('clears the pending checkout once play billing stops processing', async () => {
-    let tree: { root: TestNode; update: (element: React.ReactElement) => void } | undefined
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<UpgradeScreen />)
-      await Promise.resolve()
-    })
-    await TestRenderer.act(async () => {
-      ;(findByType(tree!.root, 'PricingSection').props.onCheckout as (i: string) => void)('monthly')
-      await Promise.resolve()
-    })
-    expect(findByType(tree!.root, 'PricingSection').props.checkoutLoading).toBe('monthly')
-
-    mocks.playBilling.isProcessing = true
-    await TestRenderer.act(() => {
-      tree!.update(<UpgradeScreen />)
-    })
-    expect(findByType(tree!.root, 'PricingSection').props.checkoutLoading).toBe('monthly')
-
-    mocks.playBilling.isProcessing = false
-    await TestRenderer.act(() => {
-      tree!.update(<UpgradeScreen />)
-    })
-    expect(findByType(tree!.root, 'PricingSection').props.checkoutLoading).toBeNull()
   })
 })

@@ -29,32 +29,6 @@ describe('Android habit detail result dialog', () => {
     tree.unmount()
   })
 
-  it.each([['on', true], ['off', false]])('never brings back the load error while detail leaves after a delete, with the guided flows %s', (_label, guided) => {
-    const seeToday = vi.fn()
-    function Detail() {
-      const host = useHabitDetailResult(seeToday)
-      return <>
-        <Pressable testID="delete" onPress={host.deleted} />
-        <HabitDetailUnavailable result={host.result} habitDeleted={host.habitDeleted} onSeeToday={host.seeToday} onClose={host.close}>
-          <Text testID="load-error">habits.detail.loadError</Text>
-        </HabitDetailUnavailable>
-      </>
-    }
-    const tree = renderNavigation(<Detail />)
-    const find = (testID: string) => tree.hosts().find((node) => node.props.testID === testID)
-    expect(find('load-error')).toBeDefined()
-    press(find('delete')!)
-    if (guided) {
-      expect(find('result-dialog')).toBeDefined()
-      expect(find('load-error')).toBeUndefined()
-      press(find('button-primary-sm')!)
-      expect(find('result-dialog')).toBeUndefined()
-    }
-    expect(seeToday).toHaveBeenCalledOnce()
-    expect(find('load-error')).toBeUndefined()
-    tree.unmount()
-  })
-
   it('closes on the scrim and renders nothing without a result', () => {
     const onClose = vi.fn()
     const tree = renderNavigation(<HabitDetailResultDialog result={{ kind: 'deleted' }} onSeeToday={vi.fn()} onClose={onClose} />)

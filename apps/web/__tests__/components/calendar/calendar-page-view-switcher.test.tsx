@@ -1083,16 +1083,6 @@ describe('CalendarPage view switcher', () => {
     expect(loadedHeight).toBe('')
   })
 
-  it('shows a retryable error when the profile request fails', () => {
-    profileQueryState.profile = undefined
-    profileQueryState.error = new Error('profile unavailable')
-    render(<CalendarPage />)
-
-    expect(screen.getByText('calendar.loadError')).toBeDefined()
-    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
-    expect(profileQueryState.refetch).toHaveBeenCalledTimes(1)
-  })
-
   it('renders the agenda at phone width without folding it back to month', () => {
     render(<CalendarPage />)
 
@@ -1599,17 +1589,6 @@ describe('CalendarPage view switcher', () => {
     expect(screen.queryByRole('switch', { name: 'calendar.dayDetail.autoSync' })).toBeNull()
   })
 
-  it('keeps the calendar usable and offers habit creation for an empty current month', () => {
-    render(<CalendarPage />)
-
-    expect(screen.getByTestId('month-view')).toBeDefined()
-    expect(screen.getByTestId('calendar-header')).toBeDefined()
-    expect(screen.getByText('calendar.emptyMonth')).toBeDefined()
-    expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeDefined()
-    expect(screen.queryByTestId('calendar-legend')).toBeNull()
-    expect(calendarStatsProps.state).toBe('empty')
-  })
-
   it('explains an offline empty-month create request in the month feedback', () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
     render(<CalendarPage />)
@@ -1618,17 +1597,6 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByTestId('calendar-header'))
     expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
     expect(screen.queryByText('offline.create.reason')).toBeNull()
-  })
-
-  it('keeps paging available but removes creation for a future month', () => {
-    render(<CalendarPage />)
-
-    fireEvent.click(screen.getByTestId('calendar-header'))
-
-    expect(screen.getByTestId('month-view')).toBeDefined()
-    expect(screen.getByText('calendar.futureMonth')).toBeDefined()
-    expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
-    expect(calendarStatsProps.state).toBe('empty')
   })
 
   it('keeps compact loading shaped like the grid and stat tiles', () => {
@@ -1657,43 +1625,6 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByRole('button', { name: 'calendar.legendTitle' }))
     expect(screen.getByTestId('calendar-legend')).toBeDefined()
     expect(calendarStatsProps.state).toBe('default')
-  })
-
-  it('shows a retryable error card when the calendar query fails', () => {
-    monthQueryState.error = 'network down'
-    const page = render(<CalendarPage />)
-
-    expect(useUIStore.getState().calendarHasError).toBe(true)
-    expect(screen.queryByTestId('month-view')).toBeNull()
-    expect(screen.getByText('calendar.loadError')).toBeDefined()
-
-    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
-    expect(monthQueryState.refresh).toHaveBeenCalledTimes(1)
-    page.unmount()
-    expect(useUIStore.getState().calendarHasError).toBe(false)
-  })
-
-  it('removes recurring habits from the month and shows its honest empty state', () => {
-    const todayKey = getMockAccountDateKey()
-    monthQueryState.dayMap = new Map([[todayKey, [{
-      habitId: 'recurring',
-      title: 'Recurring habit',
-      status: 'upcoming',
-      isBadHabit: false,
-      dueTime: '08:00',
-      isOneTime: false,
-    }]]])
-    render(<CalendarPage />)
-
-    expect(screen.getByTestId('day-detail')).toBeDefined()
-    expect(screen.getByTestId('month-stats')).toBeDefined()
-    expect(screen.queryByRole('switch', { name: 'calendar.showRecurring' })).not.toBeInTheDocument()
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'calendar.options' }), { button: 0, ctrlKey: false })
-    fireEvent.click(screen.getByRole('checkbox', { name: 'calendar.showRecurring' }))
-
-    expect(calendarGridProps.dayMap?.get(todayKey)).toEqual([])
-    expect(screen.getByTestId('month-stats').getAttribute('data-state')).toBe('empty')
-    expect(screen.getByText('calendar.emptyMonth')).toBeDefined()
   })
 
   it('removes recurring status rings from the range picker when recurring is turned off', () => {

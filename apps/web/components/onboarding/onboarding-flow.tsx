@@ -206,7 +206,7 @@ function GuidedResultSlot({ open, ...props }: Readonly<ComponentProps<typeof Gui
   return open.every(Boolean) ? <GuidedOnboardingResult {...props} /> : null
 }
 
-/** `guided` is the flag `orbit_guided_flows`: the intro and the one-question flow replace the steps, and the result dialog opens over the done shell. */
+/** The intro and the one-question flow replace the steps, and the result dialog opens over the done shell. */
 export function OnboardingFlow({ finalStepOnly = false, onExit }: Readonly<{ finalStepOnly?: boolean; onExit?: () => void }>) {
   const t = useTranslations('onboarding.flow')
   const translate = useTranslations()

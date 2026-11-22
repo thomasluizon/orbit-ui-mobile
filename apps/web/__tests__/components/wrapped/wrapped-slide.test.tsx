@@ -161,21 +161,6 @@ describe('WrappedSlide', () => {
     )
   })
 
-  it.each([false, true])('withholds weekday claims while the profile is unavailable, error %s', (isError) => {
-    profileState.isError = isError
-    const { container } = renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)
-    expect(container.querySelector('svg[data-asset="orbit-mascot"]')).toBeNull()
-    expect(screen.queryAllByRole('img')).toHaveLength(0)
-    expect(screen.queryByText('wrapped.slides.consistency.thin')).not.toBeInTheDocument()
-    if (isError) {
-      expect(screen.getByRole('alert')).toHaveTextContent('wrapped.error')
-      fireEvent.click(screen.getByRole('button', { name: 'wrapped.retry' }))
-      expect(profileState.refetch).toHaveBeenCalledOnce()
-    } else {
-      expect(screen.getByRole('progressbar', { name: 'wrapped.loading' })).toHaveAttribute('aria-busy', 'true')
-    }
-  })
-
   it('states the consistency error with Orbit in Parado, and retry reads the profile again', () => {
     profileState.isError = true
     const { container } = renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)

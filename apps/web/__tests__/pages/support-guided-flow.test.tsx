@@ -6,10 +6,9 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { holdAccount } from '@/__tests__/support/account-change'
 import SupportPage from '@/app/(app)/support/page'
 
-const mocks = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn(), send: vi.fn(), online: true, completed: vi.fn(), guided: true }))
+const mocks = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn(), send: vi.fn(), online: true, completed: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.back }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { name: 'Ada', email: 'ada@example.com' } }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
 vi.mock('@/lib/actions/support', () => ({ sendSupportMessage: (...args: unknown[]) => mocks.send(...args) }))
@@ -28,7 +27,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
   mocks.online = true
-  mocks.guided = true
   mocks.send.mockResolvedValue(undefined)
   holdAccount('user-1')
 })
@@ -97,13 +95,4 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     fireEvent.click(screen.getByRole('button', { name: messages.profile.support.subjects.problem.option }))
     expect(screen.getByRole('textbox', { name: messages.profile.support.message })).toHaveValue('Kept.')
   })
-})
-
-it('keeps the current form with the flag off', () => {
-  stubMedia(false)
-  mocks.guided = false
-  mount('en', en)
-  expect(document.querySelector('[data-question-flow]')).toBeNull()
-  expect(screen.getByRole('button', { name: en.profile.support.send })).toBeInTheDocument()
-  expect(screen.getByText(en.profile.support.description)).toBeInTheDocument()
 })

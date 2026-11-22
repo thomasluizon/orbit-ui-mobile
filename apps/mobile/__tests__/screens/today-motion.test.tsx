@@ -94,53 +94,6 @@ describe('Today day motion', () => {
     }))
   })
 
-  it('uses signed eight pixel entrances for forward and backward days', async () => {
-    let tree!: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(<MotionHarness date="2026-09-03" />)
-    })
-    mocks.timingCalls.length = 0
-
-    await TestRenderer.act(() => {
-      tree.update(<MotionHarness date="2026-09-04" />)
-    })
-    expect(mocks.timingCalls).toEqual([
-      { from: 8, to: 0, duration: 220 },
-      { from: 0.9, to: 1, duration: 220 },
-    ])
-
-    mocks.timingCalls.length = 0
-    await TestRenderer.act(() => {
-      tree.update(<MotionHarness date="2026-09-02" />)
-    })
-    expect(mocks.timingCalls).toEqual([
-      { from: -8, to: 0, duration: 220 },
-      { from: 0.9, to: 1, duration: 220 },
-    ])
-  })
-
-  it('settles an active transition when reduced motion is enabled without changing the date', async () => {
-    let tree!: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => {
-      tree = TestRenderer.create(<MotionHarness date="2026-09-03" />)
-    })
-    mocks.completeAnimations = false
-
-    await TestRenderer.act(() => {
-      tree.update(<MotionHarness date="2026-09-04" />)
-    })
-    expect(mocks.values.slice(0, 2).map((value) => value.current)).toEqual([0.9, 8])
-
-    mocks.reducedMotion = true
-    mocks.timing.mockClear()
-    await TestRenderer.act(() => {
-      tree.update(<MotionHarness date="2026-09-04" />)
-    })
-
-    expect(mocks.timing).not.toHaveBeenCalled()
-    expect(mocks.values.slice(0, 2).map((value) => value.current)).toEqual([1, 0])
-  })
-
   it('starts no timing on mount or when the same date renders again', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {

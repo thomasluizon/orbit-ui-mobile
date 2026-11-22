@@ -76,14 +76,4 @@ describe('one animation for a bulk action of the selection tray', () => {
     expect(checkRuns()).toHaveLength(1)
     expect(groupRuns()).toHaveLength(0)
   })
-
-  it('keeps the current motion of each row with the flag off', () => {
-    const view = render(<Rows done={false} />)
-    act(() => useUIStore.getState().beginBulkMotion())
-    view.rerender(<Rows done />)
-    act(() => useUIStore.getState().endBulkMotion())
-    expect(groupRuns()).toHaveLength(0)
-    expect(checkRuns()).toHaveLength(50)
-    expect(document.querySelector('[data-list-bulk-settle]')).toBeNull()
-  })
 })

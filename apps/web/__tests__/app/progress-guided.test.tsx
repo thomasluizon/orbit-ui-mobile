@@ -294,13 +294,6 @@ describe('Progresso root figures since the last visit', () => {
 })
 
 describe('Progresso root', () => {
-  it('renders the current form', () => {
-    mocks.flag = false
-    const { container } = renderIn('en', <ProgressContent />)
-    expect(container.querySelector('[data-progress-guided]')).toBeNull()
-    expect(container.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
-    expect(screen.getByRole('heading', { level: 2, name: en.progressScreen.sections.window })).toBeInTheDocument()
-  })
 })
 
 describe('Sequência', () => {
@@ -321,17 +314,6 @@ describe('Sequência', () => {
     expect(sheet.querySelector('[data-freeze-summary]')).toHaveTextContent(locale === 'en'
       ? 'Each freeze covers a day with nothing logged, and you can bank up to 3 freezes.'
       : 'Cada congelamento cobre um dia sem registro, e você guarda até 3 congelamentos.')
-  })
-
-  it('renders the current Sequência and Conquistas with the flag off', () => {
-    mocks.flag = false
-    const streak = renderIn('en', <ProgressContent screen="streak" />)
-    expect(streak.container.querySelector('[data-progress-guided]')).toBeNull()
-    expect(streak.container.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
-    streak.unmount()
-    mocks.achievements = [createMockAchievement({ id: 'first_habit', category: 'GettingStarted', isEarned: true })]
-    const achievements = renderIn('en', <ProgressContent screen="achievements" />)
-    expect(achievements.container.querySelector('[data-achievement-id="first_habit"]')).not.toBeNull()
   })
 
   it('keeps the Orbit at 48 still under reduced motion', () => {

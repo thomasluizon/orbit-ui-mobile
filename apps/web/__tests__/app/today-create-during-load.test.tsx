@@ -202,23 +202,6 @@ describe('Today create during first load', () => {
     expect(banners[0]?.closest('[data-conversation-body]')).not.toBeNull()
   })
 
-  it('waits to show the calendar import prompt until the pushed creation screen closes', async () => {
-    state.profile = { hasProAccess: true, hasCompletedOnboarding: true, hasCompletedTour: true, hasImportedCalendar: false }
-    state.pathname = '/habits/new'
-    const view = render(<QueryAppLayout>
-      <HabitCreateFrame presentation="screen" open title="Create habit" fromConversation={false}
-        actionRefreshKey="ready" leaving={false} onNavigate={() => {}} onReturn={() => {}}
-        onClose={() => {}} onAttemptDismiss={() => {}} actions={<button type="button">Save habit</button>}>
-        <input aria-label="Habit title" />
-      </HabitCreateFrame>
-    </QueryAppLayout>)
-    expect(screen.getByRole('textbox', { name: 'Habit title' })).toBeInTheDocument()
-    expect(screen.queryByText('onboarding.wizard.calendarTitle')).toBeNull()
-    state.pathname = '/'
-    await act(async () => view.rerender(<QueryAppLayout><div>Today</div></QueryAppLayout>))
-    expect(screen.getByText('onboarding.wizard.calendarTitle')).toBeInTheDocument()
-  })
-
   it.each([
     ['calendar', { hasImportedCalendar: false }, ['common.later', 'onboarding.wizard.calendarButton']],
     ['Orbit', { hasImportedCalendar: true, hasSeenImportPrompt: false }, ['onboarding.wizard.importNotNow', 'onboarding.wizard.importButton']],
@@ -242,20 +225,6 @@ describe('Today create during first load', () => {
     await act(async () => {})
 
     expect(screen.getByRole('button', { name: quiet })).toHaveAttribute('data-variant', 'ghost')
-  })
-
-  it('waits to offer calendar import while another sheet is open', async () => {
-    state.profile = {
-      hasProAccess: true,
-      hasCompletedOnboarding: true,
-      hasImportedCalendar: false,
-    }
-    useUIStore.getState().registerOpenOverlay('already-open')
-    render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
-    expect(screen.queryByText('onboarding.wizard.calendarTitle')).toBeNull()
-
-    await act(async () => useUIStore.getState().unregisterOpenOverlay('already-open'))
-    expect(screen.getByText('onboarding.wizard.calendarTitle')).toBeInTheDocument()
   })
 
   it('waits to offer Orbit import while another sheet is open', async () => {

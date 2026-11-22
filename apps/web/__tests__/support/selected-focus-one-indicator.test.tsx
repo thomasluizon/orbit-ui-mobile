@@ -9,7 +9,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Chip } from '@/components/ui/chip'
 import { CheckRow } from '@/components/ui/check-row'
-import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goal-type-selector'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-group'
@@ -263,9 +262,6 @@ describe('a selected control keeps its selection ring under keyboard focus', () 
           expect(await inspectControlAccentRings(control)).toHaveLength(0)
         }
       } finally { cleanup(); await page.close() }
-    })
-    it.each(['Standard', 'Streak'] as const)(`goal type switch keeps one indicator, ${theme}, selected %s`, async (goalType) => {
-      await verifyRenderedChoices(<GoalTypeSelector goalType={goalType} onTypeChange={vi.fn()} />, '[role="radio"]', theme)
     })
     it(`the DateField today circle yields to its focused button, ${theme}`, async () => {
       const { container } = render(<button type="button" className="group"><span className="[box-shadow:inset_0_0_0_1px_var(--primary)] group-focus-visible:[box-shadow:none]">Today</span></button>)

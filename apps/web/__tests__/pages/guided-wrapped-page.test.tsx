@@ -81,11 +81,4 @@ describe('the guided Wrapped route on web', () => {
     expect(container.querySelectorAll('svg[data-asset="orbit-mascot"][data-orbit-loop="running"]')).toHaveLength(1)
     expect(within(screen.getByTestId('player')).getByText((_, element) => element?.getAttribute('data-asset') === 'orbit-mascot')).toBeInTheDocument()
   })
-
-  it('keeps the current page frame with the flag off', () => {
-    const { container } = renderPage()
-
-    expect(container.querySelector('main')).toHaveClass('min-h-dvh')
-    expect(container.querySelector('[data-wrapped-cover="guided"]')).toBeNull()
-  })
 })

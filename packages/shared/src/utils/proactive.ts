@@ -18,7 +18,7 @@ export function getTodayOrbitSlot(state: TodayOrbitState, translate: TodayOrbitT
   return getTodayOrbitLine(state, translate) ?? (shouldShowTodayOrbitSurface(state) ? 'summary' : null)
 }
 
-/** With the guided flows on, the line after a gap never counts days: a gap beyond the window shows the same sentence as a gap inside it. */
+/** The line after a gap never counts days: a gap beyond the window shows the same sentence as a gap inside it. */
 export function getTodayOrbitLine(state: TodayOrbitState, translate: TodayOrbitTranslate): TodayOrbitLine | null {
   if (!shouldShowTodayOrbitSurface(state)) return null
   if (state.item) return { text: state.item.text, destination: translate('todayOrbit.openConversation'), item: state.item }

@@ -26,7 +26,6 @@ import { AppBar } from '@/components/ui/app-bar'
 import { Chip } from '@/components/ui/chip'
 import { PillAnchor } from '@/components/ui/pill-anchor'
 import { PillButton } from '@/components/ui/pill-button'
-import { QuietLink } from '@/components/ui/quiet-link'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { PricingSection } from '@/components/upgrade/pricing-section'
@@ -64,7 +63,6 @@ const controls: [string, () => ReactElement, (page: Page) => Locator][] = [
   ['the onboarding proposal card', () => <OnboardingCreateHabit title="Walk outside" emoji="🚶" schedule={schedule} proposed correcting={false} canSaveRepeatWeeks atLimit={false} allowance={5}
     onCorrect={vi.fn()} onToggleDay={vi.fn()} onTimeChange={vi.fn()} onModeChange={vi.fn()} onFrequencyUnitChange={vi.fn()} onQuantityChange={vi.fn()} onIntervalWeeksChange={vi.fn()} />,
   (page) => page.getByRole('button', { name: 'Correct schedule. Emoji proposed by Orbit', exact: true })],
-  ['QuietLink', () => <QuietLink onClick={vi.fn()}>Back</QuietLink>, (page) => page.getByRole('button', { name: 'Back', exact: true })],
   ['the pricing stay-free link', () => <PricingSection profile={null} plans={null} isLoadingPlans isPlansError={false} isOnline trialDaysLeft={null}
     checkoutLoading={null} checkoutError="" discountedAmount={(amount) => amount} onCheckout={vi.fn()} onStayFree={vi.fn()} onRetryPlans={vi.fn()}
     t={((key: string) => key) as never} />, (page) => page.getByRole('link', { name: 'upgrade.convert.stayFree', exact: true })],

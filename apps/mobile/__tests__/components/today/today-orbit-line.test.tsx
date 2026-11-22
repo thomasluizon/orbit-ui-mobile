@@ -75,20 +75,4 @@ describe('Android Orbit line on Hoje', () => {
     expect(row(tree).props.accessibilityRole).toBe('link')
     expect(row(tree).props.accessibilityHint).toBe('todayOrbit.viewProgress')
   })
-
-  it('keeps the bounded sentence for a gap beyond the window while the flag is off', async () => {
-    mocks.proactive = false
-    mocks.profile = { ...mocks.profile, lastCompletionDate: beyondTheWindow() }
-    const tree = await renderLine()
-    expect(row(tree).props.accessibilityLabel).toBe('todayOrbit.returningBounded')
-  })
-
-  it('draws the Orbit at 48 that runs with the conversation entry, with no state, while the flag is off', async () => {
-    mocks.online = false
-    const tree = await renderLine()
-    expect(probe(tree)).toMatchObject({ size: 48, live: 'withLead' })
-    expect(probe(tree).still).toBeUndefined()
-    expect(probe(tree).state).toBeUndefined()
-    expect(row(tree).props.accessibilityLabel).toBe('Check in')
-  })
 })

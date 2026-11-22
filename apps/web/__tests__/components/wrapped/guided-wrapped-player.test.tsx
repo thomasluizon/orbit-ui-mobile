@@ -138,13 +138,4 @@ describe('the guided Wrapped player on web', () => {
     fireEvent.click(screen.getByRole('button', { name: locale.messages.shareCard.download }))
     expect(shareCard.download).toHaveBeenCalledTimes(1)
   })
-
-  it('renders the current player with the flag off: no slide travel and no Orbit in Feliz on the last slide', () => {
-    const { copy, container } = renderPlayer()
-
-    expect(screen.queryByTestId('wrapped-slide-travel')).not.toBeInTheDocument()
-    for (let step = 1; step < slides.length; step += 1) next(copy)
-    expect(screen.getByTestId('wrapped-slide-share')).toBeInTheDocument()
-    expect(container.querySelector('[data-orbit-state="feliz"]')).toBeNull()
-  })
 })

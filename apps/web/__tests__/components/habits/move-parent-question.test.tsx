@@ -57,11 +57,4 @@ describe('web move-parent overlay as one question', () => {
     expect(screen.getByRole('dialog')).toHaveAccessibleName('habits.form.parentHabit')
     expect(document.querySelector('[data-field-question]')).not.toBeNull()
   })
-
-  it('renders the current overlay with the flag off', () => {
-    renderOverlay()
-    expect(screen.getByRole('dialog')).toHaveAccessibleName('habits.moveParent.title')
-    expect(screen.getByText('habits.moveParent.description')).toBeInTheDocument()
-    expect(document.querySelector('[data-field-question]')).toHaveTextContent('habits.moveParent.destinations')
-  })
 })

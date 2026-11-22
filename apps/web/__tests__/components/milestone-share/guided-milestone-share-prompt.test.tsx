@@ -132,13 +132,4 @@ describe('the guided milestone share prompt on web', () => {
     act(() => { useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] }) })
     expect(await screen.findByRole('dialog', { name: copy.title })).toBeInTheDocument()
   })
-
-  it('renders the current sheet with the flag off: no centred dialog and no Orbit in Feliz', async () => {
-    const { copy } = await openPrompt()
-
-    const dialog = await screen.findByRole('dialog', { name: copy.title })
-    expect(dialog).toHaveAttribute('data-centred', 'false')
-    expect(feliz()).toHaveLength(0)
-    expect(screen.getByRole('button', { name: copy.later })).toBeInTheDocument()
-  })
 })

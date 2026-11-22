@@ -804,41 +804,6 @@ describe('DestinationShell', () => {
     expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
 
-  it.each(['page', 'create', 'detail'] as const)('server-renders and hydrates one %s header before pinning it', async (surface) => {
-    mocks.profileLoaded = false
-    mocks.pathname = surface === 'page' ? '/about' : surface === 'create' ? '/habits/new' : '/habits/habit-1'
-    const child = surface === 'page'
-      ? <PageHeader title="About" backLabel="Back" onBack={() => {}} />
-      : surface === 'detail'
-        ? <HabitDetailScreen habitId="habit-1" />
-        : <HabitCreateFrame presentation="screen" fromConversation={false} leaving={false}
-            actionRefreshKey="ready" onNavigate={() => {}} onReturn={() => {}}
-            open title="New habit" actions={<button type="button">Save habit</button>} onAttemptDismiss={() => {}} onClose={() => {}}>
-            <label>Habit title<input /></label>
-          </HabitCreateFrame>
-    const shell = <DestinationShell onCreate={() => {}}>{child}</DestinationShell>
-    const container = document.createElement('div')
-    container.innerHTML = renderToString(shell)
-    document.body.append(container)
-    const title = surface === 'page' ? 'About' : surface === 'create' ? 'New habit' : 'habits.detail.screenTitle'
-    const recoverableError = vi.fn()
-    let root: ReturnType<typeof hydrateRoot> | undefined
-    try {
-      expect(within(container).getAllByRole('heading', { name: title })).toHaveLength(1)
-      const firstHeading = within(container).getByRole('heading', { name: title })
-      if (surface === 'create') expect(within(container).getByRole('button', { name: 'Save habit' })).toBeVisible()
-      await act(async () => { root = hydrateRoot(container, shell, { onRecoverableError: recoverableError }) })
-      expect(recoverableError).not.toHaveBeenCalled()
-      expect(within(container).getByRole('heading', { name: title })).toBe(firstHeading)
-      expect(within(container).getAllByRole('heading', { name: title })).toHaveLength(1)
-      expect(within(container).getByRole('heading', { name: title }).closest('[data-shell-header]')).not.toBeNull()
-      if (surface === 'create') expect(within(container).getAllByRole('button', { name: 'Save habit' })).toHaveLength(1)
-    } finally {
-      await act(async () => root?.unmount())
-      container.remove()
-    }
-  })
-
   it.each([false, true])('keeps the incoming header after the outgoing route exits at wide=%s', async (wide) => {
     mocks.pathname = '/profile'
     mocks.wide = wide
@@ -1024,24 +989,6 @@ describe('DestinationShell', () => {
     mocks.lastDestination = 'hoje'
     render(<DestinationShell onCreate={() => {}}><h1>Search</h1></DestinationShell>)
     expect(screen.getByRole('link', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
-  })
-
-  it.each([false, true])('hosts creation header and action without another create control at wide=%s', (wide) => {
-    mocks.wide = wide
-    mocks.pathname = '/habits/new'
-    const view = render(<DestinationShell onCreate={() => {}}>
-      <HabitCreateFrame presentation="screen" fromConversation={false} leaving={false}
-        actionRefreshKey="ready" onNavigate={() => {}} onReturn={() => {}}
-        open title="New habit" onAttemptDismiss={() => {}} onClose={() => {}}
-        actions={<button type="button">Create habit</button>}>
-        <label>Habit title<input /></label>
-      </HabitCreateFrame>
-    </DestinationShell>)
-    expect(screen.getByRole('button', { name: 'common.back' }).closest('[data-shell-header]')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create habit' }).closest('[data-shell-pinned-slot]')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'nav.createHabit' })).toBeNull()
-    if (!wide) expect(screen.queryByRole('navigation', { name: 'nav.mainNavigation' })).toBeNull()
-    expect(screen.getByRole('textbox')).toBeInTheDocument()
   })
 
   it('keeps the wide upgrade sidebar and reserves its account row', () => {

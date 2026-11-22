@@ -569,12 +569,6 @@ describe("the month picker as one question (mobile)", () => {
     expect(hostTextValues(tree)).toContain(en.calendar.monthPickerTypedUnresolved);
   });
 
-  it('keeps the current picker with the guided flows off', () => {
-    const { tree } = renderGuided(en, false);
-    expect(hostTextValues(tree)).not.toContain(en.calendar.monthPickerQuestion);
-    expect(tree.root.findAll((node) => node.props.testID === 'calendar-jump-question')).toHaveLength(0);
-  });
-
   it('titles the legend with the question and keeps the four marks', () => {
     translated.words = { 'calendar.options': en.calendar.options, 'calendar.legendTitle': en.calendar.legendTitle, 'calendar.legendQuestion': en.calendar.legendQuestion };
     let tree!: Tree;

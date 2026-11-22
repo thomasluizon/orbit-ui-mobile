@@ -89,11 +89,6 @@ describe('ChatEmptyState (mobile)', () => {
     expect(JSON.stringify(tree.toJSON())).toContain('chat.empty.title')
   })
 
-  it('shows no Orbit line with no reason, and none with the guided flows off', () => {
-    expect(orbitLines(renderEmptyState(null, 'descansando', 'todayOrbit.guided.offline').tree)).toHaveLength(0)
-    expect(orbitLines(renderEmptyState(null).tree)).toHaveLength(0)
-  })
-
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(`${TODAY}T12:00:00Z`))

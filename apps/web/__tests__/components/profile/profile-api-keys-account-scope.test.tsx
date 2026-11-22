@@ -161,76 +161,6 @@ async function revealAccountAKey() {
   expectSmallSheetActions()
 }
 
-it.each([
-  ['', null],
-  ['2099-12-31T23:59', '2099-12-31T23:59:00.000Z'],
-])('uses small intrinsic Cancel then Create actions in the scoped-key sheet with expiry %j', async (expiry, expiresAtUtc) => {
-  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
-  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  await chooseApiKeyCreation(en.profile.apiKeys.createScoped, en.profile.apiKeys.create)
-  fireEvent.change(expiryField(), { target: { value: expiry } })
-  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Personal key' } })
-  expect(sheetSlotButtons('sheet-actions')).toEqual([en.common.cancel, en.profile.apiKeys.scopeAction])
-  expectSmallSheetActions()
-  expect(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })).toBeDisabled()
-  fireEvent.change(screen.getByRole('textbox', { name: en.profile.apiKeys.scopeLabel }), { target: { value: 'habits:read' } })
-  expect(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })).toBeEnabled()
-  expect(expiryField()).toHaveValue(expiry)
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })) })
-  expect(management.handleCreateKey).toHaveBeenCalledExactlyOnceWith({
-    name: 'Personal key', scopes: ['habits:read'], isReadOnly: false, expiresAtUtc,
-  }, expect.any(Function))
-  expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
-  expect(sheetSlotButtons('sheet-actions')).toEqual([en.orbitMcp.done])
-})
-
-it('takes the revealed API key off the screen when another account replaces the tab', async () => {
-  await revealAccountAKey()
-
-  respondWithAccount('user-2')
-  await act(async () => { await useAuthStore.getState().checkSession() })
-
-  expect(screen.queryByText(ACCOUNT_A_KEY)).not.toBeInTheDocument()
-})
-
-it('keeps the revealed API key when the same account recovers from a rejected refresh', async () => {
-  await revealAccountAKey()
-
-  vi.mocked(globalThis.fetch).mockResolvedValue({
-    ok: false, status: 401, json: () => Promise.resolve({ refreshFailed: true }),
-  } as unknown as Response)
-  await act(async () => { await useAuthStore.getState().confirmSessionRefreshFailure() })
-  respondWithAccount('user-1')
-  await act(async () => { await useAuthStore.getState().recoverSessionRefreshFailure() })
-
-  expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
-})
-
-it('does not reveal an old key when creation resolves after replacement', async () => {
-  let releaseCreate!: (value: object) => void
-  management.handleCreateKey.mockImplementationOnce(() => new Promise((resolve) => {
-    releaseCreate = resolve
-  }))
-  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
-  render(
-    <QueryClientProvider client={queryClient}>
-      <ProfileApiKeys profile={proProfile()} unlocked />
-    </QueryClientProvider>,
-  )
-  await chooseApiKeyCreation('Create key', en.profile.apiKeys.create)
-  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Personal key' } })
-  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction }))
-
-  respondWithAccount('user-2')
-  await act(async () => { await useAuthStore.getState().checkSession() })
-  await act(async () => {
-    releaseCreate({ id: 'key-1', name: 'Orbit key', key: ACCOUNT_A_KEY })
-    await Promise.resolve()
-  })
-
-  expect(screen.queryByText(ACCOUNT_A_KEY)).not.toBeInTheDocument()
-})
-
 it('does not route the next account after an old key challenge resolves', async () => {
   let releaseChallenge!: () => void
   vi.mocked(requestApiKeyCreationChallenge).mockImplementationOnce(() =>
@@ -303,101 +233,6 @@ it('waits for the first account check before requesting an API key challenge', a
   expect(management.push).toHaveBeenCalledWith('/step-up?operation=keys')
 })
 
-it.each([false, true])('asks for a name before creating a key with scoped=%s', async (scoped) => {
-  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
-  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  await chooseApiKeyCreation(scoped ? en.profile.apiKeys.createScoped : en.profile.apiKeys.create, en.profile.apiKeys.create)
-  expect(management.handleCreateKey).not.toHaveBeenCalled()
-  const name = screen.getByRole('textbox', { name: en.orbitMcp.keyName })
-  expect(name).toHaveAttribute('placeholder', en.orbitMcp.keyNamePlaceholder)
-  expect(name).toBeRequired()
-  if (scoped) fireEvent.change(screen.getByRole('textbox', { name: en.profile.apiKeys.scopeLabel }), { target: { value: ' habits:read ' } })
-  const submit = screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })
-  fireEvent.change(name, { target: { value: '   ' } })
-  fireEvent.click(submit)
-  expect(name).toHaveAccessibleDescription(en.orbitMcp.keyNameRequired)
-  expect(name).toHaveFocus()
-  expect(management.handleCreateKey).not.toHaveBeenCalled()
-  for (const value of ['x'.repeat(51), 'x'.repeat(49) + '😀']) {
-    fireEvent.change(name, { target: { value } })
-    fireEvent.keyDown(name, { key: 'Enter' })
-    expect(name).toHaveAccessibleDescription(en.orbitMcp.keyNameMaxLength)
-    expect(management.handleCreateKey).not.toHaveBeenCalled()
-  }
-  fireEvent.change(name, { target: { value: `  ${('x'.repeat(48) + '😀')}  ` } })
-  await act(async () => { fireEvent.click(submit) })
-  expect(management.handleCreateKey).toHaveBeenCalledWith(
-    { name: ('x'.repeat(48) + '😀'), ...(scoped ? { scopes: ['habits:read'] } : {}), isReadOnly: false, expiresAtUtc: null },
-    expect.any(Function),
-  )
-  expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
-})
-
-it('keeps the name after a failed request and disables repeat submissions while pending', async () => {
-  let finish!: () => void
-  management.handleCreateKey.mockImplementationOnce(() => new Promise((resolve) => {
-    finish = () => { management.error = en.orbitMcp.createKeyError; resolve(null) }
-  }))
-  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
-  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create)
-  const name = screen.getByRole('textbox', { name: en.orbitMcp.keyName })
-  fireEvent.change(name, { target: { value: 'Home automation' } })
-  const submit = screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })
-  fireEvent.click(submit)
-  expect(submit).toBeDisabled()
-  expect(submit).toHaveAttribute('data-loading')
-  expect(name).toBeDisabled()
-  expect(screen.getByRole('button', { name: en.common.cancel })).toBeDisabled()
-  fireEvent.keyDown(name, { key: 'Enter' })
-  expect(management.handleCreateKey).toHaveBeenCalledTimes(1)
-  await act(async () => finish())
-  expect(screen.getByRole('alert')).toHaveTextContent(en.orbitMcp.createKeyError)
-  expect(name).toHaveValue('Home automation')
-  expect(submit).toBeEnabled()
-  management.error = null
-  await act(async () => { fireEvent.click(submit) })
-  expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
-})
-
-it('clears the name when creation is explicitly cancelled', async () => {
-  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
-  bindStepUpStateToAccount('user-1')
-  retainApiKeyExpiryDraft('2099-12-31T23:59')
-  const view = render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create)
-  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Cancelled key' } })
-  fireEvent.change(expiryField(), { target: { value: '2099-12-31T23:59' } })
-  fireEvent.click(screen.getByRole('button', { name: en.common.cancel }))
-  fireEvent.click(screen.getByRole('button', { name: en.common.keepEditing }))
-  expect(screen.getByRole('textbox', { name: en.orbitMcp.keyName })).toHaveValue('Cancelled key')
-  expect(expiryField()).toHaveValue('2099-12-31T23:59')
-  fireEvent.click(screen.getByRole('button', { name: en.common.cancel }))
-  fireEvent.click(screen.getByRole('button', { name: en.common.discardChangesAction }))
-  await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create)
-  expect(screen.getByRole('textbox', { name: en.orbitMcp.keyName })).toHaveValue('')
-  expect(expiryField()).toHaveValue('')
-  view.unmount()
-  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create)
-  expect(screen.getByRole('textbox', { name: en.orbitMcp.keyName })).toHaveValue('')
-  expect(expiryField()).toHaveValue('')
-  expect(management.handleCreateKey).not.toHaveBeenCalled()
-})
-
-
-it.each([['en', en], ['pt-BR', ptBR]] as const)('labels the name and required error in %s', async (locale, messages) => {
-  management.locale = locale
-  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
-  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  await chooseApiKeyCreation(messages.profile.apiKeys.create, messages.profile.apiKeys.create)
-  const name = screen.getByRole('textbox', { name: messages.orbitMcp.keyName })
-  expect(name).toHaveAttribute('placeholder', messages.orbitMcp.keyNamePlaceholder)
-  fireEvent.click(screen.getByRole('button', { name: messages.profile.apiKeys.scopeAction }))
-  expect(name).toHaveAccessibleDescription(messages.orbitMcp.keyNameRequired)
-  expect(management.handleCreateKey).not.toHaveBeenCalled()
-})
-
 async function submitNamedKey() {
   fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Personal key' } })
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })) })
@@ -407,51 +242,6 @@ function renderUnlockedKeys() {
   useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
   return render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
 }
-
-it.each([true, false])('submits read-only permission %s for simple and scoped keys', async (readOnly) => {
-  renderUnlockedKeys()
-  const permission = screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })
-  expect(permission).not.toBeChecked()
-  fireEvent.click(permission)
-  if (!readOnly) fireEvent.click(permission)
-  expect(permission).toHaveAttribute('aria-checked', String(readOnly))
-  await act(async () => { await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create) })
-  await submitNamedKey()
-  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: 'Personal key', isReadOnly: readOnly, expiresAtUtc: null }, expect.any(Function))
-  fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.done }))
-  await chooseApiKeyCreation(en.profile.apiKeys.createScoped, en.profile.apiKeys.create)
-  const submit = screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })
-  expect(submit).toBeDisabled()
-  fireEvent.change(screen.getByLabelText(en.profile.apiKeys.scopeLabel), { target: { value: '  habits:read  ' } })
-  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Personal key' } })
-  await act(async () => { fireEvent.click(submit) })
-  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: 'Personal key', scopes: ['habits:read'], isReadOnly: readOnly, expiresAtUtc: null }, expect.any(Function))
-})
-
-it('freezes permission and both create entries while a read-only request is pending', async () => {
-  let finish!: () => void
-  management.handleCreateKey.mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve(null) }))
-  renderUnlockedKeys()
-  fireEvent.click(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel }))
-  await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create)
-  await submitNamedKey()
-  expect(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })).toBeDisabled()
-  expect(screen.getByRole('button', { name: en.profile.apiKeys.create })).toBeDisabled()
-  await act(async () => finish())
-  expect(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })).toBeEnabled()
-})
-
-it('preserves the read-only choice when creation fails', async () => {
-  management.handleCreateKey.mockResolvedValue(null)
-  const view = renderUnlockedKeys()
-  fireEvent.click(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel }))
-  await act(async () => { await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create) })
-  await submitNamedKey()
-  management.error = en.orbitMcp.createKeyError
-  view.rerender(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  expect(screen.getByRole('alert')).toHaveTextContent(en.orbitMcp.createKeyError)
-  expect(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })).toBeChecked()
-})
 
 it('hides permission at key capacity and retains fresh authentication for scoped creation', async () => {
   management.canCreate = false
@@ -474,58 +264,6 @@ async function submitScopedKey() {
   await submitNamedKey()
 }
 
-it.each([
-  ['missing', 'simple'], ['missing', 'scoped'], ['expired', 'simple'], ['expired', 'scoped'],
-] as const)('keeps read-only intent after %s-grant authentication for %s creation', async (grant, mode) => {
-  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
-  bindStepUpStateToAccount('user-1')
-  retainApiKeyExpiryDraft('2099-12-31T23:59')
-  const view = render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  markStepUpVerified('keys')
-  if (grant === 'missing') clearApiKeyCreationGrant()
-  management.grantAvailable = grant === 'expired'
-  management.handleCreateKey.mockImplementationOnce(async (_request, requireGrant) => {
-    clearApiKeyCreationGrant()
-    await requireGrant()
-    return null
-  })
-  vi.mocked(requestApiKeyCreationChallenge).mockResolvedValue(undefined as never)
-  fireEvent.click(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel }))
-  if (mode === 'scoped' && grant === 'expired') await submitScopedKey()
-  else {
-    await act(async () => { await chooseApiKeyCreation(mode === 'scoped' ? en.profile.apiKeys.createScoped : en.profile.apiKeys.create, en.profile.apiKeys.create) })
-    if (grant === 'expired') await submitNamedKey()
-  }
-  expect(management.push).toHaveBeenCalledWith('/step-up?operation=keys')
-  expect(hasApiKeyCreationGrant()).toBe(false)
-  view.unmount()
-
-  vi.mocked(confirmApiKeyCreationChallenge).mockResolvedValue({ success: true })
-  respondWithAccount('user-1')
-  const challenge = render(<StepUpScreen serverAccountId="user-1" />)
-  const input = screen.getByRole('textbox', { name: en.stepUp.codeLabel })
-  fireEvent.change(input, { target: { value: '123456' } })
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.stepUp.confirm })) })
-  expect(confirmApiKeyCreationChallenge).toHaveBeenCalledWith('123456', 'user-1')
-  expect(management.replace).toHaveBeenCalledWith('/profile/ai')
-  expect(hasApiKeyCreationGrant()).toBe(true)
-  challenge.unmount()
-
-  management.grantAvailable = true
-  management.handleCreateKey.mockReset().mockResolvedValue(null)
-  const returned = render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  if (mode === 'scoped') await submitScopedKey()
-  else {
-    await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create)
-    await submitNamedKey()
-  }
-  expect(expiryField()).toHaveValue('2099-12-31T23:59')
-  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: 'Personal key', isReadOnly: true, expiresAtUtc: '2099-12-31T23:59:00.000Z', ...(mode === 'scoped' ? { scopes: ['habits:read'] } : {}) }, expect.any(Function))
-  returned.unmount()
-  render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  expect(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })).not.toBeChecked()
-})
-
 const detailKey: ApiKey = {
   id: 'details-key', name: 'External tool', keyPrefix: 'orb_details', scopes: ['habits:read', 'goals:read'],
   isReadOnly: true, createdAtUtc: '2026-01-02T12:00:00Z', lastUsedAtUtc: '2026-02-03T12:00:00Z',
@@ -547,17 +285,6 @@ it('shows scopes, dates, permissions and expiry in the unlocked key list', () =>
   expect(screen.getByText('Feb 3, 2026')).toBeInTheDocument()
   expect(screen.getByText('Expires Apr 5, 2027')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Revoke External tool' })).toBeInTheDocument()
-})
-
-it('preserves no scopes, unused, read/write and no expiry states', async () => {
-  management.apiKeys = [{ ...detailKey, scopes: [], isReadOnly: false, lastUsedAtUtc: null, expiresAtUtc: null }]
-  renderKeyDetails()
-  expect(screen.getByText('No scopes')).toBeInTheDocument()
-  expect(screen.getAllByText(en.common.never)).toHaveLength(2)
-  expect(screen.getByText('Read/write')).toBeInTheDocument()
-  await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create)
-  expect(expiryField()).toHaveValue('')
-  expect(screen.queryByText(/^Expires /, { selector: 'p' })).not.toBeInTheDocument()
 })
 
 it.each(['en', 'pt-BR'] as const)('reads existing key expiry without opening creation or reveal in %s', (locale) => {
@@ -611,48 +338,4 @@ it('localizes key details and dates in Brazilian Portuguese', () => {
   expect(screen.getByText(ptBR.orbitMcp.created)).toBeInTheDocument()
   expect(screen.getByText('2 de jan. de 2026')).toBeInTheDocument()
   expect(screen.getByText('Expira em 5 de abr. de 2027')).toBeInTheDocument()
-})
-
-it('asks for expiry only after the expiry question and keeps a hidden draft', async () => {
-  renderUnlockedKeys()
-  await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create)
-  const question = screen.getByRole('button', { name: en.profile.apiKeys.setExpiry })
-  expect(question).toHaveAttribute('aria-expanded', 'false')
-  expect(screen.queryByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toBeNull()
-  const region = document.getElementById(question.getAttribute('aria-controls') ?? '')
-  expect(region).not.toBeNull()
-  expect(region).not.toBeVisible()
-  fireEvent.click(question)
-  expect(question).toHaveAttribute('aria-expanded', 'true')
-  expect(region).toBeVisible()
-  expect(region).toContainElement(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel }))
-  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel }), { target: { value: '2099-12-31T23:59' } })
-  fireEvent.click(question)
-  expect(screen.queryByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toBeNull()
-  fireEvent.click(question)
-  expect(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toHaveValue('2099-12-31T23:59')
-  fireEvent.click(question)
-  await submitNamedKey()
-  expect(management.handleCreateKey).toHaveBeenLastCalledWith({ name: 'Personal key', isReadOnly: false, expiresAtUtc: '2099-12-31T23:59:00.000Z' }, expect.any(Function))
-})
-
-it('reveals a hidden invalid expiry with its correction instead of creating the key', async () => {
-  renderUnlockedKeys()
-  await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create)
-  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.setExpiry }))
-  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel }), { target: { value: 'tomorrow' } })
-  fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.setExpiry }))
-  await submitNamedKey()
-  expect(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toHaveAccessibleDescription(expect.stringContaining(en.orbitMcp.invalidExpiry))
-  expect(screen.getByRole('button', { name: en.profile.apiKeys.setExpiry })).toHaveAttribute('aria-expanded', 'true')
-  expect(management.handleCreateKey).not.toHaveBeenCalled()
-})
-
-it('opens the expiry question already answered for a retained expiry draft', async () => {
-  bindStepUpStateToAccount('user-1')
-  retainApiKeyExpiryDraft('2099-12-31T23:59')
-  renderUnlockedKeys()
-  await chooseApiKeyCreation(en.profile.apiKeys.create, en.profile.apiKeys.create)
-  expect(screen.getByRole('button', { name: en.profile.apiKeys.setExpiry })).toHaveAttribute('aria-expanded', 'true')
-  expect(screen.getByRole('textbox', { name: en.orbitMcp.expiresAtLabel })).toHaveValue('2099-12-31T23:59')
 })

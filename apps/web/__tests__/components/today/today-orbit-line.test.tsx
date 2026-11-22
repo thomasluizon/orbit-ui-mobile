@@ -61,19 +61,4 @@ describe('web Orbit line on Hoje', () => {
     expect(screen.getByRole('link', { name: 'todayOrbit.guided.returning' })).toHaveAttribute('href', '/progress')
     expect(screen.queryByText('todayOrbit.returningBounded')).not.toBeInTheDocument()
   })
-
-  it('keeps the bounded sentence for a gap beyond the window while the flag is off', () => {
-    mocks.proactive = false
-    mocks.profile = { ...mocks.profile, lastCompletionDate: beyondTheWindow() }
-    renderLine()
-    expect(screen.getByRole('link', { name: 'todayOrbit.returningBounded' })).toHaveAttribute('href', '/progress')
-  })
-
-  it('keeps the still Orbit at 48 and the proactive sentence while the flag is off', () => {
-    mocks.online = false
-    const { container } = renderLine()
-    expect(mascot(container)).toHaveAttribute('width', '48')
-    expect(mascot(container)).toHaveAttribute('data-orbit-loop', 'still')
-    expect(screen.getByRole('button', { name: 'Check in' })).toBeInTheDocument()
-  })
 })

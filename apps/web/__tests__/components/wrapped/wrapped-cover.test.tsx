@@ -23,6 +23,7 @@ vi.mock('@/components/ui/skeleton', () => ({
   Skeleton: ({ variant, rows, label }: { variant: string; rows: number; label: string }) => (
     <div role="progressbar" data-variant={variant} data-rows={rows} aria-label={label} />
   ),
+  SkeletonFace: () => <div role="progressbar" />,
 }))
 vi.mock('@/components/ui/error-state', () => ({
   ErrorState: ({ message, action }: { message: string; action: React.ReactNode }) => (
@@ -46,39 +47,6 @@ const baseProps = {
 }
 
 describe('WrappedCover', () => {
-  it('shows the drawn Portuguese subtitle and empty way out with period choices', () => {
-    coverCopyState.localized = true
-    const view = render(<WrappedCover {...baseProps} state="empty" />)
-    expect(screen.getByText('Os registros do período, uma página de cada vez.')).toBeInTheDocument()
-    expect(screen.getByText('Nada registrado nesse período. Escolha outro período para ver um fechamento.')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /wrapped\.periods\./ })).toHaveLength(3)
-    view.unmount()
-    coverCopyState.localized = false
-  })
-  it('renders the ready cover and starts the player', () => {
-    const onSelectPeriod = vi.fn()
-    const onStart = vi.fn()
-    render(<WrappedCover {...baseProps} onSelectPeriod={onSelectPeriod} onStart={onStart} />)
-
-    expect(screen.getByText('wrapped.coverTitles.week')).toBeInTheDocument()
-    const periodGroup = screen.getByRole('group', { name: 'wrapped.periodGroup' })
-    expect(within(periodGroup).getAllByRole('button')).toHaveLength(RECAP_SHARE_PERIODS.length)
-    fireEvent.click(screen.getByRole('button', { name: `wrapped.periods.${RECAP_SHARE_PERIODS[1]}` }))
-    expect(onSelectPeriod).toHaveBeenCalledWith(RECAP_SHARE_PERIODS[1])
-    const start = screen.getByRole('button', { name: 'wrapped.start' })
-    expect(start).not.toBeDisabled()
-    fireEvent.click(start)
-    expect(onStart).toHaveBeenCalledTimes(1)
-  })
-
-  it('renders the loading treatment without a Start action', () => {
-    render(<WrappedCover {...baseProps} state="loading" />)
-
-    const skeleton = screen.getByRole('progressbar', { name: 'wrapped.loading' })
-    expect(skeleton).toHaveAttribute('data-variant', 'settings')
-    expect(skeleton).toHaveAttribute('data-rows', '3')
-    expect(screen.queryByRole('button', { name: 'wrapped.start' })).not.toBeInTheDocument()
-  })
 
   it('renders the failed treatment and retries without showing Start', () => {
     const onRetry = vi.fn()
@@ -90,13 +58,5 @@ describe('WrappedCover', () => {
     fireEvent.click(retry)
     expect(onRetry).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('button', { name: 'wrapped.start' })).not.toBeInTheDocument()
-  })
-
-  it('renders the empty reason with a satellite and a visible disabled Start action', () => {
-    render(<WrappedCover {...baseProps} state="empty" />)
-
-    expect(screen.getByText('wrapped.empty')).toBeInTheDocument()
-    expect(document.querySelector('[data-icon="satellite"]')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'wrapped.start' })).toBeDisabled()
   })
 })

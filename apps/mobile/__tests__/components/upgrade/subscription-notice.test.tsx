@@ -76,25 +76,6 @@ describe('lapsed subscription notice (mobile)', () => {
     expect(UsageCard).not.toHaveBeenCalled()
   })
 
-  it.each([false, true])('keeps the notice and its action, and shows Orbit in Parado only with the guided flows on (%s)', (guided) => {
-    const onResubscribe = vi.fn()
-    let tree: import('react-test-renderer').ReactTestRenderer | undefined
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<SubscriptionNotice status={status} locale="en" onResubscribe={onResubscribe} t={t} tokens={tokens} />)
-    })
-    const hosts = tree!.root.findAll((node) => typeof node.type === 'string')
-    const text = hosts.filter((node) => (node.type as string) === 'Text').map((node) => renderedText(node)).join(' ')
-    expect(text).toContain('upgrade.billing.lapsed.title')
-    expect(text).toContain('upgrade.billing.lapsed.paymentFix')
-    const rigs = hosts.filter((node) => node.props['data-orbit-face'] === 'rig')
-    expect(rigs.map((node) => node.props['data-orbit-state'] as string)).toEqual(guided ? ['parado'] : [])
-    expect(hosts.some((node) => node.props['data-orbit-state'] === 'feliz')).toBe(false)
-    const action = hosts.find((node) => typeof node.props.onPress === 'function' && renderedText(node) === 'upgrade.billing.lapsed.action')!
-    TestRenderer.act(() => { (action.props.onPress as () => void)() })
-    expect(onResubscribe).toHaveBeenCalledTimes(1)
-    TestRenderer.act(() => tree!.unmount())
-  })
-
   it('lists each lost entitlement separately with the current message allowance', () => {
     const text = noticeText(status)
     expect(text).toContain('upgrade.billing.lapsed.lostMessages:')

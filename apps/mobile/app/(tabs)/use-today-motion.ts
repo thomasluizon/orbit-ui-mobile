@@ -15,7 +15,7 @@ interface TodayMotionInput {
 }
 
 /**
- * Owns the Today screen's transition motion: the date enter animation (with the guided flows on, the 12px slide and fade of the calendar, and one ring turn of Orbit) and the
+ * Owns the Today screen's transition motion: the date enter animation (the 12px slide and fade of the calendar, and one ring turn of Orbit) and the
  * bulk-action-bar enter/exit (including when the bar unmounts). A refetch or a
  * filter change never dims or moves the list.
  */

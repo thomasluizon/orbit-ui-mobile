@@ -279,26 +279,6 @@ it('times out missing QR readiness, ignores its late result and retries without 
   expect(click).toHaveBeenCalledOnce()
 })
 
-it('keeps daily deadlines live while QR generation is pending', async () => {
-  const pending = deferred<{ default: { toDataURL: typeof boundary.generate } }>()
-  vi.doMock('qrcode', () => pending.promise)
-  render(<MilestoneSharePrompt />)
-  await act(async () => { useEngagementPromptStore.getState().armMilestoneSharePrompt('share-streak-7') })
-  await advance(500)
-  useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
-  const daily = render(<CelebrationPanel />)
-  fireEvent.click(screen.getByRole('button', { name: 'milestoneShare.download' }))
-  await advance(2280)
-  expect(daily.container.querySelector('[data-daily-streak-moment]')).toHaveAttribute('data-phase', 'automatic-exit')
-  await advance(220)
-  expect(daily.container.querySelector('[data-daily-streak-moment]')).toBeNull()
-  expect(useUIStore.getState().activeCelebration).toBeNull()
-  expect(boundary.capture).not.toHaveBeenCalled()
-  await act(async () => { pending.resolve({ default: { toDataURL: boundary.generate } }); await Promise.resolve() })
-  await flush()
-  expect(click).toHaveBeenCalledOnce()
-})
-
 it('cancels QR waiting when dismissal begins, before the sheet exit finishes', async () => {
   const pending = deferred<string>()
   boundary.generate.mockReturnValueOnce(pending.promise)

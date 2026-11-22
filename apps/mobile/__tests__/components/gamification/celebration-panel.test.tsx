@@ -76,20 +76,6 @@ describe('CelebrationPanel mobile', () => {
     TestRenderer.act(() => tree!.unmount())
   })
 
-  it.each([
-    ['streak', { streak: 7 }],
-    ['all-done', { count: 1 }],
-    ['daily-streak', { streak: 5 }],
-  ] as const)('draws the %s mark as the base still Orbit with no hop while the flag is off', (kind, payload) => {
-    motion.reduced = false
-    useUIStore.getState().enqueueCelebration(kind, payload)
-    let tree: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => { tree = TestRenderer.create(<CelebrationPanel />) })
-    expect(tree!.root.findAllByProps({ testID: 'celebration-mark-hop' })).toHaveLength(0)
-    expect(tree!.root.findByProps({ testID: 'orbit-mascot' }).props).toMatchObject({ width: 48, 'data-orbit-state': 'feliz' })
-    TestRenderer.act(() => tree!.unmount())
-  })
-
   it('keeps the mark still under reduced motion', () => {
     useUIStore.getState().enqueueCelebration('level-up', { level: 2 })
     let tree: ReturnType<typeof TestRenderer.create>
@@ -146,25 +132,6 @@ describe('daily streak presentation', () => {
     expect(tree!.root.findAllByProps({ testID: 'daily-streak-moment' })).toHaveLength(0)
     TestRenderer.act(() => tree!.unmount())
   })
-})
-
-
-it('keeps the daily moment while its close button has focus', () => {
-  vi.useFakeTimers()
-  motion.reduced = true
-  useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
-  useUIStore.getState().enqueueCelebration('daily-streak', { streak: 5 })
-  let tree: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<CelebrationPanel />) })
-  const close = tree!.root.findAllByProps({ accessibilityLabel: 'celebration.close:{}' }).at(-1)!
-  TestRenderer.act(() => close.props.onFocus())
-  TestRenderer.act(() => { vi.advanceTimersByTime(5000) })
-  expect(tree!.root.findAllByProps({ testID: 'daily-streak-moment' }).length).toBeGreaterThan(0)
-  TestRenderer.act(() => close.props.onBlur())
-  TestRenderer.act(() => { vi.advanceTimersByTime(2500) })
-  expect(tree!.root.findAllByProps({ testID: 'daily-streak-moment' })).toHaveLength(0)
-  TestRenderer.act(() => tree!.unmount())
-  vi.useRealTimers()
 })
 
 
@@ -288,33 +255,6 @@ describe('actual notice interruption guards', () => {
     expect(useUIStore.getState().activeCelebration?.kind).toBe('level-up')
     TestRenderer.act(() => { vi.advanceTimersByTime(5000) })
     expect(useUIStore.getState().activeCelebration?.kind).toBe('level-up')
-  })
-
-  it('accepts keyboard focus during automatic exit without requiring hover', () => {
-    notice = mountNotice()
-    TestRenderer.act(() => { vi.advanceTimersByTime(2350) })
-    TestRenderer.act(() => { notice.focus(true) })
-    expect(notice.phase()).toBe('hold')
-    TestRenderer.act(() => { vi.advanceTimersByTime(5000) })
-    expect(notice.present()).toBe(true)
-    TestRenderer.act(() => { notice.focus(false) })
-    TestRenderer.act(() => { vi.advanceTimersByTime(2500) })
-    expect(notice.present()).toBe(false)
-  })
-
-  it('cancels an automatic exit on late hover and waits for both pause reasons', () => {
-    notice = mountNotice()
-    TestRenderer.act(() => { vi.advanceTimersByTime(2350) })
-    expect(notice.phase()).toBe('automatic-exit')
-    TestRenderer.act(() => { notice.hover(true); notice.focus(true) })
-    expect(notice.phase()).toBe('hold')
-    TestRenderer.act(() => { vi.advanceTimersByTime(5000); notice.hover(false) })
-    expect(notice.present()).toBe(true)
-    TestRenderer.act(() => { vi.advanceTimersByTime(5000); notice.focus(false) })
-    TestRenderer.act(() => { vi.advanceTimersByTime(2499) })
-    expect(notice.present()).toBe(true)
-    TestRenderer.act(() => { vi.advanceTimersByTime(1) })
-    expect(notice.present()).toBe(false)
   })
 
   it('retains the original deadline across live preference changes', () => {

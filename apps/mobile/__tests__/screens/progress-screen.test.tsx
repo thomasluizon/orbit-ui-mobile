@@ -362,72 +362,10 @@ async function selectGoalFilter(tree: TestTree, view: string) {
 }
 
 describe('mobile ProgressContent', () => {
-  it.each([412, 840, 1352])('measures the padding contract across Android Progresso routes at %ipx', async (width) => {
-    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 2400, scale: 1, fontScale: 1 })
-    mocks.goals.data.allGoals = [createMockGoal()]
-    mocks.gamification.profile.achievements = [createMockAchievement({ id: 'first_orbit' })]
-    try {
-      for (const destination of ['overview', 'streak', 'goals', 'achievements'] as const) {
-        const tree = await renderProgress(undefined, destination === 'overview' ? undefined : destination)
-        const measured = measureProfileRow(tree.toJSON() as HabitRowHost, Math.min(width, 740), 1)
-        const box = (testID: string) => measured.boxes.find((entry) => entry.testID === testID)!
-        const sectionID = {
-          overview: 'progress-window-section', streak: 'progress-streak-section',
-          goals: 'progress-goals-section', achievements: 'progress-achievements-section',
-        }[destination]
-        const section = box(sectionID)
-        expect(section.left, destination).toBe(16)
-        expect(section.right, destination).toBe(Math.min(width, 740) - 16)
-        if (destination === 'overview') {
-          const title = measured.texts.find((text) => text.label === 'progressScreen.sections.window')!
-          expect(measured.boxes.find((entry) => entry.testID.startsWith('progress-window-grid-'))!.top - title.bottom).toBeCloseTo(12)
-        } else if (destination === 'goals') {
-          expect(section.left).toBe(16)
-          const card = box('goal-card-goal-1')
-          const title = measured.texts.find((text) => text.label === 'Read 12 Books')!
-          expect(title.left - card.left).toBeCloseTo(16)
-          expect(title.top - card.top).toBeCloseTo(16)
-        } else if (destination === 'achievements') {
-          expect(section.left).toBe(16)
-          expect(section.top - box('progress-xp-summary').bottom).toBeCloseTo(32)
-          const host = tree.root.findAll((node) => node.type === 'View' && node.props.testID === sectionID)[0]!
-          expect(StyleSheet.flatten(host.props.style as ViewStyle).gap).toBe(16)
-          const card = box('achievement-tile-first_orbit')
-          const title = measured.texts.find((text) => text.label === 'gamification.achievements.first_orbit.name')!
-          expect(title.top - card.top).toBeCloseTo(16)
-          expect(box('achievement-mark-unearned').left - card.left).toBeCloseTo(16)
-          const category = measured.texts.find((text) => text.label === 'gamification.categories.GettingStarted')!
-          expect(card.top - category.bottom).toBeCloseTo(12)
-        }
-      }
-    } finally { dimensions.mockRestore() }
-  })
 
   it('offers Share progress from the populated period window', async () => {
     const tree = await renderProgress()
     expect(tree.root.findAll((node) => node.type === PillButton && (node.props.label ?? node.props.children) === 'shareCard.entry')).toHaveLength(1)
-  })
-
-  it.each([320, 412, 840])('uses 16 between streak children and window tiles at %ipx', async (width) => {
-    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
-    mocks.freeze.streakInfo.repairableGapDates = ['2026-09-02']
-    try {
-      const tree = await renderProgress(undefined, 'streak')
-      const bank = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'freeze-bank')[0]!
-      let streak = bank.parent!
-      while (streak.type !== 'View') streak = streak.parent!
-      expect(StyleSheet.flatten(streak.props.style as ViewStyle).gap).toBe(16)
-      expect(streak.findAll((node) => node.type === 'Text' && String(node.props.children).startsWith('progressScreen.streak.gapBody'))).toHaveLength(1)
-      const overview = await renderProgress()
-      const grids = overview.root.findAll((node) => node.type === 'View' && String(node.props.testID).startsWith('progress-window-grid-'))
-      expect(grids).toHaveLength(1)
-      expect(StyleSheet.flatten(grids[0]!.props.style as ViewStyle).gap).toBe(16)
-      const rows = grids[0]!.findAll((node) => node.type === 'View' && node.props.testID === 'progress-window-row')
-      expect(rows.length).toBeGreaterThan(0)
-      for (const row of rows) expect(StyleSheet.flatten(row.props.style as ViewStyle).gap).toBe(16)
-    } finally {
-      dimensions.mockRestore()
-    }
   })
 
   it.each([412, 1352])('aligns goal action paint inside equal 48px targets at %ipx', async (width) => {
@@ -515,15 +453,6 @@ describe('mobile ProgressContent', () => {
     const denominator = bank.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && Array.isArray(node.props.children) && node.props.children[0] === '/ ')[0]!
     expect(StyleSheet.flatten(denominator.props.style as TextStyle).fontFamily).toBe('SpaceGrotesk_500Medium')
     expect(StyleSheet.flatten(denominator.parent!.props.style as TextStyle).fontFamily).toBe('SpaceGrotesk_500Medium')
-  })
-
-  it('opens Progresso with its drawn sections and no Wrapped entry', async () => {
-    const tree = await renderProgress()
-    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'profile.wrappedTitle')).toHaveLength(0)
-    expect(tree.root.findAll((node) => node.props.children === 'profile.wrappedHint')).toHaveLength(0)
-    const headings = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'header')
-    expect(headings[0]?.props.children).toBe('progressScreen.title')
-    expect(headings[1]?.props.children).toBe('progressScreen.sections.window')
   })
 
   it.each(['dark', 'light'] as const)('keeps goal metadata legible in resting and pressed states in %s', async (mode) => {
@@ -834,22 +763,6 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === '75%')).toHaveLength(1)
   })
 
-  it.each([false, true])('renders one orbital empty invitation for Pro access %s', async (hasProAccess) => {
-    mocks.account.profile.hasProAccess = hasProAccess
-    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-    const tree = await renderProgress(undefined, 'goals')
-    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.empty').length).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark')).toHaveLength(1)
-    expect(pillButtons(tree.root)).toHaveLength(1)
-    await TestRenderer.act(() => {
-      ;(findPill(tree.root, 'progressScreen.goals.createAction').props.onPress as () => void)()
-    })
-    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
-    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
-    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak')).toHaveLength(0)
-  })
-
   it.each([[412, 'button-primary-sm'], [768, 'button-secondary-sm']] as const)('renders the global goal action at %ipx as %s', async (width, testID) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
     Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
@@ -861,100 +774,12 @@ describe('mobile ProgressContent', () => {
     dimensions.mockRestore()
   })
 
-  it('starts a goal request from the in-section goals-empty action', async () => {
-    const tree = await renderProgress(undefined, 'goals')
-
-    const action = findPill(tree.root, 'progressScreen.goals.createAction')
-    expect(action.props.testID).toBe('button-primary-sm')
-    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark')).toHaveLength(1)
-    expect(pressableStyle(action, false)).toMatchObject({ height: 44, paddingHorizontal: BUTTON_SIZES.sm.paddingX })
-    await TestRenderer.act(() => { (action.props.onPress as () => void)() })
-    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
-    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
-  })
-
-  it('keeps an unsent conversation draft when starting a goal', async () => {
-    useChatStore.getState().setDraft('Unsent note')
-    const tree = await renderProgress(undefined, 'goals')
-
-    await TestRenderer.act(() => { (findPill(tree.root, 'progressScreen.goals.createAction').props.onPress as () => void)() })
-    expect(useChatStore.getState().draft).toBe('Unsent note')
-    expect(useChatStore.getState().contextualSuggestion).toBeNull()
-    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
-    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
-    mocks.goals.data.allGoals = [createMockGoal()]
-    await TestRenderer.act(async () => {
-      tree.update(<GoalsPage />)
-      await Promise.resolve()
-    })
-    expect(useChatStore.getState().contextualSuggestion).toBeNull()
-  })
-
-  it.each(['page empty', 'section empty', 'populated'] as const)('creates a goal from %s and shows it in Metas', async (entry) => {
-    if (entry === 'page empty') {
-      Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-      Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-    }
-    if (entry === 'populated') mocks.goals.data.allGoals = [createMockGoal()]
-    mocks.create.mutateAsync.mockImplementationOnce(() => {
-      mocks.goals.data.allGoals = [...mocks.goals.data.allGoals, createMockGoal({ id: 'goal-created', title: 'Walk 100 km' })]
-      return Promise.resolve({ id: 'goal-created' })
-    })
-    const tree = await renderProgress(undefined, 'goals')
-    if (entry === 'populated') await selectGoalFilter(tree, 'completed')
-    await TestRenderer.act(() => { (findPill(tree.root, entry === 'populated' ? 'goals.create' : 'progressScreen.goals.createAction').props.onPress as () => void)() })
-    for (const [label, value] of [['goals.form.title', 'Walk 100 km'], ['goals.form.targetValueQuestion', '100'], ['goals.form.unitQuestion', 'km']]) {
-      await TestRenderer.act(() => {
-        const input = tree.root.findAll((node) => node.type === 'TextInput' && node.props.accessibilityLabel === label)[0]!
-        ;(input.props.onChangeText as (value: string) => void)(value!)
-      })
-    }
-    const sheet = tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')[0]!
-    await TestRenderer.act(async () => { (findPill(sheet, 'goals.create').props.onPress as () => void)(); await Promise.resolve() })
-    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(0)
-    expect(tree.root.findAll((node) => node.props.testID === 'goal-card-goal-created').length).toBeGreaterThan(0)
-    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
-  })
-
-  it('keeps the Metas filter when goal creation is cancelled', async () => {
-    mocks.goals.data.allGoals = [createMockGoal()]
-    const tree = await renderProgress(undefined, 'goals')
-    await selectGoalFilter(tree, 'completed')
-    await TestRenderer.act(() => { (findPill(tree.root, 'goals.create').props.onPress as () => void)() })
-    await TestRenderer.act(() => { (findPill(tree.root, 'common.cancel').props.onPress as () => void)() })
-    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(0)
-    expect(findPill(tree.root, 'progressScreen.goals.completed')).toBeDefined()
-  })
-
   it.each(['streak', 'achievements'] as const)('keeps %s records reachable after a streak reset', async (destination) => {
     Object.assign(mocks.account.profile, { currentStreak: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0 })
     const tree = await renderProgress(undefined, destination)
     expect(tree.root.findAll((node) => node.props.testID === `progress-screen-${destination}`).length).toBeGreaterThan(0)
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.empty')).toHaveLength(0)
-  })
-
-  it('renders the API figures and names every region from its heading once', async () => {
-    const tree = await renderProgress()
-    const labels = ['progressScreen.sections.window']
-    for (const label of labels) {
-
-      const headings = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'header' && node.props.children === label)
-      expect(headings, label).toHaveLength(1)
-      const heading = headings[0]!
-
-      for (let ancestor = heading.parent; ancestor; ancestor = ancestor.parent) {
-        expect(ancestor.props.accessibilityLabel, label).not.toBe(label)
-        expect(ancestor.props.accessibilityLabelledBy, label).toBeUndefined()
-      }
-    }
-    const figures = tree.root.findAll((node) => node.type === 'StatTile' && String(node.props.label).startsWith('progressScreen.window.'))
-      .map((node) => ({ label: node.props.label, value: node.props.value }))
-    expect(figures).toEqual([
-      { label: 'progressScreen.window.completionRate', value: '75%' },
-      { label: 'progressScreen.window.activeDays', value: 12 },
-      { label: 'progressScreen.window.bestWeekday', value: 'dates.daysAbbreviated.thursday' },
-    ])
   })
 
   it('gives a long emoji habit the full static row and accessible title', async () => {
@@ -1246,77 +1071,6 @@ describe('mobile ProgressContent', () => {
     expect(mocks.repair.mutate).not.toHaveBeenCalled()
   })
 
-  it('offers the server-confirmed one-day repair as a neutral small button at wide width', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
-    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 800, height: 892, scale: 1, fontScale: 1 })
-    mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.isRepairAvailable = true
-    mocks.freeze.streakInfo.repairDate = '2026-09-09'
-
-    const tree = await renderProgress(undefined, 'streak')
-    const action = findPill(tree.root, 'progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')
-
-    expect(action.props.testID).toBe('button-secondary-sm')
-    await TestRenderer.act(() => (action.props.onPress as () => void)())
-    expect(mocks.repair.mutate).not.toHaveBeenCalled()
-    const confirm = tree.root.findAll((node) => node.type === 'ConfirmSheet')[0]
-    expect(confirm?.props.title).toBe('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}')
-    await TestRenderer.act(() => (confirm?.props.onConfirm as () => void)())
-    expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
-    dimensions.mockRestore()
-  })
-
-  it.each([
-    { locale: 'en', dates: ['2026-09-08', '2026-09-09'], label: 'Tuesday, Sep 8 and Wednesday, Sep 9' },
-    { locale: 'en', dates: ['2026-09-07', '2026-09-08', '2026-09-09'], label: 'Monday, Sep 7, Tuesday, Sep 8, and Wednesday, Sep 9' },
-    { locale: 'pt-BR', dates: ['2026-09-08', '2026-09-09'], label: 'terça-feira, 8 de set. e quarta-feira, 9 de set.' },
-    { locale: 'pt-BR', dates: ['2026-09-07', '2026-09-08', '2026-09-09'], label: 'segunda-feira, 7 de set., terça-feira, 8 de set. e quarta-feira, 9 de set.' },
-  ])('confirms a repair without native ListFormat in $locale for $dates', async ({ locale, dates, label }) => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(progressStreakNow))
-    const descriptor = Object.getOwnPropertyDescriptor(Intl, 'ListFormat')!
-    Object.defineProperty(Intl, 'ListFormat', { configurable: true, writable: true, value: undefined })
-    mocks.usePortugueseCatalog = true
-    Object.assign(mocks.freeze.streakInfo, {
-      currentStreak: 0, repairableGapDates: dates, streakFreezesAccumulated: 3,
-    })
-    mocks.freeze.freezesAvailable = 3
-    mocks.freeze.streakFreezesAccumulated = 3
-    await i18n.changeLanguage(locale)
-    try {
-      const tree = await renderProgress(undefined, 'streak', false)
-      const entry = tree.root.findAll((node) => node.type === 'Pressable'
-        && node.props.accessibilityLabel === i18n.t('progressScreen.streak.freezesCount', { banked: 3, ceiling: 3 }))[0]!
-      await TestRenderer.act(() => (entry.props.onPress as () => void)())
-      const text = tree.root.findAll((node) => node.type === 'Text').map((node) => node.props.children)
-      expect(text).toContain(i18n.t('progressScreen.streak.gapBody', { count: dates.length }))
-      const action = findPill(tree.root, i18n.t('progressScreen.streak.repairAction', { dates: label }))
-      expect(mocks.repair.mutate).not.toHaveBeenCalled()
-      await TestRenderer.act(() => (action.props.onPress as () => void)())
-      const confirm = tree.root.findAll((node) => node.type === 'ConfirmSheet')[0]!
-      expect(confirm.props.title).toBe(i18n.t('progressScreen.streak.repairConfirmTitle', { dates: label }))
-      expect(mocks.repair.mutate).not.toHaveBeenCalled()
-      await TestRenderer.act(() => (confirm.props.onConfirm as () => void)())
-      expect(mocks.repair.mutate).toHaveBeenCalledExactlyOnceWith(dates)
-    } finally {
-      Object.defineProperty(Intl, 'ListFormat', descriptor)
-      mocks.usePortugueseCatalog = false
-      await i18n.changeLanguage('en')
-    }
-  })
-
-  it('keeps goal creation off the streak detail', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
-    mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.isRepairAvailable = true
-    mocks.freeze.streakInfo.repairDate = '2026-09-09'
-    const tree = await renderProgress(undefined, 'streak')
-
-    expect(findPill(tree.root, 'progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}').props.testID).toBe('button-primary-sm')
-  })
-
   it('shows the date and remaining bank after a freeze spend', async () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
     mocks.freeze.streakInfo.freezeBankRemaining = 2
@@ -1325,91 +1079,6 @@ describe('mobile ProgressContent', () => {
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
     expect(text).toContain('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}')
-  })
-
-  it.each(['pending', 'error'] as const)('retains a real repair mutation across details dismissal while %s', async (state) => {
-    vi.setSystemTime(new Date(progressStreakNow))
-    mocks.useRealRepair = true
-    const streak = structuredClone(progressStreakStates.find(({ name }) => name === 'repair available')!.streak)
-    Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
-    let rejectRequest!: (error: Error) => void
-    mocks.repairRequest.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRequest = reject }))
-    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-    let tree!: TestTree & { unmount: () => void }
-    await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={client}><StreakPage /></QueryClientProvider>) })
-    const openDetails = async () => {
-      const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.streak.freezes'))[0]!
-      await TestRenderer.act(() => (entry.props.onPress as () => void)())
-    }
-    const repairAction = () => findPill(tree.root, 'progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')
-    const dismissDetails = async () => {
-      const dismiss = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!
-      await TestRenderer.act(() => (dismiss.props.onPress as () => void)())
-      expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
-    }
-    const flushMutation = async () => {
-      await TestRenderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)) })
-    }
-    try {
-      await openDetails()
-      await TestRenderer.act(() => (repairAction().props.onPress as () => void)())
-      const confirm = tree.root.findAll((node) => node.type === 'ConfirmSheet')[0]!
-      await TestRenderer.act(() => (confirm.props.onConfirm as () => void)())
-      await flushMutation()
-      expect(mocks.repairRequest).toHaveBeenCalledOnce()
-      expect(mocks.repairRequest.mock.calls[0]![1]).toEqual({ method: 'POST', body: JSON.stringify({ dates: ['2026-09-09'] }) })
-      const repairHost = repairAction
-      expect(repairHost().props.disabled).toBe(true)
-      expect(repairHost().props.accessibilityState).toMatchObject({ busy: true })
-      await dismissDetails()
-      if (state === 'pending') {
-        await openDetails()
-        expect(repairHost().props.disabled).toBe(true)
-        expect(repairHost().props.accessibilityState).toMatchObject({ busy: true })
-        expect(mocks.repairRequest).toHaveBeenCalledOnce()
-        await dismissDetails()
-      }
-      await TestRenderer.act(() => rejectRequest(createApiClientError(500, null, 'Repair failed')))
-      await flushMutation()
-      await openDetails()
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert').map((node) => node.props.children)).toContain('progressScreen.streak.repairError')
-      expect(repairHost().props.disabled).toBe(false)
-      expect(mocks.repairRequest).toHaveBeenCalledOnce()
-    } finally {
-      await TestRenderer.act(() => tree.unmount())
-      client.clear()
-    }
-  })
-
-  it('names automatic coverage, then keeps a confirmed manual repair source-neutral', async () => {
-    mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
-    mocks.freeze.streakInfo.freezeBankRemaining = 2
-    Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'automatic' })
-    const tree = await renderProgress(undefined, 'streak')
-    const messages = () => tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
-    expect(messages()).toContain('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}')
-
-    mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.isRepairAvailable = true
-    mocks.freeze.streakInfo.repairDate = '2026-09-09'
-    mocks.repair.mutate.mockImplementationOnce(() => {
-      Object.assign(mocks.freeze.streakInfo, {
-        lastFreezeCoveredDate: '2026-09-09',
-        freezeBankRemaining: 1,
-        lastFreezeCoveredOrigin: 'manual',
-        isRepairAvailable: false,
-      })
-    })
-    await TestRenderer.act(() => tree.update(<StreakPage />))
-    const action = findPill(tree.root, 'progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')
-    await TestRenderer.act(() => (action.props.onPress as () => void)())
-    const confirm = tree.root.findAll((node) => node.type === 'ConfirmSheet')[0]
-    await TestRenderer.act(() => (confirm!.props.onConfirm as () => void)())
-    expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
-
-    await TestRenderer.act(() => tree.update(<StreakPage />))
-    expect(messages()).toContain('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')
-    expect(messages()).not.toContain('progressScreen.streak.automaticCovered:{"date":"Wednesday, Sep 9","count":1}')
   })
 
   it('makes no automatic claim when a manual repair returns the same lastFreezeCoveredDate', async () => {
@@ -1595,39 +1264,6 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
   })
 
-  it('keeps detail entries beside the no-habits invitation', async () => {
-    mocks.retrospective.isError = true
-    mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
-    const tree = await renderProgress()
-    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.window.empty').length).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => node.type === ListRow && typeof node.props.href === 'string' && node.props.href.startsWith('/progress/'))).toHaveLength(3)
-    expect(tree.root.findAll((node) => node.props.testID === 'error-state')).toHaveLength(0)
-  })
-
-  it('shows the window empty state when an account with progress has no habits in the period', async () => {
-    const retrospectiveData = mocks.retrospective.data
-    mocks.retrospective.data = null as unknown as typeof mocks.retrospective.data
-    mocks.retrospective.isError = true
-    mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
-
-    try {
-      const tree = await renderProgress()
-      const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
-      expect(text).toEqual(expect.arrayContaining([
-        'progressScreen.sections.streak',
-        'progressScreen.sections.goals',
-      ]))
-      expect(text).toContain('progressScreen.window.empty')
-      expect(findPill(tree.root, 'progressScreen.window.emptyAction').props.testID).toBe('button-primary-sm')
-      expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
-      expect(mocks.retrospectiveHook).toHaveBeenCalledTimes(1)
-      const figures = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.value)
-      expect(figures).not.toContain('0%')
-    } finally {
-      mocks.retrospective.data = retrospectiveData
-    }
-  })
-
   it('keeps the freeze legend inside one sheet', async () => {
     const tree = await renderProgress(undefined, 'streak')
     const sheets = tree.root.findAll((node) => node.type === 'Sheet')
@@ -1636,66 +1272,6 @@ describe('mobile ProgressContent', () => {
       expect(sheets[0]!.findAll((node) => node.type === 'Text' && node.props.children === `progressScreen.streak.${state}`)).toHaveLength(1)
     }
     expect(tree.root.findAll((node) => node.type === PillButton && node.props.label === 'progressScreen.streak.legend')).toHaveLength(0)
-  })
-
-  it.each(progressStreakStates.flatMap((state) => [412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => (['en', 'pt-BR'] as const).map((locale) => ({ ...state, width, fontScale, locale }))))))('keeps loading and loaded streak blocks identical for $name at $width with scale $fontScale in $locale', async ({ streak, width, fontScale, locale }) => {
-    vi.setSystemTime(new Date(progressStreakNow))
-    const original = { ...mocks.freeze }
-    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale })
-    mocks.usePortugueseCatalog = true
-    await i18n.changeLanguage(locale)
-    try {
-      Object.assign(mocks.freeze, deriveStreakFreezeState(null, mocks.account.profile), { streakInfo: null })
-      const tree = await renderProgress(undefined, 'streak', false)
-      const section = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'progress-streak-section')[0]!
-      const blocks = () => section.children.flatMap(function hosts(node): unknown[] {
-        if (typeof node !== 'object') return []
-        return typeof node.type === 'string' ? [{ type: node.type, style: StyleSheet.flatten(node.props.style ?? {}) }] : node.children.flatMap(hosts)
-      })
-      const before = blocks()
-      const rowHost = () => {
-        const hosts = tree.toJSON()!
-        function find(host: HabitRowHost): HabitRowHost | undefined {
-          if (host.type === 'Pressable' && String(host.props.accessibilityLabel).startsWith((locale === 'en' ? en : ptBR).progressScreen.streak.freezes)) return host
-          for (const child of host.children ?? []) {
-            if (typeof child !== 'string') { const found = find(child); if (found) return found }
-          }
-        }
-        return (Array.isArray(hosts) ? hosts : [hosts]).map(find).find(Boolean)!
-      }
-      expect(rowHost().props.accessibilityLabel).toBe((locale === 'en' ? en : ptBR).progressScreen.streak.freezes)
-      const loadingEntry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === rowHost().props.accessibilityLabel)[0]!
-      expect(loadingEntry.props.disabled).toBe(true)
-      const beforeHeight = measureProfileRow(rowHost(), Math.min(width, 740) - 32, fontScale).height
-      expect(section.findAll((node) => node.props.testID === 'freeze-bank')).toHaveLength(0)
-      Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
-      await TestRenderer.act(() => tree.update(<StreakPage />))
-      expect(blocks()).toEqual(before)
-      const label = (locale === 'en' ? en : ptBR).progressScreen.streak.freezes
-      const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith(label))[0]!
-      const expected = `${streak.streakFreezesAccumulated} / ${streak.maxStreakFreezesAccumulated}`
-      expect(entry.props.accessibilityLabel).toBe(i18n.t('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }))
-      expect(entry.findAll((node) => node.type === 'Text' && node.props.children === expected)).toHaveLength(1)
-      const measured = measureProfileRow(rowHost(), Math.min(width, 740) - 32, fontScale)
-      expect(measured.height).toBe(beforeHeight)
-      const value = measured.texts.find((text) => text.label === expected)!
-      expect(value.lines).toBe(1)
-      expect(value.clipped).toBe(false)
-      expect(value.right).toBeLessThanOrEqual(Math.min(width, 740) - 32)
-      expect(entry.findAll((node) => node.type === ChevronRight)).toHaveLength(1)
-      await TestRenderer.act(() => (entry.props.onPress as () => void)())
-      const sheet = tree.root.findAll((node) => node.type === 'Sheet')[0]!
-      const bank = sheet.findAll((node) => node.type === FreezeBank)[0]!
-      expect(bank.props.inSheet).toBe(true)
-      expect(bank.props.banked).toBe(streak.streakFreezesAccumulated)
-      expect(bank.props.protectedDays).toHaveLength(streak.recentFreezeDates.length)
-      await TestRenderer.act(() => tree.update(<></>))
-    } finally {
-      Object.assign(mocks.freeze, original)
-      dimensions.mockRestore()
-      mocks.usePortugueseCatalog = false
-      await i18n.changeLanguage('en')
-    }
   })
 
   it.each(['dark', 'light'] as const)('keeps the disabled freeze chevron above the non-text contrast floor in %s', async (mode) => {

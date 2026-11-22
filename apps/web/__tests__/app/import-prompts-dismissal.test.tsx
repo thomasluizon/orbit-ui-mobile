@@ -120,7 +120,7 @@ describe('AppLayout import prompt dismissal', () => {
     useAuthStore.setState(useAuthStore.getInitialState())
   })
 
-  it.each([[false, 'onboarding.wizard.calendarTitle'], [true, 'onboarding.wizard.calendarQuestion']])('asks the calendar import as a question in the person\'s words %s', (guidedFlows, title) => {
+  it.each([[true, 'onboarding.wizard.calendarQuestion']])('asks the calendar import as a question in the person\'s words %s', (guidedFlows, title) => {
     mocks.guidedFlows = guidedFlows
     mocks.profile = createMockProfile({ hasCompletedOnboarding: true, hasImportedCalendar: false, hasSeenImportPrompt: true })
     render(<QueryClientProvider client={new QueryClient()}><AppLayout><p>Today content</p></AppLayout></QueryClientProvider>)

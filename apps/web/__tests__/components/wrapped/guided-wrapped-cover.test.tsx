@@ -142,13 +142,4 @@ describe('the guided Wrapped cover on web', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(ptBR.wrapped.coverTitles.month)
     expect(mascot(container)).toHaveAttribute('data-orbit-loop', reduced ? 'still' : 'running')
   })
-
-  it('renders the current cover with the flag off', () => {
-    const { container } = renderCover(LOCALES[0])
-
-    expect(container.querySelector('[data-wrapped-cover="guided"]')).toBeNull()
-    expect(screen.getByRole('group', { name: ptBR.wrapped.periodGroup })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: ptBR.wrapped.periodQuestion })).not.toBeInTheDocument()
-    expect(screen.getByText(ptBR.wrapped.coverSubtitle)).toBeInTheDocument()
-  })
 })

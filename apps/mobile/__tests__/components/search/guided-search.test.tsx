@@ -85,17 +85,6 @@ afterEach(async () => {
 })
 
 describe('the Android search screen with the guided flows off', () => {
-  it.each(['en', 'pt-BR'] as const)('renders the current surface in %s: the title is the one heading above the command rows and no Orbit shows', async (locale) => {
-    mocks.query.mockReturnValue(result([habit('walk', 'Walk')]))
-    const messages = await mount(locale)
-    expect(mascots()).toHaveLength(0)
-    expect(byTestId('search-scroller')).toHaveLength(0)
-    expect(headers()).toContain(messages.habits.search.title)
-    expect(headers()).not.toContain(messages.habits.search.question)
-    await type('walk')
-    expect(texts()).toContain(locale === 'en' ? '1 habit' : '1 hábito')
-    expect(byTestId('search-orbit-line')).toHaveLength(0)
-  })
 })
 
 describe('the Android search screen on the Orbit logic', () => {

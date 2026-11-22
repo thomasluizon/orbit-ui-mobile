@@ -14,7 +14,6 @@ const HABIT_FILES = [
   'components/habits/habit-form-fields/reminder-section.tsx',
   'components/habits/habit-form-fields/tag-editor-row.tsx',
   'components/habits/habit-checklist.tsx',
-  'components/habits/checklist-templates.tsx',
   'components/habits/create-habit-modal/sub-habit-editor.tsx',
   'components/habits/description-copy-button.tsx',
   'components/ui/select-check.tsx',
@@ -137,7 +136,6 @@ describe('habit form and frequency picker motion tokens', () => {
     'components/habits/create-habit-modal/sub-habit-editor.tsx',
     'components/habits/habit-form-fields/reminder-section.tsx',
     'components/habits/habit-form-fields/tag-editor-row.tsx',
-    'components/habits/checklist-templates.tsx',
   ])('%s fields share the text field hover transition', (path) => {
     const text = source(path)
     expect(text).toContain('orbit-field-hover')
@@ -202,14 +200,6 @@ describe('habit form and frequency picker motion tokens', () => {
     const text = source(path)
     expect(text).not.toContain('transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"')
     expect(text.match(/className=[{"`]+habit-control-motion [^"`]*active:scale-\[0\.96\]/g)).toHaveLength(count)
-  })
-
-  it('presses the checklist template rows, close and save with the scale and fill their mobile mirrors use', () => {
-    const text = source('components/habits/checklist-templates.tsx')
-    expect(text).toMatch(/orbit-list-row-body [^"]*active:scale-\[0\.96\]/)
-    expect(text).toMatch(/orbit-list-row-action [^"]*active:scale-\[0\.96\]/)
-    expect(text).toContain('enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96]')
-    expect(text).toContain('enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]')
   })
 
   it('fills the time field picker and clear buttons on hover and press with the neutral hover role and eases their scale', () => {

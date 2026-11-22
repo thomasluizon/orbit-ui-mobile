@@ -9,8 +9,7 @@ export type HabitDetailResult = { kind: 'rescheduled'; date: string } | { kind: 
 
 /**
  * The result state of habit detail and the endings of its two flows. `seeToday` goes to Hoje on the day of the habit.
- * With the guided flows on, an accepted reschedule and a delete close with the result dialog, and the delete dialog leaves to Hoje however it closes.
- * With the flag off, each action ends as before: a delete goes to Hoje at once and a reschedule shows nothing.
+ * An accepted reschedule and a delete close with the result dialog, and the delete dialog leaves to Hoje however it closes.
  */
 export function useHabitDetailResult(seeToday: () => void) {
   const [result, setResult] = useState<HabitDetailResult | null>(null)

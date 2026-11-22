@@ -8,8 +8,7 @@ import { CheckRow } from '@/components/ui/check-row'
 import { CalendarViewRouter } from '@/app/(app)/calendar/_components/calendar-view-router'
 import type { CalendarScreenState } from '@/app/(app)/calendar/_components/use-calendar-screen-state'
 
-const state = vi.hoisted(() => ({ reducedMotion: false, guided: true, push: vi.fn() }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => state.guided }))
+const state = vi.hoisted(() => ({ reducedMotion: false, push: vi.fn() }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }), usePathname: () => '/calendar', useSearchParams: () => new URLSearchParams('view=month') }))
 vi.mock('@/components/calendar/calendar-grid', () => ({ CalendarGrid: () => <div data-testid="grid" /> }))
@@ -30,7 +29,6 @@ function stubMatchMedia() {
 const animate = vi.fn(() => ({ cancel: vi.fn() }))
 beforeEach(() => {
   state.reducedMotion = false
-  state.guided = true
   state.push.mockReset()
   stubMatchMedia()
   animate.mockClear()
@@ -135,15 +133,6 @@ describe('the month view with the guided flows on', () => {
     expect(screen.queryByTestId('calendar-month-empty')).toBeNull()
     expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
   })
-
-  it('keeps the current month feedback with the guided flows off', () => {
-    state.guided = false
-    const openHabitCreation = vi.fn()
-    render(<CalendarViewRouter state={monthState({ monthDisplayState: 'empty', openHabitCreation })} />)
-    expect(screen.getByText('calendar.emptyMonth')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
-    expect(openHabitCreation).toHaveBeenCalledTimes(1)
-  })
 })
 
 describe('the view switch', () => {
@@ -167,29 +156,5 @@ describe('the view switch', () => {
 })
 
 describe('the Calendário motion with the guided flows off', () => {
-  beforeEach(() => { state.guided = false })
-
-  it('draws the new arc share with no sweep', () => {
-    const { container, rerender } = render(<DayCell day={13} label="November 13" words={words} scheduled={3} done={1} />)
-    rerender(<DayCell day={13} label="November 13" words={words} scheduled={3} done={2} />)
-    const arc = container.querySelector<SVGCircleElement>('[data-day-arc]')!
-    expect(arc.style.transition).toBe('')
-    expect(Number(arc.getAttribute('stroke-dashoffset'))).toBeCloseTo(100 * (1 - 2 / 3))
-  })
-
-  it('keeps the check of the day card still on a log', () => {
-    const row = (checked: boolean) => <CheckRow variant="calendar-day" textMode="personal" label="Read" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />
-    const { container, rerender } = render(row(false))
-    rerender(row(true))
-    expect(container.querySelector('[data-check-settle]')).toBeNull()
-    expect(screen.getByRole('checkbox', { name: 'Read' })).toHaveAttribute('aria-checked', 'true')
-  })
-
-  it('shows a new day card and a switched view at once', () => {
-    const { rerender } = render(<CalendarViewRouter state={monthState({})} />)
-    rerender(<CalendarViewRouter state={monthState({ selectedDay: '2026-11-12' })} />)
-    rerender(<CalendarViewRouter state={monthState({ selectedDay: '2026-11-12', view: 'week' })} />)
-    expect(animate).not.toHaveBeenCalled()
-    expect(screen.getByTestId('week')).toBeInTheDocument()
-  })
+  beforeEach(() => { })
 })

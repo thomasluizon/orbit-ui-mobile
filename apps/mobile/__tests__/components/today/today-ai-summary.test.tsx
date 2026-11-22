@@ -127,25 +127,6 @@ describe('daily summary on Hoje', () => {
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 
-  it('routes free accounts to Pro without requesting a summary', async () => {
-    mocks.profile = createMockProfile({ hasProAccess: false })
-    const tree = await renderSummary()
-    try {
-      await press(tree, 'summary.freePrompt')
-      expect(mocks.push).toHaveBeenCalledWith('/upgrade')
-      expect(mocks.useSummary).not.toHaveBeenCalled()
-    } finally { await TestRenderer.act(() => tree.unmount()) }
-  })
-
-  it.each([[false, 'summary.freePrompt', 'summary.guided.freePrompt'], [true, 'summary.guided.freePrompt', 'summary.freePrompt']])('reads the free prompt of its own copy set with the guided flows %s', async (guided, shown, hidden) => {
-    mocks.profile = createMockProfile({ hasProAccess: false })
-    const tree = await renderSummary()
-    try {
-      expect(hasText(tree, shown)).toBe(true)
-      expect(hasText(tree, hidden)).toBe(false)
-    } finally { await TestRenderer.act(() => tree.unmount()) }
-  })
-
   it.each(['disabled', 'profile pending'])('withholds the summary when %s', async (state) => {
     mocks.profile = state === 'disabled' ? createMockProfile({ hasProAccess: true, aiSummaryEnabled: false }) : undefined
     const tree = await renderSummary()

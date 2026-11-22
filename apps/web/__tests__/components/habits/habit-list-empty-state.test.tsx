@@ -56,17 +56,6 @@ describe('the completed day on web', () => {
 })
 
 describe('the completed day on web with the flag off', () => {
-  it.each([[412, 96], [1440, 96]])('draws the base Orbit at 96 with no hop at %ipx, even when the completed day celebration is active', (width, size) => {
-    setWidth(width)
-    act(() => { useUIStore.getState().enqueueCelebration('all-done', { count: 3 }) })
-    render(<HabitListAllDone />)
-    const mark = document.querySelector<HTMLElement>('[data-testid="completed-day-mark"]')!
-    const mascot = mark.querySelector('[data-asset="orbit-mascot"]')!
-    expect(mascot.getAttribute('width')).toBe(String(size))
-    expect(mascot.getAttribute('data-orbit-state')).toBe('feliz')
-    expect(mark.style.width).toBe(`${size}px`)
-    expect(mark.querySelector('[data-orbit-hop]')).toBeNull()
-  })
 })
 
 describe('the Hoje empty state actions on web', () => {

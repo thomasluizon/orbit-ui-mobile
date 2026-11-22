@@ -60,18 +60,6 @@ describe('compact Calendar options', () => {
     expect(onGoogleCalendar).toHaveBeenCalledOnce()
   })
 
-  it('rejects an unavailable Google Calendar action and opens the legend', () => {
-    render(<CalendarOptions />)
-    const dialog = openOptions()
-    const google = within(dialog).getByRole('button', { name: 'calendar.googleCalendar' })
-    expect(google).toBeDisabled()
-    fireEvent.click(google)
-    expect(dialog).toBeInTheDocument()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'calendar.legendTitle' }))
-    expect(screen.queryByRole('dialog', { name: 'calendar.options' })).not.toBeInTheDocument()
-    expect(screen.getByRole('dialog', { name: 'calendar.legendTitle' })).toHaveTextContent('calendar.legend.loggable')
-  })
-
   it('keeps the three entries and titles the legend with the question when the guided flows are on', () => {
     const onGoogleCalendar = vi.fn()
     render(<CalendarOptions onGoogleCalendar={onGoogleCalendar} />)

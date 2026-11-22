@@ -86,7 +86,7 @@ function useRepairFlow(state: StreakRepairState, repair: StreakScreen['repair'])
   }
 }
 
-/** Sequência under `orbit_guided_flows`: Orbit states the streak, and a gap shows its return path on the screen. */
+/** Sequência: Orbit states the streak, and a gap shows its return path on the screen. */
 export function GuidedStreakSection(inputs: StreakScreenInputs) {
   const { t } = useTranslation()
   const streak = useStreakScreen(inputs)

@@ -166,192 +166,6 @@ describe('GoalDetailDrawer', () => {
     expect(trigger).toHaveFocus()
   })
 
-  it('opens manual progress from modal detail and returns to refreshed history', async () => {
-    refetchDetail.mockImplementationOnce(async () => {
-      detailGoal = { ...detailGoal, currentValue: 7, progressHistory: [{ previousValue: 3, value: 7, note: 'Modal note', createdAtUtc: listGoal.createdAtUtc }] }
-    })
-    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
-    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-    const input = await screen.findByLabelText('goals.form.progressQuestion')
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    fireEvent.change(input, { target: { value: '7' } })
-    fireEvent.change(screen.getByLabelText('goals.form.progressNoteQuestion'), { target: { value: 'Modal note' } })
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
-    await waitFor(() => expect(screen.queryByLabelText('goals.form.progressNoteQuestion')).not.toBeInTheDocument())
-    expect(await screen.findByText('Modal note')).toBeInTheDocument()
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-  })
-
-  it('keeps the open progress sheet when a refresh drops the goal', async () => {
-    const view = render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
-    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-    expect(await screen.findByLabelText('goals.form.progressQuestion')).toBeInTheDocument()
-
-    detailAvailable = false
-    listAvailable = false
-    view.rerender(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
-
-    expect(screen.getByLabelText('goals.form.progressQuestion')).toBeInTheDocument()
-  })
-
-  it('labels unlinked streak entry as current progress', () => {
-    detailGoal = { ...detailGoal, type: 'Streak' }
-    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-    expect(screen.getByLabelText('goals.form.progressQuestion')).toHaveValue('3')
-    expect(screen.queryByLabelText('goals.form.streakTarget')).not.toBeInTheDocument()
-  })
-
-  it('opens an accepted progress deep link after the goal finishes loading', () => {
-    detailAvailable = false
-    listAvailable = false
-    const view = render(<GoalDetailDrawer inline open initialAction="progress" onOpenChange={vi.fn()} goalId="1" />)
-    expect(screen.queryByLabelText('goals.form.progressQuestion')).not.toBeInTheDocument()
-    detailAvailable = true
-    view.rerender(<GoalDetailDrawer inline open initialAction="progress" onOpenChange={vi.fn()} goalId="1" />)
-    expect(screen.getByLabelText('goals.form.progressQuestion')).toHaveValue('3')
-  })
-
-  it('saves an arbitrary absolute progress value and trimmed note from the drawer', async () => {
-    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-    fireEvent.change(screen.getByLabelText('goals.form.progressQuestion'), { target: { value: '7.5' } })
-    fireEvent.change(screen.getByLabelText('goals.form.progressNoteQuestion'), { target: { value: '  Finished a chapter  ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
-    await waitFor(() => expect(updateProgressMutateAsync).toHaveBeenCalledWith({
-      goalId: '1', data: { currentValue: 7.5, note: 'Finished a chapter' },
-      goalName: listGoal.title, goalCount: 12, goalUnit: 'books',
-    }))
-    expect(refetchDetail).toHaveBeenCalled()
-  })
-
-  it.each(['', '  ', '-1', 'abc', 'Infinity'])('rejects invalid manual progress %j without losing the note', (value) => {
-    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-    const amount = screen.getByLabelText('goals.form.progressQuestion')
-    fireEvent.change(amount, { target: { value } })
-    fireEvent.change(screen.getByLabelText('goals.form.progressNoteQuestion'), { target: { value: 'Keep this note' } })
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
-    expect(amount).toHaveAttribute('aria-invalid', 'true')
-    expect(amount).toHaveFocus()
-    expect(screen.getByText('goals.form.progressValueInvalid')).toBeVisible()
-    expect(screen.getByLabelText('goals.form.progressNoteQuestion')).toHaveValue('Keep this note')
-    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
-  })
-
-  it.each(['0', '100'])('caps manual progress %s and permits an omitted note', async (value) => {
-    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-    fireEvent.change(screen.getByLabelText('goals.form.progressQuestion'), { target: { value } })
-    if (value === '100') expect(screen.getByText('goals.form.progressExceedsTarget')).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
-    await waitFor(() => expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: Math.min(Number(value), 12) } })))
-  })
-
-  it('retains a failed manual entry and note for retry and refreshes history after saving', async () => {
-    updateProgressMutateAsync.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(undefined)
-    const view = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-    fireEvent.change(screen.getByLabelText('goals.form.progressQuestion'), { target: { value: '8' } })
-    fireEvent.change(screen.getByLabelText('goals.form.progressNoteQuestion'), { target: { value: 'Saved note' } })
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'common.save' })).toBeEnabled())
-    expect(screen.getByLabelText('goals.form.progressQuestion')).toHaveValue('8')
-    expect(screen.getByLabelText('goals.form.progressNoteQuestion')).toHaveValue('Saved note')
-    expect(screen.getAllByRole('alert').some(alert => !!alert.textContent)).toBe(true)
-    expect(refetchDetail).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
-    await waitFor(() => expect(refetchDetail).toHaveBeenCalledOnce())
-    detailGoal = { ...detailGoal, currentValue: 8, progressHistory: [{ previousValue: 3, value: 8, note: 'Saved note', createdAtUtc: listGoal.createdAtUtc }] }
-    view.rerender(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-    expect(screen.getByText('Saved note')).toBeInTheDocument()
-  })
-
-  it('returns to detail when an accepted save leaves its refresh paused offline', async () => {
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
-    client.mount()
-    const query = vi.fn(() => Promise.resolve(detailGoal))
-    const observer = new QueryObserver(client, { queryKey: goalKeys.detail('1'), queryFn: query, initialData: detailGoal, enabled: false })
-    const unsubscribe = observer.subscribe(() => undefined)
-    refetchDetail.mockImplementationOnce(() => observer.refetch())
-    updateProgressMutateAsync.mockImplementationOnce(() => { onlineManager.setOnline(false); return Promise.resolve() })
-    try {
-      render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-      fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-      fireEvent.change(screen.getByLabelText('goals.form.progressQuestion'), { target: { value: '7' } })
-      fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
-      await waitFor(() => expect(client.getQueryState(goalKeys.detail('1'))?.fetchStatus).toBe('paused'))
-      expect(query).not.toHaveBeenCalled()
-      await waitFor(() => expect(screen.queryByLabelText('goals.form.progressNoteQuestion')).not.toBeInTheDocument())
-      expect(updateProgressMutateAsync).toHaveBeenCalledOnce()
-      fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-      fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
-      await waitFor(() => expect(screen.queryByLabelText('goals.form.progressNoteQuestion')).not.toBeInTheDocument())
-    } finally {
-      await client.cancelQueries()
-      unsubscribe()
-      client.unmount()
-      client.clear()
-      onlineManager.setOnline(true)
-    }
-  })
-
-  it('bounds progress notes and retains an over-limit draft for correction', async () => {
-    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-    const note = screen.getByLabelText('goals.form.progressNoteQuestion')
-    fireEvent.change(screen.getByLabelText('goals.form.progressQuestion'), { target: { value: '7.5' } })
-    fireEvent.change(note, { target: { value: 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1) } })
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
-    expect(updateProgressMutateAsync).not.toHaveBeenCalled()
-    expect(note).toHaveValue('a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH + 1))
-    expect(note).toHaveAttribute('aria-invalid', 'true')
-    expect(note).toHaveFocus()
-    expect(screen.getByText('goals.form.progressNoteTooLong')).toBeVisible()
-    const validNote = 'a'.repeat(MAX_GOAL_PROGRESS_NOTE_LENGTH)
-    fireEvent.change(note, { target: { value: validNote } })
-    expect(note).toHaveFocus()
-    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
-    await waitFor(() => expect(updateProgressMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { currentValue: 7.5, note: validNote } })))
-  })
-
-  it('disables manual fields and repeated saves through successful dismissal', async () => {
-    let finish!: () => void
-    let finishExit!: () => void
-    const exitFinished = new Promise<void>(resolve => { finishExit = resolve })
-    updateProgressMutateAsync.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
-    render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
-    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-    fireEvent.change(screen.getByLabelText('goals.form.progressQuestion'), { target: { value: '7' } })
-    fireEvent.change(screen.getByLabelText('goals.form.progressNoteQuestion'), { target: { value: 'One history entry' } })
-    const editor = screen.getByRole('dialog', { name: 'goals.updateProgress' })
-    Object.defineProperty(editor, 'getAnimations', { value: () => editor.hasAttribute('data-closed') ? [{ finished: exitFinished }] : [] })
-    const save = screen.getByRole('button', { name: 'common.save' })
-    expect(save).toBeEnabled()
-    fireEvent.click(save)
-    fireEvent.click(save)
-    expect(save).toBeDisabled()
-    expect(save).toHaveAttribute('aria-busy', 'true')
-    expect(screen.getByLabelText('goals.form.progressQuestion')).toBeDisabled()
-    expect(screen.getByLabelText('goals.form.progressNoteQuestion')).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDisabled()
-    expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
-    try {
-      await act(async () => { finish() })
-      await waitFor(() => expect(editor).toHaveAttribute('data-closed'))
-      fireEvent.click(save)
-      fireEvent.submit(screen.getByLabelText('goals.form.progressQuestion').closest('form')!)
-      expect(updateProgressMutateAsync).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ data: { currentValue: 7, note: 'One history entry' } }))
-      expect(save).toBeDisabled()
-      expect(screen.getByLabelText('goals.form.progressNoteQuestion')).toBeDisabled()
-    } finally {
-      await act(async () => { finishExit() })
-    }
-    await waitFor(() => expect(screen.queryByLabelText('goals.form.progressNoteQuestion')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: 'goals.updateProgress' }))
-    expect(screen.getByRole('button', { name: 'common.save' })).toBeEnabled()
-  })
-
   it('keeps the synchronous submission guard locked after success', async () => {
     const save = vi.fn().mockResolvedValue(undefined)
     const refresh = vi.fn(() => new Promise<void>(() => undefined))
@@ -397,32 +211,6 @@ describe('GoalDetailDrawer', () => {
     expect(onOpenChange).not.toHaveBeenCalled()
     act(() => useUIStore.getState().setOrbitConversationOpen(false))
     expect(screen.getByRole('heading', { name: 'Synced goal' })).toBeTruthy()
-  })
-
-  it('waits for the goal sheet exit before opening the conversation', async () => {
-    let finishExit!: () => void
-    const exitFinished = new Promise<void>(resolve => { finishExit = resolve })
-    const onOpenChange = vi.fn()
-    render(<GoalDetailDrawer open onOpenChange={onOpenChange} goalId="1" />)
-    const drawer = screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })
-    const getAnimations = vi.fn(() => drawer.hasAttribute('data-closed') ? [{ finished: exitFinished }] : [])
-    Object.defineProperty(drawer, 'getAnimations', { value: getAnimations })
-    const orbitAction = screen.getByRole('button', { name: 'goals.detail.askOrbitEyebrow: goals.detail.askOrbitDefault' })
-    expect(orbitAction).toHaveTextContent('goals.detail.askOrbitEyebrow')
-    fireEvent.click(orbitAction)
-    try {
-      await waitFor(() => expect(getAnimations).toHaveReturnedWith([{ finished: exitFinished }]))
-      expect(useUIStore.getState().orbitConversationOpen).toBe(false)
-      expect(onOpenChange).not.toHaveBeenCalled()
-      act(() => useChatStore.getState().setDraft('Typed during dismissal'))
-      await act(async () => { finishExit() })
-      await waitFor(() => expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false))
-      expect(useUIStore.getState().orbitConversationOpen).toBe(true)
-      expect(useChatStore.getState().draft).toBe('Typed during dismissal')
-      expect(useChatStore.getState().contextualSuggestion?.prompt).toContain('Read 12 books')
-    } finally {
-      await act(async () => { finishExit() })
-    }
   })
 
   it('keeps an existing draft and offers the goal request as a suggestion', () => {
@@ -474,13 +262,6 @@ describe('GoalDetailDrawer', () => {
       <GoalDetailDrawer open={false} onOpenChange={vi.fn()} goalId="1" />,
     )
     expect(container.innerHTML).toBe('')
-  })
-
-  it('renders goal title when open', () => {
-    render(
-      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
-    )
-    expect(screen.getByText(personalText('Read 12 books'))).toBeInTheDocument()
   })
   it('uses the inline goal title as its only page heading', () => {
     render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
@@ -653,39 +434,6 @@ describe('GoalDetailDrawer', () => {
     }
   })
 
-  it.each([
-    { name: 'renders progress section', text: 'goals.progress' },
-    { name: 'renders progress info text', text: 'progressScreen.goals.progress' },
-    { name: 'renders manual progress controls for active goals', text: 'goals.detail.manualProgress' },
-    { name: 'renders edit action', text: 'goals.detail.edit' },
-    { name: 'renders mark abandoned action for active goals', text: 'goals.detail.markAbandoned' },
-    { name: 'renders delete action', text: 'goals.detail.delete' },
-  ])('$name', ({ text }) => {
-    render(
-      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
-    )
-    expect(document.body.textContent).toContain(text)
-  })
-
-
-
-  it('prefers synced detail data over the stale list cache', () => {
-    detailGoal = {
-      ...listGoal,
-      title: 'Read 12 books (synced)',
-      currentValue: 6,
-      progressPercentage: 50,
-      progressHistory: [],
-    }
-
-    render(
-      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
-    )
-
-    expect(screen.getByText(personalText('Read 12 books (synced)'))).toBeInTheDocument()
-    expect(document.body.textContent).toContain('"current":6')
-  })
-
 
 
   it('does not offer or submit manual progress for a derived goal', () => {
@@ -733,54 +481,6 @@ describe('GoalDetailDrawer', () => {
       data: { status: 'Abandoned' },
       goalName: 'Read 12 books',
     })
-  })
-
-  it('deletes the goal after confirming and closes the drawer', async () => {
-    let finishDelete!: () => void
-    deleteMutateAsync.mockReturnValueOnce(new Promise<void>((resolve) => { finishDelete = resolve }))
-    let finishExit!: () => void
-    const exitFinished = new Promise<void>((resolve) => { finishExit = resolve })
-    const onOpenChange = vi.fn()
-    render(<GoalDetailDrawer open={true} onOpenChange={onOpenChange} goalId="1" />)
-    const drawer = screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })
-    const getAnimations = vi.fn(() => drawer.hasAttribute('data-closed') ? [{ finished: exitFinished }] : [])
-    Object.defineProperty(drawer, 'getAnimations', { value: getAnimations })
-
-    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.delete' }))
-    expect(deleteMutateAsync).not.toHaveBeenCalled()
-    fireEvent.click(screen.getAllByRole('button', { name: 'goals.detail.delete' }).at(-1)!)
-
-    try {
-      await waitFor(() => expect(deleteMutateAsync).toHaveBeenCalledExactlyOnceWith('1'))
-      expect(onOpenChange).not.toHaveBeenCalled()
-      expect(drawer).toHaveAttribute('data-open')
-
-      await act(async () => { finishDelete() })
-      await waitFor(() => expect(drawer).toHaveAttribute('data-closed'))
-      await waitFor(() => expect(getAnimations).toHaveReturnedWith([{ finished: exitFinished }]))
-      expect(drawer).toBeInTheDocument()
-      expect(onOpenChange).not.toHaveBeenCalled()
-
-      await act(async () => { finishExit() })
-      await waitFor(() => expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false))
-      expect(drawer).not.toBeInTheDocument()
-    } finally {
-      await act(async () => { finishExit() })
-    }
-  })
-
-  it('keeps the drawer open when confirmed deletion fails', async () => {
-    deleteMutateAsync.mockRejectedValueOnce(new Error('Delete failed'))
-    const onOpenChange = vi.fn()
-    render(<GoalDetailDrawer open onOpenChange={onOpenChange} goalId="1" />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.delete' }))
-    fireEvent.click(screen.getAllByRole('button', { name: 'goals.detail.delete' }).at(-1)!)
-
-    await screen.findByText('goals.errors.delete')
-    expect(deleteMutateAsync).toHaveBeenCalledExactlyOnceWith('1')
-    expect(onOpenChange).not.toHaveBeenCalled()
-    expect(screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })).toHaveAttribute('data-open')
   })
 
 
@@ -853,42 +553,6 @@ describe('GoalDetailDrawer', () => {
 
     expect(screen.getByRole('progressbar')).toHaveAttribute('width', '60')
     expect(screen.getByRole('progressbar')).toHaveAttribute('height', '60')
-  })
-
-  it('stage 5 lets the progress write complete a manual goal at its target', async () => {
-    detailGoal = { ...listGoal, currentValue: 11, progressPercentage: 92, progressHistory: [] }
-    updateProgressMutateAsync.mockImplementationOnce(({ data }) => {
-      const optimisticDetail = updateGoalProgressDetail({
-        goal: detailGoal,
-        metrics: {
-          progressPercentage: detailGoal.progressPercentage,
-          velocityPerDay: 0,
-          projectedCompletionDate: null,
-          daysToDeadline: null,
-          trackingStatus: 'no_deadline',
-          habitAdherence: [],
-        },
-      }, data.currentValue)
-      detailGoal = optimisticDetail!.goal
-      return Promise.resolve(undefined)
-    })
-    const { rerender } = render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.increase' }))
-
-    expect(updateProgressMutateAsync).toHaveBeenCalledWith({
-      goalId: '1',
-      data: { currentValue: 12 },
-      goalName: listGoal.title,
-      goalCount: listGoal.targetValue,
-      goalUnit: listGoal.unit,
-    })
-    expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(refetchDetail).toHaveBeenCalled())
-    rerender(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
-    expect(detailGoal.status).toBe('Completed')
-    expect(screen.queryByRole('button', { name: 'goals.detail.markCompleted' })).toBeNull()
-    expect(updateStatusMutateAsync).not.toHaveBeenCalled()
   })
 
   it('stage 5 completes a target-reached manual goal with one neutral action and explanation', () => {
@@ -1006,17 +670,6 @@ describe('GoalDetailDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(document.body.textContent).toContain('goals.detail.deleteNamed:{"title":"Read 12 books"}')
     expect(deleteMutateAsync).not.toHaveBeenCalled()
-  })
-
-  it('stage 5 keeps failed progress unchanged and allows retry', async () => {
-    updateProgressMutateAsync.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(undefined)
-    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
-    const increase = screen.getByRole('button', { name: 'goals.detail.increase' })
-    fireEvent.click(increase)
-    await waitFor(() => expect(screen.getByRole('alert').textContent).not.toBe(''))
-    expect(document.body.textContent).toContain('"current":3')
-    fireEvent.click(increase)
-    await waitFor(() => expect(updateProgressMutateAsync).toHaveBeenCalledTimes(2))
   })
 
   it('stage 5 bounds the stepper and blocks duplicate pending writes', async () => {

@@ -104,20 +104,4 @@ describe('the onboarding Pro step', () => {
     expect(mocks.retry).toHaveBeenCalledTimes(1)
     expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
   })
-
-  it.each(['loading', null, 'Trial'] as const)('keeps the current %s state with no Orbit with the flag off', (plan) => {
-    mocks.plan = plan
-    if (plan === 'Trial') mocks.profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, trialEndsAt: '2099-01-01T00:00:00Z' })
-    render(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
-    expect(document.querySelector('[data-onboarding-orbit]')).toBeNull()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(plan === 'Trial' ? en.onboarding.flow.trial.title : 'Orbit Pro')
-  })
-
-  it('renders the current paywall with the flag off', () => {
-    render(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Orbit Pro')
-    expect(document.querySelector('[data-upgrade-block]')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Subscribe Annual, recommended' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Subscribe Monthly' })).toBeInTheDocument()
-  })
 })

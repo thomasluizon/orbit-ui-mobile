@@ -6,7 +6,6 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import { CommandRow } from '@/components/command/command-row'
 import { SelectionTray } from '@/components/habits/selection-tray'
-import { QuietLink } from '@/components/ui/quiet-link'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { MOTION_SAFE } from '@/__tests__/support/compiled-class-rules'
 import { compilePressScaleRules, scaledWhilePressed, type PressScaleRule } from '@/__tests__/support/press-scale-rules'
@@ -19,7 +18,6 @@ const tray = { selectedCount: 1, allSelected: false, onSelectAll: vi.fn(), onDes
   onBulkMove: vi.fn(), onBulkDelete: vi.fn(), onCancel: vi.fn() }
 
 const controls: [string, () => ReactElement, () => Element][] = [
-  ['QuietLink', () => <QuietLink onClick={vi.fn()}>Back</QuietLink>, () => screen.getByRole('button', { name: 'Back' })],
   ['the pricing stay-free link', () => withMessages(<PricingSection profile={null} plans={null} isLoadingPlans isPlansError={false} isOnline trialDaysLeft={null}
     checkoutLoading={null} checkoutError="" discountedAmount={(amount) => amount} onCheckout={vi.fn()} onStayFree={vi.fn()} onRetryPlans={vi.fn()}
     t={((key: string) => key) as never} />), () => screen.getByRole('link', { name: 'upgrade.convert.stayFree' })],

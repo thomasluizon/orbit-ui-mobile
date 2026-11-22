@@ -24,7 +24,6 @@ const MOTION_PRESSABLE_CALLERS = sourceFiles(HABITS)
 describe('habit form press scale on mobile', () => {
   it('finds the habit form MotionPressable callers', () => {
     expect(MOTION_PRESSABLE_CALLERS).toEqual(expect.arrayContaining([
-      'checklist-templates.tsx',
       'create-habit-modal/sub-habit-editor.tsx',
       'habit-form-fields/habit-emoji-selector.tsx',
       'habit-form-fields/habit-understanding.tsx',

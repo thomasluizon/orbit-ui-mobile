@@ -25,21 +25,4 @@ describe('web habit detail load error', () => {
     expect(mascot()).toHaveAttribute('data-orbit-state', 'parado')
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
   })
-
-  it('keeps the load message for a server failure and for the flag off, even offline', () => {
-    const server = Object.assign(new Error('Server error'), { status: 500 })
-    const view = render(<HabitDetailLoadError message="Could not load" offlineMessage="Check your connection" error={server} retryLabel="Retry" onRetry={vi.fn()} />)
-    expect(screen.getByRole('alert')).toHaveTextContent('Could not load')
-    view.unmount()
-    render(<HabitDetailLoadError message="Could not load" offlineMessage="Check your connection" error={new TypeError('Failed to fetch')} retryLabel="Retry" onRetry={vi.fn()} />)
-    expect(screen.getByRole('alert')).toHaveTextContent('Could not load')
-  })
-
-  it('renders the current full-surface error, with its Orbit in Parado, with the flag off', () => {
-    render(<HabitDetailLoadError message="Could not load" retryLabel="Retry" onRetry={vi.fn()} />)
-    expect(mascot()).toHaveAttribute('data-orbit-state', 'parado')
-    expect(document.querySelector('[data-habit-detail-load-error]')).toBeNull()
-    expect(screen.getByRole('alert')).toHaveTextContent('Could not load')
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
-  })
 })

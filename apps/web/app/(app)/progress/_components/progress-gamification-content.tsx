@@ -35,7 +35,6 @@ function ProgressGamificationContent({ screen }: Readonly<{ screen: 'streak' | '
   return <ProgressSubscreen screen={screen}><GamificationBody screen={screen} access={access} /></ProgressSubscreen>
 }
 
-/** With `orbit_guided_flows` off, Sequência renders its current form. Conquistas keeps its structure either way. */
 export function ProgressGamificationRoute({ screen }: Readonly<{ screen: 'streak' | 'achievements' }>) {
   return <ProgressGamificationContent screen={screen} />
 }

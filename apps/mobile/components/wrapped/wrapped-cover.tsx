@@ -14,7 +14,7 @@ export interface WrappedCoverProps {
   onRetry: () => void
 }
 
-/** The cover of the Wrapped screen. `orbit_guided_flows` picks the guided cover; off, the current cover renders. */
+/** The cover of the Wrapped screen. */
 export function WrappedCover(props: Readonly<WrappedCoverProps>) {
   return <GuidedWrappedCover {...props} />
 }

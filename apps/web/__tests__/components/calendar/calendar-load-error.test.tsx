@@ -67,15 +67,6 @@ describe.each(['en', 'pt-BR'] as const)('web Calendário load error in %s', (loc
     expect(screen.getByRole('alert')).toHaveTextContent(messages.offline.description)
   })
 
-  it('keeps the current card, with no Orbit, when the flag is off', () => {
-    const retry = mount('month')
-    expect(mascot()).toBeNull()
-    expect(document.querySelector('[data-shell-centred-region]')).toBeNull()
-    expect(screen.getByText(messages.calendar.loadError)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: messages.common.retry }))
-    expect(retry).toHaveBeenCalledTimes(1)
-  })
-
   it('shows the month when nothing failed', () => {
     render(<CalendarBody profileReady profileError={null} onRetryProfile={vi.fn()} error={null} onRetry={vi.fn()}><p>The month</p></CalendarBody>)
     expect(screen.getByText('The month')).toBeInTheDocument()

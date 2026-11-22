@@ -157,14 +157,4 @@ describe('the guided share card sheet on web', () => {
     expect(options(copy.periodQuestion)).toHaveLength(3)
     expect(screen.getByTestId('share-card')).toBeInTheDocument()
   })
-
-  it('renders the current sheet with the flag off', () => {
-    const { copy } = renderSheet()
-
-    expect(screen.getByRole('dialog', { name: copy.title })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: copy.share })).toBeInTheDocument()
-    expect(screen.getByRole('radiogroup', { name: copy.periodQuestion })).toBeInTheDocument()
-    expect(screen.queryByRole('group', { name: copy.periodQuestion })).not.toBeInTheDocument()
-    expect(document.querySelector('[data-share-preview]')).toBeNull()
-  })
 })

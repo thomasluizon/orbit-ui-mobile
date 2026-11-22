@@ -65,16 +65,6 @@ it('uses a visible small ghost Cancel before Save', () => {
   TestRenderer.act(() => tree.update(<></>))
 })
 
-it('offers the reminder time as a named clock icon action', () => {
-  let tree!: import('react-test-renderer').ReactTestRenderer
-  TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })
-  TestRenderer.act(() => press(tree.root, en.habits.changeTakenAt))
-  const button = tree.root.findAll((node) => String(node.type) === 'Pressable').find((node) => node.props.accessibilityLabel === en.habits.useReminderTime)!
-  expect(button).toBeDefined()
-  expect(renderedText(button)).toBe('')
-  TestRenderer.act(() => tree.update(<></>))
-})
-
 it('asks when the dose was done as one question, and the quick option saves the reminder time in one press', async () => {
   let tree!: import('react-test-renderer').ReactTestRenderer
   TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })

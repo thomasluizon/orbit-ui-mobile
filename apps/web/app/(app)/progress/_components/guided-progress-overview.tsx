@@ -143,7 +143,7 @@ function useBarSelection(chartRef: RefObject<HTMLDivElement | null>) {
   return { selectedDate, select, mascotRef, lookAt }
 }
 
-/** The Progresso root under `orbit_guided_flows`: Orbit answers "am I moving", then the person asks the next thing. */
+/** The Progresso root: Orbit answers "am I moving", then the person asks the next thing. */
 export function GuidedProgressOverview() {
   const t = useTranslations()
   const locale = useLocale()

@@ -9,7 +9,6 @@ import { accountStorageKey } from '@/lib/account-storage-key'
 import GoalsPage from '@/app/progress/goals'
 
 const mocks = vi.hoisted(() => ({
-  guided: true,
   reducedMotion: false,
   storage: new Map<string, string>(),
   storageRefused: false,
@@ -28,7 +27,6 @@ vi.mock('react-i18next', async (original) => ({
   useTranslation: () => ({ t: (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key, i18n: { language: 'en' } }),
 }))
 vi.mock('@/lib/motion', async (original) => ({ ...await original<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => mocks.reducedMotion }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('expo-router', () => ({ usePathname: () => '/progress/goals', useRouter: () => ({ push: vi.fn(), back: vi.fn(), dismissTo: vi.fn() }) }))
@@ -76,7 +74,6 @@ describe('goals list on the Orbit logic', () => {
     queuedFrames.clear()
     vi.stubGlobal('requestAnimationFrame', (callback: () => void) => { frameHandle += 1; queuedFrames.set(frameHandle, callback); return frameHandle })
     vi.stubGlobal('cancelAnimationFrame', (handle: number) => { queuedFrames.delete(handle) })
-    mocks.guided = true
     mocks.reducedMotion = false
     mocks.storage.clear()
     mocks.storageRefused = false
@@ -155,24 +152,14 @@ describe('goals list on the Orbit logic', () => {
   })
 
   it('reads the last visit when the flag arrives after the first render, before it records the new values', async () => {
-    mocks.guided = false
     mocks.storage.set(seenKey(), JSON.stringify({ read: 25, run: 25 }))
     await renderGoals()
-    mocks.guided = true
     await act(async () => { tree.update(<GoalsPage />); await Promise.resolve() })
     await act(async () => { await Promise.resolve() })
     expect(ring('read').props['data-ring-sweep']).toBe('sweeping')
     await nextFrames()
     expect(ringValue('read')).toBe(50)
     expect(JSON.parse(mocks.storage.get(seenKey())!)).toEqual({ read: 50, run: 25 })
-  })
-
-  it('keeps the current list with the flag off: no sweep and nothing stored', async () => {
-    mocks.guided = false
-    mocks.storage.set(seenKey(), JSON.stringify({ read: 25 }))
-    await renderGoals()
-    expect(ringValue('read')).toBe(50)
-    expect(JSON.parse(mocks.storage.get(seenKey())!)).toEqual({ read: 25 })
   })
 
   it('keeps the move actions, the create action and the open press', async () => {

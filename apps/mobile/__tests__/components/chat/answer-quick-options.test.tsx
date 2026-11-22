@@ -44,24 +44,6 @@ async function answer(kind: Kind, quick: boolean) {
 }
 
 describe('the quick options of the Android conversation blocks', () => {
-  it.each(['choice', 'multi', 'pick'] as const)('answers a %s block of 2 to 4 options with OptionCard and sends the payload the list sends', async (kind) => {
-    await mount(kind)
-    expect(cards().map(card => card.props.accessibilityLabel)).toEqual(labelsOf(kind))
-    await renderer.act(() => tree!.unmount())
-    tree = undefined
-    const quick = await answer(kind, true)
-    const list = await answer(kind, false)
-    expect(quick).toHaveLength(1)
-    expect(quick).toEqual(list)
-  })
-
-  it('keeps the list for an option with a detail line, and with the flag off', async () => {
-    await renderer.act(() => { tree = renderer.create(<ChoiceBlock block={choiceBlockFixture} interaction={interaction()} />) })
-    expect(cards()).toHaveLength(0)
-    await renderer.act(() => tree!.unmount())
-    await mount('choice')
-    expect(cards()).toHaveLength(0)
-  })
 
   it('keeps the list for a pick list whose labels hold more than 4 words', async () => {
     await renderer.act(() => { tree = renderer.create(<PickListBlock block={longPickList} interaction={interaction()} />) })

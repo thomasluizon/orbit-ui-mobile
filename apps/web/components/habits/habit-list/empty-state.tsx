@@ -140,7 +140,7 @@ export function HabitListEmptyState({
   )
 }
 
-/** The completed day: Orbit in Feliz. With the guided flows on, it draws at the state size and hops once while the celebration of the completed day is the active one, and never on a later visit. With them off, it draws at 96 with no hop. */
+/** The completed day: Orbit in Feliz. It draws at the state size and hops once while the celebration of the completed day is the active one, and never on a later visit. With them off, it draws at 96 with no hop. */
 export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: () => void }>) {
   const t = useTranslations()
   const stateSize = useStateMascotSize()

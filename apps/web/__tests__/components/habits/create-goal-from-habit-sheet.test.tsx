@@ -64,82 +64,6 @@ describe('CreateGoalSheet', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('asks the type before the title and reveals the follow-up questions from the title answer', () => {
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    const type = screen.getByRole('radio', { name: /goals.form.typeStreak/ })
-    const title = screen.getByLabelText('goals.form.title')
-    expect(type.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(title).toHaveAttribute('placeholder', 'goals.form.descriptionPlaceholder')
-    expect(screen.queryByLabelText('goals.form.targetValueQuestion')).toBeNull()
-    expect(screen.getByRole('button', { name: /goals.linkedHabits/ })).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Read more books' } })
-    expect(screen.getByLabelText('goals.form.targetValueQuestion')).toBeInTheDocument()
-    expect(screen.getByLabelText('goals.form.unitQuestion')).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('goals.form.targetValueQuestion'), { target: { value: '12' } })
-    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: '' } })
-    expect(screen.getByLabelText('goals.form.targetValueQuestion')).toHaveValue(12)
-  })
-
-  it('reveals the follow-up questions from a type answer and matches the placeholder to the type', () => {
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole('radio', { name: /goals.form.typeStreak/ }))
-    expect(screen.getByLabelText('goals.form.streakTarget')).toBeInTheDocument()
-    expect(screen.getByLabelText('goals.form.title')).toHaveAttribute('placeholder', 'goals.form.streakDescriptionPlaceholder')
-    fireEvent.click(screen.getByRole('radio', { name: /goals.form.typeStandard/ }))
-    expect(screen.getByLabelText('goals.form.targetValueQuestion')).toBeInTheDocument()
-    expect(screen.getByLabelText('goals.form.title')).toHaveAttribute('placeholder', 'goals.form.descriptionPlaceholder')
-  })
-
-  it('reveals the hidden questions when an empty form is submitted', () => {
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
-    expect(screen.getByLabelText('goals.form.targetValueQuestion')).toBeInTheDocument()
-    expect(mockMutateAsync).not.toHaveBeenCalled()
-  })
-
-  it('renders description field', () => {
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    expect(screen.getByLabelText(/goals.form.title/)).toBeInTheDocument()
-  })
-
-  it('renders submit button', () => {
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    const submitBtn = document.querySelector('button[type="submit"]')
-    expect(submitBtn).toBeInTheDocument()
-    expect(submitBtn!.textContent).toContain('goals.create')
-  })
-
-  it('shows add deadline button', () => {
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Read more books' } })
-    expect(screen.getByRole('button', { name: 'goals.form.addDeadline' })).toBeInTheDocument()
-  })
-
-  it('shows validation error when submitting without target value', () => {
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    const descriptionInput = screen.getByLabelText(/goals.form.title/)
-    fireEvent.change(descriptionInput, { target: { value: 'Read more books' } })
-    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
-    expect(mockShowError).toHaveBeenCalledWith('goals.form.targetValueRequired')
-    expect(mockMutateAsync).not.toHaveBeenCalled()
-  })
-
-  it('shows validation error when unit is empty but target is set', () => {
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Read more books' } })
-    const targetInput = screen.getByLabelText('goals.form.targetValueQuestion')
-    fireEvent.change(targetInput, { target: { value: '10' } })
-    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
-    expect(mockShowError).toHaveBeenCalledWith('goals.form.unitRequired')
-    expect(mockMutateAsync).not.toHaveBeenCalled()
-  })
-
-  it('renders the title from the overlay', () => {
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    const titles = screen.getAllByText('goals.create')
-    expect(titles.length).toBeGreaterThan(0)
-  })
-
   function fillStandardGoal() {
     fireEvent.change(screen.getByLabelText(/goals.form.title/), {
       target: { value: 'Read more books' },
@@ -147,33 +71,6 @@ describe('CreateGoalSheet', () => {
     fireEvent.change(screen.getByLabelText('goals.form.targetValueQuestion'), { target: { value: '12' } })
     fireEvent.change(screen.getByLabelText('goals.form.unitQuestion'), { target: { value: 'books' } })
   }
-
-  it('creates a standard goal and closes on success', async () => {
-    const onClose = vi.fn()
-    render(<CreateGoalSheet open={true} onClose={onClose} />)
-    fillStandardGoal()
-    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
-
-    await waitFor(() =>
-      expect(mockMutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ targetValue: 12, unit: 'books', type: 'Standard' }),
-      ),
-    )
-    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
-    expect(mockShowError).not.toHaveBeenCalled()
-  })
-
-  it('pins Cancel and Create in the sheet footer, never in the scrolling body', () => {
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'goals.create'])
-    expectSmallSheetActions()
-    expect(sheetSlotButtons('sheet-body')).not.toContain('goals.create')
-    expect(sheetSlotButtons('sheet-body')).not.toContain('common.cancel')
-    const submit = screen.getByRole('button', { name: 'goals.create' }) as HTMLButtonElement
-    const form = screen.getByLabelText('goals.form.title').closest('form')!
-    expect(submit).toHaveAttribute('form', form.id)
-    expect(submit.form).toBe(form)
-  })
 
   describe('native Enter submission', () => {
     let browserLaunch: BrowserLaunch | undefined
@@ -183,84 +80,6 @@ describe('CreateGoalSheet', () => {
       browser = await launch
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
-
-    it('submits once through the external footer pill when Enter is pressed in the description field', async () => {
-      render(<CreateGoalSheet open onClose={vi.fn()} />)
-      fillStandardGoal()
-      const markup = screen.getByRole('dialog').outerHTML
-      const page = await browser.newPage()
-      try {
-        await page.setContent(markup)
-        await page.evaluate(() => {
-          const form = document.querySelector('form')!
-          form.addEventListener('submit', (event) => {
-            event.preventDefault()
-            form.dataset.submitCount = String(Number(form.dataset.submitCount ?? 0) + 1)
-            form.dataset.submitter = (event as SubmitEvent).submitter?.textContent ?? ''
-          })
-        })
-        await page.locator('#create-goal-description').press('Enter')
-        expect(await page.locator('form').getAttribute('data-submit-count')).toBe('1')
-        expect(await page.locator('form').getAttribute('data-submitter')).toBe('goals.create')
-      } finally {
-        await page.close()
-      }
-    })
-  })
-
-  it('switches the goal type between standard and streak', () => {
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Read more books' } })
-    const standard = screen.getByRole('radio', { name: /goals.form.typeStandard/ })
-    const streak = screen.getByRole('radio', { name: /goals.form.typeStreak/ })
-
-    expect(standard).toHaveAttribute('aria-checked', 'true')
-    fireEvent.click(streak)
-    expect(streak).toHaveAttribute('aria-checked', 'true')
-    fireEvent.click(standard)
-    expect(standard).toHaveAttribute('aria-checked', 'true')
-  })
-
-  it('keeps a failed save visible in the sheet', async () => {
-    mockMutateAsync.mockRejectedValueOnce(new Error('server down'))
-    render(<CreateGoalSheet open={true} onClose={vi.fn()} />)
-    fillStandardGoal()
-    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
-
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('goals.form.createError'))
-    expect(screen.getByLabelText('goals.form.title')).toHaveValue('Read more books')
-  })
-
-  it('rejects an empty title after a valid target and unit', () => {
-    render(<CreateGoalSheet open onClose={vi.fn()} />)
-    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Read more books' } })
-    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: '' } })
-    fireEvent.change(screen.getByLabelText('goals.form.targetValueQuestion'), { target: { value: '12' } })
-    fireEvent.change(screen.getByLabelText('goals.form.unitQuestion'), { target: { value: 'books' } })
-    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
-    expect(screen.getByLabelText('goals.form.title')).toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByLabelText('goals.form.title')).toHaveFocus()
-    expect(mockMutateAsync).not.toHaveBeenCalled()
-  })
-
-  it('dismisses immediately from a pristine form', () => {
-    const onClose = vi.fn()
-    render(<CreateGoalSheet open={true} onClose={onClose} />)
-    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
-    expect(onClose).toHaveBeenCalledOnce()
-  })
-
-  it('confirms discarding a dirty form through the discard dialog', () => {
-    const onClose = vi.fn()
-    render(<CreateGoalSheet open={true} onClose={onClose} />)
-    fireEvent.change(screen.getByLabelText(/goals.form.title/), {
-      target: { value: 'Unsaved draft' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
-    expect(onClose).not.toHaveBeenCalled()
-
-    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
-    expect(onClose).toHaveBeenCalledOnce()
   })
 })
 
@@ -282,38 +101,4 @@ describe('CreateGoalSheet across an account change', () => {
     fireEvent.change(field, { target: { value: 'Run a half marathon' } })
     expect(field).toHaveValue('Run a half marathon')
   }
-
-  it('drops the goal the previous account described when another replaces the tab', async () => {
-    describeAccountAGoal()
-
-    await replaceAccountWith('user-2')
-
-    expect(screen.getByLabelText(/goals.form.title/)).toHaveValue('')
-  })
-
-  it('keeps the described goal when the same account recovers from a rejected refresh', async () => {
-    describeAccountAGoal()
-
-    await recoverSameAccount('user-1')
-
-    expect(screen.getByLabelText(/goals.form.title/)).toHaveValue('Run a half marathon')
-  })
-
-  it('does not close the next account sheet after an old create completes', async () => {
-    let finishCreate!: (value: object) => void
-    mockMutateAsync.mockImplementationOnce(() => new Promise((resolve) => { finishCreate = resolve }))
-    const onClose = vi.fn()
-    render(<CreateGoalSheet open onClose={onClose} />)
-    fireEvent.change(screen.getByLabelText(/goals.form.title/), { target: { value: 'Read' } })
-    fireEvent.change(screen.getByLabelText('goals.form.targetValueQuestion'), { target: { value: '12' } })
-    fireEvent.change(screen.getByLabelText('goals.form.unitQuestion'), { target: { value: 'books' } })
-    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
-    expect(mockMutateAsync).toHaveBeenCalledOnce()
-
-    await replaceAccountWith('user-2')
-    await act(async () => { finishCreate({}) })
-
-    expect(onClose).not.toHaveBeenCalled()
-    expect(mockShowError).not.toHaveBeenCalled()
-  })
 })

@@ -73,9 +73,4 @@ describe.each(locales)('API key list loading in $locale', ({ locale, messages })
 })
 
 describe('flag off', () => {
-  it('keeps the current answers and the current name sheet title', () => {
-    mount('en', en, <><MarketingConsentSection showSectionLabel={false} contained /><EditNameSheet open onOpenChange={vi.fn()} /></>)
-    expect(document.querySelector('[data-option-card]')).toBeNull()
-    expect(screen.getByText(en.profile.editName.title)).toBeInTheDocument()
-  })
 })

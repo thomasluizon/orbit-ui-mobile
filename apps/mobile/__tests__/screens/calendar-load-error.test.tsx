@@ -51,16 +51,6 @@ describe('Android Calendário load error', () => {
     tree.unmount()
   })
 
-  it('keeps the current card, with no Orbit, when the flag is off', () => {
-    const { tree, onRetry } = mount('month')
-    expect(mascots(tree)).toHaveLength(0)
-    expect(tree.hosts().some((node) => node.props.testID === 'shell-centred-region')).toBe(false)
-    expect(texts(tree)).toContain('calendar.loadError')
-    press(retry(tree))
-    expect(onRetry).toHaveBeenCalledTimes(1)
-    tree.unmount()
-  })
-
   it('holds the guided line in both locales', () => {
     expect(en.calendar.orbit.loadError).toBe('I could not load your calendar.')
     expect(ptBR.calendar.orbit.loadError).toBe('Não consegui carregar o seu calendário.')

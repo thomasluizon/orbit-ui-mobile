@@ -5,7 +5,7 @@ import type { EmptyStateProps } from '@orbit/shared/contracts/feedback'
 import { useTranslations } from 'next-intl'
 import { EmptyState } from '@/components/ui/empty-state'
 
-/** The empty thread. With the guided flows on, a thread that rests (offline or at the message limit) gives the reason in one Orbit line under Orbit. */
+/** The empty thread. A thread that rests (offline or at the message limit) gives the reason in one Orbit line under Orbit. */
 export function ChatEmptyState({ browseAction, mascotState, restReason }: Readonly<{ browseAction?: ReactElement; mascotState?: EmptyStateProps['mascotState']; restReason?: 'todayOrbit.guided.offline' | 'conversation.restLimit' | null }>) {
   const t = useTranslations()
 

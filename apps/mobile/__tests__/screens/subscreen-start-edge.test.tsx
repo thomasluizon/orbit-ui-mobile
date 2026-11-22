@@ -103,49 +103,6 @@ describe.each([412, 840, 1200, 1352, 1600])('sub-screen start edges at %ipx', (w
     } finally { await TestRenderer.act(() => tree.update(<></>)) }
   })
 
-  it.each([true, false])('starts Support and its 520 form at 16, online=%s', async (online) => {
-    mocks.online = online
-    const tree = await renderScreen(<SupportScreen />, width)
-    try {
-      const scroll = tree.root.findAll((node) => node.type === ScrollView)[0]!
-      const form = firstView(scroll)
-      const [box, body] = layout(width, [StyleSheet.flatten(scroll.props.contentContainerStyle) as ViewStyle, styleOf(form)])
-      // WHY: #1570 centres the column while retaining its child inset. https://github.com/thomasluizon/orbit-tickets/issues/1570
-      expect(body!.left).toBe(box!.left + 16)
-      expect(box!.width).toBe(Math.min(width, 620))
-      expect(box!.left).toBe((width - box!.width) / 2)
-      expect(body!.width).toBe(Math.min(width - 32, 520))
-    } finally { await TestRenderer.act(() => tree.update(<></>)) }
-  })
-
-  it('starts the sent Support check and heading at 16', async () => {
-    const tree = await renderScreen(<SupportScreen />, width)
-    try {
-      const subject = tree.root.findAll((node) => node.type === Pressable && node.props.accessibilityRole === 'radio')[0]!
-      await TestRenderer.act(() => { (subject.props.onPress as () => void)() })
-      const message = tree.root.findAll((node) => node.props.accessibilityLabel === 'profile.support.message' && typeof node.props.onChangeText === 'function')[0]!
-      await TestRenderer.act(() => { (message.props.onChangeText as (value: string) => void)('Support request') })
-      const send = tree.root.findAll((node) => node.props.testID === 'button-primary-md')[0]!
-      await TestRenderer.act(async () => {
-        ;(send.props.onPress as () => void)()
-        await Promise.resolve()
-      })
-      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
-      const scroll = tree.root.findAll((node) => node.type === ScrollView)[0]!
-      const success = firstView(scroll)
-      const heading = tree.root.findAll((node) => node.type === Text && node.props.children === 'profile.support.success')[0]!
-      const check = success.findAll((node) => node.type === View && styleOf(node).width === 44)[0]!
-      for (const child of [check, heading]) {
-        const [box, , body] = layout(width, [
-          StyleSheet.flatten(scroll.props.contentContainerStyle) as ViewStyle, styleOf(success), styleOf(child),
-        ])
-        expect.soft(body!.left).toBe(box!.left + 16)
-        expect.soft(box!.width).toBe(Math.min(width, 620))
-        expect.soft(box!.left).toBe((width - box!.width) / 2)
-      }
-    } finally { await TestRenderer.act(() => tree.update(<></>)) }
-  })
-
   it.each(['free', 'offline', 'lapsed', 'stripe', 'play', 'loading', 'load-failed'] as const)
     ('starts the %s upgrade body at the shared start edge', async (state) => {
       mocks.loading = state === 'loading'

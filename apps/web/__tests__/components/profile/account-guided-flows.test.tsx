@@ -229,11 +229,4 @@ describe.each(locales)('delete account flow in $locale', ({ locale, messages }) 
 })
 
 describe('flag off', () => {
-  it('keeps the current sheets', () => {
-    stubMedia(false)
-    render(withIntl('en', en, <><FreshStartModal open onOpenChange={vi.fn()} /><DeleteAccountModal open profile={proProfile} onOpenChange={vi.fn()} /></>))
-    expect(document.querySelector('[data-question-flow]')).toBeNull()
-    expect(screen.getByText(en.profile.freshStart.heading)).toBeInTheDocument()
-    expect(screen.getByText(en.profile.deleteAccount.headingAreYouSure)).toBeInTheDocument()
-  })
 })

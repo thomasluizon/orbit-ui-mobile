@@ -62,7 +62,6 @@ export function habitFlowSelectionAnswer<Item extends { id: string }>(
 }
 
 export interface EditDetailsRead<ReadError> {
-  /** The flag `orbit_guided_flows`. The full form keeps its own late-read behaviour. */
   /** The habit the edit holds, or null while the edit is closed. */
   habitId: string | null
   hasDetail: boolean

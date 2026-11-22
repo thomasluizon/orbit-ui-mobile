@@ -10,7 +10,7 @@ import { formatBillingDate } from './types'
 import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
 
-/** The lapsed notice and the payment issue notice. With the guided flows on, Orbit sits above it in Parado: never sad, and never Feliz. */
+/** The lapsed notice and the payment issue notice. Orbit sits above it in Parado: never sad, and never Feliz. */
 export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }: Readonly<{
   status: SubscriptionStatus | null
   locale: string

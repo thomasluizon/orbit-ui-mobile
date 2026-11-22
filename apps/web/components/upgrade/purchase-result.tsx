@@ -26,7 +26,7 @@ function readPurchaseFrom(accountId: string | null): string | null {
 
 const subscribeToNothing = () => () => {}
 
-/** What the checkout runs before it leaves for Stripe: it remembers the `from` of this visit. With the guided flows off, nothing runs. */
+/** What the checkout runs before it leaves for Stripe: it remembers the `from` of this visit. */
 export function usePurchaseOrigin(from: string | null): (() => Promise<void>) | undefined {
   const remember = useCallback(() => {
     rememberPurchaseFrom(getHeldAccountId(), from)

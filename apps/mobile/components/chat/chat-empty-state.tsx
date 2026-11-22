@@ -12,7 +12,7 @@ interface ChatEmptyStateProps {
   restReason?: "todayOrbit.guided.offline" | "conversation.restLimit" | null;
 }
 
-/** The empty thread. With the guided flows on, a thread that rests (offline or at the message limit) gives the reason in one Orbit line under Orbit. */
+/** The empty thread. A thread that rests (offline or at the message limit) gives the reason in one Orbit line under Orbit. */
 export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
   function ChatEmptyState({ styles, browseAction, mascotState, restReason }, ref) {
     const { t } = useTranslation();

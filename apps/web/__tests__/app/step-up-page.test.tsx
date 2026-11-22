@@ -37,7 +37,7 @@ const mocks = vi.hoisted(() => ({
   router: { replace: vi.fn() },
   serverAuthMutate: vi.fn(),
   heldAccountId: 'account-a',
-  guided: false,
+  
   flowCompleted: vi.fn(),
 }))
 
@@ -53,7 +53,6 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: mocks.flowCompleted }))
 vi.mock('@/hooks/use-date-format', () => ({
   useDateFormat: () => ({ displayDate: (value: string) => `local:${value}`, displayDateNumeric: (value: string) => `numeric:${value}` }),
@@ -137,7 +136,6 @@ describe('web step up screen', () => {
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)
     mocks.operation = 'delete'
-    mocks.guided = false
     mocks.heldAccountId = 'account-a'
     mocks.router.replace = mocks.replace
     mocks.profile.email = 'person@example.com'
@@ -176,32 +174,7 @@ describe('web step up screen', () => {
     }))
   })
 
-  it('announces a stale confirmation once in the mounted reload region while checking', async () => {
-    mocks.staleAction = true
-    await renderLiveScreen()
-    const region = screen.getByRole('status')
-    expect(region).toBeEmptyDOMElement()
-    enterCode()
-    await act(async () => { clickConfirm() })
-    expect(region).toHaveTextContent('errors.api.appUpdated')
-    expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'errors.api.reload' })).toBeEnabled()
-    expect(screen.getByLabelText('codeLabel')).toBeDisabled()
-  })
-
-  it('enables confirm only when all six digits are present', async () => {
-    const input = await renderLiveScreen()
-    const confirm = within(shellAction()).getByText('confirm').closest('button')
-
-    expect(confirm).toBeDisabled()
-    fireEvent.change(input, { target: { value: '12345' } })
-    expect(confirm).toBeDisabled()
-    fireEvent.change(input, { target: { value: '123456' } })
-    expect(confirm).toBeEnabled()
-  })
-
   it('keeps confirm enabled with the flag on, and answers a short code with the hint beside the field and focus on the field', async () => {
-    mocks.guided = true
     const input = await renderLiveScreen()
     const confirm = filledAction()
     expect(confirm).toHaveTextContent('confirm')
@@ -225,42 +198,10 @@ describe('web step up screen', () => {
   })
 
   it.each([false, true])('holds one filled action on the code step, and the resend stays quiet (flag %s)', async (guided) => {
-    mocks.guided = guided
     await renderLiveScreen(liveRecord(60_000))
     const filled = [...document.querySelectorAll('button[data-variant="primary"]')].map((button) => button.textContent)
     expect(filled).toHaveLength(1)
     for (const button of screen.getAllByText('resend').map((label) => label.closest('button'))) expect(button).toHaveAttribute('data-variant', 'ghost')
-  })
-
-  it('blocks editing and exposes the confirm loading state while checking', async () => {
-    let resolveConfirmation: ((value: {
-      message: string
-      scheduledDeletionAt: string
-    }) => void) | undefined
-    mocks.serverAuthMutate.mockImplementation((endpoint: string) => {
-      if (endpoint === API.auth.confirmDeletion) {
-        return new Promise((resolve) => {
-          resolveConfirmation = resolve
-        })
-      }
-      return Promise.resolve({ message: 'Challenge accepted' })
-    })
-    const input = await renderLiveScreen()
-    enterCode()
-    clickConfirm()
-
-    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
-      API.auth.confirmDeletion,
-      { method: 'POST', body: JSON.stringify({ code: '123456' }) },
-      'account-a',
-    ))
-    await waitFor(() => expect(input).toBeDisabled())
-    expect(shellAction().querySelector('button')).toHaveAttribute('aria-busy', 'true')
-
-    resolveConfirmation?.({
-      message: 'Account deactivated',
-      scheduledDeletionAt: '2026-09-04T03:00:00Z',
-    })
   })
 
   it('keeps a wrong code editable, rings all cells, and uses the server count', async () => {
@@ -363,46 +304,6 @@ describe('web step up screen', () => {
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
   })
 
-  it('moves the third wrong code to the persisted exhausted boundary', async () => {
-    mocks.serverAuthMutate.mockRejectedValue(
-      backendError('INVALID_VERIFICATION_CODE', 'Invalid code'),
-    )
-    await renderLiveScreen()
-    enterCode()
-
-    clickConfirm()
-    await waitFor(() => expect(mocks.markAttemptFailed).toHaveBeenCalledTimes(1))
-    clickConfirm()
-    await waitFor(() => expect(mocks.markAttemptFailed).toHaveBeenCalledTimes(2))
-    clickConfirm()
-
-    expect(await screen.findByText('exhaustedNotice')).toBeInTheDocument()
-    expect(mocks.markExhausted).toHaveBeenCalledOnce()
-    const back = screen.getByText('common.backToDestination:{"destination":"profile.submenus.account"}')
-    fireEvent.click(back)
-    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
-    expect(screen.queryByText('confirm')).not.toBeInTheDocument()
-    expect(screen.queryByText('resend')).not.toBeInTheDocument()
-    expect(screen.queryByText('cancel')).not.toBeInTheDocument()
-  })
-
-  it.each(['delete', 'keys'] as const)('mounts an active %s lock without offering a new challenge', async (operation) => {
-    mocks.operation = operation
-    const now = Date.now()
-    mocks.readTiming.mockReturnValue({
-      operation,
-      sentAt: now,
-      exhaustedAt: now - STEP_UP_ATTEMPT_WINDOW_MS + 10_000,
-    })
-    render(<StepUpScreen serverAccountId={null} />)
-
-    expect(await screen.findByText('exhaustedNotice')).toBeInTheDocument()
-    expect(screen.queryByText('resend')).not.toBeInTheDocument()
-    expect(mocks.serverAuthMutate).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByText(operation === 'keys' ? 'common.backToOrbit' : 'common.backToDestination:{"destination":"profile.submenus.account"}'))
-    expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/ai' : '/profile/account')
-  })
-
   it('shows a cooldown on arrival and a ghost resend only after it is ready', async () => {
     await renderLiveScreen()
     expect(screen.getByText(/cooldown/)).toBeInTheDocument()
@@ -427,31 +328,9 @@ describe('web step up screen', () => {
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
   })
 
-  it('disables an expired code and uses the sole filled action for a new code', async () => {
-    const input = await renderLiveScreen(liveRecord(STEP_UP_CHALLENGE_DURATION_MS))
-    expect(input).toBeDisabled()
-    const action = shellAction()
-    expect(within(action).getByText('resend').closest('button')).toHaveAttribute('data-variant', 'primary')
-    expect(screen.queryByText('confirm')).not.toBeInTheDocument()
-  })
-
-  it('asks the code question as the title with the flag on, and keeps the current title with the flag off', async () => {
-    mocks.guided = true
-    await renderLiveScreen()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('codeLabel')
-    expect(screen.getByLabelText('codeLabel')).toHaveAttribute('name', 'verificationCode')
-    expect(screen.getByRole('button', { name: 'common.back' })).toBeInTheDocument()
-    expect(document.querySelector('[data-orbit-state]')).toBeNull()
-    cleanup()
-    mocks.guided = false
-    await renderLiveScreen()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('title')
-  })
-
   const progressName = () => screen.getByRole('list', { name: /^habits\.flow\.progress/ }).getAttribute('aria-label')
 
   it('asks the code in the guided centred question layout with the flag on: the back arrow, the progress of the delete flow, one question and no eyebrow', async () => {
-    mocks.guided = true
     await renderLiveScreen()
     const flow = document.querySelector('[data-guided-step-up] [data-question-flow]')
     expect(flow).not.toBeNull()
@@ -466,38 +345,7 @@ describe('web step up screen', () => {
     expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
   })
 
-  it.each([[true, '[data-guided-step-up] [data-question-flow]'], [false, '[data-shell="flow"]']] as const)('holds exactly one main landmark around the surface in every state of the real shell (flag %s)', async (guided, surface) => {
-    const expectOneMain = () => {
-      const landmarks = document.querySelectorAll('main')
-      expect(landmarks).toHaveLength(1)
-      expect(landmarks[0]).toContainElement(document.querySelector<HTMLElement>(surface))
-    }
-    mocks.guided = guided
-    await renderLiveScreen()
-    expectOneMain()
-    enterCode()
-    clickConfirm()
-    expect(await screen.findByText(/successTitle/)).toBeInTheDocument()
-    expectOneMain()
-    cleanup()
-    await renderLiveScreen(liveRecord(STEP_UP_CHALLENGE_DURATION_MS + 1000))
-    expectOneMain()
-    cleanup()
-    mocks.readTiming.mockReturnValue({ ...liveRecord(), exhaustedAt: Date.now() })
-    render(<StepUpScreen serverAccountId={null} />)
-    expect(await screen.findByText('exhaustedTitle')).toBeInTheDocument()
-    expectOneMain()
-  })
-
-  it('keeps the current layout with the flag off: the eyebrow, the title and the cancel link, with no flow frame', async () => {
-    await renderLiveScreen()
-    expect(document.querySelector('[data-question-flow]')).toBeNull()
-    expect(screen.getByText(/^eyebrow/)).toBeInTheDocument()
-    expect(screen.getByText('cancel')).toBeInTheDocument()
-  })
-
   it('counts the code of an API key as its own one-step progress with the flag on', async () => {
-    mocks.guided = true
     mocks.operation = 'keys'
     await renderLiveScreen({ operation: 'keys', sentAt: Date.now() })
     expect(progressName()).toBe('habits.flow.progress:{"position":1,"total":1}')
@@ -505,7 +353,6 @@ describe('web step up screen', () => {
   })
 
   it('shows the expired, exhausted and closed states in the same guided frame with the flag on', async () => {
-    mocks.guided = true
     await renderLiveScreen(liveRecord(STEP_UP_CHALLENGE_DURATION_MS + 1000))
     expect(document.querySelector('[data-question-flow]')).toHaveAttribute('data-step', 'expired')
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('expiredTitle')
@@ -521,7 +368,6 @@ describe('web step up screen', () => {
   })
 
   it('holds no mascot on the exhausted step with the flag on', async () => {
-    mocks.guided = true
     mocks.readTiming.mockReturnValue({ ...liveRecord(), exhaustedAt: Date.now() })
     render(<StepUpScreen serverAccountId={null} />)
     expect(await screen.findByText('exhaustedTitle')).toBeInTheDocument()
@@ -529,7 +375,6 @@ describe('web step up screen', () => {
   })
 
   it.each([false, true])('closes the delete flow with the result dialog: Orbit in Parado, the date the server set, and sign out (Pro %s)', async (pro) => {
-    mocks.guided = true
     mocks.profile.hasProAccess = pro
     await renderLiveScreen()
     enterCode()
@@ -553,26 +398,6 @@ describe('web step up screen', () => {
     expect(mocks.logout).toHaveBeenCalledTimes(2)
   })
 
-  it('opens no result dialog with the flag off', async () => {
-    await renderLiveScreen()
-    enterCode()
-    clickConfirm()
-    expect(await screen.findByText(/successTitle/)).toBeInTheDocument()
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('renders the endpoint date in the device format and signs out', async () => {
-    await renderLiveScreen()
-    enterCode()
-    clickConfirm()
-
-    expect(await screen.findByText(/successTitle/)).toHaveTextContent(
-      'local:2026-09-04T03:00:00Z',
-    )
-    fireEvent.click(screen.getByText('signOut'))
-    expect(mocks.logout).toHaveBeenCalledOnce()
-  })
-
   it('renders the API scheduled deletion date in the Pro success line', async () => {
     mocks.profile.hasProAccess = true
     mocks.profile.planExpiresAt = '2026-08-30T03:00:00Z'
@@ -585,21 +410,7 @@ describe('web step up screen', () => {
     )
   })
 
-  it('shows a pending update in its notice with no Orbit, because Orbit never sits inside a step-up', async () => {
-    useVersionGateStore.getState().markUpgradeRequired('1.5.0')
-    await renderLiveScreen()
-    expect(screen.getByRole('status')).toHaveTextContent('forceUpdate.banner')
-    expect(document.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
-  })
-
-  it('routes cancel to Profile', async () => {
-    await renderLiveScreen()
-    fireEvent.click(screen.getByText('cancel'))
-    expect(mocks.replace).toHaveBeenCalledWith('/profile/account')
-  })
-
   it('confirms API key creation in the guided frame and returns to the creation handoff, and never reports the verified code as a left flow', async () => {
-    mocks.guided = true
     mocks.operation = 'keys'
     mocks.readTiming.mockReturnValue({ operation: 'keys', sentAt: Date.now() })
     const { unmount } = render(<StepUpScreen serverAccountId={null} />)

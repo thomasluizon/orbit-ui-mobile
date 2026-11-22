@@ -6,7 +6,7 @@ import { RefreshCw } from '@/components/ui/icons'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { isNetworkUnavailableError } from '@orbit/shared/utils'
 
-/** The full-surface load error of habit detail. With the guided flows on, Orbit in Parado, never sad, sits above the message and the retry, centred in the free area, and a read that failed for want of a connection says so. */
+/** The full-surface load error of habit detail. Orbit in Parado, never sad, sits above the message and the retry, centred in the free area, and a read that failed for want of a connection says so. */
 export function HabitDetailLoadError({ message, guidedMessage, offlineMessage, error: failure, retryLabel, onRetry }: Readonly<{ message: string; guidedMessage?: string; offlineMessage?: string; error?: unknown; retryLabel: string; onRetry: () => void }>) {
   const size = useStateMascotSize()
   const shown = (offlineMessage && isNetworkUnavailableError(failure) ? offlineMessage : guidedMessage ?? message)

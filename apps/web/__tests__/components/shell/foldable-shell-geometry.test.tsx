@@ -21,7 +21,6 @@ import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { ProfileSettingsFrame } from '@/components/profile/profile-settings-frame'
 import { FlowShell } from '@/components/shell/flow-shell'
-import { HabitCreateActions } from '@/components/habits/habit-create-actions'
 import { NotFoundContent } from '@/components/ui/not-found-content'
 import { Toast } from '@/components/ui/toast'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
@@ -306,39 +305,6 @@ describe('Foldable shell geometry', () => {
         expect(geometry.overflow).toBe(false)
       } finally { await page.close() }
     })
-
-  it.each([360, 740, 1100].flatMap((width) => [false, true].map((navigationEnabled) => ({ width, navigationEnabled }))))(
-    'keeps the full Create target revealable at $width with a 120px height budget and nav=$navigationEnabled', async ({ width, navigationEnabled }) => {
-    const action = <div className="p-4"><HabitCreateActions presentation="screen" pending={false} empty={false}
-      subHabit={false} online formId="create-habit" onCancel={vi.fn()} /></div>
-    const flow = navigationEnabled ? { orbitRow: { label: en.chat.title, onOpen: vi.fn() }, items: [], activeId: '', navLabel: en.nav.mainNavigation, composer: action } : { nav: false as const, action }
-    const { container } = render(<ShellWide {...flow}
-      header={<AppBar title={en.habits.createHabit} onBack={vi.fn()} backLabel={en.common.back} />}
-    >
-      <div style={{ height: 1600 }}>Habit form</div>
-    </ShellWide>)
-    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 120 } })
-    try {
-      await page.setContent(`<!DOCTYPE html><style>${stylesheet}\n[data-shell-column] { padding-top: 24px; } :root { --safe-bottom: 0px; }</style>${container.innerHTML}`)
-      const geometry = await page.evaluate(() => {
-        const pinned = document.querySelector<HTMLElement>('[data-shell-pinned-slot]')!
-        const button = pinned.querySelector<HTMLButtonElement>('button')!
-        button.scrollIntoView({ block: 'center', behavior: 'instant' })
-        const target = button.getBoundingClientRect()
-        const viewport = pinned.getBoundingClientRect()
-        return { targetHeight: target.height, viewportHeight: viewport.height, top: target.top,
-          bottom: target.bottom, viewportTop: viewport.top, viewportBottom: viewport.bottom,
-          enabled: !button.disabled, hit: document.elementFromPoint(target.x + target.width / 2, target.y + target.height / 2)?.closest('button') === button }
-      })
-      expect(geometry.targetHeight).toBeGreaterThanOrEqual(50)
-      expect(geometry.viewportHeight).toBeGreaterThanOrEqual(geometry.targetHeight)
-      expect(geometry.viewportBottom).toBeLessThanOrEqual(120)
-      expect(geometry.top).toBeGreaterThanOrEqual(geometry.viewportTop)
-      expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportBottom)
-      expect(geometry.enabled).toBe(true)
-      expect(geometry.hit).toBe(true)
-    } finally { await page.close() }
-  })
 
   it.each([412, 840, 1200, 1600].flatMap((width) => (['card', 'onboarding'] as const).map((mode) => ({ width, mode }))))(
     'preserves full-height flow centering at $width in $mode mode', async ({ width, mode }) => {

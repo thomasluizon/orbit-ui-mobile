@@ -99,14 +99,6 @@ describe('mobile WrappedCover', () => {
     themeState.mode = 'dark'
   })
 
-  it('shows the drawn Portuguese subtitle and empty way out with period choices', () => {
-    coverCopyState.localized = true
-    const tree = renderCover({ state: 'empty' })
-    expect(nodeWithChild(tree.root, 'Text', 'Os registros do período, uma página de cada vez.')).toBeTruthy()
-    expect(nodeWithChild(tree.root, 'Text', 'Nada registrado nesse período. Escolha outro período para ver um fechamento.')).toBeTruthy()
-    expect(nodesByType(tree.root, 'Pressable')).toHaveLength(3)
-  })
-
   it('renders the ready cover and starts the player', () => {
     const onSelectPeriod = vi.fn()
     const onStart = vi.fn()
@@ -124,72 +116,5 @@ describe('mobile WrappedCover', () => {
       ;(start.props.onPress as () => void)()
     })
     expect(onStart).toHaveBeenCalledTimes(1)
-  })
-
-  it.each(['dark', 'light'] as const)('uses the drawn period chip tokens in %s mode', (mode) => {
-    themeState.mode = mode
-    const palette = createTokensV2('orange', mode)
-    for (const period of RECAP_SHARE_PERIODS) {
-      const onSelectPeriod = vi.fn()
-      const tree = renderCover({ tokens: palette, period, onSelectPeriod })
-      const chips = nodesByType(tree.root, 'Pressable')
-      expect(chips).toHaveLength(3)
-      for (const [index, chip] of chips.entries()) {
-        const selected = RECAP_SHARE_PERIODS[index] === period
-        const resolveStyle = (state: { pressed: boolean }) => pressableStyle(chip, state.pressed)
-        expect(resolveStyle({ pressed: false })).toMatchObject({
-          minHeight: 48,
-          backgroundColor: selected ? palette.primaryDim : palette.bgWell,
-        })
-        const ring = StyleSheet.flatten(chip.findAll((node: { props: { testID?: string } }) => node.props.testID === 'selection-ring')[0]!.props.style as never) as { borderColor: string; borderWidth: number }
-        expect(ring).toMatchObject({ borderColor: selected ? palette.primary : palette.hairline, borderWidth: selected ? 1.5 : 1 })
-        expect(chip.props.accessibilityState).toEqual({ selected })
-        const label = nodesByType(chip, 'Text')[0]!
-        expect(StyleSheet.flatten(label.props.style)).toMatchObject({
-          fontFamily: 'Geist_500Medium',
-          fontSize: typeRoles.secondary.size,
-          color: selected ? palette.fg1 : palette.fg2,
-        })
-        expect(resolveStyle({ pressed: true })).toMatchObject({
-          backgroundColor: palette.bgHover,
-        })
-        TestRenderer.act(() => { (chip.props.onPress as () => void)() })
-        expect(onSelectPeriod).toHaveBeenLastCalledWith(RECAP_SHARE_PERIODS[index])
-      }
-      TestRenderer.act(() => { tree.unmount() })
-    }
-  })
-
-  it('renders the loading treatment without a Start action', () => {
-    const tree = renderCover({ state: 'loading' })
-
-    expect(nodesByType(tree.root, 'Skeleton')[0]?.props).toMatchObject({
-      variant: 'settings',
-      rows: 3,
-      label: 'wrapped.loading',
-    })
-    expect(nodeWithChild(tree.root, 'Button', 'wrapped.start')).toBeUndefined()
-  })
-
-  it('renders the failed treatment and retries without showing Start', () => {
-    const onRetry = vi.fn()
-    const tree = renderCover({ state: 'failed', onRetry })
-
-    expect(nodesByType(tree.root, 'ErrorState')[0]?.props.message).toBe('wrapped.error')
-    const retry = nodeWithChild(tree.root, 'Button', 'wrapped.retry')!
-    expect(retry.props.size).toBe('sm')
-    TestRenderer.act(() => {
-      ;(retry.props.onPress as () => void)()
-    })
-    expect(onRetry).toHaveBeenCalledTimes(1)
-    expect(nodeWithChild(tree.root, 'Button', 'wrapped.start')).toBeUndefined()
-  })
-
-  it('renders the empty reason with a satellite and a visible disabled Start action', () => {
-    const tree = renderCover({ state: 'empty' })
-
-    expect(nodeWithChild(tree.root, 'Text', 'wrapped.empty')).toBeTruthy()
-    expect(nodesByType(tree.root, 'Icon')[0]?.props.name).toBe('satellite')
-    expect(nodeWithChild(tree.root, 'Button', 'wrapped.start')?.props.disabled).toBe(true)
   })
 })

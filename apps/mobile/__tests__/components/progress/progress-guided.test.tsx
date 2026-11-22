@@ -213,13 +213,6 @@ describe('Progresso root (Android)', () => {
     expect(byTestId(root, 'progress-orbit-line')).toHaveLength(0)
     expect(hosts(root).some((node) => node.props['data-orbit-state'] === 'feliz')).toBe(false)
   })
-
-  it('renders the current form with the flag off', async () => {
-    mocks.flag = false
-    const root = await renderIn('en')
-    expect(mascots(root)).toHaveLength(0)
-    expect(texts(root)).toContain(en.progressScreen.sections.window)
-  })
 })
 
 describe('Progresso root bar selection (Android)', () => {
@@ -329,18 +322,6 @@ describe('Sequência (Android)', () => {
     expect(renderedText(byTestId(root, 'freeze-summary')[0]!.props.children)).toBe(locale === 'en'
       ? 'Each freeze covers a day with nothing logged, and you can bank up to 3 freezes.'
       : 'Cada congelamento cobre um dia sem registro, e você guarda até 3 congelamentos.')
-  })
-
-  it('renders the current Sequência and Conquistas with the flag off', async () => {
-    mocks.flag = false
-    const streak = await renderIn('en', 'streak')
-    expect(mascots(streak)).toHaveLength(0)
-    expect(byTestId(streak, 'streak-orbit')).toHaveLength(0)
-    await renderer.act(() => { streak.unmount() })
-    tree = null
-    mocks.achievements = [createMockAchievement({ id: 'first_habit', category: 'GettingStarted', isEarned: true })]
-    const achievements = await renderIn('en', 'achievements')
-    expect(byTestId(achievements, 'achievement-tile-first_habit')).toHaveLength(1)
   })
 
   it('keeps the Orbit at 48 still under reduced motion', async () => {

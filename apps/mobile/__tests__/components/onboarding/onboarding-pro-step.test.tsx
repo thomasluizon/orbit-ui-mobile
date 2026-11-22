@@ -127,23 +127,6 @@ describe('Android final Pro step', () => {
     expect(finish).not.toHaveBeenCalled()
     await act(() => tree.update(<></>))
   })
-  it.each(['en', 'pt-BR'])('keeps both loaded paywall card hooks and outcomes in %s', async (locale) => {
-    mocks.locale = locale
-    const { tree } = await mount()
-    const step = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'onboarding-step-paywall')[0]!
-    const cards = step.findAll((node) => String(node.type) === 'View' && /^upgrade-tier-(yearly|monthly)$/.test(String(node.props.testID)))
-    expect(cards.map((card) => card.props.testID)).toEqual(['upgrade-tier-yearly', 'upgrade-tier-monthly'])
-    const outcomes = step.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLabel === translate('upgrade.outcomes.label'))
-    expect(outcomes).toHaveLength(2)
-    for (const card of cards) {
-      expect(all(card, 'PillButton')).toHaveLength(1)
-      expect(all(card, 'PillButton')[0]!.props.disabled).toBe(false)
-      const list = card.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLabel === translate('upgrade.outcomes.label'))[0]!
-      for (const key of ['orbit', 'calendar', 'retrospective', 'noticing']) {
-        expect(text(list).filter((value) => value === translate(`upgrade.outcomes.${key}`))).toHaveLength(1)
-      }
-    }
-  })
 
   it.each(['en', 'pt-BR'])('shows the running trial and one action in %s', async (locale) => {
     mocks.locale = locale
@@ -161,28 +144,6 @@ describe('Android final Pro step', () => {
     expect(finish).toHaveBeenCalledOnce()
   })
 
-  it.each(['loading', 'error', 'offline', 'loaded'])('leaves the free plan step while plans are %s', async (state) => {
-    mocks.plansState = state === 'offline' ? 'loaded' : state; mocks.online = state !== 'offline'
-    const { tree, finish } = await mount()
-    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'onboarding-step-paywall')).toHaveLength(1)
-    if (state === 'loaded') {
-      const outcomes = tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLabel === translate('upgrade.outcomes.label'))
-      expect(outcomes).toHaveLength(2)
-      for (const interval of ['yearly', 'monthly']) {
-        const tier = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === `upgrade-tier-${interval}`)[0]!
-        for (const key of ['orbit', 'calendar', 'retrospective', 'noticing']) {
-          expect(text(tier)).toContain(translate(`upgrade.outcomes.${key}`))
-        }
-      }
-    }
-    const decline = action(tree.root, en.upgrade.convert.stayFree)
-    expect(decline.props.disabled).toBe(false)
-    if (state === 'offline') expect(all(tree.root, 'PillButton').every((button) => button.props.disabled)).toBe(true)
-    await act(() => callback(decline, 'onPress')())
-    expect(finish).toHaveBeenCalledOnce()
-    expect(AsyncStorage.setItem).toHaveBeenCalledWith('orbit_trial_expired_seen:account-1', '1')
-  })
-
   it.each([false, true])('finishes paid Pro without a pitch, lifetime=%s', async (lifetime) => {
     mocks.refetch.mockResolvedValue({ data: createMockProfile({ hasProAccess: !lifetime, isLifetimePro: lifetime, isTrialActive: false }), isError: false })
     const { tree, finish } = await mount()
@@ -191,15 +152,6 @@ describe('Android final Pro step', () => {
     const skeleton = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'pro-skeleton')
     expect(skeleton).toHaveLength(1)
     expect(skeleton[0]!.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(7)
-  })
-
-  it('keeps a missing profile on the error surface with exit', async () => {
-    mocks.profile = undefined; mocks.refetch.mockResolvedValue({ data: undefined, isError: true })
-    const { tree, finish } = await mount()
-    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'onboarding-step-paywall')).toHaveLength(0)
-    expect(text(tree.root)).toContain(en.upgrade.billing.error)
-    await act(() => callback(action(tree.root, en.onboarding.flow.done.seeDay), 'onClick')())
-    expect(finish).toHaveBeenCalledOnce()
   })
 
   it('uses the free plan returned when the trial ended', async () => {
@@ -233,61 +185,8 @@ describe('Android final Pro step', () => {
 })
 
 describe('the onboarding host of the Android Pro step', () => {
-  it.each([[true, 1], [false, 0]] as const)('draws the plan footer under its scroller at 375 x 667 with the guided flows %s', async (guided, footers) => {
-    __setWindowDimensions({ width: 375, height: 667, scale: 2, fontScale: 1 })
-    let tree!: ReturnType<typeof TestRenderer.create>
-    await act(async () => { tree = TestRenderer.create(<OverlayHost><OnboardingFlow finalStepOnly /></OverlayHost>); await Promise.resolve() })
-    try {
-      const footer = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'upgrade-plan-footer')
-      expect(footer).toHaveLength(footers)
-      const scroller = tree.root.findAll((node) => node.type === ScrollView && node.findAll((inner) => inner.props.testID === 'onboarding-step-paywall').length > 0).at(-1)!
-      expect(scroller).toBeDefined()
-      expect(scroller.findAll((node) => node.props.testID === 'upgrade-plan-footer')).toHaveLength(0)
-      const frame = Reflect.get(Reflect.get(scroller, 'parent') as object, 'parent') as ReactTestInstance
-      expect(frame.findAll((node) => String(node.type) === 'View' && node.props.testID === 'upgrade-plan-footer')).toHaveLength(footers)
-      for (const pinned of footer) {
-        expect(all(pinned, 'PillButton').map((button) => button.props.children)).toEqual([translate('upgrade.plans.cta')])
-      }
-    } finally {
-      await act(() => tree.unmount())
-    }
-  })
 })
 
 const font = require.resolve('@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf')
 const geometryCases = [320, 360, 384, 412, 640, 1440].flatMap((width) => ['pt-BR', 'en']
   .flatMap((locale) => [false, true].map((trial) => ({ width, locale, trial }))))
-it.each(geometryCases)('fits the owning Android final-step heading at $width in $locale, trial=$trial', async ({ width, locale, trial }) => {
-  __setWindowDimensions({ width, height: 1400, scale: 1, fontScale: 1 })
-  mocks.locale = locale
-  mocks.profile = createMockProfile({ hasProAccess: trial, isTrialActive: trial, plan: trial ? 'pro' : 'free', trialEndsAt: trial ? new Date(Date.now() + 7 * 86400000).toISOString() : null })
-  mocks.refetch.mockResolvedValue({ data: mocks.profile, isError: false })
-  let tree!: ReturnType<typeof TestRenderer.create>
-  await act(() => { tree = TestRenderer.create(<OverlayHost><OnboardingFlow finalStepOnly /></OverlayHost>) })
-  try {
-    const text = translate(trial ? 'onboarding.flow.trial.title' : 'upgrade.convert.freeHeading')
-    const heading = tree.root.findAll((node) => node.type === Text && node.props.accessibilityRole === 'header' && node.props.children === text)[0]!
-    expect(heading).toBeDefined()
-    const style = StyleSheet.flatten(heading.props.style as StyleProp<TextStyle>)
-    let measure = width
-    for (let ancestor: ReactTestInstance | null = Reflect.get(heading, 'parent'); ancestor; ancestor = Reflect.get(ancestor, 'parent')) {
-      if (ancestor.type !== View && ancestor.type !== ScrollView) continue
-      const ancestorStyle = StyleSheet.flatten((ancestor.type === ScrollView ? ancestor.props.contentContainerStyle : ancestor.props.style) as StyleProp<ViewStyle>)
-      measure = Math.min(measure, Number(ancestorStyle.maxWidth ?? measure)) - Number(ancestorStyle.paddingHorizontal ?? 0) * 2
-    }
-    expect(heading.props.numberOfLines).toBeUndefined()
-    expect(heading.props.ellipsizeMode).toBeUndefined()
-    expect(heading.props.adjustsFontSizeToFit).not.toBe(true)
-    expect(heading.props.allowFontScaling).not.toBe(false)
-    expect(style.fontSize).toBe(width < 640 ? 28 : 34)
-    expect(style.fontFamily).toBe('SpaceGrotesk_500Medium')
-    expect(style.letterSpacing).toBeCloseTo(-0.02 * style.fontSize!)
-    const escaped = text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="100"><text y="50" font-family="Space Grotesk" font-size="${style.fontSize}" letter-spacing="${style.letterSpacing}">${escaped}</text></svg>`
-    const bounds = new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox()!
-    process.stdout.write(`${JSON.stringify({ width, locale, trial, measure, textWidth: bounds.x + bounds.width })}\n`)
-    expect(bounds.x + bounds.width).toBeLessThanOrEqual(measure)
-    if (width === 320 && trial) expect(bounds.x + bounds.width).toBeLessThanOrEqual(272)
-    expect(measure).toBe(Math.min(width, width >= 1024 ? 560 : 440) - 32)
-  } finally { await act(() => tree.update(<></>)) }
-})

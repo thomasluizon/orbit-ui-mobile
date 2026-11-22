@@ -9,7 +9,6 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { neutralColors } from '@orbit/shared/theme'
 import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
 import { ShellWide } from '@/components/shell/shell-wide'
-import { StatusDot } from '@/components/ui/status-dot'
 import { HabitLogButton } from '@/components/habits/habit-log-button'
 import { DateField } from '@/components/ui/date-field'
 import { DayCell } from '@/components/dates/day-cell'
@@ -80,42 +79,6 @@ describe('rendered light hover contrast', () => {
       for (const surface of ['--bg', '--bg-elev', '--bg-card', '--bg-well'] as const) {
         expect(controlContrast(painted.color, 'rgba(0,0,0,0)', [tokens['--bg']!, tokens[surface]!], painted.opacity).graphic, surface).toBeGreaterThanOrEqual(3)
       }
-    } finally { await page.close(); unmount() }
-  })
-
-  it.each(['light', 'dark'].flatMap((mode) => ['hover', 'press'].map((phase) => ({ mode: mode as 'light' | 'dark', phase }))))('keeps the status dot $phase paint stack visible in $mode', async ({ mode, phase }) => {
-    const { container, unmount } = render(<StatusDot state="empty" size={30} ariaLabel="Log habit" onToggle={() => {}} />)
-    const page = await browser.newPage({ viewport: { width: 600, height: 900 }, reducedMotion: 'reduce', hasTouch: phase === 'press' })
-    try {
-      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body style="background:var(--bg)"><div style="background:var(--bg-card)">${container.innerHTML}</div></body></html>`)
-      const button = page.getByRole('button', { name: 'Log habit' })
-      expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(phase === 'hover')
-      const measure = () => button.evaluate((control) => {
-        const dot = control.querySelector('span')!
-        const parent = getComputedStyle(control)
-        const graphic = getComputedStyle(dot)
-        return { fill: parent.backgroundColor, opacity: Number(parent.opacity), graphicOpacity: Number(graphic.opacity), color: graphic.boxShadow.match(/rgba?\([^)]*\)/)![0] }
-      })
-      const resting = await measure()
-      expect(controlContrast(resting.color, resting.fill, [neutralColors[mode].bg, neutralColors[mode].bgCard], resting.opacity, resting.graphicOpacity).graphic).toBeGreaterThanOrEqual(3)
-      const bounds = await button.boundingBox()
-      expect(bounds!.width).toBeGreaterThanOrEqual(48)
-      expect(bounds!.height).toBeGreaterThanOrEqual(48)
-      await button.hover()
-      await page.waitForTimeout(300)
-      if (phase === 'press') { await page.mouse.down(); await page.waitForTimeout(300) }
-      {
-        const painted = await measure()
-        const measured = controlContrast(painted.color, painted.fill, [neutralColors[mode].bg, neutralColors[mode].bgCard], painted.opacity, painted.graphicOpacity)
-        expect(painted.color).toBe(resting.color)
-        expect(measured.graphic).toBeGreaterThanOrEqual(3)
-        expect(measured.step).toBeGreaterThanOrEqual(1.25)
-      }
-      await page.mouse.up()
-      await page.mouse.move(0, 0)
-      await page.waitForTimeout(300)
-      expect(await measure()).toEqual(resting)
     } finally { await page.close(); unmount() }
   })
 

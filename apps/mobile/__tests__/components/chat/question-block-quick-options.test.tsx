@@ -44,14 +44,6 @@ it('shows one question in view with its position and moves with the previous and
   expect(texts()).not.toContain('When?')
 })
 
-it('keeps the radio list and every question in view while the flag is off', async () => {
-  await mount()
-  expect(optionCards()).toHaveLength(0)
-  expect(control('chat.question.next')).toBeUndefined()
-  expect(texts()).toContain('chat.question.progress')
-  expect(prompts()).toEqual(expect.arrayContaining(['Which activities?', 'How much energy?', 'How long?', 'Add a reminder?']))
-})
-
 it('sets the recommended note under the quick options in the type of the Recommended line of the row layout', async () => {
   await mount()
   const note = tree!.root.findAll(node => typeof node.type === 'string' && typeof node.props.children === 'string' && /: chat\.placement\.recommended$/.test(node.props.children))[0]!

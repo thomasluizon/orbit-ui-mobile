@@ -106,39 +106,6 @@ afterEach(() => {
 })
 
 describe('the Avisos inbox with the guided flows off', () => {
-  it('renders the current rows: plain list items, no settle and no list motion', () => {
-    const { container } = mount()
-    expect(rowNames()).toEqual(['First. unread', 'Second. unread', 'Third. read'])
-    expect(container.querySelectorAll('[data-list-motion]')).toHaveLength(0)
-    expect(container.querySelectorAll('[data-unread-settle], [data-unread-mark]')).toHaveLength(0)
-    expect(container.querySelectorAll('[data-unread-dot]')).toHaveLength(2)
-    expect(container.querySelectorAll('ul > li[data-read]')).toHaveLength(3)
-  })
-
-  it('renders the current failed state with no Orbit, and the current empty state with the mark at 128 at 1024 and above', () => {
-    view.wide = true
-    seed([])
-    const { container, unmount } = mount()
-    expect(container.querySelector('[data-notification-state="empty"] [data-asset="orbit-mascot"]')!.getAttribute('width')).toBe('128')
-    unmount()
-    queryClient.clear()
-    vi.mocked(fetchJson).mockRejectedValue(new Error('offline'))
-    const failed = mount()
-    return advance(0).then(() => {
-      expect(screen.getByText(en.notifications.loadError)).toBeInTheDocument()
-      expect(failed.container.querySelector('[data-notification-state="failed"] [data-asset="orbit-mascot"]')).toBeNull()
-    })
-  })
-
-  it('shows the count of the bell with no roll', () => {
-    const { container } = mount()
-    seed(three().map((item) => ({ ...item, isRead: true })).slice(0, 2).concat(createMockNotification({ id: 'third', title: 'Third', isRead: false })))
-    return advance(0).then(() => {
-      expect(screen.getByRole('img', { name: 'Alerts, 1 unread' })).toBeInTheDocument()
-      expect(container.querySelector('[data-count-motion]')).toBeNull()
-      expect(container.querySelector('[data-count-roll]')).toBeNull()
-    })
-  })
 })
 
 describe('the Avisos inbox on the Orbit logic', () => {

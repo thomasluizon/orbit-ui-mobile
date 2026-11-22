@@ -96,18 +96,6 @@ describe('web habit prompts as one question', () => {
     expect(document.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
   })
 
-  it('renders the current confirm sheets with the flag off', () => {
-    const spies = handlers()
-    const view = render(dialogs(spies, { parentPrompt: promptOf([parent]) }))
-    expect(screen.getByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeInTheDocument()
-    expect(options()).toHaveLength(0)
-    expect(screen.getByRole('button', { name: 'habits.autoLogParentConfirm' })).toBeInTheDocument()
-    view.unmount()
-    render(dialogs(spies, { duplicateHabitName: 'Read' }))
-    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeInTheDocument()
-    expect(options()).toHaveLength(0)
-  })
-
   it('asks the checklist question after the last item', async () => {
     const onConfirm = vi.fn()
     render(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={onConfirm} />)
@@ -117,13 +105,6 @@ describe('web habit prompts as one question', () => {
     fireEvent.click(options()[0]!)
     await settle()
     expect(onConfirm).toHaveBeenCalledOnce()
-  })
-
-  it('keeps the checklist confirm sheet with the flag off', () => {
-    render(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={vi.fn()} />)
-    expect(screen.getByRole('dialog', { name: 'habits.checklistCompleteTitle' })).toBeInTheDocument()
-    expect(screen.getByText('habits.checklistCompleteMessage')).toBeInTheDocument()
-    expect(options()).toHaveLength(0)
   })
 
   it.each([['log', 'habits.detail.logDateQuestion', 'habits.detail.logDateConfirmLog'], ['unlog', 'habits.detail.logDateUnlogQuestion', 'habits.detail.logDateConfirmUnlog']] as const)('asks one question before a %s on another date', async (intent, question, answer) => {

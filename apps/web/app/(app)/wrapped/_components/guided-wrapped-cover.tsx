@@ -52,7 +52,7 @@ function StartAction({ wide, loading, onStart }: Readonly<{ wide: boolean; loadi
 }
 
 /**
- * The Wrapped cover under `orbit_guided_flows`: Orbit, the title of the period, the Orbit line and the period question in one centred block.
+ * The Wrapped cover: Orbit, the title of the period, the Orbit line and the period question in one centred block.
  * The title takes no focus, so the line is not its description: the polite region reads the empty line once and the alert reads the error once.
  * Wide, the block holds the middle row of a three row grid, so it sits in the centre of the column and the start action hangs 24 under it.
  */

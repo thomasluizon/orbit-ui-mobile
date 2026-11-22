@@ -56,11 +56,6 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); fetchSpy.mockReset() })
 
 describe('the Calendário Orbit line', () => {
-  it('is absent with the guided flows off, so Calendário keeps its current form', () => {
-    state.flag = false
-    const { container } = renderLine(props())
-    expect(container.innerHTML).toBe('')
-  })
 
   it.each([
     ['en', 'The 13th: 1 of 3 done.'],

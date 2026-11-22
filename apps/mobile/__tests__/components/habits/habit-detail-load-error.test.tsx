@@ -27,23 +27,4 @@ describe('Android habit detail load error', () => {
     expect(tree.hosts().some((node) => node.props.accessibilityLabel === 'Retry')).toBe(true)
     tree.unmount()
   })
-
-  it('keeps the load message for a server failure and for the flag off, even offline', () => {
-    const server = Object.assign(new Error('Server error'), { status: 500 })
-    const guided = renderNavigation(<HabitDetailLoadError message="Could not load" offlineMessage="Check your connection" error={server} retryLabel="Retry" onRetry={vi.fn()} />)
-    expect(texts(guided)).toContain('Could not load')
-    guided.unmount()
-    const current = renderNavigation(<HabitDetailLoadError message="Could not load" offlineMessage="Check your connection" error={new TypeError('Network request failed')} retryLabel="Retry" onRetry={vi.fn()} />)
-    expect(texts(current)).toContain('Could not load')
-    current.unmount()
-  })
-
-  it('renders the current full-surface error, with its Orbit in Parado, with the flag off', () => {
-    const tree = renderNavigation(<HabitDetailLoadError message="Could not load" retryLabel="Retry" onRetry={vi.fn()} />)
-    expect(mascots(tree).map((node) => (node.props as Record<string, unknown>)['data-orbit-state'])).toEqual(['parado'])
-    expect(tree.hosts().some((node) => node.props.testID === 'shell-centred-region')).toBe(true)
-    expect(tree.hosts().some((node) => node.props.testID === 'habit-detail-load-error')).toBe(false)
-    expect(tree.hosts().some((node) => node.props.accessibilityLabel === 'Retry')).toBe(true)
-    tree.unmount()
-  })
 })

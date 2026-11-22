@@ -48,7 +48,7 @@ function resolveVariant(
 
 /**
  * Curated milestone share nudge: shows a branded card once no celebration is in flight and the shared re-prompt guard allows it, then hands off to native share/download.
- * Under `orbit_guided_flows` it is a centred dialog. That dialog leaves the screen while a celebration shows and returns after it, so a view holds one live Orbit.
+ * It is a centred dialog. That dialog leaves the screen while a celebration shows and returns after it, so a view holds one live Orbit.
  */
 export function MilestoneSharePrompt() {
   const t = useTranslations()

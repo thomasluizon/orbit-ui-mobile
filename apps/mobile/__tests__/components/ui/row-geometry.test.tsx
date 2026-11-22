@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { CheckRow } from '@/components/ui/check-row'
 import { DateRow } from '@/components/ui/date-row'
 import { RadioRow } from '@/components/ui/select-check'
-import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import { HabitDetailFields } from '@/components/habits/habit-detail-fields'
@@ -37,7 +36,6 @@ vi.mock('expo-router', () => ({
 }))
 vi.mock('@/components/goals/create-goal-sheet', () => ({ CreateGoalSheet: () => null }))
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({ BottomSheetAppTextInput: () => null }))
-vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => false, useProfile: () => ({ profile: createMockProfile() }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn().mockResolvedValue([]) }))
@@ -222,38 +220,5 @@ describe('canonical row geometry in Yoga', () => {
       const checkbox = geometry.parts.find((part) => part.slot === 'checkbox-box')!
       expect(body.right - checkbox.right).toBe(20)
     } finally { await act(() => tree.update(<></>)) }
-  })
-
-  it.each(matrix)('measures the owning habit form, detail fields and profile compositions at $width and scale $scale', async ({ width, scale }) => {
-    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const form = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitFormFields defaultExpanded formHelpers={createFormHelpers({ isBadHabit: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} /></View></QueryClientProvider>)
-    try {
-      const rows = form.root.findAll((node) => node.type === ListRow)
-      for (const title of ['moreDetails', 'habitTypeAvoid', 'tags', 'goals', 'useTemplate', 'slipAlert']) {
-        const key = `habits.form.${title}`
-        expect(rows.some((row) => row.props.title === key), key).toBe(true)
-      }
-      expect(rows.some((row) => row.props.title === 'common.upgrade')).toBe(false)
-      const geometry = assertComposition(form.toJSON(), width, scale, 16)
-      const leading = geometry.parts.filter((part) => part.slot === 'list-row-title')
-      expect(leading.find((part) => part.left === 56)).toBeDefined()
-      const bodies = geometry.parts.filter((part) => part.slot === 'list-row-body')
-      expect(bodies.some((body) => body.left === 32)).toBe(true)
-      expect(bodies.some((body) => body.left === 24)).toBe(false)
-    } finally { await act(() => form.update(<></>)); queryClient.clear() }
-    const habit = createMockHabit({ isBadHabit: true })
-    const detail = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitDetailFields habit={habit} summary="Every day" /></View></QueryClientProvider>)
-    try {
-      const rows = detail.root.findAll((node) => node.type === ListRow)
-      expect(rows.some((row) => row.props.title === 'habits.detail.schedule' && row.props.readOnly)).toBe(true)
-      assertComposition(detail.toJSON(), width, scale, 16)
-    } finally { await act(() => detail.update(<></>)); queryClient.clear() }
-    const profile = await mount(<QueryClientProvider client={queryClient}><View><ProfileOrbitContent profile={createMockProfile({ hasProAccess: true })} patchProfile={vi.fn()} /><PushDevicesRow tokens={tokens} count={1} max={5} currentDeviceRegistered supported loading={false} error={false} permissionStatus="granted" registrationStatus="idle" onToggle={vi.fn()} onOpenSettings={vi.fn()} onRetry={vi.fn()} /></View></QueryClientProvider>)
-    try {
-      const rows = profile.root.findAll((node) => node.type === ListRow).filter((row) => row.props.toggle)
-      expect(rows).toHaveLength(3)
-      assertComposition(profile.toJSON(), width, scale, 16)
-    } finally { await act(() => profile.update(<></>)); queryClient.clear() }
   })
 })

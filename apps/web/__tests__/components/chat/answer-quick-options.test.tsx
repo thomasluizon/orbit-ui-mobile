@@ -40,27 +40,9 @@ async function answer(kind: 'choice' | 'multi' | 'pick', locale: Locale, quick: 
 }
 
 describe.each(['pt-BR', 'en'] as const)('the quick options of the conversation blocks in %s', (locale) => {
-  it.each(['choice', 'multi', 'pick'] as const)('answers a %s block of 2 to 4 options with OptionCard and sends the payload the list sends', async (kind) => {
-    mount(kind, locale)
-    expect(cards()).toHaveLength(kind === 'pick' ? 3 : plainChoice.options.length)
-    expect(document.querySelector('[data-option-group]')).not.toBeNull()
-    cleanup()
-    const quick = await answer(kind, locale, true)
-    const list = await answer(kind, locale, false)
-    expect(quick).toHaveLength(1)
-    expect(quick).toEqual(list)
-  })
 })
 
 describe('the list presentation the conversation blocks keep', () => {
-  it('keeps the radio list for an option with a detail line, and with the flag off', () => {
-    render(<NextIntlClientProvider locale="pt-BR" messages={pt}><ChoiceBlock block={choiceBlockFixture} interaction={interaction()} /></NextIntlClientProvider>)
-    expect(cards()).toHaveLength(0)
-    expect(screen.getAllByRole('radio').length).toBe(choiceBlockFixture.options.length)
-    cleanup()
-    mount('choice', 'pt-BR')
-    expect(cards()).toHaveLength(0)
-  })
 
   it('keeps the check list for a pick list whose labels hold more than 4 words', () => {
     render(<NextIntlClientProvider locale="pt-BR" messages={pt}><PickListBlock block={longPickList} interaction={interaction()} /></NextIntlClientProvider>)

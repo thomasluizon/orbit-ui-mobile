@@ -183,13 +183,4 @@ describe('the guided share card sheet on Android', () => {
     expect(options(root)).toHaveLength(3)
     expect(byTestId(root, 'share-card')).toHaveLength(1)
   })
-
-  it('renders the current sheet with the flag off', async () => {
-    const root = await renderSheet()
-
-    expect(sheetTitle(root)).toBe(ptBR.shareCard.share)
-    expect(byTestId(root, 'share-period-question')).toHaveLength(1)
-    expect(options(root)).toHaveLength(0)
-    expect(byTestId(root, 'share-preview')).toHaveLength(0)
-  })
 })

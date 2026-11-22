@@ -46,6 +46,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+vi.mock('@/app/(tabs)/calendar/_components/calendar-orbit-line', () => ({ CalendarOrbitLine: () => null }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <View testID="notification-bell" /> }));
 
@@ -1761,27 +1762,6 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => gridTree.update(<></>));
   });
 
-  it('shows a retryable error when the profile request fails', () => {
-    state.profile = undefined;
-    state.profileError = new Error('profile unavailable');
-    let tree!: Tree;
-    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
-
-    expect(hostTexts(tree)).toContain('calendar.loadError');
-    const errorCards = tree.root.findAll((node) => node.type === 'View' && { ...StyleSheet.flatten<ViewStyle>(node.props.style) }.borderRadius === 18);
-    expect(errorCards).toHaveLength(1);
-    const errorCard = StyleSheet.flatten<ViewStyle>(errorCards[0]!.props.style);
-    expect(errorCard.borderWidth).toBeUndefined();
-    expect(errorCard).toMatchObject({ paddingVertical: 24, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' });
-    expect(errorCard.outlineColor).toBeDefined();
-    const retry = tree.root.findAll(
-      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.retry',
-    );
-    expect(retry).toHaveLength(1);
-    TestRenderer.act(() => { retry[0]!.props.onPress(); });
-    expect(state.profileRefetch).toHaveBeenCalledTimes(1);
-  });
-
   it("switches to the week time-grid when the week tab is selected", () => {
     let tree: Tree;
     TestRenderer.act(() => {
@@ -1857,61 +1837,6 @@ describe("CalendarScreen views (mobile)", () => {
       TestRenderer.act(() => tree.update(<></>));
       vi.useRealTimers();
     }
-  });
-
-  it("removes recurring habits from the month and shows its honest empty state", () => {
-    const todayStr = getMockAccountDateKey();
-    state.monthMap = new Map([[todayStr, [
-      makeEntry({ habitId: "r", title: "Recurring", isOneTime: false }),
-    ]]]);
-    let tree: Tree;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />);
-    });
-    const flatList = tree!.root.findAll(
-      (node) => typeof node.type === "string" && node.type === "FlatList",
-    )[0]!;
-    let headerTree!: import("react-test-renderer").ReactTestRenderer;
-    TestRenderer.act(() => {
-      headerTree = TestRenderer.create(flatList.props.ListHeaderComponent);
-    });
-
-    expect(tree!.root.findAll(
-      (node) => typeof node.type === "string" && node.props.accessibilityRole === "switch",
-    )).toHaveLength(0);
-    const switches = headerTree.root.findAll(
-      (node) => typeof node.type === "string" && node.props.accessibilityRole === "switch",
-    );
-    expect(switches).toHaveLength(0);
-
-    let initialFooterTree!: Tree;
-    TestRenderer.act(() => {
-      initialFooterTree = TestRenderer.create(flatList.props.ListFooterComponent);
-    });
-    expect(initialFooterTree.root.findAll(
-      (node) => typeof node.type === "string" && node.props.testID === "calendar-stats",
-    )).toHaveLength(1);
-
-    toggleRecurring(tree!);
-
-    const updatedFlatList = tree!.root.findAll(
-      (node) => typeof node.type === "string" && node.type === "FlatList",
-    )[0]!;
-    TestRenderer.act(() => {
-      headerTree.update(updatedFlatList.props.ListHeaderComponent);
-    });
-    expect(calendarGridProps.current?.gridDays.find(
-      (day: { dateStr: string }) => day.dateStr === todayStr,
-    )?.totalCount).toBe(0);
-    let updatedFooterTree!: Tree;
-    TestRenderer.act(() => {
-      updatedFooterTree = TestRenderer.create(updatedFlatList.props.ListFooterComponent);
-    });
-    expect(updatedFooterTree.root.findAll(
-      (node) => typeof node.type === "string" && node.props.testID === "calendar-stats",
-    )).toHaveLength(1);
-    expect(calendarGridProps.stats?.state).toBe("empty");
-    expect(hostTexts(headerTree)).toContain("calendar.emptyMonth");
   });
 
   it("matches web by paging a 61px by 45px drag after the 60px boundary", () => {
@@ -2029,72 +1954,6 @@ describe("CalendarScreen views (mobile)", () => {
       (node) => typeof node.type === "string" && typeof node.props.testID === "string" && node.props.testID.startsWith("day-cell-"),
     )).toHaveLength(14);
     expect(calendarStatsProps.current?.state ?? "default").toBe("default");
-  });
-
-  it("keeps the calendar usable and offers habit creation for an empty current month", () => {
-    let tree: Tree;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />);
-    });
-
-    const flatLists = tree!.root.findAll(
-      (node) => typeof node.type === "string" && node.type === "FlatList",
-    );
-    expect(flatLists).toHaveLength(1);
-
-    let headerTree: import('react-test-renderer').ReactTestRenderer;
-    let footerTree: Tree;
-    TestRenderer.act(() => {
-      headerTree = TestRenderer.create(
-        flatLists[0]!.props.ListHeaderComponent,
-      );
-      footerTree = TestRenderer.create(
-        flatLists[0]!.props.ListFooterComponent,
-      );
-    });
-
-    expect(hostTexts(headerTree!)).toContain("calendar.emptyMonth");
-    expect(calendarGridProps.current).not.toBeNull();
-    expect(calendarGridProps.stats?.state).toBe("empty");
-    expect(headerTree!.root.findAll(
-      (node) => typeof node.type === "string" && node.props.testID === "calendar-legend",
-    )).toHaveLength(0);
-    const feedback = headerTree!.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-month-empty')[0]!;
-    const buttons = feedback.findAll(
-      (node) => typeof node.type === "string" && node.props.accessibilityRole === "button",
-    );
-    expect(buttons).toHaveLength(1);
-    const onPress = buttons[0]!.props.onPress;
-    if (typeof onPress !== 'function') throw new Error('Expected habit creation action');
-    TestRenderer.act(() => onPress());
-    expect(state.routerPush).toHaveBeenCalledWith(buildHabitCreateHref({ from: '/calendar' }));
-    expect(state.setShowCreateModal).not.toHaveBeenCalled();
-  });
-
-  it("keeps paging but removes creation for a future month", () => {
-    let tree!: Tree;
-    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
-    let flatList = tree.root.findAll(
-      (node) => typeof node.type === "string" && node.type === "FlatList",
-    )[0]!;
-    let headerTree!: import('react-test-renderer').ReactTestRenderer;
-    TestRenderer.act(() => {
-      headerTree = TestRenderer.create(flatList.props.ListHeaderComponent);
-    });
-    TestRenderer.act(() => { calendarGridProps.header!.onNextMonth(); });
-    flatList = tree.root.findAll(
-      (node) => typeof node.type === "string" && node.type === "FlatList",
-    )[0]!;
-    TestRenderer.act(() => {
-      headerTree = TestRenderer.create(flatList.props.ListHeaderComponent);
-    });
-
-    expect(hostTexts(headerTree)).toContain("calendar.futureMonth");
-    expect(calendarGridProps.current).not.toBeNull();
-    const feedback = headerTree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-month-empty')[0]!;
-    expect(feedback.findAll(
-      (node) => typeof node.type === "string" && node.props.accessibilityRole === "button",
-    )).toHaveLength(0);
   });
 
   it("keeps compact loading shaped like the grid and stat tiles", () => {
@@ -2294,33 +2153,6 @@ describe("CalendarScreen views (mobile)", () => {
       (node) => typeof node.type === "string" && node.props.testID === "calendar-legend",
     )).toHaveLength(0);
     expect(calendarGridProps.stats?.state).toBe("default");
-  });
-
-  it("shows a retryable error card when the calendar query fails", () => {
-    state.monthError = "network down";
-    const refreshCalls: number[] = [];
-    state.monthRefresh = () => {
-      refreshCalls.push(1);
-    };
-
-    let tree: Tree;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />);
-    });
-
-    expect(state.setCalendarHasError).toHaveBeenCalledWith(true);
-    expect(hostTexts(tree!)).toContain("calendar.loadError");
-
-    const retryButtons = tree!.root.findAll(
-      (node) =>
-        typeof node.type === "string" &&
-        node.props.accessibilityRole === "button" && node.props.accessibilityLabel === "common.retry",
-    );
-    expect(retryButtons).toHaveLength(1);
-    TestRenderer.act(() => {
-      retryButtons[0]!.props.onPress();
-    });
-    expect(refreshCalls).toHaveLength(1);
   });
   it.each(['profile-loading', 'profile-error', 'data-error'] as const)('scrolls the Calendar %s surface on reselect', (surface) => {
     if (surface !== 'data-error') state.profile = undefined

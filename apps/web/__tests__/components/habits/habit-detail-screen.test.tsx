@@ -171,7 +171,6 @@ vi.mock('@/hooks/use-tags', () => ({
   useDeleteTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAssignTags: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
-vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: mocks.showError }),
@@ -652,16 +651,6 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByText('habits.reschedule.freePrompt')).not.toBeInTheDocument()
   })
 
-  it('rests Orbit with the offline reason, and never thinks, while the rescue request waits offline', () => {
-    openRescueGate()
-    mocks.reschedulePaused = true
-    render(<HabitDetailScreen habitId="habit-1" />)
-    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByRole('status')
-    expect(within(status).queryByTestId('rescue-loading-skeleton')).not.toBeInTheDocument()
-    expect(within(status).getAllByTestId('orbit-mascot').map((mascot) => mascot.getAttribute('data-state'))).toEqual(['descansando'])
-    expect(status).toHaveTextContent('shell.composer.offline.reason')
-  })
-
   it('gives the offline reason with no second Orbit while the rescue request waits offline in the guided surface', () => {
     openRescueGate()
     mocks.reschedulePaused = true
@@ -681,35 +670,6 @@ describe('HabitDetailScreen', () => {
     expect(Array.from(wait.querySelectorAll('[data-variant]')).map((block) => [block.getAttribute('data-variant'), block.textContent])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', '']])
     const line = document.querySelector<HTMLElement>('[data-today-orbit-slot]')!
     expect(screen.getAllByTestId('orbit-mascot').filter((mascot) => mascot.getAttribute('data-state') === 'pensando')).toEqual([within(line).getByTestId('orbit-mascot')])
-  })
-
-  it('shows a rescue only for an older overdue habit and handles request states', () => {
-    openRescueGate()
-    const view = render(<HabitDetailScreen habitId="habit-1" />)
-    const wait = within(within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByRole('status')).getByTestId('rescue-loading-skeleton')
-    expect(within(wait).getByTestId('orbit-mascot')).toHaveAttribute('data-state', 'pensando')
-    expect(within(wait).getByTestId('orbit-mascot')).toHaveAttribute('data-size', '48')
-    expect(Array.from(wait.querySelectorAll('[data-variant]')).map((block) => [block.getAttribute('data-variant'), block.textContent])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', '']])
-    expect(screen.queryByText('habits.detail.rescheduleLoading')).not.toBeInTheDocument()
-    expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
-    expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
-
-    mocks.rescheduleError = createApiClientError(400, { error: 'Not overdue', errorCode: 'HABIT_NOT_OVERDUE' }, 'Failed')
-    view.rerender(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
-    expect(screen.queryByText(/habits\.detail\.slippingLine/)).not.toBeInTheDocument()
-
-    mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
-    view.rerender(<HabitDetailScreen habitId="habit-1" />)
-    expect(within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByRole('status')).toHaveTextContent('habits.detail.rescheduleError')
-    expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
-    const retry = screen.getByRole('button', { name: 'habits.reschedule.suggestDate' })
-    expect(retry).toHaveTextContent('habits.reschedule.suggestDate')
-    fireEvent.click(retry)
-    expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
-    expect(screen.queryByText('habits.detail.rescheduleError')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
   })
 
   it.each([
@@ -748,29 +708,6 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByText('habits.detail.loadError')).not.toBeInTheDocument()
   })
 
-  it.each(['initial request', 'retry'])('dismisses a pending proposal during %s for this visit', (requestState) => {
-    openRescueGate()
-    if (requestState === 'retry') mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
-    const view = render(<HabitDetailScreen habitId="habit-1" />)
-    if (requestState === 'retry') {
-      fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.suggestDate' }))
-      expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
-      mocks.rescheduleError = null
-      view.rerender(<HabitDetailScreen habitId="habit-1" />)
-    }
-    expect(screen.getByTestId('rescue-loading-skeleton')).toBeVisible()
-    const notNow = screen.getByRole('button', { name: 'habits.reschedule.dismiss' })
-    expect(notNow).toBeEnabled()
-    notNow.focus()
-    fireEvent.click(notNow)
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
-    expect(screen.getByText('habits.detail.slippingLine').closest('section')).toHaveFocus()
-    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
-    view.rerender(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
-  })
-
   it('keeps the proposal announcement mounted when loading finishes', () => {
     openRescueGate()
     const view = render(<HabitDetailScreen habitId="habit-1" />)
@@ -781,58 +718,6 @@ describe('HabitDetailScreen', () => {
     expect(status).toHaveTextContent('Sun, Aug 30')
     expect(status).toHaveTextContent('Try tomorrow')
     expect(within(status).queryByRole('button')).not.toBeInTheDocument()
-  })
-
-  it('uses the account today overdue schedule on a historical detail', () => {
-    openRescueGate()
-    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]]))
-    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />)
-    expect(mocks.scopedRequests).toContainEqual({ dateFrom: '2026-08-29', includeOverdue: true })
-    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
-    expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
-
-    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
-    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]]))
-    mocks.rescheduleOptions = []
-    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />)
-    expect(screen.queryByText(/habits\.detail\.slippingLine/)).not.toBeInTheDocument()
-    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
-  })
-
-  it('shows the drawn proposal and puts it away for this visit only', () => {
-    openRescueGate()
-    mocks.uses24HourClock = true
-    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-20', dueTime: '07:30:00', days: ['Tuesday', 'Thursday'], rationale: 'Walk before work.' }
-    const view = render(<HabitDetailScreen habitId="habit-1" />)
-    const proposal = screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })
-    expect(Array.from(proposal.querySelectorAll('p, button')).map((node) => node.textContent)).toEqual([
-      'Thu, Aug 20 · 07:30',
-      'dates.daysShort.tuesday, dates.daysShort.thursday',
-      'Walk before work.',
-      'habits.detail.rescheduleFinePrint',
-      'habits.reschedule.dismiss',
-      'habits.detail.rescheduleAccept',
-    ])
-    expect(within(proposal).getAllByRole('button').map((button) => [button.dataset.variant, button.dataset.size])).toEqual([['ghost', 'sm'], ['primary', 'sm']])
-    expect(screen.queryByText('habits.detail.slipping')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
-
-    const notNow = within(proposal).getByRole('button', { name: 'habits.reschedule.dismiss' })
-    notNow.focus()
-    fireEvent.click(notNow)
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
-    expect(document.activeElement).toBe(screen.getByText('habits.detail.slippingLine').closest('section'))
-
-    mocks.detail = { ...makeDetail(), id: 'habit-2' }
-    mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])
-    view.rerender(<HabitDetailScreen habitId="habit-2" />)
-    expect(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).toBeInTheDocument()
-
-    mocks.detail = makeDetail()
-    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
-    view.rerender(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).toBeInTheDocument()
   })
 
   it('closes the proposal once the plan is used', async () => {
@@ -896,27 +781,6 @@ describe('HabitDetailScreen', () => {
     expect(within(retry()).getByTestId('orbit-mascot')).not.toHaveAttribute('data-reading')
   })
 
-  it('offers Pro and Not now on the free rescue card without asking Orbit', () => {
-    openRescueGate()
-    mocks.hasProAccess = false
-    render(<HabitDetailScreen habitId="habit-1" />)
-    const card = screen.getByText('habits.reschedule.freePrompt').parentElement!
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
-    expect(within(card).queryByTestId('orbit-mascot')).not.toBeInTheDocument()
-    expect(within(card).getByTestId('badge')).toHaveTextContent('habits.detail.proGate')
-    expect(Array.from(card.querySelectorAll<HTMLElement>('a, button')).map((button) => [button.textContent, button.dataset.variant, button.dataset.size])).toEqual([
-      ['habits.reschedule.dismiss', 'ghost', 'sm'],
-      ['habits.reschedule.upgrade', 'primary', 'sm'],
-    ])
-    expect(mocks.rescheduleOptions.length).toBeGreaterThan(0)
-    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
-    expect(within(card).getByRole('link', { name: 'habits.reschedule.upgrade' })).toHaveAttribute('href', '/upgrade')
-
-    fireEvent.click(within(card).getByRole('button', { name: 'habits.reschedule.dismiss' }))
-    expect(screen.queryByText('habits.reschedule.freePrompt')).not.toBeInTheDocument()
-    expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
-  })
-
   it('uses a primary action on narrow web and secondary on wide web', () => {
     openRescueGate()
     mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
@@ -972,24 +836,6 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.backToToday' }))
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
     expect(mocks.routerBack).not.toHaveBeenCalled()
-  })
-
-  it('shows loading feedback and a retry action after a load failure', () => {
-    mocks.detailLoading = true
-    const view = render(<HabitDetailScreen habitId="habit-1" />)
-
-    expect(screen.getAllByText('habits.detail.loading')).toHaveLength(2)
-    expect(screen.getByRole('progressbar', { name: 'habits.detail.loading' })).toHaveAttribute('aria-busy', 'true')
-    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-
-    mocks.detailLoading = false
-    mocks.detailError = true
-    view.rerender(<HabitDetailScreen habitId="habit-1" />)
-
-    expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.loadError')
-    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
-    expect(mocks.refetch).toHaveBeenCalledOnce()
   })
 
   it('moves focus from the fallback heading to the habit heading when data arrives', () => {
@@ -1270,24 +1116,6 @@ describe('HabitDetailScreen', () => {
     })
   })
 
-  it('uses the selected date for recurring child completion and mutations', () => {
-    mocks.scopedHabits.set('child-1', makeScopedChild('2026-08-29'))
-    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-29" />)
-    expect(screen.getByTestId('child-child-1')).toHaveAttribute('data-state', 'done')
-
-    mocks.scopedHabits.set('child-1', makeScopedChild('2026-08-28'))
-    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-    expect(screen.getByTestId('child-child-1')).toHaveAttribute('data-state', 'done')
-    fireEvent.click(screen.getByTestId('child-child-1'))
-    expect(mocks.log).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle'))
-    expect(mocks.log).toHaveBeenLastCalledWith({
-      habitId: 'child-1',
-      date: '2026-08-28',
-      intent: 'unlog',
-    })
-  })
-
   it('explains disabled completion in old-day detail and child rows', () => {
     mocks.scopedHabits.set('child-1', makeScopedChild('2026-08-19'))
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
@@ -1326,21 +1154,6 @@ describe('HabitDetailScreen', () => {
     expect(mocks.log).not.toHaveBeenCalled()
   })
 
-  it('refuses checklist completion confirmation after account midnight', async () => {
-    mocks.timeZone = 'Pacific/Kiritimati'
-    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
-    mocks.checklist.mockResolvedValueOnce(undefined)
-    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
-    render(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
-    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
-    await act(async () => Promise.resolve())
-    expect(screen.getByTestId('confirm-habits.checklistCompleteTitle')).toBeInTheDocument()
-
-    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
-    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteTitle'))
-    expect(mocks.log).not.toHaveBeenCalled()
-  })
-
   it('announces full dates for logged and unlogged history cells and keeps the log time', () => {
     mocks.language = 'en'
     mocks.uses24HourClock = true
@@ -1360,38 +1173,6 @@ describe('HabitDetailScreen', () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     const loggedTime = formatLocaleDateTime('2026-08-26T12:00:00Z', 'pt-BR', { hour: 'numeric', minute: '2-digit', hourCycle: 'h12' })
     expect(screen.getByTestId('history-day-26-inside').getAttribute('aria-label')).toContain(loggedTime)
-  })
-
-  it.each(['2026-08-29', '2026-08-28'])(
-    'renders a logged general child done and unlogs it on %s',
-    (date) => {
-      mocks.scopedHabits.set('child-1', makeLoggedGeneralChild())
-      render(<HabitDetailScreen habitId="habit-1" date={date} />)
-
-      const child = screen.getByRole('button', { name: 'unlog-child' })
-      expect(child).toHaveAttribute('data-state', 'done')
-      expect(child).toHaveAttribute('data-can-log', 'true')
-      expect(child).toHaveAttribute('data-completion-read-only', 'false')
-
-      fireEvent.click(child)
-      if (date < '2026-08-29') {
-        expect(mocks.log).not.toHaveBeenCalled()
-        fireEvent.click(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle'))
-      }
-      expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })
-    },
-  )
-  it('keeps the empty live region within the header block without a separate column slot', () => {
-    const { container } = render(<HabitDetailScreen habitId="habit-1" />)
-    const column = container.querySelector('[data-habit-detail-content]')!
-    const header = column.querySelector('header')!
-    const checklist = screen.getByTestId('habit-checklist')
-    const headerBlock = Array.from(column.children).find((slot) => slot.contains(header))!
-    expect(headerBlock.nextElementSibling).toBe(checklist)
-    const region = headerBlock.querySelector('[role="status"][aria-live="polite"]')
-    expect(region).not.toBeNull()
-    expect(region).toBeEmptyDOMElement()
-    expect(column.querySelector(':scope > [role="status"]')).toBeNull()
   })
 
   it('keeps the description expanded while selecting its text', async () => {
@@ -1485,15 +1266,6 @@ describe('HabitDetailScreen', () => {
     }
   })
 
-  it('keeps a populated completion boundary inside the header block', () => {
-    const { container } = render(<HabitDetailScreen habitId="habit-1" date="2026-08-30" />)
-    const column = container.querySelector('[data-habit-detail-content]')!
-    const headerBlock = column.firstElementChild!
-    expect(headerBlock).toHaveTextContent('habits.todayBoundary.future')
-    expect(headerBlock.nextElementSibling).toBe(screen.getByTestId('habit-checklist'))
-    expect(headerBlock.querySelector('[role="status"][aria-live="polite"]')).toBeEmptyDOMElement()
-  })
-
   it('sizes the 30-day strip from its content column without horizontal scrolling', () => {
     render(<HabitDetailScreen habitId="habit-1" />)
     const strip = screen.getByTestId('detail-strip')
@@ -1548,24 +1320,6 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByTestId('list-row-habits.detail.schedule')).toBeNull()
   })
 
-
-
-  it.each(['', 'My draft'])('opens Orbit about the habit and preserves an existing draft %s', (draft) => {
-    useChatStore.getState().setDraft(draft)
-    useChatStore.getState().setContextualSuggestion(null)
-    useUIStore.getState().setOrbitConversationOpen(false)
-    render(<HabitDetailScreen habitId="habit-1" />)
-    const orbitAction = screen.getByRole('button', { name: 'habits.detail.askOrbit' })
-    expect(orbitAction).toHaveTextContent('habits.detail.askOrbit')
-    fireEvent.click(orbitAction)
-    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
-    const prompt = 'habits.detail.askOrbitSeedDefault:{"title":"Read"}'
-    if (draft) {
-      expect(useChatStore.getState().draft).toBe(draft)
-      expect(useChatStore.getState().contextualSuggestion).toMatchObject({ id: 'habit-detail:habit-1', prompt })
-    } else expect(useChatStore.getState().draft).toBe(prompt)
-  })
-
   it('contains a log failure without showing a second error', async () => {
     mocks.log.mockRejectedValueOnce(new Error('log failed'))
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
@@ -1574,44 +1328,6 @@ describe('HabitDetailScreen', () => {
 
     await act(async () => { await Promise.resolve() })
     expect(mocks.showError).not.toHaveBeenCalled()
-  })
-
-  it('asks before logging a date before the habit existed', async () => {
-    expect(en.habits.detail.logDateConfirmMessage).toBe('This logs {name} on {date}.')
-    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z' }
-    mocks.logs = []
-    render(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />)
-    fireEvent.click(screen.getByRole('button', { name: 'log' }))
-    expect(mocks.log).not.toHaveBeenCalled()
-    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-message', expect.stringContaining('August 27, 2026'))
-    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-message', expect.stringContaining('Read'))
-    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-confirm-label', 'habits.detail.logDateConfirmLog')
-    fireEvent.click(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle'))
-    await act(async () => Promise.resolve())
-    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-27', intent: 'log' })
-  })
-
-  it('names the undo action when confirming an unusual unlog date', () => {
-    expect(en.habits.detail.logDateConfirmUnlogMessage).toBe('This undoes the log for {name} on {date}.')
-    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z' }
-    mocks.logs = [{ id: 'selected', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' }]
-    render(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />)
-    fireEvent.click(screen.getByRole('button', { name: 'unlog' }))
-    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-message', 'Undo Read: August 27, 2026')
-    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-confirm-label', 'habits.detail.logDateConfirmUnlog')
-    expect(mocks.log).not.toHaveBeenCalled()
-  })
-
-  it('confirms a child date when its creation time is unavailable from the schedule', async () => {
-    const schedule = makeHabitScheduleItem({ createdAtUtc: '2026-08-01T12:00:00Z' })
-    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
-    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-    fireEvent.click(screen.getByTestId('child-child-1'))
-    expect(mocks.log).not.toHaveBeenCalled()
-    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-message', expect.stringContaining('August 28, 2026'))
-    fireEvent.click(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle'))
-    await act(async () => Promise.resolve())
-    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'log' })
   })
 
   it('blocks a child date before its own creation despite an earlier parent and due date', () => {
@@ -1699,20 +1415,6 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByTestId('confirm-habits.detail.logDateConfirmTitle')).not.toBeInTheDocument()
   })
 
-  it('replaces checklist confirmation with the unusual-date confirmation', async () => {
-    mocks.logs = []
-    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z', checklistItems: [{ text: 'First', isChecked: false }] }
-    mocks.checklist.mockResolvedValue(undefined)
-    render(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />)
-    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
-    await act(async () => Promise.resolve())
-    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteTitle'))
-    await act(async () => Promise.resolve())
-    expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
-    expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toBeInTheDocument()
-    expect(mocks.log).not.toHaveBeenCalled()
-  })
-
   it('contains and reports a checklist failure', async () => {
     mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
     mocks.checklist.mockRejectedValueOnce(new Error('checklist failed'))
@@ -1722,45 +1424,6 @@ describe('HabitDetailScreen', () => {
 
     await act(async () => { await Promise.resolve() })
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.checklistError')
-    expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
-  })
-
-  it('offers to log the habit after its last checklist item is completed', async () => {
-    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
-    mocks.checklist.mockResolvedValueOnce(undefined)
-    mocks.log.mockResolvedValueOnce(undefined)
-    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
-    await act(async () => Promise.resolve())
-
-    expect(mocks.checklist).toHaveBeenCalledWith({
-      habitId: 'habit-1',
-      items: [{ text: 'First', isChecked: true }],
-    })
-    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteTitle'))
-    await act(async () => Promise.resolve())
-
-    expect(mocks.log).toHaveBeenCalledWith({
-      habitId: 'habit-1',
-      date: '2026-08-28',
-      intent: 'log',
-    })
-    expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
-  })
-
-  it('closes the checklist log confirmation before the log settles', async () => {
-    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
-    mocks.checklist.mockResolvedValueOnce(undefined)
-    mocks.log.mockReturnValueOnce(new Promise(() => {}))
-    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
-    await act(async () => Promise.resolve())
-    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteTitle'))
-    await act(async () => Promise.resolve())
-
-    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-28', intent: 'log' })
     expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
   })
 
@@ -1790,18 +1453,6 @@ describe('HabitDetailScreen', () => {
     expect(mocks.deleteHabit).toHaveBeenCalledWith('child-1')
     expect(screen.queryByTestId('confirm-habits.deleteConfirmTitle')).not.toBeInTheDocument()
     expect(mocks.routerPush).not.toHaveBeenCalled()
-  })
-
-  it('deletes the habit and returns to the selected day', async () => {
-    mocks.deleteHabit.mockResolvedValueOnce(undefined)
-    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.delete' }))
-    fireEvent.click(screen.getByTestId('confirm-habits.deleteConfirmTitle'))
-    await act(async () => Promise.resolve())
-
-    expect(mocks.deleteHabit).toHaveBeenCalledWith('habit-1')
-    expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
   })
 
   it('shows the deleted result dialog when the delete has already removed the detail query, with the guided flows on', async () => {
@@ -2025,26 +1676,6 @@ describe('HabitDetailScreen', () => {
           const after = snapshots[1]![index]!
           expect(before.x).toBeCloseTo(after.x, 1); expect(before.y).toBeCloseTo(after.y, 1)
         }
-      } finally { await page.close() }
-    })
-
-    it.each([16, 32])('keeps the Portuguese habit analysis label readable at 320px with root font %ipx', async (fontSize) => {
-      vi.useRealTimers()
-      mocks.language = 'pt-BR'
-      const { container } = render(<HabitDetailScreen habitId="habit-1" />)
-      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
-      try {
-        await page.setContent(`<style>${stylesheet}:root { font-size:${fontSize}px }</style>${container.innerHTML}`)
-        await loadAppFonts(page)
-        const action = page.getByRole('button', { name: ptBR.habits.detail.askOrbit, exact: true })
-        const geometry = await action.locator('[data-slot="list-row-title"]').evaluate((title) => {
-          const style = getComputedStyle(title)
-          return { clientWidth: title.clientWidth, scrollWidth: title.scrollWidth, height: title.getBoundingClientRect().height, lineHeight: Number.parseFloat(style.lineHeight), textOverflow: style.textOverflow }
-        })
-        expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth)
-        expect(geometry.textOverflow).not.toBe('ellipsis')
-        if (fontSize === 16) expect(geometry.height).toBeCloseTo(geometry.lineHeight, 0)
-        else expect(geometry.height).toBeGreaterThan(geometry.lineHeight)
       } finally { await page.close() }
     })
 

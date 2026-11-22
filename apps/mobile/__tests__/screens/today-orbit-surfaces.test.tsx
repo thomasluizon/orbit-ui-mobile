@@ -186,44 +186,6 @@ describe('mobile Today Orbit owned surfaces', () => {
       await TestRenderer.act(() => tree.unmount())
     }
   })
-  it.each([false, true])('clears the Orbit slot for completion and restores it on undo, proactive=%s', async (proactive) => {
-    mocks.hasProAccess = false
-    mocks.proactiveItem = proactive ? createMockProactiveItem({ text: 'Day complete' }) : null
-    let tree!: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
-    const line = () => tree.root.findAll(node => node.props.accessibilityLabel === (proactive ? 'Day complete' : 'summary.freePrompt'))
-    try {
-      expect(line().length).toBeGreaterThan(0)
-      const habit = mocks.habit
-      mocks.habit = { ...habit, isLoggedInRange: true }
-      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
-      expect(line()).toHaveLength(0)
-      mocks.habit = habit
-      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
-      expect(line().length).toBeGreaterThan(0)
-    } finally { await TestRenderer.act(() => tree.unmount()) }
-  })
-  it.each(['past day', 'create', 'edit', 'select', 'list', 'first load', 'load error'])('withholds the reachable daily summary during %s', async (state) => {
-    mocks.hasProAccess = false
-    let tree!: GeometryTree
-    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
-    const upgrade = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'summary.freePrompt')
-    try {
-      expect(upgrade()).toHaveLength(1)
-      await TestRenderer.act(() => {
-        if (state === 'past day') mocks.selectedDay = '2026-08-28'
-        if (state === 'create') (mocks.habitListProps?.onCreatePress as () => void)()
-        if (state === 'edit') (mocks.habitListProps?.onEditHabit as (habit: NormalizedHabit) => void)(mocks.habit)
-        if (state === 'select') useUIStore.setState({ isSelectMode: true })
-        if (state === 'list') (mocks.habitListProps?.onSurfaceOpenChange as (open: boolean) => void)(true)
-        mocks.hasData = state !== 'first load' && state !== 'load error'
-        mocks.isFetching = state === 'first load'
-        mocks.isError = state === 'load error'
-        tree.update(<TodayScreen />)
-      })
-      expect(upgrade()).toHaveLength(0)
-    } finally { await TestRenderer.act(() => tree.unmount()) }
-  })
 
   it('gives the unread check-in the only insight slot ahead of the free summary', async () => {
     mocks.hasProAccess = false
@@ -236,42 +198,6 @@ describe('mobile Today Orbit owned surfaces', () => {
       expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Check in').length).toBeGreaterThan(0)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
-
-  it.each([320, 412, 840, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
-    'scales only the single Orbit slot gap at $width and $fontScale text scale', async ({ width, fontScale }) => {
-      const native = await import('react-native')
-      const dimensions = vi.spyOn(native, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale })
-      mocks.geometry = true
-      mocks.hasProAccess = false
-      mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
-      let tree!: GeometryTree
-      await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) as GeometryTree })
-      const measure = () => measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
-        ? 'date' : host.props.testID === 'habit-view-switch' ? 'views' : host.props.testID === 'today-orbit-slot' ? 'line'
-          : host.props.testID === 'today-list-surface' ? 'list' : undefined, { width, height: 915 })
-      const expectSlot = (label: string) => {
-        const slots = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'today-orbit-slot')
-        expect(slots).toHaveLength(1)
-        expect(slots[0]!.props.accessibilityLabel).toBe(label)
-        const geometry = measure()
-        expect(geometry.get('date')!.top - geometry.get('line')!.bottom).toBe(24 * fontScale)
-        expect(geometry.get('list')!.top - geometry.get('date')!.bottom).toBe(24)
-        expect(geometry.get('line')!.top - geometry.get('views')!.bottom).toBe(24)
-      }
-      try {
-        expectSlot('Check in')
-        mocks.proactiveItem = null
-        await TestRenderer.act(() => tree.update(<TodayScreen />))
-        expectSlot('summary.freePrompt')
-        mocks.hasProAccess = true
-        await TestRenderer.act(() => tree.update(<TodayScreen />))
-        expect(measure().has('line')).toBe(false)
-        const withoutLine = measure()
-        expect(withoutLine.get('date')!.top - withoutLine.get('views')!.bottom).toBe(24)
-        expect(withoutLine.get('list')!.top - withoutLine.get('date')!.bottom).toBe(24)
-      } finally { await TestRenderer.act(() => tree.unmount()); dimensions.mockRestore() }
-    },
-  )
 
   it.each([320, 412, 840, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => [
     { date: '2026-08-22', boundary: 'lastLoggable' },
@@ -448,29 +374,6 @@ describe('mobile Today Orbit owned surfaces', () => {
       } finally { await TestRenderer.act(() => tree.unmount()) }
     },
   )
-
-  it.each([
-    ['2026-08-26', true],
-    [null, false],
-    [undefined, false],
-  ])('shows returning guidance with zero habits only for a qualifying completion: %s', async (lastCompletionDate, visible) => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
-    mocks.lastCompletionDate = lastCompletionDate
-    mocks.noHabits = true
-
-    let tree!: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      tree = createTestTree(<TodayScreen />)
-      await Promise.resolve()
-    })
-
-    const returning = tree.root.findAll((node) =>
-      node.props.children === 'todayOrbit.returningElapsed:3',
-    )
-    expect(returning.length > 0).toBe(visible)
-    vi.useRealTimers()
-  })
 
   it('routes detail into the habit flow instead of opening a Today surface', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>

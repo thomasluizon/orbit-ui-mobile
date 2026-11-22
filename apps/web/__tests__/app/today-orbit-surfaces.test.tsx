@@ -150,35 +150,6 @@ describe('web Today Orbit owned surfaces', () => {
     }
   })
 
-  it.each([false, true])('clears the Orbit slot for completion and restores it on undo, proactive=%s', (proactive) => {
-    mocks.hasProAccess = false
-    mocks.proactiveItem = proactive ? createMockProactiveItem({ text: 'Day complete' }) : null
-    const page = render(<TodayPageClient initialToday={mocks.view.nav.today} initialHabits={null} />)
-    const line = () => screen.queryByRole(proactive ? 'button' : 'link', { name: proactive ? 'Day complete' : 'summary.freePrompt' })
-    expect(line()).toBeInTheDocument()
-    const habit = mocks.view.data.habitsById.get('habit-1')!
-    mocks.view.data.habitsById = new Map([[habit.id, { ...habit, isLoggedInRange: true }]])
-    page.rerender(<TodayPageClient initialToday={mocks.view.nav.today} initialHabits={null} />)
-    expect(line()).not.toBeInTheDocument()
-    mocks.view.data.habitsById = new Map([[habit.id, habit]])
-    page.rerender(<TodayPageClient initialToday={mocks.view.nav.today} initialHabits={null} />)
-    expect(line()).toBeInTheDocument()
-  })
-  it.each(['past day', 'create', 'select', 'list', 'first load', 'load error'])('withholds the reachable daily summary during %s', (state) => {
-    mocks.hasProAccess = false
-    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
-    expect(screen.getByRole('link', { name: 'summary.freePrompt' })).toBeInTheDocument()
-    if (state === 'past day') mocks.view.nav.dateStr = '2026-08-28'
-    mocks.view.showCreateModal = state === 'create'
-    mocks.view.isSelectMode = state === 'select'
-    mocks.view.listSurfaceOpen = state === 'list'
-    mocks.view.data.hasFetched = state !== 'first load' && state !== 'load error'
-    mocks.view.data.isFetching = state === 'first load'
-    mocks.view.data.showLoadError = state === 'load error'
-    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
-    expect(screen.queryByRole('link', { name: 'summary.freePrompt' })).not.toBeInTheDocument()
-  })
-
   it('gives the unread check-in the only insight slot ahead of the free summary', () => {
     mocks.hasProAccess = false
     mocks.proactiveItem = createMockProactiveItem({ text: 'Check in' })
@@ -322,27 +293,6 @@ describe('web Today Orbit owned surfaces', () => {
       expect(screen.queryByRole('button', { name: 'Check in' })).not.toBeInTheDocument()
     },
   )
-
-  it.each([
-    ['2026-08-26', true],
-    [null, false],
-    [undefined, false],
-  ])('shows returning guidance with zero habits only for a qualifying completion: %s', (lastCompletionDate, visible) => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
-    mocks.view.data.habitsCount = 0
-    mocks.lastCompletionDate = lastCompletionDate
-
-    render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
-
-    if (visible) {
-      expect(screen.getByText('todayOrbit.returningElapsed:3', { exact: false })).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'todayOrbit.returningElapsed:3' })).toHaveAttribute('href', '/progress')
-    } else {
-      expect(screen.queryByText('todayOrbit.returningElapsed:3', { exact: false })).not.toBeInTheDocument()
-    }
-    vi.useRealTimers()
-  })
 
   it('retargets the full day block from its live value when the date changes quickly', () => {
     const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)

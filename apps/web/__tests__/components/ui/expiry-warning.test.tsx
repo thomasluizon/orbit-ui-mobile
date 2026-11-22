@@ -73,15 +73,6 @@ describe('ExpiryWarning', () => {
     expect(action).toHaveAttribute('data-variant', 'ghost')
   })
 
-  it.each([false, true])('keeps the message and the sign in action, and shows Orbit in Parado only with the guided flows on (%s)', (guided) => {
-    mockSessionRefreshFailed = true
-    render(<ExpiryWarning />)
-    expect(screen.getByText('auth.sessionSignedOut')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'auth.login' })).toBeInTheDocument()
-    expect(document.querySelectorAll('[data-orbit-face="rig"][data-orbit-state="parado"]')).toHaveLength(guided ? 1 : 0)
-    expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
-  })
-
   it.each([[false, 'running'], [true, 'still']] as const)('draws Orbit with reduced motion %s as %s, with the guided flows on', (reducedMotion, loop) => {
     motion.reducedMotion = reducedMotion
     mockSessionRefreshFailed = true

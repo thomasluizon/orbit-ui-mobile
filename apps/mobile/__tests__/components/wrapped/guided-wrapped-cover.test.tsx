@@ -156,14 +156,4 @@ describe('the guided Wrapped cover on Android', () => {
     expect(texts(root)).toContain(ptBR.wrapped.coverTitles.month)
     expect(mascots(root)[0]!.props['data-orbit-loop']).toBe(loop)
   })
-
-  it('renders the current cover with the flag off', async () => {
-    const { root } = await renderCover('pt-BR')
-
-    expect(byTestId(root, 'wrapped-cover-block')).toHaveLength(0)
-    expect(byTestId(root, 'option-card')).toHaveLength(0)
-    expect(hosts(root).find((node) => node.props.role === 'group')?.props.accessibilityLabel).toBe(ptBR.wrapped.periodGroup)
-    expect(texts(root)).toContain(ptBR.wrapped.coverSubtitle)
-    expect(texts(root)).not.toContain(ptBR.wrapped.periodQuestion)
-  })
 })

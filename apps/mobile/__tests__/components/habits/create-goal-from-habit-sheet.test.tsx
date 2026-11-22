@@ -61,15 +61,4 @@ describe('create goal from habit helpers', () => {
 })
 
 describe('CreateGoalSheet (mobile)', () => {
-  it('pins Cancel and Create in the sheet footer, never in the scrolling body', () => {
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<CreateGoalSheet open onClose={vi.fn()} />)
-    })
-
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'goals.create'])
-    expectSmallSheetActions(tree.root)
-    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.cancel')
-    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('goals.create')
-  })
 })

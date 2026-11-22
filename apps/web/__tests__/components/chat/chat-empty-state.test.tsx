@@ -55,14 +55,6 @@ describe('ChatEmptyState', () => {
     expect(group.indexOf(lines[0]!)).toBe(group.indexOf(container.querySelector('[data-empty-state-mark]')!) + 1)
   })
 
-  it('shows no Orbit line with no reason, and none with the guided flows off', () => {
-    const off = render(<ChatEmptyState mascotState="descansando" restReason="todayOrbit.guided.offline" />)
-    expect(off.container.querySelector('[data-empty-state-line]')).toBeNull()
-    off.unmount()
-    const { container } = render(<ChatEmptyState />)
-    expect(container.querySelector('[data-empty-state-line]')).toBeNull()
-  })
-
   it('keeps the empty introduction out of the conversation live log', () => {
     render(<div role="log" aria-live="polite"><ChatEmptyState /></div>)
 

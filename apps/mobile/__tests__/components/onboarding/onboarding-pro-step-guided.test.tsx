@@ -149,23 +149,4 @@ describe('the Android onboarding Pro step', () => {
     expect(mocks.retry).toHaveBeenCalledTimes(1)
     tree.unmount()
   })
-
-  it.each(['loading', null, 'Trial'] as const)('keeps the current %s state with no Orbit with the flag off', (plan) => {
-    mocks.plan = plan
-    if (plan === 'Trial') mocks.profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, trialEndsAt: '2099-01-01T00:00:00Z' })
-    const tree = renderNavigation(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
-    expect(byTestId(tree, 'onboarding-orbit')).toBeUndefined()
-    expect(orbitStates(tree)).toEqual([])
-    expect(headers(tree)).toContain(plan === 'Trial' ? 'Orbit Pro is on' : 'Orbit Pro')
-    tree.unmount()
-  })
-
-  it('renders the current paywall with the flag off', () => {
-    const tree = renderNavigation(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
-    expect(headers(tree)).toContain('Orbit Pro')
-    expect(byTestId(tree, 'upgrade-block')).toBeUndefined()
-    expect(byTestId(tree, 'upgrade-tier-yearly')).toBeDefined()
-    expect(byLabel(tree, 'Subscribe Annual, recommended')).toBeDefined()
-    tree.unmount()
-  })
 })

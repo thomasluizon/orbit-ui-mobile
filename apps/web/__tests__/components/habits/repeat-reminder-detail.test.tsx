@@ -50,14 +50,6 @@ it('uses a visible small ghost Cancel before Save', () => {
   expect(Array.from(actions.querySelectorAll('button')).map((button) => button.textContent)).toEqual([en.common.cancel, en.common.save])
 })
 
-it('offers the reminder time as a named clock icon action', () => {
-  render(<RepeatReminderDetail habit={habit} logs={[log]} />)
-  fireEvent.click(screen.getByRole('button', { name: en.habits.changeTakenAt }))
-  const useReminderTime = screen.getByRole('button', { name: en.habits.useReminderTime })
-  expect(useReminderTime).toHaveTextContent('')
-  expect(useReminderTime.querySelector('svg')).not.toBeNull()
-})
-
 it('asks when the dose was done as one question, and the quick option saves the reminder time in one press', async () => {
   render(<RepeatReminderDetail habit={habit} logs={[log]} />)
   fireEvent.click(screen.getByRole('button', { name: 'Change time' }))

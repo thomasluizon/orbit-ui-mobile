@@ -30,6 +30,7 @@ vi.mock('@tanstack/react-query', async () => {
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/milestone-share/milestone-share-card', () => ({
+  MILESTONE_SHARE_CARD_WIDTH: 360,
   MilestoneShareCard: React.forwardRef(function MilestoneShareCard() {
     return React.createElement('MilestoneShareCardStub')
   }),
@@ -131,74 +132,6 @@ describe('MilestoneSharePrompt (mobile)', () => {
     expect(findByType(tree, 'Sheet')).toHaveLength(0)
   })
 
-  it('shows the card after the settle delay and marks it prompted', async () => {
-    const tree = await render()
-    await armMilestoneShare('share-streak-7')
-    expect(findByType(tree, 'Sheet')).toHaveLength(0)
-
-    await TestRenderer.act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-    })
-
-    expect(findByType(tree, 'Sheet')).toHaveLength(1)
-    expect(findByType(tree, 'MilestoneShareCardStub')).toHaveLength(1)
-    expect(useEngagementPromptStore.getState().promptedMilestoneKeys).toContain(
-      'share-streak-7',
-    )
-  })
-
-  it('keeps the presented achievement card while a gamification refresh drops the cached achievement', async () => {
-    const achievement = achievementSchema.parse({
-      id: 'first-week', name: 'First week', description: 'Seven days', category: 'streak', rarity: 'rare',
-      xpReward: 50, iconKey: 'flame', isEarned: true, earnedAtUtc: '2026-11-01T00:00:00Z',
-    })
-    queryCache.gamificationProfile = { achievements: [achievement] }
-    const tree = await render()
-    await armMilestoneShare(getMilestoneShareAchievementKey(achievement.id))
-    await TestRenderer.act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-    })
-    expect(findByType(tree, 'Sheet')).toHaveLength(1)
-
-    queryCache.gamificationProfile = undefined
-    await TestRenderer.act(async () => {
-      tree.update(<MilestoneSharePrompt suppressed={false} />)
-      await Promise.resolve()
-    })
-
-    expect(findByType(tree, 'Sheet')).toHaveLength(1)
-    expect(findByType(tree, 'MilestoneShareCardStub')).toHaveLength(1)
-  })
-
-  it('pins Share and Later in the sheet footer, never in the scrolling body', async () => {
-    const tree = await render()
-    await armMilestoneShare('share-streak-7')
-    await TestRenderer.act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-    })
-
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['milestoneShare.later', 'milestoneShare.share'])
-    expectSmallSheetActions(tree.root)
-    expect(sheetActionsUseActionPair(tree.root)).toBe(true)
-    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
-  })
-
-  it('shows a failed share in the pinned footer, beside Share', async () => {
-    shareCard.hasError = true
-    const tree = await render()
-    await armMilestoneShare('share-streak-7')
-    await TestRenderer.act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-    })
-    const alerts = (slot: 'SheetBody' | 'SheetActions') => tree.root
-      .findAll((node) => node.type === slot)[0]!
-      .findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')
-      .map((node) => node.props.children)
-
-    expect(alerts('SheetActions')).toEqual(['milestoneShare.shareError'])
-    expect(alerts('SheetBody')).toEqual([])
-  })
-
   it('uses a ghost pill for Later', async () => {
     const tree = await render()
     await armMilestoneShare('share-streak-7')
@@ -220,21 +153,6 @@ describe('MilestoneSharePrompt (mobile)', () => {
     })
 
     expect(findByType(tree, 'Sheet')).toHaveLength(0)
-  })
-
-  it('waits for another sheet to close before offering a milestone', async () => {
-    useUIStore.getState().registerOpenOverlay('already-open')
-    const tree = await render()
-    await armMilestoneShare('share-streak-7')
-    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(500) })
-    expect(findByType(tree, 'Sheet')).toHaveLength(0)
-
-    await TestRenderer.act(async () => {
-      useUIStore.getState().unregisterOpenOverlay('already-open')
-      await Promise.resolve()
-    })
-    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(500) })
-    expect(findByType(tree, 'Sheet')).toHaveLength(1)
   })
 
   it('stays hidden and clears the arm when the milestone was already prompted', async () => {

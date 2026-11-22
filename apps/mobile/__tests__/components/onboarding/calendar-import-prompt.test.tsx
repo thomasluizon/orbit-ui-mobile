@@ -16,10 +16,9 @@ const mocks = vi.hoisted(() => ({
   profile: undefined as Record<string, unknown> | undefined,
   pathname: '/',
   push: vi.fn(),
-  guided: false,
+  
 }))
 
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
@@ -163,12 +162,10 @@ describe('CalendarImportPrompt gating', () => {
     expect(sheetCount(renderPrompt())).toBe(1)
   })
 
-  it.each([[false, 'onboarding.wizard.calendarTitle'], [true, 'onboarding.wizard.calendarQuestion']])('titles the sheet as a question in the person\'s words with orbit_guided_flows %s', (guided, title) => {
+  it.each([[true, 'onboarding.wizard.calendarQuestion']])('titles the sheet as a question in the person\'s words %s', (guided, title) => {
     mocks.profile = baseProfile()
-    mocks.guided = guided
     const sheet = renderPrompt().root.findAll((node: any) => node.props?.title !== undefined && typeof node.type !== 'string')[0]
     expect(sheet.props.title).toBe(title)
-    mocks.guided = false
   })
 
   it('centres its copy and uses a ghost pill to dismiss', () => {

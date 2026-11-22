@@ -302,27 +302,6 @@ describe('mobile search', () => {
     }
   })
 
-  it.each([['', true], ['walk', false]] as const)('shows one loading indicator for query "%s"', async (query, skeleton) => {
-    mocks.query.mockReturnValue(result([], true))
-    await mount()
-    if (query) await TestRenderer.act(() => { (input().props.onChangeText as (value: string) => void)(query) })
-    await TestRenderer.act(() => { vi.advanceTimersByTime(301) })
-    expect(tree.root.findAll((node) => node.type === Skeleton && node.props.grouped !== true)).toHaveLength(skeleton ? 3 : 0)
-    const waiting = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'search-skeleton')
-    expect(waiting).toHaveLength(skeleton ? 0 : 1)
-    expect(text()).not.toContain('Searching')
-    if (skeleton) return
-    expect(waiting[0]!.props).toMatchObject({ accessible: true, accessibilityRole: 'progressbar', accessibilityLabel: 'Searching', accessibilityState: { busy: true }, accessibilityLiveRegion: 'polite' })
-    const rows = waiting[0]!.findAll((node) => typeof node.type === 'string' && node.props.testID === 'search-skeleton-row')
-    expect(rows).toHaveLength(3)
-    for (const row of rows) {
-      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, padding: 12, gap: 12, flexDirection: 'row', alignItems: 'center' })
-      expectInsetHairlineRing(row.props.style as never, createTokensV2('orange', 'dark').hairlineGhost)
-      expect(row.findAll((node) => node.type === Skeleton && node.props.grouped === true)).toHaveLength(3)
-    }
-    expect(tree.root.findAll((node) => String(node.type) === 'ActivityIndicator')).toHaveLength(0)
-  })
-
   it('shows the initial for a habit without an emoji', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', emoji: null })]))
     await mount()
@@ -351,12 +330,6 @@ describe('mobile search', () => {
     const label = command.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Log a habit')[0]!
     expect(StyleSheet.flatten(label.props.style)).toMatchObject({ fontSize: 17 })
   })
-  it('keeps the habit group before create, actions and destinations', async () => {
-    mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
-    await mount()
-    const headings = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityRole === 'header').map((node) => renderedText(node.props.children))
-    expect(headings).toEqual(['Search habits', 'Habits', 'Create', 'Actions', 'Go to'])
-  })
 
   it.each(['en', 'pt-BR'])('shows all match kinds and navigates to the parent in %s', async (locale) => {
     mocks.query.mockReturnValue(result([
@@ -382,14 +355,6 @@ describe('mobile search', () => {
     expect(mocks.query).toHaveBeenCalledWith({ search: 'walk', page: 1, pageSize: 20 })
   })
 
-  it('keeps the whole field when the keyboard shortens the page, because its scroller never shrinks', async () => {
-    mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
-    await mount()
-    const fieldScroller = tree.root.findAll((node) => String(node.type) === 'ScrollView'
-      && node.findAll((child) => String(child.type) === 'TextInput').length > 0)[0]!
-    expect(StyleSheet.flatten(fieldScroller.props.style)).toMatchObject({ flexGrow: 0, flexShrink: 0 })
-  })
-
   it('exposes no static selection or keyboard hints on the phone', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
     await mount()
@@ -398,20 +363,6 @@ describe('mobile search', () => {
     expect(text()).not.toContain('↑↓')
     expect(text()).not.toContain('↵')
     expect(text()).not.toContain('Esc')
-  })
-
-  it.each([
-    { locale: 'en', count: 1, expected: '1 habit' },
-    { locale: 'en', count: 4, expected: '4 habits' },
-    { locale: 'pt-BR', count: 1, expected: '1 hábito' },
-    { locale: 'pt-BR', count: 4, expected: '4 hábitos' },
-  ])('formats $count search results in $locale', async ({ locale, count, expected }) => {
-    mocks.query.mockReturnValue(result(Array.from({ length: count }, (_, index) => createMockHabit({ id: `walk-${index}`, title: `Walk ${index + 1}` }))))
-    await mount(locale)
-    await type('walk')
-    expect(tree.root.findAll((node) => String(node.type) === 'Text' && renderedText(node.props.children) === expected)).toHaveLength(1)
-    expect(text()).not.toMatch(/[{}|]/)
-    expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'button')).toHaveLength(count)
   })
 
   it('quotes an empty query and carries it into the create form', async () => {

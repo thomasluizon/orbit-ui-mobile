@@ -204,13 +204,4 @@ describe('the guided Wrapped player on Android', () => {
         } else await press(control(root, catalog.wrapped.next))
       }
     })
-
-  it('renders the current player with the flag off: no slide travel and no Orbit in Feliz on the last slide', async () => {
-    const root = await renderPlayer()
-
-    expect(byTestId(root, 'wrapped-slide-travel')).toHaveLength(0)
-    for (let step = 1; step < slides.length; step += 1) await press(control(root, ptBR.wrapped.next))
-    expect(byTestId(root, 'wrapped-slide-share')).toHaveLength(1)
-    expect(byTestId(root, 'orbit-mascot').some((node) => node.props['data-orbit-state'] === 'feliz')).toBe(false)
-  })
 })

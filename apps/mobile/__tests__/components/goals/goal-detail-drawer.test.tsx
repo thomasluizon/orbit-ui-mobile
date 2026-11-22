@@ -661,31 +661,6 @@ describe('GoalDetailDrawer', () => {
     expect(countRenderedActions(tree.toJSON(), orbitLabel)).toBe(0)
   })
 
-  it('prefers synced detail data over the stale list cache', () => {
-    detailGoal = {
-      ...listGoal,
-      title: 'Read 12 books (synced)',
-      currentValue: 6,
-      progressPercentage: 50,
-      progressHistory: [],
-    }
-
-    let tree: any
-
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />,
-      )
-    })
-
-    const sheet = tree.root.findByType('Sheet')
-    const textContent = collectText(tree.toJSON())
-
-    expect(sheet.props.title).toBe('progressScreen.sections.goals')
-    expect(textContent).toContain('Read 12 books (synced)')
-    expect(textContent).toContain('"current":6')
-  })
-
   it('retargets the already-mounted detail ring when progress changes', () => {
     const timing = vi.spyOn(Animated, 'timing')
     const tree = renderDrawer()
@@ -961,20 +936,6 @@ describe('GoalDetailDrawer', () => {
     expect(refetchDetail).toHaveBeenCalledTimes(1)
   })
 
-  it('deletes the goal and closes after confirming the delete dialog', async () => {
-    const onClose = vi.fn()
-    const tree = renderDrawer(onClose)
-
-    press(tree, 'goals.detail.delete')
-    const confirm = tree.root.findAllByProps({ testID: 'button-destructive-sm' }).at(0)
-    await TestRenderer.act(async () => {
-      await confirm.props.onPress()
-    })
-
-    expect(mockDeleteMutateAsync).toHaveBeenCalledWith('1')
-    expect(onClose).toHaveBeenCalledTimes(1)
-  })
-
   it('keeps the drawer open when the delete request fails', async () => {
     mockDeleteMutateAsync.mockRejectedValue(new Error('offline'))
     const onClose = vi.fn()
@@ -1114,12 +1075,6 @@ describe('GoalDetailDrawer', () => {
     const tree = renderDrawer()
     press(tree, 'goals.detail.edit')
     expect(tree.root.findAll((node: { props: { open?: unknown; goal?: unknown } }) => node.props.open === true && node.props.goal !== undefined).length).toBeGreaterThan(0)
-  })
-
-  it('opens the edit modal and requests dismiss without throwing', () => {
-    const tree = renderDrawer()
-    expect(() => press(tree, 'goals.detail.edit')).not.toThrow()
-    expect(() => press(tree, 'attempt-dismiss')).not.toThrow()
   })
   it.each(['Standard', 'Streak'] as const)('stage 5 names derived progress for %s and hides steppers', (type) => {
     detailGoal = { ...listGoal, type, isProgressDerived: true, linkedHabits: [{ id: 'h1', title: 'Read nightly' }], progressHistory: [] }

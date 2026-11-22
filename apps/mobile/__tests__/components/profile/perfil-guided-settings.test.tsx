@@ -71,9 +71,3 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(texts(tree)).not.toContain(messages.profile.loading)
   })
 })
-
-it('keeps the current answers and name sheet title on Android with the flag off', async () => {
-  const tree = await render(<><MarketingConsentSection showSectionLabel={false} contained /><EditNameSheet open onClose={vi.fn()} /></>)
-  expect(hosts(tree).some((node) => node.props.accessibilityRole === 'radiogroup')).toBe(false)
-  expect(texts(tree)).toContain(en.profile.editName.title)
-})

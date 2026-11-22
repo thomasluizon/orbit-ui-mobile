@@ -141,7 +141,7 @@ function useBarSelection() {
   return { selectedDate, select, lookAt, mascotRef, onChartTouch, onRootTouch }
 }
 
-/** The Progresso root under `orbit_guided_flows`: Orbit answers "am I moving", then the person asks the next thing. */
+/** The Progresso root: Orbit answers "am I moving", then the person asks the next thing. */
 export function GuidedProgressOverview() {
   const { t, i18n } = useTranslation()
   const router = useRouter()

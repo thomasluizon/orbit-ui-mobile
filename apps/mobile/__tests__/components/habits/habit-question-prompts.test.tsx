@@ -88,27 +88,6 @@ describe('Android habit prompts as one question', () => {
     expect(mascots(tree)).toHaveLength(0)
   })
 
-  it('renders the current confirm sheets with the flag off', () => {
-    const tree = dialogs(handlers(), { parentPrompt: promptOf([parent]) })
-    expect(sheetTitle(tree)).toEqual(['habits.autoLogParentTitle'])
-    expect(options(tree)).toHaveLength(0)
-    expect(hosts(tree, 'button-primary-sm')).toHaveLength(1)
-  })
-
-  it('asks the checklist question after the last item, and keeps the confirm sheet with the flag off', () => {
-    const off = mount(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={vi.fn()} />)
-    expect(sheetTitle(off)).toEqual(['habits.checklistCompleteTitle'])
-    expect(sentences(off)).toEqual(['habits.checklistCompleteMessage'])
-    expect(options(off)).toHaveLength(0)
-    const onConfirm = vi.fn()
-    const tree = mount(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={onConfirm} />)
-    expect(sheetTitle(tree)).toEqual(['habits.checklistCompleteQuestion'])
-    expect(sentences(tree)).toEqual([])
-    expect(labels(tree)).toEqual(['habits.checklistCompleteConfirm', 'common.notNow'])
-    press(options(tree)[0]!)
-    expect(onConfirm).toHaveBeenCalledOnce()
-  })
-
   it.each([['log', 'habits.detail.logDateQuestion', 'habits.detail.logDateConfirmLog'], ['unlog', 'habits.detail.logDateUnlogQuestion', 'habits.detail.logDateConfirmUnlog']] as const)('asks one question before a %s on another date', (intent, question, answer) => {
     const onConfirm = vi.fn()
     const tree = mount(<LogDatePrompt pending={{ habitId: 'h', intent, date, name: 'Read', permanent: false }} fallbackName="Read" fallbackDate={date} language="en" onCancel={vi.fn()} onConfirm={onConfirm} />)

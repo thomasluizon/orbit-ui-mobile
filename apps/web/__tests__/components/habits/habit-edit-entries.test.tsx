@@ -65,7 +65,6 @@ vi.mock('@/hooks/use-tags', () => ({
   useCreateTag: () => ({ mutateAsync: vi.fn(), isPending: false }), useUpdateTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteTag: () => ({ mutateAsync: vi.fn(), isPending: false }), useAssignTags: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
-vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => null, useLinkableGoals: () => ({ data: [], isSuccess: true, isLoading: false, isError: false, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
   useChecklistTemplates: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
@@ -135,16 +134,4 @@ describe.each(['pt-BR', 'en'] as const)('every edit entry of Hoje and habit deta
 })
 
 describe('the edit entries', () => {
-  it('keep the current edit form from the row menu and the pencil', async () => {
-    const list = mount(<HabitList view="today" filters={{}} />, 'pt-BR')
-    await openRowMenuItem('pt-BR', ptBR.common.edit)
-    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
-    expect(flow()).toBeNull()
-    expect(screen.getByRole('button', { name: ptBR.common.save })).toBeInTheDocument()
-    list.unmount()
-    mount(<HabitDetailScreen habitId="habit-1" />, 'pt-BR')
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: ptBR.habits.editHabit })) })
-    await waitFor(() => expect(screen.getByRole('button', { name: ptBR.common.save })).toBeInTheDocument())
-    expect(flow()).toBeNull()
-  })
 })

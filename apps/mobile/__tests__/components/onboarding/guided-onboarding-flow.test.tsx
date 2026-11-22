@@ -440,13 +440,6 @@ it('sends the suggestion the same body as the current flow', async () => {
   expect(emojiControl.props.accessibilityHint).toBe(en.habits.form.proposedByOrbit)
 })
 
-it('renders the current Android onboarding with the flag off', async () => {
-  const tree = await mount(false)
-  expect(texts(tree)).toContain(en.onboarding.flow.what.title)
-  expect(texts(tree)).not.toContain(en.onboarding.flow.guided.intro.talk.title)
-  expect(hosts(tree).some((node) => node.props.testID === 'question-flow')).toBe(false)
-})
-
 describe('the native window handoff of the guided onboarding', () => {
   const stepsWindow = (tree: TestTree) => tree.root.findAll((node) => node.type === 'Modal' && node.props.transparent !== true)
   const doneTitle = en.onboarding.flow.done.skippedTitle

@@ -71,11 +71,6 @@ beforeEach(() => {
 afterEach(() => { reanimatedTestState.reducedMotion = false })
 
 describe('the Calendário Orbit line on Android', () => {
-  it('is absent with the guided flows off, so Calendário keeps its current form', () => {
-    state.flag = false
-    const tree = render(<CalendarOrbitLine {...props()} />)
-    expect(host(tree.root, 'calendar-orbit-line')).toBeUndefined()
-  })
 
   it.each([
     ['en', 'The 13th: 1 of 3 done.'],

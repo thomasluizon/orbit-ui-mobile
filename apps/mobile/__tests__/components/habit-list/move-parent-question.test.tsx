@@ -55,11 +55,4 @@ describe('Android move-parent dialog as one question', () => {
     expect(sheetTitle(tree)).toBe('habits.form.parentHabit')
     expect(questionLabels(tree).length).toBeGreaterThan(0)
   })
-
-  it('renders the current dialog with the flag off', () => {
-    const { tree } = renderDialog()
-    expect(sheetTitle(tree)).toBe('habits.moveParent.title')
-    expect(descriptions(tree)).toHaveLength(1)
-    expect(questionLabels(tree).length).toBeGreaterThan(0)
-  })
 })

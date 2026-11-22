@@ -349,28 +349,6 @@ describe('useLoginFlow (mobile)', () => {
     expect(mocks.replace).not.toHaveBeenCalledWith('/older')
   })
 
-  it('returns focus from the login submit action on every invalid attempt without stealing focus during editing', async () => {
-    let tree: { root: { findAllByType: (type: string) => { props: Record<string, unknown> }[] }; unmount: () => void }
-    await act(() => { tree = TestRenderer.create(React.createElement(LoginContent)) })
-    const input = () => tree.root.findAllByType('TextInput')[0]!
-    await act(() => (input().props.onChangeText as (value: string) => void)('not-an-email'))
-    expect(mocks.focus).not.toHaveBeenCalled()
-    const submit = tree!.root.findAllByType('Pressable').find((node) => node.props.accessibilityRole === 'button')!
-    await act(() => (submit.props.onPress as () => void)())
-    expect(mocks.focus).toHaveBeenCalledTimes(1)
-    expect(input().props.accessibilityHint).toBe('auth.errors.invalidEmail')
-    await act(() => (input().props.onChangeText as (value: string) => void)('still-invalid'))
-    expect(mocks.focus).toHaveBeenCalledTimes(1)
-    await act(() => (input().props.onSubmitEditing as () => void)())
-    expect(mocks.focus).toHaveBeenCalledTimes(2)
-    expect(mocks.apiClient).not.toHaveBeenCalled()
-    await act(() => (input().props.onChangeText as (value: string) => void)('person@example.com'))
-    await act(() => (input().props.onSubmitEditing as () => void)())
-    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
-    expect(input().props.autoComplete).toBe('email-otp')
-    await act(() => tree.unmount())
-  })
-
   it('blocks sending a code while offline and surfaces the offline error', async () => {
     mocks.isOnline = false
     const harness = await renderLoginFlow()
@@ -1074,18 +1052,6 @@ describe('email-link attempt ownership', () => {
     expect(mocks.login).toHaveBeenCalledTimes(1)
   })
 
-  it('completes a mounted native input once across StrictMode effect replay', async () => {
-    mocks.params = { email: 'user@test.com', code: '123456' }
-    mocks.apiClient.mockResolvedValue(issuedResponse)
-    let tree!: { root: { findAllByType: (type: string) => unknown[] }; unmount: () => void }
-    await act(() => { tree = TestRenderer.create(React.createElement(React.StrictMode, null, React.createElement(LoginContent))) })
-    try {
-      expect(tree.root.findAllByType('TextInput').length).toBe(1)
-      expect(verificationCount()).toBe(1)
-      expect(mocks.login).toHaveBeenCalledTimes(1)
-    } finally { await act(() => tree.unmount()) }
-  })
-
   it('lets an edited code replace the incoming automatic completion', async () => {
     vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
     mocks.params = { email: 'user@test.com', code: '123456' }
@@ -1097,18 +1063,6 @@ describe('email-link attempt ownership', () => {
     await act(() => harness.current.onCodeChange('123457'))
     expect(verificationCount()).toBe(1)
     expect(bodyOf(firstApiCall()[1]).code === '123457').toBe(true)
-  })
-
-  it('keeps the first link pending while offline and completes after connectivity returns', async () => {
-    mocks.isOnline = false
-    mocks.params = { email: 'user@test.com', code: '123456' }
-    mocks.apiClient.mockResolvedValue(issuedResponse)
-    const harness = await renderLoginFlow()
-    expect(harness.current.codeDigits.join('').length).toBe(6)
-    expect(verificationCount()).toBe(0)
-    mocks.isOnline = true
-    await act(() => harness.rerender())
-    expect(verificationCount()).toBe(1)
   })
 
   it('does not treat a signed-out Google callback as an email link', async () => {

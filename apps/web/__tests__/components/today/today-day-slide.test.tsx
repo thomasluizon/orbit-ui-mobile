@@ -34,15 +34,4 @@ describe('web Hoje day change', () => {
     expect(slide.animate).not.toHaveBeenCalled()
     expect(screen.getByText('list')).toBeInTheDocument()
   })
-
-  it('adds no slide and no turn with the flag off, or outside the Today view', () => {
-    const turns = getOrbitPageTurns()
-    const off = render(day('2026-11-14'))
-    off.rerender(day('2026-11-15'))
-    off.unmount()
-    const other = render(day('2026-11-14', false))
-    other.rerender(day('2026-11-15', false))
-    expect(slide.animate).not.toHaveBeenCalled()
-    expect(getOrbitPageTurns()).toBe(turns)
-  })
 })

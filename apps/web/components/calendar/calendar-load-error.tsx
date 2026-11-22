@@ -13,7 +13,7 @@ interface CalendarLoadErrorProps {
   error?: unknown
 }
 
-/** The load failure of the calendar views. With the guided flows on it is the shared state surface: Orbit in Parado, one first person line and the retry, centred in the free area. A read that failed for want of a connection says so. With the flag off it is the kit card. */
+/** The load failure of the calendar views. It is the shared state surface: Orbit in Parado, one first person line and the retry, centred in the free area. A read that failed for want of a connection says so. With the flag off it is the kit card. */
 export function CalendarLoadError({ onRetry, error }: Readonly<CalendarLoadErrorProps>) {
   const t = useTranslations()
   const { isOnline } = useOffline()

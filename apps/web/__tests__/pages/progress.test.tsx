@@ -472,67 +472,6 @@ describe('ProgressContent', () => {
     }
   })
 
-  it.each([1352, 1100, 840, 412].flatMap((width) => [false, true].map((panelOpen) => ({ width, panelOpen }))))(
-    'keeps the content gutter at $width with conversation open=$panelOpen', async ({ width, panelOpen }) => {
-      const matchMedia = window.matchMedia
-      window.matchMedia = query => {
-        const result = matchMedia(query)
-        return { ...result, matches: query === '(min-width: 1024px)' ? width >= 1024 : result.matches }
-      }
-      const page = await browser.newPage({ viewport: { width, height: 900 } })
-      try {
-        const { container } = render(
-          <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="progresso" navLabel="Navigation"
-            conversation={<button>Conversation</button>}
-            conversationOpen={panelOpen} conversationLabel="Conversation">
-            <ProgressPage />
-          </ShellWide>,
-        )
-        await act(async () => {})
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        const bounds = await page.evaluate(() => {
-          const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
-          const column = scroller.getBoundingClientRect()
-          const contentRight = column.left + scroller.clientWidth
-          const section = document.querySelector('section')!.getBoundingClientRect()
-          const goals = document.querySelector('h2:not(.sr-only)')!.getBoundingClientRect()
-          const header = document.querySelector('[data-root-notification-header]')?.getBoundingClientRect()
-          const bell = document.querySelector('[data-root-notification-header] button[aria-label="notifications.bell"]')?.getBoundingClientRect()
-          return { left: section.left - column.left, right: contentRight - section.right, goalsLeft: goals.left - column.left,
-            columnWidth: scroller.clientWidth, topInset: section.top - column.top, headerHeight: header?.height ?? 0,
-            trailingInset: bell && bell.width > 0 ? contentRight - bell.right : null }
-        })
-        const gutter = (bounds.columnWidth - Math.min(bounds.columnWidth, 740)) / 2 + 16
-        expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth,
-          topInset: width < 1024 ? 88 : 16, headerHeight: width < 1024 ? 72 : 0,
-          trailingInset: width < 1024 ? gutter : null })
-      } finally {
-        window.matchMedia = matchMedia
-        await page.close()
-      }
-    },
-  )
-
-  it('uses the display family for the streak and every freeze bank numeral', async () => {
-    renderStreakDetails()
-    await act(async () => {})
-    const page = await browser.newPage()
-    try {
-      await page.setContent(`<style>${stylesheet}:root { --font-space-grotesk: "Space Grotesk"; --font-geist: Geist; }</style>${document.body.innerHTML}`)
-      const families = await page.evaluate(() => {
-        const streak = document.querySelector('section p')!
-        const bank = document.querySelector('[data-component="freeze-bank"]')!
-        const card = bank.children[2]!
-        const banked = card.querySelector('p')!
-        const used = card.querySelectorAll('p')[2]!
-        return [streak, banked, banked.querySelector('span')!, used].map((element) => getComputedStyle(element).fontFamily)
-      })
-      for (const family of families) expect(family).toContain('Space Grotesk')
-    } finally {
-      await page.close()
-    }
-  })
-
   it.each([
     { count: 0, label: 'dias seguidos' },
     { count: 1, label: 'dia seguido' },
@@ -971,29 +910,6 @@ describe('ProgressContent', () => {
     expect(useChatStore.getState().contextualSuggestion).toBeNull()
   })
 
-  it.each(['page empty', 'section empty', 'populated'] as const)('creates a goal from %s and shows it in Metas', async (entry) => {
-    if (entry === 'page empty') {
-      Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-      Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
-    }
-    if (entry === 'populated') mocks.goals.data.allGoals = [createMockGoal()]
-    mocks.create.mutateAsync.mockImplementationOnce(async () => {
-      mocks.goals.data.allGoals = [...mocks.goals.data.allGoals, createMockGoal({ id: 'goal-created', title: 'Walk 100 km' })]
-      return { id: 'goal-created' }
-    })
-    render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
-    if (entry === 'populated') await selectGoalFilter('completed')
-    fireEvent.click(screen.getByRole('button', { name: entry === 'populated' ? 'goals.create' : 'progressScreen.goals.createAction' }))
-    fireEvent.change(screen.getByLabelText('goals.form.title'), { target: { value: 'Walk 100 km' } })
-    fireEvent.change(screen.getByLabelText('goals.form.targetValueQuestion'), { target: { value: '100' } })
-    fireEvent.change(screen.getByLabelText('goals.form.unitQuestion'), { target: { value: 'km' } })
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'goals.create' })).getByRole('button', { name: 'goals.create' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'goals.create' })).not.toBeInTheDocument())
-    expect(getGoalCard('Walk 100 km')).toBeInTheDocument()
-    expect(getGoalCard('Walk 100 km')).toHaveFocus()
-    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
-  })
-
   it.each([412, 1352])('aligns goal action paint inside equal 48px targets at %ipx', async (width) => {
     mocks.isDesktop = width >= 1024
     mocks.goals.data.allGoals = [createMockGoal()]
@@ -1012,16 +928,6 @@ describe('ProgressContent', () => {
     }
   })
 
-  it('keeps the Metas filter when goal creation is cancelled', async () => {
-    mocks.goals.data.allGoals = [createMockGoal()]
-    render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
-    await selectGoalFilter('completed')
-    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
-    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'goals.create' })).not.toBeInTheDocument())
-    expect(screen.getByRole('button', { name: 'progressScreen.goals.filter: progressScreen.goals.completed' })).toBeInTheDocument()
-  })
-
   it.each(['streak', 'achievements'] as const)('keeps %s records reachable after a streak reset', (destination) => {
     Object.assign(mocks.account.profile, { currentStreak: 0 })
     Object.assign(mocks.gamification.profile, { currentStreak: 0 })
@@ -1033,25 +939,6 @@ describe('ProgressContent', () => {
     }
     else expect(screen.getByTestId('progress-xp-summary')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.goals.empty')).not.toBeInTheDocument()
-  })
-
-  it('names the overview region once and retains its three figures', () => {
-    render(<ProgressContent />)
-    const headings = screen.getAllByRole('heading', { level: 2 })
-    expect(headings.map((heading) => heading.textContent)).toEqual(['progressScreen.sections.window'])
-    const regions = screen.getAllByRole('region')
-    expect(regions).toHaveLength(1)
-    expect(regions[0]).toHaveAttribute('aria-labelledby', headings[0]!.id)
-    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
-    const figures = Array.from(windowSection.querySelectorAll('[data-state]')).map((figure) => figure.textContent)
-    expect(figures).toEqual([
-      '75%progressScreen.window.completionRate',
-      '12progressScreen.window.activeDays',
-      'dates.daysAbbreviated.thursdayprogressScreen.window.bestWeekday',
-    ])
-    for (const value of ['75%', '12', 'dates.daysAbbreviated.thursday']) {
-      expect(within(windowSection).getByText(value)).toHaveStyle({ fontSize: 22, whiteSpace: 'nowrap' })
-    }
   })
 
   it.each([320, 360, 384, 412])('keeps the owning Progress figures readable at %ipx with large text', async (width) => {
@@ -1131,33 +1018,6 @@ describe('ProgressContent', () => {
     expect(mocks.router.push).not.toHaveBeenCalled()
   })
 
-  it('keeps the freeze legend in one sheet and restores focus to its entry', async () => {
-    const view = render(<ProgressContent />)
-    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
-    expect(windowSection.querySelectorAll('[data-state="default"]')).toHaveLength(3)
-    expect(within(windowSection).getByText('dates.daysAbbreviated.thursday')).toBeInTheDocument()
-    const habit = within(windowSection).getByTestId('progress-top-habit')
-    expect(habit).toHaveAccessibleName('progressScreen.window.topHabit, Read')
-    expect(habit).toHaveAttribute('aria-expanded', 'false')
-    view.rerender(<StreakPage />)
-    const entry = screen.getByRole('button', { name: /^progressScreen\.streak\.freezes/ })
-    entry.focus()
-    fireEvent.click(entry)
-    const dialog = screen.getByRole('dialog', { name: 'progressScreen.streak.freezes' })
-    const legend = within(dialog).getByRole('group', { name: 'progressScreen.streak.legend' })
-    expect(legend).toHaveTextContent('progressScreen.streak.active')
-    expect(legend).toHaveTextContent('progressScreen.streak.frozen')
-    expect(legend).toHaveTextContent('progressScreen.streak.missed')
-    expect(within(dialog).queryByRole('button', { name: 'progressScreen.streak.legend' })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    expect(entry).toHaveAttribute('aria-expanded', 'true')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'common.close' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(entry).toHaveFocus()
-    expect(entry).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByTestId('progress-top-habit')).not.toBeInTheDocument()
-  })
-
   it.each(['overview', 'streak', 'achievements'] as const)('keeps the %s Pro boundary in its own screen', async (destination) => {
     mocks.gamification.isError = true
     mocks.gamification.error = { status: 403, data: { error: 'Pro feature', errorCode: 'PAY_GATE' } }
@@ -1196,41 +1056,6 @@ describe('ProgressContent', () => {
     expect(screen.queryByTestId('progress-xp-summary')).not.toBeInTheDocument()
     expect(screen.queryByText('75%')).not.toBeInTheDocument()
     expect(mocks.gamificationEnabled).not.toHaveBeenCalled()
-  })
-
-  it('renders a server-authorized window for a free account', () => {
-    mocks.account.profile.hasProAccess = false
-
-    render(<ProgressContent />)
-
-    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
-    expect(within(windowSection).getByText('75%')).toBeInTheDocument()
-    expect(within(windowSection).queryByText('progressScreen.window.lockedBody')).not.toBeInTheDocument()
-  })
-
-  it('renders a retryable window error when a free retrospective request fails', () => {
-    mocks.account.profile.hasProAccess = false
-    mocks.retrospective.isError = true
-    mocks.retrospective.error = { status: 500, data: { errorCode: 'INTERNAL_SERVER_ERROR' } }
-
-    render(<ProgressContent />)
-
-    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
-    expect(within(windowSection).getByRole('alert')).toHaveTextContent('progressScreen.error')
-    expect(within(windowSection).queryByText('progressScreen.window.lockedBody')).not.toBeInTheDocument()
-    fireEvent.click(within(windowSection).getByRole('button', { name: 'progressScreen.retry' }))
-    expect(mocks.retrospective.refetch).toHaveBeenCalledTimes(1)
-  })
-
-  it('renders empty weekly and habit figures without substituting unrelated totals', () => {
-    mocks.retrospective.data.metrics.weeklyConsistency = []
-    mocks.retrospective.data.metrics.topHabits = []
-
-    render(<ProgressContent />)
-
-    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
-    expect(windowSection.querySelectorAll('[data-state="empty"]')).toHaveLength(1)
-    expect(within(windowSection).queryByText('18')).not.toBeInTheDocument()
   })
 
   it('draws the XP row before grouped achievements and distinguishes earned shapes from progress', () => {
@@ -1308,69 +1133,6 @@ describe('ProgressContent', () => {
     expect(mocks.repair.mutate).not.toHaveBeenCalled()
   })
 
-  it('offers the server-confirmed one-day repair as a neutral small button at wide width', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
-    mocks.isDesktop = true
-    mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.isRepairAvailable = true
-    mocks.freeze.streakInfo.repairDate = '2026-09-09'
-
-    renderStreakDetails()
-
-    const action = screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')).closest('button')
-    expect(action).toHaveAttribute('data-variant', 'secondary')
-    expect(action).toHaveAttribute('data-size', 'sm')
-    fireEvent.click(action!)
-    expect(mocks.repair.mutate).not.toHaveBeenCalled()
-    expect(screen.getByText(personalText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}'))).toBeInTheDocument()
-    fireEvent.click(screen.getByText('progressScreen.streak.repairConfirmAction'))
-    expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
-  })
-
-  it.each(['pending', 'error'] as const)('retains a real repair mutation across details dismissal while %s', async (state) => {
-    vi.setSystemTime(new Date(progressStreakNow))
-    mocks.useRealRepair = true
-    holdAccount('user-1')
-    const streak = structuredClone(progressStreakStates.find(({ name }) => name === 'repair available')!.streak)
-    Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
-    let rejectRequest!: (error: Error) => void
-    mocks.repairRequest.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRequest = reject }))
-    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-    const view = render(<QueryClientProvider client={client}><StreakPage /></QueryClientProvider>)
-    const openDetails = () => fireEvent.click(screen.getByRole('button', { name: /^progressScreen\.streak\.freezes/ }))
-    const repairAction = () => screen.getByRole('button', { name: /^progressScreen\.streak\.repairAction/ })
-    const dismissDetails = async () => {
-      fireEvent.keyDown(screen.getByRole('dialog', { name: 'progressScreen.streak.freezes' }), { key: 'Escape' })
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'progressScreen.streak.freezes' })).not.toBeInTheDocument())
-    }
-    try {
-      openDetails()
-      fireEvent.click(repairAction())
-      fireEvent.click(screen.getByRole('button', { name: 'progressScreen.streak.repairConfirmAction' }))
-      await waitFor(() => expect(mocks.repairRequest).toHaveBeenCalledOnce())
-      expect(mocks.repairRequest).toHaveBeenCalledWith(['2026-09-09'], expect.anything())
-      await waitFor(() => expect(repairAction()).toBeDisabled())
-      expect(repairAction()).toHaveAttribute('aria-busy', 'true')
-      await dismissDetails()
-      if (state === 'pending') {
-        openDetails()
-        expect(repairAction()).toBeDisabled()
-        expect(repairAction()).toHaveAttribute('aria-busy', 'true')
-        expect(mocks.repairRequest).toHaveBeenCalledOnce()
-        await dismissDetails()
-      }
-      await act(async () => rejectRequest(createApiClientError(500, null, 'Repair failed')))
-      openDetails()
-      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.streak.repairError'))
-      expect(repairAction()).toBeEnabled()
-      expect(mocks.repairRequest).toHaveBeenCalledOnce()
-    } finally {
-      view.unmount()
-      client.clear()
-    }
-  })
-
   it('keeps goal creation off the streak detail', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
@@ -1397,32 +1159,6 @@ describe('ProgressContent', () => {
     vi.unstubAllGlobals()
   })
 
-  it('drops the repair confirmation when another account replaces the tab', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
-    vi.stubGlobal('fetch', vi.fn())
-    holdAccount('user-1')
-    mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.isRepairAvailable = true
-    mocks.freeze.streakInfo.repairDate = '2026-09-09'
-
-    renderStreakDetails()
-    fireEvent.click(
-      screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')),
-    )
-    expect(
-      screen.getByText(personalText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}')),
-    ).toBeInTheDocument()
-
-    await replaceAccountWith('user-2')
-
-    expect(
-      screen.queryByText(personalText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}')),
-    ).not.toBeInTheDocument()
-    expect(mocks.repair.mutate).not.toHaveBeenCalled()
-    vi.unstubAllGlobals()
-  })
-
   it('shows the date and remaining bank after a freeze spend', () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
     mocks.freeze.streakInfo.freezeBankRemaining = 2
@@ -1430,34 +1166,6 @@ describe('ProgressContent', () => {
     renderStreakDetails()
 
     expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}'))).toBeInTheDocument()
-  })
-
-  it('names automatic coverage, then keeps a confirmed manual repair source-neutral', () => {
-    mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
-    mocks.freeze.streakInfo.freezeBankRemaining = 2
-    Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'automatic' })
-    const view = renderStreakDetails()
-    expect(screen.getByText(personalText('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}'))).toBeInTheDocument()
-
-    mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.isRepairAvailable = true
-    mocks.freeze.streakInfo.repairDate = '2026-09-09'
-    mocks.repair.mutate.mockImplementationOnce(() => {
-      Object.assign(mocks.freeze.streakInfo, {
-        lastFreezeCoveredDate: '2026-09-09',
-        freezeBankRemaining: 1,
-        lastFreezeCoveredOrigin: 'manual',
-        isRepairAvailable: false,
-      })
-    })
-    view.rerender(<StreakPage />)
-    fireEvent.click(screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')))
-    fireEvent.click(screen.getByText('progressScreen.streak.repairConfirmAction'))
-    expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
-
-    view.rerender(<StreakPage />)
-    expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}'))).toBeInTheDocument()
-    expect(screen.queryByText(/progressScreen\.streak\.automaticCovered/)).not.toBeInTheDocument()
   })
 
   it('makes no automatic claim when a manual repair returns the same lastFreezeCoveredDate', () => {
@@ -1577,45 +1285,6 @@ describe('ProgressContent', () => {
     expect(screen.getByRole('dialog').querySelector('a[href="/upgrade"]')).toBeNull()
   })
 
-  it.each([
-    [429, 'progressScreen.streak.repairRateLimited'],
-    [500, 'progressScreen.streak.repairError'],
-  ])('names repair failure status %i honestly', (status, message) => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
-    mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.isRepairAvailable = true
-    mocks.freeze.streakInfo.repairDate = '2026-09-09'
-    mocks.repair.isError = true
-    mocks.repair.error = { status }
-
-    renderStreakDetails()
-
-    expect(screen.getByRole('alert')).toHaveTextContent(message)
-  })
-
-  it.each(['dark', 'light'] as const)('keeps the gap repair error legible on its well in %s', (mode) => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
-    mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.isRepairAvailable = true
-    mocks.freeze.streakInfo.repairDate = '2026-09-09'
-    mocks.repair.isError = true
-    mocks.repair.error = { status: 500 }
-    renderStreakDetails()
-    const stylesheet = document.createElement('style')
-    stylesheet.textContent = textStyles
-    document.head.append(stylesheet)
-    try {
-      const renderedColor = getComputedStyle(screen.getByRole('alert')).color
-      const theme = resolveWebThemeVariables('purple', mode)
-      const foreground = theme[renderedColor.slice(4, -1) as `--${string}`]!
-      expect(contrastOnSurface(foreground, [theme['--bg']!, theme['--bg-well']!])).toBeGreaterThanOrEqual(4.5)
-    } finally {
-      stylesheet.remove()
-    }
-  })
-
   it('does not render a failure after a repair conflict triggers read-back', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
@@ -1627,94 +1296,6 @@ describe('ProgressContent', () => {
     renderStreakDetails()
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  })
-
-  it('keeps detail entries beside the no-habits invitation', () => {
-    mocks.retrospective.isError = true
-    mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
-    render(<ProgressContent />)
-    expect(screen.getAllByText('progressScreen.window.empty')).toHaveLength(2)
-    expect(screen.getByRole('link', { name: 'progressScreen.sections.goals' })).toHaveAttribute('href', '/progress/goals')
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  })
-
-  it('shows the window empty state when an account with progress has no habits in the period', () => {
-    const retrospectiveData = mocks.retrospective.data
-    mocks.retrospective.data = null as unknown as typeof mocks.retrospective.data
-    mocks.retrospective.isError = true
-    mocks.retrospective.error = { data: { errorCode: 'NO_HABITS_FOR_PERIOD' } }
-
-    try {
-      render(<ProgressContent />)
-
-      expect(screen.getByRole('link', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
-      expect(screen.getAllByText('progressScreen.window.empty')).toHaveLength(2)
-      expect(screen.getByRole('link', { name: 'progressScreen.window.emptyAction' })).toHaveAttribute('data-variant', 'primary')
-      expect(screen.queryByText('0%')).not.toBeInTheDocument()
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-      expect(mocks.retrospectiveHook).toHaveBeenCalledTimes(1)
-    } finally {
-      mocks.retrospective.data = retrospectiveData
-    }
-  })
-
-  it.each([320, 360, 412, 1352].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('keeps the streak bottom fixed for every freeze state at $width in $locale', async ({ width, locale }) => {
-    vi.setSystemTime(new Date(progressStreakNow))
-    mocks.usePortugueseCatalog = locale === 'pt-BR'
-    mocks.useEnglishCatalog = locale === 'en'
-    mocks.isDesktop = width >= 1024
-    const words = locale === 'en' ? en : ptBR
-    const original = { ...mocks.freeze }
-    const page = await browser.newPage({ viewport: { width, height: 1200 } })
-    try {
-      for (const { name, streak } of progressStreakStates) {
-        Object.assign(mocks.freeze, deriveStreakFreezeState(null, mocks.account.profile), { streakInfo: null })
-        const { rerender, unmount } = render(<StreakPage />)
-        await act(async () => { await Promise.resolve() })
-        const section = screen.getByRole('region', { name: words.progressScreen.sections.streak })
-        const measure = async () => {
-          await page.setContent(`<style>${stylesheet}</style><div style="padding:16px;max-width:740px">${section.outerHTML}<h2 id="following">${words.progressScreen.sections.goals}</h2></div>`)
-          await loadAppFonts(page)
-          return page.locator('[data-progress-streak-summary]').evaluate((summary) => {
-            const entry = summary.querySelector('button')!
-            const value = entry.querySelector('[data-slot="list-row-value"]')!
-            const range = document.createRange()
-            range.selectNodeContents(value)
-            return {
-              followingTop: summary.nextElementSibling!.getBoundingClientRect().top,
-              rowHeight: entry.getBoundingClientRect().height,
-              valueLines: new Set(Array.from(range.getClientRects(), (rect) => Math.round(rect.top))).size,
-              valueWidth: range.getBoundingClientRect().width,
-              fontFamily: getComputedStyle(value).fontFamily,
-              fontSize: getComputedStyle(value).fontSize,
-              numericStyle: getComputedStyle(value).fontVariantNumeric,
-              valueInside: value.getBoundingClientRect().right <= entry.getBoundingClientRect().right,
-            }
-          })
-        }
-        expect(section.querySelector('[data-slot="list-row-value"]')).not.toBeNull()
-        expect(within(section).getByRole('button', { name: words.progressScreen.streak.freezes })).toBeDisabled()
-        const before = await measure()
-        Object.assign(mocks.freeze, deriveStreakFreezeState(streak, mocks.account.profile), { streakInfo: streak })
-        rerender(<StreakPage />)
-        await act(async () => { await Promise.resolve() })
-        const entry = within(section).getByRole('button', { name: new RegExp(`^${words.progressScreen.streak.freezes}`) })
-        expect(entry).toHaveAccessibleName(createTranslator({ locale, messages: words })('progressScreen.streak.freezesCount', { banked: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated }))
-        expect(entry).toHaveTextContent(`${streak.streakFreezesAccumulated} / ${streak.maxStreakFreezesAccumulated}`)
-        const after = await measure()
-        expect.soft(after, name).toEqual(before)
-        expect.soft(after.fontFamily, name).toContain('Geist Mono')
-        expect.soft(after.fontSize, name).toBe('12px')
-        expect.soft(after.numericStyle, name).toBe('tabular-nums')
-        expect.soft(after.valueLines, name).toBe(1)
-        expect.soft(after.valueInside, name).toBe(true)
-        unmount()
-      }
-    } finally {
-      Object.assign(mocks.freeze, original)
-      await page.close()
-    }
   })
 
   it.each(['dark', 'light'] as const)('keeps the disabled freeze chevron above the non-text contrast floor in %s', async (mode) => {

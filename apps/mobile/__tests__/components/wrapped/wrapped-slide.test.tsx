@@ -160,25 +160,6 @@ describe('mobile WrappedSlide', () => {
     void renderer.act(() => tree.update(<></>))
   })
 
-  it.each([false, true])('withholds weekday claims while the profile is unavailable, error %s', (isError) => {
-    profileState.isError = isError
-    const tree = renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)
-    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')).toHaveLength(0)
-    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(0)
-    expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.thin')).toHaveLength(0)
-    if (isError) {
-      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert').length).toBeGreaterThan(0)
-      const retry = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'wrapped.retry')[0]!
-      void renderer.act(() => (retry.props.onPress as () => void)())
-      expect(profileState.refetch).toHaveBeenCalledOnce()
-    } else {
-      const loading = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')[0]!
-      expect(loading.props.accessibilityLabel).toBe('wrapped.loading')
-      expect(loading.props.accessibilityState).toMatchObject({ busy: true })
-    }
-    void renderer.act(() => tree.update(<></>))
-  })
-
   it('states the consistency error with Orbit in Parado, and retry reads the profile again', () => {
     profileState.isError = true
     const tree = renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)

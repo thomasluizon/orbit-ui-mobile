@@ -480,21 +480,4 @@ describe('the dashboards and the notices with the guided flows on', () => {
 })
 
 describe('the upgrade route with the guided flows off', () => {
-  it('keeps the current full-surface billing error, with its Orbit in Parado', () => {
-    mocks.statusError = true
-    mocks.status = null
-    render(<UpgradePage />)
-    expect(screen.getByRole('alert')).toHaveTextContent(en.upgrade.billing.error)
-    expect(document.querySelector('[data-upgrade-load-failed]')).toBeNull()
-    expect([...document.querySelectorAll('[data-orbit-face="rig"]')].map((rig) => rig.getAttribute('data-orbit-state'))).toEqual(['parado'])
-  })
-
-  it('keeps the current pitch, the title of the header as a heading and the done toast of the Stripe return', () => {
-    render(<UpgradePage />)
-    expect(screen.getAllByRole('heading', { level: 1 }).map((heading) => heading.textContent)).toEqual(['Orbit Pro'])
-    expect(document.querySelector('[data-upgrade-block]')).toBeNull()
-    expect(document.querySelector('[data-upgrade-orbit-line]')).toBeNull()
-    expect(mocks.toastOnSuccess).toBe(true)
-    expect(mocks.beforeRedirect).toBeUndefined()
-  })
 })

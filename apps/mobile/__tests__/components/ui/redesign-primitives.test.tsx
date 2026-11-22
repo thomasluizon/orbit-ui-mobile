@@ -6,7 +6,6 @@ import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Columns } from '@/components/ui/columns'
 import { Fab } from '@/components/ui/fab'
 import { Icon } from '@/components/ui/icon'
-import { Lockup } from '@/components/ui/lockup'
 import { LOCKUP_MARK_PATHS } from '@orbit/shared/contracts/brand'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { createTokensV2 } from '@/lib/theme'
@@ -232,20 +231,5 @@ describe('redesign primitives on mobile', () => {
       tree.update(<Icon name="home" label="Home" />)
     })
     expect(prop(tree.root.findByProps({ testID: 'icon-home' }), 'accessibilityLabel')).toBe('Home')
-  })
-
-  it('renders the outlined lockup with fixed geometry and no text node', () => {
-    const tree = render(<Lockup />)
-    const lockup = tree.root.findByProps({ testID: 'orbit-lockup' })
-    expect(prop(lockup, 'viewBox')).toBe('-0.000400046 0.000000000 89.395902732 17.742772815')
-    expect(byType(tree.root, 'Path')).toHaveLength(5)
-    expect(byType(tree.root, 'Text')).toHaveLength(0)
-  })
-
-  it('paints the lockup moon with the accent and the rest of the mark with the foreground', () => {
-    const tree = render(<Lockup />)
-    const accent = byType(tree.root, 'Path').filter(path => prop(path, 'fill') === tokens.primary)
-    expect(accent.map(path => prop(path, 'd'))).toEqual([LOCKUP_MARK_PATHS.find(path => path.part === 'moon')?.d])
-    expect(prop(tree.root.findByProps({ testID: 'orbit-lockup' }), 'color')).toBe(tokens.fg1)
   })
 })

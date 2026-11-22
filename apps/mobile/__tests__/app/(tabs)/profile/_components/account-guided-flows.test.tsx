@@ -220,8 +220,4 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
 })
 
 describe('Android flag off', () => {
-  it('keeps the current sheets', async () => {
-    const tree = await render(<><FreshStartModal open onClose={vi.fn()} /><DeleteAccountModal open profile={proProfile} onClose={vi.fn()} /></>)
-    expect(hosts(tree).some((node) => node.props.testID === 'question-flow')).toBe(false)
-  })
 })

@@ -60,7 +60,6 @@ vi.mock('@/hooks/use-tags', () => ({
   useCreateTag: () => ({ mutateAsync: vi.fn(), isPending: false }), useUpdateTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
-vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => null, useLinkableGoals: () => ({ data: [], isSuccess: true, isLoading: false, isError: false, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
   useChecklistTemplates: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
@@ -134,19 +133,5 @@ describe.each(['pt-BR', 'en'] as const)('every Android edit entry of Hoje and ha
 })
 
 describe('the Android edit entries', () => {
-  it('keep the current edit form from the Hoje edit host and the pencil', async () => {
-    await i18n.changeLanguage('pt-BR')
-    const habit = createMockHabit({ id: 'habit-1', title: 'Correr', frequencyUnit: 'Day', frequencyQuantity: 1 })
-    const list = renderNavigation(todayModals(habit))
-    await settle()
-    expect(hasTestId(list, 'question-flow')).toBe(false)
-    list.unmount()
-    const detail = mountDetail()
-    await settle()
-    await tap(detail, ptBR.habits.editHabit)
-    await settle()
-    expect(hasTestId(detail, 'question-flow')).toBe(false)
-    detail.unmount()
-  })
 })
 

@@ -322,23 +322,6 @@ describe('Google code callback', () => {
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
   })
 
-  it.each([true, false])('shows the way into the Android app as a state surface with Orbit in Parado under the flag, guided %s', async (guided) => {
-    const query = '?code=mobile%2Bcode&state=mobile-state'
-    vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', 'org.useorbit.app')
-    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 15) Chrome/130.0' })
-    vi.stubGlobal('location', { protocol: 'https:', host: 'app.useorbit.org', search: query, assign: vi.fn() })
-    const { container } = render(<AuthCallbackContent pendingWebStates={{ apple: null, google: null }} />)
-    const link = await screen.findByRole('link', { name: 'auth.openInOrbit' })
-    expect(link).toHaveAttribute('href', `intent://app.useorbit.org/auth-callback${query}#Intent;scheme=https;package=org.useorbit.app;end`)
-    const surface = container.querySelector<HTMLElement>('[data-app-handoff]')
-    expect(surface !== null).toBe(guided)
-    expect(container.querySelector('[data-asset="orbit-lockup"]') === null).toBe(guided)
-    if (!surface) return
-    expect(surface.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'parado')
-    expect(surface.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-face', 'rig')
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('auth.continueInApp')
-  })
-
   it('shows a visible error when the API rejects the code', async () => {
     window.history.replaceState(null, '', '/auth-callback?code=bad&state=oauth-state')
     fetchMock.mockResolvedValue(new Response('{}', { status: 400 }))

@@ -38,41 +38,6 @@ describe('web habit detail result dialog', () => {
     expect(container.querySelector('[role="dialog"]')).toBeNull()
   })
 
-  it('ends each flow as before with the flag off: a delete goes to Hoje at once and a reschedule shows nothing', () => {
-    const seeToday = vi.fn()
-    const off = renderHook(() => useHabitDetailResult(seeToday))
-    act(() => off.result.current.rescheduled('20 November'))
-    expect(off.result.current.result).toBeNull()
-    expect(seeToday).not.toHaveBeenCalled()
-    act(() => off.result.current.deleted())
-    expect(off.result.current.result).toBeNull()
-    expect(seeToday).toHaveBeenCalledOnce()
-  })
-
-  it.each([['on', true], ['off', false]])('never brings back the load error while detail leaves after a delete, with the guided flows %s', async (_label, guided) => {
-    const seeToday = vi.fn()
-    function Detail() {
-      const host = useHabitDetailResult(seeToday)
-      return <>
-        <button onClick={host.deleted}>delete</button>
-        <HabitDetailUnavailable result={host.result} habitDeleted={host.habitDeleted} onSeeToday={host.seeToday} onClose={host.close}>
-          <p>habits.detail.loadError</p>
-        </HabitDetailUnavailable>
-      </>
-    }
-    render(<Detail />)
-    expect(screen.getByText('habits.detail.loadError')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'delete' }))
-    if (guided) {
-      await screen.findByRole('dialog', { name: 'result.title' })
-      expect(screen.queryByText('habits.detail.loadError')).toBeNull()
-      fireEvent.click(screen.getByRole('button', { name: 'result.seeToday' }))
-      expect(screen.queryByRole('dialog')).toBeNull()
-    }
-    expect(seeToday).toHaveBeenCalledOnce()
-    expect(screen.queryByText('habits.detail.loadError')).toBeNull()
-  })
-
   it('holds the result with the guided flows on, and a deleted habit leaves to Hoje however its dialog closes', () => {
     const seeToday = vi.fn()
     const on = renderHook(() => useHabitDetailResult(seeToday))

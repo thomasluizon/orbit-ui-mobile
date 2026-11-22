@@ -6,7 +6,7 @@ import ptBR from '../i18n/pt-BR.json'
 
 describe('today Orbit line', () => {
   const item = createMockProactiveItem()
-  const available = { isTodaySelected: true, inDrillOrSurface: false, item: null, returning: null, guided: false }
+  const available = { isTodaySelected: true, inDrillOrSurface: false, item: null, returning: null }
   const translate = (key: string, values?: { days: number }) => values ? `${key}:${values.days}` : key
 
   it('prefers the proactive item over a returning line', () => {
@@ -31,9 +31,9 @@ describe('today Orbit line', () => {
 
   it('shows the sentence with no count of days for a gap beyond the window while the guided flows are on', () => {
     const expected = { text: 'todayOrbit.guided.returning', destination: 'todayOrbit.viewProgress', item: null }
-    expect(getTodayOrbitLine({ ...available, guided: true, returning: { kind: 'bounded' } }, translate)).toEqual(expected)
-    expect(getTodayOrbitSlot({ ...available, guided: true, returning: { kind: 'bounded' } }, translate)).toEqual(expected)
-    expect(getTodayOrbitLine({ ...available, guided: true, returning: { kind: 'elapsed', days: 5 } }, translate)).toEqual(expected)
+    expect(getTodayOrbitLine({ ...available, returning: { kind: 'bounded' } }, translate)).toEqual(expected)
+    expect(getTodayOrbitSlot({ ...available, returning: { kind: 'bounded' } }, translate)).toEqual(expected)
+    expect(getTodayOrbitLine({ ...available, returning: { kind: 'elapsed', days: 5 } }, translate)).toEqual(expected)
   })
 
   it('uses the summary only after the proactive and returning lines', () => {

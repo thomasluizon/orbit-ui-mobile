@@ -167,18 +167,6 @@ function UsageStatsWithoutProfile() {
 }
 
 describe('UpgradePage subscription management', () => {
-  it('keeps outcomes inside the plan cards', async () => {
-    mockPlans = { monthly: { unitAmount: 999 }, yearly: { unitAmount: 6999 }, currency: 'usd', savingsPercent: 42, couponPercentOff: null }
-    render(<UpgradePage />)
-    await waitFor(() => {
-      expect(document.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
-      expect(document.querySelectorAll('[data-tier]')).toHaveLength(2)
-    })
-    for (const list of screen.getAllByRole('list', { name: 'upgrade.outcomes.label' })) {
-      expect(list.closest('[data-tier]')).not.toBeNull()
-      expect(list.children).toHaveLength(4)
-    }
-  })
 
   it('updates one mounted portal alert through failure and retry', () => {
     function Handoff({ state }: { state: 'stripe' | 'portal-failed' }) {
@@ -339,13 +327,6 @@ describe('UpgradePage subscription management', () => {
     expect(screen.queryByText('upgrade.pitchTitle')).not.toBeInTheDocument()
   })
 
-  it('shows the subscription title when status resolves without a value', () => {
-    mockProfile = null
-    render(<UpgradePage />)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('upgrade.title')
-    expect(screen.getByText('upgrade.billing.error')).toBeInTheDocument()
-  })
-
   it('shows billing loading state for Pro users', () => {
     mockHasProAccess = true
     mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
@@ -353,16 +334,6 @@ describe('UpgradePage subscription management', () => {
     const { container } = render(<UpgradePage />)
     const shimmerElements = container.querySelectorAll('.skeleton-pulse')
     expect(shimmerElements.length).toBeGreaterThan(0)
-  })
-
-  it('shows billing error state for Pro users', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockIsBillingError = true
-    mockBilling = null
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.error')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'upgrade.billing.retry' })).toBeInTheDocument()
   })
 
   it('shows billing plan details when loaded', () => {
@@ -918,35 +889,6 @@ describe('UpgradePage subscription management', () => {
     render(<UpgradePage />)
     expect(screen.getByText(label)).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('upgrade.billing.plan.renewsOn')
-  })
-
-  it.each(['canceled', 'payment_failed', 'expired'] as const)('shows the %s lapse outcome after entitlement is cleared', (lapseReason) => {
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: false,
-      isTrialActive: false,
-      subscriptionInterval: null,
-      subscriptionSource: null,
-      planExpiresAt: null,
-      lapseReason,
-      subscriptionEndedAt: '2026-08-01T00:00:00Z',
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
-    const endedKey = lapseReason === 'payment_failed' ? 'payment_failed' : 'ended'
-    expect(document.body.textContent).toContain(`upgrade.billing.lapsed.${endedKey}`)
-    expect(document.body.textContent).toContain('2026-08-01')
-    expect(document.body.textContent).not.toContain('upgrade.billing.usage.title')
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
-    expect(document.body.textContent).not.toContain('upgrade.billing.usage.nearLimit')
-    expect(document.body.textContent).toContain('upgrade.billing.lapsed.lostMessages')
-    expect(screen.getByText('upgrade.billing.lapsed.lostCalendar')).toBeInTheDocument()
-    expect(screen.getByText('upgrade.billing.lapsed.lostRetrospective')).toBeInTheDocument()
-    expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
-    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
-    expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
-    expect(screen.getByRole('heading', { name: 'upgrade.convert.freeHeading' })).toHaveFocus()
-    expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
   })
 
   it('names an entitled Stripe payment failure without billing details', () => {

@@ -10,7 +10,6 @@ import type { ReactNode } from 'react'
 import en from '@orbit/shared/i18n/en.json'
 import { Input } from '@/components/ui/input'
 import { TimeField } from '@/components/ui/time-field'
-import { FieldWell } from '@/components/goals/field-well'
 import { CommandSearchField } from '@/components/command/command-menu-chrome'
 import { Composer } from '@/components/shell/composer'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
@@ -24,7 +23,7 @@ vi.mock('next-intl', async (importActual) => {
 })
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: true } }) }))
 
-const surfaces = ['input', 'multiline', 'time', 'goal', 'command', 'composer', 'habit', 'code'] as const
+const surfaces = ['input', 'multiline', 'time', 'command', 'composer', 'habit', 'code'] as const
 type Surface = (typeof surfaces)[number]
 type RingTransition = { type: string; propertyName: string; elapsedTime: number }
 const noop = () => {}
@@ -34,7 +33,6 @@ async function markup(surface: Surface, focused = false, disabled = false, error
     input: <Input label="Email" value="" onChange={noop} disabled={disabled} error={error} kind="email" autoComplete="email" />,
     multiline: <Input label="Message" value="" onChange={noop} multiline disabled={disabled} error={error} />,
     time: <TimeField label="Time" value="14:30" onChange={noop} disabled={disabled} error={error} />,
-    goal: <FieldWell label="Goal" id="goal" type="text" value="" onChange={noop} />,
     command: <Command><CommandSearchField search="" setSearch={noop} activePageLabel={null} onBack={noop} /></Command>,
     composer: <Composer {...(disabled ? { state: 'sending' as const } : { state: 'idle' as const })} value="" onChangeValue={noop} onSend={noop} suggestions={[]} words={{ placeholder: 'Message', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Add to message', suggestionsLabel: 'Suggestions' }} />,
     code: <OtpInput label="Code" value="" onChange={noop} autoFocus={false} disabled={disabled} error={error} />,
