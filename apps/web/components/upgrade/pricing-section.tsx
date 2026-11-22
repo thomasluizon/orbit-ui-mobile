@@ -1,4 +1,4 @@
-import type { AstraAllowance } from '@orbit/shared/utils'
+import type { OrbitAllowance } from '@orbit/shared/utils'
 import { ProPitch } from './pro-pitch'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
@@ -11,7 +11,7 @@ interface PricingSectionProps {
   stayFreeHref?: string
   dateHint?: string
   focusOnMount?: boolean
-  profile: ({ isTrialActive?: boolean } & AstraAllowance) | null
+  profile: ({ isTrialActive?: boolean } & OrbitAllowance) | null
   plans: ReturnType<typeof useSubscriptionPlans>['plans']
   isLoadingPlans: boolean
   isPlansError: boolean

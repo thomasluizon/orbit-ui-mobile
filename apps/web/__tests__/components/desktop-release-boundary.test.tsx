@@ -37,8 +37,8 @@ afterEach(() => {
 function Conversation() {
   const messages = useChatStore(state => state.messages)
   const draft = useChatStore(state => state.draft)
-  const open = useUIStore(state => state.astraConversationOpen)
-  return <section aria-label="Astra" hidden={!open}>
+  const open = useUIStore(state => state.orbitConversationOpen)
+  return <section aria-label="Orbit" hidden={!open}>
     {messages.map(message => <p key={message.id}>{message.content}</p>)}
     <textarea aria-label="Draft" value={draft} readOnly />
   </section>
@@ -147,7 +147,7 @@ it('keeps browser sessions outside the shell gate, and requires updates for undi
   expect(await screen.findByRole('alert')).toHaveTextContent(en.desktopUpdate.required)
 })
 
-it('restores structured Astra state and visibility through the real provider composition after reload', async () => {
+it('restores structured Orbit state and visibility through the real provider composition after reload', async () => {
   vi.stubGlobal('__TAURI_INTERNALS__', {})
   vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', '0.1.2')
   const message = makeHeldHabitMessage({ content: 'Your planned habits' })
@@ -157,7 +157,7 @@ it('restores structured Astra state and visibility through the real provider com
   render(<NextIntlClientProvider locale="en" messages={en}>
     <Providers><Conversation /></Providers>
   </NextIntlClientProvider>)
-  expect(await screen.findByRole('region', { name: 'Astra' })).toBeVisible()
+  expect(await screen.findByRole('region', { name: 'Orbit' })).toBeVisible()
   expect(screen.getByText('Your planned habits')).toBeVisible()
   expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue('And tomorrow?')
   expect(useChatStore.getState().messages[0]).toEqual(message)

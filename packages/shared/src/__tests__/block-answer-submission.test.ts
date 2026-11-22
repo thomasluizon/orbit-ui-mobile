@@ -3,7 +3,7 @@ import { BlockAnswerSubmission, type ChatStreamResult } from '../chat/block-answ
 import { createChatStoreState, type ChatStoreState } from '../stores/chat-store'
 import { choiceBlockFixture, pickListBlockFixture } from '../test-support/choice-fixtures'
 import type { BlockAnswerRequest } from '../chat/block-answer'
-import allowanceRefusals from '../test-support/astra-allowance-refusals.fixture.json'
+import allowanceRefusals from '../test-support/orbit-allowance-refusals.fixture.json'
 
 function submissionContext() {
   let chat: ChatStoreState = createChatStoreState(patch => {
@@ -12,7 +12,7 @@ function submissionContext() {
   return {
     isOnline: true, atMessageLimit: false, locale: 'en',
     getChat: () => chat, createMessageId: () => 'answer-message',
-    conversation: { astraConversationOpen: true, setAstraConversationOpen: vi.fn() },
+    conversation: { orbitConversationOpen: true, setOrbitConversationOpen: vi.fn() },
     onDailyBudgetExceeded: vi.fn(), onAllowanceExceeded: vi.fn(),
     beginSend: vi.fn(), refreshProfile: vi.fn(async () => {}),
     run: vi.fn(async (_request: unknown, accepted: () => void): Promise<ChatStreamResult> => { accepted(); return { kind: 'final' } }),
@@ -100,7 +100,7 @@ describe('shared block answer submission', () => {
     const submission = new BlockAnswerSubmission()
     context.run.mockResolvedValueOnce({ kind: 'failed', failure: { status: 500, error: 'Reply failed', code: null }, draftMessageId: null })
     await submission.send(choice, context)
-    context.run.mockResolvedValueOnce({ kind: 'failed', failure: { status: 409, error: 'Already answered', code: 'AstraBlockAnswered' }, draftMessageId: null })
+    context.run.mockResolvedValueOnce({ kind: 'failed', failure: { status: 409, error: 'Already answered', code: 'OrbitBlockAnswered' }, draftMessageId: null })
     expect(await submission.send({ ...choice, answer: { ...choice.answer, selectedIds: ['morning'] } }, context)).toEqual({ ok: false, status: 409 })
     expect(context.run.mock.calls.map(([attempt]) => attempt)).toEqual([
       expect.objectContaining({ messageCost: 1 }), expect.objectContaining({ messageCost: 1 }),

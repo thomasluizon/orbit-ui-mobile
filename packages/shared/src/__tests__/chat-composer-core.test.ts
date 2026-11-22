@@ -1,4 +1,4 @@
-import allowanceRefusals from '../test-support/astra-allowance-refusals.fixture.json'
+import allowanceRefusals from '../test-support/orbit-allowance-refusals.fixture.json'
 import { describe, expect, it } from 'vitest'
 import { QueryClient } from '@tanstack/query-core'
 import type {
@@ -44,7 +44,7 @@ describe('classifySendFailure', () => {
     expect(result.kind).toBe('limit')
   })
 
-  it('classifies a daily Astra 403 PAY_GATE as a limit', () => {
+  it('classifies a daily Orbit 403 PAY_GATE as a limit', () => {
     const result = classifySendFailure({
       status: 403,
       code: 'PAY_GATE',

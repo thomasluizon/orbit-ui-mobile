@@ -19,7 +19,7 @@ vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (pr
 } }))
 vi.mock('@/stores/offline-sync-store', () => ({ useOfflineSyncStore: () => undefined }))
 
-beforeEach(() => { vi.clearAllMocks(); route.params = {}; route.canGoBack = true; useUIStore.getState().setAstraConversationOpen(false) })
+beforeEach(() => { vi.clearAllMocks(); route.params = {}; route.canGoBack = true; useUIStore.getState().setOrbitConversationOpen(false) })
 async function mount() {
   let tree: import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
   await TestRenderer.act(() => { tree = TestRenderer.create(<HabitCreateRoute />) })
@@ -64,7 +64,7 @@ describe('native habit creation route', () => {
     if (!dismiss) throw new Error('Native removal guard was not registered')
     await TestRenderer.act(dismiss)
     expect(route.back).toHaveBeenCalledOnce()
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     await unmount()
   })
   it('returns a direct link to Today without a back stack', async () => {

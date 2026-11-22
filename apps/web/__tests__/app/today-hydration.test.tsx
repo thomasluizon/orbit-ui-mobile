@@ -37,7 +37,7 @@ vi.mock('@/app/(app)/today-page-view', () => ({
   TodayHabitsPanel: () => null,
   TodayOverlays: () => null,
 }))
-vi.mock('@/components/today/today-astra', () => ({ TodayAstra: () => null }))
+vi.mock('@/components/today/today-orbit', () => ({ TodayOrbit: () => null }))
 vi.mock('@/components/ui/skeleton', () => ({ Skeleton: () => <div>Loading habits</div> }))
 function Tree({ client }: { client: QueryClient }) {
   return <QueryClientProvider client={client}>

@@ -215,7 +215,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
         if ('localStorage' in globalThis) {
           globalThis.localStorage.setItem(
             CHAT_DRAFT_STORAGE_KEY,
-            t('onboarding.flow.meetAstra.importPrompt'),
+            t('onboarding.flow.meetOrbit.importPrompt'),
           )
         }
         router.push(buildConversationEntryHref('open'))

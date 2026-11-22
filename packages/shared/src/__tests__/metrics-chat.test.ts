@@ -7,7 +7,7 @@ const series = { granularity: 'day', points: [{
   startDate: '2026-09-01', endDate: '2026-09-01', scheduled: 2, completed: 1, completionRate: 50,
 }] }
 
-describe('Astra metrics response contract', () => {
+describe('Orbit metrics response contract', () => {
   it('keeps the API metrics and insight payloads', () => {
     const metricsCard = {
       period: 'week', completionRate: 50, totalCompletions: 1, totalScheduled: 2,

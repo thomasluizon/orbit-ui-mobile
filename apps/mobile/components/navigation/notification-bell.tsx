@@ -22,11 +22,11 @@ export function NotificationBell() {
   return <NotificationBellDisplay count={count} loaded={data !== undefined}
     onPress={pathname === '/notifications' ? undefined : () => requestHabitCreateNavigation(
       () => {
-        useUIStore.getState().setAstraConversationOpen(false)
+        useUIStore.getState().setOrbitConversationOpen(false)
         router.push('/notifications')
       },
       () => {
-        useUIStore.getState().setAstraConversationOpen(false)
+        useUIStore.getState().setOrbitConversationOpen(false)
         router.replace('/notifications')
       },
     )} />

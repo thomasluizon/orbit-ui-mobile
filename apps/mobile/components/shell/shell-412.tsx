@@ -1,4 +1,4 @@
-import { AstraButton, useAstraButtonBlocked } from './astra-button'
+import { OrbitButton, useOrbitButtonBlocked } from './orbit-button'
 import { ConversationComposerMotionProvider } from './conversation-composer-motion'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -17,7 +17,7 @@ import { ShellFocusTargetContext, ShellListFocusContext } from './shell-focus-ta
 import { useShellContentStyle } from './shell-side-insets'
 import { ShellContent } from './shell-content'
 import { RootScrollProvider } from './root-scroll-context'
-import { ASTRA_BUTTON_GAP, ASTRA_STACK_CLEARANCE } from '@orbit/shared/utils'
+import { ORBIT_BUTTON_GAP, ORBIT_STACK_CLEARANCE } from '@orbit/shared/utils'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
 function ShellBottomViewport({ floating, minimumHeight, onSlotHeight, children }: Readonly<{
@@ -160,12 +160,12 @@ function ShellScrollToTopSlot({ visible, content }: Readonly<{ visible: boolean;
   return <View testID="shell-scroll-to-top" pointerEvents="box-none" style={styles.scrollToTop}>{content}</View>
 }
 
-function ShellFabColumn({ astraVisible, fab, height }: Readonly<{ astraVisible: boolean; fab: ReactNode; height: number }>) {
-  if (!astraVisible && fab === undefined) return null
+function ShellFabColumn({ orbitVisible, fab, height }: Readonly<{ orbitVisible: boolean; fab: ReactNode; height: number }>) {
+  if (!orbitVisible && fab === undefined) return null
   return <View testID="shell-fab-band" pointerEvents="box-none" style={[styles.fabBand, { height }]}>
     <ShellContent style={{ height }} pointerEvents="box-none"><View style={styles.fabBandFill} pointerEvents="box-none">
       <View testID="shell-fab-column" pointerEvents="box-none" style={styles.fabColumn}>
-        {astraVisible ? <AstraButton /> : null}
+        {orbitVisible ? <OrbitButton /> : null}
         {fab !== undefined ? <View testID="shell-fab" pointerEvents="box-none">{fab}</View> : null}
       </View>
     </View></ShellContent>
@@ -213,21 +213,21 @@ function getBottomViewportMinimum(minimum: number, slotHeight: number, hasPinned
   return hasPinnedSlot ? minimum : Math.min(minimum, slotHeight)
 }
 
-function useFabColumn({ astraButton, conversationOpen, floating, reservesSpace }: Readonly<{
-  astraButton?: boolean
+function useFabColumn({ orbitButton, conversationOpen, floating, reservesSpace }: Readonly<{
+  orbitButton?: boolean
   conversationOpen: boolean
   floating: boolean
   reservesSpace: boolean
 }>) {
-  const astraEnabled = astraButton === true && !conversationOpen
-  const astraBlocked = useAstraButtonBlocked(astraEnabled)
-  const astraVisible = astraEnabled && !astraBlocked
-  const scrollerClearance = astraButton === true && floating ? ASTRA_STACK_CLEARANCE
-    : astraButton === true || reservesSpace ? SHELL_SCROLLER_CLEARANCE : 32
-  return { astraVisible, scrollerClearance, height: astraVisible && floating ? ASTRA_STACK_CLEARANCE : SHELL_SCROLLER_CLEARANCE }
+  const orbitEnabled = orbitButton === true && !conversationOpen
+  const orbitBlocked = useOrbitButtonBlocked(orbitEnabled)
+  const orbitVisible = orbitEnabled && !orbitBlocked
+  const scrollerClearance = orbitButton === true && floating ? ORBIT_STACK_CLEARANCE
+    : orbitButton === true || reservesSpace ? SHELL_SCROLLER_CLEARANCE : 32
+  return { orbitVisible, scrollerClearance, height: orbitVisible && floating ? ORBIT_STACK_CLEARANCE : SHELL_SCROLLER_CLEARANCE }
 }
 
-export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean; astraButton?: boolean }>) {
+export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean; orbitButton?: boolean }>) {
   const [slotHeight, setSlotHeight] = useState(0)
   const mainRef = useRef<View>(null)
   const focusTarget = useRef<number | null>(null)
@@ -250,7 +250,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     || pinnedSlot !== undefined
     || props.fab !== undefined
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
-  const fabColumn = useFabColumn({ astraButton: props.astraButton, conversationOpen, floating,
+  const fabColumn = useFabColumn({ orbitButton: props.orbitButton, conversationOpen, floating,
     reservesSpace: pinnedSlot !== undefined || floating })
   const scrollerClearance = fabColumn.scrollerClearance
   function revealListFocus(target: HostInstance, scrollBy: (offset: number) => void) {
@@ -309,7 +309,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           <View ref={mainRef} focusable testID="shell-scroller" style={[styles.scroller, floating && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
             <ShellListFocusContext.Provider value={revealListFocus}><ShellPageContent framed={header !== undefined} navigationEnabled={navigationEnabled} safeAreaTop={props.safeAreaTop}>{props.children}</ShellPageContent></ShellListFocusContext.Provider>
             <ShellScrollToTopSlot visible={!conversationOpen} content={scrollToTop} />
-            <ShellFabColumn astraVisible={fabColumn.astraVisible} fab={props.fab} height={fabColumn.height} />
+            <ShellFabColumn orbitVisible={fabColumn.orbitVisible} fab={props.fab} height={fabColumn.height} />
           </View>
 
           <ShellBottomChrome
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   bottomViewport: { flexGrow: 1, flexShrink: 1, minHeight: 0 },
   fabBand: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: zLayers.sticky },
   fabBandFill: { flex: 1 },
-  fabColumn: { bottom: 16, position: 'absolute', right: 16, alignItems: 'center', gap: ASTRA_BUTTON_GAP },
+  fabColumn: { bottom: 16, position: 'absolute', right: 16, alignItems: 'center', gap: ORBIT_BUTTON_GAP },
   conversation: {
     alignSelf: 'center',
     width: '100%',

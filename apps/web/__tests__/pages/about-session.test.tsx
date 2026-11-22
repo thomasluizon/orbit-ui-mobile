@@ -54,15 +54,15 @@ vi.mock('next/navigation', () => ({
   },
 }))
 vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: mocks.openCurrentProactiveItem }))
-vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
+vi.mock('@/components/chat/conversation', () => ({ OrbitConversation: () => null }))
 vi.mock('@/components/navigation/navigation-history-tracker', () => ({ NavigationHistoryTracker: () => null }))
 vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, composer, astraButton, notice, onCreate }: { children: ReactNode; composer?: ReactNode; astraButton?: ReactNode; notice?: ReactNode; onCreate: () => void }) => (
-    <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" /><button onClick={onCreate}>Create habit</button>{composer}<div data-shell-page=""><div data-shell-page-content="" /></div>{astraButton}{children}<div data-shell-notice="">{notice}</div></main>
+  ShellWide: ({ children, composer, orbitButton, notice, onCreate }: { children: ReactNode; composer?: ReactNode; orbitButton?: ReactNode; notice?: ReactNode; onCreate: () => void }) => (
+    <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" /><button onClick={onCreate}>Create habit</button>{composer}<div data-shell-page=""><div data-shell-page-content="" /></div>{orbitButton}{children}<div data-shell-notice="">{notice}</div></main>
   ),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null, CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))
@@ -210,7 +210,7 @@ it('keeps the Today shell and content in server markup while search parameters a
 })
 
 it.each([
-  ['orbit', 'open'], ['orbit', 'proactive'], ['astra', 'open'], ['astra', 'proactive'],
+  ['orbit', 'open'], ['orbit', 'proactive'], ['orbit', 'open'], ['orbit', 'proactive'],
 ] as const)('opens the conversation entry %s=%s once while the shell rerenders and clears the query', (name, entry) => {
   mocks.pathname = '/'
   mocks.searchParams = new URLSearchParams({ [name]: entry })
@@ -218,7 +218,7 @@ it.each([
 
   render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
 
-  if (entry === 'open') expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  if (entry === 'open') expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   else expect(mocks.openCurrentProactiveItem).toHaveBeenCalledOnce()
   expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith('/')
 })
@@ -295,11 +295,11 @@ it('carries conversation provenance while closing its overlay', () => {
   mocks.pathname = '/'
   render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
   act(() => {
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     useUIStore.getState().setShowCreateModal(true)
   })
   expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/habits/new?from=%2F&origin=conversation')
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(false)
 })
 
 it.each(['auth_token', 'refresh_token'])('preserves the destination shell while a hard load of About restores %s', async (cookieName) => {

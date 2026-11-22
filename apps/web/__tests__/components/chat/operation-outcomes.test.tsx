@@ -43,7 +43,7 @@ describe('OperationOutcomes on web', () => {
   beforeEach(() => push.mockReset())
 
   it('renders localized typed outcomes and keeps policy recovery on Profile', () => {
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [
       makeAgentOperationResult('Succeeded', 1),
       makeAgentOperationResult('Failed', 2),
@@ -60,7 +60,7 @@ describe('OperationOutcomes on web', () => {
     expect(screen.queryByText('DeleteAccount')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.openProfile' }))
     expect(push).toHaveBeenCalledWith('/profile')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
   it('renders one policy outcome when the API returns a denial twice', () => {

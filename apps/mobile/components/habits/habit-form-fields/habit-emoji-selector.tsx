@@ -112,7 +112,7 @@ export function HabitEmojiSelector({
             onPress={() => setPickerOpen(true)}
             accessibilityRole="button"
             accessibilityLabel={t("habits.form.emojiOpenPicker")}
-            accessibilityHint={proposed ? t('habits.form.proposedByAstra') : undefined}
+            accessibilityHint={proposed ? t('habits.form.proposedByOrbit') : undefined}
             accessibilityState={{ disabled: isDisabled }}
           >
             {({ pressed }) => (

@@ -27,10 +27,10 @@ import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
 
 const PAUSED_FEATURES = [
-  'trial.expired.astraCeiling',
+  'trial.expired.orbitCeiling',
   'trial.expired.calendarSync',
   'trial.expired.retrospective',
-  'trial.expired.proactiveAstra',
+  'trial.expired.proactiveOrbit',
 ] as const
 
 function GuidedTrialExpired(actions: Readonly<{ onSeePlans: () => void; onContinueFree: () => void; onClose: () => void }>) {

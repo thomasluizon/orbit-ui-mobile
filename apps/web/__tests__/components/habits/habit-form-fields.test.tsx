@@ -30,10 +30,10 @@ describe('HabitFormFields', () => {
 
   it('keeps the frequency fill action mounted with its Orbit and no skeleton face during its request', () => {
     const view = renderForm(createFormHelpers({ title: 'Build a stronger routine' }), vi.fn(() => SETUP_PROPOSAL))
-    const action = screen.getByRole('button', { name: 'habits.form.askAstra' })
+    const action = screen.getByRole('button', { name: 'habits.form.askOrbit' })
     expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
     view.rerenderForm(true)
-    expect(screen.getByRole('button', { name: 'habits.form.askAstra' })).toBe(action)
+    expect(screen.getByRole('button', { name: 'habits.form.askOrbit' })).toBe(action)
     expect(action).toHaveAttribute('aria-busy', 'true')
     expect(action).toHaveAttribute('data-borderless', 'true')
     expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
@@ -44,7 +44,7 @@ describe('HabitFormFields', () => {
     expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
   })
 
-  it('renders every form Astra action without visible text', () => {
+  it('renders every form Orbit action without visible text', () => {
     const helpers = createFormHelpers({ itemType: 'habit', title: 'Build a stronger routine', datePhrase: 'after my vacation' })
     const view = renderForm(helpers, vi.fn(() => SETUP_PROPOSAL), false, false, null, undefined, { onSuggestEmoji: vi.fn() })
     const actions = [...view.container.querySelectorAll('button')].filter(button => button.querySelector('[data-asset^="orbit-mascot"]'))
@@ -223,14 +223,14 @@ describe('HabitFormFields', () => {
     expect(screen.getByRole('switch', { name: 'habits.form.reminder' })).toBeInTheDocument()
   })
 
-  it('shows one unresolved reading before corrections and the Astra ask, without an understood card', () => {
+  it('shows one unresolved reading before corrections and the Orbit ask, without an understood card', () => {
     renderForm(createFormHelpers({ title: 'Beber mais água quando der' }), vi.fn(), false, true)
     expect(screen.getAllByText('habits.form.unresolved')).toHaveLength(1)
     expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Monday' })).toBeEnabled()
     const unresolved = screen.getByText('habits.form.unresolved')
     const corrections = screen.getByRole('button', { name: 'Monday' })
-    const ask = screen.getByRole('button', { name: 'habits.form.askAstra' })
+    const ask = screen.getByRole('button', { name: 'habits.form.askOrbit' })
     expect(unresolved.compareDocumentPosition(corrections) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(corrections.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
@@ -255,7 +255,7 @@ describe('HabitFormFields', () => {
     expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
   })
 
-  it('hides the preview and retains the emoji well while Astra reads a phrase with an existing schedule', () => {
+  it('hides the preview and retains the emoji well while Orbit reads a phrase with an existing schedule', () => {
     const view = renderForm(createFormHelpers({ title: 'Run every day', frequencyUnit: 'Day', frequencyQuantity: 1 }))
     view.rerenderForm(true)
     expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
@@ -466,7 +466,7 @@ describe('HabitFormFields', () => {
     expect(formHelpers.toggleDay).not.toHaveBeenCalled()
   })
 
-  it('preserves an Astra schedule across the next title edit', async () => {
+  it('preserves an Orbit schedule across the next title edit', async () => {
     const formHelpers = createFormHelpers({ title: 'Run Monday at 08:00' })
     const onSuggestSetup = vi.fn(() => {
       formHelpers.testValues.frequencyUnit = 'Week'
@@ -483,7 +483,7 @@ describe('HabitFormFields', () => {
     formHelpers.testValues.days = []
     formHelpers.testValues.frequencyUnit = null
     view.rerenderForm()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askOrbit' }))
     await waitFor(() => expect(onSuggestSetup).toHaveBeenCalledOnce())
 
     vi.mocked(formHelpers.form.setValue).mockClear()
@@ -583,7 +583,7 @@ describe('HabitFormFields', () => {
     const formHelpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3 })
     renderForm(formHelpers, onSuggestSetup)
 
-    const ask = screen.getByRole('button', { name: 'habits.form.askAstra' })
+    const ask = screen.getByRole('button', { name: 'habits.form.askOrbit' })
     expect(ask).toBeDisabled()
     fireEvent.click(ask)
     expect(onSuggestSetup).not.toHaveBeenCalled()
@@ -594,12 +594,12 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('checklist-editor')).toBeDefined()
   })
 
-  it('disables Astra at the Pro allowance too', () => {
+  it('disables Orbit at the Pro allowance too', () => {
     mockProfileState.hasProAccess = true
     mockProfileState.aiMessagesUsed = 5
     renderForm(createFormHelpers({ title: 'Run' }), vi.fn(() => SETUP_PROPOSAL))
 
-    expect(screen.getByRole('button', { name: 'habits.form.askAstra' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'habits.form.askOrbit' })).toBeDisabled()
   })
 
   it.each([
@@ -616,7 +616,7 @@ describe('HabitFormFields', () => {
       return SETUP_PROPOSAL
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askOrbit' }))
     await waitFor(() => expect(screen.getByRole('region', { name: 'habits.form.understood' }).closest('[data-proposed]')).toBeInTheDocument())
 
     await correct()
@@ -624,18 +624,18 @@ describe('HabitFormFields', () => {
     expect(screen.getByRole('region', { name: 'habits.form.understood' }).closest('[data-proposed]')).toBeNull()
   })
 
-  it('allows Astra again after the proposed phrase changes', async () => {
+  it('allows Orbit again after the proposed phrase changes', async () => {
     const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
     renderForm(createFormHelpers({ title: 'Build a stronger routine' }), onSuggestSetup)
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askOrbit' }))
     await waitFor(() => expect(onSuggestSetup).toHaveBeenCalledOnce())
-    expect(screen.queryByRole('button', { name: 'habits.form.askAstra' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.askOrbit' })).toBeNull()
 
     fireEvent.change(screen.getByLabelText(/habits.form.(?:taskDescribe|describe)/), {
       target: { value: 'Build a calmer routine' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askOrbit' }))
 
     await waitFor(() => expect(onSuggestSetup).toHaveBeenCalledTimes(2))
   })
@@ -649,7 +649,7 @@ describe('HabitFormFields', () => {
       return COMBINED_PROPOSAL
     }, true)
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askOrbit' }))
     await waitFor(() => expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull())
     expect(screen.getByRole('spinbutton').closest('[data-proposed]')).not.toBeNull()
     expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '1')
@@ -661,18 +661,18 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull()
   })
 
-  it('keeps a pre-existing checklist normal when Astra proposes only setup', async () => {
+  it('keeps a pre-existing checklist normal when Orbit proposes only setup', async () => {
     const helpers = createFormHelpers({ title: 'Run', checklistItems: [{ text: 'Shoes', isChecked: false }] })
     renderForm(helpers, () => {
       applySuggestionSchedule(setupPatch, helpers)
       return SETUP_PROPOSAL
     }, true)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askOrbit' }))
     await waitFor(() => expect(screen.getByRole('region', { name: 'habits.form.understood' }).closest('[data-proposed]')).toBeInTheDocument())
     expect(screen.getByText('checklist-editor').closest('[data-proposed]')).toBeNull()
   })
 
-  it('marks only an Astra checklist proposal and resolves it when edited', async () => {
+  it('marks only an Orbit checklist proposal and resolves it when edited', async () => {
     renderForm(
       createFormHelpers({
         title: 'Run',
@@ -683,9 +683,9 @@ describe('HabitFormFields', () => {
       true,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askOrbit' }))
     await waitFor(() => expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '1'))
-    expect(screen.queryByRole('button', { name: 'habits.form.askAstra' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'habits.form.askOrbit' })).toBeNull()
 
     fireEvent.click(screen.getByText('checklist-editor'))
     expect(screen.getByText('checklist-editor')).toHaveAttribute('data-proposed-item-count', '0')
@@ -703,7 +703,7 @@ describe('HabitFormFields', () => {
       (resolve) => { resolveProposal = resolve },
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askOrbit' }))
     await waitFor(() => expect(screen.getByText('sub-habit-editor').closest('[data-proposed]')).not.toBeNull())
 
     act(() => resolveProposal())

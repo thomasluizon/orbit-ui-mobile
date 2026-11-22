@@ -24,7 +24,7 @@ export function useHabitSuggestion() {
     mutationFn: async (data, intendedAccountId) =>
       habitSetupSuggestionSchema.parse(await suggestHabitSetup(data, intendedAccountId)),
     onError: (error) => {
-      if (getFriendlyErrorKey(error, 'habits.form.aiSuggestError') === 'errors.api.astraLimit') {
+      if (getFriendlyErrorKey(error, 'habits.form.aiSuggestError') === 'errors.api.orbitLimit') {
         void queryClient.invalidateQueries({ queryKey: profileKeys.detail() })
         void queryClient.invalidateQueries({ queryKey: subscriptionKeys.status() })
       }

@@ -95,7 +95,7 @@ function TurnAnnouncement({ content, complete, messageId, claimAnnouncement }: R
     })
     return () => { mounted = false }
   }, [complete, content, messageId, claimAnnouncement])
-  return <span data-testid="astra-turn-announcement" aria-live="polite" className="sr-only">{announcement}</span>
+  return <span data-testid="orbit-turn-announcement" aria-live="polite" className="sr-only">{announcement}</span>
 }
 
 function moveBetweenTurns(event: KeyboardEvent, feed: HTMLDivElement | null) {
@@ -134,14 +134,14 @@ function ConversationHistoryFeedback({ failed, busy, onRetry }: Readonly<{ faile
   </>
 }
 
-export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatController; notice?: ReactNode }>) {
+export function OrbitConversation({ chat, notice }: Readonly<{ chat: ChatController; notice?: ReactNode }>) {
   const t = useTranslations()
   const history = useConversationHistory()
   const historyBusy = useChatStore(state => state.conversationBusy)
   const beforeOrder = useChatStore(state => state.conversationBeforeOrder)
   const navigate = useChatNavigation()
-  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
-  const close = useCallback(() => setAstraConversationOpen(false), [setAstraConversationOpen])
+  const setOrbitConversationOpen = useUIStore((state) => state.setOrbitConversationOpen)
+  const close = useCallback(() => setOrbitConversationOpen(false), [setOrbitConversationOpen])
   const {
     chatContainerRef,
     threadScroll,
@@ -377,7 +377,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             aria-setsize={messages.length}
             className="flex min-w-0 flex-col gap-2"
           >
-          {msg.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
+          {msg.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-orbit-avatar="">
             <OrbitMascot size={24} />
           </span> : null}
           <div className="flex min-w-0 w-full flex-col gap-4">
@@ -407,17 +407,17 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           </article>
         ))}
         {showPendingReply || traceSteps.length > 0 ? <ConversationReveal animate className="flex min-w-0 flex-col gap-2">
-          {messages.at(-1)?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
+          {messages.at(-1)?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-orbit-avatar="">
             <OrbitMascot size={24} />
           </span> : null}
           <div className="flex min-w-0 w-full flex-col gap-4">
-            {showPendingReply ? <div data-astra-pending aria-hidden="true" className="pointer-events-none flex h-6 items-center">
-              <span className="astra-pending-pulse" style={{ animationPlayState: pendingVisible ? 'running' : 'paused' }}><WorkingMark /></span>
+            {showPendingReply ? <div data-orbit-pending aria-hidden="true" className="pointer-events-none flex h-6 items-center">
+              <span className="orbit-pending-pulse" style={{ animationPlayState: pendingVisible ? 'running' : 'paused' }}><WorkingMark /></span>
             </div> : <ThinkingTrace steps={traceSteps} running />}
           </div>
         </ConversationReveal> : null}
         </div>
-        {!showSuggestions ? <p data-testid="astra-ai-disclosure" className="mx-auto max-w-[300px] py-4 text-center text-xs leading-[1.4] text-[var(--fg-3)]">{t('aiDisclosure.notMedicalAdvice')}</p> : null}
+        {!showSuggestions ? <p data-testid="orbit-ai-disclosure" className="mx-auto max-w-[300px] py-4 text-center text-xs leading-[1.4] text-[var(--fg-3)]">{t('aiDisclosure.notMedicalAdvice')}</p> : null}
       </div>
 
       <div className="shrink-0">

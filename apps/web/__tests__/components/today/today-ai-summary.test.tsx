@@ -33,17 +33,17 @@ beforeEach(() => {
   mocks.refetch.mockReset()
   mocks.useSummary.mockClear()
   useChatStore.setState({ messages: [], proactiveEntryId: null })
-  useUIStore.setState({ astraConversationOpen: false })
+  useUIStore.setState({ orbitConversationOpen: false })
 })
 
 describe('daily summary on Hoje', () => {
-  it('fetches the selected account day and opens the full-screen Astra conversation', () => {
+  it('fetches the selected account day and opens the full-screen Orbit conversation', () => {
     render(<TodayAISummary date="2026-08-29" />)
     expect(screen.getByText('A short daily summary.')).toBeInTheDocument()
     expect(screen.queryByText('aiDisclosure.notMedicalAdvice')).not.toBeInTheDocument()
     expect(mocks.useSummary).toHaveBeenCalledWith({ date: '2026-08-29', locale: 'en', timeZone: 'America/Sao_Paulo', hasProAccess: true, aiSummaryEnabled: true })
     fireEvent.click(screen.getByRole('button', { name: 'A short daily summary.' }))
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   })
 
   it('opens the complete long summary through its first sentence without an expand control', () => {
@@ -51,9 +51,9 @@ describe('daily summary on Hoje', () => {
     render(<TodayAISummary date="2026-08-29" />)
     expect(screen.queryByRole('button', { name: 'common.seeMore' })).not.toBeInTheDocument()
     const slot = screen.getByRole('button', { name: 'Your habits are ready for today.' })
-    expect(slot).toHaveAccessibleDescription('todayAstra.openConversation')
+    expect(slot).toHaveAccessibleDescription('todayOrbit.openConversation')
     fireEvent.click(slot)
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     expect(useChatStore.getState().messages[0]).toMatchObject({ role: 'ai', content: mocks.summary })
   })
 
@@ -63,18 +63,18 @@ describe('daily summary on Hoje', () => {
     mocks.isFetching = true
     const { container } = render(<TodayAISummary date="2026-08-29" />)
     expect(container.querySelector('[data-summary-skeleton]')).toBeInTheDocument()
-    expect(container.querySelector('[data-today-astra-slot]')).toHaveAttribute('aria-busy', 'true')
+    expect(container.querySelector('[data-today-orbit-slot]')).toHaveAttribute('aria-busy', 'true')
     const action = screen.getByRole('button', { name: 'summary.loading' })
     expect(action).toBeDisabled()
     fireEvent.click(action)
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
   it('retries an error and prevents repeated retries during a pending request', () => {
     mocks.error = new Error('Unavailable')
     const page = render(<TodayAISummary date="2026-08-29" />)
     expect(screen.getByText('summary.error')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'summary.askAstra' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'summary.askOrbit' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'summary.error' }))
     expect(mocks.refetch).toHaveBeenCalledTimes(1)
     mocks.isFetching = true

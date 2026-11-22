@@ -76,7 +76,7 @@ const {
   mockPatchProfile,
   mockRefetchProfile,
   mockRouterPush,
-  mockSetAstraConversationOpen,
+  mockSetOrbitConversationOpen,
   mockSendAccessibilityEvent,
   mockAnnounceForAccessibility,
   mockApplyTheme,
@@ -119,7 +119,7 @@ const {
   mockRefetchProfile: vi.fn(),
   mockShellNoticeSlot: vi.fn(),
   mockRouterPush: vi.fn(),
-  mockSetAstraConversationOpen: vi.fn(),
+  mockSetOrbitConversationOpen: vi.fn(),
   mockSendAccessibilityEvent: vi.fn(),
   mockAnnounceForAccessibility: vi.fn(),
   mockApplyTheme: vi.fn(),
@@ -249,7 +249,7 @@ vi.mock('@/stores/auth-store', () => {
 
 vi.mock('@/stores/ui-store', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/stores/ui-store')>()
-  const getState = () => ({ ...actual.useUIStore.getState(), setAstraConversationOpen: mockSetAstraConversationOpen, astraConversationOpen: mockConversationOpen.current })
+  const getState = () => ({ ...actual.useUIStore.getState(), setOrbitConversationOpen: mockSetOrbitConversationOpen, orbitConversationOpen: mockConversationOpen.current })
   const useUIStore = (selector: (state: ReturnType<typeof getState>) => unknown) => selector(getState())
   useUIStore.getState = getState
   return { useUIStore }
@@ -527,7 +527,7 @@ async function renderProfileScreen(createNodeMock?: (element: { props: { label?:
   return tree!
 }
 
-async function renderProfileSubscreen(screen: 'account' | 'preferences' | 'astra' | 'notifications') {
+async function renderProfileSubscreen(screen: 'account' | 'preferences' | 'orbit' | 'notifications') {
   let tree: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
     const Destination = PROFILE_ROUTES[screen]
@@ -580,7 +580,7 @@ function findButtonByName(
 }
 
 
-const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAiRoute, notifications: ProfileNotificationsRoute }
+const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, orbit: ProfileAiRoute, notifications: ProfileNotificationsRoute }
 
 function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetimePro: boolean) {
   const leadingIcons = ['User', 'Crown', 'Settings', 'Svg', 'Bell']
@@ -744,7 +744,7 @@ describe('ProfileScreen', () => {
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
-  it.each([412, 600, 840, 1352].flatMap((width) => (['account', 'preferences', 'astra', 'notifications'] as const)
+  it.each([412, 600, 840, 1352].flatMap((width) => (['account', 'preferences', 'orbit', 'notifications'] as const)
     .map((screen) => ({ width, screen }))))('starts $screen content at the column inset at $width', async ({ width, screen }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     const tree = await renderProfileSubscreen(screen)
@@ -966,7 +966,7 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each(['account', 'preferences', 'astra', 'notifications'] as const)('offers recovery for a failed %s load and keeps its settings hidden', async (destination) => {
+  it.each(['account', 'preferences', 'orbit', 'notifications'] as const)('offers recovery for a failed %s load and keeps its settings hidden', async (destination) => {
     mockProfileState.current = { profile: undefined, isLoading: false, error: new Error('load failed') }
     const tree = await renderProfileSubscreen(destination)
     expect(nodeText(tree.root)).toContain('errors.loadProfile')
@@ -983,7 +983,7 @@ describe('ProfileScreen', () => {
   it.each([
     ['account', ['profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
     ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'settings.homeScreen.showGeneral']],
-    ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
+    ['orbit', ['profile.allowance.title', 'profile.proactiveOrbit.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
     ['notifications', ['profile.settingsRows.remindersNote']],
   ] as const)('opens the %s sub-screen from Perfil and keeps its settings in that screen alone', async (destination, labels) => {
     mockRealListRow.current = true
@@ -993,7 +993,7 @@ describe('ProfileScreen', () => {
       top.root.find((node: { type: unknown; props: { accessibilityRole?: string }; children: unknown[] }) =>
         typeof node.type === 'string' && node.props.accessibilityRole === 'button' && nodeText(node).startsWith(title ?? '')).props.onPress()
     })
-    expect(mockRouterPush).toHaveBeenLastCalledWith(destination === 'astra' ? '/profile/ai' : `/profile/${destination}`)
+    expect(mockRouterPush).toHaveBeenLastCalledWith(destination === 'orbit' ? '/profile/ai' : `/profile/${destination}`)
     TestRenderer.act(() => top.unmount())
     const tree = await renderProfileSubscreen(destination)
     const group = tree.root.findByProps({ testID: `profile-settings-group-${destination}` })
@@ -1004,13 +1004,13 @@ describe('ProfileScreen', () => {
         typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.backToProfile').props.onPress()
     })
     expect(mockRouterPush).toHaveBeenLastCalledWith('/profile')
-    for (const other of ['account', 'preferences', 'astra', 'notifications']) {
+    for (const other of ['account', 'preferences', 'orbit', 'notifications']) {
       if (other !== destination) expect(tree.root.findAllByProps({ testID: `profile-settings-group-${other}` })).toHaveLength(0)
     }
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('forwards a directly linked subscription success return to Astra', async () => {
+  it('forwards a directly linked subscription success return to Orbit', async () => {
     mockSearchParams.current = { subscription: 'success' }
     const tree = await renderProfileScreen()
     expect(mockRouterPush).toHaveBeenCalledWith('/profile/ai?subscription=success')
@@ -1037,7 +1037,7 @@ describe('ProfileScreen', () => {
     for (const [label, path] of [
       [mockProfileState.current.profile?.name ?? 'profile.submenus.account', '/profile/account'],
       ['profile.submenus.preferences', '/profile/preferences'],
-      ['profile.groups.astra', '/profile/ai'],
+      ['profile.groups.orbit', '/profile/ai'],
       ['profile.groups.notifications', '/profile/notifications'],
     ] as const) {
       TestRenderer.act(() => {
@@ -1063,7 +1063,7 @@ describe('ProfileScreen', () => {
     mockPatchProfile.mockReset()
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
-    mockSetAstraConversationOpen.mockClear()
+    mockSetOrbitConversationOpen.mockClear()
     mockSendAccessibilityEvent.mockClear()
     mockAnnounceForAccessibility.mockClear()
     mockApplyTheme.mockClear()
@@ -1182,18 +1182,18 @@ describe('ProfileScreen', () => {
   })
 
   it('shows the free daily allowance as an enabled route to Pro', async () => {
-    const tree = await renderProfileSubscreen('astra')
-    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
-    const progress = astra.findByProps({
+    const tree = await renderProfileSubscreen('orbit')
+    const orbit = tree.root.findByProps({ testID: 'profile-settings-group-orbit' })
+    const progress = orbit.findByProps({
       accessibilityRole: 'progressbar',
       accessibilityLabel: 'profile.allowance.title',
     })
     expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 5, now: 2 })
     expect(
-      astra.findAll((node: { children: unknown[] }) =>
+      orbit.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.allowance.spent')),
     ).toHaveLength(0)
-    const allowance = tree.root.findByProps({ testID: 'astra-allowance-panel' })
+    const allowance = tree.root.findByProps({ testID: 'orbit-allowance-panel' })
     const allowanceGate = allowance.findByProps({
       accessibilityRole: 'button',
       accessibilityLabel: 'profile.allowance.seePro',
@@ -1209,9 +1209,9 @@ describe('ProfileScreen', () => {
     })
   })
 
-  it('shows both free Astra switch gates as enabled routes to Pro', async () => {
-    const tree = await renderProfileSubscreen('astra')
-    const proactiveGate = findRowByLabel(tree, 'profile.proactiveAstra.title')
+  it('shows both free Orbit switch gates as enabled routes to Pro', async () => {
+    const tree = await renderProfileSubscreen('orbit')
+    const proactiveGate = findRowByLabel(tree, 'profile.proactiveOrbit.title')
     const summaryGate = findRowByLabel(tree, 'profile.aiSummary.title')
 
     expect(proactiveGate.props.accessibilityRole).toBe('button')
@@ -1237,7 +1237,7 @@ describe('ProfileScreen', () => {
     ['pt-BR', true, 'Notificações do Orbit', 'Resumo diário'],
     ['en', false, 'Orbit notifications', 'Daily recap'],
     ['en', true, 'Orbit notifications', 'Daily recap'],
-  ] as const)('renders the %s Astra labels for Pro access %s', async (locale, hasProAccess, proactive, summary) => {
+  ] as const)('renders the %s Orbit labels for Pro access %s', async (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en
     mockTranslate.current = (key) => {
@@ -1252,12 +1252,12 @@ describe('ProfileScreen', () => {
     mockProfileState.current.profile = createMockProfile({
       plan: hasProAccess ? 'pro' : 'free', hasProAccess, language: locale,
     })
-    const tree = await renderProfileSubscreen('astra')
-    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    const tree = await renderProfileSubscreen('orbit')
+    const orbit = tree.root.findByProps({ testID: 'profile-settings-group-orbit' })
 
     if (hasProAccess) {
-      expect(astra.findByProps({ accessibilityRole: 'switch', accessibilityLabel: proactive })).toBeDefined()
-      expect(astra.findByProps({ accessibilityRole: 'switch', accessibilityLabel: summary })).toBeDefined()
+      expect(orbit.findByProps({ accessibilityRole: 'switch', accessibilityLabel: proactive })).toBeDefined()
+      expect(orbit.findByProps({ accessibilityRole: 'switch', accessibilityLabel: summary })).toBeDefined()
     } else {
       for (const label of [proactive, summary]) {
         const row = findRowByLabel(tree, label)
@@ -1278,7 +1278,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
 
     const apiKeys = tree.root.findByProps({ testID: 'profile-api-keys' })
     const badges = apiKeys.findAll((node: { type: unknown; props: { testID?: string } }) =>
@@ -1292,18 +1292,18 @@ describe('ProfileScreen', () => {
   })
 
   it('shows only the API key description and upgrade row to free accounts', async () => {
-    const tree = await renderProfileSubscreen('astra')
-    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    const tree = await renderProfileSubscreen('orbit')
+    const orbit = tree.root.findByProps({ testID: 'profile-settings-group-orbit' })
 
     expect(
-      astra.findAll((node: { children: unknown[] }) =>
+      orbit.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.apiKeys.description')),
     ).toHaveLength(1)
     const upgradeRow = findRowByLabel(tree, 'profile.apiKeys.unlock')
     expect(upgradeRow.props.accessibilityRole).toBe('button')
     expect(upgradeRow.props.onPress).toEqual(expect.any(Function))
     expect(
-      astra.findAll((node: { children: unknown[] }) =>
+      orbit.findAll((node: { children: unknown[] }) =>
         node.children.includes('orbitMcp.noKeys')),
     ).toHaveLength(0)
 
@@ -1323,7 +1323,7 @@ describe('ProfileScreen', () => {
       name: 'Work key',
       keyPrefix: 'orb_live_1234',
     }]
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
 
     const upgradeRow = findRowByLabel(tree, 'profile.apiKeys.unlock')
     expect(upgradeRow.props.accessibilityRole).toBe('button')
@@ -1345,7 +1345,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
 
     TestRenderer.act(() => {
       findRowByLabel(tree, 'profile.apiKeys.open').props.onPress?.()
@@ -1369,7 +1369,7 @@ describe('ProfileScreen', () => {
       keyPrefix: 'orb_live_1234',
     }]
 
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
 
     expect(findRowByLabel(tree, 'profile.apiKeys.open')).toBeDefined()
     expect(
@@ -1384,7 +1384,7 @@ describe('ProfileScreen', () => {
     vi.mocked(Clipboard.setStringAsync).mockReset().mockResolvedValue(true)
     let finishRead!: (value: string) => void
     vi.mocked(Clipboard.getStringAsync).mockReset().mockImplementationOnce(() => new Promise<string>((resolve) => { finishRead = resolve }))
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     TestRenderer.act(() => findButtonByName(tree, 'orbitMcp.connectionInstructions').props.onPress())
     const endpoint = getMcpEndpointUrl(API_BASE)
     const endpointText = tree.root.findAll((node: { type: unknown; children: unknown[] }) => node.type === 'Text' && node.children.includes(endpoint))[0]
@@ -1414,7 +1414,7 @@ describe('ProfileScreen', () => {
     mockStepUpVerified.current = true
     vi.mocked(Clipboard.setStringAsync).mockReset().mockResolvedValue(true).mockImplementationOnce(() => { throw new Error('Clipboard unavailable') })
     vi.mocked(Clipboard.getStringAsync).mockReset().mockResolvedValue(getMcpEndpointUrl(API_BASE))
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     TestRenderer.act(() => findButtonByName(tree, 'orbitMcp.connectionInstructions').props.onPress())
     await TestRenderer.act(async () => {
       findButtonByName(tree, 'orbitMcp.copy').props.onPress()
@@ -1440,7 +1440,7 @@ describe('ProfileScreen', () => {
     const readClipboard = vi.mocked(Clipboard.getStringAsync).mockReset().mockResolvedValue(endpoint)
     if (failure === 'unchanged content') readClipboard.mockResolvedValueOnce('Previous clipboard content')
     else readClipboard.mockRejectedValueOnce(new Error('Clipboard read unavailable'))
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     TestRenderer.act(() => findButtonByName(tree, 'orbitMcp.connectionInstructions').props.onPress())
 
     await TestRenderer.act(async () => {
@@ -1467,10 +1467,10 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('opens the MCP web guide from the verified Astra settings', async () => {
+  it('opens the MCP web guide from the verified Orbit settings', async () => {
     mockProfileState.current.profile = createMockProfile({ plan: 'pro', hasProAccess: true })
     mockStepUpVerified.current = true
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
 
     TestRenderer.act(() => findButtonByName(tree, 'orbitMcp.connectionInstructions').props.onPress())
     const guide = tree.root.findAll((node: { type: unknown; props: { title?: string } }) => node.type === 'SheetStub' && node.props.title === 'orbitMcp.claudeWeb')[0]
@@ -1501,7 +1501,7 @@ describe('ProfileScreen', () => {
       lastUsedAtUtc: null,
       isRevoked: false,
     }]
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
 
     const keyRow = findRowByLabel(tree, 'Work key')
     expect(keyRow.props.value).toBe('orb_live_1234…')
@@ -1525,7 +1525,7 @@ describe('ProfileScreen', () => {
     }
     mockStepUpVerified.current = true
     mockApiClient.mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
     const field = expiryInput(tree)
     expect(field.props.placeholder).toBe('common.never')
@@ -1542,7 +1542,7 @@ describe('ProfileScreen', () => {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
     }
     mockStepUpVerified.current = true
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     await chooseApiKeyCreation(tree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped')
     if (mode === 'scoped') TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('read_habits'))
     const expiryField = expiryInput(tree)
@@ -1560,7 +1560,7 @@ describe('ProfileScreen', () => {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
     }
     mockStepUpVerified.current = true
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     await chooseApiKeyCreation(tree, 'profile.apiKeys.createScoped')
     const expiryField = expiryInput(tree)
     TestRenderer.act(() => expiryField.props.onChangeText('2099-12-31T23:59'))
@@ -1586,7 +1586,7 @@ describe('ProfileScreen', () => {
     mockStepUpVerified.current = true
     let finish!: () => void
     mockApiClient.mockReturnValueOnce(new Promise((resolve) => { finish = () => resolve({ id: 'key-2', key: 'orb_secret' }) }))
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
     await nameAndCreateApiKey(tree)
     expect(expiryInput(tree).props.editable).toBe(false)
@@ -1605,7 +1605,7 @@ describe('ProfileScreen', () => {
       .mockRejectedValueOnce(new Error('failed'))
       .mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
     retainApiKeyExpiryDraft('2099-12-31T23:59')
-    let tree = await renderProfileSubscreen('astra')
+    let tree = await renderProfileSubscreen('orbit')
     TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'orbitMcp.readOnlyKeyLabel' }).props.onPress())
 
     await chooseApiKeyCreation(tree, 'profile.apiKeys.createScoped')
@@ -1626,7 +1626,7 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => findButtonByName(tree, 'common.cancel').props.onPress())
     TestRenderer.act(() => findButtonByName(tree, 'common.discardChangesAction').props.onPress())
     tree.unmount()
-    tree = await renderProfileSubscreen('astra')
+    tree = await renderProfileSubscreen('orbit')
     TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'orbitMcp.readOnlyKeyLabel' }).props.onPress())
 
     await chooseApiKeyCreation(tree, 'profile.apiKeys.createScoped')
@@ -1654,7 +1654,7 @@ describe('ProfileScreen', () => {
 
     tree.unmount()
     mockCreateGrant.consumed = false
-    const secondTree = await renderProfileSubscreen('astra')
+    const secondTree = await renderProfileSubscreen('orbit')
     await chooseApiKeyCreation(secondTree, 'profile.apiKeys.createScoped')
     expect(secondTree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
   })
@@ -1672,7 +1672,7 @@ describe('ProfileScreen', () => {
     ]
     mockApiClient.mockImplementation((endpoint: string) =>
       Promise.resolve(endpoint === API.apiKeys.create ? createdKeys.shift() : undefined))
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
 
     await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
     const expiryField = expiryInput(tree)
@@ -1702,7 +1702,7 @@ describe('ProfileScreen', () => {
     tree.unmount()
     mockStepUpVerified.current = true
     mockCreateGrant.consumed = false
-    const secondTree = await renderProfileSubscreen('astra')
+    const secondTree = await renderProfileSubscreen('orbit')
     await chooseApiKeyCreation(secondTree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped')
     expect(expiryInput(secondTree).props.value).toBe('2099-12-31T23:59')
     if (mode === 'scoped') {
@@ -1729,7 +1729,7 @@ describe('ProfileScreen', () => {
       error: 'Confirm the emailed code before creating an API key.',
       errorCode: 'API_KEY_CREATION_CHALLENGE_REQUIRED',
     }, 'Challenge required'))
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     const submit = async (view: Awaited<ReturnType<typeof renderProfileSubscreen>>) => {
       await chooseApiKeyCreation(view, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped')
       if (mode === 'scoped') {
@@ -1746,7 +1746,7 @@ describe('ProfileScreen', () => {
 
     tree.unmount()
     mockCreateGrant.consumed = false
-    const secondTree = await renderProfileSubscreen('astra')
+    const secondTree = await renderProfileSubscreen('orbit')
     await submit(secondTree)
     expect(nodeText(secondTree.root)).toContain('orb_second')
     expect(mockApiClient).toHaveBeenLastCalledWith(API.apiKeys.create, expect.objectContaining({
@@ -1768,7 +1768,7 @@ describe('ProfileScreen', () => {
           }, 'Challenge required'))
         })
       : Promise.resolve(undefined))
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     await chooseApiKeyCreation(tree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped')
     const expiryField = expiryInput(tree)
     TestRenderer.act(() => expiryField.props.onChangeText('2099-12-31T23:59'))
@@ -1803,7 +1803,7 @@ describe('ProfileScreen', () => {
     }
     mockStepUpVerified.current = true
     mockApiClient.mockRejectedValueOnce(createApiClientError(428, { errorCode: 'API_KEY_CREATION_CHALLENGE_REQUIRED' }, 'Challenge required'))
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
     const expiryField = expiryInput(tree)
     TestRenderer.act(() => expiryField.props.onChangeText('2099-12-31T23:59'))
@@ -1814,7 +1814,7 @@ describe('ProfileScreen', () => {
     mockApiClient.mockClear()
     const clock = vi.spyOn(Date, 'now').mockReturnValue(new Date('2100-01-01T00:00:00Z').getTime())
     try {
-      const secondTree = await renderProfileSubscreen('astra')
+      const secondTree = await renderProfileSubscreen('orbit')
       await chooseApiKeyCreation(secondTree, 'profile.apiKeys.create')
       await nameAndCreateApiKey(secondTree)
       expect(expiryInput(secondTree).props.accessibilityHint).toContain('orbitMcp.invalidExpiry')
@@ -1846,7 +1846,7 @@ describe('ProfileScreen', () => {
       settle = () => resolve({ message: 'sent' })
       reject = rejectPromise
     }))
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
     expect(mockApiClient).toHaveBeenCalledWith(
       API.apiKeys.requestCreationChallenge,
@@ -1883,7 +1883,7 @@ describe('ProfileScreen', () => {
     vi.mocked(beginStepUpChallenge).mockReturnValueOnce(new Promise<StepUpTimingRecord>((resolve) => {
       settle = () => resolve({ operation: 'keys', sentAt: Date.now() })
     }))
-    const tree = await renderProfileSubscreen('astra')
+    const tree = await renderProfileSubscreen('orbit')
     await chooseApiKeyCreation(tree, 'profile.apiKeys.create')
     expect(beginStepUpChallenge).toHaveBeenCalledWith('keys', 'user-1')
 
@@ -1908,14 +1908,14 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
-    const tree = await renderProfileSubscreen('astra')
-    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    const tree = await renderProfileSubscreen('orbit')
+    const orbit = tree.root.findByProps({ testID: 'profile-settings-group-orbit' })
     expect(
-      astra.findAll((node: { children: unknown[] }) =>
+      orbit.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.subscription.trial')),
     ).toHaveLength(1)
     expect(
-      astra.findAll((node: { children: unknown[] }) =>
+      orbit.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.allowance.manageSubscription')),
     ).toHaveLength(0)
 
@@ -1936,12 +1936,12 @@ describe('ProfileScreen', () => {
       profile: createMockProfile({ hasProAccess: true, isTrialActive, proactiveAstraEnabled: true }),
       isLoading: false, error: null,
     }
-    const tree = await renderProfileSubscreen('astra')
-    const toggle = tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'profile.proactiveAstra.title' })
+    const tree = await renderProfileSubscreen('orbit')
+    const toggle = tree.root.findByProps({ accessibilityRole: 'switch', accessibilityLabel: 'profile.proactiveOrbit.title' })
     expect(toggle.props.accessibilityState.checked).toBe(true)
     TestRenderer.act(() => toggle.props.onPress())
     expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'setProactiveAstra', endpoint: API.profile.proactiveAstra, method: 'PUT', payload: { enabled: false },
+      type: 'setProactiveAstra', endpoint: API.profile.proactiveOrbit, method: 'PUT', payload: { enabled: false },
     }))
   })
 
@@ -1956,20 +1956,20 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
-    const tree = await renderProfileSubscreen('astra')
-    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
-    const progress = astra.findByProps({
+    const tree = await renderProfileSubscreen('orbit')
+    const orbit = tree.root.findByProps({ testID: 'profile-settings-group-orbit' })
+    const progress = orbit.findByProps({
       accessibilityRole: 'progressbar',
       accessibilityLabel: 'profile.allowance.title',
     })
     expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 50, now: 50 })
-    expect(astra.findByProps({ testID: 'progress-bar-complete' })).toBeDefined()
+    expect(orbit.findByProps({ testID: 'progress-bar-complete' })).toBeDefined()
     expect(
-      astra.findAll((node: { children: unknown[] }) =>
+      orbit.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.allowance.spent')),
     ).toHaveLength(1)
     expect(
-      astra.findAll((node: { children: unknown[] }) =>
+      orbit.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.allowance.seePro')),
     ).toHaveLength(0)
 
@@ -1983,15 +1983,15 @@ describe('ProfileScreen', () => {
       pathname: '/upgrade',
       params: { from: '/profile/ai' },
     })
-    const proactiveSwitch = astra.findByProps({
+    const proactiveSwitch = orbit.findByProps({
       accessibilityRole: 'switch',
-      accessibilityLabel: 'profile.proactiveAstra.title',
+      accessibilityLabel: 'profile.proactiveOrbit.title',
     })
-    const summarySwitch = astra.findByProps({
+    const summarySwitch = orbit.findByProps({
       accessibilityRole: 'switch',
       accessibilityLabel: 'profile.aiSummary.title',
     })
-    expect(astra.findAllByType('RowListStub')[0].props.rowCount).toBe(2)
+    expect(orbit.findAllByType('RowListStub')[0].props.rowCount).toBe(2)
     TestRenderer.act(() => {
       proactiveSwitch.props.onPress()
       summarySwitch.props.onPress()
@@ -2019,19 +2019,19 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
-    const tree = await renderProfileSubscreen('astra')
-    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    const tree = await renderProfileSubscreen('orbit')
+    const orbit = tree.root.findByProps({ testID: 'profile-settings-group-orbit' })
 
     expect(
-      astra.findAll((node: { children: unknown[] }) =>
+      orbit.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.allowance.pro')),
     ).toHaveLength(1)
     expect(
-      astra.findAll((node: { children: unknown[] }) =>
+      orbit.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.allowance.seePro')),
     ).toHaveLength(0)
     expect(
-      astra.findAll((node: { children: unknown[] }) =>
+      orbit.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.allowance.manageSubscription')),
     ).toHaveLength(0)
   })
@@ -2311,7 +2311,7 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
     })
     expect(mockRouterPush).toHaveBeenCalledWith('/support')
-    expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
+    expect(mockSetOrbitConversationOpen).not.toHaveBeenCalled()
   })
 
   it('refreshes push permission when the app becomes active', async () => {

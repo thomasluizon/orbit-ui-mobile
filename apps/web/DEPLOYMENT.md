@@ -8,7 +8,7 @@ The image lives at `ghcr.io/thomasluizon/orbit-web`. The release workflow tags i
 
 Deploy the API's `habitRanking` producer and `/api/chat/habit-ranking` paging and refresh endpoint
 before releasing clients that advertise that part kind. Release the paired web and Android
-renderers with shared validation and action support. Run the ranking cases in the Astra capability
+renderers with shared validation and action support. Run the ranking cases in the Orbit capability
 evaluation against the deployed producer before activation, including calendar-month windows,
 complete multi-page results, stale cursors, exact-query refresh and legacy clients without the kind.
 Android text and TalkBack acceptance requires a device; hermetic web or Yoga checks do not replace it.
@@ -113,7 +113,7 @@ Historical replies without optional read metadata remain readable. No minimum cl
 change is needed. Roll back the carrying client or remove new-kind advertisement to stop new
 period cards. The existing lazy conversation import keeps these renderers out of Today loading.
 
-## Astra composition rollout
+## Orbit composition rollout
 
 Release the API composition producer and its query-bound reads before the paired web/Android
 consumer. Use the existing manually dispatched `release.yml` production path from `main` and the
@@ -122,5 +122,5 @@ accounts until #26 records passing English and Portuguese composition evidence a
 pipeline and carrying consumers. Local Vitest proves rendering and transport behavior only.
 Missing or skipped assertions cannot approve activation. Disable the same API flag or negotiated
 capability to roll back while preserving legacy history and approval gates. Model and quota
-configuration are independent. The harness instructions remain in TESTING.md under Astra capability
+configuration are independent. The harness instructions remain in TESTING.md under Orbit capability
 eval; #26 owns their implementation.

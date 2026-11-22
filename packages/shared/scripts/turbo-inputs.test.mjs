@@ -23,7 +23,7 @@ const consumers = [
     'design/canvas/Orbit Widget Android.dc.html', `${tokenDirectory}/typography.css`,
     'design/brand/orbit-mascot-feliz.svg', 'design/brand/orbit-lockup.svg', 'DESIGN.md',
     '.gitignore', 'apps/mobile/.gitignore', 'eslint-rules/no-comments.cjs', 'tsconfig.base.json',
-    'evals/astra/catalog.yaml',
+    'evals/ai-eval/catalog.yaml',
   ] },
   { workspace: 'apps/desktop', name: '@orbit/desktop', inputs: [
     '.github/workflows/desktop-release.yml', '.github/workflows/desktop-acceptance.yml',

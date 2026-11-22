@@ -19,7 +19,7 @@ vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: (_today: string, in
 } }))
 vi.mock('@/app/(app)/today-page-view', () => ({ TodayHeaderRegion: () => null, TodayHabitsPanel: () => null, TodayOverlays: () => null }))
 vi.mock('@/components/today/setup-checklist-card', () => ({ SetupChecklistCard: () => null }))
-vi.mock('@/components/today/today-astra', () => ({ TodayAstra: () => null }))
+vi.mock('@/components/today/today-orbit', () => ({ TodayOrbit: () => null }))
 
 it('keeps the server preload fenced after an account change and a Hoje reset', async () => {
   vi.stubGlobal('fetch', vi.fn())

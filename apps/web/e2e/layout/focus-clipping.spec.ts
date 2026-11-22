@@ -121,15 +121,15 @@ for (const width of [412, 1352] as const) {
         await expectCompleteTodayIndicators(page, selectionControls, 'Hoje selection control')
       })
 
-      test('Astra entry and conversation expose complete chip and control rings', async ({ page }) => {
+      test('Orbit entry and conversation expose complete chip and control rings', async ({ page }) => {
         await page.goto('/')
         await expect(page.locator('html')).toHaveClass(new RegExp(mode))
         await refreshTodayHabits(page)
         const pinned = page.locator('[data-shell-pinned-slot] [data-composer-root]')
         await expect(pinned).toHaveCount(0)
-        const astra = getShellConversationEntry(page, width, messages)
-        await expectCompleteTabIndicator(page, astra, 'Astra entry')
-        await astra.click()
+        const orbit = getShellConversationEntry(page, width, messages)
+        await expectCompleteTabIndicator(page, orbit, 'Orbit entry')
+        await orbit.click()
         const conversation = page.locator('[data-shell-conversation]')
         await expect(conversation).toBeVisible()
         const field = conversation.locator('[data-composer-input]')

@@ -146,7 +146,7 @@ rendering on web and Android. Producer evidence is `QueryHabitsTool.cs:95-103` a
 This append-only acceptance retains historical `today` and `all` payloads and does not
 change the generated contract pin or the supported client version floor.
 
-## Astra answer composition
+## Orbit answer composition
 
 The append-only `supportsFollowUpContext` capability and optional `followUpContext` entries come
 from the composition producer in API pull request #853. Runtime schemas validate label, complete

@@ -10,7 +10,7 @@ describe('applySuggestionChecklist mobile', () => {
     expect(selectSuggestedSubHabitTitles([...existingValues, 'Existing 19'], ['First'])).toEqual([])
   })
 
-  it('caps an Astra checklist proposal at the shared limit', () => {
+  it('caps an Orbit checklist proposal at the shared limit', () => {
     const existing = Array.from({ length: 49 }, (_, index) => ({ text: `Item ${index}`, isChecked: false }))
     const setValue = vi.fn()
     const form = { getValues: () => existing, setValue } as unknown as HabitFormHelpers['form']
@@ -19,7 +19,7 @@ describe('applySuggestionChecklist mobile', () => {
     expect(setValue.mock.calls[0]?.[1]).toHaveLength(50)
   })
 
-  it('reports a setup proposal only when Astra changes a form value', () => {
+  it('reports a setup proposal only when Orbit changes a form value', () => {
     const setValue = vi.fn()
     const target = {
       form: {
@@ -55,7 +55,7 @@ describe('applySuggestionChecklist mobile', () => {
     expect(applySuggestionSchedule({ ...patch, dueTime: '08:00' }, target)).toBe(true)
   })
 
-  it('clears a prefilled end time when Astra replaces the exact time', () => {
+  it('clears a prefilled end time when Orbit replaces the exact time', () => {
     const values: Record<string, unknown> = {
       emoji: '',
       days: [],
@@ -88,7 +88,7 @@ describe('applySuggestionChecklist mobile', () => {
     expect(values).toMatchObject({ dueTime: '10:00', dueEndTime: '' })
   })
 
-  it('moves a recurring form to one-time only when Astra changes its mode', () => {
+  it('moves a recurring form to one-time only when Orbit changes its mode', () => {
     const setOneTime = vi.fn()
     const target = {
       form: { getValues: () => null, setValue: vi.fn() },

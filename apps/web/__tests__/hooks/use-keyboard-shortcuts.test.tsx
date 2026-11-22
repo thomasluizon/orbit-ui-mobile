@@ -4,7 +4,7 @@ import { act, render, renderHook, fireEvent } from '@testing-library/react'
 const mockPush = vi.fn()
 const mockTogglePalette = vi.fn()
 const mockResetToday = vi.fn()
-const mockSetAstraConversationOpen = vi.fn()
+const mockSetOrbitConversationOpen = vi.fn()
 let overlayOpen = false
 let modalFocusOwnerOpen = false
 let paletteOpen = false
@@ -27,8 +27,8 @@ vi.mock('@/stores/shell-store', () => ({
 }))
 
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { resetToday: typeof mockResetToday; setAstraConversationOpen: typeof mockSetAstraConversationOpen }) => unknown) =>
-    selector({ resetToday: mockResetToday, setAstraConversationOpen: mockSetAstraConversationOpen }),
+  useUIStore: (selector: (state: { resetToday: typeof mockResetToday; setOrbitConversationOpen: typeof mockSetOrbitConversationOpen }) => unknown) =>
+    selector({ resetToday: mockResetToday, setOrbitConversationOpen: mockSetOrbitConversationOpen }),
 }))
 
 vi.mock('@/lib/overlay-stack', () => ({
@@ -56,7 +56,7 @@ beforeEach(() => {
   mockPush.mockClear()
   mockTogglePalette.mockClear()
   mockResetToday.mockClear()
-  mockSetAstraConversationOpen.mockClear()
+  mockSetOrbitConversationOpen.mockClear()
   resetRouteTransitionIntent()
 })
 
@@ -127,7 +127,7 @@ describe('useKeyboardShortcuts', () => {
     fireEvent.keyDown(document, { key: 'g' })
     fireEvent.keyDown(document, { key: 'i' })
 
-    expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
+    expect(mockSetOrbitConversationOpen).not.toHaveBeenCalled()
     expect(mockTogglePalette).not.toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
   })
@@ -158,7 +158,7 @@ describe('useKeyboardShortcuts', () => {
     render(<Harness />)
     fireEvent.keyDown(document, { key: prefix })
     const allowedDefault = fireEvent.keyDown(document, { key })
-    expect(mockSetAstraConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
+    expect(mockSetOrbitConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
     expect(allowedDefault).toBe(false)
     expect(mockPush).not.toHaveBeenCalled()
     expect(mockResetToday).not.toHaveBeenCalled()
@@ -171,19 +171,19 @@ describe('useKeyboardShortcuts', () => {
     fireEvent.keyDown(document, { key: 'g' })
     fireEvent.keyDown(document, { key: 'x' })
     fireEvent.keyDown(document, { key: 'a' })
-    expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
+    expect(mockSetOrbitConversationOpen).not.toHaveBeenCalled()
   })
 
-  it.each([1199, 1200])('expires the Astra chord after 1200 ms, elapsed %s', (elapsed) => {
+  it.each([1199, 1200])('expires the Orbit chord after 1200 ms, elapsed %s', (elapsed) => {
     vi.useFakeTimers()
     render(<Harness />)
     fireEvent.keyDown(document, { key: 'g' })
     vi.advanceTimersByTime(elapsed)
     fireEvent.keyDown(document, { key: 'a' })
-    expect(mockSetAstraConversationOpen).toHaveBeenCalledTimes(elapsed < 1200 ? 1 : 0)
+    expect(mockSetOrbitConversationOpen).toHaveBeenCalledTimes(elapsed < 1200 ? 1 : 0)
   })
 
-  it.each(['input', 'textarea', 'select', 'div'])('clears the Astra chord when typing in %s', (tag) => {
+  it.each(['input', 'textarea', 'select', 'div'])('clears the Orbit chord when typing in %s', (tag) => {
     const view = render(<Harness />)
     const field = document.createElement(tag)
     if (tag === 'div') Object.defineProperty(field, 'isContentEditable', { value: true })
@@ -193,13 +193,13 @@ describe('useKeyboardShortcuts', () => {
     fireEvent.keyDown(document, { key: 'g' })
     fireEvent.keyDown(field, { key: 'a' })
     fireEvent.keyDown(document, { key: 'a' })
-    expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
+    expect(mockSetOrbitConversationOpen).not.toHaveBeenCalled()
     fireEvent.keyDown(document, { key: 'g' })
     fireEvent.keyDown(document, { key: 'a' })
-    expect(mockSetAstraConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
+    expect(mockSetOrbitConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
   })
 
-  it('clears the Astra chord when an overlay opens between keys', () => {
+  it('clears the Orbit chord when an overlay opens between keys', () => {
     render(<Harness />)
     overlayOpen = true
     fireEvent.keyDown(document, { key: 'g' })
@@ -210,37 +210,37 @@ describe('useKeyboardShortcuts', () => {
     fireEvent.keyDown(document, { key: 'a' })
     overlayOpen = false
     fireEvent.keyDown(document, { key: 'a' })
-    expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
+    expect(mockSetOrbitConversationOpen).not.toHaveBeenCalled()
     fireEvent.keyDown(document, { key: 'g' })
     fireEvent.keyDown(document, { key: 'a' })
-    expect(mockSetAstraConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
+    expect(mockSetOrbitConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
   })
 
-  it.each(['metaKey', 'ctrlKey', 'altKey'])('ignores the Astra chord with %s', (modifier) => {
+  it.each(['metaKey', 'ctrlKey', 'altKey'])('ignores the Orbit chord with %s', (modifier) => {
     render(<Harness />)
     fireEvent.keyDown(document, { key: 'g', [modifier]: true })
     fireEvent.keyDown(document, { key: 'a', [modifier]: true })
-    expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
+    expect(mockSetOrbitConversationOpen).not.toHaveBeenCalled()
   })
 
-  it('clears an armed Astra chord when shortcuts become disabled', () => {
+  it('clears an armed Orbit chord when shortcuts become disabled', () => {
     const view = render(<Harness />)
     fireEvent.keyDown(document, { key: 'g' })
     view.rerender(<Harness enabled={false} />)
     fireEvent.keyDown(document, { key: 'a' })
     view.rerender(<Harness />)
     fireEvent.keyDown(document, { key: 'a' })
-    expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
+    expect(mockSetOrbitConversationOpen).not.toHaveBeenCalled()
     fireEvent.keyDown(document, { key: 'g' })
     fireEvent.keyDown(document, { key: 'a' })
-    expect(mockSetAstraConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
+    expect(mockSetOrbitConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
   })
 
   it('keeps palette toggling available from a typing target', () => {
     const view = render(<Harness />)
     fireEvent.keyDown(view.getByTestId('field'), { key: 'k', ctrlKey: true })
     expect(mockTogglePalette).toHaveBeenCalledOnce()
-    expect(mockSetAstraConversationOpen).not.toHaveBeenCalled()
+    expect(mockSetOrbitConversationOpen).not.toHaveBeenCalled()
   })
 
   it('allows closing the palette while it owns modal focus', () => {

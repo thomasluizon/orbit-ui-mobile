@@ -45,7 +45,7 @@ vi.mock('@/components/chat/habit-list-card', () => ({ HabitListCard: () => null 
 vi.mock('@/components/chat/goal-list-card', () => ({ GoalListCard: () => null }))
 vi.mock('expo-clipboard', () => ({ }))
 
-describe('Astra status cards on mobile', () => {
+describe('Orbit status cards on mobile', () => {
   beforeEach(() => { mocks.push.mockReset(); mocks.language = 'pt-BR'; mocks.uses24HourClock = false })
 
   it('labels the day ring and opens Today', () => {

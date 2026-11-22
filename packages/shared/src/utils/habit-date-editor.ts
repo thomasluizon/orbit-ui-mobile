@@ -17,7 +17,7 @@ interface DateEditorAdapter {
 }
 
 export interface DateEditorSnapshot {
-  astra: boolean
+  orbit: boolean
   pending: boolean
   failure: string | null
   capacity: boolean
@@ -27,7 +27,7 @@ export interface DateEditorSnapshot {
 export class HabitDateEditor {
   private session = new DateInterpretationSession()
   private listeners = new Set<() => void>()
-  private snapshot: DateEditorSnapshot = { astra: false, pending: false, failure: null, capacity: false, status: 'empty' }
+  private snapshot: DateEditorSnapshot = { orbit: false, pending: false, failure: null, capacity: false, status: 'empty' }
   private abort: AbortController | null = null
   private timer: ReturnType<typeof setTimeout> | null = null
   private online = false
@@ -70,7 +70,7 @@ export class HabitDateEditor {
   }
 
   private scheduleInterpretation(): void {
-    if (this.timer !== null || this.snapshot.pending || this.snapshot.astra || !this.online || this.atLimit) return
+    if (this.timer !== null || this.snapshot.pending || this.snapshot.orbit || !this.online || this.atLimit) return
     if (!['unsupported', 'ambiguous', 'invalid'].includes(this.snapshot.status)) return
     const context = this.adapter.context()
     if (context.type === 'task' && this.readRecurrence(context)) return
@@ -95,13 +95,13 @@ export class HabitDateEditor {
     this.rememberContext()
     if (this.readRecurrence(context)) {
       this.setRecurrenceIssue(context)
-      this.publish({ astra: false, pending: false, failure: null, capacity: false, status: this.recurrenceStatus(context) })
+      this.publish({ orbit: false, pending: false, failure: null, capacity: false, status: this.recurrenceStatus(context) })
       return
     }
     if (context.phrase) {
       this.adapter.write('dateIssue', 'habits.form.dateStale')
     }
-    this.publish({ astra: false, pending: false, failure: null, capacity: false, status: this.session.parse(context).status })
+    this.publish({ orbit: false, pending: false, failure: null, capacity: false, status: this.session.parse(context).status })
   }
 
   setPhrase(phrase: string): void { this.readPhrase(phrase) }
@@ -123,7 +123,7 @@ export class HabitDateEditor {
       this.applyRecurrence(context, choosingType, recurrence)
       this.setRecurrenceIssue(context)
       this.rememberContext()
-      this.publish({ astra: false, pending: false, failure: null, capacity: false, status: this.recurrenceStatus(context) })
+      this.publish({ orbit: false, pending: false, failure: null, capacity: false, status: this.recurrenceStatus(context) })
       this.scheduleInterpretation()
       return
     }
@@ -132,7 +132,7 @@ export class HabitDateEditor {
     this.adapter.write('dateIssue', result.status === 'empty' || result.status === 'resolved' ? '' : result.status === 'invalid' ? 'habits.form.dateInvalid' : 'habits.form.datePhraseUnresolved')
     if (result.status === 'resolved') this.adapter.write('dueDate', result.date)
     this.rememberContext()
-    this.publish({ astra: false, pending: false, failure: null, capacity: false, status: result.status })
+    this.publish({ orbit: false, pending: false, failure: null, capacity: false, status: result.status })
     this.scheduleInterpretation()
   }
 
@@ -192,7 +192,7 @@ export class HabitDateEditor {
     this.adapter.write('datePhrase', '')
     this.adapter.write('dateIssue', '')
     this.rememberContext()
-    this.publish({ astra: false, pending: false, failure: null, capacity: false, status: 'empty' })
+    this.publish({ orbit: false, pending: false, failure: null, capacity: false, status: 'empty' })
   }
 
   private async interpret(): Promise<void> {
@@ -230,7 +230,7 @@ export class HabitDateEditor {
     this.adapter.write('dueDate', date)
     this.adapter.write('dateIssue', '')
     this.rememberContext()
-    this.publish({ astra: true, status: 'resolved' })
+    this.publish({ orbit: true, status: 'resolved' })
   }
 
   validate(): void { this.sync() }

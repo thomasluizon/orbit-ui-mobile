@@ -49,12 +49,12 @@ describe('PillButton', () => {
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each([412, 1280].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('keeps focused Astra action motion confined to its finite skeleton face at $width px (loading: $loading)', async ({ width, loading }) => {
-      const { container } = render(<PillButton variant="ghost" retainLeadingIcon leadingIcon={<OrbitMascot size={16} />} loading={loading} focusableWhenLoading onClick={vi.fn()}>Ask Astra</PillButton>)
+    it.each([412, 1280].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('keeps focused Orbit action motion confined to its finite skeleton face at $width px (loading: $loading)', async ({ width, loading }) => {
+      const { container } = render(<PillButton variant="ghost" retainLeadingIcon leadingIcon={<OrbitMascot size={16} />} loading={loading} focusableWhenLoading onClick={vi.fn()}>Ask Orbit</PillButton>)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        const button = page.getByRole('button', { name: 'Ask Astra' })
+        const button = page.getByRole('button', { name: 'Ask Orbit' })
         await button.focus()
         const face = button.locator('[data-slot="skeleton-face"]')
         expect(await face.count()).toBe(loading ? 1 : 0)

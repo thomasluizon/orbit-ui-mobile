@@ -183,7 +183,7 @@ vi.mock('@/components/gamification/celebration-panel', () => ({
 }))
 vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
-vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
+vi.mock('@/components/chat/conversation', () => ({ OrbitConversation: () => null }))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => React.createElement('ComposerMarker', { testID: 'composer-marker' }) }))
 vi.mock('@/components/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/components/upgrade-required-screen', () => ({
@@ -348,7 +348,7 @@ describe('onboarding through the root layout', () => {
 })
 
 vi.mock('@/components/onboarding/calendar-import-prompt', () => ({ CalendarImportPrompt: () => null }))
-vi.mock('@/components/onboarding/astra-import-prompt', () => ({ AstraImportPrompt: () => null }))
+vi.mock('@/components/onboarding/orbit-import-prompt', () => ({ OrbitImportPrompt: () => null }))
 vi.mock('@/components/referral/referral-prompt', () => ({ ReferralPrompt: () => null }))
 vi.mock('@/components/milestone-share/milestone-share-prompt', () => ({ MilestoneSharePrompt: () => null }))
 vi.mock('@/components/marketing-consent/marketing-consent-prompt', () => ({ MarketingConsentPrompt: () => null }))

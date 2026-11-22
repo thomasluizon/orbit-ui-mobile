@@ -18,14 +18,14 @@ import { PageHeader } from '@/components/ui/page-header'
 import { useProfile } from '@/hooks/use-profile'
 import { ProfileAccountContent } from './profile-account-content'
 import { ProfilePreferencesContent } from './profile-preferences-content'
-import { ProfileAstraContent } from './profile-astra-content'
+import { ProfileOrbitContent } from './profile-orbit-content'
 import { ProfileNotificationsContent } from './profile-notifications-content'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const CONTENT = {
   account: ProfileAccountContent,
   preferences: ProfilePreferencesContent,
-  astra: ProfileAstraContent,
+  orbit: ProfileOrbitContent,
   notifications: ProfileNotificationsContent,
 }
 

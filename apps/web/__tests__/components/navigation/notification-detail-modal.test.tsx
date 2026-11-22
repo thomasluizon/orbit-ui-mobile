@@ -19,7 +19,7 @@ vi.mock('dompurify', () => ({
 }))
 
 const mockPush = vi.fn()
-vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: async () => { useUIStore.getState().setAstraConversationOpen(true) } }))
+vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: async () => { useUIStore.getState().setOrbitConversationOpen(true) } }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }))
@@ -50,7 +50,7 @@ describe('NotificationDetailModal', () => {
   }
 
   beforeEach(() => {
-    useUIStore.setState({ astraConversationOpen: false })
+    useUIStore.setState({ orbitConversationOpen: false })
     defaultProps.onOpenChange.mockClear()
     defaultProps.onMarkAsRead.mockClear()
     defaultProps.onDelete.mockClear()
@@ -162,6 +162,6 @@ describe('NotificationDetailModal', () => {
     render(<QueryClientProvider client={new QueryClient()}><NotificationDetailModal {...defaultProps} notification={{ ...mockNotification, url, habitId }} /></QueryClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: /notifications.openIn/ }))
     expect(mockPush).toHaveBeenCalledWith(destination)
-    expect(useUIStore.getState().astraConversationOpen).toBe(url === '/chat')
+    expect(useUIStore.getState().orbitConversationOpen).toBe(url === '/chat')
   })
 })

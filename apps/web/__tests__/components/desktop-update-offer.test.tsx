@@ -126,7 +126,7 @@ it.each([{ messages: en, locale: 'en' }, { messages: ptBR, locale: 'pt-BR' }])(
   'offers a web release in $locale and checkpoints only after explicit Restart', async ({ messages, locale }) => {
     vi.stubEnv('WEB_COMMIT_SHA', nextCommit)
     useChatStore.setState({ draft: 'Tomorrow too?' })
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     mount(messages, locale)
     await tick()
     expect(screen.getByRole('status')).toHaveTextContent(messages.forceUpdate.banner)
@@ -176,7 +176,7 @@ it('a new process offers the deferred shell version again', async () => {
   expect(screen.getByRole('button', { name: en.versionUpdate.restartCta })).toBeVisible()
 })
 
-it('waits for Astra, typing, overlays and attachment work before showing the notice', async () => {
+it('waits for Orbit, typing, overlays and attachment work before showing the notice', async () => {
   vi.stubEnv('WEB_COMMIT_SHA', nextCommit)
   useChatStore.setState({ isTyping: true, streamingMessageId: 'reply' })
   mount()
@@ -491,7 +491,7 @@ it('restores the account-bound conversation after a process restart through the 
   </NextIntlClientProvider>)
   await tick()
   expect(useChatStore.getState().draft).toBe('After the restart')
-  expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   expect(await takeDesktopChatCheckpoint('desktop-account')).toBeNull()
 })
 

@@ -12,7 +12,7 @@ import { expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 import { composerPlaceholderFits } from './composer-column-paint'
-import { waitForSettledAstraStack } from './shell-conversation-entry'
+import { waitForSettledOrbitStack } from './shell-conversation-entry'
 
 const title = 'Caminhar pelo bairro e cuidar da rotina com todos os detalhes '.repeat(3)
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title, children: [], checklistItems: [] })
@@ -36,8 +36,8 @@ for (const width of [320, 360, 384, 412]) {
       test('grows in the conversation opened from Hoje, then follows typed text', async ({ page }) => {
         await page.goto('/')
         await expect(page.locator('[data-shell-bottom] [data-composer-root]')).toHaveCount(0)
-        await waitForSettledAstraStack(page)
-        const opener = page.locator('[data-astra-button]')
+        await waitForSettledOrbitStack(page)
+        const opener = page.locator('[data-orbit-button]')
         await expectInteractionFill(opener)
         await opener.click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')

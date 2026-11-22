@@ -7,7 +7,7 @@ import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/fact
 import { Composer } from '@/components/shell/composer'
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
 import type { ChatMessage } from '@orbit/shared/types/chat'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { Shell412 } from '@/components/shell/shell-412'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 import { useChatStore } from '@/stores/chat-store'
@@ -17,7 +17,7 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   sendAccessibilityEvent: vi.fn(),
-  setAstraConversationOpen: vi.fn(),
+  setOrbitConversationOpen: vi.fn(),
   router: { push: vi.fn() },
   composer: {
     threadScroll: null as ReturnType<typeof createChatThreadScroll> | null,
@@ -90,8 +90,8 @@ vi.mock('react-native-safe-area-context', () => ({
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: Object.assign((selector: (state: { setAstraConversationOpen: typeof mocks.setAstraConversationOpen }) => unknown) =>
-    selector({ setAstraConversationOpen: mocks.setAstraConversationOpen }), { getState: () => ({ setAstraConversationOpen: mocks.setAstraConversationOpen }) }),
+  useUIStore: Object.assign((selector: (state: { setOrbitConversationOpen: typeof mocks.setOrbitConversationOpen }) => unknown) =>
+    selector({ setOrbitConversationOpen: mocks.setOrbitConversationOpen }), { getState: () => ({ setOrbitConversationOpen: mocks.setOrbitConversationOpen }) }),
 }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: null }) }))
@@ -140,7 +140,7 @@ const mountedTrees: TestTree[] = []
 async function renderScreen() {
   let tree!: TestTree
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<AstraConversation chat={mocks.composer as never} />)
+    tree = TestRenderer.create(<OrbitConversation chat={mocks.composer as never} />)
     await Promise.resolve()
   })
   mountedTrees.push(tree)
@@ -153,7 +153,7 @@ async function renderShellScreen() {
     tree = TestRenderer.create(
       <Shell412
         tabBar={React.createElement('TabBar')}
-        conversation={<AstraConversation chat={mocks.composer as never} />}
+        conversation={<OrbitConversation chat={mocks.composer as never} />}
         conversationLabel="chat.title"
       >
         {React.createElement('DestinationList')}
@@ -294,7 +294,7 @@ describe('ChatScreen composer recoveries', () => {
     expect(tree.root.findAll(node => node.type === 'ScrollView' && node.props.accessibilityLabel === 'shell.composer.suggestionsLabel')).toHaveLength(1)
     mocks.composer.messages = [{ id: 'message-1', role: 'user', content: 'Hello', timestamp: new Date() }]
     mocks.composer.showSuggestions = false
-    TestRenderer.act(() => tree.update(<AstraConversation chat={mocks.composer as never} />))
+    TestRenderer.act(() => tree.update(<OrbitConversation chat={mocks.composer as never} />))
     expect(findByType(tree.root, 'ChatEmptyState')).toBeUndefined()
     expect(renderedChips(tree.root)).toHaveLength(0)
   })
@@ -356,7 +356,7 @@ describe('ChatScreen composer recoveries', () => {
       pathname: '/habits/[id]',
       params: { id: 'habit-1' },
     })
-    expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(false)
+    expect(mocks.setOrbitConversationOpen).toHaveBeenCalledWith(false)
 
     const feed = findByType(tree.root, 'FlatList')
     expect(feed?.props.accessibilityState).toEqual({ busy: true })
@@ -434,7 +434,7 @@ describe('ChatScreen composer recoveries', () => {
 
     TestRenderer.act(() => press(close))
 
-    expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(false)
+    expect(mocks.setOrbitConversationOpen).toHaveBeenCalledWith(false)
   })
 
   it('moves Android accessibility focus to the conversation header on open', async () => {
@@ -442,7 +442,7 @@ describe('ChatScreen composer recoveries', () => {
     let tree!: TestTree
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
-        <AstraConversation chat={mocks.composer as never} />,
+        <OrbitConversation chat={mocks.composer as never} />,
         { createNodeMock: ({ props }: { props: { testID?: string } }) =>
           props.testID === 'conversation-title' ? titleNode : null },
       )
@@ -483,7 +483,7 @@ describe('ChatScreen composer recoveries', () => {
     const tree = await renderScreen()
 
     expect(dismissTopOverlay('system-back')).toBe(true)
-    expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(false)
+    expect(mocks.setOrbitConversationOpen).toHaveBeenCalledWith(false)
 
     await TestRenderer.act(async () => {
       tree.unmount()

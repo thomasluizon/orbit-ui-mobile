@@ -142,7 +142,7 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/app/(app)/profile/_components/edit-name-sheet.tsx:95](../apps/web/app/(app)/profile/_components/edit-name-sheet.tsx#L95) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/app/(app)/profile/_components/fresh-start-modal.tsx:258](../apps/web/app/(app)/profile/_components/fresh-start-modal.tsx#L258) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/app/(app)/profile/_components/fresh-start-modal.tsx:284](../apps/web/app/(app)/profile/_components/fresh-start-modal.tsx#L284) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/web/app/(app)/profile/_components/profile-astra-content.tsx:79](../apps/web/app/(app)/profile/_components/profile-astra-content.tsx#L79) | `{t('upgrade.billing.retry')}` | RefreshCw |
+| [apps/web/app/(app)/profile/_components/profile-orbit-content.tsx:79](../apps/web/app/(app)/profile/_components/profile-orbit-content.tsx#L79) | `{t('upgrade.billing.retry')}` | RefreshCw |
 | [apps/web/app/(app)/profile/_components/profile-subscreen.tsx:35](../apps/web/app/(app)/profile/_components/profile-subscreen.tsx#L35) | `{t('common.retry')}` | RefreshCw |
 | [apps/web/app/(app)/progress/_components/goals/goals-section.tsx:74](../apps/web/app/(app)/progress/_components/goals/goals-section.tsx#L74) | `{t('goals.create')}` | Plus |
 | [apps/web/app/(app)/progress/_components/goals/progress-goals-content.tsx:78](../apps/web/app/(app)/progress/_components/goals/progress-goals-content.tsx#L78) | `{t('progressScreen.retry')}` | RefreshCw |

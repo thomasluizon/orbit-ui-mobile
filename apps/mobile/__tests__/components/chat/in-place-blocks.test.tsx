@@ -64,13 +64,13 @@ beforeEach(() => {
   state.mutate.mockReset().mockImplementation(() => new Promise(() => {}))
   state.pro = true
   state.disconnected = false
-  useUIStore.getState().setAstraConversationOpen(true)
+  useUIStore.getState().setOrbitConversationOpen(true)
   state.query = { isPending: false, isError: false, isRefetchError: false }
   state.habits.clear(); state.goals.clear()
   for (const item of inPlaceDayFixture.rows ?? []) state.habits.set(item.id, createMockHabit({ id: item.id, title: item.title }))
 })
 
-describe('Astra blocks act on app state', () => {
+describe('Orbit blocks act on app state', () => {
   it('caps the rows, blocks a double tap and shows a later log from Hoje', () => {
     const tree = render(<DaySummaryCard daySummary={inPlaceDayFixture} />)
     const name = 'chat.habitList.log:{"name":"Habit 1"}'
@@ -91,7 +91,7 @@ describe('Astra blocks act on app state', () => {
     expect(renderedText(tree.toJSON())).toContain('Work')
     press(tree, 'chat.calendarCard.makeHabit:{"title":"Walk with the team"}')
     expect(state.push).toHaveBeenCalledWith({ pathname: '/calendar', params: { import: '1', event: 'event /one' } })
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     void act(() => tree.unmount())
   })
 
@@ -183,13 +183,13 @@ it.each(['child', 'bad'] as const)('counts a completed %s row according to the s
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
 
 function NavigationApp({ part, destination = '/' }: Readonly<{ part: typeof chatNavigationCases[number]['part']; destination?: string }>) {
-  const open = useUIStore(state => state.astraConversationOpen)
+  const open = useUIStore(state => state.orbitConversationOpen)
   return <Shell412 nav={false} conversation={<ChatBlock part={part} onActionChipClick={undefined} />} conversationOpen={open}
-    conversationLabel="Astra"><Text accessibilityRole="header">{destination}</Text></Shell412>
+    conversationLabel="Orbit"><Text accessibilityRole="header">{destination}</Text></Shell412>
 }
 
-it.each(chatNavigationCases)('reveals the destination outside full-screen Astra from $name', ({ part, label, mobile, web }) => {
-  state.push.mockImplementation(() => expect(useUIStore.getState().astraConversationOpen).toBe(false))
+it.each(chatNavigationCases)('reveals the destination outside full-screen Orbit from $name', ({ part, label, mobile, web }) => {
+  state.push.mockImplementation(() => expect(useUIStore.getState().orbitConversationOpen).toBe(false))
   state.goals.set('goal-1', createMockGoal({ id: 'goal-1' }))
   const tree = render(<NavigationApp part={part} />)
   expect(tree.root.findAll(node => node.type === View && node.props.testID === 'shell-conversation')).toHaveLength(1)
@@ -198,7 +198,7 @@ it.each(chatNavigationCases)('reveals the destination outside full-screen Astra 
   if (retained) {
     press(tree, label)
     expect(state.push).toHaveBeenCalledWith(mobile)
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   } else {
     expect(tree.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')).toHaveLength(0)
     expect(state.push).not.toHaveBeenCalled()

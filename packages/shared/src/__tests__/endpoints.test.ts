@@ -19,7 +19,7 @@ describe('API endpoints', () => {
       expect(API.profile.timezone).toBe('/api/profile/timezone')
       expect(API.profile.weekStartDay).toBe('/api/profile/week-start-day')
       expect(API.profile.aiSummary).toBe('/api/profile/ai-summary')
-      expect(API.profile.proactiveAstra).toBe('/api/profile/proactive-astra')
+      expect(API.profile.proactiveOrbit).toBe('/api/profile/proactive-astra')
       expect(API.profile.onboarding).toBe('/api/profile/onboarding')
       expect(API.profile.language).toBe('/api/profile/language')
       expect(API.profile.themePreference).toBe('/api/profile/theme-preference')

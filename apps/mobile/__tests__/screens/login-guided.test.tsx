@@ -271,7 +271,7 @@ describe.each(authLocales)('guided sign-in on Android in %s', (locale) => {
     expect(inputs()).toHaveLength(currentFields)
     const states = byTestID('orbit-mascot').map((node) => node.props['data-orbit-state' as never])
     expect(states).toEqual(['parado'])
-    expect(allText()).not.toMatch(/astra/i)
+    expect(allText()).not.toMatch(/orbit/i)
     expect(tree!.root.findAll((node) => node.type === 'ActivityIndicator')).toHaveLength(0)
   })
 })

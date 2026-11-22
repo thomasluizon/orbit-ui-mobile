@@ -92,7 +92,7 @@ async function sampleCentre(page: Page, selector: string) {
 }
 
 async function sampleEntryPlanet(page: Page) {
-  const box = await page.locator('[data-astra-button] svg[data-asset="orbit-mascot"]').boundingBox()
+  const box = await page.locator('[data-orbit-button] svg[data-asset="orbit-mascot"]').boundingBox()
   expect(box).not.toBeNull()
   const radius = (ORBIT_MASCOT_PLANET_RADIUS / ORBIT_MASCOT_BOX_WIDTH) * box!.width
   return page.screenshot({
@@ -106,7 +106,7 @@ async function sampleEntryPlanet(page: Page) {
   })
 }
 
-test('the Astra button and the create button stay above both tab page legs at mid-transition at 412px', async ({ page, context }) => {
+test('the Orbit button and the create button stay above both tab page legs at mid-transition at 412px', async ({ page, context }) => {
   await seedHabits(context, 1)
   await page.setViewportSize({ width: 412, height: 915 })
   await page.emulateMedia({ reducedMotion: 'no-preference' })
@@ -119,19 +119,19 @@ test('the Astra button and the create button stay above both tab page legs at mi
   await today.click()
   await page.waitForFunction(() => window.orbitHeldTabLegs === 2)
   await expect(page.locator('[data-shell-fab] button')).toBeVisible()
-  await expect(page.locator('[data-astra-button]')).toBeVisible()
+  await expect(page.locator('[data-orbit-button]')).toBeVisible()
   const held = {
     create: await sampleCentre(page, '[data-shell-fab] button'),
-    astra: await sampleEntryPlanet(page),
+    orbit: await sampleEntryPlanet(page),
   }
 
   await finishTabLegs(page)
   const settled = {
     create: await sampleCentre(page, '[data-shell-fab] button'),
-    astra: await sampleEntryPlanet(page),
+    orbit: await sampleEntryPlanet(page),
   }
   expect(held.create.equals(settled.create), 'the create button centre is covered at mid-transition').toBe(true)
-  expect(held.astra.equals(settled.astra), 'the Astra button planet is covered at mid-transition').toBe(true)
+  expect(held.orbit.equals(settled.orbit), 'the Orbit button planet is covered at mid-transition').toBe(true)
 })
 
 test('the leaving page keeps its scroll offset through the exit leg and Today opens at its top at 412px', async ({ page, context }) => {

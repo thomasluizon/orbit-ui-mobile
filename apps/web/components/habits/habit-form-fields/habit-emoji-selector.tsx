@@ -129,7 +129,7 @@ export function HabitEmojiSelector({
           </button>
           <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} hintId={hintId} errorId={suggestionErrorId} />
         </div>
-        {proposed ? <span id={proposalId} hidden>{t('habits.form.proposedByAstra')}</span> : null}
+        {proposed ? <span id={proposalId} hidden>{t('habits.form.proposedByOrbit')}</span> : null}
         {onSuggest && suggestionHint ? <p id={hintId} hidden>{suggestionHint}</p> : null}
       </div>
 

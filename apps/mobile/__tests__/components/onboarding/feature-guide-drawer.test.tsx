@@ -83,7 +83,7 @@ describe('FeatureGuideDrawer (mobile)', () => {
 
     expect(getTabLabels(tree!)).toEqual([
       'onboarding.featureGuide.habits',
-      'onboarding.featureGuide.astra',
+      'onboarding.featureGuide.orbit',
       'onboarding.featureGuide.connect',
       'onboarding.featureGuide.progress',
       'onboarding.featureGuide.calendar',

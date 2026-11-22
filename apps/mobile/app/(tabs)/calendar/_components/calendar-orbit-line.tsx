@@ -7,7 +7,7 @@ import { prepareChatRequest } from '@orbit/shared/stores'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarView } from '@orbit/shared/utils/calendar-navigation'
 import { buildCalendarOrbitRequest, formatAPIDate, formatCalendarOrbitLine, nextCalendarPageTurn, resolveCalendarOrbitLine, type CalendarMonthDisplayState, type CalendarOrbitLine as CalendarOrbitLineModel } from '@orbit/shared/utils'
-import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 import { useFlowLookState } from '@/components/ui/flow-look'
 import { useFlag } from '@/hooks/use-flag'
 import { useOffline } from '@/hooks/use-offline'
@@ -92,11 +92,11 @@ function CalendarOrbitLineRow(props: Readonly<CalendarOrbitLineProps>) {
   const openConversation = () => {
     if (!sentence) return
     prepareChatRequest(useChatStore.getState(), buildCalendarOrbitRequest(sentence, i18n.language, t))
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
   }
   return <View testID="calendar-orbit-line" style={styles.block}>
-    <TodayAstraLine text={sentence ? formatCalendarOrbitLine(sentence, i18n.language, t) : t('calendar.loading')}
-      destination={reason ?? t('todayAstra.openConversation')} loading={!sentence} busy={!sentence} disabled={!sentence || Boolean(reason)}
+    <TodayOrbitLine text={sentence ? formatCalendarOrbitLine(sentence, i18n.language, t) : t('calendar.loading')}
+      destination={reason ?? t('todayOrbit.openConversation')} loading={!sentence} busy={!sentence} disabled={!sentence || Boolean(reason)}
       onPress={openConversation} mascotState={mascotState} lookAt={lookAt} turnKey={turns} mascotRef={mascotRef} />
     {reason ? <Text testID="calendar-orbit-line-reason" style={[styles.reason, { color: props.tokens.fg3 }]}>{reason}</Text> : null}
   </View>

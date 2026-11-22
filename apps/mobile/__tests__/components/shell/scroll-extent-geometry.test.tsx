@@ -95,11 +95,11 @@ it.each(viewports)('releases native minimum height after rows leave at $width by
   } finally { await act(() => tree.unmount()) }
 })
 
-it.each([390, 840, 1352])('clears the stacked Astra button at the end of the native list at %ipx', async width => {
+it.each([390, 840, 1352])('clears the stacked Orbit button at the end of the native list at %ipx', async width => {
   const height = 915
   __setWindowDimensions({ width, height, scale: 1, fontScale: 1 })
   let tree!: GeometryTree
-  await act(() => { tree = create(<Shell412 astraButton header={<View style={{ height: 48 }} />}
+  await act(() => { tree = create(<Shell412 orbitButton header={<View style={{ height: 48 }} />}
     fab={<View style={{ height: 60 }} />} tabBar={<View style={{ height: 80 }} />}><LongList /></Shell412>) as GeometryTree })
   try {
     const measure = () => measureSafeArea(exposeContent(tree.toJSON()), host => host.props.testID, { width, height })
@@ -111,7 +111,7 @@ it.each([390, 840, 1352])('clears the stacked Astra button at the end of the nat
     const content = boxes.get('list-content')!
     const maximum = content.bottom - content.top - (list.bottom - list.top)
     const lastBottom = boxes.get('last-content')!.bottom - maximum
-    expect(boxes.get('astra-button')!.top - lastBottom).toBeGreaterThanOrEqual(SPACING.s16)
+    expect(boxes.get('orbit-button')!.top - lastBottom).toBeGreaterThanOrEqual(SPACING.s16)
     expect(boxes.get('shell-bottom')!.top).toBe(list.bottom)
     const contentStyle = host('list').props.contentContainerStyle as { paddingBottom: number }
     expect(contentStyle.paddingBottom).toBeGreaterThan(SPACING.s96)

@@ -29,7 +29,7 @@ export function useHabitSuggestion() {
         habitSetupSuggestionSchema,
       ),
     onError: (error) => {
-      if (getFriendlyErrorKey(error, 'habits.form.aiSuggestError') === 'errors.api.astraLimit') {
+      if (getFriendlyErrorKey(error, 'habits.form.aiSuggestError') === 'errors.api.orbitLimit') {
         void queryClient.invalidateQueries({ queryKey: profileKeys.detail() })
         void queryClient.invalidateQueries({ queryKey: subscriptionKeys.status() })
       }

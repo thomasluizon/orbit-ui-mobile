@@ -4,7 +4,7 @@
 import { useId } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { ProactiveItem } from '@orbit/shared/types'
-import { createAstraAllowanceTranslator, proactiveActionLabelKey } from '@orbit/shared/utils'
+import { createOrbitAllowanceTranslator, proactiveActionLabelKey } from '@orbit/shared/utils'
 import { useProactiveAction } from '@/hooks/use-proactive-action'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useOrbitReadMotionAllowed } from '@/components/ui/orbit-read-motion'
@@ -20,7 +20,7 @@ export function ProactiveAction({ item, acted, isOnline, onSend }: Readonly<{
   const t = useTranslations()
   const reasonId = useId()
   const { reason, waiting, allowance, act, aiMessagesPeriod } = useProactiveAction(item, acted, isOnline, onSend)
-  const allowanceText = createAstraAllowanceTranslator(t, { aiMessagesPeriod }, useLocale())
+  const allowanceText = createOrbitAllowanceTranslator(t, { aiMessagesPeriod }, useLocale())
   const label = item.actionLabel || t(proactiveActionLabelKey(item.trigger))
   const explanation = reason ? allowanceText(reason, { allowance }) : undefined
   const readMotionAllowed = useOrbitReadMotionAllowed()

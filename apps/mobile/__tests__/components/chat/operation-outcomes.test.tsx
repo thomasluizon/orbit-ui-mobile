@@ -33,7 +33,7 @@ describe('OperationOutcomes on mobile', () => {
   beforeEach(() => push.mockReset())
 
   it('renders localized typed outcomes and keeps policy recovery on Profile', () => {
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     let tree!: ReactTestRenderer & { toJSON(): ReactTestRendererJSON }
     TestRenderer.act(() => {
       const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [
@@ -56,7 +56,7 @@ describe('OperationOutcomes on mobile', () => {
     expect(tree.root.findAll((node: ReactTestRenderer['root']) => String(node.type) === 'View' && node.props.testID === 'action-row')).toHaveLength(1)
     TestRenderer.act(() => (profile!.props.onPress as () => void)())
     expect(push).toHaveBeenCalledWith('/profile')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
   it('renders one policy outcome when the API returns a denial twice', () => {

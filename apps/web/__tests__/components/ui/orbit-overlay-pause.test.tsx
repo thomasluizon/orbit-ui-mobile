@@ -51,7 +51,7 @@ describe('an overlay over a live Orbit on web', () => {
 
   it('pauses the destination Orbit behind the open conversation and runs the Orbit inside the conversation', () => {
     const shell = (open: boolean) => (
-      <ShellWide astraRow={{ label: 'Talk to Orbit', onOpen: () => {} }}
+      <ShellWide orbitRow={{ label: 'Talk to Orbit', onOpen: () => {} }}
         items={[{ id: 'hoje', href: '/', label: 'Today', icon: 'hoje' }]}
         activeId="hoje"
         navLabel="Main navigation"

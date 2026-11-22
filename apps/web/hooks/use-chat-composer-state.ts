@@ -56,7 +56,7 @@ export function useChatComposerSession(turnReconciliation: ChatComposerSessionIn
     setLastFailedSend(null)
     setDailyBudgetDate(null)
     setSendError(null)
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
   })
 
   const isOnline = useSyncExternalStore(

@@ -19,7 +19,7 @@ describe('profile-navigation', () => {
       { id: 'more', labelKey: 'profile.groups.more' },
       { id: 'ending', labelKey: null },
     ])
-    expect(PROFILE_SUBMENUS.map((submenu) => 'iconKey' in submenu ? submenu.iconKey : undefined)).toEqual(['account', 'preferences', 'astra', 'notifications'])
+    expect(PROFILE_SUBMENUS.map((submenu) => 'iconKey' in submenu ? submenu.iconKey : undefined)).toEqual(['account', 'preferences', 'orbit', 'notifications'])
     expect(PROFILE_SUBMENUS.map(({ route }) => route)).toEqual([
       '/profile/account', '/profile/preferences', '/profile/ai', '/profile/notifications',
     ])

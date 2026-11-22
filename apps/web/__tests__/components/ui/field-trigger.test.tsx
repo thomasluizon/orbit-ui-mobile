@@ -16,7 +16,7 @@ const items = [
 function Fixtures() {
   return <>
     <Select label="Units" value="a" options={[{ value: 'a', label: 'Alpha' }, { value: 'b', label: 'Beta' }]} onChange={vi.fn()} />
-    <ShellWide astraRow={{ label: 'Astra', onOpen: vi.fn() }} items={items} activeId="hoje" navLabel="Navigation"
+    <ShellWide orbitRow={{ label: 'Orbit', onOpen: vi.fn() }} items={items} activeId="hoje" navLabel="Navigation"
       onPalette={vi.fn()} paletteLabel="Search" paletteHint="Ctrl K" account="Ada Lovelace" accountEmail="ada@example.com" />
     <input aria-label="Search options" className="form-input orbit-field-hover" />
   </>
@@ -31,7 +31,7 @@ const FIELD_TRIGGERS = [
 
 const SIDEBAR_ROWS = [
   { name: 'destination link', find: () => screen.getByRole('link', { name: 'Hoje' }), pressMedia: [MOTION_SAFE] },
-  { name: 'Astra row', find: () => screen.getByRole('button', { name: 'Astra' }), pressMedia: [MOTION_SAFE] },
+  { name: 'Orbit row', find: () => screen.getByRole('button', { name: 'Orbit' }), pressMedia: [MOTION_SAFE] },
   { name: 'account row', find: () => screen.getByRole('button', { name: 'Ada Lovelace, ada@example.com' }), pressMedia: [MOTION_SAFE] },
 ] as const
 

@@ -1,7 +1,7 @@
 import type { Profile } from '../types/profile'
 
 interface SetupChecklist {
-  items: readonly { key: 'createHabit' | 'logHabit' | 'tryAstra'; done: boolean }[]
+  items: readonly { key: 'createHabit' | 'logHabit' | 'tryOrbit'; done: boolean }[]
   done: number
 }
 
@@ -10,7 +10,7 @@ export function getSetupChecklist(profile: Profile | undefined): SetupChecklist 
   const items = [
     { key: 'createHabit', done: profile.hasCreatedFirstHabit === true },
     { key: 'logHabit', done: profile.hasLoggedFirstHabit === true },
-    { key: 'tryAstra', done: profile.hasTriedAstra === true },
+    { key: 'tryOrbit', done: profile.hasTriedAstra === true },
   ] as const
   return { items, done: items.filter((item) => item.done).length }
 }

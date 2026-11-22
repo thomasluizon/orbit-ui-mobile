@@ -31,7 +31,7 @@ const onboarding = {
   onCorrect: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn(),
 }
 const cases = [320, 360, 393, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale => [1, 2].flatMap(scale =>
-  (['form', 'onboarding', 'proposal', 'astra'] as const).map(surface => ({ width, locale, scale, surface })),
+  (['form', 'onboarding', 'proposal', 'orbit'] as const).map(surface => ({ width, locale, scale, surface })),
 )))
 
 afterEach(async () => {
@@ -50,13 +50,13 @@ describe('native weekday surface geometry', () => {
     const dayOptions = Object.entries(messages.dates.daysShort).map(([day, label]) => ({ value: day.charAt(0).toUpperCase() + day.slice(1), label, accessibleLabel: i18n.t(`dates.daysLong.${day}`) }))
     let tree!: ReturnType<typeof renderer.create>
     await renderer.act(() => {
-      tree = renderer.create(<View style={{ padding: 16 }}>{surface === 'astra'
+      tree = renderer.create(<View style={{ padding: 16 }}>{surface === 'orbit'
         ? <PendingOperationCard pendingOperation={operation} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
         : surface === 'form' ? <HabitUnderstanding value="Read" emoji="" days={[]} daily dayOptions={dayOptions} quantity={1} mode="fixed" sentence={i18n.t('onboarding.flow.when.cadence.daily')} consumed={[]} labels={buildHabitUnderstandingLabels(i18n.t.bind(i18n))} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} />
           : <OnboardingCreateHabit {...onboarding} proposed={surface === 'proposal'} correcting={surface !== 'proposal'} />}</View>)
     })
     try {
-      if (surface === 'astra') await renderer.act(tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === i18n.t('chat.operation.edit'))[0]!.props.onPress as () => void)
+      if (surface === 'orbit') await renderer.act(tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === i18n.t('chat.operation.edit'))[0]!.props.onPress as () => void)
       const measured = measureProfileRow(tree.toJSON(), width, scale)
       const names = Object.values(surface === 'onboarding' ? messages.onboarding.flow.when.daysLong : messages.dates.daysLong)
       const controls = measured.controls.filter(control => names.includes(control.accessibilityLabel ?? '') || control.labels.some(label => names.includes(label)))
@@ -82,7 +82,7 @@ describe('native weekday surface geometry', () => {
           expect(text).toBeDefined()
           expect(text!.width).toBeLessThanOrEqual(control.width + 0.01)
         })
-        const row = tree.root.findAll(node => String(node.type) === 'View' && node.props.accessibilityLabel === (surface === 'form' ? i18n.t('habits.form.activeDays') : surface === 'astra' ? i18n.t('chat.operation.field.days') : i18n.t('onboarding.flow.when.daysLabel')))[0]
+        const row = tree.root.findAll(node => String(node.type) === 'View' && node.props.accessibilityLabel === (surface === 'form' ? i18n.t('habits.form.activeDays') : surface === 'orbit' ? i18n.t('chat.operation.field.days') : i18n.t('onboarding.flow.when.daysLabel')))[0]
         expect(row).toBeDefined()
         expect((StyleSheet.flatten(row!.props.style) as ViewStyle).flexWrap).toBe('nowrap')
         const initials = dayOptions.map(day => day.label.charAt(0))

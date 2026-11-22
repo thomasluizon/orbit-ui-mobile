@@ -34,7 +34,7 @@ platforms. The habit and goal flows have their own inventory in `design/habit-fo
 
 | Surface | Web owner | Android owner | Reason |
 |---|---|---|---|
-| Perfil switches: undated tasks, Orbit features, read-only key, device notifications, product email | `profile-preferences-content.tsx`, `profile-astra-content.tsx`, `profile-api-keys.tsx`, `push-devices-row.tsx`, `marketing-consent-section.tsx` | the matching Android owners | **Voice** labels a settings toggle for its ON state. A switch row is a setting, not a question |
+| Perfil switches: undated tasks, Orbit features, read-only key, device notifications, product email | `profile-preferences-content.tsx`, `profile-orbit-content.tsx`, `profile-api-keys.tsx`, `push-devices-row.tsx`, `marketing-consent-section.tsx` | the matching Android owners | **Voice** labels a settings toggle for its ON state. A switch row is a setting, not a question |
 | Calendar automatic sync and day detail habits switch | `components/calendar/calendar-sync-boundary.tsx`, `calendar-day-detail.tsx` | `app/(tabs)/calendar/_components/` mirrors | Settings toggles under the same rule |
 | Calendar event and entry search | `components/calendar/calendar-day-events.tsx`, `calendar-entry-details.tsx` | `app/(tabs)/calendar/_components/` mirrors | **Forms** sanctions search fields. They appear only above 20 events or 8 entries |
 | Calendar import selection | `components/calendar-sync/*` | `components/calendar-sync/*` | A selection list with select all, not a form question |

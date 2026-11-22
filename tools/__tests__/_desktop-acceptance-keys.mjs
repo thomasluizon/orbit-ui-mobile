@@ -12,7 +12,7 @@ import { T, REPO_ROOT } from './_harness.mjs'
 export async function paletteDeliveryCases(dom, readState, reports) {
   const runner = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
   const traversal = runner.slice(runner.indexOf('  const focus = []'), runner.indexOf('\n  report.paletteFocus = focus') + '\n  report.paletteFocus = focus'.length)
-  const pressKey = runner.slice(runner.indexOf('function pressKey('), runner.indexOf('async function dismissAstra'))
+  const pressKey = runner.slice(runner.indexOf('function pressKey('), runner.indexOf('async function dismissOrbit'))
   const host = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/host.mjs'), 'utf8')
   const waitForSource = host.slice(host.indexOf('export async function waitFor'), host.indexOf('export async function waitForHttp')).replace('export ', '')
   const input = dom.window.document.querySelector('[cmdk-input]')

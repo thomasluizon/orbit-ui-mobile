@@ -32,7 +32,7 @@ function stripTrailingChatDirectivePrefix(content: string): string {
 }
 
 /**
- * Removes `[[orbit:...]]` directives Astra emits to request rendered cards. The
+ * Removes `[[orbit:...]]` directives Orbit emits to request rendered cards. The
  * server strips them from the final message, but streamed deltas still carry them
  * mid-flight. Complete directives are always removed; a partial trailing token is
  * removed only while the message is actively streaming.

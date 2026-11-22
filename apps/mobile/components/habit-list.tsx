@@ -378,8 +378,8 @@ function useHabitListEmptyRendering({ styles, t }: Pick<HabitListEmptyRenderingI
       <HabitListEmptyState
         title={t(view === 'general' ? 'habits.emptyGeneral' : 'habits.emptyState')}
         description={view === 'today' ? t('habits.noHabitsBody') : ''}
-        askAstraLabel={t('habits.askAstra')}
-        onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)}
+        askOrbitLabel={t('habits.askOrbit')}
+        onAskOrbit={() => useUIStore.getState().setOrbitConversationOpen(true)}
         actionLabel={t('habits.createManually')}
         onAction={onCreatePress}
         variant="primary"

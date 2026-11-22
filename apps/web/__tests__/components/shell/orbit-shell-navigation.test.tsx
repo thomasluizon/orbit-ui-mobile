@@ -1,0 +1,308 @@
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
+import { createChatThreadScroll } from '@orbit/shared/hooks'
+import { createRef, type ReactNode, type MouseEventHandler } from 'react'
+import { PeriodInsightCard } from '@/components/chat/period-insight-card'
+import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types/chat'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { OrbitConversation } from '@/components/chat/conversation'
+import { DestinationShell } from '@/components/shell/destination-shell'
+import { useUIStore } from '@/stores/ui-store'
+import { useShellStore } from '@/stores/shell-store'
+import { getCurrentRouteTransitionIntent, resetRouteTransitionIntent } from '@/lib/motion/route-intent'
+
+const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn(), pushedIntents: [] as string[], replace: vi.fn(), wide: true }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => navigation.pathname,
+  useParams: () => ({}),
+  useRouter: () => ({ push: navigation.push, replace: navigation.replace }),
+}))
+vi.mock('next/link', () => ({ default: ({ href, onClick, onNavigate, children, ...props }: {
+  href: string; onClick?: MouseEventHandler<HTMLAnchorElement>; onNavigate?: (event: { preventDefault: () => void }) => void; children: ReactNode
+}) => <a {...props} href={href} onClick={event => {
+  onClick?.(event)
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  const cancellation = { prevented: false }
+  onNavigate?.({ preventDefault: () => { cancellation.prevented = true } })
+  if (!cancellation.prevented) navigation.push(href)
+}}>{children}</a> }))
+vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string) => key === 'chat.insight.progressLink' ? 'Ver no Progresso' : key === 'nav.orbit' ? 'Orbit' : key === 'shell.orbitButton.open' ? 'Falar com o Orbit' : key }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { name: 'Person', email: 'person@example.com' } }) }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+vi.mock('@/components/command/command-palette', () => ({
+  CommandPalette: () => useShellStore((state) => state.paletteOpen) ? <div role="dialog" aria-label="Search palette" /> : null,
+}))
+
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
+const words = { placeholder: 'Message', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attachments', suggestionsLabel: 'Suggestions' }
+const attachWords = { image: 'Photo', file: 'Document', trayLabel: 'Attachments', remove: (name: string) => name }
+const voiceWords = { start: 'Voice', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' }
+
+function buildChat(draft: string, suggestions: ReadonlyArray<{ id: string; label: string; onSelect: () => void }> = []): ChatController {
+  return {
+    threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(), messages: [], activeSteps: [],
+    canShowFollowUps: false, isTyping: false, streamingMessageId: null, showSuggestions: true,
+    sendMessage: vi.fn(), handleBreakdownConfirmed: vi.fn(), confirmAndExecutePendingOperation: vi.fn(),
+    prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(), isOnline: true,
+    sendError: null, canRetryLastSend: false, retryLastSend: vi.fn(),
+    composerProps: { state: 'idle', words, value: draft, onChangeValue: vi.fn(), onSend: vi.fn(), suggestions,
+      attachWords, voiceWords, onAttachImage: vi.fn(), onAttachFile: vi.fn(), onVoice: vi.fn() },
+  } as unknown as ChatController
+}
+
+function App({ draft = '', chat, block }: Readonly<{ draft?: string; chat?: ChatController; block?: ReactNode }>) {
+  const open = useUIStore((state) => state.orbitConversationOpen)
+  return <DestinationShell conversation={block ?? <OrbitConversation chat={chat ?? buildChat(draft)} />} conversationOpen={open}
+    conversationLabel="Orbit" onCreate={() => navigation.push('/habits/new')}>
+    <h1>{navigation.pathname}</h1>
+  </DestinationShell>
+}
+
+beforeEach(() => {
+  navigation.pathname = '/'
+  navigation.wide = true
+  navigation.pushedIntents = []
+  navigation.push.mockReset().mockImplementation((pathname: string) => {
+    navigation.pushedIntents.push(getCurrentRouteTransitionIntent())
+    navigation.pathname = pathname
+  })
+  navigation.replace.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
+  useUIStore.setState({ orbitConversationOpen: false })
+  useShellStore.setState({ paletteOpen: false })
+  resetRouteTransitionIntent()
+  vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+    matches: navigation.wide && /min-width/.test(query), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+  })))
+})
+afterEach(() => vi.unstubAllGlobals())
+
+it('keeps focus in each anchored attachment action and lets Escape close the menu before Orbit', async () => {
+  render(<App />)
+  const row = screen.getByRole('button', { name: 'Falar com o Orbit' })
+  fireEvent.click(row)
+  expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveFocus()
+  fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
+  const menu = await screen.findByRole('menu', { name: words.actions })
+  expect(document.querySelector('[data-shell]')).not.toContainElement(menu)
+  for (const label of [attachWords.image, attachWords.file]) {
+    const item = within(menu).getByRole('menuitem', { name: label })
+    act(() => item.focus())
+    expect(item).toHaveFocus()
+  }
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+  await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+  expect(screen.getByRole('button', { name: words.actions })).toHaveFocus()
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
+  expect(row).toHaveFocus()
+})
+
+it('redirects focus from an unrelated portal back to the conversation', () => {
+  render(<App />)
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
+  const unrelated = document.createElement('button')
+  unrelated.textContent = 'Unrelated portal'
+  document.body.append(unrelated)
+  try {
+    act(() => unrelated.focus())
+    expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveFocus()
+  } finally { unrelated.remove() }
+})
+
+it('shows the conversation suggestions at full composer width with no collapse control', () => {
+  const labels = ['Review routine', 'Plan routine']
+  const chat = buildChat('', labels.map((label, index) => ({ id: `chip-${index}`, label, onSelect: vi.fn() })))
+  render(<App chat={chat} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
+  const strip = screen.getByRole('group', { name: words.suggestionsLabel })
+  expect(within(strip).getAllByRole('button').map(button => button.textContent)).toEqual(labels)
+  const row = strip.closest('[data-composer-suggestion-row]')!
+  expect(row.querySelectorAll('button')).toHaveLength(labels.length)
+  expect(row.parentElement).toBe(document.querySelector('[data-composer-content]'))
+  expect(screen.queryByRole('button', { name: /shell\.composer\.(collapse|expand)/ })).toBeNull()
+  expect(document.querySelector('[data-composer-disclosure], [data-composer-collapse-row], [data-collapsed]')).toBeNull()
+})
+
+it.each([false, true])('hands attachment-menu focus back to the composer on Tab with shift=%s', async (shiftKey) => {
+  render(<App draft="Keep this draft" />)
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
+  fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
+  const menu = await screen.findByRole('menu', { name: words.actions })
+  act(() => within(menu).getByRole('menuitem', { name: attachWords.image }).focus())
+  fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey })
+  await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+  expect(screen.getByRole('button', { name: shiftKey ? words.clear : words.send })).toHaveFocus()
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+  expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveValue('Keep this draft')
+})
+
+it.each([
+  ['notifications.bell', '/notifications', 'button', ['forward']],
+  ['nav.createHabit', '/habits/new', 'button', ['neutral']], ['nav.today', '/', 'link', []], ['nav.calendar', '/calendar', 'link', ['tab']],
+  ['nav.progress', '/progress', 'link', ['tab']], ['nav.profile', '/profile', 'link', ['tab']],
+])('closes Orbit before sidebar navigation through %s', (label, pathname, role, pushedIntents) => {
+  const view = render(<App />)
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
+  const control = screen.getByRole(role, { name: label })
+  fireEvent.click(control)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(false)
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
+  if (role === 'link') expect(control).toHaveAttribute('href', pathname)
+  if (pathname === '/') expect(navigation.replace).toHaveBeenCalledWith(pathname)
+  if (pathname !== '/') expect(navigation.push).toHaveBeenCalledWith(pathname)
+  expect(navigation.pushedIntents).toEqual(pushedIntents)
+  view.rerender(<App />)
+  expect(screen.getByRole('heading', { name: pathname })).toBeVisible()
+})
+
+it('closes Orbit before opening sidebar search', () => {
+  render(<App />)
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
+  fireEvent.click(screen.getByRole('button', { name: /^nav.search/ }))
+  expect(useUIStore.getState().orbitConversationOpen).toBe(false)
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
+  expect(screen.getByRole('dialog', { name: 'Search palette' })).toBeVisible()
+})
+
+it.each([false, true])('opens and closes Orbit by keyboard on every destination with wide=%s', (wide) => {
+  navigation.wide = wide
+  for (const pathname of ['/', '/calendar', '/progress', '/profile']) {
+    navigation.pathname = pathname
+    const view = render(<App draft="Keep this draft" />)
+    const heading = screen.getByRole('heading', { name: pathname })
+    heading.tabIndex = -1
+    act(() => heading.focus())
+    fireEvent.keyDown(heading, { key: 'g' })
+    fireEvent.keyDown(heading, { key: 'a' })
+    const conversation = screen.getByRole('dialog', { name: 'Orbit' })
+    expect(conversation).toHaveAttribute('data-shell-conversation', 'overlay')
+    if (wide) expect(conversation).not.toHaveAttribute('aria-modal')
+    else expect(conversation).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveValue('Keep this draft')
+    expect(document.querySelector('[data-shell-destination]')).toHaveAttribute('inert')
+    expect(navigation.push).not.toHaveBeenCalled()
+    expect(navigation.pathname).toBe(pathname)
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(conversation).toBeVisible()
+    act(() => within(conversation).getByRole('button', { name: 'common.closeConversation' }).focus())
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
+    expect(heading).toHaveFocus()
+    expect(heading).toBeVisible()
+    view.unmount()
+  }
+})
+
+it.each([false, true])('preserves composer error recovery when opened by the chord with wide=%s', (wide) => {
+  navigation.wide = wide
+  const chat = buildChat('Keep this draft')
+  const retry = vi.fn()
+  chat.composerProps = { ...chat.composerProps, errorMessage: 'Message not sent', errorRecovery: { label: 'Try again', onSelect: retry } }
+  render(<App chat={chat} />)
+  fireEvent.keyDown(document, { key: 'g' })
+  fireEvent.keyDown(document, { key: 'a' })
+  const conversation = screen.getByRole('dialog', { name: 'Orbit' })
+  expect(within(conversation).getByRole('alert')).toHaveTextContent('Message not sent')
+  fireEvent.click(within(conversation).getByRole('button', { name: 'Try again' }))
+  expect(retry).toHaveBeenCalledOnce()
+  expect(within(conversation).getByRole('textbox', { name: words.placeholder })).toHaveValue('Keep this draft')
+})
+
+it.each([false, true])('opens the conversation with disabled sending at the daily limit with wide=%s', (wide) => {
+  navigation.wide = wide
+  const chat = buildChat('Keep this draft')
+  chat.composerProps = { ...chat.composerProps, state: 'atLimit', limitReason: 'Daily allowance reached' }
+  render(<App chat={chat} />)
+  fireEvent.keyDown(document, { key: 'g' })
+  fireEvent.keyDown(document, { key: 'a' })
+  const conversation = screen.getByRole('dialog', { name: 'Orbit' })
+  expect(within(conversation).getByText('Daily allowance reached')).toBeVisible()
+  expect(within(conversation).getByRole('textbox', { name: words.placeholder })).toBeDisabled()
+  expect(within(conversation).queryByRole('button', { name: words.send })).not.toBeInTheDocument()
+  expect(within(conversation).getByRole('button', { name: voiceWords.start })).toBeEnabled()
+  expect(conversation).toContainElement(document.activeElement as HTMLElement)
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
+})
+
+it.each([
+  ['/wrapped', false], ['/wrapped', true], ['/habits/new', false],
+] as const)('does not open Orbit where shell shortcuts are disabled at %s with wide=%s', (pathname, wide) => {
+  navigation.pathname = pathname
+  navigation.wide = wide
+  render(<App />)
+  fireEvent.keyDown(document, { key: 'g' })
+  fireEvent.keyDown(document, { key: 'a' })
+  expect(useUIStore.getState().orbitConversationOpen).toBe(false)
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
+  expect(navigation.push).not.toHaveBeenCalled()
+})
+
+const insight: PeriodInsightData = {
+  period: 'week', dateFrom: '2026-09-01', dateTo: '2026-09-07', completionRate: 50,
+  activeDays: 4, periodDays: 7, totalCompletions: 7, totalScheduled: 14,
+  currentStreak: 2, bestStreak: 5, topHabits: [], needsAttention: [],
+  narrative: { highlights: 'Walked', trends: '', suggestion: '', missed: '' },
+}
+
+it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] as const)('keeps insight disclosure in Orbit and navigates to Progresso from the shell with wide=%s at %s', (wide, pathname) => {
+  navigation.wide = wide
+  navigation.pathname = pathname
+  const block = <PeriodInsightCard periodInsight={insight} />
+  const view = render(<App block={block} />)
+  act(() => useUIStore.getState().setOrbitConversationOpen(true))
+  const conversation = screen.getByRole('dialog', { name: 'Orbit' })
+  fireEvent.click(within(conversation).getByRole('button', { name: 'chat.habitList.more' }))
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+  fireEvent.click(within(conversation).getByRole('button', { name: 'chat.readBlock.less' }))
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+  expect(within(conversation).queryByRole('link', { name: 'Ver no Progresso' })).toBeNull()
+  fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }))
+  if (pathname !== '/progress') expect(navigation.push).toHaveBeenCalledWith('/progress')
+  view.rerender(<App block={block} />)
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
+  expect(useUIStore.getState().orbitConversationOpen).toBe(false)
+  expect(screen.getByRole('heading', { name: '/progress' })).toBeVisible()
+  expect(document.querySelector('[data-shell-destination]')).not.toHaveAttribute('inert')
+})
+
+it('keeps Orbit open when a shell destination link opens in another tab', () => {
+  render(<App block={<PeriodInsightCard periodInsight={insight} />} />)
+  act(() => useUIStore.getState().setOrbitConversationOpen(true))
+  fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }), { ctrlKey: true })
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+  expect(navigation.push).not.toHaveBeenCalled()
+})
+
+it('opens the account menu from Orbit without navigating and returns focus on Escape', async () => {
+  render(<App />)
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
+  const trigger = screen.getByRole('button', { name: 'Person, person@example.com' })
+  await userEvent.click(trigger)
+  const menu = await screen.findByRole('menu', { name: 'Person, person@example.com' })
+  expect(useUIStore.getState().orbitConversationOpen).toBe(false)
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
+  expect(navigation.push).not.toHaveBeenCalled()
+  expect(within(menu).getByRole('menuitem', { name: 'profile.settingsRows.signOut' })).toBeVisible()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+  expect(trigger).toHaveFocus()
+})
+
+it.each([false, true])('owns one conversation entry row, named by its action, before the four destinations with collapsed=%s', (collapsed) => {
+  useShellStore.setState({ sidebarCollapsed: collapsed })
+  render(<App />)
+  const sidebar = document.querySelector<HTMLElement>('[data-shell-sidebar]')!
+  const navigation = within(sidebar).getByRole('navigation', { name: 'nav.mainNavigation' })
+  const rows = within(navigation).getAllByRole('button', { name: 'Falar com o Orbit' })
+  expect(rows).toHaveLength(1)
+  expect(rows[0]).toHaveTextContent(/^Falar com o Orbit$/)
+  expect(rows[0]).toHaveAccessibleName('Falar com o Orbit')
+  expect([...rows[0]!.querySelectorAll('[translate]')].map(name => [name.getAttribute('translate'), name.textContent])).toEqual([['no', 'Orbit']])
+  expect(rows[0]!.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mascot')
+  expect(within(navigation).getAllByRole('link')).toHaveLength(4)
+})

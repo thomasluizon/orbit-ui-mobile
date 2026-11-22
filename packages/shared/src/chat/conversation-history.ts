@@ -105,10 +105,10 @@ export function createConversationHistory(adapter: HistoryAdapter): Conversation
 
 export function prepareConversationSend(
   history: ConversationHistory,
-  conversation: { astraConversationOpen: boolean; setAstraConversationOpen: (open: boolean) => void },
+  conversation: { orbitConversationOpen: boolean; setOrbitConversationOpen: (open: boolean) => void },
   onFailure: () => void,
 ): true | Promise<boolean> {
-  if (!conversation.astraConversationOpen) conversation.setAstraConversationOpen(true)
+  if (!conversation.orbitConversationOpen) conversation.setOrbitConversationOpen(true)
   if (history.isReady()) return true
   return history.prepareSend().catch(() => { onFailure(); return false })
 }

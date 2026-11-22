@@ -54,7 +54,7 @@ export function NotificationDetailModal({
     closeSheet(() => {
       onClose()
       router.push(destination.url)
-      if (destination.opensAstra) void openCurrentProactiveItem(queryClient)
+      if (destination.opensOrbit) void openCurrentProactiveItem(queryClient)
     })
   }
 

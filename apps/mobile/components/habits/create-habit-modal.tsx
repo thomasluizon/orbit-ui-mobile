@@ -1,4 +1,4 @@
-import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
+import { useOrbitAllowanceCopy } from '@/hooks/use-orbit-allowance-copy'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { type ComponentType, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
@@ -154,7 +154,7 @@ export function CreateHabitModal({
   recoveryMessage,
 }: Readonly<CreateHabitModalProps>) {
   const { t, i18n } = useTranslation()
-  const allowanceText = useAstraAllowanceCopy()
+  const allowanceText = useOrbitAllowanceCopy()
   const router = useRouter()
   const isFocused = useIsFocused()
   const translate = allowanceText

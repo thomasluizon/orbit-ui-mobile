@@ -253,7 +253,7 @@ describe.each(authLocales)('guided sign-in in %s', (locale) => {
     expect(container.querySelectorAll('input')).toHaveLength(currentFields)
     expect(container.querySelector('[data-orbit-state="descansando"]')).toBeNull()
     expect(container.querySelector('[data-orbit-state]')).toHaveAttribute('data-orbit-state', 'parado')
-    expect(container.textContent).not.toMatch(/astra/i)
+    expect(container.textContent).not.toMatch(/orbit/i)
     expect(container.querySelector('.animate-spin')).toBeNull()
   })
 })

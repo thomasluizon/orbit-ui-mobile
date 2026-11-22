@@ -51,7 +51,7 @@ beforeEach(() => {
   state.profile = { ...createMockProfile(), aiMessagesUsed: 0, aiMessagesLimit: 50, hasProAccess: true }
   stubMatchMedia()
   vi.stubGlobal('fetch', fetchSpy)
-  useUIStore.getState().setAstraConversationOpen(false)
+  useUIStore.getState().setOrbitConversationOpen(false)
   useChatStore.getState().setDraft('')
 })
 afterEach(() => { vi.unstubAllGlobals(); fetchSpy.mockReset() })
@@ -93,7 +93,7 @@ describe('the Calendário Orbit line', () => {
   it('opens the conversation with the selected day offered above the composer', () => {
     renderLine(props())
     fireEvent.click(screen.getByRole('button', { name: 'The 13th: 1 of 3 done.' }))
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     expect(useChatStore.getState().draft).toBe('Tell me about November 13 in my calendar.')
   })
 
@@ -108,7 +108,7 @@ describe('the Calendário Orbit line', () => {
     expect(row).toBeDisabled()
     expect(screen.getByTestId('calendar-orbit-line-reason')).toHaveStyle({ fontSize: '12px', lineHeight: '1.4' })
     const reason = screen.getByTestId('calendar-orbit-line-reason').textContent!
-    expect(reason).toBe(isOnline ? en.conversation.restLimit : en.todayAstra.guided.offline)
+    expect(reason).toBe(isOnline ? en.conversation.restLimit : en.todayOrbit.guided.offline)
     expect(row).toHaveAccessibleDescription(reason)
     expect(document.querySelector('[data-asset="orbit-mascot"]')?.getAttribute('data-orbit-state')).toBe('descansando')
   })

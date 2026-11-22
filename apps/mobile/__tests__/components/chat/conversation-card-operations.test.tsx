@@ -9,7 +9,7 @@ import { renderedText } from '../../support/react-test-renderer'
 import { __emitKeyboardEvent } from '../../../test-mocks/react-native'
 import { Composer } from '@/components/shell/composer'
 import { usePendingOperationExecution } from '@/hooks/use-pending-operation-execution'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { breakdownSubHabits, makeActionResult, makeAgentOperationResult, makeBulkCreateResponse, makeClarificationPreviewMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
 
@@ -44,7 +44,7 @@ vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
 
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 type CardOperation = 'refresh' | 'revise' | 'breakdown' | 'clarification'
 const cardOperations: CardOperation[] = ['refresh', 'revise', 'breakdown', 'clarification']
 
@@ -92,7 +92,7 @@ function CardConversation({ operations }: { operations: CardOperation[] }) {
     activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: false,
     canShowFollowUps: false, composerProps: { suggestions: [] }, scrollToBottom: () => scrollToEnd(), handleBreakdownConfirmed: vi.fn(), ...tracked,
   } as unknown as ChatController
-  return <AstraConversation chat={chat} />
+  return <OrbitConversation chat={chat} />
 }
 interface TestTree { root: ReactTestInstance; unmount(): void }
 let tree: TestTree

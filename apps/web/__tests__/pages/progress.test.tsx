@@ -483,7 +483,7 @@ describe('ProgressContent', () => {
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         const { container } = render(
-          <ShellWide astraRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="progresso" navLabel="Navigation"
+          <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="progresso" navLabel="Navigation"
             conversation={<button>Conversation</button>}
             conversationOpen={panelOpen} conversationLabel="Conversation">
             <ProgressPage />
@@ -828,7 +828,7 @@ describe('ProgressContent', () => {
     mocks.usePortugueseCatalog = false
     mocks.useEnglishCatalog = false
     useChatStore.setState({ draft: '', contextualSuggestion: null })
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
     mocks.account.profile.timeZone = 'America/Sao_Paulo'
     vi.clearAllMocks()
     for (const query of [mocks.account, mocks.goals, mocks.gamification]) {
@@ -927,7 +927,7 @@ describe('ProgressContent', () => {
     expect(action).toHaveTextContent('progressScreen.goals.createAction')
     fireEvent.click(action)
     expect(screen.getByRole('dialog', { name: 'goals.create' })).toBeInTheDocument()
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
   })
 
@@ -955,7 +955,7 @@ describe('ProgressContent', () => {
     expect(within(section).queryByRole('link')).not.toBeInTheDocument()
     fireEvent.click(action)
     expect(screen.getByRole('dialog', { name: 'goals.create' })).toBeInTheDocument()
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
   it('keeps an unsent conversation draft when starting a goal', () => {
@@ -966,7 +966,7 @@ describe('ProgressContent', () => {
     expect(useChatStore.getState().draft).toBe('Unsent note')
     expect(useChatStore.getState().contextualSuggestion).toBeNull()
     expect(screen.getByRole('dialog', { name: 'goals.create' })).toBeInTheDocument()
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     mocks.goals.data.allGoals = [createMockGoal()]
     rerender(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
     expect(useChatStore.getState().contextualSuggestion).toBeNull()
@@ -992,7 +992,7 @@ describe('ProgressContent', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'goals.create' })).not.toBeInTheDocument())
     expect(getGoalCard('Walk 100 km')).toBeInTheDocument()
     expect(getGoalCard('Walk 100 km')).toHaveFocus()
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
   it.each([412, 1352])('aligns goal action paint inside equal 48px targets at %ipx', async (width) => {

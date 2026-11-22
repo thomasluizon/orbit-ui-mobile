@@ -10,7 +10,7 @@ import {
   applyHabitDayCorrection,
   applyHabitPhraseRead,
   applyHabitQuantityCorrection,
-  buildHabitAstraFallbackCopy,
+  buildHabitOrbitFallbackCopy,
   buildHabitDaysList,
   buildHabitFrequencyUnits,
   buildHabitUnderstandingLabels,
@@ -24,12 +24,12 @@ import {
   getHabitFormFlags,
   habitFeaturePlan,
   hasHabitFormProposal,
-  isHabitAstraLimitReached,
+  isHabitOrbitLimitReached,
   normalizeHabitFormData,
   releaseHabitPhraseOwnership,
   reportRefusedHabitSave,
   requestHabitFormProposal,
-  shouldShowHabitAstraFallback,
+  shouldShowHabitOrbitFallback,
   validateHabitFormInput,
 } from '../utils/habit-form-helpers'
 import {
@@ -507,16 +507,16 @@ describe('habit form helpers', () => {
     expect(buildHabitUnderstandingSentence([], [], true, 'Year', 2, '', locale, translate)).toBe(pluralYear)
   })
 
-  it('tracks proposal visibility, Astra limits and reminder labels', () => {
+  it('tracks proposal visibility, Orbit limits and reminder labels', () => {
     const proposal = { ...EMPTY_HABIT_FORM_PROPOSAL, checklist: true }
     const translate = (key: string) => key
 
     expect(hasHabitFormProposal(EMPTY_HABIT_FORM_PROPOSAL)).toBe(false)
     expect(hasHabitFormProposal(proposal)).toBe(true)
-    expect(shouldShowHabitAstraFallback('Read', null, () => true, EMPTY_HABIT_FORM_PROPOSAL)).toBe(true)
-    expect(shouldShowHabitAstraFallback('Read', null, () => true, proposal)).toBe(false)
-    expect(isHabitAstraLimitReached(4, 5)).toBe(false)
-    expect(isHabitAstraLimitReached(5, 5)).toBe(true)
+    expect(shouldShowHabitOrbitFallback('Read', null, () => true, EMPTY_HABIT_FORM_PROPOSAL)).toBe(true)
+    expect(shouldShowHabitOrbitFallback('Read', null, () => true, proposal)).toBe(false)
+    expect(isHabitOrbitLimitReached(4, 5)).toBe(false)
+    expect(isHabitOrbitLimitReached(5, 5)).toBe(true)
     expect(formatHabitReminderLabel(0, translate)).toBe('habits.form.reminderAtTime')
     expect(formatHabitReminderLabel(31, translate)).toBe('31 habits.form.reminderMinutes')
     expect(formatHabitReminderLabel(61, translate)).toBe('1 habits.form.reminderHour')
@@ -548,15 +548,15 @@ describe('habit form helpers', () => {
       field: 'habits.form.describe',
       repeatLess: 'habits.form.repeatLess',
       repeatMore: 'habits.form.repeatMore',
-      proposed: 'habits.form.proposedByAstra',
+      proposed: 'habits.form.proposedByOrbit',
     })
     expect(labels.count(3)).toBe('habits.form.timesAWeekCount:{"count":3}')
     expect(labels.repeat(2)).toBe('habits.form.repeatWeeks:{"count":2}')
-    expect(buildHabitAstraFallbackCopy(translate, 5)).toEqual({
+    expect(buildHabitOrbitFallbackCopy(translate, 5)).toEqual({
       limitMessage: 'habits.form.localReadLimit:{"allowance":5}',
-      readingLabel: 'habits.form.astraReading',
-      askLabel: 'habits.form.askAstra',
-      costLabel: 'habits.form.askAstraCost:{"allowance":5}',
+      readingLabel: 'habits.form.orbitReading',
+      askLabel: 'habits.form.askOrbit',
+      costLabel: 'habits.form.askOrbitCost:{"allowance":5}',
     })
   })
 
@@ -611,7 +611,7 @@ describe('habit form helpers', () => {
       },
     })
 
-    await controller.askAstra()
+    await controller.askOrbit()
 
     expect(setOwnership).not.toHaveBeenCalled()
     expect(updateProposal).not.toHaveBeenCalled()
@@ -643,7 +643,7 @@ describe('habit form helpers', () => {
       },
     })
 
-    await controller.askAstra()
+    await controller.askOrbit()
     expect(proposal).toBe(proposed)
     expect(ownership).toEqual({ cadence: false, dueTime: false })
 
@@ -972,7 +972,7 @@ describe('habit form helpers', () => {
       },
     })
 
-    await controller.askAstra()
+    await controller.askOrbit()
     expect(action).not.toHaveBeenCalled()
     expect(proposal).toBe(EMPTY_HABIT_FORM_PROPOSAL)
     controller.toggleDay('Friday')

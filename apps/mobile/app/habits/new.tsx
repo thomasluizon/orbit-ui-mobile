@@ -23,7 +23,7 @@ export default function HabitCreateRoute() {
   const drop = useOfflineSyncStore((state) => state.drops.find((entry) => entry.id === firstParam(params.recovery)))
   const conversation = firstParam(params.origin) === 'conversation'
   function back() {
-    if (conversation) useUIStore.getState().setAstraConversationOpen(true)
+    if (conversation) useUIStore.getState().setOrbitConversationOpen(true)
     if (router.canGoBack()) router.back()
     else router.replace(resolveHabitCreateReturnPath(firstParam(params.from)))
   }

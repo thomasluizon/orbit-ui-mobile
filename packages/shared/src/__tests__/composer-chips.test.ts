@@ -25,7 +25,7 @@ function ids(overrides: Partial<ComposerChipState> = {}) {
 describe('composer chips', () => {
   it('accepts zero or two suggestions with their callbacks and rejects one or seven', () => {
     const suggestions = buildComposerChips(state({ surface: 'habitDetail', detailHabit: { title: 'Reading', checklistItems: [] } }))
-      .filter(chip => chip.id !== 'habitDetail.askAstra')
+      .filter(chip => chip.id !== 'habitDetail.askOrbit')
       .map(chip => ({ id: chip.id, label: chip.key, onSelect: () => chip.id }))
     const accepted = toComposerSuggestions(suggestions)
     expect(accepted.map(chip => chip.id)).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
@@ -239,10 +239,10 @@ describe('composer chips', () => {
   })
 
   it.each(['today', 'calendar', 'progress', 'profile', 'habitDetail'] as const)('keeps the selected goal request reachable from %s with an existing draft', surface => {
-    const contextualSuggestion = { id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal' }
+    const contextualSuggestion = { id: 'goal-detail:reading', label: 'Orbit', prompt: 'Help me with my reading goal' }
     for (const status of ['success', 'loading', 'error'] as const) {
       const chips = buildComposerChips(state({ surface, status, contextualSuggestion }))
-      expect(chips[0]).toEqual({ ...contextualSuggestion, key: 'goals.detail.askAstraEyebrow' })
+      expect(chips[0]).toEqual({ ...contextualSuggestion, key: 'goals.detail.askOrbitEyebrow' })
       expect(chips.length).toBeGreaterThanOrEqual(3)
       expect(chips.length).toBeLessThanOrEqual(6)
     }

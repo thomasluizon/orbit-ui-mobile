@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 import { holdAccount } from '@/__tests__/support/account-change'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { breakdownSubHabits, makeActionResult, makeAgentOperationResult, makeBulkCreateResponse, makeClarificationPreviewMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -33,7 +33,7 @@ vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
 
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 type CardOperation = 'refresh' | 'revise' | 'breakdown' | 'clarification'
 const cardOperations: CardOperation[] = ['refresh', 'revise', 'breakdown', 'clarification']
 
@@ -85,7 +85,7 @@ function CardConversation({ operations, scrollOwner }: { operations: CardOperati
     activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: operations.length === 0,
     canShowFollowUps: false, composerProps: { suggestions: [] }, handleBreakdownConfirmed: vi.fn(), ...tracked,
   } as unknown as ChatController
-  return <AstraConversation chat={chat} />
+  return <OrbitConversation chat={chat} />
 }
 function start(operation: CardOperation) {
   if (operation === 'breakdown') {

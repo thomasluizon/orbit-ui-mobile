@@ -5,7 +5,7 @@ import { Pressable as GesturePressable } from 'react-native-gesture-handler'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { SelectionTray } from '@/components/habits/selection-tray'
-import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
+import { OrbitAllowancePanel } from '@/components/profile/orbit-allowance-panel'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
@@ -57,7 +57,7 @@ describe('neutral press feedback on Android', () => {
     const buttons = renderedButtons(<>
       {selectionTray(false, false)}
       {selectionTray(true, false)}
-      <AstraAllowancePanel profile={createMockProfile()} onPlanAction={noop} />
+      <OrbitAllowancePanel profile={createMockProfile()} onPlanAction={noop} />
       <PillButton variant="ghost" accessibleName="Ghost">Ghost</PillButton>
       <View style={{ backgroundColor: createTokensV2('orange', mode).bgElev }}><PromptQuietAction accessibleName="Quiet">Quiet</PromptQuietAction></View>
     </>)

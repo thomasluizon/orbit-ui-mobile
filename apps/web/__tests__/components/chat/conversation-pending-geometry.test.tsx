@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 import en from '@orbit/shared/i18n/en.json'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -18,7 +18,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 function createChat(): ChatController {
   return {
     threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(),
@@ -28,7 +28,7 @@ function createChat(): ChatController {
   } as unknown as ChatController
 }
 
-describe('Astra pending reply geometry in Chromium', () => {
+describe('Orbit pending reply geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
@@ -42,7 +42,7 @@ describe('Astra pending reply geometry in Chromium', () => {
 
   it.each([412, 1352].flatMap(width => [false, true].map(reduced => ({ width, reduced }))))('keeps paused dots visible after a layout-only reveal at $width, reduced motion $reduced', async ({ width, reduced }) => {
     const chat = createChat()
-    const { container, getByRole } = render(<NextIntlClientProvider locale="en" messages={en}><AstraConversation chat={chat} /></NextIntlClientProvider>)
+    const { container, getByRole } = render(<NextIntlClientProvider locale="en" messages={en}><OrbitConversation chat={chat} /></NextIntlClientProvider>)
     const feed = getByRole('feed')
     Object.defineProperties(feed, { scrollHeight: { value: 1400 }, clientHeight: { value: 500 } })
     await act(async () => {
@@ -52,7 +52,7 @@ describe('Astra pending reply geometry in Chromium', () => {
       }
     })
     expect(chat.threadScroll.isFollowing()).toBe(false)
-    expect(container.querySelector<HTMLElement>('.astra-pending-pulse')!.style.animationPlayState).toBe('paused')
+    expect(container.querySelector<HTMLElement>('.orbit-pending-pulse')!.style.animationPlayState).toBe('paused')
     const page = await browser.newPage({ viewport: { width, height: 1000 }, reducedMotion: reduced ? 'reduce' : 'no-preference' })
     try {
       await page.setContent(`<style>${stylesheet}</style><div class="dark" style="height:1000px;max-width:740px;margin-inline:auto">${container.innerHTML}</div>`)
@@ -88,10 +88,10 @@ describe('Astra pending reply geometry in Chromium', () => {
   it.each([412, 1352].flatMap(width => ['light', 'dark'].flatMap(theme => [false, true].map(reduced => ({ width, theme, reduced })))))('reserves the reply start at $width in $theme, reduced motion $reduced', async ({ width, theme, reduced }) => {
     const chat = createChat()
     const content = () => <NextIntlClientProvider locale="en" messages={en}>
-      <div style={{ width: '100%', maxWidth: 740, marginInline: 'auto', height: 915 }}><AstraConversation chat={chat} /></div>
+      <div style={{ width: '100%', maxWidth: 740, marginInline: 'auto', height: 915 }}><OrbitConversation chat={chat} /></div>
     </NextIntlClientProvider>
     const { container, rerender } = render(content())
-    expect(container.querySelector('[data-astra-pending]')).not.toBeNull()
+    expect(container.querySelector('[data-orbit-pending]')).not.toBeNull()
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: reduced ? 'reduce' : 'no-preference' })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', theme as 'light' | 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
@@ -99,10 +99,10 @@ describe('Astra pending reply geometry in Chromium', () => {
         .${theme} { ${variables} }</style><div class="${theme}" style="background:var(--bg)">${container.innerHTML}</div>`)
       await loadAppFonts(page)
       await page.evaluate(iterations => document.documentElement.style.setProperty('--skeleton-pulse-iterations', String(iterations)), skeletonPulseIterations)
-      const pending = page.locator('[data-astra-pending]')
+      const pending = page.locator('[data-orbit-pending]')
       const position = await pending.boundingBox()
       expect(position).not.toBeNull()
-      const avatar = page.locator('[data-astra-avatar]')
+      const avatar = page.locator('[data-orbit-avatar]')
       expect(await avatar.count()).toBe(1)
       expect(await avatar.getAttribute('aria-hidden')).toBe('true')
       const markPosition = (await avatar.boundingBox())!
@@ -112,7 +112,7 @@ describe('Astra pending reply geometry in Chromium', () => {
       expect(position!.y - markPosition.y - markPosition.height).toBeCloseTo(8, 1)
       expect(await pending.locator('[data-working-mark] > span').count()).toBe(3)
       const animation = await pending.evaluate(element => {
-        const mark = element.querySelector('.astra-pending-pulse')!
+        const mark = element.querySelector('.orbit-pending-pulse')!
         return { name: getComputedStyle(mark).animationName, opacity: getComputedStyle(mark).opacity, height: element.getBoundingClientRect().height, duration: getComputedStyle(mark).animationDuration, iterations: getComputedStyle(mark).animationIterationCount, foreground: getComputedStyle(mark.querySelector('[data-working-mark]')!).color, background: getComputedStyle(element.closest('.light, .dark')!).backgroundColor }
       })
       expect(animation.height).toBe(24)
@@ -131,7 +131,7 @@ describe('Astra pending reply geometry in Chromium', () => {
       chat.messages = [...chat.messages, { id: 'reply', role: 'ai', content: 'Start with water', timestamp: new Date() }]
       rerender(content())
       await page.locator(`.${theme}`).evaluate((element, markup) => { element.innerHTML = markup }, container.innerHTML)
-      expect(await page.locator('[data-astra-pending]').count()).toBe(0)
+      expect(await page.locator('[data-orbit-pending]').count()).toBe(0)
       const reply = await page.locator('[data-bubble-role="ai"]').boundingBox()
       expect(reply).not.toBeNull()
       expect(reply!.x).toBeCloseTo(position!.x, 1)

@@ -64,7 +64,7 @@ describe('habit date editor lifecycle', () => {
     editor.sync()
     editor.validate()
     expect(fields).toEqual({ dueDate: '2026-10-26', datePhrase: 'on the 26th', dateIssue: '' })
-    expect(editor.getSnapshot()).toMatchObject({ status: 'resolved', astra: false })
+    expect(editor.getSnapshot()).toMatchObject({ status: 'resolved', orbit: false })
     context.referenceDate = '2026-10-27'
     editor.sync()
     expect(fields.dueDate).toBe('2026-10-26')
@@ -222,7 +222,7 @@ describe('habit date editor lifecycle', () => {
 
     editor.setPhrase('dia 26')
     const resolved = editor.getSnapshot()
-    expect(resolved).toMatchObject({ status: 'resolved', pending: false, astra: false })
+    expect(resolved).toMatchObject({ status: 'resolved', pending: false, orbit: false })
     expect(fields.dueDate).toBe('2026-10-26')
     expect(active).toEqual([resolved])
     expect(detached).toEqual([resolved])
@@ -260,7 +260,7 @@ describe('automatic date interpretation', () => {
     await debounce()
     editor.validate()
     expect(fields).toEqual({ dueDate: '2026-10-26', datePhrase: 'next holiday', dateIssue: '' })
-    expect(editor.getSnapshot()).toMatchObject({ astra: true, pending: false, status: 'resolved' })
+    expect(editor.getSnapshot()).toMatchObject({ orbit: true, pending: false, status: 'resolved' })
     expect(requests).toHaveLength(1)
   })
 
@@ -288,10 +288,10 @@ describe('automatic date interpretation', () => {
     requests[0]!.resolve(interpretation)
     await debounce()
     expect(fields.dueDate).toBe('2026-10-26')
-    expect(editor.getSnapshot().astra).toBe(true)
+    expect(editor.getSnapshot().orbit).toBe(true)
   })
 
-  it('debounces successive phrases, fills the form and retains Astra provenance until manual selection', async () => {
+  it('debounces successive phrases, fills the form and retains Orbit provenance until manual selection', async () => {
     const { editor, fields, requests } = createEditor()
     editor.setAvailability(true, false)
     editor.setPhrase('after')
@@ -302,14 +302,14 @@ describe('automatic date interpretation', () => {
     await vi.advanceTimersByTimeAsync(1)
     expect(requests).toHaveLength(1)
     expect(requests[0]!.input).toEqual({ phrase: 'after vacation', language: 'en' })
-    expect(editor.getSnapshot()).toMatchObject({ pending: true, astra: false })
+    expect(editor.getSnapshot()).toMatchObject({ pending: true, orbit: false })
     requests[0]!.resolve(interpretation)
     await debounce()
     editor.validate()
     expect(fields).toEqual({ dueDate: '2026-10-26', datePhrase: 'after vacation', dateIssue: '' })
-    expect(editor.getSnapshot()).toMatchObject({ pending: false, astra: true, status: 'resolved' })
+    expect(editor.getSnapshot()).toMatchObject({ pending: false, orbit: true, status: 'resolved' })
     editor.selectDate('2026-10-27')
-    expect(editor.getSnapshot().astra).toBe(false)
+    expect(editor.getSnapshot().orbit).toBe(false)
     expect(fields).toEqual({ dueDate: '2026-10-27', datePhrase: '', dateIssue: '' })
     await debounce()
     expect(requests).toHaveLength(1)
@@ -336,7 +336,7 @@ describe('automatic date interpretation', () => {
     requests[0]!.resolve(interpretation)
     await debounce()
     expect(fields.dueDate).toBe(boundary === 'date' ? '2026-10-23' : '2026-10-20')
-    expect(editor.getSnapshot().astra).toBe(false)
+    expect(editor.getSnapshot().orbit).toBe(false)
     expect(requests).toHaveLength(1)
   })
 
@@ -368,7 +368,7 @@ describe('automatic date interpretation', () => {
     editor.close()
   })
 
-  it.each(['toda segunda', 'every Monday', 'weekly'])('never sends a task recurrence %s to Astra', async (phrase) => {
+  it.each(['toda segunda', 'every Monday', 'weekly'])('never sends a task recurrence %s to Orbit', async (phrase) => {
     const { editor, requests, fields } = createEditor()
     editor.setAvailability(true, false)
     editor.setPhrase(phrase)
@@ -402,7 +402,7 @@ describe('automatic date interpretation', () => {
     await debounce()
     expect(fields.dueDate).toBe('2026-10-20')
     expect(fields.dateIssue).not.toBe('')
-    expect(editor.getSnapshot()).toMatchObject({ astra: false, pending: false })
+    expect(editor.getSnapshot()).toMatchObject({ orbit: false, pending: false })
     editor.selectDate('2026-10-22')
     expect(fields.dateIssue).toBe('')
   })
@@ -420,7 +420,7 @@ describe('automatic date interpretation', () => {
     requests[1]!.resolve(interpretation)
     await debounce()
     expect(fields.dueDate).toBe('2026-10-26')
-    expect(editor.getSnapshot()).toMatchObject({ pending: false, astra: true })
+    expect(editor.getSnapshot()).toMatchObject({ pending: false, orbit: true })
   })
 
   it.each([false, true])('settles provider failure and capacity=%s without retrying', async (capacity) => {
@@ -431,7 +431,7 @@ describe('automatic date interpretation', () => {
     await debounce()
     requests[0]!.reject(new Error('Consultation failed'))
     await debounce()
-    expect(editor.getSnapshot()).toMatchObject({ pending: false, astra: false, failure: 'Consultation failed', capacity })
+    expect(editor.getSnapshot()).toMatchObject({ pending: false, orbit: false, failure: 'Consultation failed', capacity })
     editor.sync()
     await debounce()
     expect(requests).toHaveLength(1)

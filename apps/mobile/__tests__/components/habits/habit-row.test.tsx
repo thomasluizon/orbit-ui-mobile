@@ -645,11 +645,11 @@ describe('HabitRow menu (mobile)', () => {
     expect(menu.props.title).toBe('Walk')
     expect(menu.props.items.map((item: { label: string }) => item.label)).toEqual([
       'habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
-      'habits.actions.rescheduleAstra', 'common.edit', 'habits.actions.duplicate',
+      'habits.actions.rescheduleOrbit', 'common.edit', 'habits.actions.duplicate',
       'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete',
     ])
     expect(menu.props.items.map((item: { icon?: string }) => item.icon)).toEqual([
-      'subtask', 'arrows-move', 'player-skip-forward', 'astra', 'pencil',
+      'subtask', 'arrows-move', 'player-skip-forward', 'orbit', 'pencil',
       'copy', 'checkbox', 'list-tree', 'trash',
     ])
     expect(menu.props.items[0].badge).toBeUndefined()
@@ -657,14 +657,14 @@ describe('HabitRow menu (mobile)', () => {
     pressMoreButton(renderer)
     const icons = renderer!.root.findAllByType(Icon)
     expect(icons.map((icon: { props: { name: string } }) => icon.props.name)).toEqual([
-      'subtask', 'arrows-move', 'player-skip-forward', 'astra', 'pencil',
+      'subtask', 'arrows-move', 'player-skip-forward', 'orbit', 'pencil',
       'copy', 'checkbox', 'list-tree', 'trash',
     ])
     expect(icons.every((icon: { props: { size: number; strokeWidth: number } }) =>
       icon.props.size === 20 && icon.props.strokeWidth === 2)).toBe(true)
     const items = renderer!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && node.props.accessibilityRole === 'menuitem')
     expect(items).toHaveLength(9)
-    expect(items[3]!.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Text').map((node: import('react-test-renderer').ReactTestInstance) => node.props.children)).toEqual(['habits.actions.rescheduleAstra'])
+    expect(items[3]!.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Text').map((node: import('react-test-renderer').ReactTestInstance) => node.props.children)).toEqual(['habits.actions.rescheduleOrbit'])
     expect(items[3]!.findAllByType(Icon)).toHaveLength(1)
     expect(icons[8].props.color).toBe(createTokensV2('purple', 'dark').statusBad)
   })

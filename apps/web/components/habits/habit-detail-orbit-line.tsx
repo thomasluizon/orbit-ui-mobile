@@ -7,7 +7,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { countDoneInRecentDays } from '@orbit/shared/utils'
 import { ListRow } from '@/components/ui/list-row'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
-import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 import { useFlag } from '@/hooks/use-flag'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -19,10 +19,10 @@ function useOpenHabitReview(habit: NormalizedHabit) {
   return () => {
     prepareChatRequest(useChatStore.getState(), {
       id: `habit-detail:${habit.id}`,
-      label: t('habits.detail.askAstra'),
-      prompt: t('habits.detail.askAstraSeedDefault', { title: habit.title }),
+      label: t('habits.detail.askOrbit'),
+      prompt: t('habits.detail.askOrbitSeedDefault', { title: habit.title }),
     })
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
   }
 }
 
@@ -33,7 +33,7 @@ export function HabitDetailOrbitLine({ habit, days, thinking = false }: Readonly
   const openReview = useOpenHabitReview(habit)
   if (!guided) return null
   const done = days ? countDoneInRecentDays(days, RECENT_DAYS) : 0
-  return <TodayAstraLine text={done > 0 ? t('habits.detail.orbit.lastSevenDays', { done }) : t('habits.detail.askAstra')} destination={t('habits.detail.askAstra')} gutter={false} mascotState={thinking ? 'pensando' : 'parado'} onPress={openReview} />
+  return <TodayOrbitLine text={done > 0 ? t('habits.detail.orbit.lastSevenDays', { done }) : t('habits.detail.askOrbit')} destination={t('habits.detail.askOrbit')} gutter={false} mascotState={thinking ? 'pensando' : 'parado'} onPress={openReview} />
 }
 
 /** The review row of the current surface, kept while the flag is off. */
@@ -42,5 +42,5 @@ export function HabitDetailReviewRow({ habit }: Readonly<{ habit: NormalizedHabi
   const guided = useFlag('orbit_guided_flows')
   const openReview = useOpenHabitReview(habit)
   if (guided) return null
-  return <ListRow placement="column" wrapTitle icon={<OrbitMascot size={24} />} title={t('habits.detail.askAstra')} accessibilityLabel={t('habits.detail.askAstra')} onClick={openReview} />
+  return <ListRow placement="column" wrapTitle icon={<OrbitMascot size={24} />} title={t('habits.detail.askOrbit')} accessibilityLabel={t('habits.detail.askOrbit')} onClick={openReview} />
 }

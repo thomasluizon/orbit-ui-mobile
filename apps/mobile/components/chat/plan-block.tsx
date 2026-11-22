@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import type { AstraPlan, AstraPlanStep, ChatMessage } from '@orbit/shared/types'
+import type { OrbitPlan, OrbitPlanStep, ChatMessage } from '@orbit/shared/types'
 import { planStepPresentation, planStepStatus, planStepStatusKey, type PlanStepPresentation } from '@orbit/shared/chat'
 import { createUsePlanAnnouncement } from '@orbit/shared/hooks/plan-announcement-core'
 import { SPACING } from '@orbit/shared/theme'
@@ -21,7 +21,7 @@ function StepMarker({ kind, index, tokens }: Readonly<{ kind: PlanStepPresentati
   return <Minus size={16} strokeWidth={1.5} color={tokens.fg3} />
 }
 
-function PlanStep({ step, index }: Readonly<{ step: AstraPlanStep; index: number }>) {
+function PlanStep({ step, index }: Readonly<{ step: OrbitPlanStep; index: number }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -38,13 +38,13 @@ function PlanStep({ step, index }: Readonly<{ step: AstraPlanStep; index: number
   </View>
 }
 
-export function PlanBlock({ plan }: Readonly<{ plan: AstraPlan }>) {
+export function PlanBlock({ plan }: Readonly<{ plan: OrbitPlan }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const done = plan.steps.filter(step => step.status === 'done').length
   const count = t('chat.plan.count', { done, total: plan.steps.length })
-  return <View testID={`astra-plan-${plan.id}`} style={styles.block}>
+  return <View testID={`orbit-plan-${plan.id}`} style={styles.block}>
     <BlockFrame title={t('chat.plan.title')} count={count} state="resting" items={[]} body={<>
       <Text style={[styles.title, { color: tokens.fg2 }]}>{plan.title}</Text>
       <ProgressBar value={done} max={plan.steps.length} label={count} />

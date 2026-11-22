@@ -22,33 +22,33 @@ function bundleConversation() {
     import en from '@orbit/shared/i18n/en.json';
     import ptBR from '@orbit/shared/i18n/pt-BR.json';
     import { DestinationShell } from './components/shell/destination-shell';
-    import { AstraConversation } from './components/chat/conversation';
+    import { OrbitConversation } from './components/chat/conversation';
     import { Composer } from './components/shell/composer';
     import { useUIStore } from './stores/ui-store';
     const configuration = JSON.parse(document.getElementById('configuration').textContent);
-    const DeferredConversation = lazy(() => new Promise(resolve => setTimeout(() => resolve({ default: AstraConversation }), 500)));
+    const DeferredConversation = lazy(() => new Promise(resolve => setTimeout(() => resolve({ default: OrbitConversation }), 500)));
     const messages = configuration.locale === 'en' ? en : ptBR;
-    useUIStore.getState().setAstraConversationOpen(configuration.open);
+    useUIStore.getState().setOrbitConversationOpen(configuration.open);
     if (configuration.settleToday) document.addEventListener('pointerdown', () => useUIStore.getState().setTodayFabHidden(true), { once: true });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const threadScroll = createChatThreadScroll();
     const chatContainerRef = createRef();
     function App() {
       const [value, onChangeValue] = useState(configuration.draft);
-      const open = useUIStore(state => state.astraConversationOpen);
+      const open = useUIStore(state => state.orbitConversationOpen);
       const todayFabHidden = useUIStore(state => state.todayFabHidden);
-      const onOpenConversation = () => useUIStore.getState().setAstraConversationOpen(true);
+      const onOpenConversation = () => useUIStore.getState().setOrbitConversationOpen(true);
       const composerProps = { state: 'idle', value, onChangeValue, onSend: () => {},
         suggestions: [], words: messages.shell.composer };
       const chat = { composerProps, threadScroll, chatContainerRef, messages: [], activeSteps: [],
         isTyping: false, streamingMessageId: null, showSuggestions: false, canShowFollowUps: false,
         scrollToBottom: () => {} };
       return <QueryClientProvider client={queryClient}><NextIntlClientProvider locale={configuration.locale} messages={messages} timeZone="UTC">
-        <DestinationShell onCreate={() => {}} conversationOpen={open} conversationLabel="Astra"
+        <DestinationShell onCreate={() => {}} conversationOpen={open} conversationLabel="Orbit"
           todayFabHidden={configuration.settleToday ? todayFabHidden : undefined}
-          conversation={configuration.delayed ? <Suspense fallback={null}><DeferredConversation chat={chat} /></Suspense> : <AstraConversation chat={chat} />}
+          conversation={configuration.delayed ? <Suspense fallback={null}><DeferredConversation chat={chat} /></Suspense> : <OrbitConversation chat={chat} />}
           composer={configuration.route.startsWith('/habits/') ? <Composer {...composerProps} onOpenConversation={onOpenConversation}
-            conversationLabel={messages.todayAstra.openConversation} /> : undefined}>
+            conversationLabel={messages.todayOrbit.openConversation} /> : undefined}>
           <h1 className="p-4">Destination</h1>
         </DestinationShell>
       </NextIntlClientProvider></QueryClientProvider>;
@@ -136,7 +136,7 @@ describe('interaction fill guard with the mounted conversation owners', () => {
         await page.mouse.move(before!.x + before!.width / 2, before!.y + before!.height / 2)
         await page.mouse.down()
         await page.locator('[data-shell-fab]').waitFor({ state: 'detached' })
-        expect(await page.locator('[data-astra-button]').isVisible()).toBe(true)
+        expect(await page.locator('[data-orbit-button]').isVisible()).toBe(true)
         expect(await page.locator('[data-shell-fab]').count()).toBe(0)
         expect(await calendar.boundingBox()).toEqual(before)
         await page.mouse.up()
@@ -154,7 +154,7 @@ describe('interaction fill guard with the mounted conversation owners', () => {
         const create = route === '/habits/habit-1' ? null : await page.locator('[data-shell-fab] button').elementHandle()
         const context = `${route}, ${width}px, ${locale}`
         const habit = route === '/habits/habit-1'
-        const entry = page.locator(habit ? '[data-shell-pinned-slot] textarea' : '[data-astra-button]')
+        const entry = page.locator(habit ? '[data-shell-pinned-slot] textarea' : '[data-orbit-button]')
         const originalEntry = await entry.elementHandle()
         const counts = await inspectControls(page, entry, context, INTERACTION_FILL_CLEARANCE)
         if (!habit) {
@@ -238,18 +238,18 @@ describe('interaction fill guard with the mounted conversation owners', () => {
       } finally { await page.close() }
     })
 
-  it.each((['habit composer', 'Astra button', 'skip link'] as const).flatMap(entry => (['en', 'pt-BR'] as const).map(locale => ({ entry, locale }))))(
+  it.each((['habit composer', 'Orbit button', 'skip link'] as const).flatMap(entry => (['en', 'pt-BR'] as const).map(locale => ({ entry, locale }))))(
     'rejects reached Composer paint within 2px of a neighbour through $entry in $locale', async ({ entry, locale }) => {
-      const route = entry === 'habit composer' ? '/habits/habit-1' : entry === 'Astra button' ? '/' : '/chat'
+      const route = entry === 'habit composer' ? '/habits/habit-1' : entry === 'Orbit button' ? '/' : '/chat'
       const page = await mount(320, locale, route, entry === 'skip link', '')
       try {
         await installConversationCollision(page)
-        if (entry === 'Astra button') await page.locator('[data-astra-button]').click()
+        if (entry === 'Orbit button') await page.locator('[data-orbit-button]').click()
         const control = entry === 'habit composer' ? page.locator('[data-shell-pinned-slot] textarea')
-          : entry === 'Astra button' ? page.locator('[data-shell-conversation] textarea')
+          : entry === 'Orbit button' ? page.locator('[data-shell-conversation] textarea')
             : page.getByRole('link', { name: (locale === 'en' ? en : ptBR).common.skipToContent })
         await expect(inspectControls(page, control, `${route}, 320px, ${locale}`, INTERACTION_FILL_CLEARANCE))
-          .rejects.toThrow(entry === 'Astra button' ? /hover[\s\S]*span\[field-paint-neighbour\]/ : /(?:press|focus-visible)[\s\S]*span\[field-paint-neighbour\]/)
+          .rejects.toThrow(entry === 'Orbit button' ? /hover[\s\S]*span\[field-paint-neighbour\]/ : /(?:press|focus-visible)[\s\S]*span\[field-paint-neighbour\]/)
       } finally { await page.close() }
     })
 })

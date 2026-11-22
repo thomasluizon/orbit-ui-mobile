@@ -215,7 +215,7 @@ describe('OnboardingFlow state model', () => {
     vi.clearAllMocks()
     mocks.suggest.mockReset()
     vi.useRealTimers()
-    useUIStore.setState({ openOverlayIds: [], astraConversationOpen: false })
+    useUIStore.setState({ openOverlayIds: [], orbitConversationOpen: false })
     Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
@@ -276,7 +276,7 @@ describe('OnboardingFlow state model', () => {
   it.each([
     { locale: 'en', sentence: 'Read every Monday at 18:00', title: 'Read' },
     { locale: 'pt-BR', sentence: 'Meditar dez minutos depois do café, menos aos domingos', title: 'Meditar dez minutos depois do café, menos aos domingos' },
-  ])('reads the signed-out sentence through Astra in $locale without adding a tour step', async ({ locale, sentence, title }) => {
+  ])('reads the signed-out sentence through Orbit in $locale without adding a tour step', async ({ locale, sentence, title }) => {
     mocks.locale = locale
     mocks.realProposal = true
     mocks.anonymousAvailable = true
@@ -286,11 +286,11 @@ describe('OnboardingFlow state model', () => {
     await click(tree, 'onboarding.flow.continue')
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(1)
     expect(renderedText(tree)).toContain(title)
-    expect(renderedText(tree)).toContain('onboarding.flow.when.astraRead')
+    expect(renderedText(tree)).toContain('onboarding.flow.when.orbitRead')
     expect(mocks.anonymous).toHaveBeenCalledWith({ title: sentence, language: locale })
     expect(mocks.suggest).not.toHaveBeenCalled()
     expect(headerCounter(tree)).toBe('Orbit · 02 / 03')
-    expect(renderedText(tree).join('')).not.toContain('meetAstra')
+    expect(renderedText(tree).join('')).not.toContain('meetOrbit')
   })
 
   it('presents decisions, completion and the plan through the shared native window', async () => {
@@ -603,7 +603,7 @@ describe('OnboardingFlow state model', () => {
     expect(skip.props).toMatchObject({ variant: 'ghost', size: 'sm' })
   })
 
-  it('waits for Astra before exposing schedule actions and persists its flexible cadence', async () => {
+  it('waits for Orbit before exposing schedule actions and persists its flexible cadence', async () => {
     let resolveSuggestion!: (value: HabitSetupSuggestion) => void
     mocks.suggest.mockReturnValue(new Promise<HabitSetupSuggestion>((resolve) => { resolveSuggestion = resolve }))
     const tree = await mount(true)
@@ -620,10 +620,10 @@ describe('OnboardingFlow state model', () => {
   it.each([
     [{ emoji: '🧾', frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }, {}],
     [{ emoji: '🧹', frequencyUnit: 'Week' as const, frequencyQuantity: 2, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }, { frequencyUnit: 'Week', frequencyQuantity: 2 }],
-  ])('persists the exact Astra cadence', async (suggestion, expected) => {
+  ])('persists the exact Orbit cadence', async (suggestion, expected) => {
     mocks.suggest.mockResolvedValue(suggestion)
     const tree = await mount(true)
-    await enterSentence(tree, 'Astra cadence')
+    await enterSentence(tree, 'Orbit cadence')
     await click(tree, 'onboarding.flow.continue')
     await click(tree, 'onboarding.flow.create')
     expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining(expected))

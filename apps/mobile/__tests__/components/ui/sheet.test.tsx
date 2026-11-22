@@ -361,7 +361,7 @@ describe('Sheet (mobile)', () => {
       onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
       onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }
     const labels = ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
-      'habits.actions.rescheduleAstra', 'common.edit', 'habits.actions.duplicate',
+      'habits.actions.rescheduleOrbit', 'common.edit', 'habits.actions.duplicate',
       'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete']
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
@@ -397,7 +397,7 @@ describe('Sheet (mobile)', () => {
         )
         expect(items.map((item: { props: { accessibilityLabel?: string }; findAllByType: (type: string) => { props: { children?: string } }[] }) =>
           item.props.accessibilityLabel ?? item.findAllByType('Text')[0]!.props.children)).toEqual(labels)
-        expect(items[3].findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children)).toEqual(['habits.actions.rescheduleAstra'])
+        expect(items[3].findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children)).toEqual(['habits.actions.rescheduleOrbit'])
         expect(items.every((item: { props: { disabled?: boolean } }) => !item.props.disabled)).toBe(true)
         await TestRenderer.act(() => items[index].props.onPress())
         expect(Object.values(actions)[index]).not.toHaveBeenCalled()

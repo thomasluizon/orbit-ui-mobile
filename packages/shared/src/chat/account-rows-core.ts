@@ -10,7 +10,7 @@ const LABELS = {
   plan: 'chat.account.row.plan', trialEnd: 'chat.account.row.trialEnd',
   planExpiry: 'chat.account.row.planExpiry', interval: 'chat.account.row.interval',
   source: 'chat.account.row.source', lifetime: 'chat.account.row.lifetime',
-  astraAllowance: 'chat.account.row.astraAllowance',
+  astraAllowance: 'chat.account.row.orbitAllowance',
   successfulReferrals: 'chat.account.row.successfulReferrals',
   pendingReferrals: 'chat.account.row.pendingReferrals', maxReferrals: 'chat.account.row.maxReferrals',
   rewardType: 'chat.account.row.rewardType', discountPercent: 'chat.account.row.discountPercent',

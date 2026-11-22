@@ -29,7 +29,7 @@ describe.each([['en', en], ['pt-BR', ptBR]] as const)('auth error surface in %s'
     expect(mascots[0]).toHaveAttribute('data-orbit-state', 'parado')
     expect(mascots[0]).toHaveAttribute('width', String(size))
     expect(surface).toHaveTextContent(messages.auth.genericError)
-    expect(surface.textContent).not.toMatch(/astra/i)
+    expect(surface.textContent).not.toMatch(/orbit/i)
     fireEvent.click(screen.getByRole('button', { name: messages.common.retry }))
     expect(reset).toHaveBeenCalledOnce()
     expect(sentry.captureException).toHaveBeenCalledWith(failure)

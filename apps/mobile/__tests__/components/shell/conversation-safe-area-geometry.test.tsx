@@ -8,7 +8,7 @@ import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Composer } from '@/components/shell/composer'
 import { Shell412 } from '@/components/shell/shell-412'
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { useUIStore } from '@/stores/ui-store'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 
@@ -34,24 +34,24 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 const chat = {
   threadScroll: createChatThreadScroll(), flatListRef: { current: null }, messages: [], activeSteps: [], canShowFollowUps: false,
   isTyping: false, streamingMessageId: null, showSuggestions: true,
   sendMessage: vi.fn(), scrollToBottom: vi.fn(), composerProps: { state: 'idle', value: '', suggestions: [], words: en.shell.composer, onChangeValue: vi.fn(), onSend: vi.fn() },
 } as unknown as ChatController
 
-afterEach(() => { useUIStore.getState().setAstraConversationOpen(false) })
+afterEach(() => { useUIStore.getState().setOrbitConversationOpen(false) })
 
 it.each([0, 24, 48].flatMap((top) => [true, false].map((safeAreaTop) => ({ top, safeAreaTop }))))(
   'starts the real conversation header at $top with shell safeAreaTop=$safeAreaTop', async ({ top, safeAreaTop }) => {
     safeArea.top = top
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     let tree!: GeometryTree
     await renderer.act(() => {
       tree = renderer.create(<Shell412 safeAreaTop={safeAreaTop} header={<View style={{ height: 48 }} />}
-        tabBar={<View style={{ height: 48 }} />} conversationOpen={useUIStore.getState().astraConversationOpen}
-        conversation={<AstraConversation chat={chat} />} conversationLabel="chat.title" />) as GeometryTree
+        tabBar={<View style={{ height: 48 }} />} conversationOpen={useUIStore.getState().orbitConversationOpen}
+        conversation={<OrbitConversation chat={chat} />} conversationLabel="chat.title" />) as GeometryTree
     })
     try {
       const empty = tree.root.findAll((node) => node.type === ChatEmptyState)[0]!.findAll((node: { type: unknown }) => node.type === 'ScrollView')[0]!
@@ -97,7 +97,7 @@ it.each([412, 844, 1200].flatMap(width => [true, false].flatMap(navigation =>
     } : { nav: false as const, action: <View testID="side-action" style={{ height: 48 }} /> }
     const content = (conversationOpen: boolean) => <Shell412 {...slots()} safeAreaTop
       header={<View testID="side-header" style={{ height: 48 }} />}
-      conversationOpen={conversationOpen} conversation={<AstraConversation chat={chat} />} conversationLabel="chat.title">
+      conversationOpen={conversationOpen} conversation={<OrbitConversation chat={chat} />} conversationLabel="chat.title">
       <View testID="side-content" style={{ flex: 1 }} />
     </Shell412>
     await renderer.act(() => { tree = renderer.create(content(false)) as GeometryTree })

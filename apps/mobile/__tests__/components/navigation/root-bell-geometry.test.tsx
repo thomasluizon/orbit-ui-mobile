@@ -5,7 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import ProgressScreen from '@/app/(tabs)/progress'
 import ProfileScreen from '@/app/(tabs)/profile'
 import { CalendarOptions } from '@/app/(tabs)/calendar/_components/calendar-options'
-import { TodayAstra } from '@/components/today/today-astra'
+import { TodayOrbit } from '@/components/today/today-orbit'
 import { TodayDateControl } from '@/components/today/today-date-control'
 import { Shell412 } from '@/components/shell/shell-412'
 import { createTokensV2 } from '@/lib/theme'
@@ -125,7 +125,7 @@ function measureBell(host: Host, width: number, fontScale: number, pressed = fal
     const declared = host.props.style
     const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed }) : declared ?? {})
     applyStyle(node, style)
-    if (host.props.accessibilityHint === 'todayAstra.openConversation') summaries.push(node)
+    if (host.props.accessibilityHint === 'todayOrbit.openConversation') summaries.push(node)
     if (host.type === 'Bell') {
       node.setWidth(host.props.size)
       node.setHeight(host.props.size)
@@ -175,14 +175,14 @@ const today = <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isT
 
 afterEach(() => { __resetTestHostConfig(); navigation.count = 0; navigation.restored = false; queryClient.clear(); vi.restoreAllMocks() })
 
-it.each([412, 1352])('keeps the pressed header fills clear of the Astra summary at %s', async (width) => {
+it.each([412, 1352])('keeps the pressed header fills clear of the Orbit summary at %s', async (width) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   navigation.count = 12
   queryClient.setQueryData(proactiveKeys.current(), createMockProactiveItem({ text: 'Routine summary' }))
   let tree!: Tree
   await renderer.act(() => {
     tree = renderer.create(<QueryClientProvider client={queryClient}><Shell412 tabBar={null}>
-      <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
+      <TodayOrbit today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
       {today}
     </Shell412></QueryClientProvider>) as Tree
   })

@@ -31,7 +31,7 @@ export type TabBarTypeContract = [
   // @ts-expect-error item words belong to the caller
   Assert<IsExact<Item & { labelKey: 'nav.today' }, TabBarItem>>,
   // @ts-expect-error unread state does not belong to a destination
-  Assert<IsExact<Item & { astraUnread: true }, TabBarItem>>,
+  Assert<IsExact<Item & { orbitUnread: true }, TabBarItem>>,
   // @ts-expect-error the tab bar holds no centre create control
   Assert<IsExact<Props & { showFab: true }, TabBarProps>>,
   // @ts-expect-error create handlers belong to the shell

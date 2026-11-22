@@ -420,7 +420,7 @@ describe('mobile Markdown wrapper', () => {
 })
 
 
-describe('Astra block copying', () => {
+describe('Orbit block copying', () => {
   it.each([
     ['```sh\nprintf "<tag> & café"  \n  next\n```', ['printf "<tag> & café"  \n  next']],
     ['```\nfirst\n```\n\n    second', ['first', 'second']],

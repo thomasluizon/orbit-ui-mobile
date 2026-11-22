@@ -53,7 +53,7 @@ describe('sidebar and palette keycap geometry in Chromium', () => {
     const messages = locale === 'en' ? en : ptBR
     useShellStore.setState({ paletteOpen: false })
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
-      <ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation} astraRow={{ label: messages.chat.title, onOpen: vi.fn() }}
+      <ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation} orbitRow={{ label: messages.chat.title, onOpen: vi.fn() }}
         paletteLabel={messages.nav.search} paletteHint={hint}
         onPalette={() => useShellStore.getState().setPaletteOpen(true)} />
       <CommandPalette navItems={[]} onCreateHabit={vi.fn()} />

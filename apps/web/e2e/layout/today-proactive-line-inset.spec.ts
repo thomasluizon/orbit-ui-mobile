@@ -33,9 +33,9 @@ for (const mode of ['dark', 'light'] as const) {
           })
           await setLayoutFixtureSession(context, [{ path: API.proactive.current, body: proactive }])
           await page.goto('/')
-          const line = page.locator('.today-astra-line')
+          const line = page.locator('.today-orbit-line')
           await expect(line).toBeVisible()
-          await expect(page.locator('.today-astra-sentence')).toHaveText(proactive.text)
+          await expect(page.locator('.today-orbit-sentence')).toHaveText(proactive.text)
           await expect(page.getByTestId('habit-row')).toHaveCount(habits.length)
           const firstHabitRow = page.getByTestId('habit-row').first()
           await expect(firstHabitRow).toHaveAttribute('data-habit-title', habits[0]!.title)
@@ -45,7 +45,7 @@ for (const mode of ['dark', 'light'] as const) {
           await expect(firstHabitTitle).toBeVisible()
           await setHabitTextScale(page, textScale, habits.map((habit) => habit.title))
           await page.evaluate(async (scale) => {
-            const sentence = document.querySelector<HTMLElement>('.today-astra-sentence')!
+            const sentence = document.querySelector<HTMLElement>('.today-orbit-sentence')!
             sentence.style.fontSize = `${Number.parseFloat(getComputedStyle(sentence).fontSize) * scale}px`
             await document.fonts.ready
           }, textScale)
@@ -68,7 +68,7 @@ for (const mode of ['dark', 'light'] as const) {
             const bounds = element.getBoundingClientRect()
             const style = getComputedStyle(element)
             const extent = Number.parseFloat(style.outlineWidth) + Number.parseFloat(style.outlineOffset)
-            const sentence = element.querySelector<HTMLElement>('.today-astra-sentence')!
+            const sentence = element.querySelector<HTMLElement>('.today-orbit-sentence')!
             const sentenceBounds = sentence.getBoundingClientRect()
             const dateRow = document.querySelector('[data-today-date-row]')!
             const date = dateRow.querySelector('[data-today-date]')!.getBoundingClientRect()

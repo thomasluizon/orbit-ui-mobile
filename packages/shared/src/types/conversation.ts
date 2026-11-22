@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { agentOperationResultSchema, pendingOperationChangePreviewSchema } from './ai'
-import { astraPlanSchema } from './astra-plan'
+import { orbitPlanSchema } from './orbit-plan'
 
 const conversationOrderSchema = z.union([z.number().int().safe(), z.string().regex(/^-?(?:0|[1-9]\d*)$/)])
 
@@ -22,7 +22,7 @@ export const conversationPreviewOutcomeSchema = z.object({
 })
 
 export const conversationDisplayTurnSchema = z.object({
-  plan: astraPlanSchema.nullish(),
+  plan: orbitPlanSchema.nullish(),
   turnId: z.uuid(),
   order: conversationOrderSchema,
   role: z.enum(['user', 'assistant']),

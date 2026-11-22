@@ -43,7 +43,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   navigation.pathname = '/'
   navigation.width = 600
-  useUIStore.setState({ astraConversationOpen: false })
+  useUIStore.setState({ orbitConversationOpen: false })
   history.replaceState(null, '', '/')
   resetRouteTransitionIntent()
 })
@@ -56,7 +56,7 @@ it.each([600, 1100, 1352])('renders routed links in the real shell at %ipx', asy
   const links = destinationLinks().getAllByRole('link')
   expect(links.map((link) => link.getAttribute('href'))).toEqual(destinations.map(({ href }) => href))
   expect(links.filter((link) => link.hasAttribute('aria-current'))).toEqual([links[1]])
-  if (width >= 1024) expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).not.toHaveAttribute('href')
+  if (width >= 1024) expect(screen.getByRole('button', { name: 'shell.orbitButton.open' })).not.toHaveAttribute('href')
   let pushedIntent: string | undefined
   navigation.push.mockImplementationOnce(() => { pushedIntent = getCurrentRouteTransitionIntent() })
   await userEvent.click(links[2]!)
@@ -85,7 +85,7 @@ it.each([600, 1100, 1352])('leaves modified and middle clicks to the browser at 
   navigation.width = width
   const onNavigate = vi.fn()
   render(<DestinationShell onCreate={() => {}}><DraftGuard onNavigate={onNavigate} /></DestinationShell>)
-  useUIStore.setState({ astraConversationOpen: true })
+  useUIStore.setState({ orbitConversationOpen: true })
   for (const { label, href } of destinations) {
     const link = destinationLinks().getByRole('link', { name: label })
     expect(link).toHaveAttribute('href', href)
@@ -94,7 +94,7 @@ it.each([600, 1100, 1352])('leaves modified and middle clicks to the browser at 
   }
   expect(onNavigate).not.toHaveBeenCalled()
   expect(navigation.push).not.toHaveBeenCalled()
-  expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue('Written draft')
 })
 

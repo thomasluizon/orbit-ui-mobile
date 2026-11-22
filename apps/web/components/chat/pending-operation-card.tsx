@@ -1,7 +1,7 @@
 'use client'
 
 import { StructuredPreviewField } from './structured-preview-field'
-import { AstraOffer } from './astra-offer'
+import { OrbitOffer } from './orbit-offer'
 import { IconButton } from '@/components/ui/icon-button'
 
 import { WeekdayPicker } from '@/components/ui/weekday-picker'
@@ -17,7 +17,7 @@ import { DateField } from '@/components/ui/date-field'
 import { useTimeFormat } from '@/hooks/use-time-format'
 
 import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
-import { type AstraOfferProps, buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
+import { type OrbitOfferProps, buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
 import { useLocale, useTranslations } from 'next-intl'
 import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -278,7 +278,7 @@ export function PendingOperationCard({
   onStateChange,
   onSendMessage,
   interaction,
-}: Readonly<PendingOperationCardAdapterProps & Pick<AstraOfferProps, 'onSendMessage' | 'interaction'>>) {
+}: Readonly<PendingOperationCardAdapterProps & Pick<OrbitOfferProps, 'onSendMessage' | 'interaction'>>) {
   const t = useTranslations()
   const locale = useLocale()
   const { displayTime } = useTimeFormat()
@@ -296,7 +296,7 @@ export function PendingOperationCard({
     focusTitleOnMount={focusTitleOnMount}
     savedState={savedState}
     onStateChange={onStateChange}
-    render={{ ...pendingOperationRenderers, offer: (action, unavailable) => <AstraOffer action={action} unavailable={unavailable} onSendMessage={onSendMessage} interaction={interaction} /> }}
+    render={{ ...pendingOperationRenderers, offer: (action, unavailable) => <OrbitOffer action={action} unavailable={unavailable} onSendMessage={onSendMessage} interaction={interaction} /> }}
     labels={(operation) => buildPendingOperationCardLabels(operation, t, displayTime, locale, today)}
   />
 }

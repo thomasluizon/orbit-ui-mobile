@@ -83,8 +83,8 @@ describe('upgrade utils', () => {
       perWeek: 'por semana',
     })
     for (const messages of [en, ptBR]) {
-      expect(Object.keys(messages.upgrade.outcomes)).toEqual(['label', 'astra', 'calendar', 'retrospective', 'noticing'])
-      expect(messages.upgrade.outcomes.astra).toContain('250')
+      expect(Object.keys(messages.upgrade.outcomes)).toEqual(['label', 'orbit', 'calendar', 'retrospective', 'noticing'])
+      expect(messages.upgrade.outcomes.orbit).toContain('250')
       expect(messages.upgrade.outcomes.calendar).toContain(messages === en ? 'Google Calendar' : 'Google Agenda')
       expect(messages.upgrade.outcomes.noticing).toContain('Orbit')
     }
@@ -110,7 +110,7 @@ describe('upgrade utils', () => {
       'upgrade.convert.perDay',
       'upgrade.convert.allowanceNote',
       'upgrade.outcomes.label',
-      'upgrade.outcomes.astra',
+      'upgrade.outcomes.orbit',
       'upgrade.outcomes.calendar',
       'upgrade.outcomes.retrospective',
       'upgrade.outcomes.noticing',

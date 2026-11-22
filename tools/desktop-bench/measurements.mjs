@@ -43,8 +43,8 @@ export const metrics = {
   idleCpuSeconds: 'Process CPU over 60 s idle (seconds)',
   scrollP95Ms: 'Scroll frame p95 (ms)',
   scrollSlowFrames: 'Scroll frames over 16.7 ms',
-  firstTokenMs: 'Astra first rendered token (ms)',
-  finalPartMs: 'Astra final rendered part (ms)',
+  firstTokenMs: 'Orbit first rendered token (ms)',
+  finalPartMs: 'Orbit final rendered part (ms)',
 }
 
 export function summarize(runs) {
@@ -63,5 +63,5 @@ export function markdown(report) {
     return `| ${label} | ${cells.join(' | ')} |`
   })
   const disk = ['tauri', 'electron'].map((shell) => `| ${shell} | ${report.disk[shell].installedBytes} | ${report.disk[shell].installerBytes} |`)
-  return `# Orbit desktop measurements\n\n${report.host}\n\nCommit: ${report.commit}. Electron: ${report.electronVersion}. Runs per cache state: ${report.repetitions}.\n\nUnsigned release builds. Signing does not change runtime cost. Cold means fresh webview storage and HTTP cache; warm reuses that run's storage after a complete process exit. OS filesystem caches are not purged. Both load the same prewarmed hermetic server.\n\n| Metric | Tauri cold | Electron cold | Tauri warm | Electron warm |\n| --- | ---: | ---: | ---: | ---: |\n${rows.join('\n')}\n\n| Disk (logical bytes) | Installed bundle | DMG or installer |\n| --- | ---: | ---: |\n${disk.join('\n')}\n\nIdle CPU is a whole-process-tree CPU-time proxy for energy, not watts. Raw process membership and samples are in JSON. Frame timing covers a fixed 120 px per animation-frame traversal of 200 habits. Astra uses 80 ms fixture pacing through the real composer and BFF.\n\n${report.verdict}\n`
+  return `# Orbit desktop measurements\n\n${report.host}\n\nCommit: ${report.commit}. Electron: ${report.electronVersion}. Runs per cache state: ${report.repetitions}.\n\nUnsigned release builds. Signing does not change runtime cost. Cold means fresh webview storage and HTTP cache; warm reuses that run's storage after a complete process exit. OS filesystem caches are not purged. Both load the same prewarmed hermetic server.\n\n| Metric | Tauri cold | Electron cold | Tauri warm | Electron warm |\n| --- | ---: | ---: | ---: | ---: |\n${rows.join('\n')}\n\n| Disk (logical bytes) | Installed bundle | DMG or installer |\n| --- | ---: | ---: |\n${disk.join('\n')}\n\nIdle CPU is a whole-process-tree CPU-time proxy for energy, not watts. Raw process membership and samples are in JSON. Frame timing covers a fixed 120 px per animation-frame traversal of 200 habits. Orbit uses 80 ms fixture pacing through the real composer and BFF.\n\n${report.verdict}\n`
 }

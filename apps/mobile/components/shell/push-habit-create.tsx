@@ -13,10 +13,10 @@ export function PushHabitCreate({ pathname, date }: Readonly<{
   useEffect(() => {
     const store = useUIStore.getState()
     if (!showCreateModal || !store.showCreateModal) return
-    const conversation = store.astraConversationOpen
+    const conversation = store.orbitConversationOpen
     store.registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
     store.setShowCreateModal(false)
-    store.setAstraConversationOpen(false)
+    store.setOrbitConversationOpen(false)
     router.push(buildHabitCreateHref({ date, from: pathname, conversation }))
   }, [date, pathname, router, showCreateModal])
   return null

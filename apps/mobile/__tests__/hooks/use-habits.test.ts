@@ -2319,7 +2319,7 @@ describe('mobile habit hooks', () => {
 
     expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     expect(mocks.checkAllDoneCelebration).not.toHaveBeenCalled()
-    expect(mocks.showInfo).toHaveBeenCalledWith('todayAstra.offlineLog')
+    expect(mocks.showInfo).toHaveBeenCalledWith('todayOrbit.offlineLog')
   })
 
   it('says the offline save in the first person only while the guided flows are on', () => {
@@ -2329,12 +2329,12 @@ describe('mobile habit hooks', () => {
     const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
 
     mutation.onSuccess?.(queued, variables, undefined)
-    expect(mocks.showInfo).toHaveBeenLastCalledWith('todayAstra.offlineLog')
+    expect(mocks.showInfo).toHaveBeenLastCalledWith('todayOrbit.offlineLog')
 
     enableTestFlags('orbit_guided_flows')
     const guidedMutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
     guidedMutation.onSuccess?.(queued, variables, undefined)
-    expect(mocks.showInfo).toHaveBeenLastCalledWith('todayAstra.guided.offlineLog')
+    expect(mocks.showInfo).toHaveBeenLastCalledWith('todayOrbit.guided.offlineLog')
   })
 
   it('updates a dated calendar row immediately and restores it when logging fails', async () => {

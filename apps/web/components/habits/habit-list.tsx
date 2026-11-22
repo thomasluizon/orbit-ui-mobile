@@ -361,14 +361,14 @@ function renderEmptyList(context: HabitListRenderingContext): React.ReactNode {
 
   if (searchQuery.trim()) return <SearchEmpty query={searchQuery.trim()} onClearSearch={onClearSearch} onCreate={onCreate} />
   if (filters.frequencyUnit) return <HabitListFrequencyEmptyState frequencyUnit={filters.frequencyUnit} />
-  if (view !== 'today') return <HabitListEmptyState title={t(view === 'general' ? 'habits.emptyGeneral' : 'habits.emptyState')} description="" askAstraLabel={t('habits.askAstra')} onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)} actionLabel={t('habits.createManually')} onAction={onCreate} createRefusal={createRefusal} />
+  if (view !== 'today') return <HabitListEmptyState title={t(view === 'general' ? 'habits.emptyGeneral' : 'habits.emptyState')} description="" askOrbitLabel={t('habits.askOrbit')} onAskOrbit={() => useUIStore.getState().setOrbitConversationOpen(true)} actionLabel={t('habits.createManually')} onAction={onCreate} createRefusal={createRefusal} />
   if (showAllDone) return null
   return accountHabitCount.isLoaded && accountHabitCount.count === 0 ? (
     <HabitListEmptyState
       title={t('habits.emptyState')}
       description={t('habits.noHabitsBody')}
-      askAstraLabel={t('habits.askAstra')}
-      onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)}
+      askOrbitLabel={t('habits.askOrbit')}
+      onAskOrbit={() => useUIStore.getState().setOrbitConversationOpen(true)}
       actionLabel={t('habits.createManually')}
       onAction={onCreate}
       createRefusal={createRefusal}

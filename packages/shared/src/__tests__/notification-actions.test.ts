@@ -7,7 +7,7 @@ import {
   getNotificationTargetKey,
   isViewableNotificationUrl,
   resolveNotificationUrl,
-  shouldShowTodayAstraSurface,
+  shouldShowTodayOrbitSurface,
 } from '../utils/notification-actions'
 import { createMockNotification } from './factories'
 
@@ -63,7 +63,7 @@ describe('notification-actions', () => {
     expect(getNotificationTargetKey(notification.url, notification.habitId)).toBe('notifications.habit')
     expect(getNotificationDetailActionVisibility(notification).canView).toBe(true)
     expect(getNotificationDestination(notification.url, notification.habitId)).toEqual({
-      url: '/habits/a12b34cd-1234-4567-89ab-123456789abc', opensAstra: false,
+      url: '/habits/a12b34cd-1234-4567-89ab-123456789abc', opensOrbit: false,
     })
   })
 
@@ -152,7 +152,7 @@ describe('notification-actions', () => {
       getNotificationDestination('/progress?wrapped=month&year=2026&month=8'),
     ).toEqual({
       url: '/wrapped?period=month&year=2026&month=8',
-      opensAstra: false,
+      opensOrbit: false,
     })
   })
 
@@ -176,8 +176,8 @@ describe('notification-actions', () => {
 
   it('shows the line only on the unobstructed current day', () => {
     const visible = { isTodaySelected: true, inDrillOrSurface: false }
-    expect(shouldShowTodayAstraSurface(visible)).toBe(true)
-    expect(shouldShowTodayAstraSurface({ ...visible, isTodaySelected: false })).toBe(false)
-    expect(shouldShowTodayAstraSurface({ ...visible, inDrillOrSurface: true })).toBe(false)
+    expect(shouldShowTodayOrbitSurface(visible)).toBe(true)
+    expect(shouldShowTodayOrbitSurface({ ...visible, isTodaySelected: false })).toBe(false)
+    expect(shouldShowTodayOrbitSurface({ ...visible, inDrillOrSurface: true })).toBe(false)
   })
 })

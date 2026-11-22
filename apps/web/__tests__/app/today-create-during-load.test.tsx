@@ -42,7 +42,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => state.searchParams,
 }))
 vi.mock('@/components/chat/conversation', () => ({
-  AstraConversation: ({ notice }: { notice?: React.ReactNode }) => <div data-conversation-body="">{notice}</div>,
+  OrbitConversation: ({ notice }: { notice?: React.ReactNode }) => <div data-conversation-body="">{notice}</div>,
 }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => state.wide }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
@@ -56,8 +56,8 @@ vi.mock('@/components/shell/destination-shell', () => ({
           <div data-shell-background="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}>
             <button type="button" onClick={onCreate}>Create</button>{createRefusal}<div data-shell-notice="" data-testid="notice-slot">{notice}</div>{composer}{children}
           </div>
-          {conversationOpen && !state.wide ? <div role="dialog" aria-label="Astra conversation">{conversation}</div> : null}
-          {conversationOpen && state.wide ? <aside aria-label="Astra conversation">{conversation}</aside> : null}
+          {conversationOpen && !state.wide ? <div role="dialog" aria-label="Orbit conversation">{conversation}</div> : null}
+          {conversationOpen && state.wide ? <aside aria-label="Orbit conversation">{conversation}</aside> : null}
         </>
       )}
     </>
@@ -175,10 +175,10 @@ describe('Today create during first load', () => {
     expect(screen.getByRole('button', { name: 'errors.api.reload' })).toBeInTheDocument()
   })
 
-  it('keeps reload guidance reachable while the Astra conversation is open', async () => {
+  it('keeps reload guidance reachable while the Orbit conversation is open', async () => {
     render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
 
-    act(() => useUIStore.getState().setAstraConversationOpen(true))
+    act(() => useUIStore.getState().setOrbitConversationOpen(true))
     await act(async () => useVersionGateStore.getState().requireReload('accountChanged'))
 
     const banners = screen.getAllByRole('status')
@@ -192,7 +192,7 @@ describe('Today create during first load', () => {
     state.wide = true
     render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
 
-    act(() => useUIStore.getState().setAstraConversationOpen(true))
+    act(() => useUIStore.getState().setOrbitConversationOpen(true))
     await act(async () => useVersionGateStore.getState().requireReload('accountChanged'))
 
     const banners = screen.getAllByRole('status')
@@ -221,7 +221,7 @@ describe('Today create during first load', () => {
 
   it.each([
     ['calendar', { hasImportedCalendar: false }, ['common.later', 'onboarding.wizard.calendarButton']],
-    ['Astra', { hasImportedCalendar: true, hasSeenImportPrompt: false }, ['onboarding.wizard.importNotNow', 'onboarding.wizard.importButton']],
+    ['Orbit', { hasImportedCalendar: true, hasSeenImportPrompt: false }, ['onboarding.wizard.importNotNow', 'onboarding.wizard.importButton']],
   ] as const)('pins the %s import actions in the sheet footer, never in the scrolling body', async (_prompt, flags, footer) => {
     state.profile = { hasProAccess: true, hasCompletedOnboarding: true, ...flags }
     render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
@@ -235,7 +235,7 @@ describe('Today create during first load', () => {
 
   it.each([
     ['calendar', { hasImportedCalendar: false }, 'common.later'],
-    ['Astra', { hasImportedCalendar: true, hasSeenImportPrompt: false }, 'onboarding.wizard.importNotNow'],
+    ['Orbit', { hasImportedCalendar: true, hasSeenImportPrompt: false }, 'onboarding.wizard.importNotNow'],
   ] as const)('uses a ghost pill for the %s import dismissal', async (_prompt, flags, quiet) => {
     state.profile = { hasProAccess: true, hasCompletedOnboarding: true, ...flags }
     render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
@@ -258,7 +258,7 @@ describe('Today create during first load', () => {
     expect(screen.getByText('onboarding.wizard.calendarTitle')).toBeInTheDocument()
   })
 
-  it('waits to offer Astra import while another sheet is open', async () => {
+  it('waits to offer Orbit import while another sheet is open', async () => {
     state.profile = {
       hasProAccess: true,
       hasCompletedOnboarding: true,
@@ -405,15 +405,15 @@ describe('Today create during first load', () => {
     expect(view.container.querySelector('[data-shell-notice]')).toBeNull()
   })
 
-  it('shows the Reload action in the active compact Astra dialog', async () => {
-    useUIStore.getState().setAstraConversationOpen(true)
+  it('shows the Reload action in the active compact Orbit dialog', async () => {
+    useUIStore.getState().setOrbitConversationOpen(true)
     const view = render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     act(() => {
       useAppToastStore.getState().showQueued('App updated', 'Reload', vi.fn())
     })
 
     await screen.findByText('App updated')
-    const dialog = screen.getByRole('dialog', { name: 'Astra conversation' })
+    const dialog = screen.getByRole('dialog', { name: 'Orbit conversation' })
     expect(dialog).toHaveTextContent('App updated')
     expect(dialog.querySelector('button')).toHaveTextContent('Reload')
     expect(view.container.querySelector('[data-shell-background]')).toHaveAttribute('inert')
@@ -422,7 +422,7 @@ describe('Today create during first load', () => {
 
   it('keeps feedback inside the wide conversation', async () => {
     state.wide = true
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     const view = render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     act(() => { useAppToastStore.getState().showError('Sync failed') })
 

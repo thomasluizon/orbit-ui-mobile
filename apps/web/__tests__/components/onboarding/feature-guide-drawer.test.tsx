@@ -49,7 +49,7 @@ describe('FeatureGuideDrawer', () => {
     )
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
       'onboarding.featureGuide.habits',
-      'onboarding.featureGuide.astra',
+      'onboarding.featureGuide.orbit',
       'onboarding.featureGuide.connect',
       'onboarding.featureGuide.progress',
       'onboarding.featureGuide.calendar',
@@ -149,8 +149,8 @@ describe('FeatureGuideDrawer', () => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
-    const astraTab = screen.getByText('onboarding.featureGuide.astra')
-    expect(astraTab).toHaveAttribute('aria-selected', 'false')
+    const orbitTab = screen.getByText('onboarding.featureGuide.orbit')
+    expect(orbitTab).toHaveAttribute('aria-selected', 'false')
     const habitsTab = screen.getByText('onboarding.featureGuide.habits')
     expect(habitsTab).toHaveAttribute('aria-selected', 'true')
     const progressTab = screen.getByText('onboarding.featureGuide.progress')

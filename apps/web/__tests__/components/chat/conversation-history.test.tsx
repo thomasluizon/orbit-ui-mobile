@@ -5,7 +5,7 @@ import { createChatStoreState } from '@orbit/shared/stores'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { ApiClientError } from '@orbit/shared/utils'
 import { makeConversationPage, storedConversationId } from '@orbit/shared/test-support/conversation-fixtures'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { useChatStore } from '@/stores/chat-store'
 
 const requests = vi.hoisted(() => ({ read: vi.fn(), remove: vi.fn() }))
@@ -25,7 +25,7 @@ vi.mock('@/components/chat/chat-empty-state', () => ({ ChatEmptyState: () => <di
 vi.mock('@/components/chat/message-bubble', () => ({ MessageBubble: ({ message }: { message: { content: string } }) => <p>{message.content}</p> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: (props: { open: boolean; title: string; onConfirm: () => void; onCancel: () => void }) => props.open ? <div role="dialog" aria-label={props.title}><button onClick={props.onConfirm}>Confirm deletion</button><button onClick={props.onCancel}>Cancel deletion</button></div> : null }))
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 function Conversation() {
   const messages = useChatStore(state => state.messages)
   const [threadScroll] = useState(createChatThreadScroll)
@@ -34,7 +34,7 @@ function Conversation() {
     showSuggestions: messages.length === 0, isSending: false, streamingMessageId: null, canShowFollowUps: false,
     composerProps: { suggestions: [] }, trackCardOperation: vi.fn(),
   } as unknown as ChatController
-  return <AstraConversation chat={chat} />
+  return <OrbitConversation chat={chat} />
 }
 
 beforeEach(() => {

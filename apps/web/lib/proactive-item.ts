@@ -9,7 +9,7 @@ export const proactiveItemController = createProactiveItemController({
   requestCurrent: getCurrentProactiveItem,
   reportOpened: (id) => reportProactiveOpened(id, getHeldAccountId()),
   getChat: useChatStore.getState,
-  openConversation: () => useUIStore.getState().setAstraConversationOpen(true),
+  openConversation: () => useUIStore.getState().setOrbitConversationOpen(true),
   getSessionEpoch,
 })
 

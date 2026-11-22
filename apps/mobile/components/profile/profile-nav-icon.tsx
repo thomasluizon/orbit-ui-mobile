@@ -13,7 +13,7 @@ import {
 import { OrbitMascotIcon } from '@/components/ui/orbit-mascot'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
-const ICON_BY_KEY: Record<Exclude<ProfileNavIconKey, 'astra'>, Icon> = {
+const ICON_BY_KEY: Record<Exclude<ProfileNavIconKey, 'orbit'>, Icon> = {
   account: User,
   pro: Crown,
   preferences: Settings,
@@ -32,7 +32,7 @@ export function ProfileNavIcon({
   iconKey: ProfileNavIconKey
   color?: string
 }>) {
-  if (iconKey === 'astra') return <OrbitMascotIcon size={24} color={color} />
+  if (iconKey === 'orbit') return <OrbitMascotIcon size={24} color={color} />
   const IconComponent = ICON_BY_KEY[iconKey]
   return <IconComponent size={24} color={color} strokeWidth={1.5} />
 }

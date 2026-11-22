@@ -26,7 +26,7 @@ it('keeps exhausted pending dots static after scrolling away and back', () => {
   repeat.mockClear()
   void act(() => pending.current!.setVisible(true))
   expect(repeat).not.toHaveBeenCalled()
-  expect(tree!.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-pending')).toHaveLength(1)
+  expect(tree!.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-pending')).toHaveLength(1)
 })
 
 it('preserves the remaining pulse budget while the pending line is offscreen', () => {

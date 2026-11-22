@@ -1,0 +1,178 @@
+import React from 'react'
+import { View, type LayoutChangeEvent } from 'react-native'
+import { act, create, type ReactTestInstance } from 'react-test-renderer'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ORBIT_BUTTON_GAP } from '@orbit/shared/utils'
+import { SPACING } from '@orbit/shared/theme'
+import { Shell412 } from '@/components/shell/shell-412'
+import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
+import { useUIStore } from '@/stores/ui-store'
+import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { controlStyle, expectMotionPress } from '@/__tests__/support/press-feedback'
+import { createTokensV2 } from '@/lib/theme'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+
+const theme: { mode: 'dark' | 'light' } = vi.hoisted(() => ({ mode: 'dark' }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: theme.mode }) }))
+vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }) }))
+vi.mock('@react-native-async-storage/async-storage', () => ({ default: { getItem: () => Promise.resolve(null), setItem: () => Promise.resolve() } }))
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+vi.mock('@/lib/motion', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => true }))
+
+const HEIGHT = 915
+let tree: GeometryTree
+const clearances: number[] = []
+
+beforeEach(() => { clearances.length = 0; theme.mode = 'dark'; useUIStore.setState(useUIStore.getInitialState()) })
+afterEach(async () => { await act(() => tree.unmount()) })
+
+function hosts(testID: string) { return tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === testID) }
+function host(testID: string) { return hosts(testID)[0]! }
+function measure(width: number) { return measureSafeArea(tree.toJSON(), node => node.props.testID, { width, height: HEIGHT }) }
+async function reportLayouts(width: number) {
+  for (const node of tree.root.findAll(candidate => typeof candidate.type === 'string' && typeof candidate.props.onLayout === 'function' && typeof candidate.props.testID === 'string')) {
+    const box = measure(width).get(node.props.testID as string)
+    if (!box) continue
+    await act(() => (node.props.onLayout as (event: LayoutChangeEvent) => void)({ nativeEvent: { layout: { x: box.left, y: box.top, width: box.width, height: box.bottom - box.top } } } as LayoutChangeEvent))
+  }
+}
+function ClearanceProbe() {
+  clearances.push(useShellScrollerClearance())
+  return <View testID="last-row" style={{ height: 56 }} />
+}
+function CreateFab() { return <View testID="create-fab" style={{ width: 60, height: 60 }} /> }
+
+function shell({ fab = true, orbitButton = true } = {}) {
+  return <Shell412 orbitButton={orbitButton} header={<View style={{ height: 48 }} />} fab={fab ? <CreateFab /> : undefined}
+    tabBar={<View testID="tab-bar" style={{ height: 80 }} />}><ClearanceProbe /></Shell412>
+}
+
+async function mountShell(width: number, options: Parameters<typeof shell>[0] = {}) {
+  __setWindowDimensions({ width, height: HEIGHT, scale: 1, fontScale: 1 })
+  await act(() => { tree = create(shell(options)) as GeometryTree })
+  await reportLayouts(width)
+}
+
+function responderKeys(node: ReactTestInstance | null): string[] {
+  const keys: string[] = []
+  for (let current = node; current; current = current.parent) {
+    if (typeof current.type !== 'string') continue
+    keys.push(...Object.keys(current.props).filter(key => /^onResponder|ShouldSetResponder|^onLongPress$|^onAccessibilityAction$/.test(key)))
+  }
+  return keys
+}
+
+describe.each([412, 840])('the compact Orbit button at %ipx', width => {
+  it('sits directly above the create habit button, centred on it, with the shared gap', async () => {
+    await mountShell(width)
+    const boxes = measure(width)
+    const orbit = boxes.get('orbit-button')!
+    const create = boxes.get('create-fab')!
+    expect(orbit.width).toBe(60)
+    expect(orbit.bottom - orbit.top).toBe(60)
+    expect(create.top - orbit.bottom).toBe(ORBIT_BUTTON_GAP)
+    expect(orbit.left + orbit.width / 2).toBe(create.left + create.width / 2)
+    expect(orbit.bottom).toBeLessThanOrEqual(boxes.get('shell-tab-bar')!.top)
+  })
+
+  it('takes the create habit button position when that button is absent', async () => {
+    await mountShell(width)
+    const stacked = measure(width).get('create-fab')!
+    await act(() => tree.unmount())
+    await mountShell(width, { fab: false })
+    const alone = measure(width).get('orbit-button')!
+    expect(hosts('create-fab')).toHaveLength(0)
+    expect({ left: alone.left, top: alone.top }).toEqual({ left: stacked.left, top: stacked.top })
+  })
+
+  it('keeps the last Hoje row clear of both stacked buttons and the tab bar', async () => {
+    await mountShell(width)
+    const boxes = measure(width)
+    const clearance = clearances.at(-1)!
+    const scrollerBottom = boxes.get('shell-scroller')!.bottom
+    expect(scrollerBottom).toBeLessThanOrEqual(boxes.get('shell-tab-bar')!.top)
+    expect(scrollerBottom - clearance).toBeLessThanOrEqual(boxes.get('orbit-button')!.top - SPACING.s16)
+  })
+
+  it('holds the stacked end clearance while a registered sheet withholds the conversation entry', async () => {
+    await mountShell(width)
+    const boxes = measure(width)
+    const stacked = boxes.get('shell-scroller')!.bottom - boxes.get('orbit-button')!.top + SPACING.s16
+    expect(clearances.at(-1)).toBe(stacked)
+    await act(() => { useUIStore.getState().registerOpenOverlay('habit-detail') })
+    expect(hosts('orbit-button')).toHaveLength(0)
+    expect(clearances.at(-1)).toBe(stacked)
+    await act(() => { useUIStore.getState().unregisterOpenOverlay('habit-detail') })
+    expect(clearances.at(-1)).toBe(stacked)
+  })
+})
+
+it('opens the conversation on tap and carries its accessible name', async () => {
+  await mountShell(412)
+  expect(host('orbit-button').props.accessibilityLabel).toBe('shell.orbitButton.open')
+  await act(() => { (host('orbit-button').props.onPress as () => void)() })
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+  expect(hosts('orbit-button')).toHaveLength(0)
+})
+
+it('stays in place through a drag and offers no move gesture or action', async () => {
+  await mountShell(412)
+  const before = measure(412).get('orbit-button')!
+  const button = host('orbit-button')
+  expect(responderKeys(button)).toEqual([])
+  expect(button.props.accessibilityActions).toBeUndefined()
+  await act(() => {
+    ;(button.props.onPressIn as () => void)()
+    ;(button.props.onPressOut as () => void)()
+  })
+  await reportLayouts(412)
+  expect(measure(412).get('orbit-button')).toEqual(before)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(false)
+})
+
+it('hides while selection mode owns the bottom of Hoje and returns to the stack after it', async () => {
+  await mountShell(412)
+  await act(() => { useUIStore.setState({ isSelectMode: true }) })
+  expect(hosts('orbit-button')).toHaveLength(0)
+  await act(() => { useUIStore.setState({ isSelectMode: false }) })
+  const boxes = measure(412)
+  expect(boxes.get('create-fab')!.top - boxes.get('orbit-button')!.bottom).toBe(ORBIT_BUTTON_GAP)
+})
+
+it.each(['light', 'dark'] as const)('is the live Orbit at 48 on a solid elevated circle with a control edge, the size of its 60 press target, in %s', async mode => {
+  theme.mode = mode
+  await mountShell(412)
+  const tokens = createTokensV2('orange', mode)
+  expect(tokens.bgElev).toMatch(/^#[0-9A-F]{6}$/)
+  expect(contrastOnSurface(tokens.borderControl, [tokens.bg])).toBeGreaterThanOrEqual(3)
+  const mascot = host('orbit-button').findAll(node => node.props['data-orbit-face'] === 'rig')[0]!
+  expect(mascot.props).toMatchObject({ width: 48, accessible: false })
+  const flattened = controlStyle(host('orbit-button'))
+  expect(flattened).toMatchObject({ width: 60, height: 60, borderRadius: 30, backgroundColor: tokens.bgElev, borderWidth: 1, borderColor: tokens.borderControl })
+  expect(flattened.boxShadow).toBeUndefined()
+  expect(flattened.elevation).toBeUndefined()
+  expect(hosts('fab-press-fill')).toHaveLength(0)
+})
+
+it('keeps the conversation entry still on press under reduced motion, with no press fill', async () => {
+  await mountShell(412)
+  expectMotionPress(host('orbit-button'), true)
+  expect(hosts('fab-press-fill')).toHaveLength(0)
+})
+
+it('paints the opaque elevated hover fill of its circle on pointer hover and draws the focus ring on keyboard focus, as web does', async () => {
+  await mountShell(412)
+  const tokens = createTokensV2('orange', 'dark')
+  const style = () => controlStyle(host('orbit-button'))
+  expect(style()).toMatchObject({ borderRadius: 30, backgroundColor: tokens.bgElev, borderColor: tokens.borderControl })
+  expect(style().outlineWidth).toBeUndefined()
+  await act(() => { (host('orbit-button').props.onHoverIn as () => void)() })
+  expect(style()).toMatchObject({ backgroundColor: tokens.bgElevHover, borderColor: tokens.borderControl })
+  await act(() => { (host('orbit-button').props.onHoverOut as () => void)() })
+  expect(style().backgroundColor).toBe(tokens.bgElev)
+  await act(() => { (host('orbit-button').props.onFocus as (event: unknown) => void)({ target: 1, currentTarget: 1 }) })
+  expect(style()).toMatchObject({ outlineColor: tokens.primary, outlineOffset: 2, outlineStyle: 'solid', outlineWidth: 2 })
+  await act(() => { (host('orbit-button').props.onBlur as (event: unknown) => void)({ target: 1, currentTarget: 1 }) })
+  expect(style().outlineWidth).toBeUndefined()
+})

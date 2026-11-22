@@ -1,0 +1,155 @@
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { usePathname } from 'expo-router'
+import { useTranslation } from 'react-i18next'
+import { API } from '@orbit/shared/api'
+import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
+import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
+import { useProfile } from '@/hooks/use-profile'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { Sheet } from '@/components/ui/sheet'
+import { useSheetPresence } from '@/components/ui/sheet-presence'
+import { ActionRow } from '@/components/ui/action-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { useUIStore } from '@/stores/ui-store'
+import { useAccountId } from '@/lib/account-scope'
+
+/**
+ * One-time-per-account post-login "Import from another app?" sheet. Gated on the
+ * additive `hasSeenImportPrompt` profile flag and made collision-safe against the
+ * calendar-import prompt. The CTA seeds the chat draft and opens the conversation with Orbit; "Not now"
+ * marks the account as having seen the prompt.
+ */
+export function OrbitImportPrompt({ suppressed }: Readonly<{ suppressed: boolean }>) {
+  const { t } = useTranslation()
+  const pathname = usePathname()
+  const { profile, patchProfile } = useProfile()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const accountId = useAccountId()
+  const [dismissal, setDismissal] = useState<{ accountId: string | null } | null>(null)
+  const dismissed = dismissal !== null && dismissal.accountId === accountId
+  const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
+    s.hasPendingAnswers(),
+  )
+  const orbitConversationOpen = useUIStore((state) => state.orbitConversationOpen)
+  const anotherOverlayOpen = useUIStore(hasOpenPromptBlockingOverlay)
+  const promptId = useId()
+  const sheetMounted = useUIStore((state) => state.openOverlayIds.includes(promptId))
+  const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
+
+  const calendarPromptWouldShow = Boolean(
+    profile?.hasCompletedOnboarding &&
+      !profile.hasImportedCalendar,
+  )
+
+  const shouldShow = !suppressed && Boolean(
+    profile?.hasCompletedOnboarding &&
+      !profile.hasSeenImportPrompt &&
+      !calendarPromptWouldShow &&
+      !pendingOnboardingAnswers &&
+      !orbitConversationOpen &&
+      pathname !== '/calendar' &&
+      !dismissed,
+  )
+  const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(sheetMounted && shouldShow)
+
+  const markSeen = useCallback(async () => {
+    setDismissal({ accountId })
+    patchProfile({ hasSeenImportPrompt: true })
+
+    try {
+      await performQueuedApiMutation({
+        type: 'dismissImportPrompt',
+        scope: 'profile',
+        endpoint: API.profile.importPromptDismiss,
+        method: 'PUT',
+        payload: undefined,
+        dedupeKey: 'profile-import-prompt-dismiss',
+      })
+    } catch {}
+  }, [accountId, patchProfile])
+
+  const handleImport = useCallback(async () => {
+    await AsyncStorage.setItem(
+      CHAT_DRAFT_STORAGE_KEY,
+      t('onboarding.flow.meetOrbit.importPrompt'),
+    )
+    closeSheet(() => {
+      unregisterOpenOverlay(promptId)
+      void markSeen()
+      useUIStore.getState().setOrbitConversationOpen(true)
+    })
+  }, [closeSheet, markSeen, promptId, t, unregisterOpenOverlay])
+
+  useEffect(() => {
+    if (!shouldShow) {
+      if (sheetMounted) unregisterOpenOverlay(promptId)
+      return
+    }
+    if (!sheetMounted && !anotherOverlayOpen) useUIStore.getState().tryReservePromptOverlay(promptId)
+  }, [anotherOverlayOpen, promptId, sheetMounted, shouldShow, unregisterOpenOverlay])
+  useEffect(() => {
+    return () => unregisterOpenOverlay(promptId)
+  }, [promptId, unregisterOpenOverlay])
+
+  if (!mounted) return null
+
+  return (
+    <Sheet
+      key={sheetKey}
+      ref={sheetRef}
+      open
+      onClose={() => {
+        unregisterOpenOverlay(promptId)
+        void markSeen()
+      }}
+      title={t('onboarding.wizard.importTitle')}
+      actions={(
+        <ActionRow>
+          <PromptQuietAction
+            accessibleName={t('onboarding.wizard.importNotNow')}
+            onClick={() =>
+              closeSheet(() => {
+                unregisterOpenOverlay(promptId)
+                void markSeen()
+              })
+            }
+          >
+            {t('onboarding.wizard.importNotNow')}
+          </PromptQuietAction>
+          <PillButton size="sm" onClick={() => void handleImport()}>
+            {t('onboarding.wizard.importButton')}
+          </PillButton>
+        </ActionRow>
+      )}
+    >
+      <View>
+        <Text style={styles.description}>
+          {t('onboarding.wizard.importDescription')}
+        </Text>
+      </View>
+    </Sheet>
+  )
+}
+
+function createStyles(tokens: AppTokensV2) {
+  return StyleSheet.create({
+    description: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 21,
+      textAlign: 'center',
+      color: tokens.fg2,
+    },
+  })
+}

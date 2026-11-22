@@ -1,6 +1,6 @@
 'use client'
 
-import type { AstraAllowance } from '@orbit/shared/utils'
+import type { OrbitAllowance } from '@orbit/shared/utils'
 
 import { IconButton } from '@/components/ui/icon-button'
 
@@ -87,13 +87,13 @@ function FlowActions({ primary, secondary, reason }: Readonly<{ primary: ReactNo
   return <div className="flex w-full flex-col gap-2"><ActionRow>{secondary}{primary}</ActionRow>{reason}</div>
 }
 
-const DONE_TAB_ROUTES: Record<string, string> = { astra: buildConversationEntryHref('open'), ...SHELL_DESTINATION_PATHS }
+const DONE_TAB_ROUTES: Record<string, string> = { orbit: buildConversationEntryHref('open'), ...SHELL_DESTINATION_PATHS }
 
 function DoneShell({ onSelect, children, modalId, loginHref }: Readonly<{ onSelect: (id: string) => void; children: ReactNode; modalId: string; loginHref?: string }>) {
   const t = useTranslations()
   const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? SHELL_DESTINATION_PATHS[id], label: t(DESTINATION_ICONS[id].labelKey), icon: id })), [loginHref, t])
   const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? SHELL_DESTINATION_PATHS[id], label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
-  return <ShellWide landmark={false} astraRow={{ label: t('shell.astraButton.open'), onOpen: () => onSelect('astra') }} items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} /><AppToastHost placement="modal" modalId={modalId} /></>}>
+  return <ShellWide landmark={false} orbitRow={{ label: t('shell.orbitButton.open'), onOpen: () => onSelect('orbit') }} items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} /><AppToastHost placement="modal" modalId={modalId} /></>}>
     <div className="mx-auto flex min-h-full w-full max-w-[440px] items-center px-4 lg:max-w-[560px] lg:px-0">{children}</div>
   </ShellWide>
 }
@@ -110,7 +110,7 @@ export interface OnboardingDecisionProps {
   proposed: boolean
   correcting: boolean
   atLimit: boolean
-  allowancePeriod?: AstraAllowance['aiMessagesPeriod']
+  allowancePeriod?: OrbitAllowance['aiMessagesPeriod']
   allowance: number
   createFailed: boolean
   creating: boolean

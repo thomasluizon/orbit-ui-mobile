@@ -543,7 +543,7 @@ describe('serverAuthMutate', () => {
 })
 
 
-describe('Astra proxy failure logging through server actions', () => {
+describe('Orbit proxy failure logging through server actions', () => {
   beforeEach(() => {
     resolveServerSessionMock.mockReset()
     mockFetch.mockReset()
@@ -623,7 +623,7 @@ describe('Astra proxy failure logging through server actions', () => {
     }) + '\n')
   })
 
-  it('leaves other authenticated mutations outside Astra logging', async () => {
+  it('leaves other authenticated mutations outside Orbit logging', async () => {
     mockFetch.mockResolvedValue(new Response('unavailable', { status: 503 }))
 
     await expect(serverAuthMutate('/api/habits', { method: 'POST' }, 'account-a')).rejects.toMatchObject({ status: 503 })

@@ -22,8 +22,8 @@ describe('settings switch centres in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it('keeps locked Astra labels in their existing text block', async () => {
-    const title = ptBR.profile.proactiveAstra.title
+  it('keeps locked Orbit labels in their existing text block', async () => {
+    const title = ptBR.profile.proactiveOrbit.title
     const { container } = render(<div style={{ width: 364 }}>
       <ListRow title={title} icon={<Lock size={24} strokeWidth={2} />} compact textMode="label" chevron={false} onClick={() => {}}
         trailing={<Badge>Pro</Badge>} />
@@ -43,11 +43,11 @@ describe('settings switch centres in Chromium', () => {
   })
 
   for (const width of [412, 1280]) {
-    it.each([ptBR.profile.analytics.title, ptBR.profile.proactiveAstra.title, ptBR.profile.aiSummary.title].flatMap((label) => [{ scale: 1, narrow: false }, { scale: 2, narrow: true }, { scale: 2, narrow: false }].map((scenario) => ({ label, ...scenario }))))(`aligns $label at ${width}px and text scale $scale with narrow=$narrow`, async ({ label, scale, narrow }) => {
+    it.each([ptBR.profile.analytics.title, ptBR.profile.proactiveOrbit.title, ptBR.profile.aiSummary.title].flatMap((label) => [{ scale: 1, narrow: false }, { scale: 2, narrow: true }, { scale: 2, narrow: false }].map((scenario) => ({ label, ...scenario }))))(`aligns $label at ${width}px and text scale $scale with narrow=$narrow`, async ({ label, scale, narrow }) => {
       const title = ptBR.profile.analytics.title
       const { container } = render(<div style={{ width: narrow ? 288 : width - 48 }}>
         <ListRow textMode="label" title={title} icon={<BarChart3 size={24} />} toggle={{ checked: true, onChange: () => {} }} />
-        {[ptBR.profile.proactiveAstra.title, ptBR.profile.aiSummary.title].map((label) => (
+        {[ptBR.profile.proactiveOrbit.title, ptBR.profile.aiSummary.title].map((label) => (
           <ListRow key={label} title={label} compact textMode="label" toggle={{ checked: true, onChange: () => {} }} />
         ))}
       </div>)

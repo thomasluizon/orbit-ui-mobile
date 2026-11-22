@@ -421,16 +421,16 @@ describe('OnboardingFlow state model', () => {
     mount(false)
     fireEvent.change(screen.getByLabelText('sentence'), { target: { value: sentence } })
     fireEvent.click(screen.getByRole('button', { name: 'continue' }))
-    const speaker = (await screen.findByText('when.astraRead')).parentElement!.querySelector('[data-asset="orbit-mascot"]')
+    const speaker = (await screen.findByText('when.orbitRead')).parentElement!.querySelector('[data-asset="orbit-mascot"]')
     expect(speaker).toBeVisible()
     expect(speaker!.closest('[aria-hidden="true"]')).not.toBeNull()
-    expect(screen.queryByRole('img', { name: /^(Astra|Orbit)$/ })).toBeNull()
+    expect(screen.queryByRole('img', { name: /^(Orbit|Orbit)$/ })).toBeNull()
     expect(screen.getByText(title)).toBeVisible()
-    expect(screen.getByText('when.astraRead')).toBeVisible()
+    expect(screen.getByText('when.orbitRead')).toBeVisible()
     expect(mocks.anonymous).toHaveBeenCalledWith({ title: sentence, language: locale })
     expect(mocks.suggest).not.toHaveBeenCalled()
     expect(headerCounter()).toBe('Orbit · 02 / 03')
-    expect(screen.queryByText(/meetAstra/)).toBeNull()
+    expect(screen.queryByText(/meetOrbit/)).toBeNull()
   })
 
   it('ignores a dialog open request after onboarding has completed', async () => {
@@ -666,8 +666,8 @@ describe('OnboardingFlow state model', () => {
     mocks.wide = true
     mocks.profile.hasProAccess = false
     await reachDone(true)
-    const row = screen.getByRole('button', { name: 'shell.astraButton.open' })
-    expect(row).toHaveAttribute('data-shell-astra-row')
+    const row = screen.getByRole('button', { name: 'shell.orbitButton.open' })
+    expect(row).toHaveAttribute('data-shell-orbit-row')
     fireEvent.click(row)
     await screen.findByTestId('pro-step')
     expect(mocks.navigate).not.toHaveBeenCalled()
@@ -944,7 +944,7 @@ describe('OnboardingFlow state model', () => {
     await waitFor(() => expect(screen.queryByTestId('done')).toBeNull())
   })
 
-  it('waits for Astra before exposing schedule actions and persists its flexible cadence', async () => {
+  it('waits for Orbit before exposing schedule actions and persists its flexible cadence', async () => {
     let resolveSuggestion!: (value: HabitSetupSuggestion) => void
     mocks.suggest.mockReturnValue(new Promise<HabitSetupSuggestion>((resolve) => { resolveSuggestion = resolve }))
     mount(true)
@@ -961,10 +961,10 @@ describe('OnboardingFlow state model', () => {
   it.each([
     [{ emoji: '🧾', frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }, {}],
     [{ emoji: '🧹', frequencyUnit: 'Week' as const, frequencyQuantity: 2, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }, { frequencyUnit: 'Week', frequencyQuantity: 2 }],
-  ])('persists the exact Astra cadence', async (suggestion, expected) => {
+  ])('persists the exact Orbit cadence', async (suggestion, expected) => {
     mocks.suggest.mockResolvedValue(suggestion)
     mount(true)
-    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Astra cadence' } })
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Orbit cadence' } })
     fireEvent.click(screen.getByRole('button', { name: 'continue' }))
     fireEvent.click(await screen.findByRole('button', { name: 'create' }))
     await waitFor(() => expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining(expected)))

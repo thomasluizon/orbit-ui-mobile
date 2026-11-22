@@ -43,7 +43,7 @@ vi.mock('@/hooks/use-tags', () => ({
   useSuggestTags: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: undefined }) }))
-vi.mock('@/hooks/use-astra-allowance-copy', () => ({ useAstraAllowanceCopy: () => (key: string) => key }))
+vi.mock('@/hooks/use-orbit-allowance-copy', () => ({ useOrbitAllowanceCopy: () => (key: string) => key }))
 
 function Harness() {
   const formHelpers = useHabitForm({ initialData: { dueDate: '' } })

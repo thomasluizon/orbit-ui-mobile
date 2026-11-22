@@ -49,7 +49,7 @@ function makeTopLevelItem(overrides: Partial<HabitScheduleItem>): HabitScheduleI
 function renderEmptyState(
   items: HabitScheduleItem[] | null,
   mascotState?: 'parado' | 'descansando',
-  restReason?: 'todayAstra.guided.offline' | 'conversation.restLimit',
+  restReason?: 'todayOrbit.guided.offline' | 'conversation.restLimit',
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   if (items !== null) {
@@ -84,7 +84,7 @@ describe('ChatEmptyState (mobile)', () => {
 
   const orbitLines = (tree: any) => tree.root.findAll((node: any) => typeof node.type === 'string' && node.props?.testID === 'empty-state-line')
 
-  it.each(['todayAstra.guided.offline', 'conversation.restLimit'] as const)('shows the title and one Orbit line with the reason %s while Orbit rests', (reason) => {
+  it.each(['todayOrbit.guided.offline', 'conversation.restLimit'] as const)('shows the title and one Orbit line with the reason %s while Orbit rests', (reason) => {
     enableTestFlags('orbit_guided_flows')
     const { tree } = renderEmptyState(null, 'descansando', reason)
     expect(orbitLines(tree).map((node: any) => node.props.children)).toEqual([reason])
@@ -92,7 +92,7 @@ describe('ChatEmptyState (mobile)', () => {
   })
 
   it('shows no Orbit line with no reason, and none with the guided flows off', () => {
-    expect(orbitLines(renderEmptyState(null, 'descansando', 'todayAstra.guided.offline').tree)).toHaveLength(0)
+    expect(orbitLines(renderEmptyState(null, 'descansando', 'todayOrbit.guided.offline').tree)).toHaveLength(0)
     enableTestFlags('orbit_guided_flows')
     expect(orbitLines(renderEmptyState(null).tree)).toHaveLength(0)
   })

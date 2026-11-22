@@ -104,7 +104,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (!suggestion) return null
     return (
       <RescheduleProposal
-        proposedLabel={t('habits.form.proposedByAstra')}
+        proposedLabel={t('habits.form.proposedByOrbit')}
         {...buildRescheduleProposalLabels(suggestion, {
           locale,
           today: parseAPIDate(todayStr),
@@ -183,7 +183,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       <View style={styles.scrollContent}>
         <View style={styles.headerRow}>
           <OrbitMascot size={48} state={rescheduleMascotState(hasProAccess, isPaused, isLoading)} />
-          <Text style={styles.astraName}>Orbit</Text>
+          <Text style={styles.orbitName}>Orbit</Text>
           <Badge>{t('aiDisclosure.isAiLabel')}</Badge>
         </View>
         {renderBody()}
@@ -203,7 +203,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: 'center',
       gap: 8,
     },
-    astraName: {
+    orbitName: {
       fontFamily: 'Geist_500Medium',
       fontWeight: '500',
       color: tokens.fg1,

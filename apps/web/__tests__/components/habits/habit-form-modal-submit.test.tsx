@@ -43,7 +43,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     expect(screen.getByRole('button', { name: 'habits.form.removeSubHabit' })).toBeVisible()
   })
 
-  it.each(['en', 'pt-BR'])('saves the entered cadence with an automatically filled Astra start in %s', async (locale) => {
+  it.each(['en', 'pt-BR'])('saves the entered cadence with an automatically filled Orbit start in %s', async (locale) => {
     formLocale.realController = true
     formLocale.language = locale
     await mount('habit')

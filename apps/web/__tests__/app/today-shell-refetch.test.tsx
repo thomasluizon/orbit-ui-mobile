@@ -51,19 +51,19 @@ beforeEach(() => {
   useUIStore.setState(useUIStore.getInitialState())
 })
 
-it('retains the create FAB and Astra entry through a pending habits refresh', () => {
+it('retains the create FAB and Orbit entry through a pending habits refresh', () => {
   const { rerender } = render(<TodayShell />)
   const fab = document.querySelector('[data-shell-fab] [data-fab]')
   expect(fab).not.toBeNull()
-  const entry = screen.getByRole('button', { name: 'shell.astraButton.open' })
+  const entry = screen.getByRole('button', { name: 'shell.orbitButton.open' })
   state.habits = { ...state.habits, isFetching: true }
   rerender(<TodayShell />)
   expect(document.querySelector('[data-shell-fab] [data-fab]')).toBe(fab)
-  expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBe(entry)
+  expect(screen.getByRole('button', { name: 'shell.orbitButton.open' })).toBe(entry)
   state.habits = { ...state.habits, isFetching: false, showLoadError: false }
   rerender(<TodayShell />)
   expect(document.querySelector('[data-shell-fab] [data-fab]')).toBe(fab)
-  expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBe(entry)
+  expect(screen.getByRole('button', { name: 'shell.orbitButton.open' })).toBe(entry)
   expect(screen.queryByRole('textbox')).toBeNull()
 })
 
@@ -75,7 +75,7 @@ it.each([
   render(<TodayShell />)
   expect(state.paints).toEqual([true])
   expect(document.querySelector('[data-shell-fab] [data-fab]')).not.toBeNull()
-  expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'shell.orbitButton.open' })).toBeVisible()
 })
 
 it.each([
@@ -86,7 +86,7 @@ it.each([
   render(<TodayShell />)
   expect(document.querySelector('[data-shell-fab] [data-fab]')).toBeNull()
   expect(screen.queryByRole('textbox')).toBeNull()
-  expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'shell.orbitButton.open' })).toBeVisible()
 })
 
 it('keeps the pending FAB in place when the list arrives and again after returning to Today', () => {
@@ -160,7 +160,7 @@ it.each([412, 1280].flatMap(width => [false, true].map(showLoadError => ({ width
     const view = render(<TodayShell />)
     expect(view.container.querySelector('[data-shell-fab]')).toBeNull()
     const column = view.container.querySelector('[data-shell-fab-clip]')
-    if (width < 1024) expect(column?.querySelector('[data-shell-astra-button] [data-astra-button]')).not.toBeNull()
+    if (width < 1024) expect(column?.querySelector('[data-shell-orbit-button] [data-orbit-button]')).not.toBeNull()
     else expect(column).toBeNull()
     expect(view.container.querySelector('[data-shell-bottom-viewport]')).toHaveAttribute('data-floating', 'false')
     expect(view.container.querySelector('[data-shell-destination-viewport]')).toHaveAttribute('data-floating', 'false')

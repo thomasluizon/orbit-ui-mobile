@@ -8,7 +8,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import en from '@orbit/shared/i18n/en.json'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { PageHeader } from '@/components/ui/page-header'
@@ -26,7 +26,7 @@ vi.mock('motion/react', async (original) => ({
   ...await original<typeof import('motion/react')>(), useReducedMotion: () => true,
 }))
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 
 function createEmptyChat(): ChatController {
   return {
@@ -70,8 +70,8 @@ describe('full-screen header safe rectangles', () => {
   }
 
   it.each(viewports)('insets the real conversation and Ideas headers at $width by $height with $left/$right side insets', async (viewport) => {
-    const view = render(<ShellWide nav={false} conversationOpen conversationLabel="Astra"
-      conversation={<AstraConversation chat={createEmptyChat()} />}><p>Today</p></ShellWide>)
+    const view = render(<ShellWide nav={false} conversationOpen conversationLabel="Orbit"
+      conversation={<OrbitConversation chat={createEmptyChat()} />}><p>Today</p></ShellWide>)
     const page = await mount(view.container.innerHTML, viewport)
     try {
       for (const ideas of [false, true]) {

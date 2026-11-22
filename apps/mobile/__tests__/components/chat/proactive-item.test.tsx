@@ -7,7 +7,7 @@ import { proactiveKeys } from '@orbit/shared/query'
 import { chatMessageSchema, proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { ProactiveAction } from '@/components/chat/proactive-action'
-import { TodayAstra } from '@/components/today/today-astra'
+import { TodayOrbit } from '@/components/today/today-orbit'
 import { openCurrentProactiveItem } from '@/lib/proactive-item'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -62,7 +62,7 @@ beforeEach(() => {
     return Promise.resolve(undefined)
   })
   useChatStore.setState({ messages: [], proactiveOutcomes: {}, isTyping: false, streamingMessageId: null })
-  useUIStore.setState({ astraConversationOpen: false })
+  useUIStore.setState({ orbitConversationOpen: false })
 })
 
 describe('proactive conversation', () => {
@@ -83,7 +83,7 @@ describe('proactive conversation', () => {
 
   it('loads current, opens its full text as AI once and sends the action prompt once', async () => {
     const { render } = setup()
-    const line = await render(<TodayAstra today={item.localDate} isTodaySelected suppressed={false} />)
+    const line = await render(<TodayOrbit today={item.localDate} isTodaySelected suppressed={false} />)
     await press(line, item.text)
     await press(line, item.text)
     expect(useChatStore.getState().messages).toEqual([expect.objectContaining({ role: 'ai', content: item.text })])
@@ -91,7 +91,7 @@ describe('proactive conversation', () => {
     expect(restoredMessage.proactiveItem?.facts).toEqual(item.facts)
     expect(restoredMessage.proactiveItem?.facts).not.toBeNull()
     expect(mocks.api.mock.calls.filter(([path]) => path === API.proactive.opened(item.id))).toHaveLength(1)
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     const send = vi.fn(() => Promise.resolve())
     const action = await render(<ProactiveAction isOnline={mocks.online} item={restoredMessage.proactiveItem!} acted={false} onSend={send} />)
     expect(button(action, item.actionLabel).props.disabled).toBe(false)
@@ -111,7 +111,7 @@ describe('proactive conversation', () => {
     const { render, client } = setup()
     client.setQueryData(proactiveKeys.current(), item)
     const send = vi.fn()
-    const tree = await render(<><TodayAstra today={item.localDate} isTodaySelected suppressed={false} /><ProactiveAction isOnline={mocks.online} item={item} acted={false} onSend={send} /></>)
+    const tree = await render(<><TodayOrbit today={item.localDate} isTodaySelected suppressed={false} /><ProactiveAction isOnline={mocks.online} item={item} acted={false} onSend={send} /></>)
     expect(button(tree, item.text).props.disabled).not.toBe(true)
     expect(button(tree, item.actionLabel).props.disabled).toBe(true)
     expect(button(tree, item.actionLabel).props.accessibilityHint).toBe(reason)
@@ -175,7 +175,7 @@ describe('proactive conversation', () => {
     try {
       void openCurrentProactiveItem(client)
       await Promise.resolve()
-      expect(useUIStore.getState().astraConversationOpen).toBe(true)
+      expect(useUIStore.getState().orbitConversationOpen).toBe(true)
       expect(useChatStore.getState().messages).toEqual(cached
         ? [expect.objectContaining({ role: 'ai', content: item.text })]
         : [])
@@ -189,11 +189,11 @@ describe('proactive conversation', () => {
     mocks.api.mockResolvedValue(undefined)
     await openCurrentProactiveItem(client)
     expect(useChatStore.getState().messages).toHaveLength(0)
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
-    useUIStore.setState({ astraConversationOpen: false })
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+    useUIStore.setState({ orbitConversationOpen: false })
     mocks.api.mockImplementation(() => { mocks.epoch++; return Promise.resolve(item) })
     await openCurrentProactiveItem(client)
     expect(useChatStore.getState().messages).toHaveLength(0)
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 })

@@ -1,0 +1,36 @@
+import { SMALL_PILL_VISIBLE_MIN, SECONDARY_TEXT_SIZE } from '@orbit/shared/theme'
+import { StyleSheet, Text, View } from 'react-native'
+import type { OrbitOfferProps } from '@orbit/shared/chat'
+import { useOrbitOffer } from '@/hooks/use-orbit-offer'
+import { useOrbitAllowanceCopy } from '@/hooks/use-orbit-allowance-copy'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { PillButton } from '@/components/ui/pill-button'
+import { ReferralDrawer } from '@/components/referral/referral-drawer'
+import { IconButton } from '@/components/ui/icon-button'
+import { X } from '@/components/ui/icons'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { createTokensV2 } from '@/lib/theme'
+
+export function OrbitOffer(props: Readonly<OrbitOfferProps>) {
+  return props.action ? <ActiveOrbitOffer {...props} /> : null
+}
+
+function ActiveOrbitOffer(props: Readonly<OrbitOfferProps>) {
+  const t = useOrbitAllowanceCopy()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const offer = useOrbitOffer(props)
+  if (!props.action) return null
+  return <>{offer.visible ? <View testID="orbit-offer" style={styles.slot}>
+    <View style={styles.actions}>
+      <PillButton size="sm" variant="ghost" minimumHeight={SMALL_PILL_VISIBLE_MIN} retainLeadingIcon leadingIcon={props.action.kind === 'openSurface' ? undefined : <OrbitMascot size={16} reading={offer.pending} />} loading={offer.pending} loadingFace={props.action.kind === 'openSurface' ? 'skeleton' : 'icon'} accessibleName={props.action.label} disabled={offer.disabled} onClick={() => void offer.act()}>{props.action.label}</PillButton>
+      <IconButton label={t('chat.offers.dismiss')} disabled={offer.dismissDisabled} onClick={() => void offer.dismiss()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+    </View>
+    <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: SECONDARY_TEXT_SIZE }}>{offer.failed ? t('chat.offers.failed') : offer.reason ? t(offer.reason) : ''}</Text>
+  </View> : null}<ReferralDrawer open={offer.referralsOpen} onClose={offer.closeReferrals} /></>
+}
+
+const styles = StyleSheet.create({
+  slot: { minWidth: 0, gap: 8 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
+})

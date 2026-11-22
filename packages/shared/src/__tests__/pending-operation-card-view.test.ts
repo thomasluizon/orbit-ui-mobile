@@ -1,6 +1,6 @@
 import { restoreConversationPage } from '../chat/conversation-restore'
 import { makeExecutedConversationPage, makeRevisedConversationPage, PARTIAL_BULK_LOG_PAYLOAD, storedOperationId, UNCHANGED_BULK_LOG_EXECUTION } from '../test-support/conversation-fixtures'
-import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
+import { orbitOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/orbit-offer-fixtures'
 import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, makeCreateWithReusedChildPreview, makeReusedHabitParentChoicePreview, makeReuseCreateBatchPreview, reusedChildIconCases, withStoredChildren, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview, makeBulkUpdateHabitsPreview, makeBulkUpdateExecutionResponse } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
@@ -372,7 +372,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
   })
 
   describe.each([
-    { actionKey: 'setProactiveAstra', capabilityId: 'profile.proactive-astra.write', english: 'Orbit notifications', portuguese: 'notificações do Orbit', title: messages.profile.proactiveAstra.title },
+    { actionKey: 'setProactiveAstra', capabilityId: 'profile.proactive-astra.write', english: 'Orbit notifications', portuguese: 'notificações do Orbit', title: messages.profile.proactiveOrbit.title },
     { actionKey: 'setAiSummary', capabilityId: 'profile.ai-summary.write', english: 'the daily recap', portuguese: 'o resumo diário', title: messages.chat.pendingOp.capability['profile-ai-summary-write'] },
     { actionKey: 'setAiMemory', capabilityId: 'profile.ai-memory.write', english: 'Orbit memory', portuguese: 'a memória do Orbit', title: messages.chat.pendingOp.capability['profile-ai-memory-write'] },
   ])('$actionKey toggle preview', ({ actionKey, capabilityId, english, portuguese, title }) => {
@@ -598,7 +598,7 @@ const labels: PendingOperationCardLabels = {
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
   confirmBody: () => 'Confirm the action', confirmNote: 'Review it', confirmTitle: () => 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
-  pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', retry: 'Try again', batchFailed: 'Ask Orbit for failed items', unavailableRecovery: 'Ask Astra for a new preview', denied: () => 'Denied', unsupported: 'Profile only',
+  pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', retry: 'Try again', batchFailed: 'Ask Orbit for failed items', unavailableRecovery: 'Ask Orbit for a new preview', denied: () => 'Denied', unsupported: 'Profile only',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
   more: (count) => `and ${count} more`,
 }
@@ -1447,16 +1447,16 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('
 })
 
 it.each([false, true])('passes the preview offer through the frame with busy=%s', busy => {
-  const operation = { ...makeOfferedPreview(), nextAction: astraOfferFixture }
+  const operation = { ...makeOfferedPreview(), nextAction: orbitOfferFixture }
   const { record, render } = createRenderers()
   const offer = vi.fn(() => 'preview-offer')
   renderPendingOperationCard({ card: { ...createCard(), busy }, labels, render: { ...render, offer }, onVerifyStepUp: vi.fn(), pendingOperation: operation })
-  expect(offer).toHaveBeenCalledExactlyOnceWith(astraOfferFixture, busy)
+  expect(offer).toHaveBeenCalledExactlyOnceWith(orbitOfferFixture, busy)
   expect(record.frame?.body).toBe('preview-offer')
 })
 
 it.each(['done', 'failed'] as const)('withholds offers and offered field controls after a %s outcome', status => {
-  const operation = { ...makeOfferedPreview(), nextAction: astraOfferFixture }
+  const operation = { ...makeOfferedPreview(), nextAction: orbitOfferFixture }
   const { record, render } = createRenderers()
   const offer = vi.fn(() => 'preview-offer')
   renderPendingOperationCard({ card: { ...createCard(), status }, labels, render: { ...render, offer }, onVerifyStepUp: vi.fn(), pendingOperation: operation })

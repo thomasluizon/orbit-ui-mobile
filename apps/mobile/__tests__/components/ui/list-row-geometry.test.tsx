@@ -109,7 +109,7 @@ describe('label switch row geometry', () => {
   it.each([320, 360, 384, 412].flatMap((width) => [en, ptBR].map((words) => ({ width, words }))))('reserves readable line boxes for paused labels at $width and font scale 2', async ({ width, words }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 2 })
     const paused = words.trial.expired
-    for (const title of [paused.astraCeiling, paused.calendarSync, paused.retrospective, paused.proactiveAstra]) {
+    for (const title of [paused.orbitCeiling, paused.calendarSync, paused.retrospective, paused.proactiveOrbit]) {
       let tree!: Tree
       await act(() => { tree = create(<ListRow readOnly textMode="label" title={title} description={paused.paused} />) as Tree })
       try {
@@ -124,7 +124,7 @@ describe('label switch row geometry', () => {
     }
   })
 
-  for (const title of [ptBR.profile.proactiveAstra.title, ptBR.profile.aiSummary.title]) {
+  for (const title of [ptBR.profile.proactiveOrbit.title, ptBR.profile.aiSummary.title]) {
     it.each([1, 2])(`aligns ${title} at font scale %s`, async (fontScale) => {
       __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
       let tree!: ReactTestRenderer & { toJSON: () => Parameters<typeof measureProfileRow>[0] }

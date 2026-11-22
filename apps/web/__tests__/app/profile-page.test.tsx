@@ -37,7 +37,7 @@ interface MockDeviceState {
 const {
   mockExportUserData,
   mockUpdateAiSummary,
-  mockUpdateProactiveAstra,
+  mockUpdateProactiveOrbit,
   mockShellNoticeSlot,
   mockUseGamificationProfile,
   mockPatchProfile,
@@ -63,7 +63,7 @@ const {
   return ({
   mockExportUserData: vi.fn(),
   mockUpdateAiSummary: vi.fn(),
-  mockUpdateProactiveAstra: vi.fn(),
+  mockUpdateProactiveOrbit: vi.fn(),
   mockShellNoticeSlot: vi.fn(),
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
   mockPatchProfile: vi.fn(),
@@ -95,7 +95,7 @@ const {
 vi.mock('@/lib/actions/profile', () => ({
   exportUserData: mockExportUserData,
   updateAiSummary: mockUpdateAiSummary,
-  updateProactiveAstra: mockUpdateProactiveAstra,
+  updateProactiveOrbit: mockUpdateProactiveOrbit,
   updateWeekStartDay: mockUpdateWeekStartDay,
   updateLanguage: mockUpdateLanguage,
 }))
@@ -225,7 +225,7 @@ import ProfileAiRoute from '@/app/(app)/profile/ai/page'
 import ProfileNotificationsRoute from '@/app/(app)/profile/notifications/page'
 import { ProfileSubscreen } from '@/app/(app)/profile/_components/profile-subscreen'
 
-const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAiRoute, notifications: ProfileNotificationsRoute }
+const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, orbit: ProfileAiRoute, notifications: ProfileNotificationsRoute }
 
 function expiryField(): HTMLElement {
   const field = screen.queryByRole('textbox', { name: 'orbitMcp.expiresAtLabel' })
@@ -540,7 +540,7 @@ describe('ProfilePage', () => {
 
     it.each([320, 412, 600, 840, 1023, 1024, 1352])('insets the first account card at %ipx and preserves the wide shell', async (width) => {
       const { container } = render(
-        <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}>
+        <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}>
           <ProfilePage />
         </ShellWide>,
       )
@@ -648,7 +648,7 @@ describe('ProfilePage', () => {
     expect(screen.queryByText('upgrade.pitchTitle')).not.toBeInTheDocument()
   })
 
-  it.each(['account', 'preferences', 'astra', 'notifications'] as const)('offers recovery for a failed %s load and keeps its settings hidden', (destination) => {
+  it.each(['account', 'preferences', 'orbit', 'notifications'] as const)('offers recovery for a failed %s load and keeps its settings hidden', (destination) => {
     mockProfileState.current = { profile: undefined, isLoading: false, error: new Error('load failed') }
     const Destination = PROFILE_ROUTES[destination]
     render(<Destination />)
@@ -663,7 +663,7 @@ describe('ProfilePage', () => {
   it.each([
     ['account', ['profile.settingsRows.editName', 'profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
     ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'settings.homeScreen.showGeneral']],
-    ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
+    ['orbit', ['profile.allowance.title', 'profile.proactiveOrbit.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
     ['notifications', ['profile.marketingEmails.question', 'profile.settingsRows.alertsOnThisDevice', 'profile.settingsRows.remindersNote']],
   ] as const)('opens %s from Perfil and keeps its settings in that screen alone', (destination, labels) => {
     const top = render(<ProfilePage />)
@@ -682,13 +682,13 @@ describe('ProfilePage', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'common.backToProfile' }))
     expect(mockRouterPush).toHaveBeenCalledWith('/profile')
-    for (const other of ['account', 'preferences', 'astra', 'notifications']) {
+    for (const other of ['account', 'preferences', 'orbit', 'notifications']) {
       if (other !== destination) expect(screen.queryByTestId(`profile-settings-group-${other}`)).not.toBeInTheDocument()
     }
     content.unmount()
   })
 
-  it('forwards a checkout return to Astra without dropping settlement parameters', () => {
+  it('forwards a checkout return to Orbit without dropping settlement parameters', () => {
     mockSearchParams.current = 'subscription=success&keep=1'
     render(<ProfilePage />)
     expect(mockRouterPush).toHaveBeenCalledWith('/profile/ai?subscription=success&keep=1')
@@ -719,10 +719,10 @@ describe('ProfilePage', () => {
     mockPushPreferenceState.current = { supported: true, subscribed: false, permission: 'default', status: 'not-registered' }
     mockTranslate.current = (key, params) => key === 'profile.settingsRows.devicesCount' ? [params?.count ?? '', 'of', params?.max ?? ''].join(' ') : key
     mockLocale.current = 'en'
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
     mockExportUserData.mockReset()
     mockUpdateAiSummary.mockReset()
-    mockUpdateProactiveAstra.mockReset()
+    mockUpdateProactiveOrbit.mockReset()
     mockShellNoticeSlot.mockReset()
     mockRefetchProfile.mockReset()
     mockPatchProfile.mockReset()
@@ -950,27 +950,27 @@ describe('ProfilePage', () => {
   })
 
   it('shows the free daily allowance as an enabled route to Pro', () => {
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
-    const astra = within(screen.getByTestId('profile-settings-group-astra'))
-    const progress = astra.getByRole('progressbar', { name: 'profile.allowance.title' })
+    const orbit = within(screen.getByTestId('profile-settings-group-orbit'))
+    const progress = orbit.getByRole('progressbar', { name: 'profile.allowance.title' })
     expect(progress).toHaveAttribute('aria-valuenow', '2')
     expect(progress).toHaveAttribute('aria-valuemax', '5')
-    expect(astra.getByText('profile.allowance.usage')).toBeInTheDocument()
-    expect(astra.queryByText('profile.allowance.spent')).not.toBeInTheDocument()
-    expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
+    expect(orbit.getByText('profile.allowance.usage')).toBeInTheDocument()
+    expect(orbit.queryByText('profile.allowance.spent')).not.toBeInTheDocument()
+    expect(orbit.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
 
-    const allowanceGate = astra.getByRole('link', { name: 'profile.allowance.seePro' })
+    const allowanceGate = orbit.getByRole('link', { name: 'profile.allowance.seePro' })
     expect(allowanceGate).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fai')
     expect(allowanceGate).not.toHaveAttribute('aria-disabled', 'true')
   })
 
-  it('shows both free Astra switch gates as enabled routes to Pro', () => {
-    render(<ProfileSubscreen screen="astra" />)
+  it('shows both free Orbit switch gates as enabled routes to Pro', () => {
+    render(<ProfileSubscreen screen="orbit" />)
 
-    const astra = within(screen.getByTestId('profile-settings-group-astra'))
-    const proactiveGate = astra.getByRole('button', { name: /profile\.proactiveAstra\.title/i })
-    const summaryGate = astra.getByRole('button', { name: /profile\.aiSummary\.title/i })
+    const orbit = within(screen.getByTestId('profile-settings-group-orbit'))
+    const proactiveGate = orbit.getByRole('button', { name: /profile\.proactiveOrbit\.title/i })
+    const summaryGate = orbit.getByRole('button', { name: /profile\.aiSummary\.title/i })
 
     expect(proactiveGate).toBeEnabled()
     expect(summaryGate).toBeEnabled()
@@ -985,7 +985,7 @@ describe('ProfilePage', () => {
     ['pt-BR', true, 'Notificações do Orbit', 'Resumo diário'],
     ['en', false, 'Orbit notifications', 'Daily recap'],
     ['en', true, 'Orbit notifications', 'Daily recap'],
-  ] as const)('renders the %s Astra labels for Pro access %s', (locale, hasProAccess, proactive, summary) => {
+  ] as const)('renders the %s Orbit labels for Pro access %s', (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en
     mockTranslate.current = (key) => {
@@ -1000,15 +1000,15 @@ describe('ProfilePage', () => {
     mockProfileState.current.profile = createMockProfile({
       plan: hasProAccess ? 'pro' : 'free', hasProAccess, language: locale,
     })
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
-    const astra = within(screen.getByTestId('profile-settings-group-astra'))
+    const orbit = within(screen.getByTestId('profile-settings-group-orbit'))
     if (hasProAccess) {
-      expect(astra.getByRole('switch', { name: proactive })).toBeInTheDocument()
-      expect(astra.getByRole('switch', { name: summary })).toBeInTheDocument()
+      expect(orbit.getByRole('switch', { name: proactive })).toBeInTheDocument()
+      expect(orbit.getByRole('switch', { name: summary })).toBeInTheDocument()
     } else {
       for (const label of [proactive, summary]) {
-        const row = astra.getByRole('button', { name: new RegExp(label) })
+        const row = orbit.getByRole('button', { name: new RegExp(label) })
         expect(within(row).getByText('Pro')).toBeInTheDocument()
         expect(row).toBeEnabled()
         fireEvent.click(row)
@@ -1019,7 +1019,7 @@ describe('ProfilePage', () => {
   })
 
   it('shows only the API key description and upgrade row to free accounts', () => {
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     expect(apiKeys.getByText('profile.apiKeys.description')).toBeInTheDocument()
@@ -1038,7 +1038,7 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
     }
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     const badges = apiKeys.getAllByText('common.proBadge')
@@ -1055,7 +1055,7 @@ describe('ProfilePage', () => {
       keyPrefix: 'orb_live_1234',
     }]
 
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     const upgradeRow = apiKeys.getByRole('button', { name: 'profile.apiKeys.unlock' })
@@ -1071,7 +1071,7 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
     }
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     expect(apiKeys.queryByText('orbitMcp.noKeys')).not.toBeInTheDocument()
@@ -1098,7 +1098,7 @@ describe('ProfilePage', () => {
       keyPrefix: 'orb_live_1234',
     }]
 
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     expect(apiKeys.getByRole('button', { name: 'profile.apiKeys.open' })).toBeInTheDocument()
@@ -1111,7 +1111,7 @@ describe('ProfilePage', () => {
     let finishCopy!: () => void
     const writeText = vi.fn(() => new Promise<void>((resolve) => { finishCopy = resolve }))
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
     fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.connectionInstructions' }))
     const guide = within(await screen.findByRole('dialog', { name: 'orbitMcp.claudeWeb' }))
     const endpoint = getMcpEndpointUrl(accountEventApiBase())
@@ -1135,7 +1135,7 @@ describe('ProfilePage', () => {
     mockStepUpVerified.current = true
     const writeText = vi.fn().mockRejectedValueOnce(new Error('Clipboard denied')).mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: failure === 'denied' ? { writeText } : undefined })
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
     fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.connectionInstructions' }))
     fireEvent.click(await screen.findByRole('button', { name: 'orbitMcp.copy' }))
     expect(await screen.findByText('orbitMcp.copyError')).toBeInTheDocument()
@@ -1148,10 +1148,10 @@ describe('ProfilePage', () => {
     expect(screen.queryByText('orbitMcp.copyError')).not.toBeInTheDocument()
   })
 
-  it('opens the MCP web guide from the verified Astra settings', async () => {
+  it('opens the MCP web guide from the verified Orbit settings', async () => {
     mockProfileState.current.profile = createMockProfile({ plan: 'pro', hasProAccess: true })
     mockStepUpVerified.current = true
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.connectionInstructions' }))
     const guide = within(await screen.findByRole('dialog', { name: 'orbitMcp.claudeWeb' }))
@@ -1191,7 +1191,7 @@ describe('ProfilePage', () => {
         key: 'orb_secret',
       },
     })
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     expect(apiKeys.getByText(personalText('Work key'))).toBeInTheDocument()
@@ -1230,7 +1230,7 @@ describe('ProfilePage', () => {
     }
     mockStepUpVerified.current = true
     mockCreateApiKey.mockResolvedValue({ success: true, response: { id: 'key-2', key: 'orb_secret' } })
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
     await chooseApiKeyCreation('profile.apiKeys.create', 'profile.apiKeys.create')
     const field = expiryField()
     expect(field).toHaveAttribute('placeholder', 'common.never')
@@ -1247,7 +1247,7 @@ describe('ProfilePage', () => {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
     }
     mockStepUpVerified.current = true
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
     await chooseApiKeyCreation(mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped', 'profile.apiKeys.create')
     if (mode === 'scoped') fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), { target: { value: 'read_habits' } })
     const field = expiryField()
@@ -1266,7 +1266,7 @@ describe('ProfilePage', () => {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }), isLoading: false, error: null,
     }
     mockStepUpVerified.current = true
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
     await chooseApiKeyCreation('profile.apiKeys.createScoped', 'profile.apiKeys.create')
     const field = expiryField()
     fireEvent.change(field, { target: { value: '2099-12-31T23:59' } })
@@ -1292,7 +1292,7 @@ describe('ProfilePage', () => {
     mockStepUpVerified.current = true
     let finish!: () => void
     mockCreateApiKey.mockReturnValueOnce(new Promise((_resolve, reject) => { finish = () => reject(new Error('offline')) }))
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
     await chooseApiKeyCreation('profile.apiKeys.create', 'profile.apiKeys.create')
     const expiry = expiryField()
     nameAndCreateApiKey('Personal key')
@@ -1318,7 +1318,7 @@ describe('ProfilePage', () => {
         success: true,
         response: { id: 'key-2', key: 'orb_secret' },
       })
-    const firstView = render(<ProfileSubscreen screen="astra" />)
+    const firstView = render(<ProfileSubscreen screen="orbit" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     await chooseApiKeyCreation('profile.apiKeys.createScoped', 'profile.apiKeys.create')
@@ -1349,7 +1349,7 @@ describe('ProfilePage', () => {
 
     firstView.unmount()
     mockCreateGrant.consumed = false
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
     await chooseApiKeyCreation('profile.apiKeys.createScoped', 'profile.apiKeys.create')
     expect(screen.getByRole('textbox', { name: 'orbitMcp.keyName' })).toHaveValue('')
     expect(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' })).toHaveValue('')
@@ -1375,7 +1375,7 @@ describe('ProfilePage', () => {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
     })
-    const firstView = render(<ProfileSubscreen screen="astra" />)
+    const firstView = render(<ProfileSubscreen screen="orbit" />)
 
     const create = () => chooseApiKeyCreation('profile.apiKeys.create')
     await create()
@@ -1396,7 +1396,7 @@ describe('ProfilePage', () => {
     firstView.unmount()
     mockStepUpVerified.current = true
     mockCreateGrant.consumed = false
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
     await chooseApiKeyCreation(mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped', 'profile.apiKeys.create')
     if (mode === 'scoped') fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), { target: { value: 'read_habits' } })
     expect(expiryField()).toHaveValue('2099-12-31T23:59')
@@ -1418,7 +1418,7 @@ describe('ProfilePage', () => {
     mockStepUpVerified.current = true
     mockCreateApiKey.mockResolvedValueOnce({ success: false, challengeRequired: true })
       .mockResolvedValueOnce({ success: true, response: { id: 'key-2', key: 'orb_second' } })
-    const firstView = render(<ProfileSubscreen screen="astra" />)
+    const firstView = render(<ProfileSubscreen screen="orbit" />)
     const open = async () => {
       await chooseApiKeyCreation(mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped', 'profile.apiKeys.create')
       if (mode === 'scoped') fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), { target: { value: 'read_habits' } })
@@ -1431,7 +1431,7 @@ describe('ProfilePage', () => {
     expect(screen.queryByText('orbitMcp.createKeyError')).not.toBeInTheDocument()
     firstView.unmount()
     mockCreateGrant.consumed = false
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
     await open()
     expect(expiryField()).toHaveValue('2099-12-31T23:59')
     nameAndCreateApiKey('Work key')
@@ -1450,7 +1450,7 @@ describe('ProfilePage', () => {
     mockCreateApiKey.mockReturnValueOnce(new Promise((resolve) => {
       rejectGrant = () => resolve({ success: false, challengeRequired: true })
     }))
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
     await chooseApiKeyCreation(mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped', 'profile.apiKeys.create')
     fireEvent.change(expiryField(), { target: { value: '2099-12-31T23:59' } })
     if (mode === 'scoped') {
@@ -1482,7 +1482,7 @@ describe('ProfilePage', () => {
     }
     mockStepUpVerified.current = true
     mockCreateApiKey.mockResolvedValueOnce({ success: false, challengeRequired: true })
-    const firstView = render(<ProfileSubscreen screen="astra" />)
+    const firstView = render(<ProfileSubscreen screen="orbit" />)
     await chooseApiKeyCreation('profile.apiKeys.create', 'profile.apiKeys.create')
     fireEvent.change(expiryField(), { target: { value: '2099-12-31T23:59' } })
     nameAndCreateApiKey('Personal key')
@@ -1491,7 +1491,7 @@ describe('ProfilePage', () => {
     mockCreateGrant.consumed = false
     const clock = vi.spyOn(Date, 'now').mockReturnValue(new Date('2100-01-01T00:00:00Z').getTime())
     try {
-      render(<ProfileSubscreen screen="astra" />)
+      render(<ProfileSubscreen screen="orbit" />)
       await chooseApiKeyCreation('profile.apiKeys.create', 'profile.apiKeys.create')
       nameAndCreateApiKey('Personal key')
       const field = expiryField()
@@ -1520,12 +1520,12 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
     }
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
-    const astra = within(screen.getByTestId('profile-settings-group-astra'))
-    expect(astra.getByText('profile.subscription.trial')).toBeInTheDocument()
-    expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fai')
-    expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
+    const orbit = within(screen.getByTestId('profile-settings-group-orbit'))
+    expect(orbit.getByText('profile.subscription.trial')).toBeInTheDocument()
+    expect(orbit.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fai')
+    expect(orbit.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
   })
 
   it.each([false, true])('shows the effective notifications value for Pro with trial=%s', (isTrialActive) => {
@@ -1533,11 +1533,11 @@ describe('ProfilePage', () => {
       profile: createMockProfile({ hasProAccess: true, isTrialActive, proactiveAstraEnabled: true }),
       isLoading: false, error: null,
     }
-    render(<ProfileSubscreen screen="astra" />)
-    const toggle = screen.getByRole('switch', { name: 'profile.proactiveAstra.title' })
+    render(<ProfileSubscreen screen="orbit" />)
+    const toggle = screen.getByRole('switch', { name: 'profile.proactiveOrbit.title' })
     expect(toggle).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(toggle)
-    expect(mockUpdateProactiveAstra).toHaveBeenCalledWith({ enabled: false }, 'account-a')
+    expect(mockUpdateProactiveOrbit).toHaveBeenCalledWith({ enabled: false }, 'account-a')
   })
 
   it('shows a spent Pro allowance and hands subscription management off directly', () => {
@@ -1551,26 +1551,26 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
     }
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
-    const astra = within(screen.getByTestId('profile-settings-group-astra'))
-    const progress = astra.getByRole('progressbar', { name: 'profile.allowance.title' })
+    const orbit = within(screen.getByTestId('profile-settings-group-orbit'))
+    const progress = orbit.getByRole('progressbar', { name: 'profile.allowance.title' })
     expect(progress).toHaveAttribute('aria-valuenow', '50')
     expect(progress).toHaveAttribute('aria-valuemax', '50')
     expect(progress).toHaveAttribute('data-complete', 'true')
-    expect(astra.getByText('profile.allowance.spent')).toBeInTheDocument()
-    expect(astra.queryByRole('link', { name: 'profile.allowance.seePro' })).not.toBeInTheDocument()
+    expect(orbit.getByText('profile.allowance.spent')).toBeInTheDocument()
+    expect(orbit.queryByRole('link', { name: 'profile.allowance.seePro' })).not.toBeInTheDocument()
 
-    expect(astra.getByRole('link', { name: 'profile.allowance.manageSubscription' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fai')
-    const proactiveSwitch = astra.getByRole('switch', { name: 'profile.proactiveAstra.title' })
-    const summarySwitch = astra.getByRole('switch', { name: 'profile.aiSummary.title' })
+    expect(orbit.getByRole('link', { name: 'profile.allowance.manageSubscription' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fai')
+    const proactiveSwitch = orbit.getByRole('switch', { name: 'profile.proactiveOrbit.title' })
+    const summarySwitch = orbit.getByRole('switch', { name: 'profile.aiSummary.title' })
     const proactiveRow = proactiveSwitch.closest('.orbit-list-row-shell')
     const summaryRow = summarySwitch.closest('.orbit-list-row-shell')
     expect(summaryRow?.parentElement).not.toBe(proactiveRow?.parentElement)
     expect(summaryRow?.parentElement?.getAttribute('style')).toContain('border-top: 1px solid var(--hairline)')
     fireEvent.click(proactiveSwitch)
     fireEvent.click(summarySwitch)
-    expect(mockUpdateProactiveAstra).toHaveBeenCalledWith({ enabled: true }, 'account-a')
+    expect(mockUpdateProactiveOrbit).toHaveBeenCalledWith({ enabled: true }, 'account-a')
     expect(mockUpdateAiSummary).toHaveBeenCalledWith({ enabled: false }, 'account-a')
   })
 
@@ -1587,12 +1587,12 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
     }
-    render(<ProfileSubscreen screen="astra" />)
+    render(<ProfileSubscreen screen="orbit" />)
 
-    const astra = within(screen.getByTestId('profile-settings-group-astra'))
-    expect(astra.getByText('profile.allowance.pro')).toBeInTheDocument()
-    expect(astra.queryByRole('link', { name: 'profile.allowance.seePro' })).not.toBeInTheDocument()
-    expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
+    const orbit = within(screen.getByTestId('profile-settings-group-orbit'))
+    expect(orbit.getByText('profile.allowance.pro')).toBeInTheDocument()
+    expect(orbit.queryByRole('link', { name: 'profile.allowance.seePro' })).not.toBeInTheDocument()
+    expect(orbit.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
   })
 
   it('shows Preparing on the row and registers completion in the shell notice slot', async () => {
@@ -1706,7 +1706,7 @@ describe('ProfilePage', () => {
 })
 
 it('places the Perfil bell inside the destination scroller and opens Avisos', () => {
-  const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}><ProfilePage /></ShellWide>)
+  const { container } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}><ProfilePage /></ShellWide>)
   const row = container.querySelector<HTMLElement>('[data-root-notification-header]')!
   expect(container.querySelector('[data-shell-scroller]')).toContainElement(row)
   fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'notifications.bell' }))

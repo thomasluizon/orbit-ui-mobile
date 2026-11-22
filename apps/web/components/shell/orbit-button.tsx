@@ -1,0 +1,26 @@
+'use client'
+
+import { useSyncExternalStore } from 'react'
+import { FAB_SIZE } from '@orbit/shared/theme'
+import { getOrbitPageTurns, subscribeOrbitLoop } from '@orbit/shared/utils'
+import { useTranslations } from 'next-intl'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { useUIStore } from '@/stores/ui-store'
+
+/** The conversation entry: the live Orbit at 48 on a solid `--bg-elev` circle with a 1px `--border-control` edge, the size of its 60 press target. A pointer hover paints the opaque elevated hover fill of that circle. Its ring turns once when the person changes the page. */
+export function OrbitButton() {
+  const t = useTranslations()
+  const pageTurns = useSyncExternalStore(subscribeOrbitLoop, getOrbitPageTurns, getOrbitPageTurns)
+  const blocked = useUIStore(state => state.showCreateModal || state.isSelectMode || state.openOverlayIds.length > 0 || state.orbitConversationOpen)
+  return <button
+    type="button"
+    hidden={blocked}
+    aria-label={t('shell.orbitButton.open')}
+    data-orbit-button=""
+    onClick={() => useUIStore.getState().setOrbitConversationOpen(true)}
+    className="press-hit-layer flex cursor-pointer appearance-none items-center justify-center rounded-full before:-inset-px border border-solid border-[var(--border-control)] bg-[var(--bg-elev)] p-0 transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-elev-hover)] motion-safe:active:scale-[0.96] touch-manipulation"
+    style={{ height: FAB_SIZE, width: FAB_SIZE }}
+  >
+    <OrbitMascot size={48} live="lead" turnKey={pageTurns} />
+  </button>
+}

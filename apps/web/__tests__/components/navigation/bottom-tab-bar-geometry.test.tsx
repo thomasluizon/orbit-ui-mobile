@@ -123,7 +123,7 @@ describe('Bottom tab geometry in Chromium', () => {
     'keeps shell tabs visible above the gesture inset at $width with 200% text and composer=$withComposer in $messages.nav.calendar',
     async ({ messages, width, withComposer }) => {
       const view = render(<ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation}
-        astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+        orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}
         composer={withComposer ? <Composer state="idle" value="" words={messages.shell.composer} suggestions={[]}
           onChangeValue={vi.fn()} onSend={vi.fn()} /> : undefined}
         tabBar={<BottomTabBar label={messages.nav.mainNavigation} activeId="hoje" onSelect={vi.fn()}

@@ -66,7 +66,7 @@ const catalogToolSchema = z.object({ writes: z.boolean(), function: z.object({ n
 const catalog = z.object({
   tools: z.array(catalogToolSchema), legacyTools: z.array(catalogToolSchema),
   postReadTools: z.array(catalogToolSchema), habitSetupTools: z.array(catalogToolSchema),
-}).parse(parse(readFileSync(join(repositoryRoot, 'evals/astra/catalog.yaml'), 'utf8')))
+}).parse(parse(readFileSync(join(repositoryRoot, 'evals/ai-eval/catalog.yaml'), 'utf8')))
 const writeSources = [...new Set(Object.values(catalog).flat().filter(tool => tool.writes).map(tool => tool.function.name))]
 
 it.each(writeSources)('localizes the pinned write source %s in both languages', source => {

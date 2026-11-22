@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
-import { TodayAstra } from '@/components/today/today-astra'
+import { TodayOrbit } from '@/components/today/today-orbit'
 import { useUIStore } from '@/stores/ui-store'
 
 const mocks = vi.hoisted(() => ({
@@ -20,14 +20,14 @@ vi.mock('@/hooks/use-proactive-item', () => ({ useProactiveItem: () => ({ item: 
 const mascot = (container: HTMLElement) => container.querySelector<SVGElement>('[data-asset="orbit-mascot"]')!
 const DAY = 86_400_000
 const beyondTheWindow = () => formatAPIDateInTimeZone(new Date(Date.now() - 40 * DAY), 'UTC')
-const renderLine = () => render(<TodayAstra today={formatAPIDateInTimeZone(new Date(), 'UTC')} isTodaySelected suppressed={false} />)
+const renderLine = () => render(<TodayOrbit today={formatAPIDateInTimeZone(new Date(), 'UTC')} isTodaySelected suppressed={false} />)
 
 describe('web Orbit line on Hoje', () => {
   beforeEach(() => {
     mocks.online = true
     mocks.proactive = true
     mocks.profile = { id: 'profile', timeZone: 'UTC', hasProAccess: false, aiMessagesUsed: 0, aiMessagesLimit: 5 }
-    useUIStore.setState({ astraConversationOpen: false })
+    useUIStore.setState({ orbitConversationOpen: false })
   })
   afterEach(cleanup)
 
@@ -38,7 +38,7 @@ describe('web Orbit line on Hoje', () => {
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'parado')
     expect(mascot(container)).toHaveAttribute('data-orbit-face', 'rig')
     expect(mascot(container)).toHaveAttribute('data-orbit-loop', 'still')
-    expect(screen.getByRole('button', { name: 'Check in' })).toHaveAccessibleDescription('todayAstra.openConversation')
+    expect(screen.getByRole('button', { name: 'Check in' })).toHaveAccessibleDescription('todayOrbit.openConversation')
   })
 
   it('shows Descansando and a first person reason while offline, and the press still opens the conversation', () => {
@@ -46,8 +46,8 @@ describe('web Orbit line on Hoje', () => {
     mocks.online = false
     const { container } = renderLine()
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'descansando')
-    fireEvent.click(screen.getByRole('button', { name: 'todayAstra.guided.offline' }))
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'todayOrbit.guided.offline' }))
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   })
 
   it('shows Descansando at the message limit', () => {
@@ -63,15 +63,15 @@ describe('web Orbit line on Hoje', () => {
     mocks.proactive = false
     mocks.profile = { ...mocks.profile, lastCompletionDate: beyondTheWindow() }
     renderLine()
-    expect(screen.getByRole('link', { name: 'todayAstra.guided.returning' })).toHaveAttribute('href', '/progress')
-    expect(screen.queryByText('todayAstra.returningBounded')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'todayOrbit.guided.returning' })).toHaveAttribute('href', '/progress')
+    expect(screen.queryByText('todayOrbit.returningBounded')).not.toBeInTheDocument()
   })
 
   it('keeps the bounded sentence for a gap beyond the window while the flag is off', () => {
     mocks.proactive = false
     mocks.profile = { ...mocks.profile, lastCompletionDate: beyondTheWindow() }
     renderLine()
-    expect(screen.getByRole('link', { name: 'todayAstra.returningBounded' })).toHaveAttribute('href', '/progress')
+    expect(screen.getByRole('link', { name: 'todayOrbit.returningBounded' })).toHaveAttribute('href', '/progress')
   })
 
   it('keeps the still Orbit at 48 and the proactive sentence while the flag is off', () => {

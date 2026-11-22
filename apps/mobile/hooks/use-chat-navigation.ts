@@ -5,7 +5,7 @@ import { useUIStore } from '@/stores/ui-store'
 export function useChatNavigation() {
   const router = useRouter()
   return useCallback((destination: Parameters<typeof router.push>[0]) => {
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
     router.push(destination)
   }, [router])
 }

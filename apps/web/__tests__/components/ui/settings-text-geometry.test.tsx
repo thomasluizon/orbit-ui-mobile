@@ -45,7 +45,7 @@ describe('settings text geometry in Chromium', () => {
   for (const width of [320, 360, 384, 412]) {
     it.each([['en', en], ['pt-BR', ptBR]] as const)(`renders the layout guard's controls and typed text in %s at ${width}px`, async (_locale, words) => {
       const title = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos durante os encontros da semana'
-      const labels = [words.profile.analytics.title, words.profile.marketingEmails.title, words.trial.expired.calendarSync, words.trial.expired.proactiveAstra]
+      const labels = [words.profile.analytics.title, words.profile.marketingEmails.title, words.trial.expired.calendarSync, words.trial.expired.proactiveOrbit]
       const markup = renderSettingsRowMarkup(labels, title)
       const page = await browser.newPage()
       try {

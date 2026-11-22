@@ -17,7 +17,7 @@ vi.mock('next-intl', async (importActual) => {
 })
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ title, body, actions }: BlockFrameProps) => <section><h2>{title}</h2>{body}{actions}</section> }))
 
-describe('Astra account rows on web', () => {
+describe('Orbit account rows on web', () => {
   beforeEach(() => {
     vi.clearAllMocks(); rewardState.locale = ''
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: mocks.writeText } })

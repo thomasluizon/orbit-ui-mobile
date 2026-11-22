@@ -116,7 +116,7 @@ describe('Calendar header geometry in Chromium', () => {
   it.each([false, true].flatMap(isLoading => (['month', 'range'] as const).map(view => ({ isLoading, view }))))('reclaims only the reserved gutter inside the narrow shell for $view (loading=$isLoading)', async ({ isLoading, view }) => {
     const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')
     const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
-      <ShellWide items={[]} activeId="calendar" navLabel="Navigation" paletteLabel="Search" paletteHint="Ctrl K" onPalette={vi.fn()} onCreate={vi.fn()} createLabel="Create" astraRow={{ label: 'Astra', onOpen: vi.fn() }}>
+      <ShellWide items={[]} activeId="calendar" navLabel="Navigation" paletteLabel="Search" paletteHint="Ctrl K" onPalette={vi.fn()} onCreate={vi.fn()} createLabel="Create" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}>
         <div data-calendar-page="">
           {view === 'month' ? <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" weekStartsOn={0} isLoading={isLoading} />
             : <CalendarRangeView model={model} weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} rangeLabel="Range" isLoading={isLoading} loadingLabel="Loading" stats={[{ key: 'bestStreak', value: 1, label: 'Streak' }, { key: 'totalLogs', value: 1, label: 'Logs' }, { key: 'missed', value: 1, label: 'Missed' }]} />}

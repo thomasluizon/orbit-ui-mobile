@@ -553,7 +553,7 @@ describe('controlled full editor checklist', () => {
 
 vi.mock('@/app/(tabs)/use-today-date', () => ({ useCurrentDate: () => '2026-08-29', useTodayDate: () => ({ today: '2026-08-29', dateStr: '2026-08-29', selectedDate: new Date('2026-08-29T00:00:00Z'), dayName: 'Saturday', numericDate: '08/29/2026', nextDisabled: false, goToPreviousDay: vi.fn(), goToToday: vi.fn(), goToNextDay: vi.fn() }) }))
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: vi.fn() }) }))
-vi.mock('@/components/today/today-astra', () => ({ TodayAstra: () => null }))
+vi.mock('@/components/today/today-orbit', () => ({ TodayOrbit: () => null }))
 vi.mock('@/components/today/setup-checklist-card', () => ({ SetupChecklistCard: () => null }))
 vi.mock('@/components/referral/referral-drawer', () => ({ ReferralDrawer: () => null }))
 vi.mock('@/app/(tabs)/use-today-selection', () => ({ useTodaySelection: () => ({ selectedCount: 0, allSelected: false, clearSelection: vi.fn(), showBulkDeleteConfirm: false, setShowBulkDeleteConfirm: vi.fn(), confirmBulkDelete: vi.fn() }) }))

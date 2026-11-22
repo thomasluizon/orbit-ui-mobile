@@ -14,7 +14,7 @@ export interface RescheduleProposalProps {
   disclosure: string
 }
 
-/** The Astra reschedule proposal inside the Hoje reschedule sheet. */
+/** The Orbit reschedule proposal inside the Hoje reschedule sheet. */
 export function RescheduleProposal({
   proposedLabel,
   dateLabel,

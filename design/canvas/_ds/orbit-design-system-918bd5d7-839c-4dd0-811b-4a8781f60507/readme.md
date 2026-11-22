@@ -1,18 +1,18 @@
 # Orbit design system
 
-Orbit is an AI habit tracker for overwhelmed adults who cannot keep a routine. Astra, the AI, sits on the primary path: it starts a routine, changes it, and acts on it, rather than living in a separate chat tab. Positioning: an AI that tracks habits, not a habit tracker with an AI (never phrase it as that contrast in copy).
+Orbit is an AI habit tracker for overwhelmed adults who cannot keep a routine. Orbit, the AI, sits on the primary path: it starts a routine, changes it, and acts on it, rather than living in a separate chat tab. Positioning: an AI that tracks habits, not a habit tracker with an AI (never phrase it as that contrast in copy).
 
-One product surface matters today: the app, designed mobile-first at a 412px shell with a wide layout (sidebar and a centred column capped at 740px, replaced by the full-screen conversation when open). Primary market is Brazilian Portuguese (pt-BR) with English; "Orbit" and "Astra" are never translated.
+One product surface matters today: the app, designed mobile-first at a 412px shell with a wide layout (sidebar and a centred column capped at 740px, replaced by the full-screen conversation when open). Primary market is Brazilian Portuguese (pt-BR) with English; "Orbit" and "Orbit" are never translated.
 
 ## The information architecture, settled 2026-08-16 (D69)
 
 `DESIGN.md` section `## Information architecture` is authoritative and outranks every other section on whether a surface should exist.
 
-- **Astra is a layer with a front door, never a destination.** No route or Android tab. Hoje keeps one draggable round Astra button; wide web has an Astra button above Hoje in the sidebar. Habit detail keeps its own composer and habit chips at every width. The conversation opens full screen with its own header, thread, one set of 3 to 6 live-state chips and composer. Its empty thread has no opener chips; at the daily limit no chips show. Compact shells cover the tab bar; wide web keeps the sidebar and replaces the destination column. Every object also carries an inline AI affordance where the machine can propose something.
+- **Orbit is a layer with a front door, never a destination.** No route or Android tab. Hoje keeps one draggable round Orbit button; wide web has an Orbit button above Hoje in the sidebar. Habit detail keeps its own composer and habit chips at every width. The conversation opens full screen with its own header, thread, one set of 3 to 6 live-state chips and composer. Its empty thread has no opener chips; at the daily limit no chips show. Compact shells cover the tab bar; wide web keeps the sidebar and replaces the destination column. Every object also carries an inline AI affordance where the machine can propose something.
 - **The shell is four destinations on both platforms: Hoje, Calendario, Progresso, Perfil.** Bottom tab bar on mobile, sidebar on web. **No drawer and no hamburger.** Metas left navigation: goals live inside Progresso and are created from a habit or by asking.
 - **The core loop is never mediated.** Marking a habit done is one tap, optimistic, deterministic, no model call, ever.
 - **The desktop stats rail is deleted.** Progresso owns the question it answered. The conversation replaces the centred content column on wide web.
-- **Astra speaks first.** A proactive line sits at the top of Hoje carrying what Astra noticed and one action.
+- **Orbit speaks first.** A proactive line sits at the top of Hoje carrying what Orbit noticed and one action.
 - **Surfaces that no longer exist**, so drawing them is the defect: the `/insights` route, the retrospective's empty/locked/no-data screens, six of the seven celebration overlays, the separate onboarding/tour/feature-guide/push-prompt systems, a create-goal entry in navigation, the stats rail, the social layer, the colour-scheme picker, AI memory.
 
 **The accent is warm orange `#C4530F`, the only accent.** Rose is retired; there is no hue switch. Light `--primary-text` uses `#A63A00`, overdue uses `#7D5700` and bad text uses `#C00000`. Lower only source OKLCH lightness before gamut-clamping and byte-rounding; the worst well-hover stack measures 4.522:1, 4.510:1 and 4.502:1 respectively. Light overdue measures 6.219:1 on the canvas and carries white at 6.491:1. Accent and status text retain their colour under light hover and press; only `fg-3` promotes to `fg-2`.
@@ -35,7 +35,7 @@ One product surface matters today: the app, designed mobile-first at a 412px she
 - **Never** add a subtitle that restates the heading above it.
 - **pt-BR**: "voce", plain and warm, never corporate, never slang. Sample copy: "Água da manhã", "Nenhum hábito ainda", "Você pode restaurar a qualquer momento."
 - Errors state the fix, adjacent to the field: "Use um email completo, como nome@exemplo.com". Disabled controls carry the reason beside them: "Gerido pela sua assinatura."
-- At capacity is a boundary, not an error. **It is no longer a habit count**: the ceiling is an abuse guard at 1000, identical on every plan, so the live at-capacity case is the daily Astra allowance, which the composer's `atLimit` state carries.
+- At capacity is a boundary, not an error. **It is no longer a habit count**: the ceiling is an abuse guard at 1000, identical on every plan, so the live at-capacity case is the daily Orbit allowance, which the composer's `atLimit` state carries.
 - **The form begins with plain Task/Habit type radios**, then the focal title and live understanding. Raw schedule enum names never render. Dated forms use editable DateField before details; read-only DateRow remains valid elsewhere. General is the reachable No schedule habit branch. Rows and detail show whole neutral type metadata beneath the full-width title.
   Manual cadence stays inside the one details disclosure. Date candidates keep resting fg-3 ink
   within the existing dashed perimeter, followed by a trailing intrinsic Use date action.
@@ -65,9 +65,9 @@ One product surface matters today: the app, designed mobile-first at a 412px she
 
 ## Identity and iconography
 
-- **Identity carriers, exactly three**: the orbital mark, the Astra glyph, ring-shaped indicators. Never background decoration. Warmth has one source: the mark.
+- **Identity carriers, exactly three**: the orbital mark, the Orbit glyph, ring-shaped indicators. Never background decoration. Warmth has one source: the mark.
 - **The mark**: a planet drawn as a ring with an open centre, an orbital band crossing in front across the lower left and passing behind at the upper right, and a small solid moon above right (1024 grid). One asset at every size. The moon carries the accent; the monochrome treatment is for the neutral lockup.
-- **Astra**: a letter A carrying the same orbital band and the same solid dot. The Astra glyph is the AI marker - never a sparkle. They differ by SILHOUETTE: Orbit is a hollow ring, Astra is a solid letterform, and that reads at 16 pixels.
+- **Orbit**: a letter A carrying the same orbital band and the same solid dot. The Orbit glyph is the AI marker - never a sparkle. They differ by SILHOUETTE: Orbit is a hollow ring, Orbit is a solid letterform, and that reads at 16 pixels.
 - **ProgressRing** is a true circle with a sweep over a track - deliberately not the mark's shape.
 - **UI icons: Tabler only.** Sizes 16/20/24, default 24. Outline default; filled marks active state. Legible at 16. Loaded from CDN webfont (`@tabler/icons-webfont`) in cards and kits. SVGs from Tabler are also fine inline. The product code migrated to Tabler behind a per-platform barrel on 2026-08-16.
 - **Assets**: the shipped marks and fonts are in the exported archive. The tracked brand sources are in `design/brand/`.
@@ -82,11 +82,11 @@ Component groups in the exported archive:
 - `display/`: Badge, StatTile, InfoCard, PlanCard, ProgressBar, ProgressRing, **BlockFrame** (the container every generative block inherits: header, scrolling body, per-row status glyph slot, stale banner, and an action row that never scrolls with the body; loading/resting/acting/partiallyFailed/stale), **Proposed** (the tenth state on a field, a row or a whole block)
 - `navigation/`: TabBar, NavHeader, SectionTitle
 - `overlay/`: Sheet (short + long content), EmptyState (the orbital band with one open accent invitation arc), Skeleton (final-layout shaped, aria-busy, no spinner), ErrorState (message states the fix + one action), CapacityNotice (neutral boundary, never --status-bad), Scrim
-- `brand/`: OrbitMark, AstraGlyph, Lockup, Icon (Tabler wrapper)
-- `shell/`: Shell412 (the mobile shell: one scroller, pinned tab bar + FAB, safe-area aware), ShellWide (sidebar with its Astra row + 740 column; habit detail's own composer or Hoje's active selection tray pins to the bottom; sidebar create is the one filled action), **Composer** (habit detail and the conversation: one bar plus 3 to 6 live-state chips; its head Astra glyph on habit detail is a 48px `Abrir conversa` button; resting/focused/composing/sending/offline/atLimit, and `atLimit` carries no upgrade call to action)
+- `brand/`: OrbitMark, OrbitGlyph, Lockup, Icon (Tabler wrapper)
+- `shell/`: Shell412 (the mobile shell: one scroller, pinned tab bar + FAB, safe-area aware), ShellWide (sidebar with its Orbit row + 740 column; habit detail's own composer or Hoje's active selection tray pins to the bottom; sidebar create is the one filled action), **Composer** (habit detail and the conversation: one bar plus 3 to 6 live-state chips; its head Orbit glyph on habit detail is a 48px `Abrir conversa` button; resting/focused/composing/sending/offline/atLimit, and `atLimit` carries no upgrade call to action)
 - `canvas/`: CanvasControls (the review bar: mode / width / state / locale; canvas chrome, not product UI)
 
-**Shell state:** `ShellWide` has the Astra row above its four destinations and no Hoje shell composer. Its destination bottom slot, named `composer`, retains Hoje's active selection tray with exit, select-all, delete, log and skip controls. Resting Hoje passes no bottom content. Its full-screen conversation keeps the sidebar and replaces the destination column from every Astra entry, including proactive and no-habits actions; closing restores the underlying view. `Shell412` has four tabs and the draggable Astra button in the content viewport; the conversation covers the whole compact shell, including the tabs. Habit detail keeps its own composer at every width.
+**Shell state:** `ShellWide` has the Orbit row above its four destinations and no Hoje shell composer. Its destination bottom slot, named `composer`, retains Hoje's active selection tray with exit, select-all, delete, log and skip controls. Resting Hoje passes no bottom content. Its full-screen conversation keeps the sidebar and replaces the destination column from every Orbit entry, including proactive and no-habits actions; closing restores the underlying view. `Shell412` has four tabs and the draggable Orbit button in the content viewport; the conversation covers the whole compact shell, including the tabs. Habit detail keeps its own composer at every width.
 
 ## Measured and open contrast limits
 

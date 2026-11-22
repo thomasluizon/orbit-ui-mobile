@@ -404,7 +404,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
   }
   const suggestion = query.error ? null : query.suggestion
   return (
-    <Proposed proposed scope="block" label={t('habits.form.proposedByAstra')}>
+    <Proposed proposed scope="block" label={t('habits.form.proposedByOrbit')}>
       <div ref={cardRef} className={rescueCardClass}>
         <div role="status" className="flex flex-col gap-3">{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint')) : <RescueWait query={query} />}</div>
         <div className="flex flex-wrap gap-2"><ActionRow>

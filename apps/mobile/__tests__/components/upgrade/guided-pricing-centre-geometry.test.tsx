@@ -41,7 +41,7 @@ const proStatus: SubscriptionStatus = {
   aiMessagesUsed: 3, aiMessagesLimit: 250, aiMessagesPeriod: 'week', isLifetimePro: false,
   subscriptionInterval: 'yearly', source: 'play', lapseReason: null, subscriptionEndedAtUtc: null,
 }
-const PAUSED_FEATURES = ['trial.expired.astraCeiling', 'trial.expired.calendarSync', 'trial.expired.retrospective', 'trial.expired.proactiveAstra'] as const
+const PAUSED_FEATURES = ['trial.expired.orbitCeiling', 'trial.expired.calendarSync', 'trial.expired.retrospective', 'trial.expired.proactiveOrbit'] as const
 
 let tree: GeometryTree | null = null
 afterEach(async () => { if (tree) await act(() => tree!.unmount()); tree = null })

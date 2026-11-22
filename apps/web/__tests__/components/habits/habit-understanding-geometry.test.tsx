@@ -52,11 +52,11 @@ describe('habit understanding geometry', () => {
           if (!singleLineHeight) singleLineHeight = field.height
           const emoji = (await page.getByRole('button', { name: en.habits.form.emojiOpenPicker }).boundingBox())!
           const paint = (await page.locator('[data-emoji-well]').boundingBox())!
-          const astra = (await page.getByRole('button', { name: en.habits.form.suggestEmoji }).boundingBox())!
-          expect(Math.abs(emoji.height - singleLineHeight), JSON.stringify({ state, field, emoji, paint, astra })).toBeLessThanOrEqual(1)
+          const orbit = (await page.getByRole('button', { name: en.habits.form.suggestEmoji }).boundingBox())!
+          expect(Math.abs(emoji.height - singleLineHeight), JSON.stringify({ state, field, emoji, paint, orbit })).toBeLessThanOrEqual(1)
           expect(Math.abs(emoji.width - emoji.height)).toBeLessThanOrEqual(1)
           expect(Math.abs(paint.height - emoji.height)).toBeLessThanOrEqual(1)
-          for (const button of [emoji, astra]) expect(Math.abs(button.y + button.height / 2 - field.firstLine)).toBeLessThanOrEqual(1)
+          for (const button of [emoji, orbit]) expect(Math.abs(button.y + button.height / 2 - field.firstLine)).toBeLessThanOrEqual(1)
           if (state.value === 'Read') {
             expect(Math.abs(field.height - singleLineHeight)).toBeLessThanOrEqual(1)
             expect(Math.abs(field.center - field.firstLine)).toBeLessThanOrEqual(1)
@@ -128,16 +128,16 @@ describe('habit understanding geometry', () => {
       await loadAppFonts(page)
       const title = (await page.locator('[data-habit-phrase-field]').boundingBox())!
       const well = (await page.getByRole('button', { name: en.habits.form.emojiOpenPicker }).boundingBox())!
-      const astra = (await page.getByRole('button', { name: en.habits.form.suggestEmoji }).boundingBox())!
+      const orbit = (await page.getByRole('button', { name: en.habits.form.suggestEmoji }).boundingBox())!
       expect(well.y).toBeGreaterThanOrEqual(title.y)
       expect(well.y + well.height).toBeLessThanOrEqual(title.y + title.height)
       expect(well.x).toBeGreaterThan(title.x + title.width)
-      expect(astra.y + astra.height / 2).toBe(well.y + well.height / 2)
+      expect(orbit.y + orbit.height / 2).toBe(well.y + well.height / 2)
       const painted = (await page.locator('[data-emoji-well]').boundingBox())!
       expect(painted.width).toBe(well.width)
       expect(painted.height).toBe(well.height)
-      expect(astra.x).toBeGreaterThanOrEqual(well.x + well.width)
-      expect(astra.x + astra.width).toBeLessThanOrEqual(Math.min(width, 640) - 16)
+      expect(orbit.x).toBeGreaterThanOrEqual(well.x + well.width)
+      expect(orbit.x + orbit.width).toBeLessThanOrEqual(Math.min(width, 640) - 16)
       expect(await page.getByText(en.habits.form.titleRequired, { exact: true }).isVisible()).toBe(false)
       expect(await page.getByText(en.habits.form.emoji, { exact: true }).count()).toBe(0)
     } finally { await page.close(); view.unmount() }

@@ -76,7 +76,7 @@ function editorHarness(capacity = false) {
 }
 
 describe('date editor through actual request builders', () => {
-  it('locally creates the exact task and reads the same task date back without Astra', () => {
+  it('locally creates the exact task and reads the same task date back without Orbit', () => {
     const { editor, request, writes } = editorHarness()
     editor.setPhrase('dia 26')
     expect(writes.dateIssue).toBe('')

@@ -1,6 +1,6 @@
 import { createRef } from 'react'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createTranslator, NextIntlClientProvider } from 'next-intl'
@@ -94,8 +94,8 @@ it('paints the library above the retained conversation', async () => {
     threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(),
     messages: [], activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: true,
     canShowFollowUps: false, sendMessage: vi.fn(), composerProps: { suggestions: [] },
-  } as unknown as Parameters<typeof AstraConversation>[0]['chat']
-  const { container } = render(<NextIntlClientProvider locale="en" messages={en}><div style={{ width: 320, height: 800 }}><AstraConversation chat={chat} /></div></NextIntlClientProvider>)
+  } as unknown as Parameters<typeof OrbitConversation>[0]['chat']
+  const { container } = render(<NextIntlClientProvider locale="en" messages={en}><div style={{ width: 320, height: 800 }}><OrbitConversation chat={chat} /></div></NextIntlClientProvider>)
   fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[0]!)
   await screen.findByRole('heading', { name: 'Ideas' })
   const library = container.querySelector<HTMLElement>('[data-prompt-library]')!
@@ -120,9 +120,9 @@ it.each(cases)('keeps the failed load and its recovery controls visible at $widt
     threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(),
     messages: [], activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: true,
     canShowFollowUps: false, sendMessage: vi.fn(), composerProps: { suggestions: [] },
-  } as unknown as Parameters<typeof AstraConversation>[0]['chat']
+  } as unknown as Parameters<typeof OrbitConversation>[0]['chat']
   const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
-    <div style={{ width, height: 800 }}><AstraConversation chat={chat} /></div>
+    <div style={{ width, height: 800 }}><OrbitConversation chat={chat} /></div>
   </NextIntlClientProvider>)
   fireEvent.click(screen.getAllByRole('button', { name: messages.chat.templates.browse })[0]!)
   await screen.findByRole('alert')

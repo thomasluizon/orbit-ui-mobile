@@ -46,7 +46,7 @@ for (const width of [320, 412, 600, 844]) {
             await page.goto(`/habits/${habit.id}`)
             await expect(page.getByRole('group', { name: messages.shell.composer.suggestionsLabel, exact: true })
               .getByRole('button', { name: messages.shell.composer.chips.habitDetail.pauseThisWeek, exact: true })).toBeVisible()
-            await page.locator('#orbit-main').getByRole('button', { name: messages.habits.detail.askAstra, exact: true }).click()
+            await page.locator('#orbit-main').getByRole('button', { name: messages.habits.detail.askOrbit, exact: true }).click()
           } else {
             await page.goto('/')
             await getShellConversationEntry(page, width, messages).click()

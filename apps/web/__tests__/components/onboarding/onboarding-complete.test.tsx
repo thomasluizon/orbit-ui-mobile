@@ -6,9 +6,9 @@ import { OnboardingComplete } from '@/components/onboarding/onboarding-complete'
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 describe('OnboardingComplete', () => {
-  it.each([true, false])('hands the next habit to Astra when signedOut=%s', (signedOut) => {
+  it.each([true, false])('hands the next habit to Orbit when signedOut=%s', (signedOut) => {
     render(<OnboardingComplete createdHabit="Read" emoji="📖" remindersOff={false} skipped={false} signedOut={signedOut} dueToday general={false} onFinish={vi.fn()} />)
-    expect(screen.getByText('tellAstra')).toBeVisible()
+    expect(screen.getByText('tellOrbit')).toBeVisible()
   })
 
   it('hides the decorative emoji beside the created habit name', () => {

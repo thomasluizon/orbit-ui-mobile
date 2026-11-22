@@ -165,13 +165,13 @@ describe('RescheduleSheet', () => {
     expect(screen.queryByTestId('reschedule-loading-skeleton')).not.toBeInTheDocument()
   })
 
-  it('uses an accessible dialog title and the proposed Astra label', () => {
+  it('uses an accessible dialog title and the proposed Orbit label', () => {
     h.profile = { hasProAccess: true, language: 'pt-BR' }
     h.reschedule.suggestion = createMockRescheduleSuggestion({ dueDate: '2026-08-20', dueTime: '07:30:00' })
     render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
     expect(screen.getByRole('dialog', { name: 'habits.reschedule.title' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'habits.reschedule.title' })).not.toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).toBeInTheDocument()
     expect(screen.queryByText('habits.reschedule.proposedScheduleLabel')).not.toBeInTheDocument()
     expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/^qui\., 20 de ago\. · 07:30:00$/)
     expect(screen.getByText('Orbit')).toHaveAttribute('translate', 'no')

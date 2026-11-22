@@ -38,7 +38,7 @@ vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPe
 
 const cases = [320, 360, 384, 412, 1352].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale => ['dark', 'light'].flatMap(theme => [1, 2].map(scale => ({ width, locale, scale, theme })))))
 
-describe('in-place Astra block geometry', () => {
+describe('in-place Orbit block geometry', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string

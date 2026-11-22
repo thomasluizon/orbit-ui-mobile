@@ -22,7 +22,7 @@ vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key
   ? (locale.portuguese ? ptBR : en).profile.settingsRows.signOut : key }))
 
 const props = {
-  astraRow: { label: 'Astra', onOpen: vi.fn() },
+  orbitRow: { label: 'Orbit', onOpen: vi.fn() },
   items: [{ id: 'perfil', href: '/profile', icon: 'perfil', label: 'Perfil' }],
   activeId: 'perfil', navLabel: 'Navigation',
   account: 'A person with a longer account name',
@@ -160,7 +160,7 @@ it.each([false, true].flatMap(collapsed => ['dark', 'light'].flatMap(theme => [f
     useShellStore.setState({ sidebarCollapsed: collapsed })
     try {
       render(<ShellWide {...props} conversationOpen={open} conversationLabel="Conversation" conversation={<button type="button">Close</button>} />)
-      const row = screen.getByRole('button', { name: 'Astra' })
+      const row = screen.getByRole('button', { name: 'Orbit' })
       expect(row.querySelectorAll('svg')).toHaveLength(1)
       const glyph = row.querySelector('svg')!
       expect(glyph).toHaveAttribute('data-asset', 'orbit-mascot')

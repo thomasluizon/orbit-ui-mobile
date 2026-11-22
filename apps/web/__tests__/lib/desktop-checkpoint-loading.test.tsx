@@ -75,7 +75,7 @@ it('lets only the live Strict Mode effect consume the checkpoint after schema lo
   await act(async () => { finish(); await vi.dynamicImportSettled() })
   expect(useChatStore.getState().messages.map(message => message.content)).toEqual(['Saved thread'])
   expect(useChatStore.getState().draft).toBe('Saved draft')
-  expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   expect(sessionStorage.getItem(desktopChatCheckpointKey)).toBeNull()
   expect(hasWebReloadBlockers()).toBe(false)
 })
@@ -89,7 +89,7 @@ it.each([false, true])('restores the draft and open state independently of a new
   await act(async () => { finish(); await vi.dynamicImportSettled() })
   expect(useChatStore.getState().messages.map(message => message.content)).toEqual(['New thread'])
   expect(useChatStore.getState().draft).toBe(edited ? 'New draft' : 'Saved draft')
-  expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
 })
 
 it('settles the reload block on a stalled schema import and leaves saved content intact', async () => {

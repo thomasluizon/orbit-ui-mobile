@@ -41,7 +41,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             await expect(card).toHaveAttribute('data-tier-content', interval)
             const outcomes = card.getByRole('list', { name: messages.upgrade.outcomes.label, exact: true })
             await expect(outcomes.getByRole('listitem')).toHaveCount(4)
-            for (const key of ['astra', 'calendar', 'retrospective', 'noticing'] as const) {
+            for (const key of ['orbit', 'calendar', 'retrospective', 'noticing'] as const) {
               await expect(outcomes.getByText(messages.upgrade.outcomes[key], { exact: true })).toBeVisible()
             }
           }

@@ -1,4 +1,4 @@
-import { PlanAnnouncementTracker } from '../chat/astra-plan'
+import { PlanAnnouncementTracker } from '../chat/orbit-plan'
 import type { ChatMessage } from '../types/chat'
 import type { StateHook } from './state-adapter'
 

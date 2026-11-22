@@ -168,7 +168,7 @@ export function useLoginFlow(isAuthCallback = false) {
   function available() { return !busy.current && !useAuthStore.getState().isAuthenticated && isOnline && !isOfflinePreflight() }
   function getReturnUrl() {
     const destination = getNotificationDestination(searchParams.get(NOTIFICATION_URL_PARAM))
-    if (destination) return destination.opensAstra ? buildConversationEntryHref('proactive') : destination.url
+    if (destination) return destination.opensOrbit ? buildConversationEntryHref('proactive') : destination.url
     const entry = readConversationEntry(searchParams)
     if (entry) return buildConversationEntryHref(entry)
     const url = searchParams.get('returnUrl')

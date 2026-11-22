@@ -6,7 +6,7 @@ import { FlatList, type FlatListProps, type View } from 'react-native'
 import { habitListCardFixture } from '@orbit/shared/test-support/chat-fixtures'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { MessageBubbleProps } from '@orbit/shared/chat'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { usePendingOperationExecution } from '@/hooks/use-pending-operation-execution'
 import { renderedText } from '../../support/react-test-renderer'
 
@@ -40,7 +40,7 @@ vi.mock('react-native', async (importOriginal) => {
   }
 })
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 function buildChat(): ChatController {
   return {
     threadScroll: createChatThreadScroll(), flatListRef: { current: null }, messages: [], activeSteps: [], canShowFollowUps: false,
@@ -67,24 +67,24 @@ function list() {
   return tree.root.findAll(node => node.type === FlatList)[0]!
 }
 function mount(chat: ChatController) {
-  void act(() => { tree = create(<AstraConversation chat={chat} />) })
+  void act(() => { tree = create(<OrbitConversation chat={chat} />) })
 }
 function update(chat: ChatController) {
-  void act(() => { tree.update(<AstraConversation chat={chat} />) })
+  void act(() => { tree.update(<OrbitConversation chat={chat} />) })
 }
 function politeRegions() {
-  return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && node.props.testID === 'astra-turn-announcement')
+  return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && node.props.testID === 'orbit-turn-announcement')
 }
 afterEach(() => { void act(() => tree.unmount()) })
 
 it('announces work once across pending, text and tool phases in one stable polite region', async () => {
   const chat = buildChat()
   mount(chat)
-  const progress = () => tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-working-announcement')[0]!
+  const progress = () => tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-working-announcement')[0]!
   const region = progress()
   expect(renderedText(region.props.children)).toBe('')
   chat.isTyping = true
-  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  await act(async () => { tree.update(<OrbitConversation chat={chat} />); await Promise.resolve() })
   expect(progress()).toBe(region)
   expect(renderedText(region.props.children)).toBe('chat.trace.working')
   chat.isTyping = false
@@ -96,7 +96,7 @@ it('announces work once across pending, text and tool phases in one stable polit
   expect(renderedText(region.props.children)).toBe('chat.trace.working')
   chat.streamingMessageId = null
   chat.activeSteps = []
-  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  await act(async () => { tree.update(<OrbitConversation chat={chat} />); await Promise.resolve() })
   expect(renderedText(region.props.children)).toBe('')
 })
 
@@ -136,7 +136,7 @@ it('keeps the turn region empty through streaming and reads completed prose once
   expect(renderedText(region.props.children)).toBe('')
   chat.messages[1] = { ...chat.messages[1], content: 'Completed reply' }
   chat.streamingMessageId = null
-  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  await act(async () => { tree.update(<OrbitConversation chat={chat} />); await Promise.resolve() })
   expect(politeRegions().filter(node => renderedText(node.props.children) === 'Completed reply')).toHaveLength(1)
   let turn = region.parent
   while (turn && turn.findAll(node => node.type === 'MessageBubbleStub').length === 0) turn = turn.parent
@@ -166,7 +166,7 @@ function BatchConversation({ open = true }: { open?: boolean }) {
   const operations = usePendingOperationExecution({ handleExecutedOperation: onExecuted })
   const chat = buildChat()
   chat.messages = [{ id: 'preview', role: 'ai', content: 'Preview', timestamp: new Date() }]
-  return open ? <AstraConversation chat={{ ...chat, ...operations }} /> : null
+  return open ? <OrbitConversation chat={{ ...chat, ...operations }} /> : null
 }
 
 const batchCallbacks = ['onPendingOperationConfirmExecute', 'onPendingOperationPrepareStepUp', 'onPendingOperationVerifyStepUp'] as const
@@ -207,12 +207,12 @@ it('does not repeat a completed reply when its row remounts', async () => {
   mount(chat)
   const reply: ChatMessage = { id: 'reply', role: 'ai', content: 'Final only', timestamp: new Date() }
   chat.messages = [reply]
-  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  await act(async () => { tree.update(<OrbitConversation chat={chat} />); await Promise.resolve() })
   expect(renderedText(politeRegions()[0]!.props.children)).toBe('Final only')
   chat.messages = []
   update(chat)
   chat.messages = [reply]
-  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  await act(async () => { tree.update(<OrbitConversation chat={chat} />); await Promise.resolve() })
   expect(renderedText(politeRegions()[0]!.props.children)).toBe('')
 })
 
@@ -224,7 +224,7 @@ it('announces a reply already streaming when the conversation mounts', async () 
   expect(renderedText(politeRegions()[0]!.props.children)).toBe('')
   chat.messages[0] = { ...chat.messages[0]!, content: 'Completed reply' }
   chat.streamingMessageId = null
-  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  await act(async () => { tree.update(<OrbitConversation chat={chat} />); await Promise.resolve() })
   expect(renderedText(politeRegions()[0]!.props.children)).toBe('Completed reply')
 })
 
@@ -233,13 +233,13 @@ it('announces block-only completion once and keeps the completed trace after the
   mount(chat)
   chat.messages = [{ id: 'block-answer', role: 'ai', content: '', timestamp: new Date(),
     parts: [{ type: 'block', kind: 'habitList', block: habitListCardFixture }], toolSteps: [{ domain: 'habits', access: 'read' }] }]
-  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  await act(async () => { tree.update(<OrbitConversation chat={chat} />); await Promise.resolve() })
   expect(politeRegions().filter(node => renderedText(node.props.children) === 'chat.replyReady')).toHaveLength(1)
   const answer = tree.root.findAll(node => node.type === 'MessageBubbleStub')[0]!
   let content = answer.parent
   while (content && !content.findAll(node => node.props.testID === 'thinking-trace-completed').length) content = content.parent
   const order = content!.findAll(node => node.type === 'MessageBubbleStub' || (typeof node.type === 'string' && node.props.testID === 'thinking-trace-completed'))
   expect(order.map(node => node.type === 'MessageBubbleStub' ? 'answer' : 'trace')).toEqual(['answer', 'trace'])
-  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  await act(async () => { tree.update(<OrbitConversation chat={chat} />); await Promise.resolve() })
   expect(politeRegions().filter(node => renderedText(node.props.children) === 'chat.replyReady')).toHaveLength(1)
 })

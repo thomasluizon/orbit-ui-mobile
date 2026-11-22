@@ -103,7 +103,7 @@ export function useChatRequestPayload(locale: ChatRequestPayloadInputs['locale']
     const historyMessages = useChatStore.getState().messages
     const recentHistory = buildRecentChatHistory(attempted.blockAnswer ? [...historyMessages, { role: 'user', content: attempted.content }] : historyMessages)
     formData.append('history', JSON.stringify(recentHistory))
-    const entryPointIntent = useUIStore.getState().astraEntryPointIntent
+    const entryPointIntent = useUIStore.getState().orbitEntryPointIntent
     const clientContext = buildChatClientContext({
       platform: 'web',
       locale,

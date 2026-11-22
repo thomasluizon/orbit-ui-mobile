@@ -99,16 +99,16 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   })
   const formatDate = (date: string) => formatLocaleDateTime(date, locale, { month: 'short', day: 'numeric' })
 
-  const openAstra = () => {
+  const openOrbit = () => {
     if (!goal || !draftHydrated) return
     const request = {
       id: `goal-detail:${goal.id}`,
-      label: t('nav.astra'),
-      prompt: t('goals.detail.askAstraSeedDefault', { title: goal.title }),
+      label: t('nav.orbit'),
+      prompt: t('goals.detail.askOrbitSeedDefault', { title: goal.title }),
     }
     const openConversation = () => {
       prepareChatRequest(useChatStore.getState(), request)
-      useUIStore.getState().setAstraConversationOpen(true)
+      useUIStore.getState().setOrbitConversationOpen(true)
     }
     if (inline) openConversation()
     else close(openConversation)
@@ -154,10 +154,10 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
     <div ref={contentRef} tabIndex={inline ? -1 : undefined} data-goal-detail className="flex flex-col gap-6">
       {goal ? <>
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onEditProgress={openProgressForm} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} sweep={outcomes.progressSweep} />
-        <GoalAskEntry line={orbitLine} at="top" disabled={!draftHydrated} onPress={openAstra} />
+        <GoalAskEntry line={orbitLine} at="top" disabled={!draftHydrated} onPress={openOrbit} />
         <GoalForecast metrics={detailData?.metrics ?? null} unit={goal.unit} isLoading={isLoading} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onLinkedHabitNavigate={openLinkedHabit} />
-        <GoalAskEntry line={orbitLine} at="bottom" disabled={!draftHydrated} onPress={openAstra} />
+        <GoalAskEntry line={orbitLine} at="bottom" disabled={!draftHydrated} onPress={openOrbit} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <InlineLoadError message={t('goals.detail.loadError')} onRetry={() => void refetch()} /> : null}

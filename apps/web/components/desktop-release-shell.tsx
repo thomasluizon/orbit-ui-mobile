@@ -53,7 +53,7 @@ function DesktopReleaseMonitor({ version, requireUpgrade }: Readonly<{ version: 
 async function restoreDesktopCheckpoint(accountId: string, isCurrent: () => boolean) {
   const accountGeneration = getAccountGeneration()
   const snapshot = useChatStore.getState()
-  const conversationOpen = useUIStore.getState().astraConversationOpen
+  const conversationOpen = useUIStore.getState().orbitConversationOpen
   const checkpoint = await takeDesktopChatCheckpoint(accountId, () => isCurrent() && accountGeneration === getAccountGeneration())
   const current = useChatStore.getState()
   if (!checkpoint || !isCurrent() || accountGeneration !== getAccountGeneration()) return
@@ -62,7 +62,7 @@ async function restoreDesktopCheckpoint(accountId: string, isCurrent: () => bool
     ...(current.messages === snapshot.messages ? { ...checkpoint.chat, isTyping: false, streamingMessageId: null } : {}),
     draft, draftHydrated: true,
   })
-  if (useUIStore.getState().astraConversationOpen === conversationOpen) useUIStore.getState().setAstraConversationOpen(checkpoint.conversationOpen)
+  if (useUIStore.getState().orbitConversationOpen === conversationOpen) useUIStore.getState().setOrbitConversationOpen(checkpoint.conversationOpen)
 }
 
 function DesktopUpdateRequired({ signIn }: Readonly<{ signIn: boolean }>) {

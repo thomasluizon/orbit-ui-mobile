@@ -42,14 +42,14 @@ const insight: PeriodInsightData = {
 }
 
 function App() {
-  const open = useUIStore(state => state.astraConversationOpen)
-  return <Shell412 nav={false} conversationLabel="Astra" conversationOpen={open} conversation={<PeriodInsightCard periodInsight={insight} />}><Text>{pathname}</Text></Shell412>
+  const open = useUIStore(state => state.orbitConversationOpen)
+  return <Shell412 nav={false} conversationLabel="Orbit" conversationOpen={open} conversation={<PeriodInsightCard periodInsight={insight} />}><Text>{pathname}</Text></Shell412>
 }
 
 describe('period insight card on mobile', () => {
   it('reveals Progress outside the full-screen conversation', () => {
     push.mockClear()
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     pathname = '/'
     const root = render(<App />)
     expect(root.findAllByType('Text').some(node => node.props.children === 'chat.insight.progressLink')).toBe(false)

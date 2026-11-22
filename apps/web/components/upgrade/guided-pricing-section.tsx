@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { useTranslations } from 'next-intl'
 import { motionDurations } from '@orbit/shared/theme'
-import { resolveUpgradeOrbitLine, type AstraAllowance } from '@orbit/shared/utils'
+import { resolveUpgradeOrbitLine, type OrbitAllowance } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
 import { ErrorState } from '@/components/ui/error-state'
 import { IconButton } from '@/components/ui/icon-button'
@@ -34,7 +34,7 @@ export interface GuidedPricingSectionProps {
   headingId?: string
   dateHint?: string
   focusOnMount?: boolean
-  profile: ({ isTrialActive?: boolean } & AstraAllowance) | null
+  profile: ({ isTrialActive?: boolean } & OrbitAllowance) | null
   /** The usage read of the person. It feeds the Orbit line. */
   usage: { aiMessagesUsed: number; aiMessagesLimit: number } | null
   plans: Plans

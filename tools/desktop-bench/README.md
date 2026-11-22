@@ -25,7 +25,7 @@ version, and passes `ORBIT_ELECTRON_BUILDER_CACHE` to the run.
 
 The Tauri release uses `bench-loopback` and a temporary config overlay. The feature is off by
 default. Only the overlay grants local capabilities, selects the separate benchmark app identifier
-and requests a 900×600 CSS viewport. That is the compact shell, where Hoje shows the Astra button. Both shells must
+and requests a 900×600 CSS viewport. That is the compact shell, where Hoje shows the Orbit button. Both shells must
 report exactly that viewport. Only the readiness launch may fit Tauri's window by the page's
 measured CSS shortfall, including insets inside the native webview frame. It returns the calibrated
 logical native size through the benchmark command. Every measured launch receives that size through
@@ -40,7 +40,7 @@ The hermetic web build and mock API use existing repository scripts. A loopback 
 httpOnly session from `mintHermeticJwt`, seeds 200 habits using the shared schema and fixture producer,
 schedules them on the start day and the next day, so a run that crosses midnight keeps them on Hoje,
 and injects the same nonce-bearing probe into both shells. No regular browser or automation framework
-runs. The Hoje Astra button opens the conversation, and its composer sends through the BFF. The mock emits the API's `started`, `delta`,
+runs. The Hoje Orbit button opens the conversation, and its composer sends through the BFF. The mock emits the API's `started`, `delta`,
 `final` protocol with 80 ms pacing, only for the benchmark session when explicitly enabled.
 The API producer is `ChatController.StartEventStreamAsync`, `WriteEventAsync` and `ChatStreamEvent`;
 the shared consumer is `packages/shared/src/chat/sse-stream.ts`.
@@ -52,7 +52,7 @@ retains it after a complete process exit. Neither purges OS filesystem caches or
 prewarmed server. These are storage-cold and storage-warm launches, not cold boots. Keep the
 visible windows unobstructed during measurement.
 
-First usable means the first habit and the Astra button have painted, and the hydrated Astra button opens the conversation.
+First usable means the first habit and the Orbit button have painted, and the hydrated Orbit button opens the conversation.
 The page then waits on a long-lived command request while the host collects process-tree RSS
 at 10 seconds and 60 seconds, plus CPU-time change over the idle interval. CPU is an energy proxy,
 not watts. Raw process membership, native accounting counters and timestamps accompany every sample.
@@ -155,7 +155,7 @@ and an authenticated request. No deployed API or account is used.
 
 macOS installs from the mounted DMG into the Applications directory. Windows runs the built NSIS
 installer with its silent flag and explicit install directory. Only that installed executable is
-launched. The first launch checks Hoje, Astra, palette structure and native clean quit. On Windows it
+launched. The first launch checks Hoje, Orbit, palette structure and native clean quit. On Windows it
 also presses the page's theme toggle for light and then dark. The toggle writes the root mode class
 that the shell reads and the canvas tokens that the page paints with, and the probe reports that canvas
 as `pageCanvas`. The shell sets the window theme to that mode, which sets the WebView2 colour scheme, so
@@ -439,12 +439,12 @@ Platform readers dump the real AX or UI Automation tree and require web content,
 controls, semantic roles and nonempty names. Palette arrows must retain DOM input focus and expose the
 next selected result in both the DOM and platform tree. Platform focus may be on the input or its
 selected active descendant inside the controlled listbox, matched by captured automation identifiers.
-Every native key (the Astra Escape, the Command+K or Ctrl+K that opens the palette, each palette Down
+Every native key (the Orbit Escape, the Command+K or Ctrl+K that opens the palette, each palette Down
 and the Escape that closes the palette) goes through one helper, `deliverKey` in `acceptance-contract.mjs`.
 A key counts as sent when the page records a keydown with its name. The page records keydowns in
-`astra-key` events while Astra is open, and in `palette-key` events from the Astra close on. An Escape
+`orbit-key` events while Orbit is open, and in `palette-key` events from the Orbit close on. An Escape
 or a Command+K that the input method claimed (key code 229 or a composition) still counts, because the
-Astra and palette shortcut handlers act on the key name, and the runner never posts such a key again after
+Orbit and palette shortcut handlers act on the key name, and the runner never posts such a key again after
 the page recorded it. cmdk ignores a claimed Down, so only an unclaimed ArrowDown counts for a Down, and the
 runner posts a claimed Down again under the same bound.
 If the page records no keydown that counts within 5 seconds, the runner sends it again, with at most 6
@@ -467,8 +467,8 @@ lost whole keys while the shell was the focused application with a key window an
 The helper first reads the focused application from the system-wide AX element. If the installed process
 is not focused, the helper requests activation and sets `AXFrontmost`, because macOS 14 lets the system
 refuse an activation request. If another process keeps keyboard focus, the helper posts no key and names
-that process. Each native reply names its delivery path, its activation and the focused process. If Astra does not close after the page received the native Escape, the runner keeps
-the `astra-key` events in `report.json` `astraKeys` and the AX tree in `trees/astra-after-escape.json`.
+that process. Each native reply names its delivery path, its activation and the focused process. If Orbit does not close after the page received the native Escape, the runner keeps
+the `orbit-key` events in `report.json` `orbitKeys` and the AX tree in `trees/orbit-after-escape.json`.
 The error states how many Escape keydowns the page received.
 An exact macOS access denial is recorded as
 a skip, with Windows still required. These are structural checks; a person's spoken screen reader

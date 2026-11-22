@@ -41,7 +41,7 @@ describe('BottomTabBar', () => {
     ])
     expect(buttons.every((button) => button.children.length === 1)).toBe(true)
     expect(buttons.map((button) => button.getAttribute('href'))).toEqual(Object.values(routes))
-    expect(screen.queryByText('Astra')).not.toBeInTheDocument()
+    expect(screen.queryByText('Orbit')).not.toBeInTheDocument()
   })
 
   it('marks the active tab and reports the Portuguese destination id', () => {

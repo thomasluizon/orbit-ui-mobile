@@ -3,7 +3,7 @@ import { ChatReplyLifecycle, enqueueChatPrompt, nextQueuedChatPrompt, resolveCha
 import type { ChatStreamResult } from '../chat/block-answer-submission'
 import type { PreparedChatTurn } from '../chat/stream-turn'
 import { createChatStoreState, type ChatStoreState } from '../stores/chat-store'
-import { makeApprovalPlan } from '../test-support/astra-plan-fixtures'
+import { makeApprovalPlan } from '../test-support/orbit-plan-fixtures'
 
 function setup() {
   let state = {} as ChatStoreState
@@ -36,7 +36,7 @@ function promptSendHarness() {
     return { kind: 'final' }
   })
   const context = { getChat, getAccountGeneration: () => generation, createMessageId: () => 'user-message',
-    conversation: { astraConversationOpen: false, setAstraConversationOpen: vi.fn() },
+    conversation: { orbitConversationOpen: false, setOrbitConversationOpen: vi.fn() },
     beginSend: vi.fn(() => getChat().beginReply()), run, onFailure: vi.fn(), retainRetry: vi.fn() }
   return { context, prompt, turn, replaceAccount: () => { generation += 1 } }
 }
@@ -53,7 +53,7 @@ describe('shared prompt sending', () => {
   it.each([false, true])('opens the conversation and preserves the prepared turn with retry=%s', async isRetry => {
     const { context, prompt, turn } = promptSendHarness()
     expect(await sendChatPrompt(prompt, isRetry, context)).toBe(true)
-    expect(context.conversation.setAstraConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
+    expect(context.conversation.setOrbitConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
     expect(context.beginSend).toHaveBeenCalledOnce()
     expect(context.run).toHaveBeenCalledExactlyOnceWith({ ...prompt, messageCost: 1 })
     expect(prompt.turn).toBe(turn)

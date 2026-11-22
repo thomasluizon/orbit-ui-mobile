@@ -37,7 +37,7 @@ const overview: MetricsCardData = {
   surfaceId: 'progress', series: series(7), topHabitName: 'Walk',
 }
 
-describe('Astra metrics card on mobile', () => {
+describe('Orbit metrics card on mobile', () => {
   it('renders three rows, seven bars and routes to Progress', () => {
     push.mockClear()
     const root = render(<MetricsCard metricsCard={overview} />)

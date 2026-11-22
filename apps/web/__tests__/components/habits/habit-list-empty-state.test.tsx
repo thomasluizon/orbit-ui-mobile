@@ -79,7 +79,7 @@ describe('the Hoje empty state actions on web', () => {
     [1280, 'secondary'],
   ] as const)('pairs the quiet create action with a filled ask action at %ipx, and keeps Orbit off the fill', (width, filled) => {
     setWidth(width)
-    render(<HabitListEmptyState title="No habits yet" description="" actionLabel="Create manually" onAction={vi.fn()} askAstraLabel="Ask Orbit" onAskAstra={vi.fn()} />)
+    render(<HabitListEmptyState title="No habits yet" description="" actionLabel="Create manually" onAction={vi.fn()} askOrbitLabel="Ask Orbit" onAskOrbit={vi.fn()} />)
     const create = screen.getByRole('button', { name: 'Create manually' })
     const ask = screen.getByRole('button', { name: 'Ask Orbit' })
     expect([create.getAttribute('data-variant'), ask.getAttribute('data-variant')]).toEqual(['ghost', filled])

@@ -24,7 +24,7 @@ describe('stripChatDirectives', () => {
   })
 
   it('removes a generic directive without adding a per-directive rule', () => {
-    expect(stripChatDirectives('Astra response.\n[[orbit:future:card]]')).toBe('Astra response.')
+    expect(stripChatDirectives('Orbit response.\n[[orbit:future:card]]')).toBe('Orbit response.')
   })
 
   it('removes a complete directive within surrounding text', () => {

@@ -43,7 +43,7 @@ vi.mock('@/app/actions/profile', () => ({
   updateTimezone: vi.fn(),
   updateLanguage: vi.fn(),
   updateAiSummary: vi.fn(),
-  updateProactiveAstra: vi.fn(),
+  updateProactiveOrbit: vi.fn(),
   updateMarketingConsent: vi.fn(),
   updateWeekStartDay: vi.fn(),
   updateClockFormat: vi.fn(),

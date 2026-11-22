@@ -26,7 +26,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentEr
 beforeEach(() => {
   vi.clearAllMocks()
   seedRenderedAccount('theme-action-account')
-  useUIStore.setState({ astraConversationOpen: false })
+  useUIStore.setState({ orbitConversationOpen: false })
   setCurrentTheme('dark')
   useShellStore.setState(useShellStore.getInitialState())
 })
@@ -77,12 +77,12 @@ const todayProps = {
   onRefresh: noop, onToggleCompleted: noop,
 }
 
-it('keeps the Astra conversation open when changing appearance from the sidebar', () => {
+it('keeps the Orbit conversation open when changing appearance from the sidebar', () => {
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
-  useUIStore.setState({ astraConversationOpen: true })
+  useUIStore.setState({ orbitConversationOpen: true })
   const client = new QueryClient()
-  render(<QueryClientProvider client={client}><DestinationShell onCreate={vi.fn()} conversationOpen conversationLabel="Astra" conversation={<textarea aria-label="Astra draft" defaultValue="Keep this draft" />}><h1>Today</h1></DestinationShell></QueryClientProvider>)
+  render(<QueryClientProvider client={client}><DestinationShell onCreate={vi.fn()} conversationOpen conversationLabel="Orbit" conversation={<textarea aria-label="Orbit draft" defaultValue="Keep this draft" />}><h1>Today</h1></DestinationShell></QueryClientProvider>)
   fireEvent.click(screen.getByRole('button', { name: 'settings.theme.switchToLight' }))
-  expect(useUIStore.getState().astraConversationOpen).toBe(true)
-  expect(screen.getByRole('textbox', { name: 'Astra draft' })).toHaveValue('Keep this draft')
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+  expect(screen.getByRole('textbox', { name: 'Orbit draft' })).toHaveValue('Keep this draft')
 })

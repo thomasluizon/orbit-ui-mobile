@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key === 'chat.title' ? 'Astra' : key,
+  useTranslations: () => (key: string) => key === 'chat.title' ? 'Orbit' : key,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -27,10 +27,10 @@ vi.mock('@/components/chat/message-bubble', () => ({
   MessageBubble: ({ message }: { message: { id: string } }) => <div>{message.id}</div>,
 }))
 
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { useUIStore } from '@/stores/ui-store'
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 
 function buildChat(): ChatController {
   return {
@@ -56,12 +56,12 @@ function buildChat(): ChatController {
 
 afterEach(() => {
   cleanup()
-  useUIStore.getState().setAstraConversationOpen(false)
+  useUIStore.getState().setOrbitConversationOpen(false)
 })
 
 it('closes the conversation from one trailing control, with no back control', () => {
-  useUIStore.getState().setAstraConversationOpen(true)
-  render(<AstraConversation chat={buildChat()} />)
+  useUIStore.getState().setOrbitConversationOpen(true)
+  render(<OrbitConversation chat={buildChat()} />)
 
   const header = screen.getByRole('banner')
   expect(header).not.toHaveAttribute('data-back')
@@ -70,29 +70,29 @@ it('closes the conversation from one trailing control, with no back control', ()
 
   fireEvent.click(close)
 
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(false)
 })
 
-it('shows the decorative Astra mark with one named heading and no visible title', () => {
-  render(<AstraConversation chat={buildChat()} />)
+it('shows the decorative Orbit mark with one named heading and no visible title', () => {
+  render(<OrbitConversation chat={buildChat()} />)
 
   const header = screen.getByRole('banner')
-  const heading = screen.getByRole('heading', { name: 'Astra' })
+  const heading = screen.getByRole('heading', { name: 'Orbit' })
   expect(heading).toHaveAttribute('translate', 'no')
   expect(header.querySelector('[data-asset="orbit-mascot"]')).not.toBeNull()
   expect(heading.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   expect(heading).toHaveTextContent('')
   expect(header).toHaveTextContent('')
-  expect(screen.getAllByRole('heading', { name: 'Astra' })).toHaveLength(1)
+  expect(screen.getAllByRole('heading', { name: 'Orbit' })).toHaveLength(1)
 })
 
 it('still closes the conversation on Escape', () => {
-  useUIStore.getState().setAstraConversationOpen(true)
-  render(<AstraConversation chat={buildChat()} />)
+  useUIStore.getState().setOrbitConversationOpen(true)
+  render(<OrbitConversation chat={buildChat()} />)
 
   fireEvent.keyDown(document, { key: 'Escape' })
 
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(false)
 })
 
 it('opens and reopens the proactive message above an existing long streaming thread', () => {
@@ -104,7 +104,7 @@ it('opens and reopens the proactive message above an existing long streaming thr
   const scroll = vi.spyOn(HTMLElement.prototype, 'scrollTo')
   const height = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(2000)
   try {
-    render(<AstraConversation chat={chat} />)
+    render(<OrbitConversation chat={chat} />)
     expect(scroll).toHaveBeenLastCalledWith({ top: 0, behavior: 'auto' })
     expect(chat.threadScroll.isFollowing()).toBe(false)
     void act(() => { useChatStore.getState().openProactiveItem(item) })
@@ -121,10 +121,10 @@ it('opens the summary at the end of an existing thread with its AI disclosure', 
   const scroll = vi.spyOn(HTMLElement.prototype, 'scrollTo')
   const height = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(2000)
   try {
-    render(<AstraConversation chat={chat} />)
+    render(<OrbitConversation chat={chat} />)
     expect(scroll).toHaveBeenLastCalledWith({ top: 2000, behavior: 'auto' })
     expect(chat.threadScroll.isFollowing()).toBe(true)
     expect(screen.queryByTestId('empty-suggestions')).not.toBeInTheDocument()
-    expect(screen.getByTestId('astra-ai-disclosure')).toHaveTextContent('aiDisclosure.notMedicalAdvice')
+    expect(screen.getByTestId('orbit-ai-disclosure')).toHaveTextContent('aiDisclosure.notMedicalAdvice')
   } finally { height.mockRestore(); scroll.mockRestore() }
 })

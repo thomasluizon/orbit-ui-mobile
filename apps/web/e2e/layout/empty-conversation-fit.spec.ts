@@ -28,7 +28,7 @@ const VIEWPORTS = [
 
 for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
   for (const viewport of VIEWPORTS) {
-    test.describe(`${locale} empty Astra conversation at ${viewport.width} by ${viewport.height}`, () => {
+    test.describe(`${locale} empty Orbit conversation at ${viewport.width} by ${viewport.height}`, () => {
       test.use({ viewport })
 
       test('keeps the glyph reachable and the disclosure clear of the composer', async ({ page, context }) => {

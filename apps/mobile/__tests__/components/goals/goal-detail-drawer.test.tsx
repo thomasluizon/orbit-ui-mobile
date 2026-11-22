@@ -205,7 +205,7 @@ describe('GoalDetailDrawer', () => {
     updateProgressMutateAsync.mockReset()
     nativeMocks.sendAccessibilityEvent.mockReset()
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
-    useUIStore.setState({ astraConversationOpen: false })
+    useUIStore.setState({ orbitConversationOpen: false })
   })
 
   function renderDrawer(onClose: () => void = vi.fn()) {
@@ -546,13 +546,13 @@ describe('GoalDetailDrawer', () => {
     expect(refetchDetail).toHaveBeenCalled()
   })
 
-  const astraLabel = 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault'
+  const orbitLabel = 'goals.detail.askOrbitEyebrow: goals.detail.askOrbitDefault'
 
   it('lets the goal analysis title grow with accessibility text', () => {
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
     const tree = renderDrawer()
-    const astraAction = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === astraLabel)[0]!
-    const title = astraAction.findAllByType('Text').find((node: import('react-test-renderer').ReactTestInstance) => node.props['data-slot'] === 'list-row-title')!
+    const orbitAction = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === orbitLabel)[0]!
+    const title = orbitAction.findAllByType('Text').find((node: import('react-test-renderer').ReactTestInstance) => node.props['data-slot'] === 'list-row-title')!
     expect(title.props.numberOfLines).toBeUndefined()
     TestRenderer.act(() => tree.unmount())
   })
@@ -562,17 +562,17 @@ describe('GoalDetailDrawer', () => {
     const onClose = vi.fn()
     sheetTestControls.defer(true)
     const tree = renderDrawer(onClose)
-    const astraAction = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === astraLabel)[0]!
-    expect(astraAction.findAllByType('Text').map((node: import('react-test-renderer').ReactTestInstance) => node.props.children)).toContain('goals.detail.askAstraEyebrow')
-    press(tree, astraLabel)
+    const orbitAction = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === orbitLabel)[0]!
+    expect(orbitAction.findAllByType('Text').map((node: import('react-test-renderer').ReactTestInstance) => node.props.children)).toContain('goals.detail.askOrbitEyebrow')
+    press(tree, orbitLabel)
     expect(sheetTestControls.isDismissPending).toBe(true)
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(useChatStore.getState().draft).toBe('')
     expect(onClose).not.toHaveBeenCalled()
     TestRenderer.act(() => sheetTestControls.completeDismissal())
     expect(onClose).toHaveBeenCalledOnce()
-    expect(useChatStore.getState().draft).toBe('goals.detail.askAstraSeedDefault:{"title":"Synced goal"}')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useChatStore.getState().draft).toBe('goals.detail.askOrbitSeedDefault:{"title":"Synced goal"}')
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     expect(mockPush).not.toHaveBeenCalled()
   })
 
@@ -581,21 +581,21 @@ describe('GoalDetailDrawer', () => {
     const onClose = vi.fn()
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={onClose} goalId="1" />) })
-    press(tree, astraLabel)
+    press(tree, orbitLabel)
     expect(onClose).not.toHaveBeenCalled()
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     expect(useChatStore.getState().draft).toBe('My unfinished message')
     expect(useChatStore.getState().contextualSuggestion).toEqual({
-      id: 'goal-detail:1', label: 'nav.astra',
-      prompt: 'goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}',
+      id: 'goal-detail:1', label: 'nav.orbit',
+      prompt: 'goals.detail.askOrbitSeedDefault:{"title":"Read 12 books"}',
     })
     const chips = buildComposerChips({
       surface: 'progress', status: 'success', habits: [], totalHabitCount: 0,
       profile: createMockProfile(), contextualSuggestion: useChatStore.getState().contextualSuggestion,
     })
     expect(chips[0]?.id).toBe('goal-detail:1')
-    expect(chips[0]?.prompt).toBe('goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}')
-    TestRenderer.act(() => { useUIStore.getState().setAstraConversationOpen(false) })
+    expect(chips[0]?.prompt).toBe('goals.detail.askOrbitSeedDefault:{"title":"Read 12 books"}')
+    TestRenderer.act(() => { useUIStore.getState().setOrbitConversationOpen(false) })
     expect(collectText(tree.toJSON())).toContain('Read 12 books')
     TestRenderer.act(() => { tree.unmount() })
   })
@@ -611,10 +611,10 @@ describe('GoalDetailDrawer', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={onClose} goalId="1" />) })
     try {
       expect(listeners.size).toBe(1)
-      press(tree, astraLabel)
+      press(tree, orbitLabel)
       expect(listeners.size).toBe(0)
       expect(onClose).not.toHaveBeenCalled()
-      TestRenderer.act(() => { useUIStore.getState().setAstraConversationOpen(false) })
+      TestRenderer.act(() => { useUIStore.getState().setOrbitConversationOpen(false) })
       expect(listeners.size).toBe(1)
       TestRenderer.act(() => { expect([...listeners][0]?.({ type: 'hardwareBackPress', timeStamp: 0 })).toBe(true) })
       expect(onClose).toHaveBeenCalledOnce()
@@ -627,11 +627,11 @@ describe('GoalDetailDrawer', () => {
   it('disables the goal request until the saved draft is hydrated', () => {
     useChatStore.setState({ draftHydrated: false })
     const tree = renderDrawer()
-    const action = tree.root.findAll((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === astraLabel && node.props.accessibilityRole === 'button')[0]
+    const action = tree.root.findAll((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === orbitLabel && node.props.accessibilityRole === 'button')[0]
     expect(action.props.disabled).toBe(true)
     expect(action.props.accessibilityState.disabled).toBe(true)
     TestRenderer.act(() => { action.props.onPress() })
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(useChatStore.getState().draft).toBe('')
     TestRenderer.act(() => { useChatStore.setState({ draftHydrated: true }) })
     expect(action.props.disabled).toBe(false)
@@ -641,25 +641,25 @@ describe('GoalDetailDrawer', () => {
     sheetTestControls.defer(true)
     const onClose = vi.fn()
     const tree = renderDrawer(onClose)
-    press(tree, astraLabel)
+    press(tree, orbitLabel)
     TestRenderer.act(() => sheetTestControls.rejectDismissal())
     expect(onClose).not.toHaveBeenCalled()
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(useChatStore.getState().draft).toBe('')
-    press(tree, astraLabel)
+    press(tree, orbitLabel)
     TestRenderer.act(() => sheetTestControls.completeDismissal())
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   })
 
   it('offers the cached goal on detail error and no request for an unavailable goal', () => {
     detailLoadError = true
     detailAvailable = false
     const tree = renderDrawer()
-    press(tree, astraLabel)
+    press(tree, orbitLabel)
     expect(useChatStore.getState().draft).toContain('Read 12 books')
     expect(collectText(tree.toJSON())).toContain('goals.detail.loadError')
     TestRenderer.act(() => tree.update(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="missing" />))
-    expect(countRenderedActions(tree.toJSON(), astraLabel)).toBe(0)
+    expect(countRenderedActions(tree.toJSON(), orbitLabel)).toBe(0)
   })
 
   it('prefers synced detail data over the stale list cache', () => {
@@ -821,7 +821,7 @@ describe('GoalDetailDrawer', () => {
   })
 
   it('dismisses the sheet before opening a linked habit', async () => {
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     await i18n.changeLanguage('en')
     translation.current = i18n.t.bind(i18n)
     detailGoal = {
@@ -841,7 +841,7 @@ describe('GoalDetailDrawer', () => {
     press(tree, `Read every night, ${i18n.t('goals.metrics.weeklyAdherence', { percent: '90' })}, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
 
     expect(sheetTestControls.isDismissPending).toBe(true)
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     expect(onClose).not.toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
 
@@ -853,7 +853,7 @@ describe('GoalDetailDrawer', () => {
     expect(mockPush).toHaveBeenCalledOnce()
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'habit-read' } })
     expect(events).toEqual(['close', 'push'])
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
   it('opens a linked habit directly when the detail is inline', async () => {

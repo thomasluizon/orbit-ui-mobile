@@ -106,8 +106,8 @@ vi.mock('next-intl', () => ({
     if (key === 'loggedAt') return `${values?.date}, logged at ${values?.time}`
     if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
     if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
-    if (key === 'habits.detail.askAstraSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
-    if (key === 'habits.detail.askAstra' && mocks.language === 'pt-BR') return ptBR.habits.detail.askAstra
+    if (key === 'habits.detail.askOrbitSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
+    if (key === 'habits.detail.askOrbit' && mocks.language === 'pt-BR') return ptBR.habits.detail.askOrbit
     if (key === 'calendarLabel') return `Atividade do hábito em ${values?.month}`
     return key
   },
@@ -233,7 +233,7 @@ vi.mock('@/components/ui/switch', () => ({
 vi.mock('@/components/ui/list-row', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/list-row')>()
   return { ListRow: (props: React.ComponentProps<typeof actual.ListRow>) => {
-    if (props.title === 'habits.detail.askAstra' || props.title === ptBR.habits.detail.askAstra) return <actual.ListRow {...props} />
+    if (props.title === 'habits.detail.askOrbit' || props.title === ptBR.habits.detail.askOrbit) return <actual.ListRow {...props} />
     const { title, description, value, trailing, chevron, onClick, expanded, controls, toggle } = props
     return onClick || toggle
     ? <button type="button" role={toggle ? "switch" : undefined} aria-label={title} aria-checked={toggle?.checked} aria-expanded={expanded} aria-controls={controls} data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)} onClick={toggle ? () => toggle.onChange(!toggle.checked) : onClick}>{title}{trailing}</button>
@@ -645,7 +645,7 @@ describe('HabitDetailScreen', () => {
     mocks.metrics = { currentStreak: 0, longestStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 0, totalCompletions: 0, lastCompletedDate: null }
     mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
     expect(screen.queryByText(/habits\.detail\.slippingLine/)).not.toBeInTheDocument()
     expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
     mocks.hasProAccess = false
@@ -657,7 +657,7 @@ describe('HabitDetailScreen', () => {
     openRescueGate()
     mocks.reschedulePaused = true
     render(<HabitDetailScreen habitId="habit-1" />)
-    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')
+    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByRole('status')
     expect(within(status).queryByTestId('rescue-loading-skeleton')).not.toBeInTheDocument()
     expect(within(status).getAllByTestId('orbit-mascot').map((mascot) => mascot.getAttribute('data-state'))).toEqual(['descansando'])
     expect(status).toHaveTextContent('shell.composer.offline.reason')
@@ -668,10 +668,10 @@ describe('HabitDetailScreen', () => {
     openRescueGate()
     mocks.reschedulePaused = true
     render(<HabitDetailScreen habitId="habit-1" />)
-    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')
+    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByRole('status')
     expect(status).toHaveTextContent('shell.composer.offline.reason')
     expect(within(status).queryByTestId('orbit-mascot')).not.toBeInTheDocument()
-    const line = document.querySelector<HTMLElement>('[data-today-astra-slot]')!
+    const line = document.querySelector<HTMLElement>('[data-today-orbit-slot]')!
     expect(screen.getAllByTestId('orbit-mascot')).toEqual([within(line).getByTestId('orbit-mascot')])
   })
 
@@ -679,17 +679,17 @@ describe('HabitDetailScreen', () => {
     enableTestFlags('orbit_guided_flows')
     openRescueGate()
     render(<HabitDetailScreen habitId="habit-1" />)
-    const wait = within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByTestId('rescue-loading-skeleton')
+    const wait = within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByTestId('rescue-loading-skeleton')
     expect(within(wait).queryByTestId('orbit-mascot')).not.toBeInTheDocument()
     expect(Array.from(wait.querySelectorAll('[data-variant]')).map((block) => [block.getAttribute('data-variant'), block.textContent])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', '']])
-    const line = document.querySelector<HTMLElement>('[data-today-astra-slot]')!
+    const line = document.querySelector<HTMLElement>('[data-today-orbit-slot]')!
     expect(screen.getAllByTestId('orbit-mascot').filter((mascot) => mascot.getAttribute('data-state') === 'pensando')).toEqual([within(line).getByTestId('orbit-mascot')])
   })
 
   it('shows a rescue only for an older overdue habit and handles request states', () => {
     openRescueGate()
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    const wait = within(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).getByTestId('rescue-loading-skeleton')
+    const wait = within(within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByRole('status')).getByTestId('rescue-loading-skeleton')
     expect(within(wait).getByTestId('orbit-mascot')).toHaveAttribute('data-state', 'pensando')
     expect(within(wait).getByTestId('orbit-mascot')).toHaveAttribute('data-size', '48')
     expect(Array.from(wait.querySelectorAll('[data-variant]')).map((block) => [block.getAttribute('data-variant'), block.textContent])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', '']])
@@ -699,12 +699,12 @@ describe('HabitDetailScreen', () => {
 
     mocks.rescheduleError = createApiClientError(400, { error: 'Not overdue', errorCode: 'HABIT_NOT_OVERDUE' }, 'Failed')
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
     expect(screen.queryByText(/habits\.detail\.slippingLine/)).not.toBeInTheDocument()
 
     mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
-    expect(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).toHaveTextContent('habits.detail.rescheduleError')
+    expect(within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByRole('status')).toHaveTextContent('habits.detail.rescheduleError')
     expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
     const retry = screen.getByRole('button', { name: 'habits.reschedule.suggestDate' })
     expect(retry).toHaveTextContent('habits.reschedule.suggestDate')
@@ -730,7 +730,7 @@ describe('HabitDetailScreen', () => {
     expect(isHabitSlipping(mocks.detail, mocks.metrics, mocks.logs, new Date(2026, 7, 29), 'UTC')).toBe(true)
     render(<HabitDetailScreen habitId="habit-1" />)
     expect(screen.queryByText(/habits\.detail\.slippingLine/)).not.toBeInTheDocument()
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
     expect(screen.queryByText('habits.reschedule.freePrompt')).not.toBeInTheDocument()
     expect(mocks.rescheduleOptions.length).toBeGreaterThan(0)
     expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
@@ -768,21 +768,21 @@ describe('HabitDetailScreen', () => {
     expect(notNow).toBeEnabled()
     notNow.focus()
     fireEvent.click(notNow)
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
     expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
     expect(screen.getByText('habits.detail.slippingLine').closest('section')).toHaveFocus()
     mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
   })
 
   it('keeps the proposal announcement mounted when loading finishes', () => {
     openRescueGate()
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')
+    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByRole('status')
     mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
-    expect(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).toBe(status)
+    expect(within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByRole('status')).toBe(status)
     expect(status).toHaveTextContent('Sun, Aug 30')
     expect(status).toHaveTextContent('Try tomorrow')
     expect(within(status).queryByRole('button')).not.toBeInTheDocument()
@@ -809,7 +809,7 @@ describe('HabitDetailScreen', () => {
     mocks.uses24HourClock = true
     mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-20', dueTime: '07:30:00', days: ['Tuesday', 'Thursday'], rationale: 'Walk before work.' }
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    const proposal = screen.getByRole('group', { name: 'habits.form.proposedByAstra' })
+    const proposal = screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })
     expect(Array.from(proposal.querySelectorAll('p, button')).map((node) => node.textContent)).toEqual([
       'Thu, Aug 20 · 07:30',
       'dates.daysShort.tuesday, dates.daysShort.thursday',
@@ -825,19 +825,19 @@ describe('HabitDetailScreen', () => {
     const notNow = within(proposal).getByRole('button', { name: 'habits.reschedule.dismiss' })
     notNow.focus()
     fireEvent.click(notNow)
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
     expect(screen.getByText('habits.detail.slippingLine')).toBeVisible()
     expect(document.activeElement).toBe(screen.getByText('habits.detail.slippingLine').closest('section'))
 
     mocks.detail = { ...makeDetail(), id: 'habit-2' }
     mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])
     view.rerender(<HabitDetailScreen habitId="habit-2" />)
-    expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).toBeInTheDocument()
 
     mocks.detail = makeDetail()
     mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).toBeInTheDocument()
   })
 
   it('closes the proposal once the plan is used', async () => {
@@ -851,7 +851,7 @@ describe('HabitDetailScreen', () => {
 
     await act(async () => { await Promise.resolve() })
     expect(mocks.update.mock.calls[0]?.[0]).toMatchObject({ habitId: 'habit-1', data: { dueDate: '2026-08-30', frequencyUnit: 'Day', frequencyQuantity: 1 } })
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
     expect(mocks.showError).not.toHaveBeenCalled()
   })
 
@@ -860,7 +860,7 @@ describe('HabitDetailScreen', () => {
     mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null, days: [], rationale: 'Try tomorrow' }
     mocks.updatePending = true
     render(<HabitDetailScreen habitId="habit-1" />)
-    const proposal = screen.getByRole('group', { name: 'habits.form.proposedByAstra' })
+    const proposal = screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })
     expect(within(proposal).getByRole('button', { name: 'habits.detail.rescheduleAccept' })).toHaveAttribute('aria-busy', 'true')
     expect(within(proposal).getByRole('button', { name: 'habits.reschedule.dismiss' })).toBeDisabled()
   })
@@ -877,7 +877,7 @@ describe('HabitDetailScreen', () => {
     view.rerender(<HabitDetailScreen habitId="habit-2" />)
     await act(async () => { rejectUpdate(new Error('Write failed')); await Promise.resolve() })
     expect(mocks.showError).not.toHaveBeenCalled()
-    expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).toBeInTheDocument()
   })
 
   it('moves the Orbit of the suggest date button while a retry with a kept error runs, with no skeleton light', () => {
@@ -901,12 +901,12 @@ describe('HabitDetailScreen', () => {
     expect(within(retry()).getByTestId('orbit-mascot')).not.toHaveAttribute('data-reading')
   })
 
-  it('offers Pro and Not now on the free rescue card without asking Astra', () => {
+  it('offers Pro and Not now on the free rescue card without asking Orbit', () => {
     openRescueGate()
     mocks.hasProAccess = false
     render(<HabitDetailScreen habitId="habit-1" />)
     const card = screen.getByText('habits.reschedule.freePrompt').parentElement!
-    expect(screen.queryByRole('group', { name: 'habits.form.proposedByAstra' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
     expect(within(card).queryByTestId('orbit-mascot')).not.toBeInTheDocument()
     expect(within(card).getByTestId('badge')).toHaveTextContent('habits.detail.proGate')
     expect(Array.from(card.querySelectorAll<HTMLElement>('a, button')).map((button) => [button.textContent, button.dataset.variant, button.dataset.size])).toEqual([
@@ -1555,16 +1555,16 @@ describe('HabitDetailScreen', () => {
 
 
 
-  it.each(['', 'My draft'])('opens Astra about the habit and preserves an existing draft %s', (draft) => {
+  it.each(['', 'My draft'])('opens Orbit about the habit and preserves an existing draft %s', (draft) => {
     useChatStore.getState().setDraft(draft)
     useChatStore.getState().setContextualSuggestion(null)
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
     render(<HabitDetailScreen habitId="habit-1" />)
-    const astraAction = screen.getByRole('button', { name: 'habits.detail.askAstra' })
-    expect(astraAction).toHaveTextContent('habits.detail.askAstra')
-    fireEvent.click(astraAction)
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
-    const prompt = 'habits.detail.askAstraSeedDefault:{"title":"Read"}'
+    const orbitAction = screen.getByRole('button', { name: 'habits.detail.askOrbit' })
+    expect(orbitAction).toHaveTextContent('habits.detail.askOrbit')
+    fireEvent.click(orbitAction)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+    const prompt = 'habits.detail.askOrbitSeedDefault:{"title":"Read"}'
     if (draft) {
       expect(useChatStore.getState().draft).toBe(draft)
       expect(useChatStore.getState().contextualSuggestion).toMatchObject({ id: 'habit-detail:habit-1', prompt })
@@ -1877,7 +1877,7 @@ describe('HabitDetailScreen', () => {
 
     await act(async () => { await Promise.resolve() })
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.rescheduleWriteError')
-    expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'habits.detail.rescheduleAccept' })).toBeInTheDocument()
   })
 
@@ -2042,7 +2042,7 @@ describe('HabitDetailScreen', () => {
       try {
         await page.setContent(`<style>${stylesheet}:root { font-size:${fontSize}px }</style>${container.innerHTML}`)
         await loadAppFonts(page)
-        const action = page.getByRole('button', { name: ptBR.habits.detail.askAstra, exact: true })
+        const action = page.getByRole('button', { name: ptBR.habits.detail.askOrbit, exact: true })
         const geometry = await action.locator('[data-slot="list-row-title"]').evaluate((title) => {
           const style = getComputedStyle(title)
           return { clientWidth: title.clientWidth, scrollWidth: title.scrollWidth, height: title.getBoundingClientRect().height, lineHeight: Number.parseFloat(style.lineHeight), textOverflow: style.textOverflow }

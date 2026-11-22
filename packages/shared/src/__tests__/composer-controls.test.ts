@@ -6,7 +6,7 @@ import type { ComposerProps } from '../contracts/composer'
 function composerProps() {
   return {
     state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
-    words: { placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Actions', suggestionsLabel: 'Suggestions' },
+    words: { placeholder: 'Ask Orbit', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Actions', suggestionsLabel: 'Suggestions' },
     onAttachImage: vi.fn(), onAttachFile: vi.fn(),
     attachWords: { image: 'Photo', file: 'File', trayLabel: 'Attachments', remove: name => name },
     onVoice: vi.fn(), voiceWords: { start: 'Record', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' },
@@ -161,7 +161,7 @@ describe('when the AI rests', () => {
 
   it.each([
     [true, { aiMessagesUsed: 0 }, null],
-    [false, { aiMessagesUsed: 0 }, 'todayAstra.guided.offline'],
+    [false, { aiMessagesUsed: 0 }, 'todayOrbit.guided.offline'],
     [true, { aiMessagesUsed: 4 }, null],
     [true, { aiMessagesUsed: 5 }, 'conversation.restLimit'],
     [true, { aiMessagesUsed: 4, aiMessagesLimit: undefined, hasProAccess: false }, null],

@@ -140,7 +140,7 @@ describe('Android final Pro step', () => {
       expect(all(card, 'PillButton')).toHaveLength(1)
       expect(all(card, 'PillButton')[0]!.props.disabled).toBe(false)
       const list = card.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLabel === translate('upgrade.outcomes.label'))[0]!
-      for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+      for (const key of ['orbit', 'calendar', 'retrospective', 'noticing']) {
         expect(text(list).filter((value) => value === translate(`upgrade.outcomes.${key}`))).toHaveLength(1)
       }
     }
@@ -171,7 +171,7 @@ describe('Android final Pro step', () => {
       expect(outcomes).toHaveLength(2)
       for (const interval of ['yearly', 'monthly']) {
         const tier = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === `upgrade-tier-${interval}`)[0]!
-        for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+        for (const key of ['orbit', 'calendar', 'retrospective', 'noticing']) {
           expect(text(tier)).toContain(translate(`upgrade.outcomes.${key}`))
         }
       }

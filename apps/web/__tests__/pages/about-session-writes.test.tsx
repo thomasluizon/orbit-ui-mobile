@@ -51,7 +51,7 @@ vi.mock('next/navigation', () => ({
     return mocks.searchParams
   },
 }))
-vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
+vi.mock('@/components/chat/conversation', () => ({ OrbitConversation: () => null }))
 vi.mock('@/components/navigation/navigation-history-tracker', () => ({ NavigationHistoryTracker: () => null }))
 vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))

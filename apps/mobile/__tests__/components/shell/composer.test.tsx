@@ -26,8 +26,8 @@ import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
-const astraCopy = vi.hoisted(() => ({ name: 'nav.astra', request: 'habits.form.suggestDate' }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'nav.astra' ? astraCopy.name : key === 'habits.form.suggestDate' ? astraCopy.request : key, i18n: { language: 'en' } }) }))
+const orbitCopy = vi.hoisted(() => ({ name: 'nav.orbit', request: 'habits.form.suggestDate' }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'nav.orbit' ? orbitCopy.name : key === 'habits.form.suggestDate' ? orbitCopy.request : key, i18n: { language: 'en' } }) }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: { getState: () => authSession } }))
 
 const clipboard = vi.hoisted(() => ({ getStringAsync: vi.fn().mockResolvedValue(''), hasStringAsync: vi.fn().mockResolvedValue(true) }))
@@ -129,7 +129,7 @@ function renderComposer(composerProps: ComposerProps) {
 }
 
 it.each([en, ptBR])('shows each suggestion action with only the decorative mark', messages => {
-  astraCopy.name = messages.nav.astra
+  orbitCopy.name = messages.nav.orbit
   const chips = suggestions(3)
   const tree = renderComposer(props({ suggestions: chips }))
   try {
@@ -149,7 +149,7 @@ it.each([en, ptBR])('shows each suggestion action with only the decorative mark'
     expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
     expect(chips[0]!.onSelect).not.toHaveBeenCalled()
     expect(chips[2]!.onSelect).not.toHaveBeenCalled()
-  } finally { astraCopy.name = 'nav.astra'; TestRenderer.act(() => tree.unmount()) }
+  } finally { orbitCopy.name = 'nav.orbit'; TestRenderer.act(() => tree.unmount()) }
 })
 
 describe('clipboard composer control', () => {
@@ -196,11 +196,11 @@ describe('clipboard composer control', () => {
 
   it.each([320, 412].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
     'moves text actions only when the whole placeholder needs their slot at $width', ({ width, messages }) => {
-      astraCopy.name = messages.nav.astra
-      astraCopy.request = messages.habits.form.suggestDate
+      orbitCopy.name = messages.nav.orbit
+      orbitCopy.request = messages.habits.form.suggestDate
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       const configuration = props({ suggestions: [], words: messages.shell.composer,
-        onAttachFile: vi.fn(), attachWords, onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation })
+        onAttachFile: vi.fn(), attachWords, onOpenConversation: vi.fn(), conversationLabel: messages.todayOrbit.openConversation })
       const tree = renderComposer(configuration)
       let layoutWidth = width
       function measure() {
@@ -258,7 +258,7 @@ describe('clipboard composer control', () => {
           TestRenderer.act(() => measurement.props.onTextLayout({ nativeEvent: { lines: Array.from({ length: candidate.lines }, () => line) } }))
           expect(measure().contentWidth).toBe(empty.contentWidth)
         }
-      } finally { TestRenderer.act(() => tree.unmount()); astraCopy.name = 'nav.astra'; astraCopy.request = 'habits.form.suggestDate'; __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+      } finally { TestRenderer.act(() => tree.unmount()); orbitCopy.name = 'nav.orbit'; orbitCopy.request = 'habits.form.suggestDate'; __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
     },
   )
 
@@ -594,7 +594,7 @@ describe('Composer (mobile)', () => {
     const tree = renderComposer(props({
       words: messages.shell.composer,
       onOpenConversation,
-      conversationLabel: messages.todayAstra.openConversation,
+      conversationLabel: messages.todayOrbit.openConversation,
     }))
     try {
       const controls = byLabel(tree.root, name)
@@ -669,7 +669,7 @@ describe('Composer (mobile)', () => {
     const configuration = props({ state, words: { ...catalog, placeholder }, suggestions: [],
       ...(state !== 'idle' ? { limitReason: state === 'offline' ? catalog.offline.reason : catalog.limit.reason } : {}),
       onAttachFile: vi.fn(), attachWords,
-      ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: ptBR.todayAstra.openConversation } : {}),
+      ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: ptBR.todayOrbit.openConversation } : {}),
     })
     const tree = renderComposer(configuration)
     try {
@@ -704,7 +704,7 @@ describe('Composer (mobile)', () => {
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
     const catalog = messages.shell.composer
     const configuration = props({ words: catalog, suggestions: [], onAttachFile: vi.fn(), attachWords,
-      onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation })
+      onOpenConversation: vi.fn(), conversationLabel: messages.todayOrbit.openConversation })
     const tree = renderComposer(configuration)
     try {
       const input = tree.root.findByType('TextInput')
@@ -1075,7 +1075,7 @@ describe('Composer (mobile)', () => {
     expect(StyleSheet.flatten(content.props.style)).toMatchObject({ gap: 12, padding: 16 })
   })
 
-  it('animates the Astra conversation control on press', async () => {
+  it('animates the Orbit conversation control on press', async () => {
     const timing = vi.spyOn(Animated, 'timing')
     const onOpenConversation = vi.fn()
     const conversationLabel = 'open conversation sentinel'
@@ -1533,8 +1533,8 @@ describe('Composer (mobile)', () => {
     ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. O Orbit volta quando a conexão voltar.'],
     ['en', en.shell.composer.offline, 'No connection', 'No connection. Orbit comes back when the connection does.'],
   ])('shows the %s offline composer copy', async (_locale, offline, placeholder, reason) => {
-    const tree = await renderComposer(props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Astra for something' }, limitReason: offline.reason }))
-    expect(byLabel(tree.root, 'Ask Astra for something')[0]).toBeDefined()
+    const tree = await renderComposer(props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Orbit for something' }, limitReason: offline.reason }))
+    expect(byLabel(tree.root, 'Ask Orbit for something')[0]).toBeDefined()
     expect(tree.root.findByProps({ testID: 'composer-placeholder' }).props.children).toBe(placeholder)
     expect(textValues(tree.root)).toContain(reason)
   })

@@ -77,8 +77,8 @@ import { isPublicPath } from '@/lib/public-paths'
 import { useHasSessionCookie } from '@/lib/session-cookie-provider'
 import { useFlag } from '@/hooks/use-flag'
 
-const AstraConversation = dynamic(
-  () => import('@/components/chat/conversation').then((module) => module.AstraConversation),
+const OrbitConversation = dynamic(
+  () => import('@/components/chat/conversation').then((module) => module.OrbitConversation),
   { ssr: false },
 )
 
@@ -104,7 +104,7 @@ export default function AppLayout({
   )
 }
 
-function OpenAstraFromQuery({ pathname, onOpen }: Readonly<{
+function OpenOrbitFromQuery({ pathname, onOpen }: Readonly<{
   pathname: string
   onOpen: (open: boolean) => void
 }>) {
@@ -134,10 +134,10 @@ function PushHabitCreateFromQuery({ pathname, activeView, onNavigated }: Readonl
     if (!useUIStore.getState().showCreateModal) return
     const queryString = searchParams.size ? `?${searchParams}` : ''
     const from = `${pathname}${queryString}`
-    const conversation = useUIStore.getState().astraConversationOpen
+    const conversation = useUIStore.getState().orbitConversationOpen
     useUIStore.getState().registerOpenOverlay(HABIT_CREATE_OVERLAY_ID)
     onNavigated()
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
     setRouteTransitionIntent('forward')
     router.push(buildHabitCreateHref({ from, conversation, date: activeView === 'today' && pathname === '/' ? resolveHabitDetailRouteDate(searchParams.get('date')) : null }))
   }, [activeView, onNavigated, pathname, router, searchParams])
@@ -192,9 +192,9 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const todayFabHidden = useUIStore((s) => s.todayFabHidden)
   const showCreateModal = useUIStore((s) => s.showCreateModal)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
-  const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
-  const toastInConversation = astraConversationOpen
-  const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
+  const orbitConversationOpen = useUIStore((s) => s.orbitConversationOpen)
+  const toastInConversation = orbitConversationOpen
+  const setOrbitConversationOpen = useUIStore((s) => s.setOrbitConversationOpen)
   const {
     fileInputRef,
     textFileInputRef,
@@ -309,18 +309,18 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   }, [patchProfile, setShowImportPrompt, showPersistentError, t])
 
 
-  const handleImportWithAstra = useCallback(() => {
+  const handleImportWithOrbit = useCallback(() => {
     closeImportSheet(() => {
       handleDismissImportPrompt()
       if ('localStorage' in globalThis) {
         globalThis.localStorage.setItem(
           CHAT_DRAFT_STORAGE_KEY,
-          t('onboarding.flow.meetAstra.importPrompt'),
+          t('onboarding.flow.meetOrbit.importPrompt'),
         )
       }
-      setAstraConversationOpen(true)
+      setOrbitConversationOpen(true)
     })
-  }, [closeImportSheet, handleDismissImportPrompt, setAstraConversationOpen, t])
+  }, [closeImportSheet, handleDismissImportPrompt, setOrbitConversationOpen, t])
 
 
   const handleImportPromptOpenChange = useCallback(
@@ -337,7 +337,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       <AccountAutomaticEffects profile={profile} />
       <Suspense fallback={null}>
         <SyncComposerDate onChange={setComposerDate} />
-        <OpenAstraFromQuery pathname={pathname} onOpen={setAstraConversationOpen} />
+        <OpenOrbitFromQuery pathname={pathname} onOpen={setOrbitConversationOpen} />
       </Suspense>
       <DestinationShell
         todayFabHidden={pathname === '/' && todayFabHidden}
@@ -350,13 +350,13 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
             {...chat.composerProps}
             suggestions={chat.composerProps.suggestions}
             inputId={chat.composerInputId}
-            onOpenConversation={() => setAstraConversationOpen(true)}
-            conversationLabel={t('todayAstra.openConversation')}
+            onOpenConversation={() => setOrbitConversationOpen(true)}
+            conversationLabel={t('todayOrbit.openConversation')}
             onSend={chat.composerProps.onSend}
           /> : undefined
         }
         conversation={(
-          <AstraConversation
+          <OrbitConversation
             chat={chat}
             notice={toastInConversation ? (
               <>
@@ -366,7 +366,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
             ) : undefined}
           />
         )}
-        conversationOpen={astraConversationOpen}
+        conversationOpen={orbitConversationOpen}
         conversationLabel={t('chat.title')}
         notice={(
           <>
@@ -412,7 +412,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         showImportPrompt={showImportPrompt}
         importSheetRef={importSheetRef}
         onImportPromptOpenChange={handleImportPromptOpenChange}
-        onImportWithAstra={handleImportWithAstra}
+        onImportWithOrbit={handleImportWithOrbit}
         onDismissImportPrompt={() => closeImportSheet(handleDismissImportPrompt)}
       />
 
@@ -455,7 +455,7 @@ function GlobalOverlays({
   showImportPrompt,
   importSheetRef,
   onImportPromptOpenChange,
-  onImportWithAstra,
+  onImportWithOrbit,
   onDismissImportPrompt,
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
@@ -469,7 +469,7 @@ function GlobalOverlays({
   showImportPrompt: boolean
   importSheetRef: ReturnType<typeof useSheetHost>['sheetRef']
   onImportPromptOpenChange: (open: boolean) => void
-  onImportWithAstra: () => void
+  onImportWithOrbit: () => void
   onDismissImportPrompt: () => void
 }>) {
   const t = useTranslations()
@@ -578,7 +578,7 @@ function GlobalOverlays({
             <PromptQuietAction onClick={onDismissImportPrompt}>
               {t('onboarding.wizard.importNotNow')}
             </PromptQuietAction>
-            <PillButton size="sm" onClick={onImportWithAstra}>
+            <PillButton size="sm" onClick={onImportWithOrbit}>
               {t('onboarding.wizard.importButton')}
             </PillButton>
           </ActionRow>

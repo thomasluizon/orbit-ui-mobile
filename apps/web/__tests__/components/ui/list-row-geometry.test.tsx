@@ -85,7 +85,7 @@ describe('personal ListRow text in Chromium', () => {
   it.each([320, 360, 384, 412].flatMap((width) => [1, 2].flatMap((textScale) => [en, ptBR].map((words) => ({ width, textScale, words })))))('keeps paused feature titles and descriptions unclipped at $width, scale $textScale', async ({ width, textScale, words }) => {
     const paused = words.trial.expired
     const markup = renderToStaticMarkup(<div style={{ padding: 24 }}>
-      {[paused.astraCeiling, paused.calendarSync, paused.retrospective, paused.proactiveAstra].map((title) => <ListRow key={title} readOnly textMode="label" title={title} description={paused.paused} />)}
+      {[paused.orbitCeiling, paused.calendarSync, paused.retrospective, paused.proactiveOrbit].map((title) => <ListRow key={title} readOnly textMode="label" title={title} description={paused.paused} />)}
     </div>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

@@ -224,7 +224,7 @@ describe('HabitFormFields mobile', () => {
     const form = (isSuggesting: boolean) => <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={vi.fn(() => SETUP_PROPOSAL)} isSuggesting={isSuggesting} />
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(form(false)) })
-    const action = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]!
+    const action = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')[0]!
     expect(action.findAllByType(OrbitMascot)).toHaveLength(1)
     await TestRenderer.act(() => { tree.update(form(true)) })
     expect(action.props.accessibilityState.busy).toBe(true)
@@ -238,7 +238,7 @@ describe('HabitFormFields mobile', () => {
     expect(action.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(0)
   })
 
-  it('keeps merged marked Astra actions guarded across the form freeze', async () => {
+  it('keeps merged marked Orbit actions guarded across the form freeze', async () => {
     const helpers = createFormHelpers({ itemType: 'habit', title: 'Build a stronger routine', datePhrase: 'after my vacation' })
     const setup = vi.fn(() => SETUP_PROPOSAL)
     const emoji = vi.fn().mockResolvedValue(SETUP_PROPOSAL)
@@ -472,7 +472,7 @@ describe('HabitFormFields mobile', () => {
     expect(nodes.filter((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.form.understood')).toHaveLength(0)
     const readingIndex = nodes.findIndex((node: { props: Record<string, unknown> }) => node.props.children === 'habits.form.unresolved')
     const correctionIndex = nodes.findIndex((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Monday')
-    const askIndex = nodes.findIndex((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.form.askAstra')
+    const askIndex = nodes.findIndex((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.form.askOrbit')
     expect(correctionIndex).toBeGreaterThan(readingIndex)
     expect(askIndex).toBeGreaterThan(correctionIndex)
   })
@@ -533,7 +533,7 @@ describe('HabitFormFields mobile', () => {
     expect(tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.emojiOpenPicker')).toHaveLength(1)
   })
 
-  it('hides the preview and retains the emoji well while Astra reads a phrase with an existing schedule', async () => {
+  it('hides the preview and retains the emoji well while Orbit reads a phrase with an existing schedule', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title: 'Run every day', frequencyUnit: 'Day', frequencyQuantity: 1 })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} isSuggesting />)
@@ -730,7 +730,7 @@ describe('HabitFormFields mobile', () => {
     expect(formHelpers.toggleDay).not.toHaveBeenCalled()
   })
 
-  it('preserves an Astra schedule across the next title edit', async () => {
+  it('preserves an Orbit schedule across the next title edit', async () => {
     const formHelpers = createFormHelpers({ title: 'Run Monday at 08:00' })
     const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
     const onSuggestSetup = vi.fn(() => {
@@ -757,7 +757,7 @@ describe('HabitFormFields mobile', () => {
       tree.update(renderNode())
       await Promise.resolve()
     })
-    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]
+    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
@@ -868,7 +868,7 @@ describe('HabitFormFields mobile', () => {
     expect(onUpgrade).not.toHaveBeenCalled()
   })
 
-  it('keeps local corrections and details live at the Astra ceiling', async () => {
+  it('keeps local corrections and details live at the Orbit ceiling', async () => {
     mockProfileState.aiMessagesUsed = 5
     const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
     const formHelpers = createFormHelpers()
@@ -878,7 +878,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]
+    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')[0]
     expect(ask.props.disabled).toBe(true)
     expect(ask.props.accessibilityState.disabled).toBe(true)
 
@@ -894,7 +894,7 @@ describe('HabitFormFields mobile', () => {
     expect(onSuggestSetup).not.toHaveBeenCalled()
   })
 
-  it('disables Astra at the Pro allowance too', async () => {
+  it('disables Orbit at the Pro allowance too', async () => {
     mockProfileState.hasProAccess = true
     mockProfileState.aiMessagesUsed = 5
     let tree: any
@@ -903,11 +903,11 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]
+    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')[0]
     expect(ask.props.disabled).toBe(true)
   })
 
-  it('keeps a pre-existing checklist normal when Astra proposes only setup', async () => {
+  it('keeps a pre-existing checklist normal when Orbit proposes only setup', async () => {
     const formHelpers = createFormHelpers({
       checklistItems: [{ text: 'Shoes', isChecked: false }],
     })
@@ -917,7 +917,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]
+    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
@@ -925,7 +925,7 @@ describe('HabitFormFields mobile', () => {
     expect(tree.root.findByProps({ testID: 'checklist' }).parent?.props.testID).not.toBe('proposed-field')
   })
 
-  it('allows Astra again after the proposed phrase changes', async () => {
+  it('allows Orbit again after the proposed phrase changes', async () => {
     const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
     let tree: any
     await TestRenderer.act(async () => {
@@ -933,7 +933,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    let ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]
+    let ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
@@ -944,7 +944,7 @@ describe('HabitFormFields mobile', () => {
       tree.root.findByType(HabitUnderstanding).props.onValueChange('Build a calmer routine')
       await Promise.resolve()
     })
-    ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]
+    ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
@@ -970,7 +970,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]
+    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
@@ -986,7 +986,7 @@ describe('HabitFormFields mobile', () => {
     expect(tree.root.findByProps({ testID: 'sub-habit-editor' }).parent.props.testID).toBe('proposed-field')
   })
 
-  it('marks only an Astra checklist proposal and resolves it when edited', async () => {
+  it('marks only an Orbit checklist proposal and resolves it when edited', async () => {
     const formHelpers = createFormHelpers({
       checklistItems: [{ text: 'Shoes', isChecked: false }],
     })
@@ -996,13 +996,13 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]
+    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
     })
     expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
-    expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')).toHaveLength(0)
+    expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')).toHaveLength(0)
 
     TestRenderer.act(() => tree.root.findByProps({ testID: 'checklist' }).props.onItemsChange([{ text: 'Edited', isChecked: false }]))
     expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(0)
@@ -1033,7 +1033,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]
+    const ask = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
@@ -1546,7 +1546,7 @@ describe('manual schedule creation', () => {
     mockProfileState.aiMessagesUsed = 0
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
   })
-  it.each(['Day', 'Week', 'Month', 'Year'] as const)('creates every interval and flexible %s schedule without Astra', async (unit) => {
+  it.each(['Day', 'Week', 'Month', 'Year'] as const)('creates every interval and flexible %s schedule without Orbit', async (unit) => {
     const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
     useWatchMock.mockImplementation(useWatch)
     mockProfileState.aiMessagesUsed = 5
@@ -1583,7 +1583,7 @@ describe('manual schedule creation', () => {
     await TestRenderer.act(() => tree!.unmount())
   })
 
-  it.each(['quantity', 'unit', 'mode', 'day', 'interval'] as const)('marks an Astra schedule as proposed until a %s edit', async (edit) => {
+  it.each(['quantity', 'unit', 'mode', 'day', 'interval'] as const)('marks an Orbit schedule as proposed until a %s edit', async (edit) => {
     const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
     useWatchMock.mockImplementation(useWatch)
     const patch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
@@ -1604,7 +1604,7 @@ describe('manual schedule creation', () => {
     try {
       expect(tree.root.findAll((node: UnderstandingTestNode) => node.props.testID === 'proposed-block')).toHaveLength(0)
       await TestRenderer.act(async () => {
-        tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askAstra')[0]!.props.onPress()
+        tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.askOrbit')[0]!.props.onPress()
         await Promise.resolve()
       })
       expect(helpers.form.getValues('days')).toEqual(['Monday'])
@@ -2190,7 +2190,7 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     expect(action('habits.form.removeSubHabit')).toBeDefined()
   })
 
-  it.each(['en', 'pt-BR'])('saves the entered cadence with an accepted Astra start in %s', async (locale) => {
+  it.each(['en', 'pt-BR'])('saves the entered cadence with an accepted Orbit start in %s', async (locale) => {
     formLocale.realController = true
     formLocale.language = locale
     await mount('habit')

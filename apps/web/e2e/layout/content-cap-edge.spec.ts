@@ -74,12 +74,12 @@ for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
           await page.goto('/profile')
           const profile = page.getByTestId('profile-settings-groups')
           await expectContentEdges(profile.locator('.orbit-row-list > *'), reference, width)
-          for (const screen of ['account', 'preferences', 'astra', 'notifications']) {
+          for (const screen of ['account', 'preferences', 'orbit', 'notifications']) {
             await page.goto(`/profile/${screen}`)
             const group = page.getByTestId(`profile-settings-group-${screen}`)
             await expect(group.locator('[aria-busy="true"]')).toHaveCount(0)
             await expectContentEdges(group.locator('.orbit-row-list > *'), reference, width)
-            if (screen === 'astra') await expectContentEdges(group.getByTestId('astra-allowance-panel'), reference, width)
+            if (screen === 'orbit') await expectContentEdges(group.getByTestId('orbit-allowance-panel'), reference, width)
           }
 
           await page.goto('/notifications')

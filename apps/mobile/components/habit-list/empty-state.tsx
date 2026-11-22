@@ -23,8 +23,8 @@ interface HabitListEmptyStateProps {
   actionIcon?: 'refresh'
   actionLabel?: string
   onAction?: () => void
-  askAstraLabel?: string
-  onAskAstra?: () => void
+  askOrbitLabel?: string
+  onAskOrbit?: () => void
   variant?: 'primary' | 'secondary'
 }
 
@@ -38,20 +38,20 @@ export function HabitListEmptyState({
   actionIcon,
   actionLabel,
   onAction,
-  askAstraLabel,
-  onAskAstra,
+  askOrbitLabel,
+  onAskOrbit,
   variant = 'primary',
 }: Readonly<HabitListEmptyStateProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const mascotSize = useStateMascotSize()
   const { width } = useWindowDimensions()
-  const isAstraPrompt = variant === 'primary'
+  const isOrbitPrompt = variant === 'primary'
   const hasDistinctDescription = Boolean(description) && description !== title
-  const showAstraAction =
-    isAstraPrompt && Boolean(askAstraLabel) && Boolean(onAskAstra)
+  const showOrbitAction =
+    isOrbitPrompt && Boolean(askOrbitLabel) && Boolean(onAskOrbit)
   const showActions =
-    showAstraAction || (isAstraPrompt && Boolean(actionLabel))
+    showOrbitAction || (isOrbitPrompt && Boolean(actionLabel))
 
   let emptyActions: ReactNode = null
   if (showActions) {
@@ -67,13 +67,13 @@ export function HabitListEmptyState({
             {actionLabel}
           </PillButton>
         ) : null}
-        {showAstraAction && askAstraLabel ? (
+        {showOrbitAction && askOrbitLabel ? (
           <PillButton
             variant={filledVariantFor(width)}
-            onClick={onAskAstra}
+            onClick={onAskOrbit}
 
           >
-            {askAstraLabel}
+            {askOrbitLabel}
           </PillButton>
         ) : null}
       </ActionRow></View>

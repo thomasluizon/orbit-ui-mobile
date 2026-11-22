@@ -1,6 +1,6 @@
 'use client'
 
-import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
+import { useOrbitAllowanceCopy } from '@/hooks/use-orbit-allowance-copy'
 
 import { useState, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -101,7 +101,7 @@ function EditHabitDraft({
   lockedGeneral = null,
 }: Readonly<EditHabitModalProps>) {
   const t = useTranslations()
-  const allowanceText = useAstraAllowanceCopy()
+  const allowanceText = useOrbitAllowanceCopy()
   const translate = allowanceText
   const locale = useLocale()
   const { isOnline } = useOffline()

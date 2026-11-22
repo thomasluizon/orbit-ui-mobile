@@ -4,7 +4,7 @@ The scope is the proactive line, grouped date navigation and habit content on Ho
 
 | Surface | Android owner | Web owner | States |
 |---|---|---|---|
-| Proactive line | `components/today/today-astra.tsx` inside the habit-list header | `components/today/today-astra.tsx` inside the Hoje page | Present, absent, suppressed, destination action |
+| Proactive line | `components/today/today-orbit.tsx` inside the habit-list header | `components/today/today-orbit.tsx` inside the Hoje page | Present, absent, suppressed, destination action |
 | Date navigation | `components/today/today-date-control.tsx` inside the habit-list header | `app/(app)/today-shell.tsx` | Today, another date, disabled next action, full and short weekday |
 | Habit content | `components/habits/habit-row.tsx` inside `components/habit-list.tsx` | `components/habits/habit-row.tsx` inside `components/habits/habit-list.tsx` | Childless root, collapsed and expanded parent, inline child, selected and unselected, completed and read-only |
 

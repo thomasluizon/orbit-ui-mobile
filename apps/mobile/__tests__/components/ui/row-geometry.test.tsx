@@ -14,7 +14,7 @@ import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import { HabitDetailFields } from '@/components/habits/habit-detail-fields'
-import { ProfileAstraContent } from '@/app/(tabs)/profile/_components/profile-astra-content'
+import { ProfileOrbitContent } from '@/app/(tabs)/profile/_components/profile-orbit-content'
 import { PushDevicesRow } from '@/components/profile/push-devices-row'
 import { createTokensV2 } from '@/lib/theme'
 import { measureProfileRow } from '../../support/profile-row-geometry'
@@ -249,7 +249,7 @@ describe('canonical row geometry in Yoga', () => {
       expect(rows.some((row) => row.props.title === 'habits.detail.schedule' && row.props.readOnly)).toBe(true)
       assertComposition(detail.toJSON(), width, scale, 16)
     } finally { await act(() => detail.update(<></>)); queryClient.clear() }
-    const profile = await mount(<QueryClientProvider client={queryClient}><View><ProfileAstraContent profile={createMockProfile({ hasProAccess: true })} patchProfile={vi.fn()} /><PushDevicesRow tokens={tokens} count={1} max={5} currentDeviceRegistered supported loading={false} error={false} permissionStatus="granted" registrationStatus="idle" onToggle={vi.fn()} onOpenSettings={vi.fn()} onRetry={vi.fn()} /></View></QueryClientProvider>)
+    const profile = await mount(<QueryClientProvider client={queryClient}><View><ProfileOrbitContent profile={createMockProfile({ hasProAccess: true })} patchProfile={vi.fn()} /><PushDevicesRow tokens={tokens} count={1} max={5} currentDeviceRegistered supported loading={false} error={false} permissionStatus="granted" registrationStatus="idle" onToggle={vi.fn()} onOpenSettings={vi.fn()} onRetry={vi.fn()} /></View></QueryClientProvider>)
     try {
       const rows = profile.root.findAll((node) => node.type === ListRow).filter((row) => row.props.toggle)
       expect(rows).toHaveLength(3)

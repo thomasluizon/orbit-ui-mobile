@@ -116,7 +116,7 @@ describe('goal detail on the Orbit logic', () => {
     mocks.updateStatus.mockResolvedValue(undefined)
     await useCatalog('en')
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
-    useUIStore.setState({ astraConversationOpen: false })
+    useUIStore.setState({ orbitConversationOpen: false })
   })
   afterEach(async () => { await act(() => tree.unmount()); vi.useRealTimers() })
 
@@ -131,7 +131,7 @@ describe('goal detail on the Orbit logic', () => {
     await useCatalog(locale)
     detailGoal = { ...detailGoal, deadline }
     await renderDetail()
-    const line = byProp(tree.root, 'testID', 'today-astra-slot')
+    const line = byProp(tree.root, 'testID', 'today-orbit-slot')
     expect(line.props.accessibilityLabel).toBe(sentence)
     const mascot = byProp(line, 'testID', 'orbit-mascot')
     expect(mascot.props.width, 'the line row draws the live Orbit at 48').toBe(48)
@@ -142,29 +142,29 @@ describe('goal detail on the Orbit logic', () => {
   it('states a passed deadline with its date', async () => {
     detailGoal = { ...detailGoal, deadline: '2026-10-03' }
     await renderDetail()
-    expect(byProp(tree.root, 'testID', 'today-astra-slot').props.accessibilityLabel).toBe(`By my count, the deadline ended on ${formatLocaleDate('2026-10-03', 'en')}.`)
+    expect(byProp(tree.root, 'testID', 'today-orbit-slot').props.accessibilityLabel).toBe(`By my count, the deadline ended on ${formatLocaleDate('2026-10-03', 'en')}.`)
   })
 
   it('opens the conversation with the seeded question from the line row, the one way in', async () => {
     detailGoal = { ...detailGoal, deadline: '2026-11-20' }
     await renderDetail()
     await press('By my count, 7 days are left until the deadline.')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
-    expect(pressables(`${i18n.t('goals.detail.askAstraEyebrow')}: ${i18n.t('goals.detail.askAstraDefault')}`)).toHaveLength(0)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+    expect(pressables(`${i18n.t('goals.detail.askOrbitEyebrow')}: ${i18n.t('goals.detail.askOrbitDefault')}`)).toHaveLength(0)
   })
 
   it('has no line with no deadline and keeps the ask row', async () => {
     await renderDetail()
-    expect(allByProp(tree.root, 'testID', 'today-astra-slot')).toHaveLength(0)
-    await press(`${i18n.t('goals.detail.askAstraEyebrow')}: ${i18n.t('goals.detail.askAstraDefault')}`)
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(allByProp(tree.root, 'testID', 'today-orbit-slot')).toHaveLength(0)
+    await press(`${i18n.t('goals.detail.askOrbitEyebrow')}: ${i18n.t('goals.detail.askOrbitDefault')}`)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   })
 
   it('keeps the current detail with the flag off: no line and no result dialog', async () => {
     mocks.guided = false
     detailGoal = { ...detailGoal, deadline: '2026-11-20' }
     await renderDetail()
-    expect(allByProp(tree.root, 'testID', 'today-astra-slot')).toHaveLength(0)
+    expect(allByProp(tree.root, 'testID', 'today-orbit-slot')).toHaveLength(0)
     await press(i18n.t('goals.detail.markAbandoned'))
     expect(mocks.updateStatus).toHaveBeenCalled()
     expect(resultDialog()).toBeUndefined()

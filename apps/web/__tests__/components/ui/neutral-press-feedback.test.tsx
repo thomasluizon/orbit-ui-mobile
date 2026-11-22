@@ -8,7 +8,7 @@ import type { Locator, Page } from '@playwright/test'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { SelectionTray } from '@/components/habits/selection-tray'
-import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
+import { OrbitAllowancePanel } from '@/components/profile/orbit-allowance-panel'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -27,7 +27,7 @@ function feedbackControls(allSelected: boolean, unavailable = false, completionR
   return <>
     <SelectionTray onBulkMove={() => {}} selectedCount={unavailable ? 0 : 2} allSelected={allSelected} completionReadOnly={completionReadOnly}
       onSelectAll={noop} onDeselectAll={noop} onBulkLog={noop} onBulkSkip={noop} onBulkDelete={noop} onCancel={noop} />
-    <AstraAllowancePanel profile={createMockProfile()} />
+    <OrbitAllowancePanel profile={createMockProfile()} />
     <PillButton variant="ghost" disabled={unavailable}>Ghost</PillButton>
     <div style={{ background: 'var(--bg-elev)' }}><PromptQuietAction disabled={unavailable}>Quiet</PromptQuietAction></div>
     <PillButton variant="ghost" loading>Saving</PillButton>

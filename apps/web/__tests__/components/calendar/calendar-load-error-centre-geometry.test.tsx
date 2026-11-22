@@ -24,7 +24,7 @@ function CalendarInShell({ failed }: Readonly<{ failed: 'profile' | 'month' }>) 
   const profile = failed === 'profile'
   const layout = calendarPageLayout('month', !profile, profile, !profile, <div data-calendar-header-probe="" style={{ height: 220 }} />, true)
   return <ShellHeaderHostContext.Provider value={host}>
-    <ShellWide items={[]} activeId="" navLabel={ptBr.nav.mainNavigation} astraRow={{ label: 'Astra', onOpen: () => {} }}
+    <ShellWide items={[]} activeId="" navLabel={ptBr.nav.mainNavigation} orbitRow={{ label: 'Orbit', onOpen: () => {} }}
       registerHeaderHost={element => { host.current = element }} notice={<></>} tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
       <div id="orbit-main" className={DESTINATION_MAIN_CLASS_NAME}>
         <div data-route-motion="" className="flex flex-1 flex-col has-[[data-page-viewport]]:h-full">

@@ -26,7 +26,7 @@ function render(element: React.ReactElement) {
   return tree
 }
 
-describe('Astra record list on mobile', () => {
+describe('Orbit record list on mobile', () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.generation = 0 })
 
   it('replaces the record filter border on focus', () => {

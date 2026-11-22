@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test'
 
-/** BFF helpers used by setup/teardown and by the Astra spec to assert server
+/** BFF helpers used by setup/teardown and by the Orbit spec to assert server
  *  state directly. They reuse the page's session cookie via `page.request`, so
  *  every call is authenticated as the smoke user. */
 

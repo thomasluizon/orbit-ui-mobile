@@ -225,12 +225,12 @@ describe('Android interaction fill clearance', () => {
         tree = create(<Shell412 tabBar={<BottomTabBar label={messages.nav.mainNavigation} activeId="today" onSelect={vi.fn()}
           items={(['today', 'calendar', 'progress', 'profile'] as const).map(id => ({ id, label: messages.nav[id], icon: () => <View style={{ width: 24, height: 24 }} /> }))} />}
           composer={<Composer state="idle" value="" suggestions={[]} words={messages.shell.composer}
-          onChangeValue={vi.fn()} onSend={vi.fn()} onRetry={vi.fn()} onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation} />}>
+          onChangeValue={vi.fn()} onSend={vi.fn()} onRetry={vi.fn()} onOpenConversation={vi.fn()} conversationLabel={messages.todayOrbit.openConversation} />}>
           <HabitDetailScreen habitId="habit-1" />
         </Shell412>) as GeometryTree
       })
       try {
-        if (state === 'pressed') await setInteraction(tree, `${messages.todayAstra.openConversation}`, state)
+        if (state === 'pressed') await setInteraction(tree, `${messages.todayOrbit.openConversation}`, state)
         else {
           const input = tree.root.findAll(node => String(node.type) === 'TextInput' && node.props.accessibilityLabel === messages.shell.composer.inputLabel)[0]!
           await act(() => (input.props.onFocus as () => void)())

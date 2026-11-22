@@ -54,18 +54,18 @@ beforeEach(() => {
   mocks.useSummary.mockClear()
   mocks.push.mockClear()
   useChatStore.setState({ messages: [], proactiveEntryId: null })
-  useUIStore.setState({ astraConversationOpen: false })
+  useUIStore.setState({ orbitConversationOpen: false })
 })
 
 describe('daily summary on Hoje', () => {
-  it('fetches the account day and opens the full-screen Astra conversation', async () => {
+  it('fetches the account day and opens the full-screen Orbit conversation', async () => {
     const tree = await renderSummary()
     try {
       expect(hasText(tree, 'A short daily summary.')).toBe(true)
       expect(hasText(tree, 'aiDisclosure.notMedicalAdvice')).toBe(false)
       expect(mocks.useSummary).toHaveBeenCalledWith({ date: '2026-08-29', locale: 'en', timeZone: 'America/Sao_Paulo', hasProAccess: true, aiSummaryEnabled: true })
       await press(tree, 'A short daily summary.')
-      expect(useUIStore.getState().astraConversationOpen).toBe(true)
+      expect(useUIStore.getState().orbitConversationOpen).toBe(true)
       expect(mocks.push).not.toHaveBeenCalled()
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
@@ -75,9 +75,9 @@ describe('daily summary on Hoje', () => {
     const tree = await renderSummary()
     try {
       expect(action(tree, 'common.seeMore')).toBeUndefined()
-      expect(action(tree, 'Your habits are ready for today.').props.accessibilityHint).toBe('todayAstra.openConversation')
+      expect(action(tree, 'Your habits are ready for today.').props.accessibilityHint).toBe('todayOrbit.openConversation')
       await press(tree, 'Your habits are ready for today.')
-      expect(useUIStore.getState().astraConversationOpen).toBe(true)
+      expect(useUIStore.getState().orbitConversationOpen).toBe(true)
       expect(useChatStore.getState().messages[0]).toMatchObject({ role: 'ai', content: mocks.summary })
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
@@ -109,7 +109,7 @@ describe('daily summary on Hoje', () => {
       expect(loading.props.accessibilityState).toMatchObject({ busy: true, disabled: true })
       expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'summary-skeleton')).toHaveLength(1)
       await press(tree, 'summary.loading')
-      expect(useUIStore.getState().astraConversationOpen).toBe(false)
+      expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     } finally { await TestRenderer.act(() => tree.unmount()) }
   })
 

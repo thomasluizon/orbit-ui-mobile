@@ -17,7 +17,7 @@ import { SMALL_PILL_VISIBLE_MIN, SPACING } from '@orbit/shared/theme'
 import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
 import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { HabitViewSwitch } from '@/components/today/habit-view-switch'
-import { TodayAstra } from '@/components/today/today-astra'
+import { TodayOrbit } from '@/components/today/today-orbit'
 import { HabitRow } from '@/components/habits/habit-row'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { TodayDateControl } from '@/app/(app)/today-shell'
@@ -171,7 +171,7 @@ describe('Hoje header geometry', () => {
     'separates destination interaction fills from following content at $width in $mode', async ({ width, mode }) => {
       const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
       const surfaces = [
-        <TodayDateControl key="today" {...props} isTodaySelected beforeDate={<TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />} />,
+        <TodayDateControl key="today" {...props} isTodaySelected beforeDate={<TodayOrbit today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />} />,
         <CalendarOptions key="calendar" />,
         <RootNotificationHeader key="progress" />,
         <RootNotificationHeader key="profile" />,
@@ -186,7 +186,7 @@ describe('Hoje header geometry', () => {
       await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
           unmount()
           await page.evaluate((theme) => { document.documentElement.className = theme }, mode)
-          const content = page.locator(index === 0 ? '.today-astra-line' : '[data-first-content]')
+          const content = page.locator(index === 0 ? '.today-orbit-line' : '[data-first-content]')
           await expect.poll(() => content.count()).toBe(1)
           const controls = page.locator('[data-today-header-actions] button, [data-testid="calendar-shell-header"] button, [data-root-notification-header] button')
           let inspected = 0
@@ -427,7 +427,7 @@ describe('Hoje header geometry', () => {
     const surfaces = width < 1024 ? [<TodayDateControl key="today" {...props} isTodaySelected />, <CalendarOptions key="calendar" />,
       <RootNotificationHeader key="progress" />, <RootNotificationHeader key="profile" />] : [
       <TodayDateControl key="today" {...props} isTodaySelected />, <CalendarOptions key="calendar" />,
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} key="sidebar" items={[]} activeId="hoje" navLabel={messages.nav.today} notifications={<NotificationBell />}><div /></ShellWide>,
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} key="sidebar" items={[]} activeId="hoje" navLabel={messages.nav.today} notifications={<NotificationBell />}><div /></ShellWide>,
     ]
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     try {
@@ -492,7 +492,7 @@ describe('Hoje header geometry', () => {
     'shares content edges within each indented card depth at $width with $textScale text scale, selecting=$selectMode', async ({ width, textScale, selectMode }) => {
       document.documentElement.style.fontSize = `${16 * textScale}px`
       const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
-        <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
+        <TodayOrbit today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
         <TodayDateControl {...props} isTodaySelected />
         <div style={{ paddingInline: 16, display: 'flex', flexDirection: 'column', gap: SPACING.s12 }}>
           {[['Leaf'], ['Parent', 'Child']].map((titles) => <div className="habit-panel" key={titles[0]}>
@@ -511,7 +511,7 @@ describe('Hoje header geometry', () => {
       await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(async (scale) => {
           document.documentElement.style.fontSize = `${16 * scale}px`
-          const labels = document.querySelectorAll<HTMLElement>('[data-habit-row-body] > span > span, [data-personal-text-content] > span > span, .today-astra-sentence')
+          const labels = document.querySelectorAll<HTMLElement>('[data-habit-row-body] > span > span, [data-personal-text-content] > span > span, .today-orbit-sentence')
           for (const label of labels) {
             const size = Number.parseFloat(getComputedStyle(label).fontSize)
             label.style.fontSize = `${size * scale}px`
@@ -520,7 +520,7 @@ describe('Hoje header geometry', () => {
         }, textScale)
         const geometry = await page.evaluate(() => {
           const date = document.querySelector('[data-today-date-row] [aria-disabled]')!
-          const sentence = document.querySelector('.today-astra-sentence')!
+          const sentence = document.querySelector('.today-orbit-sentence')!
           const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
           const parent = rows[1]!
           const progress = parent.querySelector('[data-habit-row-meta]')!

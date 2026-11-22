@@ -130,7 +130,7 @@ vi.mock('@/components/navigation/root-stack-screens', async (importOriginal) => 
   </> }
 })
 vi.mock('@/components/habit-list', () => ({ HabitList: () => <Text testID="today-list">Today list</Text> }))
-vi.mock('@/components/today/today-astra', () => ({ TodayAstra: () => null }))
+vi.mock('@/components/today/today-orbit', () => ({ TodayOrbit: () => null }))
 vi.mock('@/components/today/today-date-control', () => ({ TodayDateControl: () => null }))
 vi.mock('@/components/today/today-modals', () => ({ TodayModals: () => null }))
 vi.mock('@/app/(tabs)/use-today-motion', () => ({ useTodayMotion: () => ({ renderBulkActionBar: false }) }))
@@ -172,8 +172,8 @@ vi.mock('@/stores/ui-store', async (importOriginal) => {
   return { ...original, useUIStore: Object.assign(
     (selector: (state: ReturnType<typeof original.useUIStore.getState>) => unknown) => original.useUIStore((state) => selector({
       ...state,
-      astraConversationOpen: createState.conversationOpen,
-      setAstraConversationOpen: setConversationOpen,
+      orbitConversationOpen: createState.conversationOpen,
+      setOrbitConversationOpen: setConversationOpen,
       setShowCreateModal: createState.showCreate,
       setLastDestination: createState.setLastDestination,
     })), original.useUIStore,
@@ -240,7 +240,7 @@ vi.mock('@/components/gamification/celebration-panel', () => ({
 }))
 vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
-vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => React.createElement(Text, { testID: 'conversation-content' }, 'Conversation') }))
+vi.mock('@/components/chat/conversation', () => ({ OrbitConversation: () => React.createElement(Text, { testID: 'conversation-content' }, 'Conversation') }))
 vi.mock('@/components/throttle-screen', () => ({
   ThrottleScreen: () => createState.portalVisible
     ? <Portal name="root-portal-probe"><RootPortalProbe /></Portal>
@@ -306,12 +306,12 @@ async function renderRoot() {
 }
 
 describe('Wrapped root shell', () => {
-  it('replaces the Hoje composer with one Astra button', async () => {
+  it('replaces the Hoje composer with one Orbit button', async () => {
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
     const tree = await renderRoot()
     expect(findByTestId(tree, 'composer-field')).toHaveLength(0)
-    expect(findByTestId(tree, 'astra-button')).toHaveLength(1)
+    expect(findByTestId(tree, 'orbit-button')).toHaveLength(1)
   })
 
   it.each([true, false])('hosts portals once inside app and navigation providers when authenticated is %s', async (authenticated) => {
@@ -466,7 +466,7 @@ describe('Wrapped root shell', () => {
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
     await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
-    const open = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'shell.astraButton.open')[0]
+    const open = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'shell.orbitButton.open')[0]
     await TestRenderer.act(() => { (open?.props.onPress as () => void)(); tree.update(React.createElement(RootLayout)) })
     expect(findByTestId(tree, 'shell-conversation')).toHaveLength(1)
 
@@ -565,7 +565,7 @@ describe('Wrapped root shell', () => {
     expect(bottomViewport?.props.scrollEnabled).toBe(true)
   })
 
-  it.each([412, 1280].flatMap(width => [false, true].map(hasError => ({ width, hasError }))))('removes the FAB and floating viewport and leaves the Astra button in its place for settled Today at $width with load error=$hasError', async ({ width, hasError }) => {
+  it.each([412, 1280].flatMap(width => [false, true].map(hasError => ({ width, hasError }))))('removes the FAB and floating viewport and leaves the Orbit button in its place for settled Today at $width with load error=$hasError', async ({ width, hasError }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
@@ -575,7 +575,7 @@ describe('Wrapped root shell', () => {
     createState.profile = { hasProAccess: true }
     const tree = await renderRoot()
     expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
-    expect(findByTestId(tree, 'shell-fab-column')[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-button')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-fab-column')[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-button')).toHaveLength(1)
     expect(findByTestId(tree, 'shell-bottom-viewport')[0]?.props.scrollEnabled).toBe(false)
   })
 

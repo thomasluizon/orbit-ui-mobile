@@ -10,7 +10,7 @@ import { getWidgetCopy, type WidgetCopy } from '@orbit/shared/utils/advanced-set
 
 type SectionKey =
   | 'habits'
-  | 'astra'
+  | 'orbit'
   | 'connect'
   | 'progress'
   | 'calendar'
@@ -20,7 +20,7 @@ type SectionKey =
 
 const tabs: { key: SectionKey; labelKey: string }[] = [
   { key: 'habits', labelKey: 'onboarding.featureGuide.habits' },
-  { key: 'astra', labelKey: 'onboarding.featureGuide.astra' },
+  { key: 'orbit', labelKey: 'onboarding.featureGuide.orbit' },
   { key: 'connect', labelKey: 'onboarding.featureGuide.connect' },
   { key: 'progress', labelKey: 'onboarding.featureGuide.progress' },
   { key: 'calendar', labelKey: 'onboarding.featureGuide.calendar' },
@@ -42,16 +42,16 @@ function buildWidgetItems({ guideTodayKey, guideOpensKey }: WidgetCopy): Section
 }
 
 const sectionItems: Record<Exclude<SectionKey, 'widget'>, SectionItem[]> = {
-  astra: [
-    { titleKey: 'onboarding.featureGuide.astraSection.canDoTitle', descKey: 'onboarding.featureGuide.astraSection.canDoDesc' },
-    { titleKey: 'onboarding.featureGuide.astraSection.toolsBreadthTitle', descKey: 'onboarding.featureGuide.astraSection.toolsBreadthDesc' },
-    { titleKey: 'onboarding.featureGuide.astraSection.manageTitle', descKey: 'onboarding.featureGuide.astraSection.manageDesc' },
-    { titleKey: 'onboarding.featureGuide.astraSection.insightsTitle', descKey: 'onboarding.featureGuide.astraSection.insightsDesc' },
-    { titleKey: 'onboarding.featureGuide.astraSection.reschedulingTitle', descKey: 'onboarding.featureGuide.astraSection.reschedulingDesc' },
-    { titleKey: 'onboarding.featureGuide.astraSection.imageTitle', descKey: 'onboarding.featureGuide.astraSection.imageDesc' },
-    { titleKey: 'onboarding.featureGuide.astraSection.voiceTitle', descKey: 'onboarding.featureGuide.astraSection.voiceDesc' },
-    { titleKey: 'onboarding.featureGuide.astraSection.cannotDoTitle', descKey: 'onboarding.featureGuide.astraSection.cannotDoDesc' },
-    { titleKey: 'onboarding.featureGuide.astraSection.tipsTitle', descKey: 'onboarding.featureGuide.astraSection.tipsDesc' },
+  orbit: [
+    { titleKey: 'onboarding.featureGuide.orbitSection.canDoTitle', descKey: 'onboarding.featureGuide.orbitSection.canDoDesc' },
+    { titleKey: 'onboarding.featureGuide.orbitSection.toolsBreadthTitle', descKey: 'onboarding.featureGuide.orbitSection.toolsBreadthDesc' },
+    { titleKey: 'onboarding.featureGuide.orbitSection.manageTitle', descKey: 'onboarding.featureGuide.orbitSection.manageDesc' },
+    { titleKey: 'onboarding.featureGuide.orbitSection.insightsTitle', descKey: 'onboarding.featureGuide.orbitSection.insightsDesc' },
+    { titleKey: 'onboarding.featureGuide.orbitSection.reschedulingTitle', descKey: 'onboarding.featureGuide.orbitSection.reschedulingDesc' },
+    { titleKey: 'onboarding.featureGuide.orbitSection.imageTitle', descKey: 'onboarding.featureGuide.orbitSection.imageDesc' },
+    { titleKey: 'onboarding.featureGuide.orbitSection.voiceTitle', descKey: 'onboarding.featureGuide.orbitSection.voiceDesc' },
+    { titleKey: 'onboarding.featureGuide.orbitSection.cannotDoTitle', descKey: 'onboarding.featureGuide.orbitSection.cannotDoDesc' },
+    { titleKey: 'onboarding.featureGuide.orbitSection.tipsTitle', descKey: 'onboarding.featureGuide.orbitSection.tipsDesc' },
   ],
   connect: [
     { titleKey: 'onboarding.featureGuide.connectSection.mcpTitle', descKey: 'onboarding.featureGuide.connectSection.mcpDesc' },

@@ -316,7 +316,7 @@ describe('Composer compact geometry in Chromium', () => {
 
   it.each([360, 412, 1200, 1600].flatMap(width => [false, true].map(withMessages => ({ width, withMessages }))))(
     'contains the prefilled conversation input at $width with messages $withMessages', async ({ width, withMessages }) => {
-      const prompt = ptBR.habits.detail.askAstraSeedDefault.replace('{title}', 'Ler 10 minutos')
+      const prompt = ptBR.habits.detail.askOrbitSeedDefault.replace('{title}', 'Ler 10 minutos')
       const configuration = { ...geometryProps('idle', ptBR, false), value: prompt, withMessages }
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
@@ -411,7 +411,7 @@ describe('Composer compact geometry in Chromium', () => {
       const box = (await field.boundingBox())!
       await page.mouse.click(direction === 'rtl' ? box.x + box.width - 2 : box.x + 2, box.y + box.height / 2)
       expect(await field.evaluate(element => element === document.activeElement)).toBe(true)
-      await field.fill((direction === 'rtl' ? 'אבג ' : 'Astra ').repeat(10).trim())
+      await field.fill((direction === 'rtl' ? 'אבג ' : 'Orbit ').repeat(10).trim())
       const typed = await field.evaluate(measureFieldInset)
       expect(typed.inset).toBe(placeholder.inset)
       const ownedWidth = await field.evaluate(element => ({ clientWidth: element.clientWidth,

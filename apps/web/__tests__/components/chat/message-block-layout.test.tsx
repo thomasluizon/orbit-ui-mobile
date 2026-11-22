@@ -1,4 +1,4 @@
-import { makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
+import { makeOrbitPlan } from '@orbit/shared/test-support/orbit-plan-fixtures'
 import { useChatStore } from '@/stores/chat-store'
 import { chatMessageSchema } from '@orbit/shared/types/chat'
 import { motionLayerTiming } from '@orbit/shared/theme'
@@ -16,7 +16,7 @@ import pt from '@orbit/shared/i18n/pt-BR.json'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { makeProactiveBlockItem, proactiveBlockCases, chatBlockLayoutCases, makeChatBlockLayoutMessage, chatPartsLayoutCases, makeChatPartsLayoutMessage } from '@orbit/shared/test-support/chat-block-layout'
 import { MessageBubble } from '@/components/chat/message-bubble'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -48,11 +48,11 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAc
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value, displayClock: (value: string) => value }) }))
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 const cases = [390, 412, 480, 600, 840, 1100, 1280, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale =>
   chatBlockLayoutCases.flatMap(scenario => [true, false].map(prose => ({ width, locale, scenario, prose, kind: scenario.kind })))))
 
-describe('Astra block layout in Chromium', () => {
+describe('Orbit block layout in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
@@ -65,7 +65,7 @@ describe('Astra block layout in Chromium', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each([412, 1352].flatMap(width => ['en', 'pt-BR'].map(locale => ({ width, locale }))))('keeps the live plan in the reply column without moving earlier content at $width in $locale', async ({ width, locale }) => {
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     const reply = makeHeldHabitMessage({ id: 'planned', content: '', pendingOperations: [], plan, toolSteps: [{ domain: 'habits', access: 'read' }] })
     const person = makeHeldHabitMessage({ id: 'request', role: 'user', content: 'Check my routine', pendingOperations: [] })
     const chat = {
@@ -76,18 +76,18 @@ describe('Astra block layout in Chromium', () => {
         words: { placeholder: en.shell.composer.placeholder, send: en.shell.composer.send, clear: en.shell.composer.clear, actions: en.shell.composer.actions, suggestionsLabel: en.shell.composer.suggestionsLabel },
       },
     } as unknown as ChatController
-    const surface = () => <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><div style={{ height: 915, width: width >= 1024 ? 740 : width }}><AstraConversation chat={chat} /></div></NextIntlClientProvider>
+    const surface = () => <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><div style={{ height: 915, width: width >= 1024 ? 740 : width }}><OrbitConversation chat={chat} /></div></NextIntlClientProvider>
     const { container, rerender } = render(surface())
-    expect(container.querySelectorAll('[data-astra-plan]')).toHaveLength(1)
+    expect(container.querySelectorAll('[data-orbit-plan]')).toHaveLength(1)
     expect(container.querySelector('[data-thinking-trace]')).toBeNull()
-    expect(container.querySelector('[data-astra-pending]')).toBeNull()
-    const planNode = container.querySelector('[data-astra-plan]')
+    expect(container.querySelector('[data-orbit-pending]')).toBeNull()
+    const planNode = container.querySelector('[data-orbit-plan]')
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     try {
       await page.setContent(`<style>${stylesheet}</style><main>${container.innerHTML}</main>`)
       await loadAppFonts(page)
       const before = await page.locator('article').first().boundingBox()
-      const bounds = await page.locator('[data-astra-plan]').boundingBox()
+      const bounds = await page.locator('[data-orbit-plan]').boundingBox()
       const replyBounds = await page.locator('article').last().boundingBox()
       expect(bounds!.x).toBeCloseTo(replyBounds!.x, 1)
       expect(bounds!.width).toBeCloseTo(replyBounds!.width, 1)
@@ -96,11 +96,11 @@ describe('Astra block layout in Chromium', () => {
         chat.messages = [person, { ...reply, plan: { ...plan, steps: plan.steps.map(step => ({ ...step, status })) } }]
         if (status === 'done') { chat.streamingMessageId = null; chat.activeSteps = [] }
         rerender(surface())
-        expect(container.querySelector('[data-astra-plan]')).toBe(planNode)
+        expect(container.querySelector('[data-orbit-plan]')).toBe(planNode)
         expect(container.querySelector('[data-thinking-trace]')).toBeNull()
         await page.locator('main').evaluate((element, markup) => { element.innerHTML = markup }, container.innerHTML)
         expect(await page.locator('article').first().boundingBox()).toEqual(before)
-        const updated = await page.locator('[data-astra-plan]').boundingBox()
+        const updated = await page.locator('[data-orbit-plan]').boundingBox()
         expect(updated!.y).toBeCloseTo(bounds!.y, 1)
         expect(updated!.width).toBeCloseTo(bounds!.width, 1)
         expect(await page.getByRole('progressbar').getAttribute('aria-valuenow')).toBe(status === 'done' ? '2' : '0')
@@ -130,7 +130,7 @@ describe('Astra block layout in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([412, 1352])('aligns the first Astra avatar and every reply block at %s', async width => {
+  it.each([412, 1352])('aligns the first Orbit avatar and every reply block at %s', async width => {
     const scenario = chatBlockLayoutCases[0]!
     const messages = [
       makeHeldHabitMessage({ id: 'first', content: 'First paragraph.\n\nSecond paragraph.', pendingOperations: [] }),
@@ -149,14 +149,14 @@ describe('Astra block layout in Chromium', () => {
       },
     } as unknown as ChatController
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
-      <div style={{ height: 915, width: width >= 1024 ? 740 : width }}><AstraConversation chat={chat} /></div>
+      <div style={{ height: 915, width: width >= 1024 ? 740 : width }}><OrbitConversation chat={chat} /></div>
     </NextIntlClientProvider>)
     const turns = [...container.querySelectorAll('article')]
-    expect(turns.map(turn => turn.querySelectorAll('[data-astra-avatar]').length)).toEqual([1, 0, 0, 1, 0])
+    expect(turns.map(turn => turn.querySelectorAll('[data-orbit-avatar]').length)).toEqual([1, 0, 0, 1, 0])
     expect(turns.map(turn => turn.querySelectorAll('section[data-state]').length)).toEqual([0, 2, 0, 2, 0])
     for (const turn of [turns[0]!, turns[3]!]) {
-      expect(turn.querySelector('[data-astra-avatar]')).toHaveAttribute('aria-hidden', 'true')
-      expect(turn.querySelector('[data-astra-avatar] svg')).toHaveAttribute('data-asset', 'orbit-mascot')
+      expect(turn.querySelector('[data-orbit-avatar]')).toHaveAttribute('aria-hidden', 'true')
+      expect(turn.querySelector('[data-orbit-avatar] svg')).toHaveAttribute('data-asset', 'orbit-mascot')
     }
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
@@ -167,7 +167,7 @@ describe('Astra block layout in Chromium', () => {
           const bounds = element.getBoundingClientRect()
           return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height }
         }
-        const avatar = turn.querySelector('[data-astra-avatar]')
+        const avatar = turn.querySelector('[data-orbit-avatar]')
         const content = turn.querySelector('[data-bubble-role], section[data-state]')!
         return { turn: rect(turn), avatar: avatar ? rect(avatar) : null, content: rect(content),
           blocks: [...turn.querySelectorAll('section[data-state]')].map(rect),
@@ -215,10 +215,10 @@ describe('Astra block layout in Chromium', () => {
         },
       } as unknown as ChatController
       const surface = (controller: ChatController) => <NextIntlClientProvider locale="en" messages={en}>
-        <div style={{ height: 915, width: width >= 1024 ? 740 : width }}><AstraConversation chat={controller} /></div>
+        <div style={{ height: 915, width: width >= 1024 ? 740 : width }}><OrbitConversation chat={controller} /></div>
       </NextIntlClientProvider>
       const { container, rerender } = render(surface(chat))
-      const runningMarks = container.querySelectorAll('[data-astra-avatar]').length
+      const runningMarks = container.querySelectorAll('[data-orbit-avatar]').length
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -235,7 +235,7 @@ describe('Astra block layout in Chromium', () => {
         expect(runningLeft).toBeCloseTo(completedLeft, 1)
         expect(runningLeft).toBeCloseTo(proseLeft, 1)
         expect(runningMarks).toBe(1)
-        expect(container.querySelectorAll('[data-astra-avatar]')).toHaveLength(1)
+        expect(container.querySelectorAll('[data-orbit-avatar]')).toHaveLength(1)
       } finally { await page.close() }
     },
   )
@@ -280,7 +280,7 @@ describe('Astra block layout in Chromium', () => {
       },
     } as unknown as ChatController
     const surface = (controller: ChatController) => <NextIntlClientProvider locale="pt-BR" messages={pt}>
-      <div style={{ height: 915, width: 740 }}><AstraConversation chat={controller} /></div>
+      <div style={{ height: 915, width: 740 }}><OrbitConversation chat={controller} /></div>
     </NextIntlClientProvider>
     const { container, rerender } = render(surface(chat))
     rerender(surface({ ...chat, messages: [makeChatBlockLayoutMessage(scenario, false)] }))
@@ -326,7 +326,7 @@ describe('Astra block layout in Chromium', () => {
       },
     } as unknown as ChatController
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
-      <div style={{ height: 915, width: width >= 1024 ? 740 : width }}><AstraConversation chat={chat} /></div>
+      <div style={{ height: 915, width: width >= 1024 ? 740 : width }}><OrbitConversation chat={chat} /></div>
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

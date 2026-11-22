@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { OptionCard } from '@/components/ui/option-card'
 import { QuestionRow } from '@/components/ui/question-row'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
-import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
+import { useOrbitAllowanceCopy } from '@/hooks/use-orbit-allowance-copy'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabits } from '@/hooks/use-habit-queries'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
@@ -49,7 +49,7 @@ function useTagLine(pressedTagId: string | null, available: readonly HabitTag[])
 function TagStepFree({ tags, actions, onPressTag }: Readonly<{ tags: TagSelectionState; actions: TagStepActions; onPressTag: (tagId: string) => void }>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
-  const allowanceText = useAstraAllowanceCopy()
+  const allowanceText = useOrbitAllowanceCopy()
   const [query, setQuery] = useState('')
   const [managing, setManaging] = useState(false)
   const create = () => void actions.createNewTag()

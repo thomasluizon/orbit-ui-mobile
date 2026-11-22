@@ -12,7 +12,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { PROMPT_CATEGORIES, PROMPT_TEMPLATES, PROMPT_PRESENTATION } from '@orbit/shared/chat/prompt-library'
 import { CatalogIdea } from '@/components/chat/prompt-idea'
 import { PromptLibrary } from '@/components/chat/prompt-library'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -23,14 +23,14 @@ afterEach(() => {
   useChatStore.setState({ messages: [] })
   useChatStore.getState().setDraft('')
   useChatStore.getState().setContextualSuggestion(null)
-  useUIStore.getState().setAstraConversationOpen(false)
+  useUIStore.getState().setOrbitConversationOpen(false)
 })
 
 function Harness({ send = vi.fn(), state = 'idle', recording = false }: Readonly<{ send?: ReturnType<typeof vi.fn>; state?: 'idle' | 'offline' | 'atLimit'; recording?: boolean }>) {
   const value = useChatStore(store => store.draft)
   const messages = useChatStore(store => store.messages)
   const composerProps: ComposerProps = {
-    words: { placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', inputLabel: 'Message', actions: 'Attach', suggestionsLabel: 'Suggestions' },
+    words: { placeholder: 'Ask Orbit', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', inputLabel: 'Message', actions: 'Attach', suggestionsLabel: 'Suggestions' },
     value, onChangeValue: useChatStore.getState().setDraft, onSend: vi.fn(), suggestions: [],
     ...(recording ? { state: 'recording', onVoice: vi.fn(), voiceWords: { start: 'Start', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' } } : state === 'idle' ? { state } : state === 'offline' ? { state: 'offline', limitReason: 'You are offline' } : { state: 'atLimit', limitReason: 'Daily limit reached' }),
   }
@@ -39,12 +39,12 @@ function Harness({ send = vi.fn(), state = 'idle', recording = false }: Readonly
     messages, isOnline: state !== 'offline', atMessageLimit: state === 'atLimit', aiMessagesLimit: 5, activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: messages.length === 0,
     isSending: false, canShowFollowUps: false, hasProAccess: true, hasGoogleConnection: true,
     sendMessage: send, composerProps,
-  } as unknown as Parameters<typeof AstraConversation>[0]['chat']
-  return <AstraConversation chat={chat} />
+  } as unknown as Parameters<typeof OrbitConversation>[0]['chat']
+  return <OrbitConversation chat={chat} />
 }
 
 function conversation(send = vi.fn(), state: 'idle' | 'offline' | 'atLimit' = 'idle') {
-  useUIStore.getState().setAstraConversationOpen(true)
+  useUIStore.getState().setOrbitConversationOpen(true)
   return render(<NextIntlClientProvider locale="en" messages={en}><Harness send={send} state={state} /></NextIntlClientProvider>)
 }
 
@@ -86,7 +86,7 @@ it.each([0, 1])('opens from trigger %s, focuses the heading, and returns on Esca
   fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Escape' })
   await waitFor(() => expect(trigger).toHaveFocus())
   expect(screen.queryByRole('heading', { name: 'Ideas' })).toBeNull()
-  expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('My unfinished thought')
 })
 

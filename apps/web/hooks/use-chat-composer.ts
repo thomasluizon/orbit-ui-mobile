@@ -3,7 +3,7 @@
 import { createComposerRuntime, buildComposerSuggestions, buildChatComposerProps } from '@orbit/shared/hooks'
 import { useState, useRef, useId, useMemo } from 'react'
 
-import { createAstraAllowanceTranslator, formatAPIDateInTimeZone } from '@orbit/shared/utils'
+import { createOrbitAllowanceTranslator, formatAPIDateInTimeZone } from '@orbit/shared/utils'
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale,useTranslations } from 'next-intl'
@@ -32,7 +32,7 @@ export function useChatComposer(options: UseChatComposerOptions = {}) {
   const locale = useLocale()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
-  const allowanceText = useMemo(() => createAstraAllowanceTranslator(t, profile, locale), [t, profile, locale])
+  const allowanceText = useMemo(() => createOrbitAllowanceTranslator(t, profile, locale), [t, profile, locale])
 
   const contextualSuggestion = useChatStore((state) => state.contextualSuggestion)
   const calendarHasError = useUIStore((state) => state.calendarHasError)

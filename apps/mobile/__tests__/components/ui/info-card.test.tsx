@@ -16,13 +16,13 @@ function renderCard(element: React.ReactElement) {
 
 describe('InfoCard (mobile)', () => {
   it('renders title and description', () => {
-    const tree = renderCard(<InfoCard><Text>Astra</Text><Text>Sua assistente de hábitos</Text></InfoCard>)
+    const tree = renderCard(<InfoCard><Text>Orbit</Text><Text>Sua assistente de hábitos</Text></InfoCard>)
     const texts = tree.root.findAllByType('Text').map((node: any) => node.props.children)
-    expect(texts).toEqual(expect.arrayContaining(['Astra', 'Sua assistente de hábitos']))
+    expect(texts).toEqual(expect.arrayContaining(['Orbit', 'Sua assistente de hábitos']))
   })
 
   it('renders without an icon', () => {
-    const tree = renderCard(<InfoCard><Text>Astra</Text></InfoCard>)
+    const tree = renderCard(<InfoCard><Text>Orbit</Text></InfoCard>)
     expect(tree.root.findAllByType('Text')).toHaveLength(1)
   })
 

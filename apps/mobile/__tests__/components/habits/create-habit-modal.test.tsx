@@ -630,7 +630,7 @@ describe('CreateHabitModal (mobile)', () => {
     expect(proposal).toEqual({ setup: true, checklist: true, subHabits: false, checklistItems: 2, subHabitItems: 0 })
   })
 
-  it('does not attribute a pre-existing checklist when Astra changes only setup', async () => {
+  it('does not attribute a pre-existing checklist when Orbit changes only setup', async () => {
     mockGetValues.mockImplementation((field?: unknown) => {
       if (field === 'title') return 'Run'
       if (field === 'checklistItems') return [{ text: 'Shoes', isChecked: false }]
@@ -659,7 +659,7 @@ describe('CreateHabitModal (mobile)', () => {
     expect(mockSetValue).not.toHaveBeenCalledWith('checklistItems', expect.anything(), expect.anything())
   })
 
-  it('preserves a sub-habit edit made while an Astra suggestion is pending', async () => {
+  it('preserves a sub-habit edit made while an Orbit suggestion is pending', async () => {
     let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
     mockGetValues.mockImplementation((field?: unknown) => {
       if (field === 'title') return 'Run'
@@ -755,7 +755,7 @@ describe('CreateHabitModal (mobile)', () => {
     expect(editor.props.subHabits).toEqual([])
   })
 
-  it('ignores a pending Astra suggestion after the title changes', async () => {
+  it('ignores a pending Orbit suggestion after the title changes', async () => {
     let title = 'Run'
     let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
     mockGetValues.mockImplementation((field?: unknown) => {

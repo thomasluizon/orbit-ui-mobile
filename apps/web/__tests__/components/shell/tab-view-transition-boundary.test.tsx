@@ -70,7 +70,7 @@ describe('tab view transition boundary ownership', () => {
 
   it('keeps the destination shell boundary alone beside the retained onboarding Done shell', async () => {
     render(withMessages(<>
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Main" tabViewTransition>
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Main" tabViewTransition>
         <p>Today</p>
       </ShellWide>
       <OnboardingActionsProvider actions={liveActions} isLive>

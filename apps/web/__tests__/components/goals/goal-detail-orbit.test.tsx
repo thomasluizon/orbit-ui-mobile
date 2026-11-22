@@ -87,7 +87,7 @@ describe('goal detail on the Orbit logic', () => {
     onOpenChange.mockReset()
     mocks.updateStatus.mockResolvedValue(undefined)
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
-    useUIStore.setState({ astraConversationOpen: false })
+    useUIStore.setState({ orbitConversationOpen: false })
     stubMedia()
   })
   afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals() })
@@ -120,15 +120,15 @@ describe('goal detail on the Orbit logic', () => {
     detailGoal = { ...detailGoal, deadline: '2026-11-20' }
     renderDetail()
     fireEvent.click(screen.getByRole('button', { name: 'By my count, 7 days are left until the deadline.' }))
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
-    expect(screen.queryByRole('button', { name: new RegExp(en.goals.detail.askAstraEyebrow) }), 'the line row is the one way in').not.toBeInTheDocument()
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+    expect(screen.queryByRole('button', { name: new RegExp(en.goals.detail.askOrbitEyebrow) }), 'the line row is the one way in').not.toBeInTheDocument()
   })
 
   it('has no line with no deadline and keeps the ask row', () => {
     renderDetail()
     expect(document.querySelector('[data-goal-orbit-line]')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: `${en.goals.detail.askAstraEyebrow}: ${en.goals.detail.askAstraDefault}` }))
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: `${en.goals.detail.askOrbitEyebrow}: ${en.goals.detail.askOrbitDefault}` }))
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   })
 
   it('keeps the current detail with the flag off: no line and no result dialog', async () => {

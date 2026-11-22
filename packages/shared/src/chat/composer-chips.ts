@@ -117,7 +117,7 @@ function todayChips(state: ComposerChipState): ComposerChip[] {
 function requestedGoalChips(contextual: ComposerChipState['contextualSuggestion']): ComposerChip[] {
   const isGoalDetailRequest = contextual?.id.startsWith('goal-detail:')
   return contextual && (contextual.id === 'progress-create-goal' || isGoalDetailRequest) ? [{
-    id: contextual.id, key: isGoalDetailRequest ? 'goals.detail.askAstraEyebrow' : 'progressScreen.goals.createAction',
+    id: contextual.id, key: isGoalDetailRequest ? 'goals.detail.askOrbitEyebrow' : 'progressScreen.goals.createAction',
     label: contextual.label, prompt: contextual.prompt,
   }] : []
 }

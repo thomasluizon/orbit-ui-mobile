@@ -1,8 +1,8 @@
 import { oneSmallStepCardSchema, startingStepSchema } from '../contracts/blocks/one-small-step'
 import { questionAnswerSchema, questionBlockSchema } from './question-block'
 import { z } from 'zod'
-import { astraPlanSchema, astraPlanStepSchema } from './astra-plan'
-import { astraNextActionSchema } from './astra-offer'
+import { orbitPlanSchema, orbitPlanStepSchema } from './orbit-plan'
+import { orbitNextActionSchema } from './orbit-offer'
 import { habitSuggestionsCardSchema } from './habit-suggestions'
 import { utf16Length } from '../validation/utf16-length'
 import { habitRankingCardSchema } from './habit-ranking'
@@ -203,7 +203,7 @@ export const readBlockMetadataSchema = z.object({
   nextCursor: z.string().nullish(),
   totalCount: z.number().nullish(),
   recovery: z.string().nullish(),
-  nextAction: astraNextActionSchema.nullish().catch(null),
+  nextAction: orbitNextActionSchema.nullish().catch(null),
 })
 
 export type ReadBlockMetadata = z.infer<typeof readBlockMetadataSchema>
@@ -492,7 +492,7 @@ export const accountRowsCardSchema = z.object({
 
 export type AccountRowsCard = z.infer<typeof accountRowsCardSchema>
 
-const astraBlockOptionSchema = z.object({
+const orbitBlockOptionSchema = z.object({
   id: z.string().check(utf16Length('min', 1)),
   label: z.string().check(utf16Length('min', 1)).check(utf16Length('max', 20)),
   description: z.string().check(utf16Length('max', 24)).nullable().optional(),
@@ -501,7 +501,7 @@ const astraBlockOptionSchema = z.object({
 export const choiceBlockSchema = z.object({
   blockId: z.uuid(),
   question: z.string().check(utf16Length('min', 1)).check(utf16Length('max', 120)),
-  options: z.array(astraBlockOptionSchema).min(2).max(4),
+  options: z.array(orbitBlockOptionSchema).min(2).max(4),
   multiSelect: z.boolean(),
   allowFreeText: z.boolean(),
   expiresAtUtc: z.iso.datetime(),
@@ -613,7 +613,7 @@ export const chatFollowUpSchema = z.object({
 export type ChatFollowUp = z.infer<typeof chatFollowUpSchema>
 
 const replyCardFieldsShape = {
-  plan: astraPlanSchema.nullish(),
+  plan: orbitPlanSchema.nullish(),
   correlationId: z.string().nullable().optional(),
   relatedSurfaces: z.array(z.string()).nullable().optional(),
   habitList: habitListCardSchema.nullable().optional(),
@@ -695,8 +695,8 @@ export const chatStreamEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('delta'), text: z.string() }),
   z.object({ type: z.literal('reset') }),
   z.object({ type: z.literal('step'), domain: z.string(), access: z.string() }),
-  z.object({ type: z.literal('plan'), plan: astraPlanSchema }),
-  z.object({ type: z.literal('plan_step'), planId: z.uuid(), planStep: astraPlanStepSchema }),
+  z.object({ type: z.literal('plan'), plan: orbitPlanSchema }),
+  z.object({ type: z.literal('plan_step'), planId: z.uuid(), planStep: orbitPlanStepSchema }),
   z.object({ type: z.literal('final'), response: chatResponseSchema, ...chatTurnIdentity }),
   z.object({
     type: z.literal('error'),

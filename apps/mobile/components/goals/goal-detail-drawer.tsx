@@ -52,7 +52,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
   const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
   const sheetGoal = useRetainedGoal(goal, goalId)
-  const astraConversationOpen = useUIStore(state => state.astraConversationOpen)
+  const orbitConversationOpen = useUIStore(state => state.orbitConversationOpen)
   const draftHydrated = useChatStore(state => state.draftHydrated)
   const guided = useFlag('orbit_guided_flows')
   const { sheetRef, closeSheet } = useSheetHost()
@@ -93,16 +93,16 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   })
   const formatDate = (date: string) => formatLocaleDateTime(date, locale, { month: 'short', day: 'numeric' })
 
-  const openAstra = () => {
+  const openOrbit = () => {
     if (!goal || !draftHydrated) return
     const request = {
       id: `goal-detail:${goal.id}`,
-      label: t('nav.astra'),
-      prompt: t('goals.detail.askAstraSeedDefault', { title: goal.title }),
+      label: t('nav.orbit'),
+      prompt: t('goals.detail.askOrbitSeedDefault', { title: goal.title }),
     }
     const openConversation = () => {
       prepareChatRequest(useChatStore.getState(), request)
-      useUIStore.getState().setAstraConversationOpen(true)
+      useUIStore.getState().setOrbitConversationOpen(true)
     }
     if (inline) openConversation()
     else closeSheet(() => { onClose(); openConversation() })
@@ -125,10 +125,10 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   }
 
   useEffect(() => {
-    if (!open || !inline || editing || deleting || editingProgress || astraConversationOpen) return
+    if (!open || !inline || editing || deleting || editingProgress || orbitConversationOpen) return
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { close(); return true })
     return () => subscription.remove()
-  }, [open, inline, editing, deleting, editingProgress, astraConversationOpen, close])
+  }, [open, inline, editing, deleting, editingProgress, orbitConversationOpen, close])
 
   useEffect(() => {
     if (!open || !inline || !goal || focusedInlineGoalId.current === goalId || !headingRef.current) return
@@ -140,10 +140,10 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
     <View style={layout.body}>
       {goal ? <>
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onEditProgress={openProgressForm} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} headingRef={headingRef} sweep={outcomes.progressSweep} />
-        <GoalAskEntry line={orbitLine} at="top" disabled={!draftHydrated} onPress={openAstra} />
+        <GoalAskEntry line={orbitLine} at="top" disabled={!draftHydrated} onPress={openOrbit} />
         <GoalForecast metrics={detailData?.metrics ?? null} unit={goal.unit} isLoading={isLoading} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onOpenHabit={openHabit} />
-        <GoalAskEntry line={orbitLine} at="bottom" disabled={!draftHydrated} onPress={openAstra} />
+        <GoalAskEntry line={orbitLine} at="bottom" disabled={!draftHydrated} onPress={openOrbit} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => afterSheetCloses(() => setEditing(true))} onDelete={() => setDeleting(true)} defaultIconColor={tokens.fg3} iconColor={tokens.statusBad} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <InlineLoadError message={t('goals.detail.loadError')} onRetry={() => void refetch()} /> : null}

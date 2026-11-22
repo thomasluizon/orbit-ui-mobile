@@ -181,7 +181,7 @@ it('starts Google sign in through the BFF and preserves the destination', async 
 })
 
 it.each([
-  ['orbit', 'open'], ['orbit', 'proactive'], ['astra', 'open'], ['astra', 'proactive'],
+  ['orbit', 'open'], ['orbit', 'proactive'], ['orbit', 'open'], ['orbit', 'proactive'],
 ] as const)('keeps the conversation entry %s=%s from the anonymous notification redirect through Google sign-in, written as the orbit form', (name, entry) => {
   vi.stubGlobal('location', { assign: mocks.assign })
   mocks.search = `${name}=${entry}&returnUrl=%2F`
@@ -321,7 +321,7 @@ describe('useLoginFlow verify-code success', () => {
   })
 
   it.each([
-    ['orbit', 'open'], ['orbit', 'proactive'], ['astra', 'open'], ['astra', 'proactive'],
+    ['orbit', 'open'], ['orbit', 'proactive'], ['orbit', 'open'], ['orbit', 'proactive'],
   ] as const)('keeps the conversation entry %s=%s from the anonymous notification redirect after code verification, written as the orbit form', async (name, entry) => {
     mocks.search = `${name}=${entry}&returnUrl=%2F`
     const { result } = renderHook(() => useLoginFlow())

@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/nextjs'
 import { useCallback } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { createTagRequests, hasTagDraftChanges } from '@orbit/shared/hooks'
-import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
+import { useOrbitAllowanceCopy } from '@/hooks/use-orbit-allowance-copy'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
@@ -98,7 +98,7 @@ interface HabitTagsFieldProps {
 /** The tag picker of a habit: select up to the limit, create, rename, delete, suggest and preview. */
 export function HabitTagsField({ tags, tagEditor }: Readonly<HabitTagsFieldProps>) {
   const t = useTranslations()
-  const allowanceText = useAstraAllowanceCopy()
+  const allowanceText = useOrbitAllowanceCopy()
   const { newTagErrors, editTagErrors, initialTagName, discardTagEditor } = tagEditor
 
   const editor = tags.showNewTag ? (

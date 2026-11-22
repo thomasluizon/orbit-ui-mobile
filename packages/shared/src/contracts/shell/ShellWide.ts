@@ -57,7 +57,7 @@ export type ShellWideNavProps = ShellWideBase &
     /** Four destinations, never five. */
     items: ShellWideItem[]
     activeId: string
-    astraRow: { label: string; onOpen: () => void }
+    orbitRow: { label: string; onOpen: () => void }
     onSelect?: (id: string) => void
     /** The nav landmark's accessible name, in the screen's locale. */
     navLabel: string
@@ -79,7 +79,7 @@ export type ShellWideNoNavProps = ShellWideBase &
     nav: false
     items?: never
     activeId?: never
-    astraRow?: never
+    orbitRow?: never
     onSelect?: never
     onCreate?: never
     createLabel?: never

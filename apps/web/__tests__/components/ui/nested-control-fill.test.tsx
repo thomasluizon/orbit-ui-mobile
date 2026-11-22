@@ -64,7 +64,7 @@ const surfaces: Surface[] = [
     nested: '.icon-btn',
   },
   {
-    name: 'Astra habit block row with a nested check',
+    name: 'Orbit habit block row with a nested check',
     element: () => <PickListBlock block={makePickListLayoutBlock('en')} />,
     parent: '[data-habit-block-row]',
     body: '.orbit-list-row-body',

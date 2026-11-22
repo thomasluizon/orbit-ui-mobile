@@ -756,7 +756,7 @@ describe('mobile ProgressContent', () => {
   afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
     useChatStore.setState({ draft: '', contextualSuggestion: null })
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
     mocks.useRealRepair = false
     theme.mode = 'dark'
     mocks.dragActive = false
@@ -848,7 +848,7 @@ describe('mobile ProgressContent', () => {
       ;(findPill(tree.root, 'progressScreen.goals.createAction').props.onPress as () => void)()
     })
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak')).toHaveLength(0)
   })
 
@@ -872,7 +872,7 @@ describe('mobile ProgressContent', () => {
     expect(pressableStyle(action, false)).toMatchObject({ height: 44, paddingHorizontal: BUTTON_SIZES.sm.paddingX })
     await TestRenderer.act(() => { (action.props.onPress as () => void)() })
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
   it('keeps an unsent conversation draft when starting a goal', async () => {
@@ -883,7 +883,7 @@ describe('mobile ProgressContent', () => {
     expect(useChatStore.getState().draft).toBe('Unsent note')
     expect(useChatStore.getState().contextualSuggestion).toBeNull()
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(1)
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     mocks.goals.data.allGoals = [createMockGoal()]
     await TestRenderer.act(async () => {
       tree.update(<GoalsPage />)
@@ -915,7 +915,7 @@ describe('mobile ProgressContent', () => {
     await TestRenderer.act(async () => { (findPill(sheet, 'goals.create').props.onPress as () => void)(); await Promise.resolve() })
     expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'goals.create')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.testID === 'goal-card-goal-created').length).toBeGreaterThan(0)
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
   it('keeps the Metas filter when goal creation is cancelled', async () => {

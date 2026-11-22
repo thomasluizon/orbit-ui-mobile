@@ -216,8 +216,8 @@ vi.mock('@/components/today/today-date-control', () => ({
   TodayDateControl: () => null,
 }))
 
-vi.mock('@/components/today/today-astra', () => ({
-  TodayAstra: () => null,
+vi.mock('@/components/today/today-orbit', () => ({
+  TodayOrbit: () => null,
 }))
 
 vi.mock('@/components/today/today-modals', () => ({

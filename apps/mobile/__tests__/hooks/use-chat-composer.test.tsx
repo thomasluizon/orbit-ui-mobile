@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { makeApprovalPlan, makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
+import { makeApprovalPlan, makeOrbitPlan } from '@orbit/shared/test-support/orbit-plan-fixtures'
 import { conversationHistory } from '@/lib/conversation-history'
-import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
+import allowanceRefusals from '@orbit/shared/test-support/orbit-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
 import { makeOneSmallStepCard,questionBlockFixture,questionAnswersFixture,choiceBlockFixture,pickListBlockFixture,makeHeldHabitMessage,makeAgentOperationResult } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
-import { AstraButton } from '@/components/shell/astra-button'
+import { OrbitButton } from '@/components/shell/orbit-button'
 import { useChatComposerAttachments } from '@/hooks/use-chat-composer-attachments'
 import Animated from 'react-native-reanimated'
 import { afterEach,beforeEach,describe,expect,it,onTestFinished,vi } from 'vitest'
@@ -42,7 +42,7 @@ import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const { Composer: ShellComposer } = await vi.importActual<typeof import('@/components/shell/composer')>('@/components/shell/composer')
 const { Shell412: ConversationShell } = await vi.importActual<typeof import('@/components/shell/shell-412')>('@/components/shell/shell-412')
-const { AstraConversation: Conversation } = await vi.importActual<typeof import('@/components/chat/conversation')>('@/components/chat/conversation')
+const { OrbitConversation: Conversation } = await vi.importActual<typeof import('@/components/chat/conversation')>('@/components/chat/conversation')
 
 const TestRenderer = require('react-test-renderer')
 const mountedTrees: ReturnType<typeof TestRenderer.create>[] = []
@@ -216,12 +216,12 @@ vi.mock('@/components/message-bubble', async importOriginal => {
 })
 vi.mock('@/components/ui/markdown', () => ({ Markdown: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
-vi.mock('@/components/chat/conversation', () => ({ AstraConversation: ({ chat }: { chat: ReturnType<typeof useChatComposer> }) => { mocks.composerProps = chat.composerProps; return <ShellComposer {...chat.composerProps} /> } }))
+vi.mock('@/components/chat/conversation', () => ({ OrbitConversation: ({ chat }: { chat: ReturnType<typeof useChatComposer> }) => { mocks.composerProps = chat.composerProps; return <ShellComposer {...chat.composerProps} /> } }))
 vi.mock('@/components/shell/composer', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/shell/composer')>()
   return { Composer: (props: React.ComponentProps<typeof original.Composer>) => { mocks.composerProps = props; return <original.Composer {...props} /> } }
 })
-vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ composer, astraButton, conversationOpen, conversation }: { composer?: React.ReactNode; astraButton?: boolean; conversationOpen?: boolean; conversation?: React.ReactNode }) => conversationOpen ? conversation : <>{composer}{astraButton ? <AstraButton /> : null}</> }))
+vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ composer, orbitButton, conversationOpen, conversation }: { composer?: React.ReactNode; orbitButton?: boolean; conversationOpen?: boolean; conversation?: React.ReactNode }) => conversationOpen ? conversation : <>{composer}{orbitButton ? <OrbitButton /> : null}</> }))
 vi.mock('@/components/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/components/upgrade-required-screen', () => ({ UpgradeRequiredScreen: () => null }))
 vi.mock('@/lib/capture-mode', () => ({ captureBuildEnabled: false, captureRequestProbeIdFromUrl: () => null, captureRouteProbeId: () => 'capture-probe', shouldExposeOnboardingRoute: () => false }))
@@ -448,13 +448,13 @@ function documentPickerAsset(
 
 function ComposerConversationHarness() {
   const chat = useChatComposer({ pathname: '/profile', isOnline: true, offlineTitle: 'Offline' })
-  const open = useUIStore((state) => state.astraConversationOpen)
+  const open = useUIStore((state) => state.orbitConversationOpen)
   return <ConversationShell
     tabBar={null}
-    composer={<ShellComposer {...chat.composerProps} onOpenConversation={() => useUIStore.getState().setAstraConversationOpen(true)} conversationLabel="Talk to Orbit" />}
+    composer={<ShellComposer {...chat.composerProps} onOpenConversation={() => useUIStore.getState().setOrbitConversationOpen(true)} conversationLabel="Talk to Orbit" />}
     conversation={<Conversation chat={chat} />}
     conversationOpen={open}
-    conversationLabel="Astra"
+    conversationLabel="Orbit"
   />
 }
 
@@ -692,7 +692,7 @@ describe('mobile useChatComposer', () => {
     expect(visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === i18n.t('shell.composer.retry'))).toHaveLength(0)
     await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
     expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
-    await TestRenderer.act(async () => { useUIStore.getState().setAstraConversationOpen(false); await Promise.resolve() })
+    await TestRenderer.act(async () => { useUIStore.getState().setOrbitConversationOpen(false); await Promise.resolve() })
     expect(visibleComposerRoot(tree).findAllByType('Text').filter((node: { props: { children?: unknown } }) => node.props.children === notice)).toHaveLength(1)
     expect(inputHosts(tree)[0].props.value).toBe(draft)
   })
@@ -703,7 +703,7 @@ describe('mobile useChatComposer', () => {
       ? Response.json({ error: 'Daily budget reached', errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }, { status: 400 })
       : sseStreamResponse(frame('{"type":"delta","text":"Preparing"}'), frame('{"type":"error","status":400,"error":"Daily budget reached","code":"AI_DAILY_BUDGET_EXCEEDED"}')))
     const tree = await renderConversationHarness()
-    await TestRenderer.act(async () => { useUIStore.getState().setAstraConversationOpen(true); await Promise.resolve() })
+    await TestRenderer.act(async () => { useUIStore.getState().setOrbitConversationOpen(true); await Promise.resolve() })
     const radios = () => visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
     const { IconButton: AnswerButton } = await import('@/components/ui/icon-button')
     const submit = () => tree.root.findAllByType(AnswerButton).find((node: { props: { label?: string } }) => node.props.label === 'chat.choice.submit')!
@@ -1061,7 +1061,7 @@ describe('mobile useChatComposer', () => {
     TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
     await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
     TestRenderer.act(() => { for (const listener of listeners) listener(true) })
-    const pending = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'astra-pending')
+    const pending = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'orbit-pending')
     expect(pending).toHaveLength(1)
     expect(pending[0].findAll((node: { type: unknown }) => node.type === Animated.View)).toHaveLength(0)
     expect(pending[0].props.importantForAccessibility).toBe('no-hide-descendants')
@@ -1110,7 +1110,7 @@ describe('mobile useChatComposer', () => {
     TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
     await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
     onTestFinished(() => { if (!['cancel', 'drop', 'incomplete'].includes(arrival)) stream.close() })
-    const pending = () => tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'astra-pending')
+    const pending = () => tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'orbit-pending')
     expect(pending()).toHaveLength(1)
     expect(tree.root.findByType('FlatList').props.accessibilityState).toEqual({ busy: true })
     await TestRenderer.act(async () => {
@@ -1216,7 +1216,7 @@ describe('mobile useChatComposer', () => {
   it.each([false, true])('retains composer focus after a native submission with queued=%s', async (queued) => {
     const stream = controlledSseStreamResponse()
     mocks.openChatStream.mockResolvedValue(stream.response)
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     const tree = await renderConversationHarness()
     onTestFinished(() => stream.close())
     if (queued) {
@@ -1242,7 +1242,7 @@ describe('mobile useChatComposer', () => {
   it.each(['', 'Existing draft'])('keeps voice reachable at the limit through transcription with draft=%j', async (draft) => {
     mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
     useChatStore.setState({ draft, draftHydrated: true })
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     const tree = await renderConversationHarness()
     const voiceControl = (label: string) => visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
       node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]
@@ -1323,7 +1323,7 @@ describe('mobile useChatComposer', () => {
     mocks.state.speechError = 'speech.micDenied'
     await TestRenderer.act(async () => { tree.update(<ComposerConversationHarness />); await Promise.resolve() })
     expect(visibleMessageTexts(tree)).toContain('speech.micDenied')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(inputHosts(tree)[0].props.value).toBe('Keep my draft')
     const recovery = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.openSettings')
     expect(recovery).toHaveLength(1)
@@ -1423,7 +1423,7 @@ describe('mobile useChatComposer', () => {
     mocks.state.transcript = 'Voice request'
     composer.rerender()
     await TestRenderer.act(async () => { composer.current.composerProps.onSend(); await Promise.resolve() })
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     expect(useChatStore.getState().messages[0]?.content).toBe('Voice request')
   })
 
@@ -1460,7 +1460,7 @@ describe('mobile useChatComposer', () => {
     expect(next).not.toHaveProperty('selectedOfferKey')
   })
 
-  it('sends the profile clock preference to Astra', async () => {
+  it('sends the profile clock preference to Orbit', async () => {
     mocks.state.profile = createMockProfile({ uses24HourClock: true })
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const composer = await renderComposer()
@@ -1476,7 +1476,7 @@ describe('mobile useChatComposer', () => {
     card.actions[0]!.previousStep = card.suggestion
     useChatStore.setState({ messages: [makeHeldHabitMessage({ content: '', pendingOperations: [],
       parts: [{ type: 'block', kind: 'oneSmallStep', block: card }] })] })
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     mocks.openChatStream.mockImplementation(() => Promise.resolve(sseStreamResponse(finalFrame(makeChatResponse()))))
     const tree = await renderConversationHarness()
     const smaller = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
@@ -1564,7 +1564,7 @@ describe('mobile useChatComposer', () => {
     expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
     await TestRenderer.act(() => { composer.current.composerProps.queue!.onRemove(useChatStore.getState().queuedPrompts[1]!.id) })
     expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['first queued', 'third queued'])
-    await TestRenderer.act(() => { useUIStore.getState().setAstraConversationOpen(false); useUIStore.getState().setAstraConversationOpen(true) })
+    await TestRenderer.act(() => { useUIStore.getState().setOrbitConversationOpen(false); useUIStore.getState().setOrbitConversationOpen(true) })
     expect(composer.current.composerProps.queue!.items).toHaveLength(2)
     await TestRenderer.act(async () => { stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Running reply finished' }))); stream.close(); await firstSend })
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledTimes(3))
@@ -1763,7 +1763,7 @@ describe('mobile useChatComposer', () => {
     mocks.queryClient.getQueryData.mockReset()
     mocks.queryClient.setQueryData.mockClear()
     useChatStore.setState({ conversationLoaded: true, conversationBusy: false, serverConversationId: null, queuedPrompts: [], queuePaused: false, queueReady: false, replyActive: false, replyRevision: 0, messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: true, contextualSuggestion: null })
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
     useUIStore.getState().setCalendarHasError(false)
   })
 
@@ -1810,7 +1810,7 @@ describe('mobile useChatComposer', () => {
 
   it.each(['en', 'pt-BR'].flatMap(locale => ['stop', 'interrupted', 'error'].map(terminal => ({ locale, terminal }))))('settles the streamed plan after $terminal in $locale', async ({ locale, terminal }) => {
     mocks.locale = locale
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     plan.steps = [
       ...['done', 'running', 'pending', 'failed', 'skipped'].map((status, index) => ({ ...plan.steps[0]!, id: `execution-${index}`, status })),
       makeApprovalPlan().steps[1]!,
@@ -1851,7 +1851,7 @@ describe('mobile useChatComposer', () => {
 
   it.each(['en', 'pt-BR'])('streams a plan into the original reply before completion in %s', async locale => {
     mocks.locale = locale
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     const stream = controlledSseStreamResponse()
     mocks.openChatStream.mockResolvedValueOnce(stream.response)
     const composer = await renderComposer()
@@ -1936,7 +1936,7 @@ describe('mobile useChatComposer', () => {
     mocks.openChatStream.mockImplementationOnce((_payload, _signal, key: string) => {
       if (scenario !== 'lost final response' && key === completedKey) return Promise.resolve(sseStreamResponse(frame('{"type":"error","error":"Reply failed","status":500}')))
       return Promise.resolve(scenario === 'conflicting retry'
-        ? Response.json({ error: 'Already answered', errorCode: 'AstraBlockAnswered' }, { status: 409 })
+        ? Response.json({ error: 'Already answered', errorCode: 'OrbitBlockAnswered' }, { status: 409 })
         : sseStreamResponse(finalFrame(reply)))
     })
     await TestRenderer.act(async () => { submit(); submit(); await Promise.resolve() })
@@ -2237,7 +2237,7 @@ describe('mobile useChatComposer', () => {
       }
       composer.current.setInput('Why do you suggest that?')
       useChatStore.getState().openProactiveItem(item)
-      useUIStore.getState().setAstraConversationOpen(true)
+      useUIStore.getState().setOrbitConversationOpen(true)
     })
     expect(composer.current.input).toBe('Why do you suggest that?')
     expect(useChatStore.getState().messages[0]).toMatchObject({ proactiveItem: item, content: item.text })
@@ -2277,7 +2277,7 @@ describe('mobile useChatComposer', () => {
         useChatStore.getState().addMessage({ id: `previous-${index}`, role: index % 2 === 0 ? 'user' : 'ai', content: `Earlier turn ${index}`, timestamp: new Date() })
       }
       useChatStore.getState().openDailySummary('2026-09-12', 'Try a short walk after lunch. Keep it comfortable.')
-      useUIStore.getState().setAstraConversationOpen(true)
+      useUIStore.getState().setOrbitConversationOpen(true)
     })
 
     await TestRenderer.act(async () => { await composer.current.sendMessage('How should I do that?') })
@@ -2293,7 +2293,7 @@ describe('mobile useChatComposer', () => {
   it('sends Support entry intent on the first and later requests of that conversation', async () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const composer = await renderComposer()
-    useUIStore.getState().setAstraConversationOpen(true, 'support')
+    useUIStore.getState().setOrbitConversationOpen(true, 'support')
 
     await TestRenderer.act(async () => { await composer.current.sendMessage('my streak reset') })
     await TestRenderer.act(async () => { await composer.current.sendMessage('can you help?') })
@@ -2316,7 +2316,7 @@ describe('mobile useChatComposer', () => {
       await Promise.resolve()
     })
     await TestRenderer.act(() => {
-      const entry = mountedTrees.at(-1)!.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'astra-button')[0]!
+      const entry = mountedTrees.at(-1)!.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'orbit-button')[0]!
       ;(entry.props.onPress as () => void)()
     })
     const composer = mocks.composerProps
@@ -2336,7 +2336,7 @@ describe('mobile useChatComposer', () => {
   it('omits Support entry intent from a normal conversation', async () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const composer = await renderComposer()
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
 
     await TestRenderer.act(async () => { await composer.current.sendMessage('log water') })
 
@@ -3582,7 +3582,7 @@ describe('mobile useChatComposer', () => {
     const suggestion = composer.current.composerProps.suggestions.find(chip => chip.id === 'today.startOneHabit')!
 
     TestRenderer.act(() => suggestion.onSelect())
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
 
     expect(appendFormPart).toHaveBeenCalledWith('message', suggestion.label)
@@ -3612,7 +3612,7 @@ describe('mobile useChatComposer', () => {
     expect(mocks.openChatStream).toHaveBeenCalledOnce()
     expect(appendFormPart.mock.calls.filter(([name]) => name === 'message')).toEqual([['message', prompt]])
     expect(useChatStore.getState().messages.filter(message => message.role === 'user').map(message => message.content)).toEqual([prompt])
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   })
 
   it.each(['moveOverdue', 'logHabit', 'trimHabit', 'keepOnlyHabit', 'reviewHabit', 'createGoal'])('sends the complete habit title behind the short %s label', async action => {
@@ -3636,7 +3636,7 @@ describe('mobile useChatComposer', () => {
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     useChatStore.setState({ draft: 'Unsent note', draftHydrated: true })
     prepareChatRequest(useChatStore.getState(), {
-      id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal',
+      id: 'goal-detail:reading', label: 'Orbit', prompt: 'Help me with my reading goal',
     })
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
@@ -3660,7 +3660,7 @@ describe('mobile useChatComposer', () => {
     mocks.state.detail = makeHabitDetail()
     useChatStore.setState({ draft: 'Unsent note', draftHydrated: true })
     prepareChatRequest(useChatStore.getState(), {
-      id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal',
+      id: 'goal-detail:reading', label: 'Orbit', prompt: 'Help me with my reading goal',
     })
     const request = useChatStore.getState().contextualSuggestion
     const stream = controlledSseStreamResponse()
@@ -3676,7 +3676,7 @@ describe('mobile useChatComposer', () => {
       await Promise.resolve()
     })
     await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Hi there'))
-    TestRenderer.act(() => { useUIStore.getState().setAstraConversationOpen(false) })
+    TestRenderer.act(() => { useUIStore.getState().setOrbitConversationOpen(false) })
     options.pathname = pathname
     composer.rerender()
     const chips = composer.current.composerProps.suggestions.map(chip => chip.id)
@@ -3691,7 +3691,7 @@ describe('mobile useChatComposer', () => {
     mocks.state.detail = makeHabitDetail()
     useChatStore.setState({ draft: 'Unsent note', draftHydrated: true })
     prepareChatRequest(useChatStore.getState(), {
-      id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal',
+      id: 'goal-detail:reading', label: 'Orbit', prompt: 'Help me with my reading goal',
     })
     const request = useChatStore.getState().contextualSuggestion
     mocks.openChatStream
@@ -3716,7 +3716,7 @@ describe('mobile useChatComposer', () => {
     mocks.state.detail = makeHabitDetail()
     useChatStore.setState({ draft: 'Unsent note', draftHydrated: true })
     prepareChatRequest(useChatStore.getState(), {
-      id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal',
+      id: 'goal-detail:reading', label: 'Orbit', prompt: 'Help me with my reading goal',
     })
     const request = useChatStore.getState().contextualSuggestion
     const stream = controlledSseStreamResponse()
@@ -3726,7 +3726,7 @@ describe('mobile useChatComposer', () => {
     TestRenderer.act(() => { composer.current.composerProps.suggestions[0]?.onSelect() })
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
     TestRenderer.act(() => prepareChatRequest(useChatStore.getState(), {
-      id, label: 'Astra', prompt: 'Help me with the newly selected goal',
+      id, label: 'Orbit', prompt: 'Help me with the newly selected goal',
     }))
     const newerRequest = useChatStore.getState().contextualSuggestion
     expect(newerRequest).not.toBe(request)
@@ -3746,7 +3746,7 @@ describe('mobile useChatComposer', () => {
     mocks.state.detail = makeHabitDetail()
     useChatStore.setState({ draft: 'Unsent note', draftHydrated: true })
     prepareChatRequest(useChatStore.getState(), {
-      id: 'goal-detail:reading', label: 'Astra', prompt: 'Help me with my reading goal',
+      id: 'goal-detail:reading', label: 'Orbit', prompt: 'Help me with my reading goal',
     })
     const request = useChatStore.getState().contextualSuggestion
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
@@ -3839,7 +3839,7 @@ describe('mobile useChatComposer', () => {
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
     expect(appendFormPart).toHaveBeenCalledWith('message', expect.stringContaining('Ler'))
     expect(appendFormPart).toHaveBeenCalledWith('message', prompt)
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   })
 
   it('sends the first habit detail chip as a pause request', async () => {
@@ -3889,7 +3889,7 @@ describe('mobile useChatComposer', () => {
       ],
     })
     const composer = await renderComposer()
-    useUIStore.getState().setAstraConversationOpen(true, 'support')
+    useUIStore.getState().setOrbitConversationOpen(true, 'support')
 
     await TestRenderer.act(async () => {
       await composer.current.sendMessage('cancel my 9pm meds reminder')
@@ -3906,7 +3906,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.canRetryLastSend).toBe(false)
     expect(composer.current.selectedImage).toBeNull()
     expect(composer.current.imagePreview).toBeNull()
-    expect(useUIStore.getState().astraEntryPointIntent).toBeUndefined()
+    expect(useUIStore.getState().orbitEntryPointIntent).toBeUndefined()
   })
 
   it.each([

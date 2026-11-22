@@ -142,7 +142,7 @@ Orbit capability or the explanation of a proposed value.
 |---|---|
 | `web:control:shell.composer.offline.reason` | `apps/web/components/habits/habit-form-fields/habit-date-field.tsx`: the `habits.form.suggestDate` button retains the offline reason in its accessible description |
 | `mobile:control:shell.composer.offline.reason` | `apps/mobile/components/habits/habit-form-fields/habit-date-field.tsx`: the `habits.form.suggestDate` button retains the offline reason in its accessibility hint |
-| `mobile:control:habits.form.proposedByAstra` | `apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx`: the `habits.form.emojiOpenPicker` button explains a proposed emoji in its accessibility hint; web supplies the same description with hidden referenced text |
+| `mobile:control:habits.form.proposedByOrbit` | `apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx`: the `habits.form.emojiOpenPicker` button explains a proposed emoji in its accessibility hint; web supplies the same description with hidden referenced text |
 | `mobile:control:habits.form.tagLimit` | `apps/mobile/components/habits/habit-form-fields/tag-suggestions.tsx`: the `habits.form.suggestTags` button retains the limit in its accessibility hint; web supplies the same accessible description |
 
 All four controls retain their original capability identifiers after the title-row change.
@@ -182,14 +182,14 @@ orchestrator; no Android production release or version floor change is implied.
 
 | Paired control | Callback owner | Disposition |
 |---|---|---|
-| Setup fallback | `createHabitFormController.askAstra` to `use-habit-suggestion` | Corrected mark with existing visible Orbit label |
+| Setup fallback | `createHabitFormController.askOrbit` to `use-habit-suggestion` | Corrected mark with existing visible Orbit label |
 | Emoji suggestion | `useEmojiProposal` to `onSuggestEmoji` / `use-habit-suggestion` | Corrected mark and Ask Orbit wording in persistent Emoji context; manual picker unchanged |
 | Date consultation | `HabitDateEditor.ask` to `use-date-interpretation` | Corrected mark; explicit, budgeted and guarded request unchanged |
 | Tag generation | `TagSuggestions` to `useTagSuggestions.suggest` / `useSuggestTags` | Corrected mark and Ask Orbit wording under Tags; acceptance remains deterministic |
 | Compact and habit-detail composer entry | `onOpenConversation` to conversation store | Corrected visible Orbit name beside existing mark; opens without sending |
 | Composer send, retry and live suggestions | `onSend`, `onRetry`, suggestion `onSelect` to chat send owner | Corrected mark and visible wording; current request and retry ownership retained |
-| Habit and goal detail entries | `AskAstraRow`, `openAstra` to `prepareChatRequest` and conversation store | Corrected mark; draft preparation opens without sending |
-| Habit-list empty entry | `onAskAstra` to conversation store | Corrected mark with existing label |
+| Habit and goal detail entries | `AskOrbitRow`, `openOrbit` to `prepareChatRequest` and conversation store | Corrected mark; draft preparation opens without sending |
+| Habit-list empty entry | `onAskOrbit` to conversation store | Corrected mark with existing label |
 | Follow-up and proactive actions | `onSelect` / `useProactiveAction.act` to `sendMessage` | Corrected mark and visible Orbit name in each specific action target |
 | Complete prompt-library and deferred ideas | `selectIdea` to `sendMessage` | Corrected mark and visible Orbit name |
 | Slotted prompt ideas | `selectIdea` to `preparePromptTemplate` | Deterministic draft preparation; no invocation mark |

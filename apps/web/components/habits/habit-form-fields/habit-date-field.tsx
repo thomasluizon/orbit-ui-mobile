@@ -3,7 +3,7 @@
 import type { HabitRecurrence } from '@orbit/shared/utils'
 
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
-import { createAstraAllowanceTranslator, HabitDateEditor, isPayGateError, extractBackendErrorCode, getAccountDay, getFriendlyErrorMessage, isHabitAstraLimitReached, resolveHabitFormMode } from '@orbit/shared/utils'
+import { createOrbitAllowanceTranslator, HabitDateEditor, isPayGateError, extractBackendErrorCode, getAccountDay, getFriendlyErrorMessage, isHabitOrbitLimitReached, resolveHabitFormMode } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { useDateInterpretation } from '@/hooks/use-date-interpretation'
@@ -49,7 +49,7 @@ export function HabitDateField({ formHelpers, onRecurrence, lockedGeneral, onCha
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()
-  const allowanceText = createAstraAllowanceTranslator(t, profile, locale)
+  const allowanceText = createOrbitAllowanceTranslator(t, profile, locale)
   const { isOnline } = useOffline()
   const interpretation = useDateInterpretation()
   const { form, registerDateValidation } = formHelpers
@@ -81,7 +81,7 @@ export function HabitDateField({ formHelpers, onRecurrence, lockedGeneral, onCha
   }
   const [editor] = useState(() => new HabitDateEditor(adapter))
   const snapshot = useSyncExternalStore(editor.subscribe, editor.getSnapshot, editor.getSnapshot)
-  useLayoutEffect(() => { editor.configure(adapter); editor.sync(); editor.setAvailability(isOnline, isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, profile?.aiMessagesLimit ?? 5)) })
+  useLayoutEffect(() => { editor.configure(adapter); editor.sync(); editor.setAvailability(isOnline, isHabitOrbitLimitReached(profile?.aiMessagesUsed ?? 0, profile?.aiMessagesLimit ?? 5)) })
   useLayoutEffect(() => registerDateValidation(() => editor.validate(), () => editor.chooseType()), [editor, registerDateValidation])
   useEffect(() => { editor.open(); return () => editor.close() }, [editor])
   useEffect(() => { editor.initializeDate() }, [date, editor, formHelpers.isGeneral, timeZone])
@@ -89,7 +89,7 @@ export function HabitDateField({ formHelpers, onRecurrence, lockedGeneral, onCha
   const validationError = form.formState.errors.datePhrase?.message
   const error = issue || validationError
   return <section data-habit-date-field="" className="flex min-w-0 flex-col gap-4">
-    {!formHelpers.isGeneral ? <Input label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} trailing={snapshot.pending || snapshot.astra ? <span role="status" aria-busy={snapshot.pending || undefined} aria-label={t(snapshot.pending ? 'habits.form.dateInterpreting' : 'habits.form.dateInterpreted')}><OrbitMascot size={16} color="var(--fg-3)" reading={snapshot.pending} /></span> : undefined} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={(value) => editor.setPhrase(value)} /> : null}
+    {!formHelpers.isGeneral ? <Input label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} trailing={snapshot.pending || snapshot.orbit ? <span role="status" aria-busy={snapshot.pending || undefined} aria-label={t(snapshot.pending ? 'habits.form.dateInterpreting' : 'habits.form.dateInterpreted')}><OrbitMascot size={16} color="var(--fg-3)" reading={snapshot.pending} /></span> : undefined} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={(value) => editor.setPhrase(value)} /> : null}
     <TaskDateChoices formHelpers={formHelpers} lockedGeneral={lockedGeneral} onChange={onChange} />
     {!formHelpers.isGeneral ? <div className="flex min-w-0 flex-col gap-2">
       {type === 'habit' ? <span className="form-label">{dateLabel}</span> : null}

@@ -4,7 +4,7 @@ import type { AccountRowsCard } from '../types/chat'
 
 const t = (key: string) => key
 
-describe('Astra account row presentation', () => {
+describe('Orbit account row presentation', () => {
   it('drops unknown keys', () => {
     expect(accountRowLabelKey('unexpected')).toBeNull()
     expect(accountRowLabelKey('plan')).toBe('chat.account.row.plan')

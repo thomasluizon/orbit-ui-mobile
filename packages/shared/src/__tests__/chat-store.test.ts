@@ -227,7 +227,7 @@ describe('shared chat store', () => {
     const store = createStoreHarness()
     const suggestion = {
       id: 'habit-detail-help',
-      label: 'Ask Astra about this habit',
+      label: 'Ask Orbit about this habit',
       prompt: 'Help me improve Read',
     }
 
@@ -270,7 +270,7 @@ describe('shared chat store', () => {
 
   it('places a request in an empty draft without replacing another suggestion', () => {
     const store = createStoreHarness()
-    const existing = { id: 'habit-1', label: 'Ask Astra', prompt: 'Help with this habit' }
+    const existing = { id: 'habit-1', label: 'Ask Orbit', prompt: 'Help with this habit' }
     store.getState().setContextualSuggestion(existing)
 
     prepareChatRequest(store.getState(), { id: 'progress-create-goal', label: 'Create goal', prompt: 'Help me set a goal' })

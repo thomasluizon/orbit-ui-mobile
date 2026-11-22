@@ -74,7 +74,7 @@ describe('automatic date field', () => {
     expect(screen.queryByRole('status', { name: 'habits.form.dateInterpreted' })).toBeNull()
   })
 
-  it.each(['en', 'pt-BR'])('fills an editable date through Astra with a subtle in-field glyph in %s', async (locale) => {
+  it.each(['en', 'pt-BR'])('fills an editable date through Orbit with a subtle in-field glyph in %s', async (locale) => {
     formLocale.language = locale
     let finish!: (reply: { date: string; referenceDate: string }) => void
     dateRequests.request.mockImplementation(() => new Promise(resolve => { finish = resolve }))
@@ -98,7 +98,7 @@ describe('automatic date field', () => {
     expect(buildUpdateHabitRequest(values, true, '', [], [])).toMatchObject({ dueDate: '2026-10-26' })
     expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'habits.form.acceptDate' })).toBeNull()
-    expect(screen.queryByText(/^habits.form.askAstraCost/)).toBeNull()
+    expect(screen.queryByText(/^habits.form.askOrbitCost/)).toBeNull()
     fireEvent.click(calendar())
     fireEvent.click(document.querySelector<HTMLButtonElement>('button[data-day="2026-10-27"]')!)
     expect(helpers.form.getValues()).toMatchObject({ dueDate: '2026-10-27', datePhrase: '', dateIssue: '' })

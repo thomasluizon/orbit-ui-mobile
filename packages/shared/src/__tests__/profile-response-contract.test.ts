@@ -34,7 +34,7 @@ describe('serialized API profile response', () => {
 })
 
 
-describe('Astra allowance contract', () => {
+describe('Orbit allowance contract', () => {
   it.each(['day', 'week'] as const)('retains the %s period and UTC reset on profile and subscription', (period) => {
     const fields = { aiMessagesPeriod: period, aiMessagesResetsAt: '2026-11-02T03:00:00Z' }
     expect(profileSchema.parse({ ...profileResponse, ...fields })).toMatchObject(fields)

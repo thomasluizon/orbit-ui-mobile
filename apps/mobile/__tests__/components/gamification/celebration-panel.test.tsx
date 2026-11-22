@@ -42,7 +42,7 @@ describe('CelebrationPanel mobile', () => {
       tree = TestRenderer.create(
         <Shell412
           notice={<CelebrationPanel />}
-          composer={<View testID="astra-composer" />}
+          composer={<View testID="orbit-composer" />}
           tabBar={<View testID="tab-bar" />}
         >
           <View testID="habit-list" />
@@ -56,7 +56,7 @@ describe('CelebrationPanel mobile', () => {
     expect(tree!.root.findAllByProps({ accessibilityViewIsModal: true })).toHaveLength(0)
     expect(tree!.root.findByProps({ testID: 'shell-background' }).props.importantForAccessibility).toBe('auto')
     expect(tree!.root.findByProps({ testID: 'shell-scroller' }).findByProps({ testID: 'habit-list' })).toBeTruthy()
-    expect(tree!.root.findByProps({ testID: 'shell-pinned-slot' }).findByProps({ testID: 'astra-composer' })).toBeTruthy()
+    expect(tree!.root.findByProps({ testID: 'shell-pinned-slot' }).findByProps({ testID: 'orbit-composer' })).toBeTruthy()
     expect(selectPlural).toHaveBeenCalledWith('celebration.day.line:{"count":1}', 1)
     expect(JSON.stringify(tree!.toJSON())).toContain('selected:celebration.day.line')
     TestRenderer.act(() => tree!.unmount())

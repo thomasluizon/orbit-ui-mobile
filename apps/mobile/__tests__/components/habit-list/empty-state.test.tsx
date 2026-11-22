@@ -178,34 +178,34 @@ describe('HabitListEmptyState', () => {
     expect(textStrings(tree).filter((value) => value === 'Same')).toHaveLength(1)
   })
 
-  it('stacks the Astra pill and the ghost create pill in the primary variant', () => {
-    const onAskAstra = vi.fn()
+  it('stacks the Orbit pill and the ghost create pill in the primary variant', () => {
+    const onAskOrbit = vi.fn()
     const onAction = vi.fn()
     const tree = render(
       <HabitListEmptyState
         title="Empty"
         description=""
-        askAstraLabel="Ask Astra"
-        onAskAstra={onAskAstra}
+        askOrbitLabel="Ask Orbit"
+        onAskOrbit={onAskOrbit}
         actionLabel="Create habit"
         onAction={onAction}
       />,
     )
     const texts = textStrings(tree)
-    expect(texts).toContain('Ask Astra')
-    expect(pressableWithLabel(tree, 'Ask Astra')).toBeTruthy()
+    expect(texts).toContain('Ask Orbit')
+    expect(pressableWithLabel(tree, 'Ask Orbit')).toBeTruthy()
     expect(texts).toContain('Create habit')
     expect(tree.root.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string').map((node) => node.props.testID)).toEqual(['button-ghost-sm', 'button-primary-sm'])
-    expect(pressableWithLabel(tree, 'Ask Astra')!.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(0)
+    expect(pressableWithLabel(tree, 'Ask Orbit')!.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(0)
   })
 
-  it('renders the create pill without the Astra pill when no Astra handler is given', () => {
+  it('renders the create pill without the Orbit pill when no Orbit handler is given', () => {
     const tree = render(
       <HabitListEmptyState title="Empty" description="" actionLabel="Create habit" />,
     )
     const texts = textStrings(tree)
     expect(texts).toContain('Create habit')
-    expect(texts).not.toContain('Ask Astra')
+    expect(texts).not.toContain('Ask Orbit')
   })
 
   it('falls back to a single underline link action in the secondary variant', () => {
@@ -217,11 +217,11 @@ describe('HabitListEmptyState', () => {
         description=""
         actionLabel="Browse all"
         onAction={onAction}
-        askAstraLabel="Ask Astra"
-        onAskAstra={vi.fn()}
+        askOrbitLabel="Ask Orbit"
+        onAskOrbit={vi.fn()}
       />,
     )
-    expect(textStrings(tree)).not.toContain('Ask Astra')
+    expect(textStrings(tree)).not.toContain('Ask Orbit')
     const link = pressableWithLabel(tree, 'Browse all')
     expect(link).toBeTruthy()
     expectPressFill(tree, 'Browse all', createTokensV2('purple', 'dark').bgHover, 999)

@@ -5,7 +5,7 @@ import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Button } from '@/components/ui/pill-button'
 
 const TestRenderer = require('react-test-renderer')
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'nav.astra' ? 'Astra' : 'Next questions' }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'nav.orbit' ? 'Orbit' : 'Next questions' }) }))
 type TestNode = { type: unknown; props: Record<string, unknown>; findAll: (predicate: (node: TestNode) => boolean) => TestNode[] }
 type TestTree = { root: TestNode; unmount: () => void; toJSON: () => unknown }
 const trees: TestTree[] = []
@@ -36,7 +36,7 @@ it('uses the existing small pills and sends the full contextual question once', 
   const chip = tree.root.findAll(node => node.type === Button)[0]!
   expect(chip.props).toMatchObject({ size: 'sm', variant: 'ghost', children: 'Compare', accessibleName: 'Compare' })
   expect(chip.findAll(node => node.type === OrbitMascot)).toHaveLength(1)
-  expect(chip.findAll(node => node.type === 'Text' && String(node.props.children).includes('Astra'))).toHaveLength(0)
+  expect(chip.findAll(node => node.type === 'Text' && String(node.props.children).includes('Orbit'))).toHaveLength(0)
   const select = chip.props.onClick as () => void
   TestRenderer.act(() => { select(); select() })
   expect(onSelect).toHaveBeenCalledExactlyOnceWith(question)

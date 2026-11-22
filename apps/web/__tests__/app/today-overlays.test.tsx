@@ -56,13 +56,13 @@ vi.mock('@/components/shell/shell-412', () => ({
   }) => <main>{header}{children}{composer}{tabBar}</main>,
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, composer, astraButton, tabBar }: {
+  ShellWide: ({ children, header, composer, orbitButton, tabBar }: {
     children: ReactNode
     header?: ReactNode
     composer?: ReactNode
-    astraButton?: ReactNode
+    orbitButton?: ReactNode
     tabBar?: ReactNode
-  }) => <main>{header}{children}{composer}<div data-shell-page=""><div data-shell-page-content="" /></div>{astraButton}{tabBar}</main>,
+  }) => <main>{header}{children}{composer}<div data-shell-page=""><div data-shell-page-content="" /></div>{orbitButton}{tabBar}</main>,
 }))
 vi.mock('@/components/habits/habit-list', () => ({
   HabitList: () => <p>Morning walk</p>,
@@ -159,7 +159,7 @@ describe('Today lazy overlays', () => {
     render(<TodayHarness />)
     expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'shell.orbitButton.open' })).toBeVisible()
 
     await enterSelection()
     try {
@@ -173,7 +173,7 @@ describe('Today lazy overlays', () => {
     expectTodayVisible()
     fireEvent.click(within(tray).getByRole('button', { name: 'common.cancel' }))
     expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'shell.orbitButton.open' })).toBeVisible()
     await enterSelection()
     const reopenedTray = await screen.findByTestId('bulk-action-bar')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

@@ -22,8 +22,8 @@ describe('AppBar', () => {
     expect(screen.queryByRole('button', { name: 'Back to walking' })).not.toBeInTheDocument()
   })
   it('names a visual title when the caller does not use a heading', () => {
-    render(<AppBar title="Astra" titleVisual={<OrbitMascot size={16} />} titleIsHeading={false} />)
-    expect(screen.getByRole('img', { name: 'Astra' })).toBeInTheDocument()
+    render(<AppBar title="Orbit" titleVisual={<OrbitMascot size={16} />} titleIsHeading={false} />)
+    expect(screen.getByRole('img', { name: 'Orbit' })).toBeInTheDocument()
     expect(screen.queryByRole('heading')).not.toBeInTheDocument()
   })
   it('keeps an object view title visible without adding a page heading', () => {

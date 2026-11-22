@@ -15,7 +15,7 @@ vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (pr
   return <button type="button" onClick={() => props.onOpenChange(false)}>back</button>
 } }))
 
-beforeEach(() => { vi.clearAllMocks(); route.params = new URLSearchParams(); useUIStore.getState().setAstraConversationOpen(false) })
+beforeEach(() => { vi.clearAllMocks(); route.params = new URLSearchParams(); useUIStore.getState().setOrbitConversationOpen(false) })
 describe('habit creation route', () => {
   it.each(['/?date=2026-09-05', '/calendar', '/search', '/profile'])('preserves prefills and returns from %s', (from) => {
     route.params = new URL(buildHabitCreateHref({ from, title: 'Walk & read', date: '2026-09-05' }), 'https://example.test').searchParams
@@ -39,7 +39,7 @@ describe('habit creation route', () => {
     render(<HabitCreateRoute />)
     expect(route.form?.fromConversation).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'back' }))
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     vi.restoreAllMocks()
   })
   it('makes a direct link usable without history', () => {

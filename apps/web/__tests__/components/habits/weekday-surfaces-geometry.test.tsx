@@ -27,7 +27,7 @@ const onboarding = {
 }
 
 const cases = [320, 360, 393, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale => [1, 2].flatMap(scale =>
-  (['onboarding', 'proposal', 'astra'] as const).map(surface => ({ width, locale, scale, surface })),
+  (['onboarding', 'proposal', 'orbit'] as const).map(surface => ({ width, locale, scale, surface })),
 )))
 
 describe('weekday surface geometry', () => {
@@ -49,11 +49,11 @@ describe('weekday surface geometry', () => {
     const item = operation.items![0]!
     operation.items = [{ ...item, fields: [{ ...item.fields[0]!, field: 'days', newValue: 'Monday', proposedValue: ['Monday'] }] }]
     render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
-      {surface === 'astra' ? <PendingOperationCard pendingOperation={operation} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+      {surface === 'orbit' ? <PendingOperationCard pendingOperation={operation} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
         : <OnboardingCreateHabit {...onboarding} proposed={surface === 'proposal'} correcting={surface !== 'proposal'} />}
     </NextIntlClientProvider>)
-    if (surface === 'astra') fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.edit }))
-    const names = Object.values(surface === 'astra' ? messages.dates.daysLong : messages.onboarding.flow.when.daysLong)
+    if (surface === 'orbit') fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.edit }))
+    const names = Object.values(surface === 'orbit' ? messages.dates.daysLong : messages.onboarding.flow.when.daysLong)
     const controls = [...document.querySelectorAll('button')].filter(button => names.includes(button.getAttribute('aria-label') ?? '') || names.includes(button.textContent))
     const row = surface === 'proposal' ? document.querySelector(`[aria-label="${messages.onboarding.flow.when.daysLabel}"]`)! : controls[0]!.parentElement!
     const page = await browser.newPage({ viewport: { width, height: 1200 } })

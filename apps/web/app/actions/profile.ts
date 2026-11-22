@@ -58,11 +58,11 @@ export async function updateAiSummary(
   }, intendedAccountId))
 }
 
-export async function updateProactiveAstra(
+export async function updateProactiveOrbit(
   data: SetProactiveAstraRequest,
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.profile.proactiveAstra, {
+  return wrapServerAction(() => serverAuthMutate(API.profile.proactiveOrbit, {
     method: 'PUT',
     body: JSON.stringify(data),
   }, intendedAccountId))

@@ -4,8 +4,8 @@ import { ORBIT_MASCOT_FACES, ORBIT_MASCOT_VIEW_BOX, ORBIT_SMALL_FACES, orbitMasc
 import { mascotMotion } from '@orbit/shared/theme'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AstraButton } from '@/components/shell/astra-button'
-import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { OrbitButton } from '@/components/shell/orbit-button'
+import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useUIStore } from '@/stores/ui-store'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
@@ -447,10 +447,10 @@ describe('Orbit on-screen probe on Android', () => {
 describe('Hoje Orbit line with the conversation entry on Android', () => {
   function hoje(overlay = false) {
     return <View>
-      <TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} />
+      <TodayOrbitLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} />
       <OrbitMascot size={96} state="feliz" />
       <OrbitOverlayLayer active={overlay}>{overlay ? <OrbitMascot size={48} state="pensando" /> : null}</OrbitOverlayLayer>
-      <AstraButton />
+      <OrbitButton />
     </View>
   }
 
@@ -460,7 +460,7 @@ describe('Hoje Orbit line with the conversation entry on Android', () => {
   }
 
   function pair(tree: TestTree) {
-    return [loopIn(tree, 'today-astra-slot'), loopIn(tree, 'astra-button')]
+    return [loopIn(tree, 'today-orbit-slot'), loopIn(tree, 'orbit-button')]
   }
 
   beforeEach(() => { useUIStore.setState(useUIStore.getInitialState()) })
@@ -476,8 +476,8 @@ describe('Hoje Orbit line with the conversation entry on Android', () => {
   })
 
   it('keeps the summary Orbit still and runs the empty state Orbit on a view that shows no entry', () => {
-    const tree = render(<View><TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} /><OrbitMascot size={96} state="feliz" /></View>)
-    expect([loopIn(tree, 'today-astra-slot'), loopsByState(tree).feliz]).toEqual(['still', 'running'])
+    const tree = render(<View><TodayOrbitLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} /><OrbitMascot size={96} state="feliz" /></View>)
+    expect([loopIn(tree, 'today-orbit-slot'), loopsByState(tree).feliz]).toEqual(['still', 'running'])
   })
 
   it('keeps the summary Orbit and the entry still under reduced motion', () => {
@@ -495,7 +495,7 @@ describe('Hoje Orbit line with the conversation entry on Android', () => {
       calls += 1
       callback(0, summary && !summaryOnScreen ? 2000 : 100, 48, 34)
     })
-    const tree = render(<View><TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} /><AstraButton /></View>)
+    const tree = render(<View><TodayOrbitLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} /><OrbitButton /></View>)
     advance(250)
     expect(pair(tree)).toEqual(['running', 'running'])
     summaryOnScreen = false
@@ -514,7 +514,7 @@ describe('Hoje Orbit line with the conversation entry on Android', () => {
   it('stops the summary Orbit and the entry behind an overlay and in the background', () => {
     const tree = render(hoje())
     TestRenderer.act(() => tree.update(hoje(true)))
-    expect([loopIn(tree, 'today-astra-slot'), loopsByState(tree).pensando]).toEqual(['still', 'running'])
+    expect([loopIn(tree, 'today-orbit-slot'), loopsByState(tree).pensando]).toEqual(['still', 'running'])
     TestRenderer.act(() => tree.update(hoje()))
     expect(pair(tree)).toEqual(['running', 'running'])
     TestRenderer.act(() => { for (const listener of appStateListeners) listener('background') })

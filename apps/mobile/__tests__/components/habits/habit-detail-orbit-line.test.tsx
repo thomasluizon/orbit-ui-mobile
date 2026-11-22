@@ -24,12 +24,12 @@ async function mount(element: React.ReactElement): Promise<Tree> {
   await renderer.act(async () => { tree = renderer.create(element); await Promise.resolve() })
   return tree
 }
-const row = (tree: Tree) => tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'today-astra-slot')
+const row = (tree: Tree) => tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'today-orbit-slot')
 const probes = (tree: Tree) => tree.root.findAll(node => (node.type as unknown) === 'OrbitMascotProbe')
 
 afterEach(() => {
   useChatStore.getState().setDraft('')
-  useUIStore.setState({ astraConversationOpen: false })
+  useUIStore.setState({ orbitConversationOpen: false })
 })
 
 describe('Android habit detail Orbit line', () => {
@@ -40,14 +40,14 @@ describe('Android habit detail Orbit line', () => {
     expect(probes(tree)[0]!.props.still).toBeUndefined()
     expect(row(tree)[0]!.props.accessibilityLabel).toBe('habits.detail.orbit.lastSevenDays:5')
     await renderer.act(() => { (row(tree)[0]!.props.onPress as () => void)() })
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
-    expect(useChatStore.getState().draft).toBe('habits.detail.askAstraSeedDefault')
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+    expect(useChatStore.getState().draft).toBe('habits.detail.askOrbitSeedDefault')
   })
 
   it('never counts a miss: a week with nothing done shows the review label and no number', async () => {
     enableTestFlags('orbit_guided_flows')
     const tree = await mount(<HabitDetailOrbitLine habit={habit} days={week(0)} />)
-    expect(row(tree)[0]!.props.accessibilityLabel).toBe('habits.detail.askAstra')
+    expect(row(tree)[0]!.props.accessibilityLabel).toBe('habits.detail.askOrbit')
   })
 
   it('renders no Orbit line while the flag is off and keeps the review row', async () => {

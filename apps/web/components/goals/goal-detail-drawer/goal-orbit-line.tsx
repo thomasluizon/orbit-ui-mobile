@@ -7,7 +7,7 @@ import { formatLocaleDate, getAccountDay } from '@orbit/shared/utils'
 import { getGoalDeadlineFact, type GoalDeadlineFact } from '@orbit/shared/utils/goal-detail-line'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useProfile } from '@/hooks/use-profile'
-import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 
 type Translate = ReturnType<typeof useTranslations>
 
@@ -34,6 +34,6 @@ export function useGoalOrbitLine(goal: Goal | null, guided: boolean): string | n
 export function GoalAskEntry({ line, at, disabled, onPress }: Readonly<{ line: string | null; at: 'top' | 'bottom'; disabled: boolean; onPress: () => void }>) {
   const t = useTranslations()
   if ((at === 'top') !== (line !== null)) return null
-  if (line) return <div data-goal-orbit-line=""><TodayAstraLine text={line} destination={t('todayAstra.openConversation')} gutter={false} disabled={disabled} onPress={onPress} /></div>
-  return <ListRow placement="column" wrapTitle icon={<OrbitMascot size={24} />} title={t('goals.detail.askAstraEyebrow')} accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`} disabled={disabled} onClick={onPress} />
+  if (line) return <div data-goal-orbit-line=""><TodayOrbitLine text={line} destination={t('todayOrbit.openConversation')} gutter={false} disabled={disabled} onPress={onPress} /></div>
+  return <ListRow placement="column" wrapTitle icon={<OrbitMascot size={24} />} title={t('goals.detail.askOrbitEyebrow')} accessibilityLabel={`${t('goals.detail.askOrbitEyebrow')}: ${t('goals.detail.askOrbitDefault')}`} disabled={disabled} onClick={onPress} />
 }

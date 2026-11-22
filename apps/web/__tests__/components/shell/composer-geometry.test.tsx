@@ -31,7 +31,7 @@ function assertPillActions(measured: PillGeometry, { withOpener, scenario, messa
   const names = measured.controls.map(control => control.name)
   const voiceActive = scenario === 'recording' || scenario === 'transcribing'
   const expected = [
-    ...(withOpener ? [messages.todayAstra.openConversation] : []),
+    ...(withOpener ? [messages.todayOrbit.openConversation] : []),
     messages.shell.composer.actions,
     voiceActive ? messages.shell.composer.voice.stop : ['oneLine', 'typing', 'longText', 'tray2', 'tray3'].includes(scenario)
       ? messages.shell.composer.send : messages.shell.composer.voice.start,
@@ -226,7 +226,7 @@ describe('Composer compact geometry in Chromium', () => {
       const bounds = (await target.boundingBox())!
       expect(bounds.width).toBeGreaterThanOrEqual(48)
       expect(bounds.height).toBeGreaterThanOrEqual(48)
-      expect(await target.getAttribute('aria-label')).toBe(en.todayAstra.openConversation)
+      expect(await target.getAttribute('aria-label')).toBe(en.todayOrbit.openConversation)
       expect(await target.locator('[translate="no"]').allTextContents()).toEqual([])
       expect(await target.locator('[data-asset="orbit-mascot"][aria-hidden="true"]').count()).toBe(1)
       expect((await target.locator('svg').boundingBox())!.width).toBe(20)

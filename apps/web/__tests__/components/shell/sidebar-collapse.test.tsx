@@ -26,7 +26,7 @@ function shell(onCreate = vi.fn()) {
 
 describe('sidebar collapse', () => {
   beforeEach(() => {
-    useUIStore.setState({ astraConversationOpen: false })
+    useUIStore.setState({ orbitConversationOpen: false })
     useShellStore.setState({ sidebarCollapsed: false })
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
   })
@@ -84,7 +84,7 @@ describe('sidebar collapse', () => {
     expect(onCreate).toHaveBeenCalledOnce()
     fireEvent.click(sidebar.getByRole('button', { name: 'nav.search' }))
     expect(useShellStore.getState().paletteOpen).toBe(true)
-    expect(sidebar.getByRole('button', { name: 'shell.astraButton.open' })).toBeEnabled()
+    expect(sidebar.getByRole('button', { name: 'shell.orbitButton.open' })).toBeEnabled()
     expect(sidebar.getByRole('button', { name: 'notifications.bell' })).toBeEnabled()
     expect(sidebar.getByRole('button', { name: 'Person, person@example.test' })).toBeVisible()
     view.unmount()
@@ -110,19 +110,19 @@ describe('sidebar collapse', () => {
     expect(announcement).toHaveTextContent('Reconnect and try again')
   })
 
-  it('keeps an open Astra conversation and its draft while toggling', () => {
+  it('keeps an open Orbit conversation and its draft while toggling', () => {
     function ConversationShell() {
-      const open = useUIStore(state => state.astraConversationOpen)
-      return <DestinationShell onCreate={vi.fn()} conversationOpen={open} conversationLabel="Astra"
-        conversation={<textarea aria-label="Astra draft" defaultValue="Keep this draft" />}><h1>Today</h1></DestinationShell>
+      const open = useUIStore(state => state.orbitConversationOpen)
+      return <DestinationShell onCreate={vi.fn()} conversationOpen={open} conversationLabel="Orbit"
+        conversation={<textarea aria-label="Orbit draft" defaultValue="Keep this draft" />}><h1>Today</h1></DestinationShell>
     }
     render(<ConversationShell />)
-    fireEvent.click(screen.getByRole('button', { name: 'shell.astraButton.open' }))
+    fireEvent.click(screen.getByRole('button', { name: 'shell.orbitButton.open' }))
     fireEvent.click(screen.getByRole('button', { name: 'shell.collapseSidebar' }))
-    expect(screen.getByRole('dialog', { name: 'Astra' })).toBeVisible()
-    expect(screen.getByRole('textbox', { name: 'Astra draft' })).toHaveValue('Keep this draft')
+    expect(screen.getByRole('dialog', { name: 'Orbit' })).toBeVisible()
+    expect(screen.getByRole('textbox', { name: 'Orbit draft' })).toHaveValue('Keep this draft')
     fireEvent.click(screen.getByRole('button', { name: 'shell.expandSidebar' }))
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   })
 
   it('hydrates a saved collapsed preference without replacing the server content', async () => {

@@ -5,7 +5,7 @@ import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { chatMessageSchema, proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
 import { proactiveKeys } from '@orbit/shared/query'
 import { ProactiveAction } from '@/components/chat/proactive-action'
-import { TodayAstra } from '@/components/today/today-astra'
+import { TodayOrbit } from '@/components/today/today-orbit'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { openCurrentProactiveItem } from '@/lib/proactive-item'
@@ -50,13 +50,13 @@ beforeEach(() => {
   mocks.opened.mockResolvedValue(null)
   mocks.acted.mockResolvedValue(null)
   useChatStore.setState({ messages: [], proactiveOutcomes: {}, isTyping: false, streamingMessageId: null })
-  useUIStore.setState({ astraConversationOpen: false })
+  useUIStore.setState({ orbitConversationOpen: false })
 })
 
 describe('proactive conversation', () => {
   it('loads the endpoint, opens the full item once and sends its action through chat once', async () => {
     const { wrapper } = setup()
-    const line = render(<TodayAstra today={item.localDate} isTodaySelected suppressed={false} />, { wrapper })
+    const line = render(<TodayOrbit today={item.localDate} isTodaySelected suppressed={false} />, { wrapper })
     fireEvent.click(await screen.findByRole('button', { name: item.text }))
     fireEvent.click(screen.getByRole('button', { name: item.text }))
     expect(useChatStore.getState().messages).toEqual([expect.objectContaining({ role: 'ai', content: item.text })])
@@ -64,7 +64,7 @@ describe('proactive conversation', () => {
     expect(restoredMessage.proactiveItem?.facts).toEqual(item.facts)
     expect(restoredMessage.proactiveItem?.facts).not.toBeNull()
     expect(mocks.opened).toHaveBeenCalledExactlyOnceWith(item.id, 'account')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     expect(mocks.acted).not.toHaveBeenCalled()
     line.unmount()
     const send = vi.fn(async () => undefined)
@@ -87,7 +87,7 @@ describe('proactive conversation', () => {
     client.setQueryData(proactiveKeys.current(), item)
     useChatStore.getState().openProactiveItem(item)
     const send = vi.fn()
-    render(<><TodayAstra today={item.localDate} isTodaySelected suppressed={false} /><ProactiveAction isOnline={mocks.online} item={item} acted={false} onSend={send} /></>, { wrapper })
+    render(<><TodayOrbit today={item.localDate} isTodaySelected suppressed={false} /><ProactiveAction isOnline={mocks.online} item={item} acted={false} onSend={send} /></>, { wrapper })
     expect(screen.getByRole('button', { name: item.text })).toBeEnabled()
     const action = screen.getByRole('button', { name: item.actionLabel })
     expect(action).toBeDisabled()
@@ -155,7 +155,7 @@ describe('proactive conversation', () => {
     try {
       void openCurrentProactiveItem(client)
       await Promise.resolve()
-      expect(useUIStore.getState().astraConversationOpen).toBe(true)
+      expect(useUIStore.getState().orbitConversationOpen).toBe(true)
       expect(useChatStore.getState().messages).toEqual(cached
         ? [expect.objectContaining({ role: 'ai', content: item.text })]
         : [])
@@ -169,11 +169,11 @@ describe('proactive conversation', () => {
     mocks.current.mockResolvedValue(null)
     await openCurrentProactiveItem(client)
     expect(useChatStore.getState().messages).toEqual([])
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
-    useUIStore.setState({ astraConversationOpen: false })
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+    useUIStore.setState({ orbitConversationOpen: false })
     mocks.current.mockImplementation(async () => { mocks.epoch++; return item })
     await openCurrentProactiveItem(client)
     expect(useChatStore.getState().messages).toEqual([])
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 })

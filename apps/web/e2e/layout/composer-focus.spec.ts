@@ -39,7 +39,7 @@ async function expectComposerKeyboardRings(page: Page, container: Locator, force
 }
 
 for (const width of [412, 1280] as const) {
-  test.describe(`Hoje Astra entry at ${width}px`, () => {
+  test.describe(`Hoje Orbit entry at ${width}px`, () => {
     test.use({ viewport: { width, height: 915 } })
     test('draws one focus ring', async ({ page }) => {
       await page.goto('/')

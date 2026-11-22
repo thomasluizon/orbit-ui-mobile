@@ -126,8 +126,8 @@ describe("HabitEmojiSelector mobile", () => {
     const glyph = paint.findAll(node => node.type === 'Text' && node.props.children === '🏃')[0]!;
     expect(StyleSheet.flatten(glyph.props.style as TextStyle).color).toBe(proposed ? createTokensV2('orange', 'light').fg3 : undefined);
     const well = button(tree, 'habits.form.emojiOpenPicker');
-    expect(well.props.accessibilityHint).toBe(proposed ? 'habits.form.proposedByAstra' : undefined);
-    expect(tree.root.findAll(node => node.type === 'Text' && node.props.children === 'habits.form.proposedByAstra')).toHaveLength(0);
+    expect(well.props.accessibilityHint).toBe(proposed ? 'habits.form.proposedByOrbit' : undefined);
+    expect(tree.root.findAll(node => node.type === 'Text' && node.props.children === 'habits.form.proposedByOrbit')).toHaveLength(0);
     const row = tree.root.findAll(node => node.type === 'View' && node.props.testID === 'habit-title-row')[0]!;
     expect(row.findAll(node => node.props.testID === 'proposed-field-outline')).toHaveLength(0);
     const style = () => StyleSheet.flatten(resolvedStyle(action, false) as ViewStyle[]);
@@ -173,7 +173,7 @@ describe("HabitEmojiSelector mobile", () => {
     const title = titleRow.findAll(node => node.type === 'View' && node.props.style !== undefined && style(node).outlineWidth === 1)[0]!;
     const controls = titleRow.findAll(node => node.type === 'View' && node.props.style !== undefined && style(node).flexDirection === 'row' && node !== titleRow)[0]!;
     const well = titleRow.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.emojiOpenPicker')[0]!;
-    const astra = titleRow.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.suggestEmoji')[0]!;
+    const orbit = titleRow.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.suggestEmoji')[0]!;
     const painted = titleRow.findAll(node => node.type === 'View' && node.props.testID === 'habit-emoji-well')[0]!;
     const row = Yoga.Node.create();
     row.setWidth(Math.min(width, 640) - 32);
@@ -189,7 +189,7 @@ describe("HabitEmojiSelector mobile", () => {
     group.setFlexDirection(style(controls).flexDirection === 'row' ? Yoga.FLEX_DIRECTION_ROW : Yoga.FLEX_DIRECTION_COLUMN);
     group.setGap(Yoga.GUTTER_ALL, style(controls).gap as number);
     row.insertChild(group, 1);
-    const targets = [well, astra].map((host, index) => {
+    const targets = [well, orbit].map((host, index) => {
       const target = Yoga.Node.create();
       target.setWidth(style(host).width as number);
       target.setHeight((style(host).height ?? style(host).minHeight) as number);

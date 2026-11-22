@@ -42,20 +42,20 @@ it.each([360, 412].flatMap(width => [1, 2].map(scale => ({ width, scale }))))('a
       const input = parts.find(part => part.host.type === 'TextInput')!
       const mirror = parts.find(part => part.host.type === 'Text' && (part.style as TextStyle).color === 'transparent')!
       const emoji = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === 'habits.form.emojiOpenPicker')!
-      const astra = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === 'habits.form.suggestEmoji')!
+      const orbit = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === 'habits.form.suggestEmoji')!
       const paint = parts.find(part => part.host.props.testID === 'habit-emoji-well')!
       const firstLine = mirror.top + Number(mirror.style.paddingVertical) + Number((mirror.style as TextStyle).lineHeight) * scale / 2
       if (!singleLineHeight) singleLineHeight = input.height
       expect(Math.abs(emoji.height - singleLineHeight)).toBeLessThanOrEqual(1)
       expect(Math.abs(emoji.width - emoji.height)).toBeLessThanOrEqual(1)
       expect(Math.abs(paint.height - emoji.height)).toBeLessThanOrEqual(1)
-      for (const button of [emoji, astra]) expect(Math.abs(button.top + button.height / 2 - firstLine)).toBeLessThanOrEqual(1)
+      for (const button of [emoji, orbit]) expect(Math.abs(button.top + button.height / 2 - firstLine)).toBeLessThanOrEqual(1)
       if (state.value === 'Read') {
         expect(Math.abs(input.height - singleLineHeight)).toBeLessThanOrEqual(1)
         expect(Math.abs(input.top + input.height / 2 - firstLine)).toBeLessThanOrEqual(1)
       }
       if (state.value.length > 100) expect(input.height).toBeGreaterThan(singleLineHeight)
-      expect(astra.right).toBeLessThanOrEqual(width - 32 + 1)
+      expect(orbit.right).toBeLessThanOrEqual(width - 32 + 1)
     } finally { void renderer.act(() => tree.update(<></>)) }
   }
 })

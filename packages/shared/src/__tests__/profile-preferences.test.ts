@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createMockProfile } from './factories'
 import ptBR from '../i18n/pt-BR.json'
 import en from '../i18n/en.json'
-import { buildGuidedTimeZoneOptions, buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues, filterTimeZones, TIME_ZONE_PAGE_SIZE } from '../utils/profile-preferences'
+import { buildGuidedTimeZoneOptions, buildProfilePickerLabels, deriveProfileOrbitFeatures, deriveProfilePreferenceValues, filterTimeZones, TIME_ZONE_PAGE_SIZE } from '../utils/profile-preferences'
 
 const translateWeekday = (key: 'dates.daysValue.monday' | 'dates.daysValue.sunday') =>
   ptBR.dates.daysValue[key.endsWith('monday') ? 'monday' : 'sunday']
@@ -43,8 +43,8 @@ describe('deriveProfilePreferenceValues', () => {
   })
 })
 
-describe('deriveProfileAstraFeatures', () => {
-  it('keeps both Astra controls in order and gates them on the plan', () => {
+describe('deriveProfileOrbitFeatures', () => {
+  it('keeps both Orbit controls in order and gates them on the plan', () => {
     const onToggleProactive = () => undefined
     const onToggleSummary = () => undefined
     const settings = {
@@ -55,12 +55,12 @@ describe('deriveProfileAstraFeatures', () => {
       onToggleProactive,
       onToggleSummary,
     }
-    const free = deriveProfileAstraFeatures(false, settings)
+    const free = deriveProfileOrbitFeatures(false, settings)
     expect(free.map((feature) => [feature.key, feature.labelKey, feature.locked])).toEqual([
-      ['proactive', 'profile.proactiveAstra.title', true],
+      ['proactive', 'profile.proactiveOrbit.title', true],
       ['summary', 'profile.aiSummary.title', true],
     ])
-    expect(deriveProfileAstraFeatures(true, settings)).toMatchObject([
+    expect(deriveProfileOrbitFeatures(true, settings)).toMatchObject([
       { checked: true, pending: false, locked: false, onToggle: onToggleProactive },
       { checked: false, pending: true, locked: false, onToggle: onToggleSummary },
     ])

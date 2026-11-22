@@ -8,7 +8,7 @@ describe('initialsOf', () => {
   })
 
   it('returns up to the first two letters for a single word', () => {
-    expect(initialsOf('astra')).toBe('AS')
+    expect(initialsOf('orbit')).toBe('AS')
     expect(initialsOf('a')).toBe('A')
   })
 

@@ -3,7 +3,7 @@
 import { getLocale } from 'next-intl/server'
 import { buildChatClientContext } from '@orbit/shared/chat'
 import { API, MAX_CLARIFICATION_VALUE_LENGTH } from '@orbit/shared/api'
-import { dismissConversationOffersRequestSchema } from '@orbit/shared/types/astra-offer'
+import { dismissConversationOffersRequestSchema } from '@orbit/shared/types/orbit-offer'
 import type {
   AgentExecuteOperationResponse,
   AgentStepUpChallenge,

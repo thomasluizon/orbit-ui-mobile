@@ -5,7 +5,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -21,13 +21,13 @@ beforeEach(() => {
     importAttempt()
     throw new Error('Library chunk connection interrupted')
   })
-  useUIStore.getState().setAstraConversationOpen(true)
+  useUIStore.getState().setOrbitConversationOpen(true)
 })
 
 afterEach(() => {
   cleanup()
   vi.doUnmock('@/components/chat/prompt-library')
-  useUIStore.getState().setAstraConversationOpen(false)
+  useUIStore.getState().setOrbitConversationOpen(false)
 })
 
 function conversation(locale: 'en' | 'pt-BR' = 'en') {
@@ -38,10 +38,10 @@ function conversation(locale: 'en' | 'pt-BR' = 'en') {
     canShowFollowUps: false, isOnline: true, hasProAccess: true, hasGoogleConnection: true, sendMessage: vi.fn(),
     composerProps: {
       state: 'idle', value: 'My unfinished draft', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
-      words: { placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', inputLabel: 'Message', actions: 'Attach', suggestionsLabel: 'Suggestions' },
+      words: { placeholder: 'Ask Orbit', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', inputLabel: 'Message', actions: 'Attach', suggestionsLabel: 'Suggestions' },
     },
-  } as unknown as Parameters<typeof AstraConversation>[0]['chat']
-  return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><AstraConversation chat={chat} /></NextIntlClientProvider>)
+  } as unknown as Parameters<typeof OrbitConversation>[0]['chat']
+  return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><OrbitConversation chat={chat} /></NextIntlClientProvider>)
 }
 
 it('contains a rejected import inside the library and keeps the thread, Back and close usable', async () => {
@@ -64,9 +64,9 @@ it('contains a rejected import inside the library and keeps the thread, Back and
   await waitFor(() => expect(trigger).toHaveFocus())
   expect(screen.getByRole('feed', { name: 'Orbit' })).toBe(thread)
   expect(screen.getByRole('textbox', { name: 'Message' })).toBe(composer)
-  expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   fireEvent.click(screen.getByRole('button', { name: 'Close conversation' }))
-  expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  expect(useUIStore.getState().orbitConversationOpen).toBe(false)
 })
 
 it('imports again after reconnecting and renders the library on the second open', async () => {

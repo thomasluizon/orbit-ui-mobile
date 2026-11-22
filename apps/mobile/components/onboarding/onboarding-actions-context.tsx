@@ -178,9 +178,9 @@ export function useLiveOnboardingActions(): OnboardingActions {
         void (async () => {
           await AsyncStorage.setItem(
             CHAT_DRAFT_STORAGE_KEY,
-            t('onboarding.flow.meetAstra.importPrompt'),
+            t('onboarding.flow.meetOrbit.importPrompt'),
           )
-          useUIStore.getState().setAstraConversationOpen(true)
+          useUIStore.getState().setOrbitConversationOpen(true)
           router.replace('/(tabs)')
         })()
       },

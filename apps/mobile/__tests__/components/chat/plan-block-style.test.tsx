@@ -3,7 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { Animated, StyleSheet, type TextStyle } from 'react-native'
 import { PlanAnnouncements, PlanBlock } from '@/components/chat/plan-block'
 import type { ChatMessage } from '@orbit/shared/types'
-import { makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
+import { makeOrbitPlan } from '@orbit/shared/test-support/orbit-plan-fixtures'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
@@ -15,10 +15,10 @@ vi.mock('@/lib/motion', async importOriginal => ({
 }))
 afterEach(async () => { await i18n.changeLanguage('en'); __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }) })
 
-describe.each(['en', 'pt-BR'])('native Astra plan in %s', locale => {
+describe.each(['en', 'pt-BR'])('native Orbit plan in %s', locale => {
   it('announces later running steps on a restored plan without replaying its saved activity', async () => {
     await i18n.changeLanguage(locale)
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     const message: ChatMessage = { id: 'restored', role: 'ai', content: '', timestamp: new Date(), restored: true, plan: { ...plan, steps: [{ ...plan.steps[0]!, status: 'running' }, plan.steps[1]!] } }
     let tree!: ReactTestRenderer
     await act(() => { tree = create(<PlanAnnouncements messages={[message]} />) })
@@ -33,7 +33,7 @@ describe.each(['en', 'pt-BR'])('native Astra plan in %s', locale => {
 
   it('settles progress updates immediately with reduced motion', async () => {
     const timing = vi.spyOn(Animated, 'timing')
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     let tree!: ReactTestRenderer
     try {
       await act(() => { tree = create(<PlanBlock plan={plan} />) })
@@ -44,7 +44,7 @@ describe.each(['en', 'pt-BR'])('native Astra plan in %s', locale => {
 
   it.each(['pending', 'running', 'done', 'failed', 'skipped', 'future'])('exposes %s without treating it as completed', async status => {
     await i18n.changeLanguage(locale)
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     plan.steps[0]!.status = status
     let tree!: ReactTestRenderer
     await act(() => { tree = create(<PlanBlock plan={plan} />) })
@@ -71,11 +71,11 @@ describe.each(['en', 'pt-BR'])('native Astra plan in %s', locale => {
   it.each([412, 1352])('keeps the frame and wrapping step styles at %s', async width => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 2 })
     await i18n.changeLanguage(locale)
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     let tree!: ReactTestRenderer
     await act(() => { tree = create(<PlanBlock plan={plan} />) })
     try {
-      const block = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === `astra-plan-${plan.id}`)[0]!
+      const block = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === `orbit-plan-${plan.id}`)[0]!
       expect(StyleSheet.flatten(block.props.style)).toMatchObject({ width: '100%', minWidth: 0 })
       const frame = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'block-frame-resting')[0]!
       expect(StyleSheet.flatten(frame.props.style)).toMatchObject({ padding: 16, gap: 12 })

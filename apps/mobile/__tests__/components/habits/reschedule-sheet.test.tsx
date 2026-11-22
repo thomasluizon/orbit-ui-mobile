@@ -277,7 +277,7 @@ describe('RescheduleSheet (mobile)', () => {
     expect(actions.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string' && String(node.props.testID).startsWith('button-'))).toHaveLength(0)
   })
 
-  it('keeps the title accessible without showing it and labels the proposal with Astra', () => {
+  it('keeps the title accessible without showing it and labels the proposal with Orbit', () => {
     mockProfile = { hasProAccess: true, language: 'pt-BR' }
     mockReschedule.suggestion = createMockRescheduleSuggestion({ dueDate: '2026-08-20', dueTime: '07:30:00' })
     const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
@@ -285,7 +285,7 @@ describe('RescheduleSheet (mobile)', () => {
     expect(sheet.props.accessibleTitle).toBe('habits.reschedule.title')
     expect(sheet.props.title).toBeUndefined()
     expect(hasText(tree.root, 'habits.reschedule.title')).toBe(false)
-    expect(hasText(tree.root, 'habits.form.proposedByAstra')).toBe(true)
+    expect(hasText(tree.root, 'habits.form.proposedByOrbit')).toBe(true)
     const date = tree.root.findAll((node) => node.type === 'Text' && node.props.testID === 'reschedule-proposed-schedule')[0]!
     expect(date.props.children).toEqual(['qui., 20 de ago.', ' · 07:30:00'])
     const mascots = tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'orbit-mascot')

@@ -31,7 +31,7 @@ vi.mock('@/lib/sentry', () => ({ captureError: tagStepState.captureError }))
 vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => tagStepState.reducedMotion }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('@/hooks/use-astra-allowance-copy', () => ({ useAstraAllowanceCopy: () => (key: string) => key }))
+vi.mock('@/hooks/use-orbit-allowance-copy', () => ({ useOrbitAllowanceCopy: () => (key: string) => key }))
 vi.mock('@/hooks/use-tags', () => ({
   useTags: () => ({ tags: tagStepState.tags }),
   useCreateTag: () => ({ isPending: false, mutateAsync: tagStepState.create }),

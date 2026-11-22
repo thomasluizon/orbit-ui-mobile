@@ -141,7 +141,7 @@ function configureSlotState(state: string, locale: 'en' | 'pt-BR') {
         mocks.lastCompletionDate = state === 'returning' ? '2000-01-01' : null
 }
 
-describe('Hoje stacked Astra button and contextual actions at each shell width', () => {
+describe('Hoje stacked Orbit button and contextual actions at each shell width', () => {
   let launch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
@@ -173,12 +173,12 @@ describe('Hoje stacked Astra button and contextual actions at each shell width',
           const geometry = await page.evaluate(() => {
             const visible = (element: Element) => element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0
             const glyphs = [...document.querySelectorAll('[data-asset^="orbit-mascot"]')].filter(visible)
-            const slots = [...document.querySelectorAll('[data-today-astra-slot]')].filter(visible)
-            const line = document.querySelector('.today-astra-line')
-            const sentence = line?.querySelector('.today-astra-sentence')
+            const slots = [...document.querySelectorAll('[data-today-orbit-slot]')].filter(visible)
+            const line = document.querySelector('.today-orbit-line')
+            const sentence = line?.querySelector('.today-orbit-sentence')
             return {
               glyphs: glyphs.length, slots: slots.length,
-              floatingButtons: [...document.querySelectorAll('[data-astra-button]')].filter(visible).length,
+              floatingButtons: [...document.querySelectorAll('[data-orbit-button]')].filter(visible).length,
               composers: document.querySelectorAll('[data-composer-root]').length,
               composerGlyphs: glyphs.filter(glyph => glyph.closest('[data-composer-root]')).length,
               entryGlyphs: glyphs.filter(glyph => glyph.closest('[data-open-conversation]')).length,

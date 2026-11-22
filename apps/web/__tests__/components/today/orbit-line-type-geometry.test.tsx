@@ -8,7 +8,7 @@ import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
-import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -18,8 +18,8 @@ const RECENT_DAY_COUNTS = [1, 2, 3, 4, 5, 6, 7]
 
 function orbitLineSentences(words: typeof en, locale: string): string[] {
   return [
-    words.todayAstra.guided.offline, words.conversation.restLimit, words.todayAstra.guided.returning,
-    words.summary.guided.freePrompt, words.summary.error, words.habits.detail.askAstra,
+    words.todayOrbit.guided.offline, words.conversation.restLimit, words.todayOrbit.guided.returning,
+    words.summary.guided.freePrompt, words.summary.error, words.habits.detail.askOrbit,
     ...RECENT_DAY_COUNTS.map((done) => String(new IntlMessageFormat(words.habits.detail.orbit.lastSevenDays, locale).format({ done }))),
   ]
 }
@@ -38,14 +38,14 @@ describe('the Orbit line row type role', () => {
 
   async function measure(sentence: string, guided: boolean) {
     if (guided) enableTestFlags('orbit_guided_flows')
-    const { container } = render(<TodayAstraLine text={sentence} destination="Abrir conversa" />)
+    const { container } = render(<TodayOrbitLine text={sentence} destination="Abrir conversa" />)
     const page = await browser.newPage({ viewport: { width: 320, height: 800 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><main>${container.innerHTML}</main>`)
       await loadAppFonts(page)
       return await page.evaluate(() => {
-        const row = document.querySelector<HTMLElement>('.today-astra-line')!
-        const sentence = row.querySelector<HTMLElement>('.today-astra-sentence')!
+        const row = document.querySelector<HTMLElement>('.today-orbit-line')!
+        const sentence = row.querySelector<HTMLElement>('.today-orbit-sentence')!
         const style = getComputedStyle(row)
         return {
           fontSize: style.fontSize, lineHeight: parseFloat(style.lineHeight), fontWeight: style.fontWeight,
@@ -80,7 +80,7 @@ describe('the Orbit line row type role', () => {
   })
 
   it('keeps the current 14px line with the guided flows off', async () => {
-    const row = await measure(pt.todayAstra.returningBounded, false)
+    const row = await measure(pt.todayOrbit.returningBounded, false)
     expect(row.fontSize).toBe('14px')
     expect(row.lineHeight).toBeCloseTo(21.7, 1)
   })

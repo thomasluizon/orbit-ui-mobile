@@ -39,7 +39,7 @@ export const API = {
     weekStartDay: '/api/profile/week-start-day',
     clockFormat: '/api/profile/clock-format',
     aiSummary: '/api/profile/ai-summary',
-    proactiveAstra: '/api/profile/proactive-astra',
+    proactiveOrbit: '/api/profile/proactive-astra',
     onboarding: '/api/profile/onboarding',
     onboardingApply: '/api/profile/onboarding/apply',
     importPromptDismiss: '/api/profile/import-prompt/dismiss',

@@ -1017,7 +1017,7 @@ describe('useLogHabit', () => {
     resolveMutationB?.()
   })
 
-  it('flips the Astra check before the request resolves and rolls back a rejected log', async () => {
+  it('flips the Orbit check before the request resolves and rolls back a rejected log', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     let rejectLog!: (error: Error) => void
     vi.mocked(logHabit).mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectLog = reject }))

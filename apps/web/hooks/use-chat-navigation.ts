@@ -5,7 +5,7 @@ import { useCallback } from 'react'
 import { useUIStore } from '@/stores/ui-store'
 
 export function closeChatForNavigation() {
-  useUIStore.getState().setAstraConversationOpen(false)
+  useUIStore.getState().setOrbitConversationOpen(false)
 }
 
 export function useChatNavigation() {

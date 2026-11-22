@@ -41,8 +41,8 @@ describe('collapsed sidebar geometry in Chromium', () => {
     const props = {
       items: SHELL_DESTINATION_IDS.map(id => ({ id, href: '/', label: messages.nav[DESTINATION_ICONS[id].labelKey.split('.')[1] as keyof typeof messages.nav], icon: id })),
       activeId: 'hoje', navLabel: messages.nav.mainNavigation,
-      astraRow: { label: messages.shell.astraButton.open, onOpen: vi.fn() },
-      conversation: <button type="button">Close conversation</button>, conversationLabel: messages.nav.astra,
+      orbitRow: { label: messages.shell.orbitButton.open, onOpen: vi.fn() },
+      conversation: <button type="button">Close conversation</button>, conversationLabel: messages.nav.orbit,
     }
     const view = render(<NextIntlClientProvider locale={locale} messages={messages}><ShellWide {...props} /></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height } })
@@ -54,12 +54,12 @@ describe('collapsed sidebar geometry in Chromium', () => {
           for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
         }, resolveWebThemeVariables('orange', theme))
         await page.mouse.move(0, 0)
-        const row = page.getByRole('button', { name: messages.shell.astraButton.open, exact: true })
+        const row = page.getByRole('button', { name: messages.shell.orbitButton.open, exact: true })
         await row.evaluate(async element => {
           element.getBoundingClientRect()
           await Promise.all(element.getAnimations().map(animation => animation.finished))
         })
-        expect(await row.innerText()).toBe(messages.shell.astraButton.open)
+        expect(await row.innerText()).toBe(messages.shell.orbitButton.open)
         expect(await row.evaluate(element => {
           const label = element.querySelector('span')!
           return { clipped: label.scrollWidth > label.clientWidth, translate: label.getAttribute('translate'),
@@ -77,11 +77,11 @@ describe('collapsed sidebar geometry in Chromium', () => {
               textHeight: textBounds.height, textOffset: textBounds.left - bounds.left }
           })
         })
-        const [astra, today, calendar] = anatomy
-        expect(astra!.textHeight).toBeGreaterThan(1)
-        expect(astra).toEqual({ ...calendar, color: astra!.color })
-        expect(astra!.height).toBe(48)
-        expect(astra!.color === today!.color).toBe(false)
+        const [orbit, today, calendar] = anatomy
+        expect(orbit!.textHeight).toBeGreaterThan(1)
+        expect(orbit).toEqual({ ...calendar, color: orbit!.color })
+        expect(orbit!.height).toBe(48)
+        expect(orbit!.color === today!.color).toBe(false)
         const peer = page.getByRole('link', { name: messages.nav.calendar, exact: true })
         for (const target of [row, peer]) {
           await target.evaluate(element => {
@@ -107,7 +107,7 @@ describe('collapsed sidebar geometry in Chromium', () => {
     const messages = locale === 'en' ? en : ptBR
     const view = render(<NextIntlClientProvider locale={locale} messages={messages}>
       <ShellWide items={SHELL_DESTINATION_IDS.map(id => ({ id, href: '/', label: messages.nav[DESTINATION_ICONS[id].labelKey.split('.')[1] as keyof typeof messages.nav], icon: id }))}
-        activeId="hoje" navLabel={messages.nav.mainNavigation} astraRow={{ label: messages.shell.astraButton.open, onOpen: vi.fn() }}
+        activeId="hoje" navLabel={messages.nav.mainNavigation} orbitRow={{ label: messages.shell.orbitButton.open, onOpen: vi.fn() }}
         paletteLabel={messages.nav.search} paletteHint="Ctrl K" onPalette={vi.fn()}
         onCreate={vi.fn()} createLabel={messages.nav.createHabit} account="Person" accountEmail="person@example.test"
         notifications={<NotificationBellDisplay count={12} countPlacement="corner" onClick={vi.fn()} />} />

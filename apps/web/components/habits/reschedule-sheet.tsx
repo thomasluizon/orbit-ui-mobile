@@ -175,7 +175,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (suggestion) {
       return (
         <RescheduleProposal
-          proposedLabel={t('habits.form.proposedByAstra')}
+          proposedLabel={t('habits.form.proposedByOrbit')}
           {...buildRescheduleProposalLabels(suggestion, {
             locale,
             today: parseAPIDate(todayStr),

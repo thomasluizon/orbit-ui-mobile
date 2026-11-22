@@ -68,7 +68,7 @@ describe('redesign menu ownership on Android', () => {
       onEdit: vi.fn(), onDuplicate: vi.fn(), onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn(),
     }
     const expectedLabels = ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
-      'habits.actions.rescheduleAstra', 'common.edit', 'habits.actions.duplicate', 'common.select',
+      'habits.actions.rescheduleOrbit', 'common.edit', 'habits.actions.duplicate', 'common.select',
       'habits.actions.openSubHabits', 'habits.actions.delete']
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(<><PortalHost />

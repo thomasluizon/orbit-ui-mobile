@@ -1,5 +1,5 @@
 import { chatStreamEventSchema, type ChatResponse, type ChatStreamEvent } from '../types/chat'
-import type { AstraPlan, AstraPlanStep } from '../types/astra-plan'
+import type { OrbitPlan, OrbitPlanStep } from '../types/orbit-plan'
 
 interface ChatSseParser {
   feed: (chunk: string) => ChatStreamEvent[]
@@ -34,8 +34,8 @@ export interface ChatStreamCallbacks {
   onReset: () => void
   onRound?: (iteration: number) => void
   onStep?: (step: { domain: string; access: string }) => void
-  onPlan?: (plan: AstraPlan) => void
-  onPlanStep?: (planId: string, step: AstraPlanStep) => void
+  onPlan?: (plan: OrbitPlan) => void
+  onPlanStep?: (planId: string, step: OrbitPlanStep) => void
   onTerminal?: () => void
 }
 

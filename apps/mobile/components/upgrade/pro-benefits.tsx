@@ -5,7 +5,7 @@ import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
 
 const OUTCOMES = [
-  { key: 'astra', Icon: OrbitMascotIcon },
+  { key: 'orbit', Icon: OrbitMascotIcon },
   { key: 'calendar', Icon: Calendar },
   { key: 'retrospective', Icon: FileText },
   { key: 'noticing', Icon: Eye },

@@ -145,10 +145,10 @@ describe('OnboardingComplete', () => {
     }
   })
 
-  it.each([true, false])('hands the next habit to Astra when signedOut=%s', async (signedOut) => {
+  it.each([true, false])('hands the next habit to Orbit when signedOut=%s', async (signedOut) => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(<OnboardingComplete createdHabit="Read" emoji="📖" remindersOff={false} skipped={false} signedOut={signedOut} dueToday general={false} onFinish={vi.fn()} />) })
-    expect(tree.root.findAll((node: { type: unknown; props: { children?: unknown } }) => node.type === 'Text' && node.props.children === 'onboarding.flow.done.tellAstra')).toHaveLength(1)
+    expect(tree.root.findAll((node: { type: unknown; props: { children?: unknown } }) => node.type === 'Text' && node.props.children === 'onboarding.flow.done.tellOrbit')).toHaveLength(1)
     await TestRenderer.act(() => tree.update(<></>))
   })
 

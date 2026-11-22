@@ -36,8 +36,8 @@ vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
 vi.mock('@/components/onboarding/calendar-import-prompt', () => ({
   CalendarImportPrompt: 'CalendarImportPrompt',
 }))
-vi.mock('@/components/onboarding/astra-import-prompt', () => ({
-  AstraImportPrompt: 'AstraImportPrompt',
+vi.mock('@/components/onboarding/orbit-import-prompt', () => ({
+  OrbitImportPrompt: 'OrbitImportPrompt',
 }))
 vi.mock('@/components/referral/referral-prompt', () => ({
   ReferralPrompt: 'ReferralPrompt',
@@ -110,7 +110,7 @@ const GAMIFICATION_OVERLAYS = [
   'ReviewMomentSheet',
 ]
 
-const POST_ONBOARDING_PROMPTS = ['CalendarImportPrompt', 'AstraImportPrompt']
+const POST_ONBOARDING_PROMPTS = ['CalendarImportPrompt', 'OrbitImportPrompt']
 
 const SHEET_OWNERS = ['TrialExpiredModal', ...GAMIFICATION_OVERLAYS, ...POST_ONBOARDING_PROMPTS, 'VersionUpdateDrawer']
 

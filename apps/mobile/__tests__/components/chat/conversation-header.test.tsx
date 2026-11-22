@@ -7,13 +7,13 @@ import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccessibilityInfo, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { createTokensV2 } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
-  useTranslation: () => ({ t: (key: string) => key === 'chat.title' ? 'Astra' : key, i18n: { language: 'pt-BR' } }),
+  useTranslation: () => ({ t: (key: string) => key === 'chat.title' ? 'Orbit' : key, i18n: { language: 'pt-BR' } }),
 }))
 
 vi.mock('expo-router', () => ({
@@ -48,7 +48,7 @@ vi.mock('@/hooks/use-overlay-back', () => ({
 
 const TestRenderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 
 function buildChat(): ChatController {
   return {
@@ -78,7 +78,7 @@ function buildChat(): ChatController {
 function render() {
   let tree!: ReturnType<typeof TestRenderer.create>
   void TestRenderer.act(() => {
-    tree = TestRenderer.create(<AstraConversation chat={buildChat()} />)
+    tree = TestRenderer.create(<OrbitConversation chat={buildChat()} />)
   })
   return tree
 }
@@ -87,14 +87,14 @@ function hosts(tree: ReturnType<typeof TestRenderer.create>) {
   return tree.root.findAll((node) => typeof node.type === 'string')
 }
 
-describe('AstraConversation header (mobile)', () => {
+describe('OrbitConversation header (mobile)', () => {
   afterEach(() => {
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
     overlayBack.handler = null
   })
 
   it('closes the conversation from one trailing control, with no back control', () => {
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     const tree = render()
 
     expect(hosts(tree).filter((node) => node.props.testID === 'nav-header-plain')).toHaveLength(1)
@@ -119,10 +119,10 @@ describe('AstraConversation header (mobile)', () => {
       (close[0]!.props.onPress as () => void)()
     })
 
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
-  it('shows one named heading containing a decorative Astra mark and receives opening focus', () => {
+  it('shows one named heading containing a decorative Orbit mark and receives opening focus', () => {
     const focus = vi.spyOn(AccessibilityInfo, 'sendAccessibilityEvent')
     const tree = render()
     try {
@@ -130,22 +130,22 @@ describe('AstraConversation header (mobile)', () => {
       expect(header.findAll((node) => node.type === OrbitMascot)).toHaveLength(1)
       const headings = hosts(tree).filter((node) => node.props.accessibilityRole === 'header')
       expect(headings).toHaveLength(1)
-      expect(headings[0]!.props.accessibilityLabel).toBe('Astra')
-      expect(header.findAll((node) => typeof node.type === 'string' && node.props.children === 'Astra')).toHaveLength(0)
+      expect(headings[0]!.props.accessibilityLabel).toBe('Orbit')
+      expect(header.findAll((node) => typeof node.type === 'string' && node.props.children === 'Orbit')).toHaveLength(0)
       expect(header.findAll((node) => node.props.testID === 'orbit-mascot')[0]!.props.accessible).toBe(false)
       expect(focus).toHaveBeenCalledWith(expect.objectContaining({ __nativeTag: headings[0]!.props.__nativeTag }), 'focus')
     } finally { focus.mockRestore(); void TestRenderer.act(() => tree.update(<></>)) }
   })
 
   it('still closes the conversation on the Android back button', () => {
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     render()
 
     void TestRenderer.act(() => {
       overlayBack.handler?.()
     })
 
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 })
 
@@ -158,7 +158,7 @@ it('opens and reopens the proactive message without following a previous streami
   const scroll = vi.fn()
   __setScrollToImpl(scroll)
   let tree!: ReturnType<typeof TestRenderer.create>
-  void TestRenderer.act(() => { tree = TestRenderer.create(<AstraConversation chat={chat} />) })
+  void TestRenderer.act(() => { tree = TestRenderer.create(<OrbitConversation chat={chat} />) })
   try {
     const list = tree.root.findAll((node) => String(node.type) === 'FlatList')[0]!
     void TestRenderer.act(() => (list.props.onContentSizeChange as () => void)())
@@ -178,7 +178,7 @@ it('opens the summary at the end of an existing thread with its AI disclosure', 
   useChatStore.getState().openDailySummary('2026-08-29', 'First sentence. Full guidance.')
   const chat = { ...buildChat(), messages: useChatStore.getState().messages, showSuggestions: false }
   let tree!: ReturnType<typeof TestRenderer.create>
-  await TestRenderer.act(() => { tree = TestRenderer.create(<AstraConversation chat={chat} />) })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<OrbitConversation chat={chat} />) })
   expect(chat.threadScroll.isFollowing()).toBe(true)
   expect(hosts(tree).filter((node) => String(node.type) === 'ChatEmptyStateStub')).toHaveLength(0)
   const list = hosts(tree).find((node) => String(node.type) === 'FlatList')!
@@ -190,7 +190,7 @@ it('opens the summary at the end of an existing thread with its AI disclosure', 
   expect(list.props.ListFooterComponent).toBeTruthy()
   let footer!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(() => { footer = TestRenderer.create(list.props.ListFooterComponent as React.ReactElement) })
-  const disclosure = hosts(footer).filter((node) => node.props.testID === 'astra-ai-disclosure')
+  const disclosure = hosts(footer).filter((node) => node.props.testID === 'orbit-ai-disclosure')
   expect(disclosure).toHaveLength(1)
   expect(disclosure[0]!.props.children).toBe('aiDisclosure.notMedicalAdvice')
 })

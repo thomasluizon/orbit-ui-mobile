@@ -24,7 +24,7 @@ describe('lapsed subscription notice', () => {
     const { container } = render(<SubscriptionNotice status={status} locale="en" t={t} />)
     const allowance = screen.getByText('upgrade.billing.lapsed.lostMessages:{"limit":7}').closest('li')!
     expect(allowance.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('width', '16')
-    const benefit = screen.getByText('upgrade.outcomes.astra').closest('li')!
+    const benefit = screen.getByText('upgrade.outcomes.orbit').closest('li')!
     expect(benefit.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('width', '20')
     expect(container.querySelectorAll('[data-asset^="orbit-mascot"]')).toHaveLength(2)
     expect(screen.getByRole('heading', { name: 'upgrade.included' })).toBeInTheDocument()

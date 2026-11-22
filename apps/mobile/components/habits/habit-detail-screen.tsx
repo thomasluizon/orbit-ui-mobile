@@ -353,7 +353,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
   }
   const suggestion = query.error ? null : query.suggestion
   return (
-    <Proposed proposed scope="block" label={t('habits.form.proposedByAstra')}>
+    <Proposed proposed scope="block" label={t('habits.form.proposedByOrbit')}>
       <View style={card}>
         <View accessible accessibilityLiveRegion="polite" style={styles.rescueContent}>{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint'), tokens) : <RescueWait query={query} tokens={tokens} />}</View>
         <View style={styles.rescueActions}><ActionRow>

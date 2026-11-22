@@ -2,19 +2,19 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import type { ChatMessage } from '@orbit/shared/types'
-import { makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
+import { makeOrbitPlan } from '@orbit/shared/test-support/orbit-plan-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { PlanAnnouncements, PlanBlock } from '@/components/chat/plan-block'
 
 afterEach(cleanup)
 
-describe.each(['en', 'pt-BR'])('Astra plan in %s', locale => {
+describe.each(['en', 'pt-BR'])('Orbit plan in %s', locale => {
   const words = locale === 'en' ? en : pt
-  const surface = (plan: ReturnType<typeof makeAstraPlan>) => <NextIntlClientProvider locale={locale} messages={words}><PlanBlock plan={plan} /></NextIntlClientProvider>
+  const surface = (plan: ReturnType<typeof makeOrbitPlan>) => <NextIntlClientProvider locale={locale} messages={words}><PlanBlock plan={plan} /></NextIntlClientProvider>
 
   it.each(['pending', 'running', 'done', 'failed', 'skipped', 'future'])('exposes the %s state and counts only done steps', status => {
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     plan.steps[0]!.status = status
     const { container } = render(surface(plan))
     expect(screen.getByRole('heading', { name: words.chat.plan.title })).toBeVisible()
@@ -31,7 +31,7 @@ describe.each(['en', 'pt-BR'])('Astra plan in %s', locale => {
   })
 
   it('uses the text status role for failed step text and marker', () => {
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     plan.steps[0]!.status = 'failed'
     render(surface(plan))
     const row = screen.getAllByRole('listitem')[0]!
@@ -40,7 +40,7 @@ describe.each(['en', 'pt-BR'])('Astra plan in %s', locale => {
   })
 
   it('updates the mounted list and count through completion', () => {
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     const { rerender } = render(surface(plan))
     const list = screen.getByRole('list')
     const firstRow = screen.getAllByRole('listitem')[0]
@@ -51,7 +51,7 @@ describe.each(['en', 'pt-BR'])('Astra plan in %s', locale => {
   })
 
   it('announces running work politely and excludes restored plans', async () => {
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     const message: ChatMessage = { id: 'reply', role: 'ai', content: '', timestamp: new Date(), plan }
     const announcement = (messages: ChatMessage[]) => <NextIntlClientProvider locale={locale} messages={words}><PlanAnnouncements messages={messages} /></NextIntlClientProvider>
     const { container, rerender } = render(announcement([{ ...message, restored: true, plan: { ...plan, id: '00000000-0000-4000-8000-000000000001', steps: plan.steps.map(step => ({ ...step, status: 'running' })) } }]))
@@ -62,7 +62,7 @@ describe.each(['en', 'pt-BR'])('Astra plan in %s', locale => {
   })
 
   it('announces later running steps on a restored plan without replaying its saved activity', async () => {
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     const message: ChatMessage = { id: 'restored', role: 'ai', content: '', timestamp: new Date(), restored: true, plan: { ...plan, steps: [{ ...plan.steps[0]!, status: 'running' }, plan.steps[1]!] } }
     const announcement = (messages: ChatMessage[]) => <NextIntlClientProvider locale={locale} messages={words}><PlanAnnouncements messages={messages} /></NextIntlClientProvider>
     const { container, rerender } = render(announcement([message]))

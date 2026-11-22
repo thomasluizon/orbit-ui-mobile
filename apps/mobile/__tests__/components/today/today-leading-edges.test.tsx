@@ -5,7 +5,7 @@ import { Resvg } from '@resvg/resvg-js'
 import { createMockHabit, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { SPACING } from '@orbit/shared/theme'
 import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
-import { TodayAstra } from '@/components/today/today-astra'
+import { TodayOrbit } from '@/components/today/today-orbit'
 import { TodayDateControl } from '@/components/today/today-date-control'
 import { HabitRow } from '@/components/habits/habit-row'
 import { createTokensV2 } from '@/lib/theme'
@@ -304,7 +304,7 @@ describe('Hoje leading edges on Android', () => {
       let renderer: ReturnType<typeof create> & { toJSON: () => Host; unmount: () => void }
       void act(() => {
         renderer = create(<View style={{ paddingHorizontal: 16 }}>
-          <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
+          <TodayOrbit today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
           <TodayDateControl {...dateProps} />
           {[{ title: 'Leaf', depth: 0, parent: false }, { title: 'Parent', depth: 0, parent: true },
             { title: 'Child', depth: 1, parent: false }, { title: 'Child parent', depth: 1, parent: true },

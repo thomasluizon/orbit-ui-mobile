@@ -41,7 +41,7 @@ export function useChatComposerSession(turnReconciliation: ChatComposerSessionIn
     setSelectedImage(null)
     setImagePreview(null)
     setSelectedTextFile(null)
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
   })
 
 }

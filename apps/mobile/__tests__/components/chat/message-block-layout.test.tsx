@@ -1,4 +1,4 @@
-import { makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
+import { makeOrbitPlan } from '@orbit/shared/test-support/orbit-plan-fixtures'
 import { useChatStore } from '@/stores/chat-store'
 import { chatMessageSchema } from '@orbit/shared/types/chat'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
@@ -9,7 +9,7 @@ import type { ChatMessage } from '@orbit/shared/types/chat'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { makeProactiveBlockItem, proactiveBlockCases, chatBlockLayoutCases, makeChatBlockLayoutMessage, chatPartsLayoutCases, makeChatPartsLayoutMessage } from '@orbit/shared/test-support/chat-block-layout'
 import { MessageBubble } from '@/components/message-bubble'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { Markdown } from '@/components/ui/markdown'
 import { i18n } from '@/lib/i18n'
@@ -50,7 +50,7 @@ vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 const cases = [390, 412, 480, 600, 840, 1100, 1280, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale =>
   chatBlockLayoutCases.flatMap(scenario => [true, false].map(prose => ({ width, locale, scenario, prose, kind: scenario.kind })))))
 
@@ -61,7 +61,7 @@ afterEach(async () => {
 
 it.each(['en', 'pt-BR'])('renders one native plan during streaming and preserves single-tool traces in %s', async locale => {
   await i18n.changeLanguage(locale)
-  const plan = makeAstraPlan(locale)
+  const plan = makeOrbitPlan(locale)
   const message = makeHeldHabitMessage({ id: 'planned', content: '', pendingOperations: [], plan, toolSteps: [{ domain: 'habits', access: 'read' }] })
   const chat = {
     threadScroll: createChatThreadScroll(), flatListRef: { current: null }, messages: [message],
@@ -71,27 +71,27 @@ it.each(['en', 'pt-BR'])('renders one native plan during streaming and preserves
   } as unknown as ChatController
   let conversation!: ReturnType<typeof renderer.create>
   let feed!: ReturnType<typeof renderer.create>
-  await renderer.act(() => { conversation = renderer.create(<AstraConversation chat={chat} />) })
+  await renderer.act(() => { conversation = renderer.create(<OrbitConversation chat={chat} />) })
   try {
     const list = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
     const item = list.renderItem!({ item: message, index: 0, separators: { highlight: vi.fn(), unhighlight: vi.fn(), updateProps: vi.fn() } })
     await renderer.act(() => { feed = renderer.create(<View>{item}{list.ListFooterComponent as React.ReactElement}</View>) })
     const hosts = feed.root.findAll(node => typeof node.type === 'string')
-    expect(hosts.filter(node => node.props.testID === `astra-plan-${plan.id}`)).toHaveLength(1)
+    expect(hosts.filter(node => node.props.testID === `orbit-plan-${plan.id}`)).toHaveLength(1)
     expect(hosts.filter(node => typeof node.props.testID === 'string' && node.props.testID.startsWith('thinking-trace-'))).toHaveLength(0)
-    expect(hosts.filter(node => node.props.testID === 'astra-pending')).toHaveLength(0)
+    expect(hosts.filter(node => node.props.testID === 'orbit-pending')).toHaveLength(0)
     await renderer.act(() => feed.unmount())
     chat.messages = [{ ...message, plan: undefined }]
     chat.streamingMessageId = null
     chat.activeSteps = []
-    await renderer.act(() => conversation.update(<AstraConversation chat={chat} />))
+    await renderer.act(() => conversation.update(<OrbitConversation chat={chat} />))
     const completedList = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
     await renderer.act(() => { feed = renderer.create(<>{completedList.renderItem!({ item: chat.messages[0]!, index: 0, separators: { highlight: vi.fn(), unhighlight: vi.fn(), updateProps: vi.fn() } })}</>) })
     expect(feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'thinking-trace-completed')).toHaveLength(1)
   } finally { await renderer.act(() => { feed.unmount(); conversation.unmount() }) }
 })
 
-it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks at %s', async width => {
+it.each([412, 1352])('aligns Android first Orbit avatars and continuation blocks at %s', async width => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   const contentWidth = Math.min(width, 740)
   const contentLeft = (width - contentWidth) / 2 + 16
@@ -110,7 +110,7 @@ it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks
   } as unknown as ChatController
   let conversation!: GeometryTree
   let feed!: GeometryTree
-  await renderer.act(() => { conversation = renderer.create(<AstraConversation chat={chat} />) as GeometryTree })
+  await renderer.act(() => { conversation = renderer.create(<OrbitConversation chat={chat} />) as GeometryTree })
   try {
     const list = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
     const items = Array.from(list.data!)
@@ -120,14 +120,14 @@ it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks
       </View>)}
     </View></View>) as GeometryTree })
     const turns = items.map((_, index) => feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === `turn-${index}`)[0]!)
-    expect(turns.map(turn => turn.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar').length)).toEqual([1, 0, 0, 1, 0])
+    expect(turns.map(turn => turn.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-avatar').length)).toEqual([1, 0, 0, 1, 0])
     expect(turns.map(turn => turn.findAll(node => typeof node.type === 'string' && node.props.testID === 'block-frame-resting').length)).toEqual([0, 2, 0, 2, 0])
     let avatarIndex = 0
     let proseIndex = 0
     let blockIndex = 0
     const geometry = measureSafeArea(feed.toJSON(), host => {
       if (host.props.testID?.startsWith('turn-')) return host.props.testID
-      if (host.props.testID === 'astra-avatar') return `avatar-${avatarIndex++}`
+      if (host.props.testID === 'orbit-avatar') return `avatar-${avatarIndex++}`
       if (host.props.testID === 'message-prose') return `prose-${proseIndex++}`
       if (host.props.testID === 'block-frame-resting') return `block-${blockIndex++}`
     }, { width, height: 30000 })
@@ -162,7 +162,7 @@ it.each([412, 1352].flatMap(width => ['empty', 'user', 'ai'].map(previous => ({ 
     } as unknown as ChatController
     let conversation!: GeometryTree
     let feed!: GeometryTree
-    await renderer.act(() => { conversation = renderer.create(<AstraConversation chat={chat} />) as GeometryTree })
+    await renderer.act(() => { conversation = renderer.create(<OrbitConversation chat={chat} />) as GeometryTree })
     const renderFeed = () => {
       const list = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
       return <View><View style={list.contentContainerStyle}>
@@ -174,13 +174,13 @@ it.each([412, 1352].flatMap(width => ['empty', 'user', 'ai'].map(previous => ({ 
     }
     try {
       await renderer.act(() => { feed = renderer.create(renderFeed()) as GeometryTree })
-      const runningMarks = feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar').length
+      const runningMarks = feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-avatar').length
       const measure = () => measureSafeArea(feed.toJSON(), host => {
         if (host.props.testID?.startsWith('thinking-trace-')) return host.props.testID
         if (host.props.testID === 'message-prose') return host.props.testID
       }, { width, height: 30000 })
       const running = measure().get('thinking-trace-running')!
-      await renderer.act(() => { conversation.update(<AstraConversation chat={{ ...chat, activeSteps: [], messages: [
+      await renderer.act(() => { conversation.update(<OrbitConversation chat={{ ...chat, activeSteps: [], messages: [
         ...messages, makeHeldHabitMessage({ id: 'completed', content: 'Completed reply.', toolSteps: steps, pendingOperations: [] }),
       ] }} />) })
       await renderer.act(() => { feed.update(renderFeed()) })
@@ -189,7 +189,7 @@ it.each([412, 1352].flatMap(width => ['empty', 'user', 'ai'].map(previous => ({ 
       expect(running.left).toBe(completed.get('thinking-trace-completed')!.left)
       expect(running.left).toBe(completed.get('message-prose')!.left)
       expect(runningMarks).toBe(1)
-      expect(feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar')).toHaveLength(1)
+      expect(feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-avatar')).toHaveLength(1)
     } finally { await renderer.act(() => { feed.unmount(); conversation.unmount() }) }
   },
 )
@@ -209,7 +209,7 @@ it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', as
   } as unknown as ChatController
   let conversation!: GeometryTree
   let feed!: GeometryTree
-  await renderer.act(() => { conversation = renderer.create(<AstraConversation chat={chat} />) as GeometryTree })
+  await renderer.act(() => { conversation = renderer.create(<OrbitConversation chat={chat} />) as GeometryTree })
   try {
     const list = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
     await renderer.act(() => { feed = renderer.create(<View><View style={list.contentContainerStyle}>

@@ -51,7 +51,7 @@ async function measure({ shell, cache, iteration, executable, profile, environme
     const sixtySeconds = await treeSample(handle)
     if (sixtySeconds.cpuSeconds < baseline.cpuSeconds) throw new Error('Cumulative native CPU counter went backwards')
     proxy.workload()
-    const completed = await waitFor(() => read('complete'), `${shell} scroll and Astra workload`)
+    const completed = await waitFor(() => read('complete'), `${shell} scroll and Orbit workload`)
     if (completed.visibility !== 'visible') throw new Error('Shell became hidden during workload')
     const result = {
       shell, cache, iteration, viewport: usable.viewport, nativeWindow: usable.nativeWindow, startupMs: usable.epochMs - handle.launchedAt,

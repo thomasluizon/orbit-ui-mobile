@@ -1,5 +1,5 @@
 export { loadModule, MODULE_LOAD_TIMEOUT_MS } from './load-module'
-export { ASTRA_BUTTON_GAP, ASTRA_STACK_CLEARANCE } from './astra-button'
+export { ORBIT_BUTTON_GAP, ORBIT_STACK_CLEARANCE } from './orbit-button'
 export { getSegmentedControlLayout } from './segmented-control'
 export { achievementEmoji } from './achievement-emoji'
 export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'
@@ -247,7 +247,7 @@ export type {
 } from './habit-form-state'
 export {
   buildHabitDaysList,
-  buildHabitAstraFallbackCopy,
+  buildHabitOrbitFallbackCopy,
   applyHabitEmojiSuggestion,
   reportRefusedHabitSave,
   buildHabitEmojiSuggestionAvailability,
@@ -270,13 +270,13 @@ export {
   isHabitDailySchedule,
   habitFeaturePlan,
   hasHabitFormProposal,
-  isHabitAstraLimitReached,
+  isHabitOrbitLimitReached,
   normalizeHabitFormData,
   toggleHabitDaySelection,
   releaseHabitPhraseOwnership,
   requestHabitFormProposal,
   getHabitDisplayStartDate,
-  shouldShowHabitAstraFallback,
+  shouldShowHabitOrbitFallback,
   validateHabitFormInput,
 } from './habit-form-helpers'
 export type {
@@ -557,7 +557,7 @@ export {
   RETIRED_NOTIFICATION_URL_PREFIXES,
   isViewableNotificationUrl,
   resolveNotificationUrl,
-  shouldShowTodayAstraSurface,
+  shouldShowTodayOrbitSurface,
 } from './notification-actions'
 export {
   buildTempGoal,
@@ -838,7 +838,7 @@ export {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
 } from './profile-navigation'
-export { buildGuidedTimeZoneOptions, buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues, filterTimeZones, TIME_ZONE_PAGE_SIZE } from './profile-preferences'
+export { buildGuidedTimeZoneOptions, buildProfilePickerLabels, deriveProfileOrbitFeatures, deriveProfilePreferenceValues, filterTimeZones, TIME_ZONE_PAGE_SIZE } from './profile-preferences'
 export type { GuidedTimeZoneInput, GuidedTimeZoneOptions } from './profile-preferences'
 export type {
   ProfileNavHintMode,
@@ -898,7 +898,7 @@ export {
 
 export { resolveHabitAccessibleStatus, buildHabitRowDateModel } from './habit-row-status'
 
-export { proactiveActionLabelKey, getProactiveActionReason, getTodayAstraLine, getTodayAstraSlot } from './proactive'
+export { proactiveActionLabelKey, getProactiveActionReason, getTodayOrbitLine, getTodayOrbitSlot } from './proactive'
 export { buildHabitViewFilters, type HabitViewFiltersInput } from './habit-view-filters'
 
 export { buildHabitDateBuckets, type HabitDateBucket } from './habit-list-progress'
@@ -932,7 +932,7 @@ export { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePh
 
 export { getPendingAuthProvider, getAuthCallbackErrorKey, showsAuthCallbackLine, deriveLoginEmailErrors } from './auth-login'
 
-export { createAstraAllowanceTranslator, type AstraAllowance } from './astra-allowance'
+export { createOrbitAllowanceTranslator, type OrbitAllowance } from './orbit-allowance'
 
 export { computeParentResolutionProgress, computeParentPromptChain, selectParentPromptAncestor, settleParentPromptChain } from './parent-prompt-chain'
 export type { ParentPromptChain } from './parent-prompt-chain'

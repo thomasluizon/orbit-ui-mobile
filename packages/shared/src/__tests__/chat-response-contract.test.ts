@@ -4,13 +4,13 @@ import { chatMessageSchema, chatResponseSchema, chatStreamEventSchema } from '..
 import { buildChatFinalMessageFields } from '../chat/final-message'
 import { getMessageBubbleView } from '../chat/message-bubble'
 import { apiStatusCardsFinalFixture, habitRankingCardFixture } from '../test-support/chat-fixtures'
-import { makeAstraPlan } from '../test-support/astra-plan-fixtures'
+import { makeOrbitPlan } from '../test-support/orbit-plan-fixtures'
 
 const { PostApiChatResponse } = await vi.importActual<{ PostApiChatResponse: z.ZodObject }>('../types/__generated__/api.generated')
 
 describe('chat response contract', () => {
   it('retains the published producer plan through the generated and runtime boundaries', () => {
-    const response = { actions: [], aiMessage: '', plan: makeAstraPlan() }
+    const response = { actions: [], aiMessage: '', plan: makeOrbitPlan() }
     expect(PostApiChatResponse.parse(response)).toEqual(response)
     expect(chatResponseSchema.parse(PostApiChatResponse.parse(response)).plan).toEqual(response.plan)
   })

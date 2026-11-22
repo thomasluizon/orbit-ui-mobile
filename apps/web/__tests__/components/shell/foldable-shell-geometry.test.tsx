@@ -46,7 +46,7 @@ describe('Foldable shell geometry', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each([800, 840, 915, 1023, 1024, 1100])('caps the destination column and preserves its 16px gutters at %ipx', async (width) => {
-    const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+    const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}
       header={<DestinationHeaderRow><NotificationBellDisplay count={12} onClick={vi.fn()} /></DestinationHeaderRow>}
       composer={<Composer state="idle" value="" words={en.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} />}
       tabBar={<BottomTabBar label="Navigation" activeId="hoje" onSelect={vi.fn()} items={[]} />}>
@@ -143,7 +143,7 @@ describe('Foldable shell geometry', () => {
     { width: 844, top: 0, bottom: 0, left: 0, right: 0 },
   ])(
     'keeps compact shell chrome inside insets at $width with top $top', async ({ width, top, bottom, left, right }) => {
-      const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Navigation"
+      const { container } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Navigation"
         header={<button type="button" style={{ minHeight: 48 }}>Header</button>}
         composer={<button type="button" style={{ minHeight: 56 }}>Composer</button>}
         tabBar={<nav style={{ minHeight: 80 }}><button type="button" style={{ minHeight: 48 }}>Today</button></nav>}
@@ -193,12 +193,12 @@ describe('Foldable shell geometry', () => {
   it.each([320, 412, 600, 844, 1024, 1100].flatMap((width) => [24, 48].map((top) => ({ width, top, left: 28, right: 64 }))))(
     'applies one safe top inset to the full-screen conversation at $width with top $top', async ({ width, top, left, right }) => {
       const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
-        astraRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
+        orbitRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
         conversation={<div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <div data-conversation-header=""><AppBar title="Astra" action={<button type="button">Close</button>} /></div>
+          <div data-conversation-header=""><AppBar title="Orbit" action={<button type="button">Close</button>} /></div>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>Thread</div>
           <Composer state="idle" value="" words={en.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} />
-        </div>} conversationLabel="Astra" tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
+        </div>} conversationLabel="Orbit" tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
         <h1>Today</h1>
       </ShellWide>)
       const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
@@ -242,7 +242,7 @@ describe('Foldable shell geometry', () => {
   it.each(['profile', 'progress', 'calendar'])(
     'preserves the wide column top inset for %s', async (destination) => {
       const { container } = render(<ShellWide items={[]} activeId="perfil" navLabel="Navigation"
-        astraRow={{ label: en.chat.title, onOpen: vi.fn() }}
+        orbitRow={{ label: en.chat.title, onOpen: vi.fn() }}
         header={destination === 'calendar' ? <div style={{ height: 48 }}>Calendar header</div> : undefined}>
         <div data-first-content="" style={{ paddingTop: destination === 'progress' ? 16 : 0 }}>Content</div>
       </ShellWide>)
@@ -268,7 +268,7 @@ describe('Foldable shell geometry', () => {
     ('keeps the sidebar account tokens on one line at $width and text scale $textScale', async ({ width, words, textScale }) => {
       const name = 'W'.repeat(60)
       const email = `${'W'.repeat(48)}@example.com`
-      const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[{ id: 'perfil', href: '/profile', icon: 'perfil', label: words.nav.profile }]} activeId="hoje" navLabel={words.nav.mainNavigation} account={name} accountEmail={email} />)
+      const { container } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[{ id: 'perfil', href: '/profile', icon: 'perfil', label: words.nav.profile }]} activeId="hoje" navLabel={words.nav.mainNavigation} account={name} accountEmail={email} />)
       const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
       try {
         const largeText = textScale === 2 ? '[data-shell-account-name] { font-size: 28px; } [data-shell-account-email] { font-size: 24px; }' : ''
@@ -311,7 +311,7 @@ describe('Foldable shell geometry', () => {
     'keeps the full Create target revealable at $width with a 120px height budget and nav=$navigationEnabled', async ({ width, navigationEnabled }) => {
     const action = <div className="p-4"><HabitCreateActions presentation="screen" pending={false} empty={false}
       subHabit={false} online formId="create-habit" onCancel={vi.fn()} /></div>
-    const flow = navigationEnabled ? { astraRow: { label: en.chat.title, onOpen: vi.fn() }, items: [], activeId: '', navLabel: en.nav.mainNavigation, composer: action } : { nav: false as const, action }
+    const flow = navigationEnabled ? { orbitRow: { label: en.chat.title, onOpen: vi.fn() }, items: [], activeId: '', navLabel: en.nav.mainNavigation, composer: action } : { nav: false as const, action }
     const { container } = render(<ShellWide {...flow}
       header={<AppBar title={en.habits.createHabit} onBack={vi.fn()} backLabel={en.common.back} />}
     >
@@ -396,7 +396,7 @@ describe('Foldable shell geometry', () => {
   it.each([320, 412, 500, 740, 1024, 1352])('aligns feedback and not-found content without reserving composer space at %ipx', async (width) => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
     useUIStore.getState().enqueueCelebration('all-done', { count: 1 })
-    const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="" navLabel="Navigation"
+    const { container } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="" navLabel="Navigation"
       notice={<><CelebrationPanel /><Toast kind="neutral" message="Notification removed" /></>}
       tabBar={<nav style={{ height: 64 }}>Tabs</nav>}>
       <NotFoundContent inShell />
@@ -439,14 +439,14 @@ describe('Foldable shell geometry', () => {
   })
 
   it.each([360, 320])('budgets the real header, composer and tab bar inside a %ipx tall window', async (height) => {
-    const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+    const { container } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
       header={<AppBar title={en.nav.today} onBack={vi.fn()} backLabel={en.common.back} />}
       composer={<Composer state="idle" value="" words={en.shell.composer}
         suggestions={toComposerSuggestions(['today', 'calendar', 'progress'].map((id) => ({ id, label: en.nav[id as 'today' | 'calendar' | 'progress'], onSelect: vi.fn() })))}
         onChangeValue={vi.fn()} onSend={vi.fn()} onVoice={vi.fn()} voiceWords={en.shell.composer.voice}
         onAttachFile={vi.fn()} onAttachImage={vi.fn()}
         attachWords={{ file: en.chat.attachFile, image: en.chat.attachImage, trayLabel: en.chat.attachFile, remove: (name) => name }}
-        onOpenConversation={vi.fn()} conversationLabel={en.todayAstra.openConversation} />}
+        onOpenConversation={vi.fn()} conversationLabel={en.todayOrbit.openConversation} />}
       tabBar={<BottomTabBar label={en.nav.mainNavigation} activeId="hoje" onSelect={vi.fn()}
         items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }[id], label: en.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} /> }))} />}>
       <div style={{ height: 1600 }}>Long habit detail</div>
@@ -478,7 +478,7 @@ describe('Foldable shell geometry', () => {
   })
 
   it.each(windows)('centres content and chrome at $width by $height', async ({ width, height }) => {
-    const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Navigation"
+    const { container } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Navigation"
       header={<h1>Screen</h1>} composer={<button type="button">Composer</button>}
       tabBar={<nav>Tabs</nav>} fab={<button type="button">Create</button>}>
       <div style={{ height: 1600 }}>Long screen</div>
@@ -523,7 +523,7 @@ describe('Foldable shell geometry', () => {
   })
 
   it.each([412, 1023, 1024, 1352])('clears navigation without reserving composer space at %ipx', async (width) => {
-    const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="calendario" navLabel="Navigation"
+    const { container } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="calendario" navLabel="Navigation"
       tabBar={<nav style={{ height: 64 }}>Tabs</nav>}>
       <div style={{ height: 1600 }}>Long destination</div>
     </ShellWide>)
@@ -558,7 +558,7 @@ describe('Foldable shell geometry', () => {
   ])('fills the conversation column at $width by $height', async ({ width, height, left }) => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: width >= 1024, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
     const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
-      astraRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
+      orbitRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
       conversation={<div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{ minHeight: 56 }}>Header</div>
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}><div style={{ height: 1600 }}>Thread</div></div>

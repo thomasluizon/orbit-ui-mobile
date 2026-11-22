@@ -1,6 +1,6 @@
 import { StructuredPreviewField } from './structured-preview-field'
-import { AstraOffer } from './astra-offer'
-import { type AstraOfferProps, buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
+import { OrbitOffer } from './orbit-offer'
+import { type OrbitOfferProps, buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
 import { IconButton } from '@/components/ui/icon-button'
 import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { getAccountDay, nowDate, toTime24 } from '@orbit/shared/utils'
@@ -309,7 +309,7 @@ export function PendingOperationCard({
   onStateChange,
   onSendMessage,
   interaction,
-}: Readonly<PendingOperationCardAdapterProps & Pick<AstraOfferProps, 'onSendMessage' | 'interaction'>>) {
+}: Readonly<PendingOperationCardAdapterProps & Pick<OrbitOfferProps, 'onSendMessage' | 'interaction'>>) {
   const { t, i18n } = useTranslation()
   const { displayTime } = useTimeFormat()
   const { profile } = useProfile()
@@ -326,7 +326,7 @@ export function PendingOperationCard({
     focusTitleOnMount={focusTitleOnMount}
     savedState={savedState}
     onStateChange={onStateChange}
-    render={{ ...pendingOperationRenderers, offer: (action, unavailable) => <AstraOffer action={action} unavailable={unavailable} onSendMessage={onSendMessage} interaction={interaction} /> }}
+    render={{ ...pendingOperationRenderers, offer: (action, unavailable) => <OrbitOffer action={action} unavailable={unavailable} onSendMessage={onSendMessage} interaction={interaction} /> }}
     labels={(operation) => buildPendingOperationCardLabels(operation, t, displayTime, i18n.language, today)}
   />
 }

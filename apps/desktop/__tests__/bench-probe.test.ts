@@ -92,7 +92,7 @@ async function measureChat({ fragmented = false, interrupted = false, dispatchDe
     performance, HTMLTextAreaElement: Textarea, Event: InputEvent, KeyboardEvent: InputEvent,
     document: {
       querySelector: (selector: string) => {
-        if (selector === '[data-astra-button]:not([disabled])') return { click: () => { conversationOpen = true } }
+        if (selector === '[data-orbit-button]:not([disabled])') return { click: () => { conversationOpen = true } }
         if (selector === '[data-shell-conversation] [data-composer-input]:not([disabled])') return conversationOpen ? textarea : null
         return null
       },

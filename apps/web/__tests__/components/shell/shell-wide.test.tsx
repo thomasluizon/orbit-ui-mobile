@@ -49,7 +49,7 @@ describe('ShellWide', () => {
   })
 
   it('hosts the pill below the header outside the scroller and suppresses it during conversation', () => {
-    const shell = (conversation?: ReactNode) => <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation"
+    const shell = (conversation?: ReactNode) => <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation"
       header={<div>Header</div>} tabBar={<nav>Tabs</nav>} fab={<button type="button">Create</button>}
       scrollToTop={<button type="button">Top</button>}
       conversation={conversation} conversationLabel="Conversation"><h1>Today</h1></ShellWide>
@@ -66,7 +66,7 @@ describe('ShellWide', () => {
 
   it('keeps resting Hoje without a pinned dock and retains the selection tray', () => {
     media.width = 1352
-    const props = { items, activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: vi.fn() } }
+    const props = { items, activeId: 'hoje', navLabel: 'Navigation', orbitRow: { label: 'Orbit', onOpen: vi.fn() } }
     const view = render(<ShellWide {...props} />)
     expect(screen.queryByLabelText('Draft')).not.toBeInTheDocument()
     expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
@@ -82,7 +82,7 @@ describe('ShellWide', () => {
   it('centres pinned controls and the floating overlay within the shell column', () => {
     media.width = 900
     const { container } = render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" notice={<div>Notice</div>} composer={<div>Composer</div>} fab={<button type="button">Create</button>} tabBar={<nav>Tabs</nav>} />,
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" notice={<div>Notice</div>} composer={<div>Composer</div>} fab={<button type="button">Create</button>} tabBar={<nav>Tabs</nav>} />,
     )
     const bottom = container.querySelector<HTMLElement>('[data-shell-bottom]')
     const pinnedSlot = container.querySelector('[data-shell-pinned-slot]')
@@ -102,11 +102,11 @@ describe('ShellWide', () => {
     function DraftComposer() {
       const [draft, setDraft] = useState('Keep this draft')
       return <Composer state="idle" value={draft} onChangeValue={value => { onChangeValue(value); setDraft(value) }} onSend={onSend} suggestions={[]}
-        words={{ placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
+        words={{ placeholder: 'Ask Orbit', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
         onAttachFile={vi.fn()} attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }} />
     }
     const composer = <DraftComposer />
-    const shell = (floating: boolean, notice?: ReactNode) => <ShellWide notice={notice} astraRow={{ label: 'Astra', onOpen: vi.fn() }} items={items} activeId="hoje" navLabel="Main navigation"
+    const shell = (floating: boolean, notice?: ReactNode) => <ShellWide notice={notice} orbitRow={{ label: 'Orbit', onOpen: vi.fn() }} items={items} activeId="hoje" navLabel="Main navigation"
       composer={composer} tabBar={<nav>Tabs</nav>}
       fab={floating ? <button type="button">Create</button> : undefined} />
     const { rerender } = render(shell(true))
@@ -142,14 +142,14 @@ describe('ShellWide', () => {
 
   it('keeps the wide pinned slot inside the existing content column', () => {
     media.width = 1440
-    const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} />)
+    const { container } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} />)
     const column = container.querySelector('[data-shell-scroller]')?.closest('[data-shell-column]')
     expect(column).toHaveClass('lg:max-w-[740px]')
     expect(column).toContainElement(container.querySelector('[data-shell-pinned-slot]'))
   })
 
   it('floats the compact FAB without its own band or separator', () => {
-    const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} fab={<button type="button">Create</button>}><h1>Today</h1></ShellWide>)
+    const { container } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} fab={<button type="button">Create</button>}><h1>Today</h1></ShellWide>)
     const bottom = container.querySelector<HTMLElement>('[data-shell-bottom]')
     expect(bottom).not.toHaveClass('shadow-[inset_0_1px_0_var(--hairline)]')
     const fab = container.querySelector<HTMLElement>('[data-shell-fab]')
@@ -163,7 +163,7 @@ describe('ShellWide', () => {
 
   it.each([320, 412, 1352])('keeps browser focus reveal clear of the floating action at %ipx', (width) => {
     media.width = width
-    const shell = (floating: boolean, notice?: ReactNode) => <ShellWide items={items} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+    const shell = (floating: boolean, notice?: ReactNode) => <ShellWide items={items} activeId="hoje" navLabel="Navigation" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}
       notice={notice} composer={<div>Composer</div>} fab={floating ? <Fab label="Create" onClick={vi.fn()}>+</Fab> : undefined}>
       <button type="button">Complete habit</button><button type="button">Habit options</button>
     </ShellWide>
@@ -189,7 +189,7 @@ describe('ShellWide', () => {
       disconnect() {}
     })
     try {
-      const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}
         header={<button type="button">Header</button>} tabBar={<nav>Tabs</nav>}
         composer={<div>Composer</div>} fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>}>
         <button type="button">Complete habit</button>
@@ -231,7 +231,7 @@ describe('ShellWide', () => {
     const openRow = vi.fn()
     const notice = state === 'absent' ? undefined : state === 'empty' ? <></>
       : <div style={{ minHeight: state === 'tall' ? 160 : undefined }}><Toast kind="neutral" message="Saved" /></div>
-    const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+    const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}
       notice={notice} tabBar={<nav>Tabs</nav>}
       composer={<Composer state="idle" value="Draft" words={en.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} />}
       fab={<Fab label="Create" onClick={create}>+</Fab>}>
@@ -256,7 +256,7 @@ describe('ShellWide', () => {
 
   it('owns the 232px navigation, 740px canvas, notice, and pinned composer', () => {
     const { container } = render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }}
         items={items}
         activeId="hoje"
         navLabel="Main navigation"
@@ -277,7 +277,7 @@ describe('ShellWide', () => {
   it('selects sidebar destinations and exposes the active one', () => {
     const onSelect = vi.fn()
     render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }}
         items={items}
         activeId="calendario"
         navLabel="Main navigation"
@@ -295,7 +295,7 @@ describe('ShellWide', () => {
   it('shows the short search entry and the full create action in the sidebar', () => {
     const onPalette = vi.fn()
     render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }}
         items={items}
         activeId="hoje"
         navLabel="Navegação principal"
@@ -318,7 +318,7 @@ describe('ShellWide', () => {
   it.each(['dark', 'light'])('keeps navigation colors valid in %s mode', (mode) => {
     document.documentElement.dataset.theme = mode
     render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }}
         items={items}
         activeId="calendario"
         navLabel="Main navigation"
@@ -338,7 +338,7 @@ describe('ShellWide', () => {
 
   it('keeps the full account name and email in one menu button with an initial well', () => {
     render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }}
         items={items}
         activeId="hoje"
         navLabel="Main navigation"
@@ -359,7 +359,7 @@ describe('ShellWide', () => {
   it('eases every sidebar press scale over the shared press duration on the ease-out curve', () => {
     media.width = 1352
     render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }}
         items={items}
         activeId="hoje"
         navLabel="Main navigation"
@@ -373,7 +373,7 @@ describe('ShellWide', () => {
     const controls = [
       screen.getByRole('link', { name: 'Hoje' }),
       screen.getByRole('link', { name: 'Calendário' }),
-      screen.getByRole('button', { name: 'Astra' }),
+      screen.getByRole('button', { name: 'Orbit' }),
       screen.getByRole('button', { name: 'Search' }),
       screen.getByRole('button', { name: 'Ada Lovelace, ada@example.com' }),
     ]
@@ -385,8 +385,8 @@ describe('ShellWide', () => {
 
   it('drops the destination and conversation row press scale under reduced motion', () => {
     media.width = 1352
-    render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" onPalette={() => {}} paletteLabel="Search" />)
-    for (const control of [screen.getByRole('link', { name: 'Hoje' }), screen.getByRole('link', { name: 'Calendário' }), screen.getByRole('button', { name: 'Astra' }), screen.getByRole('button', { name: 'Search' })]) {
+    render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" onPalette={() => {}} paletteLabel="Search" />)
+    for (const control of [screen.getByRole('link', { name: 'Hoje' }), screen.getByRole('link', { name: 'Calendário' }), screen.getByRole('button', { name: 'Orbit' }), screen.getByRole('button', { name: 'Search' })]) {
       expect([...control.classList], control.textContent).toContain('motion-safe:active:scale-[0.96]')
       expect([...control.classList], control.textContent).not.toContain('active:scale-[0.96]')
     }
@@ -394,8 +394,8 @@ describe('ShellWide', () => {
 
   it.each([false, true])('keeps the conversation row planet in the foreground with the conversation open=%s, so the moon stays the only accent', (open) => {
     media.width = 1352
-    render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" conversation={<div />} conversationLabel="Astra conversation" conversationOpen={open} />)
-    const row = screen.getAllByRole('button', { name: 'Astra', hidden: true }).find((button) => button.hasAttribute('data-shell-astra-row'))!
+    render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={items} activeId="hoje" navLabel="Main navigation" conversation={<div />} conversationLabel="Orbit conversation" conversationOpen={open} />)
+    const row = screen.getAllByRole('button', { name: 'Orbit', hidden: true }).find((button) => button.hasAttribute('data-shell-orbit-row'))!
     expect(row).toHaveAttribute('aria-expanded', String(open))
     expect(row.classList.contains('text-[var(--primary-soft)]')).toBe(open)
     const face = row.querySelector('svg')!
@@ -405,14 +405,14 @@ describe('ShellWide', () => {
 
   it('reserves the account row while its profile loads', () => {
     const props = { items, activeId: 'hoje', navLabel: 'Main navigation', onCreate: vi.fn(), createLabel: 'Create' }
-    const { container, rerender } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} />)
+    const { container, rerender } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} />)
     const create = screen.getByRole('button', { name: 'Create' })
     const placeholder = container.querySelector('[data-shell-account]')
     expect(placeholder).toHaveAttribute('data-loading', 'true')
     expect(placeholder).toHaveClass('min-h-[var(--touch-min)]')
     expect(placeholder?.previousElementSibling).toContainElement(create)
 
-    rerender(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} account="Ada Lovelace" />)
+    rerender(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} account="Ada Lovelace" />)
     const account = screen.getByRole('button', { name: 'Ada Lovelace' })
     expect(account).toHaveClass('min-h-[var(--touch-min)]')
     expect(account.parentElement?.previousElementSibling).toContainElement(create)
@@ -420,18 +420,18 @@ describe('ShellWide', () => {
 
   it('uses a modal conversation overlay below the side-panel breakpoint', () => {
     const { container } = render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }}
         items={items}
         activeId="hoje"
         navLabel="Main navigation"
         conversation={<div>Conversation</div>}
-        conversationLabel="Astra conversation"
+        conversationLabel="Orbit conversation"
       >
         <h1>Today</h1>
       </ShellWide>,
     )
 
-    expect(screen.getByRole('dialog', { name: 'Astra conversation' })).toHaveAttribute(
+    expect(screen.getByRole('dialog', { name: 'Orbit conversation' })).toHaveAttribute(
       'data-shell-conversation',
       'overlay',
     )
@@ -442,13 +442,13 @@ describe('ShellWide', () => {
   it('keeps a queued action in the compact conversation dialog', async () => {
     const reload = vi.fn()
     const { container } = render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }}
         items={items}
         activeId="hoje"
         navLabel="Main navigation"
         notice={<span>Background notice</span>}
         conversation={<div data-shell-notice=""><AppToastHost /></div>}
-        conversationLabel="Astra conversation"
+        conversationLabel="Orbit conversation"
         conversationOpen
       >
         <h1>Today</h1>
@@ -457,7 +457,7 @@ describe('ShellWide', () => {
 
     act(() => { useAppToastStore.getState().showQueued('App updated', 'Reload', reload) })
     await screen.findByText('App updated')
-    const dialog = screen.getByRole('dialog', { name: 'Astra conversation' })
+    const dialog = screen.getByRole('dialog', { name: 'Orbit conversation' })
     expect(within(dialog).getByRole('group', { name: 'App updated' })).toHaveTextContent('App updated')
     expect(container.querySelector('[data-shell-background]')).toHaveAttribute('inert')
     expect(container.querySelector('[data-shell-background]')).not.toHaveTextContent('App updated')
@@ -468,19 +468,19 @@ describe('ShellWide', () => {
   it('keeps the sidebar while replacing the destination with the full column conversation', () => {
     media.width = 1024
     const { container } = render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }}
         items={items}
         activeId="hoje"
         navLabel="Main navigation"
         conversation={<div>Conversation</div>}
-        conversationLabel="Astra conversation"
+        conversationLabel="Orbit conversation"
       >
         <h1>Today</h1>
       </ShellWide>,
     )
 
     expect(container.querySelector('[data-shell-conversation="panel"]')).toBeNull()
-    const conversation = screen.getByRole('dialog', { name: 'Astra conversation' })
+    const conversation = screen.getByRole('dialog', { name: 'Orbit conversation' })
     expect(within(conversation).getByRole('main')).toBeVisible()
     expect(screen.getAllByRole('main')).toHaveLength(1)
     expect(conversation.closest('[data-shell-column]')).toHaveClass('lg:max-w-[740px]')
@@ -498,10 +498,10 @@ describe('ShellWide', () => {
       activeId: 'perfil',
       navLabel: 'Main navigation',
       conversation: <><BlurFocusedElement /><button type="button">Close conversation</button></>,
-      conversationLabel: 'Astra conversation',
+      conversationLabel: 'Orbit conversation',
     }
     const { rerender } = render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} conversationOpen={false}>
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} conversationOpen={false}>
         <button type="button">Support</button>
       </ShellWide>,
     )
@@ -509,14 +509,14 @@ describe('ShellWide', () => {
     fireEvent.click(support)
 
     rerender(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} conversationOpen>
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} conversationOpen>
         <button type="button">Support</button>
       </ShellWide>,
     )
     expect(screen.getByRole('button', { name: 'Close conversation' })).toHaveFocus()
 
     rerender(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} conversationOpen={false}>
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} conversationOpen={false}>
         <button type="button">Support</button>
       </ShellWide>,
     )
@@ -531,16 +531,16 @@ describe('ShellWide', () => {
       navLabel: 'Main navigation',
       composer: <button type="button">Open conversation</button>,
       conversation: <><BlurFocusedElement /><button type="button">Close conversation</button></>,
-      conversationLabel: 'Astra conversation',
+      conversationLabel: 'Orbit conversation',
     }
-    const { rerender } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} conversationOpen={false} />)
+    const { rerender } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} conversationOpen={false} />)
     screen.getByRole('button', { name: 'Open conversation' }).focus()
 
-    rerender(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} conversationOpen />)
+    rerender(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} conversationOpen />)
     expect(screen.getByRole('button', { name: 'Close conversation' })).toHaveFocus()
     expect(screen.queryByRole('button', { name: 'Open conversation' })).not.toBeInTheDocument()
 
-    rerender(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} conversationOpen={false} />)
+    rerender(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} conversationOpen={false} />)
     expect(screen.getByRole('button', { name: 'Open conversation' })).toHaveFocus()
   })
 
@@ -550,17 +550,17 @@ describe('ShellWide', () => {
       items,
       navLabel: 'Main navigation',
       conversation: <button type="button">Close conversation</button>,
-      conversationLabel: 'Astra conversation',
+      conversationLabel: 'Orbit conversation',
     }
-    const { rerender } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} activeId="hoje" conversationOpen={false}
+    const { rerender } = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} activeId="hoje" conversationOpen={false}
       composer={<button type="button">Open conversation</button>}><h1>Today</h1></ShellWide>)
     screen.getByRole('button', { name: 'Open conversation' }).focus()
-    rerender(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} activeId="hoje" conversationOpen
+    rerender(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} activeId="hoje" conversationOpen
       composer={<button type="button">Open conversation</button>}><h1>Today</h1></ShellWide>)
     expect(screen.getByRole('button', { name: 'Close conversation' })).toHaveFocus()
-    rerender(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} activeId="calendario" conversationOpen><h1>Calendar</h1></ShellWide>)
+    rerender(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} activeId="calendario" conversationOpen><h1>Calendar</h1></ShellWide>)
     expect(screen.getByRole('button', { name: 'Close conversation' })).toHaveFocus()
-    rerender(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} {...props} activeId="calendario" conversationOpen={false}><h1>Calendar</h1></ShellWide>)
+    rerender(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} {...props} activeId="calendario" conversationOpen={false}><h1>Calendar</h1></ShellWide>)
     expect(screen.getByRole('heading', { name: 'Calendar' })).toHaveFocus()
   })
 
@@ -570,9 +570,9 @@ describe('ShellWide', () => {
       items,
       navLabel: 'Main navigation',
       conversation: <button type="button">Close conversation</button>,
-      conversationLabel: 'Astra conversation',
+      conversationLabel: 'Orbit conversation',
       header: <><div hidden><h1>Previous</h1></div><div><h1>Calendar</h1></div></>,
-      astraRow: { label: 'Astra', onOpen: () => {} },
+      orbitRow: { label: 'Orbit', onOpen: () => {} },
       activeId: 'calendario',
     }
     const { rerender } = render(<ShellWide {...props} conversationOpen={false}
@@ -610,17 +610,17 @@ it.each([1100, 1352, 1440])('opens from the first sidebar row at %ipx and restor
   function App() {
     const [open, setOpen] = useState(false)
     return <ShellWide items={items} activeId="hoje" navLabel="Navigation" onSelect={() => setOpen(false)}
-      astraRow={{ label: 'Astra', onOpen: () => setOpen(true) }} conversationOpen={open} conversationLabel="Astra"
+      orbitRow={{ label: 'Orbit', onOpen: () => setOpen(true) }} conversationOpen={open} conversationLabel="Orbit"
       conversation={<><textarea data-composer-input="" aria-label="Message" /><button onClick={() => setOpen(false)}>Close</button></>}>
       <h1>Today</h1>
     </ShellWide>
   }
   const { container } = render(<App />)
-  const row = screen.getByRole('button', { name: 'Astra' })
+  const row = screen.getByRole('button', { name: 'Orbit' })
   expect(row.parentElement?.firstElementChild).toBe(row)
   expect(row).toHaveAttribute('aria-expanded', 'false')
-  expect(row).toHaveTextContent(/^Astra$/)
-  expect(within(row).getByText('Astra')).toBeVisible()
+  expect(row).toHaveTextContent(/^Orbit$/)
+  expect(within(row).getByText('Orbit')).toBeVisible()
   expect(row.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('aria-hidden', 'true')
   fireEvent.click(row)
   expect(row).toHaveAttribute('aria-expanded', 'true')
@@ -636,24 +636,24 @@ it.each([1100, 1352, 1440])('opens from the first sidebar row at %ipx and restor
   expect(screen.queryByRole('dialog')).toBeNull()
 })
 
-it.each([412, 840])('mounts the sidebar Astra row only at wide widths after hydration from %ipx', (width) => {
+it.each([412, 840])('mounts the sidebar Orbit row only at wide widths after hydration from %ipx', (width) => {
   media.width = width
-  const props = { items, activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: vi.fn() } }
+  const props = { items, activeId: 'hoje', navLabel: 'Navigation', orbitRow: { label: 'Orbit', onOpen: vi.fn() } }
   const view = render(<ShellWide {...props} />)
-  expect(screen.queryByRole('button', { name: 'Astra' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Orbit' })).not.toBeInTheDocument()
   media.width = 1352
   view.rerender(<ShellWide {...props} />)
-  const row = screen.getByRole('button', { name: 'Astra' })
+  const row = screen.getByRole('button', { name: 'Orbit' })
   expect(row.parentElement?.firstElementChild).toBe(row)
   media.width = width
   view.rerender(<ShellWide {...props} />)
-  expect(screen.queryByRole('button', { name: 'Astra' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Orbit' })).not.toBeInTheDocument()
 })
 
 it('retains the conversation node, draft and destination scroll across the wide boundary', () => {
   media.width = 1352
-  const props = { items, activeId: 'hoje', navLabel: 'Navigation', astraRow: { label: 'Astra', onOpen: vi.fn() },
-    conversation: <textarea data-composer-input="" aria-label="Message" defaultValue="Retained draft" />, conversationLabel: 'Astra' }
+  const props = { items, activeId: 'hoje', navLabel: 'Navigation', orbitRow: { label: 'Orbit', onOpen: vi.fn() },
+    conversation: <textarea data-composer-input="" aria-label="Message" defaultValue="Retained draft" />, conversationLabel: 'Orbit' }
   const view = render(<ShellWide {...props} conversationOpen={false}><h1>Today</h1></ShellWide>)
   const scroller = view.container.querySelector<HTMLElement>('[data-shell-scroller]')!
   scroller.scrollTop = 240
@@ -672,22 +672,22 @@ it('retains the conversation node, draft and destination scroll across the wide 
   expect(screen.getByRole('heading', { name: 'Today' })).toHaveFocus()
 })
 
-it('keeps the Astra layer open when a destination opens in another browsing context', () => {
+it('keeps the Orbit layer open when a destination opens in another browsing context', () => {
   media.width = 1352
   const onSelect = vi.fn()
   const onSidebarNavigate = vi.fn()
   const onCreate = vi.fn()
   render(<ShellWide items={items} activeId="hoje" navLabel="Navigation" onSelect={onSelect}
     onCreate={onCreate} createLabel="Create"
-    astraRow={{ label: 'Astra', onOpen: vi.fn() }} onSidebarNavigate={onSidebarNavigate}
-    conversationOpen conversationLabel="Astra" conversation={<button type="button">Close</button>} />)
+    orbitRow={{ label: 'Orbit', onOpen: vi.fn() }} onSidebarNavigate={onSidebarNavigate}
+    conversationOpen conversationLabel="Orbit" conversation={<button type="button">Close</button>} />)
   const calendar = screen.getByRole('link', { name: 'Calendário' })
   for (const modifiers of [{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true }]) {
     expect(fireEvent.click(calendar, modifiers)).toBe(true)
   }
   expect(onSelect).not.toHaveBeenCalled()
   expect(onSidebarNavigate).not.toHaveBeenCalled()
-  expect(screen.getByRole('dialog', { name: 'Astra' })).toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: 'Orbit' })).toBeInTheDocument()
   expect(fireEvent.click(calendar)).toBe(false)
   expect(onSelect).toHaveBeenCalledExactlyOnceWith('calendario')
   expect(onSidebarNavigate).toHaveBeenCalledOnce()

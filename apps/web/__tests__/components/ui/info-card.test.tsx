@@ -5,20 +5,20 @@ import { InfoCard } from '@/components/ui/info-card'
 
 describe('InfoCard', () => {
   it('renders title and description', () => {
-    render(<InfoCard><span>Astra</span><span>Sua assistente de hábitos</span></InfoCard>)
-    expect(screen.getByText('Astra')).toBeInTheDocument()
+    render(<InfoCard><span>Orbit</span><span>Sua assistente de hábitos</span></InfoCard>)
+    expect(screen.getByText('Orbit')).toBeInTheDocument()
     expect(screen.getByText('Sua assistente de hábitos')).toBeInTheDocument()
   })
 
   it('renders without a description', () => {
-    render(<InfoCard>Astra</InfoCard>)
-    expect(screen.getByText('Astra')).toBeInTheDocument()
+    render(<InfoCard>Orbit</InfoCard>)
+    expect(screen.getByText('Orbit')).toBeInTheDocument()
   })
 
   it('renders a custom icon and trailing slot', () => {
     render(
       <InfoCard icon={<Zap />}>
-        <span data-testid="trailing-node">Astra</span>
+        <span data-testid="trailing-node">Orbit</span>
       </InfoCard>,
     )
     expect(screen.getByTestId('trailing-node')).toBeInTheDocument()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
+import { useOrbitAllowanceCopy } from '@/hooks/use-orbit-allowance-copy'
 import { useFlag } from '@/hooks/use-flag'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { GuidedHabitFlow, type GuidedHabitCompletion, type GuidedHabitFields } from '@/components/habits/guided/guided-habit-flow'
@@ -142,7 +142,7 @@ export function CreateHabitModal({
     setOpenedAccountGeneration(accountGeneration)
   }
   const t = useTranslations()
-  const allowanceText = useAstraAllowanceCopy()
+  const allowanceText = useOrbitAllowanceCopy()
   const translate = allowanceText
   const locale = useLocale()
   const createHabit = useCreateHabit()

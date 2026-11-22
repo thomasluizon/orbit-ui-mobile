@@ -24,7 +24,7 @@ vi.mock('@/hooks/use-subscription-plans', async () => {
 
 const HEIGHT = 780
 const MIN_TARGET = 48
-const PAUSED_FEATURES = ['trial.expired.astraCeiling', 'trial.expired.calendarSync', 'trial.expired.retrospective', 'trial.expired.proactiveAstra'] as const
+const PAUSED_FEATURES = ['trial.expired.orbitCeiling', 'trial.expired.calendarSync', 'trial.expired.retrospective', 'trial.expired.proactiveOrbit'] as const
 const cases = ([320, 360, 384, 412] as const).flatMap((width) => (['pt-BR', 'en'] as const).map((locale) => ({ width, locale })))
 
 function PlanQuestion() {

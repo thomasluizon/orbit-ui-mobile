@@ -16,7 +16,7 @@ export const proactiveItemController = createProactiveItemController({
   },
   reportOpened: (id) => apiClient(API.proactive.opened(id), { method: 'POST', silent: true, skipAuthRecovery: true }),
   getChat: useChatStore.getState,
-  openConversation: () => useUIStore.getState().setAstraConversationOpen(true),
+  openConversation: () => useUIStore.getState().setOrbitConversationOpen(true),
   getSessionEpoch,
 })
 

@@ -8,7 +8,7 @@ import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { Composer } from '@/components/shell/composer'
-import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -28,13 +28,13 @@ it.each([390, 1280].flatMap((width) => [en, ptBR].map((messages) => ({ width, me
   'centres the drawn Orbit in the composer entry and in the Today line at $width in both locales', async ({ width, messages }) => {
     const { container } = render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
       <Composer state="idle" value="" onChangeValue={vi.fn()} onSend={vi.fn()} words={messages.shell.composer} suggestions={[]}
-        onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation} />
-      <TodayAstraLine text={messages.todayAstra.openConversation} destination={messages.chat.title} onPress={vi.fn()} />
+        onOpenConversation={vi.fn()} conversationLabel={messages.todayOrbit.openConversation} />
+      <TodayOrbitLine text={messages.todayOrbit.openConversation} destination={messages.chat.title} onPress={vi.fn()} />
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      const surfaces = await page.evaluate(() => [document.querySelector('[data-open-conversation]'), document.querySelector('.today-astra-line')].map((owner) => {
+      const surfaces = await page.evaluate(() => [document.querySelector('[data-open-conversation]'), document.querySelector('.today-orbit-line')].map((owner) => {
         if (!owner) throw new Error('Missing Orbit surface')
         const mark = owner.querySelector<SVGSVGElement>('[data-asset="orbit-mascot"]')!
         const ink = mark.getBBox()

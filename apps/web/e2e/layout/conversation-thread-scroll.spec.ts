@@ -24,7 +24,7 @@ for (const width of [600, 1352]) {
 
     for (const sameTask of [false, true]) {
       test(sameTask ? 'brings all clarification preview actions above the composer after a same-task scroll and answer' : 'brings all clarification preview actions above the composer', async ({ page }) => {
-        await page.goto('/?astra=open')
+        await page.goto('/?orbit=open')
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill('Quero criar um hábito. '.repeat(80))
         await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
@@ -54,7 +54,7 @@ for (const width of [600, 1352]) {
       await page.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({
         contentType: 'text/event-stream', body: `data: ${JSON.stringify(retainedReply)}\n\n`,
       }))
-      await page.goto('/?astra=open')
+      await page.goto('/?orbit=open')
       const conversation = page.locator('[data-shell-conversation="overlay"]')
       await conversation.locator('[data-composer-input]').fill('Quero criar um hábito')
       await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()

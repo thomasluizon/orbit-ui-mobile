@@ -38,22 +38,22 @@ const ALLOWANCE_KEYS = [
   'habits.form.localReadLimitWeekly',
   'chat.limitReachedError',
   'chat.limitReachedErrorWeekly',
-  'chat.account.row.astraAllowance',
-  'trial.expired.astraCeiling',
-  'upgrade.outcomes.astra',
+  'chat.account.row.orbitAllowance',
+  'trial.expired.orbitCeiling',
+  'upgrade.outcomes.orbit',
   'upgrade.convert.freeHeading',
   'upgrade.billing.usage.title',
   'upgrade.billing.usage.nearLimit',
   'upgrade.billing.usage.nearLimitWeekly',
-  'errors.api.astraLimit',
-  'errors.api.astraLimitWeekly',
+  'errors.api.orbitLimit',
+  'errors.api.orbitLimitWeekly',
 ]
 
 describe('Orbit copy', () => {
   it.each([['en', englishValues], ['pt-BR', portugueseValues]] as const)(
     'holds no second character name in %s',
     (_locale, values) => {
-      for (const [key, value] of values) expect(value, key).not.toMatch(/astra/i)
+      for (const [key, value] of values) expect(value, key).not.toMatch(/orbit/i)
     },
   )
 
@@ -84,14 +84,14 @@ describe('Orbit copy', () => {
   })
 
   it('names the conversation entry as Talk to Orbit', () => {
-    expect(en.shell.astraButton.open).toBe('Talk to Orbit')
-    expect(ptBR.shell.astraButton.open).toBe('Falar com o Orbit')
+    expect(en.shell.orbitButton.open).toBe('Talk to Orbit')
+    expect(ptBR.shell.orbitButton.open).toBe('Falar com o Orbit')
   })
 
   it('names the proactive feature with one term in each locale, apart from the Avisos destination', () => {
-    expect(en.trial.expired.proactiveAstra).toBe(en.profile.proactiveAstra.title)
-    expect(ptBR.trial.expired.proactiveAstra).toBe(ptBR.profile.proactiveAstra.title)
-    expect(ptBR.profile.proactiveAstra.title).not.toContain(ptBR.notifications.title)
+    expect(en.trial.expired.proactiveOrbit).toBe(en.profile.proactiveOrbit.title)
+    expect(ptBR.trial.expired.proactiveOrbit).toBe(ptBR.profile.proactiveOrbit.title)
+    expect(ptBR.profile.proactiveOrbit.title).not.toContain(ptBR.notifications.title)
   })
 
   it('gives Orbit its article where a Portuguese sentence names it', () => {

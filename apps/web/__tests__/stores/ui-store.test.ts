@@ -34,8 +34,8 @@ describe('ui store', () => {
       manuallySelectedIds: new Set<string>(),
       lastCreatedHabitId: null,
       showCreateModal: false,
-      astraConversationOpen: false,
-      astraEntryPointIntent: undefined,
+      orbitConversationOpen: false,
+      orbitEntryPointIntent: undefined,
       searchQuery: '',
     })
   })
@@ -451,12 +451,12 @@ describe('ui store', () => {
   })
 
   it('keeps Support intent only while its conversation is open', () => {
-    const { setAstraConversationOpen } = useUIStore.getState()
-    setAstraConversationOpen(true, 'support')
-    expect(useUIStore.getState().astraEntryPointIntent).toBe('support')
-    setAstraConversationOpen(false)
-    setAstraConversationOpen(true)
-    expect(useUIStore.getState().astraEntryPointIntent).toBeUndefined()
+    const { setOrbitConversationOpen } = useUIStore.getState()
+    setOrbitConversationOpen(true, 'support')
+    expect(useUIStore.getState().orbitEntryPointIntent).toBe('support')
+    setOrbitConversationOpen(false)
+    setOrbitConversationOpen(true)
+    expect(useUIStore.getState().orbitEntryPointIntent).toBeUndefined()
   })
 
 

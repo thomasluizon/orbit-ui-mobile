@@ -735,7 +735,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
       handledNotificationResponseIdentifiers.current.add(responseIdentifier)
       activeNotificationsModule.clearLastNotificationResponse()
       router.push(destination.url)
-      if (destination.opensAstra) void openCurrentProactiveItem(queryClient)
+      if (destination.opensOrbit) void openCurrentProactiveItem(queryClient)
     }
 
     const responseSubscription = activeNotificationsModule.addNotificationResponseReceivedListener(

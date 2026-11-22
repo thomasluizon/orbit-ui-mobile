@@ -44,7 +44,7 @@ function render(element: React.ReactElement) {
   return tree
 }
 
-describe('Astra account rows on mobile', () => {
+describe('Orbit account rows on mobile', () => {
   beforeEach(() => { vi.clearAllMocks(); rewardState.locale = ''; mocks.locale = 'en'; motionState.reduced = false })
 
   it('keeps plan rows read only and drops unknown keys', () => {

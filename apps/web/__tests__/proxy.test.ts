@@ -430,7 +430,7 @@ describe('proxy', () => {
     expect(redirectUrl.searchParams.get('returnUrl')).toBe(path)
   })
 
-  it.each(['account', 'preferences', 'astra', 'notifications'])(
+  it.each(['account', 'preferences', 'orbit', 'notifications'])(
     'allows the signed-in Perfil %s submenu and redirects after session rejection', async (submenu) => {
       const path = `/profile/${submenu}`
       vi.mocked(resolveSessionTokens).mockResolvedValueOnce({
@@ -748,7 +748,7 @@ describe('proxy', () => {
     expect(clearSessionCookies).not.toHaveBeenCalled()
   })
 
-  it('carries the Astra launch query to login from anonymous onboarding', async () => {
+  it('carries the Orbit launch query to login from anonymous onboarding', async () => {
     vi.mocked(resolveSessionTokens).mockResolvedValue({
       token: null,
       expiresAt: null,

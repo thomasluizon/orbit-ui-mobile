@@ -42,7 +42,7 @@ type ExpectedNav = {
   nav?: true
   items: ShellWideItem[]
   activeId: string
-  astraRow: { label: string; onOpen: () => void }
+  orbitRow: { label: string; onOpen: () => void }
   onSelect?: (id: string) => void
   navLabel: string
   account?: string
@@ -55,7 +55,7 @@ type ExpectedFlow = {
   nav: false
   items?: never
   activeId?: never
-  astraRow?: never
+  orbitRow?: never
   onSelect?: never
   onCreate?: never
   createLabel?: never
@@ -106,7 +106,7 @@ type FlowPlainVariant = Extract<ShellWideProps, { nav: false; conversation?: und
 type FlowConversationVariant = Extract<ShellWideProps, { nav: false; conversation: React.ReactNode }>
 
 type Destinations = ShellWideItem[]
-type Sidebar = { items: Destinations; activeId: 'hoje'; navLabel: 'Navigation'; astraRow: { label: string; onOpen: () => void } }
+type Sidebar = { items: Destinations; activeId: 'hoje'; navLabel: 'Navigation'; orbitRow: { label: string; onOpen: () => void } }
 
 type WithCreate = Sidebar & { onCreate: () => void; createLabel: 'Novo habito' }
 type WithPalette = Sidebar & { onPalette: () => void; paletteLabel: 'Buscar'; paletteHint: 'Ctrl K' }
@@ -120,8 +120,8 @@ type DestinationWithAction = Sidebar & { action: React.ReactNode }
 type ConversationWithoutName = Sidebar & { conversation: React.ReactNode }
 type OpenWithoutConversation = Sidebar & { conversationOpen: true }
 type SidebarWithTabBar = Sidebar & { tabBar: React.ReactNode }
-type ItemWithoutId = { items: [{ label: 'Hoje' }]; activeId: 'hoje'; navLabel: 'Navigation'; astraRow: { label: string; onOpen: () => void } }
-type ItemWithoutLabel = { items: [{ id: 'hoje' }]; activeId: 'hoje'; navLabel: 'Navigation'; astraRow: { label: string; onOpen: () => void } }
+type ItemWithoutId = { items: [{ label: 'Hoje' }]; activeId: 'hoje'; navLabel: 'Navigation'; orbitRow: { label: string; onOpen: () => void } }
+type ItemWithoutLabel = { items: [{ id: 'hoje' }]; activeId: 'hoje'; navLabel: 'Navigation'; orbitRow: { label: string; onOpen: () => void } }
 
 export type ShellWideTypeContract = [
   Assert<IsExactWidth<Fields<NavPlainVariant>, Fields<ExpectedBase & ExpectedPlainConversation & ExpectedPlainCreate & ExpectedPlainPalette & ExpectedNav>>>,
@@ -164,14 +164,14 @@ export type ShellWideTypeContract = [
   Assert<IsExact<WithConversation, ShellWideProps>>,
   Assert<IsExact<{ nav: false; action: React.ReactNode }, ShellWideProps>>,
   Assert<IsExact<{ nav: false }, ShellWideProps>>,
-  // @ts-expect-error the Astra row is required with navigation
-  Assert<IsExact<Omit<Sidebar, 'astraRow'>, ShellWideProps>>,
-  // @ts-expect-error the Astra row is rejected without navigation
-  Assert<IsExact<{ nav: false; astraRow: Sidebar['astraRow'] }, ShellWideProps>>,
+  // @ts-expect-error the Orbit row is required with navigation
+  Assert<IsExact<Omit<Sidebar, 'orbitRow'>, ShellWideProps>>,
+  // @ts-expect-error the Orbit row is rejected without navigation
+  Assert<IsExact<{ nav: false; orbitRow: Sidebar['orbitRow'] }, ShellWideProps>>,
   // @ts-expect-error a sidebar with no destinations is not a state
-  Assert<IsExact<{ activeId: 'hoje'; navLabel: 'Navigation'; astraRow: { label: string; onOpen: () => void } }, ShellWideProps>>,
+  Assert<IsExact<{ activeId: 'hoje'; navLabel: 'Navigation'; orbitRow: { label: string; onOpen: () => void } }, ShellWideProps>>,
   // @ts-expect-error a nav with no current position is not a state
-  Assert<IsExact<{ items: Destinations; navLabel: 'Navigation'; astraRow: { label: string; onOpen: () => void } }, ShellWideProps>>,
+  Assert<IsExact<{ items: Destinations; navLabel: 'Navigation'; orbitRow: { label: string; onOpen: () => void } }, ShellWideProps>>,
   // @ts-expect-error the nav landmark needs its accessible name
   Assert<IsExact<{ items: Destinations; activeId: 'hoje' }, ShellWideProps>>,
   // @ts-expect-error a destination without an id does not compile
@@ -190,7 +190,7 @@ export type ShellWideTypeContract = [
   Assert<IsExact<{ nav: false; items: Destinations }, ShellWideProps>>,
   // @ts-expect-error the account row renders inside the sidebar
   Assert<IsExact<{ nav: false; account: 'a@b.c' }, ShellWideProps>>,
-  // @ts-expect-error a flow cannot pin Astra's front door
+  // @ts-expect-error a flow cannot pin Orbit's front door
   Assert<IsExact<{ nav: false; composer: React.ReactNode }, ShellWideProps>>,
   // @ts-expect-error conversation content requires its accessible name
   Assert<IsExact<ConversationWithoutName, ShellWideProps>>,

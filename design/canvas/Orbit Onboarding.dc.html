@@ -76,10 +76,10 @@ a:hover{color:var(--fg-1)}
               <div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px">
                 <sc-if value="{{ hasProposal }}" hint-placeholder-val="{{ true }}">
                   <span style="flex:0 0 auto;display:grid;place-items:center;width:24px;height:24px;color:var(--fg-1)">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n24 }}" hint-size="24px,24px"></x-import>
+                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitGlyph" size="{{ n24 }}" hint-size="24px,24px"></x-import>
                   </span>
                 </sc-if>
-                <p style="flex:1;min-width:0;font-size:17px;line-height:1.5;text-wrap:pretty">{{ astraRead }}</p>
+                <p style="flex:1;min-width:0;font-size:17px;line-height:1.5;text-wrap:pretty">{{ orbitRead }}</p>
               </div>
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Proposed" scope="block" proposed="{{ notTouched }}" label="{{ proposedBy }}" hint-size="100%,220px">
                 <div style="display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
@@ -143,7 +143,7 @@ a:hover{color:var(--fg-1)}
                 </div>
               </sc-if>
               <div>
-                <p style="font-size:17px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ tellAstra }}</p>
+                <p style="font-size:17px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ tellOrbit }}</p>
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="primary" on-click="{{ doneGo }}" hint-size="auto,48px">{{ doneAction }}</x-import>
               </div>
             </div>
@@ -195,10 +195,10 @@ a:hover{color:var(--fg-1)}
                 <div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px">
                   <sc-if value="{{ hasProposal }}" hint-placeholder-val="{{ true }}">
                     <span style="flex:0 0 auto;display:grid;place-items:center;width:24px;height:24px;color:var(--fg-1)">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n24 }}" hint-size="24px,24px"></x-import>
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitGlyph" size="{{ n24 }}" hint-size="24px,24px"></x-import>
                     </span>
                   </sc-if>
-                  <p style="flex:1;min-width:0;font-size:17px;line-height:1.5;text-wrap:pretty">{{ astraRead }}</p>
+                  <p style="flex:1;min-width:0;font-size:17px;line-height:1.5;text-wrap:pretty">{{ orbitRead }}</p>
                 </div>
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Proposed" scope="block" proposed="{{ notTouched }}" label="{{ proposedBy }}" hint-size="100%,220px">
                   <div style="display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
@@ -264,7 +264,7 @@ a:hover{color:var(--fg-1)}
                   </div>
                 </sc-if>
                 <div>
-                  <p style="font-size:17px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ tellAstra }}</p>
+                  <p style="font-size:17px;line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ tellOrbit }}</p>
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="primary" on-click="{{ doneGo }}" hint-size="auto,48px">{{ doneAction }}</x-import>
                 </div>
               </div>
@@ -390,8 +390,8 @@ const T = {
     starters: ['Beber água pela manhã', 'Caminhar 3 vezes por semana', 'Ler antes de dormir', 'Arrumar a casa no sábado'],
     haveAccount: 'Já tenho uma conta',
     next: 'Continuar', nextWhy: 'Escreva o que você quer acompanhar.',
-    astraRead: 'Entendi assim. Toque para corrigir.',
-    astraLimited: 'Escolha os dias e a hora.',
+    orbitRead: 'Entendi assim. Toque para corrigir.',
+    orbitLimited: 'Escolha os dias e a hora.',
     proposedBy: 'Proposto pelo Orbit',
     emojiLabel: 'Emoji proposto pelo Orbit',
     daysLabel: 'Dias da semana',
@@ -415,7 +415,7 @@ const T = {
     enableFailTitle: 'Os lembretes não ligaram',
     enableFailBody: 'A permissão foi dada e o registro deste aparelho falhou. O hábito já está salvo.',
     allow: 'Permitir lembretes', deny: 'Agora não',
-    tellAstra: 'Da próxima vez, conte ao Orbit no Hoje o que você quer fazer.',
+    tellOrbit: 'Da próxima vez, conte ao Orbit no Hoje o que você quer fazer.',
     doneTitle: 'Pronto. Ele está no seu dia.',
     doneBody: 'Toque no anel para registrar quando acontecer.',
     doneBodyDenied: 'Toque no anel para registrar quando acontecer. Você pode ligar os lembretes no hábito.',
@@ -442,8 +442,8 @@ const T = {
     starters: ['Drink water in the morning', 'Walk 3 times a week', 'Read before bed', 'Tidy the house on Saturday'],
     haveAccount: 'I already have an account',
     next: 'Continue', nextWhy: 'Write what you want to keep up.',
-    astraRead: 'This is how I read it. Tap to correct it.',
-    astraLimited: 'Pick the days and the time.',
+    orbitRead: 'This is how I read it. Tap to correct it.',
+    orbitLimited: 'Pick the days and the time.',
     proposedBy: 'Proposed by Orbit',
     emojiLabel: 'Emoji proposed by Orbit',
     daysLabel: 'Days of the week',
@@ -467,7 +467,7 @@ const T = {
     enableFailTitle: 'Reminders did not turn on',
     enableFailBody: 'Permission was given and registering this device failed. The habit is already saved.',
     allow: 'Allow reminders', deny: 'Not now',
-    tellAstra: 'Next time, tell Orbit what you want to do from Today.',
+    tellOrbit: 'Next time, tell Orbit what you want to do from Today.',
     doneTitle: 'Done. It is in your day.',
     doneBody: 'Tap the ring to log it when it happens.',
     doneBodyDenied: 'Tap the ring to log it when it happens. You can turn reminders on from the habit.',
@@ -629,14 +629,14 @@ class Component extends DCLogic {
           activeId: 'hoje', onSelect: () => {} }), notice: notice }
       : { nav: false, action: action, notice: notice };
     const shWide = navOn
-      ? { astraRow: H(window.OrbitNativeMobile.AstraRow), items: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })), activeId: 'hoje',
+      ? { orbitRow: H(window.OrbitNativeMobile.OrbitRow), items: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })), activeId: 'hoje',
           onSelect: () => {}, navLabel: t.navLabel, account: t.account, onPalette: () => {},
           paletteLabel: t.palette, paletteHint: 'Ctrl K', notice: notice }
       : { nav: false, action: action, notice: notice };
 
     /* Input owns the mirror: marks with marksLabel, maxLength for the title cap, rows not pixels. */
     const fieldProps = Object.assign({
-      label: H('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 8 } }, H(D.AstraGlyph, { size: 16 }), t.whatLabel), placeholder: t.placeholder, value: text,
+      label: H('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 8 } }, H(D.OrbitGlyph, { size: 16 }), t.whatLabel), placeholder: t.placeholder, value: text,
       onChange: (e) => this.setState({ text: e.target.value }),
       multiline: true, rows: 3, maxLength: 100,
     }, parsed.tokens.length ? { marks: parsed.tokens, marksLabel: t.marksLabel } : {});
@@ -653,7 +653,7 @@ class Component extends DCLogic {
       atLimit: atLimit,
       limitNode: H(F, null, t.limit[0], t.limit[1], t.limit[2]),
       hasProposal: hasProposal,
-      astraRead: hasProposal && raw ? t.astraRead : t.astraLimited,
+      orbitRead: hasProposal && raw ? t.orbitRead : t.orbitLimited,
       hasSentence: !!raw,
       notTouched: hasProposal && !s.touched,
       hasEmoji: !!parsed.emoji, emoji: parsed.emoji || H('span', { 'aria-hidden': 'true' }),
@@ -679,7 +679,7 @@ class Component extends DCLogic {
 
       hasHabit: created,
       doneTitle: doneOut ? t.doneTitleOut : created ? t.doneTitle : t.doneTitleSkip,
-      tellAstra: t.tellAstra,
+      tellOrbit: t.tellOrbit,
       doneBody: doneOut ? t.doneBodyOut : created ? (denied ? t.doneBodyDenied : t.doneBody) : t.doneBodySkip,
       doneAction: doneOut ? t.toEntrar : t.toHoje,
       doneGo: doneOut ? this.goEntrar : this.goHoje,

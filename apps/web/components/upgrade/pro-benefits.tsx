@@ -3,7 +3,7 @@ import type { useTranslations } from 'next-intl'
 import { Calendar, Eye, FileText } from '@/components/ui/icons'
 
 const OUTCOMES = [
-  { key: 'astra', Icon: OrbitMascotIcon },
+  { key: 'orbit', Icon: OrbitMascotIcon },
   { key: 'calendar', Icon: Calendar },
   { key: 'retrospective', Icon: FileText },
   { key: 'noticing', Icon: Eye },
@@ -19,7 +19,7 @@ export function ProBenefits({ t, heading = false }: Readonly<{
       <ul aria-label={t(heading ? 'upgrade.included' : 'upgrade.outcomes.label')} className="flex flex-col gap-3 py-2">
         {OUTCOMES.map(({ key, Icon }) => <li key={key} className="flex items-start gap-3">
           <span aria-hidden="true" className="shrink-0 text-[var(--fg-3)]"><Icon size={20} strokeWidth={1.5} /></span>
-          <p translate={key === 'astra' || key === 'noticing' ? 'no' : undefined} className="min-w-0 max-w-[65ch] text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">{t(`upgrade.outcomes.${key}`)}</p>
+          <p translate={key === 'orbit' || key === 'noticing' ? 'no' : undefined} className="min-w-0 max-w-[65ch] text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">{t(`upgrade.outcomes.${key}`)}</p>
         </li>)}
       </ul>
     </section>

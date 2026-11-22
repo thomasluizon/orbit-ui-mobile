@@ -164,7 +164,7 @@ describe('a habit on chosen days of the month', () => {
     expect(buildHabitUnderstandingSentence([], [], false, 'Month', 1, '', 'en', english, 1, [8, 15])).toBe('On the 8th and 15th')
   })
 
-  it('summarises an Astra create preview with its month days', () => {
+  it('summarises an Orbit create preview with its month days', () => {
     const field = (name: string, proposedValue: unknown, newValue: string) => ({
       entityId: '00000000-0000-0000-0000-000000000000', entityName: 'Rent', field: name,
       oldValue: null, newValue, valueType: 'text', proposedValue, isEditable: true,

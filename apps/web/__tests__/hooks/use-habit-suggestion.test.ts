@@ -1,4 +1,4 @@
-import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
+import allowanceRefusals from '@orbit/shared/test-support/orbit-allowance-refusals.fixture.json'
 import { profileKeys } from '@orbit/shared/query'
 import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'

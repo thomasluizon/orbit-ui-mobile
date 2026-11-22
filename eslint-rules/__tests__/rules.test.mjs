@@ -279,7 +279,7 @@ ruleTester.run('require-focus-replacement', rule('require-focus-replacement'), {
 })
 
 ruleTester.run('no-placeholder-alt', rule('no-placeholder-alt'), {
-  valid: ['<img alt="" />', '<img alt="Astra waving at a completed streak" />'],
+  valid: ['<img alt="" />', '<img alt="Orbit waving at a completed streak" />'],
   invalid: [
     { code: '<img alt="image" />', errors: [{ messageId: 'noPlaceholderAlt' }] },
     { code: '<img alt="Photo" />', errors: [{ messageId: 'noPlaceholderAlt' }] },

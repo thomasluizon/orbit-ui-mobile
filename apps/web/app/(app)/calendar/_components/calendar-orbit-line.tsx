@@ -8,7 +8,7 @@ import { prepareChatRequest } from '@orbit/shared/stores'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarView } from '@orbit/shared/utils/calendar-navigation'
 import { buildCalendarOrbitRequest, formatAPIDate, formatCalendarOrbitLine, nextCalendarPageTurn, resolveCalendarOrbitLine, type CalendarMonthDisplayState, type CalendarOrbitLine as CalendarOrbitLineModel } from '@orbit/shared/utils'
-import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 import { useFlag } from '@/hooks/use-flag'
 import { useOrbitLook } from '@/hooks/use-orbit-look'
 import { useProfile } from '@/hooks/use-profile'
@@ -90,11 +90,11 @@ function CalendarOrbitLineRow(props: Readonly<CalendarOrbitLineProps>) {
   const openConversation = () => {
     if (!sentence) return
     prepareChatRequest(useChatStore.getState(), buildCalendarOrbitRequest(sentence, locale, t))
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
   }
   return <div data-testid="calendar-orbit-line" className="flex flex-col gap-1" style={{ paddingBlock: PADDING.sectionGap - SPACING.s16 }}>
-    <TodayAstraLine text={sentence ? formatCalendarOrbitLine(sentence, locale, t) : t('calendar.loading')}
-      destination={reason ?? t('todayAstra.openConversation')} loading={!sentence} busy={!sentence} disabled={!sentence || Boolean(reason)}
+    <TodayOrbitLine text={sentence ? formatCalendarOrbitLine(sentence, locale, t) : t('calendar.loading')}
+      destination={reason ?? t('todayOrbit.openConversation')} loading={!sentence} busy={!sentence} disabled={!sentence || Boolean(reason)}
       onPress={openConversation} mascotState={mascotState} lookAt={lookAt} turnKey={turns} mascotRef={mascotRef} />
     {reason ? <p data-testid="calendar-orbit-line-reason" className="m-0 px-screen-gutter text-[var(--fg-3)]" style={{ fontSize: 12, lineHeight: 1.4 }}>{reason}</p> : null}
   </div>

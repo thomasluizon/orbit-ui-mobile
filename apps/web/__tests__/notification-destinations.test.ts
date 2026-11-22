@@ -30,7 +30,7 @@ describe('notification destinations', () => {
     ['/progress/achievements?earned=latest', '/progress/achievements?earned=latest'],
   ])('opens notification %s in its owning screen', (url, expected) => {
     const destination = getNotificationDestination(url)
-    expect(destination).toEqual({ url: expected, opensAstra: false })
+    expect(destination).toEqual({ url: expected, opensOrbit: false })
     expect(routes).toContain(expected.split(/[?#]/)[0])
   })
 

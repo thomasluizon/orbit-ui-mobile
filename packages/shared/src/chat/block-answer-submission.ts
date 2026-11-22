@@ -29,7 +29,7 @@ interface BlockSubmissionContext {
   intendedAccountId?: string | null
   getChat: () => ChatStoreState
   createMessageId: () => string
-  conversation: { astraConversationOpen: boolean; setAstraConversationOpen: (open: boolean) => void }
+  conversation: { orbitConversationOpen: boolean; setOrbitConversationOpen: (open: boolean) => void }
   beginSend: () => void
   run: (request: ChatStreamRequest<never>, onAccepted: () => void) => Promise<ChatStreamResult>
   refreshProfile: () => Promise<void>
@@ -73,7 +73,7 @@ export class BlockAnswerSubmission {
     }
     this.uncertainRequest = { ...this.uncertainRequest, messageCost: request.kind === 'pickList' || recovery ? 0 : 1 }
     try {
-      if (!context.conversation.astraConversationOpen) context.conversation.setAstraConversationOpen(true)
+      if (!context.conversation.orbitConversationOpen) context.conversation.setOrbitConversationOpen(true)
       context.beginSend()
       const outcome = await context.run(this.uncertainRequest, () => {
         const current = context.getChat()

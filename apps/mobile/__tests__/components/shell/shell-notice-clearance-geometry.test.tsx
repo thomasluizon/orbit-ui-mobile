@@ -32,7 +32,7 @@ async function report(testID: string, width: number) {
 
 async function mountShell(width: number, today: boolean, notice?: React.ReactNode) {
   __setWindowDimensions({ width, height: HEIGHT, scale: 1, fontScale: 1 })
-  await act(() => { tree = create(<Shell412 astraButton={today} header={<View style={{ height: 48 }} />} notice={notice}
+  await act(() => { tree = create(<Shell412 orbitButton={today} header={<View style={{ height: 48 }} />} notice={notice}
     fab={today ? <View testID="create-fab" style={{ width: 60, height: 60 }} /> : undefined} tabBar={<View style={{ height: 80 }} />}>
     <View style={{ flex: 1 }} />
   </Shell412>) as GeometryTree })
@@ -48,13 +48,13 @@ it.each([412, 840])('ends the toast the shared gap above the tab bar at %ipx', a
   expect(boxes.get('toast-neutral')!.top - boxes.get('shell-notice')!.top).toBe(SPACING.s12)
 })
 
-it('keeps the toast clear of the tab bar, the create button and the Astra button on Hoje', async () => {
+it('keeps the toast clear of the tab bar, the create button and the Orbit button on Hoje', async () => {
   await mountShell(412, true, toast)
   const boxes = measure(412)
   const placed = boxes.get('toast-neutral')!
   expect(boxes.get('shell-tab-bar')!.top - placed.bottom).toBeGreaterThanOrEqual(SHARED_GAP)
   expect(placed.top - boxes.get('create-fab')!.bottom).toBeGreaterThanOrEqual(SHARED_GAP)
-  expect(placed.top - boxes.get('astra-button')!.bottom).toBeGreaterThanOrEqual(SPACING.s16)
+  expect(placed.top - boxes.get('orbit-button')!.bottom).toBeGreaterThanOrEqual(SPACING.s16)
 })
 
 it('reserves no clearance while the notice slot is empty', async () => {

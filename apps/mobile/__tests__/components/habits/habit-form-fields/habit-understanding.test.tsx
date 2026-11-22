@@ -176,7 +176,7 @@ describe("HabitUnderstanding mobile", () => {
       tree.root.findAll(
         (node) =>
           node.type === "Text" &&
-          node.props.children === "Astra proposed",
+          node.props.children === "Orbit proposed",
       ),
     ).toHaveLength(0);
     expect(

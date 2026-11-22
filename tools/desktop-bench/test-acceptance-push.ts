@@ -541,7 +541,7 @@ function pushProbeContext(pathname: string, options: { checked?: boolean; storag
     document: { readyState: 'complete', cookie: '', querySelector(selector: string) {
       if (selector === '[data-testid="push-status"]') return null
       if (selector.startsWith('[data-habit-id')) return {}
-      if (selector.startsWith('[data-astra-button]')) return {}
+      if (selector.startsWith('[data-orbit-button]')) return {}
       return null
     }, querySelectorAll(selector: string) { return selector === '[role="switch"]' ? [toggle] : [] } },
     fetch: async (url: string, init?: { body: string }) => {

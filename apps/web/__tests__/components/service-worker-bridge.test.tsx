@@ -64,7 +64,7 @@ function createReplyPort() {
 
 describe('ServiceWorkerBridge', () => {
   beforeEach(() => {
-    useUIStore.setState({ astraConversationOpen: false })
+    useUIStore.setState({ orbitConversationOpen: false })
     useChatStore.setState({ messages: [], proactiveOutcomes: {} })
     mockPush.mockReset()
     mockCaptureException.mockReset()
@@ -158,7 +158,7 @@ describe('ServiceWorkerBridge', () => {
     postFromWorker(container, { type: 'orbit:notification-click', url: '/progress' })
 
     expect(mockPush.mock.calls).toEqual([['/?orbit=proactive'], ['/progress']])
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(useChatStore.getState().messages).toEqual([])
   })
 
@@ -184,7 +184,7 @@ describe('ServiceWorkerBridge', () => {
     postFromWorker(container, { type: 'orbit:notification-click', url: '/chat' }, [reply.port])
 
     expect(mockPush).toHaveBeenCalledWith('/?orbit=proactive')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(useChatStore.getState().messages).toEqual([])
     expect(await reply.receipts()).toEqual([{ type: 'orbit:notification-click-received' }])
   })
@@ -264,21 +264,21 @@ describe('ServiceWorkerBridge', () => {
     expect(window.location.search).toBe('?date=2026-09-29')
   })
 
-  it('routes a conversation notification through the authenticated Astra entry', () => {
+  it('routes a conversation notification through the authenticated Orbit entry', () => {
     installServiceWorkerContainer()
     window.history.replaceState(null, '', '/?notificationUrl=%2Fchat')
     renderBridge()
     expect(mockPush).toHaveBeenCalledWith('/?orbit=proactive')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(useChatStore.getState().messages).toEqual([])
   })
 
-  it('keeps the Astra launch intent in the route through anonymous onboarding and sign-in', () => {
+  it('keeps the Orbit launch intent in the route through anonymous onboarding and sign-in', () => {
     installServiceWorkerContainer()
     window.history.replaceState(null, '', '/onboarding?notificationUrl=%2Fchat')
     renderBridge()
     expect(mockPush).toHaveBeenCalledWith('/?orbit=proactive')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(useChatStore.getState().messages).toEqual([])
   })
 

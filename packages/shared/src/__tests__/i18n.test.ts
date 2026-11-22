@@ -214,7 +214,7 @@ describe('i18n locale parity', () => {
   })
 
   it('rejects a bare assistant name as a placeholder', () => {
-    expect(isInstructionOrFormatExample('Astra')).toBe(false)
+    expect(isInstructionOrFormatExample('Orbit')).toBe(false)
   })
 
   it.each([en, ptBR])('keeps the idle composer words in its accessible name', (catalog) => {
@@ -245,7 +245,7 @@ describe('i18n locale parity', () => {
       'preferences.general',
       'chat.insight.overview',
       'privacy.intro.body',
-      'onboarding.featureGuide.astraSection.cannotDoDesc',
+      'onboarding.featureGuide.orbitSection.cannotDoDesc',
       'result.task.undated',
     ])
     for (const { catalog, locale, task, internal, general } of [
@@ -340,7 +340,7 @@ describe('i18n locale parity', () => {
     expect(en.chat.limitReachedError).toContain('midnight, your time')
     expect(ptBR.chat.limitReachedError).toContain('meia-noite, no seu fuso horário')
     for (const locale of [en, ptBR]) {
-      expect(locale.errors.api.astraLimit).toBe(locale.chat.limitReachedError)
+      expect(locale.errors.api.orbitLimit).toBe(locale.chat.limitReachedError)
       expect(locale.chat.limitReachedError).not.toMatch(/upgrade|pro\b/i)
     }
   })
@@ -363,8 +363,8 @@ describe('i18n locale parity', () => {
       if (!value.includes('Orbit')) continue
       expect(value, key).not.toMatch(/(?<![\p{L}])(?:a|à|da|na|pela|uma) Orbit\b/u)
     }
-    expect(ptBR.astraRail.title).toBe('Copiloto Orbit')
-    expect(ptBR.astraRail.subtitle).toBe('Seu copiloto de hábitos')
+    expect(ptBR.orbitRail.title).toBe('Copiloto Orbit')
+    expect(ptBR.orbitRail.subtitle).toBe('Seu copiloto de hábitos')
     expect(ptBR.upgrade.outcomes.noticing).toMatch(/^O Orbit percebe\b/)
     expect(ptBR.terms.ai.body).toContain('um assistente de IA que usa')
     expect(ptBR.privacy.dataCollected.chat).toContain('com o Orbit')

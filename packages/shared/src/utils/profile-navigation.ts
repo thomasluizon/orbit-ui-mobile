@@ -25,7 +25,7 @@ export const PROFILE_SETTINGS_GROUPS: readonly ProfileSettingsGroupDefinition[] 
 export const PROFILE_SUBMENUS = [
   { id: 'account', iconKey: 'account', route: '/profile/account', labelKey: 'profile.submenus.account' },
   { id: 'preferences', iconKey: 'preferences', route: '/profile/preferences', labelKey: 'profile.submenus.preferences' },
-  { id: 'astra', iconKey: 'astra', route: '/profile/ai', labelKey: 'profile.groups.astra' },
+  { id: 'orbit', iconKey: 'orbit', route: '/profile/ai', labelKey: 'profile.groups.orbit' },
   { id: 'notifications', iconKey: 'notifications', route: '/profile/notifications', labelKey: 'profile.groups.notifications' },
 ] as const
 
@@ -65,7 +65,7 @@ export type ProfileNavIconKey =
   | 'account'
   | 'pro'
   | 'preferences'
-  | 'astra'
+  | 'orbit'
   | 'notifications'
   | 'wrapped'
   | 'widget'

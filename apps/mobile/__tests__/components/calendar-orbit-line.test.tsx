@@ -66,7 +66,7 @@ beforeEach(() => {
   state.online = true
   state.locale = 'en'
   state.profile = { ...createMockProfile(), aiMessagesUsed: 0, aiMessagesLimit: 50, hasProAccess: true }
-  useUIStore.getState().setAstraConversationOpen(false)
+  useUIStore.getState().setOrbitConversationOpen(false)
   useChatStore.getState().setDraft('')
 })
 afterEach(() => { reanimatedTestState.reducedMotion = false })
@@ -84,7 +84,7 @@ describe('the Calendário Orbit line on Android', () => {
   ] as const)('states the selected day with Orbit at 48 in %s', (locale, sentence) => {
     state.locale = locale
     const tree = render(<CalendarOrbitLine {...props()} />)
-    const row = host(tree.root, 'today-astra-slot')!
+    const row = host(tree.root, 'today-orbit-slot')!
     expect(row.props.accessibilityLabel).toBe(sentence)
     expect(row.props.accessibilityState).toMatchObject({ disabled: false })
     const mascots = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')
@@ -95,20 +95,20 @@ describe('the Calendário Orbit line on Android', () => {
   it('changes the sentence on a day select', () => {
     const tree = render(<CalendarOrbitLine {...props()} />)
     TestRenderer.act(() => tree.update(<CalendarOrbitLine {...props({ selectedDay: '2026-11-12' })} />))
-    expect(host(tree.root, 'today-astra-slot')!.props.accessibilityLabel).toBe('Nothing planned that day.')
+    expect(host(tree.root, 'today-orbit-slot')!.props.accessibilityLabel).toBe('Nothing planned that day.')
   })
 
   it('states the future month and the empty month in the line', () => {
     const tree = render(<CalendarOrbitLine {...props({ monthDisplayState: 'future', currentMonth: new Date(2027, 0, 1), selectedDay: '2027-01-01' })} />)
-    expect(host(tree.root, 'today-astra-slot')!.props.accessibilityLabel).toBe('This month has not arrived yet.')
+    expect(host(tree.root, 'today-orbit-slot')!.props.accessibilityLabel).toBe('This month has not arrived yet.')
     TestRenderer.act(() => tree.update(<CalendarOrbitLine {...props({ monthDisplayState: 'empty' })} />))
-    expect(host(tree.root, 'today-astra-slot')!.props.accessibilityLabel).toBe('Nothing planned in November.')
+    expect(host(tree.root, 'today-orbit-slot')!.props.accessibilityLabel).toBe('Nothing planned in November.')
   })
 
   it('opens the conversation with the selected day offered above the composer', () => {
     const tree = render(<CalendarOrbitLine {...props()} />)
-    TestRenderer.act(() => { (host(tree.root, 'today-astra-slot')!.props.onPress as () => void)() })
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    TestRenderer.act(() => { (host(tree.root, 'today-orbit-slot')!.props.onPress as () => void)() })
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     expect(useChatStore.getState().draft).toBe('Tell me about November 13 in my calendar.')
   })
 
@@ -120,8 +120,8 @@ describe('the Calendário Orbit line on Android', () => {
     state.profile = { ...state.profile, ...profile }
     state.online = online
     const tree = render(<CalendarOrbitLine {...props()} />)
-    const row = host(tree.root, 'today-astra-slot')!
-    const reason = online ? en.conversation.restLimit : en.todayAstra.guided.offline
+    const row = host(tree.root, 'today-orbit-slot')!
+    const reason = online ? en.conversation.restLimit : en.todayOrbit.guided.offline
     expect(row.props.accessibilityLabel).toBe('The 13th: 1 of 3 done.')
     expect(row.props.accessibilityState).toMatchObject({ disabled: true })
     expect(row.props.accessibilityHint).toBe(reason)
@@ -134,12 +134,12 @@ describe('the Calendário Orbit line on Android', () => {
     const tree = render(<CalendarOrbitLine {...props({ monthDisplayState: 'loading' })} />)
     expect(host(tree.root, 'summary-skeleton')).toBeDefined()
     expect(tree.root.findAll((node) => node.type === 'ActivityIndicator')).toHaveLength(0)
-    expect(host(tree.root, 'today-astra-slot')!.props.accessibilityState).toMatchObject({ disabled: true, busy: true })
+    expect(host(tree.root, 'today-orbit-slot')!.props.accessibilityState).toMatchObject({ disabled: true, busy: true })
   })
 
   it('closes up in the week view when the selected day is outside the shown week', () => {
     const tree = render(<CalendarOrbitLine {...props({ view: 'week', displayRangeDayMap: new Map([[TODAY, [entry('completed', 'a')]]]) })} />)
-    expect(host(tree.root, 'today-astra-slot')!.props.accessibilityLabel).toBe('The 13th: all done.')
+    expect(host(tree.root, 'today-orbit-slot')!.props.accessibilityLabel).toBe('The 13th: all done.')
     TestRenderer.act(() => tree.update(<CalendarOrbitLine {...props({ view: 'week', weekStart: new Date(2026, 10, 16), weekEnd: new Date(2026, 10, 22) })} />))
     expect(host(tree.root, 'calendar-orbit-line')).toBeUndefined()
   })

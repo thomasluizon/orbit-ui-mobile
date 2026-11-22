@@ -1,4 +1,4 @@
-import { createAstraAllowanceTranslator, type AstraAllowance } from '@orbit/shared/utils'
+import { createOrbitAllowanceTranslator, type OrbitAllowance } from '@orbit/shared/utils'
 import { AI_MESSAGE_COUNTER_THRESHOLD } from '@orbit/shared/chat'
 import { Text, View } from 'react-native'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -15,11 +15,11 @@ export function UsageCard({
 }: Readonly<{
   locale?: string
   usagePercent: number
-  profile: ({ aiMessagesUsed: number; aiMessagesLimit: number } & AstraAllowance) | null
+  profile: ({ aiMessagesUsed: number; aiMessagesLimit: number } & OrbitAllowance) | null
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
-  const translate = createAstraAllowanceTranslator(t, profile, locale)
+  const translate = createOrbitAllowanceTranslator(t, profile, locale)
   const remaining = profile ? profile.aiMessagesLimit - profile.aiMessagesUsed : null
   const nearLimit = remaining !== null && remaining <= AI_MESSAGE_COUNTER_THRESHOLD
   return (

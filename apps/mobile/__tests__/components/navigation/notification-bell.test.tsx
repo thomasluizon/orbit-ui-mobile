@@ -124,7 +124,7 @@ function seed(count: number) {
   state.unreadCount = count
 }
 beforeEach(() => {
-  useUIStore.setState({ astraConversationOpen: false })
+  useUIStore.setState({ orbitConversationOpen: false })
   useChatStore.setState({ messages: [], proactiveOutcomes: {} })
   vi.useFakeTimers()
   vi.clearAllMocks()
@@ -401,29 +401,29 @@ describe('mobile alerts', () => {
     expect(state.push).toHaveBeenCalledWith('/notifications')
     expect(testId(tree, 'notification-count')).toHaveLength(0)
   })
-  it('closes Astra before the header bell opens the inbox', () => {
-    useUIStore.getState().setAstraConversationOpen(true)
+  it('closes Orbit before the header bell opens the inbox', () => {
+    useUIStore.getState().setOrbitConversationOpen(true)
     const tree = render(<NotificationBell />)
     press(tree, 'Alerts')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(state.push).toHaveBeenCalledWith('/notifications')
   })
-  it.each([false, true])('preserves Astra until guarded bell navigation is confirmed with discard=%s', (discard) => {
+  it.each([false, true])('preserves Orbit until guarded bell navigation is confirmed with discard=%s', (discard) => {
     const onNavigate = vi.fn<(action: () => void) => void>()
     function GuardedBell() {
       useHabitCreateNavigationGuard({ active: true, leaving: false, onNavigate })
       return <NotificationBell />
     }
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     const tree = render(<GuardedBell />)
     press(tree, 'Alerts')
     expect(onNavigate).toHaveBeenCalledOnce()
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
     expect(state.push).not.toHaveBeenCalled()
     expect(state.replace).not.toHaveBeenCalled()
     if (discard) {
       TestRenderer.act(() => onNavigate.mock.calls[0]![0]())
-      expect(useUIStore.getState().astraConversationOpen).toBe(false)
+      expect(useUIStore.getState().orbitConversationOpen).toBe(false)
       expect(state.replace).toHaveBeenCalledExactlyOnceWith('/notifications')
     }
   })
@@ -702,14 +702,14 @@ describe('mobile alerts', () => {
     expect(sheetTestControls.isDismissPending).toBe(true)
     expect(onClose).not.toHaveBeenCalled()
     expect(state.push).not.toHaveBeenCalled()
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
 
     await TestRenderer.act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })
 
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(state.push).toHaveBeenCalledWith(destination)
     expect(state.push).toHaveBeenCalledTimes(1)
-    expect(useUIStore.getState().astraConversationOpen).toBe(url === '/chat')
+    expect(useUIStore.getState().orbitConversationOpen).toBe(url === '/chat')
     if (url === '/chat') {
       const [path] = vi.mocked(apiClient).mock.calls[0]!
       const requestUrl = new URL(path, 'https://example.test')

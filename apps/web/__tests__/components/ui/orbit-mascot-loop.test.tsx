@@ -5,8 +5,8 @@ import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
-import { AstraButton } from '@/components/shell/astra-button'
-import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { OrbitButton } from '@/components/shell/orbit-button'
+import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import { useUIStore } from '@/stores/ui-store'
@@ -256,19 +256,19 @@ describe('Orbit idle loop on web', () => {
 describe('Hoje Orbit line with the conversation entry on web', () => {
   function hoje(overlay = false) {
     return <NextIntlClientProvider locale="en" messages={en}>
-      <TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} />
+      <TodayOrbitLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} />
       <OrbitMascot size={96} state="feliz" />
       <OrbitOverlayLayer active={overlay}>{overlay ? <OrbitMascot size={48} state="pensando" /> : null}</OrbitOverlayLayer>
-      <AstraButton />
+      <OrbitButton />
     </NextIntlClientProvider>
   }
 
   function summaryLoop(container: HTMLElement) {
-    return container.querySelector('[data-today-astra-slot] svg')?.getAttribute('data-orbit-loop')
+    return container.querySelector('[data-today-orbit-slot] svg')?.getAttribute('data-orbit-loop')
   }
 
   function entryLoop(container: HTMLElement) {
-    return container.querySelector('[data-astra-button] svg')?.getAttribute('data-orbit-loop')
+    return container.querySelector('[data-orbit-button] svg')?.getAttribute('data-orbit-loop')
   }
 
   beforeEach(() => { useUIStore.setState(useUIStore.getInitialState()) })
@@ -284,7 +284,7 @@ describe('Hoje Orbit line with the conversation entry on web', () => {
 
   it('keeps the summary Orbit still and runs the empty state Orbit on wide Hoje, where no entry mounts', () => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
-      <TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} />
+      <TodayOrbitLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} />
       <OrbitMascot size={128} state="feliz" />
     </NextIntlClientProvider>)
     expect([summaryLoop(container), loopsByState(container).feliz]).toEqual(['still', 'running'])

@@ -546,7 +546,7 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
   })
 
   it('renders deep links for known surfaces and drops unknown ones', async () => {
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     let tree!: TestInstance
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
@@ -570,7 +570,7 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
       links[0]?.props.onPress?.()
     })
     expect(push).toHaveBeenCalledWith('/progress/achievements')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
   it('does not render the footer for user messages', async () => {

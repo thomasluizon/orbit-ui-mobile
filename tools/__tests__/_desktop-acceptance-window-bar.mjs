@@ -50,7 +50,7 @@ async function runAppearanceProbe(servedProbe, commands, forwardsMode) {
       readyState: 'complete', cookie: '', documentElement: root, addEventListener() {},
       querySelector: (selector) => {
         if (selector === '[data-theme-toggle]') return toggle
-        return selector === '[data-habit-id="bench-0000"]' || selector === '[data-astra-button]:not([disabled])' ? {} : null
+        return selector === '[data-habit-id="bench-0000"]' || selector === '[data-orbit-button]:not([disabled])' ? {} : null
       },
     },
     fetch: async (path, options) => {
@@ -102,7 +102,7 @@ async function windowMenuProbeCases(servedProbe) {
       readyState: 'complete', cookie: '', addEventListener() {},
       querySelector: (selector) => {
         if (selector === '[data-window-action="menu"]') return { click() { pressed++ } }
-        return selector === '[data-habit-id="bench-0000"]' || selector === '[data-astra-button]:not([disabled])' ? {} : null
+        return selector === '[data-habit-id="bench-0000"]' || selector === '[data-orbit-button]:not([disabled])' ? {} : null
       },
     },
     fetch: async (path, options) => {

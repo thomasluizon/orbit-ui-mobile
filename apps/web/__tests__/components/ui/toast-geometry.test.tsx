@@ -51,7 +51,7 @@ describe('shared toast geometry', () => {
     const view = render(<NextIntlClientProvider locale={locale} messages={words} timeZone="UTC">
       {shell === 'flow' ? <FlowShell notice={notice}>Form</FlowShell> :
         <ShellWide items={[]} activeId="hoje" navLabel={words.nav.mainNavigation}
-          astraRow={{ label: 'Astra', onOpen: () => {} }} notice={notice}>Notifications</ShellWide>}
+          orbitRow={{ label: 'Orbit', onOpen: () => {} }} notice={notice}>Notifications</ShellWide>}
     </NextIntlClientProvider>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 1200 } })
     try {
@@ -162,7 +162,7 @@ describe('shared toast geometry', () => {
     const message = words.toast.errors.notFound
     const view = render(<NextIntlClientProvider locale={locale} messages={words} timeZone="UTC">
       <ShellWide items={[]} activeId="hoje" navLabel={words.nav.mainNavigation}
-        astraRow={{ label: 'Astra', onOpen: () => {} }} notice={<>
+        orbitRow={{ label: 'Orbit', onOpen: () => {} }} notice={<>
         <Toast kind="neutral" message={message} />
         <Toast kind="neutral" message={message} actionLabel={words.notifications.deleteUndo} onAction={() => {}} />
         <Toast kind="neutral" message={message} actionLabel={words.common.retry} actionIcon="refresh" onAction={() => {}} />

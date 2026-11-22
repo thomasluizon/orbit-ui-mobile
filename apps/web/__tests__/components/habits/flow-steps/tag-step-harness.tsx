@@ -29,7 +29,7 @@ vi.mock('next-intl', async () => {
 })
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('@/hooks/use-astra-allowance-copy', () => ({ useAstraAllowanceCopy: () => (key: string) => key }))
+vi.mock('@/hooks/use-orbit-allowance-copy', () => ({ useOrbitAllowanceCopy: () => (key: string) => key }))
 vi.mock('@/hooks/use-tags', () => ({
   useTags: () => ({ tags: tagStepState.tags }),
   useCreateTag: () => ({ isPending: false, mutateAsync: tagStepState.create }),

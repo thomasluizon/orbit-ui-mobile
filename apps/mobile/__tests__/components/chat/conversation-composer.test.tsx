@@ -2,7 +2,7 @@ import { __resetTestHostConfig } from '../../../test-mocks/react-native'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('react-i18next', () => ({
@@ -18,7 +18,7 @@ vi.mock('@/hooks/use-overlay-back', () => ({ useOverlayBack: vi.fn() }))
 
 const TestRenderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 
 const words = { placeholder: 'Message', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attachments', suggestionsLabel: 'Suggestions' }
 const suggestions = [
@@ -37,13 +37,13 @@ function buildChat(): ChatController {
   } as unknown as ChatController
 }
 
-describe('AstraConversation composer (mobile)', () => {
-  afterEach(() => { useUIStore.getState().setAstraConversationOpen(false); __resetTestHostConfig() })
+describe('OrbitConversation composer (mobile)', () => {
+  afterEach(() => { useUIStore.getState().setOrbitConversationOpen(false); __resetTestHostConfig() })
 
   it('renders the suggestion strip with no collapse control beside it', () => {
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     let tree!: ReturnType<typeof TestRenderer.create>
-    void TestRenderer.act(() => { tree = TestRenderer.create(<AstraConversation chat={buildChat()} />) })
+    void TestRenderer.act(() => { tree = TestRenderer.create(<OrbitConversation chat={buildChat()} />) })
     try {
       const nodes = tree.root.findAll(node => typeof node.type === 'string')
       expect(nodes.filter(node => node.props.testID === 'composer-suggestions-layout')).toHaveLength(1)

@@ -3,7 +3,7 @@ import { TextInput } from 'react-native'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { expect, it, vi } from 'vitest'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __getFocusedInputSelection, __setWindowDimensions } from '@/test-mocks/react-native'
 
@@ -13,20 +13,20 @@ vi.mock('@/components/message-bubble', () => ({ MessageBubble: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
-const prompt = ptBR.habits.detail.askAstraSeedDefault.replace('{title}', 'Ler 10 minutos')
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
+const prompt = ptBR.habits.detail.askOrbitSeedDefault.replace('{title}', 'Ler 10 minutos')
 
 it('places the caret after the prefilled prompt only on conversation entry', async () => {
   const chat = createChat(false)
   let tree!: GeometryTree
-  await renderer.act(() => { tree = renderer.create(<AstraConversation chat={chat} />) as GeometryTree })
+  await renderer.act(() => { tree = renderer.create(<OrbitConversation chat={chat} />) as GeometryTree })
   try {
     expect(__getFocusedInputSelection()).toEqual({ start: prompt.length, end: prompt.length })
     const selection = __getFocusedInputSelection()!
     const edited = `${prompt.slice(0, 3)}!${prompt.slice(3)}`
     selection.start = 4
     selection.end = 4
-    await renderer.act(() => tree.update(<AstraConversation chat={{ ...chat, composerProps: { ...chat.composerProps, value: edited } }} />))
+    await renderer.act(() => tree.update(<OrbitConversation chat={{ ...chat, composerProps: { ...chat.composerProps, value: edited } }} />))
     expect(__getFocusedInputSelection()).toEqual({ start: 4, end: 4 })
   } finally { await renderer.act(() => tree.unmount()) }
 })
@@ -49,7 +49,7 @@ it.each([360, 412, 1200, 1600].flatMap(width => [false, true].map(withMessages =
   'contains the prefilled input in the conversation at $width with messages $withMessages', async ({ width, withMessages }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     let tree!: GeometryTree
-    await renderer.act(() => { tree = renderer.create(<AstraConversation chat={createChat(withMessages)} />) as GeometryTree })
+    await renderer.act(() => { tree = renderer.create(<OrbitConversation chat={createChat(withMessages)} />) as GeometryTree })
     try {
       for (const lines of [2, 5, 8, 1]) {
         const input = tree.root.findAll(node => node.type === TextInput)[0]!

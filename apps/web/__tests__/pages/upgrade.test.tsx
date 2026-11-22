@@ -429,7 +429,7 @@ describe('UpgradePage', () => {
     { locale: 'en', messages: en, trialHeading: '250 a week.' },
     { locale: 'pt-BR', messages: ptBR, trialHeading: '250 por semana.' },
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
-    it.each(['%2Fprofile%2Fai', '%2Fprofile%2Fastra'])('returns a directly linked AI settings upgrade (from=%s) to the AI settings page', (from) => {
+    it.each(['%2Fprofile%2Fai', '%2Fprofile%2Forbit'])('returns a directly linked AI settings upgrade (from=%s) to the AI settings page', (from) => {
       mockLocale.value = locale
       history.replaceState({}, '', `/upgrade?from=${from}`)
       try {
@@ -599,7 +599,7 @@ describe('UpgradePage', () => {
       expect(list.closest('[data-tier]')).not.toBeNull()
       expect(list.children).toHaveLength(4)
     }
-    for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+    for (const key of ['orbit', 'calendar', 'retrospective', 'noticing']) {
       expect(screen.getAllByText(`upgrade.outcomes.${key}`)).toHaveLength(2)
     }
     expect(document.body.textContent).toContain('upgrade.convert.cancelAnytime')

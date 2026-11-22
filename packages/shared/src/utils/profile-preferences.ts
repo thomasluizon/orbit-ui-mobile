@@ -33,7 +33,7 @@ export function deriveProfilePreferenceValues({
   }
 }
 
-interface ProfileAstraSettings {
+interface ProfileOrbitSettings {
   proactiveAstraEnabled: boolean
   aiSummaryEnabled: boolean
   proactivePending: boolean
@@ -42,18 +42,18 @@ interface ProfileAstraSettings {
   onToggleSummary: () => void
 }
 
-interface ProfileAstraFeature {
+interface ProfileOrbitFeature {
   key: 'proactive' | 'summary'
-  labelKey: 'profile.proactiveAstra.title' | 'profile.aiSummary.title'
+  labelKey: 'profile.proactiveOrbit.title' | 'profile.aiSummary.title'
   checked: boolean
   pending: boolean
   onToggle: () => void
   locked: boolean
 }
 
-export function deriveProfileAstraFeatures(hasProAccess: boolean, settings: ProfileAstraSettings): ProfileAstraFeature[] {
+export function deriveProfileOrbitFeatures(hasProAccess: boolean, settings: ProfileOrbitSettings): ProfileOrbitFeature[] {
   return [
-    { key: 'proactive', labelKey: 'profile.proactiveAstra.title', checked: settings.proactiveAstraEnabled, pending: settings.proactivePending, onToggle: settings.onToggleProactive, locked: !hasProAccess },
+    { key: 'proactive', labelKey: 'profile.proactiveOrbit.title', checked: settings.proactiveAstraEnabled, pending: settings.proactivePending, onToggle: settings.onToggleProactive, locked: !hasProAccess },
     { key: 'summary', labelKey: 'profile.aiSummary.title', checked: settings.aiSummaryEnabled, pending: settings.summaryPending, onToggle: settings.onToggleSummary, locked: !hasProAccess },
   ]
 }

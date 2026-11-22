@@ -7,7 +7,7 @@ import type { FlowStepView, QuestionFlowProps } from '@orbit/shared/contracts/fl
 import {
   buildOnboardingScheduleFromPhrase,
   canRepeatOnboardingScheduleWeeks,
-  createAstraAllowanceTranslator,
+  createOrbitAllowanceTranslator,
   getHabitPhraseTitle,
   getOnboardingRemindCopy,
   getOnboardingReminderPreviewTime,
@@ -239,7 +239,7 @@ function useSummaryView(props: GuidedOnboardingProps, habitTitle: string, cadenc
   const { t, i18n } = useTranslation()
   const tokens = useTokens()
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
-  const translate = createAstraAllowanceTranslator(t, { aiMessagesPeriod: props.allowancePeriod }, i18n.language)
+  const translate = createOrbitAllowanceTranslator(t, { aiMessagesPeriod: props.allowancePeriod }, i18n.language)
   const value = useSummaryValue(props, habitTitle)
   const row = (step: OnboardingQuestionStep) => {
     const label = t(`onboarding.flow.guided.summary.${step}`)

@@ -153,9 +153,9 @@ export interface UIStoreState {
   setTodayFabHidden: (hidden: boolean) => void;
   calendarHasError: boolean;
   setCalendarHasError: (hasError: boolean) => void;
-  astraConversationOpen: boolean;
-  astraEntryPointIntent: 'support' | undefined;
-  setAstraConversationOpen: (open: boolean, entryPointIntent?: 'support') => void;
+  orbitConversationOpen: boolean;
+  orbitEntryPointIntent: 'support' | undefined;
+  setOrbitConversationOpen: (open: boolean, entryPointIntent?: 'support') => void;
 
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -168,7 +168,7 @@ export interface UIStoreState {
 }
 
 export function hasOpenPromptBlockingOverlay(state: UIStoreState): boolean {
-  return state.showCreateModal || state.astraConversationOpen || state.openOverlayIds.length > 0;
+  return state.showCreateModal || state.orbitConversationOpen || state.openOverlayIds.length > 0;
 }
 
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
@@ -264,7 +264,7 @@ export function createUIStoreState(
       selectedHabitIds: new Set<string>(),
       manuallySelectedIds: new Set<string>(),
       showCreateModal: false,
-      astraConversationOpen: false,
+      orbitConversationOpen: false,
     })),
 
     dailyStreakMomentDate: "",
@@ -454,11 +454,11 @@ export function createUIStoreState(
     setTodayFabHidden: (hidden) => set({ todayFabHidden: hidden }),
     calendarHasError: false,
     setCalendarHasError: (calendarHasError) => set({ calendarHasError }),
-    astraConversationOpen: false,
-    astraEntryPointIntent: undefined,
-    setAstraConversationOpen: (open, entryPointIntent) => set({
-      astraConversationOpen: open,
-      astraEntryPointIntent: open ? entryPointIntent : undefined,
+    orbitConversationOpen: false,
+    orbitEntryPointIntent: undefined,
+    setOrbitConversationOpen: (open, entryPointIntent) => set({
+      orbitConversationOpen: open,
+      orbitEntryPointIntent: open ? entryPointIntent : undefined,
     }),
 
     searchQuery: "",

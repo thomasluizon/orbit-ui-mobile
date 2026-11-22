@@ -60,7 +60,7 @@ normal logo paths, 48px size, absence of a second ring, centring, whole labels, 
 24px action clearance and the static reduced-motion state. Shared primitive geometry and behaviour tests
 retain title fit, both identity carriers and the single supplied action.
 
-Android `astra-full-screen-geometry.test.tsx` mounts Shell412 with the conversation, measures
+Android `orbit-full-screen-geometry.test.tsx` mounts Shell412 with the conversation, measures
 the group against its thread and checks the mark size. The habit-list empty-state test measures
 completion geometry at compact and wide widths, checks localized label fit and invokes
 the retained action. Feedback primitive tests check both

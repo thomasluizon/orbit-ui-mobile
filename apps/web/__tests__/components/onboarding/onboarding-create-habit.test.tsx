@@ -91,17 +91,17 @@ describe('OnboardingCreateHabit', () => {
     }
   })
 
-  it.each([true, false])('attributes the reply only when Astra answered: %s', (proposed) => {
+  it.each([true, false])('attributes the reply only when Orbit answered: %s', (proposed) => {
     const { container } = render(<OnboardingCreateHabit {...base} proposed={proposed} correcting={false} />)
     const mark = container.querySelector('[data-asset="orbit-mascot"]')
     if (proposed) {
       expect(mark).toHaveAttribute('width', '24')
-      expect(screen.queryByRole('img', { name: /^(Astra|Orbit)$/ })).toBeNull()
+      expect(screen.queryByRole('img', { name: /^(Orbit|Orbit)$/ })).toBeNull()
       expect((mark as HTMLElement).closest('[aria-hidden="true"]')).not.toBeNull()
     } else expect(mark).toBeNull()
   })
 
-  it('shows direct controls without Astra framing', () => {
+  it('shows direct controls without Orbit framing', () => {
     render(<OnboardingCreateHabit {...base} />)
     expect(screen.getByRole('heading', { name: en.onboarding.flow.when.direct })).toBeInTheDocument()
     expect(screen.getByTestId('time-field')).toBeInTheDocument()

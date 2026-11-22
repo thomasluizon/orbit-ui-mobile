@@ -11,7 +11,7 @@ import { getPendingOperationCardPresentation, getPendingOperationItemResults, ge
 import { isPendingOperationEditableField } from '../hooks/pending-operation-revision-core'
 import type { PendingOperationCardLabels } from './pending-operation-card'
 import { getActionChipNavigation } from './action-chips'
-import type { AstraNextAction } from '../types/astra-offer'
+import type { OrbitNextAction } from '../types/orbit-offer'
 
 export interface PreviewItemTitleProps {
   meta?: string
@@ -111,7 +111,7 @@ export type PendingOperationFrame<Node> = PendingOperationFrameBase<Node> & (
 )
 
 export interface PendingOperationCardRenderers<Node> {
-  offer?: (action: AstraNextAction, disabled: boolean) => Node
+  offer?: (action: OrbitNextAction, disabled: boolean) => Node
   blockFrame: (props: PendingOperationFrame<Node>) => Node
   button: (spec: PendingOperationButtonSpec) => Node
   confirmSheet: (props: PendingOperationConfirmSheetProps) => Node

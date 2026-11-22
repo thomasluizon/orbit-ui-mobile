@@ -132,11 +132,11 @@ function crossDocumentViewTransitionRules() {
 function renderTodayShell() {
   render(
     <ShellWide
-      astraRow={{ label: 'Astra', onOpen: () => {} }}
+      orbitRow={{ label: 'Orbit', onOpen: () => {} }}
       items={[]}
       activeId="hoje"
       navLabel="Main"
-      astraButton={<button type="button">Astra</button>}
+      orbitButton={<button type="button">Orbit</button>}
       fab={<button type="button">Create</button>}
       scrollToTop={<button type="button">Top</button>}
       tabViewTransition
@@ -290,7 +290,7 @@ describe('TabViewTransition', () => {
 
   it('wraps the shell scroller so the page swaps inside its own clip when the shell opts in', () => {
     render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Main" tabViewTransition>
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Main" tabViewTransition>
         <p>Today</p>
       </ShellWide>,
     )

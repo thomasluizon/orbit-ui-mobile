@@ -1,7 +1,7 @@
 'use client'
 
-import { AstraOffer } from './astra-offer'
-import type { AstraOfferProps } from '@orbit/shared/chat'
+import { OrbitOffer } from './orbit-offer'
+import type { OrbitOfferProps } from '@orbit/shared/chat'
 
 import { ConversationCrossfade } from './conversation-motion'
 
@@ -31,11 +31,11 @@ const useReadBlockSession = createUseReadBlockSession({
   },
 })
 
-const OfferContext = createContext<Omit<AstraOfferProps, 'action'>>({})
+const OfferContext = createContext<Omit<OrbitOfferProps, 'action'>>({})
 
 const ReadContext = createContext<ReadBlockState | null>(null)
 
-export function ReadBlockBoundary({ snapshot, children, ...offer }: ReadBlockBoundaryProps<ReactNode> & Omit<AstraOfferProps, 'action'>) {
+export function ReadBlockBoundary({ snapshot, children, ...offer }: ReadBlockBoundaryProps<ReactNode> & Omit<OrbitOfferProps, 'action'>) {
   const generation = useSyncExternalStore(subscribeToAccountGeneration, getAccountGeneration, getAccountGeneration)
   return <OfferContext.Provider value={offer}><ReadBlockSession key={`${generation}:${snapshot.read.queryId}:${snapshot.read.revision}`} snapshot={snapshot}>{children}</ReadBlockSession></OfferContext.Provider>
 }
@@ -66,7 +66,7 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
     {canPage && snapshot.kind !== 'gamification' ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
     {props.actions}
   </>
-  const body = <>{window ? <p className="text-sm text-[var(--fg-3)]">{formatReadWindow(window, locale)}</p> : null}{message && state !== 'stale' ? <p role="status" className="text-sm text-[var(--fg-2)]">{t(message)}</p> : null}{props.body}<AstraOffer {...offer} action={stale ? null : snapshot.read.nextAction} unavailable={pending} /></>
+  const body = <>{window ? <p className="text-sm text-[var(--fg-3)]">{formatReadWindow(window, locale)}</p> : null}{message && state !== 'stale' ? <p role="status" className="text-sm text-[var(--fg-2)]">{t(message)}</p> : null}{props.body}<OrbitOffer {...offer} action={stale ? null : snapshot.read.nextAction} unavailable={pending} /></>
   const frameProps = readBlockFrameProps(props, state, message, () => { void run(false) }, t, actions)
   return <Frame {...frameProps} body={body} />
 }

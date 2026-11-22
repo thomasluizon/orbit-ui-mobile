@@ -41,8 +41,8 @@ interface HabitListEmptyStateProps {
   actionLabel?: string
   onAction?: () => void
   createRefusal?: boolean
-  askAstraLabel?: string
-  onAskAstra?: () => void
+  askOrbitLabel?: string
+  onAskOrbit?: () => void
   variant?: 'primary' | 'secondary'
 }
 
@@ -53,18 +53,18 @@ export function HabitListEmptyState({
   actionLabel,
   onAction,
   createRefusal,
-  askAstraLabel,
-  onAskAstra,
+  askOrbitLabel,
+  onAskOrbit,
   variant = 'primary',
 }: Readonly<HabitListEmptyStateProps>) {
   const t = useTranslations()
   const mascotSize = useStateMascotSize()
   const wide = useIsWideDesktop()
-  const isAstraPrompt = variant === 'primary'
+  const isOrbitPrompt = variant === 'primary'
   const hasDistinctDescription =
     Boolean(description) && description !== title
-  const showAstraAction = isAstraPrompt && Boolean(askAstraLabel) && Boolean(onAskAstra)
-  const showActions = showAstraAction || (isAstraPrompt && Boolean(actionLabel))
+  const showOrbitAction = isOrbitPrompt && Boolean(askOrbitLabel) && Boolean(onAskOrbit)
+  const showActions = showOrbitAction || (isOrbitPrompt && Boolean(actionLabel))
 
   return (
     <div
@@ -112,13 +112,13 @@ export function HabitListEmptyState({
               {actionLabel}
             </PillButton>
           )}
-          {showAstraAction && askAstraLabel && (
+          {showOrbitAction && askOrbitLabel && (
             <PillButton
               variant={wide ? 'secondary' : 'primary'}
-            onClick={onAskAstra}
+            onClick={onAskOrbit}
 
             >
-              {askAstraLabel}
+              {askOrbitLabel}
             </PillButton>
           )}
         </ActionRow></div>

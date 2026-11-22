@@ -375,7 +375,7 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
 function OpenConversationControl({ props, tokens, onLayout }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2; onLayout: (event: LayoutChangeEvent) => void }>) {
   const triggerRef = useRef<View>(null)
   const returnFocusPending = useRef(false)
-  const conversationOpen = useUIStore(state => state.astraConversationOpen)
+  const conversationOpen = useUIStore(state => state.orbitConversationOpen)
   useEffect(() => {
     if (conversationOpen || !returnFocusPending.current) return
     const timer = setTimeout(() => {

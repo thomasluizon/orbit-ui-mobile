@@ -62,8 +62,8 @@ vi.mock('@/components/shell/destination-shell', () => ({
           <div data-shell-background="" inert={conversationOpen && !state.wide || undefined} aria-hidden={conversationOpen && !state.wide || undefined}>
             <button type="button" onClick={onCreate}>Create</button>{createRefusal}<div data-shell-notice="" data-testid="notice-slot">{notice}</div>{children}
           </div>
-          {conversationOpen && !state.wide ? <div role="dialog" aria-label="Astra conversation">{conversation}</div> : null}
-          {conversationOpen && state.wide ? <aside aria-label="Astra conversation">{conversation}</aside> : null}
+          {conversationOpen && !state.wide ? <div role="dialog" aria-label="Orbit conversation">{conversation}</div> : null}
+          {conversationOpen && state.wide ? <aside aria-label="Orbit conversation">{conversation}</aside> : null}
         </>
       )}
     </>

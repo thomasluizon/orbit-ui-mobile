@@ -2048,7 +2048,7 @@ describe('HabitList', () => {
     )
     expect(screen.getByText('habits.nothingOpen')).toBeInTheDocument()
     expect(screen.queryByText('habits.emptyState')).not.toBeInTheDocument()
-    expect(screen.queryByText('habits.askAstra')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.askOrbit')).not.toBeInTheDocument()
   })
 
   it('shows the plain line when nothing is due today', () => {
@@ -2076,9 +2076,9 @@ describe('HabitList', () => {
   it('keeps first-run actions on another day when the account has no habits', () => {
     renderWithProviders(<HabitList filters={defaultFilters} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} onCreate={vi.fn()} />)
     expect(screen.getByText('habits.emptyState')).toBeInTheDocument()
-    const astraAction = screen.getByRole('button', { name: 'habits.askAstra' })
-    expect(astraAction).toBeInTheDocument()
-    expect(astraAction).toHaveTextContent('habits.askAstra')
+    const orbitAction = screen.getByRole('button', { name: 'habits.askOrbit' })
+    expect(orbitAction).toBeInTheDocument()
+    expect(orbitAction).toHaveTextContent('habits.askOrbit')
     expect(screen.getByRole('button', { name: 'habits.createManually' })).toBeInTheDocument()
   })
 

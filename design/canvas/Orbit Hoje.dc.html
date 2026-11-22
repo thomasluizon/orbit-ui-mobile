@@ -48,11 +48,11 @@ a:hover{color:var(--fg-1)}
         <div data-native-scroll="true" style="display:flex;flex-direction:column;gap:24px;padding:16px 16px 64px;min-height:100%;box-sizing:border-box">
 
           {{ backToTop }}
-          <sc-if value="{{ hasAstra }}" hint-placeholder-val="{{ true }}">
-            <button type="button" onClick="{{ onAstraAction }}" aria-describedby="astra-destination-compact" style="display:flex;align-items:center;gap:8px;min-height:48px;padding:8px 16px;border:0;border-radius:12px;background:var(--p-transparent);color:var(--fg-2);font:inherit;text-align:start;cursor:pointer" style-hover="background:var(--bg-hover)">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-              <span class="native-typed" style="font-size:14px;line-height:1.5">{{ astraLine }}</span>
-            </button><span id="astra-destination-compact" hidden>{{ astraDestination }}</span>
+          <sc-if value="{{ hasOrbit }}" hint-placeholder-val="{{ true }}">
+            <button type="button" onClick="{{ onOrbitAction }}" aria-describedby="orbit-destination-compact" style="display:flex;align-items:center;gap:8px;min-height:48px;padding:8px 16px;border:0;border-radius:12px;background:var(--p-transparent);color:var(--fg-2);font:inherit;text-align:start;cursor:pointer" style-hover="background:var(--bg-hover)">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitGlyph" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+              <span class="native-typed" style="font-size:14px;line-height:1.5">{{ orbitLine }}</span>
+            </button><span id="orbit-destination-compact" hidden>{{ orbitDestination }}</span>
           </sc-if>
 
           <sc-if value="{{ showDate }}" hint-placeholder-val="{{ true }}">
@@ -188,14 +188,14 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" astra-row="{{ astraRow }}" header="{{ wideOptions }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" composer="{{ wideBottom }}" conversation="{{ conversation }}" conversation-label="{{ conversationLabel }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" orbit-row="{{ orbitRow }}" header="{{ wideOptions }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" composer="{{ wideBottom }}" conversation="{{ conversation }}" conversation-label="{{ conversationLabel }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
           <div style="display:flex;flex-direction:column;gap:24px;min-height:100%;box-sizing:border-box">
 
-            <sc-if value="{{ hasAstra }}" hint-placeholder-val="{{ true }}">
-              <button type="button" onClick="{{ onAstraAction }}" aria-describedby="astra-destination-wide" style="display:flex;align-items:center;gap:8px;min-height:48px;padding:8px 16px;border:0;border-radius:12px;background:var(--p-transparent);color:var(--fg-2);font:inherit;text-align:start;cursor:pointer" style-hover="background:var(--bg-hover)">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-              <span class="native-typed" style="font-size:14px;line-height:1.5">{{ astraLine }}</span>
-            </button><span id="astra-destination-wide" hidden>{{ astraDestination }}</span>
+            <sc-if value="{{ hasOrbit }}" hint-placeholder-val="{{ true }}">
+              <button type="button" onClick="{{ onOrbitAction }}" aria-describedby="orbit-destination-wide" style="display:flex;align-items:center;gap:8px;min-height:48px;padding:8px 16px;border:0;border-radius:12px;background:var(--p-transparent);color:var(--fg-2);font:inherit;text-align:start;cursor:pointer" style-hover="background:var(--bg-hover)">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.OrbitGlyph" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+              <span class="native-typed" style="font-size:14px;line-height:1.5">{{ orbitLine }}</span>
+            </button><span id="orbit-destination-wide" hidden>{{ orbitDestination }}</span>
             </sc-if>
 
             <sc-if value="{{ showDate }}" hint-placeholder-val="{{ true }}">
@@ -369,7 +369,7 @@ a:hover{color:var(--fg-1)}
 
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;astraNoticed&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Astra&quot;},&quot;chipCount&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:4,&quot;min&quot;:3,&quot;max&quot;:6,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Astra&quot;},&quot;expandSubHabits&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Lista&quot;},&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;orbitNoticed&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Orbit&quot;},&quot;chipCount&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:4,&quot;min&quot;:3,&quot;max&quot;:6,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Orbit&quot;},&quot;expandSubHabits&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Lista&quot;},&quot;showReport&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
 const H = React.createElement;
 const F = React.Fragment;
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
@@ -477,7 +477,7 @@ const STR = {
     delTitle: 'Apagar os hábitos selecionados?',
     delBody: (n) => [mock(n), ' hábitos e tudo dentro deles saem da sua lista. Não há como restaurar por aqui.'],
     of: (a, b) => [mock(a), ' de ', mock(b)],
-    astra: {
+    orbit: {
       'default': [['A caminhada não aconteceu às ', '18:00', '.']],
       returning: [['', '3', ' dias sem registros.']],
     },
@@ -489,7 +489,7 @@ const STR = {
     },
     thread: {
       'default': {
-        turns: [{ who: 'me', text: 'Fiz a água e a caminhada' }, { who: 'astra', text: 'Os dois estão marcados para hoje.' }],
+        turns: [{ who: 'me', text: 'Fiz a água e a caminhada' }, { who: 'orbit', text: 'Os dois estão marcados para hoje.' }],
         block: { title: 'Registrado', count: '2', undo: 'Desfazer',
           items: [
             { label: 'Água da manhã', meta: '08:00', status: 'done', statusLabel: 'registrado' },
@@ -499,7 +499,7 @@ const STR = {
       failed: {
         turns: [
           { who: 'me', text: 'Fiz água, caminhada, alongamento, leitura, louça, roupa e violão' },
-          { who: 'astra', parts: ['', '5', ' foram registrados. ', '2', ' não salvaram.'] },
+          { who: 'orbit', parts: ['', '5', ' foram registrados. ', '2', ' não salvaram.'] },
         ],
         block: { title: 'Registro em lote', count: '7', state: 'partiallyFailed',
           retry: ['Tentar os ', '2', ' que faltaram'], failMeta: 'não salvou',
@@ -554,7 +554,7 @@ const STR = {
     delTitle: 'Delete the selected habits?',
     delBody: (n) => [mock(n), ' habits and everything inside them leave your list. There is no way to restore this here.'],
     of: (a, b) => [mock(a), ' of ', mock(b)],
-    astra: {
+    orbit: {
       'default': [['The walk did not happen at ', '18:00', '.']],
       returning: [['', '3', ' days with nothing logged.']],
     },
@@ -566,7 +566,7 @@ const STR = {
     },
     thread: {
       'default': {
-        turns: [{ who: 'me', text: 'I did the water and the walk' }, { who: 'astra', text: 'Both are marked for today.' }],
+        turns: [{ who: 'me', text: 'I did the water and the walk' }, { who: 'orbit', text: 'Both are marked for today.' }],
         block: { title: 'Logged', count: '2', undo: 'Undo',
           items: [
             { label: 'Morning water', meta: '08:00', status: 'done', statusLabel: 'logged' },
@@ -576,7 +576,7 @@ const STR = {
       failed: {
         turns: [
           { who: 'me', text: 'I did water, the walk, stretching, reading, dishes, laundry and guitar' },
-          { who: 'astra', parts: ['', '5', ' were logged. ', '2', ' did not save.'] },
+          { who: 'orbit', parts: ['', '5', ' were logged. ', '2', ' did not save.'] },
         ],
         block: { title: 'Batch log', count: '7', state: 'partiallyFailed',
           retry: ['Retry the ', '2', ' that failed'], failMeta: 'did not save',
@@ -649,7 +649,7 @@ const SEED = {
   /* The ceiling case starts from a sentence the device cannot read, because that is the only place
      the ceiling shows: a readable sentence previews at the limit like any other. */
   limit: { 'pt-BR': 'Beber mais água quando der', en: 'Drink more water when I can' },
-  astra: { 'pt-BR': 'Rotina da casa', en: 'House routine' },
+  orbit: { 'pt-BR': 'Rotina da casa', en: 'House routine' },
 };
 const PAT = {
   'pt-BR': {
@@ -761,7 +761,7 @@ const X = {
     placeholder: 'Correr 3 vezes por semana',
     understood: 'O Orbit entendeu',
     unclear: 'O Orbit não encontrou a frequência nesta frase. Escolha os dias ou um número de vezes por semana.',
-    understoodAstra: 'O Orbit entendeu',
+    understoodOrbit: 'O Orbit entendeu',
     ask: 'Pedir ao Orbit', askCost: ['Usa 1 das ', '5', ' mensagens de hoje.'],
     parsingLabel: 'O Orbit está lendo a frase',
     dayShort: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
@@ -805,7 +805,7 @@ const X = {
     slipLine: ['Nenhum registro nos últimos ', '3', ' dias. A sequência voltou para ', '0', ' e a taxa dos últimos ', '30', ' dias caiu.'],
     noDataYet: 'Ainda sem dados',
     moreOpts: 'Mais opções', openOne: 'Abrir', unlogOne: 'Desfazer registro',
-    askAstra: 'Perguntar ao Orbit',
+    askOrbit: 'Perguntar ao Orbit',
     allDays: 'Todos os dias', monFri: 'Seg a sex', flexSum: (n) => [mock(n), 'x por semana'],
     emoTitle: 'Escolher emoji', emoSearch: 'Buscar emoji', emoClear: 'Limpar a busca',
     emoNone: 'Nenhum emoji com esse nome', emoWellLabel: (n) => 'Escolher emoji para ' + n,
@@ -877,7 +877,7 @@ const X = {
     placeholder: 'Run 3 times a week',
     understood: 'Orbit understood',
     unclear: 'Orbit did not find how often in this phrase. Pick the days or a number of times a week.',
-    understoodAstra: 'Orbit understood',
+    understoodOrbit: 'Orbit understood',
     ask: 'Ask Orbit', askCost: ['Uses 1 of today\'s ', '5', ' messages.'],
     parsingLabel: 'Orbit is reading the phrase',
     dayShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
@@ -921,7 +921,7 @@ const X = {
     slipLine: ['Nothing logged in the last ', '3', ' days. The streak went back to ', '0', ' and the last ', '30', ' days\' rate is down.'],
     noDataYet: 'No data yet',
     moreOpts: 'More options', openOne: 'Open', unlogOne: 'Undo the log',
-    askAstra: 'Ask Orbit',
+    askOrbit: 'Ask Orbit',
     allDays: 'Every day', monFri: 'Mon to Fri', flexSum: (n) => [mock(n), 'x a week'],
     emoTitle: 'Choose an emoji', emoSearch: 'Search emoji', emoClear: 'Clear the search',
     emoNone: 'No emoji with that name', emoWellLabel: (n) => 'Choose an emoji for ' + n,
@@ -942,10 +942,10 @@ const X = {
   },
 };
 
-const CREATE_ORIGIN = { create: 'fab', 'create from chat': 'chat', 'create proposed': 'astra',
+const CREATE_ORIGIN = { create: 'fab', 'create from chat': 'chat', 'create proposed': 'orbit',
   'create unclear': 'unclear', 'create asking': 'unclear', 'create at limit': 'limit' };
 const CONV_STATES = { conversation: 'default', 'batch failed': 'failed' };
-const NO_ASTRA = ['no notice', 'read only', 'loading', 'no habits', 'all done', 'error', 'offline', 'at limit'];
+const NO_ORBIT = ['no notice', 'read only', 'loading', 'no habits', 'all done', 'error', 'offline', 'at limit'];
 
 class Component extends DCLogic {
   state = {
@@ -1803,7 +1803,7 @@ class Component extends DCLogic {
     const phase = r.phase;
     const head = H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
       H('span', { style: { display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
-        H(D.AstraGlyph, { size: 20 })),
+        H(D.OrbitGlyph, { size: 20 })),
       H('span', { translate: 'no', style: { fontWeight: 500 } }, 'Orbit'),
       H(window.OrbitNativeMobile.Badge, null, 'AI'));
     let body = null, actions = null;
@@ -1985,12 +1985,12 @@ class Component extends DCLogic {
     const atLimit = origin === 'limit' || st === 'at limit';
     const seed = v.seed != null ? v.seed : (SEED[origin] || SEED.fab)[t.lang === 'en' ? 'en' : 'pt-BR'];
     const text = s.text != null ? s.text : seed;
-    const astra = origin === 'astra';
+    const orbit = origin === 'orbit';
     const askDone = s.askPhase === 'done';
     /* The local read runs on every keystroke, even at the ceiling: the ceiling quiets the fallback
        ask and nothing else. Orbit's read exists only after that ask,
        and it settles as a proposal, never as typed. */
-    const parsed = astra ? { tokens: [], mode: 'daily', days: [], qty: null, time: '09:00', emoji: '\uD83E\uDDF9' }
+    const parsed = orbit ? { tokens: [], mode: 'daily', days: [], qty: null, time: '09:00', emoji: '\uD83E\uDDF9' }
       : askDone ? { tokens: [], mode: 'daily', days: [], qty: null, time: null, emoji: '\uD83D\uDCA7' }
       : parseHabit(text, t.lang);
     const days = s.days != null ? s.days : parsed.days;
@@ -2045,9 +2045,9 @@ class Component extends DCLogic {
             : H(D.Icon, { name: 'plus', size: 20 })),
         H('div', { style: { minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
           H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } },
-            (astra || askDone) ? x.understoodAstra : x.understood),
+            (orbit || askDone) ? x.understoodOrbit : x.understood),
           H('p', { style: { fontSize: 'var(--fs-md)', fontWeight: 500 } }, sentence))),
-      astra ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      orbit ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
         H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, x.breakdown),
         H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
           x.subs.map((sub, i) => H('p', { key: i, style: { fontSize: 'var(--fs-sm)', padding: '8px 12px',
@@ -2055,7 +2055,7 @@ class Component extends DCLogic {
     /* A value the device read renders as typed; only Orbit's read wears the proposed state, and the
        first touch resolves it. */
     const preview = sentence
-      ? ((resolved || !(astra || askDone)) ? inner : H(D.Proposed, { scope: 'block', label: x.proposedBy }, inner))
+      ? ((resolved || !(orbit || askDone)) ? inner : H(D.Proposed, { scope: 'block', label: x.proposedBy }, inner))
       : s.askPhase === 'parsing'
         ? H(D.Skeleton, { variant: 'settings', rows: 3, label: x.parsingLabel })
         : H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
@@ -2185,7 +2185,7 @@ class Component extends DCLogic {
           boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' } },
           H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
             H('span', { style: { display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
-              H(D.AstraGlyph, { size: 20 })),
+              H(D.OrbitGlyph, { size: 20 })),
             H(window.OrbitNativeMobile.Badge, null, 'Pro')),
           H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)' } }, x.rsFree),
           H('div', { style: { display: 'flex', gap: 8 } },
@@ -2377,13 +2377,13 @@ class Component extends DCLogic {
             onClick: () => { if (this.state.plan === 'Pro') this.openCreate('sub', ''); else this.goPro(); } }))));
     }
     out.push(this.activityNode(t, x, key, dtl));
-    out.push(H('button', { key: 'astra', type: 'button', onClick: () => this.openConv(),
+    out.push(H('button', { key: 'orbit', type: 'button', onClick: () => this.openConv(),
       style: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, paddingInline: 16,
         marginInline: -16, background: 'var(--p-transparent)', border: 0, cursor: 'pointer',
         fontFamily: 'var(--font-sans)', color: 'var(--fg-1)', textAlign: 'start' } },
       H('span', { style: { width: 28, display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
-        H(D.AstraGlyph, { size: 20 })),
-      H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-md)' } }, x.askAstra),
+        H(D.OrbitGlyph, { size: 20 })),
+      H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-md)' } }, x.askOrbit),
       H('span', { style: { color: 'var(--fg-4)', display: 'grid', placeItems: 'center' }, 'aria-hidden': 'true' },
         H(D.Icon, { name: 'chevron-right', size: 24 }))));
     return H(F, null, out);
@@ -2723,7 +2723,7 @@ class Component extends DCLogic {
     this._menuKey = s.menu || (st === 'menu' ? 'd:1' : null);
     const view = this._view;
     const surface = view ? (view.kind === 'create' ? this.createNode(t, x, st, filled) : this.detailNode(t, x, filled)) : null;
-    const hasAstra = this.props.astraNoticed !== false && off === 0 && NO_ASTRA.indexOf(st) < 0 && !drillOn;
+    const hasOrbit = this.props.orbitNoticed !== false && off === 0 && NO_ORBIT.indexOf(st) < 0 && !drillOn;
     let drillCount = null;
     if (drillOn && KEYMAP[drillKey]) {
       let dd = 0, dt2 = 0;
@@ -2735,15 +2735,15 @@ class Component extends DCLogic {
       drillCount = x.drillDoneOf(dd, dt2);
     }
     const aKey = st === 'returning' ? 'returning' : 'default';
-    const line = t.astra[aKey][0];
+    const line = t.orbit[aKey][0];
 
     const conversation = convOpen ? this.conversationNode(t, st, filled) : null;
     const selectionTray = selecting && !convOpen && !view ? this.trayNode(t, filled) : null;
     return Object.assign(base, {
-      hasAstra: hasAstra,
-      astraLine: H(F, null, line[0], mock(line[1]), line[2], line[3] ? mock(line[3]) : null, line[4] || null),
-      astraDestination: st === 'returning' ? t.tabs[2] : 'Orbit',
-      onAstraAction: st === 'returning' ? this.goGoal : this.openConv,
+      hasOrbit: hasOrbit,
+      orbitLine: H(F, null, line[0], mock(line[1]), line[2], line[3] ? mock(line[3]) : null, line[4] || null),
+      orbitDestination: st === 'returning' ? t.tabs[2] : 'Orbit',
+      onOrbitAction: st === 'returning' ? this.goGoal : this.openConv,
       rootHeader: H(window.OrbitNativeMobile.BellRow, {},
         H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Search' : 'Buscar', onClick: () => { window.location.href = 'Orbit Busca.dc.html'; } }, H(D.Icon, { name: 'search', size: 24 })),
         H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Options' : 'Opções', onClick: this.openControls }, H(D.Icon, { name: 'dots-vertical', size: 24 }))),
@@ -2790,7 +2790,7 @@ class Component extends DCLogic {
       errorAction: H(D.Button, { size: 'sm', variant: filled,
         onClick: (drillOn && s.drillFailed) ? this.retryDrill : () => this.setState({ st: 'default' }) }, t.retry),
 
-      astraRow: H(window.OrbitNativeMobile.AstraRow, { current: convOpen, onOpen: this.openConv }),
+      orbitRow: H(window.OrbitNativeMobile.OrbitRow, { current: convOpen, onOpen: this.openConv }),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
       createLabel: t.create, account: t.account,
       conversationLabel: t.conversationLabel, navLabelWord: t.navLabel, paletteWord: t.palette,

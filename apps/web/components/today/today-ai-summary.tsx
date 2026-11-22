@@ -7,7 +7,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useSummary } from '@/hooks/use-summary'
 import { useUIStore } from '@/stores/ui-store'
 import { useChatStore } from '@/stores/chat-store'
-import { TodayAstraLine } from './today-astra-line'
+import { TodayOrbitLine } from './today-orbit-line'
 
 export function TodayAISummary({ date }: Readonly<{ date: string }>) {
   const t = useTranslations()
@@ -15,7 +15,7 @@ export function TodayAISummary({ date }: Readonly<{ date: string }>) {
   const { profile } = useProfile()
   if (!profile || (profile.hasProAccess && !profile.aiSummaryEnabled)) return null
   if (profile.hasProAccess) return <DailySummary key={date} date={date} language={profile.language} timeZone={profile.timeZone} />
-  return <TodayAstraLine text={guided ? t('summary.guided.freePrompt') : t('summary.freePrompt')} destination={t('summary.upgrade')}
+  return <TodayOrbitLine text={guided ? t('summary.guided.freePrompt') : t('summary.freePrompt')} destination={t('summary.upgrade')}
     href="/upgrade" />
 }
 
@@ -25,15 +25,15 @@ function DailySummary({ date, language, timeZone }: Readonly<{ date: string; lan
   const { summary, isLoading, isFetching, error, refetch } = useSummary({
     date, locale: language ?? locale, timeZone, hasProAccess: true, aiSummaryEnabled: true,
   })
-  if (isLoading || error) return <TodayAstraLine announce
+  if (isLoading || error) return <TodayOrbitLine announce
     text={isLoading ? t('summary.loading') : t('summary.error')}
     destination={isLoading ? t('summary.loading') : t('summary.retry')}
     loading={isLoading} busy={isLoading || isFetching} disabled={isLoading || isFetching}
     onPress={() => void refetch()} />
   if (!summary) return null
-  return <TodayAstraLine announce text={getSummaryFirstSentence(summary)} destination={t('todayAstra.openConversation')} busy={isFetching}
+  return <TodayOrbitLine announce text={getSummaryFirstSentence(summary)} destination={t('todayOrbit.openConversation')} busy={isFetching}
     onPress={() => {
       useChatStore.getState().openDailySummary(date, summary)
-      useUIStore.getState().setAstraConversationOpen(true)
+      useUIStore.getState().setOrbitConversationOpen(true)
     }} />
 }

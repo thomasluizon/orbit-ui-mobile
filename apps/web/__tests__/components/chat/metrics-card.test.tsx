@@ -31,7 +31,7 @@ beforeEach(() => {
 
 beforeEach(() => measureClampedPersonalText())
 
-describe('Astra metrics card on web', () => {
+describe('Orbit metrics card on web', () => {
   it('renders overview rows, seven bars and the Progress chip', () => {
     const { container } = render(<MetricsCard metricsCard={overview} />)
     expect(container.querySelectorAll('[data-status]')).toHaveLength(0)

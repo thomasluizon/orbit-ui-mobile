@@ -55,20 +55,20 @@ function bundleConversation() {
     import { createChatThreadScroll } from '@orbit/shared/hooks';
     import en from '@orbit/shared/i18n/en.json';
     import { DestinationShell } from './components/shell/destination-shell';
-    import { AstraConversation } from './components/chat/conversation';
+    import { OrbitConversation } from './components/chat/conversation';
     import { DesktopWindowBar } from './components/desktop-window-bar';
     import { useUIStore } from './stores/ui-store';
-    useUIStore.getState().setAstraConversationOpen(true);
+    useUIStore.getState().setOrbitConversationOpen(true);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const threadScroll = createChatThreadScroll();
     const chatContainerRef = createRef();
     function App() {
-      const open = useUIStore(state => state.astraConversationOpen);
+      const open = useUIStore(state => state.orbitConversationOpen);
       const composerProps = { state: 'idle', value: '', onChangeValue: () => {}, onSend: () => {}, suggestions: [], words: en.shell.composer };
       const chat = { composerProps, threadScroll, chatContainerRef, messages: [], activeSteps: [],
         isTyping: false, streamingMessageId: null, showSuggestions: false, canShowFollowUps: false, scrollToBottom: () => {} };
       return <QueryClientProvider client={queryClient}><NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
-        <DestinationShell onCreate={() => {}} conversationOpen={open} conversationLabel="Astra" conversation={<AstraConversation chat={chat} />}>
+        <DestinationShell onCreate={() => {}} conversationOpen={open} conversationLabel="Orbit" conversation={<OrbitConversation chat={chat} />}>
           <h1 className="p-4">Destination</h1>
         </DestinationShell>
         <DesktopWindowBar />
@@ -138,7 +138,7 @@ describe('the desktop window bar is a top inset for the surfaces fixed to the vi
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each(PLATFORMS.flatMap((platform) => WINDOWS.map((size) => ({ platform, ...size }))))(
-    'starts the Astra conversation header and the wide sidebar below the $platform bar at $width x $height', async ({ platform, width, height }) => {
+    'starts the Orbit conversation header and the wide sidebar below the $platform bar at $width x $height', async ({ platform, width, height }) => {
       const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' })
       page.setDefaultTimeout(2000)
       try {

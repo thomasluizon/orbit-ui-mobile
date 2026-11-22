@@ -58,7 +58,7 @@ export function PendingReply({ ref }: Readonly<{ ref: Ref<PendingReplyHandle> }>
     }
   }, [opacity, reducedMotion])
   const dots = [0, 1, 2].map(dot => <View key={dot} style={[styles.dot, { backgroundColor: tokens.fg2 }]} />)
-  return <View testID="astra-pending" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.row}>
+  return <View testID="orbit-pending" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.row}>
     {reducedMotion ? <View style={styles.dots}>{dots}</View> : <Animated.View style={[styles.dots, pulseStyle]}>{dots}</Animated.View>}
   </View>
 }

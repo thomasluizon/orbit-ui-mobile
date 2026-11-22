@@ -66,7 +66,7 @@ describe('mobile habit row on an old day', () => {
     TestRenderer.act(() => more.props.onPress())
     const items = tree!.root.findAllByProps({ accessibilityRole: 'menuitem' })
     const item = items.find((candidate: TestNode) => candidate.findAllByType('Text').some(node => node.props.children === label))
-    expect(i18n.t('habits.actions.rescheduleAstra')).toBe(label)
+    expect(i18n.t('habits.actions.rescheduleOrbit')).toBe(label)
     expect(item).toBeDefined()
     expect(item!.findAllByType('Text').map((node: TestNode) => node.props.children)).toEqual([label])
     TestRenderer.act(() => item!.props.onPress())
@@ -102,7 +102,7 @@ describe('mobile habit row on an old day', () => {
       expect(labels).toContain(label)
     }
     expect(labels).not.toContain(i18n.t('habits.actions.skip'))
-    expect(labels).not.toContain(i18n.t('habits.actions.rescheduleAstra'))
+    expect(labels).not.toContain(i18n.t('habits.actions.rescheduleOrbit'))
     const edit = items.find((item: TestNode) => item.findByType('Text').props.children === i18n.t('common.edit'))!
     TestRenderer.act(() => edit.props.onPress())
     expect(actions.onEdit).toHaveBeenCalledOnce()

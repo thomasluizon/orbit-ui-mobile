@@ -59,7 +59,7 @@ function render(element: React.ReactElement) {
   return tree
 }
 
-describe('Astra list cards on mobile', () => {
+describe('Orbit list cards on mobile', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.pending = false

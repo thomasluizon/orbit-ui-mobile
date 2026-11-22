@@ -655,7 +655,7 @@ describe('auth store', () => {
   })
 
 
-  it('removes the stored Astra draft when the account signs out', async () => {
+  it('removes the stored Orbit draft when the account signs out', async () => {
     mockFetch.mockResolvedValue({ ok: true })
     useAuthStore.getState().setAuth(makeLoginResponse())
     useChatStore.getState().setDraft('cancel my 9pm meds reminder')
@@ -669,7 +669,7 @@ describe('auth store', () => {
     expect(useChatStore.getState().draftHydrated).toBe(false)
   })
 
-  it('removes the stored Astra draft when any account signs in', async () => {
+  it('removes the stored Orbit draft when any account signs in', async () => {
     useAuthStore.getState().setAuth(makeLoginResponse())
     useChatStore.getState().setDraft('cancel my 9pm meds reminder')
     useChatStore.getState().hydrateDraft('cancel my 9pm meds reminder')
@@ -1063,7 +1063,7 @@ describe('auth store', () => {
       expect(queryClient.getQueryData(goalKeys.lists())).toBeUndefined()
     })
 
-    it('empties the Astra conversation the replaced account left', async () => {
+    it('empties the Orbit conversation the replaced account left', async () => {
       useAuthStore.getState().setAuth(makeLoginResponse())
       useChatStore.getState().addMessage(makeChatMessage())
       useChatStore.setState({ isTyping: true, streamingMessageId: 'message-2' })
@@ -1076,7 +1076,7 @@ describe('auth store', () => {
       expect(useChatStore.getState().streamingMessageId).toBeNull()
     })
 
-    it('empties the Astra composer the replaced account left', async () => {
+    it('empties the Orbit composer the replaced account left', async () => {
       useAuthStore.getState().setAuth(makeLoginResponse())
       useChatStore.getState().setDraft('cancel my 9pm meds reminder')
       useChatStore.getState().hydrateDraft('cancel my 9pm meds reminder')
@@ -1206,7 +1206,7 @@ describe('auth store', () => {
       expect(globalThis.localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)).toBe(accountASupportDraft)
     })
 
-    it('keeps the Astra draft when the same account recovers from a rejected refresh', async () => {
+    it('keeps the Orbit draft when the same account recovers from a rejected refresh', async () => {
       useAuthStore.getState().setAuth(makeLoginResponse())
       useChatStore.getState().addMessage(makeChatMessage())
       useChatStore.getState().setDraft('cancel my 9pm meds reminder')

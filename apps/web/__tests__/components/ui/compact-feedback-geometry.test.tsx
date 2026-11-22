@@ -86,7 +86,7 @@ describe('compact feedback in its owning composition', () => {
   it.each(['en', 'pt-BR'] as const)('reaches every calendar view at 320 in %s', async locale => {
     const messages = locale === 'en' ? en : ptBR
     const markup = renderToStaticMarkup(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
-      <ShellWide items={[]} activeId="calendar" navLabel="Navigation" paletteLabel="Search" paletteHint="Ctrl K" onPalette={vi.fn()} onCreate={vi.fn()} createLabel="Create" astraRow={{ label: 'Astra', onOpen: vi.fn() }}>
+      <ShellWide items={[]} activeId="calendar" navLabel="Navigation" paletteLabel="Search" paletteHint="Ctrl K" onPalette={vi.fn()} onCreate={vi.fn()} createLabel="Create" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}>
         <div data-calendar-page="">
           <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-12" previousMonthLabel={messages.common.previousMonth} nextMonthLabel={messages.common.nextMonth}
             onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}

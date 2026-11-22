@@ -50,7 +50,7 @@ vi.mock('@/components/ui/block-frame', () => ({
   </section>,
 }))
 
-describe('Astra list cards on web', () => {
+describe('Orbit list cards on web', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.pending = false

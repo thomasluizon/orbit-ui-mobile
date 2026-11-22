@@ -11,7 +11,7 @@ import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { expectLabelsFit, markRequiredLabels } from '@/e2e/layout/label-fit-contract'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 
@@ -26,7 +26,7 @@ vi.mock('@/components/shell/composer', () => ({
   Composer: () => <div style={{ height: 128 }} data-testid="pinned-composer" />,
 }))
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 
 function emptyChat(): ChatController {
   return {
@@ -72,7 +72,7 @@ describe('Empty conversation geometry in Chromium', () => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1] ?? Infinity), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const { container } = render(
       <NextIntlClientProvider locale={locale} messages={messages}>
-        <div style={{ width: panelWidth, height }}><AstraConversation chat={emptyChat()} /></div>
+        <div style={{ width: panelWidth, height }}><OrbitConversation chat={emptyChat()} /></div>
       </NextIntlClientProvider>,
     )
     const page = await browser.newPage({ viewport: { width, height } })
@@ -129,7 +129,7 @@ describe('Empty conversation geometry in Chromium', () => {
     const messages = locale === 'en' ? en : pt
     const { container } = render(
       <NextIntlClientProvider locale={locale} messages={messages}>
-        <div style={{ width, height: 600 }}><AstraConversation chat={emptyChat()} /></div>
+        <div style={{ width, height: 600 }}><OrbitConversation chat={emptyChat()} /></div>
       </NextIntlClientProvider>,
     )
     const page = await browser.newPage({ viewport: { width, height: 600 } })

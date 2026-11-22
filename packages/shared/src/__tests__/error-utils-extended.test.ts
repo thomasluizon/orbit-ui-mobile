@@ -1,4 +1,4 @@
-import allowanceRefusals from '../test-support/astra-allowance-refusals.fixture.json'
+import allowanceRefusals from '../test-support/orbit-allowance-refusals.fixture.json'
 import { describe, it, expect, vi } from 'vitest'
 import { z } from 'zod'
 import {
@@ -230,7 +230,7 @@ function validationFailure(property: string, message: string) {
 }
 
 describe('getFriendlyErrorKey (extended coverage)', () => {
-  it('localizes the daily Astra ceiling from a JSON refusal', () => {
+  it('localizes the daily Orbit ceiling from a JSON refusal', () => {
     const refusal = codedError('AI_DAILY_BUDGET_EXCEEDED', 'Your daily AI safety budget has been reached. Please try again tomorrow.')
     expect(getFriendlyErrorKey(refusal, 'chat.sendError')).toBe('chat.dailyBudgetReached')
   })
@@ -271,13 +271,13 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(error, 'errors.createHabit', 'habit')).toBe(expected)
   })
 
-  it.each(allowanceRefusals)('names the producer $period refusal in $locale as the Astra allowance', ({ body }) => {
-    expect(getFriendlyErrorKey(createApiClientError(403, body, 'fallback'), 'errors.createHabit')).toBe('errors.api.astraLimit')
+  it.each(allowanceRefusals)('names the producer $period refusal in $locale as the Orbit allowance', ({ body }) => {
+    expect(getFriendlyErrorKey(createApiClientError(403, body, 'fallback'), 'errors.createHabit')).toBe('errors.api.orbitLimit')
   })
 
   it.each([
     ['Calendar integration is a Pro feature. Upgrade to unlock!', 'errors.api.calendarPro'],
-    ["You've reached your daily AI message limit (5). Upgrade to Pro for 50 messages per day.", 'errors.api.astraLimit'],
+    ["You've reached your daily AI message limit (5). Upgrade to Pro for 50 messages per day.", 'errors.api.orbitLimit'],
   ])('names the PAY_GATE surface from the API message', (message, expected) => {
     expect(getFriendlyErrorKey(new ApiClientError(403, message, { code: 'PAY_GATE' }), 'errors.createHabit')).toBe(expected)
   })
@@ -509,7 +509,7 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
 
   it.each([
     ['CALENDAR_RECONNECT_REQUIRED', 'Your Google Calendar connection expired. Connect it again.', 'errors.api.calendarReconnect'],
-    ['SUGGESTION_NOT_FOUND', 'That suggestion expired. Ask Astra again.', 'toast.errors.notFound'],
+    ['SUGGESTION_NOT_FOUND', 'That suggestion expired. Ask Orbit again.', 'toast.errors.notFound'],
   ] as const)('keeps %s off the expired-code message in an auth context', (errorCode, sentence, expected) => {
     const err = codedError(errorCode, sentence)
     expect(getFriendlyErrorKey(err, 'errors.generic', 'auth')).toBe(expected)

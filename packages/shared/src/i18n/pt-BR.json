@@ -220,14 +220,14 @@
     "calendar": "Calendário",
     "createHabit": "Criar hábito",
     "profile": "Perfil",
-    "astra": "Orbit",
+    "orbit": "Orbit",
     "search": "Buscar",
     "today": "Hoje",
     "progress": "Progresso",
     "mainNavigation": "Navegação principal"
   },
   "shell": {
-    "astraButton": {
+    "orbitButton": {
       "open": "Falar com o Orbit"
     },
     "collapseSidebar": "Recolher menu",
@@ -344,7 +344,7 @@
       "actions": "Adicionar"
     }
   },
-  "todayAstra": {
+  "todayOrbit": {
     "openConversation": "Abrir conversa",
     "returningElapsed": "{days, plural, =0 {Você concluiu um hábito pela última vez há # dias.} one {Você concluiu um hábito pela última vez há # dia.} other {Você concluiu um hábito pela última vez há # dias.}}",
     "returningBounded": "Você concluiu um hábito pela última vez há mais de 30 dias.",
@@ -388,7 +388,7 @@
   "contextMenu": {
     "viewDetails": "Ver detalhes"
   },
-  "astraRail": {
+  "orbitRail": {
     "title": "Copiloto Orbit",
     "subtitle": "Seu copiloto de hábitos"
   },
@@ -733,7 +733,7 @@
     },
     "createHabit": "Criar hábito",
     "createTask": "Criar tarefa",
-    "askAstra": "Iniciar conversa",
+    "askOrbit": "Iniciar conversa",
     "createManually": "Criar manualmente",
     "createSubHabit": "Criar sub-hábito",
     "editHabit": "Editar hábito",
@@ -794,7 +794,7 @@
       "skip": "Pular",
       "openSubHabits": "Abrir os sub-hábitos",
       "unlog": "Marcar como não feito",
-      "rescheduleAstra": "Reagendar",
+      "rescheduleOrbit": "Reagendar",
       "reschedule": "Reagendar"
     },
     "reschedule": {
@@ -910,10 +910,10 @@
       "describePlaceholder": "Correr 3 vezes por semana",
       "understood": "O Orbit entendeu",
       "unresolved": "O Orbit não encontrou a frequência nessa frase. Escolha os dias ou um número de vezes por semana.",
-      "askAstra": "Sugerir frequência",
-      "askAstraCost": "{allowance, plural, =0 {Usa 1 das # mensagens de hoje.} one {Usa a única mensagem de hoje.} other {Usa 1 das # mensagens de hoje.}}",
-      "askAstraCostWeekly": "{allowance, plural, =0 {Usa 1 das # mensagens da semana.} one {Usa a única mensagem da semana.} other {Usa 1 das # mensagens da semana.}}",
-      "astraReading": "O Orbit está lendo a frase",
+      "askOrbit": "Sugerir frequência",
+      "askOrbitCost": "{allowance, plural, =0 {Usa 1 das # mensagens de hoje.} one {Usa a única mensagem de hoje.} other {Usa 1 das # mensagens de hoje.}}",
+      "askOrbitCostWeekly": "{allowance, plural, =0 {Usa 1 das # mensagens da semana.} one {Usa a única mensagem da semana.} other {Usa 1 das # mensagens da semana.}}",
+      "orbitReading": "O Orbit está lendo a frase",
       "localReadLimit": "{allowance, plural, =0 {As # mensagens de IA de hoje foram usadas. Eu leio a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.} one {Você usou # mensagem de IA hoje. Eu leio a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.} other {As # mensagens de IA de hoje foram usadas. Eu leio a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.}}",
       "localReadLimitWeekly": "{allowance, plural, =0 {Você usou as # mensagens de IA da semana. Eu leio a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.} one {Você usou # mensagem de IA nesta semana. Eu leio a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.} other {Você usou as # mensagens de IA da semana. Eu leio a frase neste aparelho, e criar um hábito não usa mensagem. Escolha os dias ou um número de vezes por semana.}}",
       "understoodIntervalDays": "{count, plural, =0 {a cada # semanas, {days}} one {a cada # semana, {days}} other {a cada # semanas, {days}}}",
@@ -950,7 +950,7 @@
       "repeatWeeks": "{count, plural, =0 {A cada # semanas} one {Toda semana} other {A cada # semanas}}",
       "repeatLess": "Repetir com menos frequência",
       "repeatMore": "Repetir com mais frequência",
-      "proposedByAstra": "Proposto pelo Orbit",
+      "proposedByOrbit": "Proposto pelo Orbit",
       "moreDetails": "Mais detalhes",
       "exactTime": "A que horas?",
       "reminders": "Lembretes",
@@ -1187,7 +1187,7 @@
       "noDataYet": "Ainda sem dados",
       "daysFree": "Sem deslize",
       "reminders": "Lembretes",
-      "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
+      "askOrbitSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
       "orbit": {
         "lastSevenDays": "{done, plural, =0 {Você fez isso em # dos últimos 7 dias.} one {Você fez isso em # dos últimos 7 dias.} other {Você fez isso em # dos últimos 7 dias.}}",
         "loadError": "Não consegui carregar este hábito.",
@@ -1214,7 +1214,7 @@
       "inside": "O que tem dentro",
       "addSubHabit": "Adicionar sub-hábito",
       "linkedGoals": "Metas",
-      "askAstra": "Analisar hábito",
+      "askOrbit": "Analisar hábito",
       "moreDetails": "Mais detalhes",
       "schedule": "Frequência",
       "noValue": "Não definido",
@@ -2614,7 +2614,7 @@
       "objectRequired": "Informe os dados de {fieldName}.",
       "onboardingCompleted": "Configuração concluída",
       "policyDenied": "Não posso fazer isso por aqui.",
-      "proactiveAstra": {
+      "proactiveOrbit": {
         "disabled": "Notificações do Orbit desativadas",
         "enabled": "Notificações do Orbit ativadas"
       },
@@ -2723,7 +2723,7 @@
       "saveError": "Alteração não salva. Tente de novo."
     },
     "groups": {
-      "astra": "Orbit",
+      "orbit": "Orbit",
       "notifications": "Notificações",
       "more": "Mais do Orbit"
     },
@@ -2806,7 +2806,7 @@
     "aiSummary": {
       "title": "Resumo diário"
     },
-    "proactiveAstra": {
+    "proactiveOrbit": {
       "title": "Notificações do Orbit"
     },
     "marketingEmails": {
@@ -3200,10 +3200,10 @@
       "heading": "O teste Pro acabou",
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro ficam pausados se você não assinar.",
-      "astraCeiling": "IA: 250 mensagens/semana",
+      "orbitCeiling": "IA: 250 mensagens/semana",
       "calendarSync": "Sincronização do calendário",
       "retrospective": "Retrospectiva periódica",
-      "proactiveAstra": "Notificações do Orbit",
+      "proactiveOrbit": "Notificações do Orbit",
       "savings": "Anual: {percent}% a menos",
       "subscribe": "Ver planos",
       "continueFree": "Continuar grátis"
@@ -3217,7 +3217,7 @@
     "loading": "Dando uma olhada no seu dia...",
     "error": "Não consegui carregar o resumo. Tente de novo.",
     "retry": "Tentar de novo",
-    "askAstra": "Analisar resumo",
+    "askOrbit": "Analisar resumo",
     "upgrade": "Fazer upgrade",
     "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos.",
     "guided": {
@@ -3313,7 +3313,7 @@
         "continueReason": "Escreva o que você quer acompanhar."
       },
       "when": {
-        "astraRead": "Entendi assim. Se algo estiver errado, é só corrigir.",
+        "orbitRead": "Entendi assim. Se algo estiver errado, é só corrigir.",
         "direct": "Quando você quer fazer isso?",
         "proposedBy": "Proposto pelo Orbit",
         "emojiLabel": "Emoji proposto pelo Orbit",
@@ -3418,7 +3418,7 @@
       },
       "done": {
         "readFailed": "Salvei o hábito, mas não consegui mostrar os detalhes. Tente de novo.",
-        "tellAstra": "Da próxima vez, conte ao Orbit no Hoje o que você quer fazer.",
+        "tellOrbit": "Da próxima vez, conte ao Orbit no Hoje o que você quer fazer.",
         "title": "Pronto. Ele já está no Hoje.",
         "body": "Quando fizer, marque o anel dele no Hoje para registrar.",
         "remindersOffBody": "Quando fizer, marque o anel dele no Hoje para registrar. Você pode ligar os lembretes no hábito.",
@@ -3503,7 +3503,7 @@
           "noDateAt": "sem data, às {time}"
         }
       },
-      "meetAstra": {
+      "meetOrbit": {
         "importPrompt": "Me ajude a importar meus hábitos de outro app. Vou anexar um arquivo ou colar minha lista, e você cria os hábitos."
       }
     },
@@ -3521,7 +3521,7 @@
       "question": "O que dá para fazer no Orbit?",
       "habits": "Hábitos",
       "calendar": "Calendário",
-      "astra": "Orbit",
+      "orbit": "Orbit",
       "connect": "Conectar",
       "rewards": "Recompensas",
       "progress": "Metas",
@@ -3579,7 +3579,7 @@
         "statusTitle": "Ciclo de vida da meta",
         "statusDesc": "As metas passam pelos estados ativa, concluída e abandonada. Marque uma meta como concluída ao atingir o objetivo, ou abandone se as prioridades mudarem."
       },
-      "astraSection": {
+      "orbitSection": {
         "canDoTitle": "Criar e registrar",
         "canDoDesc": "Diga ao Orbit quais hábitos você quer e ele cria. Diga 'corri hoje' para registrar um. Você também pode pedir um hábito para um dia só, como 'comprar ovos amanhã'.",
         "toolsBreadthTitle": "71 ferramentas integradas",
@@ -3711,7 +3711,7 @@
     },
     "outcomes": {
       "label": "O que muda com o Pro",
-      "astra": "Reorganize sua rotina com 250 mensagens de IA por semana",
+      "orbit": "Reorganize sua rotina com 250 mensagens de IA por semana",
       "calendar": "Veja os compromissos do Google Agenda ao lado dos hábitos",
       "retrospective": "Veja o que aconteceu e o que mudar a cada semana e mês",
       "noticing": "O Orbit percebe, sem você pedir, quando algo fica para trás"
@@ -3851,8 +3851,8 @@
       "edgeBlockedRetry": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Tente de novo em alguns minutos. Se continuar acontecendo, fale com o suporte.",
       "habitLimit": "{limit, plural, =0 {Você pode ter até # hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.} one {Você pode ter até # hábito ativo. Sub-hábitos não contam. Apague um hábito para adicionar outro.} other {Você pode ter até # hábitos ativos. Sub-hábitos não contam. Apague um hábito para adicionar outro.}}",
       "calendarPro": "A sincronização do calendário precisa do Orbit Pro. Veja a tela de upgrade para ativar.",
-      "astraLimit": "Você usou as mensagens de IA de hoje. Elas voltam à meia-noite, no seu fuso horário.",
-      "astraLimitWeekly": "Você usou as mensagens de IA da semana.",
+      "orbitLimit": "Você usou as mensagens de IA de hoje. Elas voltam à meia-noite, no seu fuso horário.",
+      "orbitLimitWeekly": "Você usou as mensagens de IA da semana.",
       "payGate": "Este recurso precisa do Orbit Pro. Veja suas opções na tela de upgrade.",
       "reload": "Recarregar",
       "noPermission": "Você não tem permissão para isso.",
@@ -4035,9 +4035,9 @@
       "historyDate": "Data: {date}",
       "historyDelta": "Mudança: {delta} {unit}",
       "historyProgress": "Progresso: {current} de {target} {unit}",
-      "askAstraEyebrow": "Analisar meta",
-      "askAstraDefault": "Quer um plano de acompanhamento semanal para isso?",
-      "askAstraSeedDefault": "Me ajuda a montar um plano de acompanhamento semanal para a meta \"{title}\".",
+      "askOrbitEyebrow": "Analisar meta",
+      "askOrbitDefault": "Quer um plano de acompanhamento semanal para isso?",
+      "askOrbitSeedDefault": "Me ajuda a montar um plano de acompanhamento semanal para a meta \"{title}\".",
       "statusLabel": "Status",
       "line": {
         "daysLeft": "{days, plural, =0 {Pelas minhas contas, o prazo é hoje.} one {Pelas minhas contas, falta # dia para o prazo.} other {Pelas minhas contas, faltam # dias para o prazo.}}",
@@ -4548,7 +4548,7 @@
       "items": {
         "createHabit": "Crie seu primeiro hábito",
         "logHabit": "Registre um hábito hoje",
-        "tryAstra": "O que você quer fazer?"
+        "tryOrbit": "O que você quer fazer?"
       },
       "progress": "{done, plural, =0 {# de {total} concluídos} one {# de {total} concluído} other {# de {total} concluídos}}",
       "complete": "Tudo pronto.",

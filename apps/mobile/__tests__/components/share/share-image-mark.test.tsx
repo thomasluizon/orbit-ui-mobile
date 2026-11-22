@@ -43,7 +43,7 @@ function expectStaticMark(card: ReactTestInstance) {
   const moon = marks[0]!.findAll((node) => typeof node.type === 'string' && node.props.d === ORBIT_SMALL_FACES[24].moon)
   expect(moon).toHaveLength(1)
   expect(moon[0]!.props.fill).toBe(tokens.primary)
-  expect(hostsOf(card).some((node) => /orbit-mark|astra-glyph/.test(String(node.props.testID)))).toBe(false)
+  expect(hostsOf(card).some((node) => /orbit-mark|orbit-glyph/.test(String(node.props.testID)))).toBe(false)
 }
 
 afterEach(async () => {
@@ -69,6 +69,6 @@ describe('the mark in a shared image on Android', () => {
   })
 
   it.each(IMAGE_OWNERS)('%s names no old mark component', (owner) => {
-    expect(readFileSync(resolve(process.cwd(), owner), 'utf8')).not.toMatch(/OrbitMark|AstraGlyph|orbit-mark|astra-glyph/)
+    expect(readFileSync(resolve(process.cwd(), owner), 'utf8')).not.toMatch(/OrbitMark|OrbitGlyph|orbit-mark|orbit-glyph/)
   })
 })

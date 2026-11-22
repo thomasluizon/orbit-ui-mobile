@@ -423,7 +423,7 @@ test('surface inspection primes and polls the native web content without accepti
     let calls = 0
     const report = { accessibility: {} as Record<string, unknown> }
     const native = async () => ++calls < 3 ? first : ready
-    const proxy = { send: (command: string) => { assert.equal(command, 'astra'); throw new Error('Hoje inspected') } }
+    const proxy = { send: (command: string) => { assert.equal(command, 'orbit'); throw new Error('Hoje inspected') } }
     await assert.rejects(() => context.inspect(proxy, native, { child: { pid: 1 } }, 'output', report), /Hoje inspected/)
     assert.equal(calls, 3)
     assert.equal(context.elapsed(), 100)
@@ -463,7 +463,7 @@ test('native capture failures and unnamed page controls fail immediately during 
   }
 })
 
-test('surface inspection dismisses Astra and waits for its modal focus owner before the native palette shortcut', async () => {
+test('surface inspection dismisses Orbit and waits for its modal focus owner before the native palette shortcut', async () => {
   const shortcuts = readFileSync(new URL('../../apps/web/hooks/use-keyboard-shortcuts.ts', import.meta.url), 'utf8')
   const keydown = shortcuts.slice(shortcuts.indexOf('    function onKeyDown('), shortcuts.indexOf("    document.addEventListener('keydown'"))
     .replace('event: KeyboardEvent', 'event')
@@ -479,13 +479,13 @@ test('surface inspection dismisses Astra and waits for its modal focus owner bef
       const keyboard = { paletteOpen: false, hasOpenModalFocusOwner: () => modal, togglePalette: () => { palette = !palette } }
       runInNewContext(`${keydown}\nglobalThis.keydown = onKeyDown`, keyboard)
       const openPalette = () => (keyboard as typeof keyboard & { keydown: (event: unknown) => void }).keydown({ ctrlKey: true, key: 'k', preventDefault() {} })
-      const results = ['Today', 'Astra', 'All']
+      const results = ['Today', 'Orbit', 'All']
       const state = () => ({ inputFocused: true, inputName: 'Search commands', results, selected })
       const events: { kind: string; key?: string }[] = []
       const native = async (_pid: number, command: string) => {
         commands.push(command)
         // The page probe reports each keydown it receives; the runner waits for that receipt before it checks the app.
-        if (command === 'escape') { events.push({ kind: modal ? 'astra-key' : 'palette-key', key: 'Escape' }); closing = modal; palette = false }
+        if (command === 'escape') { events.push({ kind: modal ? 'orbit-key' : 'palette-key', key: 'Escape' }); closing = modal; palette = false }
         if (command === 'palette') { openPalette(); events.push({ kind: 'palette-key', key: 'k', metaKey: true, ctrlKey: true }) }
         if (command === 'down' && palette) { selected++; events.push({ kind: 'palette-key', key: 'ArrowDown' }) }
         if (command !== 'dump') return { sent: command }
@@ -500,15 +500,15 @@ test('surface inspection dismisses Astra and waits for its modal focus owner bef
       const proxy = {
         send(command: string) {
           commands.push(command)
-          if (command === 'astra') modal = true
-          if (command === 'astra-close') closing = true
+          if (command === 'orbit') modal = true
+          if (command === 'orbit-close') closing = true
           if (command === 'palette') openPalette()
           if (command.startsWith('focus-')) events.push({ kind: 'focus', ...state() })
         },
         read(surface: string) {
-          if (surface === 'astra') return modal && {}
-          if (surface === 'astra-closed' && closing && ++dismissalReads === 3) modal = false
-          if (surface === 'astra-closed') return !modal && {}
+          if (surface === 'orbit') return modal && {}
+          if (surface === 'orbit-closed' && closing && ++dismissalReads === 3) modal = false
+          if (surface === 'orbit-closed') return !modal && {}
           if (surface === 'palette') return palette && state()
           return false
         },
@@ -522,33 +522,33 @@ test('surface inspection dismisses Astra and waits for its modal focus owner bef
       assert.ok(report.keyDelivery?.every((entry, index) => JSON.stringify(entry.attempts) ===
         JSON.stringify([{ post: 1, received: true, reply: { sent: keys[index] } }])) ?? denied)
       assert.deepEqual(context.logs, keys.map((key) => `Key ${key}: post 1 of 6: the page recorded the keydown in this window\n`))
-      assert.ok(commands.indexOf(denied ? 'astra-close' : 'escape') < commands.indexOf(denied ? 'palette' : 'palette-ready'))
+      assert.ok(commands.indexOf(denied ? 'orbit-close' : 'escape') < commands.indexOf(denied ? 'palette' : 'palette-ready'))
       if (denied) assert.equal((report.paletteFocus as { skipped: string }).skipped, 'AX API disabled')
       else assert.equal((report.paletteFocus as unknown[]).length, 2)
     }
   }
 })
 
-test('a timed-out Astra dismissal records the native tree after Escape and the page key receipts', async () => {
-  const astra = { denied: false, error: null, nodes: [
+test('a timed-out Orbit dismissal records the native tree after Escape and the page key receipts', async () => {
+  const orbit = { denied: false, error: null, nodes: [
     { ...button, id: '0', role: 'AXWebArea', interactive: false },
-    { ...button, id: '0/0', role: 'AXTextArea', name: 'Message Astra', focused: true },
+    { ...button, id: '0/0', role: 'AXTextArea', name: 'Message Orbit', focused: true },
   ] }
   for (const scenario of ['received', 'lost', 'unreadable']) {
     const context = inspectionContext('darwin')
     const commands: string[] = []
-    const escape = { kind: 'astra-key', key: 'Escape', keyCode: 27, trusted: true, targetComposer: true }
+    const escape = { kind: 'orbit-key', key: 'Escape', keyCode: 27, trusted: true, targetComposer: true }
     const events: typeof escape[] = []
     const native = async (_pid: number, command: string) => {
       commands.push(command)
       if (command === 'escape' && scenario !== 'lost') events.push(escape)
       if (command !== 'dump') return { sent: command, delivery: 'process-event' }
       if (scenario === 'unreadable' && commands.filter((entry) => entry === 'dump').length === 3) throw new Error('AX read failed')
-      return astra
+      return orbit
     }
     const proxy = {
       send(command: string) { commands.push(command) },
-      read(surface: string) { return surface === 'astra' && {} },
+      read(surface: string) { return surface === 'orbit' && {} },
       events: () => events,
     }
     const report: Record<string, unknown> = { accessibility: {} }
@@ -556,25 +556,25 @@ test('a timed-out Astra dismissal records the native tree after Escape and the p
       // A key the OS never delivered fails as OS delivery after the bounded posts, and the app's dismissal is never judged.
       await assert.rejects(() => context.inspect(proxy, native, { child: { pid: 1 } }, 'output', report),
         /^Error: OS key delivery failed: the page received no escape keydown after 6 posts 5 s apart;/)
-      assert.deepEqual(commands, ['dump', 'astra', 'dump', ...Array(6).fill('escape')])
+      assert.deepEqual(commands, ['dump', 'orbit', 'dump', ...Array(6).fill('escape')])
       assert.equal(context.elapsed(), 30000)
-      assert.equal(report.astraKeys, undefined)
+      assert.equal(report.orbitKeys, undefined)
       continue
     }
     await assert.rejects(() => context.inspect(proxy, native, { child: { pid: 1 } }, 'output', report),
-      /^Error: Timed out waiting for Astra dismissal; the page received 1 Escape keydown; see trees\/astra-after-escape\.json$/)
-    assert.deepEqual(commands, ['dump', 'astra', 'dump', 'escape', 'astra-closed', 'dump'])
-    assert.deepEqual(report.astraKeys, events)
+      /^Error: Timed out waiting for Orbit dismissal; the page received 1 Escape keydown; see trees\/orbit-after-escape\.json$/)
+    assert.deepEqual(commands, ['dump', 'orbit', 'dump', 'escape', 'orbit-closed', 'dump'])
+    assert.deepEqual(report.orbitKeys, events)
     const capture = context.records.at(-1)!
-    assert.equal(capture.path, join('output', 'trees', 'astra-after-escape.json'))
-    assert.deepEqual(JSON.parse(JSON.stringify(capture.value)), scenario === 'unreadable' ? { denied: false, error: 'AX read failed', nodes: [] } : astra)
+    assert.equal(capture.path, join('output', 'trees', 'orbit-after-escape.json'))
+    assert.deepEqual(JSON.parse(JSON.stringify(capture.value)), scenario === 'unreadable' ? { denied: false, error: 'AX read failed', nodes: [] } : orbit)
   }
 })
 
-test('the page probe waits for Astra removal before acknowledging dismissal', async () => {
+test('the page probe waits for Orbit removal before acknowledging dismissal', async () => {
   const until = probeSource.slice(probeSource.indexOf('  async function until('), probeSource.indexOf('  async function emailSignIn('))
   const screen = probeSource.slice(probeSource.indexOf('  async function screen('), probeSource.indexOf('  function paletteState('))
-  for (const command of ['astra-closed', 'astra-close']) {
+  for (const command of ['orbit-closed', 'orbit-close']) {
     let reads = 0
     let frames = 0
     const keys: string[] = []
@@ -586,7 +586,7 @@ test('the page probe waits for Astra removal before acknowledging dismissal', as
           return ++reads < 3 ? {} : null
         },
         dispatchEvent(event: { key: string }) { keys.push(event.key) },
-        // The runner posts Command+K as soon as it reads astra-closed, so the palette key listener must be in place first.
+        // The runner posts Command+K as soon as it reads orbit-closed, so the palette key listener must be in place first.
         addEventListener(type: string, listener: { name: string }, capture: boolean) {
           assert.ok(type === 'keydown' && listener.name === 'recordPaletteKey' && capture)
           reports.push('palette-key-listener')
@@ -600,12 +600,12 @@ test('the page probe waits for Astra removal before acknowledging dismissal', as
     await (context as typeof context & { screen: (surface: string) => Promise<void> }).screen(command)
     assert.equal(reads, 3)
     assert.equal(frames, 2)
-    assert.deepEqual(keys, command === 'astra-close' ? ['Escape'] : [])
-    assert.deepEqual(reports, ['palette-key-listener', 'astra-closed'])
+    assert.deepEqual(keys, command === 'orbit-close' ? ['Escape'] : [])
+    assert.deepEqual(reports, ['palette-key-listener', 'orbit-closed'])
   }
 })
 
-test('the page probe records each keydown while Astra is open, so a lost native Escape is visible', async () => {
+test('the page probe records each keydown while Orbit is open, so a lost native Escape is visible', async () => {
   const until = probeSource.slice(probeSource.indexOf('  async function until('), probeSource.indexOf('  async function emailSignIn('))
   const screen = probeSource.slice(probeSource.indexOf('  async function screen('), probeSource.indexOf('  function paletteState('))
   const composer = { name: 'composer' }
@@ -616,7 +616,7 @@ test('the page probe records each keydown while Astra is open, so a lost native 
     document: {
       hasFocus: () => true,
       querySelector(selector: string) {
-        if (selector === '[data-astra-button]:not([disabled])') return { click() { conversation = { querySelector: () => composer } } }
+        if (selector === '[data-orbit-button]:not([disabled])') return { click() { conversation = { querySelector: () => composer } } }
         if (selector === '[data-shell-conversation] [data-composer-input]') return conversation && composer
         if (selector === '[data-shell-conversation]') return conversation
         return null
@@ -626,15 +626,15 @@ test('the page probe records each keydown while Astra is open, so a lost native 
     report: async (kind: string, details: Record<string, unknown> = {}) => { reports.push({ kind, details }) },
   }
   runInNewContext(`${until}\n${screen}\nglobalThis.screen = screen`, context)
-  await (context as typeof context & { screen: (surface: string) => Promise<void> }).screen('astra')
+  await (context as typeof context & { screen: (surface: string) => Promise<void> }).screen('orbit')
   const keydown = listeners.filter(([type, , capture]) => type === 'keydown' && capture)
   assert.equal(keydown.length, 1)
   keydown[0][1]({ key: 'Escape', code: 'Escape', keyCode: 27, isComposing: false, isTrusted: true, target: composer })
   conversation = null
   keydown[0][1]({ key: 'k', code: 'KeyK', keyCode: 75, isComposing: false, isTrusted: true, target: null })
-  assert.deepEqual(JSON.parse(JSON.stringify(reports.filter((entry) => entry.kind === 'astra-key'))), [{ kind: 'astra-key', details: {
+  assert.deepEqual(JSON.parse(JSON.stringify(reports.filter((entry) => entry.kind === 'orbit-key'))), [{ kind: 'orbit-key', details: {
     key: 'Escape', code: 'Escape', keyCode: 27, composing: false, trusted: true, documentFocused: true, targetComposer: true } }])
-  assert.deepEqual(reports.map((entry) => entry.kind), ['astra', 'astra-key'])
+  assert.deepEqual(reports.map((entry) => entry.kind), ['orbit', 'orbit-key'])
 })
 
 test('acceptance cleanup records failures without replacing the original acceptance error', async () => {

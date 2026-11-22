@@ -142,16 +142,16 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
     return captured.tree
   }
   await dump('hoje')
-  proxy.send('astra')
-  await waitFor(() => proxy.read('astra'), 'Astra surface')
-  const astraTree = await dump('astra')
-  if (astraTree.denied) {
-    proxy.send('astra-close')
-    await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
-  } else await dismissAstra(proxy, native, handle, output, report)
-  if (astraTree.denied) proxy.send('palette')
+  proxy.send('orbit')
+  await waitFor(() => proxy.read('orbit'), 'Orbit surface')
+  const orbitTree = await dump('orbit')
+  if (orbitTree.denied) {
+    proxy.send('orbit-close')
+    await waitFor(() => proxy.read('orbit-closed'), 'Orbit dismissal')
+  } else await dismissOrbit(proxy, native, handle, output, report)
+  if (orbitTree.denied) proxy.send('palette')
   else {
-    // The probe records palette keys from the Astra close on, so the Command+K that opens the palette has a receipt too.
+    // The probe records palette keys from the Orbit close on, so the Command+K that opens the palette has a receipt too.
     const modifier = process.platform === 'win32' ? 'ctrlKey' : 'metaKey'
     await pressKey(proxy, native, handle, report, 'palette', 'palette-key', (event) => event.key.toLowerCase() === 'k' && event[modifier])
     proxy.send('palette-ready')
@@ -170,19 +170,19 @@ function pressKey(proxy, native, handle, report, command, kind, matches) {
     matches, waitFor, now: () => Date.now(), record: report.keyDelivery ??= [], log: (line) => process.stdout.write(`${line}\n`) })
 }
 
-async function dismissAstra(proxy, native, handle, output, report) {
-  await pressKey(proxy, native, handle, report, 'escape', 'astra-key', (event) => event.key === 'Escape')
-  proxy.send('astra-closed')
+async function dismissOrbit(proxy, native, handle, output, report) {
+  await pressKey(proxy, native, handle, report, 'escape', 'orbit-key', (event) => event.key === 'Escape')
+  proxy.send('orbit-closed')
   try {
-    await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
+    await waitFor(() => proxy.read('orbit-closed'), 'Orbit dismissal')
   } catch (error) {
-    // The Escape reached the page, so a timeout is the app's; the page's Astra keydowns show what it received.
-    report.astraKeys = proxy.events().filter((event) => event.kind === 'astra-key')
+    // The Escape reached the page, so a timeout is the app's; the page's Orbit keydowns show what it received.
+    report.orbitKeys = proxy.events().filter((event) => event.kind === 'orbit-key')
     let tree
     try { tree = await native(handle.child.pid, 'dump') } catch (dumpError) { tree = { denied: false, error: dumpError.message, nodes: [] } }
-    await record(join(output, 'trees', 'astra-after-escape.json'), tree)
-    const escapes = report.astraKeys.filter((event) => event.key === 'Escape').length
-    throw new Error(`${error.message}; the page received ${escapes} Escape keydown${escapes === 1 ? '' : 's'}; see trees/astra-after-escape.json`)
+    await record(join(output, 'trees', 'orbit-after-escape.json'), tree)
+    const escapes = report.orbitKeys.filter((event) => event.key === 'Escape').length
+    throw new Error(`${error.message}; the page received ${escapes} Escape keydown${escapes === 1 ? '' : 's'}; see trees/orbit-after-escape.json`)
   }
 }
 

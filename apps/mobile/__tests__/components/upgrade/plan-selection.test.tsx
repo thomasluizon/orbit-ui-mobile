@@ -338,7 +338,7 @@ describe('PlanSelection (mobile)', () => {
     for (const interval of ['yearly', 'monthly']) {
       const card = tree.root.findByProps({ testID: `upgrade-tier-${interval}` })
       const outcomes = card.findByProps({ accessibilityLabel: 'upgrade.outcomes.label' })
-      for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+      for (const key of ['orbit', 'calendar', 'retrospective', 'noticing']) {
         expect(outcomes.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
           node.type === 'Text' && node.props.children === `upgrade.outcomes.${key}`)).toHaveLength(1)
       }

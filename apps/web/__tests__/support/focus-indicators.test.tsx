@@ -52,12 +52,12 @@ describe('field indicator readers in Chromium', () => {
     }
   })
 
-  it('preserves the neutral outline on the real Today Astra control class', async () => {
+  it('preserves the neutral outline on the real Today Orbit control class', async () => {
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet}
         :root { ${Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([property, value]) => `${property}: ${value};`).join(' ')} }
-      </style><button class="today-astra-line">Astra</button>`)
+      </style><button class="today-orbit-line">Orbit</button>`)
       await page.keyboard.press('Tab')
       expect((await inspectFocusedRing(page))?.indicators).toEqual(['button:outline'])
       expect(await inspectControlAccentRings(page.locator('button'))).toEqual(['button:outline'])

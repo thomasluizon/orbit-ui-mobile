@@ -1,4 +1,4 @@
-/** Hoje and habit detail use a minimum-height 56 one-line pill with an inside leading Astra glyph,
+/** Hoje and habit detail use a minimum-height 56 one-line pill with an inside leading Orbit glyph,
  * input, + menu and one trailing voice or send action. The conversation uses the same pill without the glyph.
  * Hoje chips live in the conversation; habit detail chips stay in one scroll row without ellipsis.
  * Photo and document use the + menu. Voice gives way to send when content can be sent. Input grows to five lines, then scrolls inside.

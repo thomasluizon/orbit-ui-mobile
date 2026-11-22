@@ -132,7 +132,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" astra-row="{{ astraRow }}" items="{{ navItems }}" active-id="perfil" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ header }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" orbit-row="{{ orbitRow }}" items="{{ navItems }}" active-id="perfil" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ header }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
           <div style="display:flex;flex-direction:column;gap:24px;max-width:560px">
 
             <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
@@ -277,7 +277,7 @@ const T = {
     navLabel: 'Navegação principal', palette: 'Buscar',
     proName: 'Orbit Pro', freeName: 'Plano grátis', lifetimeName: 'Orbit Pro para sempre',
     badgeTrial: 'Teste', badgeLifetime: 'Vitalício',
-    proLine: 'As 50 mensagens por dia estão liberadas, com a agenda, a retrospectiva e os avisos do Astra.',
+    proLine: 'As 50 mensagens por dia estão liberadas, com a agenda, a retrospectiva e os avisos do Orbit.',
     trialLine: 'O teste está valendo, com tudo do Pro liberado. Se você não assinar, a conta volta para o plano grátis.',
     lifetimeLine: 'Você tem o Pro para sempre. Não há nada para renovar, e não há nada para cancelar.',
     freeLine: 'As 5 mensagens por dia continuam valendo. A sua lista e os seus registros não mudam.',
@@ -293,7 +293,7 @@ const T = {
     lapsedTitle: 'A sua assinatura terminou',
     lapsedBody: 'A conta voltou para o plano grátis. Os seus hábitos, registros e metas continuam aqui, sem mudança.',
     lapsedReason: 'O cartão foi recusado na renovação. Atualizar o cartão no provedor resolve.',
-    lost: ['As mensagens do Astra voltaram para 5 por dia.', 'A agenda do Google não sincroniza mais.',
+    lost: ['As mensagens do Orbit voltaram para 5 por dia.', 'A agenda do Google não sincroniza mais.',
       'A retrospectiva do período parou.'],
     resubscribe: 'Assinar de novo',
     canceledBadge: 'Cancelada', pastDueBadge: 'Em atraso',
@@ -304,7 +304,7 @@ const T = {
     payCard: (brand, last) => brand + ' terminando em ' + last,
     payExpires: (v) => ['Expira em ', mock(v)],
     payChange: 'Trocar',
-    usageTitle: 'Mensagens do Astra',
+    usageTitle: 'Mensagens do Orbit',
     usageOf: (a, b) => [mock(a), ' de ', mock(b), ' hoje'],
     invTitle: 'Histórico de cobrança',
     invReasons: { created: 'Assinatura criada', cycle: 'Renovação', updated: 'Assinatura alterada', manual: 'Cobrança manual' },
@@ -320,7 +320,7 @@ const T = {
     navLabel: 'Main navigation', palette: 'Search',
     proName: 'Orbit Pro', freeName: 'Free plan', lifetimeName: 'Orbit Pro for life',
     badgeTrial: 'Trial', badgeLifetime: 'Lifetime',
-    proLine: 'The 50 messages a day are on, along with the calendar, the retrospective and Astra noticing things.',
+    proLine: 'The 50 messages a day are on, along with the calendar, the retrospective and Orbit noticing things.',
     trialLine: 'The trial is running with everything in Pro switched on. If you do not subscribe, the account goes back to the free plan.',
     lifetimeLine: 'You have Pro for life. There is nothing to renew, and nothing to cancel.',
     freeLine: 'The 5 messages a day still apply. Your list and your logs do not change.',
@@ -336,7 +336,7 @@ const T = {
     lapsedTitle: 'Your subscription ended',
     lapsedBody: 'The account went back to the free plan. Your habits, logs and goals are all still here, unchanged.',
     lapsedReason: 'The card was declined at renewal. Updating the card with the provider fixes it.',
-    lost: ['Astra messages went back to 5 a day.', 'Google Calendar no longer syncs.',
+    lost: ['Orbit messages went back to 5 a day.', 'Google Calendar no longer syncs.',
       'The periodic retrospective stopped.'],
     resubscribe: 'Subscribe again',
     canceledBadge: 'Canceled', pastDueBadge: 'Past due',
@@ -347,7 +347,7 @@ const T = {
     payCard: (brand, last) => brand + ' ending in ' + last,
     payExpires: (v) => ['Expires ', mock(v)],
     payChange: 'Change',
-    usageTitle: 'Astra messages',
+    usageTitle: 'Orbit messages',
     usageOf: (a, b) => [mock(a), ' of ', mock(b), ' today'],
     invTitle: 'Billing history',
     invReasons: { created: 'Subscription created', cycle: 'Renewal', updated: 'Subscription updated', manual: 'Manual charge' },
@@ -495,7 +495,7 @@ class Component extends DCLogic {
           style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } },
           H(D.Icon, { name: 'arrow-left', size: 20 })),
         H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-lg)', fontWeight: 500 } }, t.title)),
-      astraRow: H(window.OrbitNativeMobile.AstraRow),
+      orbitRow: H(window.OrbitNativeMobile.OrbitRow),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
     });
   }

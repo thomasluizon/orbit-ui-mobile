@@ -586,7 +586,7 @@ describe('subscription dashboards (mobile)', () => {
     expect(decline).toBeDefined()
     TestRenderer.act(() => (decline?.props.onPress as (() => void) | undefined)?.())
     expect(onStayFree).toHaveBeenCalledTimes(1)
-    expect(text.match(/upgrade\.outcomes\.(astra|calendar|retrospective|noticing)/g)).toHaveLength(8)
+    expect(text.match(/upgrade\.outcomes\.(orbit|calendar|retrospective|noticing)/g)).toHaveLength(8)
     expect(text).not.toContain('upgrade.features.')
     expect(text).not.toContain('upgrade.matrix.')
   })

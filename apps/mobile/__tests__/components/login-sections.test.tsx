@@ -56,7 +56,7 @@ describe('LoginHeader', () => {
 
 describe('ReferralBanner', () => {
   it('announces the localized referral invite through a polite live region', () => {
-    const inviteCopy = 'Invite a friend, you both unlock Astra'
+    const inviteCopy = 'Invite a friend, you both unlock Orbit'
     const t = createTranslator({ 'referral.loginBanner': inviteCopy })
 
     const tree = render(<ReferralBanner t={t} styles={styles} />)

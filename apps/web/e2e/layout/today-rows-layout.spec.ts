@@ -120,7 +120,7 @@ async function assertTodayTextEdges(page: Page, sentenceVisible: boolean, width:
     const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
     const dates = Array.from(document.querySelectorAll('[data-today-date-row] [data-today-date] p'))
     const dateRow = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
-    const sentence = document.querySelector('.today-astra-sentence')
+    const sentence = document.querySelector('.today-orbit-sentence')
     const titles = rows.map((row) => ({ element: (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div') ?? row.querySelector('[data-personal-text-content] > div'))!, depth: Number(row.getAttribute('data-depth')) }))
     return {
       dateCenters: dates.map((element) => {
@@ -189,10 +189,10 @@ for (const width of [320, 600]) {
         await expect(disclosure).toBeVisible()
         if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
         await expect(page.getByTestId('habit-row')).toHaveCount(3)
-        await expect(page.locator('.today-astra-sentence')).toHaveText(proactive.text)
+        await expect(page.locator('.today-orbit-sentence')).toHaveText(proactive.text)
         await setHabitTextScale(page, textScale, [habits[0]!.title])
         await page.evaluate(async (scale) => {
-          for (const label of document.querySelectorAll<HTMLElement>('.today-astra-sentence')) {
+          for (const label of document.querySelectorAll<HTMLElement>('.today-orbit-sentence')) {
             label.style.fontSize = `${Number.parseFloat(getComputedStyle(label).fontSize) * scale}px`
           }
           await document.fonts.ready
@@ -202,7 +202,7 @@ for (const width of [320, 600]) {
             await openTodayListOptions(page, ptBr.habits.listOptions)
             await page.getByRole('menuitem', { name: ptBr.common.select, exact: true }).click()
             await expect(page.locator('[data-habit-row-control="selection"]')).toHaveCount(3)
-            await expect(page.locator('.today-astra-sentence')).toHaveCount(0)
+            await expect(page.locator('.today-orbit-sentence')).toHaveCount(0)
           }
           await assertTodayTextEdges(page, !selecting, width)
           for (const body of await page.locator('[data-habit-row-body]').all()) {

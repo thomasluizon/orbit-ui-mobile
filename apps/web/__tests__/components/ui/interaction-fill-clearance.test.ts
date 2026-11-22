@@ -345,7 +345,7 @@ describe('interaction clearance inspector in Chromium', () => {
       await page.setContent(`<style>button { position:absolute;left:32px;top:32px;width:160px;height:48px;background:gray;border:0;outline:none }
         [data-shell-bottom] { position:relative;background:black;height:80px } p { position:absolute;left:32px;top:80px;margin:0 }</style>
         <main data-shell-scroller><button>Child row</button>${collision ? '<p>Same scroller</p>' : ''}</main>
-        <div data-shell-bottom><nav>Today Calendar Progress Profile</nav><div>Ask Astra</div></div>`)
+        <div data-shell-bottom><nav>Today Calendar Progress Profile</nav><div>Ask Orbit</div></div>`)
       const result = await page.getByRole('button').evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
       expect(result.violations).toEqual(collision ? [{ neighbour: 'p[Same scroller]', distance: 0 }] : [])
     })

@@ -78,7 +78,7 @@ import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { Composer } from '@/components/shell/composer'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
@@ -159,8 +159,8 @@ function RootLayoutNav() {
   const activeView = useUIStore((s) => s.activeView)
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
   const setLastDestination = useUIStore((s) => s.setLastDestination)
-  const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
-  const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
+  const orbitConversationOpen = useUIStore((s) => s.orbitConversationOpen)
+  const setOrbitConversationOpen = useUIStore((s) => s.setOrbitConversationOpen)
   const offline = useOffline()
   const offlineNotice = useOfflineNoticeContent()
   const chat = useChatComposer({
@@ -205,8 +205,8 @@ function RootLayoutNav() {
   )
   const notificationDeleteNotice = notificationDeleteNoticeOwner === null ? null : <NotificationDeleteNotice />
   const conversation = {
-    conversation: <AstraConversation chat={chat} />,
-    conversationOpen: astraConversationOpen,
+    conversation: <OrbitConversation chat={chat} />,
+    conversationOpen: orbitConversationOpen,
     conversationLabel: t('chat.title'),
   }
   const androidBackFallbackRoute = useMemo(
@@ -280,8 +280,8 @@ function RootLayoutNav() {
               <Composer
                 {...chat.composerProps}
                 suggestions={chat.composerProps.suggestions}
-                onOpenConversation={() => setAstraConversationOpen(true)}
-                conversationLabel={t('todayAstra.openConversation')}
+                onOpenConversation={() => setOrbitConversationOpen(true)}
+                conversationLabel={t('todayOrbit.openConversation')}
                 onSend={chat.composerProps.onSend}
               />
             ) : undefined}
@@ -291,10 +291,10 @@ function RootLayoutNav() {
               {offlineNotice}
             </>}
             tabBar={<DestinationTabBar pathname={pathname} notFound={isNotFound} />}
-            fab={pathname === '/' && !todayFabHidden && !astraConversationOpen
+            fab={pathname === '/' && !todayFabHidden && !orbitConversationOpen
               ? <AppCreateFab onCreate={handleCreate} />
               : undefined}
-            astraButton={pathname === '/' && !isNotFound}
+            orbitButton={pathname === '/' && !isNotFound}
           >
             <RootStackScreens />
           </Shell412>

@@ -56,7 +56,7 @@ describe('getRelatedSurfaces', () => {
     )).toBe(false)
   })
 
-  it('opens Astra settings guidance on Profile where both controls live', () => {
+  it('opens Orbit settings guidance on Profile where both controls live', () => {
     expect(RELATED_SURFACE_ROUTES['ai-settings']).toMatchObject({
       labelKey: 'nav.profile',
       webRoute: '/profile',

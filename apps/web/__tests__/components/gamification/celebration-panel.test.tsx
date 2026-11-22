@@ -102,7 +102,7 @@ describe('CelebrationPanel', () => {
     useUIStore.getState().enqueueCelebration('level-up', { level: 2 })
     vi.useFakeTimers()
     const { container } = render(
-      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
+      <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }}
         items={[{ id: 'hoje', href: '/', label: 'Today', icon: 'hoje' }]}
         activeId="hoje"
         navLabel="Main navigation"

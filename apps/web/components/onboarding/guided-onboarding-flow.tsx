@@ -9,7 +9,7 @@ import type { FlowStepView, QuestionFlowProps } from '@orbit/shared/contracts/fl
 import {
   buildOnboardingScheduleFromPhrase,
   canRepeatOnboardingScheduleWeeks,
-  createAstraAllowanceTranslator,
+  createOrbitAllowanceTranslator,
   getOnboardingRemindCopy,
   getOnboardingReminderPreviewTime,
   getOnboardingScheduleMode,
@@ -220,7 +220,7 @@ function useSummaryValue(props: GuidedOnboardingProps, habitTitle: string) {
 function useSummaryView(props: GuidedOnboardingProps, habitTitle: string, cadenceText: (timed: boolean) => string, open: (step: OnboardingQuestionStep) => void): StepView {
   const t = useTranslations()
   const locale = useLocale()
-  const translate = createAstraAllowanceTranslator(t, { aiMessagesPeriod: props.allowancePeriod }, locale)
+  const translate = createOrbitAllowanceTranslator(t, { aiMessagesPeriod: props.allowancePeriod }, locale)
   const value = useSummaryValue(props, habitTitle)
   const row = (step: OnboardingQuestionStep) => (
     <Proposed key={step} proposed={props.proposed && step !== 'what'} scope="row" label={t('onboarding.flow.when.proposedBy')} keepMounted>

@@ -9,7 +9,7 @@ import tailwind from '@tailwindcss/postcss'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
-import { TodayAstra } from '@/components/today/today-astra'
+import { TodayOrbit } from '@/components/today/today-orbit'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -45,7 +45,7 @@ describe('Hoje proactive line perimeter', () => {
     const { container, unmount } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
       <DestinationShell onCreate={() => {}}>
         <div className="relative mx-auto w-full max-w-[740px]">
-          <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
+          <TodayOrbit today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
         </div>
         <div aria-hidden="true" style={{ height: 1200 }} />
       </DestinationShell>
@@ -57,11 +57,11 @@ describe('Hoje proactive line perimeter', () => {
       await page.evaluate(async ({ mode, textScale }) => {
         document.documentElement.className = mode
         document.querySelector<HTMLElement>('[data-shell-scroller]')!.style.scrollbarGutter = 'stable'
-        const sentence = document.querySelector<HTMLElement>('.today-astra-sentence')!
+        const sentence = document.querySelector<HTMLElement>('.today-orbit-sentence')!
         sentence.style.fontSize = `${Number.parseFloat(getComputedStyle(sentence).fontSize) * textScale}px`
         await document.fonts.ready
       }, { mode, textScale })
-      const line = page.locator('.today-astra-line')
+      const line = page.locator('.today-orbit-line')
       await line.focus()
       await page.keyboard.press('Shift+Tab')
       await page.keyboard.press('Tab')
@@ -75,7 +75,7 @@ describe('Hoje proactive line perimeter', () => {
         const style = getComputedStyle(element)
         const outlineWidth = Number.parseFloat(style.outlineWidth)
         const extent = outlineWidth + Number.parseFloat(style.outlineOffset)
-        const sentence = element.querySelector<HTMLElement>('.today-astra-sentence')!
+        const sentence = element.querySelector<HTMLElement>('.today-orbit-sentence')!
         return {
           leftInset: bounds.left - content.left,
           rightInset: content.right - bounds.right,

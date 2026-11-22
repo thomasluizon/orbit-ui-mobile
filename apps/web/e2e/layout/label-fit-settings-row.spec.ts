@@ -37,7 +37,7 @@ for (const width of [320, 360, 384, 412]) {
       test('keeps product labels whole and gives typed names the full row width', async ({ page }) => {
         const habitName = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos durante os encontros da semana'
         const labels = [words.profile.analytics.title, words.profile.marketingEmails.title, words.trial.expired.calendarSync] as const
-        const markup = renderSettingsRowMarkup([...labels, words.trial.expired.proactiveAstra], habitName)
+        const markup = renderSettingsRowMarkup([...labels, words.trial.expired.proactiveOrbit], habitName)
         await page.setContent(settingsPage(markup))
         await loadAppFonts(page)
         for (const body of await page.locator('[data-slot="list-row-body"]').all()) {
@@ -45,7 +45,7 @@ for (const width of [320, 360, 384, 412]) {
           await expect(body).toHaveCSS('padding-block-start', '12px')
           await expect(body).toHaveCSS('border-bottom-width', '0px')
         }
-        for (const label of [...labels, words.trial.expired.proactiveAstra]) {
+        for (const label of [...labels, words.trial.expired.proactiveOrbit]) {
           await markRequiredLabels(page.getByText(label, { exact: true }))
         }
         await markUserText(page, [habitName])
@@ -100,7 +100,7 @@ for (const width of [320, 360, 384, 412]) {
           await page.goto('/profile')
           const dialog = page.getByRole('dialog', { name: words.trial.expired.heading })
           await expect(dialog).toBeVisible()
-          const labels = [words.trial.expired.astraCeiling, words.trial.expired.calendarSync, words.trial.expired.retrospective, words.trial.expired.proactiveAstra]
+          const labels = [words.trial.expired.orbitCeiling, words.trial.expired.calendarSync, words.trial.expired.retrospective, words.trial.expired.proactiveOrbit]
           for (const label of labels) await markRequiredLabels(dialog.getByText(label, { exact: true }))
           await expectLabelsFit(page, dialog)
           await doubleTextSize(page)
@@ -116,7 +116,7 @@ for (const width of [320, 360, 384, 412]) {
       })
 
       test('renders every product label line when the root text size doubles', async ({ page }) => {
-        const label = `${words.trial.expired.calendarSync} ${words.trial.expired.proactiveAstra} ${words.trial.expired.calendarSync}`
+        const label = `${words.trial.expired.calendarSync} ${words.trial.expired.proactiveOrbit} ${words.trial.expired.calendarSync}`
         const markup = renderSettingsRowMarkup([label])
         await page.setContent(settingsPage(markup, 'html{font-size:32px}'))
         await loadAppFonts(page)

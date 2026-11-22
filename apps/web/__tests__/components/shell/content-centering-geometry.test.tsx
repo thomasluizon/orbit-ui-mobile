@@ -19,7 +19,7 @@ import { Composer } from '@/components/shell/composer'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { Toast } from '@/components/ui/toast'
-import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { HabitRow } from '@/components/habits/habit-row'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -74,12 +74,12 @@ describe('page content centring and add control clearance', () => {
       const items = ['hoje', 'calendario', 'progresso', 'perfil'].map(id => ({ id, href: '/', label: id, icon: () => <span style={{ width: 24, height: 24 }} /> }));
       const noop = () => {};
       createRoot(document.getElementById('root')).render(<NextIntlClientProvider locale="pt-BR" messages={words}>
-        <ShellWide items={items.map(({ id, href, label }) => ({ id, href, label, icon: id }))} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: noop }}
+        <ShellWide items={items.map(({ id, href, label }) => ({ id, href, label, icon: id }))} activeId="hoje" navLabel="Navegação" orbitRow={{ label: 'Orbit', onOpen: noop }}
           header={<DestinationHeaderRow><button type="button" style={{ height: 48 }}>Hoje</button></DestinationHeaderRow>}
           notice={configuration.pressure ? <div style={{ minHeight: 160 }}><Toast kind="neutral" message="Saved" /></div> : undefined}
           composer={<Composer state="idle" value="Ler" suggestions={[]} words={words.shell.composer}
             onChangeValue={noop} onSend={noop} onAttachFile={noop}
-            attachWords={{ ...words.shell.composer.attach, remove: name => name }} onOpenConversation={noop} conversationLabel="Astra" />}
+            attachWords={{ ...words.shell.composer.attach, remove: name => name }} onOpenConversation={noop} conversationLabel="Orbit" />}
           fab={<Fab label="Criar" onClick={noop}>+</Fab>}
           tabBar={<BottomTabBar items={items} activeId="hoje" onSelect={noop} label="Navegação" />}>
           {Array.from({ length: 40 }, (_, index) => <button key={index} type="button" style={{ display: 'block', height: 48 }}>{index}</button>)}
@@ -99,7 +99,7 @@ describe('page content centring and add control clearance', () => {
 
   it.each([412, 480, 740, 840, 1100, 841, 1101])('centres columns within their usable containers at %ipx', async (width) => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>
-      <ShellWide items={[]} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: vi.fn() }}>
+      <ShellWide items={[]} activeId="hoje" navLabel="Navegação" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}>
         <HabitCreateFrame presentation="screen" open fromConversation={false} leaving={false} actionRefreshKey="test" onNavigate={vi.fn()} onReturn={vi.fn()}
           actions={<HabitCreateActions presentation="screen" pending={false} empty={false} subHabit={false} online formId="create" onCancel={vi.fn()} />}>
           <form id="create"><label>Hábito<input /></label></form>
@@ -127,7 +127,7 @@ describe('page content centring and add control clearance', () => {
   it.each([412, 1352].flatMap(width => [false, true].map(floating => ({ width, floating }))))(
     'aligns the notice with its measurable parent at $width, floating=$floating', async ({ width, floating }) => {
       const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
-        <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+        <ShellWide items={[]} activeId="hoje" navLabel="Navigation" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}
           notice={<Toast kind="neutral" message="Habit deleted" actionLabel="Undo" onAction={vi.fn()} />}
           fab={floating ? <Fab label="Create" onClick={vi.fn()}>+</Fab> : undefined}>
           <div style={{ height: 1600 }} />
@@ -155,9 +155,9 @@ describe('page content centring and add control clearance', () => {
 
   it.each([1024, 1352])('keeps the wide destination wrapper outside focus clipping at %ipx', async (width) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
-      <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      <ShellWide items={[]} activeId="hoje" navLabel="Navigation" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}
         fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>}>
-        <TodayAstraLine text="Review your routine" destination="Astra" onPress={vi.fn()} />
+        <TodayOrbitLine text="Review your routine" destination="Orbit" onPress={vi.fn()} />
       </ShellWide>
     </NextIntlClientProvider>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
@@ -175,10 +175,10 @@ describe('page content centring and add control clearance', () => {
   it.each([240, 360])('reveals complete page controls after centred scrolling at 740 by %ipx', async (height) => {
     const habits = normalizeHabits(Array.from({ length: 12 }, (_, index) => makeHabitScheduleItem({ id: `habit-${index}`, title: 'Read a longer book chapter '.repeat(4) })))
     const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
-      <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      <ShellWide items={[]} activeId="hoje" navLabel="Navigation" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}
         header={<div style={{ height: 48 }} />}
         composer={<Composer state="idle" value="Read" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
-          attachWords={{ ...en.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Astra" />}
+          attachWords={{ ...en.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Orbit" />}
         fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>} tabBar={<div style={{ height: 80 }} />}>
         <div style={{ height: 0.5 }} />
         <TodayDateControl dayName="Friday" numericDate="04/09/2026" isTodaySelected={false} nextDisabled={false}
@@ -284,7 +284,7 @@ describe('page content centring and add control clearance', () => {
     for (const messages of [ptBR, en]) {
       const { container, unmount } = render(<NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
         <ShellWide nav={false}>
-          <HabitListEmptyState title={messages.habits.emptyState} description="" actionLabel={messages.habits.createManually} onAction={vi.fn()} askAstraLabel={messages.habits.askAstra} onAskAstra={vi.fn()} />
+          <HabitListEmptyState title={messages.habits.emptyState} description="" actionLabel={messages.habits.createManually} onAction={vi.fn()} askOrbitLabel={messages.habits.askOrbit} onAskOrbit={vi.fn()} />
           <HabitCreateFrame presentation="screen" open fromConversation={false} leaving={false} actionRefreshKey="test" onNavigate={vi.fn()} onReturn={vi.fn()}
             actions={<HabitCreateActions presentation="screen" pending={false} empty={false} subHabit={false} online formId="create" onCancel={vi.fn()} />}>
             <form id="create"><label>Hábito<input /></label></form>
@@ -309,10 +309,10 @@ describe('page content centring and add control clearance', () => {
           })
           return { column, lines, form: box(document.querySelector('form')!), submit: box(document.querySelector('[data-habit-create-action] button')!) }
         })
-        const astraAction = page.getByRole('button', { name: messages.habits.askAstra, exact: true })
-        expect(await astraAction.textContent()).toBe(messages.habits.askAstra)
-        expect(await astraAction.locator('[data-asset^="orbit-mascot"]').count(), 'Orbit never sits on the filled ask action').toBe(0)
-        const target = await astraAction.boundingBox()
+        const orbitAction = page.getByRole('button', { name: messages.habits.askOrbit, exact: true })
+        expect(await orbitAction.textContent()).toBe(messages.habits.askOrbit)
+        expect(await orbitAction.locator('[data-asset^="orbit-mascot"]').count(), 'Orbit never sits on the filled ask action').toBe(0)
+        const target = await orbitAction.boundingBox()
         expect(target!.width).toBeGreaterThan(48)
         expect(target!.x + target!.width).toBeLessThanOrEqual(viewport.width)
         expect(geometry.lines.length).toBeGreaterThan(0)
@@ -357,7 +357,7 @@ describe('page content centring and add control clearance', () => {
   it.each([320, 412])('reveals intermediate habit actions through forward and backward Tab at %ipx', async (width) => {
     const habits = normalizeHabits(Array.from({ length: 40 }, (_, index) => makeHabitScheduleItem({ id: `focus-${index}`, title: `Read chapter ${index}` })))
     for (const withNotice of [false, true]) {
-      const { container, unmount } = render(<NextIntlClientProvider locale="en" messages={en}><ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      const { container, unmount } = render(<NextIntlClientProvider locale="en" messages={en}><ShellWide items={[]} activeId="hoje" navLabel="Navigation" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}
         notice={withNotice ? <Toast kind="neutral" message="Saved" /> : undefined}
         composer={<Composer state="idle" value="Draft" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
         fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>} tabBar={<div style={{ height: 80 }} />}>
@@ -416,7 +416,7 @@ describe('page content centring and add control clearance', () => {
   ])('lets real rows pass beneath the floating target and clear it at scroll end at $width/$height/$mode/$textScale/$noticeState', async ({ mode, words, textScale, noticeState, ...viewport }) => {
     const habits = normalizeHabits(Array.from({ length: 40 }, (_, index) => makeHabitScheduleItem({ id: `floating-${index}`, title: `Read chapter ${index}` })))
     const notice = floatingNotice(noticeState)
-    const { container } = render(<NextIntlClientProvider locale={words === en ? 'en' : 'pt-BR'} messages={words}><ShellWide items={[]} activeId="hoje" navLabel="Navegação" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+    const { container } = render(<NextIntlClientProvider locale={words === en ? 'en' : 'pt-BR'} messages={words}><ShellWide items={[]} activeId="hoje" navLabel="Navegação" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }}
       notice={notice} composer={<Composer state="idle" value="" suggestions={[]} words={words.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
       fab={<Fab label="Criar" onClick={vi.fn()}>+</Fab>} tabBar={<div style={{ height: 80 }} />}>
       <div className="flex flex-col gap-3 px-4">{[...habits.values()].map(habit => <HabitRow key={habit.id} habit={habit} actions={{ onDetail: vi.fn(), onLog: vi.fn(), onEdit: vi.fn() }} />)}</div>

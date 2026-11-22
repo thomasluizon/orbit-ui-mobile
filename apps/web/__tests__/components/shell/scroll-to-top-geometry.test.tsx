@@ -34,7 +34,7 @@ describe('Hoje back-to-top shell geometry in Chromium', () => {
     async ({ messages, textScale, mode }) => {
       const { container } = render(
         <NextIntlClientProvider locale={messages === en ? 'en' : 'pt-BR'} messages={messages}>
-        <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation}
+        <ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation}
           header={<div style={{ minHeight: 48 }}>Header</div>}
           composer={<div style={{ minHeight: 48 }}>Composer</div>}
           tabBar={<div style={{ minHeight: 80 }}>Tabs</div>}

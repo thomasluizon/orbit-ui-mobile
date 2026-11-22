@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { createAstraAllowanceTranslator, type AstraAllowance } from '@orbit/shared/utils'
+import { createOrbitAllowanceTranslator, type OrbitAllowance } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
 import { useEffect, useRef } from 'react'
 import { AccessibilityInfo, Text, View, useWindowDimensions } from 'react-native'
@@ -7,7 +7,7 @@ import { responsiveTypeStyle } from '@/lib/theme'
 import { plural } from '@/lib/plural'
 import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
-export function ProPitch({ inset = true, profile, trialDaysLeft, t, focusOnMount = false, titleKey, bodyKey, headingId, dateHint, tokens }: Readonly<{ inset?: boolean; profile: ({ isTrialActive?: boolean } & AstraAllowance) | null; trialDaysLeft: number | null; t: UpgradeTextFn; tokens: Tokens; focusOnMount?: boolean; titleKey?: string; bodyKey?: string; headingId?: string; dateHint?: string }>) {
+export function ProPitch({ inset = true, profile, trialDaysLeft, t, focusOnMount = false, titleKey, bodyKey, headingId, dateHint, tokens }: Readonly<{ inset?: boolean; profile: ({ isTrialActive?: boolean } & OrbitAllowance) | null; trialDaysLeft: number | null; t: UpgradeTextFn; tokens: Tokens; focusOnMount?: boolean; titleKey?: string; bodyKey?: string; headingId?: string; dateHint?: string }>) {
   const headingRef = useRef<Text>(null)
   useEffect(() => {
     if (focusOnMount && headingRef.current) {
@@ -46,9 +46,9 @@ export function planFactLine(profile: { isTrialActive?: boolean } | null, trialD
 }
 
 /** The allowance comparison: free a day beside Pro a week, its note and the weekly renewal line. */
-export function AllowanceComparison({ inset = true, profile, t, tokens }: Readonly<{ inset?: boolean; profile: AstraAllowance | null; t: UpgradeTextFn; tokens: Tokens }>) {
+export function AllowanceComparison({ inset = true, profile, t, tokens }: Readonly<{ inset?: boolean; profile: OrbitAllowance | null; t: UpgradeTextFn; tokens: Tokens }>) {
   const { i18n } = useTranslation()
-  const allowanceText = createAstraAllowanceTranslator(t, profile, i18n.language)
+  const allowanceText = createOrbitAllowanceTranslator(t, profile, i18n.language)
   return (
     <View accessibilityLabel={t('upgrade.convert.allowanceLabel')} style={[styles.allowanceSection, !inset && { paddingHorizontal: SPACING.s0 }]}>
       <View

@@ -387,7 +387,7 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('dismisses the real habit import prompt without opening Astra', async () => {
+  it('dismisses the real habit import prompt without opening Orbit', async () => {
     mocks.profile!.hasSeenImportPrompt = false
     mount(<AppLayout><Checkout /></AppLayout>, locale)
     await screen.findByRole('dialog', { name: (locale === 'en' ? en : ptBR).onboarding.wizard.importTitle })

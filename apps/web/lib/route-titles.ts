@@ -8,7 +8,7 @@ export const ROUTE_TITLE_KEYS = {
   '/profile': 'nav.profile',
   '/profile/account': 'profile.submenus.account',
   '/profile/preferences': 'profile.submenus.preferences',
-  '/profile/ai': 'profile.groups.astra',
+  '/profile/ai': 'profile.groups.orbit',
   '/profile/notifications': 'profile.groups.notifications',
   '/progress': 'nav.progress',
   '/progress/streak': 'progressScreen.sections.streak',

@@ -1,4 +1,4 @@
-import { createAstraAllowanceTranslator, type AstraAllowance } from '@orbit/shared/utils'
+import { createOrbitAllowanceTranslator, type OrbitAllowance } from '@orbit/shared/utils'
 import { ProBenefits } from './pro-benefits'
 import type { useTranslations } from 'next-intl'
 import { formatLocaleDate, subscriptionSummary } from '@orbit/shared/utils'
@@ -59,13 +59,13 @@ function invoiceStatus(status: string, t: UpgradeTranslations): string {
 
 function PlanSummary({ status, billing, locale, t }: Readonly<{
   state: SubscriptionScreenState
-  status: SubscriptionStatus & AstraAllowance
+  status: SubscriptionStatus & OrbitAllowance
   billing: BillingDetails | null
   locale: string
   t: UpgradeTranslations
 }>) {
   const summary = subscriptionSummary(status, billing)
-  const translate = createAstraAllowanceTranslator(t, status, locale)
+  const translate = createOrbitAllowanceTranslator(t, status, locale)
   const price = !status.isLifetimePro && billing ? planPrice(billing, t) : null
   return (
     <section className="flex flex-col gap-4 py-4">
@@ -168,7 +168,7 @@ export function BillingDashboard({
 }: Readonly<{
   state: SubscriptionScreenState
   billing: BillingDetails | null
-  status: SubscriptionStatus & AstraAllowance | null
+  status: SubscriptionStatus & OrbitAllowance | null
   locale: string
   usagePercent: number
   onOpenPortal: () => void

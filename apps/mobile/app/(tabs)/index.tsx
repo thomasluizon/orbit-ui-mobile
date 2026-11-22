@@ -33,7 +33,7 @@ import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
-import { TodayAstra } from '@/components/today/today-astra'
+import { TodayOrbit } from '@/components/today/today-orbit'
 import { useTodayMotion } from './use-today-motion'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { useProfile } from '@/hooks/use-profile'
@@ -81,7 +81,7 @@ function TodayViewHeader({ search, activeView, onChangeView, today, focused, isT
   return <View style={styles.viewHeader}>
     <TodaySearchInput search={search} />
     <HabitViewSwitch value={activeView} onChange={onChangeView} />
-    {focused && activeView === 'today' ? <TodayAstra today={today} isTodaySelected={isTodaySelected} suppressed={suppressed} /> : null}
+    {focused && activeView === 'today' ? <TodayOrbit today={today} isTodaySelected={isTodaySelected} suppressed={suppressed} /> : null}
   </View>
 }
 

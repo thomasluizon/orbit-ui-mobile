@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { motionDurations } from '@orbit/shared/theme'
-import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 
 let reducedMotion = false
 
@@ -28,7 +28,7 @@ afterEach(() => { reducedMotion = false })
 
 describe('the root Orbit line row', () => {
   it('draws the live Orbit at 48 in the state the caller gives', () => {
-    const { container } = render(<TodayAstraLine text="Nada marcado nesse dia." destination="Abrir conversa" mascotState="descansando" disabled />)
+    const { container } = render(<TodayOrbitLine text="Nada marcado nesse dia." destination="Abrir conversa" mascotState="descansando" disabled />)
     const mascot = container.querySelector('[data-asset="orbit-mascot"]')!
     expect(mascot.getAttribute('width')).toBe('48')
     expect(mascot.getAttribute('data-orbit-face')).toBe('rig')
@@ -37,9 +37,9 @@ describe('the root Orbit line row', () => {
   })
 
   it('fades a changed sentence in on the micro duration and never fades the first sentence', () => {
-    const { container, rerender } = render(<TodayAstraLine text="Dia 2: tudo feito." destination="Abrir conversa" />)
+    const { container, rerender } = render(<TodayOrbitLine text="Dia 2: tudo feito." destination="Abrir conversa" />)
     expect(container.querySelector('[data-sentence-change]')).toBeNull()
-    rerender(<TodayAstraLine text="Nada marcado nesse dia." destination="Abrir conversa" />)
+    rerender(<TodayOrbitLine text="Nada marcado nesse dia." destination="Abrir conversa" />)
     const sentence = container.querySelector<HTMLElement>('[data-sentence-change]')!
     expect(sentence.textContent).toBe('Nada marcado nesse dia.')
     expect(sentence.style.animation).toContain(`${motionDurations.micro}ms`)
@@ -48,8 +48,8 @@ describe('the root Orbit line row', () => {
   it('keeps the still sentence under reduced motion', () => {
     reducedMotion = true
     stubMatchMedia()
-    const { container, rerender } = render(<TodayAstraLine text="Dia 2: tudo feito." destination="Abrir conversa" />)
-    rerender(<TodayAstraLine text="Nada marcado nesse dia." destination="Abrir conversa" />)
+    const { container, rerender } = render(<TodayOrbitLine text="Dia 2: tudo feito." destination="Abrir conversa" />)
+    rerender(<TodayOrbitLine text="Nada marcado nesse dia." destination="Abrir conversa" />)
     expect(container.querySelector('[data-sentence-change]')).toBeNull()
     expect(container.textContent).toContain('Nada marcado nesse dia.')
     expect(container.querySelector('[data-asset="orbit-mascot"]')?.getAttribute('data-orbit-loop')).toBe('still')
@@ -57,8 +57,8 @@ describe('the root Orbit line row', () => {
 
   it('keeps the still Orbit at 48 and never fades the sentence with the guided flows off', () => {
     resetTestFlags()
-    const { container, rerender } = render(<TodayAstraLine text="Dia 2: tudo feito." destination="Abrir conversa" mascotState="descansando" />)
-    rerender(<TodayAstraLine text="Nada marcado nesse dia." destination="Abrir conversa" mascotState="descansando" />)
+    const { container, rerender } = render(<TodayOrbitLine text="Dia 2: tudo feito." destination="Abrir conversa" mascotState="descansando" />)
+    rerender(<TodayOrbitLine text="Nada marcado nesse dia." destination="Abrir conversa" mascotState="descansando" />)
     const mascot = container.querySelector('[data-asset="orbit-mascot"]')!
     expect(mascot.getAttribute('width')).toBe('48')
     expect(mascot.getAttribute('data-orbit-face')).toBe('rig')

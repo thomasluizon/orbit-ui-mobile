@@ -27,7 +27,7 @@ for (const { width, panelOpen } of [
   { width: 1024, panelOpen: true },
   { width: 1352, panelOpen: false },
 ] as const) {
-  test.describe(`habit detail strip at ${width}px with Astra panel ${panelOpen ? 'open' : 'closed'}`, () => {
+  test.describe(`habit detail strip at ${width}px with Orbit panel ${panelOpen ? 'open' : 'closed'}`, () => {
     test.use({ viewport: { width, height: 915 } })
 
     test('shows every day within the strip without horizontal overflow', async ({ page, context }) => {
@@ -39,7 +39,7 @@ for (const { width, panelOpen } of [
 
       await page.goto(`/habits/${habitId}`)
       if (panelOpen) {
-        await page.locator('[data-shell-pinned-slot]').getByRole('button', { name: ptBr.todayAstra.openConversation, exact: true }).click()
+        await page.locator('[data-shell-pinned-slot]').getByRole('button', { name: ptBr.todayOrbit.openConversation, exact: true }).click()
         await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
         await expect(page.locator('[data-shell-scroller]')).toBeHidden()
         await page.getByRole('button', { name: ptBr.common.closeConversation }).click()

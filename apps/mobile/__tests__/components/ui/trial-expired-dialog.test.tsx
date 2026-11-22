@@ -76,7 +76,7 @@ describe('the Android trial expired dialog', () => {
     expect(rigs.map((node) => node.props['data-orbit-state'])).toEqual(['parado'])
     const text = renderedText(dialog)
     const messages = locale === 'en' ? en : ptBR
-    for (const line of [messages.trial.expired.eyebrow, messages.trial.expired.astraCeiling, messages.trial.expired.calendarSync, messages.trial.expired.retrospective, messages.trial.expired.proactiveAstra, messages.trial.expired.paused]) {
+    for (const line of [messages.trial.expired.eyebrow, messages.trial.expired.orbitCeiling, messages.trial.expired.calendarSync, messages.trial.expired.retrospective, messages.trial.expired.proactiveOrbit, messages.trial.expired.paused]) {
       expect(text).toContain(line)
     }
     expect(renderedText(byTestId('trial-expired-savings'))).toContain('41%')

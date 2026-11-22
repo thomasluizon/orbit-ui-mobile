@@ -93,7 +93,7 @@ function TurnAnnouncement({ content, complete, messageId, claimAnnouncement }: R
     });
     return () => { mounted = false; };
   }, [complete, content, messageId, claimAnnouncement]);
-  return <Text testID="astra-turn-announcement" accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcement}</Text>;
+  return <Text testID="orbit-turn-announcement" accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcement}</Text>;
 }
 
 function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
@@ -122,7 +122,7 @@ function ConversationHistoryFeedback({ failed, busy, onRetry }: Readonly<{ faile
   </>
 }
 
-export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) {
+export function OrbitConversation({ chat }: Readonly<{ chat: ChatController }>) {
   const { t } = useTranslation();
   const history = useConversationHistory()
   const historyBusy = useChatStore(state => state.conversationBusy)
@@ -134,7 +134,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     [currentScheme, currentTheme],
   );
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen);
+  const setOrbitConversationOpen = useUIStore((state) => state.setOrbitConversationOpen);
   const insets = useSafeAreaInsets();
   const messageStyle = useShellContentStyle(SPACING.s16);
   const chatAreaRef = useRef<View>(null);
@@ -227,8 +227,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
   const closeConversation = useCallback(() => {
-    setAstraConversationOpen(false);
-  }, [setAstraConversationOpen]);
+    setOrbitConversationOpen(false);
+  }, [setOrbitConversationOpen]);
 
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryMounted, setLibraryMounted] = useState(false);
@@ -291,7 +291,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
     ({ item, index }) => (
       <View style={styles.messageTurn}>
-      {item.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
+      {item.role === 'ai' && messages[index - 1]?.role !== 'ai' ? <View testID="orbit-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
         <OrbitMascot size={24} />
       </View> : null}
       <View style={styles.messageContent}>
@@ -370,7 +370,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         />
 
         <ConversationHistoryFeedback failed={history.failed !== null} busy={historyBusy} onRetry={history.retry} />
-        <Text testID="astra-working-announcement" accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcingWork ? t('chat.trace.working') : ''}</Text>
+        <Text testID="orbit-working-announcement" accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcingWork ? t('chat.trace.working') : ''}</Text>
 
         {showSuggestions ? (
           <ShellContent style={{ flex: 1 }}><ChatEmptyState ref={chatAreaRef} styles={styles} mascotState={conversationMascotState(chat)} restReason={conversationRestReason(chat)} browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} /></ShellContent>
@@ -405,13 +405,13 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
                 if (initialScrollPending.current && threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: false });
               }}
               ListFooterComponent={<>{showPendingReply || traceSteps.length > 0 ? <ConversationReveal animate style={styles.messageTurn}>
-                {messages.at(-1)?.role !== 'ai' ? <View testID="astra-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
+                {messages.at(-1)?.role !== 'ai' ? <View testID="orbit-avatar" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.avatar}>
                   <OrbitMascot size={24} />
                 </View> : null}
                 <View style={styles.messageContent}>
                   {showPendingReply ? <PendingReply ref={attachPendingReply} /> : <ThinkingTrace steps={traceSteps} running />}
                 </View>
-              </ConversationReveal> : null}<Text testID="astra-ai-disclosure" style={[styles.aiDisclaimer, { alignSelf: 'center', paddingVertical: 16 }]}>{t('aiDisclosure.notMedicalAdvice')}</Text></>}
+              </ConversationReveal> : null}<Text testID="orbit-ai-disclosure" style={[styles.aiDisclaimer, { alignSelf: 'center', paddingVertical: 16 }]}>{t('aiDisclosure.notMedicalAdvice')}</Text></>}
               accessibilityLabel={t("chat.title")}
               accessibilityState={{ busy: replyWorking || isPendingOperationBusy }}
             />

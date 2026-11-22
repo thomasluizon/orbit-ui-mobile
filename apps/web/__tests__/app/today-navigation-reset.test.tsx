@@ -27,7 +27,7 @@ vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentThe
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => null }))
 vi.mock('@/components/today/setup-checklist-card', () => ({ SetupChecklistCard: () => null }))
-vi.mock('@/components/today/today-astra', () => ({ TodayAstra: () => null }))
+vi.mock('@/components/today/today-orbit', () => ({ TodayOrbit: () => null }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/app/(app)/use-today-habits-data', () => ({ useTodayHabitsData: () => ({
   ...normalizeHabitQueryData([createMockHabitScheduleItem()]),

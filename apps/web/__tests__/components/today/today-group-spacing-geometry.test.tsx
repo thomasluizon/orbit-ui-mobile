@@ -84,7 +84,7 @@ describe('Hoje group spacing', () => {
       await page.evaluate(async ({ mode, textScale }) => {
         document.documentElement.className = mode
         document.documentElement.style.fontSize = `${16 * textScale}px`
-        const sentence = document.querySelector<HTMLElement>('.today-astra-sentence')
+        const sentence = document.querySelector<HTMLElement>('.today-orbit-sentence')
         if (sentence) sentence.style.fontSize = `${Number.parseFloat(getComputedStyle(sentence).fontSize) * textScale}px`
         await document.fonts.ready
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
@@ -100,12 +100,12 @@ describe('Hoje group spacing', () => {
       await load()
       const measureGroups = () => page.evaluate(() => {
         const views = document.querySelector('[data-habit-view-switch]')!.getBoundingClientRect()
-        const line = document.querySelector('.today-astra-line')!.getBoundingClientRect()
+        const line = document.querySelector('.today-orbit-line')!.getBoundingClientRect()
         const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
         const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
         const scroller = document.querySelector('[data-shell-scroller]')!
         return { viewsToLine: line.top - views.bottom, lineToDate: date.top - line.bottom, dateToList: list.top - date.bottom,
-          slots: document.querySelectorAll('[data-today-astra-slot]').length,
+          slots: document.querySelectorAll('[data-today-orbit-slot]').length,
           endClearance: Number.parseFloat(getComputedStyle(scroller).paddingBottom) }
       })
       const spacing = await measureGroups()
@@ -114,7 +114,7 @@ describe('Hoje group spacing', () => {
       expect(spacing.dateToList).toBeCloseTo(24, 1)
       expect(spacing.slots).toBe(1)
       expect(spacing.endClearance).toBeGreaterThanOrEqual(24)
-      const line = page.locator('.today-astra-line')
+      const line = page.locator('.today-orbit-line')
       await line.focus()
       await page.keyboard.press('Shift+Tab')
       await page.keyboard.press('Tab')
@@ -159,7 +159,7 @@ describe('Hoje group spacing', () => {
           const date = document.querySelector('[data-today-date-row]')!.getBoundingClientRect()
           const list = document.querySelector('[data-testid="spacing-list-surface"]')!.getBoundingClientRect()
           return { viewsToDate: date.top - views.bottom, dateToList: list.top - date.bottom,
-            hasLine: Boolean(document.querySelector('.today-astra-line')) }
+            hasLine: Boolean(document.querySelector('.today-orbit-line')) }
         })
         expect(spacing).toMatchObject({ viewsToDate: 24, dateToList: 24, hasLine: false })
       }

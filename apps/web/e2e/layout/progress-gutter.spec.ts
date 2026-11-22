@@ -74,7 +74,7 @@ for (const width of [1352, 1100, 840, 412]) {
           await page.evaluate(() => document.fonts.ready)
           const today = await readContentEdgesOnceStill(todayPanel)
 
-          await page.goto(panelOpen ? '/progress?astra=open' : '/progress')
+          await page.goto(panelOpen ? '/progress?orbit=open' : '/progress')
           await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(0)
           const overview = page.getByRole('region', { name: messages.progressScreen.sections.window, includeHidden: true })
           if (panelOpen) {

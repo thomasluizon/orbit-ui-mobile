@@ -4,10 +4,10 @@ import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
-import { ASTRA_STACK_CLEARANCE } from '@orbit/shared/utils'
+import { ORBIT_STACK_CLEARANCE } from '@orbit/shared/utils'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test as subscriptionTest } from './upgrade-fixtures'
-import { waitForSettledAstraStack } from './shell-conversation-entry'
+import { waitForSettledOrbitStack } from './shell-conversation-entry'
 
 const habitId = 'habit-1'
 const habit = habitDetailSchema.parse(makeHabitDetail())
@@ -59,15 +59,15 @@ for (const width of [412, 1280] as const) {
         await expect(scroller).toBeVisible()
         await expect(chrome).toBeAttached()
         await page.evaluate(() => document.fonts.ready)
-        if (name === 'Hoje' && width >= 1024) await expect(page.locator('[data-astra-button]')).toHaveCount(0)
+        if (name === 'Hoje' && width >= 1024) await expect(page.locator('[data-orbit-button]')).toHaveCount(0)
         if (name === 'Hoje' && width < 1024) {
-          await waitForSettledAstraStack(page)
-          const button = page.getByRole('button', { name: en.shell.astraButton.open, exact: true })
+          await waitForSettledOrbitStack(page)
+          const button = page.getByRole('button', { name: en.shell.orbitButton.open, exact: true })
           await expect(button).toBeVisible()
           const bounds = (await button.boundingBox())!
           const viewport = (await scroller.boundingBox())!
           const stackClearance = viewport.y + viewport.height - bounds.y + 16
-          if (await page.locator('[data-shell-fab] button').count() > 0) expect(stackClearance, 'Hoje measures the shared stack clearance').toBeCloseTo(ASTRA_STACK_CLEARANCE, 0)
+          if (await page.locator('[data-shell-fab] button').count() > 0) expect(stackClearance, 'Hoje measures the shared stack clearance').toBeCloseTo(ORBIT_STACK_CLEARANCE, 0)
           clearance = Math.max(clearance, stackClearance)
         }
 

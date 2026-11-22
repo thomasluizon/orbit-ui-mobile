@@ -437,7 +437,7 @@ it('sends the suggestion the same body as the current flow', async () => {
   expect(heading(tree)).toBe(en.onboarding.flow.guided.summary.question)
   const emojiControl = hosts(tree).find((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === en.habits.form.emojiOpenPicker)!
   expect(textOf(emojiControl)).toBe('🚶')
-  expect(emojiControl.props.accessibilityHint).toBe(en.habits.form.proposedByAstra)
+  expect(emojiControl.props.accessibilityHint).toBe(en.habits.form.proposedByOrbit)
 })
 
 it('renders the current Android onboarding with the flag off', async () => {

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { UsageCard } from '@/components/upgrade/usage-card'
 import { ProPitch } from '@/components/upgrade/pro-pitch'
-import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
+import { OrbitAllowancePanel } from '@/components/profile/orbit-allowance-panel'
 import { createTokensV2 } from '@/lib/theme'
 import { i18n } from '@/lib/i18n'
 
@@ -16,7 +16,7 @@ function surfaceText(profile: ReturnType<typeof createMockProfile>, locale: stri
   let tree!: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<>
     <UsageCard profile={profile} usagePercent={80} locale={locale} t={i18n.t} tokens={tokens} />
-    <AstraAllowancePanel profile={profile} onPlanAction={() => {}} />
+    <OrbitAllowancePanel profile={profile} onPlanAction={() => {}} />
     <ProPitch profile={profile} trialDaysLeft={5} t={i18n.t} tokens={tokens} />
   </>) })
   const text = JSON.stringify(tree.toJSON())

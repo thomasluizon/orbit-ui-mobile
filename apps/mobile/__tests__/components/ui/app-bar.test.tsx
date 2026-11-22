@@ -8,7 +8,7 @@ import { press, renderNavigation } from './navigation-render'
 describe('AppBar', () => {
   it('exposes the conversation header as an accessibility focus target', () => {
     const titleRef = createRef<Text>()
-    const tree = renderNavigation(<AppBar title="Astra" onBack={() => {}} backLabel="Close" titleRef={titleRef} />)
+    const tree = renderNavigation(<AppBar title="Orbit" onBack={() => {}} backLabel="Close" titleRef={titleRef} />)
     const header = tree.hosts().find((node) => node.props.accessibilityRole === 'header')
     expect(header?.props.__nativeTag).toEqual(expect.any(Number))
     expect(titleRef.current).toMatchObject({ __nativeTag: header?.props.__nativeTag })
@@ -32,9 +32,9 @@ describe('AppBar', () => {
     tree.unmount()
   })
   it('names a visual title when the caller does not use a heading', () => {
-    const tree = renderNavigation(<AppBar title="Astra" titleVisual={<OrbitMascot size={16} />} titleIsHeading={false} />)
+    const tree = renderNavigation(<AppBar title="Orbit" titleVisual={<OrbitMascot size={16} />} titleIsHeading={false} />)
     const image = tree.hosts().find((node) => node.props.accessibilityRole === 'image')
-    expect(image?.props.accessibilityLabel).toBe('Astra')
+    expect(image?.props.accessibilityLabel).toBe('Orbit')
     expect(tree.hosts().filter((node) => node.props.accessibilityRole === 'header')).toHaveLength(0)
     tree.unmount()
   })

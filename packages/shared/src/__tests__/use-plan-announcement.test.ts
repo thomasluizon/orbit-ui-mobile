@@ -5,7 +5,7 @@ import { createUsePlanAnnouncement } from '@orbit/shared/hooks/plan-announcement
 import type { StateHook } from '../hooks/state-adapter'
 import en from '../i18n/en.json'
 import pt from '../i18n/pt-BR.json'
-import { makeAstraPlan } from '../test-support/astra-plan-fixtures'
+import { makeOrbitPlan } from '../test-support/orbit-plan-fixtures'
 import type { ChatMessage } from '../types/chat'
 
 const unmounts: (() => void)[] = []
@@ -39,7 +39,7 @@ afterEach(() => {
 describe.each(['en', 'pt-BR'])('shared plan announcements in %s', locale => {
   const runningLabel = (locale === 'en' ? en : pt).blockFrame.status.acting
   function runningMessage(): ChatMessage {
-    const plan = makeAstraPlan(locale)
+    const plan = makeOrbitPlan(locale)
     return { id: 'reply', role: 'ai', content: '', timestamp: new Date(), plan: {
       ...plan, steps: [{ ...plan.steps[0]!, status: 'running' }, plan.steps[1]!],
     } }

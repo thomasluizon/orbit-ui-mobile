@@ -40,7 +40,7 @@ describe('Shell bottom column geometry', () => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const composer = <Composer state="idle" value="" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />
     const view = render(<ShellWide items={[]} activeId={destination} navLabel={en.nav.mainNavigation}
-      astraRow={{ label: 'Astra', onOpen: vi.fn() }} header={<div style={{ height: 56 }} />}
+      orbitRow={{ label: 'Orbit', onOpen: vi.fn() }} header={<div style={{ height: 56 }} />}
       composer={destination === 'habit-detail' ? composer : undefined}
       tabBar={<nav style={{ height: 80 }}>Tabs</nav>}
       fab={destination === 'hoje' ? <Fab label="Create" onClick={vi.fn()}><span>+</span></Fab> : undefined}>
@@ -57,7 +57,7 @@ describe('Shell bottom column geometry', () => {
   })
 
   it('resamples the shell when a refresh removes the FAB after the visibility checks', async () => {
-    const view = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+    const view = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
       notice={<div />} tabBar={<nav style={{ height: 80 }}>Tabs</nav>}
       fab={<Fab label="Create" onClick={() => {}}><span aria-hidden="true">+</span></Fab>} />)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 412, height: 915 } })
@@ -90,7 +90,7 @@ describe('Shell bottom column geometry', () => {
 
   it.each([1100, 1352])('matches one-line account loading height and keeps wrapped accounts grounded at %ipx', async (width) => {
     const props = { items: [{ id: 'hoje', href: '/', label: 'Hoje', icon: 'hoje' }], activeId: 'hoje', navLabel: 'Navigation',
-      astraRow: { label: 'Astra', onOpen: vi.fn() } }
+      orbitRow: { label: 'Orbit', onOpen: vi.fn() } }
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     const shell = (account?: string) => renderToString(<ShellWide {...props} account={account} accountEmail={account ? 'account@example.com' : undefined} />)
     const measure = () => page.evaluate(() => ['[data-shell-account]', '[data-shell-sidebar] nav'].map((selector) => {
@@ -111,7 +111,7 @@ describe('Shell bottom column geometry', () => {
   })
 
   it.each([320, 1280])('preserves notice shadow paint and pointer access at %ipx', async (width) => {
-    const view = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+    const view = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
       composer={<Composer state="idle" value="" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
       notice={<><UpdateAvailableBanner /><Toast kind="neutral" message="Habit saved" actionLabel="Undo" onAction={vi.fn()} /></>}
       tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
@@ -165,7 +165,7 @@ describe('Shell bottom column geometry', () => {
       atLimit: { state: 'atLimit', limitReason: en.shell.composer.limit.reason },
       offline: { state: 'offline', limitReason: en.shell.composer.offline.reason },
     } as const
-    const view = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+    const view = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
       composer={<Composer {...composerStates[state]}
         value="" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
       notice={<Toast kind="neutral" message="Habit saved" />}

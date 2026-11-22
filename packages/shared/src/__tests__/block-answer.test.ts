@@ -10,7 +10,7 @@ const { PostApiChatBody, PostApiChatResponse } = await vi.importActual<{
   PostApiChatResponse: z.ZodType
 }>('../types/__generated__/api.generated')
 
-describe('Astra block answers', () => {
+describe('Orbit block answers', () => {
   it('keeps both producer-shaped parts through the generated and runtime boundaries', () => {
     const response = { aiMessage: null, actions: [], parts: parts.blocks.slice(-2) }
     expect(PostApiChatResponse.parse(response)).toMatchObject(response)

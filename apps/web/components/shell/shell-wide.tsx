@@ -19,7 +19,7 @@ import {
 import { BUTTON_SIZES, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
-import { ASTRA_BUTTON_GAP, ASTRA_STACK_CLEARANCE } from '@orbit/shared/utils'
+import { ORBIT_BUTTON_GAP, ORBIT_STACK_CLEARANCE } from '@orbit/shared/utils'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useIsClient } from '@/hooks/use-is-client'
 import { PanelLeft, PanelLeftClose, Plus, Search } from '@/components/ui/icons'
@@ -60,7 +60,7 @@ type WithDestinationHrefs<Props> = Props extends { items: ShellWideItem[] }
   ? Omit<Props, 'items'> & { items: WebShellWideItem[]; themeAction?: ReactNode }
   : Props
 
-type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; astraButton?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void; tabViewTransition?: boolean; landmark?: false }
+type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; orbitButton?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void; tabViewTransition?: boolean; landmark?: false }
 
 function SidebarItem({
   item,
@@ -116,7 +116,7 @@ function SidebarItem({
   )
 }
 
-function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
+function SidebarOrbitRow({ row, open, conversationId, collapsed }: Readonly<{
   row: { label: string; onOpen: () => void }
   open: boolean
   conversationId: string
@@ -124,7 +124,7 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
 }>) {
   return <button
             type="button"
-            data-shell-astra-row=""
+            data-shell-orbit-row=""
             aria-expanded={open}
             aria-controls={open ? conversationId : undefined}
             title={collapsed ? row.label : undefined}
@@ -216,7 +216,7 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
         if (!props.layerOpen || !(event.target instanceof Element)) return
         const control = event.target.closest('button, a[href]')
         if (control?.hasAttribute('data-habit-create-navigation') && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return
-        if (control && !control.hasAttribute('data-shell-astra-row') && !control.hasAttribute('data-shell-sidebar-toggle') && !control.hasAttribute('data-theme-toggle')) props.onSidebarNavigate?.()
+        if (control && !control.hasAttribute('data-shell-orbit-row') && !control.hasAttribute('data-shell-sidebar-toggle') && !control.hasAttribute('data-theme-toggle')) props.onSidebarNavigate?.()
       }}
       inert={props.layerOpen && !props.wide || undefined}
       className={`z-sticky hidden h-[var(--keyboard-viewport-height)] ${collapsed ? 'w-[96px]' : 'w-[232px]'} shrink-0 flex-col overflow-y-auto bg-[var(--bg)] pb-6 pt-[max(var(--orbit-space-24),var(--safe-top))] shadow-[inset_-1px_0_0_var(--hairline)] lg:flex`}
@@ -228,7 +228,7 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
           <SidebarSearch onPalette={props.onPalette} paletteLabel={props.paletteLabel} paletteHint={props.paletteHint} collapsed={collapsed} />
 
           <nav id={navigationId} aria-label={props.navLabel} className="flex flex-col gap-2">
-            {props.wide || !client ? <SidebarAstraRow row={props.astraRow} open={props.layerOpen} conversationId={props.conversationId} collapsed={collapsed} /> : null}
+            {props.wide || !client ? <SidebarOrbitRow row={props.orbitRow} open={props.layerOpen} conversationId={props.conversationId} collapsed={collapsed} /> : null}
             {props.items.map((item) => (
               <SidebarItem
                 key={item.id}
@@ -333,7 +333,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
 }
 
 const SCROLLER_END_PADDING = 'pb-[var(--shell-scroller-end)]'
-const SHELL_PAGE_CLEARANCE = { '--shell-astra-clearance': `${ASTRA_STACK_CLEARANCE}px` } as CSSProperties
+const SHELL_PAGE_CLEARANCE = { '--shell-orbit-clearance': `${ORBIT_STACK_CLEARANCE}px` } as CSSProperties
 const RESERVED_SCROLLER_END = `[--shell-scroller-end:var(--orbit-space-96)] lg:[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`
 
 function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boolean, floating: boolean) {
@@ -345,23 +345,23 @@ function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boo
     : { padding: `[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`, minimum: 'min-h-8', focusClearance }
 }
 
-function getFabColumnSpacing({ hasBottomChrome, hasPinnedSlot, floating, astraButton, wide }: Readonly<{
+function getFabColumnSpacing({ hasBottomChrome, hasPinnedSlot, floating, orbitButton, wide }: Readonly<{
   hasBottomChrome: boolean
   hasPinnedSlot: boolean
   floating: boolean
-  astraButton: boolean
+  orbitButton: boolean
   wide: boolean
 }>) {
-  const fabColumn = floating || astraButton
+  const fabColumn = floating || orbitButton
   const spacing = getScrollerSpacing(hasBottomChrome, hasPinnedSlot || fabColumn, floating)
-  return { fabColumn, minimum: spacing.minimum, ...getAstraScrollerSpacing(spacing, floating && astraButton, wide) }
+  return { fabColumn, minimum: spacing.minimum, ...getOrbitScrollerSpacing(spacing, floating && orbitButton, wide) }
 }
 
-function getAstraScrollerSpacing(spacing: ReturnType<typeof getScrollerSpacing>, stacked: boolean, wide: boolean) {
+function getOrbitScrollerSpacing(spacing: ReturnType<typeof getScrollerSpacing>, stacked: boolean, wide: boolean) {
   if (!stacked) return { padding: spacing.padding, focusClearance: wide ? undefined : spacing.focusClearance }
   return {
-    padding: `[--shell-scroller-end:var(--shell-astra-clearance)] lg:[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`,
-    focusClearance: 'min(var(--shell-astra-clearance), 50%)',
+    padding: `[--shell-scroller-end:var(--shell-orbit-clearance)] lg:[--shell-scroller-end:var(--orbit-space-32)] ${SCROLLER_END_PADDING}`,
+    focusClearance: 'min(var(--shell-orbit-clearance), 50%)',
   }
 }
 
@@ -425,10 +425,10 @@ function ShellConversation({ conversationId, label, wide, children }: Readonly<{
           ><main className="h-full">{children}</main></motion.div>
 }
 
-function ShellFabColumn({ astraButton, fab }: Readonly<{ astraButton: ReactNode; fab: ReactNode }>) {
+function ShellFabColumn({ orbitButton, fab }: Readonly<{ orbitButton: ReactNode; fab: ReactNode }>) {
   return <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
-    <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] flex-col items-end" style={{ gap: ASTRA_BUTTON_GAP }}>
-      {astraButton !== undefined ? <div data-shell-astra-button="" className="pointer-events-none [&_button]:pointer-events-auto">{astraButton}</div> : null}
+    <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] flex-col items-end" style={{ gap: ORBIT_BUTTON_GAP }}>
+      {orbitButton !== undefined ? <div data-shell-orbit-button="" className="pointer-events-none [&_button]:pointer-events-auto">{orbitButton}</div> : null}
       {fab !== undefined ? <div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{fab}</div> : null}
     </div>
   </div>
@@ -458,15 +458,15 @@ function ShellWideBackground({
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined
   const floating = props.fab !== undefined
-  const astraSpacing = getFabColumnSpacing({ hasBottomChrome, hasPinnedSlot: pinnedSlot !== undefined, floating, astraButton: props.astraButton !== undefined, wide })
+  const orbitSpacing = getFabColumnSpacing({ hasBottomChrome, hasPinnedSlot: pinnedSlot !== undefined, floating, orbitButton: props.orbitButton !== undefined, wide })
   // WHY: a shell inside a modal dialog sits over a page that already owns the one main landmark. https://www.w3.org/WAI/ARIA/apg/practices/landmark-regions/
   const Scroller = props.landmark === false ? 'div' : 'main'
   const scroller = (
     <Scroller
       ref={registerScroller}
       data-shell-scroller=""
-      style={{ scrollPaddingBottom: astraSpacing.focusClearance }}
-      className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${astraSpacing.padding}`}
+      style={{ scrollPaddingBottom: orbitSpacing.focusClearance }}
+      className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${orbitSpacing.padding}`}
     >
       <span
         aria-hidden="true"
@@ -492,9 +492,9 @@ function ShellWideBackground({
               <div ref={registerHeaderHost} data-shell-header-content="" className="w-full">{props.header}</div>
             </div>
           </div> : null}
-          <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${astraSpacing.minimum}`} style={SHELL_PAGE_CLEARANCE}>
+          <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${orbitSpacing.minimum}`} style={SHELL_PAGE_CLEARANCE}>
             {tabViewTransition ? <TabViewTransition>{scroller}</TabViewTransition> : scroller}
-            {astraSpacing.fabColumn ? <ShellFabColumn astraButton={props.astraButton} fab={props.fab} /> : null}
+            {orbitSpacing.fabColumn ? <ShellFabColumn orbitButton={props.orbitButton} fab={props.fab} /> : null}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">
                 <div className="pointer-events-auto">{props.scrollToTop}</div>

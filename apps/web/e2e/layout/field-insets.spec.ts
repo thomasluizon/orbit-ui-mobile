@@ -97,8 +97,8 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const composer = page.locator('[data-composer-input]:visible')
         await expect(composer).toBeVisible()
         const entry = composer.locator('xpath=ancestor::div[@data-composer-input-row]').locator('[data-open-conversation]')
-        await expect(entry).toHaveAccessibleName(messages.todayAstra.openConversation)
-        await expect(entry).not.toContainText(messages.nav.astra)
+        await expect(entry).toHaveAccessibleName(messages.todayOrbit.openConversation)
+        await expect(entry).not.toContainText(messages.nav.orbit)
         await expect(entry.locator('[data-asset="orbit-mascot"]')).toHaveCount(1)
         const entryBounds = (await entry.boundingBox())!
         expect(entryBounds.width).toBeGreaterThanOrEqual(48)

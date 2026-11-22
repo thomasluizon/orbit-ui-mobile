@@ -65,7 +65,7 @@ it.each(windows)('centres Todos actions, calendar navigation and figures at $wid
   __setWindowDimensions({ ...viewport, scale: 1, fontScale: 1 })
   let tree!: GeometryTree
   await act(() => { tree = create(<Shell412 nav={false}>
-    <HabitListEmptyState title={ptBR.habits.emptyState} description="" actionLabel={ptBR.habits.createManually} onAction={vi.fn()} askAstraLabel={ptBR.habits.askAstra} onAskAstra={vi.fn()} />
+    <HabitListEmptyState title={ptBR.habits.emptyState} description="" actionLabel={ptBR.habits.createManually} onAction={vi.fn()} askOrbitLabel={ptBR.habits.askOrbit} onAskOrbit={vi.fn()} />
     <CalendarHeader currentMonth={new Date(2025, 9, 1)} todayKey="2025-10-10" tokens={tokens} previousMonthLabel="Anterior" nextMonthLabel="Próximo"
       onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
     <CalendarStats stats={stats} />
@@ -73,13 +73,13 @@ it.each(windows)('centres Todos actions, calendar navigation and figures at $wid
   try {
     const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'action-row')[0]!
     expect(StyleSheet.flatten(row.props.style as StyleProp<ViewStyle>).justifyContent).toBe('center')
-    const astraAction = row.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll(child => String(child.type) === 'Text' && child.props.children === ptBR.habits.askAstra).length > 0)[0]!
-    expect(astraAction.findAll(node => String(node.type) === 'Text').map(node => node.props.children)).toEqual([ptBR.habits.askAstra])
+    const orbitAction = row.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll(child => String(child.type) === 'Text' && child.props.children === ptBR.habits.askOrbit).length > 0)[0]!
+    expect(orbitAction.findAll(node => String(node.type) === 'Text').map(node => node.props.children)).toEqual([ptBR.habits.askOrbit])
     const figures = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-figure-default')
     expect(figures).toHaveLength(3)
     for (const figure of figures) expect(StyleSheet.flatten(figure.props.style as StyleProp<ViewStyle>).alignItems).toBe('flex-start')
-    const boxes = measureSafeArea(tree.toJSON(), (host) => String(host.props.testID).startsWith('button-') && JSON.stringify(host).includes(ptBR.habits.askAstra) ? 'astra-action' : host.props.testID, viewport)
-    const actionBounds = boxes.get('astra-action')!
+    const boxes = measureSafeArea(tree.toJSON(), (host) => String(host.props.testID).startsWith('button-') && JSON.stringify(host).includes(ptBR.habits.askOrbit) ? 'orbit-action' : host.props.testID, viewport)
+    const actionBounds = boxes.get('orbit-action')!
     expect(actionBounds.width).toBeGreaterThan(48)
     expect(actionBounds.bottom - actionBounds.top).toBeGreaterThanOrEqual(SMALL_PILL_VISIBLE_MIN)
     expect(actionBounds.left).toBeGreaterThanOrEqual(0)
@@ -134,7 +134,7 @@ it.each([240, 360])('reserves room for complete Hoje controls at 740 by %ipx', a
   await act(() => { tree = create(<Shell412 header={<View style={{ height: 48 }} />}
     composer={<Composer state="idle" value="Ler" suggestions={[]} words={ptBR.shell.composer}
       onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
-      attachWords={{ ...ptBR.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Astra" />}
+      attachWords={{ ...ptBR.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Orbit" />}
     fab={<Fab label="Criar" onClick={vi.fn()}>+</Fab>} tabBar={<View style={{ height: 80 }} />}>
     <TodayDateControl dayName="Sexta-feira" numericDate="04/09/2026" isTodaySelected={false} nextDisabled={false}
       previousLabel="Anterior" goToTodayLabel="Hoje" nextLabel="Próximo" moreLabel="Opções" searchLabel="Buscar"
@@ -183,7 +183,7 @@ it.each([{ width: 840, height: 240 }, { width: 360, height: 320 }, { width: 740,
       notice={viewport.pressure ? <View style={{ minHeight: 160 }}><Toast kind="neutral" message="Saved" persistent /></View> : undefined}
       composer={<Composer state="idle" value="Ler" suggestions={[]} words={ptBR.shell.composer}
         onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
-        attachWords={{ ...ptBR.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Astra" />}
+        attachWords={{ ...ptBR.shell.composer.attach, remove: name => name }} onOpenConversation={vi.fn()} conversationLabel="Orbit" />}
       fab={<Fab label="Criar" onClick={vi.fn()}>+</Fab>}
       tabBar={<BottomTabBar items={items} activeId="hoje" onSelect={vi.fn()} label="Navegação" />}>
       <View testID="control-region" style={{ flex: 1 }} />

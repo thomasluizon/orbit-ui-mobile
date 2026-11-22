@@ -14,7 +14,7 @@ import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { measureStartEdgeIconAction } from '@/__tests__/support/start-edge-icon-action'
 import { PromptLibrary } from '@/components/chat/prompt-library'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { i18n } from '@/lib/i18n'
@@ -80,7 +80,7 @@ afterEach(async () => {
   useChatStore.setState({ messages: [] })
   useChatStore.getState().setDraft('')
   useChatStore.getState().setContextualSuggestion(null)
-  useUIStore.getState().setAstraConversationOpen(false)
+  useUIStore.getState().setOrbitConversationOpen(false)
   vi.restoreAllMocks()
 })
 
@@ -375,14 +375,14 @@ function Harness({ send, blocked, recording = false }: Readonly<{ send: ReturnTy
     threadScroll: createChatThreadScroll(), flatListRef: { current: null }, scrollToBottom: vi.fn(), messages, isOnline: blocked !== 'offline', atMessageLimit: blocked === 'atLimit', aiMessagesLimit: 5, activeSteps: [],
     isTyping: false, streamingMessageId: null, showSuggestions: messages.length === 0, canShowFollowUps: false, isSending: false,
     hasProAccess: true, hasGoogleConnection: true, sendMessage: send, composerProps,
-  } as unknown as Parameters<typeof AstraConversation>[0]['chat']
-  return <AstraConversation chat={chat} />
+  } as unknown as Parameters<typeof OrbitConversation>[0]['chat']
+  return <OrbitConversation chat={chat} />
 }
 
 it('opens from both entries, returns on Android back, and retains the draft', async () => {
   const accessibilityFocus = vi.spyOn(AccessibilityInfo, 'sendAccessibilityEvent')
   useChatStore.getState().setDraft('Minhas palavras')
-  useUIStore.getState().setAstraConversationOpen(true)
+  useUIStore.getState().setOrbitConversationOpen(true)
   await act(() => { tree = create(<Harness send={vi.fn()} />); return Promise.resolve() })
   for (const entry of [0, 1]) {
     const triggers = hosts().filter(node => node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel === 'Ver ideias' || text(node) === 'Ver ideias'))
@@ -394,7 +394,7 @@ it('opens from both entries, returns on Android back, and retains the draft', as
     expect(__getFocusedNativeTag()).toBe(triggers[entry]!.props.__nativeTag)
     expect(hosts().some(node => node.props.testID === 'prompt-library')).toBe(false)
     expect(useChatStore.getState().draft).toBe('Minhas palavras')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
   }
 })
 

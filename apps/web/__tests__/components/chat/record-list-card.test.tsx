@@ -14,7 +14,7 @@ vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ state, count, ite
 
 beforeEach(() => measureClampedPersonalText())
 
-describe('Astra record list on web', () => {
+describe('Orbit record list on web', () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.generation = 0 })
 
   it('marks a notification read optimistically and restores it on failure', async () => {

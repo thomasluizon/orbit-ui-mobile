@@ -720,7 +720,7 @@ describe('EditHabitModal', () => {
     expect(mockShowInfo).not.toHaveBeenCalled()
   })
 
-  it('ignores a pending Astra suggestion after the title changes', async () => {
+  it('ignores a pending Orbit suggestion after the title changes', async () => {
     let title = 'Swim'
     let resolveSuggestion!: (suggestion: HabitSetupSuggestion) => void
     mockFormGetValues.mockImplementation((field?: string) => {

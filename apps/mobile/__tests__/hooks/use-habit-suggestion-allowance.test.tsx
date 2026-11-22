@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import { createApiClientError } from '@orbit/shared/utils'
-import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
+import allowanceRefusals from '@orbit/shared/test-support/orbit-allowance-refusals.fixture.json'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')

@@ -1,4 +1,4 @@
-import { astraOfferFixture, offeredReadFixture, offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
+import { orbitOfferFixture, offeredReadFixture, offerConversationId } from '@orbit/shared/test-support/orbit-offer-fixtures'
 import { useChatStore } from '@/stores/chat-store'
 import { dismissChatOffers } from '@/app/actions/chat'
 import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
@@ -450,42 +450,42 @@ describe('read offers', () => {
       mount({ kind: 'periodTotal', block: offeredReadFixture }, locale, send, { isOnline: true, isSending: false, atMessageLimit: true, dailyBudgetReached, allowance: 5, send: vi.fn() })
       const reason = dailyBudgetReached ? messages.chat.dailyBudgetReached : period === 'week' ? messages.shell.composer.limit.exhaustedWeekly : messages.shell.composer.limit.exhausted
       expect(screen.getByText(reason)).toHaveAttribute('role', 'status')
-      expect(screen.getByRole('button', { name: astraOfferFixture.label })).toBeDisabled()
+      expect(screen.getByRole('button', { name: orbitOfferFixture.label })).toBeDisabled()
       expect(send).not.toHaveBeenCalled()
       fireEvent.click(screen.getByRole('button', { name: messages.chat.offers.dismiss }))
-      await waitFor(() => expect(screen.queryByRole('button', { name: astraOfferFixture.label })).not.toBeInTheDocument())
+      await waitFor(() => expect(screen.queryByRole('button', { name: orbitOfferFixture.label })).not.toBeInTheDocument())
     })
   it.each(['en', 'pt-BR'] as const)('renders and dismisses the supplied offer in %s', async locale => {
     const messages = locale === 'en' ? en : pt
     mount({ kind: 'periodTotal', block: offeredReadFixture }, locale, vi.fn())
-    expect(screen.getByRole('button', { name: astraOfferFixture.label })).toBeVisible()
+    expect(screen.getByRole('button', { name: orbitOfferFixture.label })).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: messages.chat.offers.dismiss }))
-    await waitFor(() => expect(screen.queryByRole('button', { name: astraOfferFixture.label })).not.toBeInTheDocument())
-    expect(dismissChatOffers).toHaveBeenCalledExactlyOnceWith(offerConversationId, [astraOfferFixture.offerKey], null)
+    await waitFor(() => expect(screen.queryByRole('button', { name: orbitOfferFixture.label })).not.toBeInTheDocument())
+    expect(dismissChatOffers).toHaveBeenCalledExactlyOnceWith(offerConversationId, [orbitOfferFixture.offerKey], null)
   })
   it.each(['preparePreview', 'continueChat'] as const)('sends %s through chat once without approval', async kind => {
     const send = vi.fn(async () => {})
-    mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...astraOfferFixture, kind } } } }, 'en', send)
-    fireEvent.click(screen.getByRole('button', { name: astraOfferFixture.label }))
-    await waitFor(() => expect(send).toHaveBeenCalledExactlyOnceWith(astraOfferFixture.prompt, { selectedOfferKey: astraOfferFixture.offerKey }))
+    mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...orbitOfferFixture, kind } } } }, 'en', send)
+    fireEvent.click(screen.getByRole('button', { name: orbitOfferFixture.label }))
+    await waitFor(() => expect(send).toHaveBeenCalledExactlyOnceWith(orbitOfferFixture.prompt, { selectedOfferKey: orbitOfferFixture.offerKey }))
     expect(dismissChatOffers).not.toHaveBeenCalled()
   })
   it('opens the supplied surface and never treats its string as a route', async () => {
-    mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...astraOfferFixture, kind: 'openSurface', surface: 'calendar-sync' } } } })
-    fireEvent.click(screen.getByRole('button', { name: astraOfferFixture.label }))
+    mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...orbitOfferFixture, kind: 'openSurface', surface: 'calendar-sync' } } } })
+    fireEvent.click(screen.getByRole('button', { name: orbitOfferFixture.label }))
     await waitFor(() => expect(state.push).toHaveBeenCalledWith('/calendar?import=1'))
   })
   it('withholds offers without a negotiated conversation', () => {
     useChatStore.setState({ conversationId: null })
     mount({ kind: 'periodTotal', block: offeredReadFixture })
-    expect(screen.queryByRole('button', { name: astraOfferFixture.label })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: orbitOfferFixture.label })).not.toBeInTheDocument()
   })
   it.each([429, 403])('retains a failed dismissal for retry after status %s', async (status) => {
     vi.mocked(dismissChatOffers).mockResolvedValueOnce({ ok: false, error: 'offline', code: 'RATE_LIMITED', status, sessionRefreshFailed: false })
     mount({ kind: 'periodTotal', block: offeredReadFixture }, 'en', vi.fn())
     fireEvent.click(screen.getByRole('button', { name: en.chat.offers.dismiss }))
     await screen.findByText(en.chat.offers.failed)
-    expect(screen.getByRole('button', { name: astraOfferFixture.label })).toBeVisible()
+    expect(screen.getByRole('button', { name: orbitOfferFixture.label })).toBeVisible()
     expect(useChatStore.getState().dismissedOfferKeys).toEqual([])
     expect(screen.getByRole('button', { name: en.chat.offers.dismiss })).toBeEnabled()
   })
@@ -497,10 +497,10 @@ it('keeps dismissal available when the conversation action cannot send', async (
   vi.mocked(dismissChatOffers).mockReset().mockResolvedValue({ ok: true, data: null })
   mount({ kind: 'periodTotal', block: offeredReadFixture })
   try {
-    expect(screen.getByRole('button', { name: astraOfferFixture.label })).toBeDisabled()
+    expect(screen.getByRole('button', { name: orbitOfferFixture.label })).toBeDisabled()
     const dismiss = screen.getByRole('button', { name: en.chat.offers.dismiss })
     expect(dismiss).toBeEnabled()
     fireEvent.click(dismiss)
-    await waitFor(() => expect(dismissChatOffers).toHaveBeenCalledExactlyOnceWith(offerConversationId, [astraOfferFixture.offerKey], null))
+    await waitFor(() => expect(dismissChatOffers).toHaveBeenCalledExactlyOnceWith(offerConversationId, [orbitOfferFixture.offerKey], null))
   } finally { useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }) }
 })

@@ -7,7 +7,7 @@ import {
   selectPendingOperationRevisionItem,
 } from '../hooks/pending-operation-revision-core'
 import { makePendingAgentOperation } from '../test-support/chat-fixtures'
-import { makeOfferedChildPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
+import { makeOfferedChildPreview, makeOfferedTaskPreview } from '../test-support/orbit-offer-fixtures'
 import type { PendingOperationItem } from '../types/ai'
 import { createPendingOperationAuthorizationState, reconcilePendingOperationAuthorizationState } from '../hooks/pending-operation-card-core'
 

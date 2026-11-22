@@ -19,7 +19,7 @@ const { PostApiChatResponse } = await vi.importActual<{ PostApiChatResponse: z.Z
 describe('message allowance contract', () => {
   it.each([false, true, null, undefined])('retains %s allowance consumption through JSON and SSE parsing', consumed => {
     const response = {
-      aiMessage: 'Astra reply',
+      aiMessage: 'Orbit reply',
       actions: [],
       ...(consumed === undefined ? {} : { messageAllowanceConsumed: consumed }),
     }
@@ -30,7 +30,7 @@ describe('message allowance contract', () => {
   })
 
   it.each(['false', 0, {}])('rejects malformed allowance consumption %j', messageAllowanceConsumed => {
-    const response = { aiMessage: 'Astra reply', actions: [], messageAllowanceConsumed }
+    const response = { aiMessage: 'Orbit reply', actions: [], messageAllowanceConsumed }
     expect(chatResponseSchema.safeParse(response).success).toBe(false)
     expect(PostApiChatResponse.safeParse(response).success).toBe(false)
     expect(chatStreamEventSchema.safeParse({ type: 'final', response }).success).toBe(false)

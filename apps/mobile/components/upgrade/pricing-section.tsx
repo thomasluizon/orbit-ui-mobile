@@ -1,4 +1,4 @@
-import type { AstraAllowance } from '@orbit/shared/utils'
+import type { OrbitAllowance } from '@orbit/shared/utils'
 import { useRouter } from 'expo-router'
 import { SPACING } from '@orbit/shared/theme'
 import { ProPitch } from './pro-pitch'
@@ -117,7 +117,7 @@ export function PricingSection({
   inset?: boolean
   dateHint?: string
   focusOnMount?: boolean
-  profile: ({ isTrialActive?: boolean } & AstraAllowance) | null
+  profile: ({ isTrialActive?: boolean } & OrbitAllowance) | null
   plans: SubscriptionPlans | null | undefined
   isLoadingPlans: boolean
   isPlansError: boolean

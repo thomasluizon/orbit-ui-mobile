@@ -32,7 +32,7 @@ export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pat
       else resetToday()
       return
     }
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
     const rootPath = SHELL_DESTINATION_PATHS[id as ShellDestinationId]
     if (!notFound && id === active && pathname === rootPath) {
       scrollToTop?.(id)

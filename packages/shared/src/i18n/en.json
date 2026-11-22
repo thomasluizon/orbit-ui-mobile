@@ -220,14 +220,14 @@
     "calendar": "Calendar",
     "createHabit": "Create habit",
     "profile": "Profile",
-    "astra": "Orbit",
+    "orbit": "Orbit",
     "search": "Search",
     "today": "Today",
     "progress": "Progress",
     "mainNavigation": "Main navigation"
   },
   "shell": {
-    "astraButton": {
+    "orbitButton": {
       "open": "Talk to Orbit"
     },
     "collapseSidebar": "Collapse sidebar",
@@ -344,7 +344,7 @@
       "actions": "Add"
     }
   },
-  "todayAstra": {
+  "todayOrbit": {
     "openConversation": "Open the conversation",
     "returningElapsed": "{days, plural, one {You last completed a habit # day ago.} other {You last completed a habit # days ago.}}",
     "returningBounded": "You last completed a habit over 30 days ago.",
@@ -388,7 +388,7 @@
   "contextMenu": {
     "viewDetails": "View details"
   },
-  "astraRail": {
+  "orbitRail": {
     "title": "Orbit copilot",
     "subtitle": "Your habit copilot"
   },
@@ -733,7 +733,7 @@
     },
     "createHabit": "Create habit",
     "createTask": "Create task",
-    "askAstra": "Start conversation",
+    "askOrbit": "Start conversation",
     "createManually": "Create manually",
     "createSubHabit": "Create Sub-Habit",
     "editHabit": "Edit habit",
@@ -794,7 +794,7 @@
       "skip": "Skip",
       "openSubHabits": "Open the sub habits",
       "unlog": "Mark incomplete",
-      "rescheduleAstra": "Reschedule",
+      "rescheduleOrbit": "Reschedule",
       "reschedule": "Reschedule"
     },
     "reschedule": {
@@ -910,10 +910,10 @@
       "describePlaceholder": "Run 3 times a week",
       "understood": "Orbit understood",
       "unresolved": "Orbit did not find how often in this phrase. Pick the days or a number of times a week.",
-      "askAstra": "Suggest frequency",
-      "askAstraCost": "{allowance, plural, one {Uses today's only message.} other {Uses 1 of today's # messages.}}",
-      "askAstraCostWeekly": "{allowance, plural, one {Uses this week's only message.} other {Uses 1 of this week's # messages.}}",
-      "astraReading": "Orbit is reading the phrase",
+      "askOrbit": "Suggest frequency",
+      "askOrbitCost": "{allowance, plural, one {Uses today's only message.} other {Uses 1 of today's # messages.}}",
+      "askOrbitCostWeekly": "{allowance, plural, one {Uses this week's only message.} other {Uses 1 of this week's # messages.}}",
+      "orbitReading": "Orbit is reading the phrase",
       "localReadLimit": "{allowance, plural, one {Today's # AI message is used. I read the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.} other {Today's # AI messages are used. I read the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.}}",
       "localReadLimitWeekly": "{allowance, plural, one {This week's # AI message is used. I read the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.} other {This week's # AI messages are used. I read the phrase on this device, and creating a habit uses no message. Pick the days or a number of times a week.}}",
       "understoodIntervalDays": "{count, plural, one {every {days}, every # week} other {every {days}, every # weeks}}",
@@ -950,7 +950,7 @@
       "repeatWeeks": "{count, plural, one {Every week} other {Every # weeks}}",
       "repeatLess": "Repeat less often",
       "repeatMore": "Repeat more often",
-      "proposedByAstra": "Proposed by Orbit",
+      "proposedByOrbit": "Proposed by Orbit",
       "moreDetails": "More details",
       "exactTime": "At what time?",
       "reminders": "Reminders",
@@ -1187,7 +1187,7 @@
       "noDataYet": "No data yet",
       "daysFree": "Days free",
       "reminders": "Reminders",
-      "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
+      "askOrbitSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
       "orbit": {
         "lastSevenDays": "{done, plural, one {You did this on # of the last 7 days.} other {You did this on # of the last 7 days.}}",
         "loadError": "I could not load this habit.",
@@ -1214,7 +1214,7 @@
       "inside": "What is inside",
       "addSubHabit": "Add sub-habit",
       "linkedGoals": "Goals",
-      "askAstra": "Review habit",
+      "askOrbit": "Review habit",
       "moreDetails": "More details",
       "schedule": "Frequency",
       "noValue": "Not set",
@@ -2614,7 +2614,7 @@
       "objectRequired": "Provide the details for {fieldName}.",
       "onboardingCompleted": "Setup completed",
       "policyDenied": "I cannot do that from here.",
-      "proactiveAstra": {
+      "proactiveOrbit": {
         "disabled": "Orbit notifications turned off",
         "enabled": "Orbit notifications turned on"
       },
@@ -2723,7 +2723,7 @@
       "saveError": "Change not saved. Try again."
     },
     "groups": {
-      "astra": "Orbit",
+      "orbit": "Orbit",
       "notifications": "Notifications",
       "more": "More of Orbit"
     },
@@ -2806,7 +2806,7 @@
     "aiSummary": {
       "title": "Daily recap"
     },
-    "proactiveAstra": {
+    "proactiveOrbit": {
       "title": "Orbit notifications"
     },
     "marketingEmails": {
@@ -3200,10 +3200,10 @@
       "heading": "Your Pro trial ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
-      "astraCeiling": "250 AI messages a week",
+      "orbitCeiling": "250 AI messages a week",
       "calendarSync": "Calendar sync",
       "retrospective": "Periodic retrospective",
-      "proactiveAstra": "Orbit notifications",
+      "proactiveOrbit": "Orbit notifications",
       "savings": "Annual saves {percent}%",
       "subscribe": "View plans",
       "continueFree": "Stay free"
@@ -3217,7 +3217,7 @@
     "loading": "Checking in on your day...",
     "error": "Couldn't load your summary. Try again.",
     "retry": "Try again",
-    "askAstra": "Review summary",
+    "askOrbit": "Review summary",
     "upgrade": "Upgrade",
     "freePrompt": "Pro gets a daily summary of your habits.",
     "guided": {
@@ -3313,7 +3313,7 @@
         "continueReason": "Write what you want to keep up."
       },
       "when": {
-        "astraRead": "This is how I read it. Correct anything that is wrong.",
+        "orbitRead": "This is how I read it. Correct anything that is wrong.",
         "direct": "When do you want to do it?",
         "proposedBy": "Proposed by Orbit",
         "emojiLabel": "Emoji proposed by Orbit",
@@ -3418,7 +3418,7 @@
       },
       "done": {
         "readFailed": "I saved the habit, but I could not show its details. Try again.",
-        "tellAstra": "Next time, tell Orbit what you want to do from Today.",
+        "tellOrbit": "Next time, tell Orbit what you want to do from Today.",
         "title": "Done. It is in your day.",
         "body": "When you do it, mark its ring on Today to log it.",
         "remindersOffBody": "When you do it, mark its ring on Today to log it. You can turn reminders on from the habit.",
@@ -3503,7 +3503,7 @@
           "noDateAt": "no date, at {time}"
         }
       },
-      "meetAstra": {
+      "meetOrbit": {
         "importPrompt": "Help me import my habits from another app. I'll attach a file or paste my list, and you create the habits."
       }
     },
@@ -3521,7 +3521,7 @@
       "question": "What can you do in Orbit?",
       "habits": "Habits",
       "calendar": "Calendar",
-      "astra": "Orbit",
+      "orbit": "Orbit",
       "connect": "Connect",
       "rewards": "Rewards",
       "progress": "Goals",
@@ -3579,7 +3579,7 @@
         "statusTitle": "Goal Lifecycle",
         "statusDesc": "Goals move through active, completed, and abandoned states. Mark goals as completed when you hit your target, or abandon them if priorities change."
       },
-      "astraSection": {
+      "orbitSection": {
         "canDoTitle": "Create & Log",
         "canDoDesc": "Tell Orbit what habits you want and it creates them. Say 'I ran today' to log one. You can also ask for a habit on a single day, like 'buy eggs tomorrow'.",
         "toolsBreadthTitle": "71 Built-In Tools",
@@ -3711,7 +3711,7 @@
     },
     "outcomes": {
       "label": "What changes with Pro",
-      "astra": "Rearrange your routine with 250 AI messages a week",
+      "orbit": "Rearrange your routine with 250 AI messages a week",
       "calendar": "See Google Calendar commitments beside your habits",
       "retrospective": "See what happened and what to change each week and month",
       "noticing": "Orbit notices, without you asking, when something slips"
@@ -3851,8 +3851,8 @@
       "edgeBlockedRetry": "This request was blocked before it reached Orbit. Try again in a few minutes. If it keeps happening, contact support.",
       "habitLimit": "{limit, plural, one {You can have up to # active habit. Sub-habits don't count. Delete a habit to add another.} other {You can have up to # active habits. Sub-habits don't count. Delete a habit to add another.}}",
       "calendarPro": "Calendar sync needs Orbit Pro. Open Upgrade to turn it on.",
-      "astraLimit": "You've used today's AI messages. More arrive at midnight, your time.",
-      "astraLimitWeekly": "You've used this week's AI messages.",
+      "orbitLimit": "You've used today's AI messages. More arrive at midnight, your time.",
+      "orbitLimitWeekly": "You've used this week's AI messages.",
       "payGate": "This feature needs Orbit Pro. Open Upgrade to see your options.",
       "reload": "Reload",
       "noPermission": "You don't have permission to do that.",
@@ -4035,9 +4035,9 @@
       "historyDate": "Date: {date}",
       "historyDelta": "Change: {delta} {unit}",
       "historyProgress": "Progress: {current} of {target} {unit}",
-      "askAstraEyebrow": "Review goal",
-      "askAstraDefault": "Want a weekly check-in plan for this?",
-      "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
+      "askOrbitEyebrow": "Review goal",
+      "askOrbitDefault": "Want a weekly check-in plan for this?",
+      "askOrbitSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
       "statusLabel": "Status",
       "line": {
         "daysLeft": "{days, plural, one {By my count, # day is left until the deadline.} other {By my count, # days are left until the deadline.}}",
@@ -4548,7 +4548,7 @@
       "items": {
         "createHabit": "Create your first habit",
         "logHabit": "Log a habit today",
-        "tryAstra": "What would you like to do?"
+        "tryOrbit": "What would you like to do?"
       },
       "progress": "{done, plural, one {# of {total} done} other {# of {total} done}}",
       "complete": "You're all set.",

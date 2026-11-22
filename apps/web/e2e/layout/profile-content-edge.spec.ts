@@ -82,7 +82,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await assertRowEdge(accountRow, bellInset, contentWidth)
       }
 
-      for (const screen of ['account', 'preferences', 'astra', 'notifications']) {
+      for (const screen of ['account', 'preferences', 'orbit', 'notifications']) {
         await page.goto(`/profile/${screen}`)
         const group = page.getByTestId(`profile-settings-group-${screen}`)
         const firstRow = group.locator('.orbit-row-list > div').first()
@@ -92,7 +92,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
         const groupLeft = width < 1024 ? todayLeft : await centredContentLeft(group)
         await assertRowEdge(firstRow, groupLeft, contentWidth)
         expect(await group.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(contentWidth + 32, 0)
-        if (screen === 'astra') await assertRowEdge(group.getByTestId('astra-allowance-panel'), groupLeft, contentWidth)
+        if (screen === 'orbit') await assertRowEdge(group.getByTestId('orbit-allowance-panel'), groupLeft, contentWidth)
         const back = page.getByRole('button', { name: words.common.backToProfile })
         await expect(back).toBeVisible()
         const backLeft = await back.evaluate((element) => element.getBoundingClientRect().left)

@@ -17,7 +17,7 @@ type AppRouter = ReturnType<typeof useRouter>
 function openNotificationUrl(router: AppRouter, url: unknown) {
   const destination = typeof url === 'string' ? getNotificationDestination(url) : null
   if (!destination) return
-  router.push(destination.opensAstra ? buildConversationEntryHref('proactive') : destination.url)
+  router.push(destination.opensOrbit ? buildConversationEntryHref('proactive') : destination.url)
 }
 
 function takeLaunchNotificationUrl(): string | null {

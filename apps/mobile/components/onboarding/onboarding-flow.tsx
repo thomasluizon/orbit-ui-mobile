@@ -31,7 +31,7 @@ import {
   type OnboardingRemindState,
   type OnboardingSchedule,
   type OnboardingScheduleMode,
-  type AstraAllowance,
+  type OrbitAllowance,
   type ShellDestinationId,
   type ShellDestinationPath,
 } from '@orbit/shared/utils'
@@ -97,7 +97,7 @@ function proStepFrame(body: ReactNode, footer: ReactNode) {
 export interface OnboardingDecisionProps {
   step: number; sentence: string; locale: 'en' | 'pt-BR'; marks: ReturnType<typeof readHabitPhrase>['consumed']; isLive: boolean
   emoji: string; schedule: OnboardingSchedule; dueTime: string; proposed: boolean; correcting: boolean
-  atLimit: boolean; allowance: number; allowancePeriod?: AstraAllowance['aiMessagesPeriod']; createFailed: boolean; creating: boolean
+  atLimit: boolean; allowance: number; allowancePeriod?: OrbitAllowance['aiMessagesPeriod']; createFailed: boolean; creating: boolean
   suggestionPending: boolean; phraseReads: number; reminderDecision: ReminderDecision; reminderState: OnboardingRemindState; createdTitle: string
   onAccount: () => void; onSentence: (value: string) => void; onContinueWhat: () => void
   /** A starter fills the phrase and continues in one press. */
@@ -189,7 +189,7 @@ function GuidedResultSlot({ open, ...props }: Readonly<ComponentProps<typeof Gui
 export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readonly<{ finalStepOnly?: boolean; guided?: boolean }>) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
-  const astraConversationOpen = useUIStore((state) => state.astraConversationOpen)
+  const orbitConversationOpen = useUIStore((state) => state.orbitConversationOpen)
   const locale = i18n.language === 'pt-BR' ? 'pt-BR' : 'en'
   const actions = useOnboardingActions()
   const isLive = useOnboardingIsLive()
@@ -387,7 +387,7 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
     runStepTransition(() => { if (step > 0) setStep(step - 1) })
   }
 
-  if (astraConversationOpen) return null
+  if (orbitConversationOpen) return null
   if (step === ONBOARDING_PRO_STEP && handedOver) return <NativeDialog open={overlayOpen} title={t('upgrade.pitchTitle')} onOpenChange={(open) => { if (!open) completeAndLeave() }}><Shell412 tabBar={<DoneTabBar onSelect={(id) => completeAndLeave(SHELL_DESTINATION_PATHS[id as ShellDestinationId])} />}><OnboardingProStep ref={proStepRef} onFinish={finishAndLeave} frame={proStepFrame} /></Shell412></NativeDialog>
   if (step === ONBOARDING_DONE_STEP && handedOver) return <NativeDialog open={overlayOpen} title={t(`onboarding.flow.done.${getOnboardingCompleteCopy({ skipped, signedOut: !isLive, remindersOff, dueToday: createdDueToday, general: createdGeneral }).titleKey}`)} onOpenChange={(open) => { if (!open) completeAndLeave() }}><Shell412 tabBar={<DoneTabBar onSelect={(id) => void completeAndLeave(isLive ? SHELL_DESTINATION_PATHS[id as ShellDestinationId] : undefined)} />}><DoneScroll><OnboardingComplete createdHabit={createdTitle} emoji={emoji || '◎'} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></DoneScroll></Shell412><GuidedResultSlot open={[guided, overlayOpen, Boolean(createdTitle), !skipped, !resultDismissed]} habitId={createdId} optimistic={schedule} signedOut={!isLive} timeZone={profile?.timeZone} onPrimary={() => completeAndLeave(isLive ? SHELL_DESTINATION_PATHS.hoje : undefined)} onClose={() => setResultDismissed(true)} /></NativeDialog>
 

@@ -58,16 +58,16 @@ function menuItemLabels(tree: any): string[] {
 
 describe('Menu (mobile)', () => {
   it.each([en, ptBR].flatMap(messages => (['anchored', 'sheet'] as const).flatMap(presentation => [1, 2].map(fontScale => ({ messages, presentation, fontScale })))))(
-    'shows an Astra action label with sibling row treatment in $presentation at font scale $fontScale',
+    'shows an Orbit action label with sibling row treatment in $presentation at font scale $fontScale',
     async ({ messages, presentation, fontScale }) => {
       __setWindowDimensions({ width: 480, height: 900, scale: 1, fontScale })
       const onSelect = vi.fn()
-      const label = messages.habits.actions.rescheduleAstra
+      const label = messages.habits.actions.rescheduleOrbit
       let tree!: ReactTestRenderer
       await TestRenderer.act(() => { tree = TestRenderer.create(<><PortalHost /><Menu.Root open><Menu.Trigger accessibilityLabel="Menu trigger" />
         <Menu.Content presentation={presentation} title="Actions" onSelect={onSelect} items={[
           { id: 'edit', label: messages.common.edit, icon: 'pencil' },
-          { id: 'reschedule', label, icon: 'astra' },
+          { id: 'reschedule', label, icon: 'orbit' },
         ]} />
       </Menu.Root></>) })
       try {
@@ -76,7 +76,7 @@ describe('Menu (mobile)', () => {
         const action = rows[1]!
         expect(action.findAll(node => String(node.type) === 'Text').map(node => node.props.children)).toEqual([label])
         expect(action.props.accessibilityLabel).toBeUndefined()
-        expect(action.findAll(node => node.type === Icon).map(node => node.props.name)).toEqual(['astra'])
+        expect(action.findAll(node => node.type === Icon).map(node => node.props.name)).toEqual(['orbit'])
         const actionStyle = action.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
         const siblingStyle = sibling.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
         for (const pressed of [false, true]) {

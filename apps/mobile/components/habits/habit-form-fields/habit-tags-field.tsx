@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { createTagRequests, hasTagDraftChanges } from '@orbit/shared/hooks'
-import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
+import { useOrbitAllowanceCopy } from '@/hooks/use-orbit-allowance-copy'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
@@ -105,7 +105,7 @@ interface HabitTagsFieldProps {
 export function HabitTagsField({ tags, tagEditor }: Readonly<HabitTagsFieldProps>) {
   const { disabled, guard } = useHabitFormInteraction()
   const { t } = useTranslation()
-  const allowanceText = useAstraAllowanceCopy()
+  const allowanceText = useOrbitAllowanceCopy()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])

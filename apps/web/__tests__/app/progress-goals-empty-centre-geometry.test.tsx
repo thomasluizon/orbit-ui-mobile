@@ -29,7 +29,7 @@ vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => false, useIsWideD
 function GoalsInShell() {
   const host = useRef<HTMLDivElement>(null)
   return <ShellHeaderHostContext.Provider value={host}>
-    <ShellWide items={[]} activeId="" navLabel={ptBr.nav.mainNavigation} astraRow={{ label: 'Astra', onOpen: () => {} }}
+    <ShellWide items={[]} activeId="" navLabel={ptBr.nav.mainNavigation} orbitRow={{ label: 'Orbit', onOpen: () => {} }}
       registerHeaderHost={element => { host.current = element }} notice={<></>} tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
       <div id="orbit-main" className={DESTINATION_MAIN_CLASS_NAME}>
         <div data-route-motion="" className="flex flex-1 flex-col has-[[data-page-viewport]]:h-full"><ProgressContent screen="goals" /></div>

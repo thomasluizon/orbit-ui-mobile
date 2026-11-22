@@ -149,7 +149,7 @@ describe('Shell412 mobile', () => {
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<Shell412 header={<View style={{ height: 48 }} />}
         composer={<Composer state="idle" value="" onChangeValue={vi.fn()} onSend={vi.fn()} suggestions={[]}
-          words={{ placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attach', suggestionsLabel: 'Suggestions' }} />}
+          words={{ placeholder: 'Ask Orbit', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attach', suggestionsLabel: 'Suggestions' }} />}
         notice={withNotice ? <Toast kind="neutral" message="Saved" persistent /> : undefined}
         fab={<Fab label="Create" onClick={vi.fn()}><View /></Fab>}
         tabBar={<View style={{ height: 80 }} />}><LongScrollSurface /></Shell412>) as GeometryTree
@@ -188,7 +188,7 @@ describe('Shell412 mobile', () => {
       function DraftComposer() {
         const [draft, setDraft] = useState('Keep this draft')
         return <Composer state="idle" value={draft} onChangeValue={value => { onChangeValue(value); setDraft(value) }} onSend={onSend} suggestions={[]}
-          words={{ placeholder: 'Ask Astra', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
+          words={{ placeholder: 'Ask Orbit', send: 'Send', paste: 'Paste', nothingToPaste: 'Nothing to paste', clear: 'Clear message', actions: 'Attach', suggestionsLabel: 'Suggestions' }}
           onAttachFile={vi.fn()} attachWords={{ file: 'Document', image: 'Photo', trayLabel: 'Attachments', remove: name => `Remove ${name}` }} />
       }
       const composer = <DraftComposer />
@@ -318,7 +318,7 @@ describe('Shell412 mobile', () => {
     })
     const band = StyleSheet.flatten(findByTestId(tree, 'shell-fab-band')[0]?.props.style as ViewStyle)
     expect(band).toMatchObject({ position: 'absolute', height: 96, bottom: 0, right: 0, left: 0 })
-    expect(findByTestId(tree, 'astra-button')).toHaveLength(0)
+    expect(findByTestId(tree, 'orbit-button')).toHaveLength(0)
     expect(band).not.toHaveProperty('borderTopWidth')
     expect(band.backgroundColor, 'floating free space is transparent').toBeUndefined()
     expect(findByTestId(tree, 'shell-fab')[0]?.props.pointerEvents, 'overlay wrapper passes free-space touches').toBe('box-none')
@@ -438,7 +438,7 @@ describe('Shell412 mobile', () => {
         <Shell412
           composer={React.createElement('Composer')}
           conversation={React.createElement('Conversation')}
-          conversationLabel="Astra conversation"
+          conversationLabel="Orbit conversation"
           tabBar={React.createElement('TabBar')}
         >
           {React.createElement('DestinationList')}
@@ -495,7 +495,7 @@ describe('Shell412 mobile', () => {
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
         <Shell412
-          composer={React.createElement('AstraComposer')}
+          composer={React.createElement('OrbitComposer')}
           tabBar={React.createElement('TabBar')}
         >
           <Screen />
@@ -505,7 +505,7 @@ describe('Shell412 mobile', () => {
     })
 
     expect(tree.root.findAll((node) => String(node.type) === 'SelectionTray')).toHaveLength(1)
-    expect(tree.root.findAll((node) => String(node.type) === 'AstraComposer')).toHaveLength(0)
+    expect(tree.root.findAll((node) => String(node.type) === 'OrbitComposer')).toHaveLength(0)
   })
 
   it('mounts Profile feedback above the tab bar without a composer', async () => {
@@ -724,7 +724,7 @@ describe('Shell412 mobile', () => {
           header={React.createElement('View', { testID: 'header-content' })}
           tabBar={React.createElement('View', { testID: 'tab-bar-content' })}
           conversation={React.createElement('Conversation')}
-          conversationLabel="Astra conversation"
+          conversationLabel="Orbit conversation"
           sheets={React.createElement('View', { testID: 'sheets-content' })}
         >
           {React.createElement('Screen')}
@@ -733,7 +733,7 @@ describe('Shell412 mobile', () => {
     })
 
     expect(findByTestId(tree, 'shell-conversation')[0]?.props).toMatchObject({
-      accessibilityLabel: 'Astra conversation',
+      accessibilityLabel: 'Orbit conversation',
       accessibilityViewIsModal: true,
     })
     const background = findByTestId(tree, 'shell-background')[0]

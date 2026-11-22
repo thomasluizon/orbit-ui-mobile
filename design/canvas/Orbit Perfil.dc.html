@@ -50,7 +50,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" astra-row="{{ astraRow }}" items="{{ navItems }}" active-id="perfil" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,900px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" orbit-row="{{ orbitRow }}" items="{{ navItems }}" active-id="perfil" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,900px">
           <div style="display:flex;flex-direction:column;gap:32px;max-width:560px">
             <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n8 }}" label="{{ loadingLabel }}" hint-size="100%,420px"></x-import>
@@ -68,7 +68,7 @@ a:hover{color:var(--fg-1)}
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
       <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Perfil exists to change one setting and get out. The top level holds the account row, the Orbit Pro position, then Preferências, Orbit and Notificações. Each opens one sub-screen with a title and a visible back control. Mais do Orbit stays inline, and sign out stays last. There is no avatar, bio or stats.</p>
       <p><span style="color:var(--fg-3)">account and preferences&nbsp;&nbsp;</span>The account row opens Conta: edit name, export, usage analytics, fresh start, then account deletion with a danger label, confirmation and step up. Preferências holds time zone, week start, clock, language, theme and the general habits switch. Every setting has one home.</p>
-      <p><span style="color:var(--fg-3)">astra&nbsp;&nbsp;</span>The allowance panel shows the remainder and a bar over the count of the day: 5 on free, 50 on Pro. It never states when the allowance returns, because no endpoint returns that moment. Free sees Pro, which leaves for Orbit Pro. Pro has no upgrade action. Pro gets the billing hand off, which leaves for Orbit Assinatura. Billing is NOT a step up, because the Stripe customer portal authenticates the person.</p>
+      <p><span style="color:var(--fg-3)">orbit&nbsp;&nbsp;</span>The allowance panel shows the remainder and a bar over the count of the day: 5 on free, 50 on Pro. It never states when the allowance returns, because no endpoint returns that moment. Free sees Pro, which leaves for Orbit Pro. Pro has no upgrade action. Pro gets the billing hand off, which leaves for Orbit Assinatura. Billing is NOT a step up, because the Stripe customer portal authenticates the person.</p>
       <p><span style="color:var(--fg-3)">keys&nbsp;&nbsp;</span>A free account sees the description and a lock row that routes to the upgrade and nothing else. The step up is reached only on Pro, and then the list. Keys and account deletion are the only two step up operations.</p>
       <p><span style="color:var(--fg-3)">notifications&nbsp;&nbsp;</span>The product email consent is one nullable field, so never asked is a real third state. It shows as a question with two answers, not as a toggle in a default nobody chose. Push is a per device registration capped at 5, so the group states the count against the cap.</p>
       <p><span style="color:var(--fg-3)">more&nbsp;&nbsp;</span>Calendar sync keeps its Pro badge and upgrade redirect on free accounts and opens Calendário on Pro.</p>
@@ -93,7 +93,7 @@ const T = {
     lang: 'pt-BR',
     tabs: ['Hoje', 'Calendario', 'Progresso', 'Perfil'], account: 'Marina', create: 'Criar hábito',
     navLabel: 'Navegação principal', palette: 'Buscar',
-    gYou: 'Você', gAstra: 'Orbit', gNotif: 'Notificações', gMore: 'Mais do Orbit', gDanger: 'Encerrar',
+    gYou: 'Você', gOrbit: 'Orbit', gNotif: 'Notificações', gMore: 'Mais do Orbit', gDanger: 'Encerrar',
     name: 'Marina', renameTitle: 'Mudar o nome', renameLabel: 'Nome', renameGo: 'Pronto',
     tz: 'Fuso horário', tzValue: 'America/Sao_Paulo',
     week: 'Semana começa em', weekValue: 'segunda',
@@ -154,7 +154,7 @@ const T = {
     lang: 'en',
     tabs: ['Today', 'Calendar', 'Progress', 'Profile'], account: 'Marina', create: 'Create habit',
     navLabel: 'Main navigation', palette: 'Search',
-    gYou: 'You', gAstra: 'Orbit', gNotif: 'Notifications', gMore: 'More of Orbit', gDanger: 'Ending things',
+    gYou: 'You', gOrbit: 'Orbit', gNotif: 'Notifications', gMore: 'More of Orbit', gDanger: 'Ending things',
     name: 'Marina', renameTitle: 'Change the name', renameLabel: 'Name', renameGo: 'Done',
     tz: 'Timezone', tzValue: 'America/Sao_Paulo',
     week: 'Week starts on', weekValue: 'Monday',
@@ -358,7 +358,7 @@ class Component extends DCLogic {
                   value: keys.length ? H(F, null, t.keysCount(String(keys.length))) : t.keysNone,
                   onClick: () => this.setState({ stepUp: 'pending' }) })));
 
-    const astra = group(t.gAstra, H(F, null,
+    const orbit = group(t.gOrbit, H(F, null,
       allowance,
       H(D.RowList, null,
         pro ? this.padRow(H(D.Switch, { label: t.proactive, checked: s.proactive, onChange: (v) => this.setState({ proactive: v }) }))
@@ -408,12 +408,12 @@ class Component extends DCLogic {
         H(window.OrbitNativeMobile.ListRow, { icon: 'download', title: t.exportLabel, value: s.exportPhase === 'prep' ? t.exportPrep : undefined, onClick: this.onExport }),
         H(D.Switch, { label: t.lang === 'en' ? 'Usage analytics' : 'Análise de uso', checked: !!s.analytics, onChange: (value) => this.setState({ analytics: value }) }),
         H(window.OrbitNativeMobile.ListRow, { icon: 'rotate', title: t.fresh, onClick: () => this.setState({ freshAsk: true }) }),
-        H(window.OrbitNativeMobile.ListRow, { icon: 'trash', title: t.del, danger: true, onClick: () => this.setState({ confirm: true }) })) : s.section === 'preferences' ? preferences : s.section === 'astra' ? astra : notif);
+        H(window.OrbitNativeMobile.ListRow, { icon: 'trash', title: t.del, danger: true, onClick: () => this.setState({ confirm: true }) })) : s.section === 'preferences' ? preferences : s.section === 'orbit' ? orbit : notif);
     return H(F, null, H(D.RowList, null,
       H(window.OrbitNativeMobile.ListRow, { icon: 'user', typedTitle: true, title: name, description: EMAIL, onClick: () => this.setState({ section: 'account' }) }),
       H(window.OrbitNativeMobile.ListRow, { icon: 'crown', title: 'Orbit Pro', value: pro ? 'Pro' : t.lang === 'en' ? 'Free' : 'Grátis', onClick: this.goPro }),
       H(window.OrbitNativeMobile.ListRow, { icon: 'settings', title: sectionWords.preferences, onClick: () => this.setState({ section: 'preferences' }) }),
-      H('button', { type: 'button', onClick: () => this.setState({ section: 'astra' }), style: { display: 'flex', alignItems: 'center', minHeight: 52, gap: 12, padding: '12px 16px', border: 0, background: 'transparent', color: 'var(--fg-1)', font: 'inherit' } }, H(D.AstraGlyph, { size: 24 }), 'Orbit'),
+      H('button', { type: 'button', onClick: () => this.setState({ section: 'orbit' }), style: { display: 'flex', alignItems: 'center', minHeight: 52, gap: 12, padding: '12px 16px', border: 0, background: 'transparent', color: 'var(--fg-1)', font: 'inherit' } }, H(D.OrbitGlyph, { size: 24 }), 'Orbit'),
       H(window.OrbitNativeMobile.ListRow, { icon: 'bell', title: sectionWords.notifications, onClick: () => this.setState({ section: 'notifications' }) })),
       more, H(window.OrbitNativeMobile.ListRow, { icon: 'logout', title: t.signOut, chevron: false, onClick: this.goEntrar }));
   }
@@ -445,7 +445,7 @@ class Component extends DCLogic {
       loading: loading, ready: !loading,
       rootBell: H(window.OrbitNativeMobile.BellRow),
       body: this.body(t, filled),
-      astraRow: H(window.OrbitNativeMobile.AstraRow),
+      orbitRow: H(window.OrbitNativeMobile.OrbitRow),
       navItems: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
       tabBar: H(window.OrbitNativeMobile.TabBar, { items: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
         activeId: 'perfil', onSelect: () => {} }),

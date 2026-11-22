@@ -14,13 +14,13 @@ for (const scenario of ['claimed-escape', 'late-palette', 'palette-without-modif
     let downs = 0
     const visible = () => timed.filter((event) => event.at <= context.elapsed())
     const paletteOpen = () => visible().filter((event) => event.kind === 'palette-key' && event.key === 'k' && event.metaKey).length % 2 === 1
-    const state = () => ({ inputFocused: true, inputName: 'Search commands', results: ['Today', 'Astra', 'All'], selected: downs })
+    const state = () => ({ inputFocused: true, inputName: 'Search commands', results: ['Today', 'Orbit', 'All'], selected: downs })
     const native = async (_pid: number, command: string) => {
       commands.push(command)
       const now = context.elapsed()
       if (command === 'escape' && modal) {
-        // The input method claims the Escape (keyCode 229), and the Astra handler still closes on the key name.
-        timed.push({ at: now, kind: 'astra-key', key: 'Escape', keyCode: scenario === 'claimed-escape' ? 229 : 27 })
+        // The input method claims the Escape (keyCode 229), and the Orbit handler still closes on the key name.
+        timed.push({ at: now, kind: 'orbit-key', key: 'Escape', keyCode: scenario === 'claimed-escape' ? 229 : 27 })
         modal = false
       } else if (command === 'escape') timed.push({ at: now, kind: 'palette-key', key: 'Escape', keyCode: 27 })
       if (command === 'palette') {
@@ -41,12 +41,12 @@ for (const scenario of ['claimed-escape', 'late-palette', 'palette-without-modif
     const proxy = {
       send(command: string) {
         commands.push(command)
-        if (command === 'astra') modal = true
+        if (command === 'orbit') modal = true
         if (command.startsWith('focus-')) others.push({ kind: 'focus', ...state() })
       },
       read(surface: string) {
-        if (surface === 'astra') return modal && {}
-        if (surface === 'astra-closed') return !modal && {}
+        if (surface === 'orbit') return modal && {}
+        if (surface === 'orbit-closed') return !modal && {}
         if (surface === 'palette') return paletteOpen() && state()
         return false
       },
@@ -58,7 +58,7 @@ for (const scenario of ['claimed-escape', 'late-palette', 'palette-without-modif
     if (scenario === 'claimed-escape') {
       assert.equal(failure, undefined, failure?.message)
       assert.equal(commands.filter((entry) => entry === 'escape').length, 2)
-      assert.ok(commands.indexOf('escape') < commands.indexOf('astra-closed') && commands.indexOf('astra-closed') < commands.lastIndexOf('escape'))
+      assert.ok(commands.indexOf('escape') < commands.indexOf('orbit-closed') && commands.indexOf('orbit-closed') < commands.lastIndexOf('escape'))
     }
     if (scenario === 'late-palette') {
       assert.match(String(failure), /^Error: OS key delivery failed: the page received 2 palette keydowns from 2 posts;/)

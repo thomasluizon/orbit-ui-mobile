@@ -62,11 +62,11 @@ describe('HabitEmojiSelector', () => {
     expect(well.closest('[data-proposed]')).toBeNull()
     expect(well.querySelector('[data-proposed]')).not.toBeNull()
     expect(well.closest('[data-habit-title-row]')).not.toBeNull()
-    expect(well).toHaveAccessibleDescription('habits.form.proposedByAstra')
-    expect(screen.getByText('habits.form.proposedByAstra')).not.toBeVisible()
+    expect(well).toHaveAccessibleDescription('habits.form.proposedByOrbit')
+    expect(screen.getByText('habits.form.proposedByOrbit')).not.toBeVisible()
     view.rerender(<UnderstandingWithEmoji resolved />)
     expect(well).not.toHaveAccessibleDescription()
-    expect(screen.queryByText('habits.form.proposedByAstra')).toBeNull()
+    expect(screen.queryByText('habits.form.proposedByOrbit')).toBeNull()
   })
 
   it('keeps the disabled suggestion reason accessible without a visible caption', () => {

@@ -1,4 +1,4 @@
-import { createAstraAllowanceTranslator, type AstraAllowance, type SubscriptionScreenState } from '@orbit/shared/utils'
+import { createOrbitAllowanceTranslator, type OrbitAllowance, type SubscriptionScreenState } from '@orbit/shared/utils'
 import { ProBenefits } from './pro-benefits'
 import { useState } from 'react'
 import { Linking, Text, View } from 'react-native'
@@ -60,14 +60,14 @@ function planPrice(data: BillingDetails | null, t: UpgradeTextFn, tokens: Tokens
 
 function PlanDetails({ status, data, locale, t, tokens }: Readonly<{
   state: SubscriptionScreenState
-  status: SubscriptionStatus & AstraAllowance
+  status: SubscriptionStatus & OrbitAllowance
   data: BillingDetails | null
   locale: string
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
   const summary = subscriptionSummary(status, data)
-  const translate = createAstraAllowanceTranslator(t, status, locale)
+  const translate = createOrbitAllowanceTranslator(t, status, locale)
   const price = status.isLifetimePro ? null : planPrice(data, t, tokens)
   const renewal = summary.renewal ? t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) }) : null
   return <PlanSummaryCard planLabel={t(summary.nameKey)}
@@ -178,8 +178,8 @@ export function BillingDashboard({
   isOnline: boolean
   locale: string
   usagePercent: number
-  usageProfile: ({ aiMessagesUsed: number; aiMessagesLimit: number } & AstraAllowance) | null
-  status: SubscriptionStatus & AstraAllowance | null
+  usageProfile: ({ aiMessagesUsed: number; aiMessagesLimit: number } & OrbitAllowance) | null
+  status: SubscriptionStatus & OrbitAllowance | null
   onPortal: () => void
   onRetryPortal: () => void
   t: UpgradeTextFn

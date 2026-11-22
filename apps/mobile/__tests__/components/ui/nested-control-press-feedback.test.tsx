@@ -124,7 +124,7 @@ function textColor(tree: FeedbackTree, text: string) {
 
 const slotSurfaces = [
   {
-    name: 'proposed Astra habit block row',
+    name: 'proposed Orbit habit block row',
     title: 'Walk after breakfast',
     fillTestID: 'habit-block-feedback',
     slotTestID: 'habit-block-control',

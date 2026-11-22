@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => {
   return {
     capacity: vi.fn(() => Promise.resolve(true)),
     storage: new Map<string, string>(),
-    setAstraConversationOpen: vi.fn(),
+    setOrbitConversationOpen: vi.fn(),
     invalidateQueries: vi.fn(() => Promise.resolve()),
     apiClient: vi.fn((_path: string, _options?: { isCurrent?: () => boolean; body?: string }) => Promise.resolve(undefined)),
     router: {
@@ -39,7 +39,7 @@ const mocks = vi.hoisted(() => {
   }
 })
 
-vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: () => { mocks.setAstraConversationOpen(true); return Promise.resolve() } }))
+vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: () => { mocks.setOrbitConversationOpen(true); return Promise.resolve() } }))
 
 vi.mock('@/hooks/use-push-subscriptions', () => ({ hasPushSubscriptionCapacity: mocks.capacity }))
 
@@ -103,7 +103,7 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setAstraConversationOpen }) => unknown) => selector(mocks),
+  useUIStore: (selector: (state: { setOrbitConversationOpen: typeof mocks.setOrbitConversationOpen }) => unknown) => selector(mocks),
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -219,7 +219,7 @@ describe('usePushNotifications', () => {
     mocks.apiClient.mockClear()
     mocks.invalidateQueries.mockClear()
     mocks.router.push.mockClear()
-    mocks.setAstraConversationOpen.mockClear()
+    mocks.setOrbitConversationOpen.mockClear()
     mocks.appState.listener = null
     mocks.auth.isAuthenticated = true
     mocks.auth.user = { userId: 'user-1' }
@@ -1062,7 +1062,7 @@ describe('usePushNotifications', () => {
     ['/goals?status=Active', '/progress/goals?status=Active', false],
     ['/progress?wrapped=month&year=2026&month=8', '/wrapped?period=month&year=2026&month=8', false],
     ['/profile', '/profile', false],
-  ])('routes the accepted push %s and applies its Astra overlay intent', async (url, destination, opensAstra) => {
+  ])('routes the accepted push %s and applies its Orbit overlay intent', async (url, destination, opensOrbit) => {
     await renderHarness()
     await flush()
     const listener = vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mock.calls.at(-1)![0]
@@ -1079,8 +1079,8 @@ describe('usePushNotifications', () => {
       } as unknown as Parameters<typeof listener>[0])
     })
     expect(mocks.router.push).toHaveBeenCalledWith(destination)
-    if (opensAstra) expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(true)
-    else expect(mocks.setAstraConversationOpen).not.toHaveBeenCalled()
+    if (opensOrbit) expect(mocks.setOrbitConversationOpen).toHaveBeenCalledWith(true)
+    else expect(mocks.setOrbitConversationOpen).not.toHaveBeenCalled()
   })
 
   it('routes the Wrapped response that launched the app before listener registration', async () => {
@@ -1105,7 +1105,7 @@ describe('usePushNotifications', () => {
     const renderer = await renderHarness()
     await flush()
     expect(mocks.router.push).not.toHaveBeenCalled()
-    expect(mocks.setAstraConversationOpen).not.toHaveBeenCalled()
+    expect(mocks.setOrbitConversationOpen).not.toHaveBeenCalled()
     expect(notificationsModule.clearLastNotificationResponse).not.toHaveBeenCalled()
     mocks.auth.isAuthenticated = true
     mocks.auth.user = { userId: 'user-1' }
@@ -1114,7 +1114,7 @@ describe('usePushNotifications', () => {
     })
     await flush()
     expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
-    expect(mocks.setAstraConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
+    expect(mocks.setOrbitConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
     expect(notificationsModule.clearLastNotificationResponse).toHaveBeenCalledTimes(1)
     await TestRenderer.act(() => renderer.update(<></>))
   })
@@ -1181,7 +1181,7 @@ describe('usePushNotifications', () => {
       '/wrapped?period=month&year=2026&month=8',
     )
     expect(mocks.router.push).toHaveBeenNthCalledWith(2, '/')
-    expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(true)
+    expect(mocks.setOrbitConversationOpen).toHaveBeenCalledWith(true)
   })
 
   it('reports unsupported and no-ops the actions when the module is unavailable', async () => {

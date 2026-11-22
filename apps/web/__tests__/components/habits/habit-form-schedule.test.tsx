@@ -56,7 +56,7 @@ describe('manual schedule creation', () => {
     formLocale.language = 'en'
     mockProfileState.aiMessagesUsed = 0
   })
-  it.each(['Day', 'Week', 'Month', 'Year'] as const)('creates every interval and flexible %s schedule without Astra', async (unit) => {
+  it.each(['Day', 'Week', 'Month', 'Year'] as const)('creates every interval and flexible %s schedule without Orbit', async (unit) => {
     mockProfileState.aiMessagesUsed = 5
     const ask = vi.fn()
     let helpers!: HabitFormHelpers
@@ -88,7 +88,7 @@ describe('manual schedule creation', () => {
     expect(ask).not.toHaveBeenCalled()
   })
 
-  it.each(['quantity', 'unit', 'mode', 'day', 'interval'] as const)('marks an Astra schedule as proposed until a %s edit', async (edit) => {
+  it.each(['quantity', 'unit', 'mode', 'day', 'interval'] as const)('marks an Orbit schedule as proposed until a %s edit', async (edit) => {
     const patch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
     let helpers!: HabitFormHelpers
     function OwningForm() {
@@ -98,7 +98,7 @@ describe('manual schedule creation', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const view = render(<QueryClientProvider client={queryClient}><OwningForm /></QueryClientProvider>)
     expect(view.container.querySelector('[data-proposed]')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.askOrbit' }))
     await waitFor(() => expect(helpers.form.getValues('days')).toEqual(['Monday']))
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
     const quantity = screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)\b/ })

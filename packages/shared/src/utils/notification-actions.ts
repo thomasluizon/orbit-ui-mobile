@@ -1,7 +1,7 @@
 import type { NotificationItem } from '../types/notification'
 import { parseWrappedRouteSelection } from './share-card'
 
-export function shouldShowTodayAstraSurface({
+export function shouldShowTodayOrbitSurface({
   isTodaySelected,
   inDrillOrSurface,
 }: Readonly<{
@@ -85,12 +85,12 @@ export function getNotificationDetailActionVisibility(
 export function getNotificationDestination(
   url: string | null | undefined,
   habitId: string | null = null,
-): { url: string; opensAstra: boolean } | null {
+): { url: string; opensOrbit: boolean } | null {
   if (!isViewableNotificationUrl(url)) return null
   const destination = habitId === null ? resolveNotificationUrl(url) : `/habits/${encodeURIComponent(habitId)}`
   if (!destination) return null
   if (!isViewableNotificationUrl(destination)) return null
-  return { url: destination, opensAstra: habitId === null && url.split(/[?#]/, 1)[0] === '/chat' }
+  return { url: destination, opensOrbit: habitId === null && url.split(/[?#]/, 1)[0] === '/chat' }
 }
 
 export function getNotificationTargetKey(url: string | null, habitId: string | null = null):

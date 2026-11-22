@@ -116,7 +116,7 @@ function ownerSurfaces(messages: typeof en | typeof ptBR) {
         onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
         attachWords={{ ...messages.shell.composer.attach, remove: (name: string) => name }} />,
     composerPaste: <Composer state="idle" value="" suggestions={[]} words={messages.shell.composer}
-        onChangeValue={vi.fn()} onSend={vi.fn()} onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation}
+        onChangeValue={vi.fn()} onSend={vi.fn()} onOpenConversation={vi.fn()} conversationLabel={messages.todayOrbit.openConversation}
         onAttachFile={vi.fn()} attachWords={{ ...messages.shell.composer.attach, remove: (name: string) => name }} />,
     tabs: <BottomTabBar label={messages.nav.mainNavigation} activeId="today" onSelect={vi.fn()}
         items={(['today', 'calendar', 'progress', 'profile'] as const).map((id) => ({ id, label: messages.nav[id], href: '/', icon: ({ active }) => <DestinationIcon destination={id === 'today' ? 'hoje' : id === 'calendar' ? 'calendario' : id === 'progress' ? 'progresso' : 'perfil'} active={active} /> }))} />,
@@ -151,7 +151,7 @@ describe('shared interaction fill owners in Chromium', () => {
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { readText: async () => '' } });
       createRoot(document.getElementById('composer-mount')).render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><Composer state="idle" value={value} suggestions={[]}
         words={messages.shell.composer} onChangeValue={() => {}} onSend={() => {}}
-        onOpenConversation={() => {}} conversationLabel={messages.todayAstra.openConversation}
+        onOpenConversation={() => {}} conversationLabel={messages.todayOrbit.openConversation}
         onAttachFile={() => {}} attachWords={{ ...messages.shell.composer.attach, remove: name => name }} /></NextIntlClientProvider>);`)],
       { maxBuffer: 10 * 1024 * 1024 }).toString()
     const source = resolve('app/globals.css')

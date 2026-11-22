@@ -22,16 +22,16 @@ window.OrbitNativeMobile = (() => {
           borderRadius: 'var(--r-pill)', background: 'var(--fg-1)', color: 'var(--bg)' } }, count > 9 ? '9+' : count) : null)));
   }
   /* Opens the conversation specimen; this drawing navigation is not a product route. */
-  function AstraRow({ current = false, onOpen = () => window.location.assign('Orbit Astra Conversation.dc.html') }) {
+  function OrbitRow({ current = false, onOpen = () => window.location.assign('Orbit Astra Conversation.dc.html') }) {
     return node(React.Fragment, null,
-      node('style', null, '.native-astra-row:hover,.native-astra-row:active{background:var(--bg-hover)}.native-astra-row:focus-visible{outline:2px solid var(--primary);outline-offset:2px}'),
-      node('button', { type: 'button', className: 'native-astra-row', 'aria-expanded': current,
+      node('style', null, '.native-orbit-row:hover,.native-orbit-row:active{background:var(--bg-hover)}.native-orbit-row:focus-visible{outline:2px solid var(--primary);outline-offset:2px}'),
+      node('button', { type: 'button', className: 'native-orbit-row', 'aria-expanded': current,
         onClick: onOpen, style: { ...button, width: '100%', minHeight: 48, borderRadius: 12,
           paddingInline: 12, gap: 12, justifyContent: 'flex-start', fontSize: 14, fontWeight: 500,
           color: current ? 'var(--primary-soft)' : 'var(--fg-3)' } },
         node('span', { 'aria-hidden': true, style: { display: 'flex', color: current ? 'var(--primary)' : 'inherit' } },
-          node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 })),
-        node('span', { translate: 'no' }, 'Astra')));
+          node(window.OrbitDesignSystem_918bd5.OrbitGlyph, { size: 20 })),
+        node('span', { translate: 'no' }, 'Orbit')));
   }
   function Composer(props) {
     const iconButton = { ...button, minWidth: 48, minHeight: 48, padding: 0 };
@@ -63,7 +63,7 @@ window.OrbitNativeMobile = (() => {
               style: button, onClick: () => props.onAttachRemove?.(attachment.id) }, icon('x'))))) : null,
         node('div', { style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', minHeight: 48, gap: 'var(--s-1)' } },
           props.onOpen ? node('button', { type: 'button', style: iconButton, 'aria-label': props.words.open,
-            onClick: props.onOpen }, node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 })) : null,
+            onClick: props.onOpen }, node(window.OrbitDesignSystem_918bd5.OrbitGlyph, { size: 20 })) : null,
           recording ? node(React.Fragment, null, node('span', { style: { flex: 1, fontSize: 14 } }, props.voiceWords.listening, ' 00:12'),
             node('button', { type: 'button', style: iconButton, 'aria-label': props.voiceWords.stop,
               onClick: props.onVoice }, icon('player-stop')))
@@ -174,5 +174,5 @@ window.OrbitNativeMobile = (() => {
       alignSelf: 'center', gap: 8, background: 'var(--bg-elev)' }, onClick: () => rootScroller?.scrollTo({ top: 0 }) },
       icon('arrow-up'), words().bell === 'Notifications' ? 'Top' : 'Topo') : null;
   }
-  return { AstraRow, BellRow, Composer, TabBar, StatTile, PlainFigure, EventRow, HabitDayRow, ListRow, NavHeader, Badge, SegmentedControl, BackToTop };
+  return { OrbitRow, BellRow, Composer, TabBar, StatTile, PlainFigure, EventRow, HabitDayRow, ListRow, NavHeader, Badge, SegmentedControl, BackToTop };
 })();

@@ -16,8 +16,8 @@ vi.mock('@/stores/auth-store', () => ({
   useAuthStore: Object.assign((select: (session: typeof authSession) => unknown) => select(authSession), { getState: () => authSession }),
 }))
 
-const astraCopy = vi.hoisted(() => ({ name: 'nav.astra' }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'nav.astra' ? astraCopy.name : key }))
+const orbitCopy = vi.hoisted(() => ({ name: 'nav.orbit' }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key === 'nav.orbit' ? orbitCopy.name : key }))
 
 const words = {
   placeholder: 'placeholder sentinel',
@@ -245,7 +245,7 @@ describe('Composer', () => {
     const onSend = vi.fn()
     const onChangeValue = vi.fn()
     const configuration = props({ suggestions: [], words: messages.shell.composer, onSend, onChangeValue, state: initialState, limitReason: 'reason',
-      onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation,
+      onOpenConversation: vi.fn(), conversationLabel: messages.todayOrbit.openConversation,
       onAttachFile: vi.fn(), attachWords, attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], onAttachRemove: vi.fn() })
     function Mounted({ configuration }: Readonly<{ configuration: ComposerProps }>) {
       const [value, setValue] = useState('')
@@ -326,14 +326,14 @@ describe('Composer', () => {
   })
 
   it.each([en, ptBR])('shows each suggestion action with only the decorative mark', messages => {
-    astraCopy.name = messages.nav.astra
+    orbitCopy.name = messages.nav.orbit
     const chips = suggestions(3)
     const view = render(<Composer {...props({ suggestions: chips })} />)
     try {
       const controls = within(screen.getByRole('group', { name: words.suggestionsLabel })).getAllByRole('button')
       for (const [index, control] of controls.entries()) {
         expect(control).toHaveAccessibleName(chips[index]!.label)
-        expect(within(control).queryByText(messages.nav.astra, { exact: true })).not.toBeInTheDocument()
+        expect(within(control).queryByText(messages.nav.orbit, { exact: true })).not.toBeInTheDocument()
         expect(control.querySelectorAll('svg')).toHaveLength(1)
         expect(control.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mascot')
         expect(control.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
@@ -343,7 +343,7 @@ describe('Composer', () => {
       expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
       expect(chips[0]!.onSelect).not.toHaveBeenCalled()
       expect(chips[2]!.onSelect).not.toHaveBeenCalled()
-    } finally { astraCopy.name = 'nav.astra'; view.unmount() }
+    } finally { orbitCopy.name = 'nav.orbit'; view.unmount() }
   })
 
   it.each(['idle', 'sending', 'offline'] as const)(
@@ -412,7 +412,7 @@ describe('Composer', () => {
       addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
     }))
     const user = userEvent.setup()
-    const view = render(<ShellWide items={[]} activeId="hoje" navLabel="Main navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }} conversationOpen conversationLabel="Astra"
+    const view = render(<ShellWide items={[]} activeId="hoje" navLabel="Main navigation" orbitRow={{ label: 'Orbit', onOpen: vi.fn() }} conversationOpen conversationLabel="Orbit"
       conversation={<Composer {...props({ value: 'Keep this draft', onVoice: vi.fn(), voiceWords, onAttachImage: vi.fn(), onAttachFile: vi.fn(), attachWords })} />}>
       <h1>Today</h1>
     </ShellWide>)
@@ -532,8 +532,8 @@ describe('Composer', () => {
   })
 
   it('eases the open conversation glyph press over the shared press duration on the ease-out curve, as mobile does', () => {
-    render(<Composer {...props({ onOpenConversation: vi.fn(), conversationLabel: en.todayAstra.openConversation })} />)
-    expect(screen.getByRole('button', { name: en.todayAstra.openConversation })).toHaveClass(
+    render(<Composer {...props({ onOpenConversation: vi.fn(), conversationLabel: en.todayOrbit.openConversation })} />)
+    expect(screen.getByRole('button', { name: en.todayOrbit.openConversation })).toHaveClass(
       'motion-safe:active:[&_svg]:scale-[0.96]',
       'motion-safe:[&_svg]:transition-transform',
       'motion-safe:[&_svg]:duration-[var(--dur-press)]',
@@ -542,8 +542,8 @@ describe('Composer', () => {
   })
 
   it('draws the open conversation glyph with the foreground planet and the moon as its only accent', () => {
-    render(<Composer {...props({ onOpenConversation: vi.fn(), conversationLabel: en.todayAstra.openConversation })} />)
-    const face = screen.getByRole('button', { name: en.todayAstra.openConversation }).querySelector('svg')!
+    render(<Composer {...props({ onOpenConversation: vi.fn(), conversationLabel: en.todayOrbit.openConversation })} />)
+    const face = screen.getByRole('button', { name: en.todayOrbit.openConversation }).querySelector('svg')!
     expect(face).toHaveAttribute('color', 'var(--fg-1)')
     expect([...face.querySelectorAll('[fill="var(--primary)"]')].map((part) => part.getAttribute('data-part'))).toEqual(['moon'])
   })
@@ -994,8 +994,8 @@ describe('Composer', () => {
     ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. O Orbit volta quando a conexão voltar.'],
     ['en', en.shell.composer.offline, 'No connection', 'No connection. Orbit comes back when the connection does.'],
   ])('shows the %s offline composer copy', (_locale, offline, placeholder, reason) => {
-    render(<Composer {...props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Astra for something' }, limitReason: offline.reason })} />)
-    expect(screen.getByRole('textbox', { name: 'Ask Astra for something' })).toHaveAttribute('placeholder', placeholder)
+    render(<Composer {...props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Orbit for something' }, limitReason: offline.reason })} />)
+    expect(screen.getByRole('textbox', { name: 'Ask Orbit for something' })).toHaveAttribute('placeholder', placeholder)
     expect(screen.getByText(reason)).toBeInTheDocument()
   })
 
@@ -1027,7 +1027,7 @@ describe('Composer', () => {
     expect(onAttachImage).not.toHaveBeenCalled()
   })
 
-  it.each(['', 'Existing draft'])('allows voice at the Astra limit while keeping attachment choices disabled with draft=%j', async (value) => {
+  it.each(['', 'Existing draft'])('allows voice at the Orbit limit while keeping attachment choices disabled with draft=%j', async (value) => {
     const onVoice = vi.fn()
     const onAttachFile = vi.fn()
     render(<Composer {...props({ state: 'atLimit', value, limitReason: 'limit sentinel', onVoice, voiceWords, onAttachFile, attachWords })} />)

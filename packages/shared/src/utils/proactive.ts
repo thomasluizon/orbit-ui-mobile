@@ -1,11 +1,11 @@
 import type { ProactiveItem } from '../types/proactive'
-import { shouldShowTodayAstraSurface } from './notification-actions'
+import { shouldShowTodayOrbitSurface } from './notification-actions'
 import type { ReturningInterval } from './returning-interval'
 
-type TodayAstraLine = { text: string; destination: string } & ({ item: ProactiveItem } | { item: null })
+type TodayOrbitLine = { text: string; destination: string } & ({ item: ProactiveItem } | { item: null })
 type ProactiveActionLabelKey = `proactive.actions.${'morningPlan' | 'eveningCheckin' | 'restartAfterMiss' | 'busyCalendarDay' | 'goalBehind' | 'weeklyReview'}` | 'shell.composer.send'
 
-interface TodayAstraState {
+interface TodayOrbitState {
   isTodaySelected: boolean
   inDrillOrSurface: boolean
   item: ProactiveItem | null
@@ -13,27 +13,27 @@ interface TodayAstraState {
   guided: boolean
 }
 
-type TodayAstraTranslate = (key: 'todayAstra.openConversation' | 'todayAstra.viewProgress' | 'todayAstra.returningElapsed' | 'todayAstra.returningBounded' | 'todayAstra.guided.returning', values?: { days: number }) => string
+type TodayOrbitTranslate = (key: 'todayOrbit.openConversation' | 'todayOrbit.viewProgress' | 'todayOrbit.returningElapsed' | 'todayOrbit.returningBounded' | 'todayOrbit.guided.returning', values?: { days: number }) => string
 
-export function getTodayAstraSlot(state: TodayAstraState, translate: TodayAstraTranslate): TodayAstraLine | 'summary' | null {
-  return getTodayAstraLine(state, translate) ?? (shouldShowTodayAstraSurface(state) ? 'summary' : null)
+export function getTodayOrbitSlot(state: TodayOrbitState, translate: TodayOrbitTranslate): TodayOrbitLine | 'summary' | null {
+  return getTodayOrbitLine(state, translate) ?? (shouldShowTodayOrbitSurface(state) ? 'summary' : null)
 }
 
 /** With the guided flows on, the line after a gap never counts days: a gap beyond the window shows the same sentence as a gap inside it. */
-export function getTodayAstraLine(state: TodayAstraState, translate: TodayAstraTranslate): TodayAstraLine | null {
-  if (!shouldShowTodayAstraSurface(state)) return null
-  if (state.item) return { text: state.item.text, destination: translate('todayAstra.openConversation'), item: state.item }
+export function getTodayOrbitLine(state: TodayOrbitState, translate: TodayOrbitTranslate): TodayOrbitLine | null {
+  if (!shouldShowTodayOrbitSurface(state)) return null
+  if (state.item) return { text: state.item.text, destination: translate('todayOrbit.openConversation'), item: state.item }
   if (!state.returning) return null
   return {
     text: returningText(state.guided, state.returning, translate),
-    destination: translate('todayAstra.viewProgress'),
+    destination: translate('todayOrbit.viewProgress'),
     item: null,
   }
 }
 
-function returningText(guided: boolean, returning: ReturningInterval, translate: TodayAstraTranslate): string {
-  if (guided) return translate('todayAstra.guided.returning')
-  return returning.kind === 'elapsed' ? translate('todayAstra.returningElapsed', { days: returning.days }) : translate('todayAstra.returningBounded')
+function returningText(guided: boolean, returning: ReturningInterval, translate: TodayOrbitTranslate): string {
+  if (guided) return translate('todayOrbit.guided.returning')
+  return returning.kind === 'elapsed' ? translate('todayOrbit.returningElapsed', { days: returning.days }) : translate('todayOrbit.returningBounded')
 }
 
 export function proactiveActionLabelKey(trigger: string): ProactiveActionLabelKey {

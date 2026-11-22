@@ -11,7 +11,7 @@ export interface RescheduleProposalLabels {
   scheduleLabel: string | null
 }
 
-/** The date, time and frequency lines of an Astra reschedule proposal. The proposed date can
+/** The date, time and frequency lines of an Orbit reschedule proposal. The proposed date can
  *  fall in the next year, so the year shows only when it differs from the account's year. */
 export function buildRescheduleProposalLabels(
   suggestion: RescheduleSuggestion,

@@ -7,12 +7,12 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { UsageStats } from '@/components/upgrade/usage-stats'
 import { ProPitch } from '@/components/upgrade/pro-pitch'
-import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
+import { OrbitAllowancePanel } from '@/components/profile/orbit-allowance-panel'
 
 function Surfaces({ profile, locale }: { profile: Profile; locale: string }) {
   const t = useTranslations()
   return <><UsageStats profile={profile} usagePercent={80} locale={locale} t={t} />
-    <AstraAllowancePanel profile={profile} />
+    <OrbitAllowancePanel profile={profile} />
     <ProPitch profile={profile} trialDaysLeft={5} t={t} /></>
 }
 

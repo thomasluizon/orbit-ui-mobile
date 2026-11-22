@@ -12,7 +12,7 @@ import { createRef } from 'react'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { useChatStore } from '@/stores/chat-store'
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
 import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
@@ -46,7 +46,7 @@ describe('ChatEmptyState', () => {
     expect(container.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'descansando')
   })
 
-  it.each(['todayAstra.guided.offline', 'conversation.restLimit'] as const)('shows the title and one Orbit line with the reason %s while Orbit rests', (reason) => {
+  it.each(['todayOrbit.guided.offline', 'conversation.restLimit'] as const)('shows the title and one Orbit line with the reason %s while Orbit rests', (reason) => {
     enableTestFlags('orbit_guided_flows')
     const { container } = render(<ChatEmptyState mascotState="descansando" restReason={reason} />)
     expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
@@ -58,7 +58,7 @@ describe('ChatEmptyState', () => {
   })
 
   it('shows no Orbit line with no reason, and none with the guided flows off', () => {
-    const off = render(<ChatEmptyState mascotState="descansando" restReason="todayAstra.guided.offline" />)
+    const off = render(<ChatEmptyState mascotState="descansando" restReason="todayOrbit.guided.offline" />)
     expect(off.container.querySelector('[data-empty-state-line]')).toBeNull()
     off.unmount()
     enableTestFlags('orbit_guided_flows')
@@ -106,8 +106,8 @@ describe('ChatEmptyState', () => {
     const chat = {
       threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(), messages: [], activeSteps: [], showSuggestions: true,
       isTyping: false, streamingMessageId: null, canShowFollowUps: false, sendMessage, composerProps,
-    } as unknown as Parameters<typeof AstraConversation>[0]['chat']
-    render(<AstraConversation chat={chat} />)
+    } as unknown as Parameters<typeof OrbitConversation>[0]['chat']
+    render(<OrbitConversation chat={chat} />)
     return { sendMessage, suggestions }
   }
 

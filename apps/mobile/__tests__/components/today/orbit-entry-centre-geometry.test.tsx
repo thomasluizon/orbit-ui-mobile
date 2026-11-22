@@ -5,7 +5,7 @@ import { expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { Composer } from '@/components/shell/composer'
-import { TodayAstraLine } from '@/components/today/today-astra-line'
+import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 
@@ -62,15 +62,15 @@ it.each([390, 1280].flatMap((width) => [en, ptBR].map((messages) => ({ width, me
     let tree!: Tree
     await act(() => { tree = create(<>
       <Composer state="idle" value="" onChangeValue={vi.fn()} onSend={vi.fn()} words={messages.shell.composer} suggestions={[]}
-        onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation} />
-      <TodayAstraLine text={messages.todayAstra.openConversation} destination={messages.chat.title} onPress={vi.fn()} />
+        onOpenConversation={vi.fn()} conversationLabel={messages.todayOrbit.openConversation} />
+      <TodayOrbitLine text={messages.todayOrbit.openConversation} destination={messages.chat.title} onPress={vi.fn()} />
     </>) as Tree })
     try {
       const rendered = tree.toJSON()
       const hosts = (Array.isArray(rendered) ? rendered : [rendered]).flatMap(descendants)
       const owners = [
-        hosts.find((host) => host.type === 'Pressable' && host.props.accessibilityLabel === messages.todayAstra.openConversation),
-        hosts.find((host) => host.props.testID === 'today-astra-slot'),
+        hosts.find((host) => host.type === 'Pressable' && host.props.accessibilityLabel === messages.todayOrbit.openConversation),
+        hosts.find((host) => host.props.testID === 'today-orbit-slot'),
       ]
       for (const owner of owners) {
         expect(owner).toBeDefined()

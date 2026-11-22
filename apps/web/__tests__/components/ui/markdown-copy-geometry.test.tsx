@@ -15,7 +15,7 @@ import { readControlHitArea } from '@/test-support/control-hit-area'
 
 const cases = [320, 1352].flatMap(width => [1, 2].flatMap(scale => (['en', 'pt-BR'] as const).flatMap(locale => (['dark', 'light'] as const).map(mode => ({ width, scale, locale, mode })))))
 
-describe('Astra code copy geometry in Chromium', () => {
+describe('Orbit code copy geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
@@ -30,7 +30,7 @@ describe('Astra code copy geometry in Chromium', () => {
   it.each([
     ['plain reply', 'A final paragraph.'],
     ['prose after a block', '```\nkeep me\n```\n\nA final paragraph.'],
-  ])('removes the final prose margin in an Astra bubble: %s', async (_context, content) => {
+  ])('removes the final prose margin in an Orbit bubble: %s', async (_context, content) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
       <div data-bubble-role="ai"><Markdown className="thread-prose" copyableBlocks content={content} /></div>
     </NextIntlClientProvider>)

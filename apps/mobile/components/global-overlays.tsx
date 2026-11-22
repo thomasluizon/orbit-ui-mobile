@@ -5,7 +5,7 @@ import {
   type OnboardingActions,
 } from '@/components/onboarding/onboarding-actions-context'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
-import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
+import { OrbitImportPrompt } from '@/components/onboarding/orbit-import-prompt'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
@@ -56,7 +56,7 @@ export function OverlayLayer({
       <MilestoneSharePrompt suppressed={promptsSuppressed} />
       <ReviewMomentSheet suppressed={promptsSuppressed} />
       <CalendarImportPrompt suppressed={promptsSuppressed} />
-      <AstraImportPrompt suppressed={promptsSuppressed} />
+      <OrbitImportPrompt suppressed={promptsSuppressed} />
       <VersionUpdateDrawer suppressed={!signedIn} />
     </>
   )

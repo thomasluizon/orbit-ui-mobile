@@ -1,9 +1,9 @@
-import { createAstraAllowanceTranslator, type AstraAllowance } from '@orbit/shared/utils'
+import { createOrbitAllowanceTranslator, type OrbitAllowance } from '@orbit/shared/utils'
 import { useLocale } from 'next-intl'
 import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
-export function ProPitch({ profile, trialDaysLeft, t, focusOnMount = false, titleKey, bodyKey, headingId, dateHint }: Readonly<{ profile: ({ isTrialActive?: boolean } & AstraAllowance) | null; trialDaysLeft: number | null; t: ReturnType<typeof useTranslations>; focusOnMount?: boolean; titleKey?: string; bodyKey?: string; headingId?: string; dateHint?: string }>) {
+export function ProPitch({ profile, trialDaysLeft, t, focusOnMount = false, titleKey, bodyKey, headingId, dateHint }: Readonly<{ profile: ({ isTrialActive?: boolean } & OrbitAllowance) | null; trialDaysLeft: number | null; t: ReturnType<typeof useTranslations>; focusOnMount?: boolean; titleKey?: string; bodyKey?: string; headingId?: string; dateHint?: string }>) {
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     if (focusOnMount) headingRef.current?.focus()
@@ -48,8 +48,8 @@ export function planFactLine(profile: { isTrialActive?: boolean } | null, trialD
 }
 
 /** The allowance comparison: free a day beside Pro a week, its note and the weekly renewal line. */
-export function AllowanceComparison({ profile, t }: Readonly<{ profile: AstraAllowance | null; t: ReturnType<typeof useTranslations> }>) {
-  const allowanceText = createAstraAllowanceTranslator(t, profile, useLocale())
+export function AllowanceComparison({ profile, t }: Readonly<{ profile: OrbitAllowance | null; t: ReturnType<typeof useTranslations> }>) {
+  const allowanceText = createOrbitAllowanceTranslator(t, profile, useLocale())
   return (
     <section className="flex flex-col gap-3" aria-label={t('upgrade.convert.allowanceLabel')}>
       <div className="grid grid-cols-[1fr_1px_1fr] gap-4 rounded-[var(--r-card)] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)] sm:p-6">

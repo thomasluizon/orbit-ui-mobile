@@ -72,8 +72,8 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: Object.assign((selector: (state: { setAstraConversationOpen: typeof mocks.setOpen }) => unknown) =>
-    selector({ setAstraConversationOpen: mocks.setOpen }), { getState: () => ({ setAstraConversationOpen: mocks.setOpen }) }),
+  useUIStore: Object.assign((selector: (state: { setOrbitConversationOpen: typeof mocks.setOpen }) => unknown) =>
+    selector({ setOrbitConversationOpen: mocks.setOpen }), { getState: () => ({ setOrbitConversationOpen: mocks.setOpen }) }),
 }))
 vi.mock('@/components/ui/app-bar', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/app-bar')>()),
@@ -125,12 +125,12 @@ vi.mock('@/components/chat/typing-indicator', () => ({
 }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 function ChatPage() {
-  return <AstraConversation chat={useChatComposer()} />
+  return <OrbitConversation chat={useChatComposer()} />
 }
 const goalActionType = [...CHAT_GOAL_ACTION_TYPES][0] as string
 
@@ -255,7 +255,7 @@ describe('ChatPage', () => {
     editor.remove()
   })
 
-  it('opens a goal action without an Astra paywall route', () => {
+  it('opens a goal action without an Orbit paywall route', () => {
     mocks.composer.messages = [{ id: 'm1' }]
     mocks.composer.hasProAccess = false
     render(<ChatPage />)

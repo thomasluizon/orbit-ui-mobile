@@ -1,6 +1,6 @@
 'use client'
 
-import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
+import { useOrbitAllowanceCopy } from '@/hooks/use-orbit-allowance-copy'
 
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
@@ -13,7 +13,7 @@ import type { HabitFormCommonProps } from '@orbit/shared/utils'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import {
-  buildHabitAstraFallbackCopy,
+  buildHabitOrbitFallbackCopy,
   buildHabitEmojiSuggestionAvailability,
   buildHabitUnderstandingLabels,
   buildHabitUnderstandingSentence,
@@ -21,11 +21,11 @@ import {
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
   isHabitDailySchedule,
-  isHabitAstraLimitReached,
+  isHabitOrbitLimitReached,
   parseAPIDate,
   readTypedHabitPhrase,
   resolveSupportedLocale,
-  shouldShowHabitAstraFallback,
+  shouldShowHabitOrbitFallback,
 } from '@orbit/shared/utils'
 import { hasHabitMonthDaySchedule } from '@orbit/shared/validation'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -64,7 +64,7 @@ function renderSubHabitChildren(
   return typeof children === 'function' ? children(proposedItems) : children
 }
 
-interface AstraFallbackProps {
+interface OrbitFallbackProps {
   visible: boolean
   atLimit: boolean
   isSuggesting: boolean
@@ -75,7 +75,7 @@ interface AstraFallbackProps {
   onAsk: () => void
 }
 
-function AstraFallback({
+function OrbitFallback({
   visible,
   atLimit,
   isSuggesting,
@@ -84,7 +84,7 @@ function AstraFallback({
   askLabel,
   costLabel,
   onAsk,
-}: Readonly<AstraFallbackProps>) {
+}: Readonly<OrbitFallbackProps>) {
   if (!visible) return null
   return (
     <div className="flex flex-col" style={{ gap: 12 }}>
@@ -153,7 +153,7 @@ export function HabitFormFields({
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
-  const allowanceText = useAstraAllowanceCopy()
+  const allowanceText = useOrbitAllowanceCopy()
   const language = useLocale()
   const locale = resolveSupportedLocale(language)
   const translate = useCallback(
@@ -216,16 +216,16 @@ export function HabitFormFields({
   const daily = isHabitDailySchedule(days, isFlexible, frequencyUnit, frequencyQuantity)
   const monthDayAnchor = (startDate ? parseAPIDate(startDate) : new Date()).getDate()
   const allowance = profile?.aiMessagesLimit ?? 5
-  const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
+  const atMessageLimit = isHabitOrbitLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
   const understandingLabels = useMemo(() => buildHabitUnderstandingLabels(translate, itemType), [translate, itemType])
-  const astraFallbackCopy = useMemo(
-    () => buildHabitAstraFallbackCopy(allowanceText, allowance),
+  const orbitFallbackCopy = useMemo(
+    () => buildHabitOrbitFallbackCopy(allowanceText, allowance),
     [allowance, allowanceText],
   )
 
   const emojiAvailability = buildHabitEmojiSuggestionAvailability(title, atMessageLimit || emojiSuggestionLimitReached, {
     titleRequired: t('habits.form.titleRequired'),
-    limitReached: astraFallbackCopy.limitMessage,
+    limitReached: orbitFallbackCopy.limitMessage,
   })
 
   const controller = useMemo(() => createHabitFormController({
@@ -341,12 +341,12 @@ export function HabitFormFields({
       </HabitUnderstanding>
       <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
 
-      <AstraFallback
-        visible={itemType !== 'task' && !formHelpers.isGeneral && shouldShowHabitAstraFallback(title, sentence, onSuggestSetup, proposal)}
+      <OrbitFallback
+        visible={itemType !== 'task' && !formHelpers.isGeneral && shouldShowHabitOrbitFallback(title, sentence, onSuggestSetup, proposal)}
         atLimit={atMessageLimit}
         isSuggesting={isSuggesting}
-        {...astraFallbackCopy}
-        onAsk={() => void controller.askAstra()}
+        {...orbitFallbackCopy}
+        onAsk={() => void controller.askOrbit()}
       />
 
 

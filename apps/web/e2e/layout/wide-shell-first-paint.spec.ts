@@ -26,8 +26,8 @@ for (const locale of ['en', 'pt-BR'] as const) {
           const measure = () => page.evaluate(() => {
             const tops = (selector: string) => Array.from(document.querySelectorAll(selector), (element) => element.getBoundingClientRect().top)
             return {
-              destinations: tops('[data-shell-sidebar] nav > :not([data-shell-astra-row])'),
-              astra: Array.from(document.querySelectorAll('[data-shell-astra-row]'))
+              destinations: tops('[data-shell-sidebar] nav > :not([data-shell-orbit-row])'),
+              orbit: Array.from(document.querySelectorAll('[data-shell-orbit-row]'))
                 .filter((element) => element.getClientRects().length > 0)
                 .map((element) => element.getBoundingClientRect().top),
               account: tops('[data-shell-account]'),
@@ -38,24 +38,24 @@ for (const locale of ['en', 'pt-BR'] as const) {
             }
           })
           const assertChrome = async (hydrated: boolean) => {
-            await expect(sidebar.locator('[data-shell-astra-row]')).toHaveCount(width >= 1024 || !hydrated ? 1 : 0)
+            await expect(sidebar.locator('[data-shell-orbit-row]')).toHaveCount(width >= 1024 || !hydrated ? 1 : 0)
             if (width >= 1024) {
               await expect(sidebar).toBeVisible()
-              await expect(sidebar.locator('[data-shell-astra-row]')).toBeVisible()
+              await expect(sidebar.locator('[data-shell-orbit-row]')).toBeVisible()
               await expect(sidebarBell).toBeVisible()
               await expect(headerBell).toBeHidden()
               await expect(composer).toBeHidden()
               if (hydrated) await expect(composer).toHaveCount(0)
               await expect(page.locator('[data-shell-bottom]')).toHaveCSS('height', '0px')
-              await expect(page.locator('[data-astra-button]')).toBeHidden()
-              if (hydrated) await expect(page.locator('[data-astra-button]')).toHaveCount(0)
+              await expect(page.locator('[data-orbit-button]')).toBeHidden()
+              if (hydrated) await expect(page.locator('[data-orbit-button]')).toHaveCount(0)
             } else {
               await expect(sidebar).toBeHidden()
               await expect(sidebarBell).toBeHidden()
               await expect(headerBell).toBeVisible()
               await expect(page.locator('[data-shell-tab-bar]')).toBeVisible()
               await expect(composer).toHaveCount(0)
-              if (destination === 'today') await expect(page.locator('[data-astra-button]')).toBeVisible()
+              if (destination === 'today') await expect(page.locator('[data-orbit-button]')).toBeVisible()
             }
           }
           try {
@@ -65,7 +65,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
             await assertChrome(false)
             const first = await measure()
             expect(first.destinations).toHaveLength(4)
-            expect(first.astra).toHaveLength(width >= 1024 ? 1 : 0)
+            expect(first.orbit).toHaveLength(width >= 1024 ? 1 : 0)
             expect(first.account).toHaveLength(1)
             releaseScripts()
             await page.waitForLoadState('load')
@@ -95,19 +95,19 @@ for (const locale of ['en', 'pt-BR'] as const) {
 for (const locale of ['en', 'pt-BR'] as const) {
   const words = locale === 'en' ? en : ptBR
   for (const width of [412, 1000]) {
-    test.describe(`Hoje Astra draft across the wide breakpoint from ${width}px in ${locale}`, () => {
+    test.describe(`Hoje Orbit draft across the wide breakpoint from ${width}px in ${locale}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
       test('retains the layer draft while Hoje has no composer', async ({ page }) => {
-        await page.goto('/?astra=open')
+        await page.goto('/?orbit=open')
         const conversation = page.locator('[data-shell-conversation]')
         await expect(conversation).toBeVisible()
         await conversation.locator('[data-composer-input]').fill('Retained draft')
         await conversation.getByRole('button', { name: words.common.closeConversation, exact: true }).click()
         await expect(page.locator('[data-composer-root]')).toHaveCount(0)
         await page.setViewportSize({ width: 1100, height: 915 })
-        await expect(page.locator('[data-shell-astra-row]')).toBeVisible()
-        await expect(page.locator('[data-astra-button]')).toHaveCount(0)
-        await page.locator('[data-shell-astra-row]').click()
+        await expect(page.locator('[data-shell-orbit-row]')).toBeVisible()
+        await expect(page.locator('[data-orbit-button]')).toHaveCount(0)
+        await page.locator('[data-shell-orbit-row]').click()
         await expect(conversation.locator('[data-composer-input]')).toHaveValue('Retained draft')
         await page.setViewportSize({ width, height: 915 })
         await expect(conversation.locator('[data-composer-input]')).toHaveValue('Retained draft')

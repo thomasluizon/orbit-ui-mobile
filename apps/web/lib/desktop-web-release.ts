@@ -50,7 +50,7 @@ export async function reloadDesktopWeb(reload: () => void | Promise<void>, persi
   if (!accountId) { await reload(); return true }
   const chat = useChatStore.getState()
   const ui = useUIStore.getState()
-  const written = await writeDesktopChatCheckpoint(accountId, chat, ui.astraConversationOpen, persistent)
+  const written = await writeDesktopChatCheckpoint(accountId, chat, ui.orbitConversationOpen, persistent)
   if (getHeldAccountId() !== accountId || chat !== useChatStore.getState()
     || ui !== useUIStore.getState() || !canReloadDesktopWeb()) {
     if (written) forgetDesktopChatCheckpoint()

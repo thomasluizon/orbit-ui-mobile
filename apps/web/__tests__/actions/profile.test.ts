@@ -28,7 +28,7 @@ const {
   updateTimezone,
   updateLanguage,
   updateAiSummary,
-  updateProactiveAstra,
+  updateProactiveOrbit,
   updateMarketingConsent,
   updateWeekStartDay,
   updateClockFormat,
@@ -289,7 +289,7 @@ describe('profile server actions', () => {
 
     it.each([
       ['name', () => updateName({ name: 'Ada' }, 'account-a')],
-      ['proactive Astra', () => updateProactiveAstra({ enabled: true }, 'account-a')],
+      ['proactive Orbit', () => updateProactiveOrbit({ enabled: true }, 'account-a')],
       ['marketing consent', () => updateMarketingConsent({ enabled: false }, 'account-a')],
       ['selected calendars', () => setSelectedCalendars(['work', 'home'], 'account-a')],
       ['calendar auto-sync', () => setCalendarAutoSync(true, 'account-a')],
@@ -314,7 +314,7 @@ describe('profile server actions', () => {
 
     it.each([
       ['name', () => updateName({ name: 'Ada' }, 'account-a'), { name: 'Ada' }, '/api/profile/name'],
-      ['proactive Astra', () => updateProactiveAstra({ enabled: true }, 'account-a'), { enabled: true }, '/api/profile/proactive-astra'],
+      ['proactive Orbit', () => updateProactiveOrbit({ enabled: true }, 'account-a'), { enabled: true }, '/api/profile/proactive-astra'],
       ['marketing consent', () => updateMarketingConsent({ enabled: false }, 'account-a'), { enabled: false }, '/api/profile/marketing-consent'],
     ] as const)('sends the %s change through the guarded PUT', async (_label, send, payload, path) => {
       mock204()

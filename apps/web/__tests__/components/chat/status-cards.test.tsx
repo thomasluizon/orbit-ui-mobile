@@ -21,7 +21,7 @@ vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ 
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ content }: { content: string }) => <p>{content}</p> }))
 
-describe('Astra status cards on web', () => {
+describe('Orbit status cards on web', () => {
   beforeEach(() => { mocks.push.mockReset(); mocks.language = 'pt-BR'; mocks.uses24HourClock = false })
 
   it('labels the day ring and opens Today', () => {

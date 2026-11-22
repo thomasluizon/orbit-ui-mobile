@@ -65,13 +65,13 @@ describe('app shell hydration', () => {
     document.body.append(container)
     const recoverableError = vi.fn()
 
-    const firstEntry = container.querySelector<HTMLButtonElement>('[data-astra-button]')!
+    const firstEntry = container.querySelector<HTMLButtonElement>('[data-orbit-button]')!
     expect(firstEntry).not.toBeNull()
     expect(container.querySelector('[data-shell-fab-clip]')).toHaveClass('lg:hidden')
     firstEntry.focus()
     const firstSidebarBell = container.querySelector('[data-shell-sidebar] button[aria-label="notifications.bell"]')
-    const firstAstraRow = container.querySelector('[data-shell-astra-row]')
-    expect(firstAstraRow, 'sidebar Astra row exists in server HTML').not.toBeNull()
+    const firstOrbitRow = container.querySelector('[data-shell-orbit-row]')
+    expect(firstOrbitRow, 'sidebar Orbit row exists in server HTML').not.toBeNull()
 
     expect(firstSidebarBell, 'sidebar bell exists in server HTML').not.toBeNull()
     expect(container.querySelector('textarea')).toBeNull()
@@ -99,13 +99,13 @@ describe('app shell hydration', () => {
     expect(recoverableError).not.toHaveBeenCalled()
     expect(container.querySelectorAll('[data-shell-sidebar]')).toHaveLength(1)
     expect(container.querySelectorAll('[data-shell-tab-bar]')).toHaveLength(1)
-    expect(container.querySelectorAll('[data-shell-astra-row]')).toHaveLength(width >= 1024 ? 1 : 0)
-    if (width >= 1024) expect(container.querySelector('[data-shell-astra-row]')).toBe(firstAstraRow)
+    expect(container.querySelectorAll('[data-shell-orbit-row]')).toHaveLength(width >= 1024 ? 1 : 0)
+    if (width >= 1024) expect(container.querySelector('[data-shell-orbit-row]')).toBe(firstOrbitRow)
     expect(container.querySelectorAll('[data-root-notification-header]')).toHaveLength(width >= 1024 ? 0 : 1)
     expect(container.querySelector('[data-shell-sidebar] button[aria-label="notifications.bell"]')).toBe(firstSidebarBell)
-    expect(container.querySelectorAll('[data-astra-button]')).toHaveLength(width >= 1024 ? 0 : 1)
+    expect(container.querySelectorAll('[data-orbit-button]')).toHaveLength(width >= 1024 ? 0 : 1)
     if (width < 1024) {
-      expect(container.querySelector('[data-astra-button]')).toBe(firstEntry)
+      expect(container.querySelector('[data-orbit-button]')).toBe(firstEntry)
       expect(firstEntry).toHaveFocus()
     }
     expect(container.querySelector('textarea')).toBeNull()

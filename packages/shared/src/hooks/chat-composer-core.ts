@@ -57,10 +57,10 @@ const CHAT_TAG_ACTION_TYPES: ReadonlySet<string> = new Set([
 export const CHAT_DRAFT_STORAGE_KEY = 'orbit-chat-draft'
 
 export function sendInConversation(
-  conversation: { astraConversationOpen: boolean; setAstraConversationOpen: (open: boolean) => void },
+  conversation: { orbitConversationOpen: boolean; setOrbitConversationOpen: (open: boolean) => void },
   send: () => Promise<boolean>,
 ): Promise<boolean> {
-  if (!conversation.astraConversationOpen) conversation.setAstraConversationOpen(true)
+  if (!conversation.orbitConversationOpen) conversation.setOrbitConversationOpen(true)
   return send()
 }
 

@@ -46,9 +46,9 @@ describe("shared ui store", () => {
     store.getState().setShowCreateModal(true);
     expect(store.getState().tryReservePromptOverlay("consent")).toBe(false);
     store.getState().setShowCreateModal(false);
-    store.getState().setAstraConversationOpen(true);
+    store.getState().setOrbitConversationOpen(true);
     expect(store.getState().tryReservePromptOverlay("consent")).toBe(false);
-    store.getState().setAstraConversationOpen(false);
+    store.getState().setOrbitConversationOpen(false);
     expect(store.getState().tryReservePromptOverlay("consent")).toBe(true);
   });
   beforeEach(() => {
@@ -81,10 +81,10 @@ describe("shared ui store", () => {
     for (let activation = 1; activation <= 2; activation++) {
       store.setState({ activeView: 'all', activeFilters: { frequencyUnit: 'Week', search: 'needle' },
         isSelectMode: true, selectedHabitIds: new Set(['habit']), manuallySelectedIds: new Set(['habit']),
-        showCreateModal: true, astraConversationOpen: true, calendarShowRecurring: false });
+        showCreateModal: true, orbitConversationOpen: true, calendarShowRecurring: false });
       store.getState().resetToday();
       expect(store.getState()).toMatchObject({ todayResetVersion: activation, activeView: 'today',
-        activeFilters: {}, isSelectMode: false, showCreateModal: false, astraConversationOpen: false,
+        activeFilters: {}, isSelectMode: false, showCreateModal: false, orbitConversationOpen: false,
         calendarShowRecurring: false });
       expect(store.getState().activeFilters).toEqual({});
       expect(store.getState().selectedHabitIds.size).toBe(0);

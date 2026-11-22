@@ -125,7 +125,7 @@ interface PromptAttempt extends QueuedAttempt {
 }
 
 interface PromptSendContext<Attempt> {
-  conversation: { astraConversationOpen: boolean; setAstraConversationOpen: (open: boolean) => void }
+  conversation: { orbitConversationOpen: boolean; setOrbitConversationOpen: (open: boolean) => void }
   getChat: () => ChatStoreState
   getAccountGeneration: () => number
   createMessageId: () => string

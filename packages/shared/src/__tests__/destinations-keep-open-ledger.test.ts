@@ -84,7 +84,7 @@ const ledger: readonly { row: string; web: LedgerSide; android: LedgerSide }[] =
   },
   {
     row: '16 The Orbit line: proactive item, returning line, offline line, open the conversation',
-    web: { file: 'apps/web/__tests__/components/today/today-orbit-line.test.tsx', fragment: 'shows Descansando and a first person reason while offline, and the press still opens the conversation', control: "name: 'todayAstra.guided.offline'" },
+    web: { file: 'apps/web/__tests__/components/today/today-orbit-line.test.tsx', fragment: 'shows Descansando and a first person reason while offline, and the press still opens the conversation', control: "name: 'todayOrbit.guided.offline'" },
     android: { file: 'apps/mobile/__tests__/components/today/today-orbit-line.test.tsx', fragment: 'shows Descansando and a first person reason offline, and the press opens the conversation', control: 'row(tree).props.onPress' },
   },
   {
@@ -149,7 +149,7 @@ const ledger: readonly { row: string; web: LedgerSide; android: LedgerSide }[] =
   },
   {
     row: '29 Detail: the slipping line and the reschedule offer',
-    web: { file: 'apps/web/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'shows a rescue only for an older overdue habit and handles request states', control: "getByRole('group', { name: 'habits.form.proposedByAstra' })" },
+    web: { file: 'apps/web/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'shows a rescue only for an older overdue habit and handles request states', control: "getByRole('group', { name: 'habits.form.proposedByOrbit' })" },
     android: { file: 'apps/mobile/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'shows a rescue only for an older overdue habit and handles request states', control: "pressPillButton(tree.root, 'habits.reschedule.suggestDate')" },
   },
   {
@@ -179,13 +179,13 @@ const ledger: readonly { row: string; web: LedgerSide; android: LedgerSide }[] =
   },
   {
     row: '35 Open the conversation from Hoje',
-    web: { file: 'apps/web/__tests__/components/shell/astra-button.test.tsx', fragment: 'opens the conversation from the keyboard', control: 'openButton()' },
-    android: { file: 'apps/mobile/__tests__/components/shell/astra-button.test.tsx', fragment: 'opens the conversation on tap and carries its accessible name', control: "host('astra-button').props.onPress" },
+    web: { file: 'apps/web/__tests__/components/shell/orbit-button.test.tsx', fragment: 'opens the conversation from the keyboard', control: 'openButton()' },
+    android: { file: 'apps/mobile/__tests__/components/shell/orbit-button.test.tsx', fragment: 'opens the conversation on tap and carries its accessible name', control: "host('orbit-button').props.onPress" },
   },
   {
     row: '36 Open the conversation from the sidebar row on wide web',
-    web: { file: 'apps/web/__tests__/components/shell/astra-shell-navigation.test.tsx', fragment: 'owns one conversation entry row, named by its action, before the four destinations with collapsed=%s', control: "name: 'Falar com o Orbit'" },
-    android: { file: 'apps/mobile/__tests__/components/shell/astra-button.test.tsx', fragment: 'opens the conversation on tap and carries its accessible name', control: "host('astra-button').props.onPress" },
+    web: { file: 'apps/web/__tests__/components/shell/orbit-shell-navigation.test.tsx', fragment: 'owns one conversation entry row, named by its action, before the four destinations with collapsed=%s', control: "name: 'Falar com o Orbit'" },
+    android: { file: 'apps/mobile/__tests__/components/shell/orbit-button.test.tsx', fragment: 'opens the conversation on tap and carries its accessible name', control: "host('orbit-button').props.onPress" },
   },
   {
     row: '37 Close the conversation',

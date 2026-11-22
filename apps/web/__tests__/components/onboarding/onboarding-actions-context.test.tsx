@@ -285,11 +285,11 @@ describe('live onboarding actions', () => {
     expect(pushMock).not.toHaveBeenCalled()
   })
 
-  it('seeds the chat draft and opens Astra on import', () => {
+  it('seeds the chat draft and opens Orbit on import', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem')
     const { result } = renderHook(() => useLiveOnboardingActions())
     result.current.onImport?.()
-    expect(setItem).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'onboarding.flow.meetAstra.importPrompt')
+    expect(setItem).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'onboarding.flow.meetOrbit.importPrompt')
     expect(pushMock).toHaveBeenCalledWith('/?orbit=open')
     setItem.mockRestore()
   })

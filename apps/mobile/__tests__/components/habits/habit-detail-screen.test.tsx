@@ -83,7 +83,7 @@ function pressPillButton(root: TestNode, label: string) {
 }
 
 function isRescueProposal(node: TestNode): boolean {
-  return node.props.label === 'habits.form.proposedByAstra'
+  return node.props.label === 'habits.form.proposedByOrbit'
 }
 
 function openRescueGate() {
@@ -166,7 +166,7 @@ vi.mock('react-i18next', () => ({
       if (key === 'habits.detail.loggedAt') return `${values?.date}, logged at ${values?.time}`
       if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
       if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
-      if (key === 'habits.detail.askAstraSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
+      if (key === 'habits.detail.askOrbitSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
       if (key === 'habits.detail.calendarLabel') return `Atividade do hábito em ${values?.month}`
       return key
     },
@@ -409,7 +409,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
   ListRow: (props: React.ComponentProps<typeof import('@/components/ui/list-row')['ListRow']>) => {
     if (mocks.realListRows) return <actual.ListRow {...props} />
     const { title, description, value, trailing, chevron, onClick, icon, expanded, controls, toggle } = props
-    return title === 'habits.detail.askAstra' ? <actual.ListRow {...props} /> : React.createElement('ListRow', { title, description, value, chevron, onClick, icon: typeof icon === 'string' ? icon : undefined, expanded, controls, toggle },
+    return title === 'habits.detail.askOrbit' ? <actual.ListRow {...props} /> : React.createElement('ListRow', { title, description, value, chevron, onClick, icon: typeof icon === 'string' ? icon : undefined, expanded, controls, toggle },
     toggle ? React.createElement('Switch', { testID: title === 'habits.detail.slipAlert' ? 'slip-alert-switch' : title, label: title, checked: toggle.checked, onChange: toggle.onChange }, React.createElement('Text', {}, title)) : onClick ? React.createElement('Pressable', { accessibilityRole: 'button', accessibilityLabel: title, accessibilityState: { expanded }, onPress: onClick }, React.createElement('Text', {}, title)) : null,
     trailing)
   },
@@ -2037,26 +2037,26 @@ describe('HabitDetailScreen', () => {
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!
+    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askOrbit')!
     const title = ask.findAllByType('Text').find((node: TestNode) => node.props['data-slot'] === 'list-row-title')!
     expect(title.props.numberOfLines).toBeUndefined()
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each(['', 'My draft'])('paints and opens Astra about the habit, preserving draft %s', (draft) => {
+  it.each(['', 'My draft'])('paints and opens Orbit about the habit, preserving draft %s', (draft) => {
     mocks.reducedMotion = draft !== ''
     mocks.realPressTokens = true
     useChatStore.getState().setDraft(draft)
     useChatStore.getState().setContextualSuggestion(null)
-    useUIStore.getState().setAstraConversationOpen(false)
+    useUIStore.getState().setOrbitConversationOpen(false)
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!
-    expect(textsOf(ask)).toContain('habits.detail.askAstra')
-    expect(ask.findAllByType('Text').some((node: TestNode) => node.props.children === 'habits.detail.askAstra')).toBe(true)
-    TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!.props.onPress())
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
-    const prompt = 'habits.detail.askAstraSeedDefault:{"title":"Read"}'
+    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askOrbit')!
+    expect(textsOf(ask)).toContain('habits.detail.askOrbit')
+    expect(ask.findAllByType('Text').some((node: TestNode) => node.props.children === 'habits.detail.askOrbit')).toBe(true)
+    TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askOrbit')!.props.onPress())
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+    const prompt = 'habits.detail.askOrbitSeedDefault:{"title":"Read"}'
     if (draft) {
       expect(useChatStore.getState().draft).toBe(draft)
       expect(useChatStore.getState().contextualSuggestion).toMatchObject({ id: 'habit-detail:habit-1', prompt })
@@ -2508,7 +2508,7 @@ describe('HabitDetailScreen', () => {
     expect(findPillButton(proposal, 'habits.reschedule.dismiss')?.props.disabled).toBe(true)
   })
 
-  it('offers Pro and Not now on the free rescue card without asking Astra', () => {
+  it('offers Pro and Not now on the free rescue card without asking Orbit', () => {
     openRescueGate()
     mocks.hasProAccess = false
     let tree!: ReturnType<typeof TestRenderer.create>

@@ -335,7 +335,7 @@ function createLogHabitOnSuccess(context: ReturnType<typeof useLogHabitContext>)
     }
 
     if (queuedResult) {
-      showInfo(t(guided ? 'todayAstra.guided.offlineLog' : 'todayAstra.offlineLog'))
+      showInfo(t(guided ? 'todayOrbit.guided.offlineLog' : 'todayOrbit.offlineLog'))
       return
     }
 

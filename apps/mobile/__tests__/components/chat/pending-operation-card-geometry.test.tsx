@@ -1,5 +1,5 @@
 import { makeRestartPlanPreview, makeTypedHabitsPreview, makeExistingHabitPreview, makeParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeBulkCreateExecutionResponse, makeTicketTaskPreview, TICKET_TASK_DESCRIPTION } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
-import { makeOfferedTaskPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
+import { makeOfferedTaskPreview } from '@orbit/shared/test-support/orbit-offer-fixtures'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'

@@ -39,7 +39,7 @@ import {
 } from '@/lib/motion/route-intent'
 import { shouldAnimateTabSwitch } from '@/lib/motion/tab-view-transition'
 import { mediaQueryMatches } from '@/lib/media-query'
-import { AstraButton } from './astra-button'
+import { OrbitButton } from './orbit-button'
 import { ShellWide } from './shell-wide'
 import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
 import { useShellScroller } from './shell-scroller-context'
@@ -280,7 +280,7 @@ function DestinationShellContent({
         })
         return
       }
-      useUIStore.getState().setAstraConversationOpen(false)
+      useUIStore.getState().setOrbitConversationOpen(false)
       if (reselected) {
         resetRouteTransitionIntent()
         scroller?.scrollTo({ top: 0, behavior: 'instant' })
@@ -300,7 +300,7 @@ function DestinationShellContent({
     requestHabitCreateNavigation(() => {
       useUIStore.getState().clearSelection()
       useUIStore.getState().setActiveView(view)
-      useUIStore.getState().setAstraConversationOpen(false)
+      useUIStore.getState().setOrbitConversationOpen(false)
       router.push('/')
     })
   }, [router])
@@ -338,11 +338,11 @@ function DestinationShellContent({
       <ShellWide
         {...conversationSlot}
         items={wideItems}
-        astraRow={{ label: t('shell.astraButton.open'), onOpen: () => useUIStore.getState().setAstraConversationOpen(true) }}
+        orbitRow={{ label: t('shell.orbitButton.open'), onOpen: () => useUIStore.getState().setOrbitConversationOpen(true) }}
         activeId={activeId}
         navLabel={t('nav.mainNavigation')}
         onSelect={(id) => navigate(id as ShellDestinationId)}
-        onSidebarNavigate={() => useUIStore.getState().setAstraConversationOpen(false)}
+        onSidebarNavigate={() => useUIStore.getState().setOrbitConversationOpen(false)}
         {...wideCreate}
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}
@@ -356,7 +356,7 @@ function DestinationShellContent({
         registerHeaderHost={registerHeaderHost}
         scrollToTop={todayScrollToTop(pathname, notFoundVisible)}
         composer={pinnedComposer}
-        astraButton={pathname === '/' && !notFoundVisible && !wide ? <AstraButton /> : undefined}
+        orbitButton={pathname === '/' && !notFoundVisible && !wide ? <OrbitButton /> : undefined}
         tabBar={
           !chrome.flow ? <BottomTabBar
             activeId={activeId}

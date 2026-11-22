@@ -92,7 +92,7 @@ describe('OnboardingCreateHabit data', () => {
     }
   })
 
-  it.each([true, false])('attributes the reply only when Astra answered: %s', async (proposed) => {
+  it.each([true, false])('attributes the reply only when Orbit answered: %s', async (proposed) => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(<OnboardingCreateHabit {...base} proposed={proposed} />) })
     const marks = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')

@@ -28,7 +28,7 @@ describe('Shell notice clearance geometry', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each((['light', 'dark'] as const).flatMap(mode => [false, true].map(today => ({ mode, today }))))('ends the toast the shared gap above the tab bar in $mode (Hoje: $today)', async ({ mode, today }) => {
-    const view = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId={today ? 'hoje' : 'perfil'} navLabel={en.nav.mainNavigation}
+    const view = render(<ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId={today ? 'hoje' : 'perfil'} navLabel={en.nav.mainNavigation}
       header={<div style={{ height: 56 }} />}
       notice={<Toast kind="neutral" message="O aviso saiu da lista." actionLabel="Desfazer" onAction={vi.fn()} />}
       tabBar={<nav style={{ height: 80 }}>Tabs</nav>}

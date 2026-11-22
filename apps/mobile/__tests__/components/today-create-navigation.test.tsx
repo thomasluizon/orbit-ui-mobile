@@ -23,10 +23,10 @@ describe('Create navigation owned by the root layout', () => {
   it.each([false, true])('pushes once with the selected date and conversation origin %s', async (conversation) => {
     const tree = await mount(<PushHabitCreate pathname="/" date="2026-09-05" />)
     expect(navigation.push).not.toHaveBeenCalled()
-    await TestRenderer.act(() => { useUIStore.setState({ showCreateModal: true, astraConversationOpen: conversation }) })
+    await TestRenderer.act(() => { useUIStore.setState({ showCreateModal: true, orbitConversationOpen: conversation }) })
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith(buildHabitCreateHref({ from: '/', date: '2026-09-05', conversation }))
     expect(useUIStore.getState().showCreateModal).toBe(false)
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(useUIStore.getState().openOverlayIds).toContain(HABIT_CREATE_OVERLAY_ID)
     await TestRenderer.act(() => tree.update(<></>))
   })

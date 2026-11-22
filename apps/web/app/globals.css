@@ -1782,11 +1782,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   gap: var(--padding-section-gap);
 }
 
-.today-proactive-date-group:has(.today-astra-line) {
+.today-proactive-date-group:has(.today-orbit-line) {
   gap: calc(var(--padding-section-gap) * (1rem / 16px));
 }
 
-.today-astra-line {
+.today-orbit-line {
   position: relative;
   display: flex;
   align-items: center;
@@ -1810,16 +1810,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   -webkit-tap-highlight-color: transparent;
 }
 
-.today-astra-line[data-orbit-line] {
+.today-orbit-line[data-orbit-line] {
   font-size: 16px;
   line-height: 1.4;
 }
 
-.today-astra-line:disabled {
+.today-orbit-line:disabled {
   cursor: default;
 }
 
-.today-astra-line::before {
+.today-orbit-line::before {
   position: absolute;
   inset: 0;
   border-radius: inherit;
@@ -1829,12 +1829,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   pointer-events: none;
 }
 
-.today-astra-line > svg {
+.today-orbit-line > svg {
   position: relative;
   flex-shrink: 0;
 }
 
-.today-astra-sentence {
+.today-orbit-sentence {
   position: relative;
   display: -webkit-box;
   flex: 1;
@@ -1847,7 +1847,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   -webkit-line-clamp: 2;
 }
 
-.today-astra-line:focus-visible {
+.today-orbit-line:focus-visible {
   outline: 2px solid var(--fg-1);
   outline-offset: -4px;
 }
@@ -1856,7 +1856,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   from { opacity: 0; }
 }
 
-.today-astra-line:not(:disabled):active::before {
+.today-orbit-line:not(:disabled):active::before {
   opacity: 1;
   transition-duration: 0s;
 }
@@ -1935,12 +1935,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     transition: none;
   }
 
-  .today-astra-line:not(:disabled):hover::before {
+  .today-orbit-line:not(:disabled):hover::before {
     opacity: 1;
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .today-astra-line::before {
+    .today-orbit-line::before {
       transition: opacity var(--dur-hover) var(--ease-standard);
     }
   }
@@ -1990,7 +1990,7 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
   background: var(--primary-pressed);
 }
 
-/* Kit chip: pill control (Astra action chips, filters, view switcher) */
+/* Kit chip: pill control (Orbit action chips, filters, view switcher) */
 @layer components {
 .chip {
   appearance: none;
@@ -2939,13 +2939,13 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   [data-entering] .daily-streak-number { animation: daily-streak-number var(--dur-3) var(--ease-out); }
 }
 
-@keyframes astra-pending-pulse {
+@keyframes orbit-pending-pulse {
   50% { opacity: 0.6; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .astra-pending-pulse {
-    animation: astra-pending-pulse calc(var(--dur-slow) * 4) var(--ease-standard) var(--skeleton-pulse-iterations);
+  .orbit-pending-pulse {
+    animation: orbit-pending-pulse calc(var(--dur-slow) * 4) var(--ease-standard) var(--skeleton-pulse-iterations);
   }
 }
 

@@ -46,7 +46,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" astra-row="{{ astraRow }}" header="{{ headerNode }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,860px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" orbit-row="{{ orbitRow }}" header="{{ headerNode }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,860px">
           <div style="max-width:620px;display:flex;flex-direction:column">{{ body }}</div>
         </x-import>
         {{ sheet }}
@@ -178,7 +178,7 @@ const T = {
     dLoggedAt: (v) => ['Registrado às ', mock(v)],
     dayWords: { none: 'nenhum feito', partial: 'parcial', full: 'completo', notScheduled: 'não programado',
       future: 'ainda por vir', of: 'de', today: 'hoje', selected: 'selecionado', readOnly: 'somente leitura' },
-    askAstra: 'Perguntar ao Orbit',
+    askOrbit: 'Perguntar ao Orbit',
     factCadence: 'Frequência',
     dayOn: (d, names) => names[d] + ', ativo', dayOff: (d, names) => names[d] + ', inativo',
     moreDetails: 'Mais detalhes',
@@ -260,7 +260,7 @@ const T = {
     dLoggedAt: (v) => ['Logged at ', mock(v)],
     dayWords: { none: 'none done', partial: 'partial', full: 'complete', notScheduled: 'not scheduled',
       future: 'upcoming', of: 'of', today: 'today', selected: 'selected', readOnly: 'read only' },
-    askAstra: 'Ask Orbit',
+    askOrbit: 'Ask Orbit',
     factCadence: 'Frequency',
     dayOn: (d, names) => names[d] + ', on', dayOff: (d, names) => names[d] + ', off',
     moreDetails: 'More details',
@@ -875,7 +875,7 @@ class Component extends DCLogic {
             background: 'var(--bg-card)', borderRadius: 'var(--r-card)', boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' } },
             H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
               H('span', { style: { display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
-                H(D.AstraGlyph, { size: 20 })),
+                H(D.OrbitGlyph, { size: 20 })),
               H(window.OrbitNativeMobile.Badge, null, 'Pro')),
             H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)' } }, x.rsFree),
             H('div', { style: { display: 'flex', gap: 8 } },
@@ -970,13 +970,13 @@ class Component extends DCLogic {
             onClick: () => { window.location.href = encodeURI('Orbit Hoje.dc.html'); } }))));
     }
     rest.push(this.activityNode(t, id, h));
-    rest.push(H('button', { key: 'astra', type: 'button', onClick: this.goConv,
+    rest.push(H('button', { key: 'orbit', type: 'button', onClick: this.goConv,
       style: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, paddingInline: 16,
         marginInline: -16, background: 'var(--p-transparent)', border: 0, cursor: 'pointer',
         fontFamily: 'var(--font-sans)', color: 'var(--fg-1)', textAlign: 'start' } },
       H('span', { style: { width: 28, display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
-        H(D.AstraGlyph, { size: 20 })),
-      H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-md)' } }, x.askAstra),
+        H(D.OrbitGlyph, { size: 20 })),
+      H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-md)' } }, x.askOrbit),
       H('span', { style: { color: 'var(--fg-4)', display: 'grid', placeItems: 'center' }, 'aria-hidden': 'true' },
         H(D.Icon, { name: 'chevron-right', size: 24 }))));
     const cadence = H('div', { key: 'cad', style: { display: 'flex', flexDirection: 'column', gap: 8 } },
@@ -1022,7 +1022,7 @@ class Component extends DCLogic {
     return Object.assign(base, {
       body: this.body(t, filled),
       headerNode: H(window.OrbitNativeMobile.NavHeader, { title: t.kicker, backLabel: t.back, onBack: this.popSub }),
-      astraRow: H(window.OrbitNativeMobile.AstraRow),
+      orbitRow: H(window.OrbitNativeMobile.OrbitRow),
       navItems: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
       account: t.account,
       composer: H(window.OrbitNativeMobile.Composer, {

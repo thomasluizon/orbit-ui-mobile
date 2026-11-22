@@ -19,7 +19,7 @@ interface ProfileNavIconProps {
   size?: number
 }
 
-const ICON_BY_KEY: Record<Exclude<ProfileNavIconKey, 'astra'>, Icon> = {
+const ICON_BY_KEY: Record<Exclude<ProfileNavIconKey, 'orbit'>, Icon> = {
   account: User,
   pro: Crown,
   preferences: Settings,
@@ -36,7 +36,7 @@ export function ProfileNavIcon({
   color,
   size = 24,
 }: Readonly<ProfileNavIconProps>) {
-  if (iconKey === 'astra') return <OrbitMascotIcon size={size} color={color} />
+  if (iconKey === 'orbit') return <OrbitMascotIcon size={size} color={color} />
   const Icon = ICON_BY_KEY[iconKey]
   return <Icon size={size} strokeWidth={1.5} color={color} />
 }

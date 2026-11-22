@@ -406,7 +406,7 @@ export interface HabitFormControllerOptions {
 }
 
 export interface HabitFormController {
-  askAstra: () => Promise<void>
+  askOrbit: () => Promise<void>
   clearProposal: () => void
   resolveChecklistProposal: () => void
   resolveSetupProposal: () => void
@@ -456,7 +456,7 @@ export function createHabitFormController({
   }
 
   return {
-    askAstra: async (): Promise<void> => {
+    askOrbit: async (): Promise<void> => {
       const proposal = await requestHabitFormProposal(action, atLimit)
       if (!proposal) return
       if (proposal.setup) target.setOwnership({ cadence: false, dueTime: false })
@@ -674,11 +674,11 @@ export function buildHabitUnderstandingLabels(
     repeat: (count) => translate('habits.form.repeatWeeks', { count }),
     repeatLess: translate('habits.form.repeatLess'),
     repeatMore: translate('habits.form.repeatMore'),
-    proposed: translate('habits.form.proposedByAstra'),
+    proposed: translate('habits.form.proposedByOrbit'),
   }
 }
 
-export function buildHabitAstraFallbackCopy(
+export function buildHabitOrbitFallbackCopy(
   translate: UnderstandingTranslator,
   allowance: number,
 ): {
@@ -689,9 +689,9 @@ export function buildHabitAstraFallbackCopy(
 } {
   return {
     limitMessage: translate('habits.form.localReadLimit', { allowance }),
-    readingLabel: translate('habits.form.astraReading'),
-    askLabel: translate('habits.form.askAstra'),
-    costLabel: translate('habits.form.askAstraCost', { allowance }),
+    readingLabel: translate('habits.form.orbitReading'),
+    askLabel: translate('habits.form.askOrbit'),
+    costLabel: translate('habits.form.askOrbitCost', { allowance }),
   }
 }
 
@@ -811,7 +811,7 @@ function buildCadenceUnderstandingSentence(
     : sentence
 }
 
-export function shouldShowHabitAstraFallback(
+export function shouldShowHabitOrbitFallback(
   title: string,
   sentence: string | null,
   action: unknown,
@@ -820,7 +820,7 @@ export function shouldShowHabitAstraFallback(
   return title.trim().length > 0 && sentence === null && typeof action === 'function' && !hasHabitFormProposal(proposal)
 }
 
-export function isHabitAstraLimitReached(used: number, allowance: number): boolean {
+export function isHabitOrbitLimitReached(used: number, allowance: number): boolean {
   return used >= allowance
 }
 

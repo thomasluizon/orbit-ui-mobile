@@ -9,8 +9,8 @@ function read(words: Words, key: string): unknown {
 }
 
 const BASE_COPY: ReadonlyArray<{ key: string; guidedKey: string; en: string; ptBR: string }> = [
-  { key: 'todayAstra.offline', guidedKey: 'todayAstra.guided.offline', en: 'Orbit needs a connection. Habit logging still works offline.', ptBR: 'O Orbit precisa de conexão. Você ainda pode registrar hábitos offline.' },
-  { key: 'todayAstra.offlineLog', guidedKey: 'todayAstra.guided.offlineLog', en: 'Saved on this device. Orbit will sync it when you reconnect.', ptBR: 'Salvo neste aparelho. O Orbit sincroniza quando você se reconectar.' },
+  { key: 'todayOrbit.offline', guidedKey: 'todayOrbit.guided.offline', en: 'Orbit needs a connection. Habit logging still works offline.', ptBR: 'O Orbit precisa de conexão. Você ainda pode registrar hábitos offline.' },
+  { key: 'todayOrbit.offlineLog', guidedKey: 'todayOrbit.guided.offlineLog', en: 'Saved on this device. Orbit will sync it when you reconnect.', ptBR: 'Salvo neste aparelho. O Orbit sincroniza quando você se reconectar.' },
   { key: 'summary.freePrompt', guidedKey: 'summary.guided.freePrompt', en: 'Pro gets a daily summary of your habits.', ptBR: 'No Pro, você recebe um resumo diário dos seus hábitos.' },
   { key: 'habits.detail.loadError', guidedKey: 'habits.detail.orbit.loadError', en: 'We could not load this habit.', ptBR: 'Não foi possível carregar este hábito.' },
 ]
@@ -25,8 +25,8 @@ describe('guided copy stays apart from the base copy', () => {
   })
 
   it('keeps the count of days sentence of a gap on main while the guided flows are off', () => {
-    expect(read(en, 'todayAstra.returningElapsed')).toContain('{days, plural')
-    expect(read(ptBR, 'todayAstra.returningElapsed')).toContain('{days, plural')
+    expect(read(en, 'todayOrbit.returningElapsed')).toContain('{days, plural')
+    expect(read(ptBR, 'todayOrbit.returningElapsed')).toContain('{days, plural')
     expect(read(en, 'habits.detail.slippingLine')).toContain('{streak}')
     expect(read(ptBR, 'habits.detail.slippingLine')).toContain('{streak}')
   })

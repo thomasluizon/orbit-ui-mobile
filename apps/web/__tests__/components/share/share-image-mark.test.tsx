@@ -26,7 +26,7 @@ function expectStaticMark(card: HTMLElement) {
   expect(drawings[0]).toHaveAttribute('data-orbit-loop', 'still')
   expect(drawings[0]).toHaveAttribute('width', '24')
   expect(drawings[0]!.querySelector('[data-part="moon"]')).toHaveAttribute('fill', 'var(--primary)')
-  expect(card.querySelector('[data-asset="orbit-mark"], [data-asset="astra-glyph"]')).toBeNull()
+  expect(card.querySelector('[data-asset="orbit-mark"], [data-asset="orbit-glyph"]')).toBeNull()
 }
 
 afterEach(cleanup)
@@ -55,6 +55,6 @@ describe('the mark in a shared image on web', () => {
   })
 
   it.each(IMAGE_OWNERS)('%s names no old mark component', (owner) => {
-    expect(readFileSync(resolve(process.cwd(), owner), 'utf8')).not.toMatch(/OrbitMark|AstraGlyph|orbit-mark|astra-glyph/)
+    expect(readFileSync(resolve(process.cwd(), owner), 'utf8')).not.toMatch(/OrbitMark|OrbitGlyph|orbit-mark|orbit-glyph/)
   })
 })

@@ -98,13 +98,13 @@ describe('TrialExpiredModal (mobile)', () => {
   it('waits for an open sheet before presenting the trial notice', async () => {
     useUIStore.getState().registerOpenOverlay('existing-sheet')
     const tree = await renderModal()
-    expect(renderedText(tree)).not.toContain('trial.expired.astraCeiling')
+    expect(renderedText(tree)).not.toContain('trial.expired.orbitCeiling')
 
     await act(async () => {
       useUIStore.getState().unregisterOpenOverlay('existing-sheet')
       await Promise.resolve()
     })
-    expect(renderedText(tree)).toContain('trial.expired.astraCeiling')
+    expect(renderedText(tree)).toContain('trial.expired.orbitCeiling')
   })
 
   it('renders only the current paused Pro features', async () => {
@@ -119,10 +119,10 @@ describe('TrialExpiredModal (mobile)', () => {
       .findAll((node) => String(node.type) === 'Text')
       .map((node) => node.props.children)
 
-    expect(renderedText).toContain('trial.expired.astraCeiling')
+    expect(renderedText).toContain('trial.expired.orbitCeiling')
     expect(renderedText).toContain('trial.expired.calendarSync')
     expect(renderedText).toContain('trial.expired.retrospective')
-    expect(renderedText).toContain('trial.expired.proactiveAstra')
+    expect(renderedText).toContain('trial.expired.proactiveOrbit')
     expect(renderedText).not.toContain('trial.expired.savings')
     expect(renderedText).not.toContain('trial.expired.subHabits')
     expect(renderedText).not.toContain('trial.expired.goals')
@@ -164,7 +164,7 @@ describe('TrialExpiredModal (mobile)', () => {
       (node) => String(node.type) === 'Text' && node.props.children === 'trial.expired.paused',
     )
     expect(pausedStatuses).toHaveLength(4)
-    for (const [index, feature] of ['astraCeiling', 'calendarSync', 'retrospective', 'proactiveAstra'].entries()) {
+    for (const [index, feature] of ['orbitCeiling', 'calendarSync', 'retrospective', 'proactiveOrbit'].entries()) {
       const label = tree!.root.findAll(
         (node) => String(node.type) === 'Text' && node.props.children === `trial.expired.${feature}`,
       )[0]!
@@ -185,14 +185,14 @@ describe('TrialExpiredModal (mobile)', () => {
     )[0]
     if (!continueFree) throw new Error('Continue Free action not found')
     await act(() => (continueFree.props as { onPress: () => void }).onPress())
-    expect(renderedText(tree)).not.toContain('trial.expired.astraCeiling')
+    expect(renderedText(tree)).not.toContain('trial.expired.orbitCeiling')
 
     await act(async () => {
       holdAccount('user-2')
       await Promise.resolve()
     })
 
-    expect(renderedText(tree)).toContain('trial.expired.astraCeiling')
+    expect(renderedText(tree)).toContain('trial.expired.orbitCeiling')
     expect(ACCOUNT_B_TRIAL_KEY).not.toBe(ACCOUNT_A_TRIAL_KEY)
   })
 
@@ -205,19 +205,19 @@ describe('TrialExpiredModal (mobile)', () => {
       return Promise.resolve(keys.map((key): [string, string | null] => [key, null]))
     })
     const tree = await renderModal()
-    expect(renderedText(tree)).toContain('trial.expired.astraCeiling')
+    expect(renderedText(tree)).toContain('trial.expired.orbitCeiling')
 
     await act(async () => {
       holdAccount('user-2')
       await Promise.resolve()
     })
-    expect(renderedText(tree)).not.toContain('trial.expired.astraCeiling')
+    expect(renderedText(tree)).not.toContain('trial.expired.orbitCeiling')
 
     await act(async () => {
       finishRead([[ACCOUNT_B_TRIAL_KEY, '1'], [LEGACY_TRIAL_KEY, null]])
       await Promise.resolve()
     })
-    expect(renderedText(tree)).not.toContain('trial.expired.astraCeiling')
+    expect(renderedText(tree)).not.toContain('trial.expired.orbitCeiling')
   })
 
   it('gives the pre-rename dismissal to the account signed in now and then consumes it', async () => {
@@ -225,7 +225,7 @@ describe('TrialExpiredModal (mobile)', () => {
     const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
     const removeItem = vi.spyOn(AsyncStorage, 'removeItem').mockResolvedValue(undefined)
 
-    expect(renderedText(await renderModal())).not.toContain('trial.expired.astraCeiling')
+    expect(renderedText(await renderModal())).not.toContain('trial.expired.orbitCeiling')
     expect(setItem).toHaveBeenCalledWith(ACCOUNT_A_TRIAL_KEY, '1')
     expect(removeItem).toHaveBeenCalledWith(LEGACY_TRIAL_KEY)
   })

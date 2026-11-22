@@ -11,7 +11,7 @@ import pt from '@orbit/shared/i18n/pt-BR.json'
 import { buildChatFinalMessageFields } from '@orbit/shared/chat'
 import { ORBIT_SMALL_FACE_BOX_RATIO } from '@orbit/shared/contracts/brand'
 import { chatResponseSchema } from '@orbit/shared/types/chat'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -25,7 +25,7 @@ const questions = [
 const finalResponse = chatResponseSchema.parse({
   aiMessage: 'Podemos revisar a sua rotina.', actions: [], followUps: questions,
 })
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 
 function createChat(withTrace = false): ChatController {
   return {
@@ -54,7 +54,7 @@ describe('Follow-up conversation geometry in Chromium', () => {
 
   it.each([412, 1352])('centres the header mark with close at %ipx', async (width) => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}>
-      <main style={{ width: Math.min(width, 740) }}><AstraConversation chat={createChat()} /></main>
+      <main style={{ width: Math.min(width, 740) }}><OrbitConversation chat={createChat()} /></main>
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
@@ -80,10 +80,10 @@ describe('Follow-up conversation geometry in Chromium', () => {
   it.each(cases)('shows label-hugging chips at $width with text scale $textScale and trace $withTrace', async ({ width, textScale, withTrace }) => {
     const chat = createChat(withTrace)
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={pt}>
-      <div style={{ width: width >= 1024 ? 380 : width }}><AstraConversation chat={chat} /></div>
+      <div style={{ width: width >= 1024 ? 380 : width }}><OrbitConversation chat={chat} /></div>
     </NextIntlClientProvider>)
     const chips = screen.getByRole('group', { name: pt.chat.followUps.label })
-    expect(chips.textContent).not.toContain(pt.nav.astra)
+    expect(chips.textContent).not.toContain(pt.nav.orbit)
     expect(chips.querySelectorAll('[data-asset="orbit-mascot"]')).toHaveLength(2)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

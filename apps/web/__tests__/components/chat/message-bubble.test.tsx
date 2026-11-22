@@ -297,7 +297,7 @@ describe('MessageBubble', () => {
   })
 
   it('renders a related-surfaces footer that deep-links known surfaces', () => {
-    useUIStore.getState().setAstraConversationOpen(true)
+    useUIStore.getState().setOrbitConversationOpen(true)
     render(
       <MessageBubble
         message={makeMessage({
@@ -315,7 +315,7 @@ describe('MessageBubble', () => {
     expect(link.className).not.toContain('ring-[var(--primary)]/60')
     fireEvent.click(link)
     expect(push).toHaveBeenCalledWith('/progress/achievements')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
     expect(screen.queryByText('mystery')).not.toBeInTheDocument()
   })
 

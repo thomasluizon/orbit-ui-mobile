@@ -81,7 +81,7 @@ describe('Onboarding final Pro step', () => {
       expect(within(card).getByRole('button', { name: /Subscribe|Assinar/ })).toBeEnabled()
       const outcomes = within(card).getByRole('list', { name: translate('upgrade.outcomes.label') })
       expect(within(outcomes).getAllByRole('listitem')).toHaveLength(4)
-      for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+      for (const key of ['orbit', 'calendar', 'retrospective', 'noticing']) {
         expect(within(outcomes).getByText(translate(`upgrade.outcomes.${key}`))).toBeInTheDocument()
       }
     }

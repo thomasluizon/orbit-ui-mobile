@@ -60,7 +60,7 @@ it('publishes uncached build identity through the real route and admits legacy s
 it('waits for streaming to settle and offers the update without reloading the conversation', async () => {
   useChatStore.getState().addMessage({ id: 'question', role: 'user', content: 'Help me plan', timestamp: new Date() })
   useChatStore.setState({ isTyping: true, streamingMessageId: 'reply', draft: 'A follow-up' })
-  useUIStore.getState().setAstraConversationOpen(true)
+  useUIStore.getState().setOrbitConversationOpen(true)
   const available = vi.fn()
   cleanups.push(watchDesktopWebRelease('0.1.2', currentCommit, available))
   await vi.advanceTimersByTimeAsync(5000)

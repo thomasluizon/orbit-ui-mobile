@@ -93,7 +93,7 @@ const ICON_COMPONENTS: Readonly<Record<string, TablerIcon>> = {
 }
 
 export function Icon({ name, size = 24, strokeWidth = 1.5, filled = false, color, label }: Readonly<IconProps>) {
-  const Glyph = name === 'astra' ? OrbitMascotIcon : ICON_COMPONENTS[name]
+  const Glyph = name === 'orbit' ? OrbitMascotIcon : ICON_COMPONENTS[name]
 
   return (
     <span

@@ -1,4 +1,4 @@
-import { astraOfferFixture, offeredReadFixture, offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
+import { orbitOfferFixture, offeredReadFixture, offerConversationId } from '@orbit/shared/test-support/orbit-offer-fixtures'
 import { useChatStore } from '@/stores/chat-store'
 import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
@@ -513,18 +513,18 @@ describe('read offers on Android', () => {
       try {
         const reason = dailyBudgetReached ? messages.chat.dailyBudgetReached : period === 'week' ? messages.shell.composer.limit.exhaustedWeekly : messages.shell.composer.limit.exhausted
         expect(renderedText(tree.toJSON())).toContain(reason)
-        const action = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === astraOfferFixture.label)[0]!
+        const action = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === orbitOfferFixture.label)[0]!
         expect(action.props.accessibilityState).toMatchObject({ disabled: true })
         expect(send).not.toHaveBeenCalled()
         await press(tree, messages.chat.offers.dismiss)
-        expect(renderedText(tree.toJSON())).not.toContain(astraOfferFixture.label)
+        expect(renderedText(tree.toJSON())).not.toContain(orbitOfferFixture.label)
       } finally { await act(() => tree.unmount()) }
     })
   it.each(['preparePreview', 'continueChat'] as const)('sends %s once through the existing chat path', async kind => {
     const send = vi.fn(async () => {})
-    const tree = await mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...astraOfferFixture, kind } } } }, send)
-    await press(tree, astraOfferFixture.label)
-    expect(send).toHaveBeenCalledExactlyOnceWith(astraOfferFixture.prompt, { selectedOfferKey: astraOfferFixture.offerKey })
+    const tree = await mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...orbitOfferFixture, kind } } } }, send)
+    await press(tree, orbitOfferFixture.label)
+    expect(send).toHaveBeenCalledExactlyOnceWith(orbitOfferFixture.prompt, { selectedOfferKey: orbitOfferFixture.offerKey })
     expect(apiClient).not.toHaveBeenCalled()
     await act(() => tree.unmount())
   })
@@ -533,10 +533,10 @@ describe('read offers on Android', () => {
     const messages = locale === 'en' ? en : pt
     vi.mocked(apiClient).mockResolvedValue(null)
     const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture }, vi.fn())
-    expect(renderedText(tree.toJSON())).toContain(astraOfferFixture.label)
+    expect(renderedText(tree.toJSON())).toContain(orbitOfferFixture.label)
     await press(tree, messages.chat.offers.dismiss)
-    expect(apiClient).toHaveBeenCalledWith(API.chat.dismissOffers, expect.objectContaining({ body: JSON.stringify({ conversationId: offerConversationId, offerKeys: [astraOfferFixture.offerKey] }) }))
-    expect(renderedText(tree.toJSON())).not.toContain(astraOfferFixture.label)
+    expect(apiClient).toHaveBeenCalledWith(API.chat.dismissOffers, expect.objectContaining({ body: JSON.stringify({ conversationId: offerConversationId, offerKeys: [orbitOfferFixture.offerKey] }) }))
+    expect(renderedText(tree.toJSON())).not.toContain(orbitOfferFixture.label)
     await act(() => tree.unmount())
   })
   it.each([429, 403])('keeps a refused offer visible after dismissal status %s', async status => {
@@ -545,21 +545,21 @@ describe('read offers on Android', () => {
     const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture }, vi.fn())
     await press(tree, en.chat.offers.dismiss)
     expect(renderedText(tree.toJSON())).toContain(en.chat.offers.failed)
-    expect(renderedText(tree.toJSON())).toContain(astraOfferFixture.label)
+    expect(renderedText(tree.toJSON())).toContain(orbitOfferFixture.label)
     expect(useChatStore.getState().dismissedOfferKeys).toEqual([])
     await act(() => tree.unmount())
   })
   it('opens a known surface after acknowledging the offer', async () => {
     vi.mocked(apiClient).mockResolvedValue(null)
-    const tree = await mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...astraOfferFixture, kind: 'openSurface', surface: 'calendar-sync' } } } })
-    await press(tree, astraOfferFixture.label)
+    const tree = await mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...orbitOfferFixture, kind: 'openSurface', surface: 'calendar-sync' } } } })
+    await press(tree, orbitOfferFixture.label)
     expect(state.push).toHaveBeenCalledWith('/calendar?import=1')
     await act(() => tree.unmount())
   })
   it('withholds offers without the negotiated conversation', async () => {
     useChatStore.setState({ conversationId: null })
     const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture })
-    expect(renderedText(tree.toJSON())).not.toContain(astraOfferFixture.label)
+    expect(renderedText(tree.toJSON())).not.toContain(orbitOfferFixture.label)
     await act(() => tree.unmount())
   })
 })
@@ -572,7 +572,7 @@ it('keeps dismissal available when the conversation action cannot send', async (
   const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture })
   try {
     const buttons = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
-    const action = buttons.find(node => node.props.accessibilityLabel === astraOfferFixture.label)!
+    const action = buttons.find(node => node.props.accessibilityLabel === orbitOfferFixture.label)!
     const dismiss = buttons.find(node => node.props.accessibilityLabel === en.chat.offers.dismiss)!
     expect(action.props.accessibilityState).toMatchObject({ disabled: true })
     expect(dismiss.props.accessibilityState).toMatchObject({ disabled: false })

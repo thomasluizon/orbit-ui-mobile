@@ -18,7 +18,7 @@ const mascot = (container: HTMLElement) => container.querySelector<SVGElement>('
 afterEach(() => {
   cleanup()
   useChatStore.getState().setDraft('')
-  useUIStore.setState({ astraConversationOpen: false })
+  useUIStore.setState({ orbitConversationOpen: false })
 })
 
 describe('web habit detail Orbit line', () => {
@@ -28,21 +28,21 @@ describe('web habit detail Orbit line', () => {
     expect(mascot(container)).toHaveAttribute('width', '48')
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'parado')
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.orbit.lastSevenDays:5' }))
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
-    expect(useChatStore.getState().draft).toBe('habits.detail.askAstraSeedDefault')
+    expect(useUIStore.getState().orbitConversationOpen).toBe(true)
+    expect(useChatStore.getState().draft).toBe('habits.detail.askOrbitSeedDefault')
   })
 
   it('never counts a miss: a week with nothing done shows the review label and no number', () => {
     enableTestFlags('orbit_guided_flows')
     render(<HabitDetailOrbitLine habit={habit} days={week(0)} />)
-    expect(screen.getByRole('button', { name: 'habits.detail.askAstra' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'habits.detail.askOrbit' })).toBeInTheDocument()
     expect(screen.queryByText(/lastSevenDays/)).toBeNull()
   })
 
   it('renders the review row of the current surface while the flag is off', () => {
     const { container } = render(<><HabitDetailOrbitLine habit={habit} days={week(5)} /><HabitDetailReviewRow habit={habit} /></>)
-    expect(screen.getAllByRole('button', { name: 'habits.detail.askAstra' })).toHaveLength(1)
-    expect(container.querySelector('[data-today-astra-slot]')).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'habits.detail.askOrbit' })).toHaveLength(1)
+    expect(container.querySelector('[data-today-orbit-slot]')).toBeNull()
   })
 
   it('shows Orbit in Pensando while the reschedule suggestion loads', () => {

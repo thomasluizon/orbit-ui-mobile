@@ -46,7 +46,7 @@ describe('sidebar account menu geometry in Chromium', () => {
       const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       createRoot(root).render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={configuration.locale} messages={words} timeZone="UTC">
         <ShellWide items={[{ id: 'perfil', href: '/profile', label: words.nav.profile, icon: 'perfil' }]}
-          activeId="perfil" navLabel={words.nav.mainNavigation} astraRow={{ label: 'Astra', onOpen: () => {} }}
+          activeId="perfil" navLabel={words.nav.mainNavigation} orbitRow={{ label: 'Orbit', onOpen: () => {} }}
           account={configuration.account} accountEmail={configuration.email}>{configuration.search ? <SearchPage /> : <h1>Orbit</h1>}</ShellWide>
       </NextIntlClientProvider></QueryClientProvider>);`, {
       '@/stores/auth-store': 'export const useAuthStore = selector => selector({ logout: async () => {} });',

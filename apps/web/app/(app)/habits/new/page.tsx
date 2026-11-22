@@ -14,7 +14,7 @@ function HabitCreatePage() {
   const from = params.get('from') ?? undefined
   function back() {
     setRouteTransitionIntent('back')
-    if (conversation) useUIStore.getState().setAstraConversationOpen(true)
+    if (conversation) useUIStore.getState().setOrbitConversationOpen(true)
     router.replace(resolveHabitCreateReturnPath(from))
   }
   return <CreateHabitModal open presentation="screen" fromConversation={conversation}

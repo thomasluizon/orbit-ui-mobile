@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { AccessibilityInfo, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { RESPONSIVE_TYPE_BREAKPOINT, SPACING } from '@orbit/shared/theme'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
-import { resolveUpgradeOrbitLine, type AstraAllowance } from '@orbit/shared/utils'
+import { resolveUpgradeOrbitLine, type OrbitAllowance } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
 import { ErrorState } from '@/components/ui/error-state'
 import { useFlowLookState } from '@/components/ui/flow-look'
@@ -31,7 +31,7 @@ export interface GuidedPricingSectionProps {
   headingId?: string
   dateHint?: string
   focusOnMount?: boolean
-  profile: ({ isTrialActive?: boolean } & AstraAllowance) | null
+  profile: ({ isTrialActive?: boolean } & OrbitAllowance) | null
   /** The usage read of the person. It feeds the Orbit line. */
   usage: { aiMessagesUsed: number; aiMessagesLimit: number } | null
   plans: SubscriptionPlans | null | undefined

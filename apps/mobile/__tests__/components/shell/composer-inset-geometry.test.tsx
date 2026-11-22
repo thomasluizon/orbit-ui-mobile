@@ -86,7 +86,7 @@ function build(host: Host, nodes: Map<string, YogaNode>, fontScale = 1, inField 
   }
   if (host.props.testID) nodes.set(host.props.testID, node)
   if (insideField && host.props.accessibilityRole === 'button') nodes.set(`button:${host.props.accessibilityLabel}`, node)
-  if (host.props.accessibilityLabel === `${en.todayAstra.openConversation}`) nodes.set('open-conversation', node)
+  if (host.props.accessibilityLabel === `${en.todayOrbit.openConversation}`) nodes.set('open-conversation', node)
   if (host.type === 'TextInput') {
     nodes.set('input', node)
     node.setMeasureFunc(() => ({ width: 80, height: (style.lineHeight ?? 24) * fontScale }))
@@ -116,7 +116,7 @@ it.each([320, 412].flatMap(width => [false, true].flatMap(withGlyph =>
     tree = renderer.create(<Composer state="idle" value="" suggestions={[]} words={en.shell.composer}
       onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()}
       attachWords={{ ...en.shell.composer.attach, remove: name => name }}
-      {...withGlyph ? { onOpenConversation: vi.fn(), conversationLabel: en.todayAstra.openConversation } : {}} />) as Tree
+      {...withGlyph ? { onOpenConversation: vi.fn(), conversationLabel: en.todayOrbit.openConversation } : {}} />) as Tree
   })
   const nodes = new Map<string, YogaNode>()
   const layout = build(tree.toJSON(), nodes)
@@ -145,8 +145,8 @@ function dailySuggestions(messages: typeof en) {
     label: labels[id.replace('habitDetail.', '') as keyof typeof labels], onSelect: vi.fn() })))
 }
 
-it.each([en, ptBR])('keeps the live chip labels on one line beside their Astra attribution at default text', async messages => {
-  translation.words = { 'nav.astra': messages.nav.astra }
+it.each([en, ptBR])('keeps the live chip labels on one line beside their Orbit attribution at default text', async messages => {
+  translation.words = { 'nav.orbit': messages.nav.orbit }
   const habit = createMockHabit({ isOverdue: true, hasSubHabits: true })
   const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [habit], totalHabitCount: 1,
     profile: createMockProfile() })
@@ -266,7 +266,7 @@ function assertMountedActions(tree: Tree, messages: typeof en, state: 'idle' | '
   const names = controls.map(node => String(node.props.accessibilityLabel))
   const menu = field.findAll(node => node.type === Menu.Content)[0]!
   const items = menu.props.items as { id: string }[]
-  const expected = [messages.todayAstra.openConversation, messages.shell.composer.actions,
+  const expected = [messages.todayOrbit.openConversation, messages.shell.composer.actions,
     messages.shell.composer.send]
   if (state === 'idle' && !items.some(item => item.id === 'paste')) expected.push(messages.shell.composer.paste)
   expect([...names].sort((left, right) => left.localeCompare(right))).toEqual(expected.sort((left, right) => left.localeCompare(right)))
@@ -311,7 +311,7 @@ it.each([320, 360, 384, 412, 480].flatMap(width => [en, ptBR].flatMap(messages =
     suggestions: surface === 'habitDetail' ? dailySuggestions(messages) : [] as const,
     onSend: vi.fn(), onChangeValue: vi.fn(),
     onAttachFile: vi.fn(), attachWords: { ...messages.shell.composer.attach, remove: (name: string) => name },
-    onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation }
+    onOpenConversation: vi.fn(), conversationLabel: messages.todayOrbit.openConversation }
   await renderer.act(() => { tree = renderer.create(<Composer {...configuration} />) as Tree })
   try {
     for (const fontScale of [1, 1.5, 2, 1]) {
@@ -326,7 +326,7 @@ it.each([320, 360, 384, 412, 480].flatMap(width => [en, ptBR].flatMap(messages =
       try {
         layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
         const input = bounds(nodes.get('input')!)
-        const entry = bounds(nodes.get(`button:${messages.todayAstra.openConversation}`)!)
+        const entry = bounds(nodes.get(`button:${messages.todayOrbit.openConversation}`)!)
         const placeholder = nodes.get('composer-placeholder')!
         const label = tree.root.findAll(node => node.props.testID === 'composer-placeholder')[0]!
         const text = measureText({ type: 'Text', props: {}, children: [messages.shell.composer.placeholder] },
@@ -344,7 +344,7 @@ it.each([320, 360, 384, 412, 480].flatMap(width => [en, ptBR].flatMap(messages =
 })
 
 it.each(allowanceCases)('retains the measured frame through allowance transitions at $width with $limit chips $withSuggestions and scale $fontScale', async ({ width, messages, limit, withSuggestions, fontScale }) => {
-  translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.suggestDate': messages.habits.form.suggestDate,
+  translation.words = { 'nav.orbit': messages.nav.orbit, 'habits.form.suggestDate': messages.habits.form.suggestDate,
     'shell.composer.limit.placeholder': messages.shell.composer.limit.placeholder }
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
   const reason = String(new IntlMessageFormat(messages.shell.composer.limit.reason, messages === ptBR ? 'pt-BR' : 'en').format({ allowance: limit }))
@@ -353,7 +353,7 @@ it.each(allowanceCases)('retains the measured frame through allowance transition
   const configuration = { value: '', words: messages.shell.composer, suggestions: [], onSend, onChangeValue,
     allowanceReason: reason, renewalHint: messages.shell.composer.limit.renewal,
     onAttachFile: vi.fn(), attachWords: { ...messages.shell.composer.attach, remove: (name: string) => name },
-    onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation }
+    onOpenConversation: vi.fn(), conversationLabel: messages.todayOrbit.openConversation }
   const renderState = (state: 'idle' | 'atLimit') => <Composer {...configuration}
     words={state === 'atLimit' ? { ...messages.shell.composer, placeholder: messages.shell.composer.limit.placeholder } : messages.shell.composer}
     suggestions={withSuggestions && state === 'idle' ? dailySuggestions(messages) : []}
@@ -385,7 +385,7 @@ it.each(allowanceCases)('retains the measured frame through allowance transition
 
 it.each([320, 412].flatMap(width => [en, ptBR].flatMap(messages => [1, 2].map(fontScale => ({ width, messages, fontScale })))))(
   'grows the actual typed input to five lines at $width and scale $fontScale', async ({ width, messages, fontScale }) => {
-    translation.words = { 'nav.astra': messages.nav.astra, 'habits.form.suggestDate': messages.habits.form.suggestDate }
+    translation.words = { 'nav.orbit': messages.nav.orbit, 'habits.form.suggestDate': messages.habits.form.suggestDate }
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     let tree!: Tree
     await renderer.act(() => { tree = renderer.create(<Composer state="idle" value="Draft" suggestions={[]}
@@ -434,7 +434,7 @@ it.each([320, 412, 480, 840].flatMap(width => [en, ptBR].map(messages => ({ widt
     let tree!: Tree
     await renderer.act(() => { tree = renderer.create(<Composer state="idle" value="Draft"
       onChangeValue={vi.fn()} onSend={vi.fn()} words={messages.shell.composer}
-      onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation}
+      onOpenConversation={vi.fn()} conversationLabel={messages.todayOrbit.openConversation}
       onAttachFile={vi.fn()} attachWords={{ ...messages.shell.composer.attach, remove: (name: string) => name }}
       suggestions={[
         { id: 'pause', label: messages.shell.composer.chips.habitDetail.pauseThisWeek, onSelect: vi.fn() },

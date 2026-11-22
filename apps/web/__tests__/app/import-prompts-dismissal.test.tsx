@@ -36,7 +36,7 @@ vi.mock('next/dynamic', () => ({ default: () => () => null }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children, useToday: () => undefined }))
-vi.mock('@/components/shell/destination-shell', () => ({ DestinationShell: ({ children, conversationOpen }: { children: ReactNode; conversationOpen: boolean }) => <main>{children}{conversationOpen ? <p>Astra conversation</p> : null}</main> }))
+vi.mock('@/components/shell/destination-shell', () => ({ DestinationShell: ({ children, conversationOpen }: { children: ReactNode; conversationOpen: boolean }) => <main>{children}{conversationOpen ? <p>Orbit conversation</p> : null}</main> }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile, patchProfile: mocks.patchProfile }) }))
@@ -77,7 +77,7 @@ vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => nu
 
 const prompts = [
   { name: 'calendar', title: 'onboarding.wizard.calendarTitle', description: 'onboarding.wizard.calendarDescription', later: 'common.later', import: 'onboarding.wizard.calendarButton' },
-  { name: 'Astra', title: 'onboarding.wizard.importTitle', description: 'onboarding.wizard.importDescription', later: 'onboarding.wizard.importNotNow', import: 'onboarding.wizard.importButton' },
+  { name: 'Orbit', title: 'onboarding.wizard.importTitle', description: 'onboarding.wizard.importDescription', later: 'onboarding.wizard.importNotNow', import: 'onboarding.wizard.importButton' },
 ] as const
 
 function holdDismissal(dialog: HTMLElement) {
@@ -133,7 +133,7 @@ describe('AppLayout import prompt dismissal', () => {
     function mountPrompt() {
       mocks.profile = createMockProfile({
         hasCompletedOnboarding: true,
-        hasImportedCalendar: prompt.name === 'Astra',
+        hasImportedCalendar: prompt.name === 'Orbit',
         hasSeenImportPrompt: prompt.name === 'calendar',
       })
       render(<QueryClientProvider client={new QueryClient()}><AppLayout><p>Today content</p></AppLayout></QueryClientProvider>)
@@ -176,7 +176,7 @@ describe('AppLayout import prompt dismissal', () => {
       expect(mocks.dismissImportPrompt).not.toHaveBeenCalled()
       expect(mocks.patchProfile).not.toHaveBeenCalled()
       expect(mocks.router.push).not.toHaveBeenCalled()
-      expect(screen.queryByText('Astra conversation')).toBeNull()
+      expect(screen.queryByText('Orbit conversation')).toBeNull()
       expect(localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBeNull()
       expect(getCurrentRouteTransitionIntent()).toBe('neutral')
 
@@ -184,19 +184,19 @@ describe('AppLayout import prompt dismissal', () => {
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
       const dismissAction = prompt.name === 'calendar' ? mocks.dismissCalendarImport : mocks.dismissImportPrompt
       expect(dismissAction).toHaveBeenCalledOnce()
-      if (prompt.name === 'Astra') expect(mocks.patchProfile).toHaveBeenCalledExactlyOnceWith({ hasSeenImportPrompt: true })
+      if (prompt.name === 'Orbit') expect(mocks.patchProfile).toHaveBeenCalledExactlyOnceWith({ hasSeenImportPrompt: true })
       if (action === 'import' && prompt.name === 'calendar') {
         expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/calendar?import=1')
         expect(pushedIntent).toBe('forward')
-        expect(screen.queryByText('Astra conversation')).toBeNull()
+        expect(screen.queryByText('Orbit conversation')).toBeNull()
       } else if (action === 'import') {
-        expect(screen.getByText('Astra conversation')).toBeInTheDocument()
-        expect(localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBe('onboarding.flow.meetAstra.importPrompt')
+        expect(screen.getByText('Orbit conversation')).toBeInTheDocument()
+        expect(localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBe('onboarding.flow.meetOrbit.importPrompt')
         expect(mocks.router.push).not.toHaveBeenCalled()
         expect(getCurrentRouteTransitionIntent()).toBe('neutral')
       } else {
         expect(mocks.router.push).not.toHaveBeenCalled()
-        expect(screen.queryByText('Astra conversation')).toBeNull()
+        expect(screen.queryByText('Orbit conversation')).toBeNull()
         expect(localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBeNull()
         expect(getCurrentRouteTransitionIntent()).toBe('neutral')
       }

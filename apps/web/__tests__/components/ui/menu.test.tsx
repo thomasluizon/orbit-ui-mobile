@@ -62,13 +62,13 @@ function renderExitingMenu() {
 describe('headless Menu', () => {
   beforeEach(() => { vi.restoreAllMocks(); setWide(true) })
 
-  it.each([en, ptBR].flatMap(messages => (['anchored', 'sheet'] as const).map(presentation => ({ messages, presentation }))))('shows an Astra action label with sibling row treatment in $presentation', async ({ messages, presentation }) => {
+  it.each([en, ptBR].flatMap(messages => (['anchored', 'sheet'] as const).map(presentation => ({ messages, presentation }))))('shows an Orbit action label with sibling row treatment in $presentation', async ({ messages, presentation }) => {
     setWide(presentation === 'anchored')
     const onSelect = vi.fn()
-    const label = messages.habits.actions.rescheduleAstra
+    const label = messages.habits.actions.rescheduleOrbit
     render(<Example presentation={presentation} onSelect={onSelect} items={[
       { id: 'edit', label: messages.common.edit, icon: 'pencil' },
-      { id: 'reschedule', label, icon: 'astra' },
+      { id: 'reschedule', label, icon: 'orbit' },
     ]} />)
     await openMenu()
     const action = screen.getByRole('menuitem', { name: label })

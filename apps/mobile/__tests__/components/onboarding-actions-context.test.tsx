@@ -258,7 +258,7 @@ describe('onboarding action provider factories', () => {
     await vi.waitFor(() => {
       expect(mocks.setItem).toHaveBeenCalledWith(
         expect.any(String),
-        'onboarding.flow.meetAstra.importPrompt',
+        'onboarding.flow.meetOrbit.importPrompt',
       )
       expect(mocks.replace).toHaveBeenCalledWith('/(tabs)')
     })

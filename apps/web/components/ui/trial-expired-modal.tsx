@@ -23,10 +23,10 @@ import { useUIStore } from '@/stores/ui-store'
 const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
 
 const PAUSED_FEATURES = [
-  'trial.expired.astraCeiling',
+  'trial.expired.orbitCeiling',
   'trial.expired.calendarSync',
   'trial.expired.retrospective',
-  'trial.expired.proactiveAstra',
+  'trial.expired.proactiveOrbit',
 ] as const
 
 export function TrialExpiredModal() {

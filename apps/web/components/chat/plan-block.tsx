@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import type { AstraPlan, AstraPlanStep, ChatMessage } from '@orbit/shared/types'
+import type { OrbitPlan, OrbitPlanStep, ChatMessage } from '@orbit/shared/types'
 import { planStepPresentation, planStepStatus, planStepStatusKey, type PlanStepPresentation } from '@orbit/shared/chat'
 import { createUsePlanAnnouncement } from '@orbit/shared/hooks/plan-announcement-core'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -24,7 +24,7 @@ function StepMarker({ kind, index }: Readonly<{ kind: PlanStepPresentation['mark
   return index + 1
 }
 
-function PlanStep({ step, index }: Readonly<{ step: AstraPlanStep; index: number }>) {
+function PlanStep({ step, index }: Readonly<{ step: OrbitPlanStep; index: number }>) {
   const t = useTranslations()
   const status = planStepStatus(step.status)
   const { markerKind, textRole, lineThrough } = planStepPresentation(status)
@@ -34,11 +34,11 @@ function PlanStep({ step, index }: Readonly<{ step: AstraPlanStep; index: number
   </li>
 }
 
-export function PlanBlock({ plan }: Readonly<{ plan: AstraPlan }>) {
+export function PlanBlock({ plan }: Readonly<{ plan: OrbitPlan }>) {
   const t = useTranslations()
   const done = plan.steps.filter(step => step.status === 'done').length
   const count = t('chat.plan.count', { done, total: plan.steps.length })
-  return <div data-astra-plan={plan.id} className="min-w-0 w-full">
+  return <div data-orbit-plan={plan.id} className="min-w-0 w-full">
     <BlockFrame title={t('chat.plan.title')} count={count} state="resting" items={[]} body={<>
       <p className="break-words text-sm text-[var(--fg-2)]">{plan.title}</p>
       <ProgressBar value={done} max={plan.steps.length} label={count} />

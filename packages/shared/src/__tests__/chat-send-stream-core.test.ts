@@ -10,7 +10,7 @@ type ComposerAttempt,
 } from '../hooks/chat-send-stream-core'
 import { createChatThreadScroll } from '../hooks/chat-thread-scroll-core'
 import { createMockProfile } from './factories'
-import { makeAstraPlan } from '../test-support/astra-plan-fixtures'
+import { makeOrbitPlan } from '../test-support/orbit-plan-fixtures'
 
 function composerHarness() {
   let chat: ChatStoreState
@@ -47,7 +47,7 @@ afterEach(() => vi.useRealTimers())
 describe('shared composer stream', () => {
   it('renders a plan before text and applies only matching live step updates', async () => {
     const { context } = composerHarness()
-    const plan = makeAstraPlan()
+    const plan = makeOrbitPlan()
     const step = { ...plan.steps[0]!, status: 'done' }
     const observations: ChatStoreState['messages'][] = []
     const frame = (event: unknown) => `data: ${JSON.stringify(event)}\n\n`
@@ -171,7 +171,7 @@ describe('shared composer recovery', () => {
     const setSendError = vi.fn()
     const handlers = createComposerFailureHandlers({ ...context, restoreImage: vi.fn(), restoreTextFile: vi.fn(),
       setDailyBudgetDate: vi.fn(), today: '2026-09-16', setSendError, setLastFailedSend: vi.fn(), setInput: context.getChat().setDraft })
-    const plan = makeAstraPlan()
+    const plan = makeOrbitPlan()
     context.getChat().addMessage({ id: 'draft-reply', role: 'ai', content: 'Partial', plan, timestamp: new Date() })
     handlers.handleFailedSend({ status: 503, code: null, error: 'Unavailable' }, attemptedSend(), 'draft-reply')
     expect(setSendError.mock.calls).toEqual([['chat.sendError']])

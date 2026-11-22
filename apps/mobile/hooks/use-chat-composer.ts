@@ -1,7 +1,7 @@
 import { createComposerRuntime, buildComposerSuggestions, buildChatComposerProps } from '@orbit/shared/hooks'
 import { useState, useEffect, useMemo, useRef } from 'react'
 
-import { createAstraAllowanceTranslator,formatAPIDateInTimeZone } from '@orbit/shared/utils'
+import { createOrbitAllowanceTranslator,formatAPIDateInTimeZone } from '@orbit/shared/utils'
 
 import { FlatList,Linking } from "react-native"
 import { useTranslation } from "react-i18next"
@@ -32,7 +32,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
-  const allowanceText = useMemo(() => createAstraAllowanceTranslator(t, profile, i18n.language), [t, profile, i18n.language])
+  const allowanceText = useMemo(() => createOrbitAllowanceTranslator(t, profile, i18n.language), [t, profile, i18n.language])
 
   const contextualSuggestion = useChatStore((state) => state.contextualSuggestion)
   const calendarHasError = useUIStore((state) => state.calendarHasError)

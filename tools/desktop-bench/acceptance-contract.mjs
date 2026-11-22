@@ -111,7 +111,7 @@ export function assertExpiredDone({ logs, habitId, visible, signIn }) {
   return { logs: 0, windowVisible: true, route: signIn.route }
 }
 
-// WebKit gives a key that the macOS input method claimed keyCode 229 or a composition (#1560). The Astra and palette shortcut
+// WebKit gives a key that the macOS input method claimed keyCode 229 or a composition (#1560). The Orbit and palette shortcut
 // handlers act on the key name alone, so a claimed Escape or Command+K counts as received. cmdk ignores a claimed Down, so the
 // Down step counts only an unclaimed one, and a claimed Down posts again.
 export const claimedKey = (event) => event.keyCode === 229 || Boolean(event.composing)

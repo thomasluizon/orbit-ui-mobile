@@ -58,13 +58,13 @@ beforeEach(() => {
   state.pathname = '/'
   state.pro = true
   state.disconnected = false
-  useUIStore.getState().setAstraConversationOpen(true)
+  useUIStore.getState().setOrbitConversationOpen(true)
   state.query = { isPending: false, isError: false, isRefetchError: false }
   state.habits.clear(); state.goals.clear()
   for (const item of inPlaceDayFixture.rows ?? []) state.habits.set(item.id, createMockHabit({ id: item.id, title: item.title }))
 })
 
-describe('Astra blocks act on app state', () => {
+describe('Orbit blocks act on app state', () => {
   it('shows twenty rows, reports all rows and locks a double tap until the log settles', () => {
     const view = render(<DaySummaryCard daySummary={inPlaceDayFixture} />)
     const log = screen.getByRole('button', { name: 'chat.habitList.log:{"name":"Habit 1"}' })
@@ -93,7 +93,7 @@ describe('Astra blocks act on app state', () => {
     expect(screen.getByRole('group', { name: /Walk with the team, Work/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.makeHabit:{"title":"Walk with the team"}' }))
     expect(state.push).toHaveBeenCalledWith('/calendar?import=1&event=event%20%2Fone')
-    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
   it('withholds calendar content for a free account', () => {
@@ -184,21 +184,21 @@ it.each(['child', 'bad'] as const)('counts a completed %s row according to the s
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
 
 function NavigationApp({ part }: Readonly<{ part: typeof chatNavigationCases[number]['part'] }>) {
-  const open = useUIStore(state => state.astraConversationOpen)
+  const open = useUIStore(state => state.orbitConversationOpen)
   return <DestinationShell conversation={<ChatBlock part={part} onActionChipClick={undefined} />} conversationOpen={open}
-    conversationLabel="Astra" onCreate={vi.fn()}><h1>{state.pathname}</h1></DestinationShell>
+    conversationLabel="Orbit" onCreate={vi.fn()}><h1>{state.pathname}</h1></DestinationShell>
 }
 
-it.each(chatNavigationCases.flatMap(scenario => [false, true].map(wide => ({ ...scenario, wide }))))('reveals the destination outside full-screen Astra from $name with wide=$wide', ({ part, label, web, wide }) => {
+it.each(chatNavigationCases.flatMap(scenario => [false, true].map(wide => ({ ...scenario, wide }))))('reveals the destination outside full-screen Orbit from $name with wide=$wide', ({ part, label, web, wide }) => {
   state.wide = wide
   const openAtNavigation: boolean[] = []
   state.push.mockImplementation((pathname: string) => {
-    openAtNavigation.push(useUIStore.getState().astraConversationOpen)
+    openAtNavigation.push(useUIStore.getState().orbitConversationOpen)
     state.pathname = pathname
   })
   state.goals.set('goal-1', createMockGoal({ id: 'goal-1' }))
   const view = render(<NavigationApp part={part} />)
-  expect(screen.getByRole('dialog', { name: 'Astra' })).toBeVisible()
+  expect(screen.getByRole('dialog', { name: 'Orbit' })).toBeVisible()
   expect(view.container.querySelector('[data-shell-destination]')).toHaveAttribute('inert')
   const action = screen.queryByRole('link', { name: label }) ?? screen.queryByRole('button', { name: label })
   if (['habit row', 'dated habit row', 'day habit row', 'calendar import'].includes(part.kind === 'habitList' ? part.block.date ? 'dated habit row' : 'habit row' : part.kind === 'daySummary' && label.includes('habitList.open') ? 'day habit row' : label.includes('makeHabit') ? 'calendar import' : '')) {

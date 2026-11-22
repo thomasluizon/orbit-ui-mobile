@@ -325,11 +325,11 @@ async function sessionProbeCases() {
 async function compactHojeProbeCases() {
   const reports = []
   const keyListeners = []
-  const commands = ['astra']
+  const commands = ['orbit']
   let now = 0
   let conversation = null
   const composer = {}
-  const astraButton = { click: () => { conversation = {} } }
+  const orbitButton = { click: () => { conversation = {} } }
   const browserWindow = { __ORBIT_DESKTOP_VERSION__: '1.0.0' }
   browserWindow.top = browserWindow
   let finished
@@ -344,7 +344,7 @@ async function compactHojeProbeCases() {
       addEventListener: (type, _listener, capture) => { keyListeners.push({ type, capture }) },
       querySelector(selector) {
         if (selector === '[data-habit-id="bench-0000"]') return {}
-        if (selector === '[data-astra-button]:not([disabled])') return conversation ? null : astraButton
+        if (selector === '[data-orbit-button]:not([disabled])') return conversation ? null : orbitButton
         if (selector === '[data-shell-conversation]') return conversation
         if (selector === '[data-shell-conversation] [data-composer-input]') return conversation ? composer : null
         return null
@@ -354,7 +354,7 @@ async function compactHojeProbeCases() {
       if (path === '/_bench/events') {
         const event = JSON.parse(options.body)
         reports.push(event)
-        if (event.kind === 'astra' || event.kind === 'error') finished()
+        if (event.kind === 'orbit' || event.kind === 'error') finished()
         return new Response(null, { status: 204 })
       }
       if (path === '/_bench/command') return commands.length ? new Response(commands.shift()) : new Promise(() => {})
@@ -363,9 +363,9 @@ async function compactHojeProbeCases() {
   }
   runInNewContext(await servedProbe(true), context)
   await done
-  T('installed acceptance reaches compact Hoje through the habit row and the Astra button, without a Hoje composer',
-    reports.map((event) => event.kind).join(',') === 'hoje,astra', JSON.stringify(reports))
-  T('installed acceptance records Astra keydowns in the capture phase once Astra is open',
+  T('installed acceptance reaches compact Hoje through the habit row and the Orbit button, without a Hoje composer',
+    reports.map((event) => event.kind).join(',') === 'hoje,orbit', JSON.stringify(reports))
+  T('installed acceptance records Orbit keydowns in the capture phase once Orbit is open',
     JSON.stringify(keyListeners) === JSON.stringify([{ type: 'keydown', capture: true }]), JSON.stringify(keyListeners))
 }
 
@@ -460,7 +460,7 @@ int main(int argc, const char *argv[]) {
 async function paletteTimingCases(dom, readState, reports) {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
   const traversal = source.slice(source.indexOf('  const focus = []'), source.indexOf('\n  report.paletteFocus = focus') + '\n  report.paletteFocus = focus'.length)
-  const pressKey = source.slice(source.indexOf('function pressKey('), source.indexOf('async function dismissAstra'))
+  const pressKey = source.slice(source.indexOf('function pressKey('), source.indexOf('async function dismissOrbit'))
   const input = dom.window.document.querySelector('[cmdk-input]')
   const { flushSync } = await import('react-dom')
   const key = (name) => flushSync(() => input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: name, bubbles: true })))
@@ -725,7 +725,7 @@ export async function cases() {
   T('an explicit macOS denial is retained exactly', assertAccessibleTree(denied, 'darwin').skipped === denied.error)
   rejects('Windows accessibility cannot be skipped', () => assertAccessibleTree(denied, 'win32'))
   rejects('an empty denial cannot be skipped', () => assertAccessibleTree({ ...denied, error: '' }, 'darwin'))
-  const previous = { inputFocused: true, selected: -1, results: ['Today', 'Astra'], inputName: 'Search commands' }
+  const previous = { inputFocused: true, selected: -1, results: ['Today', 'Orbit'], inputName: 'Search commands' }
   const current = { ...previous, selected: 0 }
   assertPaletteFocus(previous, current, native)
   T('palette traversal accepts input focus plus native selection in result order', true)

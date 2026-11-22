@@ -12,17 +12,17 @@ row, at the trailing edge. The words keep the full row width. The write previews
 pending operation card and the breakdown suggestion. Pending rows keep their actions
 beside the title's first line. Read blocks, the day summary and action chips keep their
 row layout while they refresh or log. The paired owners and verification live in
-[the preview inventory](../astra-preview-surfaces.md).
+[the preview inventory](../orbit-preview-surfaces.md).
 
 ### Hoje stacked Orbit entry
 
 The owner's #2005 order replaces the Hoje composer with a conversation entry.
 The owner's #2042 correction limits that button to the compact shell: Android at every width and
 web below 1024. Wide web shows no conversation entry and keeps the sidebar Orbit row. The owner's
-#2077 order replaces the drag clause of #2005 and #2042: "the floating astra button is still
+#2077 order replaces the drag clause of #2005 and #2042: "the floating orbit button is still
 buggy. being totally honest, i dont want it floating anymore. fuck it just put it on top of the +
 icon to create habit, and we're good". The button is fixed in the create FAB's trailing column,
-directly above the create FAB and centred on it, with `ASTRA_BUTTON_GAP` between the two circles.
+directly above the create FAB and centred on it, with `ORBIT_BUTTON_GAP` between the two circles.
 It has no drag, no move action and no stored position. When the create FAB is hidden, the button
 takes the create FAB's position. The create FAB draws on the first frame, before Hoje has
 loaded, and leaves only when Hoje settles empty or with a load error, or while a surface is
@@ -72,7 +72,7 @@ on bounce and overshoot. Token values and the remaining export stay unchanged.
 ### One Orbit drawing amendment (#1797)
 
 Under D42, the owner's order amends every small Orbit variant in the granted drawings:
-"i dont understand this mini astra logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it".
+"i dont understand this mini orbit logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it".
 Every `OrbitMascot` uses the normal drawing at every size on web and Android. Its shared viewBox
 fits the drawn bounds, and the drawn centre aligns with its row, chip, button or header centre.
 Conversation headers, suggestion and follow-up chips, the Hoje stacked conversation entry and Orbit lines,
@@ -236,7 +236,7 @@ action row with Refresh; signed paging waits for refresh. Write-preview executio
 Recap disclosure retains the supplied current and longest streak figures with its narrative and
 habit rows. Show less returns to the focused figures. Expanded state and a card-local polite live
 region announce disclosure on web and Android, replacing the former page-position announcement.
-The paired owners and verification boundaries are in `design/astra-preview-surfaces.md`.
+The paired owners and verification boundaries are in `design/orbit-preview-surfaces.md`.
 
 ## The authority
 
@@ -280,7 +280,7 @@ that disagrees with production is a trap rather than an authority.
 | #1288 | Calendário shares one centred navigation row across all four views; span titles are borderless mono controls that return to today, and Agenda rows carry a time or no-time value, a status ring and entry details | Agenda keeps day order stable, lists no-time habits before timed habits and builds the today heading from one localized template. |
 | #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
 | Hoje one Orbit slot | Web and Android show one slot below the habit-view switch and above the date in Hoje only: unread proactive check-in, otherwise returning guidance, otherwise the daily summary. The summary's first sentence opens its full text as Orbit's newest conversation message, preserving earlier turns. Loading, retry and the free plan's upgrade path use the same slot. One 20px glyph, one padded target at least 48 high and at most two prose lines | Supersedes the separate summary block. Hoje carries no second insight, AI badge, expand action or the conversation entry. Only the way in and this slot carry the glyph outside the conversation. |
-| Hoje Orbit entry | One fixed neutral 60px the conversation entry replaces the Hoje composer in the compact shell only: Android at every width and web below 1024. It sits directly above the create FAB, centred on it, `ASTRA_BUTTON_GAP` apart, and takes the create FAB's position when that FAB is hidden. It has no drag, no move action and no stored position, and opens the existing layer. Wide web keeps the sidebar Orbit row. Habit detail keeps its composer | #2005, #2042 and #2077 amend the drawing. Conversation chips, draft, disclosure, queue and running replies retain their existing owners. |
+| Hoje Orbit entry | One fixed neutral 60px the conversation entry replaces the Hoje composer in the compact shell only: Android at every width and web below 1024. It sits directly above the create FAB, centred on it, `ORBIT_BUTTON_GAP` apart, and takes the create FAB's position when that FAB is hidden. It has no drag, no move action and no stored position, and opens the existing layer. Wide web keeps the sidebar Orbit row. Habit detail keeps its composer | #2005, #2042 and #2077 amend the drawing. Conversation chips, draft, disclosure, queue and running replies retain their existing owners. |
 | Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |
 | Light transparent hover | `--p-l-hover` uses `rgba(9,9,11,0.11)`; supporting text under the fill uses `fg-2` | The step measures 1.271:1 over white and 1.276:1 over the canvas. |
 | Light empty track | `--p-l-track-empty` uses `#7E7E82`; `--status-empty` retains this neutral at rest and under hover | Constant OKLCH hue and chroma with lower lightness clears 3.036:1 on canvas hover, 3.180:1 on card-child hover and 3.052:1 on canvas selection, while staying between `fg-3` and `fg-4`. |
@@ -450,7 +450,7 @@ no-time wording and gutter geometry rather than the calendar's state or disclosu
 
 ## Identity amendment
 
-One amendment covers every active drawing. Each Astra glyph, each hollow Orbit mark, each "Astra" label, the conversation header mark, the participant mark, the empty thread mark and the conversation entry follow `DESIGN.md` Identity: Orbit is the app, the AI and the mascot, and there is one mark. A drawing that shows a retired mark or the old second name draws the mascot and the name Orbit when a surface is built.
+One amendment covers every active drawing. Each Orbit glyph, each hollow Orbit mark, each "Orbit" label, the conversation header mark, the participant mark, the empty thread mark and the conversation entry follow `DESIGN.md` Identity: Orbit is the app, the AI and the mascot, and there is one mark. A drawing that shows a retired mark or the old second name draws the mascot and the name Orbit when a surface is built.
 
 ## The create flow drawing
 
@@ -596,10 +596,10 @@ The glyph primitives provide the asset; their consumers below own its placement.
 
 | Consumer | Disposition |
 |---|---|
-| `today/today-astra` | Moved its sole 20px glyph into `today/today-astra-line`, shared by the check-in, returning line and summary states. |
+| `today/today-orbit` | Moved its sole 20px glyph into `today/today-orbit-line`, shared by the check-in, returning line and summary states. |
 | `today/today-ai-summary` | Removed the heading glyph and both loading and loaded round-button glyphs. Uses the single slot instead. |
 | `shell/shell-wide` (web) | Retained the sidebar conversation entry. Android uses its composer entry instead. |
-| `shell/composer` | Retained the habit-detail conversation entry. In the compact shell, Hoje uses the conversation entry stacked directly above the create FAB, centred, `ASTRA_BUTTON_GAP` apart, with no drag, no move action and no stored position (#2005, #2042, #2077); wide web retains the sidebar Orbit row. |
+| `shell/composer` | Retained the habit-detail conversation entry. In the compact shell, Hoje uses the conversation entry stacked directly above the create FAB, centred, `ORBIT_BUTTON_GAP` apart, with no drag, no move action and no stored position (#2005, #2042, #2077); wide web retains the sidebar Orbit row. |
 | `profile/profile-nav-icon` | Draws `OrbitMascot` as the Orbit settings row's leading icon (#1780). The labelled settings row remains aligned with its neighbours. |
 | `onboarding/onboarding-create-habit` | Removed the proposal-heading glyph; the attribution text and proposed treatment remain. |
 | `habits/habit-create-frame` | Removed the origin glyph; the conversation-origin text remains. |

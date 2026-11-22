@@ -48,9 +48,9 @@ function skeletonFaces(tree: any) {
 }
 
 describe('PillButton (mobile)', () => {
-  it('keeps the focused Astra action glyph on the skeleton face only while it is busy, with no status slot', () => {
+  it('keeps the focused Orbit action glyph on the skeleton face only while it is busy, with no status slot', () => {
     const onClick = vi.fn()
-    const action = (loading: boolean) => <PillButton variant="ghost" retainLeadingIcon leadingIcon={<OrbitMascot size={16} />} loading={loading} focusableWhenLoading onClick={onClick}>Ask Astra</PillButton>
+    const action = (loading: boolean) => <PillButton variant="ghost" retainLeadingIcon leadingIcon={<OrbitMascot size={16} />} loading={loading} focusableWhenLoading onClick={onClick}>Ask Orbit</PillButton>
     const tree = renderPill(action(false))
     try {
       const button = tree.root.findByType('Pressable')

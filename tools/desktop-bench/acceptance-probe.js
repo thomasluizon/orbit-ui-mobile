@@ -40,20 +40,20 @@
     location.assign('/login?email=desktop-vm%40example.invalid&code=741852')
   }
   async function screen(name) {
-    if (name === 'astra-close') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }))
-    if (name === 'astra-close' || name === 'astra-closed') {
-      await until(() => !document.querySelector('[data-shell-conversation]'), 'Astra dismissal')
+    if (name === 'orbit-close') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }))
+    if (name === 'orbit-close' || name === 'orbit-closed') {
+      await until(() => !document.querySelector('[data-shell-conversation]'), 'Orbit dismissal')
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-      // The runner posts the native Command+K once Astra is closed, so its receipt needs this listener before the palette opens.
+      // The runner posts the native Command+K once Orbit is closed, so its receipt needs this listener before the palette opens.
       document.addEventListener('keydown', recordPaletteKey, true)
-      await report('astra-closed')
+      await report('orbit-closed')
       return
     }
-    if (name === 'astra') {
-      const button = await until(() => document.querySelector('[data-astra-button]:not([disabled])'), 'Astra button')
+    if (name === 'orbit') {
+      const button = await until(() => document.querySelector('[data-orbit-button]:not([disabled])'), 'Orbit button')
       button.click()
-      await until(() => document.querySelector('[data-shell-conversation] [data-composer-input]'), 'Astra surface')
-      document.addEventListener('keydown', recordAstraKey, true)
+      await until(() => document.querySelector('[data-shell-conversation] [data-composer-input]'), 'Orbit surface')
+      document.addEventListener('keydown', recordOrbitKey, true)
     }
     if (name === 'palette') {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', code: 'KeyK', metaKey: /Mac/.test(navigator.platform), ctrlKey: !/Mac/.test(navigator.platform), bubbles: true }))
@@ -76,11 +76,11 @@
       targetInput: event.target === input, documentFocused: document.hasFocus(), before: paletteState(),
       metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey })
   }
-  function recordAstraKey(event) {
+  function recordOrbitKey(event) {
     const conversation = document.querySelector('[data-shell-conversation]')
     if (!conversation) return
-    // A receipt shows whether a native Escape reached the page while Astra was open, apart from whether Astra closed.
-    void report('astra-key', { key: event.key, code: event.code, keyCode: event.keyCode, composing: event.isComposing, trusted: event.isTrusted,
+    // A receipt shows whether a native Escape reached the page while Orbit was open, apart from whether Orbit closed.
+    void report('orbit-key', { key: event.key, code: event.code, keyCode: event.keyCode, composing: event.isComposing, trusted: event.isTrusted,
       documentFocused: document.hasFocus(), targetComposer: event.target === conversation.querySelector('[data-composer-input]') })
   }
   // cmdk names its input through aria-labelledby, which outranks aria-label: https://www.w3.org/TR/accname-1.2/#computation-steps
@@ -163,7 +163,7 @@
     if (emailLink) await report('email-completed')
     const pushLabels = location.pathname === '/profile/notifications' && sessionStorage.getItem(pushKey)
     if (pushLabels) { await enablePush(JSON.parse(pushLabels)); return }
-    await until(() => document.querySelector('[data-habit-id="bench-0000"]') && document.querySelector('[data-astra-button]:not([disabled])'), 'Hoje')
+    await until(() => document.querySelector('[data-habit-id="bench-0000"]') && document.querySelector('[data-orbit-button]:not([disabled])'), 'Hoje')
     await report('hoje', { route: location.pathname, nativeVersion: window.__ORBIT_DESKTOP_VERSION__ })
     while (true) {
       const response = await fetch('/_bench/command')

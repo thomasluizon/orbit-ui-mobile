@@ -21,7 +21,7 @@ import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { HabitRowTrailing } from '@/components/habits/habit-row-trailing'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
-import { AstraButton } from '@/components/shell/astra-button'
+import { OrbitButton } from '@/components/shell/orbit-button'
 import { AppBar } from '@/components/ui/app-bar'
 import { Chip } from '@/components/ui/chip'
 import { PillAnchor } from '@/components/ui/pill-anchor'
@@ -79,7 +79,7 @@ const controls: [string, () => ReactElement, (page: Page) => Locator][] = [
     (page) => page.getByRole('link', { name: 'Open the billing portal in your browser', exact: true })],
   ['a resting chip', () => <Chip onClick={vi.fn()}>Morning routine</Chip>, (page) => page.getByRole('button', { name: 'Morning routine', exact: true })],
   ['a selected chip', () => <Chip active onClick={vi.fn()}>Morning routine</Chip>, (page) => page.getByRole('button', { name: 'Morning routine', exact: true })],
-  ['the conversation entry', () => <AstraButton />, (page) => page.getByRole('button', { name: en.shell.astraButton.open, exact: true })],
+  ['the conversation entry', () => <OrbitButton />, (page) => page.getByRole('button', { name: en.shell.orbitButton.open, exact: true })],
   ['a personal radio row', () => <RadioGroup aria-label="Item"><RadioRow label="Read before bed" textMode="personal" onSelect={vi.fn()} /></RadioGroup>,
     (page) => page.getByRole('radio', { name: 'Read before bed', exact: true })],
   // WHY: these ten scale their whole 48px target. The scale removes 0.96px at each edge, which is under 1px, so a press at the exact edge keeps its click. Each case guards that band. https://github.com/thomasluizon/orbit-tickets/issues/2096

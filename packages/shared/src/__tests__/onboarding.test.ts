@@ -53,7 +53,7 @@ describe('onboarding helpers', () => {
     expect(ONBOARDING_STARTERS).toEqual(['water', 'walk', 'read', 'tidy'])
   })
 
-  it('never spends an Astra message signed out or at the ceiling', () => {
+  it('never spends an Orbit message signed out or at the ceiling', () => {
     expect(shouldRequestOnboardingSuggestion({ isLive: false, atLimit: false })).toBe(false)
     expect(shouldRequestOnboardingSuggestion({ isLive: true, atLimit: true })).toBe(false)
     expect(shouldRequestOnboardingSuggestion({ isLive: true, atLimit: false })).toBe(true)

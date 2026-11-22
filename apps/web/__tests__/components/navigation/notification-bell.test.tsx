@@ -275,7 +275,7 @@ describe('alerts', () => {
     state.pathname = '/notifications'
     seed(2)
     const messages = locale === 'en' ? en : pt
-    const { container } = render(<QueryClientProvider client={new QueryClient()}><ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Navigation" notifications={<NotificationBell />}><NotificationInbox /></ShellWide></QueryClientProvider>)
+    const { container } = render(<QueryClientProvider client={new QueryClient()}><ShellWide orbitRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Navigation" notifications={<NotificationBell />}><NotificationInbox /></ShellWide></QueryClientProvider>)
     const indicators = screen.getAllByRole('img', { name: messages.notifications.bellWithCount.replace('{count}', '2') })
     expect(indicators).toHaveLength(1)
     expect(container.querySelector('[data-shell-sidebar]')).toContainElement(indicators[0]!)

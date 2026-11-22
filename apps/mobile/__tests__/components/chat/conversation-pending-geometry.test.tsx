@@ -5,7 +5,7 @@ import * as Reanimated from 'react-native-reanimated'
 import { act, create } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
-import { AstraConversation } from '@/components/chat/conversation'
+import { OrbitConversation } from '@/components/chat/conversation'
 import { MessageBubble } from '@/components/message-bubble'
 import * as motion from '@/lib/motion'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
@@ -49,11 +49,11 @@ await vi.hoisted(async () => {
   load.cache[svgPath] = svgModule
 })
 
-type ChatController = Parameters<typeof AstraConversation>[0]['chat']
+type ChatController = Parameters<typeof OrbitConversation>[0]['chat']
 afterEach(() => vi.restoreAllMocks())
 
 function expectPendingDotsVisible(tree: GeometryTree) {
-  const pending = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-pending')[0]!
+  const pending = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-pending')[0]!
   const hosts = pending.findAll(node => typeof node.type === 'string')
   expect(hosts.filter(node => StyleSheet.flatten<ViewStyle>(node.props.style ?? {}).width === 4)).toHaveLength(3)
   for (const host of hosts) {
@@ -76,7 +76,7 @@ it.each([412, 1352].flatMap(width => [false, true].map(reduced => ({ width, redu
   } as unknown as ChatController
   const onRender = vi.fn()
   let tree!: GeometryTree
-  await act(() => { tree = create(<Profiler id="conversation" onRender={onRender}><AstraConversation chat={chat} /></Profiler>) as GeometryTree })
+  await act(() => { tree = create(<Profiler id="conversation" onRender={onRender}><OrbitConversation chat={chat} /></Profiler>) as GeometryTree })
   try {
     const list = tree.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
     for (const offset of [900, 600]) await act(() => list.onScroll?.({ nativeEvent: {
@@ -102,7 +102,7 @@ it('does not render the conversation while scrolling across the pending visibili
   } as unknown as ChatController
   const onRender = vi.fn()
   let tree!: GeometryTree
-  await act(() => { tree = create(<Profiler id="conversation" onRender={onRender}><AstraConversation chat={chat} /></Profiler>) as GeometryTree })
+  await act(() => { tree = create(<Profiler id="conversation" onRender={onRender}><OrbitConversation chat={chat} /></Profiler>) as GeometryTree })
   try {
     const cancel = vi.spyOn(Reanimated, 'cancelAnimation')
     const repeat = vi.spyOn(Reanimated, 'withRepeat')
@@ -138,15 +138,15 @@ it.each([412, 1352])('replaces the native pending line at the same reply origin 
     showSuggestions: false, sendMessage: vi.fn(), scrollToBottom: vi.fn(), composerProps: { suggestions: [] },
   } as unknown as ChatController
   let tree!: GeometryTree
-  await act(() => { tree = create(<AstraConversation chat={chat} />) as GeometryTree })
+  await act(() => { tree = create(<OrbitConversation chat={chat} />) as GeometryTree })
   try {
-    const pending = measureSafeArea(tree.toJSON(), host => host.props.testID === 'astra-pending' ? 'pending' : undefined, { width, height: 915 }).get('pending')
+    const pending = measureSafeArea(tree.toJSON(), host => host.props.testID === 'orbit-pending' ? 'pending' : undefined, { width, height: 915 }).get('pending')
     expect(pending).toBeDefined()
     expect(pending!.bottom - pending!.top).toBe(24)
-    const avatars = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar')
+    const avatars = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-avatar')
     expect(avatars).toHaveLength(1)
     expect(avatars[0]!.props.accessibilityElementsHidden).toBe(true)
-    const markPosition = measureSafeArea(tree.toJSON(), host => host.props.testID === 'astra-avatar' ? 'avatar' : undefined, { width, height: 915 }).get('avatar')!
+    const markPosition = measureSafeArea(tree.toJSON(), host => host.props.testID === 'orbit-avatar' ? 'avatar' : undefined, { width, height: 915 }).get('avatar')!
     expect(markPosition.width).toBe(24)
     expect(markPosition.bottom - markPosition.top).toBe(24)
     expect(markPosition.left).toBe(pending!.left)
@@ -154,14 +154,14 @@ it.each([412, 1352])('replaces the native pending line at the same reply origin 
     chat.isTyping = false
     chat.streamingMessageId = null
     chat.messages = [...chat.messages, { id: 'reply', role: 'ai', content: 'Start with water', timestamp: new Date() }]
-    await act(() => tree.update(<AstraConversation chat={chat} />))
-    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-pending')).toHaveLength(0)
+    await act(() => tree.update(<OrbitConversation chat={chat} />))
+    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-pending')).toHaveLength(0)
     const reply = measureSafeArea(tree.toJSON(), host => host.props.accessibilityLabel === 'chat.senderOrbit' ? 'reply' : undefined, { width, height: 915 }).get('reply')
     expect(reply).toBeDefined()
     expect(reply!.left).toBe(pending!.left)
     expect(reply!.top).toBe(pending!.top)
-    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar')).toHaveLength(1)
-    expect(measureSafeArea(tree.toJSON(), host => host.props.testID === 'astra-avatar' ? 'avatar' : undefined, { width, height: 915 }).get('avatar')).toEqual(markPosition)
+    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-avatar')).toHaveLength(1)
+    expect(measureSafeArea(tree.toJSON(), host => host.props.testID === 'orbit-avatar' ? 'avatar' : undefined, { width, height: 915 }).get('avatar')).toEqual(markPosition)
     const bubble = tree.root.findAll(node => node.type === MessageBubble).at(-1)!
     expect(bubble.props.animateEntry).toBe(true)
     const replyOrigin = bubble.findAll(node => typeof node.type === 'string' && node.props.testID === 'conversation-reveal')[0]!

@@ -2196,7 +2196,7 @@ describe('HabitList', () => {
     })
     expect(flattenRenderedText(tree!.toJSON())).toContain('habits.nothingOpen')
     expect(flattenRenderedText(tree!.toJSON())).not.toContain('habits.emptyState')
-    expect(flattenRenderedText(tree!.toJSON())).not.toContain('habits.askAstra')
+    expect(flattenRenderedText(tree!.toJSON())).not.toContain('habits.askOrbit')
   })
 
   it('shows the plain line when nothing is due today', () => {
@@ -2242,8 +2242,8 @@ describe('HabitList', () => {
     })
     const text = flattenRenderedText(tree.toJSON())
     expect(text).toContain('habits.emptyState')
-    expect(text).toContain('habits.askAstra')
-    expect(tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.findAll(child => String(child.type) === 'Text' && child.props.children === 'habits.askAstra').length > 0)).toHaveLength(1)
+    expect(text).toContain('habits.askOrbit')
+    expect(tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.findAll(child => String(child.type) === 'Text' && child.props.children === 'habits.askOrbit').length > 0)).toHaveLength(1)
     expect(text).toContain('habits.createManually')
   })
 

@@ -177,7 +177,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
   for (const unavailable of ['offline', 'allowance'] as const) {
     test.describe(`automatic habit date recovery in ${locale} when ${unavailable}`, () => {
       test.use({ appLocale: locale, viewport: { width: 320, height: 1000 }, layoutProfile: { aiMessagesUsed: unavailable === 'allowance' ? 5 : 0, aiMessagesLimit: 5 } })
-      test('keeps local parsing and manual selection without calling Astra', async ({ page, context }) => {
+      test('keeps local parsing and manual selection without calling Orbit', async ({ page, context }) => {
         const messages = locale === 'en' ? en : ptBr
         await page.goto('/habits/new')
         const screen = page.locator('[data-habit-create-screen]')
@@ -198,7 +198,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         await expect(screen.getByText(messages.habits.form.datePhraseUnresolved, { exact: true })).toBeVisible()
         await page.waitForTimeout(1000)
         expect(consultations).toEqual([])
-        await expect(screen.getByRole('status', { name: /Astra/ })).toHaveCount(0)
+        await expect(screen.getByRole('status', { name: /Orbit/ })).toHaveCount(0)
         await expect(date).toBeEnabled()
         await date.click()
         await page.locator('button[data-day="2026-10-03"]').click()
