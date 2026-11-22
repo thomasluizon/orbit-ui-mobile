@@ -81,7 +81,7 @@ function DatePickerMonthNav({
           pressed && pickerMode !== 'years' ? { backgroundColor: tokens.bgHover } : null,
         ]}
       >
-        <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg3} />
+        <ChevronLeft size={20} strokeWidth={2} color={tokens.fg3} />
       </MotionPressable>
 
       <View style={styles.monthLabelGroup}>
@@ -117,7 +117,7 @@ function DatePickerMonthNav({
           pressed && pickerMode !== 'years' ? { backgroundColor: tokens.bgHover } : null,
         ]}
       >
-        <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg3} />
+        <ChevronRight size={20} strokeWidth={2} color={tokens.fg3} />
       </MotionPressable>
     </View>
   )
@@ -381,7 +381,7 @@ export function DateField({
         >
           {displayValue || placeholder || t('common.selectDate')}
         </Text>
-        <Calendar size={20} strokeWidth={1.8} color={pressed ? tokens.fg2 : tokens.fg3} />
+        <Calendar size={20} strokeWidth={2} color={pressed ? tokens.fg2 : tokens.fg3} />
       </>}</MotionPressable>
 
       {isOpen ? (

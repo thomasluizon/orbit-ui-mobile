@@ -105,7 +105,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,
-      control: unread ? <IconButton label={t('notifications.markRead', { title: item.title })} onClick={() => void markNotification(item.id)}><Check size={20} strokeWidth={1.8} color={tokens.fg2} /></IconButton> : undefined,
+      control: unread ? <IconButton label={t('notifications.markRead', { title: item.title })} onClick={() => void markNotification(item.id)}><Check size={20} strokeWidth={2} color={tokens.fg2} /></IconButton> : undefined,
     }
   })
   return <View style={{ width: '100%' }}>

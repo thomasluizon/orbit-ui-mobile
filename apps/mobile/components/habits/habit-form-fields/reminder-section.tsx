@@ -114,7 +114,7 @@ export function ReminderSection({
                   accessibilityLabel={t("habits.form.removeReminder")}
                   onPress={() => removeReminder(time)}
                 >
-                  <X size={16} color={tokens.fg2} strokeWidth={2.2} />
+                  <X size={16} color={tokens.fg2} strokeWidth={2} />
                 </Pressable>
               </View>
             ))}

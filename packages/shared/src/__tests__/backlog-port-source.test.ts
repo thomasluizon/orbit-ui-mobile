@@ -66,7 +66,7 @@ describe('main backlog ports', () => {
       join(repositoryRoot, 'apps/mobile/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx'),
       'utf8',
     )
-    expect(source).toContain('<X size={16} color={tokens.fg3} strokeWidth={1.8} />')
+    expect(source).toContain('<X size={16} color={tokens.fg3} strokeWidth={2} />')
   })
 
   it.each([

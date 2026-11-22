@@ -158,7 +158,7 @@ export function Sheet({ title, centred = false, titleMode = 'label', accessibleT
               {headerAccessory}
               {onClose || onAttemptDismiss ? (
                 <Dialog.Close className="orbit-sheet-close" aria-label={t('common.close')}>
-                  <X size={24} strokeWidth={1.8} aria-hidden="true" />
+                  <X size={24} strokeWidth={2} aria-hidden="true" />
                 </Dialog.Close>
               ) : null}
             </header>

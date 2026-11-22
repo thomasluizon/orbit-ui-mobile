@@ -25,7 +25,7 @@ describe('settings switch centres in Chromium', () => {
   it('keeps locked Astra labels in their existing text block', async () => {
     const title = ptBR.profile.proactiveAstra.title
     const { container } = render(<div style={{ width: 364 }}>
-      <ListRow title={title} icon={<Lock size={24} strokeWidth={1.8} />} compact textMode="label" chevron={false} onClick={() => {}}
+      <ListRow title={title} icon={<Lock size={24} strokeWidth={2} />} compact textMode="label" chevron={false} onClick={() => {}}
         trailing={<Badge>Pro</Badge>} />
     </div>)
     const page = await browser.newPage()

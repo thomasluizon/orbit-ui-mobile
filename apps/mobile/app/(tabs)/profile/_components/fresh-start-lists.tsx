@@ -14,8 +14,8 @@ function ListBlock({ title, items, itemIcon }: Readonly<{ title: string; items: 
       {items.map((item) => (
         <View key={item} style={styles.item}>
           {itemIcon === 'delete'
-            ? <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
-            : <Check size={16} color={tokens.statusDone} strokeWidth={1.8} />}
+            ? <X size={16} color={tokens.statusBad} strokeWidth={2} />
+            : <Check size={16} color={tokens.statusDone} strokeWidth={2} />}
           <Text style={[styles.itemText, { color: tokens.fg2 }]}>{item}</Text>
         </View>
       ))}

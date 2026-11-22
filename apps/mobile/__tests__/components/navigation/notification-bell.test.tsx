@@ -15,6 +15,8 @@ import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
+import { Bell, Sun } from '@/components/ui/icons'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { NotificationDetailModal } from '@/components/navigation/notification-detail-modal'
@@ -385,6 +387,13 @@ describe('mobile alerts', () => {
     const tree = render(<NotificationBell />)
     expect(hosts(tree, 'Pressable', 'Alerts')).toHaveLength(0)
     expect(hosts(tree, 'View', 'Alerts')[0]!.props.accessibilityRole).toBe('image')
+  })
+  it('draws the bell with a stroke from the set and the stroke of the theme icon beside it', () => {
+    const tree = render(<RootNotificationHeader />)
+    const strokeOf = (type: unknown) => (tree.root.findAll((node) => node.type === type)[0]!.props as { strokeWidth?: number }).strokeWidth
+    const bell = strokeOf(Bell)
+    expect([1.5, 2, 2.5]).toContain(bell)
+    expect(bell).toBe(strokeOf(Sun))
   })
   it('pushes the inbox and keeps zero absent', () => {
     const tree = render(<NotificationBell />)

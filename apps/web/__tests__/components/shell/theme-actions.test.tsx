@@ -57,6 +57,16 @@ it.each(['expanded sidebar', 'collapsed sidebar', 'compact progress header', 'co
   expect(client.getQueryData(profileKeys.detail())).toMatchObject({ themePreference: 'dark' })
 })
 
+it('draws the inline bell with a stroke from the set and the stroke of the theme icon beside it', () => {
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+  const view = render(<QueryClientProvider client={new QueryClient()}><RootNotificationHeader /></QueryClientProvider>)
+  const owner = view.container.querySelector<HTMLElement>('[data-header-appearance-actions]')!
+  const bell = owner.querySelector('.tabler-icon-bell')!
+  const theme = owner.querySelector('.tabler-icon-sun')!
+  expect([1.5, 2, 2.5]).toContain(Number(bell.getAttribute('stroke-width')))
+  expect(bell.getAttribute('stroke-width')).toBe(theme.getAttribute('stroke-width'))
+})
+
 const noop = () => {}
 const todayProps = {
   dayName: 'Wednesday', numericDate: '8 Apr', isTodaySelected: true, nextDisabled: false,

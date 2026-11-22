@@ -1405,7 +1405,8 @@
       "monthEmpty": "Nada marcado em {month}.",
       "monthFuture": "Este mês ainda não chegou.",
       "askDay": "Me fala sobre o dia {date} no meu calendário.",
-      "askMonth": "Me fala sobre {month} no meu calendário."
+      "askMonth": "Me fala sobre {month} no meu calendário.",
+      "loadError": "Não consegui carregar o seu calendário."
     },
     "title": "Google Agenda",
     "fetchingEvents": "Buscando seus eventos...",

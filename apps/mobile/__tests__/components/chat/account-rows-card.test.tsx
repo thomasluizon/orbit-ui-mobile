@@ -96,9 +96,9 @@ describe('Astra account rows on mobile', () => {
   it.each([false, true])('swaps the copy icon through CopyStateIcon with scale, opacity and blur on the shared fast duration (reduced motion %s)', async (reducedMotion) => {
     motionState.reduced = reducedMotion
     const tree = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
-    expectCopyStateIcon(tree.root, { copied: false, reducedMotion, color: '#111111', strokeWidth: 1.8 })
+    expectCopyStateIcon(tree.root, { copied: false, reducedMotion, color: '#111111', strokeWidth: 2 })
     await TestRenderer.act(async () => { await tree.root.findByProps({ accessibilityLabel: 'chat.account.copy' }).props.onPress() })
-    expectCopyStateIcon(tree.root, { copied: true, reducedMotion, color: '#111111', strokeWidth: 1.8 })
+    expectCopyStateIcon(tree.root, { copied: true, reducedMotion, color: '#111111', strokeWidth: 2 })
   })
 
   it.each([false, true])('presses the copy control on the shared eased press (reduced motion %s)', (reducedMotion) => {

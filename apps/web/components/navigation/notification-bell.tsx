@@ -62,7 +62,7 @@ export function NotificationBellDisplay({ count, onClick, countPlacement = 'inli
   const corner = countPlacement === 'corner'
   const layout = corner ? 'inline-flex items-center justify-center rounded-full font-medium text-[var(--fg-3)]' : 'min-h-[48px] inline-flex rounded-full text-[var(--fg-2)] min-w-[48px] items-center justify-center gap-[4px] px-2 py-1'
   const content = <>
-      <Bell size={corner ? 20 : 24} strokeWidth={corner ? 2 : 1.8} aria-hidden="true" />
+      <Bell size={corner ? 20 : 24} strokeWidth={2} aria-hidden="true" />
       <NotificationBellCount count={count} corner={corner || Boolean(onClick)} countMotion={countMotion} />
   </>
   if (onClick) return <IconButton label={label} onClick={onClick}><span className="contents">{content}</span></IconButton>

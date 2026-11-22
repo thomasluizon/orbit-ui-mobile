@@ -49,7 +49,7 @@ function PushDevicesFeedback({
           {t('profile.settingsRows.devicesUnavailable')}
         </Text>
         <PillButton variant="ghost" size="sm" iconOnly label={t('common.retry')} onClick={onRetry}>
-          <RotateCcw size={16} color={tokens.fg2} strokeWidth={1.8} />
+          <RotateCcw size={16} color={tokens.fg2} strokeWidth={2} />
         </PillButton>
       </View> : null}
       <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg3, paddingHorizontal: full ? SPACING.s16 : SPACING.s0, paddingBottom: full ? SPACING.s12 : SPACING.s0, fontSize: 14 }}>

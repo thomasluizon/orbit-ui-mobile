@@ -9,7 +9,7 @@ import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { SkeletonFace } from '@/components/ui/skeleton'
 import { useOrbitReadMotionAllowed } from '@/components/ui/orbit-read-motion'
-import { APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, SIGN_IN_BUTTON_HEIGHT, signInButtonSpec, signInLeadHeight, type ButtonSize, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
+import { SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, SIGN_IN_BUTTON_HEIGHT, signInButtonSpec, signInLeadHeight, type ButtonSize, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 
 function buttonDescriptionIds(descriptionId: string | undefined, hintId: string, hint: string | undefined) {
   return [descriptionId, hint ? hintId : undefined].filter(Boolean).join(' ') || undefined
@@ -25,7 +25,7 @@ function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, icon
     fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`,
     color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined,
     marginInlineStart: iconOnly && edge === 'start' ? ICON_ACTION_START_HANG : undefined,
-    ...(signIn ? signInPillStyle(signIn, brand === 'apple' ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize) : undefined),
+    ...(signIn ? signInPillStyle(signIn, SIGN_IN_TITLE_SIZE) : undefined),
     ...(brand === 'apple' ? APPLE_SIGN_IN_COLOURS : undefined),
   }
 }

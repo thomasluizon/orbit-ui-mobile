@@ -199,7 +199,7 @@ function TemplateSaveEditor({ name, waiting, onChange, onSave, onCancel }: Reado
         onClick={onCancel}
         aria-label={t('common.close')}
       >
-        <X size={16} strokeWidth={1.8} aria-hidden="true" />
+        <X size={16} strokeWidth={2} aria-hidden="true" />
       </button>
     </div>
   )

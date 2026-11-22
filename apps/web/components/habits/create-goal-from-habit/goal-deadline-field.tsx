@@ -46,7 +46,7 @@ export function GoalDeadlineField({
               aria-label={t('goals.form.removeDeadline')}
               onClick={() => onChangeDeadline('')}
             >
-              <X size={16} strokeWidth={1.8} aria-hidden="true" />
+              <X size={16} strokeWidth={2} aria-hidden="true" />
             </button>
           </div>
         ) : (

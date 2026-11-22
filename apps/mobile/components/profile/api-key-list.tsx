@@ -63,7 +63,7 @@ export function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }:
         <View key={apiKey.id}>
           <ListRow
             compact
-            icon={<Key size={24} strokeWidth={1.8} color={tokens.fg1} />}
+            icon={<Key size={24} strokeWidth={2} color={tokens.fg1} />}
             title={apiKey.name}
             textMode="personal"
             wrapTitle

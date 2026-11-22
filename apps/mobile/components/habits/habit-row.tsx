@@ -161,7 +161,7 @@ function HabitRowStructuralColumn({
       ]}
     >
       <View style={{ transform: [{ rotate: expanded ? '0deg' : '-90deg' }] }}>
-        <ChevronDown size={20} color={tokens.fg3} strokeWidth={1.8} />
+        <ChevronDown size={20} color={tokens.fg3} strokeWidth={2} />
       </View>
     </MotionPressable>
   )
