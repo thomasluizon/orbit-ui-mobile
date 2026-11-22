@@ -1,6 +1,6 @@
 ---
 name: driver
-description: The Orbit delivery driver in one command. /driver starts it, or reports its progress when it already runs. /driver stop stops it. Use on /driver, start the driver, is the driver running, why is nothing happening, or stop the driver.
+description: The Orbit delivery driver in one command. /driver starts it, or, when it already runs, reports every notification that sleep held and its progress. /driver stop stops it. Use on /driver, start the driver, is the driver running, why is nothing happening, or stop the driver.
 argument-hint: "[stop | update <full sha>]"
 effort: low
 ---
@@ -19,7 +19,12 @@ The driver `tools/drive.mjs` works every open ticket of the board and merges at 
    1. When the worktree is missing, run `git -C $HOME/Developer/orbit-ui-mobile fetch origin main`, then `git -C $HOME/Developer/orbit-ui-mobile worktree add --detach $HOME/orca/workspaces/orbit-ui-mobile/orbit-drive origin/main`.
    2. Run `launchctl bootstrap gui/$(id -u) $HOME/Developer/brain/scripts/automations/on-demand/com.thomas.orbit-drive.plist`.
    3. Say "The driver started." Then report as below.
-3. Report the progress:
+3. Report every notification that sleep held since the last `/driver`. The owner keeps sleep on, so this is the only place he sees them.
+   1. State dir: `S="$(git -C $HOME/Developer/orbit-ui-mobile rev-parse --path-format=absolute --git-common-dir)/orbit-drive"`. The last report time is in `$S/last-driver-report` (no file: the last 24 hours).
+   2. Read every log line after that time that contains ` sleep held `. Each one is a notification the driver did not send.
+   3. List all of them, first. Group repeats of the same item and say how many times. For a `needs:owner` item, check the label: when it is gone, say "already handled". Write each in product terms, with its link when it is still open.
+   4. Write the current time to `$S/last-driver-report`, and write `[]` to `$S/sleep-items.json`.
+4. Report the progress:
    1. Read the last 50 lines of the log.
    2. Run `node tools/drive.mjs --dry-run` in the worktree.
    3. Report in product terms, in this order: what a worker builds now; the week used on each account (the `pace` line) and whether one stopped at 90% (`/over-limit` lets it go on); the held decisions (`needs:owner`), counted (`/questions` answers them); what else waits, grouped as blocked by launch, blocked by another ticket, and owner-work. Write no ticket or pull request numbers.
