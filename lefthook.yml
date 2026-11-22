@@ -12,3 +12,5 @@ pre-commit:
       stage_fixed: true
     dashes:
       run: node tools/check-dashes.mjs --files {staged_files}
+    retired-name:
+      run: node tools/check-retired-name.mjs

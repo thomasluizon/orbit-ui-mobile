@@ -182,6 +182,10 @@ jobs:
             echo "Gradient guard skipped: no owned path changed."
           fi
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+      - id: design-guard__3
+        name: "Design Token Guard: Ban the retired product name outside the wire-name allowlist"
+        run: node tools/check-retired-name.mjs
+        if: ${{ !cancelled() }}
       - id: dependency-audit__3
         name: "Dependency Audit: Require one copy of each native module"
         if: ${{ !cancelled() }}
