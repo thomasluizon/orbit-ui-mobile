@@ -168,7 +168,7 @@ export function SelectionTray({
           onPress={onLog}
           pressedFill={tokens.bgHoverOpaque}
         >
-          <CheckCircle2 size={20} color={tokens.fg1} strokeWidth={1.8} />
+          <CheckCircle2 size={20} color={tokens.fg1} strokeWidth={2} />
         </SelectionAction>
         {skippableCount > 0 || disabled ? <SelectionAction
           label={skipLabel}
@@ -177,7 +177,7 @@ export function SelectionTray({
           onPress={onSkip}
           pressedFill={tokens.bgHoverOpaque}
         >
-          <FastForward size={20} color={tokens.fg3} strokeWidth={1.8} />
+          <FastForward size={20} color={tokens.fg3} strokeWidth={2} />
         </SelectionAction> : null}
         <SelectionAction
           label={moveLabel}
@@ -186,7 +186,7 @@ export function SelectionTray({
           onPress={onMove}
           pressedFill={tokens.bgHoverOpaque}
         >
-          <ArrowsMove size={20} color={tokens.fg2} strokeWidth={1.8} />
+          <ArrowsMove size={20} color={tokens.fg2} strokeWidth={2} />
         </SelectionAction>
         <SelectionAction
           label={deleteLabel}
@@ -194,7 +194,7 @@ export function SelectionTray({
           onPress={onDelete}
           pressedFill={tokens.bgHoverOpaque}
         >
-          <Trash2 size={20} color={tokens.statusBad} strokeWidth={1.8} />
+          <Trash2 size={20} color={tokens.statusBad} strokeWidth={2} />
         </SelectionAction>
         <View style={styles.spacer} />
         <TrayPressable
@@ -206,7 +206,7 @@ export function SelectionTray({
             { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' },
           ]}
         >
-          <X size={20} color={tokens.fg2} strokeWidth={1.8} />
+          <X size={20} color={tokens.fg2} strokeWidth={2} />
         </TrayPressable>
       </View>
       {skippableCount > 0 && skippableCount < count ? <Text style={[styles.moveLimit, { color: tokens.fg2 }]}>{t('habits.bulkBar.skipEligible', { count: skippableCount })}</Text> : null}

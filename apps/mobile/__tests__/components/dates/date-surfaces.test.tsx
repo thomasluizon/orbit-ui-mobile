@@ -163,6 +163,47 @@ describe('DayCell', () => {
     expect(tree.root.findAllByProps({ testID: 'day-focus-ring' })).toHaveLength(0)
   })
 
+  it('shows the selection ring of a newly selected day before the first frame after the commit that moves the selection', async () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const frames: (string | undefined)[] = []
+    let watching = false
+    let tree!: TestTree
+    const indicator = () => StyleSheet.flatten(tree.root.findByProps({ testID: 'selection-motion-indicator' }).props.style as StyleProp<ViewStyle>)
+    const watchFirstFrame = () => { if (watching) queueMicrotask(() => frames.push(indicator().borderColor as string | undefined)) }
+    const grid = (selected: number) => (
+      <React.Profiler id="month" onRender={watchFirstFrame}>
+        <MonthGrid selectionIndex={selected} weekdayLabels={['1', '2', '3', '4', '5', '6', '7']}>
+          <DayCell day={1} loggable selected={selected === 0} words={cellWords} scheduled={4} done={1} onPress={() => {}} />
+          <DayCell day={2} loggable selected={selected === 1} words={cellWords} scheduled={4} done={1} onPress={() => {}} />
+        </MonthGrid>
+      </React.Profiler>
+    )
+    TestRenderer.act(() => { tree = TestRenderer.create(grid(0)) })
+    const row = tree.root.findByProps({ testID: 'month-grid-row-0' })
+    TestRenderer.act(() => (row.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { x: 0, y: 20, width: 320, height: 48 } } }))
+    const slots = row.findAll((node) => String(node.type) === 'View' && !node.props.testID && Boolean(node.props.onLayout))
+    for (const [index, slot] of slots.entries()) TestRenderer.act(() => (slot.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { x: index * 48, y: 0, width: 40, height: 48 } } }))
+    TestRenderer.act(() => { (tree as unknown as { update(element: React.ReactNode): void }).update(grid(0)) })
+    TestRenderer.act(() => { (tree.root.findAllByProps({ testID: 'day-cell-partial' })[0]!.props.onFocus as () => void)() })
+    expect(indicator().borderColor).toBeUndefined()
+    await Promise.resolve()
+    const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    const inAct = environment.IS_REACT_ACT_ENVIRONMENT
+    environment.IS_REACT_ACT_ENVIRONMENT = false
+    try {
+      watching = true
+      ;(tree as unknown as { update(element: React.ReactNode): void }).update(grid(1))
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    } finally {
+      watching = false
+      environment.IS_REACT_ACT_ENVIRONMENT = inAct
+    }
+    expect(frames[0]).toBe(tokens.primary)
+    expect(indicator()).toMatchObject({ borderColor: tokens.primary, borderWidth: 2 })
+    expect(tree.root.findAllByProps({ testID: 'day-selection-ring' })).toHaveLength(0)
+    expect(tree.root.findAllByProps({ testID: 'day-focus-ring' }).length).toBeGreaterThan(0)
+  })
+
   it('centres today and its status mark in a wide habit history slot', () => {
     const tree = render(<View style={{ width: 97 }}><DayCell day={11} today habitHistory scheduled={1} done={1} words={cellWords} /></View>)
     const boxes = measureDaySurface(tree.toJSON() as GeometryHost, 97)

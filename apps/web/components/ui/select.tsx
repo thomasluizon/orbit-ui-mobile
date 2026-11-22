@@ -26,7 +26,7 @@ export function Trigger({ children, ref, ...props }: ComponentProps<typeof Primi
   const resolveContainer = useContext(SelectContext)
   const composedRef = useComposedRefs(ref, resolveContainer)
   return <Primitive.Trigger {...props} ref={composedRef} className={`press-hit-layer ${FIELD_TRIGGER_PERIMETER} flex w-full min-h-[54px] items-center justify-between gap-3 rounded-[12px] border-0 bg-[var(--bg-field)] py-3 pr-4 pl-4 text-left text-base text-[var(--fg-1)] transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-50`}>
-    {children}<Primitive.Icon asChild><ChevronDown size={20} strokeWidth={1.8} className={`text-[var(--fg-3)] ${FIELD_TRIGGER_MUTED_CONTENT}`} aria-hidden="true" /></Primitive.Icon><FieldTriggerFill />
+    {children}<Primitive.Icon asChild><ChevronDown size={20} strokeWidth={2} className={`text-[var(--fg-3)] ${FIELD_TRIGGER_MUTED_CONTENT}`} aria-hidden="true" /></Primitive.Icon><FieldTriggerFill />
   </Primitive.Trigger>
 }
 

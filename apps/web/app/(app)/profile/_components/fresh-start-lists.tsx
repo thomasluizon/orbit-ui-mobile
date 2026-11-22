@@ -37,7 +37,7 @@ function ListBlock({
             {itemIcon === 'delete' ? (
               <X
                 size={16}
-                strokeWidth={1.8}
+                strokeWidth={2}
                 color="var(--status-bad)"
                 aria-hidden="true"
                 className="shrink-0"
@@ -46,7 +46,7 @@ function ListBlock({
             ) : (
               <Check
                 size={16}
-                strokeWidth={1.8}
+                strokeWidth={2}
                 color="var(--status-done)"
                 aria-hidden="true"
                 className="shrink-0"

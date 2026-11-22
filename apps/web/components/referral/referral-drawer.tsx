@@ -72,7 +72,7 @@ function LoadedContent({
             onClick={onCopy}
             aria-label={t('referral.drawer.copyLink')}
           >
-            <CopyStateIcon copied={copied} strokeWidth={1.8} color="var(--fg-2)" />
+            <CopyStateIcon copied={copied} strokeWidth={2} color="var(--fg-2)" />
           </button>
           <span aria-live="polite" className="sr-only">
             {copied ? t('referral.drawer.linkCopied') : ''}

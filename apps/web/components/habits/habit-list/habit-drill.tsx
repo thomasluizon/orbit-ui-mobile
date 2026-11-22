@@ -85,7 +85,7 @@ export function HabitDrill({
             }}
             onClick={drill.drillBack}
           >
-            <ArrowLeft size={20} strokeWidth={1.8} aria-hidden="true" />
+            <ArrowLeft size={20} strokeWidth={2} aria-hidden="true" />
           </button>
           <div className="flex min-w-0 flex-1 flex-col">
             <h2

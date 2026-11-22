@@ -43,7 +43,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
         <Pressable accessibilityRole="button" accessibilityLabel={props.moreLabel}
           accessibilityState={{ expanded: menuOpen }}
           style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
-          <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
+          <MoreVertical size={20} strokeWidth={2} color={tokens.fg2} />
         </Pressable>
       </Menu.Trigger>
       <HeaderAppearanceActions />
@@ -73,7 +73,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
     {props.showDate !== false ? <View testID="today-date-row" style={styles.row}>
       <Pressable accessibilityRole="button" accessibilityLabel={props.previousLabel} onPress={props.onGoToPreviousDay}
         style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
-        <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg2} />
+        <ChevronLeft size={20} strokeWidth={2} color={tokens.fg2} />
       </Pressable>
       <View style={styles.dateSlot}>
         <InsetFocusPressable accessibilityRole="button"
@@ -91,7 +91,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
       <Pressable accessibilityRole="button" accessibilityLabel={props.nextLabel}
         accessibilityState={{ disabled: props.nextDisabled }} disabled={props.nextDisabled} onPress={props.onGoToNextDay}
         style={({ pressed }) => [styles.iconButton, pressed && !props.nextDisabled && { backgroundColor: tokens.bgHover }, props.nextDisabled && styles.disabled]}>
-        <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg2} />
+        <ChevronRight size={20} strokeWidth={2} color={tokens.fg2} />
       </Pressable>
     </View> : null}
   </>

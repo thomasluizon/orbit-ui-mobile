@@ -184,7 +184,7 @@ export function CalendarSyncEventRow({
           accessibilityRole="button"
           accessibilityLabel={t('calendar.autoSync.dismissSuggestion')}
           style={[styles.dismissButton, { backgroundColor: nestedControlFill(dismissFeedback, tokens) }, dismissPending && styles.quietActionDim]}
-        ><X size={20} color={tokens.fg3} strokeWidth={1.8} /></MotionPressable>
+        ><X size={20} color={tokens.fg3} strokeWidth={2} /></MotionPressable>
       ) : null}
       <MotionPressable focusInset {...disclosureFeedback.handlers} accessibilityRole="button" accessibilityLabel={t('contextMenu.viewDetails')} accessibilityHint={disclosureLabel} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={{ minHeight: 48, minWidth: 48, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: nestedControlFill(disclosureFeedback, tokens) }}><ChevronDown size={20} strokeWidth={1.5} color={tokens.fg3} accessible={false} /></MotionPressable>
       </View>

@@ -14,7 +14,7 @@ export function ShareCardEntryButton({ variant = 'row' }: Readonly<{ variant?: '
   const [open, setOpen] = useAccountScopedState(false)
   return <>
     {variant === 'row'
-      ? <ListRow compact textMode="label" chevron={false} icon={<Share2 size={24} strokeWidth={1.8} />} title={t('shareCard.entry')} onClick={() => setOpen(true)} />
+      ? <ListRow compact textMode="label" chevron={false} icon={<Share2 size={24} strokeWidth={2} />} title={t('shareCard.entry')} onClick={() => setOpen(true)} />
       : <IconButton label={t('shareCard.entry')} onClick={() => setOpen(true)}><Share2 size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
     {open ? <ShareCardSheet onClose={() => setOpen(false)} /> : null}
   </>

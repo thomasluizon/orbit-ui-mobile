@@ -260,7 +260,7 @@ export function FreshStartModal({ open, onClose, guided = false }: Readonly<Fres
                   { backgroundColor: `${tokens.statusOverdue}24` },
                 ]}
               >
-                <RotateCcw size={24} color={tokens.statusOverdue} strokeWidth={1.8} />
+                <RotateCcw size={24} color={tokens.statusOverdue} strokeWidth={2} />
               </View>
               <Text
                 style={[

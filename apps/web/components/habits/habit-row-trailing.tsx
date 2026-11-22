@@ -127,7 +127,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
               className="press-hit-layer touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] cursor-pointer hover:text-[var(--fg-1)] motion-safe:active:scale-[0.96]"
               style={{ width: 48, minHeight: 48 }}
             >
-              <MoreVertical size={20} strokeWidth={1.8} />
+              <MoreVertical size={20} strokeWidth={2} />
             </button></Menu.Trigger>
             <Menu.Content
               id={menuId}

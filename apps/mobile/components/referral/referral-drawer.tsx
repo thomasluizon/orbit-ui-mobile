@@ -80,7 +80,7 @@ function LoadedContent({
             accessibilityRole="button"
             accessibilityLabel={t('referral.drawer.copyLink')}
           >
-            <CopyStateIcon copied={copied} color={tokens.fg2} strokeWidth={1.8} />
+            <CopyStateIcon copied={copied} color={tokens.fg2} strokeWidth={2} />
           </MotionPressable>
         </View>
       </View>

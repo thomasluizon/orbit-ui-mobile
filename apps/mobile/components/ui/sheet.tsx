@@ -197,7 +197,7 @@ export function Sheet({
       }}
       style={({ pressed }) => [styles.close, pressed ? styles.pressed : null]}
     >
-      {({ pressed }) => <PressScale pressed={pressed} disabled={false}><X color={tokens.fg2} size={24} strokeWidth={1.8} /></PressScale>}
+      {({ pressed }) => <PressScale pressed={pressed} disabled={false}><X color={tokens.fg2} size={24} strokeWidth={2} /></PressScale>}
     </NativePressable>
   ) : null
   const header = renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,

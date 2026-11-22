@@ -107,7 +107,7 @@ describe('ReferralDrawer (mobile)', () => {
     motionState.reduced = reducedMotion
     mocks.setStringAsync.mockResolvedValue(true)
     const tree = renderDrawer()
-    const glyph = { reducedMotion, color: createTokensV2('purple', 'dark').fg2, strokeWidth: 1.8 }
+    const glyph = { reducedMotion, color: createTokensV2('purple', 'dark').fg2, strokeWidth: 2 }
     expectCopyStateIcon(slot(tree, 'SheetBody'), { copied: false, ...glyph })
     await pressButton(slot(tree, 'SheetBody'), 'referral.drawer.copyLink')
     expect(mocks.setStringAsync).toHaveBeenCalledWith('https://useorbit.org/r/ORBIT1')

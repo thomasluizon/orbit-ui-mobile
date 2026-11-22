@@ -52,7 +52,7 @@ function EmojiWell({ wellSize, proposed, selectedEmoji }: Readonly<Pick<HabitEmo
       outline: proposed ? '1px dashed var(--hairline-strong)' : undefined,
       outlineOffset: -1,
     }}>
-      {selectedEmoji || <Smile size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
+      {selectedEmoji || <Smile size={20} strokeWidth={2} className="text-[var(--fg-3)]" aria-hidden="true" />}
     </span>
   )
 }
@@ -137,7 +137,7 @@ export function HabitEmojiSelector({
         <div className="flex items-center gap-2">
           <span className="grid size-11 place-items-center rounded-full bg-[var(--bg-well)] text-xl">{selectedEmoji}</span>
           <button type="button" disabled={isDisabled} className="habit-control-motion press-hit-layer group/remove grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-2)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
-            <Trash2 size={20} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-enabled/remove:group-hover/remove:text-[var(--status-bad)]" />
+            <Trash2 size={20} strokeWidth={2} aria-hidden="true" className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-enabled/remove:group-hover/remove:text-[var(--status-bad)]" />
           </button>
         </div>
       ) : undefined}>
@@ -159,7 +159,7 @@ export function HabitEmojiSelector({
                 aria-label={t('habits.form.emojiClearSearch')}
                 onClick={() => setQuery('')}
               >
-                <X size={20} strokeWidth={1.8} aria-hidden="true" />
+                <X size={20} strokeWidth={2} aria-hidden="true" />
               </button>
             ) : null}
           </div>

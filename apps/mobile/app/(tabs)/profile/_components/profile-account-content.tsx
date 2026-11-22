@@ -21,7 +21,7 @@ interface ProfileContentProps {
   patchProfile: (patch: Partial<Profile>) => void
 }
 
-const icon = (IconComponent: typeof Download) => <IconComponent size={24} strokeWidth={1.8} />
+const icon = (IconComponent: typeof Download) => <IconComponent size={24} strokeWidth={2} />
 
 export function ProfileAccountContent({ profile }: Readonly<ProfileContentProps>) {
   const { t } = useTranslation()

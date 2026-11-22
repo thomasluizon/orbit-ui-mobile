@@ -130,7 +130,7 @@ export function ScheduledReminderSection({
                     accessibilityLabel={t("habits.form.removeScheduledReminder")}
                     onPress={() => removeScheduledReminder(idx)}
                   >
-                    <X size={16} color={tokens.primary} strokeWidth={2.2} />
+                    <X size={16} color={tokens.primary} strokeWidth={2} />
                   </Pressable>
                 </View>
               ))}

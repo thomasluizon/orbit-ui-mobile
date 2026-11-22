@@ -343,7 +343,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               background: 'var(--bg-well)',
             }}
           >
-            <LinkIcon className="size-7 text-[var(--fg-1)]" strokeWidth={1.8} />
+            <LinkIcon className="size-7 text-[var(--fg-1)]" strokeWidth={2} />
           </div>
           <div className="text-center">
             <h2
@@ -480,7 +480,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               background: 'var(--bg-well)',
             }}
           >
-            <Check className="size-8 text-[var(--fg-1)]" strokeWidth={2.2} />
+            <Check className="size-8 text-[var(--fg-1)]" strokeWidth={2} />
           </div>
           <div className="text-center">
             <h2
@@ -527,7 +527,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               background: 'color-mix(in srgb, var(--status-bad) 15%, transparent)',
             }}
           >
-            <AlertTriangle className="size-8 text-[var(--status-bad)]" strokeWidth={1.8} />
+            <AlertTriangle className="size-8 text-[var(--status-bad)]" strokeWidth={2} />
           </div>
           <div className="text-center">
             <h2

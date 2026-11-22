@@ -194,7 +194,7 @@ export function CalendarSyncEventRow({
           className="icon-btn touch-target group/dismiss shrink-0 disabled:opacity-50"
           style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, marginTop: SPACING.s8, color: 'var(--fg-3)' }}
         >
-          <X size={20} strokeWidth={1.8} aria-hidden className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/dismiss:text-[var(--status-bad)]" />
+          <X size={20} strokeWidth={2} aria-hidden className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/dismiss:text-[var(--status-bad)]" />
         </button>
       )}
     </div>
