@@ -390,9 +390,10 @@ describe('mobile alerts', () => {
   })
   it('draws the bell with a stroke from the set and the stroke of the theme icon beside it', () => {
     const tree = render(<RootNotificationHeader />)
-    const bell = tree.root.findByType(Bell).props.strokeWidth
+    const strokeOf = (type: unknown) => (tree.root.findAll((node) => node.type === type)[0]!.props as { strokeWidth?: number }).strokeWidth
+    const bell = strokeOf(Bell)
     expect([1.5, 2, 2.5]).toContain(bell)
-    expect(bell).toBe(tree.root.findByType(Sun).props.strokeWidth)
+    expect(bell).toBe(strokeOf(Sun))
   })
   it('pushes the inbox and keeps zero absent', () => {
     const tree = render(<NotificationBell />)

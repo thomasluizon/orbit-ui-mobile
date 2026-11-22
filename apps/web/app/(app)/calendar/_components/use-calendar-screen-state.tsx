@@ -56,9 +56,9 @@ export interface CalendarPageContentProps {
   setView: Dispatch<SetStateAction<CalendarView>>
 }
 
-function calendarPageLayout(view: CalendarView, profileReady: boolean, profileHasError: boolean, hasDataError: boolean, header: ReactNode) {
+export function calendarPageLayout(view: CalendarView, profileReady: boolean, profileHasError: boolean, hasDataError: boolean, header: ReactNode, guided: boolean) {
   const hasError = profileReady ? hasDataError : profileHasError
-  const fillsPage = view === 'week' && !hasError
+  const fillsPage = (view === 'week' && !hasError) || (guided && hasError)
   return {
     viewportProps: { 'data-page-viewport': fillsPage ? '' : undefined },
     pageClass: fillsPage ? 'relative flex h-full min-h-0 flex-col' : 'relative',
@@ -354,7 +354,7 @@ function useCalendarHeaderState({ orbitLine, selectDate, viewOptions, view, setV
     />
   )
 
-  const pageLayout = calendarPageLayout(view, Boolean(profile), Boolean(profileError), Boolean(activeError), calendarHeader)
+  const pageLayout = calendarPageLayout(view, Boolean(profile), Boolean(profileError), Boolean(activeError), calendarHeader, guided)
   return { pageLayout }
 }
 

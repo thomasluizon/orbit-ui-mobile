@@ -89,7 +89,6 @@ function HabitHistoryContents({ props, outcome, size, tokens, pressed }: Content
 
 function useYieldMovingSelection(yielding: boolean) {
   const reportFocus = useContext(DayFocusReport)
-  // A layout effect, so the moving ring returns in the commit that moves the selection and never paints one frame without it.
   useLayoutEffect(() => {
     if (!yielding) return undefined
     reportFocus(true)
