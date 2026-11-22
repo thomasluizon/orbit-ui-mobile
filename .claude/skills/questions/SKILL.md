@@ -33,7 +33,7 @@ A question you never wrote down cannot be answered. It blocks the driver and nob
 
 Stop at the first step that resolves the question.
 
-1. **Is it already answered?** Read the code, the contract type, the API source in the sibling repository, the ticket body and its comments, `DESIGN.md`, `BRAND.md`, and the decisions in `/brain`. Search the web for a vendor limit or a library behavior.
+1. **Is it already answered?** Read the code, the contract type, the API source in the sibling repository, the ticket body and its comments, `DESIGN.md`, `BRAND.md`, and the decisions in `/brain`. For how to build or fix something, search the web every time: the current official docs, the version installed in the repository and the newest stable one. Memory is not a source. Put the sources in the comment of step 4.
 2. **Is it "simpler or more correct"?** The answer is the correct one, always, whatever it costs. Say the cost in one line.
 3. **Is it an engineering call?** Naming, structure, which layer owns something, how to test it, which allowed parity adapter applies: decide it now. A question about what a screen shows is yours too when one answer is clearly better.
 
