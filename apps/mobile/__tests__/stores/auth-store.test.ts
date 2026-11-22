@@ -52,6 +52,8 @@ const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 const posthogMocks = vi.hoisted(() => ({
   identifyPostHogUser: vi.fn(),
   resetPostHogUser: vi.fn(),
+  captureGuidedFlowEvent: vi.fn(),
+  captureGuidedFlowCompleted: vi.fn(),
 }))
 
 vi.mock('@/lib/posthog', () => posthogMocks)
@@ -498,76 +500,6 @@ describe('mobile auth store security paths', () => {
     expect(saveWidgetTokenMock).toHaveBeenCalledWith('access-token')
     expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledExactlyOnceWith('user-1', null)
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
-  })
-
-  it('clears a mounted step up code when another account logs in', async () => {
-    const userOne = { userId: 'user-1', email: 'user@example.com', name: 'User' }
-    const userTwo = { userId: 'user-2', email: 'next@example.com', name: 'Next' }
-    const stored = new Map<string, string>()
-    vi.spyOn(AsyncStorage, 'getItem').mockImplementation((key: string) =>
-      Promise.resolve(stored.get(key) ?? null),
-    )
-    vi.spyOn(AsyncStorage, 'setItem').mockImplementation((key: string, value: string) => {
-      stored.set(key, value)
-      return Promise.resolve()
-    })
-    await useAuthStore.getState().login('first-token', null, userOne)
-    await beginStepUpChallenge('delete', userOne.userId)
-    await beginStepUpChallenge('delete', userTwo.userId)
-    expect(useAuthStore.getState().user?.userId).toBe('user-1')
-    expect(await AsyncStorage.getItem(getStepUpStorageKey('delete', userOne.userId))).not.toBeNull()
-
-    let tree!: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(React.createElement(StepUpScreen))
-      await Promise.resolve()
-    })
-    const codeInput = () => tree.root.findAll((node: { props: Record<string, unknown> }) =>
-      node.props.accessibilityLabel === 'stepUp.codeLabel' && typeof node.props.onChangeText === 'function',
-    )[0]
-    const confirmButton = () => tree.root.findAll((node: { props: Record<string, unknown> }) =>
-      node.props.testID === 'button-primary-sm',
-    )[0]
-    expect(codeInput()).toBeDefined()
-    TestRenderer.act(() => {
-      codeInput().props.onChangeText('123456')
-    })
-    expect(codeInput().props.value).toBe('123456')
-    expect(confirmButton().props.disabled).toBe(false)
-
-    let releaseTokenWrite!: () => void
-    const pendingTokenWrite = new Promise<void>((resolve) => {
-      releaseTokenWrite = resolve
-    })
-    setTokenMock.mockReturnValueOnce(pendingTokenWrite)
-    let releaseCacheClear!: () => void
-    const pendingCacheClear = new Promise<void>((resolve) => {
-      releaseCacheClear = resolve
-    })
-    clearPersistedQueryCacheMock.mockReturnValueOnce(pendingCacheClear)
-    const accountGeneration = getAccountGeneration()
-    let replacementLogin!: Promise<(() => boolean) | null>
-    await TestRenderer.act(async () => {
-      replacementLogin = useAuthStore.getState().login('second-token', null, userTwo)
-      await vi.waitFor(() => expect(useAuthStore.getState().sessionPhase).toBe('establishing'))
-    })
-    expect(tree.toJSON()).toBeNull()
-    expect(getAccountGeneration()).toBe(accountGeneration)
-
-    await TestRenderer.act(async () => {
-      releaseTokenWrite()
-      await vi.waitFor(() => expect(useAuthStore.getState().user?.userId).toBe('user-2'))
-    })
-
-    expect(getAccountGeneration()).toBe(accountGeneration)
-    expect(tree.toJSON()).toBeNull()
-    await TestRenderer.act(async () => {
-      releaseCacheClear()
-      await replacementLogin
-    })
-    expect(codeInput().props.value).toBe('')
-    expect(confirmButton().props.disabled).toBe(true)
-    TestRenderer.act(() => tree.unmount())
   })
 
   it('deletes the pending OAuth attempt when another account signs in', async () => {

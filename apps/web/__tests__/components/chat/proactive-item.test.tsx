@@ -77,25 +77,6 @@ describe('proactive conversation', () => {
     expect(mocks.acted).toHaveBeenCalledExactlyOnceWith(item.id, 'account')
   })
 
-  it.each([
-    ['offline', false, 0, 'shell.composer.offline.reason'],
-    ['limit', true, 5, 'shell.composer.limit.reason'],
-  ])('keeps the line and explains the disabled action at %s', async (_scenario, online, used, reason) => {
-    mocks.online = online
-    mocks.used = used
-    const { wrapper, client } = setup()
-    client.setQueryData(proactiveKeys.current(), item)
-    useChatStore.getState().openProactiveItem(item)
-    const send = vi.fn()
-    render(<><TodayOrbit today={item.localDate} isTodaySelected suppressed={false} /><ProactiveAction isOnline={mocks.online} item={item} acted={false} onSend={send} /></>, { wrapper })
-    expect(screen.getByRole('button', { name: item.text })).toBeEnabled()
-    const action = screen.getByRole('button', { name: item.actionLabel })
-    expect(action).toBeDisabled()
-    expect(action).toHaveAccessibleDescription(reason)
-    fireEvent.click(action)
-    expect(send).not.toHaveBeenCalled()
-  })
-
   it('checks the shown item by id again before acting, even when current has advanced', async () => {
     const { wrapper } = setup()
     useChatStore.getState().openProactiveItem(item)

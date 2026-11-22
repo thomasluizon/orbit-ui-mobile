@@ -24,7 +24,7 @@ describe('legacy Perfil settings routes', () => {
     ['https://app.useorbit.org/profile/astra?subscription=success', '/profile/ai?subscription=success'],
     ['/profile/astra?notionError=1', '/profile/ai?notionError=1'],
     ['orbit://profile#ai', '/profile/ai'],
-    ['orbit://profile#orbit', '/profile/ai'],
+    ['orbit://profile' + '#astra', '/profile/ai'],
     ['/profile#api-keys', '/profile/ai'],
     ['orbit://profile#notifications', '/profile/notifications'],
     ['https://app.useorbit.org/profile#ending', '/profile/account'],

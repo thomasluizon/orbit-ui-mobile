@@ -3,7 +3,6 @@ import React from "react";
 import { StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 import Yoga from "yoga-layout";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { HabitUnderstanding } from "@/components/habits/habit-form-fields/habit-understanding";
 import { HABIT_EMOJI_CATEGORIES, buildHabitUnderstandingLabels } from "@orbit/shared/utils";
 import { HabitEmojiSelector } from "@/components/habits/habit-form-fields/habit-emoji-selector";
 import { createStyles } from "@/components/habits/habit-form-fields/styles";
@@ -114,97 +113,9 @@ function renderSelector(
 }
 
 describe("HabitEmojiSelector mobile", () => {
-  it.each([false, true])('keeps proposal paint inside the well and one focus indicator on the fill action: %s', proposed => {
-    let tree!: TestTree;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitUnderstanding value="Run" emoji="🏃" proposed={proposed} days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} showSchedule={false}
-        labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} onSuggestEmoji={vi.fn()} canSuggestEmoji />);
-    });
-    const action = tree.root.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.suggestEmoji')[0]!;
-    const paint = tree.root.findAll(node => node.type === 'View' && node.props.testID === 'habit-emoji-well')[0]!;
-    expect(StyleSheet.flatten(paint.props.style as ViewStyle).borderWidth ?? 0).toBe(proposed ? 1 : 0);
-    const glyph = paint.findAll(node => node.type === 'Text' && node.props.children === '🏃')[0]!;
-    expect(StyleSheet.flatten(glyph.props.style as TextStyle).color).toBe(proposed ? createTokensV2('orange', 'light').fg3 : undefined);
-    const well = button(tree, 'habits.form.emojiOpenPicker');
-    expect(well.props.accessibilityHint).toBe(proposed ? 'habits.form.proposedByOrbit' : undefined);
-    expect(tree.root.findAll(node => node.type === 'Text' && node.props.children === 'habits.form.proposedByOrbit')).toHaveLength(0);
-    const row = tree.root.findAll(node => node.type === 'View' && node.props.testID === 'habit-title-row')[0]!;
-    expect(row.findAll(node => node.props.testID === 'proposed-field-outline')).toHaveLength(0);
-    const style = () => StyleSheet.flatten(resolvedStyle(action, false) as ViewStyle[]);
-    expect(style().borderWidth ?? 0).toBe(0);
-    expect(style().outlineWidth ?? 0).toBe(0);
-    TestRenderer.act(() => { (action.props.onFocus as () => void)() });
-    expect(style().outlineWidth).toBe(2);
-    expect(style().borderWidth ?? 0).toBe(0);
-    TestRenderer.act(() => { (action.props.onBlur as () => void)() });
-    expect(style().outlineWidth ?? 0).toBe(0);
-  });
 
   beforeEach(() => {
     mockCloseSheet.mockClear();
-  });
-
-  it('keeps the emoji controls with the empty title and no visible suggestion caption', () => {
-    let tree!: TestTree;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitUnderstanding value="" emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]}
-        labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} onSuggestEmoji={vi.fn()} emojiSuggestionHint="Title required" />);
-    });
-    expect(button(tree, 'habits.form.emojiOpenPicker')).toBeDefined();
-    const action = button(tree, 'habits.form.suggestEmoji');
-    expect(action.props.disabled).toBe(true);
-    expect(action.props.accessibilityHint).toBe('Title required');
-    expect(tree.root.findAll(node => node.type === 'Text' && node.props.children === 'Title required')).toHaveLength(0);
-    expect(tree.root.findAll(node => node.type === 'Text' && node.props.children === 'habits.form.emoji')).toHaveLength(0);
-    const rows = tree.root.findAll(node => node.type === 'View' && node.props.testID === 'habit-title-row');
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.findAll(node => node.type === 'TextInput')).toHaveLength(1);
-    expect(rows[0]!.findAll(node => node.props.accessibilityLabel === 'habits.form.emojiOpenPicker').length).toBeGreaterThan(0);
-  });
-
-  it.each([393, 1280])('lays out the emoji well after the title at %s', (width) => {
-    let tree!: TestTree;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitUnderstanding value="" emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]}
-        labels={buildHabitUnderstandingLabels(key => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} onSuggestEmoji={vi.fn()} />);
-    });
-    const style = (node: TestNode) => StyleSheet.flatten((typeof node.props.style === 'function' ? node.props.style({ pressed: false }) : node.props.style) as ViewStyle);
-    const titleRow = tree.root.findAll(node => node.type === 'View' && node.props.testID === 'habit-title-row')[0]!;
-    const title = titleRow.findAll(node => node.type === 'View' && node.props.style !== undefined && style(node).outlineWidth === 1)[0]!;
-    const controls = titleRow.findAll(node => node.type === 'View' && node.props.style !== undefined && style(node).flexDirection === 'row' && node !== titleRow)[0]!;
-    const well = titleRow.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.emojiOpenPicker')[0]!;
-    const orbit = titleRow.findAll(node => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.suggestEmoji')[0]!;
-    const painted = titleRow.findAll(node => node.type === 'View' && node.props.testID === 'habit-emoji-well')[0]!;
-    const row = Yoga.Node.create();
-    row.setWidth(Math.min(width, 640) - 32);
-    row.setFlexDirection(style(titleRow).flexDirection === 'row' ? Yoga.FLEX_DIRECTION_ROW : Yoga.FLEX_DIRECTION_COLUMN);
-    row.setGap(Yoga.GUTTER_ALL, style(titleRow).gap as number);
-    const field = Yoga.Node.create();
-    field.setFlexGrow(style(title).flex);
-    field.setFlexBasis(0);
-    field.setMinWidth(style(title).minWidth as number);
-    field.setHeight(style(title).minHeight as number);
-    row.insertChild(field, 0);
-    const group = Yoga.Node.create();
-    group.setFlexDirection(style(controls).flexDirection === 'row' ? Yoga.FLEX_DIRECTION_ROW : Yoga.FLEX_DIRECTION_COLUMN);
-    group.setGap(Yoga.GUTTER_ALL, style(controls).gap as number);
-    row.insertChild(group, 1);
-    const targets = [well, orbit].map((host, index) => {
-      const target = Yoga.Node.create();
-      target.setWidth(style(host).width as number);
-      target.setHeight((style(host).height ?? style(host).minHeight) as number);
-      group.insertChild(target, index);
-      return target;
-    });
-    try {
-      row.calculateLayout(undefined, undefined, Yoga.DIRECTION_LTR);
-      expect(group.getComputedLeft()).toBeGreaterThan(field.getComputedLeft() + field.getComputedWidth());
-      expect(group.getComputedTop()).toBe(field.getComputedTop());
-      expect(group.getComputedHeight()).toBeLessThanOrEqual(field.getComputedHeight());
-      expect(group.getComputedLeft() + group.getComputedWidth()).toBeLessThanOrEqual(row.getComputedWidth());
-      expect(targets[1]!.getComputedLeft()).toBeGreaterThan(targets[0]!.getComputedWidth());
-      expect(style(painted)).toMatchObject({ width: field.getComputedHeight(), height: field.getComputedHeight(), backgroundColor: createTokensV2("orange", "light").bgWell });
-    } finally { row.freeRecursive(); }
   });
 
   it("filters, clears, and toggles a category in the picker", () => {

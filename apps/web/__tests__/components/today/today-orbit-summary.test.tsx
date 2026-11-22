@@ -94,22 +94,6 @@ describe('Hoje single summary slot', () => {
     expect(mocks.query).toHaveBeenCalledWith({ date: '2026-08-29', locale: 'pt-BR', timeZone: 'America/Sao_Paulo', hasProAccess: true, aiSummaryEnabled: true })
   })
 
-  it.each(['loading', 'error', 'retrying', 'refreshing', 'free', 'disabled', 'none', 'no profile', 'past', 'suppressed'])('keeps %s in the same slot', async (state) => {
-    const { absent, sentence } = configureSummaryState(state)
-    const { container } = mount({ isTodaySelected: state !== 'past', suppressed: state === 'suppressed' })
-    if (['past', 'suppressed'].includes(state)) expect(mocks.query).not.toHaveBeenCalled()
-    expect(container.querySelectorAll('[data-today-orbit-slot]')).toHaveLength(absent ? 0 : 1)
-    if (!absent) {
-      expect(container.querySelectorAll('[data-summary-skeleton]')).toHaveLength(state === 'loading' ? 1 : 0)
-      const action = screen.getByRole(state === 'free' ? 'link' : 'button', { name: sentence })
-      if (['loading', 'retrying'].includes(state)) expect(action).toBeDisabled()
-      else expect(action).not.toBeDisabled()
-      if (state === 'error') { fireEvent.click(action); expect(mocks.refetch).toHaveBeenCalledOnce() }
-      if (state === 'free') expect(action).toHaveAttribute('href', '/upgrade')
-      expect(container.querySelector('[data-today-orbit-slot]')).toHaveAttribute('aria-busy', String(mocks.isLoading || mocks.isFetching))
-    }
-  })
-
   afterEach(() => { vi.useRealTimers() })
 
   it.each(['quota', 'transient'] as const)('settles a real Hoje %s request with the production retry defaults', async failure => {

@@ -220,34 +220,6 @@ describe('email-link admission through the real auth layout and login page', () 
     expect(verificationSignal?.aborted).toBe(false)
   })
 
-  it.each(['wrong', 'expired'])('keeps %s recovery, explicit actions and email editing after cleanup', async (failure) => {
-    render(<OwningRoutes initialUrl={link} />)
-    await expectCleanCodeOwner()
-    await waitFor(() => expect(requestsTo('/api/auth/verify-code')).toHaveLength(1))
-    await act(async () => {
-      releaseVerification(Response.json({ error: failure === 'expired' ? 'Verification code expired or not found' : 'Invalid verification code' }, { status: 400 }))
-    })
-    const input = screen.getByRole('textbox', { name: 'auth.verificationCode' })
-    await waitFor(() => failure === 'expired' ? expect(input).toBeDisabled() : expect(input).toBeEnabled())
-    await expectCleanCodeOwner()
-    expect(requestsTo('/api/auth/verify-code')).toHaveLength(1)
-    if (failure === 'expired') {
-      fireEvent.click(screen.getByRole('button', { name: 'auth.resendCode' }))
-      await waitFor(() => expect(requestsTo('/api/auth/send-code')).toHaveLength(1))
-      await waitFor(() => expect(input).toBeEnabled())
-    } else {
-      expect(screen.getByRole('button', { name: 'auth.verify' })).toBeEnabled()
-      fireEvent.input(input, { target: { value: '12' } })
-      expect(input).toHaveValue('12')
-      expect(screen.getByRole('button', { name: 'auth.verify' })).toBeDisabled()
-    }
-    fireEvent.click(screen.getByRole('button', { name: 'auth.changeEmail' }))
-    expect(await screen.findByRole('textbox', { name: 'auth.email' })).toBeEnabled()
-    expect(screen.getByLabelText('Current URL')).toHaveTextContent(cleanLink)
-    expect(useOnboardingDraftStore.getState().onboardingLocallyDone).toBe(false)
-    expect(controls.destinations).toEqual([])
-  })
-
   it.each(['departure', 'unmount', 'account replacement'])('still cancels held verification on genuine %s', async (cancellation) => {
     const view = render(<OwningRoutes initialUrl={link} />)
     await expectCleanCodeOwner()

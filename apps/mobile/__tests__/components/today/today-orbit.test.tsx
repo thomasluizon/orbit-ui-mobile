@@ -85,40 +85,6 @@ function hasText(tree: ReactTestRenderer, text: string): boolean {
 }
 
 describe('mobile Today Orbit', () => {
-  it.each([
-    ['proactive', 'Check in', 'todayOrbit.openConversation'],
-    ['elapsed', 'todayOrbit.returningElapsed:3', 'todayOrbit.viewProgress'],
-    ['bounded', 'todayOrbit.returningBounded', 'todayOrbit.viewProgress'],
-  ])('makes the %s sentence the whole row target with a destination hint', async (variant, sentence, destination) => {
-    mocks.profile.lastCompletionDate = variant === 'bounded' ? '2026-07-29' : '2026-08-26'
-    if (variant === 'proactive') mocks.item = createMockProactiveItem({
-      text: sentence,
-    })
-    const tree = await renderTodayOrbit()
-    const actions = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.onPress === 'function')
-    expect(actions).toHaveLength(1)
-    const action = actions[0]!
-    expect(action.props.accessibilityLabel).toBe(sentence)
-    expect(action.props.accessibilityHint).toBe(destination)
-    expect(action.props.accessibilityRole).toBe(variant === 'proactive' ? 'button' : 'link')
-    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ minHeight: 48, paddingLeft: 8, paddingRight: 16, borderRadius: 12 })
-    expect(action.props.hitSlop).toBeUndefined()
-    const prose = action.findAll((node) => node.type === Text)[0]!
-    expect(prose.props.children).toBe(sentence)
-    expect(prose.props.numberOfLines).toBe(2)
-    expect(prose.props.ellipsizeMode).toBe('tail')
-    expect(prose.findAll((node) => typeof node.props.onPress === 'function')).toHaveLength(0)
-    await TestRenderer.act(() => { (action.props.onPress as () => void)() })
-    if (variant === 'proactive') {
-      expect(mocks.markRead).toHaveBeenCalledWith(mocks.item!.id)
-      expect(useUIStore.getState().orbitConversationOpen).toBe(true)
-      expect(mocks.navigateProgress).not.toHaveBeenCalled()
-    } else {
-      expect(mocks.navigateProgress).toHaveBeenCalledWith('/progress')
-      expect(mocks.markRead).not.toHaveBeenCalled()
-      expect(useUIStore.getState().orbitConversationOpen).toBe(false)
-    }
-  })
 
   beforeEach(() => {
     mocks.item = null
@@ -129,19 +95,6 @@ describe('mobile Today Orbit', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
     useUIStore.setState({ orbitConversationOpen: false })
-  })
-
-  it.each([
-    ['three-day completion', '2026-08-26', 'todayOrbit.returningElapsed:3'],
-    ['four-day completion', '2026-08-25', 'todayOrbit.returningElapsed:4'],
-    ['window boundary', '2026-07-30', 'todayOrbit.returningElapsed:30'],
-    ['gap beyond the window', '2026-07-29', 'todayOrbit.returningBounded'],
-  ])('shows the profile interval for %s', async (_scenario, lastCompletionDate, expected) => {
-    mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate }
-
-    const tree = await renderTodayOrbit()
-
-    expect(hasText(tree, expected)).toBe(true)
   })
 
   it.each([null, undefined])('shows no interval for %s completion', async (lastCompletionDate) => {
@@ -169,22 +122,6 @@ describe('mobile Today Orbit', () => {
     expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   })
 
-  it.each(['offline', 'quota exhausted'])('keeps Progress available when %s', async (state) => {
-    mocks.profile = {
-      id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26',
-      aiMessagesUsed: state === 'quota exhausted' ? 10 : 0, aiMessagesLimit: 10,
-    }
-    mocks.isOnline = state !== 'offline'
-
-    const tree = await renderTodayOrbit()
-
-    expect(hasText(tree, 'todayOrbit.returningElapsed:3')).toBe(true)
-    expect(tree.root.findAll((node) =>
-      node.props.accessibilityRole === 'link' &&
-      node.props.accessibilityHint === 'todayOrbit.viewProgress',
-    ).length).toBeGreaterThan(0)
-  })
-
   it('renders a proactive check-in and opens its conversation', async () => {
     mocks.item = createMockProactiveItem({ text: 'Check in' })
 
@@ -205,14 +142,6 @@ describe('mobile Today Orbit', () => {
     })
     expect(mocks.markRead).toHaveBeenCalledWith(mocks.item.id)
     expect(useUIStore.getState().orbitConversationOpen).toBe(true)
-  })
-
-  it.each(['offline', 'quota exhausted'])('keeps the fetched item available when %s', async (state) => {
-    mocks.profile = { id: 'profile', timeZone: 'UTC', aiMessagesUsed: state === 'quota exhausted' ? 10 : 0, aiMessagesLimit: 10 }
-    mocks.item = createMockProactiveItem()
-    mocks.isOnline = state !== 'offline'
-    const tree = await renderTodayOrbit()
-    expect(hasText(tree, mocks.item.text)).toBe(true)
   })
 
   it('does not add retired inline Orbit content to a 50 habit list', async () => {

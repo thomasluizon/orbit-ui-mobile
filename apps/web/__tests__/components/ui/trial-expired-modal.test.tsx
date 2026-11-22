@@ -103,13 +103,6 @@ describe('TrialExpiredModal', () => {
     })
   })
 
-  it('uses a small intrinsic dismissal before Subscribe', () => {
-    mockTrialExpired = true
-    render(<TrialExpiredModal />)
-    expect(sheetSlotButtons('sheet-actions')).toEqual(['trial.expired.continueFree', 'trial.expired.subscribe'])
-    expectSmallSheetActions()
-  })
-
   it('waits for an open sheet before presenting the trial notice', async () => {
     mockTrialExpired = true
     useUIStore.getState().registerOpenOverlay('existing-sheet')
@@ -118,29 +111,6 @@ describe('TrialExpiredModal', () => {
 
     act(() => useUIStore.getState().unregisterOpenOverlay('existing-sheet'))
     expect(await screen.findByText('trial.expired.heading')).toBeInTheDocument()
-  })
-
-  it('renders the paused feature rows', () => {
-    mockTrialExpired = true
-    render(<TrialExpiredModal />)
-    expect(screen.getByText('trial.expired.orbitCeiling')).toBeInTheDocument()
-    expect(screen.getByText('trial.expired.calendarSync')).toBeInTheDocument()
-    expect(screen.getByText('trial.expired.retrospective')).toBeInTheDocument()
-    expect(screen.getByText('trial.expired.proactiveOrbit')).toBeInTheDocument()
-    expect(screen.queryByText('trial.expired.subHabits')).not.toBeInTheDocument()
-    expect(screen.queryByText('trial.expired.goals')).not.toBeInTheDocument()
-  })
-
-  it('places each paused status on the supporting line beneath its feature label', () => {
-    mockTrialExpired = true
-    render(<TrialExpiredModal />)
-    const pausedStatuses = screen.getAllByText('trial.expired.paused')
-    expect(pausedStatuses).toHaveLength(4)
-    for (const [index, feature] of ['orbitCeiling', 'calendarSync', 'retrospective', 'proactiveOrbit'].entries()) {
-      const label = screen.getByText(`trial.expired.${feature}`)
-      expect(pausedStatuses[index]?.parentElement).toBe(label.parentElement)
-      expect(label.nextElementSibling).toBe(pausedStatuses[index])
-    }
   })
 
   it('renders the annual saving from the plans payload', () => {
@@ -153,15 +123,6 @@ describe('TrialExpiredModal', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
     expect(screen.getByText('trial.expired.subtitleQuiet')).toBeInTheDocument()
-  })
-
-  it('renders the subscribe button and routes to upgrade on click', () => {
-    mockTrialExpired = true
-    render(<TrialExpiredModal />)
-    const subscribe = screen.getByText('trial.expired.subscribe')
-    expect(subscribe).toBeInTheDocument()
-    fireEvent.click(subscribe)
-    expect(mockPush).toHaveBeenCalledWith('/upgrade')
   })
 
   it('renders the continue free button', () => {

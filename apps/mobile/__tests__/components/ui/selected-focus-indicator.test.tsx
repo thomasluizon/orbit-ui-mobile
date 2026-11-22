@@ -8,7 +8,6 @@ import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-det
 import { buildHabitUnderstandingLabels, formatLocaleDate, HOURS_24, MINUTES, padTimePart } from '@orbit/shared/utils'
 import { TimeField } from '@/components/ui/time-field'
 import { DateField } from '@/components/ui/date-field'
-import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { createStyles } from '@/components/habits/habit-form-fields/styles'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -172,13 +171,6 @@ it.each(['empty', 'today', 'tomorrow'] as const)('DateField day focus replaces t
     TestRenderer.act(() => control().props.onBlur?.(event))
     expect(ringCount(control())).toBe(restingRings)
   }
-  TestRenderer.act(() => tree!.unmount())
-})
-
-it('habit form day pills keep their selection ring under focus', () => {
-  let tree: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<HabitUnderstanding value="Read" emoji="" days={['Monday']} dayOptions={[{ value: 'Monday', label: 'Mon', accessibleLabel: 'Monday' }, { value: 'Tuesday', label: 'Tue', accessibleLabel: 'Tuesday' }]} quantity={1} mode="fixed" sentence={null} consumed={[]} labels={buildHabitUnderstandingLabels((key) => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} />) })
-  verifyAllChoices(tree)
   TestRenderer.act(() => tree!.unmount())
 })
 

@@ -108,8 +108,7 @@ function PickerContent({ props, commitSelection }: Readonly<{
   if (props.activePicker === null) return null
   const model = buildPreferencePickerModel({ ...props, activePicker: props.activePicker, ready: true })
   if (model.kind === 'timeZone') {
-    const TimeZones = GuidedTimeZoneOptions
-    return <TimeZones
+    return <GuidedTimeZoneOptions
       tokens={props.tokens}
       questionLabel={props.pickerTitles.timeZone}
       selected={model.selected}

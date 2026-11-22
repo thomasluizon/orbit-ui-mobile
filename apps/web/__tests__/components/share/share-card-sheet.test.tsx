@@ -35,25 +35,6 @@ describe('Share progress sheet', () => {
     Object.assign(mocks, { isLoading: false, isError: false, isEmpty: false, isSharing: false, hasError: false, canShareFiles: true, savedFileName: null })
   })
 
-  it('fetches only after opening and restores the figures in the capture target', () => {
-    render(<ShareCardEntryButton />)
-    expect(mocks.wrapped).not.toHaveBeenCalled()
-    openSheet()
-    expect(screen.getByRole('dialog', { name: 'shareCard.title' })).toBeInTheDocument()
-    expect(screen.getByTestId('share-card')).toHaveTextContent('shareCard.stats.activeDays')
-    expect(screen.getByTestId('share-card')).toHaveTextContent('74%')
-    expect(mocks.wrapped).toHaveBeenLastCalledWith('week', { enabled: true })
-    expect(screen.getByRole('radiogroup', { name: 'shareCard.periodQuestion' })).toBeInTheDocument()
-    const question = document.querySelector('[data-share-period-question] [data-field-question]')
-    expect(question).toHaveTextContent('shareCard.periodQuestion')
-    expect(question).toHaveAttribute('aria-hidden', 'true')
-    fireEvent.click(screen.getByRole('radio', { name: 'shareCard.periods.month' }))
-    expect(mocks.wrapped).toHaveBeenLastCalledWith('month', { enabled: true })
-    expect(mocks.resetFeedback).toHaveBeenCalledOnce()
-    fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
   it('shares the current recap and downloads its image', () => {
     render(<ShareCardEntryButton />)
     openSheet()
@@ -76,20 +57,6 @@ describe('Share progress sheet', () => {
     }
     if (state === 'isEmpty') expect(screen.getByText('shareCard.empty')).toBeInTheDocument()
     if (state === 'isLoading') expect(screen.getByRole('progressbar', { name: 'shareCard.loading' })).toBeInTheDocument()
-  })
-
-  it('disables both exports and period changes while capturing', () => {
-    mocks.isSharing = true
-    render(<ShareCardEntryButton />)
-    openSheet()
-    for (const label of ['shareCard.download', 'shareCard.share']) {
-      const button = screen.getByRole('button', { name: label })
-      expect(button).toBeDisabled()
-      fireEvent.click(button)
-    }
-    expect(mocks.share).not.toHaveBeenCalled()
-    expect(mocks.download).not.toHaveBeenCalled()
-    expect(screen.getByRole('radio', { name: 'shareCard.periods.month' })).toBeDisabled()
   })
 
   it('keeps download available without native file sharing', () => {

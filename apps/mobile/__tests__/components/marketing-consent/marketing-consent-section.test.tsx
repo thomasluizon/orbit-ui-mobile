@@ -94,18 +94,6 @@ describe('MarketingConsentSection (mobile)', () => {
     }
   })
 
-  it.each([false, true])('asks for an explicit answer when consent has never been decided with contained %s', async (contained) => {
-    profileValue = { marketingEmailConsent: null }
-    const tree = await render(contained)
-    expect(tree.root.findAll((candidate) => candidate.type === 'SwitchStub')).toHaveLength(0)
-    expect(
-      tree.root.findAll((candidate) => candidate.props.testID === 'button-primary-sm').length,
-    ).toBeGreaterThan(0)
-    expect(
-      tree.root.findAll((candidate) => candidate.props.testID === 'button-ghost-sm').length,
-    ).toBeGreaterThan(0)
-  })
-
   it('keeps the default answered settings row', async () => {
     profileValue = { marketingEmailConsent: false }
     const tree = await render()

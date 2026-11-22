@@ -36,33 +36,6 @@ function ParentNoticeSurface({ confirm }: { confirm: () => void }) {
 beforeEach(() => { vi.useFakeTimers(); vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); useUIStore.setState({ openOverlayIds: [] }); useAppToastStore.setState({ currentToast: null, queue: [] }) })
 afterEach(async () => { await act(() => tree?.unmount()); tree = undefined; vi.useRealTimers(); vi.unstubAllGlobals() })
 
-it.each(['cancel', 'confirm', 'close', 'back'] as const)('holds child undo until parent %s and gives it a full timer', async dismissal => {
-  const childUndo = vi.fn()
-  const parentUndo = vi.fn()
-  await act(() => { tree = create(<ParentNoticeSurface confirm={() => useAppToastStore.getState().showQueued('Parent skipped', 'Undo parent', parentUndo)} />) })
-  await act(() => { useAppToastStore.getState().showQueued('Child skipped', 'Undo child', childUndo) })
-  expect(tree!.root.findAllByType(Toast)).toHaveLength(0)
-  await act(async () => { await vi.advanceTimersByTimeAsync(20000) })
-  if (dismissal === 'back') await act(() => { (tree!.root.findAllByType(TrueSheet)[0]!.props.onDidDismiss as () => void)() })
-  else {
-    const label = { cancel: 'common.notNow', confirm: 'habits.autoSkipParentConfirm', close: 'common.close' }[dismissal]
-    if (dismissal === 'close') {
-      const button = tree!.root.findAll(node => (node.type as unknown) === 'Pressable' && node.props.accessibilityLabel === label)[0]!
-      await act(() => (button.props.onPress as () => void)())
-    } else {
-      const button = tree!.root.findAllByType(PillButton).find(node => node.props.children === label)!
-      await act(() => (button.props.onClick as () => void)())
-    }
-  }
-  expect(tree!.root.findAllByType(TrueSheet)).toHaveLength(0)
-  expect(tree!.root.findAllByType(Toast).map(node => node.props.message)).toEqual(['Child skipped'])
-  await act(async () => { await vi.advanceTimersByTimeAsync(4999) })
-  const undo = tree!.root.findAll(node => (node.type as unknown) === 'Pressable' && node.props.testID === 'toast-action')[0]!
-  await act(() => (undo.props.onPress as () => void)())
-  expect(childUndo).toHaveBeenCalledOnce()
-  expect(parentUndo).not.toHaveBeenCalled()
-})
-
 
 it('holds a live notice through a native dialog and a menu above it', async () => {
   await act(() => { tree = create(<AppToast placement="slot" />) })

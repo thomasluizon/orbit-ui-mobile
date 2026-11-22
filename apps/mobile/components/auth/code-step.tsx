@@ -1,44 +1,14 @@
 import { useEffect, useMemo } from 'react'
-import type { ReactNode } from 'react'
 import { Animated, BackHandler, Text, View } from 'react-native'
-import { formatLoginCountdown, type LoginCodeFailure } from '@orbit/shared/utils'
+import { formatLoginCountdown } from '@orbit/shared/utils'
 import { motionDurations } from '@orbit/shared/theme'
-import { type AppTokensV2, easings } from '@/lib/theme'
+import { easings } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { PillButton } from '@/components/ui/pill-button'
 import { OtpInput } from '@/components/ui/otp-input'
-import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
-import { CapacityNotice } from '@/components/ui/capacity-notice'
 import type { LoginStyles } from '@/app/login-styles'
-import { LoginHeader, LoginOfflineNotice, LoginSuccessMessage } from './login-sections'
 
 const SHAKE_OFFSETS = [-4, 4, -4, 4, 0] as const
-
-interface CodeStepProps {
-  email: string
-  codeDigits: string[]
-  onCodeChange: (value: string) => void
-  isSubmitting: boolean
-  isResending: boolean
-  canResend: boolean
-  resendCountdown: number
-  lockCountdown: number
-  codeFailure: LoginCodeFailure
-  fieldError?: string
-  onCodeBlur?: () => void
-  codeFocusRequest?: number
-  errorSignal: string | null
-  successMessage: string | null
-  isOnline: boolean
-  canSubmitTurnstile: boolean
-  turnstileWidget: ReactNode
-  onVerifyCode: () => void
-  onResendCode: () => void
-  onBackToEmail: () => void
-  tokens: AppTokensV2
-  styles: LoginStyles
-  t: (key: string, params?: Record<string, unknown>) => string
-}
 
 /** The code field. A rejected code shakes it over the shared slow duration, and reduced motion keeps it still. */
 export function LoginCodeField({ label, value, error, hint, disabled, focusRequest, onChange, onBlur }: Readonly<{
@@ -80,40 +50,4 @@ export function useBackToEmail(onBackToEmail: () => void) {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { onBackToEmail(); return true })
     return () => subscription.remove()
   }, [onBackToEmail])
-}
-
-export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isResending, canResend, resendCountdown,
-  lockCountdown, codeFailure, fieldError: backendFieldError, onCodeBlur, codeFocusRequest, errorSignal, successMessage, isOnline, onVerifyCode, onResendCode,
-  onBackToEmail, canSubmitTurnstile, turnstileWidget, tokens, styles, t }: Readonly<CodeStepProps>) {
-  useBackToEmail(onBackToEmail)
-  const locked = codeFailure === 'locked'
-  const waiting = locked && lockCountdown > 0
-  const expired = codeFailure === 'expired'
-  const fieldError = isOnline && !locked ? backendFieldError ?? errorSignal ?? undefined : undefined
-  return <View style={styles.step}>
-    <View style={styles.titleBlock}>
-      <LoginHeader step="code" t={t} styles={styles} />
-      <Text style={styles.stepSubtitle}>{t('auth.codeSentTo', { email })}</Text>
-      <LoginSuccessMessage message={successMessage} styles={styles} />
-      <View style={styles.quietAction}>
-        <PillButton variant="ghost" size="sm" disabled={isSubmitting}
-          onClick={onBackToEmail}>{t('auth.changeEmail')}</PillButton>
-      </View>
-    </View>
-    <KeyboardRevealGroup testID="login-field-action" style={styles.step}>
-      <LoginCodeField label={t('auth.verificationCode')} value={codeDigits.join('')} onChange={onCodeChange} onBlur={onCodeBlur} focusRequest={codeFocusRequest}
-        error={fieldError} hint={!fieldError && !locked ? t('auth.codeHint') : undefined} disabled={isSubmitting || expired || waiting} />
-      {turnstileWidget}
-      {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
-      {!waiting && !expired && <PillButton onClick={onVerifyCode} disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6 || !canSubmitTurnstile}
-        loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
-      {!waiting && <View style={styles.titleBlock}>
-        <LoginResend ready={canResend || expired} countdown={resendCountdown} disabled={!isOnline || isSubmitting || !canSubmitTurnstile}
-          loading={isResending} onResend={onResendCode} styles={styles} t={t} />
-      </View>}
-      {locked && <View style={styles.titleBlock}>
-        <View accessibilityLiveRegion="polite"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></View>
-      </View>}
-    </KeyboardRevealGroup>
-  </View>
 }

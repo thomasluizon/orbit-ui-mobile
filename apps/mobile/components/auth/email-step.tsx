@@ -1,39 +1,9 @@
 import { AppleSignInButton } from './apple-sign-in-button'
 import { GoogleMark } from '@/components/auth/google-mark'
 import { Text, View } from 'react-native'
-import type { ReactNode } from 'react'
 import { Trans } from 'react-i18next'
-import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
-import { Input } from '@/components/ui/input'
-import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
 import type { LoginStyles } from '@/app/login-styles'
-import { deriveLoginEmailErrors } from '@orbit/shared/utils'
-import { LoginOfflineNotice } from './login-sections'
-
-interface EmailStepProps {
-  email: string
-  emailFocusRequest: number
-  onEmailChange: (email: string) => void
-  isSubmitting: boolean
-  isGoogleLoading: boolean
-  isAppleLoading?: boolean
-  isOnline: boolean
-  canSubmitTurnstile: boolean
-  turnstileWidget: ReactNode
-  fieldError?: string
-  errorKey: string | null
-  errorMessage: string | null
-  onSendCode: () => void
-  onSignInWithGoogle: () => void
-  onSignInWithApple?: () => void
-  onOpenTerms: () => void
-  onOpenPrivacy: () => void
-  tokens: AppTokensV2
-  styles: LoginStyles
-  t: (key: string, params?: Record<string, unknown>) => string
-  sendCodeLabel?: string
-}
 
 /** The two provider ways in, with the offline reason and the provider failure under them. */
 export function LoginProviderActions({ disabled, isGoogleLoading, isAppleLoading, isOnline, error, onSignInWithGoogle, onSignInWithApple, styles, t }: Readonly<{
@@ -62,34 +32,4 @@ export function LoginLegalConsent({ styles, onOpenTerms, onOpenPrivacy }: Readon
       }} />
     </Text>
   )
-}
-
-export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isAppleLoading = false, isOnline, errorKey,
-  errorMessage, fieldError: backendFieldError, canSubmitTurnstile, turnstileWidget, onSendCode, onSignInWithGoogle, onSignInWithApple, onOpenTerms, onOpenPrivacy, tokens, styles, t,
-  sendCodeLabel }: Readonly<EmailStepProps>) {
-  const isBusy = isSubmitting || isGoogleLoading || isAppleLoading
-  const { field: fieldError, provider: googleError, send: sendError } = deriveLoginEmailErrors({ isOnline, fieldError: backendFieldError, errorKey, errorMessage })
-  return <View style={styles.step}>
-    <KeyboardRevealGroup testID="login-field-action" style={styles.step}>
-      <Input label={t('auth.email')} value={email} onChange={onEmailChange} placeholder={t('auth.emailPlaceholder')}
-        kind="email" name="email" focusRequest={emailFocusRequest} autoComplete="email" disabled={isBusy}
-        onSubmit={onSendCode} error={fieldError ?? undefined} />
-      {turnstileWidget}
-      <View style={styles.actionGroup}>
-        {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
-        {sendError && <Text accessibilityRole="alert" style={styles.error}>{sendError}</Text>}
-        <PillButton onClick={onSendCode} disabled={isBusy || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
-          {sendCodeLabel ?? t('auth.sendCode')}
-        </PillButton>
-      </View>
-    </KeyboardRevealGroup>
-    <View style={styles.divider} importantForAccessibility="no-hide-descendants">
-      <View style={styles.dividerLine} /><Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text><View style={styles.dividerLine} />
-    </View>
-    <View style={styles.titleBlock}>
-      <LoginProviderActions disabled={isBusy || !isOnline} isGoogleLoading={isGoogleLoading} isAppleLoading={isAppleLoading} isOnline={isOnline}
-        error={googleError} onSignInWithGoogle={onSignInWithGoogle} onSignInWithApple={() => onSignInWithApple?.()} styles={styles} t={t} />
-    </View>
-    <LoginLegalConsent styles={styles} onOpenTerms={onOpenTerms} onOpenPrivacy={onOpenPrivacy} />
-  </View>
 }

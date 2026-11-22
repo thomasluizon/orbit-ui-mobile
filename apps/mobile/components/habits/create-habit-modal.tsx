@@ -507,7 +507,7 @@ export function CreateHabitModal({
       suggestionRequests.finish()
       setIsEmojiSuggesting(false)
     }
-  }, [allowanceText, formHelpers, i18n.language, suggestionSessionId, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+  }, [allowanceText, formHelpers, i18n.language, suggestionSessionId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
@@ -579,7 +579,7 @@ export function CreateHabitModal({
     } finally {
       suggestionRequests.finish()
     }
-  }, [allowanceText, formHelpers, i18n.language, replaceSubHabits, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
+  }, [allowanceText, formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
 
 
   const isPending = submissionWaiting

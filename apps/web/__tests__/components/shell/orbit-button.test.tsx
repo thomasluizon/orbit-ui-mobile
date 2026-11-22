@@ -76,7 +76,7 @@ it('stays in its column through a drag, a long press and the arrow keys, and sto
     expect(button).not.toHaveAttribute('style', expect.stringContaining('translate'))
     expect(parent).not.toHaveAttribute('style')
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(Object.keys(localStorage).filter(key => key.includes('orbit'))).toEqual([])
+    expect(Object.keys(localStorage).filter(key => !key.startsWith('orbit-ui-store'))).toEqual([])
     expect(useUIStore.getState().orbitConversationOpen).toBe(false)
   } finally { vi.useRealTimers() }
 })

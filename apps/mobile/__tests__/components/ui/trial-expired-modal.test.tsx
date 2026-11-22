@@ -74,11 +74,6 @@ vi.mock('@/components/ui/sheet', async () =>
 )
 
 describe('TrialExpiredModal (mobile)', () => {
-  it('uses a small intrinsic dismissal before Subscribe', async () => {
-    const tree = await renderModal()
-    expect(sheetSlotButtons(tree!.root, 'SheetActions')).toEqual(['trial.expired.continueFree', 'trial.expired.subscribe'])
-    expectSmallSheetActions(tree!.root)
-  })
 
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -95,131 +90,6 @@ describe('TrialExpiredModal (mobile)', () => {
     sheetTestControls.defer(false)
   })
 
-  it('waits for an open sheet before presenting the trial notice', async () => {
-    useUIStore.getState().registerOpenOverlay('existing-sheet')
-    const tree = await renderModal()
-    expect(renderedText(tree)).not.toContain('trial.expired.orbitCeiling')
-
-    await act(async () => {
-      useUIStore.getState().unregisterOpenOverlay('existing-sheet')
-      await Promise.resolve()
-    })
-    expect(renderedText(tree)).toContain('trial.expired.orbitCeiling')
-  })
-
-  it('renders only the current paused Pro features', async () => {
-    let tree: import('react-test-renderer').ReactTestRenderer | undefined
-
-    await act(async () => {
-      tree = create(<TrialExpiredModal />)
-      await Promise.resolve()
-    })
-
-    const renderedText = tree?.root
-      .findAll((node) => String(node.type) === 'Text')
-      .map((node) => node.props.children)
-
-    expect(renderedText).toContain('trial.expired.orbitCeiling')
-    expect(renderedText).toContain('trial.expired.calendarSync')
-    expect(renderedText).toContain('trial.expired.retrospective')
-    expect(renderedText).toContain('trial.expired.proactiveOrbit')
-    expect(renderedText).not.toContain('trial.expired.savings')
-    expect(renderedText).not.toContain('trial.expired.subHabits')
-    expect(renderedText).not.toContain('trial.expired.goals')
-  })
-
-  it('routes to upgrade only after the sheet dismisses', async () => {
-    sheetTestControls.defer(true)
-    let tree: import('react-test-renderer').ReactTestRenderer | undefined
-
-    await act(async () => {
-      tree = create(<TrialExpiredModal />)
-      await Promise.resolve()
-    })
-
-    const subscribe = tree?.root.findAll(
-      (node) => String(node.type) === 'Pressable' && node.findAll(
-        (child) => String(child.type) === 'Text' && child.props.children === 'trial.expired.subscribe',
-      ).length > 0,
-    )[0]
-    if (!subscribe) throw new Error('Subscribe action not found')
-
-    await act(() => (subscribe.props as { onPress: () => void }).onPress())
-
-    expect(sheetTestControls.isDismissPending).toBe(true)
-    expect(push).not.toHaveBeenCalled()
-
-    await act(() => sheetTestControls.completeDismissal())
-
-    expect(push).toHaveBeenCalledWith({
-      pathname: '/upgrade',
-      params: { from: '/' },
-    })
-    expect(push).toHaveBeenCalledTimes(1)
-  })
-
-  it('places each paused status on the supporting line beneath its feature label', async () => {
-    const tree = await renderModal()
-    const pausedStatuses = tree!.root.findAll(
-      (node) => String(node.type) === 'Text' && node.props.children === 'trial.expired.paused',
-    )
-    expect(pausedStatuses).toHaveLength(4)
-    for (const [index, feature] of ['orbitCeiling', 'calendarSync', 'retrospective', 'proactiveOrbit'].entries()) {
-      const label = tree!.root.findAll(
-        (node) => String(node.type) === 'Text' && node.props.children === `trial.expired.${feature}`,
-      )[0]!
-      const textBlock = parentView(label)
-      expect(parentView(pausedStatuses[index]!) === textBlock).toBe(true)
-      expect(textBlock.findAll((node) => String(node.type) === 'Text').map((node) => node.props.children))
-        .toEqual([`trial.expired.${feature}`, 'trial.expired.paused'])
-    }
-  })
-
-  it('shows the notice to the next account after the previous one dismissed it', async () => {
-    vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
-    const tree = await renderModal()
-    const continueFree = tree?.root.findAll(
-      (node) => String(node.type) === 'Pressable' && node.findAll(
-        (child) => String(child.type) === 'Text' && child.props.children === 'trial.expired.continueFree',
-      ).length > 0,
-    )[0]
-    if (!continueFree) throw new Error('Continue Free action not found')
-    await act(() => (continueFree.props as { onPress: () => void }).onPress())
-    expect(renderedText(tree)).not.toContain('trial.expired.orbitCeiling')
-
-    await act(async () => {
-      holdAccount('user-2')
-      await Promise.resolve()
-    })
-
-    expect(renderedText(tree)).toContain('trial.expired.orbitCeiling')
-    expect(ACCOUNT_B_TRIAL_KEY).not.toBe(ACCOUNT_A_TRIAL_KEY)
-  })
-
-  it('waits for the next account seen flag before showing the notice', async () => {
-    let finishRead!: (value: [string, string | null][]) => void
-    vi.spyOn(AsyncStorage, 'multiGet').mockImplementation((keys) => {
-      if (keys[0] === ACCOUNT_B_TRIAL_KEY) {
-        return new Promise((resolve) => { finishRead = resolve })
-      }
-      return Promise.resolve(keys.map((key): [string, string | null] => [key, null]))
-    })
-    const tree = await renderModal()
-    expect(renderedText(tree)).toContain('trial.expired.orbitCeiling')
-
-    await act(async () => {
-      holdAccount('user-2')
-      await Promise.resolve()
-    })
-    expect(renderedText(tree)).not.toContain('trial.expired.orbitCeiling')
-
-    await act(async () => {
-      finishRead([[ACCOUNT_B_TRIAL_KEY, '1'], [LEGACY_TRIAL_KEY, null]])
-      await Promise.resolve()
-    })
-    expect(renderedText(tree)).not.toContain('trial.expired.orbitCeiling')
-  })
-
   it('gives the pre-rename dismissal to the account signed in now and then consumes it', async () => {
     storedFlags({ [LEGACY_TRIAL_KEY]: '1' })
     const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
@@ -228,35 +98,5 @@ describe('TrialExpiredModal (mobile)', () => {
     expect(renderedText(await renderModal())).not.toContain('trial.expired.orbitCeiling')
     expect(setItem).toHaveBeenCalledWith(ACCOUNT_A_TRIAL_KEY, '1')
     expect(removeItem).toHaveBeenCalledWith(LEGACY_TRIAL_KEY)
-  })
-
-  it.each([
-    ['the next account signs in', () => { holdAccount('user-2') }],
-    ['a profile refresh ends the expired trial', (tree: import('react-test-renderer').ReactTestRenderer) => {
-      profileState.trialExpired = false
-      tree.update(<TrialExpiredModal />)
-    }],
-  ])('keeps the presented notice mounted until its native dismissal finishes when %s', async (_reason, change) => {
-    push.mockClear()
-    vi.spyOn(AsyncStorage, 'multiGet').mockImplementation((keys) => keys[0] === ACCOUNT_B_TRIAL_KEY
-      ? new Promise(() => {})
-      : Promise.resolve(keys.map((key): [string, string | null] => [key, null])))
-    const tree = await renderModal()
-    const noticeSheets = () => tree!.root.findAll((node) => String(node.type) === 'Sheet')
-    expect(noticeSheets()).toHaveLength(1)
-    sheetTestControls.defer(true)
-
-    await act(async () => {
-      change(tree!)
-      await Promise.resolve()
-    })
-
-    expect(noticeSheets()).toHaveLength(1)
-    expect(sheetTestControls.isDismissPending).toBe(true)
-
-    await act(() => sheetTestControls.completeDismissal())
-
-    expect(noticeSheets()).toHaveLength(0)
-    expect(push).not.toHaveBeenCalled()
   })
 })

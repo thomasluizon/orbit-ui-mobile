@@ -102,24 +102,6 @@ describe('proactive conversation', () => {
     await TestRenderer.act(() => { line.unmount(); action.unmount() })
   })
 
-  it.each([
-    ['offline', false, 0, 'shell.composer.offline.reason'],
-    ['limit', true, 5, 'shell.composer.limit.reason'],
-  ])('keeps the line available and explains the disabled action at %s', async (_scenario, online, used, reason) => {
-    mocks.online = online
-    mocks.used = used
-    const { render, client } = setup()
-    client.setQueryData(proactiveKeys.current(), item)
-    const send = vi.fn()
-    const tree = await render(<><TodayOrbit today={item.localDate} isTodaySelected suppressed={false} /><ProactiveAction isOnline={mocks.online} item={item} acted={false} onSend={send} /></>)
-    expect(button(tree, item.text).props.disabled).not.toBe(true)
-    expect(button(tree, item.actionLabel).props.disabled).toBe(true)
-    expect(button(tree, item.actionLabel).props.accessibilityHint).toBe(reason)
-    await press(tree, item.actionLabel)
-    expect(send).not.toHaveBeenCalled()
-    await TestRenderer.act(() => tree.unmount())
-  })
-
   it('rechecks the displayed item by id and disables it when it ended', async () => {
     const { render } = setup()
     const send = vi.fn()

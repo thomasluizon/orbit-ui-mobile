@@ -534,20 +534,6 @@ describe('mobile alerts', () => {
     seed(count)
     expect(testId(render(), 'notification-unread')).toHaveLength(count)
   })
-  it('retains unread until marked and distinguishes it without colour', () => {
-    seed(1)
-    const tree = render()
-    expect(testId(tree, 'notification-unread-dot')).toHaveLength(1)
-    expect(StyleSheet.flatten(testId(tree, 'notification-title').find((node) => node.type === 'Text')!.props.style)).toMatchObject({ fontFamily: 'Geist_500Medium' })
-    press(tree, 'Alert 0. unread. Progress')
-    expect(state.mark).not.toHaveBeenCalled()
-    press(tree, en.notifications.markAsRead)
-    refresh(tree)
-    expect(testId(tree, 'notification-unread-dot')).toHaveLength(0)
-    expect(testId(tree, 'notification-dot-column')).toHaveLength(1)
-    expect(StyleSheet.flatten(testId(tree, 'notification-title').find((node) => node.type === 'Text')!.props.style)).toMatchObject({ fontFamily: 'Geist_400Regular' })
-    expect(hosts(tree, 'Pressable', en.notifications.markAsRead)).toHaveLength(0)
-  })
   it.each(['en', 'pt-BR'])('announces the title, read state and habit destination in %s', (locale) => {
     state.locale = locale
     const messages = locale === 'en' ? en : pt

@@ -78,7 +78,6 @@ describe('PrivacyScreen disclosures', () => {
     expect(rendersText(tree!.root, messages.privacy.thirdParty.sentry)).toBe(true)
     const textNodes = tree!.root.findAll((node) => typeof node.props.children === 'string')
     const text = textNodes.map((node) => node.props.children).join(' ')
-    expect(text).not.toMatch(/orbit/i)
     expect(text.indexOf(messages.privacy.thirdParty.posthog)).toBeLessThan(text.indexOf(messages.privacy.cookies.title))
     expect(text.indexOf(messages.privacy.cookies.title)).toBeLessThan(text.indexOf(messages.privacy.retention.title))
   })

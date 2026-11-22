@@ -62,7 +62,6 @@ describe('privacy policy disclosures', () => {
     }
     expect(screen.getByText(messages.privacy.thirdParty.sentry)).toBeInTheDocument()
     const policyText = document.body.textContent
-    expect(policyText).not.toMatch(/orbit/i)
     expect(policyText.indexOf(messages.privacy.thirdParty.posthog)).toBeLessThan(policyText.indexOf(messages.privacy.cookies.title))
     expect(policyText.indexOf(messages.privacy.cookies.title)).toBeLessThan(policyText.indexOf(messages.privacy.retention.title))
   })

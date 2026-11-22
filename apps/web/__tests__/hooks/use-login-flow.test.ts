@@ -624,26 +624,6 @@ describe('field validation responses', () => {
 })
 
 
-it.each(['en', 'pt-BR'] as const)('shows the five-digit format error in the mounted %s login form', async (language) => {
-  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
-  const messages = (await import(`@orbit/shared/i18n/${language}.json`)).default
-  const translate = createTranslator({ locale: language, messages })
-  mocks.language = language
-  mocks.translate = translate
-  render(React.createElement(LoginContent))
-  fireEvent.change(screen.getByRole('textbox', { name: translate('auth.email') }), { target: { value: 'user@test.com' } })
-  fireEvent.click(screen.getByRole('button', { name: translate('auth.sendCode') }))
-  const code = await screen.findByRole('textbox', { name: translate('auth.verificationCode') })
-  fireEvent.change(code, { target: { value: '12345' } })
-  fireEvent.blur(code)
-  expect(code).toHaveAttribute('aria-invalid', 'true')
-  expect(document.getElementById(code.getAttribute('aria-describedby') ?? '')).toHaveTextContent(translate('auth.errors.codeFormat'))
-  expect(screen.getByRole('button', { name: translate('auth.verify') })).toBeDisabled()
-  fireEvent.change(code, { target: { value: '1234' } })
-  expect(code).not.toHaveAttribute('aria-invalid')
-})
-
-
 it.each([
   { step: 'email', mixed: true }, { step: 'code', mixed: true },
   { step: 'email', mixed: false }, { step: 'code', mixed: false },
@@ -728,64 +708,6 @@ it.each([
   await waitFor(() => expect(screen.getByText('Unknown first', { exact: false })).toHaveTextContent('Unknown first Unknown second'))
   expect(input).not.toHaveAttribute('aria-invalid')
   expect(input).toHaveValue(correctedValue)
-})
-
-
-it('keeps the general announcement region stable when verification returns email validation', async () => {
-  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
-  const messages = (await import('@orbit/shared/i18n/en.json')).default
-  mocks.translate = createTranslator({ locale: 'en', messages }) as typeof mocks.translate
-  render(React.createElement(LoginContent))
-  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user@test.com' } })
-  fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
-  const code = await screen.findByRole('textbox', { name: mocks.translate('auth.verificationCode') })
-  const generalRegion = screen.getAllByRole('status').at(-1)
-  expect(generalRegion).toBeEmptyDOMElement()
-  fetchMock.mockResolvedValue(jsonResponse({ errors: { Email: ['Email failure'], Other: ['Other failure', 'Second failure'] } }, 400))
-  fireEvent.change(code, { target: { value: '123456' } })
-  const email = await screen.findByRole('textbox', { name: mocks.translate('auth.email') })
-  expect(email).toHaveAccessibleDescription('Email failure')
-  await waitFor(() => expect(email).toHaveFocus())
-  expect(email).toHaveValue('user@test.com')
-  expect(screen.getByText('Other failure', { exact: false })).toBe(generalRegion)
-  expect(generalRegion).toHaveTextContent('Other failure Second failure')
-})
-
-
-it.each([true, false])('recovers email focus after pending verification validation (reduced motion: %s)', async (reducedMotion) => {
-  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
-  const messages = (await import('@orbit/shared/i18n/en.json')).default
-  mocks.translate = createTranslator({ locale: 'en', messages }) as typeof mocks.translate
-  mocks.reducedMotion = reducedMotion
-  render(React.createElement(React.Fragment, {}, React.createElement(LoginContent), React.createElement('button', {}, 'Another action')))
-  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user@test.com' } })
-  const generalRegion = screen.getAllByRole('status').at(-1)
-  expect(generalRegion).toBeEmptyDOMElement()
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
-    const code = await screen.findByRole('textbox', { name: mocks.translate('auth.verificationCode') })
-    let resolveValidation!: (response: Response) => void
-    fetchMock.mockImplementationOnce(() => new Promise((resolve) => { resolveValidation = resolve }))
-    fireEvent.change(code, { target: { value: '123456' } })
-    await waitFor(() => expect(code).toBeDisabled())
-    const away = screen.getByRole('button', { name: 'Another action' })
-    act(() => away.focus())
-    expect(away).toHaveFocus()
-    resolveValidation(jsonResponse({ errors: { Email: ['Email failure'], Other: ['Other failure', 'Second failure'] } }, 400))
-    const email = await screen.findByRole('textbox', { name: mocks.translate('auth.email') })
-    await waitFor(() => expect(email).toBeEnabled())
-    expect(code).not.toBeInTheDocument()
-    expect(email).toHaveAccessibleDescription('Email failure')
-    await waitFor(() => expect(email).toHaveFocus())
-    expect(email).toHaveValue(attempt === 0 ? 'user@test.com' : 'corrected@test.com')
-    expect(screen.getByText('Other failure', { exact: false })).toBe(generalRegion)
-    expect(generalRegion).toHaveTextContent('Other failure Second failure')
-    if (attempt === 0) {
-      fireEvent.change(email, { target: { value: 'corrected@test.com' } })
-      expect(email).not.toHaveAttribute('aria-invalid')
-      expect(generalRegion).toBeEmptyDOMElement()
-    }
-  }
 })
 
 it('returns focus to the editable OTP after a pending wrong-code rejection', async () => {

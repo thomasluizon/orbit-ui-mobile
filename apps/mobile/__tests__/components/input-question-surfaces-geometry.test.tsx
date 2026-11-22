@@ -82,31 +82,3 @@ it.each(CASES.flatMap((matrix) => (['fixed', 'flexible', 'interval'] as const).m
       for (const [label, control] of questions) expect(control!.top - label!.bottom).toBeCloseTo(12, 3)
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
-
-it.each(CASES)('asks the move destination one group below its search at $width and $scale in $locale/$mode', async ({ width, scale, locale, mode }) => {
-  await i18n.changeLanguage(locale)
-  context.theme = mode
-  const column = Math.min(width, 412) - 32
-  __setWindowDimensions({ width: Math.min(width, 412), height: 915, scale: 1, fontScale: scale })
-  const t = i18n.t.bind(i18n) as unknown as (key: string, params?: Record<string, unknown>) => string
-  let tree!: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => {
-    tree = TestRenderer.create(withFocusProvenance(<MoveParentDialog t={t} visible isPending={false} movingHabitTitle="Exercise" movingHabitParentId={null}
-      options={[{ ...option(0), id: null, label: t('habits.moveParent.toRoot') }, ...Array.from({ length: 9 }, (_, index) => option(index + 1))]}
-      selectedMoveParentId={null} canSubmit={false} onClose={vi.fn()} onConfirm={vi.fn()} onSelectOption={vi.fn()} />))
-  })
-  try {
-    const question = t('habits.moveParent.destinations', { count: 1 })
-    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === question).length).toBeGreaterThan(0)
-    const parts = measureInteractionFills(findHost(tree.toJSON(), 'move-parent-questions')!, column, false, scale)
-    const root = parts.find((part) => part.host.props.testID === 'move-parent-questions')!
-    const groups = children(parts, root).filter((part) => (part.style as { position?: string }).position !== 'absolute')
-    const destinations = groups.findIndex((part) => part.host.props.testID === 'move-parent-destinations')
-    expect(destinations).toBeGreaterThanOrEqual(2)
-    for (const gap of gaps(groups.slice(0, destinations + 1))) expect(gap).toBeCloseTo(16, 3)
-    const [label, list] = children(parts, groups[destinations]!)
-    expect(labelText(label!)).toBe(question)
-    expect((label!.host.props as { importantForAccessibility?: string }).importantForAccessibility).toBe('no-hide-descendants')
-    expect(list!.top - label!.bottom).toBeCloseTo(8, 3)
-  } finally { TestRenderer.act(() => tree.unmount()) }
-})

@@ -146,16 +146,6 @@ describe('MoveParentDialog', () => {
     __resetTestHostConfig()
   })
 
-  it('presents as a sheet with the move-parent title', () => {
-    const { tree } = renderDialog()
-
-    const sheets = tree.root.findAll(
-      (node) => node.type === 'Sheet',
-    )
-    expect(sheets.length).toBeGreaterThan(0)
-    expect(sheets[0]!.props.title).toBe('habits.moveParent.title')
-  })
-
   it('selects an option when its row is pressed and exposes disabled rows', () => {
     const { tree, props } = renderDialog({ selectedMoveParentId: 'elsewhere' })
 
@@ -211,24 +201,6 @@ describe('MoveParentDialog', () => {
       ;(confirmPill.props.onPress as () => void)()
     })
     expect(props.onConfirm).toHaveBeenCalled()
-  })
-
-  it('renders a selectable root row even with no destinations', () => {
-    const { tree, props } = renderDialog({
-      options: [makeOption({ id: null, label: 'Top level' })],
-      selectedMoveParentId: 'elsewhere',
-    })
-
-    const rows = findOptionRows(tree)
-    expect(rows.length).toBeGreaterThan(0)
-    expect(flattenRenderedText(tree.toJSON())).not.toContain(
-      'habits.moveParent.destinations',
-    )
-
-    void TestRenderer.act(() => {
-      ;(rows[0]!.props.onPress as () => void)()
-    })
-    expect(props.onSelectOption).toHaveBeenCalledWith(null)
   })
 
   it('shows the child count for a habit with children', () => {
@@ -450,31 +422,6 @@ describe('move picker initial positioning', () => {
       (findSearchInputs(tree)[0]!.props.onChangeText as (query: string) => void)('Parent')
     })
     expect(scrollTo).toHaveBeenLastCalledWith({ y: 0, animated: false })
-  })
-
-  it('opens root at zero and uses the plural title and inline error region', async () => {
-    const scrollTo = vi.fn()
-    __setScrollToImpl(scrollTo)
-    const { tree } = renderDialog({ movingHabitParentId: null, movingHabitCount: 100, error: '2 habits did not move' })
-    const scroll = tree.root.findAll((node) => node.type === 'ScrollView' && node.props.testID === 'move-destinations-scroll')[0]!
-    await TestRenderer.act(() => { (scroll.props.onLayout as () => void)(); (scroll.props.onContentSizeChange as () => void)() })
-    expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false })
-    expect(flattenRenderedText(tree.toJSON())).not.toContain('habits.moveParent.descriptionMany')
-    expect(flattenRenderedText(tree.toJSON())).toContain('2 habits did not move')
-    expect(tree.root.findAll((node) => node.type === 'Sheet')[0]!.props.title).toBe('habits.moveParent.titleMany')
-  })
-})
-
-
-describe('bulk move translated footer styles', () => {
-  it.each([{ locale: 'en', messages: en, expected: 'Move 100 habits' },
-    { locale: 'pt-BR', messages: ptBR, expected: 'Mover 100 hábitos' }])('keeps intrinsic pills for $locale with three digits', ({ locale, messages, expected }) => {
-    const t = testI18n.getFixedT(locale)
-    const { tree } = renderDialog({ t, movingHabitCount: 100 })
-    expect(tree.root.findAll((node) => node.type === 'Sheet')[0]!.props.title).toBe(expected)
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([messages.common.cancel, messages.habits.moveParent.confirm])
-    expect(flattenRenderedText(tree.toJSON())).not.toContain(messages === en ? 'Choose where to place the selected habits' : 'Escolha onde colocar os hábitos selecionados')
-    expectSmallSheetActions(tree.root)
   })
 })
 

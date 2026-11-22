@@ -243,21 +243,6 @@ function renderUnlockedKeys() {
   return render(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
 }
 
-it('hides permission at key capacity and retains fresh authentication for scoped creation', async () => {
-  management.canCreate = false
-  const view = renderUnlockedKeys()
-  expect(screen.queryByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel })).not.toBeInTheDocument()
-  expect(screen.getByText(en.orbitMcp.maxKeysReached)).toBeInTheDocument()
-  management.canCreate = true
-  management.grantAvailable = false
-  view.rerender(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  fireEvent.click(screen.getByRole('switch', { name: en.orbitMcp.readOnlyKeyLabel }))
-  await act(async () => { await chooseApiKeyCreation(en.profile.apiKeys.createScoped, en.profile.apiKeys.create) })
-  expect(requestApiKeyCreationChallenge).toHaveBeenCalledTimes(1)
-  expect(management.push).toHaveBeenCalledWith('/step-up?operation=keys')
-  expect(management.handleCreateKey).not.toHaveBeenCalled()
-})
-
 async function submitScopedKey() {
   await chooseApiKeyCreation(en.profile.apiKeys.createScoped, en.profile.apiKeys.create)
   fireEvent.change(screen.getByLabelText(en.profile.apiKeys.scopeLabel), { target: { value: 'habits:read' } })

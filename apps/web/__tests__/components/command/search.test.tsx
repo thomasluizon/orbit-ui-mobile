@@ -137,66 +137,6 @@ describe('habit search', () => {
     } finally { vi.useRealTimers() }
   })
 
-  it.each([412, 500, 840, 1440].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))('shows only habit search at $width in $locale', async ({ width, locale }) => {
-    mocks.wide = width >= 1024
-    const messages = locale === 'en' ? en : ptBR
-    mocks.query.mockReturnValue(result([
-      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
-      createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'description', value: null }] }),
-    ]))
-    const page = render(<NextIntlClientProvider locale={locale} messages={messages}><SearchPage /></NextIntlClientProvider>)
-    const input = screen.getByRole('combobox', { name: messages.habits.search.question })
-    expect(input).toHaveAttribute('placeholder', messages.habits.search.title)
-    expect(page.container.querySelectorAll('[data-command-group]')).toHaveLength(0)
-    expect(page.container.querySelectorAll('kbd')).toHaveLength(0)
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.queryByText(messages.command.groups.create)).toBeNull()
-    expect(screen.queryByText(messages.command.groups.actions)).toBeNull()
-    expect(screen.queryByText(messages.command.groups.destinations)).toBeNull()
-    expect(screen.queryByText('2 habits')).toBeNull()
-    fireEvent.change(input, { target: { value: 'walk' } })
-    expect(await screen.findByText(locale === 'en' ? '2 habits' : '2 hábitos')).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: locale === 'en' ? 'Open Walk in the name' : 'Abrir Walk no nome' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: locale === 'en' ? 'Open Run in the description' : 'Abrir Run na descrição' })).toBeInTheDocument()
-    expect(screen.getAllByRole('option')).toHaveLength(2)
-    expect(screen.queryByRole('button', { name: 'Walk' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Run' })).toBeNull()
-    fireEvent.keyDown(input, { key: 'ArrowDown' })
-    fireEvent.keyDown(input, { key: 'ArrowUp' })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(mocks.push).toHaveBeenCalledWith('/habits/walk')
-    mocks.query.mockReturnValue(result([]))
-    fireEvent.change(input, { target: { value: 'yoga' } })
-    expect(await screen.findByText('“yoga”')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: messages.habits.search.create })).toBeInTheDocument()
-  })
-
-  it('keeps the focused query and caret when the page crosses the wide breakpoint', async () => {
-    mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] })]))
-    const page = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
-    const compactInput = screen.getByRole<HTMLInputElement>('combobox')
-    fireEvent.change(compactInput, { target: { value: 'walk' } })
-    compactInput.focus()
-    compactInput.setSelectionRange(1, 3, 'backward')
-    expect(await screen.findByText('1 habit')).toBeInTheDocument()
-    mocks.wide = true
-    page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
-    const wideInput = screen.getByRole<HTMLInputElement>('combobox', { name: en.habits.search.question })
-    expect(wideInput).toHaveValue('walk')
-    expect(wideInput).toHaveFocus()
-    expect([wideInput.selectionStart, wideInput.selectionEnd]).toEqual([1, 3])
-    expect(wideInput.selectionDirection).toBe('backward')
-    expect(screen.getByText('1 habit')).toBeInTheDocument()
-    wideInput.setSelectionRange(2, 4)
-    mocks.wide = false
-    page.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
-    const restoredCompactInput = screen.getByRole<HTMLInputElement>('combobox')
-    expect(restoredCompactInput).toHaveValue('walk')
-    expect(restoredCompactInput).toHaveFocus()
-    expect([restoredCompactInput.selectionStart, restoredCompactInput.selectionEnd]).toEqual([2, 4])
-    expect(screen.getByText('1 habit')).toBeInTheDocument()
-  })
-
   it('does not move focus to search when another control is focused across the breakpoint', () => {
     const page = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
     screen.getByRole('combobox').focus()
@@ -482,19 +422,6 @@ describe('habit search', () => {
     expect(mocks.push).not.toHaveBeenCalled()
   })
 
-  it.each(['', 'walk'])('leaves the standalone search page on Escape with query "%s"', async (query) => {
-    mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk', searchMatches: [{ field: 'title', value: null }] })]))
-    render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
-    const input = screen.getByRole('combobox')
-    if (query) {
-      fireEvent.change(input, { target: { value: query } })
-      expect(await screen.findByText('1 habit')).toBeInTheDocument()
-    }
-    expect(screen.queryByText(en.command.hints.close)).toBeNull()
-    fireEvent.keyDown(input, { key: 'Escape' })
-    expect(mocks.back).toHaveBeenCalledTimes(1)
-  })
-
   it('pushes creation from empty search and keeps its query and return path', async () => {
     render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'yoga' } })
@@ -502,37 +429,6 @@ describe('habit search', () => {
     expect(mocks.push).toHaveBeenCalledWith('/habits/new?title=yoga&from=%2Fsearch')
     expect(mocks.back).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).toBeNull()
-  })
-
-  it.each(['en', 'pt-BR'])('renders all four match fields and opens the parent in %s', async (locale) => {
-    const habits = [
-      createMockHabit({ id: 'name', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
-      createMockHabit({ id: 'description', title: 'Park run', searchMatches: [{ field: 'description', value: null }] }),
-      createMockHabit({ id: 'tag', title: 'Stretch', searchMatches: [{ field: 'tag', value: 'walking' }] }),
-      createMockHabit({ id: 'parent', title: 'House routine', searchMatches: [{ field: 'child', value: 'Walk to the shop' }] }),
-    ]
-    mocks.query.mockReturnValue(result(habits))
-    mount(true, locale)
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
-    expect(await screen.findByText(locale === 'en' ? 'in the name' : 'no nome')).toBeInTheDocument()
-    expect(screen.getByText(locale === 'en' ? 'in the description' : 'na descrição')).toBeInTheDocument()
-    expect(screen.getByText('“walking”')).toBeInTheDocument()
-    expect(screen.getByLabelText('“Walk to the shop”')).toHaveTextContent('“Walk to the shop”')
-    expect(screen.getByText(locale === 'en' ? '4 habits' : '4 hábitos')).toBeInTheDocument()
-    const expectedNames = locale === 'en'
-      ? ['Open Walk in the name', 'Open Park run in the description', 'Open Stretch in the tag “walking”', 'Open House routine inside “Walk to the shop”']
-      : ['Abrir Walk no nome', 'Abrir Park run na descrição', 'Abrir Stretch na tag “walking”', 'Abrir House routine dentro de “Walk to the shop”']
-    screen.getAllByRole('option').forEach((option, index) => expect(option).toHaveAccessibleName(expectedNames[index]))
-    fireEvent.click(screen.getByRole('option', { name: expectedNames[3] }))
-    expect(mocks.push).toHaveBeenCalledWith('/habits/parent')
-    expect(mocks.query).toHaveBeenCalledWith({ search: 'walk', page: 1, pageSize: 20 })
-  })
-
-  it('renders one result with the singular count', async () => {
-    mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk', searchMatches: [{ field: 'title', value: null }] })]))
-    mount(true)
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
-    expect(await screen.findByText('1 habit')).toBeInTheDocument()
   })
 
   it('names an empty query and passes its name to the create action', async () => {

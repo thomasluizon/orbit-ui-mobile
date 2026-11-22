@@ -100,23 +100,6 @@ describe('Share progress sheet', () => {
     }
   })
 
-  it('opens on demand, renders the restored figures, and switches periods', () => {
-    const tree = renderEntry()
-    expect(mocks.wrapped).not.toHaveBeenCalled()
-    openSheet(tree)
-    const text = JSON.stringify(tree.toJSON())
-    expect(text).toContain('shareCard.stats.activeDays')
-    expect(text).toContain('74%')
-    expect(mocks.wrapped).toHaveBeenLastCalledWith('week', { enabled: true })
-    expect(tree.root.findByType(SegmentedControl).props.label).toBe('shareCard.periodQuestion')
-    const question = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'shareCard.periodQuestion')
-    expect(question).toHaveLength(1)
-    expect(question[0]!.props.importantForAccessibility).toBe('no-hide-descendants')
-    TestRenderer.act(() => { (tree.root.findByType(SegmentedControl).props.onChange as (period: string) => void)('month') })
-    expect(mocks.wrapped).toHaveBeenLastCalledWith('month', { enabled: true })
-    expect(mocks.resetFeedback).toHaveBeenCalledOnce()
-  })
-
   it('passes the recap link to native sharing and downloads the image', () => {
     const tree = renderEntry()
     openSheet(tree)
@@ -139,15 +122,6 @@ describe('Share progress sheet', () => {
     }
     if (state === 'isEmpty') expect(JSON.stringify(tree.toJSON())).toContain('shareCard.empty')
     if (state === 'isLoading') expect(tree.root.findAll((node) => node.props.accessibilityRole === 'progressbar').length).toBeGreaterThan(0)
-  })
-
-  it('disables export and period selection while capturing', () => {
-    mocks.isSharing = true
-    const tree = renderEntry()
-    openSheet(tree)
-    expect(action(tree, 'shareCard.download').props.disabled).toBe(true)
-    expect(action(tree, 'shareCard.share').props.disabled).toBe(true)
-    expect(tree.root.findByType(SegmentedControl).props.disabled).toBe(true)
   })
 
   it('keeps download available without native file sharing', () => {

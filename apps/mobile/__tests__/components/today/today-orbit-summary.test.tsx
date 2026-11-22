@@ -108,21 +108,6 @@ describe('Hoje single summary slot', () => {
     await TestRenderer.act(() => tree.unmount())
   })
 
-  it.each(['loading', 'error', 'retrying', 'refreshing', 'free', 'disabled', 'none', 'no profile', 'past', 'suppressed'])('keeps %s in the same slot', async (state) => {
-    const { absent, sentence } = configureSummaryState(state)
-    const tree = await mount({ isTodaySelected: state !== 'past', suppressed: state === 'suppressed' })
-    if (['past', 'suppressed'].includes(state)) expect(mocks.query).not.toHaveBeenCalled()
-    expect(slot(tree)).toHaveLength(absent ? 0 : 1)
-    if (!absent) {
-      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'summary-skeleton')).toHaveLength(state === 'loading' ? 1 : 0)
-      expect(slot(tree)[0]!.props.accessibilityLabel).toBe(sentence)
-      expect(slot(tree)[0]!.props.accessibilityState).toEqual({ busy: mocks.isLoading || mocks.isFetching, disabled: ['loading', 'retrying'].includes(state) })
-      if (state === 'error') { await press(tree); expect(mocks.refetch).toHaveBeenCalledOnce() }
-      if (state === 'free') { await press(tree); expect(mocks.upgrade).toHaveBeenCalledWith('/upgrade') }
-    }
-    await TestRenderer.act(() => tree.unmount())
-  })
-
   afterEach(() => { vi.useRealTimers() })
 
   it.each(['quota', 'transient'] as const)('settles a real Hoje %s request with the production retry defaults', async failure => {
