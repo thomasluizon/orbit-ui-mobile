@@ -33,6 +33,7 @@ describe('web Apple sign-in action', () => {
       expect(action.style).toMatchObject({ height: '', minHeight: `${SMALL_PILL_VISIBLE_MIN}px`, borderRadius: `${SMALL_PILL_VISIBLE_MIN / 2}px`, whiteSpace: 'normal' })
     }
     expect(apple.style.fontSize).toBe(`${Math.round(SMALL_PILL_VISIBLE_MIN * 0.43) / 16}rem`)
+    expect(google.style.fontSize, 'the Google title matches the Apple title').toBe(apple.style.fontSize)
     expect(apple.style.paddingBlock).toBe('0px')
     expect(apple.style.backgroundColor).toBe('var(--apple-sign-in-fill)')
     expect(apple.style.color).toBe('var(--apple-sign-in-ink)')

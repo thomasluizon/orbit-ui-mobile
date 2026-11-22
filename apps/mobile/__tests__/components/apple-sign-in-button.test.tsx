@@ -4,7 +4,7 @@ import { Platform, StyleSheet, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { GOOGLE_SIGN_IN_BUTTON, SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN, SPACING } from '@orbit/shared/theme'
+import { APPLE_SIGN_IN_BUTTON, GOOGLE_SIGN_IN_BUTTON, SIGN_IN_BUTTON_HEIGHT, SIGN_IN_TITLE_SIZE, SMALL_PILL_VISIBLE_MIN, SPACING } from '@orbit/shared/theme'
 import { AppleSignInButton } from '@/components/auth/apple-sign-in-button'
 import { AppleSignInLogo } from '@/components/auth/apple-sign-in-logo'
 import { PillButton } from '@/components/ui/pill-button'
@@ -35,11 +35,6 @@ function renderBesideGoogle(props: { disabled: boolean; loading?: boolean; onPre
   return tree
 }
 
-function iPhoneAccessibilityElement(tree: ReturnType<typeof TestRenderer.create>) {
-  return tree.root.findAll((node: { type: unknown; props: { accessible?: boolean }; findAllByType: (type: string) => unknown[] }) =>
-    node.type === View && node.props.accessible === true && node.findAllByType('NativeAppleButton').length === 1)[0]!
-}
-
 describe('Apple sign-in controls', () => {
   it('renders no control without public client configuration', () => {
     vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', '')
@@ -49,68 +44,71 @@ describe('Apple sign-in controls', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each([['dark', 0], ['light', 2]] as const)('draws the iPhone action as Apple\'s own control at the Google pill height and shape in the %s theme', (mode, buttonStyle) => {
+  function titleStyle(tree: ReturnType<typeof TestRenderer.create>, label: string) {
+    return StyleSheet.flatten(tree.root.find((node: { type: unknown; props: { children: unknown } }) => node.type === 'Text' && node.props.children === label).props.style)
+  }
+
+  it.each(['ios', 'android'] as const)('draws the %s Apple title at the size, font and line height of the Google title', (os) => {
+    Platform.OS = os
+    vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
+    const tree = renderBesideGoogle({ disabled: false, onPress: vi.fn() })
+    const apple = titleStyle(tree, 'auth.signInWithApple')
+    const google = titleStyle(tree, 'auth.signInWithGoogle')
+    expect(apple.fontSize, 'Apple and Google titles share one size').toBe(google.fontSize)
+    expect(apple.fontSize, 'Apple fixes the title at 43% of the button height').toBe(SIGN_IN_TITLE_SIZE)
+    expect(SIGN_IN_TITLE_SIZE).toBe(Math.round(SIGN_IN_BUTTON_HEIGHT * APPLE_SIGN_IN_BUTTON.titleToHeight))
+    expect({ fontFamily: apple.fontFamily, lineHeight: apple.lineHeight }).toEqual({ fontFamily: google.fontFamily, lineHeight: google.lineHeight })
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([['dark', '#FFFFFF', '#000000'], ['light', '#000000', '#FFFFFF']] as const)('draws the iPhone action as the Apple pill, not the system control, at the Google pill height and width in the %s theme', (mode, fill, ink) => {
     theme.mode = mode
     vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
     const onPress = vi.fn()
     const tree = renderBesideGoogle({ disabled: false, onPress })
-    const googleStyle = pressableStyle(tree.root.findByType('Pressable'), false)
-    expect(googleStyle).toMatchObject({ minHeight: SMALL_PILL_VISIBLE_MIN, borderRadius: SMALL_PILL_VISIBLE_MIN / 2 })
-    const googleHeight = measureProfileRow(tree.toJSON(), 343, 1).controls[0]!.height
-    const control = tree.root.findByType('NativeAppleButton')
-    expect(control.props).toMatchObject({ buttonType: 1, buttonStyle, cornerRadius: googleStyle.borderRadius, style: { width: '100%', height: googleHeight } })
-    expect(tree.root.findAll((node: { type: unknown; props: { children: unknown } }) => node.type === 'Text' && node.props.children === 'auth.signInWithApple')).toHaveLength(0)
-    TestRenderer.act(() => control.props.onPress())
+    expect(tree.root.findAllByType('NativeAppleButton'), 'the system control sets its own title size').toHaveLength(0)
+    const [google, apple] = tree.root.findAllByType('Pressable') as { props: Record<string, unknown> & { onPress: () => void } }[]
+    expect(pressableStyle(apple!, false)).toMatchObject({ minHeight: SMALL_PILL_VISIBLE_MIN, borderRadius: SMALL_PILL_VISIBLE_MIN / 2, backgroundColor: fill })
+    expect(titleStyle(tree, 'auth.signInWithApple').color).toBe(ink)
+    const [googlePill, applePill] = measureProfileRow(tree.toJSON(), 343, 1).controls
+    expect({ height: applePill!.height, width: applePill!.width }).toEqual({ height: googlePill!.height, width: googlePill!.width })
+    expect(pressableStyle(google!, false)).toMatchObject({ minHeight: SMALL_PILL_VISIBLE_MIN })
+    TestRenderer.act(() => apple!.props.onPress())
     expect(onPress).toHaveBeenCalledOnce()
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('blocks a disabled iPhone action, for a tap and for VoiceOver', () => {
+  it('blocks a disabled iPhone action and tells VoiceOver it is disabled', () => {
     vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
     const onPress = vi.fn()
     const tree = renderBesideGoogle({ disabled: true, onPress })
-    TestRenderer.act(() => tree.root.findByType('NativeAppleButton').props.onPress())
-    TestRenderer.act(() => iPhoneAccessibilityElement(tree).props.onAccessibilityTap())
+    const [, apple] = tree.root.findAllByType('Pressable') as { props: Record<string, unknown> & { onPress?: () => void } }[]
+    expect(apple!.props.disabled).toBe(true)
+    expect(apple!.props.accessibilityRole).toBe('button')
+    expect(apple!.props.accessibilityState).toMatchObject({ disabled: true, busy: false })
     expect(onPress).not.toHaveBeenCalled()
-    expect(iPhoneAccessibilityElement(tree).props.accessibilityState).toEqual({ disabled: true, busy: false })
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('blocks a busy iPhone action, for a tap and for VoiceOver, as the Android and web pills do', () => {
+  it('blocks a busy iPhone action and tells VoiceOver it is busy', () => {
     vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
     const onPress = vi.fn()
     const tree = renderBesideGoogle({ disabled: false, loading: true, onPress })
-    TestRenderer.act(() => tree.root.findByType('NativeAppleButton').props.onPress())
-    TestRenderer.act(() => iPhoneAccessibilityElement(tree).props.onAccessibilityTap())
+    const [, apple] = tree.root.findAllByType('Pressable') as { props: Record<string, unknown> & { onPress?: () => void } }[]
+    expect(apple!.props.onPress).toBeUndefined()
+    expect(apple!.props.accessibilityState).toMatchObject({ disabled: true, busy: true })
+    expect(pressableStyle(apple!, false)).toMatchObject({ opacity: 0.4 })
     expect(onPress).not.toHaveBeenCalled()
-    expect(iPhoneAccessibilityElement(tree).props.accessibilityState).toEqual({ disabled: true, busy: true })
-    expect(StyleSheet.flatten(iPhoneAccessibilityElement(tree).props.style)).toMatchObject({ opacity: 0.4, pointerEvents: 'none' })
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('lets VoiceOver read the title that Apple\'s iPhone control draws, not the app language', () => {
+  it('names the iPhone action from its visible title in the app language', () => {
     vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
     copy.words = { 'auth.signInWithApple': ptBR.auth.signInWithApple }
     const tree = renderBesideGoogle({ disabled: false, onPress: vi.fn() })
-    const element = iPhoneAccessibilityElement(tree)
-    expect(element.props.accessibilityLabel, 'React Native names the element from the control title only when it sets no label').toBeUndefined()
-    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === ptBR.auth.signInWithApple)).toHaveLength(0)
-    const hidden = element.findAll((node: { props: { accessibilityElementsHidden?: boolean; importantForAccessibility?: string } }) =>
-      node.props.accessibilityElementsHidden === true || node.props.importantForAccessibility === 'no-hide-descendants')
-    expect(hidden, 'nothing hides the control title from the element name').toHaveLength(0)
-    TestRenderer.act(() => tree.unmount())
-  })
-
-  it('gives VoiceOver one Apple button that reads busy while sign-in starts and starts it on activation', () => {
-    vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
-    const onPress = vi.fn()
-    let tree = renderBesideGoogle({ disabled: true, loading: true, onPress })
-    expect(iPhoneAccessibilityElement(tree).props).toMatchObject({ accessibilityRole: 'button', accessibilityState: { disabled: true, busy: true } })
-    TestRenderer.act(() => tree.unmount())
-    tree = renderBesideGoogle({ disabled: false, onPress })
-    expect(iPhoneAccessibilityElement(tree).props.accessibilityState).toEqual({ disabled: false, busy: false })
-    TestRenderer.act(() => iPhoneAccessibilityElement(tree).props.onAccessibilityTap())
-    expect(onPress).toHaveBeenCalledOnce()
+    const [, apple] = tree.root.findAllByType('Pressable') as { props: Record<string, unknown>; findAll: (predicate: (node: { type: unknown; props: { children?: unknown } }) => boolean) => unknown[] }[]
+    expect(apple!.props.accessibilityLabel, 'React Native names the button from its title text').toBeUndefined()
+    expect(apple!.findAll((node) => node.type === 'Text' && node.props.children === ptBR.auth.signInWithApple)).toHaveLength(1)
     TestRenderer.act(() => tree.unmount())
   })
 
