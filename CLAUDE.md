@@ -6,7 +6,7 @@ Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android, 
 
 - Tickets live in `thomasluizon/orbit-tickets`. Exactly one label (`repo:ui`, `repo:api` or `repo:landing`) routes each ticket. Cross-repository work uses an API ticket that blocks a UI ticket.
 - One ticket is one repository. It ships as one or more independently mergeable PRs of one behavior. Each PR body says `Tracks thomasluizon/orbit-tickets#<N>`, never `Closes`. The last PR says `Remaining: none`.
-- The delivery driver (`tools/drive.mjs`, `/orchestrate`) launches a headless worker for every code change and merges at the bar. The owner session writes no code for a ticket. Nobody uses an admin merge.
+- The delivery driver (`tools/drive.mjs`, `/driver`) launches a headless worker for every code change and merges at the bar. The owner session writes no code for a ticket. Nobody uses an admin merge.
 - Fix the ticket and everything the change breaks. A blocking-class bug outside the change goes to a ticket.
 - Never remove features. A change never drops a production capability (a view, tab, action, setting or shortcut) unless the owner removed it explicitly. A missing feature is a defect to restore with production's behavior.
 - Models: the owner session and the Pullfrog reviewer run Opus 5.5. Every worker runs `claude-sonnet-5-5` at effort high. Only the owner's words in chat change a model or an effort. A usage limit never does.
