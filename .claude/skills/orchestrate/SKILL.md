@@ -7,22 +7,18 @@ effort: low
 
 # /orchestrate: control the delivery driver
 
-The driver `tools/drive.mjs` works every open ticket of the board. It needs no session. It runs as the launchd agent `com.thomas.orbit-drive`. It runs from the worktree `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive`, which stays detached at a named commit of `main`.
+The driver `tools/drive.mjs` works every open ticket of the board. It needs no session. It runs as the launchd job `com.thomas.orbit-drive` from `/driver-start` until `/driver-stop`, a logout or a shutdown. It runs from the worktree `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive`, which stays detached at a named commit of `main`.
 
 - Log: `$HOME/Library/Logs/brain-automations/orbit-drive.log`.
-- Plist: `$HOME/Developer/brain/scripts/automations/launchd/com.thomas.orbit-drive.plist`.
+- Plist: `$HOME/Developer/brain/scripts/automations/on-demand/com.thomas.orbit-drive.plist`.
 
 ## start
 
-1. When `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive` is missing, run `git -C $HOME/Developer/orbit-ui-mobile fetch origin main`.
-2. Then run `git -C $HOME/Developer/orbit-ui-mobile worktree add --detach $HOME/orca/workspaces/orbit-ui-mobile/orbit-drive origin/main`.
-3. Copy the plist to `$HOME/Library/LaunchAgents/`.
-4. Run `launchctl bootstrap gui/$(id -u) $HOME/Library/LaunchAgents/com.thomas.orbit-drive.plist`.
-5. Run `/driver-status`.
+Run `/driver-start`. The driver never starts at login.
 
 ## stop
 
-Run `launchctl bootout gui/$(id -u)/com.thomas.orbit-drive`. A running worker ends its order. The next start reads its pid file.
+Run `/driver-stop`.
 
 ## update <sha>
 
@@ -46,7 +42,7 @@ Run `/driver-status`.
 - The driver reruns each failed job once before any launch, and files a Bug ticket for a check that passes on the rerun at the same head. A `ci-fix` launch for a check that fails on a clean merge of the base, after a green commit, does not count toward the 2 fix launches.
 - Runs releases.
 - Runs each `owner-work` ticket when the driver notifies.
-- Starts and stops the driver.
+- Starts and stops the driver with `/driver-start` and `/driver-stop`.
 
 ## Rules
 
