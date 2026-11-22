@@ -11,4 +11,4 @@ argument-hint: "[off]"
 3. For `/sleep off`, run `/questions`. It asks the owner the questions that were queued for him.
 4. Say the state that the command printed, in one line.
 
-Sleep normally stays on. The driver then sends no notification and keeps working. Each morning `/driver` lists every notification it held, and `/questions` asks what was left for the owner.
+Sleep normally stays on. The driver then sends no notification and keeps working. Each morning `/morning` lists every notification it held and asks what was left for the owner.
