@@ -58,12 +58,24 @@ async function renderGoals() {
 }
 const ring = (goalId: string): ReactTestInstance => byProp(tree.root, 'testID', `goal-ring-${goalId}`)
 const ringValue = (goalId: string) => (byProp(ring(goalId), 'accessibilityRole', 'progressbar').props.accessibilityValue as { now: number }).now
+const queuedFrames = new Map<number, () => void>()
+let frameHandle = 0
 async function nextFrames() {
-  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)) })
+  for (let pass = 0; pass < 2; pass += 1) {
+    await act(async () => {
+      const due = [...queuedFrames.values()]
+      queuedFrames.clear()
+      due.forEach((callback) => callback())
+      await Promise.resolve()
+    })
+  }
 }
 
 describe('goals list on the Orbit logic', () => {
   beforeEach(() => {
+    queuedFrames.clear()
+    vi.stubGlobal('requestAnimationFrame', (callback: () => void) => { frameHandle += 1; queuedFrames.set(frameHandle, callback); return frameHandle })
+    vi.stubGlobal('cancelAnimationFrame', (handle: number) => { queuedFrames.delete(handle) })
     mocks.guided = true
     mocks.reducedMotion = false
     mocks.storage.clear()
@@ -71,7 +83,7 @@ describe('goals list on the Orbit logic', () => {
     mocks.goals = { data: { allGoals: [read, run] }, isError: false, isLoading: false, refetch: vi.fn() }
     mocks.reorder = { mutate: vi.fn(), isPending: false, isError: false }
   })
-  afterEach(async () => { await act(() => tree.unmount()) })
+  afterEach(async () => { await act(() => tree.unmount()); vi.unstubAllGlobals() })
 
   it('shows Orbit at rest, the title and one action in the empty state', async () => {
     mocks.goals = { data: { allGoals: [] }, isError: false, isLoading: false, refetch: vi.fn() }
