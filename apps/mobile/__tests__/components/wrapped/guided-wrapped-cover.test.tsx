@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
 import { testI18n } from '@/__tests__/support/i18n'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
@@ -60,7 +59,6 @@ afterEach(async () => {
 
 describe('the guided Wrapped cover on Android', () => {
   it.each(LOCALES)('shows Orbit in Parado, the period question, three quick options and the start action in $locale', async ({ locale, copy }) => {
-    enableTestFlags('orbit_guided_flows')
     const { root, props } = await renderCover(locale)
 
     expect(mascots(root)).toHaveLength(1)
@@ -84,7 +82,6 @@ describe('the guided Wrapped cover on Android', () => {
   })
 
   it.each(LOCALES)('names the empty period in the Orbit line and leaves the period control as the one action in $locale', async ({ locale, copy }) => {
-    enableTestFlags('orbit_guided_flows')
     const { root } = await renderCover(locale, { state: 'empty' })
 
     expect(renderedText(byTestId(root, 'wrapped-orbit-line')[0]!.props.children)).toBe(copy.orbitLine.empty)
@@ -95,7 +92,6 @@ describe('the guided Wrapped cover on Android', () => {
   })
 
   it('states the error in the Orbit line with Orbit in Parado, and retry reads the recap again', async () => {
-    enableTestFlags('orbit_guided_flows')
     const { root, props } = await renderCover('pt-BR', { state: 'failed' })
 
     const line = byTestId(root, 'wrapped-orbit-line')[0]!
@@ -108,7 +104,6 @@ describe('the guided Wrapped cover on Android', () => {
   })
 
   it.each(['failed', 'empty'] as const)('announces nothing stale once the cover loads after the %s state', async (from) => {
-    enableTestFlags('orbit_guided_flows')
     vi.useFakeTimers()
     try {
       const { props } = await renderCover('en', { state: from })
@@ -125,7 +120,6 @@ describe('the guided Wrapped cover on Android', () => {
   })
 
   it('shows the current skeleton rows and keeps the start label on a waiting action while the recap loads, and announces the load', async () => {
-    enableTestFlags('orbit_guided_flows')
     const { root } = await renderCover('pt-BR', { state: 'loading' })
 
     const start = hosts(root).find((node) => nameOf(node) === ptBR.wrapped.start && (node.props.accessibilityState as { busy?: boolean } | undefined)?.busy === true)!
@@ -137,7 +131,6 @@ describe('the guided Wrapped cover on Android', () => {
   })
 
   it('draws Orbit at 128 and hangs the start action 24 under the block, hugging its label, at 1024 and above', async () => {
-    enableTestFlags('orbit_guided_flows')
     __setWindowDimensions({ width: 1280, height: 800, scale: 1, fontScale: 1 })
     const { root } = await renderCover('pt-BR')
 
@@ -153,7 +146,6 @@ describe('the guided Wrapped cover on Android', () => {
     { reduced: false, startOpacity: 0, loop: 'running' },
     { reduced: true, startOpacity: 1, loop: 'still' },
   ])('starts the period fade at opacity $startOpacity when reduced motion is $reduced', async ({ reduced, startOpacity, loop }) => {
-    enableTestFlags('orbit_guided_flows')
     mocks.reducedMotion = reduced
     reanimatedTestState.reducedMotion = reduced
     const { root, showPeriod } = await renderCover('pt-BR')

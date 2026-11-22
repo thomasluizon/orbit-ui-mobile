@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react'
 import { StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { motionDurations } from '@orbit/shared/theme'
 import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 import { withTimingCalls } from '@/test-mocks/react-native-reanimated'
@@ -27,7 +26,6 @@ function hostByTestId(root: TestNode, testID: string): TestNode {
   return root.findAll((node) => typeof node.type === 'string' && node.props.testID === testID)[0]!
 }
 
-beforeEach(() => { enableTestFlags('orbit_guided_flows') })
 afterEach(() => { motion.reduced = false; withTimingCalls.length = 0 })
 
 describe('the root Orbit line row on Android', () => {
@@ -66,7 +64,6 @@ describe('the root Orbit line row on Android', () => {
   })
 
   it('keeps the still Orbit at 48 and never fades the sentence with the guided flows off', () => {
-    resetTestFlags()
     const tree = render(<TodayOrbitLine text="Dia 2: tudo feito." destination="Abrir conversa" mascotState="descansando" />)
     TestRenderer.act(() => tree.update(<TodayOrbitLine text="Nada marcado nesse dia." destination="Abrir conversa" mascotState="descansando" />))
     const mascot = hostByTestId(tree.root, 'orbit-mascot')

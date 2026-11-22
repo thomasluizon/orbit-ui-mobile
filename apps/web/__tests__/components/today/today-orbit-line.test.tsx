@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
 import { TodayOrbit } from '@/components/today/today-orbit'
 import { useUIStore } from '@/stores/ui-store'
@@ -32,7 +31,6 @@ describe('web Orbit line on Hoje', () => {
   afterEach(cleanup)
 
   it('draws the live Orbit at 48 beside the sentence, still while no conversation entry runs with it, and names the row by the sentence', () => {
-    enableTestFlags('orbit_guided_flows')
     const { container } = renderLine()
     expect(mascot(container)).toHaveAttribute('width', '48')
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'parado')
@@ -42,7 +40,6 @@ describe('web Orbit line on Hoje', () => {
   })
 
   it('shows Descansando and a first person reason while offline, and the press still opens the conversation', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.online = false
     const { container } = renderLine()
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'descansando')
@@ -51,7 +48,6 @@ describe('web Orbit line on Hoje', () => {
   })
 
   it('shows Descansando at the message limit', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.profile = { ...mocks.profile, aiMessagesUsed: 5 }
     const { container } = renderLine()
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'descansando')
@@ -59,7 +55,6 @@ describe('web Orbit line on Hoje', () => {
   })
 
   it('shows the sentence with no count of days for a gap beyond the window, and it opens Progresso', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.proactive = false
     mocks.profile = { ...mocks.profile, lastCompletionDate: beyondTheWindow() }
     renderLine()

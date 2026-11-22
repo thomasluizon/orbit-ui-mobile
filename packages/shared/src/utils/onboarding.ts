@@ -147,7 +147,6 @@ export function isOnboardingHabitDueToday(schedule: OnboardingSchedule, today: D
 export function buildOnboardingScheduleFromPhrase(
   sentence: string,
   locale: SupportedLocale,
-  guided = false,
 ): OnboardingSchedule {
   const read = readHabitPhrase(sentence, locale)
   if (read.cadence === 'flexible') {
@@ -169,7 +168,7 @@ export function buildOnboardingScheduleFromPhrase(
       days: [], isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
     }
   }
-  if (guided && read.cadence === 'monthly') {
+  if (read.cadence === 'monthly') {
     return {
       frequencyUnit: 'Month', frequencyQuantity: 1, intervalWeeks: 1,
       days: [], isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
@@ -197,9 +196,8 @@ export function buildOnboardingProposal(
   suggestion: HabitSetupSuggestion,
   sentence: string,
   locale: SupportedLocale,
-  guided = false,
 ): OnboardingProposal {
-  const typedSchedule = buildOnboardingScheduleFromPhrase(sentence, locale, guided)
+  const typedSchedule = buildOnboardingScheduleFromPhrase(sentence, locale)
   const typed = { ...readHabitPhraseValues(sentence, readHabitPhrase(sentence, locale)), repeat: !typedSchedule.isGeneral }
   const patch = guardHabitReadPatch(buildHabitFormPatchFromSuggestion(suggestion), {
     deliberateType: null, whenSet: false, timeSet: false, emojiSet: false, typed, undated: false,

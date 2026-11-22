@@ -17,7 +17,6 @@ import { createTokensV2 } from "@/lib/theme"
 
 import { PillButton } from "@/components/ui/pill-button"
 
-import { useFlag } from '@/hooks/use-flag'
 
 import { buildHabitCreateHref } from '@orbit/shared/utils'
 
@@ -41,9 +40,8 @@ import { createStyles } from './calendar-screen-styles'
 import { PADDING, motionDurations, motionEasings, resolveMotionPreset } from '@orbit/shared/theme'
 
 function useCalendarMotionStill(): boolean {
-  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = usePrefersReducedMotion()
-  return !guided || reducedMotion
+  return reducedMotion
 }
 
 function useDayCardFade(dayKey: string) {
@@ -102,8 +100,7 @@ function CalendarMonthFeedback({
 }
 function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) {
   const { t, i18n } = useTranslation()
-  const guided = useFlag('orbit_guided_flows')
-  const { currentMonth, selectedDay, router, todayKey, openImport, tokens, calendarGridRef, selectedDayRef, displayTime, showEventSource, calendarEventsState, refetchCalendarEvents, isLoading, swipeGesture, selectMonthDay, gridDays, weekdayHeaders, monthDisplayState, formattedSelectedDate, monthDayEntries, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthSlide, openHabitCreation } = state
+  const { currentMonth, selectedDay, router, todayKey, openImport, tokens, calendarGridRef, selectedDayRef, displayTime, showEventSource, calendarEventsState, refetchCalendarEvents, isLoading, swipeGesture, selectMonthDay, gridDays, weekdayHeaders, monthDisplayState, formattedSelectedDate, monthDayEntries, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthSlide } = state
   return ((
     <>
       <CalendarGrid
@@ -125,9 +122,9 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
 
       <CalendarMonthFeedback
         state={monthDisplayState}
-        text={guided ? null : t(monthDisplayState === 'future' ? 'calendar.futureMonth' : 'calendar.emptyMonth')}
+        text={null}
         createLabel={t('habits.createHabit')}
-        onCreate={guided ? () => router.push(buildHabitCreateHref({ from: '/calendar', date: selectedDay })) : openHabitCreation}
+        onCreate={() => router.push(buildHabitCreateHref({ from: '/calendar', date: selectedDay }))}
         tokens={tokens}
       />
 

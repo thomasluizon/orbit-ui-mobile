@@ -12,7 +12,6 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { Time24 } from '@orbit/shared/contracts/forms'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createApiClientError, formatAPIDate, formatLocaleDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -664,7 +663,6 @@ describe('HabitDetailScreen', () => {
   })
 
   it('gives the offline reason with no second Orbit while the rescue request waits offline in the guided surface', () => {
-    enableTestFlags('orbit_guided_flows')
     openRescueGate()
     mocks.reschedulePaused = true
     render(<HabitDetailScreen habitId="habit-1" />)
@@ -676,7 +674,6 @@ describe('HabitDetailScreen', () => {
   })
 
   it('keeps Pensando on the Orbit line alone while the reschedule suggestion loads in the guided surface', () => {
-    enableTestFlags('orbit_guided_flows')
     openRescueGate()
     render(<HabitDetailScreen habitId="habit-1" />)
     const wait = within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByTestId('rescue-loading-skeleton')
@@ -737,7 +734,6 @@ describe('HabitDetailScreen', () => {
   })
 
   it('writes the slipping line in the first person while the guided flows are on', () => {
-    enableTestFlags('orbit_guided_flows')
     openRescueGate()
     render(<HabitDetailScreen habitId="habit-1" />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
@@ -746,7 +742,6 @@ describe('HabitDetailScreen', () => {
   })
 
   it('writes the load error in the first person while the guided flows are on', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.detailError = true
     render(<HabitDetailScreen habitId="habit-1" />)
     expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.orbit.loadError')
@@ -1810,7 +1805,6 @@ describe('HabitDetailScreen', () => {
   })
 
   it('shows the deleted result dialog when the delete has already removed the detail query, with the guided flows on', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.deleteHabit.mockImplementationOnce(() => { mocks.detail = null; return Promise.resolve() })
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 

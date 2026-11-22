@@ -1,13 +1,10 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
-
 import { useRef, useCallback, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { resetAccountQueries } from '@orbit/shared/query'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { RotateCcw } from '@/components/ui/icons'
 import {
   buildAccountScopedStorageKey,
   buildFreshStartDeletedItems,
@@ -15,10 +12,6 @@ import {
   getFriendlyErrorMessage,
   isFreshStartConfirmed,
 } from '@orbit/shared/utils'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { Input } from '@/components/ui/input'
-import { PillButton } from '@/components/ui/pill-button'
-import { ActionRow } from '@/components/ui/action-row'
 import { resetAccount } from '@/lib/actions/profile'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -27,47 +20,15 @@ import { useOffline } from '@/hooks/use-offline'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { ResultDialog } from '@/components/ui/result-dialog'
 import { FreshStartFlow } from './fresh-start-flow'
-import { FreshStartLists } from './fresh-start-lists'
 
 const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
-
-function FreshStartHero({ body }: Readonly<{ body: string }>) {
-  return (
-    <div className="flex flex-col items-center text-center" style={{ gap: 16 }}>
-      <div
-        aria-hidden="true"
-        className="flex items-center justify-center rounded-full"
-        style={{
-          width: 80,
-          height: 80,
-          background: 'color-mix(in srgb, var(--status-overdue) 14%, transparent)',
-        }}
-      >
-        <RotateCcw size={24} strokeWidth={2} color="var(--status-overdue)" />
-      </div>
-      <p
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 16,
-          color: 'var(--fg-2)',
-          lineHeight: 1.5,
-          margin: SPACING.s0,
-          textWrap: 'pretty',
-        }}
-      >
-        {body}
-      </p>
-    </div>
-  )
-}
 
 interface FreshStartModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  guided?: boolean
 }
 
-export function FreshStartModal({ open, onOpenChange, guided = false }: Readonly<FreshStartModalProps>) {
+export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModalProps>) {
   const t = useTranslations()
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -93,7 +54,6 @@ export function FreshStartModal({ open, onOpenChange, guided = false }: Readonly
   }
 
   const isConfirmed = isFreshStartConfirmed(confirmText)
-  const { sheetRef, closeSheet } = useSheetHost()
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
@@ -110,7 +70,7 @@ export function FreshStartModal({ open, onOpenChange, guided = false }: Readonly
   )
 
   async function handleReset() {
-    if (loading || requestPending.current || !isConfirmed || getHeldAccountId() === null || (guided && !isOnline)) return
+    if (loading || requestPending.current || !isConfirmed || getHeldAccountId() === null || (!isOnline)) return
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
     requestPending.current = true
@@ -130,20 +90,10 @@ export function FreshStartModal({ open, onOpenChange, guided = false }: Readonly
       if (accountId !== null) {
         localStorage.removeItem(buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, accountId))
       }
-      if (guided) {
-        void resetAccountQueries(queryClient, 'signed-in')
-        captureGuidedFlowCompleted('fresh_start', 2, false)
-        setResultShown(true)
-        return
-      }
-      closeSheet(() => {
-        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
-
-        handleOpenChange(false)
-        void resetAccountQueries(queryClient, 'signed-in')
-        router.push('/')
-        router.refresh()
-      })
+      void resetAccountQueries(queryClient, 'signed-in')
+      captureGuidedFlowCompleted('fresh_start', 2, false)
+      setResultShown(true)
+      return
     } catch (err: unknown) {
       if (getAccountGeneration() !== accountGeneration) return
       setError(getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic'))
@@ -156,7 +106,7 @@ export function FreshStartModal({ open, onOpenChange, guided = false }: Readonly
   const deletedItems = buildFreshStartDeletedItems(t)
   const preservedItems = buildFreshStartPreservedItems(t)
 
-  if (open && guided && resultShown) {
+  if (open && resultShown) {
     return (
       <ResultDialog
         title={t('result.title')}
@@ -168,7 +118,7 @@ export function FreshStartModal({ open, onOpenChange, guided = false }: Readonly
       />
     )
   }
-  if (open && guided) {
+  if (open) {
     return (
       <FreshStartFlow
         step={step}
@@ -187,155 +137,5 @@ export function FreshStartModal({ open, onOpenChange, guided = false }: Readonly
     )
   }
 
-  return (
-    <>
-      {open ? (<Sheet
-        ref={sheetRef}
-        open
-        onClose={() => handleOpenChange(false)}
-        title={
-          step === 'info'
-            ? t('profile.freshStart.heading')
-            : t('profile.freshStart.confirmHeading')
-        }
-        actions={(
-          <FreshStartActions
-            step={step}
-            isConfirmed={isConfirmed}
-            loading={loading}
-            error={error}
-            onCancel={() => closeSheet()}
-            onContinue={() => setStep('confirm')}
-            onReset={() => void handleReset()}
-          />
-        )}
-      >
-        {step === 'info' ? (
-          <FreshStartInfoStep deletedItems={deletedItems} preservedItems={preservedItems} />
-        ) : (
-          <FreshStartConfirmStep
-            confirmText={confirmText}
-            onConfirmTextChange={setConfirmText}
-            isConfirmed={isConfirmed}
-            loading={loading}
-            onReset={() => void handleReset()}
-          />
-        )}
-      </Sheet>) : null}
-    </>
-  )
-}
-
-function FreshStartActions({
-  step,
-  isConfirmed,
-  loading,
-  error,
-  onCancel,
-  onContinue,
-  onReset,
-}: Readonly<{
-  step: 'info' | 'confirm'
-  isConfirmed: boolean
-  loading: boolean
-  error: string
-  onCancel: () => void
-  onContinue: () => void
-  onReset: () => void
-}>) {
-  const t = useTranslations()
-
-  if (step === 'info') {
-    return (
-      <ActionRow>
-        <PillButton size="sm" variant="ghost" onClick={onCancel}>{t('common.cancel')}</PillButton>
-        <PillButton size="sm" variant="caution" onClick={onContinue}>
-          {t('profile.freshStart.reviewDeletion')}
-        </PillButton>
-      </ActionRow>
-    )
-  }
-
-  return (
-    <>
-      {error ? (
-        <p
-          role="alert"
-          className="m-0"
-          style={{
-            width: '100%',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            color: 'var(--status-bad-text)',
-            textAlign: 'center',
-          }}
-        >
-          {error}
-        </p>
-      ) : null}
-      <ActionRow>
-        <PillButton size="sm" variant="ghost" disabled={loading} onClick={onCancel}>{t('common.cancel')}</PillButton>
-        <PillButton
-          size="sm"
-          variant="caution"
-          disabled={!isConfirmed || loading}
-          loading={loading}
-          onClick={onReset}
-        >
-          {t('profile.freshStart.deleteData')}
-        </PillButton>
-      </ActionRow>
-    </>
-  )
-}
-
-function FreshStartInfoStep({
-  deletedItems,
-  preservedItems,
-}: Readonly<{
-  deletedItems: string[]
-  preservedItems: string[]
-}>) {
-  const t = useTranslations()
-
-  return (
-    <div className="flex flex-col" style={{ gap: 16 }}>
-      <FreshStartHero body={t('profile.freshStart.description')} />
-      <FreshStartLists deletedItems={deletedItems} preservedItems={preservedItems} />
-    </div>
-  )
-}
-
-function FreshStartConfirmStep({
-  confirmText,
-  onConfirmTextChange,
-  isConfirmed,
-  loading,
-  onReset,
-}: Readonly<{
-  confirmText: string
-  onConfirmTextChange: (value: string) => void
-  isConfirmed: boolean
-  loading: boolean
-  onReset: () => void
-}>) {
-  const t = useTranslations()
-
-  return (
-    <div className="flex flex-col" style={{ gap: 16 }}>
-      <Input
-        label={t('profile.freshStart.confirmLabel')}
-        mono
-        value={confirmText}
-        onChange={onConfirmTextChange}
-        placeholder={t('profile.freshStart.confirmPlaceholder')}
-        hint={t('profile.freshStart.confirmInstruction')}
-        autoComplete="off"
-        autoFocus
-        onSubmit={() => {
-          if (isConfirmed && !loading) onReset()
-        }}
-      />
-    </div>
-  )
+  return null
 }

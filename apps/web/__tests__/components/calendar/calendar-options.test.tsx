@@ -74,7 +74,7 @@ describe('compact Calendar options', () => {
 
   it('keeps the three entries and titles the legend with the question when the guided flows are on', () => {
     const onGoogleCalendar = vi.fn()
-    render(<CalendarOptions onGoogleCalendar={onGoogleCalendar} guided />)
+    render(<CalendarOptions onGoogleCalendar={onGoogleCalendar} />)
     const dialog = openOptions()
     expect(within(dialog).getByRole('checkbox', { name: 'calendar.showRecurring' })).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'calendar.googleCalendar' })).toBeEnabled()

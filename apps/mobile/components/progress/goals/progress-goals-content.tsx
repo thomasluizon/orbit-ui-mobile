@@ -14,7 +14,6 @@ import { ErrorState } from '@/components/ui/error-state'
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
-import { useFlag } from '@/hooks/use-flag'
 import { useGoals } from '@/hooks/use-goals'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { usePrefersReducedMotion } from '@/lib/motion'
@@ -61,7 +60,6 @@ function useGoalFocusReturn(creating: boolean, createdGoalId: string | null, det
 
 export function ProgressGoalsContent() {
   const { t } = useTranslation()
-  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = usePrefersReducedMotion()
   const [goalFilter, setGoalFilter] = useAccountScopedState<ProgressGoalFilter>('all')
   const [creating, setCreating] = useAccountScopedState(false)
@@ -75,7 +73,7 @@ export function ProgressGoalsContent() {
   const tokens = useMemo(() => createTokensV2(theme.currentScheme, theme.currentTheme), [theme.currentScheme, theme.currentTheme])
   const goals = useGoals()
   const allGoals = goals.data?.allGoals ?? []
-  const seen = useGoalSeenProgress(allGoals, guided, !reducedMotion)
+  const seen = useGoalSeenProgress(allGoals, true, !reducedMotion)
   const error = goals.isError
   const loading = !error && (goals.isLoading || !seen.ready)
   const empty = !loading && !error && allGoals.length === 0

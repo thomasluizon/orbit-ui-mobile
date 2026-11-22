@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { StrictMode } from 'react'
 
@@ -75,7 +74,6 @@ describe('ExpiryWarning', () => {
   })
 
   it.each([false, true])('keeps the message and the sign in action, and shows Orbit in Parado only with the guided flows on (%s)', (guided) => {
-    if (guided) enableTestFlags('orbit_guided_flows')
     mockSessionRefreshFailed = true
     render(<ExpiryWarning />)
     expect(screen.getByText('auth.sessionSignedOut')).toBeInTheDocument()
@@ -85,7 +83,6 @@ describe('ExpiryWarning', () => {
   })
 
   it.each([[false, 'running'], [true, 'still']] as const)('draws Orbit with reduced motion %s as %s, with the guided flows on', (reducedMotion, loop) => {
-    enableTestFlags('orbit_guided_flows')
     motion.reducedMotion = reducedMotion
     mockSessionRefreshFailed = true
     try {
@@ -97,7 +94,6 @@ describe('ExpiryWarning', () => {
   })
 
   it('signs the person out and routes to sign in from the action, with the guided flows on', () => {
-    enableTestFlags('orbit_guided_flows')
     mockSessionRefreshFailed = true
     render(<ExpiryWarning />)
     expect(replace).toHaveBeenCalledExactlyOnceWith('/login')

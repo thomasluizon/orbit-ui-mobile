@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Bell } from '@/components/ui/icons'
 import { IconButton } from '@/components/ui/icon-button'
-import { useFlag } from '@/hooks/use-flag'
 import { useNotificationInbox } from '@/hooks/use-notification-inbox'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
@@ -59,7 +58,7 @@ export function NotificationBellDisplay({ count, onPress, loaded = true }: { cou
   const styles = createStyles(tokens)
   const reducedMotion = usePrefersReducedMotion()
   const changed = useCountChanged(count, loaded)
-  const rolls = useFlag('orbit_guided_flows') && changed && !reducedMotion
+  const rolls = changed && !reducedMotion
   const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
   const glyph = <Bell size={24} color={tokens.fg2} strokeWidth={2} />
   const shown = count > 9 ? '9+' : count

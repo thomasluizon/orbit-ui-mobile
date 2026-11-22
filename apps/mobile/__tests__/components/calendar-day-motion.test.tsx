@@ -10,9 +10,8 @@ import { CalendarViewRouter } from '@/app/(tabs)/calendar/_components/calendar-v
 import type { CalendarScreenState } from '@/app/(tabs)/calendar/_components/use-calendar-screen-state'
 import { createTokensV2 } from '@/lib/theme'
 
-const state = vi.hoisted(() => ({ reducedMotion: false, guided: true }))
+const state = vi.hoisted(() => ({ reducedMotion: false }))
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => state.reducedMotion }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => state.guided }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
 vi.mock('@/app/(tabs)/calendar/_components/calendar-grid', () => ({ CalendarGrid: () => <View testID="grid" /> }))
 vi.mock('@/app/(tabs)/calendar/_components/calendar-week-view', () => ({ CalendarWeekView: () => <View testID="week" /> }))
@@ -41,7 +40,6 @@ const circumference = Math.PI * 32
 
 beforeEach(() => {
   state.reducedMotion = false
-  state.guided = true
   withSpringCalls.length = 0
   withTimingCalls.length = 0
 })
@@ -133,15 +131,6 @@ describe('the month view with the guided flows on, on Android', () => {
     expect(byTestId(tree, 'calendar-month-empty')).toHaveLength(0)
     expect(byTestId(tree, 'pill')).toHaveLength(0)
   })
-
-  it('keeps the current month feedback with the guided flows off', () => {
-    state.guided = false
-    const view = monthState({ monthDisplayState: 'empty' })
-    const tree = render(<CalendarViewRouter state={view} />)
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.emptyMonth').length).toBeGreaterThan(0)
-    TestRenderer.act(() => (byTestId(tree, 'pill').find((node) => typeof node.type === 'string')!.props.onPress as () => void)())
-    expect(view.openHabitCreation).toHaveBeenCalledTimes(1)
-  })
 })
 
 describe('the view switch on Android', () => {
@@ -157,32 +146,5 @@ describe('the view switch on Android', () => {
     const tree = render(<CalendarViewRouter state={monthState({})} />)
     TestRenderer.act(() => tree.update(<CalendarViewRouter state={monthState({ view: 'week' })} />))
     expect(withTimingCalls).toHaveLength(0)
-  })
-})
-
-describe('the Calendário motion with the guided flows off, on Android', () => {
-  beforeEach(() => { state.guided = false })
-
-  it('draws the new arc share at once', () => {
-    const timing = vi.spyOn(Animated, 'timing')
-    const tree = render(<DayCell day={13} label="November 13" words={words} scheduled={3} done={1} />)
-    TestRenderer.act(() => tree.update(<DayCell day={13} label="November 13" words={words} scheduled={3} done={2} />))
-    expect(timing).not.toHaveBeenCalled()
-    expect((byTestId(tree, 'day-arc')[0]!.props.strokeDashoffset as { value: number }).value).toBeCloseTo(circumference * (1 - 2 / 3))
-  })
-
-  it('keeps the check of the day card still on a log', () => {
-    const row = (checked: boolean) => <CheckRow variant="calendar-day" textMode="personal" label="Read" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />
-    const tree = render(row(false))
-    TestRenderer.act(() => tree.update(row(true)))
-    expect(withSpringCalls).toHaveLength(0)
-  })
-
-  it('shows a new day card and a switched view at once', () => {
-    const tree = render(<CalendarViewRouter state={monthState({})} />)
-    TestRenderer.act(() => tree.update(<CalendarViewRouter state={monthState({ selectedDay: '2026-11-12' })} />))
-    TestRenderer.act(() => tree.update(<CalendarViewRouter state={monthState({ selectedDay: '2026-11-12', view: 'week' })} />))
-    expect(withTimingCalls).toHaveLength(0)
-    expect(byTestId(tree, 'week').length).toBeGreaterThan(0)
   })
 })

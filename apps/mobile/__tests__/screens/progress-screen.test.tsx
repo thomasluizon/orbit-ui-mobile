@@ -35,7 +35,6 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
 
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
@@ -206,7 +205,6 @@ vi.mock('react-native-draggable-flatlist', () => ({
   }) => React.createElement('DraggableFlatList', props, data.map((item, index) => <React.Fragment key={item.id}>{renderItem({ item, getIndex: () => index, drag: mocks.drag, isActive: mocks.dragActive })}</React.Fragment>)),
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: () => mocks.create,
   useGoals: () => mocks.goals,

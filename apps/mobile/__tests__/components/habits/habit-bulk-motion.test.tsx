@@ -2,7 +2,6 @@ import React from 'react'
 import TestRenderer, { act } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { motionPresets } from '@orbit/shared/theme'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { BulkMotionScope } from '@/components/habit-list/bulk-motion-scope'
 import { HabitListMotionRow } from '@/components/motion/habit-list-row'
@@ -49,7 +48,6 @@ afterEach(clearRuns)
 
 describe('one animation for an Android bulk action of the selection tray', () => {
   it('logs 50 rows with one settle of the group and no check pop for any row', async () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = await mount(<Rows done={false} />)
     clearRuns()
     await tree.store(() => useUIStore.getState().beginBulkMotion())
@@ -62,7 +60,6 @@ describe('one animation for an Android bulk action of the selection tray', () =>
   })
 
   it('removes 50 skipped rows at once, with the one settle of the group', async () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = await mount(<Rows done={false} />)
     clearRuns()
     await tree.store(() => useUIStore.getState().beginBulkMotion())
@@ -75,7 +72,6 @@ describe('one animation for an Android bulk action of the selection tray', () =>
   })
 
   it('keeps the group and every row still under reduced motion', async () => {
-    enableTestFlags('orbit_guided_flows')
     motion.reduced = true
     const tree = await mount(<Rows done={false} />)
     clearRuns()
@@ -88,7 +84,6 @@ describe('one animation for an Android bulk action of the selection tray', () =>
   })
 
   it('still pops the one check a person logs outside a bulk action', async () => {
-    enableTestFlags('orbit_guided_flows')
     const one = (done: boolean) => <BulkMotionScope scope="2026-11-13"><HabitCheck status={done ? 'done' : 'empty'} /></BulkMotionScope>
     const tree = await mount(one(false))
     clearRuns()

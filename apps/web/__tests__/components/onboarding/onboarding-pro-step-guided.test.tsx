@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { OnboardingProStep } from '@/components/onboarding/onboarding-pro-step'
 
 const mocks = vi.hoisted(() => ({
@@ -41,7 +40,6 @@ beforeEach(() => {
 
 describe('the onboarding Pro step', () => {
   it('asks the plan question with the flag on, with the usage line and the plan options', () => {
-    enableTestFlags('orbit_guided_flows')
     render(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
     const headings = screen.getAllByRole('heading', { level: 1 })
     expect(headings).toHaveLength(1)
@@ -54,7 +52,6 @@ describe('the onboarding Pro step', () => {
   })
 
   it('starts the checkout of the selected plan and completes onboarding on the stay free exit, with the flag on', async () => {
-    enableTestFlags('orbit_guided_flows')
     const onFinish = vi.fn(async () => {})
     render(<OnboardingProStep onFinish={onFinish} />)
     fireEvent.click(document.querySelector('[data-tier="monthly"]')!)
@@ -65,7 +62,6 @@ describe('the onboarding Pro step', () => {
   })
 
   it('refuses the checkout offline with the reason, with the flag on', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.online = false
     render(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
     expect(document.querySelector('[data-upgrade-offline-reason]')).toHaveTextContent(en.upgrade.billing.offline)
@@ -73,7 +69,6 @@ describe('the onboarding Pro step', () => {
   })
 
   it('keeps the see my day exit of a trial person, with the flag on', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.plan = 'Trial'
     mocks.profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, trialEndsAt: '2099-01-01T00:00:00Z' })
     const onFinish = vi.fn(async () => {})
@@ -86,7 +81,6 @@ describe('the onboarding Pro step', () => {
   })
 
   it('shows Orbit in Parado over the skeleton while the plan loads, with no pitch heading and the see my day exit, with the flag on', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.plan = 'loading'
     render(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
     const state = screen.getByRole('region', { name: en.common.loading })
@@ -100,7 +94,6 @@ describe('the onboarding Pro step', () => {
   })
 
   it('lets Orbit name the plan read error and reads the plan again on retry, with the flag on', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.plan = null
     render(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
     expect(document.querySelector('[data-onboarding-orbit] [data-orbit-face="rig"]')).toHaveAttribute('data-orbit-state', 'parado')

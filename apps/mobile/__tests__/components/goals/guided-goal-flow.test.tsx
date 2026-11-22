@@ -11,7 +11,6 @@ import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { nativeWindows, press, renderNavigation } from '../ui/navigation-render'
 
 const mocks = vi.hoisted(() => ({
-  guided: true,
   create: vi.fn(),
   update: vi.fn(),
   completed: vi.fn(),
@@ -23,7 +22,6 @@ vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
   useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => i18n.t(key, params), i18n: { language: i18n.language } }),
 }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: () => ({ mutateAsync: mocks.create, isPending: false }),
   useUpdateGoal: () => ({ mutateAsync: mocks.update, isPending: false }),
@@ -96,7 +94,6 @@ const PT = { title: 'O que você quer alcançar?', continue: 'Continuar', standa
 
 beforeEach(async () => {
   await i18n.changeLanguage('pt-BR')
-  mocks.guided = true
   mocks.create.mockReset().mockResolvedValue({ id: 'goal-new' })
   mocks.update.mockReset().mockResolvedValue(undefined)
   mocks.completed.mockReset()
@@ -430,14 +427,4 @@ describe('the guided goal edit flow on Android', () => {
 })
 
 describe('with the flag off on Android', () => {
-  it('renders the current create sheet and the current edit modal', () => {
-    mocks.guided = false
-    const create = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} />)
-    expect(texts(create)).toContain(i18n.t('goals.form.habitsExplainer'))
-    expect(create.hosts().find((node) => node.props.testID === 'question-flow')).toBeUndefined()
-    create.unmount()
-    const edit = renderNavigation(<EditGoalModal open onClose={vi.fn()} goal={{ id: 'g1', title: 'Run', targetValue: 5, unit: 'km', deadline: null }} />)
-    expect(edit.hosts().find((node) => node.props.testID === 'question-flow')).toBeUndefined()
-    edit.unmount()
-  })
 })

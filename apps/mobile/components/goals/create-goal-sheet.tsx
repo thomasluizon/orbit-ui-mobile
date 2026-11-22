@@ -20,7 +20,6 @@ import { Text, View } from 'react-native'
 import type { CreateGoalSheetProps } from '@orbit/shared/hooks'
 import { MAX_GOAL_TITLE_LENGTH } from '@orbit/shared/validation'
 import { useGoalCreation } from '@/hooks/use-goal-creation'
-import { useFlag } from '@/hooks/use-flag'
 import { GuidedGoalCreateFlow } from './guided/guided-goal-create-flow'
 
 type GoalCreation = ReturnType<typeof useGoalCreation>
@@ -51,8 +50,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
 }
 
 function OpenCreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {
-  const guided = useFlag('orbit_guided_flows')
-  return guided ? <GuidedGoalCreateFlow {...props} /> : <CurrentCreateGoalSheet {...props} />
+  return <GuidedGoalCreateFlow {...props} />
 }
 
 function CurrentCreateGoalSheet(props: Readonly<CreateGoalSheetProps>) {

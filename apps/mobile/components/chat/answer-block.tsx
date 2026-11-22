@@ -15,7 +15,6 @@ import { IconButton } from '@/components/ui/icon-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
 import { OptionCard, optionGridStyle } from '@/components/ui/option-card'
-import { useFlag } from '@/hooks/use-flag'
 import { Check, Lock, ArrowUp } from '@/components/ui/icons'
 
 type AnswerContentProps = Readonly<{
@@ -45,7 +44,7 @@ function AnswerQuickOptions({ view, controller }: Pick<AnswerContentProps, 'view
 }
 
 function AnswerBody({ view, state, controller, submit }: AnswerContentProps) {
-  const quickOptions = useFlag('orbit_guided_flows') && answerUsesQuickOptions(view)
+  const quickOptions = answerUsesQuickOptions(view)
   return <View style={{ minWidth: 0, gap: 16 }}>
     {quickOptions ? <AnswerQuickOptions view={view} controller={controller} /> : view.single ? <RadioGroup accessibilityLabel={view.title}><AnswerOptions view={view} controller={controller} /></RadioGroup> : <View role="group" accessibilityLabel={view.title}><AnswerOptions view={view} controller={controller} /></View>}
     {view.freeTextLabel ? <Input label={view.freeTextLabel} value={state.freeText} onChange={controller.setFreeText} maxLength={500} disabled={view.disabled} onSubmit={() => void submit()} /> : null}

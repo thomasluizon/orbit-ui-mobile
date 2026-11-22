@@ -18,7 +18,6 @@ import { plural } from '@/lib/plural'
 import { CalendarOptions } from './_components/calendar-options'
 import { CalendarImportResult } from './_components/calendar-import-result'
 import { useCalendarNavigation } from '@/hooks/use-calendar-navigation'
-import { useFlag } from '@/hooks/use-flag'
 
 function CalendarImportActions({ state, onImport, t }: {
   state: CalendarImportActionState
@@ -59,7 +58,6 @@ function CalendarPageState() {
 
 function CalendarPageContent(props: Readonly<CalendarPageContentProps>) {
   const state = useCalendarScreenState(props)
-  const guided = useFlag('orbit_guided_flows')
   const [importedCount, setImportedCount] = useState<number | null>(null)
   const finishImport = (count: number) => closeImportSheet(() => { closeImport(); setImportedCount(count) })
   const { profile, profileError, onRetryProfile, selectedDay, view, setIsDayDetailOpen, router, todayKey, t, openGoogleCalendar, openImport, isDayDetailOpen, sheetRef, openDayDisclosure, setIsEventsOpen, openHabit, disclosedWeekDay, isEventsOpen, showImportSheet, importSheetRef, closeImport, reviewRequested, importActionState, commitCalendarImport, importRequested, searchParams, initialImportEventId, importActionRef, setImportActionState, closeImportSheet, setIsImportOpen, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, rangeLoadingLabel, activeError, activeRefresh, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, selectedEntries, dayDetailTitle, pageLayout } = state
@@ -68,7 +66,7 @@ function CalendarPageContent(props: Readonly<CalendarPageContentProps>) {
     <div {...pageLayout.viewportProps} data-calendar-page="" className={pageLayout.pageClass}>
       <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
       <div className={pageLayout.contentClass}>
-        <CalendarOptions onGoogleCalendar={profile ? openGoogleCalendar : undefined} guided={guided} />
+        <CalendarOptions onGoogleCalendar={profile ? openGoogleCalendar : undefined} />
         {pageLayout.header}
 
         <CalendarBody profileReady={Boolean(profile)} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()}>
@@ -121,7 +119,7 @@ function CalendarPageContent(props: Readonly<CalendarPageContentProps>) {
             setIsImportOpen(false)
             router.push('/')
           })}
-          onImported={guided ? finishImport : undefined}
+          onImported={finishImport}
         />
       </Sheet> : null}
       <CalendarImportResult count={importedCount} onClose={() => setImportedCount(null)} />

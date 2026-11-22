@@ -11,7 +11,6 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
 const state = vi.hoisted(() => ({ flag: true, profile: {} as Record<string, unknown>, reducedMotion: false }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => state.flag }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: state.profile }) }))
 
 const TODAY = '2026-11-13'

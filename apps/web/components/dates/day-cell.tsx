@@ -4,7 +4,6 @@ import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useContext, type CSSProperties } from 'react'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
-import { useFlag } from '@/hooks/use-flag'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { MovingDaySelection } from './month-selection'
 import { DayColumnContent } from './day-column-content'
@@ -33,7 +32,6 @@ function PressFill({ selected = false }: Readonly<{ selected?: boolean }>) {
 const ARC_SWEEP = `stroke-dashoffset ${motionDurations.slow}ms cubic-bezier(${motionEasings.standard.join(', ')})`
 
 function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: number }>) {
-  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const stroke = 2
   const radius = (size - stroke) / 2
@@ -54,7 +52,7 @@ function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: numbe
         strokeLinecap="round"
         strokeWidth={stroke}
         data-day-arc=""
-        style={guided && !reducedMotion ? { transition: ARC_SWEEP } : undefined}
+        style={!reducedMotion ? { transition: ARC_SWEEP } : undefined}
       />
     </svg>
   )

@@ -3,7 +3,6 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { motionDurations } from '@orbit/shared/theme'
 import { RECAP_SHARE_PERIODS } from '@orbit/shared/utils'
 import { WrappedCover } from '@/app/(app)/wrapped/_components/wrapped-cover'
@@ -34,7 +33,6 @@ afterEach(() => {
 
 describe('the guided Wrapped cover on web', () => {
   it.each(LOCALES)('shows Orbit in Parado, the period question, three quick options and the start action in $locale', (locale) => {
-    enableTestFlags('orbit_guided_flows')
     const { container, handlers } = renderCover(locale)
     const copy = locale.messages.wrapped
 
@@ -58,7 +56,6 @@ describe('the guided Wrapped cover on web', () => {
   })
 
   it.each(LOCALES)('names the empty period in the Orbit line and leaves the period control as the one action in $locale', (locale) => {
-    enableTestFlags('orbit_guided_flows')
     const { container } = renderCover(locale, 'empty')
     const copy = locale.messages.wrapped
 
@@ -72,7 +69,6 @@ describe('the guided Wrapped cover on web', () => {
   })
 
   it('states the error in the Orbit line with Orbit in Parado, and retry reads the recap again', () => {
-    enableTestFlags('orbit_guided_flows')
     const { container, handlers } = renderCover(LOCALES[0], 'failed')
 
     expect(screen.getByRole('alert')).toHaveTextContent(ptBR.wrapped.error)
@@ -83,7 +79,6 @@ describe('the guided Wrapped cover on web', () => {
   })
 
   it.each(['failed', 'empty'] as const)('announces nothing stale once the cover loads after the %s state', (from) => {
-    enableTestFlags('orbit_guided_flows')
     vi.useFakeTimers()
     try {
       const cover = (state: CoverState) => <NextIntlClientProvider locale="en" messages={en}><WrappedCover period="week" state={state} onSelectPeriod={vi.fn()} onStart={vi.fn()} onRetry={vi.fn()} /></NextIntlClientProvider>
@@ -101,7 +96,6 @@ describe('the guided Wrapped cover on web', () => {
   })
 
   it('shows the current skeleton rows and keeps the start label on a waiting action while the recap loads, and announces the load', () => {
-    enableTestFlags('orbit_guided_flows')
     const { container, handlers } = renderCover(LOCALES[0], 'loading')
 
     const start = screen.getByRole('button', { name: ptBR.wrapped.start })
@@ -116,7 +110,6 @@ describe('the guided Wrapped cover on web', () => {
   })
 
   it('pins the start action under the scroller and spans it across the column below 1024', () => {
-    enableTestFlags('orbit_guided_flows')
     const { container } = renderCover(LOCALES[0])
 
     const primary = container.querySelector('[data-wrapped-cover-primary]')!
@@ -125,7 +118,6 @@ describe('the guided Wrapped cover on web', () => {
   })
 
   it('draws Orbit at 128 and hangs the start action 24 under the block, hugging its label, at 1024 and above', () => {
-    enableTestFlags('orbit_guided_flows')
     stubMedia((query) => query.includes('min-width: 1024px'))
     const { container } = renderCover(LOCALES[0])
 
@@ -142,7 +134,6 @@ describe('the guided Wrapped cover on web', () => {
     { reduced: false, duration: motionDurations.micro },
     { reduced: true, duration: motionDurations.instant },
   ])('fades the title and the line for $duration ms on a period change when reduced motion is $reduced', ({ reduced, duration }) => {
-    enableTestFlags('orbit_guided_flows')
     stubMedia((query) => reduced && query.includes('prefers-reduced-motion'))
     const { container, showPeriod } = renderCover(LOCALES[0])
 

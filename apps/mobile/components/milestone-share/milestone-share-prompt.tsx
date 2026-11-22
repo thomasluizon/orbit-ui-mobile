@@ -1,6 +1,6 @@
 import { PillButton } from '@/components/ui/pill-button'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
@@ -8,7 +8,7 @@ import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl , SETTLE_DELAY_MS } from '@orbit/shared/utils'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useSheetHost } from '@/components/ui/sheet'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
@@ -18,7 +18,6 @@ import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
-import { useFlag } from '@/hooks/use-flag'
 import {
   MilestoneShareCard,
   type MilestoneShareVariant,
@@ -50,7 +49,6 @@ function resolveVariant(
  */
 export function MilestoneSharePrompt({ suppressed }: Readonly<{ suppressed: boolean }>) {
   const { t } = useTranslation()
-  const guided = useFlag('orbit_guided_flows')
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -72,7 +70,7 @@ export function MilestoneSharePrompt({ suppressed }: Readonly<{ suppressed: bool
   const armedKey = armedPrompt?.kind === 'milestone-share' ? armedPrompt.milestoneKey : null
 
   const [shown, setShown] = useState<MilestoneShareVariant | null>(null)
-  const { sheetRef, closeSheet } = useSheetHost()
+  const { closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const wasVisibleRef = useRef(false)
   useEffect(() => {
@@ -166,25 +164,7 @@ export function MilestoneSharePrompt({ suppressed }: Readonly<{ suppressed: bool
     </>
   )
 
-  if (guided) return celebrationInFlight ? null : <MilestoneShareDialog card={card} actions={actions} onDismiss={dismiss} />
-
-  return (
-    <Sheet
-      ref={sheetRef}
-      open
-      onClose={() => setShown(null)}
-      title={t('milestoneShare.title')}
-      actions={actions}
-    >
-      <View style={styles.content}>
-          <View style={styles.cardWrap}>
-            {card}
-          </View>
-
-          <Text style={styles.body}>{t('milestoneShare.body')}</Text>
-      </View>
-    </Sheet>
-  )
+  return celebrationInFlight ? null : <MilestoneShareDialog card={card} actions={actions} onDismiss={dismiss} />
 }
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {

@@ -2,7 +2,6 @@ import React from 'react'
 import { ScrollView, View } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { CalendarBody } from '@/app/(tabs)/calendar/_components/calendar-body'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
@@ -26,10 +25,9 @@ function Scroller({ children }: Readonly<{ children: React.ReactNode }>) {
 }
 
 let tree: GeometryTree
-afterEach(async () => { await act(() => tree.unmount()); resetTestFlags() })
+afterEach(async () => { await act(() => tree.unmount()) })
 
 it.each([320, 360, 384, 412].flatMap((width) => ([['profile'], ['month']] as const).map(([failed]) => ({ width, failed }))))('centres the Calendário load error of the $failed read in the free area under the header at $width px', async ({ width, failed }) => {
-  enableTestFlags('orbit_guided_flows')
   __setWindowDimensions({ width, height: HEIGHT, scale: 1, fontScale: 1 })
   const profile = failed === 'profile'
   await act(() => {

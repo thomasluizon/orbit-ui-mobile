@@ -6,7 +6,6 @@ import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nextProvider } from 'react-i18next'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
@@ -192,12 +191,10 @@ afterEach(async () => {
   await TestRenderer.act(() => tree.update(<></>))
   vi.useRealTimers()
   mocks.online = true
-  resetTestFlags()
 })
 
 describe('mobile search', () => {
   it.each([false, true])('opens the create flow offline with no refusal, because Android saves a new habit offline (guided flows on: %s)', async (guided) => {
-    if (guided) enableTestFlags('orbit_guided_flows')
     mocks.online = false
     mocks.query.mockReturnValue(result([]))
     await mount()

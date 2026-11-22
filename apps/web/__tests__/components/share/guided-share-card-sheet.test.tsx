@@ -4,7 +4,6 @@ import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { motionDurations, motionPresets } from '@orbit/shared/theme'
 import type { RecapSharePeriod } from '@orbit/shared/utils'
 
@@ -55,7 +54,6 @@ afterEach(() => {
 
 describe('the guided share card sheet on web', () => {
   it.each(LOCALES)('uses the period question as the heading and offers exactly three periods that change the preview in $locale', (locale) => {
-    enableTestFlags('orbit_guided_flows')
     const { copy } = renderSheet(locale)
 
     expect(screen.getByRole('dialog', { name: copy.periodQuestion })).toBeInTheDocument()
@@ -76,7 +74,6 @@ describe('the guided share card sheet on web', () => {
     { reduced: false, duration: motionPresets.selection.enterDuration, scale: motionPresets.selection.scaleFrom },
     { reduced: true, duration: motionPresets.selection.reducedMotion.enterDuration, scale: 1 },
   ])('brings the new preview in with the selection preset from scale $scale when reduced motion is $reduced', ({ reduced, duration, scale }) => {
-    enableTestFlags('orbit_guided_flows')
     stubReducedMotion(reduced)
     const { container, copy } = renderSheet()
     const preview = () => container.querySelector('[data-share-preview]')
@@ -88,7 +85,6 @@ describe('the guided share card sheet on web', () => {
   })
 
   it('keeps preview, share and download, and the saved feedback', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.savedFileName = 'orbit-recap.png'
     const { copy } = renderSheet()
 
@@ -101,7 +97,6 @@ describe('the guided share card sheet on web', () => {
   })
 
   it('shows no error text after a share that the person cancels', () => {
-    enableTestFlags('orbit_guided_flows')
     const { copy } = renderSheet()
 
     fireEvent.click(screen.getByRole('button', { name: copy.share }))
@@ -110,7 +105,6 @@ describe('the guided share card sheet on web', () => {
   })
 
   it('shows the current failure message after a share that fails', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.hasError = true
     const { copy } = renderSheet()
 
@@ -118,7 +112,6 @@ describe('the guided share card sheet on web', () => {
   })
 
   it.each(LOCALES)('keeps the title and shows the empty sentence with Orbit in Parado in $locale', (locale) => {
-    enableTestFlags('orbit_guided_flows')
     mocks.isEmpty = true
     const { container, copy } = renderSheet(locale)
 
@@ -132,7 +125,6 @@ describe('the guided share card sheet on web', () => {
   })
 
   it('shows Orbit in Parado on the load error, and retry reads the recap again', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.isError = true
     const { container, copy } = renderSheet()
 
@@ -146,7 +138,6 @@ describe('the guided share card sheet on web', () => {
   })
 
   it('keeps the loading skeleton and stops the period options during a capture', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.isLoading = true
     const loading = renderSheet()
     expect(screen.getByRole('progressbar', { name: loading.copy.loading })).toBeInTheDocument()
@@ -158,7 +149,6 @@ describe('the guided share card sheet on web', () => {
   })
 
   it.each(['row', 'button'] as const)('opens the guided sheet from the share entry %s', (variant) => {
-    enableTestFlags('orbit_guided_flows')
     const copy = ptBR.shareCard
     render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}><ShareCardEntryButton variant={variant} /></NextIntlClientProvider>)
 

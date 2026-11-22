@@ -516,7 +516,7 @@ describe("the month picker as one question (mobile)", () => {
     let tree!: Tree;
     TestRenderer.act(() => {
       tree = mount(<CalendarHeader currentMonth={new Date(2026, 11, 1)} todayKey="2026-11-13" previousMonthLabel="Previous month" nextMonthLabel="Next month"
-        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} tokens={tokens} guided={guided} {...handlers} />);
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} tokens={tokens} {...handlers} />);
     });
     pressByAccessibilityLabel(tree, `December, ${words.calendar.monthPicker}`);
     return { tree, handlers };
@@ -578,7 +578,7 @@ describe("the month picker as one question (mobile)", () => {
   it('titles the legend with the question and keeps the four marks', () => {
     translated.words = { 'calendar.options': en.calendar.options, 'calendar.legendTitle': en.calendar.legendTitle, 'calendar.legendQuestion': en.calendar.legendQuestion };
     let tree!: Tree;
-    TestRenderer.act(() => { tree = mount(<CalendarOptions tokens={tokens} onGoogleCalendar={vi.fn()} guided />); });
+    TestRenderer.act(() => { tree = mount(<CalendarOptions tokens={tokens} onGoogleCalendar={vi.fn()} />); });
     pressByAccessibilityLabel(tree, en.calendar.options);
     pressByAccessibilityLabel(tree, en.calendar.legendTitle);
     finishNativeDismissal(tree);

@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
 import { holdAccount } from '@/__tests__/support/account-change'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
@@ -36,7 +35,6 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn())
   holdAccount('user-1')
   useUIStore.setState({ openOverlayIds: [], showCreateModal: false })
-  enableTestFlags('orbit_guided_flows')
 })
 
 afterEach(() => {

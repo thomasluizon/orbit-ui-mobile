@@ -31,10 +31,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useResetOnAccountChange } from '@/hooks/use-session-reset'
-import { SupportSuccessState } from './_components/support-success-state'
-import { SupportForm } from './_components/support-form'
 import { getAppVersion } from '@/lib/app-version'
-import { useFlag } from '@/hooks/use-flag'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { SupportGuided } from './_components/support-flow'
 
@@ -70,16 +67,15 @@ export default function SupportPage() {
   const draftRef = useRef(initialDraft)
   const [subject, setSubject] = useState(initialDraft.subject)
   const [message, setMessage] = useState(initialDraft.message)
-  const [messageAsked, setMessageAsked] = useState(initialDraft.subject !== null || initialDraft.message !== '')
+  const [, setMessageAsked] = useState(initialDraft.subject !== null || initialDraft.message !== '')
   const [isSending, setIsSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [validationMessage, setValidationMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [subjectError, setSubjectError] = useState<string | null>(null)
   const [messageError, setMessageError] = useState<string | null>(null)
-  const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
+  const [, setSubjectFocusRequest] = useState(0)
   const [messageFocusRequest, setMessageFocusRequest] = useState(0)
-  const guided = useFlag('orbit_guided_flows')
   const [step, setStep] = useState<'subject' | 'message'>(initialDraft.subject ? 'message' : 'subject')
 
   useResetOnAccountChange(() => {
@@ -156,10 +152,8 @@ export default function SupportPage() {
         return
       }
       setSuccess(true)
-      if (guided) {
-        captureGuidedFlowCompleted('support_request', 2, false)
-        setStep('subject')
-      }
+      captureGuidedFlowCompleted('support_request', 2, false)
+      setStep('subject')
       draftRef.current = { subject: null, message: '' }
       setSubject(null)
       setMessage('')
@@ -182,9 +176,7 @@ export default function SupportPage() {
     } finally {
       setIsSending(false)
     }
-  }, [appVersion, guided, isOnline, isSending, message, profile, subject, t, validateFields])
-
-  const disabled = isSending || !isOnline
+  }, [appVersion, isOnline, isSending, message, profile, subject, t, validateFields])
 
   return (
     <div className="mx-auto min-w-0 w-full md:max-w-[620px]">
@@ -198,8 +190,7 @@ export default function SupportPage() {
           <p role="status" aria-live="polite" className="sr-only">
             {success ? t('profile.support.success') : ''}
           </p>
-          {guided ? (
-            <SupportGuided
+          <SupportGuided
               sent={success}
               onOpenAbout={() => router.push('/about')}
               onDismissResult={() => setSuccess(false)}
@@ -237,52 +228,6 @@ export default function SupportPage() {
               onBack={() => setStep('subject')}
               onClose={() => goBackOrFallback('/profile')}
             />
-          ) : success ? (
-            <SupportSuccessState
-              email={resolvedEmail}
-              onBack={() => router.push('/about')}
-            />
-          ) : (
-            <div className="min-w-0 md:max-w-[520px]">
-              <SupportForm
-                email={resolvedEmail}
-                subject={subject}
-                message={message}
-                messageAsked={messageAsked}
-                appVersion={appVersion}
-                messageMaxLength={messageMaxLength}
-                messageOverLimitHint={messageOverLimitHint}
-                error={error}
-                validationMessage={validationMessage}
-                subjectError={subjectError}
-                messageError={messageError}
-                isSending={isSending}
-                isOnline={isOnline}
-                disabled={disabled}
-                disabledReason={disabledReason}
-                subjectFocusRequest={subjectFocusRequest}
-                messageFocusRequest={messageFocusRequest}
-                onSubjectChange={(next) => {
-                  setSubject(next)
-                  setSubjectError(null)
-                  setMessageAsked(true)
-                  persistDraft({ subject: next })
-                }}
-                onSubjectBlur={() => {
-                  if (!subject) setSubjectError(t('profile.support.subjectRequired'))
-                }}
-                onMessageChange={(next) => {
-                  setMessage(next)
-                  setMessageError(null)
-                  persistDraft({ message: next })
-                }}
-                onMessageBlur={() => {
-                  if (!message.trim()) setMessageError(t('profile.support.messageRequired'))
-                }}
-                onSend={() => void handleSend()}
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>

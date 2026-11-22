@@ -10,7 +10,6 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
 const mocks = vi.hoisted(() => ({
-  guided: true,
   reducedMotion: false,
   router: { push: vi.fn() },
   updateStatus: vi.fn(),
@@ -23,7 +22,6 @@ const ORBIT_STATES = ['parado', 'olhando', 'pensando', 'feliz', 'descansando']
 const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue: 3, targetValue: 12, unit: 'books', progressPercentage: 25 })
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
 
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ timeZone: 'UTC' }) }) }))
 vi.mock('@/components/goals/edit-goal-modal', () => ({ EditGoalModal: () => null }))
@@ -79,7 +77,6 @@ describe('goal detail on the Orbit logic', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-11-13T12:00:00Z'))
-    mocks.guided = true
     mocks.reducedMotion = false
     detailGoal = { ...listGoal, progressHistory: [] }
     Object.values(mocks).forEach((value) => { if (typeof value === 'function' && 'mockReset' in value) value.mockReset() })
@@ -129,16 +126,6 @@ describe('goal detail on the Orbit logic', () => {
     expect(document.querySelector('[data-goal-orbit-line]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: `${en.goals.detail.askOrbitEyebrow}: ${en.goals.detail.askOrbitDefault}` }))
     expect(useUIStore.getState().orbitConversationOpen).toBe(true)
-  })
-
-  it('keeps the current detail with the flag off: no line and no result dialog', async () => {
-    mocks.guided = false
-    detailGoal = { ...detailGoal, deadline: '2026-11-20' }
-    renderDetail()
-    expect(document.querySelector('[data-goal-orbit-line]')).toBeNull()
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.goals.detail.markAbandoned })) })
-    expect(mocks.updateStatus).toHaveBeenCalled()
-    expect(resultDialog()).toBeNull()
   })
 
   it.each([

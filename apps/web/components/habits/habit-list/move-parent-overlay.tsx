@@ -16,7 +16,6 @@ import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
-import { useFlag } from '@/hooks/use-flag'
 
 export type { MoveParentOption } from '@orbit/shared/utils/move-parent'
 
@@ -65,7 +64,7 @@ function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
 }
 
 function useMoveParentHeading(t: MoveParentOverlayProps['t'], selectionOnly: boolean, selectionTitle: string | undefined, movingHabitCount?: number) {
-  const asksOneQuestion = useFlag('orbit_guided_flows') && !selectionOnly
+  const asksOneQuestion = !selectionOnly
   const question = t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })
   const moveSubject = movingHabitCount === undefined ? t('habits.moveParent.title') : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
   const subject = selectionOnly ? selectionTitle ?? t('habits.form.parentHabit') : moveSubject

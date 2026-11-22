@@ -132,7 +132,6 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
 }))
 
 const guidedFlag = vi.hoisted(() => ({ on: false }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => guidedFlag.on }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ timeZone: 'UTC' }) }) }))
 vi.mock('@/components/goals/edit-goal-modal', () => ({
   EditGoalModal: () => null,

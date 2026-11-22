@@ -1,13 +1,10 @@
 import '@testing-library/jest-dom/vitest'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { afterEach, vi } from 'vitest'
-import { resetTestFlags } from '@orbit/shared/test-support/flag-state'
 
 vi.mock('server-only', () => ({}))
-vi.mock('@/hooks/use-flag', async () => ({ useFlag: (await import('@orbit/shared/test-support/flag-state')).readTestFlag }))
 
 afterEach(async () => {
-  resetTestFlags()
   await vi.dynamicImportSettled()
 })
 

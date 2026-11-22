@@ -4,7 +4,6 @@ import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockProfile, createMockRecap } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import { testI18n } from '@/__tests__/support/i18n'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
@@ -110,7 +109,6 @@ describe('the guided Wrapped player on Android', () => {
   })
 
   it.each(LOCALES)('moves one slide for next and previous, and the progress label follows in $locale', async ({ locale, catalog }) => {
-    enableTestFlags('orbit_guided_flows')
     const root = await renderPlayer(locale)
     const labels = () => hosts(root).map((node) => node.props.accessibilityLabel)
 
@@ -126,7 +124,6 @@ describe('the guided Wrapped player on Android', () => {
   })
 
   it('keeps the first slide still, then starts each slide change from the shifted and faded frame', async () => {
-    enableTestFlags('orbit_guided_flows')
     const root = await renderPlayer()
 
     expect(travelOpacity(root)).toContain('"opacity":{"value":1}')
@@ -137,7 +134,6 @@ describe('the guided Wrapped player on Android', () => {
   })
 
   it('keeps every slide still under reduced motion: no slide travel, no part rise and no running Orbit loop', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.reducedMotion = true
     reanimatedTestState.reducedMotion = true
     const root = await renderPlayer()
@@ -159,12 +155,10 @@ describe('the guided Wrapped player on Android', () => {
     await renderer.act(() => { current.unmount() })
     tree = null
 
-    enableTestFlags('orbit_guided_flows')
     expect(await slideTexts(await renderPlayer())).toEqual(currentTexts)
   })
 
   it.each(LOCALES)('shows Orbit in Feliz on the last slide, and share and download call the current adapters in $locale', async ({ locale, catalog }) => {
-    enableTestFlags('orbit_guided_flows')
     const root = await renderPlayer(locale)
     for (let step = 1; step < slides.length; step += 1) await press(control(root, catalog.wrapped.next))
 
@@ -186,7 +180,6 @@ describe('the guided Wrapped player on Android', () => {
 
   it.each([320, 360, 384, 412].flatMap((width) => LOCALES.map(({ locale, catalog }) => ({ width, locale, catalog }))))(
     'keeps every part of every guided slide inside the slide column, with Orbit and the preview of the share slide in it, at $width px in $locale', async ({ width, locale, catalog }) => {
-      enableTestFlags('orbit_guided_flows')
       mocks.reducedMotion = true
       reanimatedTestState.reducedMotion = true
       __setWindowDimensions({ width, height: 800, scale: 1, fontScale: 1 })

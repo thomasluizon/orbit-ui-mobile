@@ -5,7 +5,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { testI18n } from '@/__tests__/support/i18n'
 import SupportScreen from '@/app/support'
 
-const mocks = vi.hoisted(() => ({ language: 'en', online: true, guided: true, apiClient: vi.fn(), push: vi.fn(), goBack: vi.fn(), completed: vi.fn(), reducedMotion: false }))
+const mocks = vi.hoisted(() => ({ language: 'en', online: true, apiClient: vi.fn(), push: vi.fn(), goBack: vi.fn(), completed: vi.fn(), reducedMotion: false }))
 vi.mock('react-i18next', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-i18next')>()),
   useTranslation: () => ({ t: testI18n.getFixedT(mocks.language), i18n: { language: mocks.language } }),
@@ -13,7 +13,6 @@ vi.mock('react-i18next', async (importOriginal) => ({
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: { getItem: vi.fn(() => Promise.resolve(null)), setItem: vi.fn(() => Promise.resolve()), removeItem: vi.fn(() => Promise.resolve()) } }))
 vi.mock('@/lib/api-client', () => ({ apiClient: (...args: unknown[]) => mocks.apiClient(...args) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { name: 'Ada', email: 'ada@example.com' } }) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.goBack }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }), usePathname: () => '/support' }))
@@ -50,7 +49,6 @@ async function type(tree: TestTree, value: string) {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.online = true
-  mocks.guided = true
   mocks.apiClient.mockResolvedValue({})
 })
 afterEach(() => { mocks.language = 'en'; mocks.reducedMotion = false })
@@ -102,10 +100,4 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(texts(tree)).toContain(messages.profile.support.offlineReason)
     expect(mocks.apiClient).not.toHaveBeenCalled()
   })
-})
-
-it('keeps the current form on Android with the flag off', async () => {
-  mocks.guided = false
-  const tree = await render()
-  expect(hosts(tree).some((node) => node.props.testID === 'question-flow')).toBe(false)
 })

@@ -6,7 +6,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { PersonalText } from '@/components/ui/personal-text'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { plural } from '@/lib/plural'
-import { useFlag } from '@/hooks/use-flag'
 
 interface HabitListConfirmDialogsProps {
   t: (key: string, params?: Record<string, string | number | Date>) => string
@@ -44,7 +43,7 @@ function ParentPromptConfirmation({ t, parentPrompt, onSelectParentAncestor, onC
   const sheetPrompt = parentSheet.prompt?.habit.id === parentPrompt?.habit.id ? parentPrompt : parentSheet.prompt
   const open = parentPrompt !== null && parentSheet.prompt?.habit.id === parentPrompt.habit.id
   const closed = () => setParentSheet((current) => ({ ...current, closed: true }))
-  const copy = parentPromptCopy(t, sheetPrompt, useFlag('orbit_guided_flows'))
+  const copy = parentPromptCopy(t, sheetPrompt, true)
   return (
     <ConfirmSheet
       key={sheetPrompt?.habit.id ?? 'parent-prompt'}
@@ -94,12 +93,11 @@ export function HabitListConfirmDialogs({
   onSelectParentAncestor,
   onCancelParent,
 }: Readonly<HabitListConfirmDialogsProps>) {
-  const guided = useFlag('orbit_guided_flows')
   return (
     <>
       <ConfirmSheet
         open={duplicateHabitName !== null}
-        quickOptions={guided}
+        quickOptions={true}
         title={t('habits.duplicateConfirmTitle')}
         message={t('habits.duplicateConfirmMessage', { name: duplicateHabitName ?? '' })}
         confirmLabel={t('habits.duplicateConfirm')}

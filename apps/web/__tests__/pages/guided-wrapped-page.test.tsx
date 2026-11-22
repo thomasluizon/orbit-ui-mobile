@@ -4,7 +4,6 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { NextIntlClientProvider } from 'next-intl'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockRecap } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 
 const mocks = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
@@ -42,7 +41,6 @@ afterEach(cleanup)
 
 describe('the guided Wrapped route on web', () => {
   it('loads the recap of the closed month from the route query, as the current route does', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.searchParams = new URLSearchParams('period=month&year=2026&month=10')
     const { container } = renderPage()
 
@@ -51,7 +49,6 @@ describe('the guided Wrapped route on web', () => {
   })
 
   it('bounds the page to the window so the block scrolls under the app bar and the start action stays pinned', () => {
-    enableTestFlags('orbit_guided_flows')
     const { container } = renderPage()
 
     expect(container.querySelector('main')).toHaveClass('h-dvh')
@@ -59,7 +56,6 @@ describe('the guided Wrapped route on web', () => {
   })
 
   it('reads the recap again on retry after an error', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.wrapped = { recap: null, slides: [], isEmpty: false, isLoading: false, isError: true }
     renderPage()
 
@@ -68,7 +64,6 @@ describe('the guided Wrapped route on web', () => {
   })
 
   it('reads another period from a quick option and opens the player from the start action', () => {
-    enableTestFlags('orbit_guided_flows')
     renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: ptBR.wrapped.periods.year }))
@@ -78,7 +73,6 @@ describe('the guided Wrapped route on web', () => {
   })
 
   it('unmounts the cover while the player plays, so the view holds one live Orbit', () => {
-    enableTestFlags('orbit_guided_flows')
     const { container } = renderPage()
 
     expect(container.querySelectorAll('svg[data-asset="orbit-mascot"][data-orbit-loop="running"]')).toHaveLength(1)

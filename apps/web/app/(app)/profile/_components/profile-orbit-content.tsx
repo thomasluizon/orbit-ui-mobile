@@ -10,7 +10,6 @@ import { useRouter } from 'next/navigation'
 import { deriveProfileOrbitFeatures } from '@orbit/shared/utils'
 import { OrbitConnections } from '@/components/profile/orbit-connections'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
-import { useFlag } from '@/hooks/use-flag'
 import { OrbitAllowancePanel } from '@/components/profile/orbit-allowance-panel'
 import {
   type OrbitSettingsController,
@@ -38,7 +37,6 @@ function buildOrbitRows(
   { profile, router, t }: RowContext,
   settings: OrbitSettingsController,
   apiKeysUnlocked: boolean,
-  guided: boolean,
 ) {
   const onUpgrade = () => router.push('/upgrade?from=%2Fprofile%2Fai')
   const orbitFeatures = deriveProfileOrbitFeatures(Boolean(profile?.hasProAccess), settings)
@@ -66,13 +64,12 @@ function buildOrbitRows(
         ) : null}
       </div>
       <OrbitConnections hasProAccess={Boolean(profile?.hasProAccess)} />
-      <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} guided={guided} />
+      <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
     </div>
   )
 }
 
 export function ProfileOrbitContent({ profile, patchProfile }: Readonly<ProfileContentProps>) {
-  const guided = useFlag('orbit_guided_flows')
   const t = useTranslations()
   const { hasReturnError, isSettling, retryReturn } = useStripeCheckoutReturn()
   const router = useRouter()
@@ -80,5 +77,5 @@ export function ProfileOrbitContent({ profile, patchProfile }: Readonly<ProfileC
   const orbitSettings = useOrbitSettingsController(profile, patchProfile)
   if (isSettling) return <Skeleton variant="settings" rows={8} label={t('profile.loading')} />
   if (hasReturnError) return <ErrorState message={t('upgrade.billing.error')} action={<IconButton label={t('upgrade.billing.retry')} onClick={retryReturn}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
-  return buildOrbitRows({ profile, router, t }, orbitSettings, apiKeysUnlocked, guided)
+  return buildOrbitRows({ profile, router, t }, orbitSettings, apiKeysUnlocked)
 }

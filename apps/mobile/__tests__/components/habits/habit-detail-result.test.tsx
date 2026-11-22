@@ -1,7 +1,6 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Pressable, Text } from 'react-native'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { HabitDetailResultDialog, HabitDetailUnavailable, useHabitDetailResult } from '@/components/habits/habit-detail-result'
 import { press, renderNavigation } from '../ui/navigation-render'
 
@@ -31,7 +30,6 @@ describe('Android habit detail result dialog', () => {
   })
 
   it.each([['on', true], ['off', false]])('never brings back the load error while detail leaves after a delete, with the guided flows %s', (_label, guided) => {
-    if (guided) enableTestFlags('orbit_guided_flows')
     const seeToday = vi.fn()
     function Detail() {
       const host = useHabitDetailResult(seeToday)

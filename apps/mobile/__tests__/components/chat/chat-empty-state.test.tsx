@@ -7,7 +7,6 @@ import { habitListQueryFilters } from '@orbit/shared/utils'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { createStyles } from '@/components/chat/conversation.styles'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -85,7 +84,6 @@ describe('ChatEmptyState (mobile)', () => {
   const orbitLines = (tree: any) => tree.root.findAll((node: any) => typeof node.type === 'string' && node.props?.testID === 'empty-state-line')
 
   it.each(['todayOrbit.guided.offline', 'conversation.restLimit'] as const)('shows the title and one Orbit line with the reason %s while Orbit rests', (reason) => {
-    enableTestFlags('orbit_guided_flows')
     const { tree } = renderEmptyState(null, 'descansando', reason)
     expect(orbitLines(tree).map((node: any) => node.props.children)).toEqual([reason])
     expect(JSON.stringify(tree.toJSON())).toContain('chat.empty.title')
@@ -93,7 +91,6 @@ describe('ChatEmptyState (mobile)', () => {
 
   it('shows no Orbit line with no reason, and none with the guided flows off', () => {
     expect(orbitLines(renderEmptyState(null, 'descansando', 'todayOrbit.guided.offline').tree)).toHaveLength(0)
-    enableTestFlags('orbit_guided_flows')
     expect(orbitLines(renderEmptyState(null).tree)).toHaveLength(0)
   })
 

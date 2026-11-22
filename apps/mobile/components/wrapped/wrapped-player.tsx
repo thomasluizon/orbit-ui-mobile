@@ -14,7 +14,6 @@ import { useWrappedStory, type WrappedSlide as WrappedSlideModel } from '@/hooks
 import { useShareCard } from '@/hooks/use-share-card'
 import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { useProfile } from '@/hooks/use-profile'
-import { useFlag } from '@/hooks/use-flag'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { Pager } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
@@ -53,7 +52,6 @@ export function WrappedPlayer({
   const { profile } = useProfile()
   const current = slides[index]
   const canTapToPage = current?.id !== 'consistency' || period !== 'week' || !!profile
-  const guided = useFlag('orbit_guided_flows')
   const [direction, setDirection] = useState<PageDirection | null>(null)
 
   function page(direction: PageDirection) {
@@ -126,7 +124,7 @@ export function WrappedPlayer({
           contentContainerStyle={[styles.slideScrollContent, { paddingBottom: clearance }]}
           showsVerticalScrollIndicator={false}
         >
-          {guided ? <SlideTravel direction={direction}>{slidePage}</SlideTravel> : <View style={styles.page}>{slidePage}</View>}
+          <SlideTravel direction={direction}>{slidePage}</SlideTravel>
         </ScrollView>
         <PlayerPager
           count={slides.length}

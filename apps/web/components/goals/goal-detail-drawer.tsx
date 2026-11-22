@@ -16,7 +16,6 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useFlag } from '@/hooks/use-flag'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -57,9 +56,8 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   const sheetGoal = useRetainedGoal(goal, goalId)
   const draftHydrated = useChatStore(state => state.draftHydrated)
   const router = useRouter()
-  const guided = useFlag('orbit_guided_flows')
-  const outcomes = useGoalDetailOutcomes(goal, guided, useViewportMatch('(prefers-reduced-motion: reduce)'))
-  const orbitLine = useGoalOrbitLine(goal, guided)
+  const outcomes = useGoalDetailOutcomes(goal, useViewportMatch('(prefers-reduced-motion: reduce)'))
+  const orbitLine = useGoalOrbitLine(goal)
   const { progressFormOpened } = outcomes
   const deleteGoal = useDeleteGoal({ onDeleted: outcomes.onDeleted })
   const [editing, setEditing] = useAccountScopedState(false)
@@ -123,7 +121,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
     outcomes.rememberDeletedTitle()
     try {
       await deleteGoal.mutateAsync(goalId)
-      if (!guided) close()
+      
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, t, 'goals.errors.delete', 'goal'))
     }
@@ -166,8 +164,8 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
 
   return (
     <>
-      {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} titleRef={barHeadingRef} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} {...getGoalSheetTitle(goal, guided, t('progressScreen.sections.goals'))}>{body}</Sheet> : null}
-      {open && editingProgress && sheetGoal ? <GoalProgressForm key={goalId} goal={sheetGoal} refetchDetail={refetch} asQuestion={guided} onClose={() => { setEditingProgress(false); outcomes.progressFormClosed() }} /> : null}
+      {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} titleRef={barHeadingRef} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} {...getGoalSheetTitle(goal, t('progressScreen.sections.goals'))}>{body}</Sheet> : null}
+      {open && editingProgress && sheetGoal ? <GoalProgressForm key={goalId} goal={sheetGoal} refetchDetail={refetch} asQuestion={true} onClose={() => { setEditingProgress(false); outcomes.progressFormClosed() }} /> : null}
       {sheetGoal ? <EditGoalModal open={editing} onOpenChange={setEditing} goal={sheetGoal} /> : null}
       <GoalStatusResultDialog result={outcomes.result} onClose={outcomes.clearResult} onOpenList={openGoalsList} />
       <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />

@@ -4,17 +4,14 @@ import { Animated, Easing, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PADDING, SPACING, resolveMotionPreset } from '@orbit/shared/theme'
 import { isRecapShareEmpty, RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
-import { useFlag } from '@/hooks/use-flag'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { useShareCard } from '@/hooks/use-share-card'
 import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { Sheet } from '@/components/ui/sheet'
-import { SegmentedControl } from '@/components/ui/segmented-control'
 
 import { Download, Share2, RefreshCw } from '@/components/ui/icons'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ErrorState } from '@/components/ui/error-state'
 import { OptionCard } from '@/components/ui/option-card'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -45,19 +42,16 @@ function ShareCardFeedback({ hasError, savedFileName, tokens }: Readonly<{
 }
 
 interface SharePeriodControlProps {
-  guided: boolean
   period: RecapSharePeriod
   disabled: boolean
   tokens: ReturnType<typeof createTokensV2>
   onSelect: (period: RecapSharePeriod) => void
 }
 
-function SharePeriodControl({ guided, period, disabled, tokens, onSelect }: Readonly<SharePeriodControlProps>) {
+function SharePeriodControl({ period, disabled, onSelect }: Readonly<SharePeriodControlProps>) {
   const { t } = useTranslation()
   const question = t('shareCard.periodQuestion')
-  if (!guided) {
-    return <View testID="share-period-question" style={styles.question}><Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.questionLabel, { color: tokens.fg2 }]}>{question}</Text><SegmentedControl label={question} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={disabled} onChange={onSelect} fullWidth /></View>
-  }
+  
   return (
     <View role="group" accessibilityLabel={question} testID="share-period-options" style={styles.options}>
       {RECAP_SHARE_PERIODS.map((value) => (
@@ -81,12 +75,12 @@ function SharePreviewChange({ changed, children }: Readonly<{ changed: boolean; 
   return <Animated.View testID="share-preview" style={{ opacity: progress, transform: [{ scale }] }}>{children}</Animated.View>
 }
 
-function ShareLoadError({ guided, tokens, onRetry }: Readonly<{ guided: boolean; tokens: ReturnType<typeof createTokensV2>; onRetry: () => void }>) {
+function ShareLoadError({ tokens, onRetry }: Readonly<{ tokens: ReturnType<typeof createTokensV2>; onRetry: () => void }>) {
   const { t } = useTranslation()
   const mascotSize = useStateMascotSize()
   const message = t('shareCard.error')
   const retry = <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
-  if (!guided) return <ErrorState message={message} action={retry} />
+  
   return (
     <View testID="share-error" style={styles.error}>
       <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><OrbitMascot size={mascotSize} state="parado" /></View>
@@ -98,7 +92,6 @@ function ShareLoadError({ guided, tokens, onRetry }: Readonly<{ guided: boolean;
 
 export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   const { t } = useTranslation()
-  const guided = useFlag('orbit_guided_flows')
   const [periodChanged, setPeriodChanged] = useState(false)
   const invitation = useReferralInvitation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -124,16 +117,16 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
   const card = ready && recap ? <ShareCard ref={shareRef} recap={recap} variant="progress" /> : null
 
   return (
-    <Sheet title={guided ? t('shareCard.periodQuestion') : t('shareCard.share')} accessibleTitle={guided ? undefined : t('shareCard.title')} onClose={onClose} actions={actions}>
+    <Sheet title={t('shareCard.periodQuestion')} accessibleTitle={undefined} onClose={onClose} actions={actions}>
       <View>
         <View style={styles.content}>
-          <SharePeriodControl guided={guided} period={period} disabled={isSharing} tokens={tokens} onSelect={selectPeriod} />
+          <SharePeriodControl period={period} disabled={isSharing} tokens={tokens} onSelect={selectPeriod} />
           {isLoading || (!recap && !isError) ? <View accessible accessibilityRole="progressbar" accessibilityState={{ busy: true }} accessibilityLabel={t('shareCard.loading')} style={styles.loading}>
             {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
           </View> : null}
-          {isError ? <ShareLoadError guided={guided} tokens={tokens} onRetry={() => void refetch()} /> : null}
+          {isError ? <ShareLoadError tokens={tokens} onRetry={() => void refetch()} /> : null}
           {!isLoading && !isError && isEmpty ? <EmptyState title={t('shareCard.empty')} /> : null}
-          {card && guided ? <SharePreviewChange key={period} changed={periodChanged}>{card}</SharePreviewChange> : card}
+          {card ? <SharePreviewChange key={period} changed={periodChanged}>{card}</SharePreviewChange> : card}
         </View>
         <ShareCardFeedback hasError={hasError} savedFileName={savedFileName} tokens={tokens} />
       </View>

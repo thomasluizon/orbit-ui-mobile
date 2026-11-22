@@ -11,7 +11,6 @@ import { ErrorState } from '@/components/ui/error-state'
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
-import { useFlag } from '@/hooks/use-flag'
 import { useGoals } from '@/hooks/use-goals'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -49,7 +48,6 @@ function useGoalFocusReturn(container: RefObject<HTMLDivElement | null>, creatin
 
 export function ProgressGoalsContent() {
   const t = useTranslations()
-  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const [goalFilter, setGoalFilter] = useAccountScopedState<ProgressGoalFilter>('all')
   const [creating, setCreating] = useAccountScopedState(false)
@@ -64,7 +62,7 @@ export function ProgressGoalsContent() {
   const error = goals.isError
   const loading = !error && goals.isLoading
   const empty = !loading && !error && allGoals.length === 0
-  const seen = useGoalSeenProgress(allGoals, guided, !reducedMotion)
+  const seen = useGoalSeenProgress(allGoals, true, !reducedMotion)
   const retry = () => { void goals.refetch() }
   return (
     <div ref={contentRef} className="mx-auto flex w-full min-w-0 max-w-[740px] flex-1 flex-col">
@@ -76,7 +74,7 @@ export function ProgressGoalsContent() {
           {loading ? <ProgressLoading label={t('progressScreen.loading')} screen="goals" /> : null}
           {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></div> : null}
           {empty ? <ShellCentredRegion><GoalsEmptyState onCreate={openCreateGoal} /></ShellCentredRegion> : null}
-          {!loading && !error && !empty ? <GoalsSection key={guided ? 'guided' : 'current'} filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} sweepFrom={seen.sweepFrom} onSwept={seen.markSwept} /> : null}
+          {!loading && !error && !empty ? <GoalsSection key={'guided'} filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} sweepFrom={seen.sweepFrom} onSwept={seen.markSwept} /> : null}
         </ProgressSubscreen>
       </div>
     </div>

@@ -1,22 +1,6 @@
 'use client'
-
-import { IconButton } from '@/components/ui/icon-button'
-import { RefreshCw } from '@/components/ui/icons'
-import { useTranslations } from 'next-intl'
-import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
-import { Chip } from '@/components/ui/chip'
-import { ErrorState } from '@/components/ui/error-state'
-import { Icon } from '@/components/ui/icon'
-import { OrbitMascot } from '@/components/ui/orbit-mascot'
-import { Button } from '@/components/ui/pill-button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { useFlag } from '@/hooks/use-flag'
+import { type RecapSharePeriod } from '@orbit/shared/utils'
 import { GuidedWrappedCover } from './guided-wrapped-cover'
-import {
-  coverEyebrowStyle,
-  coverSubtitleStyle,
-  coverTitleStyle,
-} from './wrapped-styles'
 
 type WrappedCoverState = 'ready' | 'loading' | 'failed' | 'empty'
 
@@ -30,99 +14,5 @@ export interface WrappedCoverProps {
 
 /** The cover of the Wrapped route. `orbit_guided_flows` picks the guided cover; off, the current cover renders. */
 export function WrappedCover(props: Readonly<WrappedCoverProps>) {
-  const guided = useFlag('orbit_guided_flows')
-  return guided ? <GuidedWrappedCover {...props} /> : <CurrentWrappedCover {...props} />
-}
-
-function CurrentWrappedCover({
-  period,
-  onSelectPeriod,
-  state,
-  onStart,
-  onRetry,
-}: Readonly<WrappedCoverProps>) {
-  const t = useTranslations()
-
-  return (
-    <div
-      className="flex flex-1 flex-col items-start justify-center text-start gap-6 overflow-y-auto px-6 py-8"
-      data-state={state}
-    >
-      <OrbitMascot size={96} />
-
-      <div className="flex flex-col items-start gap-2">
-        <p style={coverEyebrowStyle}>{t('wrapped.title')}</p>
-        <h1 style={coverTitleStyle}>{t(`wrapped.coverTitles.${period}`)}</h1>
-        <p style={coverSubtitleStyle}>{t('wrapped.coverSubtitle')}</p>
-      </div>
-
-      <div
-        role="group"
-        aria-label={t('wrapped.periodGroup')}
-        className="flex flex-wrap gap-2"
-      >
-        {RECAP_SHARE_PERIODS.map((value) => (
-          <Chip
-            key={value}
-            variant="period"
-            active={period === value}
-            onClick={() => onSelectPeriod(value)}
-            ariaLabel={t(`wrapped.periods.${value}`)}
-          >
-            {t(`wrapped.periods.${value}`)}
-          </Chip>
-        ))}
-      </div>
-
-      <CoverBody state={state} onStart={onStart} onRetry={onRetry} />
-    </div>
-  )
-}
-
-function CoverBody({
-  state,
-  onStart,
-  onRetry,
-}: Readonly<Pick<WrappedCoverProps, 'state' | 'onStart' | 'onRetry'>>) {
-  const t = useTranslations()
-
-  if (state === 'loading') {
-    return <Skeleton variant="settings" rows={3} label={t('wrapped.loading')} />
-  }
-  if (state === 'failed') {
-    return (
-      <div className="w-full">
-        <ErrorState
-          message={t('wrapped.error')}
-          action={<IconButton label={t('wrapped.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
-        />
-      </div>
-    )
-  }
-  if (state === 'empty') {
-    return (
-      <div className="flex w-full max-w-[360px] flex-col items-start gap-4">
-        <div className="flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="grid size-14 shrink-0 place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] text-[var(--fg-3)]"
-          >
-            <Icon name="satellite" size={24} />
-          </span>
-          <p className="max-w-[34ch] text-sm leading-[1.55] text-[var(--fg-2)]">
-            {t('wrapped.empty')}
-          </p>
-        </div>
-        <div className="w-full [&>button]:w-full">
-          <Button size="md" disabled>{t('wrapped.start')}</Button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex w-full max-w-[360px]">
-      <Button size="md" onClick={onStart}>{t('wrapped.start')}</Button>
-    </div>
-  )
+  return <GuidedWrappedCover {...props} />
 }

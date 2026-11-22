@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitDetail } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
@@ -103,7 +102,6 @@ describe.each(['pt-BR', 'en'] as const)('every Android edit entry of Hoje and ha
   beforeEach(async () => { await i18n.changeLanguage(locale) })
 
   it('opens the guided edit flow on its summary from the Hoje edit host the row menu fills', async () => {
-    enableTestFlags('orbit_guided_flows')
     const habit = createMockHabit({ id: 'habit-1', title: 'Correr', frequencyUnit: 'Day', frequencyQuantity: 1 })
     const tree = renderNavigation(todayModals(null))
     expect(hasTestId(tree, 'question-flow')).toBe(false)
@@ -115,7 +113,6 @@ describe.each(['pt-BR', 'en'] as const)('every Android edit entry of Hoje and ha
   })
 
   it('opens the guided edit flow on its summary from the pencil of habit detail', async () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = mountDetail()
     await settle()
     await tap(tree, messages.habits.editHabit)
@@ -126,7 +123,6 @@ describe.each(['pt-BR', 'en'] as const)('every Android edit entry of Hoje and ha
   })
 
   it('opens the guided create flow from Add sub-habit on habit detail', async () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = mountDetail()
     await settle()
     await tap(tree, messages.habits.detail.addSubHabit)
@@ -137,7 +133,7 @@ describe.each(['pt-BR', 'en'] as const)('every Android edit entry of Hoje and ha
   })
 })
 
-describe('the Android edit entries with orbit_guided_flows off', () => {
+describe('the Android edit entries', () => {
   it('keep the current edit form from the Hoje edit host and the pencil', async () => {
     await i18n.changeLanguage('pt-BR')
     const habit = createMockHabit({ id: 'habit-1', title: 'Correr', frequencyUnit: 'Day', frequencyQuantity: 1 })

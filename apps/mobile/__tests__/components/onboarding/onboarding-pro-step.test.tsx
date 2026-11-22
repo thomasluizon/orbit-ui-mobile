@@ -10,7 +10,6 @@ import { OverlayHost } from '@/components/ui/overlay-host'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -235,7 +234,6 @@ describe('Android final Pro step', () => {
 
 describe('the onboarding host of the Android Pro step', () => {
   it.each([[true, 1], [false, 0]] as const)('draws the plan footer under its scroller at 375 x 667 with the guided flows %s', async (guided, footers) => {
-    if (guided) enableTestFlags('orbit_guided_flows')
     __setWindowDimensions({ width: 375, height: 667, scale: 2, fontScale: 1 })
     let tree!: ReturnType<typeof TestRenderer.create>
     await act(async () => { tree = TestRenderer.create(<OverlayHost><OnboardingFlow finalStepOnly /></OverlayHost>); await Promise.resolve() })

@@ -4,7 +4,6 @@ import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { questionBlockFixture as block } from '@orbit/shared/test-support/chat-fixtures'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { BlockAnswerInteraction } from '@orbit/shared/chat'
 import { QuestionBlock } from '@/components/chat/question-block'
 
@@ -16,8 +15,6 @@ const element = (send: BlockAnswerInteraction, locale = 'en') => <NextIntlClient
 
 async function answerEverything(quick: boolean) {
   const send = interaction()
-  resetTestFlags()
-  if (quick) enableTestFlags('orbit_guided_flows')
   render(element(send))
   const next = () => { if (quick) fireEvent.click(screen.getByRole('button', { name: en.chat.question.next })) }
   const choose = (prompt: string, name: RegExp | string) => quick
@@ -47,7 +44,6 @@ it('answers a single-choice and a yes or no question with quick options that sen
 })
 
 it('marks the pressed quick option as selected, moves to the next question, and keeps the answer on the way back', () => {
-  enableTestFlags('orbit_guided_flows')
   render(element(interaction()))
   fireEvent.click(within(optionGroup('When?')).getByRole('button', { name: /Morning/ }))
   expect(question('When?')).toBeNull()
@@ -59,7 +55,6 @@ it('marks the pressed quick option as selected, moves to the next question, and 
 })
 
 it('shows one question in view with its position, in pt-BR too', () => {
-  enableTestFlags('orbit_guided_flows')
   render(element(interaction(), 'pt-BR'))
   expect(document.querySelectorAll('[data-question-invalid]')).toHaveLength(1)
   expect(screen.getByText(`1 de ${block.questions.length}`)).toBeInTheDocument()
@@ -71,7 +66,6 @@ it('shows one question in view with its position, in pt-BR too', () => {
 })
 
 it('shows the first question that still needs an answer after a submit with gaps', async () => {
-  enableTestFlags('orbit_guided_flows')
   const send = interaction()
   render(element(send))
   fireEvent.click(screen.getByRole('button', { name: en.chat.question.next }))
@@ -83,7 +77,6 @@ it('shows the first question that still needs an answer after a submit with gaps
 })
 
 it('moves focus between quick options with the arrow keys and selects only on a press', () => {
-  enableTestFlags('orbit_guided_flows')
   render(element(interaction()))
   const options = within(optionGroup('When?')).getAllByRole('button')
   options[0]!.focus()
@@ -102,14 +95,12 @@ it('keeps the radio list and every question in view while the flag is off', () =
 })
 
 it('sets the recommended note under the quick options in the type of the Recommended line of the row layout', () => {
-  enableTestFlags('orbit_guided_flows')
   render(element(interaction()))
   const note = within(question('When?') as HTMLElement).getByText(new RegExp(`: ${en.chat.placement.recommended}$`))
   expect(note).toHaveStyle({ fontSize: '14px', lineHeight: '1.4' })
 })
 
 it('moves focus to the new question and announces its position after a quick option answer advances', () => {
-  enableTestFlags('orbit_guided_flows')
   render(element(interaction()))
   expect(document.body).toHaveFocus()
   fireEvent.click(within(optionGroup('When?')).getByRole('button', { name: /Morning/ }))
@@ -118,7 +109,6 @@ it('moves focus to the new question and announces its position after a quick opt
 })
 
 it('moves focus to the new question after the previous and the next control, and never leaves it on a control that turns disabled', () => {
-  enableTestFlags('orbit_guided_flows')
   render(element(interaction()))
   const next = () => screen.getByRole('button', { name: en.chat.question.next })
   for (let step = 1; step < block.questions.length; step++) {
@@ -141,7 +131,6 @@ it('leaves focus where it is while the flag is off and a single answer follows',
 })
 
 it('keeps the arrow keys working on a slider that the person reaches after the focus moved to its question', () => {
-  enableTestFlags('orbit_guided_flows')
   render(element(interaction()))
   for (let step = 0; step < 3; step++) fireEvent.click(screen.getByRole('button', { name: en.chat.question.next }))
   const slider = screen.getByRole('slider')
@@ -156,11 +145,9 @@ it('does not move focus when the flag turns on or off after the block mounted', 
   try {
     const view = render(element(interaction()))
     outside.focus()
-    enableTestFlags('orbit_guided_flows')
     view.rerender(element(interaction()))
     expect(question('When?')).not.toBeNull()
     expect(outside).toHaveFocus()
-    resetTestFlags()
     view.rerender(element(interaction()))
     expect(outside).toHaveFocus()
   } finally { outside.remove() }

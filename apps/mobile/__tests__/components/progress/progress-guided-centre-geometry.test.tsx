@@ -16,7 +16,6 @@ const state = vi.hoisted(() => {
   return { retrospectiveError, freeze, streakError: false, repairMutate: vi.fn() }
 })
 
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('react-native-safe-area-context', async (original) => ({
   ...await original<typeof import('react-native-safe-area-context')>(),

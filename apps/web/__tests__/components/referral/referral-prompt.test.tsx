@@ -1,5 +1,4 @@
 import en from '@orbit/shared/i18n/en.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import React from 'react'
@@ -180,7 +179,6 @@ describe('ReferralPrompt', () => {
   })
 
   it('holds no Orbit line and no live mascot with the guided flows on', async () => {
-    enableTestFlags('orbit_guided_flows')
     render(<ReferralPrompt />)
     await arm('level-3')
     await settle()

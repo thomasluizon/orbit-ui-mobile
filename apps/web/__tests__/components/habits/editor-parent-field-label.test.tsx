@@ -28,7 +28,7 @@ describe('the parent row of the habit editor', () => {
     ['en', false, 'Parent habit, Rotina da manhã'],
   ] as const)('in %s with guided %s names the row in the words of its surface', (locale, guided, name) => {
     state.locale = locale
-    render(<EditorParentField parent={parent('Rotina da manhã')} disabled={false} guided={guided} onRetryDetail={() => {}} />)
+    render(<EditorParentField parent={parent('Rotina da manhã')} disabled={false} onRetryDetail={() => {}} />)
     expect(screen.getByRole('button', { name })).toBeInTheDocument()
   })
 })

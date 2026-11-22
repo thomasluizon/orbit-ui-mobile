@@ -11,7 +11,6 @@ import { BlockFrame } from '@/components/ui/block-frame'
 import { ActionRow } from '@/components/ui/action-row'
 import { Button } from '@/components/ui/pill-button'
 import { OptionCard } from '@/components/ui/option-card'
-import { useFlag } from '@/hooks/use-flag'
 import { fitsQuickOptions } from '@orbit/shared/chat'
 import { PendingOperationCard } from './pending-operation-card'
 
@@ -43,7 +42,7 @@ export function ClarificationCard({ clarificationRequest, entityName, pendingOpe
   }
   const showPreview = pendingOperation && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp
   const quickActions = clarificationRequest.quickActions
-  const quickOptions = useFlag('orbit_guided_flows') && fitsQuickOptions(quickActions.map((action) => ({ label: safeT(t, action.label), description: action.description })))
+  const quickOptions = fitsQuickOptions(quickActions.map((action) => ({ label: safeT(t, action.label), description: action.description })))
   return (
     <>
     <span role="status" aria-live="polite" className="sr-only">{showPreview ? t('chat.operation.pendingTitle') : ''}</span>

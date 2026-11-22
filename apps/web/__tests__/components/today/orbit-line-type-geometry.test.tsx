@@ -7,7 +7,6 @@ import { resolve } from 'node:path'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -33,11 +32,10 @@ describe('the Orbit line row type role', () => {
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
-  afterEach(() => { cleanup(); resetTestFlags() })
+  afterEach(() => { cleanup() })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
   async function measure(sentence: string, guided: boolean) {
-    if (guided) enableTestFlags('orbit_guided_flows')
     const { container } = render(<TodayOrbitLine text={sentence} destination="Abrir conversa" />)
     const page = await browser.newPage({ viewport: { width: 320, height: 800 } })
     try {
@@ -67,7 +65,6 @@ describe('the Orbit line row type role', () => {
       expect(row.rowHeight, sentence).toBeGreaterThanOrEqual(48)
       if (!row.whole || /(?:…|\.\.\.)$/u.test(sentence)) cut.push(sentence)
       cleanup()
-      resetTestFlags()
     }
     expect(cut).toEqual([])
   })

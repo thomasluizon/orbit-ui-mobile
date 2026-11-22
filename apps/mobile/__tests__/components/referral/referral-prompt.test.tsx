@@ -1,5 +1,4 @@
 import { createInstance } from 'i18next'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import ICUCommonJs from 'i18next-icu/cjs'
 import { renderedText } from '../../support/react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
@@ -195,7 +194,6 @@ describe('ReferralPrompt (mobile)', () => {
   })
 
   it('holds no Orbit line and no live mascot with the guided flows on', async () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = await renderArmed('level-3')
     await TestRenderer.act(async () => {
       await vi.advanceTimersByTimeAsync(500)

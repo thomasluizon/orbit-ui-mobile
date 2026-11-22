@@ -25,7 +25,6 @@ const state = vi.hoisted(() => {
   return { retrospective, freeze, streakError: false, repairMutate: vi.fn() }
 })
 
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('next/navigation', () => ({ usePathname: () => '/progress', useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => false, useIsWideDesktop: () => false }))

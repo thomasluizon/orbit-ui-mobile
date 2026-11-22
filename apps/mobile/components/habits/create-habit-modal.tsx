@@ -1,7 +1,7 @@
 import { useOrbitAllowanceCopy } from '@/hooks/use-orbit-allowance-copy'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { type ComponentType, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet } from 'react-native'
 import { useIsFocused, useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -9,15 +9,11 @@ import { useSheetHost } from '@/components/ui/sheet'
 import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { HabitCreateActions } from './habit-create-actions'
 import { HabitCreateFrame } from './habit-create-frame'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
-import { useFlag } from '@/hooks/use-flag'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { GuidedHabitFlow, type GuidedHabitCompletion, type GuidedHabitFields } from './guided/guided-habit-flow'
 import { HabitResultDialog } from './guided/habit-result-dialog'
-
-import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
   applySuggestionSchedule,
@@ -39,7 +35,6 @@ import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
   applyHabitEmojiSuggestion,
-  reportRefusedHabitSave,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
@@ -151,7 +146,6 @@ export function CreateHabitModal({
   leaveGuard,
   fromConversation = false,
   parentHabit,
-  recoveryMessage,
 }: Readonly<CreateHabitModalProps>) {
   const { t, i18n } = useTranslation()
   const allowanceText = useOrbitAllowanceCopy()
@@ -169,7 +163,6 @@ export function CreateHabitModal({
   const [emojiFailure, setEmojiFailure] = useState<{ title: string; message: string; atLimit: boolean } | null>(null)
   const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
-  const guided = useFlag('orbit_guided_flows')
   const [saved, setSaved] = useState<{ id: string; optimistic: HabitResultItem } | null>(null)
   const [flowRun, setFlowRun] = useState(0)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -410,10 +403,6 @@ export function CreateHabitModal({
     [formHelpers.form],
   )
 
-  const handleBufferedInputsReady = useCallback((flush: () => void) => {
-    flushBufferedInputsRef.current = flush
-  }, [])
-
   const reportCreateFailure = useCallback((error: unknown) => {
     const code = extractBackendErrorCode(error)
     if (code === 'HABIT_LIMIT_REACHED' || code === 'PAY_GATE') {
@@ -427,9 +416,8 @@ export function CreateHabitModal({
       isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit',
       isSubHabitMode ? 'subHabit' : 'habit',
     )
-    if (guided) setSaveError(message)
-    else showError(message)
-  }, [formHelpers, guided, isSubHabitMode, showError, translate])
+    setSaveError(message)
+  }, [formHelpers, isSubHabitMode, translate])
 
   const submitCreate = useCallback(async (startRequest: () => void, completion?: GuidedHabitCompletion): Promise<SubmitOutcome> => {
     flushBufferedInputsRef.current()
@@ -444,7 +432,7 @@ export function CreateHabitModal({
       subHabits: subHabitValues,
     })
     if (error) {
-      reportRefusedHabitSave(error, { guided, showSaveError: setSaveError, getFieldState: formHelpers.form.getFieldState, showError })
+      setSaveError(error)
       return 'stay'
     }
     setSaveError(null)
@@ -463,7 +451,7 @@ export function CreateHabitModal({
           data: subRequest,
         })
       } else {
-        const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(i18n.language), phraseOwnershipRef.current, guided)
+        const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(i18n.language), phraseOwnershipRef.current, true)
         const request = buildCreateHabitRequest(
           { ...data, title },
           reminderTimes,
@@ -472,11 +460,9 @@ export function CreateHabitModal({
           subHabitValues,
         )
         const created = await createHabit.mutateAsync(request)
-        if (guided) {
-          captureGuidedFlowCompleted('habit_create', completion?.stepCount ?? 0, completion?.usedAiRead ?? false)
-          setSaved({ id: created.id, optimistic: optimisticHabitResult(data) })
-          return 'stay'
-        }
+        captureGuidedFlowCompleted('habit_create', completion?.stepCount ?? 0, completion?.usedAiRead ?? false)
+        setSaved({ id: created.id, optimistic: optimisticHabitResult(data) })
+        return 'stay'
       }
       finishClose(() => { onClose(); onCreated?.() }, true)
       return 'leave'
@@ -484,24 +470,7 @@ export function CreateHabitModal({
       reportCreateFailure(error)
       return 'stay'
     }
-  }, [
-    formHelpers,
-    i18n.language,
-    isSubHabitMode,
-    parentHabit,
-    tags,
-    selectedGoalIds,
-    subHabits,
-    reminderTimes,
-    createHabit,
-    createSubHabit,
-    guided,
-    finishClose,
-    onClose,
-    onCreated,
-    reportCreateFailure,
-    showError,
-  ])
+  }, [formHelpers, i18n.language, isSubHabitMode, parentHabit, tags, selectedGoalIds, subHabits, reminderTimes, createHabit, createSubHabit, finishClose, onClose, onCreated, reportCreateFailure])
 
   const handleSuggestEmoji = useCallback(async () => {
     flushBufferedInputsRef.current()
@@ -538,7 +507,7 @@ export function CreateHabitModal({
       suggestionRequests.finish()
       setIsEmojiSuggesting(false)
     }
-  }, [allowanceText, formHelpers, i18n.language, suggestionSessionId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+  }, [allowanceText, formHelpers, i18n.language, suggestionSessionId, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
@@ -610,7 +579,7 @@ export function CreateHabitModal({
     } finally {
       suggestionRequests.finish()
     }
-  }, [allowanceText, formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
+  }, [allowanceText, formHelpers, i18n.language, replaceSubHabits, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
 
 
   const isPending = submissionWaiting
@@ -676,28 +645,6 @@ export function CreateHabitModal({
     }
   }
 
-  function renderFormFields() {
-    return (
-      <View style={styles.scrollContent}>
-        {recoveryMessage ? <Text style={{ color: tokens.fg2 }}>{recoveryMessage} {t('common.syncOrphanedDetail')}</Text> : null}
-        <HabitFormFields formHelpers={formHelpers} onFlushBufferedInputsReady={handleBufferedInputsReady} {...buildFieldProps()} />
-      </View>
-    )
-  }
-
-  function renderCreateActions() {
-    return (
-      <>
-          <View accessibilityLiveRegion="polite" style={createBoundary ? { paddingBottom: 12 } : undefined}>
-            <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
-          </View>
-          <HabitCreateActions task={formHelpers.form.watch('itemType') === 'task'} presentation={presentation} pending={isPending}
-            empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
-            onCancel={dismissGuard.requestDismiss} onSubmit={() => void runSubmission(submitCreate)} />
-      </>
-    )
-  }
-
   function renderGuidedFlow() {
     const task = formHelpers.form.watch('itemType') === 'task'
     const createLabel = isSubHabitMode ? t('common.create') : t(task ? 'habits.createTask' : 'habits.createHabit')
@@ -749,8 +696,7 @@ export function CreateHabitModal({
   return (
     <>
       {open ? (<HabitCreateFrame
-        guided={guided}
-        discardSheet={guided ? discardSheet : undefined}
+        discardSheet={discardSheet}
         result={result}
         presentation={presentation}
         fromConversation={fromConversation}
@@ -761,13 +707,12 @@ export function CreateHabitModal({
         onClose={dismissGuard.canDismiss ? onClose : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={sheetTitle}
-        actions={guided ? undefined : renderCreateActions()}
+        actions={undefined}
 
       >
-        {guided ? renderGuidedFlow() : renderFormFields()}
+        {renderGuidedFlow()}
       </HabitCreateFrame>) : null}
       {open ? null : result}
-      {guided ? null : discardSheet}
     </>
   )
 }

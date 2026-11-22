@@ -1,5 +1,4 @@
 import React from 'react'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
@@ -37,7 +36,6 @@ function noticeText(nextStatus: SubscriptionStatus) {
 
 describe('lapsed subscription notice (mobile)', () => {
   it.each([[false, 'running'], [true, 'still']] as const)('draws Orbit with reduced motion %s as %s, with the guided flows on', (reducedMotion, loop) => {
-    enableTestFlags('orbit_guided_flows')
     motionState.reducedMotion = reducedMotion
     reanimatedTestState.reducedMotion = reducedMotion
     let tree: import('react-test-renderer').ReactTestRenderer | undefined
@@ -79,7 +77,6 @@ describe('lapsed subscription notice (mobile)', () => {
   })
 
   it.each([false, true])('keeps the notice and its action, and shows Orbit in Parado only with the guided flows on (%s)', (guided) => {
-    if (guided) enableTestFlags('orbit_guided_flows')
     const onResubscribe = vi.fn()
     let tree: import('react-test-renderer').ReactTestRenderer | undefined
     TestRenderer.act(() => {

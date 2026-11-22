@@ -33,7 +33,6 @@ vi.mock('@/hooks/use-resolve-clarification', () => ({
 import { ClarificationCard } from '@/components/chat/clarification-card'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import type { ClarificationRequest } from '@orbit/shared/types/chat'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -61,7 +60,6 @@ describe('ClarificationCard quick options', () => {
   })
 
   it('answers with OptionCard quick options in one group and sends the value the button sends', async () => {
-    enableTestFlags('orbit_guided_flows')
     mutateAsync.mockResolvedValueOnce({ ok: true, data: { operation: { status: 'Succeeded' } } })
     render(<ClarificationCard clarificationRequest={baseClarification} />, { wrapper: createWrapper() })
     const options = [...document.querySelectorAll<HTMLButtonElement>('[data-option-group] [data-option-card]')]
@@ -71,7 +69,6 @@ describe('ClarificationCard quick options', () => {
   })
 
   it('keeps the button row for more than four answers and with the flag off', () => {
-    enableTestFlags('orbit_guided_flows')
     const five = { ...baseClarification, quickActions: [...baseClarification.quickActions, { label: 'habits.clarification.quickAction.daily', value: 'extra', description: null }] }
     const view = render(<ClarificationCard clarificationRequest={five} />, { wrapper: createWrapper() })
     expect(document.querySelector('[data-option-card]')).toBeNull()
@@ -79,7 +76,6 @@ describe('ClarificationCard quick options', () => {
   })
 
   it('keeps the button row when one answer holds more than four words', () => {
-    enableTestFlags('orbit_guided_flows')
     const long = { ...baseClarification, quickActions: [baseClarification.quickActions[0]!, { label: 'Three times every single week', value: 'long', description: null }] }
     render(<ClarificationCard clarificationRequest={long} />, { wrapper: createWrapper() })
     expect(document.querySelector('[data-option-card]')).toBeNull()

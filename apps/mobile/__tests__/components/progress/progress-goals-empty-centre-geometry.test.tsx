@@ -16,7 +16,6 @@ vi.mock('react-native-safe-area-context', async (original) => ({
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ hasProAccess: true }), isLoading: false, isError: false }) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn(), dismissTo: vi.fn() }) }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: vi.fn(),
   useGoals: () => ({ data: { allGoals: [] }, isLoading: false, isError: false, refetch: vi.fn() }),

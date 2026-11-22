@@ -4,12 +4,11 @@ import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { choiceBlockFixture, pickListBlockFixture } from '@orbit/shared/test-support/chat-fixtures'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { BlockAnswerInteraction } from '@orbit/shared/chat'
 import { ChoiceBlock } from '@/components/chat/choice-block'
 import { PickListBlock } from '@/components/chat/pick-list-block'
 
-afterEach(() => { cleanup(); resetTestFlags() })
+afterEach(() => { cleanup() })
 
 type Locale = 'en' | 'pt-BR'
 const plainChoice = { ...choiceBlockFixture, options: choiceBlockFixture.options.map(option => ({ ...option, description: null })) }
@@ -28,8 +27,6 @@ function mount(kind: 'choice' | 'multi' | 'pick', locale: Locale, send = interac
 }
 
 async function answer(kind: 'choice' | 'multi' | 'pick', locale: Locale, quick: boolean) {
-  resetTestFlags()
-  if (quick) enableTestFlags('orbit_guided_flows')
   const send = mount(kind, locale)
   const labels = kind === 'pick' ? plainPickList.items.map(item => item.label) : plainChoice.options.map(option => option.label)
   const press = (label: string) => quick
@@ -44,8 +41,6 @@ async function answer(kind: 'choice' | 'multi' | 'pick', locale: Locale, quick: 
 
 describe.each(['pt-BR', 'en'] as const)('the quick options of the conversation blocks in %s', (locale) => {
   it.each(['choice', 'multi', 'pick'] as const)('answers a %s block of 2 to 4 options with OptionCard and sends the payload the list sends', async (kind) => {
-    resetTestFlags()
-    enableTestFlags('orbit_guided_flows')
     mount(kind, locale)
     expect(cards()).toHaveLength(kind === 'pick' ? 3 : plainChoice.options.length)
     expect(document.querySelector('[data-option-group]')).not.toBeNull()
@@ -59,25 +54,21 @@ describe.each(['pt-BR', 'en'] as const)('the quick options of the conversation b
 
 describe('the list presentation the conversation blocks keep', () => {
   it('keeps the radio list for an option with a detail line, and with the flag off', () => {
-    enableTestFlags('orbit_guided_flows')
     render(<NextIntlClientProvider locale="pt-BR" messages={pt}><ChoiceBlock block={choiceBlockFixture} interaction={interaction()} /></NextIntlClientProvider>)
     expect(cards()).toHaveLength(0)
     expect(screen.getAllByRole('radio').length).toBe(choiceBlockFixture.options.length)
     cleanup()
-    resetTestFlags()
     mount('choice', 'pt-BR')
     expect(cards()).toHaveLength(0)
   })
 
   it('keeps the check list for a pick list whose labels hold more than 4 words', () => {
-    enableTestFlags('orbit_guided_flows')
     render(<NextIntlClientProvider locale="pt-BR" messages={pt}><PickListBlock block={longPickList} interaction={interaction()} /></NextIntlClientProvider>)
     expect(cards()).toHaveLength(0)
     expect(screen.getAllByRole('checkbox')).toHaveLength(longPickList.items.length)
   })
 
   it('marks one pressed option of a single choice and toggles several of a multiple choice', () => {
-    enableTestFlags('orbit_guided_flows')
     mount('choice', 'pt-BR')
     fireEvent.click(cards()[0]!)
     fireEvent.click(cards()[1]!)

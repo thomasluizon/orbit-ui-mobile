@@ -55,7 +55,7 @@ describe.each(locales)('fresh start flow in $locale', ({ locale, messages }) => 
 
     it('asks what goes and what stays, then takes the typed confirmation and closes with the Parado result dialog', async () => {
       const onOpenChange = vi.fn()
-      render(withIntl(locale, messages, <FreshStartModal open guided onOpenChange={onOpenChange} />))
+      render(withIntl(locale, messages, <FreshStartModal open onOpenChange={onOpenChange} />))
       expect(screen.getByRole('heading', { level: 1, name: messages.profile.freshStart.question })).toBeInTheDocument()
       expect(document.querySelector('[data-fresh-start-lists]')).not.toBeNull()
       expect(screen.getByText(messages.profile.freshStart.deleteHabits)).toBeInTheDocument()
@@ -85,7 +85,7 @@ describe.each(locales)('fresh start flow in $locale', ({ locale, messages }) => 
   it('keeps the confirmation step open with the failure text when the reset fails', async () => {
     stubMedia(false)
     mocks.resetAccount.mockRejectedValue(new Error('Failed'))
-    render(withIntl(locale, messages, <FreshStartModal open guided onOpenChange={vi.fn()} />))
+    render(withIntl(locale, messages, <FreshStartModal open onOpenChange={vi.fn()} />))
     fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.reviewDeletion }))
     fireEvent.change(screen.getByLabelText(messages.profile.freshStart.confirmInstruction), { target: { value: 'ORBIT' } })
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.deleteData })) })
@@ -96,7 +96,7 @@ describe.each(locales)('fresh start flow in $locale', ({ locale, messages }) => 
   it('blocks the reset offline with the reason', () => {
     stubMedia(false)
     mocks.online = false
-    render(withIntl(locale, messages, <FreshStartModal open guided onOpenChange={vi.fn()} />))
+    render(withIntl(locale, messages, <FreshStartModal open onOpenChange={vi.fn()} />))
     fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.reviewDeletion }))
     fireEvent.change(screen.getByLabelText(messages.profile.freshStart.confirmInstruction), { target: { value: 'ORBIT' } })
     fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.deleteData }))
@@ -111,7 +111,7 @@ describe.each(locales)('fresh start flow in $locale', ({ locale, messages }) => 
     const onOpenChange = vi.fn()
     function Harness() {
       const [open, setOpen] = useState(true)
-      return <FreshStartModal open={open} guided onOpenChange={(next) => { onOpenChange(next); setOpen(next) }} />
+      return <FreshStartModal open={open} onOpenChange={(next) => { onOpenChange(next); setOpen(next) }} />
     }
     render(withIntl(locale, messages, <Harness />))
     fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.reviewDeletion }))
@@ -136,7 +136,7 @@ describe.each(locales)('fresh start flow in $locale', ({ locale, messages }) => 
       return (
         <>
           <button type="button" onClick={() => setOpen(true)}>reopen</button>
-          <FreshStartModal open={open} guided onOpenChange={setOpen} />
+          <FreshStartModal open={open} onOpenChange={setOpen} />
         </>
       )
     }
@@ -156,7 +156,7 @@ describe.each(locales)('fresh start flow in $locale', ({ locale, messages }) => 
   it('steps back to the lists on Escape from the confirmation while no reset runs', async () => {
     stubMedia(false)
     const onOpenChange = vi.fn()
-    render(withIntl(locale, messages, <FreshStartModal open guided onOpenChange={onOpenChange} />))
+    render(withIntl(locale, messages, <FreshStartModal open onOpenChange={onOpenChange} />))
     fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.reviewDeletion }))
     await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
     expect(screen.getByRole('heading', { level: 1, name: messages.profile.freshStart.question })).toBeInTheDocument()
@@ -165,7 +165,7 @@ describe.each(locales)('fresh start flow in $locale', ({ locale, messages }) => 
 
   it('goes back to the lists from the confirmation and keeps the typed text', () => {
     stubMedia(false)
-    render(withIntl(locale, messages, <FreshStartModal open guided onOpenChange={vi.fn()} />))
+    render(withIntl(locale, messages, <FreshStartModal open onOpenChange={vi.fn()} />))
     fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.reviewDeletion }))
     fireEvent.change(screen.getByLabelText(messages.profile.freshStart.confirmInstruction), { target: { value: 'ORB' } })
     fireEvent.click(screen.getByRole('button', { name: messages.common.back }))
@@ -179,7 +179,7 @@ describe.each(locales)('delete account flow in $locale', ({ locale, messages }) 
   beforeEach(() => stubMedia(false))
 
   it('states the warning for the plan, then sends the code and opens the code entry', async () => {
-    render(withIntl(locale, messages, <DeleteAccountModal open guided profile={proProfile} onOpenChange={vi.fn()} />))
+    render(withIntl(locale, messages, <DeleteAccountModal open profile={proProfile} onOpenChange={vi.fn()} />))
     expect(screen.getByRole('heading', { level: 1, name: messages.profile.deleteAccount.headingAreYouSure })).toBeInTheDocument()
     expect(screen.getByText(`${messages.profile.deleteAccount.warningPro} ${messages.profile.deleteAccount.warningAppStore}`)).toBeInTheDocument()
     expect(document.querySelector('[data-orbit-state]')).toBeNull()
@@ -194,7 +194,7 @@ describe.each(locales)('delete account flow in $locale', ({ locale, messages }) 
   it('hands the flow to the code question without reporting it as left', async () => {
     function Harness() {
       const [open, setOpen] = useState(true)
-      return <DeleteAccountModal open={open} guided profile={proProfile} onOpenChange={setOpen} />
+      return <DeleteAccountModal open={open} profile={proProfile} onOpenChange={setOpen} />
     }
     render(withIntl(locale, messages, <Harness />))
     fireEvent.click(screen.getByRole('button', { name: messages.common.continue }))
@@ -207,13 +207,13 @@ describe.each(locales)('delete account flow in $locale', ({ locale, messages }) 
   })
 
   it('states the free warning for a free plan', () => {
-    render(withIntl(locale, messages, <DeleteAccountModal open guided profile={{ ...proProfile, hasProAccess: false, billingProvider: null } as Profile} onOpenChange={vi.fn()} />))
+    render(withIntl(locale, messages, <DeleteAccountModal open profile={{ ...proProfile, hasProAccess: false, billingProvider: null } as Profile} onOpenChange={vi.fn()} />))
     expect(screen.getByText(messages.profile.deleteAccount.warningFree)).toBeInTheDocument()
   })
 
   it('keeps the code request step with the failure text when the request fails', async () => {
     mocks.requestDeletion.mockRejectedValue(new Error('Failed'))
-    render(withIntl(locale, messages, <DeleteAccountModal open guided profile={proProfile} onOpenChange={vi.fn()} />))
+    render(withIntl(locale, messages, <DeleteAccountModal open profile={proProfile} onOpenChange={vi.fn()} />))
     fireEvent.click(screen.getByRole('button', { name: messages.common.continue }))
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.deleteAccount.sendCode })) })
     expect(screen.getByRole('alert')).toHaveTextContent(messages.profile.deleteAccount.errorGeneric)
@@ -222,7 +222,7 @@ describe.each(locales)('delete account flow in $locale', ({ locale, messages }) 
 
   it('blocks the flow offline with the reason and no action', () => {
     mocks.online = false
-    render(withIntl(locale, messages, <DeleteAccountModal open guided profile={proProfile} onOpenChange={vi.fn()} />))
+    render(withIntl(locale, messages, <DeleteAccountModal open profile={proProfile} onOpenChange={vi.fn()} />))
     expect(screen.getByText(messages.profile.deleteAccount.offlineDescription)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: messages.common.continue })).toBeNull()
   })

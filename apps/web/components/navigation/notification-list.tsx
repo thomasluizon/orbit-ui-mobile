@@ -8,7 +8,6 @@ import { useTranslations } from 'next-intl'
 import { ListMotionItem, ListPresence, ListScope } from '@/components/motion/list-motion'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFlag } from '@/hooks/use-flag'
 import { NotificationRow } from './notification-row'
 
 const NOTIFICATION_SKELETON_LINES = [['80%', 22], ['100%', 21], ['32%', 16]] as const
@@ -44,14 +43,14 @@ function SkeletonRows() {
   ))
 }
 
-function InboxState({ failed, guided, onRetry }: Readonly<{ failed: boolean; guided: boolean; onRetry: () => void }>) {
+function InboxState({ failed, onRetry }: Readonly<{ failed: boolean; onRetry: () => void }>) {
   const t = useTranslations()
   const stateMascotSize = useStateMascotSize()
   const mascot = <OrbitMascot size={stateMascotSize} />
   return (
     <li className="flex flex-1 flex-col"><ShellCentredRegion><div data-notification-state={failed ? 'failed' : 'empty'} className="flex flex-col items-center gap-4 rounded-[var(--r-card)] p-8 text-center">
       {failed ? <>
-        {guided ? mascot : null}
+        {mascot}
         <p className="text-sm text-[var(--fg-3)]">{t('notifications.loadError')}</p>
         <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
       </> : <>
@@ -64,12 +63,11 @@ function InboxState({ failed, guided, onRetry }: Readonly<{ failed: boolean; gui
 
 export function NotificationList({ items, scope, isLoading, isError, onRetry, onOpen, onDelete }: Readonly<NotificationListProps>) {
   const t = useTranslations()
-  const guided = useFlag('orbit_guided_flows')
-  const rest = isLoading ? <SkeletonRows /> : <InboxState failed={isError} guided={guided} onRetry={onRetry} />
+  const rest = isLoading ? <SkeletonRows /> : <InboxState failed={isError} onRetry={onRetry} />
   return (
     <ul tabIndex={-1} aria-label={t('notifications.title')} aria-busy={isLoading}
-      className={`orbit-content-frame m-0 flex flex-1 list-none flex-col gap-2 py-4 ${guided ? 'relative' : ''}`}>
-      {guided ? <GuidedRows items={items} scope={scope} onOpen={onOpen} onDelete={onDelete} /> : items.map((item) => <NotificationRow key={item.id} item={item} onOpen={onOpen} onDelete={onDelete} />)}
+      className={`orbit-content-frame m-0 flex flex-1 list-none flex-col gap-2 py-4 ${'relative'}`}>
+      <GuidedRows items={items} scope={scope} onOpen={onOpen} onDelete={onDelete} />
       {items.length > 0 ? null : rest}
     </ul>
   )

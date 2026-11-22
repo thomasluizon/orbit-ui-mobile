@@ -21,7 +21,6 @@ import { isReviewMomentEligible,useReviewReminderStore } from '@/stores/review-r
 import { useUIStore } from '@/stores/ui-store'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useFlag } from '@/hooks/use-flag'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { captureHabitLogged } from '@/lib/posthog'
@@ -242,9 +241,8 @@ function useLogHabitContext() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
   const { showInfo, showError } = useAppToast()
-  const guided = useFlag('orbit_guided_flows')
   const { setStreakCelebration, showStreakMoment, checkAllDoneCelebration } = useUIStore.getState()
-  return { queryClient, t, guided, showInfo, showError, setStreakCelebration, showStreakMoment, checkAllDoneCelebration }
+  return { queryClient, t, showInfo, showError, setStreakCelebration, showStreakMoment, checkAllDoneCelebration }
 }
 
 type HabitLogOptions = UseMutationOptions<LogHabitResponse | QueuedMarker, Error, LogHabitMutationInput, LogHabitSnapshot>
@@ -323,7 +321,7 @@ function createLogHabitOnError(context: ReturnType<typeof useLogHabitContext>) {
 }
 
 function createLogHabitOnSuccess(context: ReturnType<typeof useLogHabitContext>) {
-  const { queryClient, t, guided, showInfo, setStreakCelebration, showStreakMoment, checkAllDoneCelebration } = context
+  const { queryClient, t, showInfo, setStreakCelebration, showStreakMoment, checkAllDoneCelebration } = context
   const callback: NonNullable<HabitLogOptions['onSuccess']> = (response, variables, context: LogHabitSnapshot | undefined) => {
     if (context?.account.stillCurrent() === false) return
     const queuedResult = isQueuedResult(response)
@@ -335,7 +333,7 @@ function createLogHabitOnSuccess(context: ReturnType<typeof useLogHabitContext>)
     }
 
     if (queuedResult) {
-      showInfo(t(guided ? 'todayOrbit.guided.offlineLog' : 'todayOrbit.offlineLog'))
+      showInfo(t('todayOrbit.guided.offlineLog'))
       return
     }
 

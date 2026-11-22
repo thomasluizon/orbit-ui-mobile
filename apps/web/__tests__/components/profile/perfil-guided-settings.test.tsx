@@ -35,9 +35,9 @@ beforeEach(() => {
   holdAccount('user-1')
 })
 
-describe.each(locales)('Perfil settings with orbit_guided_flows in $locale', ({ locale, messages }) => {
+describe.each(locales)('Perfil settings in $locale', ({ locale, messages }) => {
   it('answers the product email question with two quick options', async () => {
-    mount(locale, messages, <MarketingConsentSection showSectionLabel={false} contained guided />)
+    mount(locale, messages, <MarketingConsentSection showSectionLabel={false} contained />)
     expect(screen.getByText(messages.profile.marketingEmails.question)).toBeInTheDocument()
     const options = [...document.querySelectorAll('[data-option-card]')].map((option) => option.textContent)
     expect(options).toEqual([messages.profile.marketingEmails.decline, messages.profile.marketingEmails.accept])
@@ -47,7 +47,7 @@ describe.each(locales)('Perfil settings with orbit_guided_flows in $locale', ({ 
   })
 
   it('titles the name sheet with its question, which also names the field', () => {
-    mount(locale, messages, <EditNameSheet open guided onOpenChange={vi.fn()} />)
+    mount(locale, messages, <EditNameSheet open onOpenChange={vi.fn()} />)
     const named = screen.getAllByText(messages.profile.editName.label)
     expect(named.filter((node) => node.tagName !== 'LABEL')).toHaveLength(1)
     expect(named.find((node) => node.tagName === 'LABEL')).toHaveClass('sr-only')

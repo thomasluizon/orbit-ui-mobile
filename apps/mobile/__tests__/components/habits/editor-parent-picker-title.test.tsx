@@ -32,7 +32,7 @@ describe('the parent picker of the habit editor', () => {
   ] as const)('in %s with guided %s titles the picker in the words of its surface', async (locale, guided, title, otherTitle) => {
     await i18n.changeLanguage(locale)
     await act(async () => {
-      tree = create(<OverlayHost><EditorParentField parent={openParent()} disabled={false} guided={guided} onRetryDetail={() => {}} /></OverlayHost>)
+      tree = create(<OverlayHost><EditorParentField parent={openParent()} disabled={false} onRetryDetail={() => {}} /></OverlayHost>)
       await Promise.resolve()
     })
     expect(shownTexts()).toContain(title)

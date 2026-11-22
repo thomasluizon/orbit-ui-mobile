@@ -1,6 +1,5 @@
-import { SPACING } from '@orbit/shared/theme'
+
 import { useRef, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -13,35 +12,25 @@ import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { useOffline } from '@/hooks/use-offline'
 import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2 } from '@/lib/theme'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { PillButton } from '@/components/ui/pill-button'
-import { ActionRow } from '@/components/ui/action-row'
-import { TriangleAlert } from '@/components/ui/icons'
-import { ErrorState } from '@/components/ui/error-state'
+import { useSheetHost } from '@/components/ui/sheet'
 import { DeleteAccountFlow } from './delete-account-flow'
 
 interface DeleteAccountModalProps {
   open: boolean
   onClose: () => void
   profile: Profile | undefined
-  guided?: boolean
 }
 
 export function DeleteAccountModal({
   open,
   onClose,
   profile,
-  guided = false,
 }: Readonly<DeleteAccountModalProps>) {
   const { t } = useTranslation()
   const router = useRouter()
   const { isOnline } = useOffline()
   const accountId = useAuthStore((state) => state.user?.userId ?? null)
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-  const { sheetRef, closeSheet } = useSheetHost()
+  const { closeSheet } = useSheetHost()
   const [loading, setLoading] = useState(false)
   const requestPending = useRef(false)
   const [error, setError] = useState('')
@@ -98,116 +87,19 @@ export function DeleteAccountModal({
   }
 
   if (!open) return null
-  if (guided) {
-    return (
-      <DeleteAccountFlow
-        step={step}
-        warnings={[t('profile.deleteAccount.warning'), [warningMessage, storeCancellationNotice].filter(Boolean).join(' '), t('profile.deleteAccount.warningDetail')]}
-        email={profile?.email ?? null}
-        offline={!isOnline}
-        loading={loading}
-        error={error}
-        canSend={accountId !== null}
-        onContinue={() => setStep('send')}
-        onBack={() => { setError(''); setStep('warning') }}
-        onClose={handleClose}
-        onSend={() => { void handleRequestDeletion() }}
-      />
-    )
-  }
-
   return (
-    <Sheet
-      ref={sheetRef}
-      open
+    <DeleteAccountFlow
+      step={step}
+      warnings={[t('profile.deleteAccount.warning'), [warningMessage, storeCancellationNotice].filter(Boolean).join(' '), t('profile.deleteAccount.warningDetail')]}
+      email={profile?.email ?? null}
+      offline={!isOnline}
+      loading={loading}
+      error={error}
+      canSend={accountId !== null}
+      onContinue={() => setStep('send')}
+      onBack={() => { setError(''); setStep('warning') }}
       onClose={handleClose}
-      title={t('profile.deleteAccount.headingAreYouSure')}
-      actions={
-        isOnline ? (
-          <>
-            {error ? (
-              <Text
-                accessibilityRole="alert"
-                style={[styles.error, { color: tokens.statusBadText, width: '100%' }]}
-              >
-                {error}
-              </Text>
-            ) : null}
-            <ActionRow>
-              <PillButton size="sm" variant="ghost" disabled={loading} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
-              <PillButton
-                size="sm"
-                variant="destructive"
-                onClick={() => void handleRequestDeletion()}
-                disabled={loading || accountId === null}
-                loading={loading}
-              >
-                {t('profile.deleteAccount.sendCode')}
-              </PillButton>
-            </ActionRow>
-          </>
-        ) : undefined
-      }
-    >
-      {!isOnline ? (
-        <ErrorState message={t('profile.deleteAccount.offlineDescription')} />
-      ) : (
-        <View style={styles.hero}>
-          <View
-            style={[
-              styles.heroCircle,
-              { backgroundColor: `${tokens.statusBad}24` },
-            ]}
-          >
-            <TriangleAlert size={24} color={tokens.statusBad} strokeWidth={2} />
-          </View>
-          <View style={styles.copy}>
-            <Text style={[styles.title, { color: tokens.statusBadText }]}>
-              {t('profile.deleteAccount.warning')}
-            </Text>
-            <Text style={[styles.title, { color: tokens.fg1 }]}>{[warningMessage, storeCancellationNotice].filter(Boolean).join(' ')}</Text>
-            <Text style={[styles.description, { color: tokens.fg2 }]}>
-              {t('profile.deleteAccount.warningDetail')}
-            </Text>
-          </View>
-        </View>
-      )}
-    </Sheet>
+      onSend={() => { void handleRequestDeletion() }}
+    />
   )
 }
-
-const styles = StyleSheet.create({
-  hero: {
-    alignItems: 'center',
-    gap: 16,
-    paddingTop: SPACING.s4,
-  },
-  heroCircle: {
-    alignItems: 'center',
-    borderRadius: 999,
-    height: 80,
-    justifyContent: 'center',
-    width: 80,
-  },
-  copy: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 16,
-    lineHeight: 23,
-    textAlign: 'center',
-  },
-  description: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 16,
-    lineHeight: 23,
-    textAlign: 'center',
-  },
-  error: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-})

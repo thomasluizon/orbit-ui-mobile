@@ -9,7 +9,6 @@ import {
 } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { useBackLabel } from '@/hooks/use-back-label'
-import { useFlag } from '@/hooks/use-flag'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { WrappedCover } from './_components/wrapped-cover'
@@ -51,7 +50,6 @@ function WrappedPageContent({ initialSelection }: Readonly<{
 }>) {
   const goBackOrFallback = useGoBackOrFallback()
   const backLabel = useBackLabel('/profile')
-  const guided = useFlag('orbit_guided_flows')
   const [selection, setSelection] = useState(initialSelection)
   const { period, closedMonth } = selection
   const [isPlaying, setIsPlaying] = useState(false)
@@ -84,9 +82,9 @@ function WrappedPageContent({ initialSelection }: Readonly<{
   const playerOpen = isPlaying && recap && !isEmpty
 
   return (
-    <main className={`mx-auto flex w-full max-w-[900px] flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)] ${guided ? 'h-dvh' : 'min-h-dvh'}`}>
+    <main className={`mx-auto flex w-full max-w-[900px] flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)] ${'h-dvh'}`}>
       {!playerOpen ? <UpdateAvailableBanner /> : null}
-      <div className={guided ? 'flex min-h-0 flex-1 flex-col' : 'flex flex-1 flex-col'}>
+      <div className={'flex min-h-0 flex-1 flex-col'}>
         {!playerOpen ? (
           <AppBar
             title=""
@@ -95,7 +93,7 @@ function WrappedPageContent({ initialSelection }: Readonly<{
             onBack={() => goBackOrFallback('/profile')}
           />
         ) : null}
-        {guided && playerOpen ? null : (
+        {playerOpen ? null : (
           <WrappedCover
             period={period}
             onSelectPeriod={selectPeriod}

@@ -9,7 +9,6 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarView } from '@orbit/shared/utils/calendar-navigation'
 import { buildCalendarOrbitRequest, formatAPIDate, formatCalendarOrbitLine, nextCalendarPageTurn, resolveCalendarOrbitLine, type CalendarMonthDisplayState, type CalendarOrbitLine as CalendarOrbitLineModel } from '@orbit/shared/utils'
 import { TodayOrbitLine } from '@/components/today/today-orbit-line'
-import { useFlag } from '@/hooks/use-flag'
 import { useOrbitLook } from '@/hooks/use-orbit-look'
 import { useProfile } from '@/hooks/use-profile'
 import { useChatStore } from '@/stores/chat-store'
@@ -75,7 +74,7 @@ function useOrbitRest(isOnline: boolean) {
 
 /** The Orbit line of Calendário: Orbit at 48 and one fact about the selected day or the shown month. A press opens the conversation with that period offered above the composer. With the guided flows off, Calendário has no line. */
 export function CalendarOrbitLine(props: Readonly<CalendarOrbitLineProps>) {
-  return useFlag('orbit_guided_flows') ? <CalendarOrbitLineRow {...props} /> : null
+  return <CalendarOrbitLineRow {...props} />
 }
 
 function CalendarOrbitLineRow(props: Readonly<CalendarOrbitLineProps>) {

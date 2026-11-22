@@ -28,7 +28,7 @@ describe('the parent row of the habit editor', () => {
     ['en', false, 'Parent habit, Rotina da manhã'],
   ] as const)('in %s with guided %s names the row in the words of its surface', async (locale, guided, name) => {
     await i18n.changeLanguage(locale)
-    await act(() => { tree = create(<EditorParentField parent={parent('Rotina da manhã')} disabled={false} guided={guided} onRetryDetail={() => {}} />) })
+    await act(() => { tree = create(<EditorParentField parent={parent('Rotina da manhã')} disabled={false} onRetryDetail={() => {}} />) })
     const buttons = tree!.root.findAll((node) => node.props.accessibilityRole === 'button' && typeof node.props.accessibilityLabel === 'string')
     expect(buttons.map((node) => node.props.accessibilityLabel)).toContain(name)
   })

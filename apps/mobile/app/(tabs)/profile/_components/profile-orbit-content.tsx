@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router'
 import { deriveProfileOrbitFeatures } from '@orbit/shared/utils'
 import { OrbitConnections } from '@/components/profile/orbit-connections'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
-import { useFlag } from '@/hooks/use-flag'
 import { OrbitAllowancePanel } from '@/components/profile/orbit-allowance-panel'
 import {
   type OrbitSettingsController,
@@ -32,7 +31,6 @@ function buildOrbitRows(
   { profile, router, t }: RowContext,
   settings: OrbitSettingsController,
   apiKeysUnlocked: boolean,
-  guided: boolean,
 ) {
   const onUpgrade = () => router.push(buildUpgradeHref('/profile/ai'))
   const orbitFeatures = deriveProfileOrbitFeatures(Boolean(profile?.hasProAccess), settings)
@@ -63,16 +61,15 @@ function buildOrbitRows(
         ) : null}
       </View>
       <OrbitConnections hasProAccess={Boolean(profile?.hasProAccess)} />
-      <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} guided={guided} />
+      <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
     </View>
   )
 }
 
 export function ProfileOrbitContent({ profile, patchProfile }: Readonly<ProfileContentProps>) {
-  const guided = useFlag('orbit_guided_flows')
   const { t } = useTranslation()
   const router = useRouter()
   const [apiKeysUnlocked] = useState(() => isStepUpVerified('keys'))
   const orbitSettings = useOrbitSettingsController(profile, patchProfile)
-  return buildOrbitRows({ profile, router, t }, orbitSettings, apiKeysUnlocked, guided)
+  return buildOrbitRows({ profile, router, t }, orbitSettings, apiKeysUnlocked)
 }

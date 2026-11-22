@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { HabitRow } from '@/components/habits/habit-row'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
@@ -19,7 +18,6 @@ const TARGET_MS = 100
 
 describe.each([false, true])('the press to the state change of a log, reduced motion %s', (reduced) => {
   it('changes the check in the same tick, with no dialog, no mascot and no awaited request, under 100 ms', () => {
-    enableTestFlags('orbit_guided_flows')
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: reduced && query.includes('prefers-reduced-motion'), media: query, addEventListener: () => {}, removeEventListener: () => {} }))
     const durations: number[] = []
     for (let sample = 0; sample < SAMPLES; sample++) {

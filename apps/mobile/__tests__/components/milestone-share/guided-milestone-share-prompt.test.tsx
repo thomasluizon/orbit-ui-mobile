@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 import { testI18n } from '@/__tests__/support/i18n'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
@@ -80,7 +79,6 @@ afterEach(async () => {
 
 describe('the guided milestone share prompt on Android', () => {
   it.each(LOCALES)('opens a centred dialog named by its title, with Orbit in Feliz and its current actions in $locale', async ({ locale, copy }) => {
-    enableTestFlags('orbit_guided_flows')
     const root = await openPrompt(locale)
 
     const dialog = byTestId(root, 'milestone-share-dialog')[0]!
@@ -110,7 +108,6 @@ describe('the guided milestone share prompt on Android', () => {
     { reduced: false, animationType: 'fade' },
     { reduced: true, animationType: 'none' },
   ])('opens with the $animationType window animation when reduced motion is $reduced, and keeps Orbit still under reduced motion', async ({ reduced, animationType }) => {
-    enableTestFlags('orbit_guided_flows')
     mocks.reducedMotion = reduced
     reanimatedTestState.reducedMotion = reduced
     const root = await openPrompt()
@@ -121,7 +118,6 @@ describe('the guided milestone share prompt on Android', () => {
   })
 
   it('closes on a scrim press and on Android back', async () => {
-    enableTestFlags('orbit_guided_flows')
     const root = await openPrompt()
     await press(byTestId(root, 'milestone-share-dialog-scrim')[0]!)
     expect(byTestId(root, 'milestone-share-dialog')).toHaveLength(0)
@@ -136,7 +132,6 @@ describe('the guided milestone share prompt on Android', () => {
   })
 
   it.each([320, 360, 384, 412])('centres the dialog panel in the window at %i px', async (width) => {
-    enableTestFlags('orbit_guided_flows')
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     const root = await openPrompt()
 
@@ -148,7 +143,6 @@ describe('the guided milestone share prompt on Android', () => {
   })
 
   it('scales the card preview to the width of the dialog and keeps the logical width of the card', async () => {
-    enableTestFlags('orbit_guided_flows')
     const root = await openPrompt()
 
     await renderer.act(() => { (byTestId(root, 'milestone-card-preview')[0]!.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { width: 240, height: 0 } } }) })
@@ -159,7 +153,6 @@ describe('the guided milestone share prompt on Android', () => {
   })
 
   it('shows the current message after a share that fails', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.hasError = true
     const root = await openPrompt()
 
@@ -167,7 +160,6 @@ describe('the guided milestone share prompt on Android', () => {
   })
 
   it('never opens while the celebration panel is open', async () => {
-    enableTestFlags('orbit_guided_flows')
     useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
     const root = await openPrompt()
 
@@ -176,7 +168,6 @@ describe('the guided milestone share prompt on Android', () => {
   })
 
   it('leaves the screen while a celebration shows over an open dialog, and returns after it', async () => {
-    enableTestFlags('orbit_guided_flows')
     const root = await openPrompt()
     expect(byTestId(root, 'milestone-share-dialog')).toHaveLength(1)
 
@@ -189,7 +180,6 @@ describe('the guided milestone share prompt on Android', () => {
   })
 
   it('closes when the overlay layer suppresses the prompts', async () => {
-    enableTestFlags('orbit_guided_flows')
     const root = await openPrompt()
 
     await renderer.act(() => { root.update(<MilestoneSharePrompt suppressed />) })

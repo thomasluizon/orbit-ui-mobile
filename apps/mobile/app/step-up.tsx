@@ -1,6 +1,5 @@
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { useEffect, useMemo, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -9,7 +8,6 @@ import {
   extractBackendError,
   extractBackendErrorCode,
   extractStepUpAttemptsRemaining,
-  formatStepUpCountdown,
   getStepUpCooldownSeconds,
   getStepUpLockSeconds,
   getStepUpPhaseFromTiming,
@@ -37,7 +35,6 @@ import {
 import { PROFILE_STEP_UP_DESTINATIONS } from '@orbit/shared/utils/profile-routes'
 import { getBackLabel } from '@orbit/shared/utils/back-label'
 import { useProfile } from '@/hooks/use-profile'
-import { useFlag } from '@/hooks/use-flag'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
 import { useAuthStore } from '@/stores/auth-store'
@@ -45,12 +42,7 @@ import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
-import { FlowShell } from '@/components/shell/flow-shell'
-import { OtpInput } from '@/components/ui/otp-input'
-import { PillButton } from '@/components/ui/pill-button'
 import { ResultDialog } from '@/components/ui/result-dialog'
-import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { MotionPressable } from '@/components/ui/motion-pressable'
 import { GuidedStepUp, type GuidedStepUpState } from '@/components/auth/guided-step-up'
 
 export default function StepUpScreen() {
@@ -86,7 +78,6 @@ function StepUpScreenContent() {
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null)
   const [fieldError, setFieldError] = useState<string | null>(null)
   const [shortSubmits, setShortSubmits] = useState(0)
-  const guided = useFlag('orbit_guided_flows')
   const [requestError, setRequestError] = useState<string | null>(null)
   const [requesting, setRequesting] = useState(false)
   const [scheduledDeletionAt, setScheduledDeletionAt] = useState<string | null>(null)
@@ -189,7 +180,7 @@ function StepUpScreenContent() {
   async function handleConfirm() {
     if (!operation || !record || checking || accountId === null) return
     if (code.length !== STEP_UP_CODE_LENGTH) {
-      if (guided) refuseShortCode()
+      refuseShortCode()
       return
     }
     const initiatingAccountId = accountId
@@ -281,7 +272,7 @@ function StepUpScreenContent() {
   const otpError = getMobileOtpError(t, fieldError, attemptsRemaining)
 
   if (!hydrated || !operation || !record) return null
-  const surface = { operationLabel, t, tokens, guided, operation }
+  const surface = { operationLabel, t, tokens, operation }
   if (success) {
     return (
       <>
@@ -305,12 +296,8 @@ function StepUpScreenContent() {
   )
 }
 
-function StepUpSurface({ guided, operation, state, operationLabel, t, tokens }: Readonly<SharedMobileStepUpProps & { guided: boolean; operation: StepUpOperation; state: GuidedStepUpState }>) {
-  if (guided) return <GuidedStepUp operation={operation} state={state} />
-  const sharedView = { operationLabel, t, tokens }
-  if (state.kind === 'success') return <MobileStepUpSuccess {...sharedView} deletionDate={state.deletionDate} showProNotice={state.showProNotice} onSignOut={state.onSignOut} />
-  if (state.kind === 'exhausted') return <MobileStepUpExhausted {...sharedView} lockSeconds={state.lockSeconds} backLabel={state.backLabel} onBack={state.onBack} />
-  return <MobileStepUpChallenge {...state} operationLabel={operationLabel} t={t} tokens={tokens} />
+function StepUpSurface({ operation, state }: Readonly<SharedMobileStepUpProps & { operation: StepUpOperation; state: GuidedStepUpState }>) {
+  return <GuidedStepUp operation={operation} state={state} />
 }
 
 type StepUpTokens = ReturnType<typeof createTokensV2>
@@ -334,53 +321,9 @@ interface SharedMobileStepUpProps {
   tokens: StepUpTokens
 }
 
-function MobileStepUpHeader({
-  body,
-  operationLabel,
-  t,
-  title,
-  tokens,
-}: Readonly<SharedMobileStepUpProps & { body?: string; title: string }>) {
-  return (
-    <View style={styles.header}>
-      <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>{t('stepUp.eyebrow', { operation: operationLabel })}</Text>
-      <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
-      {body ? <Text style={[styles.body, { color: tokens.fg2 }]}>{body}</Text> : null}
-    </View>
-  )
-}
-
-function MobileStepUpSuccess({
-  deletionDate,
-  onSignOut,
-  operationLabel,
-  showProNotice,
-  t,
-  tokens,
-}: Readonly<SharedMobileStepUpProps & {
-  deletionDate: string
-  onSignOut: () => void
-  showProNotice: boolean
-}>) {
-  return (
-    <FlowShell nav={false} action={
-      <PillButton onClick={onSignOut}>{t('stepUp.signOut')}</PillButton>
-    }>
-      <View style={styles.column}>
-        <MobileStepUpHeader operationLabel={operationLabel} t={t} title={t('stepUp.successTitle', { date: deletionDate })} tokens={tokens} />
-        <View style={styles.success}>
-          <Text accessibilityRole="summary" style={[styles.body, { color: tokens.fg2 }]}>{t('stepUp.successBody')}</Text>
-          {showProNotice ? <Text style={[styles.secondary, { color: tokens.fg3 }]}>{t('stepUp.successPro', { date: deletionDate })}</Text> : null}
-        </View>
-      </View>
-    </FlowShell>
-  )
-}
-
 function DeletionResult({ deletionDate, pro, onSignOut, t }: Readonly<{ deletionDate: string; pro: boolean; onSignOut: () => void; t: TFunction }>) {
-  const guided = useFlag('orbit_guided_flows')
   const [dismissed, setDismissed] = useState(false)
-  if (!guided || dismissed) return null
+  if (dismissed) return null
   return (
     <ResultDialog
       title={t('result.title')}
@@ -392,164 +335,3 @@ function DeletionResult({ deletionDate, pro, onSignOut, t }: Readonly<{ deletion
     />
   )
 }
-
-function MobileStepUpExhausted({
-  backLabel,
-  lockSeconds,
-  onBack,
-  operationLabel,
-  t,
-  tokens,
-}: Readonly<SharedMobileStepUpProps & { backLabel: string; lockSeconds: number | null; onBack: () => void }>) {
-  return (
-    <FlowShell nav={false}>
-      <View style={styles.column}>
-        <MobileStepUpHeader body={t('stepUp.exhaustedBody')} operationLabel={operationLabel} t={t} title={t('stepUp.exhaustedTitle')} tokens={tokens} />
-        <View style={styles.exhausted}>
-          <CapacityNotice message={t('stepUp.exhaustedNotice')} />
-          {lockSeconds === null ? null : <Text testID="lock-countdown" style={[styles.mono, { color: tokens.fg3 }]}>{t('stepUp.lockCountdown', { time: formatStepUpCountdown(lockSeconds) })}</Text>}
-          <QuietAction label={backLabel} onPress={onBack} />
-        </View>
-        <Text style={[styles.secondary, { color: tokens.fg3 }]}>{t('stepUp.neverShare')}</Text>
-      </View>
-    </FlowShell>
-  )
-}
-
-interface MobileStepUpChallengeProps extends SharedMobileStepUpProps {
-  checking: boolean
-  code: string
-  codeFocusRequest: number | undefined
-  cooldownSeconds: number
-  email: string
-  expired: boolean
-  onCancel: () => void
-  onCodeChange: (value: string) => void
-  onConfirm: () => void
-  onResend: () => void
-  otpError?: string
-  requestError: string | null
-  requesting: boolean
-}
-
-function MobileStepUpChallenge(props: Readonly<MobileStepUpChallengeProps>) {
-  const { checking, code, codeFocusRequest, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t, tokens } = props
-  const action = expired ? (
-    <PillButton loading={requesting} onClick={onResend}>{t('stepUp.resend')}</PillButton>
-  ) : (
-    <PillButton disabled={code.length !== STEP_UP_CODE_LENGTH} loading={checking} onClick={onConfirm}>{t('stepUp.confirm')}</PillButton>
-  )
-  return (
-    <FlowShell nav={false} action={action}>
-      <View style={styles.column}>
-        <MobileStepUpHeader body={expired ? t('stepUp.expiredBody') : t('stepUp.body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('stepUp.expiredTitle') : t('stepUp.title')} tokens={tokens} />
-        <OtpInput value={code} onChange={onCodeChange} error={otpError} focusRequest={codeFocusRequest} hint={expired ? undefined : t('stepUp.codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('stepUp.codeLabel')} />
-        {!expired ? <MobileStepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} tokens={tokens} /> : null}
-        {requestError ? <Text accessibilityRole="alert" style={[styles.secondary, { color: tokens.statusBadText }]}>{requestError}</Text> : null}
-        <View style={styles.note}>
-          <Text style={[styles.secondary, { color: tokens.fg3 }]}>{t('stepUp.neverShare')}</Text>
-          <QuietAction label={t('stepUp.cancel')} onPress={onCancel} />
-        </View>
-      </View>
-    </FlowShell>
-  )
-}
-
-function MobileStepUpResend({ cooldownSeconds, onResend, requesting, t, tokens }: Readonly<{
-  cooldownSeconds: number
-  onResend: () => void
-  requesting: boolean
-  t: TFunction
-  tokens: StepUpTokens
-}>) {
-  return (
-    <View style={styles.resendRow}>
-      {cooldownSeconds > 0 ? (
-        <Text testID="resend-countdown" style={[styles.mono, { color: tokens.fg3 }]}>{t('stepUp.cooldown', { time: formatStepUpCountdown(cooldownSeconds) })}</Text>
-      ) : (
-        <PillButton variant="ghost" size="sm" loading={requesting} onClick={onResend}>{t('stepUp.resend')}</PillButton>
-      )}
-    </View>
-  )
-}
-
-function QuietAction({ label, onPress }: Readonly<{ label: string; onPress: () => void }>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-  return (
-    <MotionPressable
-      onPress={onPress}
-      accessibilityRole="link"
-      accessibilityLabel={label}
-      style={({ pressed }) => [styles.quietAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
-    >
-      <Text style={[styles.quietLabel, { color: tokens.fg2 }]}>{label}</Text>
-    </MotionPressable>
-  )
-}
-
-const styles = StyleSheet.create({
-  column: {
-    gap: 24,
-  },
-  header: {
-    gap: 8,
-  },
-  eyebrow: {
-    fontFamily: 'GeistMono_500Medium',
-    fontSize: 12,
-    letterSpacing: 0.72,
-    textTransform: 'uppercase',
-  },
-  title: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 22,
-    letterSpacing: -0.44,
-    lineHeight: 27,
-  },
-  body: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 16,
-    lineHeight: 25,
-  },
-  secondary: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  mono: {
-    fontFamily: 'GeistMono_400Regular',
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
-    lineHeight: 18,
-  },
-  resendRow: {
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  exhausted: {
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  success: {
-    gap: 16,
-  },
-  note: {
-    alignItems: 'flex-start',
-    gap: 8,
-    paddingTop: SPACING.s8,
-  },
-  quietAction: {
-    borderRadius: 999,
-    overflow: 'hidden',
-    paddingHorizontal: SPACING.s12,
-    minHeight: TOUCH_TARGET_MIN,
-    justifyContent: 'center',
-  },
-  quietLabel: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 16,
-    lineHeight: 24,
-    textDecorationLine: 'underline',
-  },
-})

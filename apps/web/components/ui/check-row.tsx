@@ -3,7 +3,6 @@
 import { SPACING, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import { useEffect, useRef, useState } from 'react'
 import { animate } from 'motion/react'
-import { useFlag } from '@/hooks/use-flag'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 
@@ -114,7 +113,6 @@ function personalContentClassName(leading: CheckRowProps['leading']) {
 }
 
 function useCheckSettle(checked: boolean): number | null {
-  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const [shown, setShown] = useState(checked)
   const [logged, setLogged] = useState(false)
@@ -122,7 +120,7 @@ function useCheckSettle(checked: boolean): number | null {
     setShown(checked)
     setLogged(checked)
   }
-  return logged && guided && !reducedMotion ? resolveMotionPreset('success-feedback').scaleFrom : null
+  return logged && !reducedMotion ? resolveMotionPreset('success-feedback').scaleFrom : null
 }
 
 function CalendarDayCheck({ checked, loading }: Readonly<{ checked: boolean; loading: boolean }>) {

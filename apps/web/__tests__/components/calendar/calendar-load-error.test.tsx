@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarBody } from '@/app/(app)/calendar/_components/calendar-body'
@@ -35,7 +34,6 @@ describe.each(['en', 'pt-BR'] as const)('web Calendário load error in %s', (loc
   beforeEach(() => { view.locale = locale })
 
   it.each(['profile', 'month'] as const)('shows Orbit in Parado, one first person line and the retry for a %s failure, centred in the free area', (failed) => {
-    enableTestFlags('orbit_guided_flows')
     const retry = mount(failed)
     expect(mascot()).toHaveAttribute('data-orbit-state', 'parado')
     expect(mascot()).toHaveAttribute('width', '96')
@@ -47,7 +45,6 @@ describe.each(['en', 'pt-BR'] as const)('web Calendário load error in %s', (loc
   })
 
   it('runs the idle loop with motion and keeps a still face under reduced motion', () => {
-    enableTestFlags('orbit_guided_flows')
     mount('month')
     expect(mascot()).toHaveAttribute('data-orbit-loop', 'running')
     cleanup()
@@ -58,7 +55,6 @@ describe.each(['en', 'pt-BR'] as const)('web Calendário load error in %s', (loc
   })
 
   it('says the read needs a connection when the device is offline', () => {
-    enableTestFlags('orbit_guided_flows')
     view.online = false
     mount('month')
     expect(screen.getByRole('alert')).toHaveTextContent(messages.offline.description)
@@ -67,7 +63,6 @@ describe.each(['en', 'pt-BR'] as const)('web Calendário load error in %s', (loc
   })
 
   it('says the read needs a connection when the profile read failed for want of one', () => {
-    enableTestFlags('orbit_guided_flows')
     mount('profile', vi.fn(), new TypeError('Failed to fetch'))
     expect(screen.getByRole('alert')).toHaveTextContent(messages.offline.description)
   })
@@ -82,7 +77,6 @@ describe.each(['en', 'pt-BR'] as const)('web Calendário load error in %s', (loc
   })
 
   it('shows the month when nothing failed', () => {
-    enableTestFlags('orbit_guided_flows')
     render(<CalendarBody profileReady profileError={null} onRetryProfile={vi.fn()} error={null} onRetry={vi.fn()}><p>The month</p></CalendarBody>)
     expect(screen.getByText('The month')).toBeInTheDocument()
     expect(mascot()).toBeNull()

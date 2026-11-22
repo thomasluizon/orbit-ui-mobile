@@ -14,7 +14,6 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const habits = vi.hoisted(() => ({ data: { habitsById: new Map<string, unknown>() }, isLoading: false, isError: false, refetch: () => Promise.resolve() }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: vi.fn(), isPending: false }), useUpdateGoal: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => habits }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'UTC' } }) }))

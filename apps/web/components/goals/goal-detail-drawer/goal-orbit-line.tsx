@@ -18,11 +18,11 @@ function deadlineSentence(fact: GoalDeadlineFact, t: Translate, locale: string):
 }
 
 /** The date fact of the goal in the Orbit line, from the account's today. Null off the Orbit logic, with no deadline, or for a goal that is not active. */
-export function useGoalOrbitLine(goal: Goal | null, guided: boolean): string | null {
+export function useGoalOrbitLine(goal: Goal | null): string | null {
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()
-  if (!goal || !guided) return null
+  if (!goal) return null
   const fact = getGoalDeadlineFact(goal, getAccountDay(new Date(), profile?.timeZone))
   return fact ? deadlineSentence(fact, t, locale) : null
 }

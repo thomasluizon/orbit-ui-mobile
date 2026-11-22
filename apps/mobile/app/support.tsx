@@ -1,18 +1,12 @@
-import { ShellContent } from '@/components/shell/shell-content'
-import { SPACING } from '@orbit/shared/theme'
+
 import { unmappedBackendFormError } from '@orbit/shared/hooks'
 import { extractBackendFieldErrors, getBackendFieldError } from '@orbit/shared/utils'
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   AccessibilityInfo,
-  StyleSheet,
-  Text,
-  View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { getAppVersion } from '@/lib/app-version'
-import { Check, WifiOff } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import {
@@ -26,233 +20,27 @@ import {
   SUPPORT_SUBJECT_OPTIONS,
   type SupportSubjectId,
 } from '@orbit/shared/utils'
-import { createTokensV2, radius } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
-import { SupportReplyEmail } from '@/components/support-reply-email'
 import { SupportGuided } from '@/components/support-flow'
-import { useFlag } from '@/hooks/use-flag'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
-import { Input } from '@/components/ui/input'
-import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
-import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
-import { PillButton } from '@/components/ui/pill-button'
-import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
-import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
-import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import {
   forgetStoredSupportDraft,
   readStoredSupportDraft,
   writeStoredSupportDraft,
 } from '@/lib/support-draft-storage'
-import { PageHeader } from '@/components/ui/page-header'
-import { RadioGroup } from '@/components/ui/radio-group'
-import { RadioRow } from '@/components/ui/select-check'
-
-type Tokens = ReturnType<typeof createTokensV2>
 
 interface SupportDraft {
   subject: SupportSubjectId | null
   message: string
 }
 
-function SupportSuccessState({
-  tokens,
-  email,
-  onBack,
-}: Readonly<{ tokens: Tokens; email: string; onBack: () => void }>) {
-  const { t } = useTranslation()
-  return (
-    <View style={styles.successBlock}>
-      <View
-        accessible={false}
-        style={[styles.successIconCircle, { backgroundColor: tokens.fg1 }]}
-      >
-        <Check size={24} color={tokens.bg} strokeWidth={2} accessible={false} />
-      </View>
-      <Text accessibilityRole="header" style={[styles.successTitle, { color: tokens.fg1 }]}>
-        {t('profile.support.success')}
-      </Text>
-      <Text style={[styles.successHint, { color: tokens.fg2 }]}>
-        {t('profile.support.successHint', { email })}
-      </Text>
-      <PillButton size="md" variant="ghost" onClick={onBack}>
-        {t('profile.support.backToAbout')}
-      </PillButton>
-    </View>
-  )
-}
-
-interface SupportFormProps {
-  tokens: Tokens
-  isOnline: boolean
-  sending: boolean
-  email: string
-  subject: SupportSubjectId | null
-  message: string
-  messageAsked: boolean
-  appVersion: string | null
-  messageMaxLength: number
-  messageOverLimitHint: string | null
-  validationMessage?: string | null
-  error: string | null
-  subjectError: string | null
-  messageError: string | null
-  canSend: boolean
-  disabledReason: string | null
-  subjectFocusRequest: number
-  messageFocusRequest: number
-  onChangeSubject: (value: SupportSubjectId) => void
-  onChangeMessage: (value: string) => void
-  onSubjectBlur: () => void
-  onMessageBlur: () => void
-  onSend: () => void
-}
-
-function SupportForm({
-  tokens,
-  isOnline,
-  sending,
-  email,
-  subject,
-  message,
-  messageAsked,
-  appVersion,
-  messageMaxLength,
-  messageOverLimitHint,
-  error,
-  validationMessage,
-  subjectError,
-  messageError,
-  canSend,
-  disabledReason,
-  subjectFocusRequest,
-  messageFocusRequest,
-  onChangeSubject,
-  onChangeMessage,
-  onSubjectBlur,
-  onMessageBlur,
-  onSend,
-}: Readonly<SupportFormProps>) {
-  const { t } = useTranslation()
-  return (
-    <View style={styles.formBlock}>
-      <Text style={[styles.formDescription, { color: tokens.fg2 }]}>
-        {t('profile.support.description')}
-      </Text>
-      {error ? (
-        <View
-          accessibilityRole="alert"
-          accessibilityLiveRegion="polite"
-          style={[styles.failureBlock, { backgroundColor: tokens.bgWell }]}
-        >
-          <Text style={[styles.failureTitle, { color: tokens.fg1 }]}>
-            {t('profile.support.failureTitle')}
-          </Text>
-          <Text style={[styles.failureBody, { color: tokens.fg2 }]}>
-            {validationMessage ?? t('profile.support.failureBody')}
-          </Text>
-        </View>
-      ) : null}
-      <View style={styles.subjectField}>
-        <Text style={[styles.subjectLabel, { color: tokens.fg2 }]}>
-          {t('profile.support.subject')}
-        </Text>
-        <RadioGroup
-          accessibilityLabel={t('profile.support.subject')}
-          focusRequest={subjectFocusRequest}
-          accessibilityHint={[t('profile.support.subject'), t('common.required'), subjectError].filter(Boolean).join(' ')}
-          onBlur={onSubjectBlur}
-        >
-          {SUPPORT_SUBJECT_OPTIONS.map((option) => (
-            sending ? (
-              <RadioRow
-                key={option.id}
-                label={t(option.labelKey)}
-                selected={subject === option.id}
-                busy
-                reason={t('profile.support.subjectSendingReason')}
-              />
-            ) : (
-              <RadioRow
-                key={option.id}
-                label={t(option.labelKey)}
-                selected={subject === option.id}
-                onSelect={() => onChangeSubject(option.id)}
-              />
-            )
-          ))}
-        </RadioGroup>
-        {subjectError ? (
-          <Text accessibilityRole="alert" style={[styles.subjectError, { color: tokens.statusBadText }]}>
-            {subjectError}
-          </Text>
-        ) : null}
-      </View>
-      <KeyboardRevealGroup testID="support-field-action" style={styles.fieldAction}>
-        {messageAsked ? <Input
-          label={t('profile.support.message')}
-          required
-          value={message}
-          onChange={onChangeMessage}
-          placeholder={t('profile.support.messagePlaceholder')}
-          disabled={sending}
-          error={messageError ?? undefined}
-          hint={messageError ? undefined : messageOverLimitHint ?? undefined}
-          maxLength={messageMaxLength}
-          multiline
-          rows={6}
-          autoComplete="off"
-          focusRequest={messageFocusRequest}
-          onBlur={onMessageBlur}
-        /> : null}
-        <SupportReplyEmail email={email} />
-        {appVersion ? (
-          <Text style={[styles.versionIncluded, { color: tokens.fg3 }]}>
-            {t('profile.support.versionIncluded', { version: appVersion })}
-          </Text>
-        ) : null}
-        {!isOnline ? (
-          <View accessibilityLiveRegion="polite" style={[styles.offlineNotice, { backgroundColor: tokens.bgWell }]}>
-            <WifiOff size={20} color={tokens.fg3} accessible={false} />
-            <Text style={[styles.offlineText, { color: tokens.fg2 }]}>
-              {t('profile.support.offlineReason')}
-            </Text>
-          </View>
-        ) : null}
-        {isOnline && disabledReason ? (
-          <Text style={[styles.formDescription, { color: tokens.fg2 }]}>
-            {disabledReason}
-          </Text>
-        ) : null}
-        <View>
-          <PillButton size="md"
-            onClick={onSend}
-            disabled={!canSend}
-            loading={sending}
-            hint={!isOnline ? t('profile.support.offlineReason') : disabledReason ?? undefined}
-          >
-            {error ? t('profile.support.retry') : t('profile.support.send')}
-          </PillButton>
-        </View>
-      </KeyboardRevealGroup>
-    </View>
-  )
-}
-
 export default function SupportScreen() {
-  const pageEnd = useShellPageEnd()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
-  const backLabel = useBackLabel('/profile')
   const { t } = useTranslation()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
   const { isOnline } = useOffline()
   const { profile } = useProfile()
   const appVersion = getAppVersion()
@@ -260,16 +48,15 @@ export default function SupportScreen() {
   const draftChangedRef = useRef(false)
   const [subject, setSubject] = useState<SupportSubjectId | null>(null)
   const [message, setMessage] = useState('')
-  const [messageAsked, setMessageAsked] = useState(false)
+  const [, setMessageAsked] = useState(false)
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [validationMessage, setValidationMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [subjectError, setSubjectError] = useState<string | null>(null)
   const [messageError, setMessageError] = useState<string | null>(null)
-  const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
+  const [, setSubjectFocusRequest] = useState(0)
   const [messageFocusRequest, setMessageFocusRequest] = useState(0)
-  const guided = useFlag('orbit_guided_flows')
   const [step, setStep] = useState<'subject' | 'message'>('subject')
   const resolvedEmail = profile?.email || ''
   const hasSubject = subject !== null
@@ -356,10 +143,8 @@ export default function SupportScreen() {
         ),
       })
       setSuccess(true)
-      if (guided) {
-        captureGuidedFlowCompleted('support_request', 2, false)
-        setStep('subject')
-      } else AccessibilityInfo.announceForAccessibility(t('profile.support.success'))
+      captureGuidedFlowCompleted('support_request', 2, false)
+      setStep('subject')
       draftRef.current = { subject: null, message: '' }
       setSubject(null)
       setMessage('')
@@ -386,8 +171,6 @@ export default function SupportScreen() {
       setSending(false)
     }
   }
-
-  const canSend = isOnline && !sending
   const onSubjectChange = (next: SupportSubjectId) => {
     setSubject(next)
     setSubjectError(null)
@@ -403,151 +186,32 @@ export default function SupportScreen() {
     if (!message.trim()) setMessageError(t('profile.support.messageRequired'))
   }
 
-  if (guided) {
-    return (
-      <SupportGuided
-        sent={success}
-        onOpenAbout={() => router.push('/about')}
-        onDismissResult={() => setSuccess(false)}
-        step={step}
-        email={resolvedEmail}
-        subject={subject}
-        message={message}
-        appVersion={appVersion}
-        messageMaxLength={messageMaxLength}
-        messageOverLimitHint={messageOverLimitHint}
-        validationMessage={validationMessage}
-        error={error}
-        subjectError={subjectError}
-        messageError={messageError}
-        isSending={sending}
-        isOnline={isOnline}
-        disabledReason={disabledReason}
-        messageFocusRequest={messageFocusRequest}
-        onSubjectSelect={(next) => { onSubjectChange(next); setStep('message') }}
-        onMessageChange={onMessageChange}
-        onMessageBlur={onMessageBlur}
-        onSend={() => { void handleSend() }}
-        onBack={() => setStep('subject')}
-        onClose={() => goBackOrFallback('/profile')}
-      />
-    )
-  }
-
   return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: tokens.bg }]}
-      edges={pageEnd.safeAreaEdges}
-    >
-      <PageHeader
-        onBack={() => goBackOrFallback('/profile')}
-        title={t('profile.support.title')}
-        backLabel={backLabel}
-      />
-      <ShellContent style={{ flex: 1 }}><KeyboardAwareScrollView
-        avoidKeyboard={false}
-        style={styles.container}
-        containerStyle={styles.container}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: pageEnd.paddingBottom }]}
-        showsVerticalScrollIndicator={false}
-        keyboardVerticalOffset={12}
-      >
-        {success ? (
-          <SupportSuccessState
-            tokens={tokens}
-            email={resolvedEmail}
-            onBack={() => router.push('/about')}
-          />
-        ) : (
-          <SupportForm
-            tokens={tokens}
-            isOnline={isOnline}
-            sending={sending}
-            email={resolvedEmail}
-            subject={subject}
-            message={message}
-            messageAsked={messageAsked}
-            appVersion={appVersion}
-            messageMaxLength={messageMaxLength}
-            messageOverLimitHint={messageOverLimitHint}
-            error={error}
-            validationMessage={validationMessage}
-            subjectError={subjectError}
-            messageError={messageError}
-            canSend={canSend}
-            disabledReason={disabledReason}
-            subjectFocusRequest={subjectFocusRequest}
-            messageFocusRequest={messageFocusRequest}
-            onChangeSubject={onSubjectChange}
-            onSubjectBlur={() => {
-              if (!subject) setSubjectError(t('profile.support.subjectRequired'))
-            }}
-            onChangeMessage={onMessageChange}
-            onMessageBlur={onMessageBlur}
-            onSend={() => {
-              void handleSend()
-            }}
-          />
-        )}
-      </KeyboardAwareScrollView></ShellContent>
-    </SafeAreaView>
+    <SupportGuided
+      sent={success}
+      onOpenAbout={() => router.push('/about')}
+      onDismissResult={() => setSuccess(false)}
+      step={step}
+      email={resolvedEmail}
+      subject={subject}
+      message={message}
+      appVersion={appVersion}
+      messageMaxLength={messageMaxLength}
+      messageOverLimitHint={messageOverLimitHint}
+      validationMessage={validationMessage}
+      error={error}
+      subjectError={subjectError}
+      messageError={messageError}
+      isSending={sending}
+      isOnline={isOnline}
+      disabledReason={disabledReason}
+      messageFocusRequest={messageFocusRequest}
+      onSubjectSelect={(next) => { onSubjectChange(next); setStep('message') }}
+      onMessageChange={onMessageChange}
+      onMessageBlur={onMessageBlur}
+      onSend={() => { void handleSend() }}
+      onBack={() => setStep('subject')}
+      onClose={() => goBackOrFallback('/profile')}
+    />
   )
 }
-
-const FORM_GAP = SPACING.s24
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1 },
-  scrollContent: { width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: SPACING.s16, paddingTop: SPACING.s16 },
-  formBlock: {
-    width: '100%',
-    maxWidth: 520,
-    alignSelf: 'flex-start',
-    gap: FORM_GAP,
-  },
-  fieldAction: { gap: FORM_GAP },
-  formDescription: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  failureBlock: { gap: 8, padding: SPACING.s16, borderRadius: radius.md },
-  failureTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 23.8 },
-  failureBody: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21.7 },
-  subjectField: { gap: 8 },
-  subjectLabel: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 },
-  subjectError: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
-  versionIncluded: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
-  offlineNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: SPACING.s12,
-    borderRadius: radius.md,
-  },
-  offlineText: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
-  successBlock: {
-    paddingVertical: SPACING.s48,
-    alignItems: 'flex-start',
-    gap: 16,
-  },
-  successIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  successTitle: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 22,
-    letterSpacing: -0.22,
-    lineHeight: 26.4,
-  },
-  successHint: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 16,
-    lineHeight: 24.8,
-  },
-})

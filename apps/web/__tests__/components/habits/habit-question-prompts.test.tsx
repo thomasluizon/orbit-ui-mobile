@@ -1,7 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { HabitListConfirmDialogs } from '@/components/habits/habit-list/confirm-dialogs'
@@ -35,7 +34,6 @@ afterEach(() => { cleanup(); vi.useRealTimers() })
 
 describe('web habit prompts as one question', () => {
   it('asks the parent question as the sheet title, with the two answers as quick options', async () => {
-    enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     render(dialogs(spies, { parentPrompt: promptOf([parent]) }))
     expect(screen.getByRole('dialog', { name: 'habits.autoLogParentMessage' })).toBeInTheDocument()
@@ -49,7 +47,6 @@ describe('web habit prompts as one question', () => {
   })
 
   it('sends the cancel of the parent prompt from the second quick option', async () => {
-    enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     render(dialogs(spies, { parentPrompt: promptOf([parent]) }))
     fireEvent.click(options()[1]!)
@@ -59,7 +56,6 @@ describe('web habit prompts as one question', () => {
   })
 
   it('keeps the ancestor choices as the free path with its own action', async () => {
-    enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     render(dialogs(spies, { parentPrompt: promptOf([parent, root]) }))
     const boxes = screen.getAllByRole('checkbox')
@@ -72,7 +68,6 @@ describe('web habit prompts as one question', () => {
   })
 
   it('moves focus between the answers with the arrow keys and selects nothing', () => {
-    enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     render(dialogs(spies, { duplicateHabitName: 'Read' }))
     const [first, second] = options()
@@ -84,7 +79,6 @@ describe('web habit prompts as one question', () => {
   })
 
   it('asks the duplicate question with quick options and sends the same request', async () => {
-    enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     render(dialogs(spies, { duplicateHabitName: 'Read' }))
     expect(screen.getByRole('dialog', { name: 'habits.duplicateConfirmTitle' })).toBeInTheDocument()
@@ -95,7 +89,6 @@ describe('web habit prompts as one question', () => {
   })
 
   it('keeps the delete confirmation as a destructive confirmation with no quick option and no mascot', () => {
-    enableTestFlags('orbit_guided_flows')
     render(dialogs(handlers(), { showDeleteConfirm: true, deleteHabitName: 'Read' }))
     expect(screen.getByRole('dialog', { name: 'habits.deleteConfirmTitle' })).toBeInTheDocument()
     expect(options()).toHaveLength(0)
@@ -116,7 +109,6 @@ describe('web habit prompts as one question', () => {
   })
 
   it('asks the checklist question after the last item', async () => {
-    enableTestFlags('orbit_guided_flows')
     const onConfirm = vi.fn()
     render(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={onConfirm} />)
     expect(screen.getByRole('dialog', { name: 'habits.checklistCompleteQuestion' })).toBeInTheDocument()
@@ -135,7 +127,6 @@ describe('web habit prompts as one question', () => {
   })
 
   it.each([['log', 'habits.detail.logDateQuestion', 'habits.detail.logDateConfirmLog'], ['unlog', 'habits.detail.logDateUnlogQuestion', 'habits.detail.logDateConfirmUnlog']] as const)('asks one question before a %s on another date', async (intent, question, answer) => {
-    enableTestFlags('orbit_guided_flows')
     const onConfirm = vi.fn()
     render(<LogDatePrompt pending={{ habitId: 'h', intent, date, name: 'Read', permanent: false }} fallbackName="Read" fallbackDate={date} language="en" onCancel={vi.fn()} onConfirm={onConfirm} />)
     expect(screen.getByRole('dialog', { name: question })).toBeInTheDocument()
@@ -146,7 +137,6 @@ describe('web habit prompts as one question', () => {
   })
 
   it('keeps the confirmation for a removal that cannot be undone, and the current sheet with the flag off', () => {
-    enableTestFlags('orbit_guided_flows')
     const view = render(<LogDatePrompt pending={{ habitId: 'h', intent: 'unlog', date, name: 'Read', permanent: true }} fallbackName="Read" fallbackDate={date} language="en" onCancel={vi.fn()} onConfirm={vi.fn()} />)
     expect(screen.getByRole('dialog', { name: 'habits.detail.logDateConfirmTitle' })).toBeInTheDocument()
     expect(screen.getByText('habits.detail.logDateConfirmPermanentUnlogMessage')).toBeInTheDocument()

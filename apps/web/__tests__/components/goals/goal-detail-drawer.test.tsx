@@ -67,7 +67,6 @@ vi.mock('@/hooks/use-goals', () => ({
 }))
 
 const guidedFlag = vi.hoisted(() => ({ on: false, router: { push: vi.fn() } }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => guidedFlag.on }))
 vi.mock('next/navigation', () => ({ useRouter: () => guidedFlag.router }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ timeZone: 'UTC' }) }) }))
 

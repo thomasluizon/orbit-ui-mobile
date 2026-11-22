@@ -3,7 +3,6 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
@@ -55,7 +54,6 @@ beforeEach(() => {
   vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue()
   useUIStore.setState({ openOverlayIds: [], showCreateModal: false })
   useAuthStore.setState({ isAuthenticated: true, user: { userId: 'user-1', name: 'Ada', email: 'user-1@example.com' } })
-  enableTestFlags('orbit_guided_flows')
 })
 
 afterEach(() => {

@@ -1,20 +1,18 @@
 import { useTranslation } from 'react-i18next'
 import { formatLocaleDate, getHabitLogDateConfirmationKeys, parseAPIDate } from '@orbit/shared/utils'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { useFlag } from '@/hooks/use-flag'
 
 export interface PendingDateLog { habitId: string; intent: 'log' | 'unlog'; date: string; name: string; permanent: boolean }
 
 /** The question after the last checklist item: log the habit, or not now. */
-export function ChecklistCompletePrompt({ open, name, onCancel, onConfirm }: Readonly<{ open: boolean; name: string; onCancel: () => void; onConfirm: () => void }>) {
+export function ChecklistCompletePrompt({ open, onCancel, onConfirm }: Readonly<{ open: boolean; name: string; onCancel: () => void; onConfirm: () => void }>) {
   const { t } = useTranslation()
-  const guided = useFlag('orbit_guided_flows')
   return (
     <ConfirmSheet
       open={open}
-      quickOptions={guided}
-      title={t(guided ? 'habits.checklistCompleteQuestion' : 'habits.checklistCompleteTitle')}
-      message={guided ? '' : t('habits.checklistCompleteMessage', { name })}
+      quickOptions={true}
+      title={t('habits.checklistCompleteQuestion')}
+      message={''}
       confirmLabel={t('habits.checklistCompleteConfirm')}
       onCancel={onCancel}
       onConfirm={onConfirm}
@@ -25,7 +23,7 @@ export function ChecklistCompletePrompt({ open, name, onCancel, onConfirm }: Rea
 /** The question before a log on another date. A removal that cannot be undone keeps its confirmation. */
 export function LogDatePrompt({ pending, fallbackName, fallbackDate, language, onCancel, onConfirm }: Readonly<{ pending: PendingDateLog | null; fallbackName: string; fallbackDate: string; language: string; onCancel: () => void; onConfirm: () => void }>) {
   const { t } = useTranslation()
-  const question = useFlag('orbit_guided_flows') && !pending?.permanent
+  const question = !pending?.permanent
   const keys = getHabitLogDateConfirmationKeys(pending?.intent, pending?.permanent)
   const values = { name: pending?.name ?? fallbackName, date: formatLocaleDate(parseAPIDate(pending?.date ?? fallbackDate), language, { dateStyle: 'long' }) }
   return (

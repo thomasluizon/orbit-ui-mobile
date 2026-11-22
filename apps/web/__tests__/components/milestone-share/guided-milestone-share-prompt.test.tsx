@@ -3,7 +3,6 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
@@ -60,7 +59,6 @@ afterEach(() => {
 
 describe('the guided milestone share prompt on web', () => {
   it.each(LOCALES)('opens a centred dialog named by its title, with Orbit in Feliz and the three current actions in $locale', async (locale) => {
-    enableTestFlags('orbit_guided_flows')
     const { copy } = await openPrompt(locale)
 
     const dialog = await screen.findByRole('dialog', { name: copy.title })
@@ -91,7 +89,6 @@ describe('the guided milestone share prompt on web', () => {
     { reduced: false, loop: 'running' },
     { reduced: true, loop: 'still' },
   ])('draws the Orbit loop $loop in the dialog when reduced motion is $reduced, and keeps the mark of the card still', async ({ reduced, loop }) => {
-    enableTestFlags('orbit_guided_flows')
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: reduced && query.includes('prefers-reduced-motion'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     await openPrompt()
 
@@ -101,7 +98,6 @@ describe('the guided milestone share prompt on web', () => {
   })
 
   it('closes on Escape', async () => {
-    enableTestFlags('orbit_guided_flows')
     await openPrompt()
 
     await screen.findByRole('dialog')
@@ -110,7 +106,6 @@ describe('the guided milestone share prompt on web', () => {
   })
 
   it('shows the current message after a share that fails', async () => {
-    enableTestFlags('orbit_guided_flows')
     shareCard.hasError = true
     const { copy } = await openPrompt()
 
@@ -119,7 +114,6 @@ describe('the guided milestone share prompt on web', () => {
   })
 
   it('never opens while the celebration panel is open', async () => {
-    enableTestFlags('orbit_guided_flows')
     useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
     await openPrompt()
 
@@ -128,7 +122,6 @@ describe('the guided milestone share prompt on web', () => {
   })
 
   it('leaves the screen while a celebration shows over an open dialog, and returns after it', async () => {
-    enableTestFlags('orbit_guided_flows')
     const { copy } = await openPrompt()
     await screen.findByRole('dialog', { name: copy.title })
 

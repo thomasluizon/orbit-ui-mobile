@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { choiceBlockFixture, pickListBlockFixture } from '@orbit/shared/test-support/chat-fixtures'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { BlockAnswerInteraction } from '@orbit/shared/chat'
 import { ChoiceBlock } from '@/components/chat/choice-block'
 import { PickListBlock } from '@/components/chat/pick-list-block'
@@ -10,7 +9,7 @@ import { IconButton } from '@/components/ui/icon-button'
 vi.unmock('react-i18next')
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 let tree: (ReactTestRenderer & { unmount: () => void }) | undefined
-afterEach(async () => { await renderer.act(() => tree?.unmount()); tree = undefined; resetTestFlags() })
+afterEach(async () => { await renderer.act(() => tree?.unmount()); tree = undefined })
 
 type Kind = 'choice' | 'multi' | 'pick'
 const plainChoice = { ...choiceBlockFixture, options: choiceBlockFixture.options.map(option => ({ ...option, description: null })) }
@@ -31,8 +30,6 @@ async function mount(kind: Kind, send = interaction()) {
 async function pressNode(node: ReactTestInstance) { await renderer.act(async () => { (node.props.onPress as () => void)(); await Promise.resolve() }) }
 
 async function answer(kind: Kind, quick: boolean) {
-  resetTestFlags()
-  if (quick) enableTestFlags('orbit_guided_flows')
   const send = await mount(kind)
   const labels = labelsOf(kind)
   const control = (label: string) => quick
@@ -48,7 +45,6 @@ async function answer(kind: Kind, quick: boolean) {
 
 describe('the quick options of the Android conversation blocks', () => {
   it.each(['choice', 'multi', 'pick'] as const)('answers a %s block of 2 to 4 options with OptionCard and sends the payload the list sends', async (kind) => {
-    enableTestFlags('orbit_guided_flows')
     await mount(kind)
     expect(cards().map(card => card.props.accessibilityLabel)).toEqual(labelsOf(kind))
     await renderer.act(() => tree!.unmount())
@@ -60,23 +56,19 @@ describe('the quick options of the Android conversation blocks', () => {
   })
 
   it('keeps the list for an option with a detail line, and with the flag off', async () => {
-    enableTestFlags('orbit_guided_flows')
     await renderer.act(() => { tree = renderer.create(<ChoiceBlock block={choiceBlockFixture} interaction={interaction()} />) })
     expect(cards()).toHaveLength(0)
     await renderer.act(() => tree!.unmount())
-    resetTestFlags()
     await mount('choice')
     expect(cards()).toHaveLength(0)
   })
 
   it('keeps the list for a pick list whose labels hold more than 4 words', async () => {
-    enableTestFlags('orbit_guided_flows')
     await renderer.act(() => { tree = renderer.create(<PickListBlock block={longPickList} interaction={interaction()} />) })
     expect(cards()).toHaveLength(0)
   })
 
   it('marks one pressed option of a single choice and toggles several of a multiple choice', async () => {
-    enableTestFlags('orbit_guided_flows')
     await mount('choice')
     await pressNode(cards()[0]!)
     await pressNode(cards()[1]!)

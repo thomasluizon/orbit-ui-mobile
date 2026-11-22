@@ -7,7 +7,6 @@ import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { compileAppStylesheet, measureFlowActions, stubViewportMedia } from '@/__tests__/support/flow-layout'
 
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: vi.fn(), isPending: false }), useUpdateGoal: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'UTC', weekStartDay: 0 } }) }))

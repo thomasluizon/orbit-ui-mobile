@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -37,7 +36,6 @@ describe('ProBadge', () => {
     { isTrialActive: true, text: 'trial.proBadge' },
     { isTrialActive: false, text: 'common.proBadge' },
   ])('keeps the text $text and draws no mascot with the guided flows on', ({ isTrialActive, text }) => {
-    enableTestFlags('orbit_guided_flows')
     mockProfile.isTrialActive = isTrialActive
     mockProfile.hasProAccess = true
     const { container } = render(<ProBadge />)

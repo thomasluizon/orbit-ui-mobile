@@ -5,7 +5,6 @@ import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { CommandPalette } from '@/components/command/command-palette'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { useShellStore } from '@/stores/shell-store'
@@ -24,7 +23,7 @@ vi.mock('@/hooks/use-habit-logging', () => ({ useLogHabit: () => ({ mutate: vi.f
 const NavIcon = () => <svg />
 const navItems = [{ id: 'hoje', label: 'Today', icon: NavIcon, onSelect: vi.fn() }] as const
 
-describe.each([{ guided: false }, { guided: true }])('the open command palette in Chromium with orbit_guided_flows $guided', ({ guided }) => {
+describe('the open command palette in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
@@ -34,12 +33,11 @@ describe.each([{ guided: false }, { guided: true }])('the open command palette i
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   beforeEach(() => {
-    if (guided) enableTestFlags('orbit_guided_flows')
     Element.prototype.scrollIntoView = vi.fn()
     vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
     useShellStore.setState({ paletteOpen: true })
   })
-  afterEach(() => { cleanup(); resetTestFlags(); vi.unstubAllGlobals(); useShellStore.setState({ paletteOpen: false }) })
+  afterEach(() => { cleanup(); vi.unstubAllGlobals(); useShellStore.setState({ paletteOpen: false }) })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it('opens with duration 0: no running animation, and no animation or transition on the overlay, the scrim or the panel', async () => {

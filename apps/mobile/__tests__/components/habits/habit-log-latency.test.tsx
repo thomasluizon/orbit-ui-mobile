@@ -2,7 +2,6 @@ import { useState } from 'react'
 import TestRenderer, { act } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { HabitRow } from '@/components/habits/habit-row'
 
@@ -28,7 +27,6 @@ const TARGET_MS = 100
 
 describe.each([false, true])('the Android press to the state change of a log, reduced motion %s', (reduced) => {
   it('changes the check in the same tick, with no dialog, no mascot and no awaited request, under 100 ms', () => {
-    enableTestFlags('orbit_guided_flows')
     motion.reduced = reduced
     const durations: number[] = []
     for (let sample = 0; sample < SAMPLES; sample++) {

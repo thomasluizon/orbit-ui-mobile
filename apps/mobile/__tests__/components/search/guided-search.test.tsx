@@ -3,7 +3,6 @@ import { StyleSheet, type PressableProps, type ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nextProvider } from 'react-i18next'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -100,7 +99,6 @@ describe('the Android search screen with the guided flows off', () => {
 })
 
 describe('the Android search screen on the Orbit logic', () => {
-  beforeEach(() => enableTestFlags('orbit_guided_flows'))
 
   it.each(['en', 'pt-BR'] as const)('shows one group before a query in %s: Orbit in Parado at 96, the question as the heading and the field it names', async (locale) => {
     const messages = await mount(locale)

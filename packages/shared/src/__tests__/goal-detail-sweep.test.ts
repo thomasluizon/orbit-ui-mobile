@@ -96,11 +96,10 @@ describe('ring sweep', () => {
 
 describe('goal sheet title', () => {
   it('names the guided sheet with the goal in the words of the person, and shows no second title', () => {
-    expect(getGoalSheetTitle({ title: 'Run 5 km' }, true, 'Goals')).toEqual({ accessibleTitle: 'Run 5 km' })
+    expect(getGoalSheetTitle({ title: 'Run 5 km' }, 'Goals')).toEqual({ accessibleTitle: 'Run 5 km' })
   })
 
-  it('shows the route name while no goal loaded, and with the guided flows off', () => {
-    expect(getGoalSheetTitle(null, true, 'Goals')).toEqual({ title: 'Goals' })
-    expect(getGoalSheetTitle({ title: 'Run 5 km' }, false, 'Goals')).toEqual({ title: 'Goals' })
+  it('shows the route name while no goal loaded', () => {
+    expect(getGoalSheetTitle(null, 'Goals')).toEqual({ title: 'Goals' })
   })
 })

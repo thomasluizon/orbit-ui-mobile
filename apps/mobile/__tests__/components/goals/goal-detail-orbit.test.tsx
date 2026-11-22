@@ -10,7 +10,6 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
 const mocks = vi.hoisted(() => ({
-  guided: true,
   reducedMotion: false,
   push: vi.fn(),
   updateStatus: vi.fn(),
@@ -40,7 +39,6 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('@/lib/motion', async (original) => ({ ...await original<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => mocks.reducedMotion }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ timeZone: 'UTC' }) }) }))
 vi.mock('@/components/goals/edit-goal-modal', () => ({ EditGoalModal: () => null }))
 vi.mock('@/hooks/use-goals', () => ({
@@ -109,7 +107,6 @@ describe('goal detail on the Orbit logic', () => {
   beforeEach(async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-11-13T12:00:00Z'))
-    mocks.guided = true
     mocks.reducedMotion = false
     detailGoal = { ...listGoal, progressHistory: [] }
     for (const fn of [mocks.push, mocks.updateStatus, mocks.updateProgress, mocks.deleted, mocks.undo, mocks.release, onClose]) fn.mockReset()
@@ -158,16 +155,6 @@ describe('goal detail on the Orbit logic', () => {
     expect(allByProp(tree.root, 'testID', 'today-orbit-slot')).toHaveLength(0)
     await press(`${i18n.t('goals.detail.askOrbitEyebrow')}: ${i18n.t('goals.detail.askOrbitDefault')}`)
     expect(useUIStore.getState().orbitConversationOpen).toBe(true)
-  })
-
-  it('keeps the current detail with the flag off: no line and no result dialog', async () => {
-    mocks.guided = false
-    detailGoal = { ...detailGoal, deadline: '2026-11-20' }
-    await renderDetail()
-    expect(allByProp(tree.root, 'testID', 'today-orbit-slot')).toHaveLength(0)
-    await press(i18n.t('goals.detail.markAbandoned'))
-    expect(mocks.updateStatus).toHaveBeenCalled()
-    expect(resultDialog()).toBeUndefined()
   })
 
   it.each([

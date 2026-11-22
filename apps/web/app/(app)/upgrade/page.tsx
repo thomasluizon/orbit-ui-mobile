@@ -39,7 +39,6 @@ import { useStripeCheckout } from '@/hooks/use-stripe-checkout'
 import { useStripeCheckoutReturn } from '@/hooks/use-stripe-checkout-return'
 import { useBilling } from '@/hooks/use-billing'
 import { useBackLabel } from '@/hooks/use-back-label'
-import { useFlag } from '@/hooks/use-flag'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useOffline } from '@/hooks/use-offline'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
@@ -60,14 +59,14 @@ function purchaseOrigin(from: string | null): string | null {
   return knownOrigin(from) ?? (isSafeAuthReturnUrl(from) ? from : null)
 }
 
-function UpgradePitchSection({ guided, usage, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage'> & { guided: boolean }) {
-  return guided ? <GuidedPricingSection {...props} usage={usage} /> : <PricingSection {...props} />
+function UpgradePitchSection({ usage, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage'> & { }) {
+  return <GuidedPricingSection {...props} usage={usage} />
 }
 
-function UpgradeLoadFailed({ guided, retrying, onRetry, t }: Readonly<{ guided: boolean; retrying: boolean; onRetry: () => void; t: ReturnType<typeof useTranslations> }>) {
+function UpgradeLoadFailed({ retrying, onRetry, t }: Readonly<{ retrying: boolean; onRetry: () => void; t: ReturnType<typeof useTranslations> }>) {
   const mascotSize = useStateMascotSize()
   const retry = <IconButton label={t('upgrade.billing.retry')} loading={retrying} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-  if (!guided) return <ErrorState fullSurface message={t('upgrade.billing.error')} action={retry} />
+  
   return (
     <div data-upgrade-load-failed="" className="flex flex-col items-center">
       <span aria-hidden="true"><OrbitMascot size={mascotSize} state="parado" /></span>
@@ -80,12 +79,12 @@ function settledStatus<Status>(state: SubscriptionScreenState, status: Status | 
   return state === 'loading' || state === 'load-failed' ? null : status
 }
 
-function settlingCheckout<Interval>(guided: boolean, isSettling: boolean, checkoutLoading: Interval | null): Interval | 'yearly' | null {
-  return checkoutLoading ?? (guided && isSettling ? 'yearly' : null)
+function settlingCheckout<Interval>(isSettling: boolean, checkoutLoading: Interval | null): Interval | 'yearly' | null {
+  return checkoutLoading ?? (isSettling ? 'yearly' : null)
 }
 
-function headerTitleIsHeading(guided: boolean, contentCap: 'pitch' | undefined): boolean {
-  return !guided || contentCap !== 'pitch'
+function headerTitleIsHeading(contentCap: 'pitch' | undefined): boolean {
+  return contentCap !== 'pitch'
 }
 
 function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean) {
@@ -98,7 +97,6 @@ export default function UpgradePage() {
   const locale = useLocale()
   const from = useSearchParams().get('from')
   const fallbackRoute = knownOrigin(from) ?? '/profile'
-  const guided = useFlag('orbit_guided_flows')
   const goBackOrFallback = useGoBackOrFallback()
   const backLabel = useBackLabel(fallbackRoute)
   const { showSuccess, showPersistentError } = useAppToast()
@@ -111,10 +109,10 @@ export default function UpgradePage() {
     refetch: refetchStatus,
   } = useSubscriptionStatus()
 
-  const rememberFrom = usePurchaseOrigin(guided, from)
+  const rememberFrom = usePurchaseOrigin(from)
   const { checkout: handleCheckout, checkoutLoading, checkoutError } = useStripeCheckout(rememberFrom)
-  const { hasReturnError, isSettling, purchaseConfirmed, retryReturn } = useStripeCheckoutReturn({ toastOnSuccess: !guided })
-  const confirmedPurchase = guided && purchaseConfirmed
+  const { hasReturnError, isSettling, purchaseConfirmed, retryReturn } = useStripeCheckoutReturn({ toastOnSuccess: false })
+  const confirmedPurchase = purchaseConfirmed
 
   const { profile: accountProfile } = useProfile({ enabled: subscriptionStatus?.aiMessagesPeriod === 'week' || confirmedPurchase })
   const status = useMemo(() => subscriptionStatus ? { ...subscriptionStatus, timeZone: accountProfile?.timeZone } : null, [subscriptionStatus, accountProfile?.timeZone])
@@ -236,14 +234,13 @@ export default function UpgradePage() {
       </div>
     )
   } else if (screenState === 'load-failed') {
-    content = <UpgradeLoadFailed guided={guided} retrying={isSettling} onRetry={retryLoad} t={t} />
+    content = <UpgradeLoadFailed retrying={isSettling} onRetry={retryLoad} t={t} />
   } else if (lapsedNoticeStatus) {
     content = <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} />
   } else if (model.content === 'pitch') {
     content = (
       <div className="flex flex-col gap-6">
         <UpgradePitchSection
-          guided={guided}
           usage={status}
           focusOnMount={showPitch}
           profile={status}
@@ -253,7 +250,7 @@ export default function UpgradePage() {
           isOnline={isOnline}
           dateHint={getProfileTrialEndHint(status, locale, t)}
           trialDaysLeft={trialDaysLeft}
-          checkoutLoading={settlingCheckout(guided, isSettling, checkoutLoading)}
+          checkoutLoading={settlingCheckout(isSettling, checkoutLoading)}
           checkoutError={checkoutError}
           discountedAmount={discountedAmount}
           onCheckout={(interval) => void handleCheckout(interval)}
@@ -302,10 +299,9 @@ export default function UpgradePage() {
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
         titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
-        titleHeading={headerTitleIsHeading(guided, contentCap)}
+        titleHeading={headerTitleIsHeading(contentCap)}
       />
       <div data-upgrade-screen="" className="orbit-content-frame flex flex-1 flex-col justify-center pt-4" data-content-cap={contentCap} data-state={screenState} aria-busy={screenState === 'loading'}>
-        {screenState === 'offline' && model.content === 'pitch' && !guided ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </div>
       <PurchaseResult purchaseConfirmed={confirmedPurchase} status={settledStatus(screenState, status)} billing={billing}

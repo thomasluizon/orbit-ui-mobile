@@ -1,7 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
 import { TodayOrbit } from '@/components/today/today-orbit'
 import { useUIStore } from '@/stores/ui-store'
@@ -45,7 +44,6 @@ describe('Android Orbit line on Hoje', () => {
   })
 
   it('draws the live Orbit at 48 and names the row by the sentence', async () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = await renderLine()
     expect(probe(tree)).toMatchObject({ size: 48, state: 'parado', live: 'withLead' })
     expect(probe(tree).still).toBeUndefined()
@@ -54,7 +52,6 @@ describe('Android Orbit line on Hoje', () => {
   })
 
   it('shows Descansando and a first person reason offline, and the press opens the conversation', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.online = false
     const tree = await renderLine()
     expect(probe(tree).state).toBe('descansando')
@@ -64,7 +61,6 @@ describe('Android Orbit line on Hoje', () => {
   })
 
   it('shows Descansando at the message limit', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.profile = { ...mocks.profile, aiMessagesUsed: 5 }
     const tree = await renderLine()
     expect(probe(tree).state).toBe('descansando')
@@ -72,7 +68,6 @@ describe('Android Orbit line on Hoje', () => {
   })
 
   it('shows the sentence with no count of days for a gap beyond the window, as a link to Progresso', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.proactive = false
     mocks.profile = { ...mocks.profile, lastCompletionDate: beyondTheWindow() }
     const tree = await renderLine()

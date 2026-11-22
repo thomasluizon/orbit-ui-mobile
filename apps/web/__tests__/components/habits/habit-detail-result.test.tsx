@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, renderHook, screen, waitFor, act } from '@testing-library/react'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { HabitDetailResultDialog, HabitDetailUnavailable, useHabitDetailResult } from '@/components/habits/habit-detail-result'
 
 vi.mock('next-intl', () => ({
@@ -51,7 +50,6 @@ describe('web habit detail result dialog', () => {
   })
 
   it.each([['on', true], ['off', false]])('never brings back the load error while detail leaves after a delete, with the guided flows %s', async (_label, guided) => {
-    if (guided) enableTestFlags('orbit_guided_flows')
     const seeToday = vi.fn()
     function Detail() {
       const host = useHabitDetailResult(seeToday)
@@ -76,7 +74,6 @@ describe('web habit detail result dialog', () => {
   })
 
   it('holds the result with the guided flows on, and a deleted habit leaves to Hoje however its dialog closes', () => {
-    enableTestFlags('orbit_guided_flows')
     const seeToday = vi.fn()
     const on = renderHook(() => useHabitDetailResult(seeToday))
     act(() => on.result.current.rescheduled('20 November'))

@@ -36,6 +36,6 @@ export function getGoalDeadlineFact(
  * that title, so the header gives it as the accessible name only and does not show it a second time. With no goal,
  * the header shows the route name.
  */
-export function getGoalSheetTitle(goal: { title: string } | null, guided: boolean, routeName: string): { title?: string; accessibleTitle?: string } {
-  return guided && goal ? { accessibleTitle: goal.title } : { title: routeName }
+export function getGoalSheetTitle(goal: { title: string } | null, routeName: string): { title?: string; accessibleTitle?: string } {
+  return goal ? { accessibleTitle: goal.title } : { title: routeName }
 }

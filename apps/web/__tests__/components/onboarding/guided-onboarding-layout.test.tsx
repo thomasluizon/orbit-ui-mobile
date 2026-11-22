@@ -34,7 +34,7 @@ function captureScreens(locale: string, messages: typeof en): string[] {
   render(
     <QueryClientProvider client={new QueryClient()}>
       <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
-        <OnboardingActionsProvider actions={actions} isLive={false}><OnboardingFlow guided /></OnboardingActionsProvider>
+        <OnboardingActionsProvider actions={actions} isLive={false}><OnboardingFlow /></OnboardingActionsProvider>
       </NextIntlClientProvider>
     </QueryClientProvider>,
   )

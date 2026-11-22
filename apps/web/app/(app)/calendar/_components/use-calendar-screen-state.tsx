@@ -27,7 +27,6 @@ import { useToday } from '../../today-provider'
 import { useAccountClockSeed } from '@/lib/account-clock'
 import { CalendarHeader } from './calendar-shell'
 import { CalendarOrbitLine } from './calendar-orbit-line'
-import { useFlag } from '@/hooks/use-flag'
 import { useCalendarNavigation,type CalendarView } from '@/hooks/use-calendar-navigation'
 
 type MonthSlide = CalendarSlideDirection | null
@@ -56,9 +55,9 @@ export interface CalendarPageContentProps {
   setView: Dispatch<SetStateAction<CalendarView>>
 }
 
-export function calendarPageLayout(view: CalendarView, profileReady: boolean, profileHasError: boolean, hasDataError: boolean, header: ReactNode, guided: boolean) {
+export function calendarPageLayout(view: CalendarView, profileReady: boolean, profileHasError: boolean, hasDataError: boolean, header: ReactNode) {
   const hasError = profileReady ? hasDataError : profileHasError
-  const fillsPage = (view === 'week' && !hasError) || (guided && hasError)
+  const fillsPage = (view === 'week' && !hasError) || (hasError)
   return {
     viewportProps: { 'data-page-viewport': fillsPage ? '' : undefined },
     pageClass: fillsPage ? 'relative flex h-full min-h-0 flex-col' : 'relative',
@@ -325,7 +324,6 @@ function useCalendarMonthSwipe({ nextMonth, prevMonth, isOnline, setShowCreateRe
 type CalendarHeaderStateInputs = { orbitLine: ReactNode } & Pick<ReturnType<typeof useCalendarViewModel>, 'viewOptions' | 'rangeLabel'> & Pick<CalendarPageContentProps, 'view' | 'setView' | 'currentMonth' | 'selectedDay' | 'profile' | 'profileError'> & Pick<ReturnType<typeof useCalendarScreenSession>, 't' | 'todayKey' | 'weekStartsOn' | 'rangeOffset' | 'agendaOffset' | 'locale' | 'setRangeOffset' | 'setAgendaOffset'> & Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'agendaStart' | 'agendaEnd'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'weekLabel' | 'activeError'> & Pick<ReturnType<typeof useCalendarDateActions>, 'prevWeek' | 'nextWeek' | 'goToCurrentWeek' | 'previousRange' | 'nextRange' | 'prevMonth' | 'nextMonth' | 'goToCurrentMonth' | 'selectMonth' | 'selectDate'>
 
 function useCalendarHeaderState({ orbitLine, selectDate, viewOptions, view, setView, t, currentMonth, todayKey, selectedDay, weekStart, weekStartsOn, rangeOffset, agendaOffset, weekLabel, rangeLabel, agendaStart, agendaEnd, locale, prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, setRangeOffset, setAgendaOffset, prevMonth, nextMonth, goToCurrentMonth, selectMonth, profile, profileError, activeError }: CalendarHeaderStateInputs) {
-  const guided = useFlag('orbit_guided_flows')
   const viewSelector = (
     <SegmentedControl<CalendarView> fullWidth
       options={viewOptions}
@@ -350,11 +348,11 @@ function useCalendarHeaderState({ orbitLine, selectDate, viewOptions, view, setV
       onCurrentMonth={goToCurrentMonth}
       onSelectMonth={selectMonth}
       viewSelector={viewSelector}
-      orbitLine={orbitLine} guided={guided} onSelectDate={selectDate}
+      orbitLine={orbitLine} onSelectDate={selectDate}
     />
   )
 
-  const pageLayout = calendarPageLayout(view, Boolean(profile), Boolean(profileError), Boolean(activeError), calendarHeader, guided)
+  const pageLayout = calendarPageLayout(view, Boolean(profile), Boolean(profileError), Boolean(activeError), calendarHeader)
   return { pageLayout }
 }
 

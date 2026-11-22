@@ -2,7 +2,6 @@ import { INTERACTION_FILL_CLEARANCE, SPACING, motionSprings, resolveMotionPreset
 import { PersonalText } from '@/components/ui/personal-text'
 import { useEffect, useState } from 'react'
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
-import { useFlag } from '@/hooks/use-flag'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
 import { Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type PressableProps, type ViewStyle } from 'react-native'
@@ -150,7 +149,6 @@ function getPersonalControlFill(calendarDay: boolean) {
 }
 
 function useCheckSettle(checked: boolean) {
-  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = usePrefersReducedMotion()
   const [shown, setShown] = useState(checked)
   const [logged, setLogged] = useState(false)
@@ -161,14 +159,14 @@ function useCheckSettle(checked: boolean) {
   const scale = useSharedValue(1)
   const settleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
   useEffect(() => {
-    if (!logged || !guided || reducedMotion) return undefined
+    if (!logged || reducedMotion) return undefined
     scale.value = resolveMotionPreset('success-feedback').scaleFrom
     scale.value = withSpring(1, { ...motionSprings.completion, overshootClamping: true })
     return () => {
       cancelAnimation(scale)
       scale.value = 1
     }
-  }, [guided, logged, reducedMotion, scale])
+  }, [logged, reducedMotion, scale])
   return settleStyle
 }
 

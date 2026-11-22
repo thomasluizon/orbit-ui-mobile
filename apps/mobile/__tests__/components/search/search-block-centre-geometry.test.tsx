@@ -3,7 +3,6 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import SearchScreen from '@/app/search'
 import { Shell412 } from '@/components/shell/shell-412'
 import { measureSafeArea, type GeometryHost, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
@@ -26,7 +25,6 @@ vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => {
 } }))
 
 let tree: GeometryTree
-beforeEach(() => enableTestFlags('orbit_guided_flows'))
 afterEach(async () => { await act(() => tree.unmount()) })
 
 async function mount(width: number, height: number) {

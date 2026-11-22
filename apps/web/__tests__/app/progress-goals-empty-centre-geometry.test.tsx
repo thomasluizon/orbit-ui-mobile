@@ -17,7 +17,6 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/progress/goals', useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile(), isError: false, isLoading: false, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: vi.fn(),

@@ -27,7 +27,6 @@ import {
   isHabitOrbitLimitReached,
   normalizeHabitFormData,
   releaseHabitPhraseOwnership,
-  reportRefusedHabitSave,
   requestHabitFormProposal,
   shouldShowHabitOrbitFallback,
   validateHabitFormInput,
@@ -39,31 +38,6 @@ import {
 } from '../utils/habit-emoji-options'
 
 describe('habit form helpers', () => {
-  it('states a refused save on the guided summary, and in a toast on the full form unless a field already shows it', () => {
-    const refusalTarget = (guided: boolean, invalidField: 'itemType' | 'datePhrase' | null = null) => ({
-      guided,
-      showSaveError: vi.fn<(message: string) => void>(),
-      getFieldState: (field: 'itemType' | 'datePhrase') => ({ invalid: field === invalidField }),
-      showError: vi.fn<(message: string) => void>(),
-    })
-    const guided = refusalTarget(true, 'itemType')
-    reportRefusedHabitSave('Pick a start day', guided)
-    expect(guided.showSaveError).toHaveBeenCalledExactlyOnceWith('Pick a start day')
-    expect(guided.showError).not.toHaveBeenCalled()
-
-    const fullForm = refusalTarget(false)
-    reportRefusedHabitSave('Pick a start day', fullForm)
-    expect(fullForm.showError).toHaveBeenCalledExactlyOnceWith('Pick a start day')
-    expect(fullForm.showSaveError).not.toHaveBeenCalled()
-
-    for (const field of ['itemType', 'datePhrase'] as const) {
-      const fieldShowsIt = refusalTarget(false, field)
-      reportRefusedHabitSave('Pick a start day', fieldShowsIt)
-      expect(fieldShowsIt.showError).not.toHaveBeenCalled()
-      expect(fieldShowsIt.showSaveError).not.toHaveBeenCalled()
-    }
-  })
-
   it.each([false, true])('routes weekly recurrence through cadence ownership with General lock %s', (lockedGeneral) => {
     const values = normalizeHabitFormData({ itemType: 'habit', title: 'Read', description: 'Retain this', dueDate: '2026-10-20', endDate: '2026-12-01', dueTime: '08:00', frequencyUnit: 'Month', frequencyQuantity: 3, intervalWeeks: 4, days: ['Monday'], isFlexible: true })
     let ownership = { cadence: true, dueTime: true }

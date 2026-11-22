@@ -52,12 +52,11 @@ import { PurchaseResult } from '@/components/upgrade/purchase-result'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useFlag } from '@/hooks/use-flag'
 
-function UpgradeLoadFailed({ guided, onRetry, t }: Readonly<{ guided: boolean; onRetry: () => void; t: UpgradeTextFn }>) {
+function UpgradeLoadFailed({ onRetry, t }: Readonly<{ onRetry: () => void; t: UpgradeTextFn }>) {
   const mascotSize = useStateMascotSize()
   const retry = <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
-  if (!guided) return <View style={styles.padBlock}><ErrorState fullSurface message={t('upgrade.billing.error')} action={retry} /></View>
+  
   return (
     <View testID="upgrade-load-failed" style={[styles.padBlock, styles.centred]}>
       <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><OrbitMascot size={mascotSize} state="parado" /></View>
@@ -72,10 +71,8 @@ function UpgradeContent({
   billingContent,
   pitchContent,
   onRetry,
-  guided,
   t,
 }: Readonly<{
-  guided: boolean
   state: SubscriptionScreenState
   content: SubscriptionScreenContent
   billingContent: ReactNode
@@ -93,31 +90,28 @@ function UpgradeContent({
       </View>
     )
   } else if (state === 'load-failed') {
-    body = <UpgradeLoadFailed guided={guided} onRetry={onRetry} t={t} />
+    body = <UpgradeLoadFailed onRetry={onRetry} t={t} />
   } else {
     body = content === 'pitch' ? pitchContent : billingContent
   }
 
   return (
     <>
-      {state === 'offline' && content === 'pitch' && !guided ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
       {body}
     </>
   )
 }
 
-function UpgradePitchSection({ guided, usage, primaryInFooter, monthlyDisplayPrice, yearlyDisplayPrice, inset, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage' | 'primaryInFooter'> & { guided: boolean }) {
-  return guided
-    ? <GuidedPricingSection {...props} usage={usage} primaryInFooter={primaryInFooter} />
-    : <PricingSection {...props} inset={inset} monthlyDisplayPrice={monthlyDisplayPrice} yearlyDisplayPrice={yearlyDisplayPrice} />
+function UpgradePitchSection({ usage, primaryInFooter, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage' | 'primaryInFooter'> & { }) {
+  return <GuidedPricingSection {...props} usage={usage} primaryInFooter={primaryInFooter} />
 }
 
 function settledStatus(state: SubscriptionScreenState, status: SubscriptionStatus | null): SubscriptionStatus | null {
   return state === 'loading' || state === 'load-failed' ? null : status
 }
 
-function headerTitleIsHeading(guided: boolean, contentCap: 560 | 620): boolean {
-  return !guided || contentCap !== 620
+function headerTitleIsHeading(contentCap: 560 | 620): boolean {
+  return contentCap !== 620
 }
 
 function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean): 560 | 620 {
@@ -149,7 +143,6 @@ export default function UpgradeScreen() {
   )
   const { isOnline } = useOffline()
   const { showSuccess } = useAppToast()
-  const guided = useFlag('orbit_guided_flows')
   const pinnedPrimary = usePinnedPlanPrimary()
   const router = useRouter()
   const [purchaseConfirmed, setPurchaseConfirmed] = useState(false)
@@ -172,7 +165,7 @@ export default function UpgradeScreen() {
   } = useSubscriptionPlans()
   const playBilling = useStoreBilling({
     preferReferralOffer: !!plans?.couponPercentOff,
-    onPurchased: () => { if (guided) setPurchaseConfirmed(true); else showSuccess(t('upgrade.purchaseSuccess')) },
+    onPurchased: () => { setPurchaseConfirmed(true); },
   })
   const provider = getSubscriptionBillingProvider(status)
   const isApple = Platform.OS === 'ios'
@@ -333,7 +326,7 @@ export default function UpgradeScreen() {
     onCheckout: handleCheckout,
     t,
   }
-  const footerPrimary = guided && pinnedPrimary && !lapsedNoticeStatus && model.content === 'pitch' && model.state !== 'loading' && model.state !== 'load-failed'
+  const footerPrimary = pinnedPrimary && !lapsedNoticeStatus && model.content === 'pitch' && model.state !== 'loading' && model.state !== 'load-failed'
 
   const pitchContent = lapsedNoticeStatus ? (
     <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} tokens={tokens} />
@@ -341,7 +334,6 @@ export default function UpgradeScreen() {
     <View style={{ gap: 24 }}>
       <UpgradePitchSection
         {...planPrimary}
-        guided={guided}
         primaryInFooter={footerPrimary}
         usage={status}
         inset={false}
@@ -371,7 +363,7 @@ export default function UpgradeScreen() {
       <PageHeader
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
-        titleHeading={headerTitleIsHeading(guided, contentCap)}
+        titleHeading={headerTitleIsHeading(contentCap)}
         backLabel={backLabel}
       />
 
@@ -387,7 +379,6 @@ export default function UpgradeScreen() {
             billingContent={billingDashboard}
             pitchContent={pitchContent}
             onRetry={() => { void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()]) }}
-            guided={guided}
             t={t}
           />
         </View>

@@ -13,7 +13,6 @@ import { IconButton } from '@/components/ui/icon-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
 import { OptionCard } from '@/components/ui/option-card'
-import { useFlag } from '@/hooks/use-flag'
 import { Check, Lock, ArrowUp } from '@/components/ui/icons'
 import { blockDesktopWebReload } from '@/lib/web-reload-state'
 
@@ -44,7 +43,7 @@ function AnswerQuickOptions({ view, controller }: Pick<AnswerContentProps, 'view
 }
 
 function AnswerBody({ view, state, controller, submit }: AnswerContentProps) {
-  const quickOptions = useFlag('orbit_guided_flows') && answerUsesQuickOptions(view)
+  const quickOptions = answerUsesQuickOptions(view)
   return <div className="flex min-w-0 flex-col gap-4">
     {quickOptions ? <AnswerQuickOptions view={view} controller={controller} /> : view.single ? <RadioGroup aria-label={view.title} onKeyDown={event => {
       if (event.key === 'Enter' && state.selectedIds.length) { event.preventDefault(); void submit() }

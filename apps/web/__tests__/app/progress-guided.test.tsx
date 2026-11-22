@@ -26,7 +26,6 @@ const mocks = vi.hoisted(() => ({
   captureCompleted: vi.fn(),
 }))
 
-vi.mock('@/hooks/use-flag', () => ({ useFlag: (key: string) => key === 'orbit_guided_flows' && mocks.flag }))
 vi.mock('next/navigation', () => ({ usePathname: () => '/progress', useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
 vi.mock('@/components/navigation/root-notification-header', () => ({ RootNotificationHeader: () => <header data-root-notification-header="" /> }))
 vi.mock('@/components/share/share-card-entry-button', () => ({ ShareCardEntryButton: () => <button type="button">share</button> }))
@@ -107,7 +106,7 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
-describe('Progresso root with orbit_guided_flows on', () => {
+describe('Progresso root', () => {
   it.each(['en', 'pt-BR'] as const)('draws one live Orbit at 96 above the line, then the question headings, in %s', (locale) => {
     const { container } = renderIn(locale, <ProgressContent />)
     const mascots = rootMascots(container)
@@ -294,7 +293,7 @@ describe('Progresso root figures since the last visit', () => {
   })
 })
 
-describe('Progresso root with orbit_guided_flows off', () => {
+describe('Progresso root', () => {
   it('renders the current form', () => {
     mocks.flag = false
     const { container } = renderIn('en', <ProgressContent />)
@@ -304,7 +303,7 @@ describe('Progresso root with orbit_guided_flows off', () => {
   })
 })
 
-describe('Sequência with orbit_guided_flows on', () => {
+describe('Sequência', () => {
   it.each(['en', 'pt-BR'] as const)('states the streak and the next freeze beside Orbit at 48, in %s', (locale) => {
     const { container } = renderIn(locale, <ProgressContent screen="streak" />)
     const mascots = rootMascots(container)
@@ -393,7 +392,7 @@ describe('Sequência with orbit_guided_flows on', () => {
   })
 })
 
-describe('Progresso sub-screens with orbit_guided_flows on', () => {
+describe('Progresso sub-screens', () => {
   it('keeps the sub-screen header with its back control', () => {
     renderIn('en', <ProgressContent screen="streak" />)
     expect(screen.getByRole('button', { name: en.progressScreen.back })).toBeInTheDocument()
@@ -495,7 +494,7 @@ describe('Sequência repair flow', () => {
   })
 })
 
-describe('Conquistas with orbit_guided_flows on', () => {
+describe('Conquistas', () => {
   it('keeps the level row, the categories and the tiles, and a tile press changes nothing', () => {
     mocks.achievements = [createMockAchievement({ id: 'first_habit', category: 'GettingStarted', isEarned: true })]
     const { container } = renderIn('en', <ProgressContent screen="achievements" />)

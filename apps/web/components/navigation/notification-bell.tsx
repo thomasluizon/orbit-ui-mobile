@@ -7,7 +7,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Bell } from '@/components/ui/icons'
 import { IconButton } from '@/components/ui/icon-button'
-import { useFlag } from '@/hooks/use-flag'
 import { useNotificationInbox } from '@/hooks/use-notification-inbox'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { plural } from '@/lib/plural'
@@ -54,10 +53,9 @@ export function NotificationBell({ countPlacement = 'inline' }: { countPlacement
 /** `loaded` is false while the inbox has no data yet, so the count it then loads does not roll. */
 export function NotificationBellDisplay({ count, onClick, countPlacement = 'inline', loaded = true }: { count: number; onClick?: () => void; countPlacement?: CountPlacement; loaded?: boolean }) {
   const t = useTranslations()
-  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const changed = useCountChanged(count, loaded)
-  const countMotion: CountMotion = guided && changed ? (reducedMotion ? 'still' : 'roll') : null
+  const countMotion: CountMotion = changed ? (reducedMotion ? 'still' : 'roll') : null
   const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
   const corner = countPlacement === 'corner'
   const layout = corner ? 'inline-flex items-center justify-center rounded-full font-medium text-[var(--fg-3)]' : 'min-h-[48px] inline-flex rounded-full text-[var(--fg-2)] min-w-[48px] items-center justify-center gap-[4px] px-2 py-1'

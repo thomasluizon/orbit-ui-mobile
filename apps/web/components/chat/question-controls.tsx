@@ -8,7 +8,6 @@ import { RadioRow } from '@/components/ui/select-check'
 import { CheckRow } from '@/components/ui/check-row'
 import { Input } from '@/components/ui/input'
 import { OptionCard } from '@/components/ui/option-card'
-import { useFlag } from '@/hooks/use-flag'
 import { Slider } from '@/components/ui/slider'
 
 function QuestionScale({ question, answer, disabled, controller }: QuestionControlProps) {
@@ -32,14 +31,13 @@ export function QuestionControls(props: QuestionControlProps) {
   const { question, answer, disabled, controller, words } = props
   const locale = useLocale()
   const numberLabel = (value: number) => formatQuestionNumber(value, locale)
-  const quickOptions = useFlag('orbit_guided_flows')
   if (question.type === 'scale') return <QuestionScale {...props} />
   if (question.type === 'slider') return <div className="flex min-w-0 flex-col gap-2">
     <p className="break-words text-sm text-[var(--fg-2)]">{answer?.number === undefined ? `${numberLabel(question.min)} ${question.unit} / ${numberLabel(question.max)} ${question.unit}` : `${numberLabel(answer.number)} ${question.unit}`}</p>
     <Slider label={question.prompt} min={question.min} max={question.max} step={question.step} value={answer?.number} valueText={`${numberLabel(answer?.number ?? question.min)} ${question.unit}`} disabled={disabled} onChange={number => controller.setAnswer(question, { number })} />
   </div>
   const choices = question.type === 'yesNo' ? [true, false].map(boolean => ({ id: String(boolean), label: boolean ? words.yes : words.no, recommended: false })) : question.options
-  if (quickOptions && usesQuickOptions(question)) return <div className="flex min-w-0 flex-col gap-4">
+  if (usesQuickOptions(question)) return <div className="flex min-w-0 flex-col gap-4">
     <div role="group" aria-label={question.prompt} data-option-group="" className="grid min-w-0 grid-cols-2 gap-3">
       {choices.map(option => {
         const selected = question.type === 'yesNo' ? answer?.boolean === (option.id === 'true') : answer?.selectedIds?.includes(option.id) === true

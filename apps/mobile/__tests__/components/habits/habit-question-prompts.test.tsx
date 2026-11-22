@@ -3,7 +3,6 @@ import React from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { HabitListConfirmDialogs } from '@/components/habit-list/confirm-dialogs'
 import { ChecklistCompletePrompt, LogDatePrompt } from '@/components/habits/habit-detail-prompts'
 
@@ -42,7 +41,6 @@ const mascots = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.find
 
 describe('Android habit prompts as one question', () => {
   it('asks the parent question as the sheet title, with the two answers as quick options', () => {
-    enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     const tree = dialogs(spies, { parentPrompt: promptOf([parent]) })
     expect(sheetTitle(tree)).toEqual(['habits.autoLogParentMessage'])
@@ -55,7 +53,6 @@ describe('Android habit prompts as one question', () => {
   })
 
   it('sends the cancel of the parent prompt from the second quick option', () => {
-    enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     const tree = dialogs(spies, { parentPrompt: promptOf([parent]) })
     press(options(tree)[1]!)
@@ -64,7 +61,6 @@ describe('Android habit prompts as one question', () => {
   })
 
   it('keeps the ancestor choices as the free path with its own action', () => {
-    enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     const tree = dialogs(spies, { parentPrompt: promptOf([parent, root]) })
     const boxes: ReactTestInstance[] = tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')
@@ -76,7 +72,6 @@ describe('Android habit prompts as one question', () => {
   })
 
   it('asks the duplicate question with quick options and sends the same request', () => {
-    enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     const tree = dialogs(spies, { duplicateHabitName: 'Read' })
     expect(sheetTitle(tree)).toEqual(['habits.duplicateConfirmTitle'])
@@ -86,7 +81,6 @@ describe('Android habit prompts as one question', () => {
   })
 
   it('keeps the delete confirmation as a destructive confirmation with no quick option and no mascot', () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = dialogs(handlers(), { showDeleteConfirm: true, deleteHabitName: 'Read' })
     expect(sheetTitle(tree)).toEqual(['habits.deleteConfirmTitle'])
     expect(options(tree)).toHaveLength(0)
@@ -106,7 +100,6 @@ describe('Android habit prompts as one question', () => {
     expect(sheetTitle(off)).toEqual(['habits.checklistCompleteTitle'])
     expect(sentences(off)).toEqual(['habits.checklistCompleteMessage'])
     expect(options(off)).toHaveLength(0)
-    enableTestFlags('orbit_guided_flows')
     const onConfirm = vi.fn()
     const tree = mount(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={onConfirm} />)
     expect(sheetTitle(tree)).toEqual(['habits.checklistCompleteQuestion'])
@@ -117,7 +110,6 @@ describe('Android habit prompts as one question', () => {
   })
 
   it.each([['log', 'habits.detail.logDateQuestion', 'habits.detail.logDateConfirmLog'], ['unlog', 'habits.detail.logDateUnlogQuestion', 'habits.detail.logDateConfirmUnlog']] as const)('asks one question before a %s on another date', (intent, question, answer) => {
-    enableTestFlags('orbit_guided_flows')
     const onConfirm = vi.fn()
     const tree = mount(<LogDatePrompt pending={{ habitId: 'h', intent, date, name: 'Read', permanent: false }} fallbackName="Read" fallbackDate={date} language="en" onCancel={vi.fn()} onConfirm={onConfirm} />)
     expect(sheetTitle(tree)).toEqual([question])
@@ -127,7 +119,6 @@ describe('Android habit prompts as one question', () => {
   })
 
   it('keeps the confirmation for a removal that cannot be undone', () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = mount(<LogDatePrompt pending={{ habitId: 'h', intent: 'unlog', date, name: 'Read', permanent: true }} fallbackName="Read" fallbackDate={date} language="en" onCancel={vi.fn()} onConfirm={vi.fn()} />)
     expect(sheetTitle(tree)).toEqual(['habits.detail.logDateConfirmTitle'])
     expect(options(tree)).toHaveLength(0)

@@ -10,9 +10,7 @@ import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { GuidedPricingSection } from '@/components/upgrade/guided-pricing-section'
-import { PricingSection } from '@/components/upgrade/pricing-section'
 import { ProPitch } from '@/components/upgrade/pro-pitch'
-import { useFlag } from '@/hooks/use-flag'
 import { useOnboardingPlan } from '@/hooks/use-onboarding-plan'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useStripeCheckout } from '@/hooks/use-stripe-checkout'
@@ -27,7 +25,6 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   const locale = useLocale()
   const { plan, profile, retry } = useOnboardingPlan()
   const { isOnline } = useOffline()
-  const guided = useFlag('orbit_guided_flows')
   const plans = useSubscriptionPlans({ enabled: plan === 'Free', handlesError: true })
   const [finishing, setFinishing] = useState(false)
   const [finishFailed, setFinishFailed] = useState(false)
@@ -68,35 +65,30 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
     void finish().catch(() => {})
   })
 
-  const title = guided
-    ? <h1 id="onboarding-title" ref={headingRef} tabIndex={-1} className="orbit-flow-question text-balance text-center font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{t('upgrade.question')}</h1>
-    : <h1 id="onboarding-title" ref={headingRef} tabIndex={-1} translate="no" className="text-[length:var(--fs-lg)] font-medium text-pretty">{t('upgrade.pitchTitle')}</h1>
+  const title = <h1 id="onboarding-title" ref={headingRef} tabIndex={-1} className="orbit-flow-question text-balance text-center font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{t('upgrade.question')}</h1>
   const exitAction = <PillButton variant="ghost" loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton>
   let content
-  if (plan === 'loading' || plan === 'Pro' || plan === null) content = <PlanReadState guided={guided} failed={plan === null} title={title} exitAction={exitAction} onRetry={retry} t={t} />
-  else if (plan === 'Trial') content = <section data-onboarding-step="trial" className="flex flex-col gap-8"><GuidedOrbit guided={guided} /><ProPitch focusOnMount headingId="onboarding-title" profile={profile ?? null} trialDaysLeft={getTrialDaysLeft(profile)} titleKey="onboarding.flow.trial.title" bodyKey="onboarding.flow.trial.body" dateHint={profile?.trialEndsAt ? t('upgrade.billing.plan.trialHint', { date: new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(profile.trialEndsAt)) }) : undefined} t={t} /><PillButton loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton></section>
-  else if (guided) content = <section data-onboarding-step="paywall" className="flex flex-col gap-6"><GuidedPricingSection headingId="onboarding-title" focusOnMount profile={null} usage={profile ?? null} plans={plans.plans} isLoadingPlans={plans.isLoading} isPlansError={plans.isError} isOnline={isOnline} trialDaysLeft={null} checkoutLoading={checkoutLoading ?? (finishing ? 'yearly' : null)} checkoutError={checkoutError} discountedAmount={plans.discountedAmount} onCheckout={(interval) => void checkout(interval)} stayFreeHref="/" onStayFree={() => exit()} onRetryPlans={() => void plans.refetch()} t={t} /></section>
-  else content = <section data-onboarding-step="paywall" className="flex flex-col gap-6">{title}{!isOnline ? <ErrorState message={t('upgrade.billing.offline')} /> : null}<PricingSection profile={null} plans={plans.plans} isLoadingPlans={plans.isLoading} isPlansError={plans.isError} isOnline={isOnline} trialDaysLeft={null} checkoutLoading={checkoutLoading ?? (finishing ? 'yearly' : null)} checkoutError={checkoutError} discountedAmount={plans.discountedAmount} onCheckout={(interval) => void checkout(interval)} stayFreeHref="/" onStayFree={() => exit()} onRetryPlans={() => void plans.refetch()} t={t} /></section>
+  if (plan === 'loading' || plan === 'Pro' || plan === null) content = <PlanReadState failed={plan === null} title={title} exitAction={exitAction} onRetry={retry} t={t} />
+  else if (plan === 'Trial') content = <section data-onboarding-step="trial" className="flex flex-col gap-8"><GuidedOrbit /><ProPitch focusOnMount headingId="onboarding-title" profile={profile ?? null} trialDaysLeft={getTrialDaysLeft(profile)} titleKey="onboarding.flow.trial.title" bodyKey="onboarding.flow.trial.body" dateHint={profile?.trialEndsAt ? t('upgrade.billing.plan.trialHint', { date: new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(profile.trialEndsAt)) }) : undefined} t={t} /><PillButton loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton></section>
+  else content = <section data-onboarding-step="paywall" className="flex flex-col gap-6"><GuidedPricingSection headingId="onboarding-title" focusOnMount profile={null} usage={profile ?? null} plans={plans.plans} isLoadingPlans={plans.isLoading} isPlansError={plans.isError} isOnline={isOnline} trialDaysLeft={null} checkoutLoading={checkoutLoading ?? (finishing ? 'yearly' : null)} checkoutError={checkoutError} discountedAmount={plans.discountedAmount} onCheckout={(interval) => void checkout(interval)} stayFreeHref="/" onStayFree={() => exit()} onRetryPlans={() => void plans.refetch()} t={t} /></section>
   return <div className="w-full py-8">{content}<p role="alert" className="text-sm text-[var(--fg-2)]">{finishFailed ? t('onboarding.flow.completionFailed') : ''}</p></div>
 }
 
-function PlanReadState({ guided, failed, title, exitAction, onRetry, t }: Readonly<{
-  guided: boolean
+function PlanReadState({ failed, title, exitAction, onRetry, t }: Readonly<{
   failed: boolean
   title: ReactNode
   exitAction: ReactNode
   onRetry: () => void
   t: ReturnType<typeof useTranslations>
 }>) {
-  const heading = guided ? <><GuidedOrbit guided />{title}</> : title
+  const heading = <><GuidedOrbit />{title}</>
   if (!failed) return <section aria-busy aria-label={t('common.loading')} className="flex flex-col gap-6">{heading}<ProSkeleton />{exitAction}</section>
   const retry = <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-  return <section className="flex flex-col gap-6">{heading}<ErrorState message={t(guided ? 'upgrade.orbitLine.billingError' : 'upgrade.billing.error')} action={retry} />{exitAction}</section>
+  return <section className="flex flex-col gap-6">{heading}<ErrorState message={t('upgrade.orbitLine.billingError')} action={retry} />{exitAction}</section>
 }
 
-function GuidedOrbit({ guided }: Readonly<{ guided: boolean }>) {
+function GuidedOrbit() {
   const mascotSize = useStateMascotSize()
-  if (!guided) return null
   return <span data-onboarding-orbit="" aria-hidden="true" className="self-center"><OrbitMascot size={mascotSize} state="parado" /></span>
 }
 

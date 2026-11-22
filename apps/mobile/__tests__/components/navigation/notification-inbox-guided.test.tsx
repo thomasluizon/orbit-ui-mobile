@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-
 import { API } from '@orbit/shared/api'
 import { notificationKeys } from '@orbit/shared/query'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { motionDurations, motionPresets, resolveMotionPreset } from '@orbit/shared/theme'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import en from '@orbit/shared/i18n/en.json'
@@ -147,7 +146,6 @@ describe('the Android Avisos inbox with the guided flows off', () => {
 })
 
 describe('the Android Avisos inbox on the Orbit logic', () => {
-  beforeEach(() => enableTestFlags('orbit_guided_flows'))
 
   it.each([{ locale: 'en' as const, width: 412, size: 96 }, { locale: 'pt-BR' as const, width: 412, size: 96 }, { locale: 'pt-BR' as const, width: 1024, size: 128 }])(
     'shows the empty inbox as Orbit in Parado at $size with the current title in $locale, with no motion on arrival', async ({ locale, width, size }) => {
@@ -227,7 +225,6 @@ describe('the Android Avisos inbox on the Orbit logic', () => {
     expect(bellLabel()).toBe(en.notifications.bell)
     void TestRenderer.act(() => tree?.unmount())
 
-    resetTestFlags()
     vi.mocked(apiClient).mockClear()
     offlineMocks.buildQueuedMutation.mockClear()
     queryClient.clear()

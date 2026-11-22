@@ -2,7 +2,6 @@ import React from 'react'
 import { Animated } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useTodayMotion } from '@/app/(tabs)/use-today-motion'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { calendarSlideMotion, getOrbitPageTurns } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -203,7 +202,6 @@ describe('useTodayMotion', () => {
   })
 
   it('slides the next day in from 12px on the horizontal axis with the calendar tokens, and turns the ring of Orbit once', async () => {
-    enableTestFlags('orbit_guided_flows')
     const timing = vi.spyOn(Animated, 'timing')
     const turns = getOrbitPageTurns()
     const motion = await renderMotion('2026-04-08')
@@ -222,7 +220,6 @@ describe('useTodayMotion', () => {
   })
 
   it('slides the previous day in from the other side', async () => {
-    enableTestFlags('orbit_guided_flows')
     const motion = await renderMotion('2026-04-08')
 
     await motion.update('2026-04-07')

@@ -29,7 +29,6 @@ const TestRenderer: TestRendererApi = require('react-test-renderer')
 vi.mock('@/components/onboarding/onboarding-flow', () => ({
   OnboardingFlow: 'OnboardingFlow',
 }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
   OnboardingActionsProvider: 'OnboardingActionsProvider',
 }))

@@ -10,7 +10,6 @@ interface TodayOrbitState {
   inDrillOrSurface: boolean
   item: ProactiveItem | null
   returning: ReturningInterval | null
-  guided: boolean
 }
 
 type TodayOrbitTranslate = (key: 'todayOrbit.openConversation' | 'todayOrbit.viewProgress' | 'todayOrbit.returningElapsed' | 'todayOrbit.returningBounded' | 'todayOrbit.guided.returning', values?: { days: number }) => string
@@ -25,15 +24,14 @@ export function getTodayOrbitLine(state: TodayOrbitState, translate: TodayOrbitT
   if (state.item) return { text: state.item.text, destination: translate('todayOrbit.openConversation'), item: state.item }
   if (!state.returning) return null
   return {
-    text: returningText(state.guided, state.returning, translate),
+    text: returningText(state.returning, translate),
     destination: translate('todayOrbit.viewProgress'),
     item: null,
   }
 }
 
-function returningText(guided: boolean, returning: ReturningInterval, translate: TodayOrbitTranslate): string {
-  if (guided) return translate('todayOrbit.guided.returning')
-  return returning.kind === 'elapsed' ? translate('todayOrbit.returningElapsed', { days: returning.days }) : translate('todayOrbit.returningBounded')
+function returningText(returning: ReturningInterval, translate: TodayOrbitTranslate): string {
+  return translate('todayOrbit.guided.returning')
 }
 
 export function proactiveActionLabelKey(trigger: string): ProactiveActionLabelKey {

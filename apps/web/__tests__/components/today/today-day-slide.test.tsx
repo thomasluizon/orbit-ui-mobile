@@ -1,6 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { calendarSlideMotion, getOrbitPageTurns } from '@orbit/shared/utils'
 import { TodayDaySlide } from '@/components/today/today-day-slide'
 
@@ -14,7 +13,6 @@ const day = (dateStr: string, enabled = true) => <TodayDaySlide dateStr={dateStr
 
 describe('web Hoje day change', () => {
   it('slides the list of the new day with the calendar tokens and turns the ring of Orbit once', () => {
-    enableTestFlags('orbit_guided_flows')
     const turns = getOrbitPageTurns()
     const view = render(day('2026-11-14'))
     expect(slide.animate).not.toHaveBeenCalled()
@@ -30,7 +28,6 @@ describe('web Hoje day change', () => {
   })
 
   it('shows the new day at once under reduced motion', () => {
-    enableTestFlags('orbit_guided_flows')
     slide.reduced = true
     const view = render(day('2026-11-14'))
     view.rerender(day('2026-11-15'))
@@ -43,7 +40,6 @@ describe('web Hoje day change', () => {
     const off = render(day('2026-11-14'))
     off.rerender(day('2026-11-15'))
     off.unmount()
-    enableTestFlags('orbit_guided_flows')
     const other = render(day('2026-11-14', false))
     other.rerender(day('2026-11-15', false))
     expect(slide.animate).not.toHaveBeenCalled()

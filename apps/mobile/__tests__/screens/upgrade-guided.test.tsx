@@ -1,7 +1,6 @@
 import React from 'react'
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails, SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
@@ -129,7 +128,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   Object.assign(mocks, { statusError: false, locale: 'en', from: undefined, status: freeStatus, timeZone: 'America/Sao_Paulo', plans, billing: undefined, plansLoading: false, plansError: false, online: true, reducedMotion: false })
   Object.assign(mocks.playBilling, { isProcessing: false, isRestoring: false, errorKey: '', isLoadingProducts: false, isProductsError: false })
-  enableTestFlags('orbit_guided_flows')
   __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
 })
 
@@ -198,7 +196,7 @@ describe('the plan question of the Android upgrade route', () => {
   })
 
   it.each([[1024, false], [412, true]] as const)('keeps the primary action in the block at %i wide (guided flows off: %s), with no footer', (width, flagOff) => {
-    if (flagOff) resetTestFlags()
+    if (flagOff) 
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     const tree = renderNavigation(<UpgradeScreen />)
     expect(byTestId(tree, 'upgrade-plan-footer')).toBeUndefined()
@@ -490,7 +488,6 @@ describe('the dashboards and the notices of the Android route with the guided fl
 
 describe('the Android upgrade route with the guided flows off', () => {
   it('keeps the current full-surface billing error, with its Orbit in Parado', () => {
-    resetTestFlags()
     mocks.statusError = true
     mocks.status = null
     const tree = renderNavigation(<UpgradeScreen />)
@@ -501,7 +498,6 @@ describe('the Android upgrade route with the guided flows off', () => {
   })
 
   it('keeps the current pitch, the title of the header as a header and the done toast of a verified purchase', () => {
-    resetTestFlags()
     const tree = renderNavigation(<UpgradeScreen />)
     expect(headers(tree).some((node) => renderedText(node) === 'Orbit Pro')).toBe(true)
     expect(byTestId(tree, 'upgrade-block')).toBeUndefined()

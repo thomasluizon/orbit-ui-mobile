@@ -5,7 +5,6 @@ import { motionPresets, resolveMotionPreset, type MotionScenario } from '@orbit/
 import { useTodayMotion } from '@/app/(tabs)/use-today-motion'
 import { resolveBulkActionBarEnterShift } from '@/app/(tabs)/today-model'
 import { useUIStore } from '@/stores/ui-store'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { calendarSlideMotion, getOrbitPageTurns } from '@orbit/shared/utils'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
@@ -68,7 +67,6 @@ describe('the Android selection tray uses the selection preset', () => {
 
 describe('the Android day slide of Hoje under reduced motion', () => {
   it('shows the new day at once: no slide, full opacity, no timing and no ring turn', async () => {
-    enableTestFlags('orbit_guided_flows')
     motion.reduced = true
     const timing = vi.spyOn(Animated, 'timing')
     const turns = getOrbitPageTurns()

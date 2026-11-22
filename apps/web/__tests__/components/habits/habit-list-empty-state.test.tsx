@@ -1,7 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HabitListAllDone, HabitListEmptyState } from '@/components/habits/habit-list/empty-state'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { useUIStore } from '@/stores/ui-store'
 
 vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }))
@@ -23,7 +22,6 @@ describe('the completed day on web', () => {
   const mark = () => document.querySelector<HTMLElement>('[data-testid="completed-day-mark"]')!
 
   it.each([[320, 96], [1023, 96], [1024, 128], [1440, 128]])('draws Orbit in Feliz at the state size at %ipx', (width, size) => {
-    enableTestFlags('orbit_guided_flows')
     setWidth(width)
     render(<HabitListAllDone />)
     const mascot = mark().querySelector('[data-asset="orbit-mascot"]')!
@@ -33,7 +31,6 @@ describe('the completed day on web', () => {
   })
 
   it('hops once when everything due today is done, and stays still on a later visit', () => {
-    enableTestFlags('orbit_guided_flows')
     setWidth(412)
     const view = render(<HabitListAllDone />)
     expect(mark().querySelector('[data-orbit-hop]')).toHaveAttribute('data-orbit-hop', 'still')
@@ -46,7 +43,6 @@ describe('the completed day on web', () => {
   })
 
   it('does not hop for another celebration or under reduced motion', () => {
-    enableTestFlags('orbit_guided_flows')
     setWidth(412)
     act(() => { useUIStore.getState().enqueueCelebration('level-up', { level: 2 }) })
     const view = render(<HabitListAllDone />)

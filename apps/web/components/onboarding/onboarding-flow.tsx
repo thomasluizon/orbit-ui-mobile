@@ -190,7 +190,6 @@ function useGuidedRunCompletion(conditions: readonly boolean[], usedAiRead: bool
 }
 
 interface StepsPhaseProps extends Omit<GuidedOnboardingProps, 'onBack' | 'onSkip'> {
-  guided: boolean
   legacy: ReactNode
   resolvingDeferredPush: boolean
   habitCreated: boolean
@@ -198,8 +197,8 @@ interface StepsPhaseProps extends Omit<GuidedOnboardingProps, 'onBack' | 'onSkip
   onLeave: () => void
 }
 
-function StepsPhase({ guided, legacy, resolvingDeferredPush, habitCreated, onStepBack, onLeave, ...props }: Readonly<StepsPhaseProps>) {
-  if (!guided) return legacy
+function StepsPhase({ resolvingDeferredPush, habitCreated, onStepBack, onLeave, ...props }: Readonly<StepsPhaseProps>) {
+  
   return <GuidedOnboardingFlow {...props} onBack={resolvingDeferredPush ? undefined : onStepBack} onSkip={habitCreated ? undefined : onLeave} />
 }
 
@@ -208,7 +207,7 @@ function GuidedResultSlot({ open, ...props }: Readonly<ComponentProps<typeof Gui
 }
 
 /** `guided` is the flag `orbit_guided_flows`: the intro and the one-question flow replace the steps, and the result dialog opens over the done shell. */
-export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }: Readonly<{ finalStepOnly?: boolean; onExit?: () => void; guided?: boolean }>) {
+export function OnboardingFlow({ finalStepOnly = false, onExit }: Readonly<{ finalStepOnly?: boolean; onExit?: () => void }>) {
   const t = useTranslations('onboarding.flow')
   const translate = useTranslations()
   const router = useRouter()
@@ -263,7 +262,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
   const suggestionRevision = useRef(0)
   const read = useMemo(() => readHabitPhrase(sentence, locale), [locale, sentence])
   const { dueTime } = schedule
-  useGuidedRunCompletion([guided, step === ONBOARDING_DONE_STEP, Boolean(createdTitle)], proposed)
+  useGuidedRunCompletion([true, step === ONBOARDING_DONE_STEP, Boolean(createdTitle)], proposed)
   const allowance = profile?.aiMessagesLimit ?? 5
   const atLimit = isLive && (profile?.aiMessagesUsed ?? 0) >= allowance
 
@@ -274,7 +273,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
 
   async function continueFromWhat(phrase: string) {
     if (!phrase.trim() || suggestionPending) return
-    const localSchedule = clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(phrase, locale, guided), isLive)
+    const localSchedule = clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(phrase, locale), isLive)
     setEmoji('')
     setEmojiProposed(false)
     setSchedule(localSchedule)
@@ -290,7 +289,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
     try {
       const result = await suggestion.mutateAsync({ title: phrase, language: locale })
       if (suggestionRevision.current !== revision) return
-      const proposal = buildOnboardingProposal(result, phrase, locale, guided)
+      const proposal = buildOnboardingProposal(result, phrase, locale)
       setEmoji(proposal.emoji)
       setEmojiProposed(Boolean(proposal.emoji))
       setSchedule(clampOnboardingRepeatWeeks(proposal.schedule, isLive))
@@ -515,11 +514,11 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
   const overlay = step >= ONBOARDING_DONE_STEP ? (
     <DoneShell modalId={modalId} loginHref={isLive ? undefined : getOnboardingLoginUrl(searchQuery, true)} onSelect={(id) => completeAndLeave(isLive ? DONE_TAB_ROUTES[id] : undefined)}><DoneContent step={step} proContent={<OnboardingProStep ref={proStepRef} onFinish={finishAndLeave} />} doneContent={<OnboardingComplete createdHabit={createdTitle} emoji={emoji || '◎'} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => completeAndLeave()} />} /></DoneShell>
   ) : (
-    <StepsPhase guided={guided} legacy={<FlowShell nav={false} landmark={false} mode="onboarding" header={<OnboardingHeader completionPending={completionPending} step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : () => void skip()} />} action={<div className="contents" inert={completionPending || undefined}><DecisionAction {...decisionProps} /></div>} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} />{createFailed ? <ErrorState message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><div className="contents" inert={completionPending || undefined}><OnboardingStepStage step={step}><DecisionContent {...decisionProps} /></OnboardingStepStage>{suggestion.verification}</div></FlowShell>} {...decisionProps} habitEmoji={emoji} emojiProposed={emojiProposed} onEmoji={(value) => { setEmoji(value); setEmojiProposed(false) }} completionPending={completionPending} offline={!isOnline}
+    <StepsPhase legacy={<FlowShell nav={false} landmark={false} mode="onboarding" header={<OnboardingHeader completionPending={completionPending} step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : () => void skip()} />} action={<div className="contents" inert={completionPending || undefined}><DecisionAction {...decisionProps} /></div>} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} />{createFailed ? <ErrorState message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><div className="contents" inert={completionPending || undefined}><OnboardingStepStage step={step}><DecisionContent {...decisionProps} /></OnboardingStepStage>{suggestion.verification}</div></FlowShell>} {...decisionProps} habitEmoji={emoji} emojiProposed={emojiProposed} onEmoji={(value) => { setEmoji(value); setEmojiProposed(false) }} completionPending={completionPending} offline={!isOnline}
       notices={<><UpdateAvailableBanner modalId={modalId} inset={false} /><AppToastHost placement="modal" modalId={modalId} />{suggestion.verification}</>}
       leaveFailed={leaveFailed} resolvingDeferredPush={resolvingDeferredPush} habitCreated={createdId !== null} onStepBack={goBack} onLeave={() => void skip()} />
   )
-  const result = <GuidedResultSlot open={[guided, step === ONBOARDING_DONE_STEP, overlayOpen, Boolean(createdTitle), !skipped, !resultDismissed]} habitId={createdId} signedOut={!isLive} timeZone={profile?.timeZone}
+  const result = <GuidedResultSlot open={[true, step === ONBOARDING_DONE_STEP, overlayOpen, Boolean(createdTitle), !skipped, !resultDismissed]} habitId={createdId} signedOut={!isLive} timeZone={profile?.timeZone}
     onPrimary={() => completeAndLeave(isLive ? '/' : undefined)} onClose={() => setResultDismissed(true)} />
   return <OrbitOverlayLayer active={overlayOpen}><Dialog.Root open={overlayOpen} modal disablePointerDismissal onOpenChange={(open) => { if (!open) closeOverlay() }}><Dialog.Portal><Dialog.Viewport className="z-modal fixed inset-0"><Dialog.Popup aria-labelledby="onboarding-title" className="fixed inset-0 overflow-hidden bg-[var(--bg)]">{overlay}{result}</Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root></OrbitOverlayLayer>
 }

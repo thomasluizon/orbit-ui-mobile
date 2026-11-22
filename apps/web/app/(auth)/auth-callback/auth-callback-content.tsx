@@ -14,8 +14,6 @@ import { LoginContent } from '../login/login-content'
 import { getCookieValue } from '../login/login-form-helpers'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { useGuidedSignIn } from '@/components/auth/guided-sign-in'
-import { Lockup } from '@/components/ui/lockup'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillLink } from '@/components/ui/pill-button'
 import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
@@ -24,12 +22,8 @@ import type { LoginResponse } from '@orbit/shared/types/auth'
 
 function AppHandoff({ href }: Readonly<{ href: string }>) {
   const t = useTranslations()
-  const guided = useGuidedSignIn()
   const size = useStateMascotSize()
-  if (!guided) return <div className="flex w-full flex-col gap-8 px-4 py-4 md:w-[420px] md:rounded-[var(--r-card)] md:bg-[var(--bg-card)] md:p-8 md:shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
-    <Lockup />
-    <div><PillLink href={href}>{t('auth.openInOrbit')}</PillLink></div>
-  </div>
+  
   return (
     <div data-app-handoff="" className="flex w-full max-w-[592px] flex-col items-center gap-6 px-4 py-4 text-center">
       <OrbitMascot size={size} />

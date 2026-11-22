@@ -19,7 +19,6 @@ import { useId, useRef } from 'react'
 import type { CreateGoalSheetProps } from '@orbit/shared/hooks'
 import { MAX_GOAL_TITLE_LENGTH } from '@orbit/shared/validation'
 import { useGoalCreation } from '@/hooks/use-goal-creation'
-import { useFlag } from '@/hooks/use-flag'
 import { GuidedGoalCreateFlow } from './guided/guided-goal-create-flow'
 
 type CreateGoalSheetHostProps = CreateGoalSheetProps & { restoreFocusOnCreate?: boolean }
@@ -30,8 +29,7 @@ export function CreateGoalSheet(props: Readonly<CreateGoalSheetHostProps>) {
 }
 
 function OpenCreateGoalSheet(props: Readonly<CreateGoalSheetHostProps>) {
-  const guided = useFlag('orbit_guided_flows')
-  return guided ? <GuidedGoalCreateFlow {...props} /> : <CurrentCreateGoalSheet {...props} />
+  return <GuidedGoalCreateFlow {...props} />
 }
 
 function CurrentCreateGoalSheet(props: Readonly<CreateGoalSheetHostProps>) {

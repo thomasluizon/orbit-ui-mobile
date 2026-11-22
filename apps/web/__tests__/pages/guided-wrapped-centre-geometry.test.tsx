@@ -15,7 +15,6 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 const wrapped = vi.hoisted(() => ({ current: { recap: null as unknown, isEmpty: false, isLoading: false, isError: false } }))
 
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-referral', () => ({ useReferral: () => ({ stats: null, isError: false }) }))

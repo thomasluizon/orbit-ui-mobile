@@ -8,7 +8,6 @@ import { NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import type { Recap } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
@@ -102,7 +101,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
 
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); resetTestFlags() })
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
   beforeEach(() => {
     expect(browser.contexts(), 'previous geometry case released its contexts').toHaveLength(0)
@@ -264,7 +263,6 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
 
   it.each([320, 360, 384, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))(
     'keeps every guided slide inside the column with no clipped text, and the share slide Orbit and preview in view, at $width px in $locale', async ({ width, locale }) => {
-      enableTestFlags('orbit_guided_flows')
       vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('prefers-reduced-motion'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
       const height = 740
       const { page, signal } = await createPage({ viewport: { width, height }, reducedMotion: 'reduce' })

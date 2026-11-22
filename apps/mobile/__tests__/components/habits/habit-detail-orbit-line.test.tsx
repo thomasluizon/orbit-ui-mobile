@@ -1,9 +1,8 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { HabitDayValue } from '@orbit/shared/contracts/dates'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { HabitDetailOrbitLine, HabitDetailReviewRow } from '@/components/habits/habit-detail-orbit-line'
+import { HabitDetailOrbitLine } from '@/components/habits/habit-detail-orbit-line'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -34,7 +33,6 @@ afterEach(() => {
 
 describe('Android habit detail Orbit line', () => {
   it('states how many of the last 7 days the habit was done, with Orbit at 48, and opens the review conversation', async () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = await mount(<HabitDetailOrbitLine habit={habit} days={week(5)} />)
     expect(probes(tree)[0]!.props).toMatchObject({ size: 48, state: 'parado' })
     expect(probes(tree)[0]!.props.still).toBeUndefined()
@@ -45,19 +43,12 @@ describe('Android habit detail Orbit line', () => {
   })
 
   it('never counts a miss: a week with nothing done shows the review label and no number', async () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = await mount(<HabitDetailOrbitLine habit={habit} days={week(0)} />)
     expect(row(tree)[0]!.props.accessibilityLabel).toBe('habits.detail.askOrbit')
   })
 
-  it('renders no Orbit line while the flag is off and keeps the review row', async () => {
-    const tree = await mount(<><HabitDetailOrbitLine habit={habit} days={week(5)} /><HabitDetailReviewRow habit={habit} /></>)
-    expect(row(tree)).toHaveLength(0)
-    expect(probes(tree)[0]!.props.size).toBe(24)
-  })
 
   it('shows Orbit in Pensando while the reschedule suggestion loads', async () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = await mount(<HabitDetailOrbitLine habit={habit} days={week(5)} thinking />)
     expect(probes(tree)[0]!.props.state).toBe('pensando')
     await renderer.act(async () => { tree.update(<HabitDetailOrbitLine habit={habit} days={week(5)} />); await Promise.resolve() })

@@ -5,7 +5,6 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFlag } from '@/hooks/use-flag'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -43,13 +42,12 @@ function useSentenceFade(text: string, still: boolean) {
 }
 
 export function TodayOrbitLine({ text, destination, role = 'button', onPress, disabled = false, busy = false, announce = false, loading = false, mascotState = 'parado', lookAt, turnKey, mascotRef }: Readonly<TodayOrbitLineProps>) {
-  const guided = useFlag('orbit_guided_flows')
   const { fontScale } = useWindowDimensions()
   const reducedMotion = usePrefersReducedMotion()
-  const sentenceStyle = useSentenceFade(text, !guided || reducedMotion)
+  const sentenceStyle = useSentenceFade(text, reducedMotion)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const type = guided ? styles.orbitLineText : styles.text
+  const type = styles.orbitLineText
   const [pressed, setPressed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
@@ -72,7 +70,7 @@ export function TodayOrbitLine({ text, destination, role = 'button', onPress, di
       >
         {!disabled && (pressed || hovered) ? <View accessible={false} pointerEvents="none" style={[StyleSheet.absoluteFill, styles.feedback, { backgroundColor: tokens.bgHoverOpaque }]} /> : null}
         <View ref={mascotRef} accessible={false} style={{ width: 48, flexShrink: 0, alignItems: 'center' }}>
-          {guided ? <OrbitMascot size={48} live="withLead" state={mascotState} lookAt={lookAt} turnKey={turnKey} /> : <OrbitMascot size={48} live="withLead" />}
+          <OrbitMascot size={48} live="withLead" state={mascotState} lookAt={lookAt} turnKey={turnKey} />
         </View>
         {loading ? <View testID="summary-skeleton" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.skeleton, { minHeight: type.lineHeight * 2 }]}>
           <View style={styles.placeholder}><Skeleton variant="fill" grouped /></View>

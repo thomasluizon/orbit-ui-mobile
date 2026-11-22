@@ -249,7 +249,6 @@ export {
   buildHabitDaysList,
   buildHabitOrbitFallbackCopy,
   applyHabitEmojiSuggestion,
-  reportRefusedHabitSave,
   buildHabitEmojiSuggestionAvailability,
   buildHabitFormPatchFromSuggestion,
   buildHabitUnderstandingLabels,

@@ -4,59 +4,19 @@ import { ChevronDown } from '@/components/ui/icons'
 
 import { IconButton } from '@/components/ui/icon-button'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motionPresets } from '@orbit/shared/theme'
-import { buildGuidedTimeZoneOptions, filterTimeZones, buildPreferencePickerModel, getClientTimeZone, getTimezoneList, TIME_ZONE_PAGE_SIZE, type PreferencePicker } from '@orbit/shared/utils'
+import { buildGuidedTimeZoneOptions, buildPreferencePickerModel, getClientTimeZone, getTimezoneList, TIME_ZONE_PAGE_SIZE, type PreferencePicker } from '@orbit/shared/utils'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
 
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { RadioRow } from '@/components/ui/select-check'
-import { RadioGroup } from '@/components/ui/radio-group'
 import { Input } from '@/components/ui/input'
 import { OptionCard } from '@/components/ui/option-card'
-import { useFlag } from '@/hooks/use-flag'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 export type { PreferencePicker }
 
 const TIME_ZONE_OPTIONS = getTimezoneList()
-
-function PickerOptions<Value extends string | number>({
-  label,
-  options,
-  selected,
-  onCommit,
-}: Readonly<{
-  label: string
-  options: readonly { value: Value; label: string }[]
-  selected: Value | null
-  onCommit: (value: Value) => void
-}>) {
-  const [draft, setDraft] = useState<Value | null>(null)
-  const draftRef = useRef<Value | null>(null)
-  const checked = draft ?? selected
-  const selectDraft = (next: Value) => {
-    draftRef.current = next
-    setDraft(next)
-  }
-  const commitDraft = () => {
-    const pending = draftRef.current ?? selected
-    if (pending !== null) onCommit(pending)
-  }
-
-  return (
-    <RadioGroup aria-label={label} onCommit={commitDraft}>
-      {options.map((option) => (
-        <RadioRow
-          key={String(option.value)}
-          label={option.label}
-          selected={checked === option.value}
-          onSelect={() => selectDraft(option.value)}
-        />
-      ))}
-    </RadioGroup>
-  )
-}
 
 function QuickOptions<Value extends string | number>({ label, options, selected, onCommit }: Readonly<{
   label: string
@@ -70,54 +30,6 @@ function QuickOptions<Value extends string | number>({ label, options, selected,
       {options.map((option) => (
         <OptionCard key={String(option.value)} label={option.label} selected={(answer ?? selected) === option.value} onSelect={() => { setAnswer(option.value); onCommit(option.value) }} />
       ))}
-    </div>
-  )
-}
-
-function TimeZoneOptions({
-  selected,
-  searchLabel,
-  noResultsLabel,
-  showMoreLabel,
-  onCommit,
-}: Readonly<TimeZoneOptionsProps>) {
-  const [query, setQuery] = useState('')
-  const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
-  const filtered = useMemo(() => filterTimeZones(TIME_ZONE_OPTIONS, query), [query])
-  const ordered = selected && filtered.includes(selected)
-    ? [selected, ...filtered.filter((option) => option !== selected)]
-    : filtered
-  const visible = ordered.slice(0, visibleCount)
-
-  return (
-    <div className="flex flex-col gap-2">
-      <label className="flex flex-col gap-2 font-sans text-sm text-[var(--fg-2)]">
-        <span>{searchLabel}</span>
-        <input
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value)
-            setVisibleCount(TIME_ZONE_PAGE_SIZE)
-          }}
-          className="form-input orbit-field-hover mb-1"
-          style={{ borderRadius: 12 }}
-          placeholder={searchLabel}
-        />
-      </label>
-      <PickerOptions
-        label={searchLabel}
-        options={visible.map((option) => ({ label: option, value: option }))}
-        selected={selected ?? null}
-        onCommit={onCommit}
-      />
-      {visible.length === 0 ? (
-        <p className="m-0 px-1 py-4 text-sm text-[var(--fg-3)]">{noResultsLabel}</p>
-      ) : null}
-      {visibleCount < ordered.length ? (
-        <div>
-          <IconButton label={showMoreLabel} onClick={() => setVisibleCount((count) => count + TIME_ZONE_PAGE_SIZE)}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-        </div>
-      ) : null}
     </div>
   )
 }
@@ -179,26 +91,25 @@ function PickerContent({
   props: PreferencePickerSheetProps
   commitSelection: (apply: () => void, settle: boolean) => void
 }>) {
-  const guided = useFlag('orbit_guided_flows')
   if (props.activePicker === null) return null
   const model = buildPreferencePickerModel({ ...props, activePicker: props.activePicker, ready: props.mounted })
   if (model.kind === 'timeZone') {
-    const TimeZones = guided ? GuidedTimeZoneOptions : TimeZoneOptions
+    const TimeZones = GuidedTimeZoneOptions
     return <TimeZones
       selected={model.selected}
       questionLabel={props.pickerTitles.timeZone}
       searchLabel={props.timeZoneSearchLabel}
       noResultsLabel={props.timeZoneNoResultsLabel}
       showMoreLabel={props.timeZoneShowMoreLabel}
-      onCommit={(value) => commitSelection(() => model.onCommit(value), guided)}
+      onCommit={(value) => commitSelection(() => model.onCommit(value), true)}
     />
   }
-  const Options = guided ? QuickOptions : PickerOptions
+  const Options = QuickOptions
   return <Options
     label={model.label}
     options={model.options}
     selected={model.selected}
-    onCommit={(value) => commitSelection(() => model.onCommit(value), guided)}
+    onCommit={(value) => commitSelection(() => model.onCommit(value), true)}
   />
 }
 

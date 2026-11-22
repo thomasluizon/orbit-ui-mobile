@@ -4,7 +4,6 @@ import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import SearchPage from '@/app/(app)/search/page'
 import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
@@ -59,7 +58,6 @@ describe('the search route with the guided flows off', () => {
 })
 
 describe('the search route on the Orbit logic', () => {
-  beforeEach(() => enableTestFlags('orbit_guided_flows'))
 
   it.each(['en', 'pt-BR'] as const)('shows one centred block before a query in %s: Orbit in Parado at 96, the question as the one h1 and the field it names', (locale) => {
     const { container, messages, field, mascot } = mount(locale)

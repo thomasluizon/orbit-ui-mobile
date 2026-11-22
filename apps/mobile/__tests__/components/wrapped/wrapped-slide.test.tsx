@@ -7,7 +7,6 @@ import ICUCommonJs from 'i18next-icu/cjs'
 import type { ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -180,8 +179,7 @@ describe('mobile WrappedSlide', () => {
     void renderer.act(() => tree.update(<></>))
   })
 
-  it('states the consistency error with Orbit in Parado under orbit_guided_flows, and retry reads the profile again', () => {
-    enableTestFlags('orbit_guided_flows')
+  it('states the consistency error with Orbit in Parado, and retry reads the profile again', () => {
     profileState.isError = true
     const tree = renderSlide({ id: 'consistency', weeklyConsistency: [100, 0, 0, 0, 0, 0, 0] }, 'week', recap, null)
     const hosts = tree.root.findAll((node) => typeof node.type === 'string')

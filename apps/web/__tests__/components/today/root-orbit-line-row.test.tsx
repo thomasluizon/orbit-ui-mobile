@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { motionDurations } from '@orbit/shared/theme'
 import { TodayOrbitLine } from '@/components/today/today-orbit-line'
 
@@ -23,7 +22,7 @@ function stubMatchMedia() {
   })
 }
 
-beforeEach(() => { reducedMotion = false; stubMatchMedia(); enableTestFlags('orbit_guided_flows') })
+beforeEach(() => { reducedMotion = false; stubMatchMedia();  })
 afterEach(() => { reducedMotion = false })
 
 describe('the root Orbit line row', () => {
@@ -56,7 +55,6 @@ describe('the root Orbit line row', () => {
   })
 
   it('keeps the still Orbit at 48 and never fades the sentence with the guided flows off', () => {
-    resetTestFlags()
     const { container, rerender } = render(<TodayOrbitLine text="Dia 2: tudo feito." destination="Abrir conversa" mascotState="descansando" />)
     rerender(<TodayOrbitLine text="Nada marcado nesse dia." destination="Abrir conversa" mascotState="descansando" />)
     const mascot = container.querySelector('[data-asset="orbit-mascot"]')!

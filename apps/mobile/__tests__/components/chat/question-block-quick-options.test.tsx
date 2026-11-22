@@ -3,7 +3,6 @@ import * as ReactNative from 'react-native'
 import { AccessibilityInfo, StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { questionBlockFixture as block } from '@orbit/shared/test-support/chat-fixtures'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { BlockAnswerInteraction } from '@orbit/shared/chat'
 import { QuestionBlock } from '@/components/chat/question-block'
 import { __getNativeHost } from '../../../test-mocks/react-native'
@@ -21,7 +20,6 @@ const prompts = () => tree!.root.findAll(node => typeof node.type === 'string' &
 const texts = () => tree!.root.findAll(node => typeof node.type === 'string' && typeof node.props.children === 'string').map(node => node.props.children as string)
 
 it('renders the single-choice and yes or no questions as quick options, moves on after a press, and keeps the answer on the way back', async () => {
-  enableTestFlags('orbit_guided_flows')
   await mount()
   const morning = optionCards().find(card => /Morning/.test(card.props.accessibilityLabel))!
   expect(morning).toBeDefined()
@@ -35,7 +33,6 @@ it('renders the single-choice and yes or no questions as quick options, moves on
 })
 
 it('shows one question in view with its position and moves with the previous and next controls', async () => {
-  enableTestFlags('orbit_guided_flows')
   await mount()
   expect(tree!.root.findAll(node => node.props.testID === 'question-in-view').length).toBeGreaterThan(0)
   expect(texts().filter(text => text === 'chat.choice.position')).toHaveLength(2)
@@ -56,14 +53,12 @@ it('keeps the radio list and every question in view while the flag is off', asyn
 })
 
 it('sets the recommended note under the quick options in the type of the Recommended line of the row layout', async () => {
-  enableTestFlags('orbit_guided_flows')
   await mount()
   const note = tree!.root.findAll(node => typeof node.type === 'string' && typeof node.props.children === 'string' && /: chat\.placement\.recommended$/.test(node.props.children))[0]!
   expect(StyleSheet.flatten(note.props.style as StyleProp<TextStyle>)).toMatchObject({ fontSize: 14, lineHeight: 19.6 })
 })
 
 it('moves screen reader focus to the new question after a quick option answer advances, and announces the position', async () => {
-  enableTestFlags('orbit_guided_flows')
   const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
   const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
   try {
@@ -82,7 +77,6 @@ it('moves screen reader focus to the new question after a quick option answer ad
 })
 
 it('moves screen reader focus after the previous and the next control, and keeps it where it is while the flag is off', async () => {
-  enableTestFlags('orbit_guided_flows')
   const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
   const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
   try {
@@ -92,7 +86,6 @@ it('moves screen reader focus after the previous and the next control, and keeps
     await renderer.act(() => control('chat.question.previous')!.props.onPress())
     expect(focus).toHaveBeenCalledTimes(2)
     tree!.unmount()
-    resetTestFlags()
     focus.mockClear()
     await mount()
     await renderer.act(async () => {})
@@ -104,17 +97,14 @@ it('does not move screen reader focus when the flag turns on or off after the bl
   const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
   try {
     await mount()
-    enableTestFlags('orbit_guided_flows')
     await renderer.act(() => { tree!.update(<QuestionBlock block={block} interaction={interaction()} />) })
     expect(optionCards().length).toBeGreaterThan(0)
-    resetTestFlags()
     await renderer.act(() => { tree!.update(<QuestionBlock block={block} interaction={interaction()} />) })
     expect(focus).not.toHaveBeenCalled()
   } finally { focus.mockRestore() }
 })
 
 it('names the node that takes screen reader focus with the prompt of the question in view, also when question 1 of an untitled block returns', async () => {
-  enableTestFlags('orbit_guided_flows')
   const taken: number[] = []
   const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation((tag) => { taken.push(tag) })
   const focused = () => __getNativeHost(taken.at(-1)!)

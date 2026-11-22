@@ -22,7 +22,6 @@ const mocks = vi.hoisted(() => ({
   showError: vi.fn(),
 }))
 
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }))

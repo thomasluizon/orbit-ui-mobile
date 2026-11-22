@@ -7,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitDetail } from '@orbit/shared/types/habit'
 import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -107,7 +106,6 @@ describe.each(['pt-BR', 'en'] as const)('every edit entry of Hoje and habit deta
   const messages = messagesOf(locale)
 
   it('opens the guided edit flow on its summary from the Edit item of the row menu', async () => {
-    enableTestFlags('orbit_guided_flows')
     mount(<HabitList view="today" filters={{}} />, locale)
     await openRowMenuItem(locale, messages.common.edit)
     await waitFor(() => expect(flow()).not.toBeNull())
@@ -115,7 +113,6 @@ describe.each(['pt-BR', 'en'] as const)('every edit entry of Hoje and habit deta
   })
 
   it('opens the guided create flow from the Add sub-habit item of the row menu', async () => {
-    enableTestFlags('orbit_guided_flows')
     mount(<HabitList view="today" filters={{}} />, locale)
     await openRowMenuItem(locale, messages.habits.actions.addSubHabit)
     await waitFor(() => expect(flow()).not.toBeNull())
@@ -123,7 +120,6 @@ describe.each(['pt-BR', 'en'] as const)('every edit entry of Hoje and habit deta
   })
 
   it('opens the guided edit flow on its summary from the pencil of habit detail', async () => {
-    enableTestFlags('orbit_guided_flows')
     mount(<HabitDetailScreen habitId="habit-1" />, locale)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.habits.editHabit })) })
     await waitFor(() => expect(flow()).not.toBeNull())
@@ -131,7 +127,6 @@ describe.each(['pt-BR', 'en'] as const)('every edit entry of Hoje and habit deta
   })
 
   it('opens the guided create flow from Add sub-habit on habit detail', async () => {
-    enableTestFlags('orbit_guided_flows')
     mount(<HabitDetailScreen habitId="habit-1" />, locale)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.habits.detail.addSubHabit })) })
     await waitFor(() => expect(flow()).not.toBeNull())
@@ -139,7 +134,7 @@ describe.each(['pt-BR', 'en'] as const)('every edit entry of Hoje and habit deta
   })
 })
 
-describe('the edit entries with orbit_guided_flows off', () => {
+describe('the edit entries', () => {
   it('keep the current edit form from the row menu and the pencil', async () => {
     const list = mount(<HabitList view="today" filters={{}} />, 'pt-BR')
     await openRowMenuItem('pt-BR', ptBR.common.edit)

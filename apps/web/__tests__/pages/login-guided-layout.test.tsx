@@ -7,7 +7,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { AuthCallbackContent } from '@/app/(auth)/auth-callback/auth-callback-content'
 import { LoginContent, type LoginCallback } from '@/app/(auth)/login/login-content'
 import { AuthPageFrame } from '@/components/auth/auth-page-frame'
-import { GuidedSignInContext } from '@/components/auth/guided-sign-in'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { FLOW_LOCALES, FLOW_WIDTHS, centreOffset, compileAppStylesheet, measureFlowMarkup, stubViewportMedia } from '@/__tests__/support/flow-layout'
 
@@ -26,7 +25,7 @@ function captureState(state: AuthScreenState, locale: 'en' | 'pt-BR', width: num
   mocks.flow = { ...createLoginScreenFixture(state, locale), ...overrides, t: createTranslator({ locale, messages: locale === 'en' ? en : ptBR }),
     setEmail: action, sendCode: action, refuseEmptyEmail: action, verifyCode: action, resendCode: action, backToEmail: action,
     signInWithGoogle: action, signInWithApple: action, onCodeChange: action, continueAccount: action }
-  const view = render(<GuidedSignInContext value><AuthPageFrame><LoginContent callback={callback} /></AuthPageFrame></GuidedSignInContext>)
+  const view = render(<AuthPageFrame><LoginContent callback={callback} /></AuthPageFrame>)
   const markup = view.container.innerHTML
   view.unmount()
   return markup
@@ -73,7 +72,7 @@ describe('guided sign-in layout in Chromium', () => {
     vi.stubGlobal('location', { protocol: 'https:', host: 'app.useorbit.org', search: '?code=mobile-code&state=mobile-state', hash: '', assign: vi.fn() })
     const view = render(
       <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC">
-        <GuidedSignInContext value><AuthPageFrame><AuthCallbackContent pendingWebStates={{ apple: null, google: null }} /></AuthPageFrame></GuidedSignInContext>
+        <AuthPageFrame><AuthCallbackContent pendingWebStates={{ apple: null, google: null }} /></AuthPageFrame>
       </NextIntlClientProvider>,
     )
     await view.findByRole('link', { name: (locale === 'en' ? en : ptBR).auth.openInOrbit })

@@ -13,7 +13,6 @@ import { useWrappedStory, type WrappedSlide as WrappedSlideModel } from '@/hooks
 import { useShareCard } from '@/hooks/use-share-card'
 import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { useProfile } from '@/hooks/use-profile'
-import { useFlag } from '@/hooks/use-flag'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { Pager } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
@@ -51,7 +50,6 @@ export function WrappedPlayer({
   const { profile } = useProfile()
   const current = slides[index]
   const canTapToPage = current?.id !== 'consistency' || period !== 'week' || !!profile
-  const guided = useFlag('orbit_guided_flows')
   const [direction, setDirection] = useState<PageDirection | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const overlayId = useId()
@@ -151,8 +149,8 @@ export function WrappedPlayer({
           </button>
         </div>
 
-        <div key={current.id} data-testid="wrapped-page-scroll" style={{ minHeight: TOUCH_TARGET_MIN }} className={`relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain${guided ? ' overflow-x-hidden' : ''}`}>
-          {guided ? <SlideTravel direction={direction}>{slide}</SlideTravel> : slide}
+        <div key={current.id} data-testid="wrapped-page-scroll" style={{ minHeight: TOUCH_TARGET_MIN }} className={`relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain${' overflow-x-hidden'}`}>
+          <SlideTravel direction={direction}>{slide}</SlideTravel>
           {!isLast && canTapToPage && <TapZones isFirst={isFirst} onPage={page} />}
         </div>
         <div className="shrink-0 bg-[var(--bg)]">

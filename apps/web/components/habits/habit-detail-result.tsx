@@ -3,7 +3,6 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { ResultDialog } from '@/components/ui/result-dialog'
-import { useFlag } from '@/hooks/use-flag'
 
 /** What habit detail closes with: a reschedule that was accepted, or a delete that succeeded. */
 export type HabitDetailResult = { kind: 'rescheduled'; date: string } | { kind: 'deleted' }
@@ -14,7 +13,6 @@ export type HabitDetailResult = { kind: 'rescheduled'; date: string } | { kind: 
  * With the flag off, each action ends as before: a delete goes to Hoje at once and a reschedule shows nothing.
  */
 export function useHabitDetailResult(seeToday: () => void) {
-  const guided = useFlag('orbit_guided_flows')
   const [result, setResult] = useState<HabitDetailResult | null>(null)
   const [habitDeleted, setHabitDeleted] = useState(false)
   const leave = () => {
@@ -24,8 +22,8 @@ export function useHabitDetailResult(seeToday: () => void) {
   return {
     result,
     habitDeleted,
-    deleted: () => { setHabitDeleted(true); if (guided) setResult({ kind: 'deleted' }); else seeToday() },
-    rescheduled: (date: string) => { if (guided) setResult({ kind: 'rescheduled', date }) },
+    deleted: () => { setHabitDeleted(true); setResult({ kind: 'deleted' }); },
+    rescheduled: (date: string) => { setResult({ kind: 'rescheduled', date }) },
     seeToday: leave,
     close: () => { if (result?.kind === 'deleted') leave(); else setResult(null) },
   }

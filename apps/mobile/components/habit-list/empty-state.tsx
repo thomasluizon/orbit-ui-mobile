@@ -15,7 +15,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { HABIT_FREQUENCY_FILTER_OPTIONS } from '@orbit/shared/utils/habit-frequency-filter'
 import type { HabitFrequencyFilter } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
-import { useFlag } from '@/hooks/use-flag'
 
 interface HabitListEmptyStateProps {
   title: string
@@ -117,14 +116,13 @@ export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: (
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { t } = useTranslation()
-  const guided = useFlag('orbit_guided_flows')
   const stateSize = useStateMascotSize()
-  const mascotSize = guided ? stateSize : 96
+  const mascotSize = stateSize
   const celebrating = useUIStore((state) => state.activeCelebration?.kind === 'all-done')
   return (
     <View testID="habit-list-all-done" style={styles.allDone}>
       <View testID="completed-day-mark" style={[styles.allDoneMark, { width: mascotSize, height: orbitMascotHeight(mascotSize) }]} importantForAccessibility="no-hide-descendants">
-        {guided ? <OrbitHop testID="completed-day-hop" active={celebrating}><OrbitMascot size={mascotSize} state="feliz" /></OrbitHop> : <OrbitMascot size={mascotSize} state="feliz" />}
+        <OrbitHop testID="completed-day-hop" active={celebrating}><OrbitMascot size={mascotSize} state="feliz" /></OrbitHop>
       </View>
       <View style={styles.allDoneText}>
         <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>

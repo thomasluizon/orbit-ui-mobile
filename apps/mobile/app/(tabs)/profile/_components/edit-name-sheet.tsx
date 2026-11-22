@@ -21,10 +21,9 @@ import { createTokensV2 } from '@/lib/theme'
 interface EditNameSheetProps {
   open: boolean
   onClose: () => void
-  guided?: boolean
 }
 
-export function EditNameSheet({ open, onClose, guided = false }: Readonly<EditNameSheetProps>) {
+export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
   const { t } = useTranslation()
   const { profile, patchProfile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -99,7 +98,7 @@ export function EditNameSheet({ open, onClose, guided = false }: Readonly<EditNa
       open
       onClose={!mutation.isPending && dismiss.canDismiss ? onClose: undefined}
       onAttemptDismiss={requestDismiss}
-      title={t(guided ? 'profile.editName.label' : 'profile.editName.title')}
+      title={t('profile.editName.label')}
       actions={(
         <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={requestDismiss}>{t('common.cancel')}</PillButton>
@@ -110,11 +109,6 @@ export function EditNameSheet({ open, onClose, guided = false }: Readonly<EditNa
       )}
     >
       <View style={styles.body}>
-        {guided ? null : (
-          <Text style={[styles.label, { color: tokens.fg2 }]}>
-            {t('profile.editName.label')}
-          </Text>
-        )}
         <AppTextInput
           value={name}
           onChangeText={handleNameChange}

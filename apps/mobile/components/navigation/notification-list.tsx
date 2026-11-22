@@ -10,7 +10,6 @@ import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { useListRowMotion } from '@/components/habits/flow-steps/list-row-motion'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
-import { useFlag } from '@/hooks/use-flag'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -78,14 +77,14 @@ function SkeletonRows() {
   ))
 }
 
-function InboxState({ failed, guided, tokens, onRetry }: Readonly<{ failed: boolean; guided: boolean; tokens: Tokens; onRetry: () => void }>) {
+function InboxState({ failed, tokens, onRetry }: Readonly<{ failed: boolean; tokens: Tokens; onRetry: () => void }>) {
   const { t } = useTranslation()
   const stateMascotSize = useStateMascotSize()
   const mascot = <OrbitMascot size={stateMascotSize} />
   return (
     <ShellCentredRegion><View testID="notification-empty" style={styles.empty}>
       {failed ? <>
-        {guided ? mascot : null}
+        {mascot}
         <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.loadError')}</Text>
         <IconButton label={t('common.retry')} onPress={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
       </> : <>
@@ -99,14 +98,13 @@ function InboxState({ failed, guided, tokens, onRetry }: Readonly<{ failed: bool
 export function NotificationList({ items, scope, isLoading, isError, onRetry, onOpen, onDelete }: Readonly<NotificationListProps>) {
   const contentFrameStyle = useContentFrameStyle()
   const { t } = useTranslation()
-  const guided = useFlag('orbit_guided_flows')
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const loading = guided ? <View testID="notification-skeletons" style={styles.rows}><SkeletonRows /></View> : <SkeletonRows />
-  const rest = isLoading ? loading : <InboxState failed={isError} guided={guided} tokens={tokens} onRetry={onRetry} />
+  const loading = <View testID="notification-skeletons" style={styles.rows}><SkeletonRows /></View>
+  const rest = isLoading ? loading : <InboxState failed={isError} tokens={tokens} onRetry={onRetry} />
   return (
-    <View accessibilityLabel={t('notifications.title')} accessibilityState={{ busy: isLoading }} style={[contentFrameStyle, styles.list, guided ? styles.guidedList : null]}>
-      {guided ? <GuidedRows items={items} scope={scope} onOpen={onOpen} onDelete={onDelete} /> : items.map((item) => <NotificationRow key={item.id} item={item} onOpen={onOpen} onDelete={onDelete} />)}
+    <View accessibilityLabel={t('notifications.title')} accessibilityState={{ busy: isLoading }} style={[contentFrameStyle, styles.list, styles.guidedList]}>
+      <GuidedRows items={items} scope={scope} onOpen={onOpen} onDelete={onDelete} />
       {items.length > 0 ? null : rest}
     </View>
   )

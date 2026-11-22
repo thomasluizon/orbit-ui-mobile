@@ -4,7 +4,6 @@ import { NextIntlClientProvider } from 'next-intl'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LoginContent } from '@/app/(auth)/login/login-content'
 import { AuthPageFrame } from '@/components/auth/auth-page-frame'
-import { GuidedSignInContext } from '@/components/auth/guided-sign-in'
 
 const mocks = vi.hoisted(() => ({ online: true, push: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.push }), useSearchParams: () => new URLSearchParams() }))
@@ -17,7 +16,7 @@ const requests = vi.fn()
 function show() {
   return render(
     <NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
-      <GuidedSignInContext value><AuthPageFrame><LoginContent /></AuthPageFrame></GuidedSignInContext>
+      <AuthPageFrame><LoginContent /></AuthPageFrame>
     </NextIntlClientProvider>,
   )
 }

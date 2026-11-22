@@ -26,7 +26,6 @@ vi.mock('next-intl', () => ({
     lookup(state.locale === 'en' ? en : ptBR, key).replaceAll(/\{(\w+)\}/g, (_match, name: string) => `${values?.[name] ?? ''}`),
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push, replace: vi.fn(), back: vi.fn() }), usePathname: () => '/', useSearchParams: () => new URLSearchParams() }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => state.flag }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: state.online }) }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { timeZone: 'UTC', uses24HourClock: state.clock24, weekStartDay: 0, aiMessagesUsed: 0, aiMessagesLimit: 5, hasProAccess: true } }),
@@ -108,7 +107,7 @@ beforeEach(() => {
 })
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
 
-describe('the create surface behind orbit_guided_flows', () => {
+describe('the create surface', () => {
   it('renders the current form with the flag off', async () => {
     state.flag = false
     mountCreate()
@@ -603,7 +602,7 @@ describe('the create surface behind orbit_guided_flows', () => {
   })
 })
 
-describe('the edit surface behind orbit_guided_flows', () => {
+describe('the edit surface', () => {
   it('renders the current form with the flag off', async () => {
     state.flag = false
     mountEdit()

@@ -1,7 +1,6 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { motionPresets } from '@orbit/shared/theme'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { BulkMotionScope } from '@/components/habits/habit-list/bulk-motion-scope'
 import { ListMotionItem, ListPresence } from '@/components/motion/list-motion'
@@ -40,7 +39,6 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('one animation for a bulk action of the selection tray', () => {
   it('logs 50 rows with one settle of the group and no check pop for any row', () => {
-    enableTestFlags('orbit_guided_flows')
     const view = render(<Rows done={false} />)
     act(() => useUIStore.getState().beginBulkMotion())
     view.rerender(<Rows done />)
@@ -53,7 +51,6 @@ describe('one animation for a bulk action of the selection tray', () => {
   })
 
   it('removes 50 skipped rows at once, with the one settle of the group', () => {
-    enableTestFlags('orbit_guided_flows')
     const view = render(<Rows done={false} />)
     act(() => useUIStore.getState().beginBulkMotion())
     view.rerender(<Rows done={false} present={[]} />)
@@ -64,7 +61,6 @@ describe('one animation for a bulk action of the selection tray', () => {
   })
 
   it('keeps the group and every row still under reduced motion', () => {
-    enableTestFlags('orbit_guided_flows')
     stubReducedMotion(true)
     const view = render(<Rows done={false} />)
     act(() => useUIStore.getState().beginBulkMotion())
@@ -75,7 +71,6 @@ describe('one animation for a bulk action of the selection tray', () => {
   })
 
   it('still pops the one check a person logs outside a bulk action', () => {
-    enableTestFlags('orbit_guided_flows')
     const view = render(<Rows done={false} present={['habit-0']} />)
     view.rerender(<Rows done present={['habit-0']} />)
     expect(checkRuns()).toHaveLength(1)

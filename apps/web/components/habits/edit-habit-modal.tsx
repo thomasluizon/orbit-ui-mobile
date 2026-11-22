@@ -2,20 +2,15 @@
 
 import { useOrbitAllowanceCopy } from '@/hooks/use-orbit-allowance-copy'
 
-import { useState, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { FlowScreen } from '@/components/ui/flow-screen'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { GuidedHabitFlow, type GuidedHabitCompletion, type GuidedHabitFields } from '@/components/habits/guided/guided-habit-flow'
 import { HabitResultDialog } from '@/components/habits/guided/habit-result-dialog'
-import { useFlag } from '@/hooks/use-flag'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
-
-import { PillButton } from '@/components/ui/pill-button'
-import { ActionRow } from '@/components/ui/action-row'
-import { HabitFormFields } from './habit-form-fields'
+import { useSheetHost } from '@/components/ui/sheet'
 import { EditorParentField } from './editor-parent-field'
 import { useEditorParent } from '@/hooks/use-editor-parent'
 import {
@@ -38,7 +33,6 @@ import {
   applyHabitFormMode,
   buildEditHabitFormState,
   applyHabitEmojiSuggestion,
-  reportRefusedHabitSave,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
@@ -108,9 +102,8 @@ function EditHabitDraft({
   const updateHabit = useUpdateHabit()
   const [saveError, setSaveError] = useState<string | null>(null)
   const [uncertain, setUncertain] = useState(false)
-  const guided = useFlag('orbit_guided_flows')
   const [saved, setSaved] = useState(false)
-  const { waiting: saving, isRunning: isSubmitting, run: runSubmission, release: releaseSubmission } = useSubmitHold()
+  const { waiting: saving, isRunning: isSubmitting, run: runSubmission } = useSubmitHold()
   const mountedRef = useRef(true)
   useLayoutEffect(() => {
     mountedRef.current = true
@@ -156,8 +149,6 @@ function EditHabitDraft({
       await tags.deleteTag(...args)
     },
   }), [tags])
-  const formId = useId()
-  const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [originalEndDate, setOriginalEndDate] = useState('')
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
@@ -190,11 +181,11 @@ function EditHabitDraft({
   } = useHabitDetail(open && habit ? habit.id : null)
   const sessionHabitId = open && habit ? habit.id : null
   const detailFieldsPending = open && !!habit && detailPending
-  const guidedDetails = resolveGuidedEditDetails({ guided, habitId: sessionHabitId, hasDetail: !!habitDetail, pending: detailPending, fetching: detailFetching, error: detailError })
+  const guidedDetails = resolveGuidedEditDetails({ habitId: sessionHabitId, hasDetail: !!habitDetail, pending: detailPending, fetching: detailFetching, error: detailError })
   const guidedDetailsError = describeEditDetailsError(guidedDetails.summaryError, translate, () => { void refetchDetail() })
   const parent = useEditorParent(habit, habitDetail, formHelpers.isGeneral, lockedGeneral, translate)
 
-  const { sheetRef, closeSheet } = useSheetHost()
+  const { closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
     isDirty: fieldsDirty || parent.dirty || uncertain,
     onDismiss: () => closeSheet(() => onOpenChange(false)),
@@ -332,7 +323,7 @@ function EditHabitDraft({
     })
 
     if (error) {
-      reportRefusedHabitSave(error, { guided, showSaveError: setSaveError, getFieldState: formHelpers.form.getFieldState, showError })
+      setSaveError(error)
       return null
     }
     const data = habitFormSchema.parse(formHelpers.form.getValues())
@@ -381,14 +372,9 @@ function EditHabitDraft({
       await updateHabit.mutateAsync({ habitId: habit.id, data: request })
       if (!isCurrent()) return 'stay'
       setUncertain(false)
-      if (guided) {
-        captureGuidedFlowCompleted('habit_edit', completion?.stepCount ?? 1, completion?.usedAiRead ?? false)
-        setSaved(true)
-        return 'stay'
-      }
-      closeSheet(() => { releaseSubmission(); onOpenChange(false) })
-      await onSaved?.()
-      return 'leave'
+      captureGuidedFlowCompleted('habit_edit', completion?.stepCount ?? 1, completion?.usedAiRead ?? false)
+      setSaved(true)
+      return 'stay'
     } catch (error: unknown) {
       if (!isCurrent()) return 'stay'
       if (formHelpers.reportBackendErrors(error)) return 'stay'
@@ -399,12 +385,6 @@ function EditHabitDraft({
       if (unknownOutcome) await refetchDetail()
       return 'stay'
     }
-  }
-
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!habit || !isOnline) return
-    void runSubmission(submitSave)
   }
 
   const handleSuggestEmoji = useCallback(async () => {
@@ -518,7 +498,7 @@ function EditHabitDraft({
     emojiSuggestionLimitReached: emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && emojiFailure.atLimit,
     isSuggesting: suggestion.isPending,
     lockedGeneral: parent.lockedGeneral,
-    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || detailFieldsPending} guided={guided} onRetryDetail={() => void refetchDetail()} />,
+    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || detailFieldsPending} onRetryDetail={() => void refetchDetail()} />,
     defaultExpanded: true,
     startDate: habit && getHabitDisplayStartDate(habit),
   }
@@ -548,43 +528,7 @@ function EditHabitDraft({
 
   function renderEditSheet() {
     if (!open) return null
-    if (guided) return saved ? null : renderGuidedEdit()
-    return (
-      <Sheet
-        ref={sheetRef}
-        open
-        onClose={!saving && dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
-        onAttemptDismiss={() => { if (!isSubmitting()) dismissGuard.requestDismiss() }}
-        title={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')}
-        actions={(
-          <ActionRow>
-            <PillButton size="sm" variant="ghost" disabled={saving} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
-            <PillButton
-              size="sm"
-              formId={formId}
-              disabled={detailFieldsPending || saving || !isOnline}
-              loading={saving}
-            >
-              {t('common.save')}
-            </PillButton>
-          </ActionRow>
-        )}
-      >
-        <form id={formId} onSubmit={handleSubmit}>
-        <div role="status" aria-live="polite">{saveError ? <p className="text-sm text-[var(--status-bad-text)]">{saveError}</p> : null}</div>
-
-          <fieldset
-            disabled={detailFieldsPending || saving}
-            aria-busy={detailFieldsPending || saving || undefined}
-            className={`m-0 min-w-0 border-0 p-0 transition-opacity duration-[var(--dur-base)] ${
-              detailFieldsPending ? 'pointer-events-none opacity-60' : ''
-            }`}
-          >
-            <HabitFormFields disabled={detailFieldsPending || saving} formHelpers={formHelpers} titleInputRef={titleInputRef} {...fieldProps} />
-          </fieldset>
-        </form>
-      </Sheet>
-    )
+    return saved ? null : renderGuidedEdit()
   }
 
   return (

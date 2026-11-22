@@ -63,7 +63,6 @@ export function habitFlowSelectionAnswer<Item extends { id: string }>(
 
 export interface EditDetailsRead<ReadError> {
   /** The flag `orbit_guided_flows`. The full form keeps its own late-read behaviour. */
-  guided: boolean
   /** The habit the edit holds, or null while the edit is closed. */
   habitId: string | null
   hasDetail: boolean
@@ -89,7 +88,7 @@ export interface GuidedEditDetails<ReadError> {
  * record, so neither a paused read nor a failed read blocks it.
  */
 export function resolveGuidedEditDetails<ReadError>(read: EditDetailsRead<ReadError>): GuidedEditDetails<ReadError> {
-  if (!read.guided || read.habitId === null || read.habitId.startsWith('offline-habit-')) return { loading: false, summaryError: null, toastError: read.error, blocked: false }
+  if (read.habitId === null || read.habitId.startsWith('offline-habit-')) return { loading: false, summaryError: null, toastError: read.error, blocked: false }
   const failed = !read.hasDetail && read.error !== null
   const loading = read.pending || (failed && read.fetching)
   const summaryError = failed && !read.fetching ? read.error : null

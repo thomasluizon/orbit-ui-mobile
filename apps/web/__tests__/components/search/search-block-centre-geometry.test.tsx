@@ -8,7 +8,6 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import SearchPage from '@/app/(app)/search/page'
 import { DESTINATION_MAIN_CLASS_NAME } from '@/components/shell/destination-shell'
@@ -50,7 +49,6 @@ describe('the search question block centring in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   beforeEach(() => {
-    enableTestFlags('orbit_guided_flows')
     search.totalCount = null
     vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
   })

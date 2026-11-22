@@ -1,5 +1,4 @@
 import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
@@ -109,7 +108,6 @@ describe('ReferralDrawer', () => {
   })
 
   it('holds no Orbit line and no live mascot with the guided flows on', () => {
-    enableTestFlags('orbit_guided_flows')
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
     expect(document.body.textContent).toContain('https://app.useorbit.org/ref/abc123')
     expect(document.querySelector('[data-orbit-face="rig"]')).toBeNull()

@@ -3,7 +3,6 @@ import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockRecap } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import WrappedScreen from '@/app/wrapped'
 import { testI18n } from '@/__tests__/support/i18n'
@@ -90,7 +89,6 @@ describe('the guided Wrapped screen on Android', () => {
 
   it.each((['ready', 'loading', 'empty', 'failed'] as const).flatMap((state) => WIDTHS.map((width) => ({ state, width }))))(
     'centres the $state cover block in the free area above the start action at $width px', async ({ state, width }) => {
-      enableTestFlags('orbit_guided_flows')
       mocks.wrapped = COVER_READS[state]
       await mount(width)
 
@@ -109,7 +107,6 @@ describe('the guided Wrapped screen on Android', () => {
     })
 
   it.each(WIDTHS)('spans the pinned start action across the column at %i px', async (width) => {
-    enableTestFlags('orbit_guided_flows')
     await mount(width)
 
     const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'button-primary-sm' ? 'start' : host.props.testID, { width, height: HEIGHT })
@@ -120,7 +117,6 @@ describe('the guided Wrapped screen on Android', () => {
   })
 
   it.each(['ready', 'loading'] as const)('centres the %s cover block in the column at 1280 px and hangs the start action 24 under it, hugging its label', async (state) => {
-    enableTestFlags('orbit_guided_flows')
     if (state === 'loading') mocks.wrapped = { recap: null, slides: [], isEmpty: false, isLoading: true, isError: false }
     await mount(1280)
 
@@ -135,7 +131,6 @@ describe('the guided Wrapped screen on Android', () => {
   })
 
   it.each(WIDTHS)('gives each period option, the start action and the retry action a target of at least 48 at %i px', async (width) => {
-    enableTestFlags('orbit_guided_flows')
     await mount(width)
     expect(buttonTargets(width)).toHaveLength(4)
     for (const height of buttonTargets(width)) expect(height).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN)
@@ -148,7 +143,6 @@ describe('the guided Wrapped screen on Android', () => {
   })
 
   it('loads the recap of the closed month from the route query, as the current screen does', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.params = { period: 'month', year: '2026', month: '10' }
     await mount()
 
@@ -157,7 +151,6 @@ describe('the guided Wrapped screen on Android', () => {
   })
 
   it('reads the recap again on retry after an error', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.wrapped = { recap: null, slides: [], isEmpty: false, isLoading: false, isError: true }
     await mount()
 
@@ -167,7 +160,6 @@ describe('the guided Wrapped screen on Android', () => {
   })
 
   it('opens the player from the start action and reads another period from a quick option', async () => {
-    enableTestFlags('orbit_guided_flows')
     await mount()
 
     await pressNamed(ptBR.wrapped.periods.year)

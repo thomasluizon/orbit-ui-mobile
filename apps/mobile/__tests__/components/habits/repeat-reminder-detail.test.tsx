@@ -7,7 +7,6 @@ import { RepeatReminderDetail } from '@/components/habits/repeat-reminder-detail
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { createTimeDisplay } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { renderedText } from '../../support/react-test-renderer'
 const TestRenderer = require('react-test-renderer')
 const mutation = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }))
@@ -77,7 +76,6 @@ it('offers the reminder time as a named clock icon action', () => {
 })
 
 it('asks when the dose was done as one question, and the quick option saves the reminder time in one press', async () => {
-  enableTestFlags('orbit_guided_flows')
   let tree!: import('react-test-renderer').ReactTestRenderer
   TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })
   TestRenderer.act(() => press(tree.root, en.habits.changeTakenAt))
@@ -91,7 +89,6 @@ it('asks when the dose was done as one question, and the quick option saves the 
 })
 
 it('shows the wait on the quick option that the person pressed, and not on Save', async () => {
-  enableTestFlags('orbit_guided_flows')
   mutation.mutateAsync.mockImplementation(() => { mutation.isPending = true; return new Promise(() => {}) })
   let tree!: import('react-test-renderer').ReactTestRenderer
   TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })
@@ -106,7 +103,6 @@ it('shows the wait on the quick option that the person pressed, and not on Save'
 })
 
 it('shows the wait on Save, and not on the quick option, when the person saves the fields', async () => {
-  enableTestFlags('orbit_guided_flows')
   mutation.mutateAsync.mockImplementation(() => { mutation.isPending = true; return new Promise(() => {}) })
   let tree!: import('react-test-renderer').ReactTestRenderer
   TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })
@@ -121,7 +117,6 @@ it('shows the wait on Save, and not on the quick option, when the person saves t
 })
 
 it('keeps Save for the date and the time fields, and shows no quick option without a reminder time', async () => {
-  enableTestFlags('orbit_guided_flows')
   let tree!: import('react-test-renderer').ReactTestRenderer
   TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[{ ...log, reminderAtUtc: null }]} />) })
   TestRenderer.act(() => press(tree.root, en.habits.changeTakenAt))

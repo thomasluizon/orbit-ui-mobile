@@ -1,6 +1,4 @@
 import { SPACING } from '@orbit/shared/theme'
-
-import { ActionRow } from '@/components/ui/action-row'
 import { useMemo, type ReactNode } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Mail } from '@/components/ui/icons'
@@ -9,7 +7,6 @@ import { StyleSheet, Text, View } from 'react-native'
 import { API } from '@orbit/shared/api'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ListRow } from '@/components/ui/list-row'
-import { PillButton } from '@/components/ui/pill-button'
 import { OptionCard } from '@/components/ui/option-card'
 import { RowList } from '@/components/ui/row-list'
 import { useProfile } from '@/hooks/use-profile'
@@ -22,7 +19,6 @@ type MarketingConsentStyles = ReturnType<typeof createStyles>
 
 interface MarketingConsentContentProps {
   contained: boolean
-  guided: boolean
   consent: boolean | null | undefined
   enabled: boolean
   isPending: boolean
@@ -33,7 +29,6 @@ interface MarketingConsentContentProps {
 
 function MarketingConsentContent({
   contained,
-  guided,
   consent,
   enabled,
   isPending,
@@ -50,25 +45,10 @@ function MarketingConsentContent({
         <Text style={styles.questionDescription}>
           {t('profile.marketingEmails.questionDescription')}
         </Text>
-        {guided ? (
-          <View accessibilityRole="radiogroup" accessibilityLabel={t('profile.marketingEmails.question')} style={styles.options}>
+        <View accessibilityRole="radiogroup" accessibilityLabel={t('profile.marketingEmails.question')} style={styles.options}>
             <OptionCard label={t('profile.marketingEmails.decline')} disabled={isPending} onSelect={() => onChange(false)} />
             <OptionCard label={t('profile.marketingEmails.accept')} disabled={isPending} onSelect={() => onChange(true)} />
           </View>
-        ) : <View style={styles.answers} pointerEvents={isPending ? 'none' : 'auto'}><ActionRow>
-          <PillButton
-            size="sm"
-            variant="ghost"
-            disabled={isPending}
-            onClick={() => onChange(false)}
-          >
-            {t('profile.marketingEmails.decline')}
-          </PillButton>
-          {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil emailYes controls this label under D42. */}
-          <PillButton size="sm" disabled={isPending} onClick={() => onChange(true)}>
-            {t('profile.marketingEmails.accept')}
-          </PillButton>
-        </ActionRow></View>}
       </View>
     )
   }
@@ -83,8 +63,7 @@ export function MarketingConsentSection({
   showSectionLabel = true,
   contained = false,
   trailingRow,
-  guided = false,
-}: Readonly<{ showSectionLabel?: boolean; contained?: boolean; trailingRow?: ReactNode; guided?: boolean }>) {
+}: Readonly<{ showSectionLabel?: boolean; contained?: boolean; trailingRow?: ReactNode }>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -119,7 +98,6 @@ export function MarketingConsentSection({
   })
   const content = (
     <MarketingConsentContent
-      guided={guided}
       contained={contained}
       consent={profile?.marketingEmailConsent}
       enabled={enabled}

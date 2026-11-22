@@ -1,6 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { MoveParentOverlay, type MoveParentOption } from '@/components/habits/habit-list/move-parent-overlay'
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -21,7 +20,6 @@ afterEach(cleanup)
 
 describe('web move-parent overlay as one question', () => {
   it('asks where the habit goes as the sheet title, once, with the destinations as the options', () => {
-    enableTestFlags('orbit_guided_flows')
     const props = renderOverlay()
     expect(screen.getByRole('dialog')).toHaveAccessibleName('habits.moveParent.destinations')
     expect(document.querySelector('[data-field-question]')).toBeNull()
@@ -35,7 +33,6 @@ describe('web move-parent overlay as one question', () => {
   })
 
   it('keeps the current parent mark, the confirm action and the cancel action', () => {
-    enableTestFlags('orbit_guided_flows')
     const props = renderOverlay({ selectedMoveParentId: 'other' })
     expect(screen.getByText('habits.moveParent.currentParent')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
@@ -44,21 +41,18 @@ describe('web move-parent overlay as one question', () => {
   })
 
   it('names the group of habits under the question for a bulk move', () => {
-    enableTestFlags('orbit_guided_flows')
     renderOverlay({ movingHabitTitle: null, movingHabitCount: 3 })
     expect(screen.getByRole('dialog')).toHaveAccessibleName('habits.moveParent.destinations')
     expect(screen.getByText('habits.moveParent.titleMany')).toBeInTheDocument()
   })
 
   it('keeps the retry of a failed destination read', () => {
-    enableTestFlags('orbit_guided_flows')
     const props = renderOverlay({ inventoryState: 'error', onRetryInventory: vi.fn() })
     fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
     expect(props.onRetryInventory).toHaveBeenCalledOnce()
   })
 
   it('keeps the parent picker of the editor as it is', () => {
-    enableTestFlags('orbit_guided_flows')
     renderOverlay({ selectionOnly: true })
     expect(screen.getByRole('dialog')).toHaveAccessibleName('habits.form.parentHabit')
     expect(document.querySelector('[data-field-question]')).not.toBeNull()

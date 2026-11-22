@@ -27,14 +27,14 @@ describe('the parent picker of the habit editor', () => {
     ['en', false, en.habits.form.parentHabit],
   ] as const)('in %s with guided %s titles the picker in the words of its surface', async (locale, guided, title) => {
     state.locale = locale
-    render(<EditorParentField parent={openParent()} disabled={false} guided={guided} onRetryDetail={() => {}} />)
+    render(<EditorParentField parent={openParent()} disabled={false} onRetryDetail={() => {}} />)
     expect(await screen.findByRole('dialog', { name: title })).toBeInTheDocument()
   })
 
   it.each(['pt-BR', 'en'] as const)('asks a question in the guided flow in %s, and never shows the field noun as the title', async (locale) => {
     state.locale = locale
     const copy = locale === 'en' ? en : ptBR
-    render(<EditorParentField parent={openParent()} disabled={false} guided onRetryDetail={() => {}} />)
+    render(<EditorParentField parent={openParent()} disabled={false} onRetryDetail={() => {}} />)
     const picker = await screen.findByRole('dialog')
     expect(picker).toHaveAccessibleName(expect.stringMatching(/\?$/))
     expect(picker).not.toHaveAccessibleName(copy.habits.form.parentHabit)

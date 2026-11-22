@@ -1,11 +1,9 @@
-import { SPACING } from '@orbit/shared/theme'
+
 import { useRef, useState } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { RotateCcw } from '@/components/ui/icons'
 import { API } from '@orbit/shared/api'
 import { resetAccountQueries } from '@orbit/shared/query'
 import {
@@ -28,15 +26,8 @@ import {
 import * as offlineQueue from '@/lib/offline-queue'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { clearPersistedQueryCache } from '@/lib/query-client'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { AppTextInput } from '@/components/ui/app-text-input'
-import { PillButton } from '@/components/ui/pill-button'
-import { ActionRow } from '@/components/ui/action-row'
-import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2 } from '@/lib/theme'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { FreshStartGuided } from './fresh-start-flow'
-import { FreshStartLists } from './fresh-start-lists'
 
 const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
 
@@ -57,16 +48,12 @@ function accountStillCurrent(accountGeneration: number, accountId: string | null
 interface FreshStartModalProps {
   open: boolean
   onClose: () => void
-  guided?: boolean
 }
 
-export function FreshStartModal({ open, onClose, guided = false }: Readonly<FreshStartModalProps>) {
-  const { sheetRef, closeSheet } = useSheetHost()
+export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps>) {
   const { t } = useTranslation()
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
 
   const [resetStep, setResetStep] = useState<'info' | 'confirm'>('info')
   const [resetConfirmText, setResetConfirmText] = useState('')
@@ -89,18 +76,9 @@ export function FreshStartModal({ open, onClose, guided = false }: Readonly<Fres
 
   const isResetConfirmed = isFreshStartConfirmed(resetConfirmText)
 
-  function completeReset(queued: boolean, isCurrentAccount: () => boolean) {
-    if (guided) {
-      captureGuidedFlowCompleted('fresh_start', 2, false)
-      setResetOutcome(queued ? 'queued' : 'done')
-      return
-    }
-    closeSheet(() => {
-      if (!isCurrentAccount()) return
-      onClose()
-      void resetAccountQueries(queryClient, 'signed-in')
-      router.replace('/(tabs)')
-    })
+  function completeReset(queued: boolean) {
+    captureGuidedFlowCompleted('fresh_start', 2, false)
+    setResetOutcome(queued ? 'queued' : 'done')
   }
 
   async function handleResetAccount() {
@@ -160,7 +138,7 @@ export function FreshStartModal({ open, onClose, guided = false }: Readonly<Fres
       void resetAccountQueries(queryClient, 'signed-in')
       await clearPersistedQueryCache()
       if (!isCurrentAccount()) return
-      completeReset(isQueuedResult(result), isCurrentAccount)
+      completeReset(isQueuedResult(result))
     } catch (err: unknown) {
       if (!isCurrentAccount()) return
       const msg = getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic')
@@ -173,9 +151,8 @@ export function FreshStartModal({ open, onClose, guided = false }: Readonly<Fres
 
   const deletedItems = buildFreshStartDeletedItems(t)
   const preservedItems = buildFreshStartPreservedItems(t)
-  const confirmButtonLabel = t('profile.freshStart.deleteData')
 
-  if (open && guided) {
+  if (open) {
     return (
       <FreshStartGuided
         outcome={resetOutcome}
@@ -195,172 +172,5 @@ export function FreshStartModal({ open, onClose, guided = false }: Readonly<Fres
     )
   }
 
-  return (
-    <>
-      {open ? (<Sheet
-        ref={sheetRef}
-        open
-        onClose={onClose}
-        title={
-          resetStep === 'info'
-            ? t('profile.freshStart.heading')
-            : t('profile.freshStart.confirmHeading')
-        }
-        actions={
-          resetStep === 'info' ? (
-              <ActionRow>
-                <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
-                <PillButton
-                  size="sm"
-                  variant="caution"
-                  accessibleName={t('profile.freshStart.reviewDeletion')}
-                  onClick={() => setResetStep('confirm')}
-                >
-                  {t('profile.freshStart.reviewDeletion')}
-                </PillButton>
-              </ActionRow>
-            ) : (
-              <>
-                {resetError ? (
-                  <Text
-                    accessibilityRole="alert"
-                    style={[
-                      styles.errorTextSmall,
-                      { color: tokens.statusBadText, width: '100%' },
-                    ]}
-                  >
-                    {resetError}
-                  </Text>
-                ) : null}
-                <ActionRow>
-                  <PillButton size="sm" variant="ghost" disabled={resetLoading} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
-                  <PillButton
-                    size="sm"
-                    variant="caution"
-                    accessibleName={confirmButtonLabel}
-                    disabled={!isResetConfirmed || resetLoading}
-                    loading={resetLoading}
-                    onClick={() => {
-                      void handleResetAccount()
-                    }}
-                  >
-                    {confirmButtonLabel}
-                  </PillButton>
-                </ActionRow>
-              </>
-            )
-        }
-      >
-        {resetStep === 'info' ? (
-          <View style={styles.body}>
-            <View style={styles.destructiveHero}>
-              <View
-                style={[
-                  styles.destructiveHeroCircle,
-                  { backgroundColor: `${tokens.statusOverdue}24` },
-                ]}
-              >
-                <RotateCcw size={24} color={tokens.statusOverdue} strokeWidth={2} />
-              </View>
-              <Text
-                style={[
-                  styles.modalDescription,
-                  { color: tokens.fg2, textAlign: 'center' },
-                ]}
-              >
-                {t('profile.freshStart.description')}
-              </Text>
-            </View>
-
-            <FreshStartLists deletedItems={deletedItems} preservedItems={preservedItems} />
-          </View>
-        ) : (
-          <View style={styles.body}>
-            <View style={styles.confirmField}>
-              <Text
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-                style={[styles.confirmLabel, { color: tokens.fg2 }]}
-              >
-                {t('profile.freshStart.confirmLabel')}
-              </Text>
-              <AppTextInput
-                style={styles.confirmInput}
-                value={resetConfirmText}
-                onChangeText={setResetConfirmText}
-                placeholder={t('profile.freshStart.confirmPlaceholder')}
-                accessibilityLabel={t('profile.freshStart.confirmLabel')}
-                accessibilityHint={t('profile.freshStart.confirmInstruction')}
-                placeholderTextColor={tokens.fg3}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                autoFocus
-                textAlign="center"
-                returnKeyType="done"
-                onSubmitEditing={() => {
-                  if (isResetConfirmed && !resetLoading) {
-                    void handleResetAccount()
-                  }
-                }}
-              />
-              <Text
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-                style={[styles.confirmHint, { color: tokens.fg2 }]}
-              >
-                {t('profile.freshStart.confirmInstruction')}
-              </Text>
-            </View>
-          </View>
-        )}
-      </Sheet>) : null}
-    </>
-  )
+  return null
 }
-
-const styles = StyleSheet.create({
-  body: {
-    paddingBottom: SPACING.s8,
-    gap: 16,
-  },
-  modalDescription: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 16,
-    lineHeight: 23,
-  },
-
-
-  destructiveHero: {
-    alignItems: 'center',
-    gap: 16,
-    paddingTop: SPACING.s4,
-  },
-  destructiveHeroCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  confirmInput: {
-    fontFamily: 'GeistMono_500Medium',
-    fontSize: 16,
-  },
-  confirmField: {
-    gap: 8,
-  },
-  confirmLabel: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 14,
-  },
-  confirmHint: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 12,
-  },
-  errorTextSmall: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-})

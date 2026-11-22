@@ -12,7 +12,6 @@ import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { RefreshCw } from '@/components/ui/icons'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
-import { useFlag } from '@/hooks/use-flag'
 
 const WARN_AT_MINUTES = 5
 
@@ -63,7 +62,6 @@ export function ExpiryWarning() {
   const [isExpired, setIsExpired] = useState(false)
   const [refreshState, setRefreshState] = useState<RefreshState>('ready')
   const refreshInFlight = useRef(false)
-  const guided = useFlag('orbit_guided_flows')
 
   const [prevExpiresAt, setPrevExpiresAt] = useState(expiresAt)
   if (expiresAt !== prevExpiresAt) {
@@ -196,7 +194,7 @@ export function ExpiryWarning() {
       accessibilityRole="alert"
     >
       <View testID="expiry-warning-banner" style={styles.banner}>
-        {guided ? <View testID="session-notice-orbit" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><OrbitMascot size={48} state="parado" /></View> : null}
+        <View testID="session-notice-orbit" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><OrbitMascot size={48} state="parado" /></View>
         <Text style={styles.text}>
           {isExpired || isTerminal ? (
             <Text style={styles.urgent}>{expiredMessage}</Text>

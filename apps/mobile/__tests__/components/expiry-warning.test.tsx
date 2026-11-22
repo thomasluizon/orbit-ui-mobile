@@ -1,5 +1,4 @@
 import React from 'react'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppState, StyleSheet, type AppStateStatus } from 'react-native'
 import { I18nextProvider } from 'react-i18next'
@@ -429,7 +428,6 @@ describe('ExpiryWarning', () => {
   })
 
   it.each([false, true])('keeps the message and its action, and shows Orbit in Parado only with the guided flows on (%s)', async (guided) => {
-    if (guided) enableTestFlags('orbit_guided_flows')
     const instance = await renderExpiredWarning()
     expect(renderedText(instance)).toContain(i18n.t('auth.sessionRefreshFailed'))
     expect(action(instance, i18n.t('auth.refresh'))).toBeDefined()
@@ -438,7 +436,6 @@ describe('ExpiryWarning', () => {
   })
 
   it.each([[false, 'running'], [true, 'still']] as const)('draws Orbit with reduced motion %s as %s, with the guided flows on', async (reducedMotion, loop) => {
-    enableTestFlags('orbit_guided_flows')
     motionState.reducedMotion = reducedMotion
     reanimatedTestState.reducedMotion = reducedMotion
     try {

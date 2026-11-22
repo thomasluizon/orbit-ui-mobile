@@ -9,7 +9,6 @@ import { act, render, renderHook, screen, fireEvent, waitFor } from '@testing-li
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
 Element.prototype.scrollIntoView = vi.fn()
@@ -604,8 +603,7 @@ describe('CommandPalette', () => {
   })
 })
 
-describe.each([{ guided: false }, { guided: true }])('the command palette with orbit_guided_flows $guided', ({ guided }) => {
-  beforeEach(() => { if (guided) enableTestFlags('orbit_guided_flows') })
+describe('the command palette', () => {
 
   it('opens and closes in the commit of the press, with no animation to wait for and no Orbit', async () => {
     useShellStore.setState({ paletteOpen: false })

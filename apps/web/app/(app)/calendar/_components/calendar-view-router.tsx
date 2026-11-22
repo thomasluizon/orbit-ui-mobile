@@ -14,7 +14,6 @@ import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { PillButton } from '@/components/ui/pill-button'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
-import { useFlag } from '@/hooks/use-flag'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { buildHabitCreateHref } from '@orbit/shared/utils'
 import type { CalendarScreenState } from './use-calendar-screen-state'
@@ -51,9 +50,8 @@ function CalendarMonthFeedback({
 }
 
 function useCalendarMotionStill(): boolean {
-  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
-  return !guided || reducedMotion
+  return reducedMotion
 }
 
 const DAY_CARD_FADE = { duration: motionDurations.base, easing: `cubic-bezier(${motionEasings.standard.join(', ')})` }
@@ -76,12 +74,12 @@ function CalendarDayCardSlot({ dayKey, children }: Readonly<{ dayKey: string; ch
 function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
   return wide ? 'secondary' : 'primary'
 }
-function useCreateOnSelectedDay(state: CalendarScreenState, guided: boolean): () => void {
+function useCreateOnSelectedDay(state: CalendarScreenState): () => void {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { isOnline, setShowCreateRefusal, selectedDay, openHabitCreation } = state
-  if (!guided) return openHabitCreation
+  const { isOnline, setShowCreateRefusal, selectedDay } = state
+  
   return () => {
     if (!isOnline) { setShowCreateRefusal(true); return }
     const query = searchParams.size ? `?${searchParams}` : ''
@@ -91,8 +89,7 @@ function useCreateOnSelectedDay(state: CalendarScreenState, guided: boolean): ()
 
 function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) {
   const t = useTranslations()
-  const guided = useFlag('orbit_guided_flows')
-  const createOnSelectedDay = useCreateOnSelectedDay(state, guided)
+  const createOnSelectedDay = useCreateOnSelectedDay(state)
   const { currentMonth, selectedDay, todayKey, weekStartsOn, isOnline, isWideDesktop, showCreateRefusal, openImport, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, isLoading, displayMonthDayMap, openDay, monthDayEntries, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthDisplayState, monthStatTiles, monthSlide, handleTouchStart, handleTouchEnd } = state
   const monthKey = format(currentMonth, 'yyyy-MM')
   return (<div className="flex min-w-0 flex-col">
@@ -117,7 +114,7 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
 
     <CalendarMonthFeedback
       state={monthDisplayState}
-      text={guided ? null : t(monthDisplayState === 'future' ? 'calendar.futureMonth' : 'calendar.emptyMonth')}
+      text={null}
       createLabel={t('habits.createHabit')}
       createVariant={calendarActionVariant(isWideDesktop)}
       onCreate={createOnSelectedDay}

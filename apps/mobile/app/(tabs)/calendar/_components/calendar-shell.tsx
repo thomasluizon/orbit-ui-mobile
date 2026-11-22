@@ -21,7 +21,6 @@ type Tokens = ReturnType<typeof createTokensV2>
 interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
   viewSelector?: ReactNode
   orbitLine?: ReactNode
-  guided?: boolean
   onSelectDate?: (date: string) => void
   tokens: Tokens
 }
@@ -96,11 +95,11 @@ function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear
   </View>
 }
 
-interface CalendarMonthPickerSheetProps extends Pick<CalendarHeaderProps, 'currentMonth' | 'todayKey' | 'tokens' | 'guided' | 'onCurrentMonth' | 'onSelectMonth' | 'onSelectDate'> {
+interface CalendarMonthPickerSheetProps extends Pick<CalendarHeaderProps, 'currentMonth' | 'todayKey' | 'tokens' | 'onCurrentMonth' | 'onSelectMonth' | 'onSelectDate'> {
   onClose: () => void
 }
 
-function CalendarMonthPickerSheet({ currentMonth, todayKey, tokens, guided = false, onCurrentMonth, onSelectMonth, onSelectDate, onClose }: Readonly<CalendarMonthPickerSheetProps>) {
+function CalendarMonthPickerSheet({ currentMonth, todayKey, tokens, onCurrentMonth, onSelectMonth, onSelectDate, onClose }: Readonly<CalendarMonthPickerSheetProps>) {
   const { t } = useTranslation()
   const styles = createStyles(tokens)
   const [year, setYear] = useState(currentMonth.getFullYear())
@@ -108,17 +107,17 @@ function CalendarMonthPickerSheet({ currentMonth, todayKey, tokens, guided = fal
   const { sheetRef, closeSheet } = useSheetHost()
   const closePicker = (choose: () => void) => closeSheet(() => { onClose(); choose() })
   const chooseMonth = (month: number, nextYear: number) => closePicker(() => onSelectMonth(month, nextYear))
-  return <Sheet ref={sheetRef} open title={guided ? t('calendar.monthPickerQuestion') : undefined} accessibleTitle={guided ? undefined : t('calendar.monthPicker')} onClose={onClose} virtualizedBody={choosingYear}
+  return <Sheet ref={sheetRef} open title={t('calendar.monthPickerQuestion')} accessibleTitle={undefined} onClose={onClose} virtualizedBody={choosingYear}
     headerAccessory={<CalendarTitleControl tokens={tokens} accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }} onPress={() => setChoosingYear(!choosingYear)}><Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} /></CalendarTitleControl>}>
     <View style={styles.pickerBody}>
-      {guided && !choosingYear ? <CalendarJumpQuestion currentMonth={currentMonth} todayKey={todayKey}
+      {!choosingYear ? <CalendarJumpQuestion currentMonth={currentMonth} todayKey={todayKey}
         onToday={() => closePicker(onCurrentMonth)} onMonth={chooseMonth} onDate={(date) => closePicker(() => onSelectDate?.(date))} /> : null}
       <CalendarMonthPicker currentMonth={currentMonth} tokens={tokens} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false) }} />
     </View>
   </Sheet>
 }
 
-export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, orbitLine, guided = false, onSelectDate, tokens }: Readonly<CalendarHeaderProps>) {
+export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, orbitLine, onSelectDate, tokens }: Readonly<CalendarHeaderProps>) {
   const { t, i18n } = useTranslation()
   const styles = createStyles(tokens)
   const heading = formatCalendarMonthHeading(currentMonth, todayKey, i18n.language)
@@ -141,7 +140,7 @@ export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false
     </View>
     {orbitLine}
     {viewSelector}
-    {pickerOpen ? <CalendarMonthPickerSheet currentMonth={currentMonth} todayKey={todayKey} tokens={tokens} guided={guided} onCurrentMonth={onCurrentMonth}
+    {pickerOpen ? <CalendarMonthPickerSheet currentMonth={currentMonth} todayKey={todayKey} tokens={tokens} onCurrentMonth={onCurrentMonth}
       onSelectMonth={onSelectMonth} onSelectDate={onSelectDate} onClose={() => setPickerOpen(false)} /> : null}
   </View>
 }

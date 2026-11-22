@@ -1,5 +1,4 @@
 import { OrbitMascot, OrbitMascotIcon } from '@/components/ui/orbit-mascot'
-import { useFlag } from '@/hooks/use-flag'
 import { SPACING } from '@orbit/shared/theme'
 import { ProBenefits } from './pro-benefits'
 import { Text, View, useWindowDimensions } from 'react-native'
@@ -20,7 +19,6 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
   tokens: Tokens
 }>) {
   const { width } = useWindowDimensions()
-  const guided = useFlag('orbit_guided_flows')
   if (!status || status.hasProAccess || (!status.lapseReason && !status.subscriptionEndedAtUtc)) return null
   const endedAt = status.subscriptionEndedAtUtc
     ? formatBillingDate(status.subscriptionEndedAtUtc, locale) : null
@@ -29,7 +27,7 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
   return (
     <View style={styles.billingStack}>
       <View testID="subscription-notice" style={{ gap: 16, paddingVertical: SPACING.s16 }}>
-        {guided ? <View testID="subscription-notice-orbit" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={{ alignSelf: 'flex-start' }}><OrbitMascot size={48} state="parado" /></View> : null}
+        <View testID="subscription-notice-orbit" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={{ alignSelf: 'flex-start' }}><OrbitMascot size={48} state="parado" /></View>
         <Text accessibilityRole="header" style={[responsiveTypeStyle('displayHeading', width), { color: tokens.fg1 }]}>{t('upgrade.billing.lapsed.title')}</Text>
         {endedAt ? <Text style={[styles.billingMeta, { color: tokens.fg3 }]}>{t(endedKey, { date: endedAt })}</Text> : null}
         {paymentFailed ? <View style={{ gap: 4 }}>

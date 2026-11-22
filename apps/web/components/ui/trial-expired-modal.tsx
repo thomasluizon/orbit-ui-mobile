@@ -2,7 +2,6 @@
 
 import { useEffect, useId } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
 import { buildAccountScopedStorageKey, readAccountScopedFlag, TRIAL_EXPIRED_SEEN_KEY } from '@orbit/shared/utils'
 import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -10,14 +9,8 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useHeldAccountId } from '@/stores/auth-store'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
-import { PillButton } from '@/components/ui/pill-button'
-import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
-import { ActionRow } from '@/components/ui/action-row'
-import { SettingsGroup } from '@/components/ui/settings-group'
-import { ListRow } from '@/components/ui/list-row'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useSheetHost } from '@/components/ui/sheet'
 import { TrialExpiredDialog } from '@/components/ui/trial-expired-dialog'
-import { useFlag } from '@/hooks/use-flag'
 import { useUIStore } from '@/stores/ui-store'
 
 const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
@@ -30,8 +23,6 @@ const PAUSED_FEATURES = [
 ] as const
 
 export function TrialExpiredModal() {
-  const t = useTranslations()
-  const guided = useFlag('orbit_guided_flows')
   const { sheetRef, closeSheet } = useSheetHost()
   const router = useRouter()
   const pathname = usePathname()
@@ -88,66 +79,17 @@ export function TrialExpiredModal() {
   const seePlans = () =>
     closeSheet(() => {
       hide()
-      router.push(guided ? `/upgrade?from=${encodeURIComponent(pathname)}` : '/upgrade')
+      router.push(`/upgrade?from=${encodeURIComponent(pathname)}`)
     })
 
-  if (guided) {
-    return (
-      <TrialExpiredDialog
-        sheetRef={sheetRef}
-        pausedFeatures={PAUSED_FEATURES}
-        savingsPercent={plans?.savingsPercent}
-        onSeePlans={seePlans}
-        onContinueFree={() => closeSheet()}
-        onClose={hide}
-      />
-    )
-  }
-
   return (
-    <Sheet
-      ref={sheetRef}
-      open
+    <TrialExpiredDialog
+      sheetRef={sheetRef}
+      pausedFeatures={PAUSED_FEATURES}
+      savingsPercent={plans?.savingsPercent}
+      onSeePlans={seePlans}
+      onContinueFree={() => closeSheet()}
       onClose={hide}
-      title={t('trial.expired.heading')}
-      actions={
-        <ActionRow>
-          <PromptQuietAction onClick={() => closeSheet()}>
-            {t('trial.expired.continueFree')}
-          </PromptQuietAction>
-          <PillButton
-            size="sm"
-            variant="primary"
-            onClick={seePlans}
-          >
-            {t('trial.expired.subscribe')}
-          </PillButton>
-        </ActionRow>
-      }
-    >
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <p className="t-eyebrow m-0">{t('trial.expired.eyebrow')}</p>
-          <p className="m-0 max-w-[65ch] text-pretty text-base leading-[1.55] text-[var(--fg-2)]">
-            {t('trial.expired.subtitleQuiet')}
-          </p>
-          {plans ? (
-            <p className="m-0 font-mono text-xs tabular-nums text-[var(--fg-3)]">
-              {t('trial.expired.savings', { percent: plans.savingsPercent })}
-            </p>
-          ) : null}
-        </div>
-
-        <SettingsGroup>
-          {PAUSED_FEATURES.map((featureKey) => (
-            <ListRow readOnly textMode="label"
-              key={featureKey}
-              title={t(featureKey)}
-              description={t('trial.expired.paused')}
-            />
-          ))}
-        </SettingsGroup>
-      </div>
-    </Sheet>
+    />
   )
 }

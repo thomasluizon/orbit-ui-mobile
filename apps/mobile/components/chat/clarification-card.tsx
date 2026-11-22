@@ -9,7 +9,6 @@ import { BlockFrame } from '@/components/ui/block-frame'
 import { ActionRow } from '@/components/ui/action-row'
 import { Button } from '@/components/ui/pill-button'
 import { OptionCard, optionGridStyle } from '@/components/ui/option-card'
-import { useFlag } from '@/hooks/use-flag'
 import { fitsQuickOptions } from '@orbit/shared/chat'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -46,7 +45,7 @@ export function ClarificationCard({ clarificationRequest, entityName, pendingOpe
     }
   }
   const quickActions = clarificationRequest.quickActions
-  const quickOptions = useFlag('orbit_guided_flows') && fitsQuickOptions(quickActions.map((action) => ({ label: t(action.label, { defaultValue: action.label }), description: action.description })))
+  const quickOptions = fitsQuickOptions(quickActions.map((action) => ({ label: t(action.label, { defaultValue: action.label }), description: action.description })))
   if (pendingOperation && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp) return (
     <PendingOperationCard pendingOperation={pendingOperation} savedState={savedState} onStateChange={(patch) => onStateChange?.(pendingOperation.id, patch)} focusTitleOnMount onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} />
   )

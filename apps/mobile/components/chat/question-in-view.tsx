@@ -6,7 +6,6 @@ import { createUseStepChange } from '@orbit/shared/hooks/step-change-core'
 import type { Question } from '@orbit/shared/types/question-block'
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
-import { useFlag } from '@/hooks/use-flag'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -14,7 +13,7 @@ const useStepChange = createUseStepChange({ useEffect, useRef })
 
 /** With the guided flows on, a block of several questions shows one question at a time. */
 export function useQuestionInView(questions: readonly Question[], state: QuestionBlockState) {
-  const enabled = useFlag('orbit_guided_flows') && questions.length > 1
+  const enabled = questions.length > 1
   const [inView, setInView] = useState(() => startQuestionInView(questions, state))
   const followed = followQuestionInView(inView, questions, state)
   if (followed !== inView) setInView(followed)

@@ -10,7 +10,6 @@ import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { AuthPageFrame } from '@/components/auth/auth-page-frame'
 import { DesktopAuthBridge } from '@/components/auth/desktop-auth-bridge'
-import { GuidedSignInProvider } from '@/components/auth/guided-sign-in-provider'
 import { DesktopReleaseBoundary } from '@/components/desktop-release-boundary'
 
 export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -36,12 +35,12 @@ export default function AuthLayout({ children }: Readonly<{ children: React.Reac
   if (!hydrated || showOnboarding) return null
   return <DesktopReleaseBoundary monitor signIn>
     <DesktopAuthBridge />
-    <QueryClientProvider client={getQueryClient()}><GuidedSignInProvider>
+    <QueryClientProvider client={getQueryClient()}>
       <AuthPageFrame>
         {children}
         <AppToastHost placement="page" />
       </AuthPageFrame>
-    </GuidedSignInProvider></QueryClientProvider>
+    </QueryClientProvider>
     <div className="fixed inset-x-0 top-[var(--safe-top)] pl-[var(--safe-left)] pr-[var(--safe-right)] z-sticky text-[var(--fg-1)]">
       <UpdateAvailableBanner />
     </div>

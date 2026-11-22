@@ -7,7 +7,6 @@ import { useTranslations } from 'next-intl'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { formatNotificationRelativeTime, getNotificationTargetKey, getDestinationForLabel } from '@orbit/shared/utils'
 import { CircleDot, Gift, Trash2 } from '@/components/ui/icons'
-import { useFlag } from '@/hooks/use-flag'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 function NotificationTargetIcon({ targetKey, color }: Readonly<{
@@ -35,18 +34,17 @@ function focusAfterDelete(row: Element | null): Element | null {
 const UNREAD_SURFACE = { background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }
 const READ_SURFACE = { background: 'transparent', boxShadow: 'inset 0 0 0 1px transparent' }
 
-function rowSurface(unread: boolean, guided: boolean, reducedMotion: boolean) {
-  if (!guided) return unread ? UNREAD_SURFACE : undefined
+function rowSurface(unread: boolean, reducedMotion: boolean) {
+  
   return { ...(unread ? UNREAD_SURFACE : READ_SURFACE), transition: unreadSettle(['background-color', 'box-shadow'], unread, reducedMotion) }
 }
 
-function UnreadDot({ unread, guided, reducedMotion }: Readonly<{ unread: boolean; guided: boolean; reducedMotion: boolean }>) {
-  if (guided) return <span data-unread-mark={unread ? 'unread' : 'read'} data-unread-dot={unread ? '' : undefined} className="size-2 rounded-full bg-[var(--fg-1)]" style={{ opacity: unread ? 1 : 0, transition: unreadSettle(['opacity'], unread, reducedMotion) }} />
-  return unread ? <span data-unread-dot="" className="size-2 rounded-full bg-[var(--fg-1)]" /> : null
+function UnreadDot({ unread, reducedMotion }: Readonly<{ unread: boolean; reducedMotion: boolean }>) {
+  return <span data-unread-mark={unread ? 'unread' : 'read'} data-unread-dot={unread ? '' : undefined} className="size-2 rounded-full bg-[var(--fg-1)]" style={{ opacity: unread ? 1 : 0, transition: unreadSettle(['opacity'], unread, reducedMotion) }} />
 }
 
-function settleState(guided: boolean, reducedMotion: boolean): 'still' | 'motion' | undefined {
-  if (!guided) return undefined
+function settleState(reducedMotion: boolean): 'still' | 'motion' | undefined {
+  
   return reducedMotion ? 'still' : 'motion'
 }
 
@@ -57,18 +55,17 @@ export function NotificationRow({ item, onOpen, onDelete, element: Row = 'li' }:
   element?: 'li' | 'div'
 }>) {
   const t = useTranslations()
-  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const targetKey = getNotificationTargetKey(item.url, item.habitId)
   const unread = !item.isRead
   return (
-    <Row data-read={item.isRead} data-unread-settle={settleState(guided, reducedMotion)} className="orbit-notification-surface flex items-stretch gap-1 rounded-[var(--r-well)]"
-      style={rowSurface(unread, guided, reducedMotion)}>
+    <Row data-read={item.isRead} data-unread-settle={settleState(reducedMotion)} className="orbit-notification-surface flex items-stretch gap-1 rounded-[var(--r-well)]"
+      style={rowSurface(unread, reducedMotion)}>
       <button type="button" onClick={() => onOpen(item)}
         aria-label={`${item.title}. ${t(item.isRead ? 'notifications.read' : 'notifications.unread')}${targetKey ? `. ${t(targetKey)}` : ''}`}
         className="transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] orbit-notification-row flex min-h-[var(--touch-min)] min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-[var(--r-well)] border-0 bg-transparent p-4 text-left ">
         <span aria-hidden="true" data-unread-column="" className="flex w-2 shrink-0 self-stretch items-center">
-          <UnreadDot unread={unread} guided={guided} reducedMotion={reducedMotion} />
+          <UnreadDot unread={unread} reducedMotion={reducedMotion} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex items-baseline gap-2">

@@ -321,7 +321,7 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
     if (next === 'summary') toSummary()
     else go(next, 1)
   }
-  const phraseSchedule = buildOnboardingScheduleFromPhrase(props.sentence, locale, true)
+  const phraseSchedule = buildOnboardingScheduleFromPhrase(props.sentence, locale)
   const phraseRead = phraseSchedule.isGeneral && !phraseSchedule.dueTime ? null : phraseSchedule
   const cadenceOfPhrase = useCadenceText(phraseSchedule)
   const cadenceText = useCadenceText(props.schedule)

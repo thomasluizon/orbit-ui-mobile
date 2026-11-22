@@ -1,6 +1,5 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarBody } from '@/app/(tabs)/calendar/_components/calendar-body'
@@ -8,7 +7,6 @@ import { createTokensV2 } from '@/lib/theme'
 import { press, renderNavigation } from '../components/ui/navigation-render'
 
 const device = vi.hoisted(() => ({ online: true }))
-vi.mock('@/hooks/use-flag', async () => ({ useFlag: (await import('@orbit/shared/test-support/flag-state')).readTestFlag }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: device.online }) }))
 
 const tokens = createTokensV2('purple', 'dark')
@@ -23,11 +21,10 @@ function mount(failed: 'profile' | 'month', onRetry = vi.fn(), profileError: Err
   return { tree, onRetry }
 }
 
-afterEach(() => { resetTestFlags(); device.online = true })
+afterEach(() => { device.online = true })
 
 describe('Android Calendário load error', () => {
   it.each(['profile', 'month'] as const)('shows Orbit in Parado, one first person line and the retry for a %s failure, in the centred region', (failed) => {
-    enableTestFlags('orbit_guided_flows')
     const { tree, onRetry } = mount(failed)
     expect(mascots(tree)).toHaveLength(1)
     expect((mascots(tree)[0]!.props as Record<string, unknown>)['data-orbit-state']).toBe('parado')
@@ -40,7 +37,6 @@ describe('Android Calendário load error', () => {
   })
 
   it('says the read needs a connection when the device is offline', () => {
-    enableTestFlags('orbit_guided_flows')
     device.online = false
     const { tree } = mount('month')
     expect(texts(tree)).toContain('offline.description')
@@ -50,7 +46,6 @@ describe('Android Calendário load error', () => {
   })
 
   it('says the read needs a connection when the profile read failed for want of one', () => {
-    enableTestFlags('orbit_guided_flows')
     const { tree } = mount('profile', vi.fn(), new TypeError('Network request failed'))
     expect(texts(tree)).toContain('offline.description')
     tree.unmount()

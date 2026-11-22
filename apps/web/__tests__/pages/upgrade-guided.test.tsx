@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
 
@@ -105,7 +104,6 @@ beforeEach(() => {
     locale: 'en', search: '', status: freeStatus, timeZone: 'America/Sao_Paulo', plans, billing: null, plansLoading: false, plansError: false,
     online: true, checkoutLoading: null, checkoutError: '', purchaseConfirmed: false, isSettling: false, statusError: false, reducedMotion: false, wide: false,
   })
-  enableTestFlags('orbit_guided_flows')
 })
 
 describe('the plan question of the upgrade route', () => {
@@ -483,7 +481,6 @@ describe('the dashboards and the notices with the guided flows on', () => {
 
 describe('the upgrade route with the guided flows off', () => {
   it('keeps the current full-surface billing error, with its Orbit in Parado', () => {
-    resetTestFlags()
     mocks.statusError = true
     mocks.status = null
     render(<UpgradePage />)
@@ -493,7 +490,6 @@ describe('the upgrade route with the guided flows off', () => {
   })
 
   it('keeps the current pitch, the title of the header as a heading and the done toast of the Stripe return', () => {
-    resetTestFlags()
     render(<UpgradePage />)
     expect(screen.getAllByRole('heading', { level: 1 }).map((heading) => heading.textContent)).toEqual(['Orbit Pro'])
     expect(document.querySelector('[data-upgrade-block]')).toBeNull()

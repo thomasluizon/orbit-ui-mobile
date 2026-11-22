@@ -3,7 +3,6 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query'
 import { notificationKeys } from '@orbit/shared/query'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import en from '@orbit/shared/i18n/en.json'
@@ -143,7 +142,6 @@ describe('the Avisos inbox with the guided flows off', () => {
 })
 
 describe('the Avisos inbox on the Orbit logic', () => {
-  beforeEach(() => enableTestFlags('orbit_guided_flows'))
 
   it.each([{ locale: 'en' as const, wide: false, size: '96' }, { locale: 'pt-BR' as const, wide: false, size: '96' }, { locale: 'pt-BR' as const, wide: true, size: '128' }])(
     'shows the empty inbox as Orbit in Parado at $size with the current title in $locale, with no motion on arrival', ({ locale, wide, size }) => {
@@ -230,8 +228,6 @@ describe('the Avisos inbox on the Orbit logic', () => {
     expect(screen.getByRole('img', { name: 'Alerts' })).toBeInTheDocument()
     guided.unmount()
 
-    const { resetTestFlags } = await import('@orbit/shared/test-support/flag-state')
-    resetTestFlags()
     actionMocks.markAllNotificationsRead.mockClear()
     queryClient.clear()
     seed(three())

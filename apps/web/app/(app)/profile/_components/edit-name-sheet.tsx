@@ -21,10 +21,9 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 interface EditNameSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  guided?: boolean
 }
 
-export function EditNameSheet({ open, onOpenChange, guided = false }: Readonly<EditNameSheetProps>) {
+export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProps>) {
   const t = useTranslations()
   const { profile, patchProfile, invalidate } = useProfile()
 
@@ -90,7 +89,7 @@ export function EditNameSheet({ open, onOpenChange, guided = false }: Readonly<E
       open
       onClose={!mutation.isPending && dismiss.canDismiss ? () => onOpenChange(false): undefined}
       onAttemptDismiss={requestDismiss}
-      title={t(guided ? 'profile.editName.label' : 'profile.editName.title')}
+      title={t('profile.editName.label')}
       actions={(
         <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={requestDismiss}>{t('common.cancel')}</PillButton>
@@ -103,7 +102,7 @@ export function EditNameSheet({ open, onOpenChange, guided = false }: Readonly<E
       <div className="flex flex-col" style={{ gap: 16 }}>
         <Input
           label={t('profile.editName.label')}
-          hideLabel={guided}
+          hideLabel={true}
           value={name}
           onChange={handleNameChange}
           autoComplete="name"

@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { useCallback, useEffect, useId, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname, useRouter } from 'expo-router'
-import { useTranslation } from 'react-i18next'
 import { buildAccountScopedStorageKey, readAccountScopedFlag, TRIAL_EXPIRED_SEEN_KEY } from '@orbit/shared/utils'
 import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useTrialExpired } from '@/hooks/use-profile'
@@ -11,17 +9,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { createTokensV2 } from '@/lib/theme'
-import { useAppTheme } from '@/lib/use-app-theme'
-import { PillButton } from '@/components/ui/pill-button'
-import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
-import { ActionRow } from '@/components/ui/action-row'
-import { SettingsGroup } from '@/components/ui/settings-group'
-import { ListRow } from '@/components/ui/list-row'
-import { Sheet } from '@/components/ui/sheet'
-import { useSheetPresence } from '@/components/ui/sheet-presence'
 import { TrialExpiredDialog } from '@/components/ui/trial-expired-dialog'
-import { useFlag } from '@/hooks/use-flag'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 
 const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
@@ -40,16 +28,8 @@ function GuidedTrialExpired(actions: Readonly<{ onSeePlans: () => void; onContin
 
 /** `suppressed` holds the notice back while the person is signed out, onboarding owns the screen or the pending Pro flag is not loaded; the notice stays mounted so a presented sheet closes through its dismissal. */
 export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?: boolean }>) {
-  const { t } = useTranslation()
-  const guided = useFlag('orbit_guided_flows')
   const router = useRouter()
   const pathname = usePathname()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
-  const styles = useMemo(createStyles, [])
   const trialExpired = useTrialExpired()
   const accountId = useAuthStore((state) => state.user?.userId ?? null)
   const accountGeneration = useAccountGeneration()
@@ -93,7 +73,6 @@ export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?
     !currentNoticeState.alreadySeen
   const reserved = openOverlayIds.includes(reservationId)
   const presented = isOpen && reserved
-  const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(presented && !guided)
   useEffect(() => {
     if (!isOpen) {
       if (reserved) unregisterOpenOverlay(reservationId)
@@ -119,83 +98,12 @@ export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?
     router.push(buildUpgradeHref(pathname || '/'))
   }
 
-  if (guided) {
-    if (!presented) return null
-    return (
-      <GuidedTrialExpired
-        onSeePlans={seePlans}
-        onContinueFree={hide}
-        onClose={hide}
-      />
-    )
-  }
-
-  if (!mounted) return null
-
+  if (!presented) return null
   return (
-    <Sheet
-      key={sheetKey}
-      ref={sheetRef}
-      open
+    <GuidedTrialExpired
+      onSeePlans={seePlans}
+      onContinueFree={hide}
       onClose={hide}
-      title={t('trial.expired.heading')}
-      actions={
-        <ActionRow>
-          <PromptQuietAction onClick={() => closeSheet()}>
-            {t('trial.expired.continueFree')}
-          </PromptQuietAction>
-          <PillButton
-            size="sm"
-            onClick={() => closeSheet(seePlans)}
-          >
-            {t('trial.expired.subscribe')}
-          </PillButton>
-        </ActionRow>
-      }
-    >
-      <View style={styles.content}>
-        <View style={styles.intro}>
-          <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
-            {t('trial.expired.eyebrow')}
-          </Text>
-          <Text style={[styles.subtitle, { color: tokens.fg2 }]}>
-            {t('trial.expired.subtitleQuiet')}
-          </Text>
-        </View>
-
-        <SettingsGroup>
-          {PAUSED_FEATURES.map((featureKey) => (
-            <ListRow readOnly textMode="label"
-              key={featureKey}
-              title={t(featureKey)}
-              description={t('trial.expired.paused')}
-            />
-          ))}
-        </SettingsGroup>
-      </View>
-    </Sheet>
+    />
   )
-}
-
-function createStyles() {
-  return StyleSheet.create({
-    content: {
-      gap: 24,
-    },
-    intro: {
-      gap: 8,
-    },
-    eyebrow: {
-      fontFamily: 'GeistMono_500Medium',
-      fontSize: 12,
-      letterSpacing: 0.96,
-      lineHeight: 16,
-      textTransform: 'uppercase',
-    },
-    subtitle: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 16,
-      lineHeight: 24,
-    },
-  })
 }

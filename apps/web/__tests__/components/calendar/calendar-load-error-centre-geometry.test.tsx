@@ -8,7 +8,6 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { CalendarBody } from '@/app/(app)/calendar/_components/calendar-body'
 import { calendarPageLayout } from '@/app/(app)/calendar/_components/use-calendar-screen-state'
 import { DESTINATION_MAIN_CLASS_NAME } from '@/components/shell/destination-shell'
@@ -22,7 +21,7 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }
 function CalendarInShell({ failed }: Readonly<{ failed: 'profile' | 'month' }>) {
   const host = useRef<HTMLDivElement>(null)
   const profile = failed === 'profile'
-  const layout = calendarPageLayout('month', !profile, profile, !profile, <div data-calendar-header-probe="" style={{ height: 220 }} />, true)
+  const layout = calendarPageLayout('month', !profile, profile, !profile, <div data-calendar-header-probe="" style={{ height: 220 }} />)
   return <ShellHeaderHostContext.Provider value={host}>
     <ShellWide items={[]} activeId="" navLabel={ptBr.nav.mainNavigation} orbitRow={{ label: 'Orbit', onOpen: () => {} }}
       registerHeaderHost={element => { host.current = element }} notice={<></>} tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
@@ -57,7 +56,6 @@ describe('Calendário load error centring in Chromium', () => {
 
   it.each(cases)('centres the $failed read failure between the header and the tab bar at $width px in $locale, the line within two lines', async ({ width, locale, failed }) => {
     const messages = catalogs[locale]
-    enableTestFlags('orbit_guided_flows')
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const view = render(<NextIntlClientProvider locale={locale} messages={messages}><CalendarInShell failed={failed} /></NextIntlClientProvider>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })

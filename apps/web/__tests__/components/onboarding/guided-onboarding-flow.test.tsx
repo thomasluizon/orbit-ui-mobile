@@ -31,7 +31,6 @@ vi.mock('@/hooks/use-push-notification-preferences', () => ({
 vi.mock('@/lib/actions/profile', () => ({ updateTimezone: vi.fn() }))
 vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowCompleted: mocks.completed, captureGuidedFlowEvent: mocks.event }))
 vi.mock('@/components/onboarding/onboarding-pro-step', () => ({ OnboardingProStep: () => <p data-testid="pro-step">pro</p> }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.flag }))
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({ ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(), useHabitDetail: (id: string | null) => ({ data: id ? mocks.saved : undefined }) }))
 vi.mock('@/components/onboarding/onboarding-actions-context', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/components/onboarding/onboarding-actions-context')>(),
@@ -63,13 +62,13 @@ function actions(): OnboardingActions {
   }
 }
 
-function mount(locale: string, messages: Messages, options: { isLive?: boolean; guided?: boolean } = {}) {
+function mount(locale: string, messages: Messages, options: { isLive?: boolean } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
       <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
         <OnboardingActionsProvider actions={actions()} isLive={options.isLive ?? true}>
-          <OnboardingFlow guided={options.guided ?? true} />
+          <OnboardingFlow />
         </OnboardingActionsProvider>
       </NextIntlClientProvider>
     </QueryClientProvider>,
@@ -347,7 +346,7 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     useOnboardingDraftStore.setState({ introSeen: true })
     mount(locale, messages)
     const phrase = locale === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00'
-    const created = buildOnboardingHabitInput({ sentence: phrase, locale, emoji: '', reminderEnabled: false, schedule: buildOnboardingScheduleFromPhrase(phrase, locale, true) })
+    const created = buildOnboardingHabitInput({ sentence: phrase, locale, emoji: '', reminderEnabled: false, schedule: buildOnboardingScheduleFromPhrase(phrase, locale) })
     await typePhrase(messages, phrase)
     await act(async () => { press(flow.create) })
     press(flow.back)
@@ -559,11 +558,4 @@ describe('retained onboarding', () => {
     mountRetained(true)
     expect(await screen.findByTestId('pro-step')).toBeInTheDocument()
   })
-})
-
-it('renders the current onboarding with the flag off', () => {
-  mount('en', en, { guided: false })
-  expect(document.querySelector('[data-question-flow]')).toBeNull()
-  expect(screen.getByRole('heading', { name: en.onboarding.flow.what.title })).toBeInTheDocument()
-  expect(screen.queryByText(en.onboarding.flow.guided.intro.talk.title)).toBeNull()
 })

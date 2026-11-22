@@ -9,7 +9,6 @@ import { InsetFocusPressable, SelectionRing, focusRingInnerEdge } from '@/compon
 import { CheckRow } from '@/components/ui/check-row'
 import { Input } from '@/components/ui/input'
 import { OptionCard, optionGridStyle } from '@/components/ui/option-card'
-import { useFlag } from '@/hooks/use-flag'
 import { Slider } from '@/components/ui/slider'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -48,14 +47,13 @@ export function QuestionControls(props: QuestionControlProps) {
   const numberLabel = (value: number) => formatQuestionNumber(value, i18n.language)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const quickOptions = useFlag('orbit_guided_flows')
   if (question.type === 'scale') return <QuestionScale {...props} />
   if (question.type === 'slider') return <View style={{ minWidth: 0, gap: 8 }}>
     <Text style={{ fontSize: 14, lineHeight: 20, color: tokens.fg2 }}>{answer?.number === undefined ? `${numberLabel(question.min)} ${question.unit} / ${numberLabel(question.max)} ${question.unit}` : `${numberLabel(answer.number)} ${question.unit}`}</Text>
     <Slider label={question.prompt} min={question.min} max={question.max} step={question.step} value={answer?.number} valueText={`${numberLabel(answer?.number ?? question.min)} ${question.unit}`} disabled={disabled} onChange={number => controller.setAnswer(question, { number })} />
   </View>
   const choices = question.type === 'yesNo' ? [true, false].map(boolean => ({ id: String(boolean), label: boolean ? words.yes : words.no, recommended: false })) : question.options
-  if (quickOptions && usesQuickOptions(question)) return <View style={{ minWidth: 0, gap: 16 }}>
+  if (usesQuickOptions(question)) return <View style={{ minWidth: 0, gap: 16 }}>
     <View role="group" accessibilityLabel={question.prompt} accessibilityHint={words.required} style={optionGridStyle}>
       {choices.map(option => {
         const selected = question.type === 'yesNo' ? answer?.boolean === (option.id === 'true') : answer?.selectedIds?.includes(option.id) === true

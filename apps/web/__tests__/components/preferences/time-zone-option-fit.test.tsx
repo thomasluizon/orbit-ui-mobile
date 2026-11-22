@@ -8,7 +8,6 @@ import { compileAppStylesheet, stubViewportMedia } from '@/__tests__/support/flo
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('@orbit/shared/utils', async (importOriginal) => ({ ...await importOriginal<typeof import('@orbit/shared/utils')>(), getClientTimeZone: () => 'America/Argentina/Rio_Gallegos' }))
 vi.mock('dompurify', () => ({ default: { sanitize: (html: string) => html } }))
 

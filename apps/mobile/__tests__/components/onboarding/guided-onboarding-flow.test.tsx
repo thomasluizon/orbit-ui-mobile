@@ -60,7 +60,7 @@ type Messages = typeof en
 async function mount(guided = true): Promise<TestTree> {
   let tree!: TestTree
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  await TestRenderer.act(async () => { tree = TestRenderer.create(<QueryClientProvider client={client}><OverlayHost><OnboardingFlow guided={guided} /></OverlayHost></QueryClientProvider>); await Promise.resolve() })
+  await TestRenderer.act(async () => { tree = TestRenderer.create(<QueryClientProvider client={client}><OverlayHost><OnboardingFlow /></OverlayHost></QueryClientProvider>); await Promise.resolve() })
   trees.push(tree)
   return tree
 }
@@ -267,7 +267,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     useOnboardingDraftStore.setState({ introSeen: true })
     const tree = await mount()
     const phrase = language === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00'
-    const created = buildOnboardingHabitInput({ sentence: phrase, locale: language, emoji: '', reminderEnabled: false, schedule: buildOnboardingScheduleFromPhrase(phrase, language, true) })
+    const created = buildOnboardingHabitInput({ sentence: phrase, locale: language, emoji: '', reminderEnabled: false, schedule: buildOnboardingScheduleFromPhrase(phrase, language) })
     const alerts = () => hosts(tree).filter((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert').map(textOf)
     await typePhrase(tree, messages, phrase)
     await press(tree, flow.create)

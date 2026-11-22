@@ -15,7 +15,6 @@ import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/fact
 import { OrbitConversation } from '@/components/chat/conversation'
 import { useChatStore } from '@/stores/chat-store'
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 
 describe('ChatEmptyState', () => {
   afterEach(() => {
@@ -47,7 +46,6 @@ describe('ChatEmptyState', () => {
   })
 
   it.each(['todayOrbit.guided.offline', 'conversation.restLimit'] as const)('shows the title and one Orbit line with the reason %s while Orbit rests', (reason) => {
-    enableTestFlags('orbit_guided_flows')
     const { container } = render(<ChatEmptyState mascotState="descansando" restReason={reason} />)
     expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
     const lines = container.querySelectorAll('[data-empty-state-line]')
@@ -61,7 +59,6 @@ describe('ChatEmptyState', () => {
     const off = render(<ChatEmptyState mascotState="descansando" restReason="todayOrbit.guided.offline" />)
     expect(off.container.querySelector('[data-empty-state-line]')).toBeNull()
     off.unmount()
-    enableTestFlags('orbit_guided_flows')
     const { container } = render(<ChatEmptyState />)
     expect(container.querySelector('[data-empty-state-line]')).toBeNull()
   })

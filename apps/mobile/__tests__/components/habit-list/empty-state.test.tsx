@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { expectPressFill } from '@/__tests__/support/press-feedback'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
@@ -78,7 +77,6 @@ function pressableWithLabel(tree: TestTree, label: string): TestNode | undefined
 
 describe('HabitListEmptyState', () => {
   it.each([320, 360, 384, 412, 740, 1024, 1440])('centres the normal Orbit logo, copy and action at %s', (width) => {
-    enableTestFlags('orbit_guided_flows')
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     const size = width >= 1024 ? 128 : 96
     const tree = render(<HabitListAllDone onSeeUpcoming={vi.fn()} />)
@@ -124,7 +122,6 @@ describe('HabitListEmptyState', () => {
     expect(tree.root.findAllByType('AnimatedView').map(node => node.props['data-orbit-hop'])).toEqual([])
   })
   it('hops once when everything due today is done, and stays still for another celebration, on a later visit and under reduced motion', () => {
-    enableTestFlags('orbit_guided_flows')
     const hop = (tree: TestTree) => tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'completed-day-hop')[0]!.props['data-orbit-hop']
     const tree = render(<HabitListAllDone />)
     expect(hop(tree)).toBe('still')

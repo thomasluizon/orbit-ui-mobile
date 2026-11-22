@@ -57,7 +57,6 @@ import {
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
-import { getHabitDaysWithoutLog, HABIT_SLIPPING_RATE_LIMIT } from '@orbit/shared/utils/habit-detail-flow'
 import { ShellHeader } from '@/components/shell/shell-header'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
@@ -68,7 +67,7 @@ import { DayCell } from '@/components/dates/day-cell'
 import { DayColumnContent } from '@/components/dates/day-column-content'
 import { DayStrip } from '@/components/dates/day-strip'
 import { ListRow } from '@/components/ui/list-row'
-import { HabitDetailOrbitLine, HabitDetailReviewRow } from '@/components/habits/habit-detail-orbit-line'
+import { HabitDetailOrbitLine } from '@/components/habits/habit-detail-orbit-line'
 import { HabitDetailResultDialog, HabitDetailUnavailable, useHabitDetailResult } from '@/components/habits/habit-detail-result'
 import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
@@ -90,7 +89,6 @@ import { useUpdateHabit } from '@/hooks/use-update-habit'
 import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
-import { useFlag } from '@/hooks/use-flag'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useAccountGeneration, useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
@@ -334,13 +332,10 @@ function useHabitRescue({ habitId, isBadHabit, slipping, overdue, hasProAccess, 
   return { query, open: eligible && extractBackendErrorCode(query.error) !== 'HABIT_NOT_OVERDUE' }
 }
 
-function SlippingLine({ visible, metrics, createdAtUtc, today, timeZone }: Readonly<{ visible: boolean; metrics: HabitMetrics | undefined; createdAtUtc: string; today: Date; timeZone: string | null | undefined }>) {
+function SlippingLine({ visible }: Readonly<{ visible: boolean; metrics: HabitMetrics | undefined; createdAtUtc: string; today: Date; timeZone: string | null | undefined }>) {
   const t = useTranslations()
-  const guided = useFlag('orbit_guided_flows')
-  if (!visible || (!guided && !metrics)) return null
-  const text = guided || !metrics
-    ? t('habits.detail.orbit.slippingLine')
-    : t('habits.detail.slippingLine', { days: getHabitDaysWithoutLog(metrics, createdAtUtc, today, timeZone), streak: metrics.currentStreak, limit: HABIT_SLIPPING_RATE_LIMIT })
+  if (!visible) return null
+  const text = t('habits.detail.orbit.slippingLine')
   return <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">{text}</p>
 }
 
@@ -418,12 +413,10 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
 
 function RescueWait({ query }: Readonly<{ query: Pick<ReturnType<typeof useRescheduleSuggestion>, 'error' | 'isPaused' | 'isFetching'> }>) {
   const t = useTranslations()
-  const lineHoldsOrbit = useFlag('orbit_guided_flows')
   if (query.error) return <p className="text-sm text-[var(--fg-3)]">{t('habits.detail.rescheduleError')}</p>
-  if (query.isPaused) return <CapacityNotice message={t('shell.composer.offline.reason')} mascotState={lineHoldsOrbit ? undefined : 'descansando'} />
+  if (query.isPaused) return <CapacityNotice message={t('shell.composer.offline.reason')} mascotState={undefined} />
   if (!query.isFetching) return null
   return <div data-testid="rescue-loading-skeleton" className="flex flex-col gap-3">
-    {lineHoldsOrbit ? null : <span className="flex self-start"><OrbitMascot size={48} state="pensando" /></span>}
     <div className="flex flex-col gap-2"><Skeleton variant="habit-row" label={t('habits.reschedule.loading')} /><Skeleton variant="habit-row" grouped /></div>
   </div>
 }
@@ -678,7 +671,6 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       </Surface> : subHabitCreation}
       {strip ? <section ref={stripRef} tabIndex={-1} className="habit-detail-strip flex flex-col gap-2" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} /></section> : null}
       <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasProAccess={hasProAccess} locale={language} today={today} scheduleEditing={editOpen} returnFocus={() => stripRef.current?.focus()} onAccepted={resultHost.rescheduled} />
-      <HabitDetailReviewRow habit={habit} />
       <section className="flex flex-col gap-3"><ListRow placement="column" icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><div hidden={!detailsOpen} id="habit-detail-fields" className="flex flex-col gap-6">
       <MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} error={metricsQuery.isError} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} />
       <ReminderReadout habit={habit} />

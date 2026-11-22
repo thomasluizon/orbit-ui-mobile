@@ -2,7 +2,6 @@ import React from 'react'
 import { View } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { testI18n } from '@/__tests__/support/i18n'
 import { HabitDetailLoadError } from '@/components/habits/habit-detail-load-error'
@@ -35,7 +34,6 @@ describe.each([320, 360, 384, 412])('habit detail centred blocks at %i px', (wid
 
     it('centres the full-surface load error with Orbit in Parado', async () => {
       mocks.language = language
-      enableTestFlags('orbit_guided_flows')
       const t = testI18n.getFixedT(language)
       await act(() => {
         tree = create(<View style={{ width, height: HEIGHT }}><HabitDetailLoadError message={t('habits.detail.loadError')} retryLabel={t('habits.detail.retry')} onRetry={vi.fn()} /></View>) as GeometryTree

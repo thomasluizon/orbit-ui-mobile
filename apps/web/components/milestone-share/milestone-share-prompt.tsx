@@ -1,7 +1,6 @@
 'use client'
 
 import { PillButton } from '@/components/ui/pill-button'
-import { SPACING } from '@orbit/shared/theme'
 
 import { useEffect, useId, useRef } from 'react'
 import { useTranslations } from 'next-intl'
@@ -11,7 +10,7 @@ import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useSheetHost } from '@/components/ui/sheet'
 
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { ActionRow } from '@/components/ui/action-row'
@@ -20,7 +19,6 @@ import type { ShareCardQrHandle } from '@/components/share/share-card-qr'
 import { getPublicOrigin } from '@/lib/public-origin'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
-import { useFlag } from '@/hooks/use-flag'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import {
   MilestoneShareCard,
@@ -54,7 +52,6 @@ function resolveVariant(
  */
 export function MilestoneSharePrompt() {
   const t = useTranslations()
-  const guided = useFlag('orbit_guided_flows')
   const { sheetRef, closeSheet } = useSheetHost()
   const queryClient = useQueryClient()
   const armedPrompt = useEngagementPromptStore((s) => s.armedPrompt)
@@ -172,32 +169,5 @@ export function MilestoneSharePrompt() {
     </>
   )
 
-  if (guided) return celebrationInFlight ? null : <MilestoneShareDialog ref={sheetRef} card={card} actions={actions} onDismiss={dismiss} />
-
-  return (
-    <Sheet
-      ref={sheetRef}
-      open
-      onAttemptDismiss={dismiss}
-      title={t('milestoneShare.title')}
-      actions={actions}
-    >
-      <div className="flex flex-col items-center" style={{ gap: 16 }}>
-          {card}
-
-          <p
-            style={{
-              margin: SPACING.s0,
-              textAlign: 'center',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 16,
-              lineHeight: 1.5,
-              color: 'var(--fg-2)',
-            }}
-          >
-            {t('milestoneShare.body')}
-          </p>
-      </div>
-    </Sheet>
-  )
+  return celebrationInFlight ? null : <MilestoneShareDialog ref={sheetRef} card={card} actions={actions} onDismiss={dismiss} />
 }

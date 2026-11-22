@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { HabitDayValue } from '@orbit/shared/contracts/dates'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { HabitDetailOrbitLine, HabitDetailReviewRow } from '@/components/habits/habit-detail-orbit-line'
+import { HabitDetailOrbitLine } from '@/components/habits/habit-detail-orbit-line'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -23,7 +22,6 @@ afterEach(() => {
 
 describe('web habit detail Orbit line', () => {
   it('states how many of the last 7 days the habit was done, with Orbit at 48, and opens the review conversation', () => {
-    enableTestFlags('orbit_guided_flows')
     const { container } = render(<HabitDetailOrbitLine habit={habit} days={week(5)} />)
     expect(mascot(container)).toHaveAttribute('width', '48')
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'parado')
@@ -33,20 +31,13 @@ describe('web habit detail Orbit line', () => {
   })
 
   it('never counts a miss: a week with nothing done shows the review label and no number', () => {
-    enableTestFlags('orbit_guided_flows')
     render(<HabitDetailOrbitLine habit={habit} days={week(0)} />)
     expect(screen.getByRole('button', { name: 'habits.detail.askOrbit' })).toBeInTheDocument()
     expect(screen.queryByText(/lastSevenDays/)).toBeNull()
   })
 
-  it('renders the review row of the current surface while the flag is off', () => {
-    const { container } = render(<><HabitDetailOrbitLine habit={habit} days={week(5)} /><HabitDetailReviewRow habit={habit} /></>)
-    expect(screen.getAllByRole('button', { name: 'habits.detail.askOrbit' })).toHaveLength(1)
-    expect(container.querySelector('[data-today-orbit-slot]')).toBeNull()
-  })
 
   it('shows Orbit in Pensando while the reschedule suggestion loads', () => {
-    enableTestFlags('orbit_guided_flows')
     const { container, rerender } = render(<HabitDetailOrbitLine habit={habit} days={week(5)} thinking />)
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'pensando')
     rerender(<HabitDetailOrbitLine habit={habit} days={week(5)} />)

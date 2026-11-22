@@ -4,7 +4,6 @@ import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { motionPresets } from '@orbit/shared/theme'
 import type { RecapSharePeriod } from '@orbit/shared/utils'
 import { testI18n } from '@/__tests__/support/i18n'
@@ -82,7 +81,6 @@ afterEach(async () => {
 
 describe('the guided share card sheet on Android', () => {
   it.each(LOCALES)('uses the period question as the heading and offers exactly three periods that change the preview in $locale', async ({ locale, copy }) => {
-    enableTestFlags('orbit_guided_flows')
     const root = await renderSheet(locale)
 
     expect(sheetTitle(root)).toBe(copy.periodQuestion)
@@ -103,7 +101,6 @@ describe('the guided share card sheet on Android', () => {
     { reduced: false, scale: motionPresets.selection.scaleFrom },
     { reduced: true, scale: 1 },
   ])('brings the new preview in from scale $scale when reduced motion is $reduced, and keeps the first preview still', async ({ reduced, scale }) => {
-    enableTestFlags('orbit_guided_flows')
     mocks.reducedMotion = reduced
     const root = await renderSheet()
     const previewStyle = () => JSON.stringify(byTestId(root, 'share-preview')[0]!.props.style)
@@ -115,7 +112,6 @@ describe('the guided share card sheet on Android', () => {
   })
 
   it('keeps preview, share and download, and the saved feedback', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.savedFileName = 'orbit-recap.png'
     const root = await renderSheet()
 
@@ -128,7 +124,6 @@ describe('the guided share card sheet on Android', () => {
   })
 
   it('shows no error text after a share that the person cancels', async () => {
-    enableTestFlags('orbit_guided_flows')
     const root = await renderSheet()
 
     await press(control(root, ptBR.shareCard.share))
@@ -136,7 +131,6 @@ describe('the guided share card sheet on Android', () => {
   })
 
   it('shows the current failure message after a share that fails', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.hasError = true
     const root = await renderSheet()
 
@@ -144,7 +138,6 @@ describe('the guided share card sheet on Android', () => {
   })
 
   it.each(LOCALES)('keeps the title and shows the empty sentence with Orbit in Parado in $locale', async ({ locale, copy }) => {
-    enableTestFlags('orbit_guided_flows')
     mocks.isEmpty = true
     const root = await renderSheet(locale)
 
@@ -156,7 +149,6 @@ describe('the guided share card sheet on Android', () => {
   })
 
   it('shows Orbit in Parado on the load error, and retry reads the recap again', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.isError = true
     const root = await renderSheet()
 
@@ -169,7 +161,6 @@ describe('the guided share card sheet on Android', () => {
   })
 
   it('keeps the loading skeleton and stops the period options during a capture', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.isLoading = true
     const loading = await renderSheet()
     expect(hosts(loading).some((node) => node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === ptBR.shareCard.loading)).toBe(true)
@@ -182,7 +173,6 @@ describe('the guided share card sheet on Android', () => {
   })
 
   it.each(['row', 'button'] as const)('opens the guided sheet from the share entry %s', async (variant) => {
-    enableTestFlags('orbit_guided_flows')
     await testI18n.changeLanguage('pt-BR')
     await renderer.act(() => { tree = renderer.create(<ShareCardEntryButton variant={variant} />) })
     const root = tree!

@@ -306,12 +306,10 @@ describe('onboarding helpers', () => {
     expect(proposal).toMatchObject({ schedule: { ...schedule, isGeneral: false }, emoji })
   })
 
-  it('reads a day of the month as the month unit only in the guided flow, and keeps the legacy flow open with the Orbit suggestion', () => {
+  it('reads a day of the month as the month unit', () => {
     const sentence = 'Pay the rent every 5th of the month'
-    expect(buildOnboardingScheduleFromPhrase(sentence, 'en', true)).toMatchObject({ frequencyUnit: 'Month', frequencyQuantity: 1, isGeneral: false })
-    expect(buildOnboardingProposal(everyDayAtSeven, sentence, 'en', true).schedule).toMatchObject({ frequencyUnit: 'Month', frequencyQuantity: 1, days: [], isGeneral: false, dueTime: '07:00' })
-    expect(buildOnboardingScheduleFromPhrase(sentence, 'en')).toMatchObject({ frequencyUnit: null, frequencyQuantity: null, isGeneral: true })
-    expect(buildOnboardingProposal(everyDayAtSeven, sentence, 'en').schedule).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isGeneral: false, dueTime: '07:00' })
+    expect(buildOnboardingScheduleFromPhrase(sentence, 'en')).toMatchObject({ frequencyUnit: 'Month', frequencyQuantity: 1, isGeneral: false })
+    expect(buildOnboardingProposal(everyDayAtSeven, sentence, 'en').schedule).toMatchObject({ frequencyUnit: 'Month', frequencyQuantity: 1, days: [], isGeneral: false, dueTime: '07:00' })
   })
 })
 

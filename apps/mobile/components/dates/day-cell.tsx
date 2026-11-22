@@ -10,7 +10,6 @@ import {
   Pressable, StyleSheet, Text, View, type AccessibilityState,
 } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
-import { useFlag } from '@/hooks/use-flag'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -20,9 +19,8 @@ type Tokens = ReturnType<typeof createTokensV2>
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
 function PartialArc({ size, stroke, fraction, color }: Readonly<{ size: number; stroke: number; fraction: number; color: string }>) {
-  const guided = useFlag('orbit_guided_flows')
   const reducedMotion = usePrefersReducedMotion()
-  const still = !guided || reducedMotion
+  const still = reducedMotion
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
   const target = circumference * (1 - fraction)

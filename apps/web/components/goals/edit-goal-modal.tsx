@@ -11,7 +11,6 @@ import { ActionRow } from '@/components/ui/action-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
-import { useFlag } from '@/hooks/use-flag'
 import { GuidedGoalEditFlow } from './guided/guided-goal-edit-flow'
 import { useSubmitHold } from '@/hooks/use-submit-hold'
 import type { SubmitOutcome } from '@orbit/shared/hooks'
@@ -57,8 +56,7 @@ export function EditGoalModal(props: Readonly<EditGoalModalProps>) {
 }
 
 function OpenEditGoalModal(props: Readonly<EditGoalModalProps>) {
-  const guided = useFlag('orbit_guided_flows')
-  return guided ? <GuidedGoalEditFlow goal={props.goal} onClose={() => props.onOpenChange(false)} /> : <CurrentEditGoalModal {...props} />
+  return <GuidedGoalEditFlow goal={props.goal} onClose={() => props.onOpenChange(false)} />
 }
 
 function CurrentEditGoalModal({

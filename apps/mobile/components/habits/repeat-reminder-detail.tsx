@@ -16,9 +16,8 @@ import { TimeField } from '@/components/ui/time-field'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { IconButton } from '@/components/ui/icon-button'
-import { Pencil, Clock } from '@/components/ui/icons'
+import { Pencil } from '@/components/ui/icons'
 import { OptionCard } from '@/components/ui/option-card'
-import { useFlag } from '@/hooks/use-flag'
 
 export function RepeatReminderDetail({ habit, logs }: Readonly<{ habit: NormalizedHabit; logs: HabitLog[] }>) {
   const { t } = useTranslation()
@@ -51,7 +50,6 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
   const [answering, setAnswering] = useState(false)
   const mutation = useCorrectHabitDose(habitId)
   const { sheetRef, closeSheet } = useSheetHost()
-  const guided = useFlag('orbit_guided_flows')
   async function save(answer?: string) {
     if (saving.current) return
     const takenAtUtc = answer ?? exactInstant ?? repeatReminderInstant(date, clock, timeZone)
@@ -65,22 +63,17 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
     } catch { setError(t('habits.doseSaveError')) }
     finally { saving.current = false }
   }
-  return <Sheet ref={sheetRef} open title={t(guided ? 'habits.takenAtQuestion' : 'habits.changeTakenAt')} onClose={mutation.isPending ? undefined : onClose} actions={<ActionRow>
+  return <Sheet ref={sheetRef} open title={t('habits.takenAtQuestion')} onClose={mutation.isPending ? undefined : onClose} actions={<ActionRow>
     <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
     <PillButton size="sm" loading={mutation.isPending && !answering} disabled={mutation.isPending} onClick={() => void save()}>{t('common.save')}</PillButton>
   </ActionRow>}>
     <View style={{ gap: 12 }}>
       {error ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.statusBadText, fontSize: 14, lineHeight: 20 }}>{error}</Text> : null}
-      {guided && log.reminderAtUtc ? <View role="group" accessibilityLabel={t('habits.takenAtQuestion')} testID="dose-quick-options" style={{ flexDirection: 'row', justifyContent: 'center', paddingBottom: 12 }}>
+      {log.reminderAtUtc ? <View role="group" accessibilityLabel={t('habits.takenAtQuestion')} testID="dose-quick-options" style={{ flexDirection: 'row', justifyContent: 'center', paddingBottom: 12 }}>
         <OptionCard label={t('habits.useReminderTime')} disabled={mutation.isPending} loading={mutation.isPending && answering} onSelect={() => void save(new Date(log.reminderAtUtc!).toISOString())} />
       </View> : null}
       <DateField label={t('habits.doseDate')} value={date} onChange={(value) => { setExactInstant(null); setDate(value) }} disabled={mutation.isPending} />
       <TimeField label={t('habits.doseTime')} value={toTime24(clock)} onChange={(value) => { setExactInstant(null); setClock(value) }} disabled={mutation.isPending} />
-      {log.reminderAtUtc && !guided ? <IconButton label={t('habits.useReminderTime')} disabled={mutation.isPending} onClick={() => {
-        setExactInstant(new Date(log.reminderAtUtc!).toISOString())
-        setDate(getAccountDateTime(new Date(log.reminderAtUtc!), timeZone).date)
-        setClock(repeatReminderClock(log.reminderAtUtc!, timeZone))
-      }}><Clock size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
     </View>
   </Sheet>
 }

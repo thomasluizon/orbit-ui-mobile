@@ -28,8 +28,6 @@ import {
 import { ShareCard } from '@/components/share/share-card'
 import { Columns } from '@/components/ui/columns'
 import { useProfile } from '@/hooks/use-profile'
-import { useFlag } from '@/hooks/use-flag'
-import { ErrorState } from '@/components/ui/error-state'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
@@ -188,11 +186,10 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
 
 function SlideLoadError({ tokens, onRetry }: Readonly<{ tokens: Tokens; onRetry: () => void }>) {
   const { t } = useTranslation()
-  const guided = useFlag('orbit_guided_flows')
   const mascotSize = useStateMascotSize()
   const message = t('wrapped.error')
   const retry = <IconButton label={t('wrapped.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
-  if (!guided) return <ErrorState message={message} action={retry} />
+  
   return (
     <View testID="wrapped-slide-error" style={styles.slideError}>
       <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><OrbitMascot size={mascotSize} state="parado" /></View>
@@ -379,17 +376,14 @@ interface WrappedShareSlideProps {
 
 function WrappedShareSlide({ recap, tokens, shareRef, hasError, savedFileName, reducedMotion }: Readonly<WrappedShareSlideProps>) {
   const { t } = useTranslation()
-  const guided = useFlag('orbit_guided_flows')
   const mascotSize = useStateMascotSize()
-  const firstStep = guided ? 1 : 0
+  const firstStep = 1
 
   return (
     <View style={styles.shareSlide} testID="wrapped-slide-share">
-      {guided ? (
-        <Animated.View nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={motionFinalStyle}>
+      <Animated.View nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={motionFinalStyle}>
           <OrbitMascot size={mascotSize} state="feliz" />
         </Animated.View>
-      ) : null}
       <Animated.Text nativeID={`wrapped-motion-part-${firstStep}`} entering={enter(firstStep, reducedMotion)} accessibilityRole="header" style={[styles.title, motionFinalStyle, { color: tokens.fg1 }]}>{t('wrapped.slides.share.title')}</Animated.Text>
       <Animated.View testID="wrapped-figure" nativeID={`wrapped-motion-part-${firstStep + 1}`} entering={enter(firstStep + 1, reducedMotion)} style={[styles.sharePreview, motionFinalStyle]}>
         <View style={styles.sharePreviewCard}>

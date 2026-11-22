@@ -6,7 +6,6 @@ import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -179,7 +178,7 @@ describe('ReviewMomentSheet (mobile)', () => {
   it.each([
     { key: 'review-streak-7', title: 'reviewMoment.streakTitle', body: 'reviewMoment.streakBody' },
     { key: 'review-level-5', title: 'reviewMoment.levelTitle', body: 'reviewMoment.levelBody' },
-  ])('holds no Orbit and no Orbit line for $key, and renders the same sheet with orbit_guided_flows on and off', async ({ key, title, body }) => {
+  ])('holds no Orbit and no Orbit line for $key, and renders the same sheet and off', async ({ key, title, body }) => {
     const current = await render()
     await armReview(key)
     await settle()
@@ -189,7 +188,6 @@ describe('ReviewMomentSheet (mobile)', () => {
     currentTree = null
     resetStores()
 
-    enableTestFlags('orbit_guided_flows')
     const tree = await render()
     await armReview(key)
     await settle()

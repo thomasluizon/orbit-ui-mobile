@@ -7,7 +7,6 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { createMockGoal, createMockProfile, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { createApiClientError } from '@orbit/shared'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { buildCalendarDayMap, buildChildrenIndex, buildHabitHistoryMonth, formatAPIDate, getAccountDay, getAllDoneOnDate, hasHabitScheduleOnDate, isHabitCompletedOnDate, normalizeHabits } from '@orbit/shared/utils'
 import enMessages from '@orbit/shared/i18n/en.json'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, resetAccountQueries, tagKeys } from '@orbit/shared/query'
@@ -2331,7 +2330,6 @@ describe('mobile habit hooks', () => {
     mutation.onSuccess?.(queued, variables, undefined)
     expect(mocks.showInfo).toHaveBeenLastCalledWith('todayOrbit.offlineLog')
 
-    enableTestFlags('orbit_guided_flows')
     const guidedMutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
     guidedMutation.onSuccess?.(queued, variables, undefined)
     expect(mocks.showInfo).toHaveBeenLastCalledWith('todayOrbit.guided.offlineLog')

@@ -12,7 +12,6 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
 const state = vi.hoisted((): { flag: boolean; online: boolean; locale: 'en' | 'pt-BR'; profile: Record<string, unknown> } => ({ flag: true, online: true, locale: 'en', profile: {} }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => state.flag }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: state.profile }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: state.online }) }))
 vi.mock('react-i18next', async () => {

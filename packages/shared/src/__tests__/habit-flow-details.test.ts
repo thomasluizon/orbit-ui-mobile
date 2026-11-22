@@ -49,7 +49,7 @@ describe('the answers of the optional list', () => {
 })
 
 describe('resolveGuidedEditDetails', () => {
-  const read = { guided: true, habitId: 'habit-1', hasDetail: false, pending: false, fetching: false, error: null as Error | null }
+  const read = { habitId: 'habit-1', hasDetail: false, pending: false, fetching: false, error: null as Error | null }
   const failure = new Error('offline')
 
   it('waits with the save off while the first read runs', () => {
@@ -74,8 +74,7 @@ describe('resolveGuidedEditDetails', () => {
     expect(resolveGuidedEditDetails({ ...read, habitId: 'offline-habit-7', pending: true })).toEqual({ loading: false, summaryError: null, toastError: null, blocked: false })
   })
 
-  it('leaves the full form and a closed edit as they are', () => {
-    expect(resolveGuidedEditDetails({ ...read, guided: false, pending: true, error: failure })).toEqual({ loading: false, summaryError: null, toastError: failure, blocked: false })
+  it('leaves a closed edit as it is', () => {
     expect(resolveGuidedEditDetails({ ...read, habitId: null, pending: true })).toEqual({ loading: false, summaryError: null, toastError: null, blocked: false })
   })
 })

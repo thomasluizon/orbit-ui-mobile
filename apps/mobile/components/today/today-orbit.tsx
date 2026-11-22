@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { getOrbitRest } from '@orbit/shared/chat'
 import { getReturningInterval, getTodayOrbitSlot } from '@orbit/shared/utils'
-import { useFlag } from '@/hooks/use-flag'
 import { useOffline } from '@/hooks/use-offline'
 import { useProactiveItem } from '@/hooks/use-proactive-item'
 import { useUIStore } from '@/stores/ui-store'
@@ -21,11 +20,10 @@ export function TodayOrbit({ today, isTodaySelected, suppressed }: Readonly<Toda
   const router = useRouter()
   const { profile } = useProfile()
   const { item: proactive, openItem } = useProactiveItem()
-  const guided = useFlag('orbit_guided_flows')
   const { isOnline } = useOffline()
-  const rest = guided ? getOrbitRest({ isOnline, profile }) : null
+  const rest = getOrbitRest({ isOnline, profile })
   const line = getTodayOrbitSlot({
-    isTodaySelected, inDrillOrSurface: suppressed, item: proactive, guided,
+    isTodaySelected, inDrillOrSurface: suppressed, item: proactive, 
     returning: getReturningInterval(profile?.lastCompletionDate, profile?.timeZone),
   }, t)
 

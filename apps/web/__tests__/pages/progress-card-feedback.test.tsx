@@ -29,7 +29,6 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('next/navigation', () => ({ usePathname: () => '/progress', useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/app/(app)/progress/_components/use-goal-drag', () => ({
   useGoalDrag: () => ({ sensors: [], onDragEnd: vi.fn() }),
 }))

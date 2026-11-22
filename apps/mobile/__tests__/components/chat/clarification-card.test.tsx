@@ -2,7 +2,6 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ClarificationRequest } from '@orbit/shared/types'
 
 import { ClarificationCard } from '@/components/chat/clarification-card'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { AccessibilityInfo } from 'react-native'
 import { renderedText } from '../../support/react-test-renderer'
@@ -129,7 +128,6 @@ describe('ClarificationCard quick options (mobile)', () => {
   })
 
   it('answers with OptionCard quick options and sends the value the button sends', async () => {
-    enableTestFlags('orbit_guided_flows')
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'Succeeded' } })
     let tree!: TestInstance
     await TestRenderer.act(() => {
@@ -142,7 +140,6 @@ describe('ClarificationCard quick options (mobile)', () => {
   })
 
   it('keeps the button row for more than four answers', async () => {
-    enableTestFlags('orbit_guided_flows')
     const five = { ...baseClarification, quickActions: [...baseClarification.quickActions, { label: 'habits.clarification.quickAction.daily', value: 'extra', description: null }] }
     let tree!: TestInstance
     await TestRenderer.act(() => {
@@ -153,7 +150,6 @@ describe('ClarificationCard quick options (mobile)', () => {
   })
 
   it('keeps the button row when one answer holds more than four words', async () => {
-    enableTestFlags('orbit_guided_flows')
     const long = { ...baseClarification, quickActions: [baseClarification.quickActions[0]!, { label: 'Three times every single week', value: 'long', description: null }] }
     let tree!: TestInstance
     await TestRenderer.act(() => {

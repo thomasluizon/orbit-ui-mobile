@@ -1,5 +1,4 @@
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
-import { useFlag } from '@/hooks/use-flag'
 import {
   OnboardingActionsProvider,
   type OnboardingActions,
@@ -24,8 +23,7 @@ export interface OverlayLayerProps {
 }
 
 function RetainedOnboarding({ finalStepOnly }: Readonly<{ finalStepOnly: boolean }>) {
-  const guided = useFlag('orbit_guided_flows')
-  return <OnboardingFlow finalStepOnly={finalStepOnly} guided={guided} />
+  return <OnboardingFlow finalStepOnly={finalStepOnly} />
 }
 
 export function OverlayLayer({

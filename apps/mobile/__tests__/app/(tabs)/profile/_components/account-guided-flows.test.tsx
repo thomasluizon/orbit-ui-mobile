@@ -85,7 +85,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
       mocks.language = language
       mocks.reducedMotion = reducedMotion
       const onClose = vi.fn()
-      const tree = await render(<FreshStartModal open guided onClose={onClose} />)
+      const tree = await render(<FreshStartModal open onClose={onClose} />)
       expect(tree.root.findAll((node) => node.type === Modal)[0]?.props.animationType).toBe(reducedMotion ? 'none' : 'fade')
       expect(textOf(heading(tree)!)).toBe(messages.profile.freshStart.question)
       expect(hosts(tree).some((node) => node.props.testID === 'fresh-start-lists')).toBe(true)
@@ -111,7 +111,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
   it('says the reset waits for the connection when it was queued offline', async () => {
     mocks.language = language
     mocks.queued = true
-    const tree = await render(<FreshStartModal open guided onClose={vi.fn()} />)
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
     await press(tree, messages.profile.freshStart.reviewDeletion)
     await type(tree, 'ORBIT')
     await press(tree, messages.profile.freshStart.deleteData)
@@ -124,7 +124,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     let finishReset!: (value: object) => void
     mocks.apiClient.mockReturnValue(new Promise<object>((resolve) => { finishReset = resolve }))
     const onClose = vi.fn()
-    const tree = await render(<FreshStartModal open guided onClose={onClose} />)
+    const tree = await render(<FreshStartModal open onClose={onClose} />)
     const androidBack = () => TestRenderer.act(async () => { (tree.root.findAll((node) => node.type === Modal)[0]!.props.onRequestClose as () => void)(); await Promise.resolve() })
     await press(tree, messages.profile.freshStart.reviewDeletion)
     await androidBack()
@@ -148,7 +148,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     function Harness() {
       const [open, setOpen] = React.useState(true)
       reopen = () => setOpen(true)
-      return <FreshStartModal open={open} guided onClose={() => setOpen(false)} />
+      return <FreshStartModal open={open} onClose={() => setOpen(false)} />
     }
     const tree = await render(<Harness />)
     await press(tree, messages.profile.freshStart.reviewDeletion)
@@ -167,7 +167,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
   it('keeps the confirmation step with the failure text when the reset fails', async () => {
     mocks.language = language
     mocks.apiClient.mockRejectedValue(new Error('Failed'))
-    const tree = await render(<FreshStartModal open guided onClose={vi.fn()} />)
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
     await press(tree, messages.profile.freshStart.reviewDeletion)
     await type(tree, 'ORBIT')
     await press(tree, messages.profile.freshStart.deleteData)
@@ -180,7 +180,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
 describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: ptBR }] as const)('Android delete account flow in $language', ({ language, messages }) => {
   it('states the warning for the plan, then sends the code and opens the code entry', async () => {
     mocks.language = language
-    const tree = await render(<DeleteAccountModal open guided profile={proProfile} onClose={vi.fn()} />)
+    const tree = await render(<DeleteAccountModal open profile={proProfile} onClose={vi.fn()} />)
     expect(textOf(heading(tree)!)).toBe(messages.profile.deleteAccount.headingAreYouSure)
     expect(texts(tree)).toContain(`${messages.profile.deleteAccount.warningPro} ${messages.profile.deleteAccount.warningAppStore}`)
     expect(hosts(tree).some((node) => node.props.testID === 'orbit-mascot')).toBe(false)
@@ -197,7 +197,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     mocks.language = language
     function Harness() {
       const [open, setOpen] = React.useState(true)
-      return <DeleteAccountModal open={open} guided profile={proProfile} onClose={() => setOpen(false)} />
+      return <DeleteAccountModal open={open} profile={proProfile} onClose={() => setOpen(false)} />
     }
     const tree = await render(<Harness />)
     await press(tree, messages.common.continue)
@@ -213,7 +213,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
   it('blocks the flow offline with the reason and no action', async () => {
     mocks.language = language
     mocks.online = false
-    const tree = await render(<DeleteAccountModal open guided profile={proProfile} onClose={vi.fn()} />)
+    const tree = await render(<DeleteAccountModal open profile={proProfile} onClose={vi.fn()} />)
     expect(texts(tree)).toContain(messages.profile.deleteAccount.offlineDescription)
     expect(() => button(tree, messages.common.continue)).toThrow()
   })

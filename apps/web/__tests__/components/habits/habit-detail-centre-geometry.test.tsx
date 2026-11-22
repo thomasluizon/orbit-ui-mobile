@@ -7,7 +7,6 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { HabitDetailLoadError } from '@/components/habits/habit-detail-load-error'
 import { HabitDetailResultDialog, type HabitDetailResult } from '@/components/habits/habit-detail-result'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -35,7 +34,7 @@ describe('habit detail centred blocks in Chromium', () => {
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
-  afterEach(() => { cleanup(); resetTestFlags(); vi.unstubAllGlobals() })
+  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   async function measure(width: number, selector: string, freeSelector?: string) {
@@ -64,7 +63,6 @@ describe('habit detail centred blocks in Chromium', () => {
   })
 
   it.each(errorCases)('centres the full-surface load error with Orbit in Parado at $width px in $locale', async ({ width, locale }) => {
-    enableTestFlags('orbit_guided_flows')
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const view = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><LoadError /></NextIntlClientProvider>)
     await screen.findByRole('alert')

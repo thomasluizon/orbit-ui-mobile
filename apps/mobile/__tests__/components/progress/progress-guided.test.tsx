@@ -37,7 +37,6 @@ const mocks = vi.hoisted(() => {
   }
 })
 
-vi.mock('@/hooks/use-flag', () => ({ useFlag: (key: string) => key === 'orbit_guided_flows' && mocks.flag }))
 vi.mock('react-i18next', async (original) => ({
   ...await original<typeof import('react-i18next')>(),
   useTranslation: () => ({ t: testI18n.t.bind(testI18n), i18n: testI18n }),
@@ -144,7 +143,7 @@ afterEach(async () => {
   await testI18n.changeLanguage('en')
 })
 
-describe('Progresso root with orbit_guided_flows on (Android)', () => {
+describe('Progresso root (Android)', () => {
   it.each(['en', 'pt-BR'] as const)('draws one live Orbit at 96 above the line, then the question headings, in %s', async (locale) => {
     const root = await renderIn(locale)
     expect(mascots(root)).toHaveLength(1)
@@ -315,7 +314,7 @@ describe('Progresso root figures since the last visit (Android)', () => {
   })
 })
 
-describe('Sequência with orbit_guided_flows on (Android)', () => {
+describe('Sequência (Android)', () => {
   it.each(['en', 'pt-BR'] as const)('states the streak and the next freeze beside Orbit at 48, in %s', async (locale) => {
     const root = await renderIn(locale, 'streak')
     expect(mascots(root)).toHaveLength(1)
@@ -387,7 +386,7 @@ describe('Sequência with orbit_guided_flows on (Android)', () => {
   })
 })
 
-describe('Progresso sub-screens with orbit_guided_flows on (Android)', () => {
+describe('Progresso sub-screens (Android)', () => {
   it('shows the skeleton strip while the streak history loads, with no line and no spinner', async () => {
     mocks.freeze = { ...deriveStreakFreezeState(null, null, '2026-09-10'), streakInfo: null, streakQuery: { isError: false, refetch: vi.fn() } }
     const root = await renderIn('en', 'streak')
@@ -476,7 +475,7 @@ describe('Sequência repair flow (Android)', () => {
   })
 })
 
-describe('Conquistas with orbit_guided_flows on (Android)', () => {
+describe('Conquistas (Android)', () => {
   it('keeps the level row and the tiles, and a tile has no press action', async () => {
     mocks.achievements = [createMockAchievement({ id: 'first_habit', category: 'GettingStarted', isEarned: true })]
     const root = await renderIn('en', 'achievements')

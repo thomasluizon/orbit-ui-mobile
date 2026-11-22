@@ -20,8 +20,6 @@ import {
 import { ShareCard } from '@/components/share/share-card'
 import { Columns } from '@/components/ui/columns'
 import { useProfile } from '@/hooks/use-profile'
-import { useFlag } from '@/hooks/use-flag'
-import { ErrorState } from '@/components/ui/error-state'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
@@ -229,10 +227,9 @@ function SlideShell({ children, testId, gap = 8 }: Readonly<SlideShellProps>) {
 
 function SlideLoadError({ onRetry }: Readonly<{ onRetry: () => void }>) {
   const t = useTranslations()
-  const guided = useFlag('orbit_guided_flows')
   const mascotSize = useStateMascotSize()
   const retry = <IconButton label={t('wrapped.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-  if (!guided) return <ErrorState message={t('wrapped.error')} action={retry} />
+  
   return (
     <div role="alert" aria-live="polite" aria-atomic="true" data-wrapped-slide-error="" className="flex flex-col items-center gap-6 px-6 py-12 text-center">
       <span aria-hidden="true"><OrbitMascot size={mascotSize} state="parado" /></span>
@@ -402,9 +399,8 @@ interface WrappedShareSlideProps {
 
 function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reducedMotion }: Readonly<WrappedShareSlideProps>) {
   const t = useTranslations()
-  const guided = useFlag('orbit_guided_flows')
   const mascotSize = useStateMascotSize()
-  const firstStep = guided ? 1 : 0
+  const firstStep = 1
 
   return (
     <div
@@ -412,11 +408,9 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
       className="flex flex-1 flex-col items-start justify-center px-4 py-6 text-start lg:px-16 lg:py-12"
       style={{ gap: 16 }}
     >
-      {guided ? (
-        <motion.div data-testid="wrapped-motion-part" aria-hidden="true" {...motionProps(0, reducedMotion)} style={{ lineHeight: 0 }}>
+      <motion.div data-testid="wrapped-motion-part" aria-hidden="true" {...motionProps(0, reducedMotion)} style={{ lineHeight: 0 }}>
           <OrbitMascot size={mascotSize} state="feliz" />
         </motion.div>
-      ) : null}
       <motion.h2 data-testid="wrapped-motion-part" {...motionProps(firstStep, reducedMotion)} style={titleStyle}>
         {t('wrapped.slides.share.title')}
       </motion.h2>

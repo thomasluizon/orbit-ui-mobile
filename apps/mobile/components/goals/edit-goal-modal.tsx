@@ -12,7 +12,6 @@ import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useSubmitHold } from '@/hooks/use-submit-hold'
 import type { SubmitOutcome } from '@orbit/shared/hooks'
 import { useUpdateGoal } from '@/hooks/use-goals'
-import { useFlag } from '@/hooks/use-flag'
 import { GuidedGoalEditFlow } from './guided/guided-goal-edit-flow'
 import {
   getFriendlyErrorMessage,
@@ -60,8 +59,7 @@ export function EditGoalModal(props: Readonly<EditGoalModalProps>) {
 }
 
 function OpenEditGoalModal(props: Readonly<EditGoalModalProps>) {
-  const guided = useFlag('orbit_guided_flows')
-  return guided ? <GuidedGoalEditFlow goal={props.goal} onClose={props.onClose} windowOpen={props.windowOpen} onWindowDismissed={props.onWindowDismissed} /> : <CurrentEditGoalModal {...props} />
+  return <GuidedGoalEditFlow goal={props.goal} onClose={props.onClose} windowOpen={props.windowOpen} onWindowDismissed={props.onWindowDismissed} />
 }
 
 function CurrentEditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalProps>) {

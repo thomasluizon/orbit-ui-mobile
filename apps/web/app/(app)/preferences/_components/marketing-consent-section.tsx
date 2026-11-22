@@ -1,13 +1,10 @@
 'use client'
 
-import { ActionRow } from '@/components/ui/action-row'
-
 import type { ReactNode } from 'react'
 import { Mail } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ListRow } from '@/components/ui/list-row'
-import { PillButton } from '@/components/ui/pill-button'
 import { OptionCard } from '@/components/ui/option-card'
 import { RowList } from '@/components/ui/row-list'
 import { useProfile } from '@/hooks/use-profile'
@@ -18,15 +15,12 @@ import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 export function MarketingConsentSection({
   showSectionLabel = true,
   contained = false,
-  acceptVariant = 'primary',
   trailingRow,
-  guided = false,
 }: Readonly<{
   showSectionLabel?: boolean
   contained?: boolean
   acceptVariant?: 'primary' | 'secondary'
   trailingRow?: ReactNode
-  guided?: boolean
 }>) {
   const t = useTranslations()
   const { profile, patchProfile } = useProfile()
@@ -56,23 +50,10 @@ export function MarketingConsentSection({
       <p className="m-0 font-sans text-sm leading-[1.55] text-[var(--fg-2)]">
         {t('profile.marketingEmails.questionDescription')}
       </p>
-      {guided ? (
-        <div role="group" aria-label={t('profile.marketingEmails.question')} data-option-group="" className="grid grid-cols-2 gap-3">
+      <div role="group" aria-label={t('profile.marketingEmails.question')} data-option-group="" className="grid grid-cols-2 gap-3">
           <OptionCard label={t('profile.marketingEmails.decline')} disabled={mutation.isPending} onSelect={() => mutation.mutate(false)} />
           <OptionCard label={t('profile.marketingEmails.accept')} disabled={mutation.isPending} onSelect={() => mutation.mutate(true)} />
         </div>
-      ) : <fieldset
-        disabled={mutation.isPending}
-        className="m-0 flex flex-wrap gap-2 border-0 p-0"
-      ><ActionRow>
-        <PillButton size="sm" variant="ghost" onClick={() => mutation.mutate(false)}>
-          {t('profile.marketingEmails.decline')}
-        </PillButton>
-        {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil emailYes controls this label under D42. */}
-        <PillButton size="sm" variant={acceptVariant} onClick={() => mutation.mutate(true)}>
-          {t('profile.marketingEmails.accept')}
-        </PillButton>
-      </ActionRow></fieldset>}
     </div>
   ) : (
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil emailOn controls this label under D42. */

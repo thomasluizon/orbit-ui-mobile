@@ -4,7 +4,6 @@ import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockProfile, createMockRecap } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { motionDurations } from '@orbit/shared/theme'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 
@@ -70,7 +69,6 @@ describe('the guided Wrapped player on web', () => {
   })
 
   it.each(LOCALES)('moves one slide for next and previous, and the progress label follows in $locale', (locale) => {
-    enableTestFlags('orbit_guided_flows')
     const { copy, progress } = renderPlayer(locale)
 
     expect(screen.getByLabelText(progress(1))).toBeInTheDocument()
@@ -85,7 +83,6 @@ describe('the guided Wrapped player on web', () => {
   })
 
   it('keeps the first slide still, then shifts and fades each slide change for the route duration', () => {
-    enableTestFlags('orbit_guided_flows')
     stubReducedMotion(false)
     const { copy } = renderPlayer()
 
@@ -97,7 +94,6 @@ describe('the guided Wrapped player on web', () => {
   })
 
   it('keeps every slide still under reduced motion: no slide travel, no part rise and no running Orbit loop', () => {
-    enableTestFlags('orbit_guided_flows')
     stubReducedMotion(true)
     const { copy, container } = renderPlayer()
 
@@ -117,13 +113,11 @@ describe('the guided Wrapped player on web', () => {
     for (const kind of SLIDE_KINDS) expect(currentTexts[kind]).not.toBe('')
     current.unmount()
 
-    enableTestFlags('orbit_guided_flows')
     const guided = renderPlayer()
     expect(slideTexts(guided.copy)).toEqual(currentTexts)
   })
 
   it.each(LOCALES)('shows Orbit in Feliz on the last slide, and share and download call the current adapters in $locale', (locale) => {
-    enableTestFlags('orbit_guided_flows')
     const { copy, container } = renderPlayer(locale)
     for (let step = 1; step < slides.length; step += 1) next(copy)
 

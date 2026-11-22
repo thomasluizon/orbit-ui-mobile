@@ -13,7 +13,6 @@ import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClientError, formatAPIDate, formatLocaleDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { Time24 } from '@orbit/shared/contracts/forms'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import {
@@ -958,7 +957,6 @@ describe('HabitDetailScreen', () => {
   })
 
   it('gives the offline reason with no second Orbit while the rescue request waits offline in the guided surface', () => {
-    enableTestFlags('orbit_guided_flows')
     openRescueGate()
     mocks.reschedulePaused = true
     let tree!: ReturnType<typeof TestRenderer.create>
@@ -971,7 +969,6 @@ describe('HabitDetailScreen', () => {
   })
 
   it('keeps Pensando on the Orbit line alone while the reschedule suggestion loads in the guided surface', () => {
-    enableTestFlags('orbit_guided_flows')
     openRescueGate()
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
@@ -1093,7 +1090,6 @@ describe('HabitDetailScreen', () => {
   })
 
   it('writes the slipping line in the first person while the guided flows are on', () => {
-    enableTestFlags('orbit_guided_flows')
     openRescueGate()
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
@@ -1102,7 +1098,6 @@ describe('HabitDetailScreen', () => {
   })
 
   it('writes the load error in the first person while the guided flows are on', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.detailError = true
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
@@ -2453,7 +2448,6 @@ describe('HabitDetailScreen', () => {
   })
 
   it('shows the deleted result dialog when the delete has already removed the detail query, with the guided flows on', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.deleteHabit.mockImplementationOnce(() => { mocks.detail = null; return Promise.resolve() })
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {

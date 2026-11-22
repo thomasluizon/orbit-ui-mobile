@@ -21,7 +21,6 @@ vi.mock('react-i18next', () => ({
 }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push, replace: vi.fn(), back: vi.fn(), canGoBack: () => true }), useIsFocused: () => true, useLocalSearchParams: () => ({}) }))
 vi.mock('expo-router/react-navigation', () => ({ usePreventRemove: vi.fn() }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => state.flag }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { timeZone: 'UTC', uses24HourClock: true, weekStartDay: 0, aiMessagesUsed: 0, aiMessagesLimit: 5, hasProAccess: true } }),
   useHasProAccess: () => true,
@@ -101,7 +100,7 @@ beforeEach(async () => {
 })
 afterEach(() => { vi.useRealTimers() })
 
-describe('the Android create surface behind orbit_guided_flows', () => {
+describe('the Android create surface', () => {
   it('renders the current form with the flag off', async () => {
     state.flag = false
     const tree = mountCreate()
@@ -608,7 +607,7 @@ describe('the discard sheet of a guided habit flow on Android', () => {
   })
 })
 
-describe('the Android edit surface behind orbit_guided_flows', () => {
+describe('the Android edit surface', () => {
   it('renders the current form with the flag off', async () => {
     state.flag = false
     const tree = mountEdit()

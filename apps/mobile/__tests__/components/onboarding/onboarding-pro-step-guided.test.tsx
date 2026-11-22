@@ -2,7 +2,6 @@ import React from 'react'
 import { View } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
 import { OnboardingProStep } from '@/components/onboarding/onboarding-pro-step'
@@ -61,7 +60,6 @@ beforeEach(() => {
 
 describe('the Android onboarding Pro step', () => {
   it('asks the plan question with the flag on, with the usage line and the plan options', () => {
-    enableTestFlags('orbit_guided_flows')
     const tree = renderNavigation(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
     expect(headers(tree)).toContain('Which plan?')
     expect(headers(tree)).not.toContain('Orbit Pro')
@@ -74,7 +72,6 @@ describe('the Android onboarding Pro step', () => {
   })
 
   it('hands the pinned plan footer to the host frame apart from the body, with the flag on', async () => {
-    enableTestFlags('orbit_guided_flows')
     const frame = (body: React.ReactNode, footer: React.ReactNode) => <><View testID="frame-body">{body}</View><View testID="frame-footer">{footer}</View></>
     const tree = renderNavigation(<OnboardingProStep onFinish={vi.fn(async () => {})} frame={frame} />)
     const body = byTestId(tree, 'frame-body')!
@@ -90,7 +87,6 @@ describe('the Android onboarding Pro step', () => {
   })
 
   it('starts the purchase of the selected plan and completes onboarding on the stay free exit, with the flag on', async () => {
-    enableTestFlags('orbit_guided_flows')
     const onFinish = vi.fn(async () => {})
     const tree = renderNavigation(<OnboardingProStep onFinish={onFinish} />)
     press(byTestId(tree, 'upgrade-plan-option-monthly')!)
@@ -104,7 +100,6 @@ describe('the Android onboarding Pro step', () => {
   })
 
   it('keeps the see my day exit of a trial person, with the flag on', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.plan = 'Trial'
     mocks.profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, trialEndsAt: '2099-01-01T00:00:00Z' })
     const onFinish = vi.fn(async () => {})
@@ -120,7 +115,6 @@ describe('the Android onboarding Pro step', () => {
   })
 
   it('refuses the purchase offline with the reason, with the flag on', async () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.online = false
     const tree = renderNavigation(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
     expect(renderedText(byTestId(tree, 'upgrade-orbit-line'))).toBe('I am offline right now.')
@@ -132,7 +126,6 @@ describe('the Android onboarding Pro step', () => {
   })
 
   it('shows Orbit in Parado over the skeleton while the plan loads, with no pitch heading and the see my day exit, with the flag on', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.plan = 'loading'
     const tree = renderNavigation(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
     const busy = tree.hosts().find((node) => (node.props.accessibilityState as { busy?: boolean } | undefined)?.busy === true)!
@@ -146,7 +139,6 @@ describe('the Android onboarding Pro step', () => {
   })
 
   it('lets Orbit name the plan read error and reads the plan again on retry, with the flag on', () => {
-    enableTestFlags('orbit_guided_flows')
     mocks.plan = null
     const tree = renderNavigation(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
     expect(orbitStates(tree)).toEqual(['parado'])

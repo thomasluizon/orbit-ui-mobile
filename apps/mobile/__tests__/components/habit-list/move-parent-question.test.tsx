@@ -1,7 +1,6 @@
 import React from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { MoveParentDialog, type MoveParentOption } from '@/components/habit-list/move-parent-dialog'
 import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 
@@ -29,7 +28,6 @@ const radios = (tree: ReturnType<typeof TestRenderer.create>): ReactTestInstance
 
 describe('Android move-parent dialog as one question', () => {
   it('asks where the habit goes as the sheet title, once, with the destinations as the options', () => {
-    enableTestFlags('orbit_guided_flows')
     const { tree, props } = renderDialog()
     expect(sheetTitle(tree)).toBe('habits.moveParent.destinations')
     expect(questionLabels(tree)).toHaveLength(0)
@@ -42,20 +40,17 @@ describe('Android move-parent dialog as one question', () => {
   })
 
   it('keeps the confirm action and the cancel action', () => {
-    enableTestFlags('orbit_guided_flows')
     const { tree } = renderDialog({ selectedMoveParentId: 'other' })
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'habits.moveParent.confirm'])
   })
 
   it('names the group of habits under the question for a bulk move', () => {
-    enableTestFlags('orbit_guided_flows')
     const { tree } = renderDialog({ movingHabitTitle: null, movingHabitCount: 3 })
     expect(sheetTitle(tree)).toBe('habits.moveParent.destinations')
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'move-parent-subject')[0]!.props.children).toBe('habits.moveParent.titleMany')
   })
 
   it('keeps the parent picker of the editor as it is', () => {
-    enableTestFlags('orbit_guided_flows')
     const { tree } = renderDialog({ selectionOnly: true })
     expect(sheetTitle(tree)).toBe('habits.form.parentHabit')
     expect(questionLabels(tree).length).toBeGreaterThan(0)

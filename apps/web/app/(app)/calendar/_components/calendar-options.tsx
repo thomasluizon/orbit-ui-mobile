@@ -13,7 +13,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { CalendarLegend } from './calendar-shell'
 
-function CalendarOptionsContent({ onGoogleCalendar, guided }: Readonly<CalendarOptionsProps>) {
+function CalendarOptionsContent({ onGoogleCalendar }: Readonly<CalendarOptionsProps>) {
   const menuId = useId()
   const t = useTranslations()
   const wide = useIsWideDesktop()
@@ -46,7 +46,7 @@ function CalendarOptionsContent({ onGoogleCalendar, guided }: Readonly<CalendarO
         <ListRow placement="column" textMode="label" title={t('calendar.legendTitle')} onClick={() => closeOptions('legend')} />
       </div>
     </Sheet> : null}
-    {legendOpen ? <Sheet ref={sheetRef} open title={t(guided ? 'calendar.legendQuestion' : 'calendar.legendTitle')} onClose={() => setLegendOpen(false)}>
+    {legendOpen ? <Sheet ref={sheetRef} open title={t('calendar.legendQuestion')} onClose={() => setLegendOpen(false)}>
       <CalendarLegend loggableLabel={t('calendar.legend.loggable')} fullLabel={t('calendar.legend.full')} partialLabel={t('calendar.legend.partial')} noneLabel={t('calendar.legend.none')} />
     </Sheet> : null}
   </Menu.Root>
@@ -54,9 +54,8 @@ function CalendarOptionsContent({ onGoogleCalendar, guided }: Readonly<CalendarO
 
 interface CalendarOptionsProps {
   onGoogleCalendar?: () => void
-  guided?: boolean
 }
 
-export function CalendarOptions({ onGoogleCalendar, guided = false }: Readonly<CalendarOptionsProps>) {
-  return <ShellHeader><CalendarOptionsContent onGoogleCalendar={onGoogleCalendar} guided={guided} /></ShellHeader>
+export function CalendarOptions({ onGoogleCalendar }: Readonly<CalendarOptionsProps>) {
+  return <ShellHeader><CalendarOptionsContent onGoogleCalendar={onGoogleCalendar} /></ShellHeader>
 }

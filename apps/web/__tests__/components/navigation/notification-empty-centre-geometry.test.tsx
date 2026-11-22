@@ -8,7 +8,6 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { DESTINATION_MAIN_CLASS_NAME } from '@/components/shell/destination-shell'
 import { ShellWide } from '@/components/shell/shell-wide'
@@ -49,7 +48,7 @@ const cases = [
     ...[360, 412, 600].map(width => ({ width, mode, state: 'empty' as const, guided: false, locale: 'pt-BR' as const })),
     { width: 412, mode, state: 'error' as const, guided: false, locale: 'pt-BR' as const },
   ]),
-  ...(['pt-BR', 'en'] as const).flatMap(locale => [320, 360, 384, 412].flatMap(width => (['empty', 'error'] as const).map(state => ({ width, mode: 'dark' as const, state, guided: true, locale })))),
+  ...(['pt-BR', 'en'] as const).flatMap(locale => [320, 360, 384, 412].flatMap(width => (['empty', 'error'] as const).map(state => ({ width, mode: 'dark' as const, state, locale })))),
 ]
 const catalogs = { 'pt-BR': ptBr, en } as const
 
@@ -65,10 +64,9 @@ describe('Avisos empty state centring in Chromium', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(cases)('centres the $state group between the header and the tab bar at $width px in $mode and $locale with guided=$guided, the empty title on one line and the failure message within two', async ({ width, mode, state, guided, locale }) => {
+  it.each(cases)('centres the $state group between the header and the tab bar at $width px in $mode and $locale with guided=$guided, the empty title on one line and the failure message within two', async ({ width, mode, state, locale }) => {
     const messages = catalogs[locale]
     inbox.state = state
-    if (guided) enableTestFlags('orbit_guided_flows')
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const view = render(<NextIntlClientProvider locale={locale} messages={messages}><InboxInShell /></NextIntlClientProvider>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
@@ -88,7 +86,7 @@ describe('Avisos empty state centring in Chromium', () => {
       const freeCentre = (geometry.free.top + geometry.free.bottom) / 2
       const groupCentre = (geometry.group.top + geometry.group.bottom) / 2
       expect(Math.abs(groupCentre - freeCentre), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
-      expect(geometry.mascots).toBe(guided || state === 'empty' ? 1 : 0)
+      expect(geometry.mascots).toBe(1)
       expect(geometry.lines, JSON.stringify(geometry)).toBeLessThanOrEqual(state === 'empty' ? 1 : 2)
     } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
   })

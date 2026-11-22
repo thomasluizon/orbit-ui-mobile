@@ -42,10 +42,10 @@ beforeEach(() => {
 })
 afterEach(() => { mocks.language = 'en' })
 
-describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: ptBR }] as const)('Android Perfil settings with orbit_guided_flows in $language', ({ language, messages }) => {
+describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: ptBR }] as const)('Android Perfil settings in $language', ({ language, messages }) => {
   it('answers the product email question with two quick options', async () => {
     mocks.language = language
-    const tree = await render(<MarketingConsentSection showSectionLabel={false} contained guided />)
+    const tree = await render(<MarketingConsentSection showSectionLabel={false} contained />)
     expect(texts(tree)).toContain(messages.profile.marketingEmails.question)
     const group = hosts(tree).find((node) => node.props.accessibilityRole === 'radiogroup')!
     expect(group.props.accessibilityLabel).toBe(messages.profile.marketingEmails.question)
@@ -57,7 +57,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
 
   it('titles the name sheet with its question and drops the repeated visible label', async () => {
     mocks.language = language
-    const tree = await render(<EditNameSheet open guided onClose={vi.fn()} />)
+    const tree = await render(<EditNameSheet open onClose={vi.fn()} />)
     expect(texts(tree).filter((text) => text === messages.profile.editName.label)).toHaveLength(1)
     expect(texts(tree)).not.toContain(messages.profile.editName.title)
     expect(hosts(tree).find((node) => node.type === 'TextInput')?.props.accessibilityLabel).toBe(messages.profile.editName.label)

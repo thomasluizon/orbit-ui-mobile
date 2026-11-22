@@ -9,7 +9,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { accountStorageKey } from '@/lib/account-storage-key'
 
 const mocks = vi.hoisted(() => ({
-  guided: true,
   reducedMotion: false,
   goals: { data: { allGoals: [] as Goal[] } as { allGoals: Goal[] } | undefined, isError: false, isLoading: false, refetch: vi.fn() },
   reorder: vi.fn(),
@@ -18,7 +17,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/progress/goals', useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => false, useIsWideDesktop: () => false }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: vi.fn(),
@@ -57,7 +55,6 @@ async function nextFrames() {
 
 describe('goals list on the Orbit logic', () => {
   beforeEach(() => {
-    mocks.guided = true
     mocks.reducedMotion = false
     mocks.goals = { data: { allGoals: [read, run] }, isError: false, isLoading: false, refetch: vi.fn() }
     mocks.reorder.mockClear()
@@ -134,26 +131,6 @@ describe('goals list on the Orbit logic', () => {
     expect(ring('Read 12 books')).toHaveAttribute('aria-valuenow', '50')
     expect(ring('Read 12 books').parentElement).toHaveAttribute('data-ring-sweep', 'rest')
     expect(JSON.parse(localStorage.getItem(seenKey())!)).toEqual({ read: 50, run: 25 })
-  })
-
-  it('reads the last visit when the flag arrives after the first render, before it records the new values', async () => {
-    mocks.guided = false
-    localStorage.setItem(seenKey(), JSON.stringify({ read: 25, run: 25 }))
-    const view = renderGoals()
-    mocks.guided = true
-    view.rerender(<NextIntlClientProvider locale="en" messages={en}><ProgressContent screen="goals" /></NextIntlClientProvider>)
-    expect(ring('Read 12 books').parentElement).toHaveAttribute('data-ring-sweep', 'sweeping')
-    await nextFrames()
-    expect(ring('Read 12 books')).toHaveAttribute('aria-valuenow', '50')
-    expect(JSON.parse(localStorage.getItem(seenKey())!)).toEqual({ read: 50, run: 25 })
-  })
-
-  it('keeps the current list with the flag off: no sweep and nothing stored', () => {
-    mocks.guided = false
-    localStorage.setItem(seenKey(), JSON.stringify({ read: 25 }))
-    renderGoals()
-    expect(ring('Read 12 books')).toHaveAttribute('aria-valuenow', '50')
-    expect(JSON.parse(localStorage.getItem(seenKey())!)).toEqual({ read: 25 })
   })
 
   it('keeps the filter with its empty text, the create action, the keyboard reorder and the open press', () => {
