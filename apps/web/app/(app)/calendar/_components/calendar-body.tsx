@@ -14,6 +14,6 @@ export function CalendarBody({ profileReady, profileError, onRetryProfile, error
 }>) {
   const guided = useFlag('orbit_guided_flows')
   if (!profileReady && profileError) return <CalendarLoadError onRetry={onRetryProfile} error={profileError} />
-  if (profileReady && error) return <div className={guided ? "flex flex-1 flex-col" : undefined} style={{ padding: "var(--orbit-space-0) var(--orbit-space-16) var(--orbit-space-16)" }}><CalendarLoadError onRetry={onRetry} /></div>
+  if (profileReady && error) return guided ? <CalendarLoadError onRetry={onRetry} /> : <div style={{ padding: "var(--orbit-space-0) var(--orbit-space-16) var(--orbit-space-16)" }}><CalendarLoadError onRetry={onRetry} /></div>
   return children
 }
