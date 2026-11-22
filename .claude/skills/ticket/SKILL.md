@@ -52,7 +52,7 @@ Cross-repository work is an api ticket that blocks a ui ticket.
 
 ## Parts
 
-Write the work of a large ticket as numbered comments, "Part n of m". Each part is one behaviour. Each part is small enough for one Sonnet order under the 45 minute ceiling. That is about 300 to 1,500 changed lines. A pure deletion part can be larger.
+Write the work of a large ticket as numbered comments. The first line of each is exactly `## Part n of m: <title>`, with no ticket number before `Part`, or the driver reads no part. Each part is one behaviour. Each part is small enough for one Sonnet order under the 45 minute ceiling. That is about 300 to 1,500 changed lines. A pure deletion part can be larger.
 
 Each part names its files, its cascade edits and its checks. Add a `Paths:` line when the part can run beside other parts. Add `Kind: find` for a read-only find part.
 
