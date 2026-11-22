@@ -15,10 +15,14 @@ Do this for a new feature or an idea with more than one way to build it. A bug w
 
 1. Name the real problem in one sentence. When it differs from the ask, say both.
 2. Read everything the answer touches, in full: the code in all three repositories, `DESIGN.md`, `BRAND.md`, `FEATURES.md`, the decisions in `/brain`, and the open tickets near it. Write the list of what you read.
-3. Check each outside fact (a vendor limit, a price, a library behavior) against its live primary source. Use web research subagents for this, one per question, and record each source with its date.
-4. Write 3 to 5 candidates. One removes something instead of adding. One is "do nothing". Score each on what it costs to live with: upkeep, parity on web and mobile, contract changes, risk to old mobile clients. The cost to build decides nothing.
-5. Cut the winner until nothing more can go.
-6. At the gate, show: the problem, the recommendation, one line on why each other candidate lost, the cost, and the fact that would make it wrong. The tickets follow.
+3. Search the web before any design, every time. Memory is not a source. Use web research subagents, one per question, each on live primary sources:
+   - how the current official documentation says to build this, and how strong teams build it now;
+   - the version installed in each repository (read `package.json`, the lock files and the `.csproj` files) and the newest stable version, with the changes between them that matter here;
+   - every outside fact the design leans on: a vendor limit, a price, an API field, a platform rule.
+   Record each source with its link, its date and the version it covers.
+4. Write 3 to 5 candidates from that research. One removes something instead of adding. One is "do nothing". Score each on what it costs to live with: upkeep, size, parity on web and mobile, contract changes, risk to old mobile clients. The cost to build decides nothing.
+5. Pick the simplest candidate that fully solves the problem: the fewest files, layers, dependencies and settings. Prefer what the platform or an installed library already does over new code. Then cut the winner until nothing more can go.
+6. At the gate, show: the problem, the recommendation, one line on why each other candidate lost, the cost, the fact that would make it wrong, and the sources. The tickets follow, and each one carries its sources, links and versions in Technical details, so the worker builds on them and not on memory.
 
 Ask the owner only what reading cannot answer: product, copy, pricing, brand or a real toss-up. Ask it with a recommendation, at the gate.
 
