@@ -61,6 +61,15 @@ For a defect, put a red-capable command first in Test scenarios. For other work,
 - `deploy-first:<environment>/<task>` on a blocker whose deployment a later ticket needs.
 - `needs:owner` when a store or production check must pass first.
 
+## Split, name and link
+
+1. Search the board first: `gh issue list --repo thomasluizon/orbit-tickets --state all --search "<key words>"`. When an open ticket owns the same area, add a part or a comment to it instead of a new ticket.
+2. Split by repository and by root cause, never by symptom. One root cause with three symptoms is one ticket. Two root causes behind one symptom are two tickets.
+3. Title each ticket with what a person can do or see when it is done, in plain words, under 100 characters, with no ticket number and no code name. Example: "Open Orbit on Android past the launch screen every time".
+4. Set every real dependency with `--blocked-by`: the api ticket that a ui ticket needs, a ticket whose change this one builds on, and the open launch ticket for work that launch does not need. Before launch, only these run: a live defect in sign-in, habits, the AI or app start, a store or launch need, and what an owner order puts first.
+5. A goal that spans several tickets gets one umbrella ticket, blocked by each step ticket. Each step title ends with "(step <n> of #<umbrella>)".
+6. Paired tickets name each other in Technical details.
+
 ## Size
 
 One ticket is one repository. It ships as one or more pull requests. Each pull request is independently mergeable and holds one behaviour. Each pull request `Tracks` the ticket. The last one says `Remaining: none`.
