@@ -34,7 +34,8 @@ This skill writes no code, no branch and no worktree.
 
 A headless worker receives the ticket as its order. The worker cannot read this session. Write the ticket so that it stands alone:
 
-- Quote the owner's words with their dates.
+- Quote the owner's words with their dates, and write each override he gave into the body.
+- Deliver his whole scope: list every item of his order and map each item to a ticket or a part. An item with no ticket is lost.
 - Name the exact files, rules, numbers, commands and checks.
 - Write plain English with short sentences. Use no dash as punctuation.
 
@@ -50,7 +51,7 @@ A headless worker receives the ticket as its order. The worker cannot read this 
 8. Test scenarios
 9. Rollout or Events, where risk or measurement exists
 
-For a defect, put a red-capable command first in Test scenarios. For other work, write no red case that does not exist.
+For a defect, run a red-capable command at least once before the ticket exists, and put it first in Test scenarios. For other work, write no red case that does not exist.
 
 ## Labels
 
