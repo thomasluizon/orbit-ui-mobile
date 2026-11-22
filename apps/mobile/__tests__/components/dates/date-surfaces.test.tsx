@@ -163,6 +163,29 @@ describe('DayCell', () => {
     expect(tree.root.findAllByProps({ testID: 'day-focus-ring' })).toHaveLength(0)
   })
 
+  it('shows the selection ring of a newly selected day at once while the day it leaves held focus', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const grid = (selected: number) => (
+      <MonthGrid selectionIndex={selected} weekdayLabels={['1', '2', '3', '4', '5', '6', '7']}>
+        <DayCell day={1} loggable selected={selected === 0} words={cellWords} scheduled={4} done={1} onPress={() => {}} />
+        <DayCell day={2} loggable selected={selected === 1} words={cellWords} scheduled={4} done={1} onPress={() => {}} />
+      </MonthGrid>
+    )
+    const tree = render(grid(0))
+    const row = tree.root.findByProps({ testID: 'month-grid-row-0' })
+    TestRenderer.act(() => (row.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { x: 0, y: 20, width: 320, height: 48 } } }))
+    const slots = row.findAll((node) => String(node.type) === 'View' && !node.props.testID && Boolean(node.props.onLayout))
+    for (const [index, slot] of slots.entries()) TestRenderer.act(() => (slot.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { x: index * 48, y: 0, width: 40, height: 48 } } }))
+    TestRenderer.act(() => { (tree as unknown as { update(element: React.ReactNode): void }).update(grid(0)) })
+    const indicator = () => StyleSheet.flatten(tree.root.findByProps({ testID: 'selection-motion-indicator' }).props.style as StyleProp<ViewStyle>)
+    TestRenderer.act(() => { (tree.root.findAllByProps({ testID: 'day-cell-partial' })[0]!.props.onFocus as () => void)() })
+    expect(indicator().borderColor).toBeUndefined()
+    TestRenderer.act(() => { (tree as unknown as { update(element: React.ReactNode): void }).update(grid(1)) })
+    expect(indicator()).toMatchObject({ borderColor: tokens.primary, borderWidth: 2 })
+    expect(tree.root.findAllByProps({ testID: 'day-selection-ring' })).toHaveLength(0)
+    expect(tree.root.findAllByProps({ testID: 'day-focus-ring' }).length).toBeGreaterThan(0)
+  })
+
   it('centres today and its status mark in a wide habit history slot', () => {
     const tree = render(<View style={{ width: 97 }}><DayCell day={11} today habitHistory scheduled={1} done={1} words={cellWords} /></View>)
     const boxes = measureDaySurface(tree.toJSON() as GeometryHost, 97)

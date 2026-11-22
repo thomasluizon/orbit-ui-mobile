@@ -199,6 +199,41 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each([320, 1352])('shows the primary ring on the clicked day for the whole flight of the selection indicator at %s', async (width) => {
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ locale: 'en', messages: en })}</script>`)
+      await page.evaluate((variables) => { for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value) }, resolveWebThemeVariables('orange', 'dark'))
+      await page.addScriptTag({ content: monthScript })
+      const today = page.getByTestId('calendar-day-select-2026-09-11')
+      const target = page.getByTestId('calendar-day-select-2026-09-10')
+      await today.waitFor()
+      const ring = `${await readThemeColor(page, '--primary')} 0px 0px 0px 2px inset`
+      await page.keyboard.press('Tab')
+      await today.focus()
+      expect(await today.evaluate((button) => button.matches(':focus-visible'))).toBe(true)
+      await target.click()
+      const samples = await page.evaluate(async () => {
+        const read = () => {
+          const indicator = document.querySelector<HTMLElement>('[data-testid="calendar-day-select-2026-09-10"] [data-selection-motion]')
+          if (!indicator) return null
+          const style = getComputedStyle(indicator)
+          return { transform: style.transform, ring: style.boxShadow }
+        }
+        const taken: { transform: string; ring: string }[] = []
+        for (let index = 0; index < 32; index += 1) {
+          const sample = read()
+          if (sample) taken.push(sample)
+          await new Promise((resolve) => setTimeout(resolve, 25))
+        }
+        return taken
+      })
+      const inFlight = samples.filter((sample) => sample.transform !== 'none')
+      expect(inFlight.length, JSON.stringify(samples)).toBeGreaterThanOrEqual(3)
+      for (const sample of samples) expect(sample.ring).toBe(ring)
+    } finally { await page.close() }
+  })
+
   it.each([320, 412, 600, 1352].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('paints circles inside full-column targets at $width in $locale', async ({ width, locale, messages }) => {
     const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')
     const words = { none: 'none', partial: 'partial', full: 'full', notScheduled: 'not scheduled', of: 'of', today: 'today', readOnly: 'read only' }

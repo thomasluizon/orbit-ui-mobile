@@ -1,7 +1,7 @@
 import { DayFocusReport, MovingDaySelection } from './month-selection'
 import { DayColumnContent } from './day-column-content'
 import { MONTH_GRID_TARGET_MIN, motionDurations, motionEasings } from '@orbit/shared/theme'
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
 import {
@@ -89,7 +89,8 @@ function HabitHistoryContents({ props, outcome, size, tokens, pressed }: Content
 
 function useYieldMovingSelection(yielding: boolean) {
   const reportFocus = useContext(DayFocusReport)
-  useEffect(() => {
+  // A layout effect, so the moving ring returns in the commit that moves the selection and never paints one frame without it.
+  useLayoutEffect(() => {
     if (!yielding) return undefined
     reportFocus(true)
     return () => reportFocus(false)
