@@ -78,7 +78,7 @@ function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reas
         color: iconColor,
       }}
     >
-      <Icon size={20} strokeWidth={1.8} />
+      <Icon size={20} strokeWidth={2} />
       {disabled && reason && !descriptionId ? <span id={reasonId} className="sr-only">{reason}</span> : null}
     </button>
   )

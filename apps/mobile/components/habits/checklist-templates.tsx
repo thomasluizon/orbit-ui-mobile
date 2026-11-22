@@ -114,7 +114,7 @@ function TemplateSaveEditor({ name, waiting, onChange, onSave, onCancel, styles,
         accessibilityRole="button"
         accessibilityLabel={t('common.close')}
       >
-        <X size={16} color={tokens.fg3} strokeWidth={1.8} />
+        <X size={16} color={tokens.fg3} strokeWidth={2} />
       </Pressable>
     </View>
   )

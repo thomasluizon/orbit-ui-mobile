@@ -83,7 +83,7 @@ export function TagEditorRow({
         disabled={disabled}
         onPress={requestCancel}
       >
-        <X size={16} color={tokens.fg3} strokeWidth={1.8} />
+        <X size={16} color={tokens.fg3} strokeWidth={2} />
       </Pressable>
     </View>
     {error ? <Text style={[styles.fieldError, styles.tagEditorError]}>{error}</Text> : null}

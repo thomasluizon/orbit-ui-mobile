@@ -230,7 +230,7 @@ function ApiKeyGate({ busy, error, activeApiKeyCount, onStartStepUp }: Readonly<
         {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
         <ListRow
           compact
-          icon={<Key size={24} strokeWidth={1.8} color={tokens.fg1} />}
+          icon={<Key size={24} strokeWidth={2} color={tokens.fg1} />}
           title={t('profile.apiKeys.open')}
           wrapTitle
           value={keyCountLabel}

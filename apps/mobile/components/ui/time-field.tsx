@@ -254,7 +254,7 @@ function TimeEntry({
           focusInset
           style={({ pressed }) => [styles.icon, pressed ? { backgroundColor: tokens.bgHover } : null]}
         >
-          <Clock3 size={20} color={tokens.fg3} strokeWidth={1.8} />
+          <Clock3 size={20} color={tokens.fg3} strokeWidth={2} />
         </MotionPressable>
         {canClear ? (
           <MotionPressable
@@ -265,7 +265,7 @@ function TimeEntry({
             focusInset
             style={({ pressed }) => [styles.icon, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
-            <X size={20} color={tokens.fg3} strokeWidth={1.8} />
+            <X size={20} color={tokens.fg3} strokeWidth={2} />
           </MotionPressable>
         ) : null}
       </View>

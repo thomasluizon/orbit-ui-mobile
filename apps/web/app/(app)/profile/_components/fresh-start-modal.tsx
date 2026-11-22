@@ -43,7 +43,7 @@ function FreshStartHero({ body }: Readonly<{ body: string }>) {
           background: 'color-mix(in srgb, var(--status-overdue) 14%, transparent)',
         }}
       >
-        <RotateCcw size={24} strokeWidth={1.8} color="var(--status-overdue)" />
+        <RotateCcw size={24} strokeWidth={2} color="var(--status-overdue)" />
       </div>
       <p
         style={{

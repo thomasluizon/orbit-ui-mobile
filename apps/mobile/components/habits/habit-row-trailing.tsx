@@ -112,7 +112,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
             <MoreVertical
               size={20}
               color={tokens.fg3}
-              strokeWidth={1.8}
+              strokeWidth={2}
             />
           </MotionPressable>
         </Menu.Trigger>

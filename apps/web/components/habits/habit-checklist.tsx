@@ -170,7 +170,7 @@ export function HabitChecklist({
               style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
               onClick={onReset}
             >
-              <RotateCcw size={16} strokeWidth={1.8} aria-hidden="true" />
+              <RotateCcw size={16} strokeWidth={2} aria-hidden="true" />
             </button>
           )}
 
@@ -307,7 +307,7 @@ function SortableChecklistItem({
         className="orbit-focus-inset checklist-drag-handle touch-target shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] enabled:hover:text-[var(--fg-2)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-[color,background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] touch-none"
         style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
       >
-        <GripHorizontal size={16} strokeWidth={1.8} aria-hidden="true" />
+        <GripHorizontal size={16} strokeWidth={2} aria-hidden="true" />
       </button>
 
       <div
@@ -337,7 +337,7 @@ function SortableChecklistItem({
         disabled={duplicateDisabled}
         onClick={() => onDuplicate(index)}
       >
-        <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
+        <Copy size={16} strokeWidth={2} aria-hidden="true" />
       </button>
 
       <button
@@ -347,7 +347,7 @@ function SortableChecklistItem({
         style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
         onClick={() => onRemove(index)}
       >
-        <X size={16} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-enabled/remove:group-hover/remove:text-[var(--status-bad)]" />
+        <X size={16} strokeWidth={2} aria-hidden="true" className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-enabled/remove:group-hover/remove:text-[var(--status-bad)]" />
       </button>
     </div>
   )

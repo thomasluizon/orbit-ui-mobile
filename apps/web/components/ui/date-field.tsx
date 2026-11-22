@@ -181,7 +181,7 @@ export function DateField({
         onClick={() => (isOpen ? closePicker() : setIsOpen(true))}
       >
         <span className={dateValueClassName(displayValue, appearance)}>{displayValue || placeholder || t('common.selectDate')}</span>
-        <Calendar size={20} strokeWidth={1.8} className={`text-[var(--fg-3)] ${FIELD_TRIGGER_MUTED_CONTENT}`} />
+        <Calendar size={20} strokeWidth={2} className={`text-[var(--fg-3)] ${FIELD_TRIGGER_MUTED_CONTENT}`} />
         <FieldTriggerFill />
       </button>
 
@@ -193,7 +193,7 @@ export function DateField({
             aria-label={t('common.previousMonth')}
             onClick={prevMonth}
           >
-            <ChevronLeft size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+            <ChevronLeft size={20} strokeWidth={2} className="text-[var(--fg-3)]" />
           </button>
           <span id={dialogLabelId} className="flex items-center gap-1" aria-live="polite">
             {monthLead && (
@@ -216,7 +216,7 @@ export function DateField({
             aria-label={t('common.nextMonth')}
             onClick={nextMonth}
           >
-            <ChevronRight size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+            <ChevronRight size={20} strokeWidth={2} className="text-[var(--fg-3)]" />
           </button>
         </div>
 

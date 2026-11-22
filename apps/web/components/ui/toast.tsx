@@ -29,7 +29,7 @@ function DoneMark() {
       data-done-mark
       aria-hidden="true"
     >
-      <Check size={16} strokeWidth={2.4} />
+      <Check size={16} strokeWidth={2.5} />
     </span>
   )
 }

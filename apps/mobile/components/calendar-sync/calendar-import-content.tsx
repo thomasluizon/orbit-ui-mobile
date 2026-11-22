@@ -448,7 +448,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
             <View
               style={[styles.stateGlyphCircle, { backgroundColor: tokens.bgWell }]}
             >
-              <LinkIcon size={24} color={tokens.fg1} strokeWidth={1.8} />
+              <LinkIcon size={24} color={tokens.fg1} strokeWidth={2} />
             </View>
             <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
               {t('calendar.notConnectedTitle')}
@@ -474,7 +474,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
             accessibilityLiveRegion="polite"
             accessibilityLabel={t('offline.title')}
           >
-            <WifiOff size={24} color={tokens.fg3} strokeWidth={1.4} />
+            <WifiOff size={24} color={tokens.fg3} strokeWidth={1.5} />
             <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
               {t('offline.title')}
             </Text>
@@ -583,7 +583,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                   { backgroundColor: tokens.bgWell },
                 ]}
               >
-                <Check size={24} color={tokens.fg1} strokeWidth={2.2} />
+                <Check size={24} color={tokens.fg1} strokeWidth={2} />
               </View>
               <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
                 {t('calendar.importDone')}
@@ -618,7 +618,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 { backgroundColor: rgbaFromHex(tokens.statusBad, 0.15) },
               ]}
             >
-              <AlertTriangle size={24} color={tokens.statusBad} strokeWidth={1.8} />
+              <AlertTriangle size={24} color={tokens.statusBad} strokeWidth={2} />
             </View>
             <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
               {t('calendar.errorTitle')}

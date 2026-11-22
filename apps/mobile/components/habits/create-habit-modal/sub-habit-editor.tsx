@@ -82,7 +82,7 @@ export function SubHabitEditor({
                 accessibilityRole="button"
                 accessibilityLabel={task ? t('habits.form.removeSubTask') : t('habits.form.removeSubHabit')}
               >
-                <Trash2 size={16} color={tokens.fg3} strokeWidth={1.8} />
+                <Trash2 size={16} color={tokens.fg3} strokeWidth={2} />
               </Pressable>
             </View>
             </Proposed>

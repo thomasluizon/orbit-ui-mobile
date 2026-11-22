@@ -167,7 +167,7 @@ export function DeleteAccountModal({
               background: 'color-mix(in srgb, var(--status-bad) 14%, transparent)',
             }}
           >
-            <TriangleAlert size={24} strokeWidth={1.8} color="var(--status-bad)" />
+            <TriangleAlert size={24} strokeWidth={2} color="var(--status-bad)" />
           </div>
           <div className="flex flex-col" style={{ gap: 8 }}>
             <p style={{ color: 'var(--status-bad-text)', fontSize: 16, fontWeight: 500, lineHeight: 1.5 }}>

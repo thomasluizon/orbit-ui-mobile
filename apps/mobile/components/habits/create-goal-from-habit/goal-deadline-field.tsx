@@ -45,7 +45,7 @@ export function GoalDeadlineField({
               accessibilityRole="button"
               accessibilityLabel={t('goals.form.removeDeadline')}
             >
-              <X size={16} color={tokens.fg3} strokeWidth={1.8} />
+              <X size={16} color={tokens.fg3} strokeWidth={2} />
             </MotionPressable>
           </View>
           {isGoalDeadlinePast(deadline) ? (
