@@ -58,12 +58,21 @@ async function renderGoals() {
 }
 const ring = (goalId: string): ReactTestInstance => byProp(tree.root, 'testID', `goal-ring-${goalId}`)
 const ringValue = (goalId: string) => (byProp(ring(goalId), 'accessibilityRole', 'progressbar').props.accessibilityValue as { now: number }).now
+let frames = new Map<number, () => void>()
+let frameId = 0
 async function nextFrames() {
-  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)) })
+  for (let round = 0; round < 2; round += 1) {
+    const due = [...frames.values()]
+    frames.clear()
+    await act(async () => { for (const frame of due) frame(); await Promise.resolve() })
+  }
 }
 
 describe('goals list on the Orbit logic', () => {
   beforeEach(() => {
+    frames = new Map()
+    vi.stubGlobal('requestAnimationFrame', (callback: () => void) => { frameId += 1; frames.set(frameId, callback); return frameId })
+    vi.stubGlobal('cancelAnimationFrame', (handle: number) => { frames.delete(handle) })
     mocks.guided = true
     mocks.reducedMotion = false
     mocks.storage.clear()
