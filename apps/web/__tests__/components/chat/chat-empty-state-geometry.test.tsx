@@ -16,7 +16,12 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('@/lib/conversation-history', () => ({ conversationHistory: { latest: vi.fn(() => Promise.resolve(false)) } }))
+vi.mock('@/hooks/use-conversation-history', () => ({
+  useConversationHistory: () => ({
+    failed: null, confirmationOpen: false, requestDelete: vi.fn(), cancelDelete: vi.fn(),
+    confirmDelete: vi.fn(), loadEarlier: vi.fn(), retry: vi.fn(),
+  }),
+}))
 vi.mock('@/components/shell/composer', () => ({
   Composer: () => <div style={{ height: 128 }} data-testid="pinned-composer" />,
 }))
