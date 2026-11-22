@@ -115,7 +115,7 @@ export function WrappedPlayer({
             accessibilityLabel={t('wrapped.close')}
             style={({ pressed }) => [styles.closeBtn, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
-            <X size={20} color={tokens.fg1} strokeWidth={1.8} />
+            <X size={20} color={tokens.fg1} strokeWidth={2} />
           </MotionPressable>
         </View>
 

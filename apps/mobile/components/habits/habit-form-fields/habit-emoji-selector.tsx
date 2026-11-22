@@ -120,7 +120,7 @@ export function HabitEmojiSelector({
                 {selectedEmoji ? (
                   <Text style={[styles.emojiWellText, proposed ? { color: tokens.fg3 } : null, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
                 ) : (
-                  <Smile size={20} color={tokens.fg3} strokeWidth={1.8} />
+                  <Smile size={20} color={tokens.fg3} strokeWidth={2} />
                 )}
               </View>
             )}
@@ -138,7 +138,7 @@ export function HabitEmojiSelector({
           <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
             <View style={{ alignItems: 'center', backgroundColor: tokens.bgWell, borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }}><Text style={{ fontSize: 20 }}>{selectedEmoji}</Text></View>
             <Pressable focusInset accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, overflow: 'hidden', height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN }, pressed ? { backgroundColor: tokens.bgHover } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
-              <Trash2 size={20} color={tokens.fg2} strokeWidth={1.8} />
+              <Trash2 size={20} color={tokens.fg2} strokeWidth={2} />
             </Pressable>
           </View>
         ) : undefined}
@@ -163,7 +163,7 @@ export function HabitEmojiSelector({
                   style={({ pressed }) => [{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, pressed && { backgroundColor: tokens.bgHover }]}
                   onPress={() => setQuery('')}
                 >
-                  <X size={20} color={tokens.fg2} strokeWidth={1.8} />
+                  <X size={20} color={tokens.fg2} strokeWidth={2} />
                 </Pressable>
               ) : null}
             </View>

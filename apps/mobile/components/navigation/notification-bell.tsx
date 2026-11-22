@@ -61,7 +61,7 @@ export function NotificationBellDisplay({ count, onPress, loaded = true }: { cou
   const changed = useCountChanged(count, loaded)
   const rolls = useFlag('orbit_guided_flows') && changed && !reducedMotion
   const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
-  const glyph = <Bell size={24} color={tokens.fg2} strokeWidth={1.8} />
+  const glyph = <Bell size={24} color={tokens.fg2} strokeWidth={2} />
   const shown = count > 9 ? '9+' : count
   const figure = <Text accessible={false} testID="notification-count" maxFontSizeMultiplier={1} style={[styles.bellCount, rolls ? styles.rollingCount : null]}>{shown}</Text>
   const marker = count > 0 ? <View accessible={false} importantForAccessibility="no-hide-descendants"

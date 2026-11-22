@@ -133,7 +133,7 @@ function EditableChecklistItem({
         onPress={() => onDuplicate(index)}
         disabled={disabled || duplicateDisabled}
       >
-        <Copy size={16} color={tokens.fg3} strokeWidth={1.8} />
+        <Copy size={16} color={tokens.fg3} strokeWidth={2} />
       </MotionPressable>
       <MotionPressable
         focusInset
@@ -146,7 +146,7 @@ function EditableChecklistItem({
         ]}
         onPress={() => onRemove(index)}
       >
-        <X size={16} color={tokens.fg3} strokeWidth={1.8} />
+        <X size={16} color={tokens.fg3} strokeWidth={2} />
       </MotionPressable>
     </View>
   )
@@ -342,7 +342,7 @@ export function HabitChecklist({
               ]}
               onPress={onReset}
             >
-              {({ pressed }) => <RotateCcw size={16} color={pressed ? tokens.fg2 : tokens.primary} strokeWidth={1.8} />}
+              {({ pressed }) => <RotateCcw size={16} color={pressed ? tokens.fg2 : tokens.primary} strokeWidth={2} />}
             </MotionPressable>
           )}
 

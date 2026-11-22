@@ -101,7 +101,7 @@ export function ReminderSection({
                   disabled={reminderTimes.length + scheduledReminderCount <= 1}
                   onClick={() => removeReminder(time)}
                 >
-                  <X size={16} strokeWidth={2.2} aria-hidden="true" />
+                  <X size={16} strokeWidth={2} aria-hidden="true" />
                 </button>
               </span>
             ))}

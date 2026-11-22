@@ -1405,7 +1405,8 @@
       "monthEmpty": "Nothing planned in {month}.",
       "monthFuture": "This month has not arrived yet.",
       "askDay": "Tell me about {date} in my calendar.",
-      "askMonth": "Tell me about {month} in my calendar."
+      "askMonth": "Tell me about {month} in my calendar.",
+      "loadError": "I could not load your calendar."
     },
     "title": "Google Calendar",
     "fetchingEvents": "Fetching your calendar events...",

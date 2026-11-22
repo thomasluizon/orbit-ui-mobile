@@ -128,9 +128,9 @@ describe('ReferralDrawer', () => {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
     const copy = screen.getByRole('button', { name: 'referral.drawer.copyLink' })
-    expectCopyStateIcon(copy, { copied: false, strokeWidth: 1.8, color: 'var(--fg-2)' })
+    expectCopyStateIcon(copy, { copied: false, strokeWidth: 2, color: 'var(--fg-2)' })
     fireEvent.click(copy)
-    await waitFor(() => expectCopyStateIcon(copy, { copied: true, strokeWidth: 1.8, color: 'var(--fg-2)' }))
+    await waitFor(() => expectCopyStateIcon(copy, { copied: true, strokeWidth: 2, color: 'var(--fg-2)' }))
     expect(writeText).toHaveBeenCalledWith(mockReferralUrl)
   })
 

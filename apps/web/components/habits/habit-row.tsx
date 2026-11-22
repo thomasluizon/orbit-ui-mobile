@@ -139,7 +139,7 @@ function HabitRowStructuralColumn({
     >
       <ChevronDown
         size={20}
-        strokeWidth={1.8}
+        strokeWidth={2}
         aria-hidden="true"
         style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}
       />

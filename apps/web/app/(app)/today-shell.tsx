@@ -39,7 +39,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
         className={DATE_ICON_BUTTON_CLASS_NAME}><Search size={20} aria-hidden="true" /></button>
       <Menu.Trigger asChild><button ref={menuAnchorRef} type="button" aria-label={props.moreLabel} aria-expanded={menuOpen}
         aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME}>
-        <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
+        <MoreVertical size={20} strokeWidth={2} aria-hidden="true" />
       </button></Menu.Trigger>
       <HeaderAppearanceActions />
     </div>
@@ -61,7 +61,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
       {props.beforeDate}
       {props.showDate !== false ? <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[12px] px-4 py-1">
         <button type="button" aria-label={props.previousLabel} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={props.onGoToPreviousDay}>
-          <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
+          <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
         </button>
         <div className="flex min-w-0 flex-1 justify-center">
           <button data-today-date="" type="button" aria-label={`${props.dayName}, ${props.numericDate}${props.isTodaySelected ? '' : `, ${props.goToTodayLabel}`}`}
@@ -78,7 +78,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
         </div>
         <button type="button" aria-label={props.nextLabel} disabled={props.nextDisabled}
           className={`${DATE_ICON_BUTTON_CLASS_NAME} disabled:cursor-default disabled:opacity-50`} onClick={props.onGoToNextDay}>
-          <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
+          <ChevronRight size={20} strokeWidth={2} aria-hidden="true" />
         </button>
       </div> : null}
     </div>
