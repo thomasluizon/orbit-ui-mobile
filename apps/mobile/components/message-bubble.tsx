@@ -143,7 +143,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
                   ]}
                 >
                   <Text style={styles.relatedChipText}>{t(surface.labelKey)}</Text>
-                  <ArrowUpRight size={16} color={tokens.fg3} strokeWidth={1.8} />
+                  <ArrowUpRight size={16} color={tokens.fg3} strokeWidth={2} />
                 </MotionPressable>
               ))}
             </View>

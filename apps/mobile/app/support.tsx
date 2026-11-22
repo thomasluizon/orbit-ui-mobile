@@ -70,7 +70,7 @@ function SupportSuccessState({
         accessible={false}
         style={[styles.successIconCircle, { backgroundColor: tokens.fg1 }]}
       >
-        <Check size={24} color={tokens.bg} strokeWidth={1.8} accessible={false} />
+        <Check size={24} color={tokens.bg} strokeWidth={2} accessible={false} />
       </View>
       <Text accessibilityRole="header" style={[styles.successTitle, { color: tokens.fg1 }]}>
         {t('profile.support.success')}

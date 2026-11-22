@@ -122,7 +122,7 @@ export function HabitDrill({
               pressed ? styles.drillBackBtnPressed : null,
             ]}
           >
-            <ArrowLeft size={20} color={tokens.fg1} strokeWidth={1.8} />
+            <ArrowLeft size={20} color={tokens.fg1} strokeWidth={2} />
           </MotionPressable>
           <View style={styles.drillHeading}>
             <PersonalText onClampedChange={setClamped} accessibilityRole="header" style={styles.drillTitle}>

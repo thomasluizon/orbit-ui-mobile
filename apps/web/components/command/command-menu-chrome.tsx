@@ -64,7 +64,7 @@ export function CommandSearchField({ search, setSearch, activePageLabel, onBack,
               inputRef.current?.focus()
             }}
           >
-            <ArrowLeft size={20} strokeWidth={1.8} aria-hidden />
+            <ArrowLeft size={20} strokeWidth={2} aria-hidden />
           </Button>
           <span
             className="rounded-[8px] px-3 py-1 text-[12px] font-medium text-[var(--fg-2)]"
@@ -87,7 +87,7 @@ export function CommandSearchField({ search, setSearch, activePageLabel, onBack,
             data-focus-perimeter=""
             className="orbit-field-hover h-[54px] w-full rounded-[12px] bg-[var(--bg-field)] px-4 pr-12 text-[16px] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]"
           />
-          <Search className="pointer-events-none absolute right-4 top-1/2 size-5 -translate-y-1/2 text-[var(--fg-3)]" strokeWidth={1.8} aria-hidden />
+          <Search className="pointer-events-none absolute right-4 top-1/2 size-5 -translate-y-1/2 text-[var(--fg-3)]" strokeWidth={2} aria-hidden />
         </div>
       </div>
 

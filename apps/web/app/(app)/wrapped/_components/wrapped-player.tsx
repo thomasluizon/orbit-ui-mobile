@@ -147,7 +147,7 @@ export function WrappedPlayer({
             onClick={dismiss}
             className="icon-btn touch-target shrink-0"
           >
-            <X size={20} strokeWidth={1.8} aria-hidden="true" />
+            <X size={20} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
 

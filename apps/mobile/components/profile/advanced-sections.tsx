@@ -14,7 +14,7 @@ function WidgetFeatureIcon({
   iconKey,
   color,
 }: Readonly<{ iconKey: WidgetFeatureIconKey; color: string }>) {
-  const iconProps = { size: 16, strokeWidth: 1.8, color }
+  const iconProps = { size: 16, strokeWidth: 2, color }
   if (iconKey === 'checkCircle') return <CheckCircle {...iconProps} />
   if (iconKey === 'clock') return <Clock {...iconProps} />
   if (iconKey === 'list') return <List {...iconProps} />

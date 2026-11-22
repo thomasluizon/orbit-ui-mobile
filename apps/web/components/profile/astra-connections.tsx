@@ -26,7 +26,7 @@ function NotionConnectionRow({ controller, hasProAccess, onOpen, onUpgrade }: Re
     : t(notionConnectionLabel(data))
   return <ListRow textMode="label" compact titleTranslate="no" title={t('profile.connections.notion')}
         accessibilityLabel={hasProAccess && isLoading ? t('profile.connections.loadingStatus', { name: t('profile.connections.notion') }) : undefined}
-        icon={hasProAccess ? <FileText size={24} strokeWidth={1.8} /> : <Lock size={24} strokeWidth={1.8} />}
+        icon={hasProAccess ? <FileText size={24} strokeWidth={2} /> : <Lock size={24} strokeWidth={2} />}
         value={hasProAccess ? value : undefined} wrapValue
         trailing={hasProAccess ? undefined : <ProBadge alwaysVisible />} chevron={hasProAccess}
         onClick={hasProAccess ? onOpen : onUpgrade} />
@@ -52,7 +52,7 @@ export function AstraConnections({ hasProAccess }: Readonly<{ hasProAccess: bool
   return <section className="flex min-w-0 flex-col" style={{ gap: 8 }}>
     <h2 className="font-sans text-sm font-medium text-[var(--fg-2)]">{t('profile.connections.title')}</h2>
     <SettingsGroup>
-      <ListRow textMode="label" compact icon={<Calendar size={24} strokeWidth={1.8} />} title={t('profile.connections.googleCalendar')}
+      <ListRow textMode="label" compact icon={<Calendar size={24} strokeWidth={2} />} title={t('profile.connections.googleCalendar')}
         href="/calendar?import=1" />
       {controller.visible ? <NotionConnectionRow controller={controller} hasProAccess={hasProAccess} onUpgrade={onUpgrade}
         onOpen={() => { controller.authorize.reset(); if (!controller.disconnect.isPending) controller.disconnect.reset(); setOpen(true) }} /> : null}

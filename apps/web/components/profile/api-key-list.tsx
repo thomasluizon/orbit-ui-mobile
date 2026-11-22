@@ -62,7 +62,7 @@ export function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }:
         <div key={apiKey.id}>
           <ListRow
             compact
-            icon={<Key size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
+            icon={<Key size={24} strokeWidth={2} color="var(--fg-1)" aria-hidden="true" />}
             title={apiKey.name}
             textMode="personal"
             wrapTitle

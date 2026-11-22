@@ -3,7 +3,7 @@
 import { useCalendarScreenState, type CalendarPageContentProps } from './_components/use-calendar-screen-state'
 import { CalendarViewRouter } from './_components/calendar-view-router'
 import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
-import { useMemo, useState, Suspense, type ReactNode } from 'react'
+import { useMemo, useState, Suspense } from 'react'
 import { useTranslations } from 'next-intl'
 import { calendarMonthForDay, calendarImportTitleKey } from '@orbit/shared/utils'
 import { useCalendarData } from '@/hooks/use-calendar-data'
@@ -11,7 +11,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import { CalendarDayEvents } from '@/components/calendar/calendar-day-events'
 import { CalendarImportContent, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
-import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
+import { CalendarBody } from './_components/calendar-body'
 import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { plural } from '@/lib/plural'
@@ -55,19 +55,6 @@ function CalendarPageState() {
       setView={setView}
     />
   )
-}
-
-function CalendarBody({ profileReady, profileError, onRetryProfile, error, onRetry, children }: Readonly<{
-  profileReady: boolean
-  profileError: Error | null
-  onRetryProfile: () => void
-  error: string | null
-  onRetry: () => void
-  children: ReactNode
-}>) {
-  if (!profileReady && profileError) return <CalendarLoadError onRetry={onRetryProfile} />
-  if (profileReady && error) return <div style={{ padding: "var(--orbit-space-0) var(--orbit-space-16) var(--orbit-space-16)" }}><CalendarLoadError onRetry={onRetry} /></div>
-  return children
 }
 
 function CalendarPageContent(props: Readonly<CalendarPageContentProps>) {

@@ -12,7 +12,7 @@ export function StepUp({ message, actionLabel, onAction, busy = false }: Readonl
 
   return (
     <View style={[styles.root, { backgroundColor: tokens.bgElev }]}>
-      <Shield color={tokens.fg2} size={20} strokeWidth={1.8} />
+      <Shield color={tokens.fg2} size={20} strokeWidth={2} />
       <Text style={[styles.message, { color: tokens.fg2 }]}>{message}</Text>
       <Button loading={busy} onClick={onAction} size="sm" variant="secondary">
         {actionLabel}

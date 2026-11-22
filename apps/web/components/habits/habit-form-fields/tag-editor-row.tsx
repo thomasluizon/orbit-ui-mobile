@@ -70,7 +70,7 @@ export function TagEditorRow({
         disabled={pending}
         onClick={requestCancel}
       >
-        <X size={16} strokeWidth={1.8} aria-hidden="true" />
+        <X size={16} strokeWidth={2} aria-hidden="true" />
       </button>
     </div>
     {error ? <p id={errorId} className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}

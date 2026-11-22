@@ -277,7 +277,7 @@ function ToastLeadingMark({ props, tokens }: Readonly<{ props: ToastProps; token
           testID="toast-done-mark"
           accessibilityElementsHidden
         >
-          <Check size={16} strokeWidth={2.4} color={tokens.bg} />
+          <Check size={16} strokeWidth={2.5} color={tokens.bg} />
         </View>
       ) : null}
       {(props.kind === 'neutral' || props.kind === 'lost') && props.icon ? (

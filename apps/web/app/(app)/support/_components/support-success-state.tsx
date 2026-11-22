@@ -20,7 +20,7 @@ export function SupportSuccessState({ email, onBack }: Readonly<{ email: string;
         }}
         aria-hidden="true"
       >
-        <Check size={24} strokeWidth={1.8} />
+        <Check size={24} strokeWidth={2} />
       </span>
       <h2
         style={{

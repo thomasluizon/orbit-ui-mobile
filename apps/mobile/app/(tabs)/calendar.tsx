@@ -1,23 +1,19 @@
 import { useCalendarNavigation } from './calendar/_components/use-calendar-navigation'
-import { createStyles } from './calendar/_components/calendar-screen-styles'
-
 import { useCalendarScreenState, type CalendarScreenContentProps } from './calendar/_components/use-calendar-screen-state'
 
 import { CalendarViewRouter, CalendarMonthFooter } from './calendar/_components/calendar-view-router'
-
-import { IconButton } from '@/components/ui/icon-button'
-
-import { RefreshCw } from '@/components/ui/icons'
 
 import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
 
 import { CalendarOptions } from './calendar/_components/calendar-options'
 
+import { CalendarBody } from './calendar/_components/calendar-body'
+
 import { CalendarImportResult } from './calendar/_components/calendar-import-result'
 
-import { useMemo, useState, type ReactNode } from "react"
+import { useMemo, useState } from "react"
 
-import { View, Text, FlatList } from "react-native"
+import { View, FlatList, type StyleProp, type ViewStyle } from "react-native"
 
 import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 
@@ -32,8 +28,6 @@ import { useCalendarData } from '@/hooks/use-calendar-data'
 import { useProfile } from "@/hooks/use-profile"
 
 import { useFlag } from '@/hooks/use-flag'
-
-import type { createTokensV2 } from "@/lib/theme"
 
 import { Sheet } from '@/components/ui/sheet'
 
@@ -82,29 +76,12 @@ export default function CalendarScreen() {
   )
 }
 
-function CalendarLoadError({ onRetry, tokens }: Readonly<{ onRetry: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
-  const { t } = useTranslation()
-  const styles = useMemo(() => createStyles(), [])
-  return <View style={styles.errorWrap}>
-    <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, outlineColor: tokens.hairline }]}>
-      <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
-      <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
-    </View>
-  </View>
-}
-
-function CalendarBody({ profileReady, profileError, onRetryProfile, error, onRetry, tokens, children }: Readonly<{
-  profileReady: boolean
-  profileError: Error | null
-  onRetryProfile: () => void
-  error: string | null
-  onRetry: () => void
-  tokens: ReturnType<typeof createTokensV2>
-  children: ReactNode
-}>) {
-  if (!profileReady && profileError) return <CalendarLoadError onRetry={onRetryProfile} tokens={tokens} />
-  if (profileReady && error) return <CalendarLoadError onRetry={onRetry} tokens={tokens} />
-  return children
+function calendarListLayout(view: string, guidedLoadError: boolean, clearance: number, container: StyleProp<ViewStyle>) {
+  const fills = view === 'week' || guidedLoadError
+  let grow = {}
+  if (view === 'week') grow = { flex: 1 }
+  else if (guidedLoadError) grow = { flexGrow: 1 }
+  return { headerStyle: fills ? container : undefined, contentStyle: { paddingBottom: clearance, ...grow } }
 }
 
 function CalendarScreenContent(props: Readonly<CalendarScreenContentProps>) {
@@ -113,6 +90,8 @@ function CalendarScreenContent(props: Readonly<CalendarScreenContentProps>) {
   const [importedCount, setImportedCount] = useState<number | null>(null)
   const finishImport = (count: number) => closeImportSheet(() => { closeImport(); setImportedCount(count) })
   const { profile, profileError, onRetryProfile, selectedDay, view, router, t, openImport, tokens, listRef, displayTime, styles, clearance, isDayDetailOpen, sheetRef, openDayDisclosure, setIsEventsOpen, openHabit, disclosedWeekDay, isEventsOpen, showImportSheet, importSheetRef, closeImport, reviewRequested, importActionState, commitCalendarImport, importRequested, params, initialImportEventId, importActionRef, setImportActionState, closeImportSheet, setIsImportOpen, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, rangeLoadingLabel, closeDayDetail, activeError, activeRefresh, formattedSelectedDate, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, filteredEntries, goToSelectedDay, openGoogleCalendar, calendarHeader } = state
+
+  const listLayout = calendarListLayout(view, guided && Boolean(profile ? activeError : profileError), clearance, styles.container)
 
   return (
     <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
@@ -131,9 +110,9 @@ function CalendarScreenContent(props: Readonly<CalendarScreenContentProps>) {
             <CalendarViewRouter state={state} />
           </CalendarBody>
         </>}
-        ListHeaderComponentStyle={view === 'week' ? styles.container : undefined}
+        ListHeaderComponentStyle={listLayout.headerStyle}
         ListFooterComponent={view === 'month' && !(profile ? activeError : profileError) ? <CalendarMonthFooter state={state} /> : undefined}
-        contentContainerStyle={{ paddingBottom: clearance, ...(view === 'week' ? { flex: 1 } : {}) }}
+        contentContainerStyle={listLayout.contentStyle}
         scrollEnabled={view !== 'week'}
         showsVerticalScrollIndicator={false}
       />

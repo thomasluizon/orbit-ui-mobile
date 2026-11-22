@@ -89,7 +89,7 @@ export function ScheduledReminderSection({
                 >
                   <span className="min-w-0 break-words">{scheduledReminderLabel(sr)}</span>
                   <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="habit-control-motion press-hit-layer grid shrink-0 rounded-full enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] enabled:hover:text-[var(--fg-2)]" onClick={() => removeScheduledReminder(idx)}>
-                    <X size={16} strokeWidth={2.2} aria-hidden="true" />
+                    <X size={16} strokeWidth={2} aria-hidden="true" />
                   </button>
                 </span>
               ))}
