@@ -7,6 +7,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { motionDurations } from '@orbit/shared/theme'
 import { LoginContent, type LoginCallback } from '@/app/(auth)/login/login-content'
 import { AuthPageFrame } from '@/components/auth/auth-page-frame'
+import { GuidedSignInContext } from '@/components/auth/guided-sign-in'
 
 type Locale = typeof authLocales[number]
 const mocks = vi.hoisted(() => ({ flow: {} as Record<string, unknown>, captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: vi.fn(), reduced: false }))
@@ -33,9 +34,9 @@ function setFixture(state: AuthScreenState, locale: Locale, overrides: Record<st
   return fixture
 }
 
-function show(state: AuthScreenState, locale: Locale, options: { callback?: LoginCallback; overrides?: Record<string, unknown> } = {}) {
+function show(state: AuthScreenState, locale: Locale, options: { guided?: boolean; callback?: LoginCallback; overrides?: Record<string, unknown> } = {}) {
   const fixture = setFixture(state, locale, options.overrides)
-  const view = render(<AuthPageFrame><LoginContent callback={options.callback} /></AuthPageFrame>)
+  const view = render(<GuidedSignInContext value={options.guided ?? true}><AuthPageFrame><LoginContent callback={options.callback} /></AuthPageFrame></GuidedSignInContext>)
   return { ...view, t: fixture.t }
 }
 
@@ -220,21 +221,51 @@ describe.each(authLocales)('guided sign-in in %s', (locale) => {
     for (const name of [t('auth.signInWithGoogle'), t('auth.signInWithApple'), t('auth.sendCode')]) expect(screen.getByRole('button', { name })).toBeEnabled()
   })
 
+  it.each(['failed', 'cancelled'] as const)('keeps the provider line of the current surface with the flag off after a %s callback', (state) => {
+    const { t, container } = show('email', locale, { guided: false, callback: { state, provider: 'google', onContinue: vi.fn() } })
+    expect(container.querySelector('[data-error-state]')).toBeNull()
+    expect(container).toHaveTextContent(t('auth.errors.googleError'))
+  })
+
   it('keeps the provider action busy while the callback waits', () => {
     const { t } = show('email', locale, { callback: { state: 'pending', provider: 'google', onContinue: vi.fn() } })
     expect(screen.getByRole('button', { name: t('auth.signInWithGoogle') })).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('textbox')).toBeDisabled()
   })
+
+  it.each(authScreenStates)('holds one main landmark in %s on the guided surface and on the current surface', (state) => {
+    const guided = show(state, locale)
+    expect(guided.container.querySelectorAll('main')).toHaveLength(1)
+    guided.unmount()
+    const current = show(state, locale, { guided: false })
+    expect(current.container.querySelectorAll('main')).toHaveLength(1)
+    expect(current.container.querySelector('main')).toHaveAttribute('data-auth-page-frame')
+  })
+
+  it.each(authScreenStates)('keeps every control of the current surface in %s, with Orbit never resting and no old name', (state) => {
+    const current = show(state, locale, { guided: false })
+    const currentControls = reachableControls(current.container)
+    const currentFields = current.container.querySelectorAll('input').length
+    current.unmount()
+    const { container } = show(state, locale)
+    const guidedControls = reachableControls(container)
+    for (const control of currentControls) expect(guidedControls, `${state}: ${control}`).toContain(control)
+    expect(container.querySelectorAll('input')).toHaveLength(currentFields)
+    expect(container.querySelector('[data-orbit-state="descansando"]')).toBeNull()
+    expect(container.querySelector('[data-orbit-state]')).toHaveAttribute('data-orbit-state', 'parado')
+    expect(container.textContent).not.toMatch(/orbit/i)
+    expect(container.querySelector('.animate-spin')).toBeNull()
+  })
 })
 
 describe('guided sign-in field contract', () => {
   it.each([true, false])('keeps the name, the autocomplete value and the order of every field, guided %s', (guided) => {
-    const email = show('email', 'en', { })
+    const email = show('email', 'en', { guided })
     const emailFields = [...email.container.querySelectorAll('form input')]
     expect(emailFields.map((field) => [field.getAttribute('name'), field.getAttribute('autocomplete'), field.getAttribute('type')])).toEqual([['email', 'email', 'email']])
     expect(email.container.querySelector('form')!.querySelector('input, button, select, textarea')).toBe(emailFields[0])
     email.unmount()
-    const code = show('code', 'en', { })
+    const code = show('code', 'en', { guided })
     const codeFields = [...code.container.querySelectorAll('form input')]
     expect(codeFields.map((field) => [field.getAttribute('name'), field.getAttribute('autocomplete'), field.getAttribute('inputmode')])).toEqual([['verificationCode', 'one-time-code', 'numeric']])
     expect(code.container.querySelector('form')!.querySelector('input, button, select, textarea')).toBe(codeFields[0])
@@ -254,5 +285,31 @@ describe('guided sign-in motion and flag', () => {
     show('code', 'en')
     expect(mocks.captureGuidedFlowEvent).toHaveBeenCalledWith({ name: 'guided_flow_step_viewed', properties: { flow: 'sign_in', step: 'code', step_count: 2 } })
     expect(JSON.stringify(mocks.captureGuidedFlowEvent.mock.calls)).not.toContain('person@example.com')
+  })
+
+  it('reports the run as completed when the account came back or the session exists, and never on a step', () => {
+    mocks.captureGuidedFlowCompleted.mockClear()
+    const email = show('email', 'en')
+    const code = show('code wrong', 'en')
+    expect(mocks.captureGuidedFlowCompleted).not.toHaveBeenCalled()
+    email.unmount()
+    code.unmount()
+    const account = show('account back', 'en')
+    expect(mocks.captureGuidedFlowCompleted).toHaveBeenCalledExactlyOnceWith('sign_in', 2, false)
+    account.unmount()
+    mocks.captureGuidedFlowCompleted.mockClear()
+    show('code', 'en', { overrides: { signedIn: true } })
+    expect(mocks.captureGuidedFlowCompleted).toHaveBeenCalledExactlyOnceWith('sign_in', 2, false)
+    mocks.captureGuidedFlowCompleted.mockClear()
+    show('account back', 'en', { guided: false })
+    expect(mocks.captureGuidedFlowCompleted).not.toHaveBeenCalled()
+  })
+
+  it('renders the current surface with the flag off', () => {
+    const { t, container } = show('email', 'en', { guided: false })
+    expect(container.querySelector('[data-question-flow]')).toBeNull()
+    expect(container.querySelector('[data-asset="orbit-lockup"]')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(t('auth.emailTitle'))
+    expect(screen.getByRole('button', { name: t('auth.sendCode') })).toBeDisabled()
   })
 })

@@ -7,7 +7,6 @@
 | Create and edit composition | `components/habits/create-habit-modal.tsx`, `edit-habit-modal.tsx` | Task selected on create, persisted edit prefill, inherited General locks, retained drafts and unsaved-change guard |
 | Name and description | `habit-form-fields.tsx`, `habit-form-fields/habit-understanding.tsx` | Standard 54px growing name, equal mirror/input metrics, then one full description before all conditional content (#1607) |
 | Type | `habit-form-fields/habit-type-field.tsx` | Two vertical RadioRow choices before the focal title, visible validation and group focus |
-| Date | `habit-form-fields/habit-date-field.tsx` | When input and editable date before More details; tasks choose Do on or No date, and No date hides the phrase and picker |
 | Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed and count-based Habit choices; undated tasks remain in the Task date group with tree locks |
 | Days of the month | `habit-form-fields/habit-month-days-field.tsx`; shared `month-days.ts` | Under a fixed monthly schedule, asks On which days of the month? with 31 day toggles, the chosen days in one line and the start date's day as the default (#2032) |
 | Date interpretation | Shared `date-phrase-parser.ts`, `date-interpretation-session.ts`, `habit-date-editor.ts`; app `use-date-interpretation.ts` | Offline calendar arithmetic, automatic debounced interpretation, editable draft date, in-field Orbit provenance, stale rejection and terminal allowance refresh |
@@ -109,7 +108,7 @@ times, reminders and avoidance independently of shared title, description and ch
 
 ## Guided optional steps: tags, checklist, templates and goals (#2121)
 
-With `orbit_guided_flows` on, the optional questions of the guided create and edit flow host three
+The optional questions of the guided create and edit flow host three
 step views. Each one is a hook in `components/habits/flow-steps/` on web and Android that returns a
 `FlowStepView` (`packages/shared/src/contracts/flow/QuestionFlow.ts`) over the state the current
 owners keep. No noun stands alone as a title, a heading, a row label or a list title.
@@ -126,7 +125,7 @@ names up to three items through `Intl.ListFormat` and counts the rest. The step 
 With no cached list, the first line stays. The tag and goal steps take several answers: a press
 toggles, and the step continues on its own action. The limits come from
 `packages/shared/src/validation/constants.ts`: 5 tags and 10 goals for one habit, 50 checklist items.
-With the flag off, `habit-form-fields.tsx` keeps the current tag picker, goal picker, checklist and
+tsx` keeps the current tag picker, goal picker, checklist and
 template sheet.
 
 ## Habit form capability reconciliation (#1709)
@@ -140,8 +139,6 @@ Orbit capability or the explanation of a proposed value.
 
 | Production capability | Current owner and control on both platforms |
 |---|---|
-| `web:control:shell.composer.offline.reason` | `apps/web/components/habits/habit-form-fields/habit-date-field.tsx`: the `habits.form.suggestDate` button retains the offline reason in its accessible description |
-| `mobile:control:shell.composer.offline.reason` | `apps/mobile/components/habits/habit-form-fields/habit-date-field.tsx`: the `habits.form.suggestDate` button retains the offline reason in its accessibility hint |
 | `mobile:control:habits.form.proposedByOrbit` | `apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx`: the `habits.form.emojiOpenPicker` button explains a proposed emoji in its accessibility hint; web supplies the same description with hidden referenced text |
 | `mobile:control:habits.form.tagLimit` | `apps/mobile/components/habits/habit-form-fields/tag-suggestions.tsx`: the `habits.form.suggestTags` button retains the limit in its accessibility hint; web supplies the same accessible description |
 
@@ -283,11 +280,11 @@ field/picker geometry cases extend the existing radio-text Chromium owner. Froze
 rendering, installed Android fonts and assistive technology, and staging combined write/readback
 remain separate acceptance boundaries.
 
-Every edit entry of Hoje and habit detail opens the guided flow with `orbit_guided_flows` on: the Edit
+Every edit entry of Hoje and habit detail opens the guided flow: the Edit
 item of the row menu (on Android, through the TodayModals edit host), the detail pencil, and Add
 sub-habit from the row menu and from detail. Each entry mounts `EditHabitModal` or `CreateHabitModal`,
 and that owner renders the guided flow, on its summary for an edit. `habit-edit-entries.test.tsx` on
-each platform reaches each entry and proves the guided flow, and the current form with the flag off.
+
 
 ## Repeat reminder
 
@@ -391,7 +388,7 @@ Android Open delivery and Play acceptance remain coordinator-owned acceptance st
 
 ## Guided create and edit flow (#2121)
 
-With the flag `orbit_guided_flows` on, the create route, the create overlay and the edit overlay show the one-question flow over the same form state. With the flag off, the form above shows unchanged. `FlowScreen` is the one flow host on each platform: `overlay` for an overlay, `route` for `/habits/new`, where the sidebar stays.
+The create route, the create overlay and the edit overlay show the one-question flow over the same form state. `FlowScreen` is the one flow host on each platform: `overlay` for an overlay, `route` for `/habits/new`, where the sidebar stays.
 
 | Step | Web and Android owner | Behavior |
 |---|---|---|
@@ -399,7 +396,6 @@ With the flag `orbit_guided_flows` on, the create route, the create overlay and 
 | Phrase, when, time, reminder, type, summary | `components/habits/guided/guided-step-views.tsx` | The local read runs first. The free read runs once on leaving step 1, online and only for unread words. A past day typed in words is refused for a new task. The summary shows the title with the emoji well, the type, when, time, length when a time exists, and reminder |
 | Repeat, length, the optional list and each optional question | `components/habits/guided/guided-detail-views.tsx` | Each question hosts the current field component unchanged: the schedule fields, corrections, month days and interval; the end time; description; checklist with templates; sub-items; avoid, then slip alert; tags; goals; end date; parent in edit. The parent picker title is the question `habits.flow.optional.parentPicker` |
 | Reminder kinds | `components/habits/guided/reminder-kind-step.tsx` | One quick option for each kind: the reminders at set times, the repeat, and no reminder. The editor of the chosen kind is the free path, with the permission notice above it: `HabitFixedReminderEditors` or `RepeatReminderFields`. An undated item shows the repeat only. No switch and no radio group show |
-| Moved form owners | `habit-form-fields/habit-tags-field.tsx`, `end-date-editor.tsx`, `habit-avoidance-fields.tsx`, `HabitFixedReminderEditors` in `habit-timing-field.tsx`, `RepeatReminderFields` in `repeat-reminder-section.tsx` | The current form and the guided flow render the same components |
 | Result | `components/habits/guided/habit-result-dialog.tsx` | A create opens the dialog from the saved record. A queued Android create uses the optimistic record. An edit closes with `result.habit.updated`. A sub-item create closes as before, because its request returns no id |
 
 | Current field or action | Place in the guided flow |

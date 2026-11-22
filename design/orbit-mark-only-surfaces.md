@@ -45,8 +45,6 @@ leading the visible action label inside the ordinary full-width menu row.
 | Deferred complete idea above the composer | `components/chat/conversation.tsx` | `components/chat/conversation.tsx` |
 | Follow-up requests | `components/chat/follow-up-chips.tsx` | `components/chat/follow-up-chips.tsx` |
 | Proactive requests | `components/chat/proactive-action.tsx` | `components/chat/proactive-action.tsx` |
-| Habit interpretation fallback | `components/habits/habit-form-fields.tsx` | `components/habits/habit-form-fields.tsx` |
-| Date interpretation | `components/habits/habit-form-fields/habit-date-field.tsx` | `components/habits/habit-form-fields/habit-date-field.tsx` |
 | Emoji and tag suggestions | `components/habits/habit-form-fields/habit-emoji-selector.tsx`, `components/habits/habit-form-fields/tag-suggestions.tsx` | `components/habits/habit-form-fields/habit-emoji-selector.tsx`, `components/habits/habit-form-fields/tag-suggestions.tsx` |
 | Habit analysis and rescue retry | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` |
 | Reschedule retry | `components/habits/reschedule-sheet.tsx` | `components/habits/reschedule-sheet.tsx` |

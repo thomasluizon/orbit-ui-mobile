@@ -15,7 +15,7 @@ forecast figures use plain label and value rows, with no card chrome or addition
 
 ## The Orbit line of the goal detail (#2121)
 
-With `orbit_guided_flows` on, the goal detail shows one Orbit line row with one date fact from the
+The goal detail shows one Orbit line row with one date fact from the
 same deadline: `Faltam {days} dias para o prazo.`, `O prazo é hoje.` on the deadline day, or
 `O prazo era {date}.` after it. With no deadline, or for a goal that is no longer active, the row is
 absent. `packages/shared/src/utils/goal-detail-line.ts` counts the days in the account time zone. The

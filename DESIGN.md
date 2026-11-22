@@ -356,7 +356,7 @@ Both platforms keep a centred column capped at 740px, 16px content insets and sm
 label-hugging actions in wide windows. This amendment supersedes the inline detail stack
 in the Progresso drawing; its detail compositions and semantic tokens remain authoritative.
 
-**Orbit answers, then the person asks the next thing.** Behind `orbit_guided_flows`, the overview
+**Orbit answers, then the person asks the next thing.** The overview
 opens with Orbit and one line that answers "am I moving" from the 30-day read: the active days,
 a selected day, the return after a gap, or the empty window. The line never counts misses and is
 absent behind the Pro gate. The window heading is the question `Como foram seus 30 dias?` and the

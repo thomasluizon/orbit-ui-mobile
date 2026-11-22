@@ -7,6 +7,8 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
+const flag = vi.hoisted(() => ({ guided: false }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => flag.guided }))
 const motion = vi.hoisted(() => ({ reduced: true }))
 vi.mock('@/hooks/use-viewport-match', () => ({ useViewportMatch: (query: string) => query.includes('reduce') ? motion.reduced : false }))
 const device = vi.hoisted(() => ({ timeZone: 'America/Sao_Paulo' as string | null }))
@@ -52,3 +54,301 @@ function baseProps() {
     onClockFormatChange: vi.fn(),
   }
 }
+
+describe('PreferencePickerSheet', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    flag.guided = false
+    motion.reduced = true
+  })
+
+  const settleCases = [
+    ['clock', '12 hour', 'onClockFormatChange', false],
+    ['timeZone', 'Europe/Lisbon', 'onTimeZoneChange', 'Europe/Lisbon'],
+  ] as const
+
+  it.each(settleCases)('marks the %s answer first and closes the sheet only after the selection settles', (picker, answer, handler, value) => {
+    vi.useFakeTimers()
+    try {
+      flag.guided = true
+      motion.reduced = false
+      device.timeZone = 'Europe/Lisbon'
+      const props = { ...baseProps(), activePicker: picker }
+      render(<PreferencePickerSheet {...props} />)
+      fireEvent.click(screen.getByRole('button', { name: answer }))
+      expect(screen.getByRole('button', { name: answer })).toHaveAttribute('data-selected')
+      expect(props[handler]).not.toHaveBeenCalled()
+      expect(props.onClose).not.toHaveBeenCalled()
+      act(() => { vi.advanceTimersByTime(motionPresets.selection.enterDuration - 1) })
+      expect(props.onClose).not.toHaveBeenCalled()
+      act(() => { vi.advanceTimersByTime(1) })
+      expect(props[handler]).toHaveBeenCalledExactlyOnceWith(value)
+      expect(props.onClose).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+      device.timeZone = 'America/Sao_Paulo'
+    }
+  })
+
+  it.each(settleCases)('drops the pending %s answer when the sheet unmounts before the selection settles', (picker, answer, handler) => {
+    vi.useFakeTimers()
+    try {
+      flag.guided = true
+      motion.reduced = false
+      device.timeZone = 'Europe/Lisbon'
+      const props = { ...baseProps(), activePicker: picker }
+      const view = render(<PreferencePickerSheet {...props} />)
+      fireEvent.click(screen.getByRole('button', { name: answer }))
+      view.unmount()
+      act(() => { vi.advanceTimersByTime(motionPresets.selection.enterDuration) })
+      expect(props[handler]).not.toHaveBeenCalled()
+      expect(props.onClose).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+      device.timeZone = 'America/Sao_Paulo'
+    }
+  })
+
+  it.each([
+    ['clock', '12 hour', '24 hour', 'onClockFormatChange', false],
+    ['weekStart', 'Sunday', 'Monday', 'onWeekStartChange', 0],
+    ['language', 'Português', 'English', 'onLanguageChange', 'pt-BR'],
+  ] as const)('shows the %s answers as quick options with the flag on: one press answers once and closes', (picker, answer, current, handler, value) => {
+    flag.guided = true
+    const props = { ...baseProps(), activePicker: picker }
+    render(<PreferencePickerSheet {...props} />)
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    const group = screen.getByRole('group', { name: pickerTitles[picker] })
+    expect(group.querySelectorAll('[data-option-card]')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: current })).toHaveAttribute('data-selected')
+    expect(screen.getByRole('button', { name: answer })).not.toHaveAttribute('data-selected')
+    fireEvent.keyDown(screen.getByRole('button', { name: current }), { key: 'ArrowRight' })
+    expect(props[handler]).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: answer }))
+    expect(props[handler]).toHaveBeenCalledOnce()
+    expect(props[handler]).toHaveBeenCalledWith(value)
+    expect(props.onClose).toHaveBeenCalledOnce()
+  })
+
+  describe('the time zone question with the flag on', () => {
+    const cards = () => [...document.querySelectorAll<HTMLButtonElement>('[data-option-card]')]
+    const search = () => screen.getByRole('searchbox', { name: 'Search timezones' })
+    function open() {
+      flag.guided = true
+      device.timeZone = 'Europe/Lisbon'
+      const props = { ...baseProps(), activePicker: 'timeZone' as const }
+      render(<PreferencePickerSheet {...props} />)
+      return props
+    }
+
+    it('shows the stored time zone and the time zone of the device as the quick options, with no radio list, no raw field and no inline style', () => {
+      open()
+      expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+      expect(cards().map((card) => card.textContent)).toEqual(['America/Sao_Paulo', 'Europe/Lisbon'])
+      expect(screen.getByRole('group', { name: pickerTitles.timeZone }).querySelectorAll('[data-option-card]')).toHaveLength(2)
+      expect(cards().map((card) => card.hasAttribute('data-selected'))).toEqual([true, false])
+      expect(cards().every((card) => card.parentElement?.hasAttribute('data-option-wide'))).toBe(true)
+      const dialog = screen.getByRole('dialog')
+      expect(dialog.querySelector('input.form-input')).toBeNull()
+      expect(dialog.querySelector('[data-time-zone-question] [style*="border-radius"]')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Show more timezones' })).not.toBeInTheDocument()
+    })
+
+    it('answers with one press on a quick option and closes the sheet, and an arrow key only moves the focus', () => {
+      const props = open()
+      fireEvent.keyDown(screen.getByRole('button', { name: 'America/Sao_Paulo' }), { key: 'ArrowDown' })
+      expect(screen.getByRole('button', { name: 'Europe/Lisbon' })).toHaveFocus()
+      expect(props.onTimeZoneChange).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole('button', { name: 'Europe/Lisbon' }))
+      expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith('Europe/Lisbon')
+      expect(props.onClose).toHaveBeenCalledOnce()
+    })
+
+    it('finds any other time zone through the search, which is the free path', () => {
+      const props = open()
+      fireEvent.change(search(), { target: { value: 'london' } })
+      expect(screen.getByRole('group', { name: 'Search timezones' }).querySelectorAll('[data-option-card]')).toHaveLength(1)
+      fireEvent.click(screen.getByRole('button', { name: 'Europe/London' }))
+      expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith('Europe/London')
+      expect(props.onClose).toHaveBeenCalledOnce()
+    })
+
+    it.each([['São Paulo', 'America/Sao_Paulo'], ['Bogotá', 'America/Bogota']])('finds %s through the search with its accents', (query, zone) => {
+      const props = open()
+      fireEvent.change(search(), { target: { value: query } })
+      expect(screen.queryByText('No timezones found')).not.toBeInTheDocument()
+      const matches = screen.getByRole('group', { name: 'Search timezones' })
+      expect([...matches.querySelectorAll('[data-option-card]')].map((card) => card.textContent)).toEqual([zone])
+      fireEvent.click(within(matches).getByRole('button', { name: zone }))
+      expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(zone)
+    })
+
+    it('states a search with no match and pages a search with many matches', () => {
+      open()
+      fireEvent.change(search(), { target: { value: 'zzzz' } })
+      expect(screen.getByText('No timezones found')).toHaveAttribute('role', 'status')
+      expect(cards()).toHaveLength(2)
+      fireEvent.change(search(), { target: { value: 'america' } })
+      expect(screen.queryByText('No timezones found')).not.toBeInTheDocument()
+      expect(cards()).toHaveLength(2 + 20)
+      fireEvent.click(screen.getByRole('button', { name: 'Show more timezones' }))
+      expect(cards()).toHaveLength(2 + 40)
+    })
+  })
+
+  it('keeps the current time zone list with the flag off: the search field and the radio rows', () => {
+    render(<PreferencePickerSheet {...baseProps()} activePicker="timeZone" />)
+    expect(screen.getByRole('textbox', { name: 'Search timezones' })).toBeInTheDocument()
+    expect(screen.getAllByRole('radio').length).toBeGreaterThan(0)
+    expect(document.querySelector('[data-option-card]')).toBeNull()
+  })
+
+  it('finds a time zone with the flag off by a name typed with accents and spaces', () => {
+    render(<PreferencePickerSheet {...baseProps()} activePicker="timeZone" timeZone={null} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search timezones' }), { target: { value: 'São Paulo' } })
+    expect(screen.getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['America/Sao_Paulo'])
+  })
+
+  it('shows the selected clock and commits one choice', () => {
+    const props = { ...baseProps(), activePicker: 'clock' as const }
+    render(<PreferencePickerSheet {...props} />)
+    expect(screen.getByRole('radio', { name: '24 hour' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('radio', { name: '12 hour' }))
+    expect(props.onClockFormatChange).toHaveBeenCalledOnce()
+    expect(props.onClockFormatChange).toHaveBeenCalledWith(false)
+  })
+
+  it('checks the locale default when no clock preference is saved', () => {
+    render(<PreferencePickerSheet {...baseProps()} activePicker="clock" uses24HourClock={undefined} />)
+    expect(screen.getByRole('radio', { name: '12 hour' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('renders nothing when no picker is active', () => {
+    render(<PreferencePickerSheet {...baseProps()} />)
+    expect(screen.queryByText('English')).not.toBeInTheDocument()
+  })
+
+  it('renders the language options and fires onLanguageChange + onClose on select', () => {
+    const props = { ...baseProps(), activePicker: 'language' as const }
+    render(<PreferencePickerSheet {...props} />)
+    fireEvent.click(screen.getByText('Português'))
+    expect(props.onLanguageChange).toHaveBeenCalledWith('pt-BR')
+    expect(props.onClose).toHaveBeenCalled()
+  })
+
+  it('renders week-start options and fires onWeekStartChange on select', () => {
+    const props = { ...baseProps(), activePicker: 'weekStart' as const }
+    render(<PreferencePickerSheet {...props} />)
+    fireEvent.click(screen.getByText('Sunday'))
+    expect(props.onWeekStartChange).toHaveBeenCalledWith(0)
+  })
+
+  it('renders timezone options and writes the selected timezone', () => {
+    const props = { ...baseProps(), activePicker: 'timeZone' as const }
+    render(<PreferencePickerSheet {...props} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search timezones' }), {
+      target: { value: 'Europe/London' },
+    })
+    fireEvent.click(screen.getByText('Europe/London'))
+    expect(props.onTimeZoneChange).toHaveBeenCalledWith('Europe/London')
+  })
+
+  it('checks the current option once the profile resolves after the first render', () => {
+    const props = { ...baseProps(), activePicker: 'language' as const, mounted: false }
+    const { rerender } = render(<PreferencePickerSheet {...props} />)
+    expect(screen.queryByRole('radio', { checked: true })).not.toBeInTheDocument()
+
+    rerender(<PreferencePickerSheet {...props} mounted />)
+
+    expect(screen.getByRole('radio', { checked: true })).toHaveTextContent('English')
+  })
+
+  it('marks the currently selected language radio as checked', () => {
+    const props = { ...baseProps(), activePicker: 'language' as const }
+    render(<PreferencePickerSheet {...props} />)
+    const checked = screen.getByRole('radio', { checked: true })
+    expect(checked).toHaveTextContent('English')
+  })
+
+  it('enters the language group once and drafts the next option with ArrowDown', async () => {
+    const props = { ...baseProps(), activePicker: 'language' as const }
+    render(<PreferencePickerSheet {...props} />)
+    const english = screen.getByRole('radio', { name: 'English' })
+    const portuguese = screen.getByRole('radio', { name: 'Português' })
+
+    expect([english.tabIndex, portuguese.tabIndex]).toEqual([0, -1])
+    const focus = vi.spyOn(portuguese, 'focus')
+    english.focus()
+    await pressRadioKey(english, 'ArrowDown')
+    expect(portuguese).toHaveAttribute('aria-checked', 'true')
+    expect(props.onLanguageChange).not.toHaveBeenCalled()
+    expect(focus).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the language sheet open when ArrowDown moves the selection', async () => {
+    const props = { ...baseProps(), activePicker: 'language' as const }
+    render(<PreferencePickerSheet {...props} />)
+    const english = screen.getByRole('radio', { name: 'English' })
+
+    english.focus()
+    await pressRadioKey(english, 'ArrowDown')
+
+    expect(props.onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('radio', { name: 'Português' })).toBeInTheDocument()
+  })
+
+  it('closes the language sheet only once an activation commits the moved selection', async () => {
+    const props = { ...baseProps(), activePicker: 'language' as const }
+    render(<PreferencePickerSheet {...props} />)
+    const english = screen.getByRole('radio', { name: 'English' })
+
+    english.focus()
+    await pressRadioKey(english, 'ArrowDown')
+    expect(props.onClose).not.toHaveBeenCalled()
+    expect(props.onLanguageChange).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Português' }))
+
+    expect(props.onLanguageChange).toHaveBeenCalledExactlyOnceWith('pt-BR')
+    expect(props.onClose).toHaveBeenCalled()
+  })
+
+  it('writes the timezone once, after three arrow moves and the activation that commits', async () => {
+    const props = { ...baseProps(), activePicker: 'timeZone' as const }
+    render(<PreferencePickerSheet {...props} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search timezones' }), {
+      target: { value: 'Europe/' },
+    })
+    const options = screen.getAllByRole('radio')
+    expect(options.length).toBeGreaterThan(3)
+
+    options[0]!.focus()
+    await pressRadioKey(options[0]!, 'ArrowDown')
+    await pressRadioKey(options[1]!, 'ArrowDown')
+    await pressRadioKey(options[2]!, 'ArrowDown')
+    expect(options[3]!).toHaveAttribute('aria-checked', 'true')
+    expect(props.onTimeZoneChange).not.toHaveBeenCalled()
+
+    fireEvent.click(options[3]!)
+
+    expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(options[3]!.textContent)
+  })
+
+  it('keeps the timezone sheet open when ArrowDown moves the selection', async () => {
+    const props = { ...baseProps(), activePicker: 'timeZone' as const }
+    render(<PreferencePickerSheet {...props} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search timezones' }), {
+      target: { value: 'Europe/L' },
+    })
+    const options = screen.getAllByRole('radio')
+    expect(options.length).toBeGreaterThan(1)
+
+    options[0]!.focus()
+    await pressRadioKey(options[0]!, 'ArrowDown')
+
+    expect(options[1]!).toHaveAttribute('aria-checked', 'true')
+    expect(props.onTimeZoneChange).not.toHaveBeenCalled()
+    expect(props.onClose).not.toHaveBeenCalled()
+    expect(screen.getAllByRole('radio').length).toBe(options.length)
+  })
+})

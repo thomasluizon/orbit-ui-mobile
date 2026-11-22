@@ -33,8 +33,6 @@ The checklist add row uses the shared Input and a separate ghost small icon-only
 
 | Surface | Owner |
 | --- | --- |
-| Web habit create and edit, More details | `apps/web/components/habits/habit-form-fields.tsx` |
-| Android habit create and edit, More details | `apps/mobile/components/habits/habit-form-fields.tsx` |
 
 Habit detail has no checklist add row: its pencil opens the edit modal, which composes the same form fields.
 
@@ -77,8 +75,6 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/chat/structured-preview-field.tsx` | 26 | `Input` | standard | 16 |
 | `apps/mobile/components/goals/create-goal-sheet.tsx` | 34 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/goals/edit-goal-modal.tsx` | 211 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 40 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 62 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 52 | `Input` | standard | 16 |
 | `apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 53 | `Input` | standard | 16 |
 | `apps/mobile/components/goals/goal-habits-field.tsx` | 48 | `BottomSheetAppTextInput` | standard | 16 |
@@ -88,9 +84,6 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/goals/guided/goal-flow-steps.tsx` | 138 | `Input` | standard | 16 |
 | `apps/mobile/components/goals/guided/goal-habits-step.tsx` | 44 | `Input` | standard | 16 |
 | `apps/mobile/components/habit-list/move-parent-dialog.tsx` | 178 | `Input` | standard | 16 |
-| `apps/mobile/components/habits/checklist-templates.tsx` | 154 | `BottomSheetAppTextInput` | inline add | 12 |
-| `apps/mobile/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 42 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 65 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx` | 61 | `BottomSheetAppTextInput` | subhabit | 0; 8 after index |
 | `apps/mobile/components/habits/flow-steps/goal-link-step.tsx` | 48 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/flow-steps/tag-step.tsx` | 67 | `Input` | standard | 16 |
@@ -104,8 +97,6 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/habits/guided/phrase-field.tsx` | 23 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/habit-checklist.tsx` | 114 | `BottomSheetAppTextInput` | checklist edit | 8 with grip |
 | `apps/mobile/components/habits/habit-checklist.tsx` | 204 | `Input` | standard inline add | 16 |
-| `apps/mobile/components/habits/habit-form-fields.tsx` | 331 | `Input` | standard | 16 |
-| `apps/mobile/components/habits/habit-form-fields/habit-date-field.tsx` | 104 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx` | 147 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/habit-form-fields/habit-schedule-fields.tsx` | 45 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx` | 63 | `TimeField` | time | 16 |
@@ -173,9 +164,6 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/command/command-menu-chrome.tsx` | 75 | `CommandInput` | search | 16 |
 | `apps/web/components/goals/create-goal-sheet.tsx` | 75 | `FieldWell` | standard | 16 |
 | `apps/web/components/goals/edit-goal-modal.tsx` | 205 | `FieldWell` | standard | 16 |
-| `apps/web/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 32 | `FieldWell` | standard | 16 |
-| `apps/web/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 44 | `FieldWell` | standard | 16 |
-| `apps/web/components/goals/field-well.tsx` | 46 | `input` | standard | 16 |
 | `apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 51 | `Input` | standard | 16 |
 | `apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 52 | `Input` | standard | 16 |
 | `apps/web/components/goals/goal-habits-field.tsx` | 38 | `PickerList` | standard | 16 |
@@ -184,9 +172,6 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/goals/guided/goal-flow-steps.tsx` | 99 | `Input` | standard | 16 |
 | `apps/web/components/goals/guided/goal-flow-steps.tsx` | 139 | `Input` | standard | 16 |
 | `apps/web/components/goals/guided/goal-habits-step.tsx` | 43 | `Input` | standard | 16 |
-| `apps/web/components/habits/checklist-templates.tsx` | 111 | `input` | inline add | 12 |
-| `apps/web/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 33 | `FieldWell` | standard | 16 |
-| `apps/web/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 46 | `FieldWell` | standard | 16 |
 | `apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx` | 47 | `input` | subhabit | 0; 8 after index |
 | `apps/web/components/habits/flow-steps/goal-link-step.tsx` | 46 | `Input` | standard | 16 |
 | `apps/web/components/habits/flow-steps/tag-step.tsx` | 67 | `Input` | standard | 16 |
@@ -200,8 +185,6 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/habits/guided/phrase-field.tsx` | 25 | `Input` | standard | 16 |
 | `apps/web/components/habits/habit-checklist.tsx` | 326 | `input` | checklist edit | 8 with grip |
 | `apps/web/components/habits/habit-checklist.tsx` | 404 | `Input` | standard inline add | 16 |
-| `apps/web/components/habits/habit-form-fields.tsx` | 309 | `Input` | standard | 16 |
-| `apps/web/components/habits/habit-form-fields/habit-date-field.tsx` | 92 | `Input` | standard | 16 |
 | `apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx` | 145 | `input` | standard | 16 |
 | `apps/web/components/habits/habit-form-fields/habit-schedule-fields.tsx` | 34 | `Input` | standard | 16 |
 | `apps/web/components/habits/habit-form-fields/habit-timing-field.tsx` | 59 | `TimeField` | time | 16 |
@@ -240,18 +223,15 @@ Visible native text controls use `TypedTextInput`, which applies `fg1` after cal
 | --- | --- | --- | --- |
 | Habit create and edit name | `habits/habit-form-fields/habit-understanding.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea`; mirrors retain consumed-word backgrounds and underlines, while the editable controls draw foreground letters and placeholders. Native consumed spans use `hairlineStrong` foreground to paint Android underlines beneath the editable glyphs; web uses an independent inset shadow with transparent mirror glyphs |
 | Habit detail title editing | `habits/habit-form-fields/habit-understanding.tsx` | same relative component | Existing full editor foreground and padding; the read heading has no input |
-| Checklist add and description | `habits/habit-form-fields.tsx` | same relative components | Shared `Input` in both single-line and multiline modes |
 | Checklist and subhabit edit | `habits/habit-checklist.tsx`, `habits/create-habit-modal/sub-habit-editor.tsx` | same relative components | Native `BottomSheetAppTextInput`, web input with `--fg-1` |
 | Orbit and shell composers | `shell/composer.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea` |
 | Orbit record filter and breakdown rename | `chat/record-list-card.tsx`, `chat/breakdown-suggestion.tsx` | same relative components | Native `TypedTextInput`, web input with `--fg-1` |
 | Search and move-parent search | `app/search.tsx`, `habit-list/move-parent-dialog.tsx` | `app/(app)/search/page.tsx`, `habits/habit-list/move-parent-overlay.tsx` | Shared `Input` |
-| Goal title, target and unit | `goals/edit-goal-modal.tsx`, `goals/edit-goal-modal/edit-goal-target-fields.tsx`, `goals/create-goal-sheet.tsx`, `habits/create-goal-from-habit/goal-target-fields.tsx` | same relative components | Native `BottomSheetAppTextInput`, web `FieldWell` with `--fg-1` |
 | Profile name and reset confirmation | `app/(tabs)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | `app/(app)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | Native `AppTextInput`, web `Input` |
 | Profile time-zone search and key name | `profile/preferences-sections.tsx`, `profile/profile-api-keys.tsx` | preferences picker and `profile/profile-api-keys.tsx` | Native `BottomSheetAppTextInput` or `Input`, web explicit `--fg-1` |
 | Virtualized picker search | No additional native producer | `ui/picker-list.tsx` | Web `form-input` resolves to `--fg-1` |
 | Emoji, tag, goal and reminder fields | Habit form field owners listed above | Mirrored habit form field owners | Native `BottomSheetAppTextInput` or `TypedTextInput`, web explicit `--fg-1` |
 | Time entry | `ui/time-field.tsx` | same relative component | Native `TypedTextInput`, web explicit `--fg-1` |
-| Habit create and edit start and end time | `habits/habit-form-fields.tsx` via `ui/time-field.tsx` | same relative components | Both fields use the time-entry family with inline padding 16 and typed foreground `fg1` / `--fg-1`. End time becomes editable after a start time is entered; removing the start clears the end time. |
 
 ## Verification boundary
 

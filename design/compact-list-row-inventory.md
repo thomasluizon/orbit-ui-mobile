@@ -66,7 +66,6 @@ Owners: create/edit habit sheets and `/habits/[id]`; their disclosed fields open
 
 | Web consumer | Mobile consumer | Rows and states | Density |
 |---|---|---|---|
-| `apps/web/components/habits/habit-form-fields.tsx`, `habit-form-fields/habit-avoidance-fields.tsx` | `apps/mobile/components/habits/habit-form-fields.tsx`, `habit-form-fields/habit-avoidance-fields.tsx` | Details disclosure closed/open; free slip-alert upgrade entry; Pro editor branch | Default plain 52px; bare disclosure keeps zero inline inset |
 | `apps/web/components/habits/habit-detail-fields.tsx` | `apps/mobile/components/habits/habit-detail-fields.tsx` | Editable/read-only schedule; described slip alert with Pro switch/free gate; linked goals absent/present, closed/open | Plain/bare rows 52px; described slip alert preserves growth |
 | `apps/web/components/habits/habit-detail-screen.tsx` | `apps/mobile/components/habits/habit-detail-screen.tsx` | Add-sub-habit with/without Pro badge; destructive deletion entry and its confirmation; loading/error owners precede detail content | Default plain 52px |
 | `apps/web/components/habits/goal-linking-field.tsx` | `apps/mobile/components/habits/goal-linking-field.tsx` | Selected-goal count; picker closed/open; empty/populated goals; selection limit; search/virtualized list at 21 goals | Default plain 52px, 16px inline inset |
@@ -78,7 +77,6 @@ Owners: checklist fields in create/edit habit sheets and habit detail, opening t
 
 | Web consumer | Mobile consumer | Rows and states | Density |
 |---|---|---|---|
-| `apps/web/components/habits/checklist-templates.tsx` | `apps/mobile/components/habits/checklist-templates.tsx` | Entry; sheet closed/open; empty/populated templates; save entry/form; named template rows with count description and delete action; save/delete failures use the existing toast | Explicit compact form entry 52px with 12px inline inset; plain save row 52px; described list rows preserve growth |
 
 ### 8. Orbit account records
 

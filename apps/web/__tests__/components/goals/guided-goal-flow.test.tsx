@@ -10,6 +10,7 @@ import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { EditGoalModal } from '@/components/goals/edit-goal-modal'
 
 const mocks = vi.hoisted(() => ({
+  guided: true,
   create: vi.fn(),
   update: vi.fn(),
   completed: vi.fn(),
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   habits: { data: { habitsById: new Map<string, ReturnType<typeof createMockHabit>>() }, isLoading: false, isError: false, refetch: vi.fn() },
 }))
 
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: () => ({ mutateAsync: mocks.create, isPending: false }),
   useUpdateGoal: () => ({ mutateAsync: mocks.update, isPending: false }),
@@ -62,6 +64,7 @@ function addHabits(count: number) {
 }
 
 beforeEach(() => {
+  mocks.guided = true
   mocks.create.mockReset().mockResolvedValue({ id: 'goal-new' })
   mocks.update.mockReset().mockResolvedValue(undefined)
   mocks.completed.mockReset()
@@ -470,4 +473,14 @@ describe('the guided goal edit flow', () => {
 })
 
 describe('with the flag off', () => {
+  it('renders the current create sheet and the current edit modal', () => {
+    mocks.guided = false
+    const create = renderWith('en', <CreateGoalSheet open onClose={vi.fn()} />)
+    expect(screen.getByText(en.goals.form.habitsExplainer)).toBeInTheDocument()
+    expect(document.querySelector('[data-question-flow]')).toBeNull()
+    create.unmount()
+    renderWith('en', <EditGoalModal open onOpenChange={vi.fn()} goal={{ id: 'g1', title: 'Run', targetValue: 5, unit: 'km', deadline: null }} />)
+    expect(screen.getByDisplayValue('Run')).toBeInTheDocument()
+    expect(document.querySelector('[data-question-flow]')).toBeNull()
+  })
 })

@@ -9,11 +9,11 @@ Element.prototype.scrollIntoView = vi.fn()
 
 const TODAY = '2026-11-13'
 
-function renderHeader({ locale = 'en', currentMonth = new Date(2026, 10, 1) }: { locale?: 'en' | 'pt-BR'; currentMonth?: Date } = {}) {
+function renderHeader({ locale = 'en', guided = true, currentMonth = new Date(2026, 10, 1) }: { locale?: 'en' | 'pt-BR'; guided?: boolean; currentMonth?: Date } = {}) {
   const handlers = { onCurrentMonth: vi.fn(), onSelectMonth: vi.fn(), onSelectDate: vi.fn() }
   render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC">
     <CalendarHeader currentMonth={currentMonth} todayKey={TODAY} previousMonthLabel="Previous" nextMonthLabel="Next"
-      onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} {...handlers} />
+      onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} guided={guided} {...handlers} />
   </NextIntlClientProvider>)
   const messages = locale === 'en' ? en : ptBR
   fireEvent.click(screen.getByRole('button', { name: new RegExp(`, ${messages.calendar.monthPicker}$`) }))
@@ -76,5 +76,12 @@ describe('the month picker as one question', () => {
     expect(handlers.onSelectDate).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog', { name: en.calendar.monthPickerQuestion })).toBeInTheDocument()
     expect(screen.getByText(en.calendar.monthPickerTypedUnresolved)).toBeInTheDocument()
+  })
+
+  it('keeps the current picker with the guided flows off', () => {
+    renderHeader({ guided: false })
+    expect(screen.getByRole('dialog', { name: en.calendar.monthPicker })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Last month' })).toBeNull()
+    expect(screen.queryByTestId('calendar-jump-question')).toBeNull()
   })
 })

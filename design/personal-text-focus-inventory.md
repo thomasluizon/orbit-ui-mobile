@@ -72,7 +72,6 @@ dates in `record-list-card.tsx` use plain `PersonalText`.
 | Tags and selected goal names | `habits/habit-detail-screen.tsx`, `habits/habit-form-fields/tag-picker-field.tsx`, `habits/goal-linking-field.tsx` | Single-line inline details |
 | Block titles | `ui/block-frame.tsx` | The visible heading reports overflow to its sibling icon control |
 | Picker names | `ui/picker-row.tsx` | The visible toggle label reports overflow to its sibling icon control |
-| Checklist template names | `habits/checklist-templates.tsx` | Each visible load label reports overflow independently |
 | Drill heading | Web `habits/habit-list/habit-drill.tsx`, mobile `habit-list/habit-drill.tsx` | The visible heading reports overflow to its sibling icon control |
 | Search names | Web `command/command-row.tsx`, mobile `search/search-results.tsx` | The visible result label reports overflow to its sibling icon control |
 | Sheet titles | `ui/sheet.tsx` | The collapsed heading reports overflow through PersonalText, including while the body shows the full title. Resize and title changes remove disclosure when the heading fits. Notification details, personal text details, API key confirmations and the sheet disclosures in breakdown suggestions, one small step and pending operation cards share this owner. Web has no native title tooltip; padded feedback hugs the title box and keeps one inset focus indicator clear of Close. |

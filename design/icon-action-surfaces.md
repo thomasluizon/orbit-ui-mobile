@@ -80,7 +80,6 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/chat/record-list-card.tsx:115](../apps/mobile/components/chat/record-list-card.tsx#L115) | `{t('chat.recordList.more')}` | ChevronDown |
 | [apps/mobile/components/goals/create-goal-sheet.tsx:81](../apps/mobile/components/goals/create-goal-sheet.tsx#L81) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/goals/edit-goal-modal.tsx:199](../apps/mobile/components/goals/edit-goal-modal.tsx#L199) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/mobile/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx:59](../apps/mobile/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx#L59) | `{t('goals.form.addDeadline')}` | Plus |
 | [apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx:47](../apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx#L47) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/goals/goal-habits-field.tsx:49](../apps/mobile/components/goals/goal-habits-field.tsx#L49) | `{t('habits.createHabit')}` | Plus |
 | [apps/mobile/components/goals/goal-habits-field.tsx:50](../apps/mobile/components/goals/goal-habits-field.tsx#L50) | `{t('common.close')}` | X |
@@ -88,13 +87,11 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/habit-list/habit-drill.tsx:171](../apps/mobile/components/habit-list/habit-drill.tsx#L171) | `{t('common.retry')}` | RefreshCw |
 | [apps/mobile/components/habit-list/move-parent-dialog.tsx:79](../apps/mobile/components/habit-list/move-parent-dialog.tsx#L79) | `{t('common.retry')}` | RefreshCw |
 | [apps/mobile/components/habit-list/move-parent-dialog.tsx:158](../apps/mobile/components/habit-list/move-parent-dialog.tsx#L158) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx:59](../apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx#L59) | `{t('goals.form.addDeadline')}` | Plus |
 | [apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx:95](../apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx#L95) | `{t('habits.form.addSubHabit')}` | Plus |
 | [apps/mobile/components/habits/edit-habit-modal.tsx:536](../apps/mobile/components/habits/edit-habit-modal.tsx#L536) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/habits/goal-linking-field.tsx:72](../apps/mobile/components/habits/goal-linking-field.tsx#L72) | `{t('goals.create')}` | Plus |
 | [apps/mobile/components/habits/goal-linking-field.tsx:73](../apps/mobile/components/habits/goal-linking-field.tsx#L73) | `{t('habits.form.createGoal')}` | Plus |
 | [apps/mobile/components/habits/habit-checklist.tsx:395](../apps/mobile/components/habits/habit-checklist.tsx#L395) | `{t('habits.form.clearChecklist')}` | Trash2 |
-| [apps/mobile/components/habits/habit-create-actions.tsx:36](../apps/mobile/components/habits/habit-create-actions.tsx#L36) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/habits/habit-detail-screen.tsx:125](../apps/mobile/components/habits/habit-detail-screen.tsx#L125) | `{t('habits.detail.retry')}` | RefreshCw |
 | [apps/mobile/components/habits/habit-detail-screen.tsx:212](../apps/mobile/components/habits/habit-detail-screen.tsx#L212) | `{t('common.retry')}` | RefreshCw |
 | [apps/mobile/components/habits/habit-detail-screen.tsx:414](../apps/mobile/components/habits/habit-detail-screen.tsx#L414) | `{t('habits.detail.retry')}` | RefreshCw |
@@ -195,17 +192,14 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/components/command/command-menu.tsx:103](../apps/web/components/command/command-menu.tsx#L103) | `{t('habits.search.next')}` | ChevronRight |
 | [apps/web/components/goals/create-goal-sheet.tsx:64](../apps/web/components/goals/create-goal-sheet.tsx#L64) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/components/goals/edit-goal-modal.tsx:190](../apps/web/components/goals/edit-goal-modal.tsx#L190) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
-| [apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx:61](../apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx#L61) | `{t('goals.form.addDeadline')}` | Plus |
 | [apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx:46](../apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx#L46) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/components/goals/goal-habits-field.tsx:38](../apps/web/components/goals/goal-habits-field.tsx#L38) | `{t('habits.createHabit')}` | Plus |
 | [apps/web/components/goals/goal-habits-field.tsx:38](../apps/web/components/goals/goal-habits-field.tsx#L38) | `{t('common.close')}` | X |
-| [apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx:53](../apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx#L53) | `{t('goals.form.addDeadline')}` | Plus |
 | [apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx:56](../apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx#L56) | `{t('habits.form.addSubHabit')}` | Plus |
 | [apps/web/components/habits/edit-habit-modal.tsx:498](../apps/web/components/habits/edit-habit-modal.tsx#L498) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/components/habits/goal-linking-field.tsx:93](../apps/web/components/habits/goal-linking-field.tsx#L93) | `{t('goals.create')}` | Plus |
 | [apps/web/components/habits/goal-linking-field.tsx:97](../apps/web/components/habits/goal-linking-field.tsx#L97) | `{t('habits.form.createGoal')}` | Plus |
 | [apps/web/components/habits/habit-checklist.tsx:240](../apps/web/components/habits/habit-checklist.tsx#L240) | `{t('habits.form.clearChecklist')}` | Trash2 |
-| [apps/web/components/habits/habit-create-actions.tsx:34](../apps/web/components/habits/habit-create-actions.tsx#L34) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/components/habits/habit-detail-screen.tsx:150](../apps/web/components/habits/habit-detail-screen.tsx#L150) | `{t('habits.detail.retry')}` | RefreshCw |
 | [apps/web/components/habits/habit-detail-screen.tsx:470](../apps/web/components/habits/habit-detail-screen.tsx#L470) | `{t('habits.detail.retry')}` | RefreshCw |
 | [apps/web/components/habits/habit-detail-screen.tsx:634](../apps/web/components/habits/habit-detail-screen.tsx#L634) | `{t('habits.detail.retry')}` | RefreshCw |

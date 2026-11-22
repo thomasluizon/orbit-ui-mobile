@@ -7,6 +7,7 @@ import { motionDurations } from '@orbit/shared/theme'
 import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
 import { testI18n } from '@/__tests__/support/i18n'
 import { LoginContent, type LoginCallback } from '@/components/auth/login-content'
+import { GuidedSignInContext } from '@/components/auth/guided-sign-in'
 import { Input } from '@/components/ui/input'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 
@@ -49,7 +50,7 @@ function heading() { return tree!.root.findAll((node) => node.type === 'Text' &&
 function byTestID(testID: string) { return tree!.root.findAll((node) => node.props.testID === testID && typeof node.type === 'string') }
 function press(name: string) { act(() => { (button(name)!.props.onPress as () => void)() }) }
 
-function show(state: AuthScreenState, locale: Locale, options: { callback?: LoginCallback; overrides?: Record<string, unknown>; width?: number } = {}) {
+function show(state: AuthScreenState, locale: Locale, options: { guided?: boolean; callback?: LoginCallback; overrides?: Record<string, unknown>; width?: number } = {}) {
   mocks.language = locale
   void testI18n.changeLanguage(locale)
   setI18n(testI18n)
@@ -58,7 +59,7 @@ function show(state: AuthScreenState, locale: Locale, options: { callback?: Logi
   const width = options.width ?? 360
   __setWindowDimensions({ width, height: HEIGHT, scale: 1, fontScale: 1 })
   act(() => {
-    tree = create(<View style={{ width, height: HEIGHT }}><LoginContent callback={options.callback} /></View>)
+    tree = create(<View style={{ width, height: HEIGHT }}><GuidedSignInContext value={options.guided ?? true}><LoginContent callback={options.callback} /></GuidedSignInContext></View>)
   })
   return fixture.t
 }
@@ -247,21 +248,42 @@ describe.each(authLocales)('guided sign-in on Android in %s', (locale) => {
     expect(usableControls()).toEqual(expect.arrayContaining([t('auth.signInWithGoogle'), t('auth.sendCode')]))
   })
 
+  it.each(['failed', 'cancelled'] as const)('keeps the provider line of the current surface with the flag off after a %s callback', (state) => {
+    const t = show('email', locale, { guided: false, callback: { state, provider: 'google', onContinue: vi.fn() } })
+    expect(byTestID('guided-callback-failure')).toHaveLength(0)
+    expect(allText()).toContain(t('auth.errors.googleError'))
+  })
+
   it('keeps the provider action busy while the callback waits', () => {
     const t = show('email', locale, { callback: { state: 'pending', provider: 'google', onContinue: vi.fn() } })
     expect((button(t('auth.signInWithGoogle'))!.props.accessibilityState as { busy?: boolean }).busy).toBe(true)
     expect(inputs()[0]!.props.editable).toBe(false)
   })
+
+  it.each(authScreenStates)('keeps every control of the current surface in %s, with Orbit never resting and no old name', (state) => {
+    show(state, locale, { guided: false })
+    const currentControls = usableControls()
+    const currentFields = inputs().length
+    close()
+    show(state, locale)
+    const guidedControls = usableControls()
+    for (const control of currentControls) expect(guidedControls, `${state}: ${control}`).toContain(control)
+    expect(inputs()).toHaveLength(currentFields)
+    const states = byTestID('orbit-mascot').map((node) => node.props['data-orbit-state' as never])
+    expect(states).toEqual(['parado'])
+    expect(allText()).not.toMatch(/orbit/i)
+    expect(tree!.root.findAll((node) => node.type === 'ActivityIndicator')).toHaveLength(0)
+  })
 })
 
 describe('guided sign-in field contract on Android and iPhone', () => {
   it.each([true, false])('keeps the name, the autocomplete value and the order of every field, guided %s', (guided) => {
-    show('email', 'en', { })
+    show('email', 'en', { guided })
     const emailFields = tree!.root.findAll((node) => node.type === Input)
     expect(emailFields.map((field) => [field.props.name, field.props.autoComplete, field.props.kind])).toEqual([['email', 'email', 'email']])
     expect(inputs().map((input) => [input.props.autoComplete, input.props.keyboardType, input.props.textContentType])).toEqual([['email', 'email-address', undefined]])
     close()
-    show('code', 'en', { })
+    show('code', 'en', { guided })
     expect(inputs().map((input) => [input.props.autoComplete, input.props.textContentType])).toEqual([['email-otp', undefined]])
   })
 
@@ -269,7 +291,7 @@ describe('guided sign-in field contract on Android and iPhone', () => {
     const previous = Platform.OS
     Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
     try {
-      show('code', 'en', { })
+      show('code', 'en', { guided })
       expect(inputs().map((input) => [input.props.autoComplete, input.props.textContentType])).toEqual([[undefined, 'oneTimeCode']])
     } finally {
       close()
@@ -292,6 +314,28 @@ describe('guided sign-in motion, events and flag on Android', () => {
     show('code', 'en')
     expect(mocks.captureGuidedFlowEvent).toHaveBeenCalledWith({ name: 'guided_flow_step_viewed', properties: { flow: 'sign_in', step: 'code', step_count: 2 } })
     expect(JSON.stringify(mocks.captureGuidedFlowEvent.mock.calls)).not.toContain('person@example.com')
+  })
+
+  it('reports the run as completed when the account came back, and never on a step or with the flag off', () => {
+    mocks.captureGuidedFlowCompleted.mockClear()
+    show('email', 'en')
+    close()
+    show('code wrong', 'en')
+    close()
+    expect(mocks.captureGuidedFlowCompleted).not.toHaveBeenCalled()
+    show('account back', 'en')
+    expect(mocks.captureGuidedFlowCompleted).toHaveBeenCalledExactlyOnceWith('sign_in', 2, false)
+    close()
+    mocks.captureGuidedFlowCompleted.mockClear()
+    show('account back', 'en', { guided: false })
+    expect(mocks.captureGuidedFlowCompleted).not.toHaveBeenCalled()
+  })
+
+  it('renders the current surface with the flag off', () => {
+    const t = show('email', 'en', { guided: false })
+    expect(byTestID('question-flow')).toHaveLength(0)
+    expect(heading().map(textOf)).toEqual([t('auth.emailTitle')])
+    expect((button(t('auth.sendCode'))!.props.accessibilityState as { disabled?: boolean }).disabled).toBe(true)
   })
 })
 

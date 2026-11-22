@@ -7,7 +7,6 @@ with matching web and Android behavior and verification boundaries.
 |---|---|---|
 | Create habit, default and habit ceiling | `components/habits/create-habit-modal.tsx` | `components/habits/create-habit-modal.tsx` |
 | Create sub-habit, free account and older API refusal | `components/habits/create-habit-modal.tsx` | `components/habits/create-habit-modal.tsx` |
-| Create disclosure with free sub-habit editor; edit disclosure without an empty section | `components/habits/habit-form-fields.tsx` | `components/habits/habit-form-fields.tsx` |
 | Orbit breakdown, free account and input retained after downgrade | `components/habits/create-habit-modal/apply-suggestion.ts` | `components/habits/create-habit-modal/apply-suggestion.ts` |
 | Habit list and drill, add sub-habit menu and row | `components/habits/habit-list.tsx` | `components/habit-list.tsx` |
 | Habit detail, add sub-habit row | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` |

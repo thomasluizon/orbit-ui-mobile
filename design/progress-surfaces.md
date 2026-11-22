@@ -14,7 +14,7 @@ Each platform's `progress-content.tsx` routes the four screens. The overview liv
 `progress-overview.tsx` and `progress-window.tsx`, Sequência in `progress-streak.tsx`, Conquistas in
 `progress-achievements.tsx`, and `progress-subscreen.tsx` frames the pushed details. The Metas
 functions live in the `goals/` folder beside it (web `app/(app)/progress/_components/goals/`,
-Android `components/progress/goals/`). With `orbit_guided_flows` on, the empty Metas list shows
+Android `components/progress/goals/`). The empty Metas list shows
 Orbit at rest, and a goal whose value changed since the last visit sweeps its ring once. The shared
 `progress-navigation.ts` defines the three entries.
 Each entry is one tap from the overview, including while its summary is unavailable. The
@@ -109,8 +109,7 @@ streak selections, absence for level and achievements, and replacement through s
 
 ## Orbit answers, then the person asks the next thing
 
-The flag `orbit_guided_flows` turns this form on for the overview and Sequência on both platforms.
-With the flag off, each screen renders the form above. Conquistas keeps its structure either way.
+Conquistas keeps its structure either way.
 
 | Surface | Web owner | Android owner |
 |---|---|---|

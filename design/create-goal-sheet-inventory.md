@@ -30,9 +30,8 @@ and the filled create action outside the scrolling body.
 
 ## Guided goal flows (#2121)
 
-With `orbit_guided_flows` on, `CreateGoalSheet` and `EditGoalModal` render the guided flow from
-`components/goals/guided/` in `FlowScreen` on both platforms. With the flag off, they render the sheet
-and the modal above, unchanged. The draft stays in `useGoalCreation`, so the create request equals the
+`CreateGoalSheet` and `EditGoalModal` render the guided flow from
+`components/goals/guided/` in `FlowScreen` on both platforms. The draft stays in `useGoalCreation`, so the create request equals the
 request of the sheet for the same values. Edit sends the same update request as the modal.
 
 | Step | Question | Quick options | Free path |
