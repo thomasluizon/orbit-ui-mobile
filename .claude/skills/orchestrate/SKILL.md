@@ -18,7 +18,7 @@ The driver `tools/drive.mjs` works every open ticket of the board. It needs no s
 2. Then run `git -C $HOME/Developer/orbit-ui-mobile worktree add --detach $HOME/orca/workspaces/orbit-ui-mobile/orbit-drive origin/main`.
 3. Copy the plist to `$HOME/Library/LaunchAgents/`.
 4. Run `launchctl bootstrap gui/$(id -u) $HOME/Library/LaunchAgents/com.thomas.orbit-drive.plist`.
-5. Run `status`.
+5. Run `/driver-status`.
 
 ## stop
 
@@ -36,17 +36,13 @@ The running driver changes in no other way.
 
 ## status
 
-1. Run `launchctl print gui/$(id -u)/com.thomas.orbit-drive`. Read the state and the pid.
-2. Run `git -C $HOME/orca/workspaces/orbit-ui-mobile/orbit-drive rev-parse HEAD`.
-3. Read the last 50 lines of the log.
-4. Run `node tools/drive.mjs --dry-run` in `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive`.
-
-Report the state, the commit, the free worker slots and each ticket that waits on the owner.
+Run `/driver-status`.
 
 ## What the owner session does
 
 - Writes tickets with `/ticket`.
-- Answers each `needs:owner` item in a ticket comment, then removes the label. A pull request that used its 2 fix launches gets one more launch for each such comment that follows the cap report. Each cap report states the launch count, so a granted launch that ends at the same head gets a new report. The order carries the comment.
+- Runs `/questions` for the held `needs:owner` items. A pull request that used its 2 fix launches gets one more launch for each owner comment that follows the cap report. Each cap report states the launch count, so a granted launch that ends at the same head gets a new report. The order carries the comment.
+- Runs `/sleep`, `/over-limit` and `/driver-status`.
 - The driver reruns each failed job once before any launch, and files a Bug ticket for a check that passes on the rerun at the same head. A `ci-fix` launch for a check that fails on a clean merge of the base, after a green commit, does not count toward the 2 fix launches.
 - Runs releases.
 - Runs each `owner-work` ticket when the driver notifies.

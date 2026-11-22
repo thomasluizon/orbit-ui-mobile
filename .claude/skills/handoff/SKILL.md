@@ -10,14 +10,14 @@ This skill prints one short prompt for the next owner session. It writes nothing
 
 ## The prompt holds
 
-1. The driver status. Take it from `/orchestrate status`.
+1. The driver status. Take it from `/driver-status`.
 2. Every open `needs:owner` item, each with the question that it needs answered.
 3. Each owner order of this session that is not yet a ticket. Quote the owner's words. Name the ticket that the order needs.
 4. The decisions that this session took.
 
 ## Steps
 
-1. Run `/orchestrate status`.
+1. Run `/driver-status`.
 2. List the open `needs:owner` items: `gh issue list --repo thomasluizon/orbit-tickets --label needs:owner --state open --json number,title`. Copy each number from this output.
 3. Go through the session and find each owner order that has no ticket.
 4. Send each durable decision to the brain with `/brain`.
