@@ -1,13 +1,26 @@
 ---
 name: ticket
-description: Turn anything that needs work into 1 to N executable GitHub tickets after one approval gate. Use for a bug, an idea, a chore, a feature or a list of problems. It writes no code. The delivery driver picks the tickets up.
+description: Turn anything, from a rough idea to a bug, into the best way to build it and 1 to N executable tickets, after one approval gate. Use for a new idea, a brainstorm, a feature, a bug, a chore or a list of problems. It researches, writes no code, and the driver builds the tickets.
 argument-hint: <a bug, an idea, a chore, a feature, or a list of problems>
 effort: high
 ---
 
 # /ticket: anything in, 1 to N tickets out
 
-Anything goes in. One to N tickets come out. There is one approval gate: show the split, the reason for each split, and each body. Create the tickets after the owner says yes.
+Anything goes in, from a rough idea to an exact bug. One to N tickets come out. The tickets are the spec: no other spec file exists. There is one approval gate: show the best way, the split, the reason for each split, and each body. Create the tickets after the owner says yes.
+
+## Before the split: find the best way
+
+Do this for a new feature or an idea with more than one way to build it. A bug with one clear cause skips it.
+
+1. Name the real problem in one sentence. When it differs from the ask, say both.
+2. Read everything the answer touches, in full: the code in all three repositories, `DESIGN.md`, `BRAND.md`, `FEATURES.md`, the decisions in `/brain`, and the open tickets near it. Write the list of what you read.
+3. Check each outside fact (a vendor limit, a price, a library behavior) against its live primary source. Use web research subagents for this, one per question, and record each source with its date.
+4. Write 3 to 5 candidates. One removes something instead of adding. One is "do nothing". Score each on what it costs to live with: upkeep, parity on web and mobile, contract changes, risk to old mobile clients. The cost to build decides nothing.
+5. Cut the winner until nothing more can go.
+6. At the gate, show: the problem, the recommendation, one line on why each other candidate lost, the cost, and the fact that would make it wrong. The tickets follow.
+
+Ask the owner only what reading cannot answer: product, copy, pricing, brand or a real toss-up. Ask it with a recommendation, at the gate.
 
 An owner order gets a ticket in the session in which it arrives.
 
