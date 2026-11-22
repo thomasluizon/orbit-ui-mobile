@@ -77,5 +77,8 @@ export function signInLeadHeight(spec: SignInButtonSpec, outlineWidth: number): 
   return SIGN_IN_BUTTON_HEIGHT - 2 * spec.paddingY - 2 * outlineWidth
 }
 
-/** The resting title size in px of an Apple sign-in pill: 43% of its height. */
-export const APPLE_SIGN_IN_TITLE_SIZE = Math.round(SIGN_IN_BUTTON_HEIGHT * APPLE_SIGN_IN_BUTTON.titleToHeight)
+/**
+ * The resting title size in px of every sign-in provider pill: 43% of its height. Apple fixes that size for its
+ * own button, so the Google pill uses it too and the two titles on the card match.
+ */
+export const SIGN_IN_TITLE_SIZE = Math.round(SIGN_IN_BUTTON_HEIGHT * APPLE_SIGN_IN_BUTTON.titleToHeight)
