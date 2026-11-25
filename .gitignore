@@ -103,3 +103,7 @@ error.log
 /architecture.json
 /architecture.html
 /architecture.mmd
+
+# Python bytecode (vendored skill scripts)
+__pycache__/
+*.pyc
