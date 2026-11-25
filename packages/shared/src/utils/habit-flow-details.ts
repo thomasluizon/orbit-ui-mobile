@@ -133,7 +133,7 @@ function plainWords(text: string): string[] {
   return text.toLowerCase().normalize('NFD').replace(PLAIN_ACCENTS, '').split(/[\s,;.!?]+/u).filter((word) => word.length > 0)
 }
 
-const DATE_QUALIFIER_WORDS = new Set([...WEEKDAY_QUALIFIERS, 'que', 'vem', 'manha', 'tarde', 'noite', 'morning', 'afternoon', 'evening', 'night'])
+const DATE_QUALIFIER_WORDS = new Set([...WEEKDAY_QUALIFIERS, 'que', 'vem', 'feira', 'ate', 'manha', 'tarde', 'noite', 'morning', 'afternoon', 'evening', 'night'])
 
 function wordsOutside(text: string, read: HabitPhraseRead, weekday: HabitPhraseSpan | null): string[] {
   const skipped = [...read.consumed.filter((token) => token.kind === 'time'), ...(weekday ? [weekday] : [])]
