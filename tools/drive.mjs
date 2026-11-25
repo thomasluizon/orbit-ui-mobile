@@ -10,13 +10,13 @@ import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { delimiter, dirname, join } from "node:path"
+import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { readDriveConfig } from "./lib/config.mjs"
 import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
-import { WORKTREE_REMOVE_ARGUMENTS, parseWorktreeList } from "./lib/git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
@@ -295,7 +295,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map() })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -1243,6 +1243,57 @@ const removeWorktrees = async (env, repoKey, branches) => {
   }
 }
 
+/**
+ * The reason a worktree stays, or null when it is finished: its branch has a merged pull request and no open one, the tree has no
+ * change (an untracked file counts), no commit is unpushed, and no process holds it. The cheap local reads come before the one GitHub read.
+ */
+const worktreeStayReason = async (env, repoKey, entry) => {
+  const occupants = env.worker.worktreeOccupants(entry.path, { stateDirectory: env.stateDir })
+  if (occupants.length > 0) return `a process holds it: pid ${occupants.join(", ")}`
+  if ((await gitText(env, entry.path, CLEAN_STATUS_ARGUMENTS)) !== "") return "the tree has a change"
+  if (hiddenChangesOf(await gitText(env, entry.path, HIDDEN_CHANGE_ARGUMENTS)).length > 0) return "the tree has a change that git status hides"
+  const head = await gitText(env, entry.path, ["rev-parse", "HEAD"])
+  const pulls = JSON.parse(await env.gh(["pr", "list", "--repo", env.slugOf(repoKey), "--head", entry.branch, "--state", "all", "--json", "number,state,headRefOid", "--limit", "20"]))
+  if (pulls.some((candidate) => candidate.state === "OPEN")) return "a pull request is open on the branch"
+  const merged = pulls.filter((candidate) => candidate.state === "MERGED")
+  if (merged.length === 0) return "no pull request of the branch is merged"
+  // The merged head is on GitHub. Any other head needs a remote branch that holds it.
+  if (!merged.some((candidate) => candidate.headRefOid === head) && (await gitText(env, entry.path, ["branch", "--remotes", "--contains", head])) === "") return "a commit is unpushed"
+  return null
+}
+
+/**
+ * Removes each finished worktree of the ui, api and landing repositories, except the primary checkout and the driver's own worktree.
+ * A removal never forces: git refuses a changed tree. A worktree that stays is logged once for each reason.
+ */
+const sweepWorktrees = async (env, mem) => {
+  const seen = new Set()
+  for (const repoKey of REPOSITORY_KEYS) {
+    const repoPath = env.config.repos[repoKey]
+    let listed
+    try { listed = parseWorktreeList(await gitText(env, repoPath, ["worktree", "list", "--porcelain"])) } catch (error) { log(env, repoKey, "worktree-sweep-error", error.message); continue }
+    for (const entry of listed.slice(1)) {
+      if (entry.branch === null || entry.locked || entry.prunable || resolve(entry.path) === resolve(env.driverWorktree ?? "")) continue
+      seen.add(entry.path)
+      const reason = await worktreeStayReason(env, repoKey, entry).catch((error) => `unreadable: ${error.message}`)
+      if (reason !== null) {
+        if (mem.keptWorktrees.get(entry.path) !== reason) { mem.keptWorktrees.set(entry.path, reason); log(env, repoKey, "worktree-stays", `${entry.path}: ${reason}`) }
+        continue
+      }
+      const removed = await env.git(repoPath, [...WORKTREE_REMOVE_ARGUMENTS, entry.path])
+      if (removed.status !== 0) {
+        const failure = `removal refused: ${removed.stderr.trim()}`
+        if (mem.keptWorktrees.get(entry.path) !== failure) { mem.keptWorktrees.set(entry.path, failure); log(env, repoKey, "worktree-stays", `${entry.path}: ${failure}`) }
+        continue
+      }
+      mem.keptWorktrees.delete(entry.path)
+      await env.git(repoPath, ["branch", "-D", entry.branch])
+      log(env, repoKey, "worktree-removed", `${entry.path}, branch ${entry.branch}`)
+    }
+  }
+  for (const path of mem.keptWorktrees.keys()) if (!seen.has(path)) mem.keptWorktrees.delete(path)
+}
+
 /** The merged pull requests that track a ticket, oldest merge first: the search lists them by relevance, so the order is sorted here. */
 const mergedFor = async (env, ticket) => {
   const repository = env.config.tickets.repository
@@ -1680,6 +1731,7 @@ export const tick = async (env, mem) => {
       if (reason === null) { mem.acted = true; free[name] -= 1 }
       else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
     }
+    await sweepWorktrees(env, mem).catch((error) => log(env, "worktrees", "error", error.message))
     const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : null)
     await startQuestions(env, mem, { tickets, states, blocked: questionsBlock }).catch((error) => log(env, "questions", "error", error.message))
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.

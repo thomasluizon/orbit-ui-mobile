@@ -2122,6 +2122,61 @@ const twoAccountCases = async () => {
   same("drive: --allow-over-limit takes an optional account word", [parseArguments(["--allow-over-limit", "worker"]), parseArguments(["--allow-over-limit"]), parseArguments(["--allow-over-limit", "other"]).error !== undefined], [{ help: false, mode: "allow-over-limit", account: "worker" }, { help: false, mode: "allow-over-limit" }, true])
 }
 
+/** A worktree sweep scene: each worktree is a row of the table, and its git and GitHub answers come from the row. */
+const sweepCases = async () => {
+  const MERGED_HEAD = "m".repeat(40)
+  const rows = [
+    { name: "merged and clean", branch: "chore/done", pulls: [{ number: 1, state: "MERGED", headRefOid: MERGED_HEAD }], removed: true },
+    { name: "open pull request", branch: "chore/open", pulls: [{ number: 2, state: "OPEN", headRefOid: MERGED_HEAD }], reason: /pull request is open/ },
+    { name: "merged and open", branch: "chore/both", pulls: [{ number: 3, state: "MERGED", headRefOid: MERGED_HEAD }, { number: 4, state: "OPEN", headRefOid: MERGED_HEAD }], reason: /pull request is open/ },
+    { name: "no pull request", branch: "chore/none", pulls: [], reason: /no pull request of the branch is merged/ },
+    { name: "closed unmerged", branch: "chore/closed", pulls: [{ number: 5, state: "CLOSED", headRefOid: MERGED_HEAD }], reason: /no pull request of the branch is merged/ },
+    { name: "dirty tree", branch: "chore/dirty", status: " M tools/a.mjs", pulls: [{ number: 6, state: "MERGED", headRefOid: MERGED_HEAD }], reason: /the tree has a change\)$/ },
+    { name: "untracked file", branch: "chore/untracked", status: "?? notes.txt", pulls: [{ number: 7, state: "MERGED", headRefOid: MERGED_HEAD }], reason: /the tree has a change\)$/ },
+    { name: "hidden change", branch: "chore/hidden", hidden: "h tools/a.mjs", pulls: [{ number: 8, state: "MERGED", headRefOid: MERGED_HEAD }], reason: /hides/ },
+    { name: "unpushed commit", branch: "chore/unpushed", head: "u".repeat(40), pulls: [{ number: 9, state: "MERGED", headRefOid: MERGED_HEAD }], reason: /a commit is unpushed/ },
+    { name: "commit on a remote branch", branch: "chore/remote", head: "r".repeat(40), remotes: "  origin/chore/remote", pulls: [{ number: 10, state: "MERGED", headRefOid: MERGED_HEAD }], removed: true },
+    { name: "held by a process", branch: "chore/held", pulls: [{ number: 11, state: "MERGED", headRefOid: MERGED_HEAD }], occupied: true, reason: /a process holds it/ },
+    { name: "driver worktree", branch: "chore/driver", pulls: [{ number: 12, state: "MERGED", headRefOid: MERGED_HEAD }], driver: true },
+    { name: "refused by git", branch: "chore/refused", pulls: [{ number: 13, state: "MERGED", headRefOid: MERGED_HEAD }], refuse: true, reason: /removal refused: fatal: contains modified/ },
+  ]
+  const pathOf = (row) => `/r/orbit-worktrees/ui/${row.branch.replace("/", "-")}`
+  const byPath = new Map(rows.map((row) => [pathOf(row), row]))
+  const listing = ["worktree /r/ui\nHEAD abc\nbranch refs/heads/main", ...rows.map((row) => `worktree ${pathOf(row)}\nHEAD abc\nbranch refs/heads/${row.branch}`)].join("\n\n") + "\n"
+  const answers = rows.map((row) => [row.branch, JSON.stringify(row.pulls)])
+  const scene = scenario({ driver: {}, occupants: [], routes: [["pr list --repo thomasluizon/ui --head", (args) => answers.find(([branch]) => args.includes(branch))[1]]] })
+  scene.env.driverWorktree = pathOf(rows.find((row) => row.driver))
+  scene.env.worker.worktreeOccupants = (worktree) => (byPath.get(worktree)?.occupied ? [4242] : [])
+  scene.env.git = async (cwd, args) => {
+    scene.calls.push(["git", cwd, ...args])
+    const text = args.join(" ")
+    const row = byPath.get(cwd)
+    const ok = (stdout = "") => ({ status: 0, stderr: "", stdout })
+    if (cwd === "/r/ui" && args[0] === "worktree" && args[1] === "list") return ok(listing)
+    if (args.includes("worktree") && args.includes("remove")) return byPath.get(args.at(-1))?.refuse ? { status: 1, stderr: "fatal: contains modified or untracked files\n", stdout: "" } : ok()
+    if (!row) return ok()
+    if (args.includes("status")) return ok(row.status ?? "")
+    if (args[0] === "ls-files") return ok(row.hidden ?? "")
+    if (text === "rev-parse HEAD") return ok(row.head ?? MERGED_HEAD)
+    if (args[0] === "branch" && args.includes("--remotes")) return ok(row.remotes ?? "")
+    return ok()
+  }
+  await scene.run()
+  const removals = scene.calls.filter((entry) => entry[0] === "git" && entry.includes("worktree") && entry.includes("remove"))
+  const deleted = scene.calls.filter((entry) => entry[0] === "git" && entry[2] === "branch" && entry[3] === "-D").map((entry) => entry[4])
+  const tried = removals.map((entry) => entry.at(-1))
+  same("drive: the sweep removes a worktree that is merged, clean and pushed and deletes its branch", [tried.includes(pathOf(rows[0])), deleted.includes("chore/done"), tried.includes(pathOf(rows[9])), deleted.includes("chore/remote")], [true, true, true, true])
+  same("drive: the sweep removes only the rows that pass every check, and never with a force flag", [tried.sort(), removals.some((entry) => entry.includes("--force") || entry.includes("-f"))], [[...rows.filter((row) => row.removed || row.refuse).map(pathOf)].sort(), false])
+  same("drive: the sweep deletes the branch only of a removed worktree", deleted.sort(), rows.filter((row) => row.removed).map((row) => row.branch).sort())
+  for (const row of rows.filter((candidate) => candidate.reason)) T(`drive: the sweep keeps the worktree of ${row.name} and logs its path and reason`, scene.messages.some((line) => line.includes(pathOf(row)) && row.reason.test(line)), scene.messages.filter((line) => line.includes(pathOf(row))).join("\n"))
+  T("drive: the sweep never reads or logs the driver worktree and the primary checkout", !scene.calls.some((entry) => entry[0] === "git" && entry[1] === pathOf(rows.find((row) => row.driver))) && !scene.messages.some((line) => line.includes("worktree-stays") && line.includes(" /r/ui:")))
+  const second = await scene.run()
+  same("drive: a worktree that stays is logged once for each reason", scene.messages.filter((line) => line.includes("worktree-stays") && line.includes(pathOf(rows[1]))).length, 1)
+  const dry = scenario({ dryRun: true })
+  await dry.run()
+  same("drive: a dry run sweeps no worktree", dry.calls.filter((entry) => entry[0] === "git" && entry.includes("worktree")).length, 0)
+}
+
 export const driverUnit = async () => {
   await admissionCases()
   await checkOnlyCases()
@@ -2142,6 +2197,7 @@ export const driverUnit = async () => {
   await updateCases()
   await ciCases()
   await closeCases()
+  await sweepCases()
   await intakeCases()
   await accountCases()
   await robustnessCases()
