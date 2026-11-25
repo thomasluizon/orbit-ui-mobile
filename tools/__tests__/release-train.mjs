@@ -328,6 +328,43 @@ const refusalCases = async () => {
       [2, ["orbit-api staging", "orbit-api staging"], 0])
   }
 
+  // The admission texts of the UI workflows come from the workflow files, so a reworded text fails here.
+  const workflowRefusals = ["release.yml", "android-release.yml"].flatMap((file) => {
+    const source = readFileSync(new URL(`../../.github/workflows/${file}`, import.meta.url), "utf8")
+    return [...source.matchAll(/echo "::error::(Selected SHA (?:requires a successful|has missing or failing)[^"]*\$\{workflow\}\.yml[^"]*)"/g)].map((match) => ({ file, text: match[1].replaceAll("${workflow}", "test") }))
+  })
+  same("release-train: the UI workflows have the two Tests and Guards admission texts each", workflowRefusals.map((entry) => entry.file), ["release.yml", "release.yml", "android-release.yml", "android-release.yml"])
+  for (const { file, text } of workflowRefusals) {
+    let uiRefused = false
+    const ui = world({ plan: planOf({ api: { needs: false }, landing: { needs: false }, android: { needs: false } }), files: { ui: ["apps/web/a.ts"] }, outcomes: { failedLog: `::error::${text}` } })
+    ui.ports().waitRelease = async (options) => {
+      ui.events.push(`verify ${options.repo} ${options.workflow}`)
+      if (!uiRefused) { uiRefused = true; return { code: 1, result: { reason: "FAILED" } } }
+      return { code: 0, result: { reason: "SUCCESS" } }
+    }
+    const uiStatus = ui.ports().runStatus
+    ui.ports().runStatus = async (key, runId) => { const status = await uiStatus(key, runId); return status.url.endsWith("5001") ? { ...status, conclusion: "failure" } : status }
+    await ui.drain()
+    same(`release-train: the ${file} refusal "${text.slice(0, 48)}" dispatches test.yml and guards.yml once, then the release again`,
+      [dispatchesOf(ui.events).filter((event) => /^dispatch (test|guards)\.yml/.test(event)).length, releaseDispatches(ui.events).slice(0, 2), ui.tickets.bugs.length],
+      [2, ["orbit-ui-mobile staging", "orbit-ui-mobile staging"], 0])
+  }
+
+  let androidRefused = false
+  const mobile = world({ plan: planOf({ api: { needs: false }, web: { needs: false }, landing: { needs: false } }), files: { ui: ["apps/mobile/a.ts"] }, outcomes: { failedLog: refusal } })
+  mobile.ports().waitRelease = async (options) => {
+    mobile.events.push(`verify ${options.repo} ${options.workflow}`)
+    if (options.workflow === "android" && !androidRefused) { androidRefused = true; return { code: 1, result: { reason: "FAILED" } } }
+    return { code: 0, result: { reason: "SUCCESS" } }
+  }
+  const mobileStatus = mobile.ports().runStatus
+  mobile.ports().runStatus = async (key, runId) => { const status = await mobileStatus(key, runId); return status.url.endsWith("5001") ? { ...status, conclusion: "failure" } : status }
+  await mobile.drain()
+  same("release-train: iOS staging dispatches only after the Android staging run that follows a refusal",
+    dispatchesOf(mobile.events).map((event) => event.split(" ").slice(1, 2).concat(event.match(/track=\w+|variant=\w+/)?.slice(0, 1) ?? []).join(" ")),
+    ["android-release.yml track=internal", "test.yml", "guards.yml", "android-release.yml track=internal", "ios-release.yml variant=staging", "android-release.yml track=open", "ios-release.yml variant=production"])
+  same("release-train: the mobile train that follows a refusal completes with no ticket", [mobile.state().train.status, mobile.tickets.bugs.length], ["complete", 0])
+
   let again = 0
   const twice = world({ plan: planOf({ api: { needs: false }, landing: { needs: false }, android: { needs: false } }), files: { ui: ["apps/web/a.ts"] }, outcomes: { failedLog: refusal } })
   twice.ports().waitRelease = async () => (++again, { code: 1, result: { reason: "FAILED" } })

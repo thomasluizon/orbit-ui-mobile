@@ -69,14 +69,14 @@ export const dispatchArguments = (command, environment, plannedSha) => {
 
 const done = (step) => ["verified", "skipped", "held"].includes(step.state)
 
-/** The next action of a train: the first step that is not done. An iOS step dispatches while its Android partner builds, but only after the Android run title carries the version (the run is resolved). */
+/** The next action of a train: the first step that is not done. An iOS step dispatches while its Android partner builds, but only while a resolved Android run is live (the step is dispatched and has a run). */
 export const nextAction = (train) => {
   for (let index = 0; index < train.steps.length; index++) {
     const step = train.steps[index]
     if (done(step)) continue
     if (step.state === "pending") return { type: "dispatch", step }
     const partner = train.steps[index + 1]
-    if (step.kind === "android" && partner?.kind === "ios" && partner.state === "pending" && step.runId !== null) return { type: "dispatch", step: partner }
+    if (step.kind === "android" && step.state === "dispatched" && step.runId !== null && partner?.kind === "ios" && partner.state === "pending") return { type: "dispatch", step: partner }
     return { type: "check", step }
   }
   return null
@@ -298,6 +298,8 @@ const startTests = async (ctx, state, step) => {
     for (const workflow of ["test.yml", "guards.yml"]) await ctx.ports.dispatch(["workflow", "run", workflow, "--repo", slugOf(step.service), "--ref", "main"])
   } catch (error) { return stopTrain(ctx, state, step, `the Tests and Guards dispatch failed: ${error.message}`) }
   step.state = "testing"
+  step.previousRunId = step.runId
+  step.runId = null
   step.tests = { dispatchedAt: ctx.now() }
   step.retried = true
   save(ctx, state)
@@ -312,8 +314,6 @@ const checkTests = async (ctx, state, step) => {
   const runs = [await newest("test.yml"), await newest("guards.yml")]
   if (runs.some((run) => run?.status === "completed" && run.conclusion !== "success")) return stopTrain(ctx, state, step, "the Tests or Guards run at the planned SHA failed")
   if (runs.every((run) => run?.status === "completed")) {
-    step.previousRunId = step.runId
-    step.runId = null
     step.url = null
     step.state = "pending"
     save(ctx, state)
