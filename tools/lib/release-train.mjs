@@ -28,8 +28,8 @@ const COMPARE_FILE_LIMIT = 300 // GitHub lists at most 300 files of a compare, s
 const MIGRATIONS_PATH = "src/Orbit.Infrastructure/Migrations/"
 const WEB_PATHS = [/^apps\/web\//, /^packages\/shared\//]
 const MOBILE_PATHS = [/^apps\/mobile\//, /^packages\/shared\//]
-/** The text of a release refusal for a missing green Tests or Guards run (`release.yml` and `android-release.yml`). */
-const REFUSAL = /requires a successful \S+\.yml push or workflow_dispatch run|missing or failing checks for/
+/** The text of a release refusal for a missing green Tests or Guards run: `release.yml` and `android-release.yml` of the UI, and `release-admission.mjs` of orbit-api. */
+const REFUSAL = /requires a successful \S+\.yml push or workflow_dispatch run|missing or failing checks for|requires successful .+ \((?:test|guards)\.yml\) on [a-f0-9]{40}|No successful check runs for \S+\.yml on/
 
 export const SERVICES = {
   api: { repoKey: "api", repo: "orbit-api", waiter: "api", origins: { staging: "https://api-staging.useorbit.org", production: "https://api.useorbit.org" } },
@@ -69,14 +69,14 @@ export const dispatchArguments = (command, environment, plannedSha) => {
 
 const done = (step) => ["verified", "skipped", "held"].includes(step.state)
 
-/** The next action of a train: the first step that is not done. An iOS step dispatches while its Android partner still builds. */
+/** The next action of a train: the first step that is not done. An iOS step dispatches while its Android partner builds, but only after the Android run title carries the version (the run is resolved). */
 export const nextAction = (train) => {
   for (let index = 0; index < train.steps.length; index++) {
     const step = train.steps[index]
     if (done(step)) continue
     if (step.state === "pending") return { type: "dispatch", step }
     const partner = train.steps[index + 1]
-    if (step.kind === "android" && partner?.kind === "ios" && partner.state === "pending") return { type: "dispatch", step: partner }
+    if (step.kind === "android" && partner?.kind === "ios" && partner.state === "pending" && step.runId !== null) return { type: "dispatch", step: partner }
     return { type: "check", step }
   }
   return null

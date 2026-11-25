@@ -127,7 +127,7 @@ gh run watch <databaseId>
 
 ## Step 5: Release iOS at the same version
 
-Unless `--android-only` applies, run `/ios-release` right after the Android dispatch. Use the same commit and the same `app_version`. Use the iOS `variant` of the Android environment: `production` after `open` or `production`, and `staging` after `internal`.
+Unless `--android-only` applies, run `/ios-release` after the Android dispatch, once the Android run title carries the version (`Android Release <version> (<code>) to <track> on`). A title of only `Android Release` makes the iOS configuration check fail. Use the same commit and the same `app_version`. Use the iOS `variant` of the Android environment: `production` after `open` or `production`, and `staging` after `internal`.
 
 - `gh workflow run --ref` builds the tip of the branch. The iOS check refuses a commit other than the Android commit.
 - Before the iOS dispatch, run `git fetch origin <branch>`. Compare `git rev-parse origin/<branch>` with the commit of the Android run.

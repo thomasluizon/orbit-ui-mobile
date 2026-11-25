@@ -122,11 +122,11 @@ const fullTrainCases = async () => {
       "dispatch release.yml environment=production",
       "verify landing release https://useorbit.org",
       "dispatch android-release.yml app_version=1.5.0 android_version_code=701 track=internal",
+      "verify ui android",
       "dispatch ios-release.yml variant=staging app_version=1.5.0 build_number=42",
-      "verify ui android",
       "dispatch android-release.yml app_version=1.5.0 android_version_code=702 track=open",
-      "dispatch ios-release.yml variant=production app_version=1.5.0 build_number=9",
       "verify ui android",
+      "dispatch ios-release.yml variant=production app_version=1.5.0 build_number=9",
     ])
   const { train } = w.state()
   same("release-train: the train completes and every step is verified", [train.status, train.steps.map((step) => step.state)], ["complete", Array(10).fill("verified")])
@@ -305,6 +305,29 @@ const refusalCases = async () => {
   same("release-train: the Tests and Guards dispatch runs on main of the repository", testsDispatched.map((event) => event.replace(" --ref main", "")), ["dispatch test.yml --repo thomasluizon/orbit-ui-mobile", "dispatch guards.yml --repo thomasluizon/orbit-ui-mobile"])
   same("release-train: the train completes after the second release dispatch", w.state().train.status, "complete")
 
+  const apiOnly = { web: { needs: false }, landing: { needs: false }, android: { needs: false } }
+  const sha40 = NEW.api
+  const apiRefusals = [
+    `Release requires successful API Tests (test.yml) on ${sha40}; dispatch test.yml and guards.yml on main at that commit, then rerun the release`,
+    `Release requires successful Guards (guards.yml) on ${sha40}; dispatch test.yml and guards.yml on main at that commit, then rerun the release`,
+    `No successful check runs for test.yml on ${sha40}`,
+  ]
+  for (const text of apiRefusals) {
+    let apiRefused = false
+    const api = world({ plan: planOf(apiOnly), files: { api: ["src/Orbit.Api/c.cs"] }, outcomes: { failedLog: `Error: ${text}` } })
+    api.ports().waitRelease = async (options) => {
+      api.events.push(`verify ${options.repo} ${options.workflow}`)
+      if (!apiRefused) { apiRefused = true; return { code: 1, result: { reason: "FAILED" } } }
+      return { code: 0, result: { reason: "SUCCESS" } }
+    }
+    const apiStatus = api.ports().runStatus
+    api.ports().runStatus = async (key, runId) => { const status = await apiStatus(key, runId); return status.url.endsWith("5001") ? { ...status, conclusion: "failure" } : status }
+    await api.drain()
+    same(`release-train: the orbit-api refusal "${text.slice(0, 40)}" dispatches test.yml and guards.yml once on orbit-api, then the API staging release again`,
+      [dispatchesOf(api.events).filter((event) => /^dispatch (test|guards)\.yml --repo thomasluizon\/orbit-api/.test(event)).length, releaseDispatches(api.events).slice(0, 2), api.tickets.bugs.length],
+      [2, ["orbit-api staging", "orbit-api staging"], 0])
+  }
+
   let again = 0
   const twice = world({ plan: planOf({ api: { needs: false }, landing: { needs: false }, android: { needs: false } }), files: { ui: ["apps/web/a.ts"] }, outcomes: { failedLog: refusal } })
   twice.ports().waitRelease = async () => (++again, { code: 1, result: { reason: "FAILED" } })
@@ -343,12 +366,12 @@ const mobileCases = async () => {
   movedPorts.dispatch = async (args) => { await original(args); if (args[2] === "android-release.yml" && args.includes("track=open")) moved.main.ui = sha("e") }
   await moved.drain()
   const production = moved.state().train.steps.filter((step) => step.environment === "production" && step.kind !== "release")
-  same("release-train: iOS stops the train when main moved between the Android and the iOS dispatch", [moved.state().train.stoppedAt, production.map((step) => step.state)], ["ios-production", ["dispatched", "failed"]])
+  same("release-train: iOS stops the train when main moved between the Android and the iOS dispatch", [moved.state().train.stoppedAt, production.map((step) => step.state)], ["ios-production", ["verified", "failed"]])
 
   const skipped = world()
   const skippedPorts = skipped.ports()
-  const check = skippedPorts.waitRelease
-  skippedPorts.waitRelease = async (options) => { if (options.workflow === "android" && skipped.main.ui === NEW.web) skipped.main.ui = sha("e"); return check(options) }
+  const dispatched = skippedPorts.dispatch
+  skippedPorts.dispatch = async (args) => { await dispatched(args); if (args[2] === "ios-release.yml" && args.includes("variant=staging")) skipped.main.ui = sha("e") }
   await skipped.drain()
   same("release-train: when main moves before the Android production dispatch the mobile production steps skip with no ticket", [skipped.state().train.steps.filter((step) => step.environment === "production" && step.kind !== "release").map((step) => step.state), skipped.tickets.bugs.length, skipped.state().train.status], [["skipped", "skipped"], 0, "complete"])
 
@@ -385,8 +408,10 @@ const unitCases = async () => {
   same("release-train: a command with another repository, another ref or another SHA gives null", [dispatchArguments(command.replace("orbit-api", "other"), "staging", NEW.api), dispatchArguments(command.replace("--ref main", "--ref dev"), "staging", NEW.api), dispatchArguments(command, "staging", sha("0")), dispatchArguments(`${command} -f force_unstaged=true`, "staging", NEW.api), dispatchArguments(undefined, "staging", NEW.api)], [null, null, null, null, null])
   same("release-train: the health URLs of the services", [healthUrl("api", "staging"), healthUrl("web", "production"), healthUrl("landing", "staging")], ["https://api-staging.useorbit.org/health", "https://orbit-web-3qmv.onrender.com/api/health", "https://orbit-landing-staging.onrender.com/"])
   same("release-train: manualStepsOf reads the section up to the next heading", [manualStepsOf("## Assumptions\nx\n\n## Manual steps\n- Run terraform apply\n\n## Test evidence\ny"), manualStepsOf("## Manual steps\nNone"), manualStepsOf("no section"), manualStepsOf(null)], ["- Run terraform apply", "None", "", ""])
-  const train = { steps: [{ state: "verified", kind: "release" }, { state: "dispatched", kind: "android" }, { state: "pending", kind: "ios" }, { state: "pending", kind: "android" }] }
-  same("release-train: the iOS step dispatches while its Android partner still builds", [nextAction(train).type, nextAction(train).step.kind], ["dispatch", "ios"])
+  const train = { steps: [{ state: "verified", kind: "release" }, { state: "dispatched", kind: "android", runId: 7 }, { state: "pending", kind: "ios" }, { state: "pending", kind: "android" }] }
+  same("release-train: the iOS step dispatches while its Android partner builds, once the Android run title carries the version", [nextAction(train).type, nextAction(train).step.kind], ["dispatch", "ios"])
+  const untitled = { steps: [{ state: "dispatched", kind: "android", runId: null }, { state: "pending", kind: "ios" }] }
+  same("release-train: the iOS step waits while the Android run has no title with the version", [nextAction(untitled).type, nextAction(untitled).step.kind], ["check", "android"])
   train.steps[2].state = "dispatched"
   same("release-train: with both mobile runs dispatched the next action checks the Android run", [nextAction(train).type, nextAction(train).step.kind], ["check", "android"])
   same("release-train: a train with every step done has no next action", nextAction({ steps: [{ state: "verified" }, { state: "skipped" }, { state: "held" }] }), null)
