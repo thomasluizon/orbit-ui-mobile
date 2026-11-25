@@ -113,6 +113,10 @@ export async function clearPersistedQueryCache(): Promise<void> {
   } catch {}
 }
 
+function liveQueryIsAsNew(queryKey: readonly unknown[], persistedUpdatedAt: number): boolean {
+  return (queryClient.getQueryState(queryKey)?.dataUpdatedAt ?? 0) >= persistedUpdatedAt
+}
+
 export async function restoreQueryCache(): Promise<void> {
   const key = getCacheKey()
   if (!key) return
@@ -129,6 +133,7 @@ export async function restoreQueryCache(): Promise<void> {
     }
     for (const entry of parsed.entries) {
       if (entry.queryKey[0] === configKeys.all[0]) continue
+      if (liveQueryIsAsNew(entry.queryKey, entry.state.dataUpdatedAt)) continue
       queryClient.setQueryData(entry.queryKey, entry.state.data, {
         updatedAt: entry.state.dataUpdatedAt,
       })

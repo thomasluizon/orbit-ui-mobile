@@ -62,6 +62,9 @@ function syncWidgetDataSafely() {
   void syncWidgetData().catch(() => {})
 }
 
+/** Longest the native splash waits for startup. Past it the shell renders and startup finishes in the background. */
+export const BOOT_DEADLINE_MS = 8000
+
 interface ProvidersProps {
   children: ReactNode
 }
@@ -111,6 +114,7 @@ function AuthInitializer({
   const runtimeTheme = getRuntimeTheme()
   const runtimeTokens = createTokensV2(runtimeTheme.scheme, runtimeTheme.themeMode)
   const [hasRenderedApp, setHasRenderedApp] = useState(false)
+  const [bootDeadlinePassed, setBootDeadlinePassed] = useState(false)
   const [fontsLoaded] = useFonts({
     Geist_400Regular,
     Geist_500Medium,
@@ -190,16 +194,23 @@ function AuthInitializer({
     return () => subscription.remove()
   }, [])
 
-  const appReady = ready && fontsLoaded && onboardingDraftHydrated
+  useEffect(() => {
+    const timer = setTimeout(() => setBootDeadlinePassed(true), BOOT_DEADLINE_MS)
+    return () => clearTimeout(timer)
+  }, [])
 
-  if (appReady && !hasRenderedApp) setHasRenderedApp(true)
+  const appReady = ready && fontsLoaded && onboardingDraftHydrated
+  const shellReleased = appReady || bootDeadlinePassed
+  const coverShell = !appReady && !(ready && bootDeadlinePassed)
+
+  if (shellReleased && !hasRenderedApp) setHasRenderedApp(true)
 
   useEffect(() => {
-    if (!appReady) return
+    if (!shellReleased) return
     void SplashScreen.hideAsync()
-  }, [appReady])
+  }, [shellReleased])
 
-  if (!appReady && !hasRenderedApp) {
+  if (!shellReleased && !hasRenderedApp) {
     return <View testID="startup-canvas" style={{ flex: 1, backgroundColor: runtimeTokens.bg }} />
   }
 
@@ -211,7 +222,7 @@ function AuthInitializer({
           <OfflineManager />
           <AccountEventConnection />
           <StoreBillingProvider>{children}</StoreBillingProvider>
-          {!appReady ? <ShellSkeleton /> : null}
+          {coverShell ? <ShellSkeleton /> : null}
         </View>
       </ThemeProvider>
     </CaptureReadinessContext.Provider>
