@@ -1,7 +1,7 @@
 /** Table tests of the release train: a simulated GitHub, the exact dispatches and the saved state. No network. */
 
-import { existsSync, mkdirSync, readFileSync } from "node:fs"
-import { join } from "node:path"
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs"
+import { join, relative } from "node:path"
 
 import { appStoreBuildNumber, CADENCE_MS, dispatchArguments, healthUrl, manualStepsOf, nextAction, readTrainState, realPorts, releaseTick, requestTrain, trainSummary, TRAIN_FILE } from "../lib/release-train.mjs"
 import { T, root, same } from "./_harness.mjs"
@@ -167,7 +167,7 @@ const failureCases = async () => {
   await w.drain()
   const { train } = w.state()
   same("release-train: a failed staging step stops the train at that service with no later dispatch", [releaseDispatches(w.events), train.status, train.stoppedAt], [["orbit-api staging"], "stopped", "api-staging"])
-  same("release-train: a stopped train files one Bug ticket with the run link, the step and the error", [w.tickets.bugs.length, w.tickets.bugs[0].repoKey, w.tickets.bugs[0].body.includes("https://github.com/run/5001"), w.tickets.bugs[0].body.includes("api-staging"), w.tickets.bugs[0].body.includes("FAILED")], [1, "api", true, true, true])
+  same("release-train: a stopped train files one Bug ticket with the run link, the step and the error", [w.tickets.bugs.length, w.tickets.bugs[0].repoKey, w.tickets.bugs[0].body.split("\n").some((line) => line === "Run: https://github.com/run/5001"), w.tickets.bugs[0].body.includes("api-staging"), w.tickets.bugs[0].body.includes("FAILED")], [1, "api", true, true, true])
   for (let count = 0; count < 5; count++) await w.tick()
   same("release-train: later ticks of a stopped train file no second ticket and dispatch nothing", [w.tickets.bugs.length, releaseDispatches(w.events).length], [1, 1])
 
@@ -453,6 +453,19 @@ const skillCases = () => {
   T("release-train: the release skill says /release starts the same train at once", /\/release.*(starts|runs).*same train|same train.*\/release/i.test(read("release/SKILL.md")))
 }
 
+/** CodeQL js/incomplete-url-substring-sanitization: a substring check that holds a full URL accepts a URL with any host around it. */
+const urlSubstringCases = () => {
+  const toolsDir = join(new URL("../..", import.meta.url).pathname, "tools")
+  const sources = (directory) => readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.name === "node_modules") return []
+    const path = join(directory, entry.name)
+    return entry.isDirectory() ? sources(path) : /\.(mjs|js|cjs)$/.test(entry.name) ? [path] : []
+  })
+  const substringOfUrl = /\.(?:includes|indexOf)\(\s*[`'"][^`'"]*:\/\//
+  const found = sources(toolsDir).flatMap((path) => readFileSync(path, "utf8").split("\n").flatMap((line, index) => (substringOfUrl.test(line) ? [`${relative(toolsDir, path)}:${index + 1}`] : [])))
+  same("release-train: no tools file checks a URL with a substring match, so no host hides inside the URL", found, [])
+}
+
 export const cases = async () => {
   await fullTrainCases()
   await cadenceCases()
@@ -468,4 +481,5 @@ export const cases = async () => {
   await dryRunCases()
   await portCases()
   skillCases()
+  urlSubstringCases()
 }
