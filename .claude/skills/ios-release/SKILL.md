@@ -9,7 +9,7 @@ Never release on the App Store. This workflow uploads to internal TestFlight onl
 
 ## One mobile version
 
-iOS ships at the same `app_version` as Android, from the same commit. Each store keeps its own build counter. The default path is `/android-release` first. Then run this skill right after the Android dispatch, at the version and commit of that Android run. Android still uploads first.
+iOS ships at the same `app_version` as Android, from the same commit. Each store keeps its own build counter. The default path is `/android-release` first. Then run this skill after the Android dispatch, once the Android run title carries the version, at the version and commit of that Android run. If the check says no Android release of the version runs on the commit, rerun the failed iOS job once the title carries the version. Android still uploads first.
 
 The `variant` selects the GitHub environment. Each environment keeps its own records. Select the variant of the Android environment:
 
@@ -31,7 +31,7 @@ The `variant` selects the GitHub environment. Each environment keeps its own rec
 
 ## Dispatch
 
-Before dispatch, resolve the ref to the commit of the Android run. Find an unused positive `build_number` on the TestFlight screen of the matching app in App Store Connect. Never infer it from the Android version code. Check the `Mobile iOS Build` compile result when the commit changed a native input. Dispatch only when the owner authorized the upload.
+Before dispatch, resolve the ref to the commit of the Android run. Take the `build_number` as the highest build of the matching app in App Store Connect plus one (`tools/lib/app-store-connect.mjs`). Never infer it from the Android version code. Check the `Mobile iOS Build` compile result when the commit changed a native input. The driver release train dispatches this workflow after its Android run is listed with the version in its title, and `/release` starts the same train at once.
 
 ```sh
 gh workflow run ios-release.yml --ref <ref> \

@@ -53,7 +53,7 @@ const partComment = (number, total, extra = "") => comment(null, `Part ${number}
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null } = {}) => {
   const calls = []
   const messages = []
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
@@ -103,6 +103,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     authStatus: async (name = "main") => structuredClone(name === "worker" ? workerAuth ?? auth : auth),
     processAlive: (pid) => { try { process.kill(pid, 0); return true } catch { return false } },
   }
+  if (releasePorts !== null) env.releasePorts = releasePorts
   if (driver !== null) Object.assign(env, { driverWorktree: "/r/driver", selfUpdate: driver.update ?? false, smoke: async () => driver.smoke ?? true })
   const mem = createMemory()
   mem.reading = reading === null ? null : { account: ACCOUNT.key, ...reading }
@@ -2186,7 +2187,63 @@ const sweepCases = async () => {
   same("drive: a dry run sweeps no worktree", dry.calls.filter((entry) => entry[0] === "git" && entry.includes("worktree")).length, 0)
 }
 
+/** The release train inside the tick: its ports, its dry-run lines and its ticket writes. */
+const releaseCases = async () => {
+  const SHA = (letter) => letter.repeat(40)
+  const entry = (name, extra = {}) => ({ name, needsRelease: true, deployedSha: SHA("1"), plannedSha: SHA("a"), commits: [{ sha: SHA("a"), message: "change (#4)" }], ...(name === "android" ? { track: "open" } : { dispatchCommand: `gh workflow run release.yml --repo thomasluizon/orbit-${name === "web" ? "ui-mobile" : name === "api" ? "api" : "landing-page"} --ref main -f environment=production -f branch='main' -f sha=${SHA("a")}` }), ...extra })
+  const fakePorts = (events, { migration = false } = {}) => ({
+    plan: async () => { events.push("plan"); return { services: [entry("api"), entry("web"), entry("landing"), entry("android")] } },
+    wake: async () => { events.push("wake") },
+    mainHead: async () => SHA("a"),
+    changedFiles: async (service) => (service === "api" && migration ? ["src/Orbit.Infrastructure/Migrations/x.cs"] : ["apps/web/a.ts", "apps/mobile/b.ts"]),
+    manualSteps: async () => [],
+    dispatch: async (args) => { events.push(`dispatch ${args.slice(2).join(" ")}`) },
+    listRuns: async () => [],
+  })
+
+  const none = scenario({ tickets: [] })
+  await none.run()
+  same("drive: a tick with no release ports makes no release read", none.messages.filter((line) => line.includes(" release ")), [])
+
+  const dry = scenario({ dryRun: true, releasePorts: fakePorts([]) })
+  const printed = []
+  dry.env.log = (line) => printed.push(line)
+  await dry.run()
+  const steps = printed.filter((line) => / release (api|web|landing|android|ios) (staging|production) /.test(line))
+  T("drive: a dry run prints the release step of each service that the plan says needs a release", ["api", "web", "landing", "android", "ios"].every((service) => steps.some((line) => line.includes(` release ${service} staging `) && line.endsWith("would dispatch"))), printed.join("\n"))
+  same("drive: a dry run dispatches no release and writes no train file", [existsSync(join(dry.env.stateDir, "release-train.json"))], [false])
+
+  const events = []
+  const real = scenario({ releasePorts: fakePorts(events) })
+  await real.run()
+  const dispatched = events.filter((event) => event.startsWith("dispatch"))
+  same("drive: a real tick starts the train and makes its first dispatch, API staging", [dispatched.length, dispatched[0].includes("orbit-api") && dispatched[0].includes("environment=staging")], [1, true])
+  same("drive: the train state sits beside the pace file", existsSync(join(real.env.stateDir, "release-train.json")), true)
+  await real.run()
+  same("drive: the next tick checks the run and dispatches nothing new while no run is listed", events.filter((event) => event.startsWith("dispatch")).length, 1)
+
+  const broken = scenario({ releasePorts: { ...fakePorts([]), plan: async () => { throw new Error("plan failed") } } })
+  await broken.run()
+  T("drive: a release error is one log line and does not end the tick", broken.messages.some((line) => line.includes(" release error (plan failed)")), broken.messages.join("\n"))
+
+  const held = scenario({ releasePorts: fakePorts([], { migration: true }) })
+  await held.run()
+  const created = only(held.calls, "createTicket")
+  same("drive: a held API step files one needs:owner ticket for the API with one comment that names the step", [created.length, created[0]?.[1].labels, only(held.calls, "comment").length, only(held.calls, "comment")[0]?.[3].includes("api-staging")], [1, ["repo:api", "needs:owner"], 1, true])
+  await held.run()
+  same("drive: the next tick of a train with a held step files no second ticket", only(held.calls, "createTicket").length, 1)
+
+  const asleep = scenario({ releasePorts: fakePorts([]), sleeping: true })
+  await asleep.run()
+  T("drive: sleep mode does not stop the train", asleep.messages.some((line) => line.includes(" release train ") && line.includes(" start: ")), asleep.messages.join("\n"))
+
+  same("drive: --release-now and --release-status are modes", [parseArguments(["--release-now"]).mode, parseArguments(["--release-status"]).mode, parseArguments(["--release-now", "--once"]).error !== undefined], ["release-now", "release-status", true])
+  const usage = await usageText()
+  T("drive: the usage names the release train and both flags", /release train/.test(usage) && /--release-now/.test(usage) && /--release-status/.test(usage), usage)
+}
+
 export const driverUnit = async () => {
+  await releaseCases()
   await admissionCases()
   await checkOnlyCases()
   await stallCases()
