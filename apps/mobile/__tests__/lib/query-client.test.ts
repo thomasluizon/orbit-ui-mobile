@@ -64,6 +64,29 @@ describe('mobile query client', () => {
     expect(queryClient.getQueryState(notificationKeys.lists())?.dataUpdatedAt).toBe(123)
   })
 
+  it('keeps data a fetch wrote while a slow cache read was pending', async () => {
+    await setQueryCacheScope('user-1')
+    const staleKey = notificationKeys.lists()
+    const otherKey = gamificationKeys.all
+    const persisted = JSON.stringify({
+      version: QUERY_CACHE_VERSION,
+      entries: [
+        { queryKey: staleKey, state: { data: 'stale-from-disk', dataUpdatedAt: 1000 } },
+        { queryKey: otherKey, state: { data: 'other-from-disk', dataUpdatedAt: 1000 } },
+      ],
+    })
+    let releaseRead: (value: string) => void = () => {}
+    getItemMock.mockReturnValue(new Promise<string>((resolve) => { releaseRead = resolve }))
+
+    const restoring = restoreQueryCache()
+    await queryClient.fetchQuery({ queryKey: staleKey, queryFn: () => Promise.resolve('fresh-from-server') })
+    releaseRead(persisted)
+    await restoring
+
+    expect(queryClient.getQueryData(staleKey)).toBe('fresh-from-server')
+    expect(queryClient.getQueryData(otherKey)).toBe('other-from-disk')
+  })
+
   it.each([
     createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized'),
     createApiClientError(403, { error: 'Pro access required', errorCode: 'PAY_GATE' }, 'Forbidden'),
