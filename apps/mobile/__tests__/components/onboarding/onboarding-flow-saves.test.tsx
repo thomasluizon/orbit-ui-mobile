@@ -121,7 +121,7 @@ describe('guided onboarding saves the habit in the account day', () => {
   it('sets a loaded null timezone before it creates the habit', async () => {
     process.env.TZ = 'America/Sao_Paulo'
     vi.setSystemTime(new Date('2026-09-14T00:30:00.000Z'))
-    mocks.timeZone = null
+    Object.assign(mocks, { timeZone: null })
     vi.mocked(performQueuedApiMutation).mockResolvedValue({})
     await reachReminder()
     expect(performQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({ type: 'setTimeZone', endpoint: API.profile.timezone, payload: { timeZone: 'America/Sao_Paulo' } }))
@@ -131,7 +131,7 @@ describe('guided onboarding saves the habit in the account day', () => {
   it('queues a null timezone before an offline save and makes the habit wait for it', async () => {
     process.env.TZ = 'America/Sao_Paulo'
     vi.setSystemTime(new Date('2026-09-14T00:30:00.000Z'))
-    mocks.timeZone = null
+    Object.assign(mocks, { timeZone: null })
     vi.mocked(performQueuedApiMutation).mockResolvedValue({ queued: true, queuedMutationId: 'timezone-1' })
     await reachReminder()
     expect(performQueuedApiMutation).toHaveBeenCalledOnce()

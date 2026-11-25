@@ -138,6 +138,8 @@ function leadingPosition(node: YogaNode): number {
   return left
 }
 
+const yogaRoundingSlack = 1
+
 function topPosition(node: YogaNode): number {
   let top = 0
   for (let current: YogaNode | null = node; current; current = current.getParent()) top += current.getComputedTop()
@@ -290,8 +292,7 @@ function assertParentMetadata(nodes: Map<Host, YogaNode>, [stripHost, stripNode]
     expect(leadingPosition(node)).toBeGreaterThanOrEqual(leadingPosition(stripNode))
     expect(leadingPosition(node) + node.getComputedWidth()).toBeLessThanOrEqual(leadingPosition(stripNode) + stripNode.getComputedWidth())
     expect(topPosition(node)).toBeGreaterThanOrEqual(topPosition(stripNode))
-    // Yoga rounds each box on its own, so a nested box can end 1 px past its parent when the Orbit line above has a fractional height.
-    expect(topPosition(node) + node.getComputedHeight()).toBeLessThanOrEqual(topPosition(stripNode) + stripNode.getComputedHeight() + 1)
+    expect(topPosition(node) + node.getComputedHeight()).toBeLessThanOrEqual(topPosition(stripNode) + stripNode.getComputedHeight() + yogaRoundingSlack)
   }
   return progress[0]!
 }
