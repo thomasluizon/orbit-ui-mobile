@@ -60,7 +60,7 @@ The waiter checks the live commit against the planned SHA after the run succeeds
 
 After success, verify the live service:
 
-- API: `/health` reports `status: Healthy` and the planned SHA. For production, the Render live deploy commit also equals the planned SHA.
+- API: `/health` reports `status: Healthy` and the planned SHA.
 - Web: `/api/health` reports `status: ok` and the planned `commit`.
 - Landing: a successful GitHub Deployment exists for the planned SHA, and the `orbit-build` meta tag equals the SHA.
 

@@ -24,7 +24,7 @@ const planOf = (overrides = {}) => ({ environment: "production", branch: "main",
 let sequence = 0
 
 /** A simulated world. A dispatch makes one completed run; `outcomes` overrides the answer for one step key `<workflow>:<field>`. */
-const world = ({ plan = planOf(), files = {}, manual = {}, outcomes = {}, noCredentials = false, codes = 700, builds = { staging: 41, production: 8 }, landingDeployed = true, renderLive = null, mainMoves = {} } = {}) => {
+const world = ({ plan = planOf(), files = {}, manual = {}, outcomes = {}, noCredentials = false, codes = 700, builds = { staging: 41, production: 8 }, landingDeployed = true, mainMoves = {} } = {}) => {
   const stateDir = join(root, `release-train-${++sequence}`)
   mkdirSync(stateDir, { recursive: true })
   const events = []
@@ -37,7 +37,7 @@ const world = ({ plan = planOf(), files = {}, manual = {}, outcomes = {}, noCred
     plan: async () => { events.push("plan"); return structuredClone(plan) },
     wake: async (urls) => { events.push(`wake ${urls.length}`) },
     mainHead: async (key) => main[key],
-    changedFiles: async (service, base, head) => files[service] ?? ["apps/web/a.ts", "apps/mobile/b.ts", "src/Orbit.Api/c.cs"],
+    changedFiles: async (service, base, head) => files[service] === undefined ? ["apps/web/a.ts", "apps/mobile/b.ts", "src/Orbit.Api/c.cs"] : files[service],
     manualSteps: async (service) => manual[service] ?? [],
     dispatch: async (args) => {
       events.push(`dispatch ${args.slice(2).join(" ")}`)
@@ -64,7 +64,6 @@ const world = ({ plan = planOf(), files = {}, manual = {}, outcomes = {}, noCred
       return answer ?? { code: 0, result: { reason: "SUCCESS", url: run.url } }
     },
     landingDeployed: async () => landingDeployed,
-    renderLiveCommit: async () => renderLive ?? NEW.api,
     mobilePlan: async (environment) => ({ environment, nextVersion: environment === "production" ? "1.5.0" : "1.4.1" }),
     newestAndroidCode: async () => codes,
     iosBuildNumber: async (variant) => {
@@ -189,9 +188,12 @@ const failureCases = async () => {
   await extra.drain()
   same("release-train: a landing release with no successful GitHub Deployment stops the train", [extra.state().train.stoppedAt, extra.state().train.steps.find((step) => step.id === "android-staging").state], ["landing-staging", "pending"])
 
-  const render = world({ renderLive: sha("9") })
-  await render.drain()
-  same("release-train: an API production release whose Render live deploy differs stops the train", [render.state().train.stoppedAt, releaseDispatches(render.events)], ["api-production", ["orbit-api staging", "orbit-api production"]])
+  const bigApi = world({ files: { api: null } })
+  await bigApi.drain()
+  same("release-train: an API compare with an incomplete file list holds only the API step, and the other services release", [bigApi.state().train.steps.filter((step) => step.state === "held").map((step) => step.id), bigApi.state().train.status, releaseDispatches(bigApi.events).filter((entry) => entry.startsWith("orbit-api")), releaseDispatches(bigApi.events).length], [["api-staging", "api-production"], "complete", [], 4])
+  const bigUi = world({ files: { ui: null } })
+  await bigUi.drain()
+  same("release-train: a UI compare with an incomplete file list releases web and mobile", [bigUi.state().train.status, releaseDispatches(bigUi.events).length, bigUi.events.some((event) => event.startsWith("dispatch android-release.yml"))], ["complete", 6, true])
 
   const unique = world()
   const original = unique.ports().dispatch
@@ -409,8 +411,12 @@ const portCases = async () => {
     calls.push([file, ...args])
     const text = args.join(" ")
     if (text.includes("commits/main")) return { status: 0, stdout: `${NEW.web}\n`, stderr: "" }
-    if (text.includes("compare/") && text.includes("&page=1")) return { status: 0, stdout: JSON.stringify(Array.from({ length: 100 }, (_, index) => `f${index}`)), stderr: "" }
-    if (text.includes("compare/") && text.includes("&page=2")) return { status: 0, stdout: JSON.stringify(["apps/web/x.ts"]), stderr: "" }
+    // The real endpoint returns `files` on the first page only, up to 300 entries. Any later page has `files: null`, and `[.files[].filename]` exits 1 on it.
+    if (text.includes("compare/")) {
+      if (text.includes("page=") || !text.includes("[.files[]?.filename]")) return { status: 1, stdout: "", stderr: "jq: error: Cannot iterate over null" }
+      const count = text.includes(`...${"c".repeat(40)}`) ? 300 : 120
+      return { status: 0, stdout: JSON.stringify(Array.from({ length: count }, (_, index) => `f${index}`)), stderr: "" }
+    }
     if (args[0]?.endsWith("wait-release.mjs")) return { status: 0, stdout: `${JSON.stringify({ reason: "SUCCESS" })}\n`, stderr: "" }
     if (args[0]?.endsWith("release-plan.mjs")) return { status: 0, stdout: JSON.stringify(planOf()), stderr: "" }
     if (text.includes("workflow run")) return { status: 0, stdout: "", stderr: "" }
@@ -420,7 +426,8 @@ const portCases = async () => {
   const ports = realPorts({ run, toolsDirectory: "/r/tools", environment: {}, fetchText: async () => "" })
   same("release-train: the real port reads the main head", await ports.mainHead("ui"), NEW.web)
   const files = await ports.changedFiles("web", OLD.web, NEW.web)
-  same("release-train: the real port pages the compare files until a short page", [files.length, files.at(-1)], [101, "apps/web/x.ts"])
+  same("release-train: the real port reads the compare files with one request on the first page", [files.length, calls.filter((entry) => entry.some((part) => part.includes?.("compare/"))).length], [120, 1])
+  same("release-train: the real port returns null for a compare that lists 300 files, which is incomplete", await ports.changedFiles("web", OLD.web, "c".repeat(40)), null)
   same("release-train: the newest Android code is the highest code of the run titles", await ports.newestAndroidCode(), 815)
   await ports.dispatch(["workflow", "run", "release.yml", "--repo", "thomasluizon/orbit-api"])
   await ports.waitRelease({ repo: "api", workflow: "release", run: 5, sha: NEW.api, workflowSha: NEW.api, serviceUrl: "https://api.useorbit.org" })

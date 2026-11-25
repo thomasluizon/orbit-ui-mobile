@@ -24,6 +24,7 @@ const CLOCK_SKEW_MS = 2 * MINUTE
 const VERIFY_ATTEMPTS = 3
 const SHA = /^[a-f0-9]{40}$/
 const OWNER = "thomasluizon"
+const COMPARE_FILE_LIMIT = 300 // GitHub lists at most 300 files of a compare, so a list of this size is incomplete
 const MIGRATIONS_PATH = "src/Orbit.Infrastructure/Migrations/"
 const WEB_PATHS = [/^apps\/web\//, /^packages\/shared\//]
 const MOBILE_PATHS = [/^apps\/mobile\//, /^packages\/shared\//]
@@ -103,6 +104,7 @@ export const manualStepsOf = (body) => {
 const apiHoldReason = async (plan, ports) => {
   if (plan.deployedSha === null) return null
   const files = await ports.changedFiles("api", plan.deployedSha, plan.plannedSha)
+  if (files === null) return `the compare of the unreleased API commits lists ${COMPARE_FILE_LIMIT} files or more, so the driver cannot see a migration change`
   if (files.some((file) => file.startsWith(MIGRATIONS_PATH))) {
     if (!(await ports.takeRenderExport?.())) return "the unreleased API commits change a migration and the driver cannot take the fresh Render export"
   }
@@ -322,10 +324,6 @@ const checkTests = async (ctx, state, step) => {
 
 const verifyExtra = async (ctx, step) => {
   if (step.service === "landing") return (await ctx.ports.landingDeployed(step.plannedSha, step.environment)) ? null : "no successful GitHub Deployment exists for the planned SHA"
-  if (step.service === "api" && step.environment === "production") {
-    const live = await ctx.ports.renderLiveCommit()
-    return live === step.plannedSha ? null : `the Render live deploy serves ${live}, expected ${step.plannedSha}`
-  }
   return null
 }
 
@@ -498,12 +496,9 @@ export const realPorts = ({ run, toolsDirectory, environment = process.env, appS
     mainHead: async (key) => (await gh(["api", `repos/${repoOf(key)}/commits/main`, "--jq", ".sha"])).trim(),
     changedFiles: async (service, base, head) => {
       const key = SERVICES[service]?.repoKey ?? service
-      const files = []
-      for (let page = 1; ; page++) {
-        const names = parseJson("gh api compare", await gh(["api", `repos/${repoOf(key)}/compare/${base}...${head}?per_page=100&page=${page}`, "--jq", "[.files[].filename]"]))
-        files.push(...names)
-        if (names.length < 100) return files
-      }
+      // The compare endpoint returns `files` on the first page only, up to 300 entries, so one request reads them all.
+      const names = parseJson("gh api compare", await gh(["api", `repos/${repoOf(key)}/compare/${base}...${head}`, "--jq", "[.files[]?.filename]"]))
+      return names.length >= COMPARE_FILE_LIMIT ? null : names
     },
     manualSteps: async (service, commits) => {
       const numbers = [...new Set(commits.flatMap((commit) => { const match = /\(#(\d+)\)\s*$/.exec(commit.message); return match ? [Number(match[1])] : [] }))]
@@ -532,12 +527,6 @@ export const realPorts = ({ run, toolsDirectory, environment = process.env, appS
         if (latest === "success") return true
       }
       return false
-    },
-    renderLiveCommit: async () => {
-      const { productionServiceIds, githubClient } = await import(pathToFileURL(join(toolsDirectory, "release-plan.mjs")).href)
-      const id = productionServiceIds().api
-      const deploys = await githubClient.readRender(`services/${id}/deploys?status=live&limit=1`)
-      return deploys[0]?.deploy?.commit?.id ?? null
     },
     mobilePlan: async (planEnvironment) => {
       const result = await run(process.execPath, [join(toolsDirectory, "..", "apps", "mobile", "scripts", "mobile-version-pair.js"), "plan", "--environment", planEnvironment], { timeoutMs: 120 * 1000, env: { ...environment, GITHUB_REPOSITORY: repoOf("ui") } })
