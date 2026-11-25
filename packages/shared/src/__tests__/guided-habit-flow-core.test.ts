@@ -9,8 +9,8 @@ const DAILY_AT_SEVEN: HabitPhraseReadResponse = { read: true, emoji: null, frequ
 
 type Values = ReturnType<GuidedHabitFlowForm['getValues']>
 
-function mountFlow(readPhrase: GuidedHabitFlowOptions['readPhrase']) {
-  const values: Values = { title: '', dueDate: '', dueTime: '', frequencyUnit: undefined, isFlexible: false, isGeneral: false, itemType: 'task', emoji: '' }
+function mountFlow(readPhrase: GuidedHabitFlowOptions['readPhrase'], opening: Partial<Values> = {}) {
+  const values: Values = { title: '', dueDate: '', dueTime: '', frequencyUnit: undefined, isFlexible: false, isGeneral: false, itemType: 'task', emoji: '', ...opening }
   let render = () => {}
   const write = (change: Partial<Values>) => { Object.assign(values, change); render() }
   const form: GuidedHabitFlowForm = { getValues: () => values, setField: (field, value) => write({ [field]: value }) }
@@ -122,8 +122,8 @@ describe('shared guided habit flow', () => {
     const AT_TEN: HabitPhraseReadResponse = { ...DAILY_AT_SEVEN, frequencyUnit: null, frequencyQuantity: null, dueTime: '10:00' }
     const NO_CADENCE_STEPS = ['what', 'when', 'time', 'summary']
 
-    async function leave(readPhrase: GuidedHabitFlowOptions['readPhrase'], phrase: string) {
-      const mounted = mountFlow(readPhrase)
+    async function leave(readPhrase: GuidedHabitFlowOptions['readPhrase'], phrase: string, opening: Partial<Values> = {}) {
+      const mounted = mountFlow(readPhrase, opening)
       void act(() => mounted.flow.changeTitle(phrase))
       await act(async () => { await mounted.flow.leavePhrase() })
       return mounted
@@ -181,6 +181,26 @@ describe('shared guided habit flow', () => {
       expect(mounted.values.frequencyUnit).toBeUndefined()
       expect(mounted.flow.proposals).toEqual({ schedule: false, time: false, emoji: false })
       expect(mounted.flow.current.step).toBe('when')
+      expect(mounted.flow.steps).toEqual(NO_CADENCE_STEPS)
+      mounted.unmount()
+    })
+
+    it.each<[string, GuidedHabitFlowOptions['readPhrase']]>([
+      ['the AI read guesses a month repeat', vi.fn(async () => MONTHLY)],
+      ['the AI read failed', vi.fn(async () => { throw new Error('offline') })],
+      ['the AI read is capped', vi.fn(async () => null)],
+    ])('asks the When with the same steps when the route gives a date and %s', async (_name, readPhrase) => {
+      const mounted = await leave(readPhrase, 'send money to the bank', { dueDate: '2026-11-25' })
+      expect(mounted.flow.current.step).toBe('when')
+      expect(mounted.flow.steps).toEqual(NO_CADENCE_STEPS)
+      expect(mounted.values.dueDate).toBe('2026-11-25')
+      mounted.unmount()
+    })
+
+    it('keeps the route date as the start day when the person keeps the guessed repeat', async () => {
+      const mounted = await leave(vi.fn(async () => MONTHLY), 'send money to the bank', { dueDate: '2026-11-25' })
+      void act(() => mounted.flow.keepProposedWhen())
+      expect(mounted.values).toMatchObject({ frequencyUnit: 'Month', dueDate: '2026-11-25' })
       expect(mounted.flow.steps).toEqual(NO_CADENCE_STEPS)
       mounted.unmount()
     })

@@ -170,11 +170,6 @@ function readSchedule(form: GuidedHabitFlowForm): string {
   return JSON.stringify(SCHEDULE_FIELDS.map((field) => values[field] ?? null))
 }
 
-function holdsGivenSchedule(values: { dueDate?: string | null | undefined; frequencyUnit?: string | null | undefined; isFlexible?: boolean | undefined; isGeneral?: boolean | undefined }, scheduleProposed: boolean): boolean {
-  if (values.isGeneral) return true
-  return !scheduleProposed && (Boolean(values.dueDate) || Boolean(values.frequencyUnit) || Boolean(values.isFlexible))
-}
-
 function clearTypedProposals(proposals: GuidedHabitProposals, read: HabitPhraseRead, typedDate: boolean): GuidedHabitProposals {
   const time = proposals.time && read.dueTime === null
   const schedule = proposals.schedule && !habitPhraseRepeats(read) && !typedDate
@@ -538,7 +533,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
 
     const steps = remainingHabitFlowSteps({
       mode,
-      hasDateOrRepeat: holdsGivenSchedule({ ...watched, isGeneral }, proposals.schedule),
+      hasDateOrRepeat: isGeneral || readPhraseCoverage(localRead, typedDate !== null).coversDateOrRepeat,
       hasTime: Boolean(watched.dueTime) && !proposals.time,
       phraseGaveTime: localRead.dueTime !== null,
       whenLocked: lockedGeneral === true,
@@ -548,16 +543,17 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     const stepsAfter = useCallback((nextAnswers: HabitFlowAnswers) => {
       const values = form.getValues()
       const guessed = readProposals()
+      const read = readTypedHabitPhrase(values.title, supportedLocale, deliberateType, Boolean(values.isGeneral))
       return remainingHabitFlowSteps({
         mode,
-        hasDateOrRepeat: holdsGivenSchedule(values, guessed.schedule),
+        hasDateOrRepeat: Boolean(values.isGeneral) || readPhraseCoverage(read, readDate(values.title, read) !== null).coversDateOrRepeat,
         hasTime: Boolean(values.dueTime) && !guessed.time,
-        phraseGaveTime: readTypedHabitPhrase(values.title, supportedLocale, deliberateType, Boolean(values.isGeneral)).dueTime !== null,
+        phraseGaveTime: read.dueTime !== null,
         whenLocked: lockedGeneral === true,
         undated: Boolean(values.isGeneral),
         answers: nextAnswers,
       })
-    }, [deliberateType, form, lockedGeneral, mode, readProposals, supportedLocale])
+    }, [deliberateType, form, lockedGeneral, mode, readDate, readProposals, supportedLocale])
     const { current, position, advance, back, open, replace } = useNavigation(mode, steps, answers)
     const live = useLiveFlow(current.step, answers, deliberateType)
 

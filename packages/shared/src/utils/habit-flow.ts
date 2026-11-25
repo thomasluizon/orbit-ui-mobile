@@ -15,7 +15,7 @@ export interface HabitFlowAnswers {
 
 export interface RemainingHabitFlowStepsInput {
   mode: 'create' | 'edit'
-  /** The phrase, the route parameters or the draft already hold a date or a repetition. */
+  /** The device read of the phrase gave a date or a repetition. A route date, a draft value and an AI guess do not count. */
   hasDateOrRepeat: boolean
   /** A time exists on the draft. */
   hasTime: boolean
