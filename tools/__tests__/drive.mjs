@@ -34,6 +34,7 @@ import {
   wholeDiffApproved,
 } from "../lib/github.mjs"
 import { ORDER_KINDS, partOf, renderBrief, renderOrder } from "../lib/order.mjs"
+import { parityExemptTerms } from "../lib/parity-scope.mjs"
 import {
   finalResult,
   isUsageLimitMessage,
@@ -931,6 +932,10 @@ const orderCases = async () => {
   T("lib/order.mjs: a build order tells the worker to rebase before its first push", /Rebase on `origin\/main` before the first push/.test(build))
   const delivery = build.slice(build.indexOf("**Delivery.**"))
   T("lib/order.mjs: the delivery rules name the Tracks line, the three sections, the Remaining line and the attribution ban", delivery.includes(`Tracks ${TICKET_REPOSITORY}#9`) && delivery.includes("never `Closes`") && ["## Assumptions", "## Manual steps", "## Test evidence", "`Remaining:`", "`Co-Authored-By`", "`Generated with`", "git rm", "rmSync", "Stage named paths only", "never `--no-verify`"].every((text) => delivery.includes(text)))
+  T("lib/order.mjs: an opening order names the parity:exempt label, the ## Parity line and every term that the PR Metadata gate accepts", ["build", "build part"].every((kind) => {
+    const opening = order(kind, { partNumber: 2 })
+    return opening.includes("`parity:exempt`") && opening.includes("`## Parity`") && parityExemptTerms.every((term) => opening.includes(term))
+  }))
   T("lib/order.mjs: the brief tells the worker to decide with the recommended option and to end with NEEDS_DECISION only for the four owner matters", /Decide every choice with the recommended option/.test(build) && /NEEDS_DECISION: <question>.*money.*model or effort.*standing owner order.*irreversible/.test(build))
   T("lib/order.mjs: the brief bans a browser, a dev server and the production CLI, and names the two barrier files", /Open no browser\. Start no dev server\. Run no production CLI/.test(build) && build.includes(".github/migration-contracts.json") && build.includes(".github/migration-locks.json"))
   T("lib/order.mjs: the brief names the copy rule", build.includes("`/humanizer`") && build.includes("`/second-opinion`") && build.includes("`BRAND.md`"))
