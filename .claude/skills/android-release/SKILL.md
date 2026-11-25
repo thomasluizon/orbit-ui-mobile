@@ -7,7 +7,7 @@ effort: low
 
 # Android Release: publish to Google Play
 
-This skill dispatches `.github/workflows/android-release.yml`. The workflow builds the AAB, uploads Sentry source maps and publishes to a Google Play track. This action is outward and visible to users. Dispatch only after the owner confirms the exact inputs.
+This skill dispatches `.github/workflows/android-release.yml`. The workflow builds the AAB, uploads Sentry source maps and publishes to a Google Play track. This action is outward and visible to testers. The driver release train dispatches it on its cadence with the inputs below, and `/release` starts the same train at once. Use this skill for a hand dispatch of one release.
 
 Before it submits, the workflow starts the AAB on an emulator through `.github/actions/android-boot`. A startup failure blocks the Play submission. Never retry a failed app assertion as an infrastructure failure. Read the `android-boot-evidence` artifact to find the cause.
 
@@ -20,7 +20,8 @@ Android and iOS ship at the same `app_version` from the same commit. Each store 
 - Dispatch Android first. Then dispatch iOS at the same version through `/ios-release` while the Android run builds.
 - The iOS upload step waits for the Android record of that version and commit, so Android always uploads first.
 - Do not report a mobile release as done until both uploads exist.
-- The iOS and Android release stages are always the same. Never release on the App Store before the owner orders the Android public release.
+- The iOS and Android release stages are always the same. The train never uses the Android track `production` and never submits to the App Store. The launch ticket owns both.
+- The train releases staging first (track `internal`, iOS `staging`) and then production (track `open`, iOS `production`), at the same `app_version` and commit. The code of staging is the newest code plus one. The code of production is the newest code plus two, because the code counter is shared across tracks.
 - Release Android alone only for a defect that only Android has. Pass `--android-only <reason>`. The workflow input `platform_only_reason` records the reason.
 
 The workflow runs `node apps/mobile/scripts/mobile-version-pair.js check` before it builds. The check reads the newest version of each platform from the GitHub Deployments `android-release` and `ios-release`.
@@ -80,7 +81,7 @@ Each value in `$ARGUMENTS` overrides its default:
 
 When a version has no code, derive the code from the last run and say so.
 
-## Step 3: Resolve the ref, then confirm
+## Step 3: Resolve the ref
 
 `gh workflow run` runs the workflow at the default branch when `--ref` is missing. So resolve the ref and pass it.
 
@@ -100,7 +101,7 @@ The two SHAs must be equal. A mismatch is a stop.
 
 Open and production need `main`. A tag does not satisfy their branch guard. An internal release can use a confirmed exact tag when its branch moves.
 
-Show the resolved inputs and the ref as a table. Then ask for a plain yes. Say first when the working tree has uncommitted mobile changes, because the build excludes them.
+Show the resolved inputs and the ref as a table. Say when the working tree has uncommitted mobile changes, because the build excludes them. Then dispatch.
 
 ## Step 4: Dispatch and follow
 
@@ -126,7 +127,7 @@ gh run watch <databaseId>
 
 ## Step 5: Release iOS at the same version
 
-Unless `--android-only` applies, run `/ios-release` right after the Android dispatch. Use the same commit and the same `app_version`. Use the iOS `variant` of the Android environment: `production` after `open` or `production`, and `staging` after `internal`.
+Unless `--android-only` applies, run `/ios-release` after the Android dispatch, once the Android run title carries the version (`Android Release <version> (<code>) to <track> on`). A title of only `Android Release` makes the iOS configuration check fail. Use the same commit and the same `app_version`. Use the iOS `variant` of the Android environment: `production` after `open` or `production`, and `staging` after `internal`.
 
 - `gh workflow run --ref` builds the tip of the branch. The iOS check refuses a commit other than the Android commit.
 - Before the iOS dispatch, run `git fetch origin <branch>`. Compare `git rev-parse origin/<branch>` with the commit of the Android run.
