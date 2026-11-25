@@ -18,6 +18,7 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { HabitList } from '@/components/habits/habit-list'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
+import { GuidedPricingSection } from '@/components/upgrade/guided-pricing-section'
 import { Sheet } from '@/components/ui/sheet'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { OnboardingActionsProvider } from '@/components/onboarding/onboarding-actions-context'
@@ -37,6 +38,8 @@ const mocks = vi.hoisted(() => ({
     recordCompletion: vi.fn(), finishOnboarding: vi.fn(),
   },
   loadingToday: false,
+  guided: false,
+  saved: { id: 'habit-9', title: 'Smoke guided', isGeneral: false, dueDate: '2026-11-14', dueTime: null, frequencyUnit: null, frequencyQuantity: null, isFlexible: false } as Record<string, unknown>,
   emptyToday: false,
   profile: undefined as ReturnType<typeof createMockProfile> | undefined,
   pathname: '/', wide: false, expired: false, online: true,
@@ -115,6 +118,8 @@ vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
 vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => null }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
+vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: vi.fn().mockResolvedValue(null), isPending: false }) }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse()) }) }))
 vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habits')>(),
@@ -125,6 +130,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   useDuplicateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useReorderHabits: () => ({ mutate: vi.fn(), isPending: false }),
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useHabitDetail: () => ({ data: mocks.saved }),
   useCreateHabit: () => ({ mutateAsync: mocks.create, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
@@ -253,6 +259,7 @@ beforeEach(() => {
   mocks.router.push.mockReset()
   mocks.pathname = '/'
   mocks.loadingToday = false
+  mocks.guided = false
   mocks.emptyToday = false
   mocks.wide = false
   mocks.expired = false
@@ -564,6 +571,48 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
   it('rejects disabled checkout', async () => {
     mount(<Checkout disabled />, locale)
     await expect(expectCheckout(new SmokeDomPage() as unknown as Page)).rejects.toThrow(/enabled/)
+    expect(mocks.checkout).not.toHaveBeenCalled()
+  })
+
+  it('drives the guided create flow the page shows and saves one task', async () => {
+    mocks.guided = true
+    mocks.create.mockResolvedValue({ id: 'habit-9' })
+    useUIStore.getState().setTodayFabHidden(false)
+    mount(<HabitCreation />, locale)
+    await createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke guided task')
+    expect(mocks.create).toHaveBeenCalledTimes(1)
+    expect(mocks.create.mock.calls[0]?.[0]).toMatchObject({ title: 'Smoke guided task' })
+    expect(mocks.create.mock.calls[0]?.[0]).toHaveProperty('dueDate')
+    expect(mocks.create.mock.calls[0]?.[0]).not.toHaveProperty('frequencyUnit')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('drives the guided create flow for a repeating habit', async () => {
+    mocks.guided = true
+    mocks.create.mockResolvedValue({ id: 'habit-9' })
+    mocks.saved = { ...mocks.saved, frequencyUnit: 'Day', frequencyQuantity: 1 }
+    useUIStore.getState().setTodayFabHidden(false)
+    mount(<HabitCreation />, locale)
+    await createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke guided habit', 'habit')
+    expect(mocks.create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      title: 'Smoke guided habit', frequencyUnit: 'Day', frequencyQuantity: 1,
+    }))
+  })
+
+  it('finds the checkout button of the guided plan question outside the plan cards', async () => {
+    mocks.guided = true
+    const messages = locale === 'en' ? en : ptBR
+    function GuidedCheckout() {
+      const t = useTranslations()
+      return <GuidedPricingSection profile={{ isTrialActive: false, aiMessagesPeriod: 'day' }} usage={null}
+        plans={subscriptionPlansFixture} isLoadingPlans={false} isPlansError={false} isOnline trialDaysLeft={null}
+        checkoutLoading={null} checkoutError="" discountedAmount={(amount) => amount} onCheckout={mocks.checkout}
+        onStayFree={vi.fn()} onRetryPlans={vi.fn()} t={t} />
+    }
+    mount(<GuidedCheckout />, locale)
+    const button = screen.getByRole('button', { name: messages.upgrade.plans.checkoutLabelRecommended.replace('{interval}', messages.upgrade.plans.yearly.name) })
+    expect(document.querySelector('[data-tier="yearly"]')?.contains(button)).toBe(false)
+    await expectCheckout(new SmokeDomPage() as unknown as Page)
     expect(mocks.checkout).not.toHaveBeenCalled()
   })
 
