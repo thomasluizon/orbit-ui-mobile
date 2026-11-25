@@ -165,6 +165,45 @@ describe('readHabitWhenWords: a bare weekday', () => {
   })
 })
 
+describe('readHabitWhenWords: words that are not one bare weekday', () => {
+  const wednesday = { ...context, referenceDate: '2026-11-25' }
+  const english = { ...wednesday, locale: 'en', language: 'en' as const }
+  const portuguese = ['primeira sexta do mês', 'última sexta do mês', 'sexta quinzenal', 'sexta alternada', 'sexta mensalmente', 'depois de ter tempo', 'antes de ter aula', 'sexta, 4 de dezembro', 'sexta dia 4', 'dia 4, sexta']
+  const englishWords = ['first friday of the month', 'biweekly friday', 'friday fortnightly', 'not friday', 'friday december 4', 'december 4, friday', 'monthly on friday']
+
+  it.each(portuguese)('never reads "%s" as the next weekday', (words) => {
+    for (const itemType of ['task', null, 'habit'] as const) {
+      const read = readHabitWhenWords(words, { ...wednesday, itemType })
+      expect(read).not.toEqual({ kind: 'date', date: '2026-11-27' })
+      expect(read).not.toEqual({ kind: 'date', date: '2026-12-01' })
+    }
+  })
+
+  it.each(englishWords)('never reads "%s" as the next weekday', (words) => {
+    for (const itemType of ['task', null, 'habit'] as const) {
+      expect(readHabitWhenWords(words, { ...english, itemType })).not.toEqual({ kind: 'date', date: '2026-11-27' })
+    }
+  })
+
+  it('keeps the repeat that the habit parser reads for a repeat word', () => {
+    expect(readHabitWhenWords('sexta quinzenal', { ...wednesday, itemType: 'habit' }).kind).not.toBe('date')
+    expect(readHabitWhenWords('biweekly friday', { ...english, itemType: 'habit' }).kind).not.toBe('date')
+  })
+
+  it('refuses the words with no repeat as unresolved', () => {
+    expect(readHabitWhenWords('depois de ter tempo', { ...wednesday, itemType: 'task' })).toEqual({ kind: 'unresolved' })
+    expect(readHabitWhenWords('not friday', { ...english, itemType: 'task' })).toEqual({ kind: 'unresolved' })
+  })
+
+  it.each(['nesta sexta', 'nesta sexta às 9', 'sexta de manhã', 'sexta à tarde', 'sexta que vem'])('still reads "%s" as the next Friday', (words) => {
+    expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
+  })
+
+  it.each(['this friday', 'this friday at 9', 'friday afternoon', 'friday evening'])('still reads "%s" as the next Friday', (words) => {
+    expect(readHabitWhenWords(words, { ...english, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
+  })
+})
+
 describe('habitFlowFieldStep', () => {
   it('opens the step that owns a server field error', () => {
     expect(habitFlowFieldStep('title')).toBe('what')

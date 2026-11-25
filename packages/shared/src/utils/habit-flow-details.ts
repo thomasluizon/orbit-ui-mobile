@@ -125,14 +125,20 @@ export interface HabitWhenWordsContext extends DatePhraseContext {
   deliberateType?: 'task' | 'habit' | null
 }
 
-const REPEAT_WORDS = new Set(['toda', 'todas', 'todo', 'todos', 'cada', 'every', 'each'])
-const REPEAT_AFTER_WORDS = new Set(['weekly', 'semanalmente'])
 const WEEKDAY_QUALIFIERS = new Set(['proxima', 'proximo', 'esta', 'este', 'nesta', 'neste', 'na', 'no', 'em', 'para', 'pra', 'de', 'a', 'o', 'next', 'this', 'on', 'upcoming', 'coming', 'by', 'for'])
 const PLURAL_WEEKDAY: Readonly<Record<SupportedLocale, RegExp>> = { 'pt-BR': /s$/u, en: /(?:days|^(?:sun|mon|fri|sat)s)$/u }
 const PLAIN_ACCENTS = /\p{M}/gu
 
 function plainWords(text: string): string[] {
   return text.toLowerCase().normalize('NFD').replace(PLAIN_ACCENTS, '').split(/[\s,;.!?]+/u).filter((word) => word.length > 0)
+}
+
+const DATE_QUALIFIER_WORDS = new Set([...WEEKDAY_QUALIFIERS, 'que', 'vem', 'manha', 'tarde', 'noite', 'morning', 'afternoon', 'evening', 'night'])
+
+function wordsOutside(text: string, read: HabitPhraseRead, weekday: HabitPhraseSpan | null): string[] {
+  const skipped = [...read.consumed.filter((token) => token.kind === 'time'), ...(weekday ? [weekday] : [])]
+  const rest = Array.from(text, (char, index) => (skipped.some((span) => index >= span.start && index < span.end) ? ' ' : char)).join('')
+  return plainWords(rest)
 }
 
 function bareWeekdayToken(text: string, read: HabitPhraseRead, language: SupportedLocale): HabitPhraseSpan | null {
@@ -142,21 +148,15 @@ function bareWeekdayToken(text: string, read: HabitPhraseRead, language: Support
   if (days.length !== 1 || token!.kind !== 'weekday') return null
   const word = plainWords(text.slice(token!.start, token!.end))
   if (word.length !== 1 || PLURAL_WEEKDAY[language].test(word[0]!)) return null
-  if (plainWords(text.slice(token!.end)).some((after) => REPEAT_WORDS.has(after) || REPEAT_AFTER_WORDS.has(after))) return null
-  const before = plainWords(text.slice(0, token!.start))
-  for (let index = before.length - 1; index >= 0; index -= 1) {
-    const previous = before[index]!
-    if (REPEAT_WORDS.has(previous)) return null
-    if (!WEEKDAY_QUALIFIERS.has(previous)) return token!
-  }
-  return token!
+  return wordsOutside(text, read, token!).every((other) => DATE_QUALIFIER_WORDS.has(other)) ? token! : null
 }
 
-function loneWeekdayWord(text: string): string | null {
-  const words = plainWords(text)
-  if (words.some((word) => REPEAT_WORDS.has(word) || REPEAT_AFTER_WORDS.has(word))) return null
+function loneWeekdayWord(text: string, read: HabitPhraseRead): string | null {
+  const words = wordsOutside(text, read, null)
   const weekdays = words.filter((word) => readDateWeekday(word) !== null)
-  return weekdays.length === 1 ? weekdays[0]! : null
+  const [weekday] = weekdays
+  if (weekdays.length !== 1 || SHORT_WEEKDAYS_THAT_ARE_WORDS.has(weekday!)) return null
+  return words.every((word) => word === weekday || DATE_QUALIFIER_WORDS.has(word)) ? weekday! : null
 }
 
 /**
@@ -170,7 +170,7 @@ export function readHabitWhenWords(text: string, context: HabitWhenWordsContext)
   const bareDate = weekday !== null && (context.deliberateType ?? context.itemType) !== 'habit'
   if (habitPhraseRepeats(read) && !bareDate) return { kind: 'repeat', read }
   const whole = parseDatePhrase(bareDate ? text.slice(weekday.start, weekday.end) : text, context)
-  const lone = whole.status === 'resolved' || habitPhraseRepeats(read) ? null : loneWeekdayWord(text)
+  const lone = whole.status === 'resolved' || habitPhraseRepeats(read) ? null : loneWeekdayWord(text, read)
   const result = lone === null ? whole : parseDatePhrase(lone, context)
   if (result.status !== 'resolved') return { kind: 'unresolved' }
   if (!context.allowPast && result.date < context.referenceDate) return { kind: 'past' }
