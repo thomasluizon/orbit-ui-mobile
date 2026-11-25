@@ -1,5 +1,8 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { parseClangMajor, resolveCppCompiler, type CompilerProbe } from './support/cpp-compiler.ts'
+import { parseClangMajor, resolveCppCompiler, runNative, type CompilerProbe } from './support/cpp-compiler.ts'
 
 const visualStudioClang = 'C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\VC\\Tools\\Llvm\\x64\\bin\\clang++.exe'
 const vswhere = 'C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe'
@@ -54,5 +57,34 @@ describe('resolveCppCompiler', () => {
 
   it('fails when no Clang is installed, and never hides the missing compiler', () => {
     expect(() => resolveOnWindows(runnerProbe(null, null))).toThrow('No Clang found on PATH or in Visual Studio.')
+  })
+})
+
+describe('runNative', () => {
+  const lingering = "require('node:child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 4000)'], { stdio: 'inherit' }).unref(); console.log('compiled')"
+
+  it('returns when the tool exits, even while a helper it started still holds the output open', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'orbit-native-run-'))
+    try {
+      const start = Date.now()
+      const run = runNative(process.execPath, ['-e', lingering], directory)
+      expect(Date.now() - start).toBeLessThan(2500)
+      expect(run.error).toBeUndefined()
+      expect(run.status).toBe(0)
+      expect(run.output).toContain('compiled')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('reports the exit status and the output of a failed tool', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'orbit-native-run-'))
+    try {
+      const run = runNative(process.execPath, ['-e', "console.error('boom'); process.exit(3)"], directory)
+      expect(run.status).toBe(3)
+      expect(run.output).toContain('boom')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
   })
 })

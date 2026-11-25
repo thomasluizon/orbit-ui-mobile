@@ -1,5 +1,5 @@
 ---
-name: astra-eval
+name: ai-eval
 description: Run the on-demand Orbit AI prompt-to-behavior eval (the core set gate for an AI pull request, and the launch corpus) and read its pass^k report. Use for Orbit AI capability checks, not UI tests or API fixes.
 ---
 

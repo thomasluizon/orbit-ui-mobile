@@ -1,13 +1,30 @@
 ---
 name: ticket
-description: Turn anything that needs work into 1 to N executable GitHub tickets after one approval gate. Use for a bug, an idea, a chore, a feature or a list of problems. It writes no code. The delivery driver picks the tickets up.
+description: Turn anything, from a rough idea to a bug, into the best way to build it and 1 to N executable tickets, after one approval gate. Use for a new idea, a brainstorm, a feature, a bug, a chore or a list of problems. It researches, writes no code, and the driver builds the tickets.
 argument-hint: <a bug, an idea, a chore, a feature, or a list of problems>
 effort: high
 ---
 
 # /ticket: anything in, 1 to N tickets out
 
-Anything goes in. One to N tickets come out. There is one approval gate: show the split, the reason for each split, and each body. Create the tickets after the owner says yes.
+Anything goes in, from a rough idea to an exact bug. One to N tickets come out. The tickets are the spec: no other spec file exists. There is one approval gate: show the best way, the split, the reason for each split, and each body. Create the tickets after the owner says yes.
+
+## Before the split: find the best way
+
+Do this for a new feature or an idea with more than one way to build it. A bug with one clear cause skips it.
+
+1. Name the real problem in one sentence. When it differs from the ask, say both.
+2. Read everything the answer touches, in full: the code in all three repositories, `DESIGN.md`, `BRAND.md`, `FEATURES.md`, the decisions in `/brain`, and the open tickets near it. Write the list of what you read.
+3. Search the web before any design, every time. Memory is not a source. Use web research subagents, one per question, each on live primary sources:
+   - how the current official documentation says to build this, and how strong teams build it now;
+   - the version installed in each repository (read `package.json`, the lock files and the `.csproj` files) and the newest stable version, with the changes between them that matter here;
+   - every outside fact the design leans on: a vendor limit, a price, an API field, a platform rule.
+   Record each source with its link, its date and the version it covers.
+4. Write 3 to 5 candidates from that research. One removes something instead of adding. One is "do nothing". Score each on what it costs to live with: upkeep, size, parity on web and mobile, contract changes, risk to old mobile clients. The cost to build decides nothing.
+5. Pick the simplest candidate that fully solves the problem: the fewest files, layers, dependencies and settings. Prefer what the platform or an installed library already does over new code. Then cut the winner until nothing more can go.
+6. At the gate, show: the problem, the recommendation, one line on why each other candidate lost, the cost, the fact that would make it wrong, and the sources. The tickets follow, and each one carries its sources, links and versions in Technical details, so the worker builds on them and not on memory.
+
+Ask the owner only what reading cannot answer: product, copy, pricing, brand or a real toss-up. Ask it with a recommendation, at the gate.
 
 An owner order gets a ticket in the session in which it arrives.
 
@@ -17,7 +34,8 @@ This skill writes no code, no branch and no worktree.
 
 A headless worker receives the ticket as its order. The worker cannot read this session. Write the ticket so that it stands alone:
 
-- Quote the owner's words with their dates.
+- Quote the owner's words with their dates, and write each override he gave into the body.
+- Deliver his whole scope: list every item of his order and map each item to a ticket or a part. An item with no ticket is lost.
 - Name the exact files, rules, numbers, commands and checks.
 - Write plain English with short sentences. Use no dash as punctuation.
 
@@ -33,7 +51,7 @@ A headless worker receives the ticket as its order. The worker cannot read this 
 8. Test scenarios
 9. Rollout or Events, where risk or measurement exists
 
-For a defect, put a red-capable command first in Test scenarios. For other work, write no red case that does not exist.
+For a defect, run a red-capable command at least once before the ticket exists, and put it first in Test scenarios. For other work, write no red case that does not exist.
 
 ## Labels
 
@@ -44,6 +62,15 @@ For a defect, put a red-capable command first in Test scenarios. For other work,
 - `deploy-first:<environment>/<task>` on a blocker whose deployment a later ticket needs.
 - `needs:owner` when a store or production check must pass first.
 
+## Split, name and link
+
+1. Search the board first: `gh issue list --repo thomasluizon/orbit-tickets --state all --search "<key words>"`. When an open ticket owns the same area, add a part or a comment to it instead of a new ticket.
+2. Split by repository and by root cause, never by symptom. One root cause with three symptoms is one ticket. Two root causes behind one symptom are two tickets.
+3. Title each ticket with what a person can do or see when it is done, in plain words, under 100 characters, with no ticket number and no code name. Example: "Open Orbit on Android past the launch screen every time".
+4. Set every real dependency with `--blocked-by`: the api ticket that a ui ticket needs, a ticket whose change this one builds on, and the open launch ticket for work that launch does not need. Before launch, only these run: a live defect in sign-in, habits, the AI or app start, a store or launch need, and what an owner order puts first.
+5. A goal that spans several tickets gets one umbrella ticket, blocked by each step ticket. Each step title ends with "(step <n> of #<umbrella>)".
+6. Paired tickets name each other in Technical details.
+
 ## Size
 
 One ticket is one repository. It ships as one or more pull requests. Each pull request is independently mergeable and holds one behaviour. Each pull request `Tracks` the ticket. The last one says `Remaining: none`.
@@ -52,7 +79,7 @@ Cross-repository work is an api ticket that blocks a ui ticket.
 
 ## Parts
 
-Write the work of a large ticket as numbered comments, "Part n of m". Each part is one behaviour. Each part is small enough for one Sonnet order under the 45 minute ceiling. That is about 300 to 1,500 changed lines. A pure deletion part can be larger.
+Write the work of a large ticket as numbered comments. The first line of each is exactly `## Part n of m: <title>`, with no ticket number before `Part`, or the driver reads no part. Each part is one behaviour. Each part is small enough for one Sonnet order under the 45 minute ceiling. That is about 300 to 1,500 changed lines. A pure deletion part can be larger.
 
 Each part names its files, its cascade edits and its checks. Add a `Paths:` line when the part can run beside other parts. Add `Kind: find` for a read-only find part.
 
