@@ -154,14 +154,9 @@ export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?
       }
     >
       <View style={styles.content}>
-        <View style={styles.intro}>
-          <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
-            {t('trial.expired.eyebrow')}
-          </Text>
-          <Text style={[styles.subtitle, { color: tokens.fg2 }]}>
-            {t('trial.expired.subtitleQuiet')}
-          </Text>
-        </View>
+        <Text style={[styles.subtitle, { color: tokens.fg2 }]}>
+          {t('trial.expired.subtitleQuiet')}
+        </Text>
 
         <SettingsGroup>
           {PAUSED_FEATURES.map((featureKey) => (
@@ -181,16 +176,6 @@ function createStyles() {
   return StyleSheet.create({
     content: {
       gap: 24,
-    },
-    intro: {
-      gap: 8,
-    },
-    eyebrow: {
-      fontFamily: 'GeistMono_500Medium',
-      fontSize: 12,
-      letterSpacing: 0.96,
-      lineHeight: 16,
-      textTransform: 'uppercase',
     },
     subtitle: {
       fontFamily: 'Geist_400Regular',

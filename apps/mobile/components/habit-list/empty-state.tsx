@@ -126,10 +126,7 @@ export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: (
       <View testID="completed-day-mark" style={[styles.allDoneMark, { width: mascotSize, height: orbitMascotHeight(mascotSize) }]} importantForAccessibility="no-hide-descendants">
         {guided ? <OrbitHop testID="completed-day-hop" active={celebrating}><OrbitMascot size={mascotSize} state="feliz" /></OrbitHop> : <OrbitMascot size={mascotSize} state="feliz" />}
       </View>
-      <View style={styles.allDoneText}>
-        <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>
-        <Text style={[styles.allDoneHint, { color: tokens.fg2 }]}>{t('habits.allDoneHint')}</Text>
-      </View>
+      <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>
       {onSeeUpcoming ? (
         <PillButton variant="ghost" size="sm" onClick={onSeeUpcoming}>
           {t('habits.seeUpcoming')}
@@ -167,21 +164,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  allDoneText: {
-    alignItems: 'center',
-    gap: 8,
-  },
   allDoneTitle: {
     fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 22,
     lineHeight: 26.4,
     letterSpacing: -0.44,
-    textAlign: 'center',
-  },
-  allDoneHint: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    lineHeight: 21,
     textAlign: 'center',
   },
   nothingOpen: {

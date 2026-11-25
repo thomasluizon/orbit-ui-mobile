@@ -90,10 +90,9 @@ describe('HabitListEmptyState', () => {
     const ring = tree.root.findAll(node => node.props.testID === 'completed-day-mark')[0]!
     expect(StyleSheet.flatten(ring.props.style as StyleProp<TextStyle>)).toMatchObject({ width: size, height: orbitMascotHeight(size) })
     for (const words of [en, ptBR]) {
-      const labels = [words.habits.allDoneToday, words.habits.allDoneHint, words.habits.seeUpcoming]
+      const labels = [words.habits.allDoneToday, words.habits.seeUpcoming]
       translations.labels = {
         'habits.allDoneToday': words.habits.allDoneToday,
-        'habits.allDoneHint': words.habits.allDoneHint,
         'habits.seeUpcoming': words.habits.seeUpcoming,
       }
       const localized = render(<HabitListAllDone onSeeUpcoming={vi.fn()} />)
@@ -138,14 +137,12 @@ describe('HabitListEmptyState', () => {
     motion.reduced = true
     expect(hop(render(<HabitListAllDone />))).toBe('still')
   })
-  it('keeps completion text paired and separates the upcoming action', () => {
+  it('separates the completion title from the upcoming action', () => {
     const onSeeUpcoming = vi.fn()
     const tree = render(<HabitListAllDone onSeeUpcoming={onSeeUpcoming} />)
     const geometry = measureProfileRow(tree.toJSON() as GeometryHost, 380, 1)
     const title = geometry.texts.find(text => text.label === 'habits.allDoneToday')!
-    const hint = geometry.texts.find(text => text.label === 'habits.allDoneHint')!
-    expect(hint.top - title.bottom).toBeCloseTo(8)
-    expect(geometry.controls[0]!.top - hint.bottom).toBeCloseTo(24)
+    expect(geometry.controls[0]!.top - title.bottom).toBeCloseTo(24)
     TestRenderer.act(() => { (pressableWithLabel(tree, 'habits.seeUpcoming')!.props.onPress as () => void)() })
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
   })

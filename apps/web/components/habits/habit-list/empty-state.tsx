@@ -153,14 +153,9 @@ export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: (
       <div data-testid="completed-day-mark" className="relative flex shrink-0 items-center justify-center" style={{ width: mascotSize, height: orbitMascotHeight(mascotSize) }} aria-hidden="true">
         {guided ? <OrbitHop active={celebrating} className="flex"><OrbitMascot size={mascotSize} state="feliz" /></OrbitHop> : <OrbitMascot size={mascotSize} state="feliz" />}
       </div>
-      <div className="flex min-w-0 flex-col items-center" style={{ gap: 8 }}>
-        <p style={{ fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.2, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--fg-1)', textWrap: 'balance' }}>
-          {t('habits.allDoneToday')}
-        </p>
-        <p style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--fg-2)', textWrap: 'pretty' }}>
-          {t('habits.allDoneHint')}
-        </p>
-      </div>
+      <p className="min-w-0" style={{ fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.2, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--fg-1)', textWrap: 'balance' }}>
+        {t('habits.allDoneToday')}
+      </p>
       {onSeeUpcoming ? (
         <PillButton variant="ghost" size="sm" onClick={onSeeUpcoming}>
           {t('habits.seeUpcoming')}

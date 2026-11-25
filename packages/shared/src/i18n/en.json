@@ -759,7 +759,6 @@
     "reorderFailed": "Couldn't save the new order. Please try again.",
     "loadError": "Couldn't load your habits.",
     "allDoneToday": "You did it",
-    "allDoneHint": "Everything for today is done.",
     "seeUpcoming": "See tomorrow",
     "nothingOpen": "Nothing open on this day.",
     "noSubHabits": "No sub-habits yet",
@@ -3196,7 +3195,6 @@
   "trial": {
     "proBadge": "Trial",
     "expired": {
-      "eyebrow": "Trial ended",
       "heading": "Your Pro trial ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
@@ -4544,7 +4542,6 @@
   "today": {
     "setupChecklist": {
       "title": "Get started",
-      "subtitle": "Three quick steps to set up Orbit.",
       "items": {
         "createHabit": "Create your first habit",
         "logHabit": "Log a habit today",

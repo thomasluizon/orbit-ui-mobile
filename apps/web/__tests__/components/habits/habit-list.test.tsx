@@ -2243,7 +2243,6 @@ describe('HabitList', () => {
     mockHabitsData.habitsById = new Map([[monthly.id, monthly]])
     mockHabitsData.topLevelHabits = [monthly]
     rendered.rerenderWithProviders(<HabitList filters={{ ...defaultFilters, frequencyUnit: 'Month' }} showCompleted={showCompleted} />)
-    expect(screen.queryByText('habits.allDoneHint')).not.toBeInTheDocument()
     expect(screen.queryByText('habits.allDoneToday')).not.toBeInTheDocument()
     rendered.rerenderWithProviders(<HabitList filters={defaultFilters} showCompleted={showCompleted} />)
     expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
