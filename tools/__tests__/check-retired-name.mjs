@@ -43,6 +43,9 @@ export const cases = () => {
   const path = stageRepository("path", { [`apps/web/components/${lower}-button.tsx`]: "export const Button = () => null\n" })
   check("check-retired-name.mjs", "rejects a file path with the retired name", ["--root", path], { status: 1, stderr: /the path carries the retired name/ })
 
+  const harness = stageRepository("harness-package", { "evals/ai-eval/package.json": `{ "name": "@orbit/${lower}-evals", "private": true }\n` })
+  check("check-retired-name.mjs", "rejects a private package name built on the retired name", ["--root", harness], { status: 1, stderr: /package\.json:1/ })
+
   const kept = stageRepository("kept", { [`design/canvas/Orbit ${retired} Conversation.dc.html`]: `<title>${retired}</title>\n` })
   check("check-retired-name.mjs", "accepts the one kept design drawing", ["--root", kept], { status: 0, stdout: /Retired name guard passed/ })
 

@@ -66,12 +66,10 @@ i18n.t('common.save')`,
   const boundaryPaths = [
     "apps/mobile/app/upgrade.tsx",
     "apps/mobile/app/use-login-flow.ts",
-    "apps/mobile/components/auth/email-step.tsx",
     "apps/mobile/components/auth/login-content.tsx",
     "apps/mobile/components/upgrade/billing-dashboard.tsx",
     "apps/mobile/hooks/use-login-code-entry.ts",
     "apps/web/app/(app)/upgrade/page.tsx",
-    "apps/web/app/(auth)/login/email-step.tsx",
     "apps/web/app/(auth)/login/login-content.tsx",
     "apps/web/app/(auth)/login/use-login-flow.ts",
     "apps/web/components/upgrade/billing-dashboard.tsx",
@@ -81,8 +79,8 @@ i18n.t('common.save')`,
     path, readFileSync(join(REPO_ROOT, path), "utf8"),
   ]))
   for (const [path, target, replacement] of [
-    ["apps/mobile/components/auth/email-step.tsx", "t('auth.email')", "t('ticket430.mobileEmail')"],
-    ["apps/web/app/(auth)/login/email-step.tsx", "t('auth.email')", "t('ticket430.webEmail')"],
+    ["apps/mobile/app/use-login-flow.ts", "t('auth.codeSent')", "t('ticket430.mobileEmail')"],
+    ["apps/web/app/(auth)/login/use-login-flow.ts", "t('auth.codeSent')", "t('ticket430.webEmail')"],
     ["apps/mobile/components/upgrade/billing-dashboard.tsx", "t('upgrade.billing.invoices.statusPaid')", "t('ticket430.mobileBilling')"],
     ["apps/web/components/upgrade/billing-dashboard.tsx", "t('upgrade.billing.plan.yearlyPrice'", "t('ticket430.webBilling'"],
   ]) {
@@ -95,8 +93,8 @@ i18n.t('common.save')`,
   const productionBoundaryResult = check("check-i18n-usage.mjs", "rejects missing keys at all four production module boundaries",
     ["--root", productionBoundaries], { status: 1 })
   for (const [path, key] of [
-    ["apps/mobile/components/auth/email-step.tsx", "ticket430.mobileEmail"],
-    ["apps/web/app/(auth)/login/email-step.tsx", "ticket430.webEmail"],
+    ["apps/mobile/app/use-login-flow.ts", "ticket430.mobileEmail"],
+    ["apps/web/app/(auth)/login/use-login-flow.ts", "ticket430.webEmail"],
     ["apps/mobile/components/upgrade/billing-dashboard.tsx", "ticket430.mobileBilling"],
     ["apps/web/components/upgrade/billing-dashboard.tsx", "ticket430.webBilling"],
   ]) {

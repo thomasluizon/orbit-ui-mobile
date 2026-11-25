@@ -62,7 +62,7 @@ describe('achievement i18n coverage', () => {
     { locale: 'en', bundle: en },
     { locale: 'pt-BR', bundle: ptBR },
   ])('uses sentence case for every achievement name in $locale', ({ bundle }) => {
-    const properNouns = new Set(['Orbit', 'Orbit'])
+    const properNouns = new Set(['Orbit'])
     for (const [key, achievement] of Object.entries(bundle.gamification.achievements)) {
       const words = achievement.name.match(/\p{L}+/gu) ?? []
       const capitalizedLaterWords = words.slice(1).filter((word) => /^\p{Lu}/u.test(word) && !properNouns.has(word))

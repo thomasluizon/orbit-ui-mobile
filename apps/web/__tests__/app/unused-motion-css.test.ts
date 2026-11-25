@@ -17,7 +17,6 @@ const DELETED_MOTION_NAMES = [
   'animate-spin-slow',
   'animate-orbit-pulse',
   'orbit-pulse',
-  'orbit-orbit',
   'orbit-list-stagger',
   'fade-enter',
   'fade-leave',

@@ -96,7 +96,7 @@ describe('OnboardingCreateHabit', () => {
     const mark = container.querySelector('[data-asset="orbit-mascot"]')
     if (proposed) {
       expect(mark).toHaveAttribute('width', '24')
-      expect(screen.queryByRole('img', { name: /^(Orbit|Orbit)$/ })).toBeNull()
+      expect(screen.queryByRole('img', { name: /^Orbit$/ })).toBeNull()
       expect((mark as HTMLElement).closest('[aria-hidden="true"]')).not.toBeNull()
     } else expect(mark).toBeNull()
   })

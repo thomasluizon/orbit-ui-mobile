@@ -2,7 +2,7 @@
 
 Orbit is an AI habit tracker for overwhelmed adults who cannot keep a routine. Orbit, the AI, sits on the primary path: it starts a routine, changes it, and acts on it, rather than living in a separate chat tab. Positioning: an AI that tracks habits, not a habit tracker with an AI (never phrase it as that contrast in copy).
 
-One product surface matters today: the app, designed mobile-first at a 412px shell with a wide layout (sidebar and a centred column capped at 740px, replaced by the full-screen conversation when open). Primary market is Brazilian Portuguese (pt-BR) with English; "Orbit" and "Orbit" are never translated.
+One product surface matters today: the app, designed mobile-first at a 412px shell with a wide layout (sidebar and a centred column capped at 740px, replaced by the full-screen conversation when open). Primary market is Brazilian Portuguese (pt-BR) with English; "Orbit" is never translated.
 
 ## The information architecture, settled 2026-08-16 (D69)
 
@@ -67,7 +67,7 @@ One product surface matters today: the app, designed mobile-first at a 412px she
 
 - **Identity carriers, exactly three**: the orbital mark, the Orbit glyph, ring-shaped indicators. Never background decoration. Warmth has one source: the mark.
 - **The mark**: a planet drawn as a ring with an open centre, an orbital band crossing in front across the lower left and passing behind at the upper right, and a small solid moon above right (1024 grid). One asset at every size. The moon carries the accent; the monochrome treatment is for the neutral lockup.
-- **Orbit**: a letter A carrying the same orbital band and the same solid dot. The Orbit glyph is the AI marker - never a sparkle. They differ by SILHOUETTE: Orbit is a hollow ring, Orbit is a solid letterform, and that reads at 16 pixels.
+- **Orbit glyph**: a letter A carrying the same orbital band and the same solid dot. The glyph is the AI marker - never a sparkle. They differ by SILHOUETTE: the mark is a hollow ring, the glyph is a solid letterform, and that reads at 16 pixels.
 - **ProgressRing** is a true circle with a sweep over a track - deliberately not the mark's shape.
 - **UI icons: Tabler only.** Sizes 16/20/24, default 24. Outline default; filled marks active state. Legible at 16. Loaded from CDN webfont (`@tabler/icons-webfont`) in cards and kits. SVGs from Tabler are also fine inline. The product code migrated to Tabler behind a per-platform barrel on 2026-08-16.
 - **Assets**: the shipped marks and fonts are in the exported archive. The tracked brand sources are in `design/brand/`.

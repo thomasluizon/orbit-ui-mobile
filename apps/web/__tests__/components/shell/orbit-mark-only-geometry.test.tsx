@@ -81,7 +81,7 @@ it.each(cases)('keeps habit content clear at $width by $height', async ({ width,
     expect(result.scrollerBottom).toBeLessThanOrEqual(result.composerTop + 1)
     expect(result.controls.length).toBeGreaterThan(0)
     for (const control of result.controls) {
-      expect(control.text).not.toMatch(/Orbit|Orbit/)
+      expect(control.text).not.toMatch(/Orbit/)
       expect(control.name).toBeTruthy()
     }
   } finally { await page.close() }

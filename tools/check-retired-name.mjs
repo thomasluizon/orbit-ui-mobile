@@ -37,7 +37,6 @@ export const WIRE_NAMES = [
   { reason: "legacy profile anchor that stored links carry", pattern: /(?<=['"`])#astra(?=['"`])/g },
   { reason: "conversation query parameter that stored notification links and the service worker carry", pattern: /\bastra=/g },
   { reason: "the one query parameter that stored links carry", pattern: /PARAM_CARRIED_BY_STORED_LINKS = 'astra'/g },
-  { reason: "path of a vault folder outside this repository", pattern: /orbit\/astra-evals/g },
   { reason: "the two design files that keep their name", pattern: /Orbit(?:%20| )Astra(?:%20| )(?:Conversation|Ideas)/g },
   { reason: "the one legacy route file that the profile slug names", pattern: /app\/profile\/astra/g },
 ]
