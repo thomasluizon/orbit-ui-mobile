@@ -51,6 +51,7 @@ import {
   workerAccountEnvironment,
   workerConfigDirectory,
   workerEnvironmentFor,
+  questionsInvocation,
   workerInvocation,
   workerSettings,
   worktreeOccupants,
@@ -712,6 +713,16 @@ const skillAndEnvironmentCases = async () => {
   const settings = JSON.parse(invocation.command.args.at(-1))
   same("lib/worker.mjs: the invocation excludes the hot file of the home folder and turns off the listed skills", [settings.claudeMdExcludes, settings.skillOverrides], [[join(home, "Developer", "brain", "hot.md")], { pdf: "off" }])
   same("lib/worker.mjs: the invocation carries the worker environment", invocation.environment.GH_TOKEN, TOKEN)
+  const questionsHome = join(root, "drive-worker", "questions-home")
+  for (const name of ["pdf", "humanizer", "questions"]) {
+    mkdirSync(join(questionsHome, ".claude", "skills", name), { recursive: true })
+    writeFileSync(join(questionsHome, ".claude", "skills", name, "SKILL.md"), "x")
+  }
+  const questions = questionsInvocation({ home: questionsHome, parentEnvironment: parent, token: TOKEN })
+  const questionsSettings = JSON.parse(questions.command.args.at(-1))
+  same("lib/worker.mjs: the questions run uses the coordinator model at the worker effort and no other argument changes", [questions.command.args.slice(0, 5), questions.command.args.slice(5, -1)], [["-p", "--model", "claude-opus-5-5", "--effort", "high"], invocation.command.args.slice(5, -1)])
+  same("lib/worker.mjs: the questions run keeps the questions skill on and turns off the rest", questionsSettings.skillOverrides, { pdf: "off" })
+  same("lib/worker.mjs: the questions run keeps the worker deny list and environment", [questionsSettings.permissions.deny, questions.environment], [settings.permissions.deny, invocation.environment])
   const workerDirectory = workerConfigDirectory(home)
   const onWorker = workerInvocation({ home, parentEnvironment: { ...parent, CLAUDE_CONFIG_DIR: "/somewhere/else" }, token: TOKEN, configDirectory: workerDirectory })
   same("lib/worker.mjs: the worker account sets CLAUDE_CONFIG_DIR to its directory and the main account sets none", [workerDirectory, onWorker.environment.CLAUDE_CONFIG_DIR, "CLAUDE_CONFIG_DIR" in invocation.environment], [join(home, ".claude-orbit-workers"), workerDirectory, false])

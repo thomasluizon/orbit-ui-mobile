@@ -10,6 +10,8 @@ import { workerEnvironment } from "./config.mjs"
 import { escapeRegex } from "./escape-regex.mjs"
 
 const MODEL = "claude-sonnet-5-5"
+/** The coordinator model: the owner session and the questions run use it. */
+export const COORDINATOR_MODEL = "claude-opus-5-5"
 const EFFORT = "high"
 const KEYCHAIN_ITEM = "orbit-worker-github-token"
 const SKILL_KEPT_ON = "humanizer"
@@ -76,19 +78,19 @@ export const listSkillNames = (skillsRoot) => {
  * The `--settings` JSON. `skillOverrides` takes the values "on", "name-only", "user-invocable-only" and "off"
  * in claude 2.1.329 (its settings schema), and "off" hides a skill from the model and from its slash name.
  */
-export const workerSettings = ({ hotPath, skillNames }) => ({
+export const workerSettings = ({ hotPath, skillNames, keepSkills = [SKILL_KEPT_ON] }) => ({
   claudeMdExcludes: [hotPath],
   autoMemoryEnabled: false,
   outputStyle: "default",
-  skillOverrides: Object.fromEntries(skillNames.filter((name) => name !== SKILL_KEPT_ON).map((name) => [name, "off"])),
+  skillOverrides: Object.fromEntries(skillNames.filter((name) => !keepSkills.includes(name)).map((name) => [name, "off"])),
   permissions: { deny: [...WORKER_DENY] },
 })
 
 /** The worker command. The order goes in on stdin, never in argv. */
-export const workerCommand = (settingsJson) => ({
+export const workerCommand = (settingsJson, model = MODEL) => ({
   executable: "claude",
   args: [
-    "-p", "--model", MODEL, "--effort", EFFORT, "--output-format", "stream-json", "--verbose", "--strict-mcp-config",
+    "-p", "--model", model, "--effort", EFFORT, "--output-format", "stream-json", "--verbose", "--strict-mcp-config",
     "--permission-mode", "bypassPermissions", "--disallowed-tools", "Task", "AskUserQuestion", "--settings", settingsJson,
   ],
 })
@@ -123,12 +125,18 @@ export const workerAccountEnvironment = (parentEnvironment, configDirectory) => 
  * The command and the environment of every worker run: a launch and a probe use the same ones. The main account has no
  * `configDirectory`. The worker account sets `CLAUDE_CONFIG_DIR` to its directory, and nothing else changes.
  */
-export const workerInvocation = ({ home, parentEnvironment, token, configDirectory = null }) => {
-  const settings = workerSettings({ hotPath: join(home, "Developer", "brain", "hot.md"), skillNames: listSkillNames(join(home, ".claude", "skills")) })
+export const workerInvocation = ({ home, parentEnvironment, token, configDirectory = null, model = MODEL, keepSkills = [SKILL_KEPT_ON] }) => {
+  const settings = workerSettings({ hotPath: join(home, "Developer", "brain", "hot.md"), skillNames: listSkillNames(join(home, ".claude", "skills")), keepSkills })
   const environment = workerEnvironmentFor(parentEnvironment, token)
   if (configDirectory !== null) environment.CLAUDE_CONFIG_DIR = configDirectory
-  return { command: workerCommand(JSON.stringify(settings)), environment }
+  return { command: workerCommand(JSON.stringify(settings), model), environment }
 }
+
+/** The skills that stay on in a questions run: the one that it runs and the one that writes its comments. */
+export const QUESTIONS_SKILLS = Object.freeze(["humanizer", "questions"])
+
+/** The command and the environment of the questions run: the worker's settings and token, the coordinator model, and the `questions` skill on. */
+export const questionsInvocation = ({ home, parentEnvironment, token }) => workerInvocation({ home, parentEnvironment, token, model: COORDINATOR_MODEL, keepSkills: QUESTIONS_SKILLS })
 
 /**
  * The prefixes that the installed claude CLI (2.1.329) classifies as a reached usage limit. The CLI tags such a
