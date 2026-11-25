@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { useTranslations } from 'next-intl'
-import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
@@ -102,7 +101,7 @@ export function ConfirmSheet({
     closeSheet(() => { setLifecycle((current) => ({ ...current, mounted: false })); onConfirm() })
   }
   const cancelButton = (
-    <PillButton variant="ghost" size="sm" minimumHeight={minimumActionHeight} buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>{cancelLabel ?? t('common.cancel')}</PillButton>
+    <PillButton variant="ghost" size="sm" minimumHeight={minimumActionHeight} buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>{cancelLabel ?? t(quickOptions ? 'common.notNow' : 'common.cancel')}</PillButton>
   )
   const confirmButton = (
     <PillButton
@@ -133,14 +132,14 @@ export function ConfirmSheet({
         setLifecycle((current) => ({ ...current, mounted: false }))
         onCancel()
       }}
-      actions={quickOptions ? undefined : (
+      actions={(
         <>
           {cancelButton}{confirmButton}
         </>
       )}
     >
       {quickOptions ? (
-        <QuestionBody title={title} message={message} confirmLabel={confirmLabel} cancelLabel={cancelLabel ?? t('common.notNow')} freePathLabel={freePathLabel} answersDisabled={actionsDisabled} confirmDisabled={actionsDisabled || confirmDisabled} confirmLoading={loading} onConfirm={confirm} onCancel={cancel}>{children}</QuestionBody>
+        <QuestionBody message={message} freePathLabel={freePathLabel} confirmDisabled={actionsDisabled || confirmDisabled} onConfirm={confirm}>{children}</QuestionBody>
       ) : (
         <>
           {message ? <p className="break-words text-sm text-[var(--fg-2)]">{message}</p> : null}
@@ -152,27 +151,18 @@ export function ConfirmSheet({
 }
 
 interface QuestionBodyProps {
-  title: string
   message: string
-  confirmLabel: string
-  cancelLabel: string
   freePathLabel?: string
-  answersDisabled: boolean
   confirmDisabled: boolean
-  confirmLoading: boolean
   onConfirm: () => void
-  onCancel: () => void
   children?: ReactNode
 }
 
-function QuestionBody({ title, message, confirmLabel, cancelLabel, freePathLabel, answersDisabled, confirmDisabled, confirmLoading, onConfirm, onCancel, children }: Readonly<QuestionBodyProps>) {
+function QuestionBody({ message, freePathLabel, confirmDisabled, onConfirm, children }: Readonly<QuestionBodyProps>) {
+  if (!message && !children && !freePathLabel) return null
   return (
     <div className="flex flex-col gap-6">
       {message ? <p className="break-words text-sm text-[var(--fg-2)]">{message}</p> : null}
-      <div role="group" aria-label={title} data-option-group="" className="grid w-full grid-cols-2 gap-3">
-        <OptionCard label={confirmLabel} disabled={confirmDisabled} loading={confirmLoading} onSelect={onConfirm} />
-        <OptionCard label={cancelLabel} disabled={answersDisabled} onSelect={onCancel} />
-      </div>
       {children}
       {freePathLabel ? <div className="flex justify-end"><PillButton variant="secondary" size="sm" disabled={confirmDisabled} onClick={onConfirm}>{freePathLabel}</PillButton></div> : null}
     </div>

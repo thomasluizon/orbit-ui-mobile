@@ -67,7 +67,7 @@ describe('WidgetKit prebuild plugin using the installed Expo project template', 
     const projectRoot = project.getFirstProject().firstProject
     const widgetGroup = objects.PBXGroup[projectRoot.mainGroup]?.children.find((child) => child.comment === 'OrbitWidgetExtension')
     expect(widgetGroup).toBeDefined()
-    expect(objects.PBXGroup[widgetGroup!.value]?.children).toHaveLength(7)
+    expect(objects.PBXGroup[widgetGroup!.value]?.children).toHaveLength(9)
     expect(projectRoot.knownRegions).toContain('"pt-BR"')
     const dependency = objects.PBXTargetDependency[app.dependencies[0]!.value]!
     expect(objects.PBXNativeTarget[dependency.target]).toEqual(widget)
@@ -79,7 +79,9 @@ describe('WidgetKit prebuild plugin using the installed Expo project template', 
     const targetRoot = join(root, 'ios/OrbitWidgetExtension')
     const manifest = plist.parse(readFileSync(join(targetRoot, 'Info.plist'), 'utf8'))
     expect(manifest).toMatchObject({ CFBundleShortVersionString: '1.2.3', CFBundleVersion: '42',
+      UIAppFonts: ['SpaceGrotesk_600SemiBold.ttf', 'Geist_400Regular.ttf'],
       OrbitWidgetAppGroup: `group.${bundleIdentifier}.widget`, NSExtension: { NSExtensionPointIdentifier: 'com.apple.widgetkit-extension' } })
+    for (const font of ['SpaceGrotesk_600SemiBold.ttf', 'Geist_400Regular.ttf']) expect(existsSync(join(targetRoot, font))).toBe(true)
     for (const locale of ['en', 'pt-BR']) expect(existsSync(join(targetRoot, `${locale}.lproj/Localizable.strings`))).toBe(true)
     for (const entitlements of [join(root, 'ios/HelloWorld/HelloWorld.entitlements'), join(targetRoot, 'OrbitWidgetExtension.entitlements')]) {
       expect(plist.parse(readFileSync(entitlements, 'utf8'))).toMatchObject({ 'com.apple.security.application-groups': [`group.${bundleIdentifier}.widget`] })

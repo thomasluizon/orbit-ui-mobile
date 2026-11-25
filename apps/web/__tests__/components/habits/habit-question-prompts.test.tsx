@@ -1,3 +1,4 @@
+import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -27,6 +28,7 @@ type Handlers = ReturnType<typeof handlers>
 function dialogs(spies: Handlers, props: Partial<React.ComponentProps<typeof HabitListConfirmDialogs>>) {
   return <HabitListConfirmDialogs t={(key) => key} parentPrompt={null} showDeleteConfirm={false} deletePending={false} deleteHabitName="" deleteDescendantCount={0} duplicateHabitName={null} {...spies} {...props} />
 }
+const answers = () => [...document.querySelectorAll<HTMLButtonElement>('[data-slot="sheet-actions"] button')]
 const options = () => [...document.querySelectorAll<HTMLButtonElement>('[data-option-card]')]
 const settle = () => act(() => vi.advanceTimersByTimeAsync(0))
 
@@ -34,25 +36,25 @@ beforeEach(() => { vi.useFakeTimers(); useUIStore.setState({ openOverlayIds: [] 
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
 describe('web habit prompts as one question', () => {
-  it('asks the parent question as the sheet title, with the two answers as quick options', async () => {
+  it('asks the parent question as the sheet title, with the two answers as the sheet actions, the positive answer last', async () => {
     enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     render(dialogs(spies, { parentPrompt: promptOf([parent]) }))
     expect(screen.getByRole('dialog', { name: 'habits.autoLogParentMessage' })).toBeInTheDocument()
-    expect(options().map((option) => option.textContent)).toEqual(['habits.autoLogParentConfirm', 'common.notNow'])
-    expect(document.querySelector('[data-slot="sheet-actions"]')).toBeNull()
+    expect(answers().map((answer) => answer.textContent)).toEqual(['common.notNow', 'habits.autoLogParentConfirm'])
+    expect(options()).toHaveLength(0)
     expect(document.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
-    fireEvent.click(options()[0]!)
+    fireEvent.click(answers()[1]!)
     await settle()
     expect(spies.onConfirmParent).toHaveBeenCalledOnce()
     expect(spies.onCancelParent).not.toHaveBeenCalled()
   })
 
-  it('sends the cancel of the parent prompt from the second quick option', async () => {
+  it('sends the cancel of the parent prompt from the first answer', async () => {
     enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     render(dialogs(spies, { parentPrompt: promptOf([parent]) }))
-    fireEvent.click(options()[1]!)
+    fireEvent.click(answers()[0]!)
     await settle()
     expect(spies.onCancelParent).toHaveBeenCalledOnce()
     expect(spies.onConfirmParent).not.toHaveBeenCalled()
@@ -71,16 +73,25 @@ describe('web habit prompts as one question', () => {
     expect(spies.onConfirmParent).toHaveBeenCalledOnce()
   })
 
-  it('moves focus between the answers with the arrow keys and selects nothing', () => {
+  it('draws the answers with the plain confirm buttons, not as tiles', () => {
+    enableTestFlags('orbit_guided_flows')
+    render(dialogs(handlers(), { duplicateHabitName: 'Read' }))
+    expectSmallSheetActions()
+    expect(answers().map((answer) => answer.getAttribute('data-variant'))).toEqual(['ghost', 'primary'])
+  })
+
+  it('draws each answer as a native button, so Enter and Space reach its handler, and fires only that handler', async () => {
     enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     render(dialogs(spies, { duplicateHabitName: 'Read' }))
-    const [first, second] = options()
-    first!.focus()
-    fireEvent.keyDown(first!, { key: 'ArrowRight' })
-    expect(document.activeElement).toBe(second)
+    const [cancel] = answers()
+    expect(answers().map((answer) => [answer.tagName, answer.type])).toEqual([['BUTTON', 'button'], ['BUTTON', 'button']])
+    cancel!.focus()
+    expect(document.activeElement).toBe(cancel)
+    fireEvent.click(cancel!)
+    await settle()
+    expect(spies.onCancelDuplicate).toHaveBeenCalledOnce()
     expect(spies.onConfirmDuplicate).not.toHaveBeenCalled()
-    expect(spies.onCancelDuplicate).not.toHaveBeenCalled()
   })
 
   it('asks the duplicate question with quick options and sends the same request', async () => {
@@ -88,8 +99,8 @@ describe('web habit prompts as one question', () => {
     const spies = handlers()
     render(dialogs(spies, { duplicateHabitName: 'Read' }))
     expect(screen.getByRole('dialog', { name: 'habits.duplicateConfirmTitle' })).toBeInTheDocument()
-    expect(options().map((option) => option.textContent)).toEqual(['habits.duplicateConfirm', 'common.notNow'])
-    fireEvent.click(options()[0]!)
+    expect(answers().map((answer) => answer.textContent)).toEqual(['common.notNow', 'habits.duplicateConfirm'])
+    fireEvent.click(answers()[1]!)
     await settle()
     expect(spies.onConfirmDuplicate).toHaveBeenCalledOnce()
   })
@@ -121,8 +132,8 @@ describe('web habit prompts as one question', () => {
     render(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={onConfirm} />)
     expect(screen.getByRole('dialog', { name: 'habits.checklistCompleteQuestion' })).toBeInTheDocument()
     expect(screen.getByRole('dialog').querySelector('p')).toBeNull()
-    expect(options().map((option) => option.textContent)).toEqual(['habits.checklistCompleteConfirm', 'common.notNow'])
-    fireEvent.click(options()[0]!)
+    expect(answers().map((answer) => answer.textContent)).toEqual(['common.notNow', 'habits.checklistCompleteConfirm'])
+    fireEvent.click(answers()[1]!)
     await settle()
     expect(onConfirm).toHaveBeenCalledOnce()
   })
@@ -139,8 +150,8 @@ describe('web habit prompts as one question', () => {
     const onConfirm = vi.fn()
     render(<LogDatePrompt pending={{ habitId: 'h', intent, date, name: 'Read', permanent: false }} fallbackName="Read" fallbackDate={date} language="en" onCancel={vi.fn()} onConfirm={onConfirm} />)
     expect(screen.getByRole('dialog', { name: question })).toBeInTheDocument()
-    expect(options().map((option) => option.textContent)).toEqual([answer, 'common.notNow'])
-    fireEvent.click(options()[0]!)
+    expect(answers().map((option) => option.textContent)).toEqual(['common.notNow', answer])
+    fireEvent.click(answers()[1]!)
     await settle()
     expect(onConfirm).toHaveBeenCalledOnce()
   })
