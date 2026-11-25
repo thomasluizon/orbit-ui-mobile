@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import { win32 } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { closeSync, openSync, readFileSync } from 'node:fs'
+import { join, win32 } from 'node:path'
 
 export type CompilerProbe = (command: string, args: string[]) => { stdout: string; status: number | null }
 
@@ -51,4 +53,26 @@ export function resolveCppCompiler(
   const newest = candidates.reduce<CompilerCandidate | undefined>((best, candidate) => (best && best.major >= candidate.major ? best : candidate), undefined)
   if (!newest) throw new Error('No Clang found on PATH or in Visual Studio.')
   return newest.command
+}
+
+export interface NativeRun {
+  error: Error | undefined
+  status: number | null
+  output: string
+}
+
+/**
+ * Runs a native tool with its output in a file under `directory`. A helper that the MSVC linker starts inherits the output
+ * pipe and can keep it open for minutes after the compile ends. `spawnSync` waits for a pipe to close, so a pipe stalls the
+ * test, and a file leaves nothing to wait for.
+ */
+export function runNative(command: string, args: string[], directory: string): NativeRun {
+  const path = join(directory, `${randomUUID()}.log`)
+  const descriptor = openSync(path, 'w')
+  try {
+    const result = spawnSync(command, args, { stdio: ['ignore', descriptor, descriptor] })
+    return { error: result.error, status: result.status, output: readFileSync(path, 'utf8') }
+  } finally {
+    closeSync(descriptor)
+  }
 }
