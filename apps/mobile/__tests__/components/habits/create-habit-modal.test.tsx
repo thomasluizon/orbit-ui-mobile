@@ -46,6 +46,8 @@ const mockFormStatus = vi.hoisted((): { dirty: boolean; itemType: 'task' | 'habi
 const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
 const mockLocale = vi.hoisted(() => ({ value: 'en' }))
 const mockFocus = vi.hoisted(() => ({ value: true }))
+const mockGuided = vi.hoisted(() => ({ value: false }))
+const mockGuidedFlow = vi.hoisted((): { props: { onSubmit: (completion: { stepCount: number; usedAiRead: boolean }) => void } | null } => ({ props: null }))
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
@@ -207,7 +209,17 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
   }
 })
 
-vi.mock('@/components/habits/guided/guided-habit-flow', () => ({ GuidedHabitFlow: () => null }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mockGuided.value }))
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
+  useHabitDetail: () => ({ data: null }),
+}))
+vi.mock('@/components/habits/guided/guided-habit-flow', () => ({
+  GuidedHabitFlow: (props: { onSubmit: (completion: { stepCount: number; usedAiRead: boolean }) => void }) => {
+    mockGuidedFlow.props = props
+    return null
+  },
+}))
 vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: (props: { children?: React.ReactNode | ((proposedItems: number) => React.ReactNode); onPhraseOwnershipChange?: (ownership: { cadence: boolean; dueTime: boolean }) => void }) =>
     React.createElement(
@@ -312,6 +324,8 @@ describe('CreateHabitModal (mobile)', () => {
     mockFocus.value = true
     mockFormStatus.dirty = false
     mockFormStatus.itemType = 'task'
+    mockGuided.value = false
+    mockGuidedFlow.props = null
     mockProfileState.hasProAccess = true
     mockLocale.value = 'en'
     mockCreateMutateAsync.mockReset()
@@ -1277,5 +1291,85 @@ await Promise.resolve()
     expect(mockShowError).not.toHaveBeenCalled()
   })
 
+
+
+  describe('the result dialog of a guided create on a screen', () => {
+    function renderGuidedScreen(dueDate: string) {
+      mockGuided.value = true
+      mockFormStatus.dirty = true
+      mockCreateMutateAsync.mockResolvedValue({ id: 'habit-1' })
+      mockGetValues.mockImplementation((field?: unknown) => field === 'title' ? 'Internet' : { title: 'Internet', itemType: 'task', dueDate })
+      const log = { removalBlocked: true, blockedAtNavigation: [] as boolean[], navigations: [] as string[] }
+      function LeaveGuard({ leaving }: Readonly<{ leaving: boolean; requestLeave: () => void }>) {
+        log.removalBlocked = !leaving
+        return null
+      }
+      const record = (kind: string) => (path: string) => { log.blockedAtNavigation.push(log.removalBlocked); log.navigations.push(kind + ' ' + path) }
+      mockPush.mockImplementation(record('push'))
+      mockReplace.mockImplementation(record('replace'))
+      const onClose = vi.fn()
+      const onCreated = vi.fn()
+      const tree = renderModal(<CreateHabitModal open presentation="screen" leaveGuard={LeaveGuard} onClose={onClose} onCreated={onCreated} />)
+      return { tree, log, onClose, onCreated }
+    }
+    async function save(tree: ReturnType<typeof renderModal>) {
+      await TestRenderer.act(async () => { await Promise.resolve() })
+      await TestRenderer.act(async () => {
+        mockGuidedFlow.props?.onSubmit({ stepCount: 3, usedAiRead: false })
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+      expect(tree.root.findAll((node: any) => node.props.testID === 'result-dialog').length).toBeGreaterThan(0)
+    }
+    const pressResult = (tree: ReturnType<typeof renderModal>, label: string) => TestRenderer.act(() => {
+      tree.root.findAll((node: any) => node.type === PillButton && node.props.children === label)[0].props.onClick()
+    })
+
+    it('opens Hoje as the leave action of the create screen with no discard sheet', async () => {
+      const { tree, log, onClose, onCreated } = renderGuidedScreen('2000-01-01')
+      await save(tree)
+      pressResult(tree, 'result.seeToday')
+      expect(log.navigations).toEqual(['replace /(tabs)'])
+      expect(log.blockedAtNavigation).toEqual([false])
+      expect(mockPush).not.toHaveBeenCalled()
+      expect(onClose).not.toHaveBeenCalled()
+      expect(onCreated).toHaveBeenCalledOnce()
+      expect(hasText(tree.root, 'common.discardChangesTitle')).toBe(false)
+      tree.unmount()
+    })
+
+    it('opens Calendário for a record on another day with no discard sheet', async () => {
+      const { tree, log } = renderGuidedScreen('2999-01-01')
+      await save(tree)
+      pressResult(tree, 'result.seeCalendar')
+      expect(log.navigations).toEqual(['replace /(tabs)/calendar'])
+      expect(log.blockedAtNavigation).toEqual([false])
+      expect(tree.root.findAll((node: any) => node.type === DiscardChangesSheet)[0].props.open).toBe(false)
+      tree.unmount()
+    })
+
+    it('restarts the flow on Criar outro and does not navigate', async () => {
+      const { tree, log, onClose } = renderGuidedScreen('2000-01-01')
+      await save(tree)
+      pressResult(tree, 'result.createAnother')
+      expect(log.navigations).toEqual([])
+      expect(onClose).not.toHaveBeenCalled()
+      expect(tree.root.findAll((node: any) => node.props.testID === 'result-dialog')).toHaveLength(0)
+      tree.unmount()
+    })
+
+    it.each(['scrim', 'system-back'] as const)('leaves through %s with no discard sheet', async (exit) => {
+      const { tree, log, onClose, onCreated } = renderGuidedScreen('2000-01-01')
+      await save(tree)
+      TestRenderer.act(() => {
+        if (exit === 'scrim') tree.root.findAll((node: any) => node.props.testID === 'result-dialog-scrim')[0].props.onPress()
+        else dismissTopOverlay('system-back')
+      })
+      expect(onClose).toHaveBeenCalledOnce()
+      expect(onCreated).toHaveBeenCalledOnce()
+      expect(log.navigations).toEqual([])
+      expect(tree.root.findAll((node: any) => node.type === DiscardChangesSheet)[0].props.open).toBe(false)
+      tree.unmount()
+    })
+  })
 
 })

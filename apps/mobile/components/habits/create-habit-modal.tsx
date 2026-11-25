@@ -90,6 +90,7 @@ function createSubHabitEntry(value = ''): SubHabitEntry {
 }
 
 function hasCreateHabitChanges({
+  saved,
   formDirty,
   selectedTagIds,
   selectedGoalIds,
@@ -100,6 +101,7 @@ function hasCreateHabitChanges({
   initialSubHabits,
   initialReminderTimes,
 }: Readonly<{
+  saved: boolean
   formDirty: boolean
   selectedTagIds: string[]
   selectedGoalIds: string[]
@@ -110,6 +112,7 @@ function hasCreateHabitChanges({
   initialSubHabits: string
   initialReminderTimes: string
 }>): boolean {
+  if (saved) return false
   const tagSnapshot = JSON.stringify([...selectedTagIds].sort((a, b) => a.localeCompare(b)))
   const goalSnapshot = JSON.stringify([...selectedGoalIds].sort((a, b) => a.localeCompare(b)))
   const subHabitSnapshot = JSON.stringify(subHabits.map((entry) => entry.value))
@@ -243,6 +246,7 @@ export function CreateHabitModal({
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty = hasCreateHabitChanges({
+    saved: saved !== null,
     formDirty: formHelpers.form.formState.isDirty || pendingChecklistItem.length > 0,
     selectedTagIds: tags.selectedTagIds,
     selectedGoalIds,
@@ -267,9 +271,10 @@ export function CreateHabitModal({
     if (automatic) closeSheet(leave, leave)
     else closeSheet(leave)
   }, [closeSheet, presentation, releaseSubmission])
+  const leaveSaved = () => { setSaved(null); onClose(); onCreated?.() }
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => finishClose(pendingNavigation.current ?? onClose),
+    onDismiss: () => finishClose(saved ? leaveSaved : pendingNavigation.current ?? onClose),
   })
   useHabitCreateNavigationGuard({
     active: open && presentation === 'screen' && isFocused,
@@ -739,9 +744,14 @@ export function CreateHabitModal({
       habitId={saved.id}
       optimistic={saved.optimistic}
       change="created"
-      onClose={() => {
+      onClose={() => { setSaved(null); finishClose(leaveSaved) }}
+      onOpenDestination={(path) => {
         setSaved(null)
-        finishClose(() => { onClose(); onCreated?.() })
+        finishClose(() => {
+          onCreated?.()
+          if (presentation === 'screen') router.replace(path)
+          else { onClose(); router.push(path) }
+        })
       }}
       onCreateAnother={() => { setSaved(null); setSaveError(null); setFlowRun((run) => run + 1) }}
     />
