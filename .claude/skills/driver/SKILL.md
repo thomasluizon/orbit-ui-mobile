@@ -1,0 +1,60 @@
+---
+name: driver
+description: The Orbit delivery driver in one command. /driver starts it, or, when it already runs, reports every notification that sleep held, the week used and the held decisions. Product progress is /progress. /driver stop stops it. Use on /driver, start the driver, is the driver running, why is nothing happening, or stop the driver.
+argument-hint: "[stop | update <full sha>]"
+effort: low
+---
+
+# /driver
+
+The driver `tools/drive.mjs` works every open ticket of the board and merges at the bar. It runs as the launchd job `com.thomas.orbit-drive` from the worktree `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive`. It runs from `/driver` until `/driver stop`, a logout or a shutdown. It never starts at login.
+
+- Log: `$HOME/Library/Logs/brain-automations/orbit-drive.log`.
+- Plist: `$HOME/Developer/brain/scripts/automations/on-demand/com.thomas.orbit-drive.plist`. Never copy it into `$HOME/Library/LaunchAgents/`: from there it starts at every login.
+
+## /driver
+
+0. Keep the owner's skills current, so each merged skill change reaches the next session:
+   1. When `$HOME/Developer/orbit-ui-mobile` is on `main` with no local change, run `git -C $HOME/Developer/orbit-ui-mobile pull --ff-only`.
+   2. A skill link in `$HOME/.claude/skills` that points into `$HOME/Developer/orbit-worktrees/` serves a skill before its pull request merges. Read the branch of the link's worktree with `git -C <link target> branch --show-current`. When `gh pr list --repo thomasluizon/orbit-ui-mobile --head <branch> --state merged --json number` returns an entry, delete the link with Node (`fs.unlinkSync`), so the repository copy serves it. Otherwise keep the link.
+1. Run `launchctl print gui/$(id -u)/com.thomas.orbit-drive`.
+2. When it prints "Could not find service", start the driver:
+   1. When the worktree is missing, run `git -C $HOME/Developer/orbit-ui-mobile fetch origin main`, then `git -C $HOME/Developer/orbit-ui-mobile worktree add --detach $HOME/orca/workspaces/orbit-ui-mobile/orbit-drive origin/main`.
+   2. Run `launchctl bootstrap gui/$(id -u) $HOME/Developer/brain/scripts/automations/on-demand/com.thomas.orbit-drive.plist`.
+   3. Say "The driver started." Then report as below.
+3. Report every notification that sleep held since the last `/driver`. The owner keeps sleep on, so this is the only place he sees them.
+   1. State dir: `S="$(git -C $HOME/Developer/orbit-ui-mobile rev-parse --path-format=absolute --git-common-dir)/orbit-drive"`. The last report time is in `$S/last-driver-report` (no file: the last 24 hours).
+   2. Read every log line after that time that contains ` sleep held `. Each one is a notification the driver did not send.
+   3. List all of them, first. Group repeats of the same item and say how many times. For a `needs:owner` item, check the label: when it is gone, say "already handled". Write each in product terms, with its link when it is still open.
+   4. Write the current time to `$S/last-driver-report`, and write `[]` to `$S/sleep-items.json`.
+4. Report the driver's own state. Product progress is `/progress`, so repeat none of it here.
+   1. Read the newest `pace` line of the log.
+   2. Report: the week used on each account, and whether one stopped at 90% (`/over-limit` lets it go on). Then the count of held decisions (`needs:owner` tickets and pull requests): `/questions` answers them.
+
+## /driver stop
+
+1. Run `launchctl bootout gui/$(id -u)/com.thomas.orbit-drive`. A running worker ends its order. The next `/driver` reads its pid file.
+2. Run `launchctl print gui/$(id -u)/com.thomas.orbit-drive`. "Could not find service" means it stopped. Say that in one line.
+
+## /driver update <full sha>
+
+The driver moves to a newer driver commit of `main` by itself, at a tick with no worker running. Use this only to move it at once.
+
+1. Run `git -C $HOME/orca/workspaces/orbit-ui-mobile/orbit-drive fetch origin main`, then `git -C $HOME/orca/workspaces/orbit-ui-mobile/orbit-drive checkout --detach <full sha>`.
+2. Run `launchctl kickstart -k gui/$(id -u)/com.thomas.orbit-drive`.
+
+## What the owner session does
+
+- Writes tickets with `/ticket`.
+- Runs `/questions` for the held `needs:owner` items. A pull request that used its 2 fix launches gets one more launch for each owner comment that follows the cap report. Each cap report states the launch count, so a granted launch that ends at the same head gets a new report. The order carries the comment.
+- Runs `/sleep` and `/over-limit`.
+- The driver reruns each failed job once before any launch, and files a Bug ticket for a check that passes on the rerun at the same head. A `ci-fix` launch for a check that fails on a clean merge of the base, after a green commit, does not count toward the 2 fix launches.
+- Runs releases.
+- Runs each `owner-work` ticket.
+
+## Rules
+
+- The owner session writes no code for a ticket. A worker writes it.
+- Only the driver merges, at the bar. Nobody uses an admin merge.
+- Never edit the worktree `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive` by hand.
+- Copy every ticket number, pull request number and sha from this run's output.
