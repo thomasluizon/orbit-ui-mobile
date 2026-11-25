@@ -12,9 +12,11 @@ Facts for `/release`, `/android-release` and `/ios-release`. The skills own the 
 
 ## Release order and gates
 
-- Nothing deploys on a merge or a push. Only `/release` and `/android-release` deploy.
+- A merge or a push deploys nothing by itself. The driver release train deploys on its cadence, and `/release` starts the same train at once.
+- The train starts when `node tools/release-plan.mjs` shows `needsRelease: true` for a service and the previous train ended at least 4 hours ago. Only one train runs at a time. It releases staging first and then production, for each service in order.
+- The train releases mobile staging as Android track `internal` plus iOS variant `staging`, and mobile production as Android track `open` plus iOS variant `production`. The Android `android_version_code` is the newest code of the Android Release run titles plus one for staging and plus two for production. The iOS `build_number` is the highest build of the app in App Store Connect plus one.
 - Route all work to `main` in every repository.
-- Release in this order: API, web, landing, then Android. Stop after a failed release or a failed verification.
+- Release in this order: API, web, landing, then mobile. Stop after a failed release or a failed verification.
 - Android fixes on `main` ship to the Open track. The production track stays empty until the owner orders a launch.
 - One mobile release ships Android and iOS at the same `app_version` from the same commit. Each store keeps its own build counter.
 - Release Android first. Release iOS at the Android version. Never release on the App Store before the owner orders the Android public release.
@@ -23,7 +25,7 @@ Facts for `/release`, `/android-release` and `/ios-release`. The skills own the 
 - A staging web release never runs while a production web release runs.
 - An API release with a migration takes a fresh Render export first. Each destructive operation gets its own current backup and drain proof.
 - Skip a web release when `git diff --name-only` since the served commit shows no `apps/web` or `packages/shared` file.
-- Staging off is no reason to stop. Release production with `force_unstaged`, or fix staging.
+- Staging off stops the train at that service. The owner fixes staging, or asks for `force_unstaged` on one hand dispatch.
 - A new value in a response enum breaks a client with a strict schema enum. Ship the accepting client first, or send the value only to clients that declare support.
 - The Render MCP has no workspace selected: never pick one.
 
@@ -50,6 +52,7 @@ Facts for `/release`, `/android-release` and `/ios-release`. The skills own the 
 
 ## Release and infrastructure facts
 
+- The driver reads `RENDER_MCP_TOKEN` and the three `APP_STORE_CONNECT_API_*` variables of `tools/testflight-access.mjs` from its own environment. With no `RENDER_MCP_TOKEN` the plan fails and no train starts. With no App Store Connect variable the train holds only the iOS steps.
 - Each release job reads `RENDER_API_KEY` from its own GitHub environment: `production`, `staging`, and `render-operations` for the API scheduled Render jobs. Each environment deploys only from `main`.
 - The Render web services have auto-deploy off.
 - `tools/wait-release.mjs` needs full 40-character SHAs for `--sha` and `--workflow-sha`, and the origin in `--service-url`. Use `--workflow android` for an Android run.
