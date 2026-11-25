@@ -8,6 +8,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockConfigResponse, createMockHabit, createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { appConfigSchema } from '@orbit/shared/types/config'
+import type { HabitPhraseReadResponse } from '@orbit/shared/types/habit'
 import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import { SmokeDomPage, type SmokeDomLocator, expectSmokeDom } from '@/__tests__/support/smoke-dom'
 import { holdAccount } from '@/__tests__/support/account-change'
@@ -18,6 +19,7 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { HabitList } from '@/components/habits/habit-list'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
+import { GuidedPricingSection } from '@/components/upgrade/guided-pricing-section'
 import { Sheet } from '@/components/ui/sheet'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { OnboardingActionsProvider } from '@/components/onboarding/onboarding-actions-context'
@@ -26,6 +28,7 @@ import { subscriptionPlansFixture } from '@/test-support/hermetic/mock-api/fixtu
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { smokeLabel } from '@/e2e/support/unique'
 import { createSmokeHabit, expectAppNavigation, expectCheckout, logSmokeHabit } from '@/e2e/support/smoke-adapters'
 
 const mocks = vi.hoisted(() => ({
@@ -37,6 +40,8 @@ const mocks = vi.hoisted(() => ({
     recordCompletion: vi.fn(), finishOnboarding: vi.fn(),
   },
   loadingToday: false,
+  phraseRead: vi.fn(),
+  saved: { id: 'habit-9', title: 'Smoke guided', isGeneral: false, dueDate: '2026-11-14', dueTime: null, frequencyUnit: null, frequencyQuantity: null, isFlexible: false } as Record<string, unknown>,
   emptyToday: false,
   profile: undefined as ReturnType<typeof createMockProfile> | undefined,
   pathname: '/', wide: false, expired: false, online: true,
@@ -115,6 +120,7 @@ vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
 vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => null }))
+vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: mocks.phraseRead, isPending: false }) }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse()) }) }))
 vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habits')>(),
@@ -125,6 +131,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   useDuplicateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useReorderHabits: () => ({ mutate: vi.fn(), isPending: false }),
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useHabitDetail: () => ({ data: mocks.saved }),
   useCreateHabit: () => ({ mutateAsync: mocks.create, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
@@ -253,6 +260,7 @@ beforeEach(() => {
   mocks.router.push.mockReset()
   mocks.pathname = '/'
   mocks.loadingToday = false
+  mocks.phraseRead.mockResolvedValue(null)
   mocks.emptyToday = false
   mocks.wide = false
   mocks.expired = false
@@ -261,7 +269,7 @@ beforeEach(() => {
   mocks.clearLevelUp.mockImplementation(() => { mocks.leveledUp = false })
   mocks.crossedStreakMilestones = []
   mocks.profile = createMockProfile({ hasCompletedOnboarding: true, hasImportedCalendar: true, hasSeenImportPrompt: true })
-  mocks.create.mockResolvedValue(undefined)
+  mocks.create.mockResolvedValue({ id: 'habit-9' })
   mocks.dismissCalendarImport.mockResolvedValue(undefined)
   mocks.dismissImportPrompt.mockResolvedValue(undefined)
   mocks.consent.mockResolvedValue(undefined)
@@ -336,5 +344,343 @@ describe('smoke authentication setup', () => {
 
     expect(mocks.authenticate).toHaveBeenCalledExactlyOnceWith(page)
     expect(page.storageState).not.toHaveBeenCalled()
+  })
+})
+
+describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (locale) => {
+  it.each(['navigation', 'create', 'log', 'checkout'] as const)('declines real marketing consent before %s on a fresh page', async (entry) => {
+    mocks.profile!.marketingEmailConsent = null
+    if (entry === 'checkout') mocks.pathname = '/upgrade'
+    const page = new SmokeDomPage()
+    const content = entry === 'create' ? <HabitList view="today" filters={{}} onCreate={() => useUIStore.getState().setShowCreateModal(true)} />
+      : entry === 'log' ? <Logging page={page} /> : <Checkout />
+    vi.useFakeTimers()
+    const view = mount(<AppLayout>{content}</AppLayout>, locale)
+    if (entry === 'create') mocks.router.push.mockImplementation(() => {
+      mocks.pathname = '/habits/new'
+      view.rerender(<AppLayout><CreateHabitModal open presentation="screen" onOpenChange={() => {
+        mocks.pathname = '/'
+        view.rerender(<AppLayout>{content}</AppLayout>)
+      }} /></AppLayout>)
+    })
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    vi.useRealTimers()
+    const messages = locale === 'en' ? en : ptBR
+    expect(screen.getByRole('dialog', { name: messages.marketingConsent.prompt.title })).toBeVisible()
+    page.setReload(async () => { view.rerender(<AppLayout><Logging key="reload" page={page} completed /></AppLayout>) })
+
+    if (entry === 'navigation') await expectAppNavigation(page as unknown as Page)
+    else if (entry === 'create') await createSmokeHabit(page as unknown as Page, 'Smoke consent')
+    else if (entry === 'log') await logSmokeHabit(page as unknown as Page, 'Smoke log')
+    else await expectCheckout(page as unknown as Page)
+
+    await waitFor(() => expect(mocks.consent).toHaveBeenCalledExactlyOnceWith({ enabled: false }, 'smoke-unit-account'))
+    expect(mocks.profile!.marketingEmailConsent).toBe(false)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mocks.checkout).not.toHaveBeenCalled()
+  })
+
+  it('declines marketing consent that appears after navigation', async () => {
+    const page = new SmokeDomPage()
+    mocks.profile!.marketingEmailConsent = false
+    const view = mount(<AppLayout><Checkout /></AppLayout>, locale)
+    await expectAppNavigation(page as unknown as Page)
+    vi.useFakeTimers()
+    mocks.profile!.marketingEmailConsent = null
+    view.rerender(<AppLayout><Checkout /></AppLayout>)
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    vi.useRealTimers()
+    await page.getByRole('link', { name: (locale === 'en' ? en : ptBR).nav.today, exact: true }).click()
+    await waitFor(() => expect(mocks.consent).toHaveBeenCalledExactlyOnceWith({ enabled: false }, 'smoke-unit-account'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('dismisses the real habit import prompt without opening the conversation', async () => {
+    mocks.profile!.hasSeenImportPrompt = false
+    mount(<AppLayout><Checkout /></AppLayout>, locale)
+    await screen.findByRole('dialog', { name: (locale === 'en' ? en : ptBR).onboarding.wizard.importTitle })
+    await expectCheckout(new SmokeDomPage() as unknown as Page)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mocks.dismissImportPrompt).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).not.toHaveBeenCalled()
+    expect(mocks.checkout).not.toHaveBeenCalled()
+  })
+
+  it.each(['referral', 'milestone-share'] as const)('dismisses a real %s prompt after a milestone', async (kind) => {
+    mocks.leveledUp = kind === 'referral'
+    mocks.crossedStreakMilestones = kind === 'milestone-share' ? [7] : []
+    vi.useFakeTimers()
+    mount(<AppLayout><Checkout /></AppLayout>, locale)
+    await act(async () => { useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    vi.useRealTimers()
+    expect(screen.getByRole('dialog')).toBeVisible()
+    await expectCheckout(new SmokeDomPage() as unknown as Page)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mocks.checkout).not.toHaveBeenCalled()
+    expect(mocks.router.push).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('requires real navigation with the current shell, wide=%s', async (wide) => {
+    mocks.wide = wide
+    mount(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>, locale)
+    await expectAppNavigation(new SmokeDomPage() as unknown as Page)
+  })
+
+  it('submits the real habit form once through its external footer button', async () => {
+    useUIStore.getState().setTodayFabHidden(false)
+    mount(<HabitCreation />, locale)
+    await createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke creation')
+    expect(mocks.create).toHaveBeenCalledTimes(1)
+    expect(mocks.create.mock.calls[0]?.[0]).toMatchObject({ title: 'Smoke creation' })
+    expect(mocks.create.mock.calls[0]?.[0]).toHaveProperty('dueDate')
+    for (const field of ['frequencyUnit', 'frequencyQuantity', 'isFlexible', 'isGeneral', 'startDate']) {
+      expect(mocks.create.mock.calls[0]?.[0]).not.toHaveProperty(field)
+    }
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(mocks.suggestion).not.toHaveBeenCalled()
+  })
+
+  it('selects Habit and submits its repeating schedule through the same adapter', async () => {
+    useUIStore.getState().setTodayFabHidden(false)
+    mount(<HabitCreation />, locale)
+    await createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke repeating habit', 'habit')
+    expect(mocks.create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      title: 'Smoke repeating habit', frequencyUnit: 'Day', frequencyQuantity: 1,
+    }))
+    expect(mocks.create.mock.calls[0]?.[0]).not.toHaveProperty('dueDate')
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(mocks.suggestion).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('creates from the real zero-habit Today state without a FAB, wide=%s', async (wide) => {
+    mocks.wide = wide
+    mocks.profile = createMockProfile({
+      hasCompletedOnboarding: true, hasImportedCalendar: true, hasSeenImportPrompt: true,
+      isTrialActive: false, hasCreatedFirstHabit: false, hasLoggedFirstHabit: false,
+      hasTriedAstra: false, hasCompletedOnboardingChecklist: false,
+    })
+    mocks.emptyToday = true
+    useUIStore.setState({ todayFabHidden: true })
+    mount(<HabitCreation empty />, locale)
+    const messages = locale === 'en' ? en : ptBR
+    expect(document.querySelector('[data-shell-fab] button')).toBeNull()
+    expect(screen.getByRole('region', { name: messages.today.setupChecklist.title })).toBeVisible()
+    expect(screen.getByRole('button', { name: messages.habits.createManually })).toBeVisible()
+
+    await createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke first habit')
+
+    expect(mocks.create).toHaveBeenCalledTimes(1)
+    expect(mocks.create.mock.calls[0]?.[0]).toMatchObject({ title: 'Smoke first habit' })
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(mocks.suggestion).not.toHaveBeenCalled()
+  })
+
+  it('waits for settled Today when the initial create button disappears before the click', async () => {
+    mocks.loadingToday = true
+    mocks.emptyToday = true
+    useUIStore.getState().setTodayFabHidden(false)
+    const view = mount(<HabitCreation empty />, locale)
+    let settled = false
+    class LoadingTodayPage extends SmokeDomPage {
+      override async checkpoint(target: SmokeDomLocator) {
+        if (!settled && (target.description === 'button Create habit or button Criar hábito' || target.description.includes('[data-habit-list]'))) {
+          settled = true
+          mocks.loadingToday = false
+          await act(async () => {
+            useUIStore.getState().setTodayFabHidden(true)
+            view.rerender(<HabitCreation empty />)
+          })
+        }
+        await super.checkpoint(target)
+      }
+    }
+    await createSmokeHabit(new LoadingTodayPage() as unknown as Page, 'Smoke settled creation')
+    expect(settled).toBe(true)
+    expect(mocks.create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ title: 'Smoke settled creation' }))
+  })
+
+  it('dismisses the real trial and subsequent calendar prompt before navigation', async () => {
+    mocks.expired = true
+    mocks.profile = createMockProfile({ hasCompletedOnboarding: true, hasImportedCalendar: false, hasSeenImportPrompt: true })
+    mount(<AppLayout><h1>Today</h1></AppLayout>, locale)
+    await screen.findByRole('dialog')
+    await expectAppNavigation(new SmokeDomPage() as unknown as Page)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(localStorage.getItem('orbit_trial_expired_seen:smoke-unit-account')).toBe('1')
+    expect(mocks.dismissCalendarImport).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).not.toHaveBeenCalled()
+  })
+
+  it('dismisses the real calendar prompt and requires an enabled checkout without purchasing', async () => {
+    mocks.pathname = '/upgrade'
+    mocks.profile = createMockProfile({ hasCompletedOnboarding: true, hasImportedCalendar: false, hasSeenImportPrompt: true })
+    mount(<AppLayout><Checkout /></AppLayout>, locale)
+    await screen.findByRole('dialog')
+    await expectCheckout(new SmokeDomPage() as unknown as Page)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mocks.dismissCalendarImport).toHaveBeenCalledTimes(1)
+    expect(mocks.checkout).not.toHaveBeenCalled()
+  })
+
+  it('handles known prompts that arrive after the initial navigation assertion', async () => {
+    const page = new SmokeDomPage()
+    const view = mount(<AppLayout><h1>Today</h1></AppLayout>, locale)
+    await expectAppNavigation(page as unknown as Page)
+    mocks.expired = true
+    mocks.profile = createMockProfile({ hasCompletedOnboarding: true, hasImportedCalendar: false, hasSeenImportPrompt: true })
+    view.rerender(<AppLayout><h1>Today</h1></AppLayout>)
+    await screen.findByRole('dialog')
+    await page.getByRole('link', { name: (locale === 'en' ? en : ptBR).nav.today, exact: true }).click()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mocks.dismissCalendarImport).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves an unknown dialog blocking the flow', async () => {
+    mount(<><DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>
+      <Sheet open title="Unknown required decision"><p>Decision required</p></Sheet></>, locale)
+    await expect(expectAppNavigation(new SmokeDomPage() as unknown as Page)).rejects.toThrow('undismissed dialog')
+    expect(screen.getByRole('dialog', { name: 'Unknown required decision' })).toBeInTheDocument()
+  })
+
+  it('allows a dialog action while blocking an outside click', async () => {
+    const inside = vi.fn()
+    const outside = vi.fn()
+    mount(<><button data-testid="outside-action" onClick={outside}>Outside</button>
+      <Sheet open title="Unknown required decision">
+        <button data-testid="inside-action" onClick={inside}>Inside</button>
+      </Sheet></>, locale)
+    const page = new SmokeDomPage()
+    await page.getByTestId('inside-action').click()
+    expect(inside).toHaveBeenCalledTimes(1)
+    await expect(page.getByTestId('outside-action').click()).rejects.toThrow('undismissed dialog')
+    expect(outside).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'Unknown required decision' })).toBeInTheDocument()
+  })
+
+  it('rejects disabled checkout', async () => {
+    mount(<Checkout disabled />, locale)
+    await expect(expectCheckout(new SmokeDomPage() as unknown as Page)).rejects.toThrow(/enabled/)
+    expect(mocks.checkout).not.toHaveBeenCalled()
+  })
+
+  it('drives the guided create flow the page shows and saves one task', async () => {
+    mocks.create.mockResolvedValue({ id: 'habit-9' })
+    useUIStore.getState().setTodayFabHidden(false)
+    mount(<HabitCreation />, locale)
+    await createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke guided task')
+    expect(mocks.create).toHaveBeenCalledTimes(1)
+    expect(mocks.create.mock.calls[0]?.[0]).toMatchObject({ title: 'Smoke guided task' })
+    expect(mocks.create.mock.calls[0]?.[0]).toHaveProperty('dueDate')
+    expect(mocks.create.mock.calls[0]?.[0]).not.toHaveProperty('frequencyUnit')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('drives the guided create flow for a repeating habit', async () => {
+    mocks.create.mockResolvedValue({ id: 'habit-9' })
+    mocks.saved = { ...mocks.saved, frequencyUnit: 'Day', frequencyQuantity: 1 }
+    useUIStore.getState().setTodayFabHidden(false)
+    mount(<HabitCreation />, locale)
+    await createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke guided habit', 'habit')
+    expect(mocks.create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      title: 'Smoke guided habit', frequencyUnit: 'Day', frequencyQuantity: 1,
+    }))
+  })
+
+  const phraseRead = (patch: Partial<HabitPhraseReadResponse>): HabitPhraseReadResponse => ({
+    read: true, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false,
+    flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [], ...patch,
+  })
+
+  it.each([
+    ['a time', { dueTime: '10:30' }, 'task'],
+    ['a repeat', { frequencyUnit: 'Day', frequencyQuantity: 1 }, 'task'],
+    ['a time and a repeat', { dueTime: '10:30', frequencyUnit: 'Day', frequencyQuantity: 1 }, 'task'],
+    ['a time', { dueTime: '10:30' }, 'habit'],
+    ['a time and a repeat', { dueTime: '10:30', frequencyUnit: 'Day', frequencyQuantity: 1 }, 'habit'],
+  ] as const)('answers every step the phrase reader opens when it reads %s for a %s', async (_read, patch, itemType) => {
+    mocks.create.mockResolvedValue({ id: 'habit-9' })
+    mocks.phraseRead.mockResolvedValue(phraseRead(patch))
+    useUIStore.getState().setTodayFabHidden(false)
+    mount(<HabitCreation />, locale)
+    const title = smokeLabel('create')
+    await createSmokeHabit(new SmokeDomPage() as unknown as Page, title, itemType)
+    expect(mocks.phraseRead).toHaveBeenCalledTimes(1)
+    expect(mocks.create).toHaveBeenCalledTimes(1)
+    expect(mocks.create.mock.calls[0]?.[0]).toMatchObject({ title })
+    if (itemType === 'task') expect(mocks.create.mock.calls[0]?.[0]).not.toHaveProperty('frequencyUnit')
+    else expect(mocks.create.mock.calls[0]?.[0]).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1 })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('finds the checkout button of the guided plan question outside the plan cards', async () => {
+    const messages = locale === 'en' ? en : ptBR
+    function GuidedCheckout() {
+      const t = useTranslations()
+      return <GuidedPricingSection profile={{ isTrialActive: false, aiMessagesPeriod: 'day' }} usage={null}
+        plans={subscriptionPlansFixture} isLoadingPlans={false} isPlansError={false} isOnline trialDaysLeft={null}
+        checkoutLoading={null} checkoutError="" discountedAmount={(amount) => amount} onCheckout={mocks.checkout}
+        onStayFree={vi.fn()} onRetryPlans={vi.fn()} t={t} />
+    }
+    mount(<GuidedCheckout />, locale)
+    const button = screen.getByRole('button', { name: messages.upgrade.plans.checkoutLabelRecommended.replace('{interval}', messages.upgrade.plans.yearly.name) })
+    expect(document.querySelector('[data-tier="yearly"]')?.contains(button)).toBe(false)
+    await expectCheckout(new SmokeDomPage() as unknown as Page)
+    expect(mocks.checkout).not.toHaveBeenCalled()
+  })
+
+  it('rejects a failed logging response despite the optimistic check', async () => {
+    const page = new SmokeDomPage()
+    mount(<Logging page={page} success={false} />, locale)
+    await expect(logSmokeHabit(page as unknown as Page, 'Smoke log')).rejects.toThrow(/truthy/)
+  })
+
+  it.each(['initial', 'reload', 'both'] as const)('recovers a lost list options click on %s', async (lostAt) => {
+    const page = new SmokeDomPage()
+    const presses = { initial: 0, reload: 0 }
+    let phase: 'initial' | 'reload' = 'initial'
+    const onOptionsPress = () => {
+      presses[phase] += 1
+      return (lostAt !== phase && lostAt !== 'both') || presses[phase] > 1
+    }
+    const view = mount(<Logging page={page} onOptionsPress={onOptionsPress} />, locale)
+    const reloaded = vi.fn(async () => {
+      phase = 'reload'
+      view.rerender(<Logging key="reload" page={page} completed onOptionsPress={onOptionsPress} />)
+      expect(document.querySelector('[data-habit-title="Smoke log"]')).toBeNull()
+    })
+    page.setReload(reloaded)
+
+    await logSmokeHabit(page as unknown as Page, 'Smoke log')
+
+    expect(reloaded).toHaveBeenCalledTimes(1)
+    expect(presses).toEqual({ initial: lostAt === 'reload' ? 1 : 2, reload: lostAt === 'initial' ? 1 : 2 })
+    expect(document.querySelector('[data-habit-title="Smoke log"]')).toHaveAttribute('data-status', 'done')
+    expect(screen.queryByRole('menuitem')).toBeNull()
+  })
+
+  it('keeps an already open list options menu open until Show done is chosen', async () => {
+    const page = new SmokeDomPage()
+    const onOptionsPress = vi.fn(() => true)
+    const view = mount(<Logging page={page} initiallyOpen onOptionsPress={onOptionsPress} />, locale)
+    page.setReload(async () => {
+      view.rerender(<Logging key="reload" page={page} completed initiallyOpen onOptionsPress={onOptionsPress} />)
+    })
+
+    await logSmokeHabit(page as unknown as Page, 'Smoke log')
+
+    expect(onOptionsPress).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-habit-title="Smoke log"]')).toHaveAttribute('data-status', 'done')
+  })
+
+  it('respects the real logging control disabled reason', async () => {
+    const messages = locale === 'en' ? en : ptBR
+    mount(<>
+      <button>{messages.habits.listOptions}</button>
+      <button role="menuitem">{messages.habits.showCompletedMenu}</button>
+      <HabitRow habit={createMockHabit({ title: 'Smoke log' })}
+        completionReadOnly completionReason="Logging unavailable" />
+    </>, locale)
+    await expect(logSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke log')).rejects.toThrow(/aria-disabled/)
   })
 })

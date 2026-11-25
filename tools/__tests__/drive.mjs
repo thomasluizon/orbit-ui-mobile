@@ -51,12 +51,13 @@ import {
   workerAccountEnvironment,
   workerConfigDirectory,
   workerEnvironmentFor,
+  questionsInvocation,
   workerInvocation,
   workerSettings,
   worktreeOccupants,
 } from "../lib/worker.mjs"
 import { driverUnit, pinUnit } from "./_drive-tick.mjs"
-import { T, realOrchestratorConfig, root, same, toolPath } from "./_harness.mjs"
+import { REPO_ROOT, T, realOrchestratorConfig, root, same, toolPath } from "./_harness.mjs"
 
 const FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
 const TICKETS = realOrchestratorConfig().tickets
@@ -712,6 +713,16 @@ const skillAndEnvironmentCases = async () => {
   const settings = JSON.parse(invocation.command.args.at(-1))
   same("lib/worker.mjs: the invocation excludes the hot file of the home folder and turns off the listed skills", [settings.claudeMdExcludes, settings.skillOverrides], [[join(home, "Developer", "brain", "hot.md")], { pdf: "off" }])
   same("lib/worker.mjs: the invocation carries the worker environment", invocation.environment.GH_TOKEN, TOKEN)
+  const questionsHome = join(root, "drive-worker", "questions-home")
+  for (const name of ["pdf", "humanizer", "questions"]) {
+    mkdirSync(join(questionsHome, ".claude", "skills", name), { recursive: true })
+    writeFileSync(join(questionsHome, ".claude", "skills", name, "SKILL.md"), "x")
+  }
+  const questions = questionsInvocation({ home: questionsHome, parentEnvironment: parent, token: TOKEN })
+  const questionsSettings = JSON.parse(questions.command.args.at(-1))
+  same("lib/worker.mjs: the questions run uses the coordinator model at the worker effort and no other argument changes", [questions.command.args.slice(0, 5), questions.command.args.slice(5, -1)], [["-p", "--model", "claude-opus-5-5", "--effort", "high"], invocation.command.args.slice(5, -1)])
+  same("lib/worker.mjs: the questions run keeps the questions skill on and turns off the rest", questionsSettings.skillOverrides, { pdf: "off" })
+  same("lib/worker.mjs: the questions run keeps the worker deny list and environment", [questionsSettings.permissions.deny, questions.environment], [settings.permissions.deny, invocation.environment])
   const workerDirectory = workerConfigDirectory(home)
   const onWorker = workerInvocation({ home, parentEnvironment: { ...parent, CLAUDE_CONFIG_DIR: "/somewhere/else" }, token: TOKEN, configDirectory: workerDirectory })
   same("lib/worker.mjs: the worker account sets CLAUDE_CONFIG_DIR to its directory and the main account sets none", [workerDirectory, onWorker.environment.CLAUDE_CONFIG_DIR, "CLAUDE_CONFIG_DIR" in invocation.environment], [join(home, ".claude-orbit-workers"), workerDirectory, false])
@@ -998,9 +1009,27 @@ const selfSufficiencyCases = () => {
   }
 }
 
+const skillText = (name) => readFileSync(join(REPO_ROOT, ".claude", "skills", name, "SKILL.md"), "utf8")
+
+const skillMarkerCases = () => {
+  const questions = skillText("questions")
+  // The driver reads a comment's kind only from "<!-- orbit-drive:<kind> -->". A bare marker has the kind null, and capGrants counts it as the owner's grant.
+  const bare = [...questions.matchAll(/<!-- (?!orbit-drive:)([a-z-]+) -->/g)].map((match) => match[1])
+  same("skills/questions: the only bare marker is the owner-review decision, which grants a launch", [...new Set(bare)], ["owner-review"])
+  same("skills/questions: the queued question and its reader use the orbit-drive:owner-question marker", questions.split("<!-- orbit-drive:owner-question -->").length - 1, 2)
+  // An order carries the ticket body, the part comments, the findings and the cap grant. A plain answer comment reaches no worker, so the body holds every answer.
+  T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes("gh issue edit --body-file") && questions.includes("`## Owner decisions`"), "section 4 has no body write")
+  same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
+  same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
+  const drivers = skillText("driver")
+  const unlink = drivers.split("\n").find((line) => line.includes("fs.unlinkSync")) ?? ""
+  T("skills/driver: a worktree skill link is deleted only when the pull request of its branch is merged", unlink.includes("--state merged") && unlink.includes("--head"), unlink)
+}
+
 const orderUnit = async () => {
   await orderCases()
   selfSufficiencyCases()
+  skillMarkerCases()
 }
 
 const UNITS = { "drive.mjs": driverUnit, "lib/driver-pin.mjs": pinUnit, "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }

@@ -91,6 +91,7 @@ interface CreateHabitSnapshot {
 }
 
 function hasCreateHabitChanges(
+  saved: boolean,
   formDirty: boolean,
   selectedTagIds: readonly string[],
   selectedGoalIds: readonly string[],
@@ -98,6 +99,7 @@ function hasCreateHabitChanges(
   reminderTimes: readonly number[],
   snapshot: CreateHabitSnapshot,
 ): boolean {
+  if (saved) return false
   const tagIds = JSON.stringify([...selectedTagIds].sort((left, right) => left.localeCompare(right)))
   const goalIds = JSON.stringify([...selectedGoalIds].sort((left, right) => left.localeCompare(right)))
   const subHabitValues = JSON.stringify(subHabits.map((entry) => entry.value))
@@ -194,6 +196,7 @@ export function CreateHabitModal({
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty = hasCreateHabitChanges(
+    savedHabitId !== null,
     formHelpers.form.formState.isDirty || pendingChecklistItem.length > 0,
     tags.selectedTagIds,
     selectedGoalIds,
@@ -211,9 +214,10 @@ export function CreateHabitModal({
     if (presentation === 'screen') setLeaveAction(() => action)
     else closeSheet(() => { releaseSubmission(); action() })
   }, [closeSheet, presentation, releaseSubmission])
+  const leaveSaved = () => { setSavedHabitId(null); onOpenChange(false); onCreated?.() }
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () => finishClose(pendingNavigation.current ?? (() => onOpenChange(false))),
+    onDismiss: () => finishClose(savedHabitId ? leaveSaved : pendingNavigation.current ?? (() => onOpenChange(false))),
   })
   const navigateToUpgrade = useCallback(() => {
     pendingNavigation.current = () => {
@@ -616,9 +620,14 @@ export function CreateHabitModal({
         <HabitResultDialog
           habitId={savedHabitId}
           change="created"
-          onClose={() => {
+          onClose={() => { setSavedHabitId(null); finishClose(leaveSaved) }}
+          onOpenDestination={(path) => {
             setSavedHabitId(null)
-            finishClose(() => { onOpenChange(false); onCreated?.() })
+            finishClose(() => {
+              onCreated?.()
+              if (presentation === 'screen') router.replace(path)
+              else { onOpenChange(false); router.push(path) }
+            })
           }}
           onCreateAnother={() => { setSavedHabitId(null); setSaveError(null); setFlowRun((run) => run + 1) }}
         />

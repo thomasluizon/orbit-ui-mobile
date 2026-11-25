@@ -1,7 +1,6 @@
 'use client'
 
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
 import { describeHabitResult, formatHabitCadence, formatLocaleDate, getAccountDay, resolveResultDestination } from '@orbit/shared/utils'
 import { ResultDialog } from '@/components/ui/result-dialog'
 import { useHabitDetail } from '@/hooks/use-habits'
@@ -12,6 +11,7 @@ interface HabitResultDialogProps {
   habitId: string
   change: 'created' | 'updated'
   onClose: () => void
+  onOpenDestination: (path: '/' | '/calendar') => void
   onCreateAnother?: () => void
 }
 
@@ -19,10 +19,9 @@ interface HabitResultDialogProps {
  * The result dialog of a saved habit. The sentence names the facts of the saved record, read back from
  * the query cache, never the draft. The dialog opens only once the saved record is there.
  */
-export function HabitResultDialog({ habitId, change, onClose, onCreateAnother }: Readonly<HabitResultDialogProps>) {
+export function HabitResultDialog({ habitId, change, onClose, onOpenDestination, onCreateAnother }: Readonly<HabitResultDialogProps>) {
   const t = useTranslations()
   const locale = useLocale()
-  const router = useRouter()
   const { profile } = useProfile()
   const { displayTime } = useTimeFormat()
   const { data: saved } = useHabitDetail(habitId)
@@ -53,7 +52,7 @@ export function HabitResultDialog({ habitId, change, onClose, onCreateAnother }:
       title={t('result.title')}
       sentence={sentenceText}
       primaryLabel={t(destination === 'today' ? 'result.seeToday' : 'result.seeCalendar')}
-      onPrimary={() => { onClose(); router.push(destination === 'today' ? '/' : '/calendar') }}
+      onPrimary={() => onOpenDestination(destination === 'today' ? '/' : '/calendar')}
       secondaryLabel={onCreateAnother ? t('result.createAnother') : undefined}
       onSecondary={onCreateAnother}
       onClose={onClose}

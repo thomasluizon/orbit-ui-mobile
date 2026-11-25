@@ -11,7 +11,7 @@ import { i18n } from '@/lib/i18n'
 import { nativeWindows, press, renderNavigation } from '../ui/navigation-render'
 
 const state = vi.hoisted(() => ({
-  flag: true, create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, completed: vi.fn(), push: vi.fn(), phraseRead: vi.fn(), subCreate: vi.fn(),
+  create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, completed: vi.fn(), push: vi.fn(), replace: vi.fn(), phraseRead: vi.fn(), subCreate: vi.fn(),
   detailPending: false, detailFetching: false, detailError: null as Error | null, refetchDetail: vi.fn(),
 }))
 
@@ -19,7 +19,7 @@ vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
   useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => i18n.t(key, params), i18n: { language: i18n.language } }),
 }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push, replace: vi.fn(), back: vi.fn(), canGoBack: () => true }), useIsFocused: () => true, useLocalSearchParams: () => ({}) }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push, replace: state.replace, back: vi.fn(), canGoBack: () => true }), useIsFocused: () => true, useLocalSearchParams: () => ({}) }))
 vi.mock('expo-router/react-navigation', () => ({ usePreventRemove: vi.fn() }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { timeZone: 'UTC', uses24HourClock: true, weekStartDay: 0, aiMessagesUsed: 0, aiMessagesLimit: 5, hasProAccess: true } }),
@@ -84,8 +84,8 @@ function mountEdit(onClose = vi.fn()) {
 
 beforeEach(async () => {
   await i18n.changeLanguage('pt-BR')
-  state.flag = true
   state.create.mockReset()
+  state.replace.mockReset()
   state.update.mockReset().mockResolvedValue({})
   state.completed.mockReset()
   state.phraseRead.mockReset().mockResolvedValue(null)
@@ -595,6 +595,69 @@ describe('the discard sheet of a guided habit flow on Android', () => {
     await tap(tree, '20:00')
     await tap(tree, ptBR.habits.flow.close)
     expect(discardSheetAncestors(tree)).toContain('flow-screen')
+    tree.unmount()
+  })
+})
+
+describe('the result dialog of a guided create on the Android create screen', () => {
+  function mountScreen() {
+    const log = { removalBlocked: true, blockedAtNavigation: [] as boolean[] }
+    function LeaveGuard({ leaving }: Readonly<{ leaving: boolean; requestLeave: () => void }>) {
+      log.removalBlocked = !leaving
+      return null
+    }
+    state.replace.mockImplementation(() => { log.blockedAtNavigation.push(log.removalBlocked) })
+    const onClose = vi.fn()
+    const onCreated = vi.fn()
+    const tree = renderNavigation(<QueryClientProvider client={new QueryClient()}><CreateHabitModal open presentation="screen" leaveGuard={LeaveGuard} onClose={onClose} onCreated={onCreated} /></QueryClientProvider>)
+    return { tree, log, onClose, onCreated }
+  }
+  async function tapText(tree: Tree, label: string) {
+    const target = tree.hosts().find((node) => typeof node.props.onPress === 'function' && (node as unknown as ReactTestInstance).findAll((child) => child.props.children === label).length > 0)
+    if (!target) throw new Error('no control with the text ' + label)
+    await act(async () => { press(target); await Promise.resolve(); await Promise.resolve() })
+  }
+  async function save(tree: Tree, when: string) {
+    state.create.mockResolvedValue({ id: 'habit-1' })
+    await settle()
+    await phrase(tree, 'pagar a internet')
+    await tap(tree, when)
+    await tap(tree, '08:00')
+    await tap(tree, ptBR.habits.flow.reminder.no)
+    await primary(tree)
+    expect(hasTestId(tree, 'result-dialog')).toBe(true)
+  }
+
+  it('opens Hoje as the leave action of the create screen with no discard sheet', async () => {
+    const { tree, log, onClose, onCreated } = mountScreen()
+    await save(tree, ptBR.habits.flow.when.today)
+    await tapText(tree, ptBR.result.seeToday)
+    expect(state.replace.mock.calls).toEqual([['/(tabs)']])
+    expect(log.blockedAtNavigation).toEqual([false])
+    expect(state.push).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(onCreated).toHaveBeenCalledOnce()
+    tree.unmount()
+  })
+
+  it('restarts the flow on Criar outro and does not navigate', async () => {
+    const { tree, onClose } = mountScreen()
+    await save(tree, ptBR.habits.flow.when.today)
+    await tapText(tree, ptBR.result.createAnother)
+    expect(state.replace).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(hasTestId(tree, 'result-dialog')).toBe(false)
+    tree.unmount()
+  })
+
+  it('leaves through the scrim with no navigation', async () => {
+    const { tree, onClose, onCreated } = mountScreen()
+    await save(tree, ptBR.habits.flow.when.today)
+    const scrim = tree.hosts().find((node) => node.props.testID === 'result-dialog-scrim')!
+    await act(async () => { press(scrim); await Promise.resolve() })
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(onCreated).toHaveBeenCalledOnce()
+    expect(state.replace).not.toHaveBeenCalled()
     tree.unmount()
   })
 })
