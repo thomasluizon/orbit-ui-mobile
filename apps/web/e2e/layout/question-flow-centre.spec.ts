@@ -22,12 +22,18 @@ const guidedConfig = {
   features: { ...DEFAULT_CONFIG.features, orbit_guided_flows: { enabled: true, planRequirement: null } },
 }
 
-async function measureBlock(page: Page) {
+async function measureBlockInColumn(page: Page) {
   return page.locator('[data-question-flow]').first().evaluate((flow) => {
-    const header = flow.querySelector('header')!.getBoundingClientRect()
-    const space = flow.querySelector('[data-flow-scroll]')!.getBoundingClientRect()
+    const column = flow.closest('[data-shell-scroller]') ?? flow.closest('[data-flow-screen]')!
+    const scroll = flow.querySelector('[data-flow-scroll]')!
+    const primary = flow.querySelector('[data-flow-primary]')
+    const spaceBottom = primary && !scroll.contains(primary) ? scroll.getBoundingClientRect().bottom : column.getBoundingClientRect().bottom
+    const headerBottom = flow.querySelector('header')!.getBoundingClientRect().bottom
     const block = flow.querySelector('[data-flow-scroll] > div')!.getBoundingClientRect()
-    return { headerBottom: header.bottom, spaceTop: space.top, spaceCentre: space.top + space.height / 2, blockCentre: block.top + block.height / 2, blockTop: block.top }
+    return {
+      headerBottom, spaceBottom, columnBottom: column.getBoundingClientRect().bottom, flowBottom: flow.getBoundingClientRect().bottom,
+      spaceCentre: (headerBottom + spaceBottom) / 2, blockCentre: block.top + block.height / 2, blockTop: block.top,
+    }
   })
 }
 
@@ -47,10 +53,14 @@ for (const locale of ['en', 'pt-BR'] as const) {
           await expect(page.locator('[data-question-flow]').first()).toBeVisible()
           await expect(page.locator('[data-question-flow] h1').first()).toBeVisible()
           await expect.poll(async () => {
-            const { blockCentre, spaceCentre } = await measureBlock(page)
+            const { flowBottom, columnBottom } = await measureBlockInColumn(page)
+            return Math.abs(flowBottom - columnBottom)
+          }, { message: 'the flow reaches the bottom of the content column' }).toBeLessThanOrEqual(1)
+          await expect.poll(async () => {
+            const { blockCentre, spaceCentre } = await measureBlockInColumn(page)
             return Math.abs(blockCentre - spaceCentre)
           }).toBeLessThanOrEqual(CENTRE_TOLERANCE)
-          const { headerBottom, blockTop } = await measureBlock(page)
+          const { headerBottom, blockTop } = await measureBlockInColumn(page)
           expect(blockTop).toBeGreaterThanOrEqual(headerBottom - 1)
         })
       })
