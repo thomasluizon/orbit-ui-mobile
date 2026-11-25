@@ -1,5 +1,6 @@
 import { buildHabitUnderstandingSentence } from './habit-form-helpers'
 import { habitPhraseRepeats, type HabitPhraseRead } from './habit-phrase-parser'
+import type { HabitWhenChoice } from './habit-flow-answers'
 import { formatLocaleDate } from './locale-format'
 
 /** The steps of the guided habit flow, in the order a person meets them. */
@@ -66,6 +67,23 @@ export function resetCoveredAnswers(answers: HabitFlowAnswers, coverage: PhraseC
     when: coverage.coversDateOrRepeat ? false : answers.when,
     time: coverage.coversTime ? false : answers.time,
   }
+}
+
+/**
+ * The quick option of the When step that matches the repeat the AI read proposed, or null when no option matches.
+ * Only "every day" is a repeat option, so a plain daily repeat matches it and any other repeat goes to the free path.
+ */
+export function proposedWhenChoice(values: {
+  frequencyUnit?: string | null | undefined
+  frequencyQuantity?: number | null | undefined
+  isFlexible?: boolean | undefined
+  days?: readonly string[] | null | undefined
+  monthDays?: readonly number[] | null | undefined
+  intervalWeeks?: number | null | undefined
+}): HabitWhenChoice | null {
+  const plainDaily = values.frequencyUnit === 'Day' && (values.frequencyQuantity ?? 1) === 1 && !values.isFlexible
+    && (values.days ?? []).length === 0 && (values.monthDays ?? []).length === 0 && (values.intervalWeeks ?? 1) === 1
+  return plainDaily ? 'everyDay' : null
 }
 
 /** The local read left cadence, date or time words unread, so the AI read can help once. */
