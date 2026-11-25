@@ -80,6 +80,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       readWorkerToken: async () => token,
       launch: (options) => { launched.push(options); return Promise.resolve({ exitCode: 0, killed: null, sessionId: "s1", utilization: 0.2, resetsAt: RESETS_AT, status: "allowed", result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null }, ...(limit ?? {}) }) },
       KILL_REASONS, WORKER_LIMITS,
+      questionsInvocation: ({ token: value }) => ({ command: { executable: "claude", args: ["--model", "claude-opus-5-5"] }, environment: { GH_TOKEN: value } }),
       worktreeOccupants: (worktree) => (calls.push(["occupants", worktree]), occupants),
       progressWatch: (options) => progressWatch({ ...options, fingerprint: async () => watched.fingerprint, logSize: () => watched.logBytes }),
       killWorkerTree: (pid, signal) => { calls.push(["kill", pid, signal]) },
@@ -1759,6 +1760,86 @@ const sleepCases = async () => {
   same("drive: the usage states the sleep flag", /--sleep on\|off/.test(await usageText()), true)
 }
 
+const QUESTIONS_ORDER = "/questions --auto"
+const questionRuns = (scene) => scene.launched.filter((entry) => entry.order === QUESTIONS_ORDER)
+const questionLines = (scene) => scene.messages.filter((line) => / questions (launch|exit|wait|refused)/.test(line)).map((line) => line.slice(line.indexOf(" questions ") + 1))
+const startedFile = (scene) => { try { return JSON.parse(readFileSync(join(scene.env.stateDir, "questions.json"), "utf8")).startedAt } catch { return null } }
+const heldTicket = (number, reportOffset = -10 * MINUTE, extra = {}) => ticket(number, { labels: ["repo:ui", "Improvement", OWNER_LABEL], comments: reportOffset === null ? [] : [comment("needs-owner", "Raise the price?", reportOffset)], ...extra })
+
+const questionsCases = async () => {
+  const held = async (label, expected, options) => {
+    const scene = scenario({ driver: {}, ...options })
+    await scene.run()
+    await scene.mem.questions
+    same(`drive: questions: ${label}`, questionRuns(scene).length, expected)
+    return scene
+  }
+
+  const first = scenario({ driver: {}, tickets: [heldTicket(8)], sleeping: true })
+  let finish
+  first.env.worker.launch = (options) => { first.launched.push(options); return new Promise((resolve) => { finish = () => resolve({ exitCode: 0 }) }) }
+  await first.run()
+  const [run] = questionRuns(first)
+  same("drive: questions: one held item with sleep on starts exactly one run", questionRuns(first).length, 1)
+  same("drive: questions: the run is headless in the driver worktree and its order is the slash command", [run.worktree, run.order, run.pidFile, run.logFile.startsWith(join(first.env.stateDir, "logs", "questions-"))], ["/r/driver", QUESTIONS_ORDER, join(first.env.stateDir, "questions.pid"), true])
+  same("drive: questions: the run uses the coordinator model on the worker token", [run.invocation.command.args, run.invocation.environment.GH_TOKEN], [["--model", "claude-opus-5-5"], "token"])
+  same("drive: questions: the start time is kept beside the other state files and the launch is logged", [startedFile(first), questionLines(first)], [iso(0), ["questions launch"]])
+  await first.run()
+  same("drive: questions: the next tick starts none while the run is live", [questionRuns(first).length, questionLines(first)], [1, ["questions launch"]])
+  finish()
+  await first.mem.questions
+  same("drive: questions: the exit and its code are logged", questionLines(first), ["questions launch", "questions exit (0)"])
+  await first.run()
+  same("drive: questions: a held item with no newer report starts no run after the exit", questionRuns(first).length, 1)
+
+  const worker = scenario({ driver: {}, tickets: [ticket(7), heldTicket(8)] })
+  await worker.run()
+  await worker.mem.questions
+  same("drive: questions: the run takes no worker slot, so the admissible ticket still starts", [worker.launched.map((entry) => entry.order === QUESTIONS_ORDER ? "questions" : entry.worktree.split("/").at(-1)).sort()], [["chore-ticket-7", "questions"]])
+
+  await held("a held item with no report starts none", 0, { tickets: [heldTicket(8, null)] })
+  await held("a report on an item without the label starts none", 0, { tickets: [heldTicket(8, -10 * MINUTE, { labels: ["repo:ui", "Improvement"] })] })
+  await held("no held item starts none", 0, { tickets: [ticket(8)] })
+  const covered = scenario({ driver: {}, tickets: [heldTicket(8, -10 * MINUTE)] })
+  writeFileSync(join(covered.env.stateDir, "questions.json"), `${JSON.stringify({ startedAt: iso(-5 * MINUTE) })}\n`)
+  await covered.run()
+  same("drive: questions: a report older than the last start starts none, as after a restart", questionRuns(covered).length, 0)
+  const newer = scenario({ driver: {}, tickets: [heldTicket(8, -2 * MINUTE)] })
+  writeFileSync(join(newer.env.stateDir, "questions.json"), `${JSON.stringify({ startedAt: iso(-5 * MINUTE) })}\n`)
+  await newer.run()
+  same("drive: questions: a report newer than the last start starts one run", questionRuns(newer).length, 1)
+
+  const pulled = await held("a held pull request counts the report on its ticket", 1, { tickets: [ticket(7, { comments: [comment("needs-owner", "Raise the price?", -10 * MINUTE)] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL] })] } })
+  same("drive: questions: a held pull request starts no worker", pulled.launched.filter((entry) => entry.order !== QUESTIONS_ORDER).length, 0)
+
+  const stopped = await held("the main account at 90% with no allowance starts none", 0, { tickets: [heldTicket(8)], reading: { utilization: 0.92, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  same("drive: questions: the stop is logged with the held item and the start time stays unwritten", [questionLines(stopped), startedFile(stopped)], [["questions wait (the main account is stopped: ticket#8)"], null])
+  const allowed = await held("the main account at 90% with the allowance starts one", 1, { tickets: [heldTicket(8)], reading: { utilization: 0.92, resetsAt: RESETS_AT, at: NOW - MINUTE }, allowance: { resetsAt: RESETS_AT } })
+  same("drive: questions: the allowance is read from the allow file like a worker", startedFile(allowed), iso(0))
+  const pausedTicket = ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null })
+  await held("a paused driver starts none", 0, { tickets: [pausedTicket, heldTicket(8)], probeReading: { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" } })
+  await held("a signed-out login starts none", 0, { tickets: [heldTicket(8)], auth: { ...AUTH, loggedIn: false } })
+  const noToken = await held("a missing worker token starts none", 0, { tickets: [heldTicket(8)], token: null })
+  same("drive: questions: a missing token is logged and the start time stays unwritten", [questionLines(noToken), startedFile(noToken)], [["questions refused (no worker token in the Keychain)"], null])
+  await held("the dry run starts none", 0, { tickets: [heldTicket(8)], dryRun: true })
+
+  const live = scenario({ driver: {}, tickets: [heldTicket(8)] })
+  writeFileSync(join(live.env.stateDir, "questions.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/r/driver", startedAt: iso(-MINUTE) })}\n`)
+  await live.run()
+  same("drive: questions: a live run of an earlier driver process holds the next one back", questionRuns(live).length, 0)
+  const plain = scenario({ tickets: [heldTicket(8)] })
+  await plain.run()
+  same("drive: questions: a tick with no driver worktree starts none", questionRuns(plain).length, 0)
+
+  const switching = driverScene({ tickets: [heldTicket(8)] })
+  let leave
+  switching.env.worker.launch = (options) => { switching.launched.push(options); return new Promise((resolve) => { leave = () => resolve({ exitCode: 0 }) }) }
+  const holdSwitch = await switching.run()
+  same("drive: questions: the driver does not switch to a newer commit while its run is live", [holdSwitch.switched, switching.checkouts()], [false, []])
+  leave()
+  await switching.mem.questions
+}
+
 const OLD_PIN = "1".repeat(40)
 const NEW_PIN = "2".repeat(40)
 const LATER_PIN = "3".repeat(40)
@@ -2047,6 +2128,7 @@ export const driverUnit = async () => {
   await stallCases()
   await paceCases()
   await sleepCases()
+  await questionsCases()
   await usageLimitCases()
   await workerCases()
   await capCases()
