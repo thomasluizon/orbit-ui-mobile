@@ -5,6 +5,8 @@ const plist = require('@expo/plist')
 
 const TARGET = 'OrbitWidgetExtension'
 const SOURCES = ['WidgetState.swift', 'WidgetStore.swift', 'WidgetTimeline.swift', 'WidgetColors.generated.swift', 'OrbitWidget.swift']
+// The same families as the app: Space Grotesk titles the card and Geist sets the rows. The file names match the app's font packages.
+const FONTS = ['SpaceGrotesk_600SemiBold.ttf', 'Geist_400Regular.ttf']
 
 function widgetIdentifiers(config) {
   const bundleIdentifier = config.ios.bundleIdentifier
@@ -19,6 +21,7 @@ function writeWidgetFiles(config, directory) {
   for (const source of SOURCES) {
     copyFileSync(path.join(nativeRoot, source === 'OrbitWidget.swift' ? 'Extension' : 'Shared', source), path.join(targetRoot, source))
   }
+  for (const font of FONTS) copyFileSync(path.join(nativeRoot, 'Extension/Fonts', font), path.join(targetRoot, font))
   for (const locale of ['en', 'pt-BR']) {
     mkdirSync(path.join(targetRoot, `${locale}.lproj`), { recursive: true })
     copyFileSync(path.join(nativeRoot, `Extension/${locale}.lproj/Localizable.strings`), path.join(targetRoot, `${locale}.lproj/Localizable.strings`))
@@ -32,6 +35,7 @@ function writeWidgetFiles(config, directory) {
     CFBundleInfoDictionaryVersion: '6.0', CFBundleName: '$(PRODUCT_NAME)', CFBundlePackageType: 'XPC!',
     CFBundleShortVersionString: config.version, CFBundleVersion: config.ios.buildNumber,
     CFBundleLocalizations: ['en', 'pt-BR'],
+    UIAppFonts: FONTS,
     NSExtension: { NSExtensionPointIdentifier: 'com.apple.widgetkit-extension' },
     OrbitWidgetAppGroup: identifiers.group, OrbitWidgetURL: `${config.scheme}:///`,
     OrbitWidgetAPIBase: config.ios.bundleIdentifier.endsWith('.staging') ? 'https://api-staging.useorbit.org' : 'https://api.useorbit.org',
@@ -53,7 +57,7 @@ function addWidgetTarget(config, project) {
   const target = existing ? { pbxNativeTarget: existing } : project.addTarget(TARGET, 'app_extension', TARGET, widgetIdentifiers(config).bundleIdentifier)
   if (!existing) {
     const sources = SOURCES.map((source) => `${TARGET}/${source}`)
-    const resources = ['en', 'pt-BR'].map((locale) => `${TARGET}/${locale}.lproj/Localizable.strings`)
+    const resources = [...FONTS.map((font) => `${TARGET}/${font}`), ...['en', 'pt-BR'].map((locale) => `${TARGET}/${locale}.lproj/Localizable.strings`)]
     project.addBuildPhase(sources, 'PBXSourcesBuildPhase', 'Sources', target.uuid)
     project.addBuildPhase(resources, 'PBXResourcesBuildPhase', 'Resources', target.uuid)
     project.addBuildPhase([], 'PBXFrameworksBuildPhase', 'Frameworks', target.uuid)
