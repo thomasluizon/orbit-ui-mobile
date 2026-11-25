@@ -679,7 +679,6 @@
       "__tests__/pages/habit-create-route.test.tsx": 275,
       "__tests__/pages/legal-document-layout.test.tsx": 1366,
       "__tests__/pages/legal-navigation.test.tsx": 579,
-      "__tests__/pages/login-states.test.tsx": 6438,
       "__tests__/pages/login-step-stage.test.tsx": 30,
       "__tests__/pages/login.test.tsx": 2290,
       "__tests__/pages/missing-page.test.ts": 4,

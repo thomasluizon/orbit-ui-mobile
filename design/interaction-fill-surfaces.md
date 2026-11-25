@@ -302,8 +302,7 @@ fill and the parent fill after the pointer returns to the body. It also hovers e
 while the body holds keyboard focus and asserts the resting parent fill and text colours, and the
 resting proposed habit block title. `e2e/layout/nested-control-fill.spec.ts` repeats the hover,
 press and return checks on the
-Avisos screen, the checklist templates sheet and the calendar import sheet. Android
+Avisos screen and the calendar import sheet. Android
 `__tests__/components/ui/nested-control-press-feedback.test.tsx` drives press, hover and focus
 on the same three surfaces, and a slot touch or pointer over the keyboard-focused body of a
-proposed HabitBlockRow and PickerRow, and `__tests__/components/habits/checklist-templates.test.tsx` presses
-and hovers the template delete.
+proposed HabitBlockRow and PickerRow.
