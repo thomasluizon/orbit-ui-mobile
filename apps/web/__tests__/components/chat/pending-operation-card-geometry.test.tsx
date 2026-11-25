@@ -490,7 +490,7 @@ describe('Pending preview geometry in Chromium', () => {
         return { text: title.textContent, lines: new Set(Array.from(range.getClientRects(), (rect) => rect.top)).size, width: bounds.width, available: available.width }
       })
       expect(geometry.text).not.toMatch(/\d/)
-      const consequence = (locale === 'en' ? english : portuguese)[count === 1 ? 0 : 1]!.replace('#', String(count))
+      const consequence = (locale === 'en' ? english : portuguese)[count === 1 ? 0 : 1]!.replaceAll('#', String(count))
       const expectedBody = `${consequence} ${locale === 'en' ? 'There is no way to restore this here.' : 'Não há como restaurar por aqui.'}`
       expect(screen.getByText(expectedBody)).toBeInTheDocument()
       expect(geometry.lines).toBe(1)

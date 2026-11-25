@@ -22,7 +22,7 @@ function alpha(color: string, opacity: number): string {
     return `rgba(${channels}, ${opacity})`
   }
 
-  const hex = normalized.replace('#', '')
+  const hex = normalized.replaceAll('#', '')
   if (hex.length !== 6) {
     return normalized
   }

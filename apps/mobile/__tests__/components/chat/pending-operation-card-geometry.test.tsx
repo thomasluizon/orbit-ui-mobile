@@ -264,7 +264,7 @@ describe('Pending preview geometry on Android', () => {
       const closeStyle = StyleSheet.flatten(typeof close.props.style === 'function' ? close.props.style({ pressed: false }) : close.props.style)
       const available = 320 - headerStyle.paddingHorizontal * 2 - headerStyle.gap - closeStyle.width
       expect(title.props.children).not.toMatch(/\d/)
-      const consequence = (locale === 'en' ? english : portuguese)[count === 1 ? 0 : 1]!.replace('#', String(count))
+      const consequence = (locale === 'en' ? english : portuguese)[count === 1 ? 0 : 1]!.replaceAll('#', String(count))
       const expectedBody = `${consequence} ${locale === 'en' ? 'There is no way to restore this here.' : 'Não há como restaurar por aqui.'}`
       expect(tree.root.findAllByType(Text).some((node: { props: { children?: unknown } }) => node.props.children === expectedBody)).toBe(true)
       expect(textWidth(title.props.children, Number(titleStyle.fontSize))).toBeLessThanOrEqual(available)

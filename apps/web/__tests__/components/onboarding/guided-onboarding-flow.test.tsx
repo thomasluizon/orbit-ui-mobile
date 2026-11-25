@@ -321,7 +321,7 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     expect(mocks.createHabit).toHaveBeenCalledWith(expected)
     await act(async () => { press(flow.retry) })
     expect(mocks.createHabit).toHaveBeenCalledTimes(2)
-    expect(heading()).toMatch(new RegExp(guided.remind.question.replace('{time}', '(5:45\\sPM|17:45)').replace('?', '\\?')))
+    expect(heading()).toMatch(new RegExp(guided.remind.question.replace('{time}', '(5:45\\sPM|17:45)').replaceAll('?', '\\?')))
   })
 
   it('asks for reminders with two quick options: allow asks the device once, not now asks nothing', async () => {

@@ -50,7 +50,7 @@ function widestUsageLine(locale: keyof typeof CATALOGS) {
   const figure = '250'
   return CATALOGS[locale].upgrade.orbitLine.usage
     .replace('{used}', figure)
-    .replace(/\{limit, plural,.*\bother \{([^}]*)\}\}/, (_match, branch: string) => branch.replace('#', figure))
+    .replace(/\{limit, plural,.*\bother \{([^}]*)\}\}/, (_match, branch: string) => branch.replaceAll('#', figure))
 }
 
 const columnAt = (width: number) => Math.min(BLOCK_MAX, width - PADDING.screenGutter * 2)

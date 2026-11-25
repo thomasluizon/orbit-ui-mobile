@@ -69,7 +69,7 @@ async function toTemplateQuestion() {
   await toWhen()
   await press(flowCopy().when.noDate)
   await press(flowCopy().more)
-  await press(new RegExp(flowCopy().optional.checklist.replace('?', '\\?')))
+  await press(new RegExp(flowCopy().optional.checklist.replaceAll('?', '\\?')))
   await press(flowCopy().checklist.useTemplate)
 }
 

@@ -18,7 +18,7 @@ export const cases = async () => {
   for (const [heading, want] of forms) same(`lib/order.mjs: the heading "${heading.split("\n")[0]}" reads as a part`, partOf({ body: heading }), want)
 
   const none = ["See Part 1 of 3", "The rebrand is Part 1 of 3", "# Title\nPart 1 of 3", "#Part 1 of 3", "# #7Part 1 of 3", "Parts of speech", "Part 1 of", "part 1 of 3", " Part 1 of 3", "# #abc Part 1 of 3"]
-  for (const body of none) same(`lib/order.mjs: "${body.replace("\n", "\\n")}" reads as no part`, partOf({ body }), null)
+  for (const body of none) same(`lib/order.mjs: "${body.replaceAll("\n", "\\n")}" reads as no part`, partOf({ body }), null)
 
   const sets = [
     owner("Part 1 of 2: old one", "2026-11-01T10:00:00Z"),
