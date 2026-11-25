@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next'
-import { useRouter } from 'expo-router'
 import { describeHabitResult, formatHabitCadence, type HabitResultItem, formatLocaleDate, getAccountDay, resolveResultDestination } from '@orbit/shared/utils'
 import { ResultDialog } from '@/components/ui/result-dialog'
 import { useHabitDetail } from '@/hooks/use-habit-queries'
@@ -10,6 +9,7 @@ interface HabitResultDialogProps {
   habitId: string
   change: 'created' | 'updated'
   onClose: () => void
+  onOpenDestination: (path: '/(tabs)' | '/(tabs)/calendar') => void
   optimistic?: HabitResultItem
   onCreateAnother?: () => void
 }
@@ -18,10 +18,9 @@ interface HabitResultDialogProps {
  * The result dialog of a saved habit. The sentence names the facts of the saved record, read back from
  * the query cache, never the draft. The dialog opens only once the saved record is there.
  */
-export function HabitResultDialog({ habitId, change, optimistic, onClose, onCreateAnother }: Readonly<HabitResultDialogProps>) {
+export function HabitResultDialog({ habitId, change, optimistic, onClose, onOpenDestination, onCreateAnother }: Readonly<HabitResultDialogProps>) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
-  const router = useRouter()
   const { profile } = useProfile()
   const { displayTime } = useTimeFormat()
   const queued = habitId.startsWith('offline-')
@@ -53,7 +52,7 @@ export function HabitResultDialog({ habitId, change, optimistic, onClose, onCrea
       title={t('result.title')}
       sentence={sentenceText}
       primaryLabel={t(destination === 'today' ? 'result.seeToday' : 'result.seeCalendar')}
-      onPrimary={() => { onClose(); router.push(destination === 'today' ? '/(tabs)' : '/(tabs)/calendar') }}
+      onPrimary={() => onOpenDestination(destination === 'today' ? '/(tabs)' : '/(tabs)/calendar')}
       secondaryLabel={onCreateAnother ? t('result.createAnother') : undefined}
       onSecondary={onCreateAnother}
       onClose={onClose}

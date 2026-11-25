@@ -11,7 +11,7 @@ import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 const state = vi.hoisted(() => ({
   locale: 'pt-BR' as 'en' | 'pt-BR', flag: true, online: true, clock24: true,
   create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, detail: null as Record<string, unknown> | null,
-  completed: vi.fn(), push: vi.fn(), phraseRead: vi.fn(), subCreate: vi.fn(),
+  completed: vi.fn(), push: vi.fn(), replace: vi.fn(), phraseRead: vi.fn(), subCreate: vi.fn(),
   detailPending: false, detailFetching: false, detailError: null as Error | null, refetchDetail: vi.fn(),
 }))
 
@@ -25,7 +25,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, string | number>) =>
     lookup(state.locale === 'en' ? en : ptBR, key).replaceAll(/\{(\w+)\}/g, (_match, name: string) => `${values?.[name] ?? ''}`),
 }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push, replace: vi.fn(), back: vi.fn() }), usePathname: () => '/', useSearchParams: () => new URLSearchParams() }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push, replace: state.replace, back: vi.fn() }), usePathname: () => '/', useSearchParams: () => new URLSearchParams() }))
 vi.mock('@/hooks/use-flag', () => ({ useFlag: () => state.flag }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: state.online }) }))
 vi.mock('@/hooks/use-profile', () => ({
@@ -95,6 +95,8 @@ beforeEach(() => {
   state.create.mockReset().mockResolvedValue({ id: 'habit-9' })
   state.update.mockReset().mockResolvedValue({})
   state.completed.mockReset()
+  state.push.mockReset()
+  state.replace.mockReset()
   state.phraseRead.mockReset().mockResolvedValue(null)
   state.subCreate.mockReset().mockResolvedValue({ id: 'child-1' })
   state.saved = { id: 'habit-9', title: 'Ligar para o João', isGeneral: false, dueDate: '2026-11-14', dueTime: '08:30', frequencyUnit: null, frequencyQuantity: null, isFlexible: false }
@@ -600,6 +602,69 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(screen.getByText(ptBR.offline.create.title)).toBeInTheDocument()
     await press(ptBR.habits.createTask)
     expect(state.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('the result dialog of a guided create on the create route', () => {
+  async function saveOnRoute(onOpenChange = vi.fn()) {
+    history.pushState(null, '', '/')
+    history.pushState(null, '', '/habits/new?from=%2F')
+    render(<QueryClientProvider client={new QueryClient()}><CreateHabitModal open presentation="screen" onOpenChange={onOpenChange} /></QueryClientProvider>)
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('arrumar a garagem')
+    await press(ptBR.habits.flow.when.noDate)
+    await press(ptBR.habits.createTask)
+    await screen.findByRole('dialog', { name: ptBR.result.title })
+    return onOpenChange
+  }
+
+  it.each([
+    ['Hoje', '2026-11-13', ptBR.result.seeToday, '/'],
+    ['Calendário', '2026-11-20', ptBR.result.seeCalendar, '/calendar'],
+  ])('opens %s in one navigation with no discard sheet and no later history back', async (_name, dueDate, action, path) => {
+    state.saved = { ...state.saved, dueDate }
+    const back = vi.spyOn(history, 'back')
+    const onOpenChange = await saveOnRoute()
+    await press(action)
+    await waitFor(() => expect(state.replace).toHaveBeenCalledExactlyOnceWith(path))
+    const backsAtNavigation = back.mock.calls.length
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+    expect(back).toHaveBeenCalledTimes(backsAtNavigation)
+    expect(state.replace).toHaveBeenCalledOnce()
+    expect(state.push).not.toHaveBeenCalled()
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(screen.queryByText(ptBR.common.discardChangesTitle)).not.toBeInTheDocument()
+  })
+
+  it('restarts the flow on Criar outro and does not navigate', async () => {
+    await saveOnRoute()
+    await press(ptBR.result.createAnother)
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.what.question))
+    expect(state.replace).not.toHaveBeenCalled()
+    expect(state.push).not.toHaveBeenCalled()
+  })
+
+  it('leaves through Escape with no discard sheet', async () => {
+    const onOpenChange = await saveOnRoute()
+    await act(async () => { fireEvent.keyDown(screen.getByRole('dialog', { name: ptBR.result.title }), { key: 'Escape' }) })
+    expect(screen.queryByText(ptBR.common.discardChangesTitle)).not.toBeInTheDocument()
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
+    expect(state.push).not.toHaveBeenCalled()
+  })
+})
+
+describe('the result dialog of a guided edit', () => {
+  it('opens Hoje and closes the edit once', async () => {
+    state.saved = { ...storedHabit, dueDate: '2026-11-13', dueTime: '20:00' }
+    const { closed } = mountEdit()
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    await press(/^Hora/)
+    await press('20:00')
+    await press(ptBR.common.save)
+    await screen.findByRole('dialog', { name: ptBR.result.title })
+    await press(ptBR.result.seeToday)
+    expect(state.push).toHaveBeenCalledExactlyOnceWith('/')
+    expect(closed).toHaveBeenCalledExactlyOnceWith(false)
   })
 })
 

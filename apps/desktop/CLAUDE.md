@@ -14,5 +14,5 @@ Tauri 2 shell for macOS and Windows. The webview loads the deployed web app. Thi
 - Native reminders need the signed bundle's APNs entitlement or the WNS service principal Object ID. Missing configuration stays inert. Revoke confirmed and uncertain endpoints before you clear the BFF session.
 - The update flow lives in `src-tauri`. Update endpoints and signing keys belong to the environment. Require TLS and version-bound signatures. Never allow downgrades.
 - Read release assets in scripts through `scripts/release-asset.ts`, never through `releases/download`. Only the installed shell's update endpoint stays on that path.
-- Never define `_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH`. Never skip the C++ native tests on Windows. They compile with `resolveCppCompiler` from `__tests__/support/cpp-compiler.ts`.
+- Never define `_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH`. Never skip the C++ native tests on Windows. They compile with `resolveCppCompiler` and run every compiler and test executable through `runNative`, both from `__tests__/support/cpp-compiler.ts`. `runNative` writes output to a file, because a helper that the linker starts can hold a pipe open after the link and stall `spawnSync`.
 - `desktop-build.yml` builds the native packages. `desktop-release.yml` signs and publishes them.

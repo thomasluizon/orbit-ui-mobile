@@ -4,6 +4,7 @@ import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 
 import { useState, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { FlowScreen } from '@/components/ui/flow-screen'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
@@ -59,6 +60,11 @@ import { useHabitGoalSelection, createSuggestionRequestCoordinator, type SubmitO
 
 import { habitSuggestionFormState } from '@orbit/shared/chat'
 import type { HabitSuggestionDraft } from '@orbit/shared/types'
+
+function SavedHabitResult({ habitId, onLeave }: Readonly<{ habitId: string; onLeave: () => void }>) {
+  const router = useRouter()
+  return <HabitResultDialog habitId={habitId} change="updated" onClose={onLeave} onOpenDestination={(path) => { onLeave(); router.push(path) }} />
+}
 
 interface EditHabitModalProps {
   initialSuggestion?: HabitSuggestionDraft
@@ -591,10 +597,9 @@ function EditHabitDraft({
     <>
       {renderEditSheet()}
       {saved && habit ? (
-        <HabitResultDialog
+        <SavedHabitResult
           habitId={habit.id}
-          change="updated"
-          onClose={() => { setSaved(false); onOpenChange(false); void onSaved?.() }}
+          onLeave={() => { setSaved(false); onOpenChange(false); void onSaved?.() }}
         />
       ) : null}
       <DiscardChangesSheet

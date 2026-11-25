@@ -21,10 +21,11 @@ After the report, post one comment on that issue. The comment holds the report t
 
 ## The report
 
-Write two parts only.
+Write three parts only.
 
 1. **Merged.** For each of `orbit-ui-mobile`, `orbit-api` and `orbit-landing-page`, run `gh pr list --repo thomasluizon/<repo> --state merged --search "merged:>=<time>" --json title,body,mergedAt`. Group the pull requests by the ticket that each one `Tracks`.
 2. **Built but not merged.** List the open pull requests of the same three repositories.
+3. **Being built now.** Read the last 200 lines of `$HOME/Library/Logs/brain-automations/orbit-drive.log`. A `launch` line with no later `worker-exit` for the same ticket is a worker that builds now. Say what it builds.
 
 Rules for both parts:
 
@@ -35,7 +36,7 @@ Rules for both parts:
 
 ## --remaining
 
-Report the open tickets of the board and every `needs:owner` item. Use the same two-part shape and the same rules.
+Report the open tickets of the board and every `needs:owner` item. Use the same rules.
 
 ## Estimates
 
