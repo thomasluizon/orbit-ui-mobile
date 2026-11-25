@@ -16,7 +16,7 @@ Read the sources, never your memory of them:
 1. Every open `needs:owner` ticket: `gh issue list --repo thomasluizon/orbit-tickets --label needs:owner --state open --json number,title`.
 2. Every open `needs:owner` pull request in `thomasluizon/orbit-ui-mobile`, `thomasluizon/orbit-api` and `thomasluizon/orbit-landing-page`.
 3. For each item, the newest `orbit-drive:needs-owner` comment (the question), the ticket body and every comment after it.
-4. Each comment marked `<!-- orbit-drive:owner-question -->` or `<!-- owner-review -->` that has no owner answer after it. An `owner-review` item asks him to confirm or change a decision taken while he slept; when he changes it, comment the new decision on the ticket.
+4. Each comment marked `<!-- orbit-drive:owner-question -->` or `<!-- owner-review -->` that has no owner answer after it. An `owner-review` item asks him to confirm or change a decision taken while he slept; when he changes it, write the new decision into the ticket body as in section 4.
 5. Each open question of this session.
 
 A question you never wrote down cannot be answered. It blocks the driver and nobody knows.
@@ -33,7 +33,7 @@ A question you never wrote down cannot be answered. It blocks the driver and nob
 
 Stop at the first step that resolves the question.
 
-1. **Is it already answered?** Read the code, the contract type, the API source in the sibling repository, the ticket body and its comments, `DESIGN.md`, `BRAND.md`, and the decisions in `/brain`. For how to build or fix something, search the web every time: the current official docs, the version installed in the repository and the newest stable one. Memory is not a source. Put the sources in the comment of step 4.
+1. **Is it already answered?** Read the code, the contract type, the API source in the sibling repository, the ticket body and its comments, `DESIGN.md`, `BRAND.md`, and the decisions in `/brain`. For how to build or fix something, search the web every time: the current official docs, the version installed in the repository and the newest stable one. Memory is not a source. Put the sources in the text of section 4.
 2. **Is it "simpler or more correct"?** The answer is the correct one, always, whatever it costs. Say the cost in one line.
 3. **Is it an engineering call?** Naming, structure, which layer owns something, how to test it, which allowed parity adapter applies: decide it now. A question about what a screen shows is yours too when one answer is clearly better.
 
@@ -41,9 +41,10 @@ What is left is really his: product, copy, pricing, positioning, brand, design d
 
 ## 4. Record each answer and decision
 
-1. Comment on the ticket: the answer or the decision, the reason, and the exact next step for the worker. The driver gives a pull request that used its fix launches one more launch for this comment, and the launch carries it.
-2. Remove `needs:owner` from the ticket and from its open pull request.
-3. A decision that outlives the ticket also goes to the brain with `/brain`.
+1. Write the answer or the decision into the body of the ticket: the answer or the decision, the reason, and the exact next step for the worker. Put it under an `## Owner decisions` section, and add one line there for each new answer. Read the body with `gh issue view --json body`, then write it back with `gh issue edit --body-file`. Every order carries the ticket body, so the next launch of every kind reads the answer. A comment alone reaches no worker.
+2. Also comment the same text on the ticket when the item is a pull request that used its fix launches. The driver gives that pull request one more launch for the comment, and the launch carries it.
+3. Remove `needs:owner` from the ticket and from its open pull request.
+4. A decision that outlives the ticket also goes to the brain with `/brain`.
 
 ## 5. What survives
 
@@ -51,11 +52,11 @@ What is left is really his: product, copy, pricing, positioning, brand, design d
 
 - Ask with `AskUserQuestion`, at most 4 questions in a call, in rounds ordered by how much work each unblocks. Say how many rounds are left.
 - Each question states the decision in product terms, what goes wrong if nobody decides, a recommendation first marked `(Recommended)`, and 2 to 4 real options.
-- Record each answer as in step 4.
+- Record each answer as in section 4.
 
 **`--auto` mode** (the driver, or `/sleep`) never calls `AskUserQuestion`. Read the sleep state: `cat "$(git rev-parse --git-common-dir)/orbit-drive/sleep.json"`.
 
-- Sleep on: decide each survivor with your recommendation and record it as in step 4, so the work goes on. Start the comment with `<!-- owner-review -->` and "Decided while the owner slept:". His next `/questions` asks him each one, so he confirms or changes it.
+- Sleep on: decide each survivor with your recommendation and write it into the ticket body as in section 4, so the work goes on. Also comment it on the ticket. Start that comment with `<!-- owner-review -->` and "Decided while the owner slept:". His next `/questions` asks him each one, so he confirms or changes it.
 - Sleep off: comment the question, its options and your recommendation on the ticket, starting with `<!-- orbit-drive:owner-question -->`. The driver reads only this marker form as a kind, so the question grants no fix launch. Keep `needs:owner`. His next `/questions` asks it.
 
 ## 6. Then the manual steps only he can do

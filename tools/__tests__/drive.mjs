@@ -1006,6 +1006,10 @@ const skillMarkerCases = () => {
   const bare = [...questions.matchAll(/<!-- (?!orbit-drive:)([a-z-]+) -->/g)].map((match) => match[1])
   same("skills/questions: the only bare marker is the owner-review decision, which grants a launch", [...new Set(bare)], ["owner-review"])
   same("skills/questions: the queued question and its reader use the orbit-drive:owner-question marker", questions.split("<!-- orbit-drive:owner-question -->").length - 1, 2)
+  // An order carries the ticket body, the part comments, the findings and the cap grant. A plain answer comment reaches no worker, so the body holds every answer.
+  T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes("gh issue edit --body-file") && questions.includes("`## Owner decisions`"), "section 4 has no body write")
+  same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
+  same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
   const drivers = skillText("driver")
   const unlink = drivers.split("\n").find((line) => line.includes("fs.unlinkSync")) ?? ""
   T("skills/driver: a worktree skill link is deleted only when the pull request of its branch is merged", unlink.includes("--state merged") && unlink.includes("--head"), unlink)
