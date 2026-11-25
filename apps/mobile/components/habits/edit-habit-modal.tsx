@@ -579,7 +579,7 @@ function EditHabitDraft({
 
   function renderGuidedEdit() {
     const requestDismiss = () => { if (!isSubmitting()) dismissGuard.requestDismiss() }
-    const result = saved && habit ? <HabitResultDialog habitId={habit.id} change="updated" onClose={() => { setSaved(false); onClose(); void onSaved?.() }} /> : undefined
+    const result = saved && habit ? <HabitResultDialog habitId={habit.id} change="updated" onClose={() => { setSaved(false); onClose(); void onSaved?.() }} onOpenDestination={(path) => { setSaved(false); onClose(); void onSaved?.(); router.push(path) }} /> : undefined
     return (
       <>
         {habit ? (
