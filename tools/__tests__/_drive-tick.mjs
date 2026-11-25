@@ -1289,6 +1289,10 @@ const runningWorkCases = async () => {
   const cappedBuild = scenario({ tickets: [ticket(7, { comments: [launchOf("build", "chore/ticket-7"), launchOf("build", "chore/ticket-7")] })] })
   await cappedBuild.run()
   same("drive: with the lane free and no worker running, two build launches still give needs:owner", [cappedBuild.launched.length, only(cappedBuild.calls, "editLabels").length], [0, 1])
+  const cappedReport = comment("needs-owner", "The build order of chore/ticket-7 launched 2 times without a result", -30 * MINUTE)
+  const restored = scenario({ tickets: [ticket(7, { comments: [launchOf("build", "chore/ticket-7"), launchOf("build", "chore/ticket-7"), cappedReport] })] })
+  await restored.run()
+  same("drive: a launch-capped order whose needs:owner label the owner removed gets the label back with no new comment and no notification", [restored.launched.length, only(restored.calls, "editLabels").length, needsOwnerComments(restored.calls, 7).length, only(restored.calls, "notify").length], [0, 1, 0, 0])
 }
 
 const paceStampCases = async () => {
