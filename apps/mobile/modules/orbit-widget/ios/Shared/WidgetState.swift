@@ -66,7 +66,6 @@ struct WidgetRow: Identifiable {
   var id: String { habit.id }
   var overdue: Bool { !tomorrow && !done && habit.isOverdue }
   var statusKey: String { done ? "done" : (overdue ? "overdue" : "pending") }
-  var statusSymbol: String { done ? "checkmark.square.fill" : (overdue ? "exclamationmark.square" : "square") }
 }
 
 func widgetTime(_ time: String, uses24HourClock: Bool, language: String) -> String {
