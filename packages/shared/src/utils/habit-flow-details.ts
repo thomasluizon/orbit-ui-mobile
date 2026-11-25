@@ -1,5 +1,5 @@
 import { formatConjunctionList } from './conjunction-list'
-import { parseDatePhrase, type DatePhraseContext } from './date-phrase-parser'
+import { parseDatePhrase, readDateWeekday, type DatePhraseContext } from './date-phrase-parser'
 import { getFriendlyErrorMessage } from './error-utils'
 import { habitPhraseRepeats, readTypedHabitPhrase, type HabitPhraseRead, type HabitPhraseSpan } from './habit-phrase-parser'
 import type { SupportedLocale } from '../types/profile'
@@ -126,6 +126,7 @@ export interface HabitWhenWordsContext extends DatePhraseContext {
 }
 
 const REPEAT_WORDS = new Set(['toda', 'todas', 'todo', 'todos', 'cada', 'every', 'each'])
+const REPEAT_AFTER_WORDS = new Set(['weekly', 'semanalmente'])
 const WEEKDAY_QUALIFIERS = new Set(['proxima', 'proximo', 'esta', 'este', 'nesta', 'neste', 'na', 'no', 'em', 'para', 'pra', 'de', 'a', 'o', 'next', 'this', 'on', 'upcoming', 'coming', 'by', 'for'])
 const PLURAL_WEEKDAY: Readonly<Record<SupportedLocale, RegExp>> = { 'pt-BR': /s$/u, en: /(?:days|^(?:sun|mon|fri|sat)s)$/u }
 const PLAIN_ACCENTS = /\p{M}/gu
@@ -134,20 +135,28 @@ function plainWords(text: string): string[] {
   return text.toLowerCase().normalize('NFD').replace(PLAIN_ACCENTS, '').split(/[\s,;.!?]+/u).filter((word) => word.length > 0)
 }
 
-function isBareWeekday(text: string, read: HabitPhraseRead, language: SupportedLocale): boolean {
-  if (read.cadence !== 'fixed' || read.intervalWeeks !== null || read.days.length !== 1) return false
+function bareWeekdayToken(text: string, read: HabitPhraseRead, language: SupportedLocale): HabitPhraseSpan | null {
+  if (read.cadence !== 'fixed' || read.intervalWeeks !== null || read.days.length !== 1) return null
   const days = read.consumed.filter((token) => token.kind !== 'time')
   const [token] = days
-  if (days.length !== 1 || token!.kind !== 'weekday') return false
+  if (days.length !== 1 || token!.kind !== 'weekday') return null
   const word = plainWords(text.slice(token!.start, token!.end))
-  if (word.length !== 1 || PLURAL_WEEKDAY[language].test(word[0]!)) return false
+  if (word.length !== 1 || PLURAL_WEEKDAY[language].test(word[0]!)) return null
+  if (plainWords(text.slice(token!.end)).some((after) => REPEAT_WORDS.has(after) || REPEAT_AFTER_WORDS.has(after))) return null
   const before = plainWords(text.slice(0, token!.start))
   for (let index = before.length - 1; index >= 0; index -= 1) {
     const previous = before[index]!
-    if (REPEAT_WORDS.has(previous)) return false
-    if (!WEEKDAY_QUALIFIERS.has(previous)) return true
+    if (REPEAT_WORDS.has(previous)) return null
+    if (!WEEKDAY_QUALIFIERS.has(previous)) return token!
   }
-  return true
+  return token!
+}
+
+function loneWeekdayWord(text: string): string | null {
+  const words = plainWords(text)
+  if (words.some((word) => REPEAT_WORDS.has(word) || REPEAT_AFTER_WORDS.has(word))) return null
+  const weekdays = words.filter((word) => readDateWeekday(word) !== null)
+  return weekdays.length === 1 ? weekdays[0]! : null
 }
 
 /**
@@ -157,9 +166,12 @@ function isBareWeekday(text: string, read: HabitPhraseRead, language: SupportedL
  */
 export function readHabitWhenWords(text: string, context: HabitWhenWordsContext): HabitWhenWords {
   const read = readTypedHabitPhrase(text, context.language, null, false)
-  const bareDate = isBareWeekday(text, read, context.language) && (context.deliberateType ?? context.itemType) !== 'habit'
+  const weekday = bareWeekdayToken(text, read, context.language)
+  const bareDate = weekday !== null && (context.deliberateType ?? context.itemType) !== 'habit'
   if (habitPhraseRepeats(read) && !bareDate) return { kind: 'repeat', read }
-  const result = parseDatePhrase(text, context)
+  const whole = parseDatePhrase(bareDate ? text.slice(weekday.start, weekday.end) : text, context)
+  const lone = whole.status === 'resolved' || habitPhraseRepeats(read) ? null : loneWeekdayWord(text)
+  const result = lone === null ? whole : parseDatePhrase(lone, context)
   if (result.status !== 'resolved') return { kind: 'unresolved' }
   if (!context.allowPast && result.date < context.referenceDate) return { kind: 'past' }
   return { kind: 'date', date: result.date }

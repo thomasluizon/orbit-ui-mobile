@@ -361,6 +361,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
 
   function useFlowAnswers({ options, controller, deliberateType, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate }: FlowAnswerInput) {
     const { form, mode, locale, timeZone } = options
+    const previewedDate = useRef<string | null>(null)
     const answerStep = useCallback((answered: keyof HabitFlowAnswers, withTime = false) => {
       if (answered === 'when') releasePhraseDate()
       const nextAnswers = { ...readAnswers(), [answered]: true, ...(withTime ? { time: true } : {}) }
@@ -395,6 +396,8 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       else port.setField('dueTime', phraseTime ?? '')
       setProposals((value) => ({ ...value, schedule: false, time: words.read.dueTime ? false : value.time }))
       port.chooseItemType('habit')
+      if (previewedDate.current !== null && form.getValues().dueDate === previewedDate.current) port.setField('dueDate', '')
+      previewedDate.current = null
       startRepeat()
       answerStep('when', words.read.dueTime !== null)
       return null
@@ -414,6 +417,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
         port.setField('datePhrase', '')
         port.setField('dateIssue', '')
         port.setField('dueDate', words.date)
+        previewedDate.current = words.date
         setProposals((value) => (value.schedule ? { ...value, schedule: false } : value))
       }
       return { kind: 'date', date: words.date }

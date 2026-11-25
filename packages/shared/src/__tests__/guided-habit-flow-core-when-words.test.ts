@@ -98,4 +98,27 @@ describe('guided habit flow: the words of the When step', () => {
     expect(mounted.values).toMatchObject({ itemType: 'habit', dueDate: '' })
     mounted.unmount()
   })
+
+  const typeKeys = (mounted: ReturnType<typeof mountModeFlow>, words: string) => {
+    for (let end = 1; end <= words.length; end += 1) void act(() => { mounted.flow.previewWhenWords(words.slice(0, end)) })
+  }
+
+  it('starts a repeat that the person typed key by key today, not on the date a first word read', () => {
+    const mounted = mountModeFlow()
+    typeKeys(mounted, 'monday, wednesday and friday')
+    void act(() => { mounted.flow.readWhenWords('monday, wednesday and friday') })
+    expect(mounted.values).toMatchObject({ itemType: 'habit', dueDate: '2026-11-25' })
+    expect(mounted.values.days).toEqual(['Monday', 'Wednesday', 'Friday'])
+    mounted.unmount()
+  })
+
+  it('starts a daily repeat today when the person changes a typed weekday to every day', () => {
+    const mounted = mountModeFlow()
+    typeKeys(mounted, 'friday')
+    expect(mounted.values).toMatchObject({ dueDate: '2026-11-27' })
+    typeKeys(mounted, 'every day')
+    void act(() => { mounted.flow.readWhenWords('every day') })
+    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueDate: '2026-11-25' })
+    mounted.unmount()
+  })
 })

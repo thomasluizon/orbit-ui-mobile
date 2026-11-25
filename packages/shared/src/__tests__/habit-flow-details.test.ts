@@ -140,6 +140,22 @@ describe('readHabitWhenWords: a bare weekday', () => {
     expect(readHabitWhenWords('sexta', { ...wednesday, itemType: 'task', deliberateType: 'habit' }).kind).toBe('repeat')
   })
 
+  it.each(['na sexta', 'nesta sexta', 'pra sexta', 'sexta às 9', 'sexta que vem', 'sexta, às 9h'])('reads "%s" as the next Friday for a task', (words) => {
+    expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
+  })
+
+  it.each(['this friday', 'on friday', 'by friday', 'friday at 9', 'friday morning'])('reads "%s" as the next Friday for a task', (words) => {
+    expect(readHabitWhenWords(words, { ...english, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
+  })
+
+  it.each(['sexta, toda semana', 'sexta semanalmente'])('reads "%s" as a repeat for a task', (words) => {
+    expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' }).kind).toBe('repeat')
+  })
+
+  it('reads "friday weekly" as a repeat for a task', () => {
+    expect(readHabitWhenWords('friday weekly', { ...english, itemType: 'task' }).kind).toBe('repeat')
+  })
+
   it.each(['toda sexta', 'todas as sextas', 'às sextas', 'sextas', 'sexta toda semana', 'segunda e sexta', 'todo dia', 'a cada 2 semanas'])('reads "%s" as a repeat for a task', (words) => {
     expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' }).kind).toBe('repeat')
   })
