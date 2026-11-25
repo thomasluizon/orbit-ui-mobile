@@ -1,4 +1,4 @@
-import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import React from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
@@ -34,31 +34,33 @@ function dialogs(spies: ReturnType<typeof handlers>, props: Partial<React.Compon
 }
 const hosts = (tree: ReturnType<typeof TestRenderer.create>, testID: string): ReactTestInstance[] => tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === testID)
 const options = (tree: ReturnType<typeof TestRenderer.create>) => hosts(tree, 'option-card')
-const labels = (tree: ReturnType<typeof TestRenderer.create>) => options(tree).map((node) => node.props.accessibilityLabel)
+const answers = (tree: ReturnType<typeof TestRenderer.create>): ReactTestInstance[] => tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && /^button-(ghost|primary)-sm$/.test(String(node.props.testID)) && typeof node.props.onPress === 'function')
+const labels = (tree: ReturnType<typeof TestRenderer.create>) => sheetSlotButtons(tree.root, 'SheetActions')
 const sheetTitle = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node: ReactTestInstance) => String(node.type) === 'Sheet').map((node: ReactTestInstance) => node.props.title)
 const sentences = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node: ReactTestInstance) => String(node.type) === 'Text' && node.props.children === 'habits.checklistCompleteMessage').map((node: ReactTestInstance) => node.props.children as string)
 const press = (node: ReactTestInstance) => TestRenderer.act(() => { (node.props.onPress as () => void)() })
 const mascots = (tree: ReturnType<typeof TestRenderer.create>) => tree.root.findAll((node: ReactTestInstance) => node.props.testID === 'orbit-mascot')
 
 describe('Android habit prompts as one question', () => {
-  it('asks the parent question as the sheet title, with the two answers as quick options', () => {
+  it('asks the parent question as the sheet title, with the two answers as the sheet actions, the positive answer last', () => {
     enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     const tree = dialogs(spies, { parentPrompt: promptOf([parent]) })
     expect(sheetTitle(tree)).toEqual(['habits.autoLogParentMessage'])
-    expect(labels(tree)).toEqual(['habits.autoLogParentConfirm', 'common.notNow'])
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([])
+    expect(labels(tree)).toEqual(['common.notNow', 'habits.autoLogParentConfirm'])
+    expect(options(tree)).toHaveLength(0)
+    expectSmallSheetActions(tree.root)
     expect(mascots(tree)).toHaveLength(0)
-    press(options(tree)[0]!)
+    press(answers(tree)[1]!)
     expect(spies.onConfirmParent).toHaveBeenCalledOnce()
     expect(spies.onCancelParent).not.toHaveBeenCalled()
   })
 
-  it('sends the cancel of the parent prompt from the second quick option', () => {
+  it('sends the cancel of the parent prompt from the first answer', () => {
     enableTestFlags('orbit_guided_flows')
     const spies = handlers()
     const tree = dialogs(spies, { parentPrompt: promptOf([parent]) })
-    press(options(tree)[1]!)
+    press(answers(tree)[0]!)
     expect(spies.onCancelParent).toHaveBeenCalledOnce()
     expect(spies.onConfirmParent).not.toHaveBeenCalled()
   })
@@ -80,8 +82,8 @@ describe('Android habit prompts as one question', () => {
     const spies = handlers()
     const tree = dialogs(spies, { duplicateHabitName: 'Read' })
     expect(sheetTitle(tree)).toEqual(['habits.duplicateConfirmTitle'])
-    expect(labels(tree)).toEqual(['habits.duplicateConfirm', 'common.notNow'])
-    press(options(tree)[0]!)
+    expect(labels(tree)).toEqual(['common.notNow', 'habits.duplicateConfirm'])
+    press(answers(tree)[1]!)
     expect(spies.onConfirmDuplicate).toHaveBeenCalledOnce()
   })
 
@@ -111,8 +113,8 @@ describe('Android habit prompts as one question', () => {
     const tree = mount(<ChecklistCompletePrompt open name="Read" onCancel={vi.fn()} onConfirm={onConfirm} />)
     expect(sheetTitle(tree)).toEqual(['habits.checklistCompleteQuestion'])
     expect(sentences(tree)).toEqual([])
-    expect(labels(tree)).toEqual(['habits.checklistCompleteConfirm', 'common.notNow'])
-    press(options(tree)[0]!)
+    expect(labels(tree)).toEqual(['common.notNow', 'habits.checklistCompleteConfirm'])
+    press(answers(tree)[1]!)
     expect(onConfirm).toHaveBeenCalledOnce()
   })
 
@@ -121,8 +123,8 @@ describe('Android habit prompts as one question', () => {
     const onConfirm = vi.fn()
     const tree = mount(<LogDatePrompt pending={{ habitId: 'h', intent, date, name: 'Read', permanent: false }} fallbackName="Read" fallbackDate={date} language="en" onCancel={vi.fn()} onConfirm={onConfirm} />)
     expect(sheetTitle(tree)).toEqual([question])
-    expect(labels(tree)).toEqual([answer, 'common.notNow'])
-    press(options(tree)[0]!)
+    expect(labels(tree)).toEqual(['common.notNow', answer])
+    press(answers(tree)[1]!)
     expect(onConfirm).toHaveBeenCalledOnce()
   })
 
