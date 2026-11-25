@@ -1,13 +1,30 @@
 ---
 name: release
-description: Plan and run Orbit's manual production or branch-selected staging release.
+description: Start the Orbit release train at once, or plan and run a branch-selected staging release. The driver runs the same train every 4 hours by itself.
 argument-hint: "[staging <branch>] [--track open|production]"
 effort: high
 ---
 
 # Release
 
-Dispatch only after the owner invokes a release. Planning is read-only. Never dispatch a service whose plan says `needsRelease: false`. Keep the order API, web, landing, Android. Stop after a failed release or a failed verification. Read `reference.md` in this folder for the release facts.
+The driver releases every platform together on a steady cadence: the release train. A train starts when a service has unreleased work and the previous train ended at least 4 hours ago. It releases each service to staging first and then to production, in the order API, web, landing, then mobile (Android, then iOS). `/release` starts the same train at once. Planning is read-only. Never dispatch a service whose plan says `needsRelease: false`. Stop after a failed release or a failed verification. Read `reference.md` in this folder for the release facts.
+
+## The train
+
+The code of the train is `tools/lib/release-train.mjs`. It uses the tools and the rules of this skill: `tools/release-plan.mjs` for the plan and the planned SHA, the exact `dispatchCommand`, `tools/wait-release.mjs` for each run and the live commit, and the verifications below.
+
+- `/release` with no argument runs `node tools/drive.mjs --release-now`. The driver starts the train on its next tick, within 2 minutes. Cadence and the last stop do not hold it.
+- `node tools/drive.mjs --release-status` prints the newest train: what it released and where it stopped.
+- `node tools/drive.mjs --dry-run` prints each step that the train would take.
+- Each tick makes at most one dispatch or one check. The state is the file `release-train.json` in the driver state directory. A restart resumes the train and never dispatches a step twice.
+- Production of a service starts only after staging serves the planned commit with a healthy status.
+- A failed dispatch, a failed run, a failed verification or a `wait-release.mjs` ceiling stops the train at that service. Later services do not start. The driver files one Bug ticket with the run link, the step and the error.
+- A refusal for a missing green Tests or Guards run: the train dispatches `test.yml` and `guards.yml` on `main` once, waits for both, then dispatches the release again.
+- An API release with a migration, or with a Terraform step under `## Manual steps`, holds only the API step. The driver cannot take a Render export. It files one `needs:owner` ticket that names the step, and the train goes on with the other services.
+- Mobile skips when no file under `apps/mobile` or `packages/shared` changed since the newest mobile production record. Web skips when no `apps/web` or `packages/shared` file changed since the served commit.
+- Sleep mode changes nothing for the train.
+
+Run the steps below by hand only for a branch-selected staging release, or when the owner asks for one service.
 
 ## Plan
 
@@ -30,7 +47,7 @@ For API, web and landing, run the manual `release.yml` of each repository from `
 gh workflow run release.yml --repo thomasluizon/<repo> --ref main -f environment=<production|staging> -f branch=<selected branch> -f sha=<planned SHA>
 ```
 
-Production needs staging to serve the same commit with healthy status. Web and Android also need green PR Tests and Guards at the selected SHA. Add `-f force_unstaged=true -f override_reason="<reason>"` to the web dispatch only when the owner asks to bypass staging admission.
+Production needs staging to serve the same commit with healthy status. Web and Android also need green PR Tests and Guards at the selected SHA. The train never bypasses staging admission. Add `-f force_unstaged=true -f override_reason="<reason>"` to a hand dispatch only when the owner asks for it.
 
 `gh workflow run` returns no run id. Record the dispatch time and the `main` SHA. List the recent runs and select the unique new run with that `main` SHA. If no unique run matches, stop.
 
@@ -55,6 +72,6 @@ The UI `release.yml` runs the desktop release for both environments. Do not disp
 
 ## Android
 
-Follow `.claude/skills/android-release/SKILL.md` for the version, the `versionCode` and the dispatch. Confirm the exact inputs with the owner first. Production uses `open` by default, or `production` when the owner asks, always from `main`. Staging uses only `internal`, from the selected branch. Then run `.claude/skills/ios-release/SKILL.md` at the same version.
+Follow `.claude/skills/android-release/SKILL.md` for the version, the `versionCode` and the dispatch. The train uses mobile staging (Android track `internal` and iOS variant `staging`) and then mobile production (Android track `open` and iOS variant `production`), always from `main`. The train never uses Android track `production` and never submits to the App Store. The launch ticket owns those. A hand release can use `production` only when the owner asks. Staging by hand uses only `internal`, from the selected branch. Then run `.claude/skills/ios-release/SKILL.md` at the same version.
 
 Before a staging Android dispatch, the staging API must be healthy at the planned API commit. Dispatch with `--ref <selected branch>`. Resolve the unique new run, then run `wait-release.mjs --repo ui --workflow android --run <databaseId> --sha <planned Android SHA>`. A successful upload does not say when Play makes the build available to testers.

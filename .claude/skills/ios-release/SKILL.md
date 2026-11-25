@@ -31,7 +31,7 @@ The `variant` selects the GitHub environment. Each environment keeps its own rec
 
 ## Dispatch
 
-Before dispatch, resolve the ref to the commit of the Android run. Find an unused positive `build_number` on the TestFlight screen of the matching app in App Store Connect. Never infer it from the Android version code. Check the `Mobile iOS Build` compile result when the commit changed a native input. Dispatch only when the owner authorized the upload.
+Before dispatch, resolve the ref to the commit of the Android run. Take the `build_number` as the highest build of the matching app in App Store Connect plus one (`tools/lib/app-store-connect.mjs`). Never infer it from the Android version code. Check the `Mobile iOS Build` compile result when the commit changed a native input. The driver release train dispatches this workflow right after its Android dispatch, and `/release` starts the same train at once.
 
 ```sh
 gh workflow run ios-release.yml --ref <ref> \

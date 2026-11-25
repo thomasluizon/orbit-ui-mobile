@@ -2,7 +2,8 @@
 
 /**
  * The delivery driver. A program, not a model: each tick it reads GitHub, acts on every open pull request, and fills every
- * free worker slot (one to three Sonnet workers, by the headroom under the weekly line). It merges at the owner's bar. All
+ * free worker slot (one to three Sonnet workers, by the headroom under the weekly line). It merges at the owner's bar, and it
+ * releases every platform on a steady cadence (lib/release-train.mjs): staging first, then production. All
  * state lives on GitHub, in `git worktree list` and in its own pid files, so a restart loses nothing.
  */
 
@@ -22,9 +23,10 @@ import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { partOf, renderOrder } from "./lib/order.mjs"
+import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --sleep on | --sleep off | --reviewer-token | --preflight] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, and merges at the
   owner's bar. It never idles: a free worker slot and an admissible order start a worker on the same tick. The driver
@@ -35,6 +37,9 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   account. An account stops at 90% of its week: it starts no worker and runs no probe. The stop of the main account also
   holds the Pullfrog requests, because Pullfrog runs on it. A worker that ends on a usage limit stops its account until its
   reset, and the order starts again on the other account. The driver still merges a pull request that meets the bar.
+  The driver also runs the release train: a train starts at most every 4 hours when a service has unreleased work, and it
+  releases API, web, landing and mobile (Android, then iOS), staging first and then production. Each tick makes at most one
+  dispatch or one check. --dry-run prints the steps. The train state is the file release-train.json in the state directory.
 
   (no flag)   run the loop: one tick each 120 seconds until stopped. At the end of a tick with no worker running, the driver
               checks out a newer driver commit of origin/main in its own worktree and exits 0, so launchd starts the new version.
@@ -49,6 +54,9 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   --sleep on|off  sleep mode of the owner. While it is on the driver sends no notification and asks nothing: each item for
               the owner still gets its needs:owner label and one comment, and the driver keeps working on every other item.
               --sleep off makes the driver send one notification that lists the items held, each with its link.
+  --release-now  ask the driver to start a release train on its next tick, at once, whatever the 4 hour cadence and the last stop.
+              It starts only when a service has unreleased work. The owner session runs it for /release.
+  --release-status  print the newest release train: what it released and where it stopped
   --reviewer-token  read a Claude OAuth token on stdin and set CLAUDE_CODE_OAUTH_TOKEN in the three repositories;
               print each repository's result and never the token
   --preflight  run the checks that a loop start runs before the first tick (the tools on PATH and the configuration), then exit 0.
@@ -1635,6 +1643,7 @@ export const tick = async (env, mem) => {
     mem.lastIntakeAt = env.now()
     await intake(env, mem).catch((error) => log(env, "intake", "error", error.message))
   }
+  if (env.releasePorts) await runReleaseTrain(env).catch((error) => log(env, "release", "error", error.message))
   if (env.dryRun && env.driverWorktree) env.lines.push(await pinLine(env).catch((error) => `driver pin unreadable (${error.message})`))
   if (env.dryRun) for (const line of env.lines) env.log(line)
   const switched = await switchDriver(env, mem).catch((error) => (log(env, "driver", "switch-error", error.message), false))
@@ -1642,6 +1651,28 @@ export const tick = async (env, mem) => {
 }
 
 const shortSha = (sha) => sha.slice(0, 9)
+
+/** The ticket writes of the release train: a held step gets one `needs:owner` ticket and one comment, a stopped train one Bug ticket. */
+const releaseTickets = (env) => ({
+  bug: async ({ title, body, repoKey }) => {
+    const created = await env.github.createTicket({ title, body, labels: [`repo:${repoKey}`, "Bug"] })
+    await say(env, `Orbit driver: ${title}`)
+    return created.number
+  },
+  hold: async ({ title, reason, repoKey }) => {
+    const open = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "open", "--label", OWNER, "--json", "number,title", "--limit", "100"]))
+    const known = open.find((ticket) => ticket.title === title)
+    if (known) return known.number
+    const created = await env.github.createTicket({ title, body: reason, labels: [`repo:${repoKey}`, OWNER] })
+    await env.github.comment("tickets", created.number, marked("needs-owner", reason))
+    holdItem(env, { link: issueLink(env, created.number), reason })
+    await say(env, `Orbit driver needs you: ${reason}`)
+    return created.number
+  },
+})
+
+/** One tick of the release train: the driver releases every platform on its cadence, staging then production. */
+const runReleaseTrain = (env) => releaseTick({ ports: env.releasePorts, stateDir: env.stateDir, now: env.now, dryRun: env.dryRun, log: (line) => env.log(line), tickets: releaseTickets(env) })
 
 /**
  * The commit of origin/main to switch to: it differs from the pin, it changes a driver file, and it is not the commit that
@@ -1759,7 +1790,7 @@ export const parseArguments = (argv) => {
     if (rest.length > 0) return { error: `unknown or conflicting argument: ${rest[0]}` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "allow-over-limit", account: argv[allowAt + 1] }
   }
-  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight"])
+  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight", "--release-now", "--release-status"])
   const given = argv.filter((argument) => argument !== "--help" && argument !== "-h")
   const unknown = given.filter((argument) => !modes.has(argument))
   if (unknown.length > 0 || given.length > 1) return { error: `unknown or conflicting argument: ${(unknown[0] ?? given[1])}` }
@@ -1812,6 +1843,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
   return {
     config, dryRun, stateDir, home, github: githubApi, worker: workerApi, now: () => Date.now(), lines: [],
     driverWorktree: dirname(dirname(fileURLToPath(import.meta.url))), selfUpdate: false,
+    releasePorts: realPorts({ run: runBounded, toolsDirectory: dirname(fileURLToPath(import.meta.url)) }),
     smoke: async (worktree) => { const [file, ...args] = smokeArguments(worktree); return (await runBounded(file, args, { timeoutMs: 60 * 1000 })).status === 0 },
     log: (line) => console.log(line),
     slugOf: (key) => (key === "tickets" ? config.tickets.repository : repositorySlug(config.repos[key])),
@@ -1860,6 +1892,12 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   env.selfUpdate = parsed.mode === "loop"
   if (parsed.mode === "allow-over-limit") return allowOverLimit(env, { out, err }, parsed.account)
   if (parsed.mode === "sleep") return setSleep(env, parsed.word, { out })
+  if (parsed.mode === "release-status") { out(trainSummary(env.stateDir)); return 0 }
+  if (parsed.mode === "release-now") {
+    const running = requestTrain(env.stateDir)
+    out(running === null ? "The driver starts a release train on its next tick, within 2 minutes, when a service has unreleased work." : `A release train already runs: ${running}`)
+    return 0
+  }
   if (parsed.mode === "probe") {
     const reading = await env.worker.probe({ invocation: await env.invocation() })
     if (reading === null) { out("The probe returned no rate limit event."); return 0 }
