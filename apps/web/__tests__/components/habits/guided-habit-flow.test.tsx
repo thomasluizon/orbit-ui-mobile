@@ -78,6 +78,7 @@ function Harness({ mode = 'create', saveError = null, lockedGeneral = null, init
 }
 
 const messages = () => (state.locale === 'en' ? en : ptBR).habits.flow
+const proposedLabel = () => (state.locale === 'en' ? en : ptBR).habits.detail.proposed
 const progress = () => screen.getByRole('list', { name: /^(Passo|Step) \d/ }).getAttribute('aria-label')
 const heading = () => screen.getByRole('heading', { level: 1 })
 const summaryRow = (label: string) => screen.queryByRole('button', { name: new RegExp(`^${label}`) })
@@ -280,7 +281,7 @@ describe.each([
     expect(heading()).toHaveTextContent(messages().what.question)
     expect(screen.getByRole('button', { name: messages().continue })).toHaveAttribute('aria-busy', 'true')
     await act(async () => { read.arrive(DAILY_AT_SEVEN) })
-    expect(heading().textContent).toContain(messages().reminder.question.split('{')[0]!.trim())
+    expect(heading()).toHaveTextContent(messages().when.question)
     expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00' })
   })
 
@@ -309,14 +310,21 @@ describe.each([
     expect(helpers().form.getValues('dueTime') ?? '').toBe('')
   })
 
-  it('scenario 14: skips the steps the free read answered, marks them proposed, and keeps a deliberate task on a later read', async () => {
+  it('scenario 14: asks the When and the time with the free read proposed on each, keeps both with one press, and keeps a deliberate task on a later read', async () => {
     state.read.mockResolvedValue({ read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     render(<Harness />)
     await phrase(locale === 'en' ? 'water the plants' : 'regar as plantas')
+    expect(heading()).toHaveTextContent(messages().when.question)
+    expect(screen.getByRole('button', { name: messages().when.everyDay })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('group', { name: proposedLabel() })).toContainElement(screen.getByRole('button', { name: messages().when.everyDay }))
+    await press(messages().continue)
+    expect(heading()).toHaveTextContent(messages().time.question)
+    expect(helpers().form.getValues('dueTime')).toBe('07:00')
+    expect(screen.getByRole('group', { name: proposedLabel() })).toBeInTheDocument()
+    await press(messages().continue)
     expect(heading().textContent).toContain(messages().reminder.question.split('{')[0]!.trim())
     await press(messages().reminder.no)
     expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00' })
-    expect(screen.getAllByLabelText(locale === 'en' ? en.habits.detail.proposed : ptBR.habits.detail.proposed).length).toBeGreaterThan(0)
     await press(new RegExp(`^${messages().summary.type}`))
     await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(locale === 'en' ? en.habits.form.typeTask : ptBR.habits.form.typeTask) })) })
     await press(new RegExp(`^${messages().summary.title}`))
@@ -336,6 +344,29 @@ describe.each([
     await press(new RegExp(`^${messages().summary.type}`))
     await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(locale === 'en' ? en.habits.form.typeTask : ptBR.habits.form.typeTask) })) })
     expect(helpers().form.getValues()).toMatchObject({ itemType: 'task', dueTime: '08:00', reminderEnabled: true })
+  })
+
+  it('scenario 14: opens the When with a guessed month repeat in the free path, and keeps it with one press', async () => {
+    state.read.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Month', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'send money to the bank' : 'mandar dinheiro do nubank')
+    expect(heading()).toHaveTextContent(messages().when.question)
+    expect(screen.queryAllByRole('button', { pressed: true })).toHaveLength(0)
+    const free = screen.getByLabelText(messages().when.freeLabel) as HTMLInputElement
+    expect(free.value).toContain(locale === 'en' ? 'every month' : 'todo mês')
+    expect(screen.getByRole('group', { name: proposedLabel() })).toContainElement(free)
+    await press(messages().continue)
+    expect(heading()).toHaveTextContent(messages().time.question)
+    expect(helpers().form.getValues()).toMatchObject({ frequencyUnit: 'Month' })
+  })
+
+  it('scenario 14: asks the When with nothing selected when the free read gives nothing', async () => {
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'send money to the bank' : 'mandar dinheiro do nubank')
+    expect(heading()).toHaveTextContent(messages().when.question)
+    expect(screen.queryAllByRole('button', { pressed: true })).toHaveLength(0)
+    expect(screen.queryByRole('group', { name: proposedLabel() })).toBeNull()
+    expect((screen.getByLabelText(messages().when.freeLabel) as HTMLInputElement).value).toBe('')
   })
 
   it('scenario 14: proposes the emoji of the free read and marks a used read', async () => {

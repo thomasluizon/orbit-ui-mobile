@@ -86,6 +86,8 @@ const control = (tree: Tree, name: string | RegExp) => tree.hosts().find((node) 
 const heading = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityRole === 'header').map((node) => (typeof node.props.children === 'string' ? node.props.children : ''))[0] ?? ''
 const progress = (tree: Tree) => tree.hosts().find((node) => /^(Passo|Step) \d (de|of) \d$/.test(node.props.accessibilityLabel ?? ''))?.props.accessibilityLabel
 const summaryRow = (tree: Tree, label: string) => tree.hosts().find((node) => (node.props.accessibilityLabel ?? '').startsWith(`${label}, `))
+const selectedWhenOptions = (tree: Tree) => Object.values(flowCopy().when).filter((label) => typeof label === 'string' && control(tree, label)?.props.accessibilityState?.selected === true)
+const proposedMarks = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityLabel === copy().habits.detail.proposed).length
 const hasText = (tree: Tree, text: string) => tree.hosts().some((node) => node.props.children === text)
 function textIn(node: unknown): string {
   const hosts = (node as { findAll: (predicate: (child: { type: unknown }) => boolean) => { props: { children?: unknown } }[] }).findAll((child) => child.type === 'Text')
@@ -304,7 +306,7 @@ describe.each([
     expect(heading(tree)).toBe(flowCopy().what.question)
     expect(tree.hosts().some((node) => (node.props.accessibilityState as { busy?: boolean } | undefined)?.busy === true)).toBe(true)
     await act(async () => { read.arrive(DAILY_AT_SEVEN); await Promise.resolve(); await Promise.resolve() })
-    expect(heading(tree)).toContain(flowCopy().reminder.question.split('{')[0]!.trim())
+    expect(heading(tree)).toBe(flowCopy().when.question)
     expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00' })
     tree.unmount()
   })
@@ -336,10 +338,18 @@ describe.each([
     tree.unmount()
   })
 
-  it('scenario 14: skips what the free read answered and keeps a deliberate task on a later read', async () => {
+  it('scenario 14: asks the When and the time with the free read proposed on each, keeps both with one press, and keeps a deliberate task on a later read', async () => {
     state.read.mockResolvedValue({ read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     const tree = renderNavigation(<Harness />)
     await phrase(tree, locale === 'en' ? 'water the plants' : 'regar as plantas')
+    expect(heading(tree)).toBe(flowCopy().when.question)
+    expect(control(tree, flowCopy().when.everyDay)?.props.accessibilityState).toMatchObject({ selected: true })
+    expect(proposedMarks(tree)).toBeGreaterThan(0)
+    await primary(tree)
+    expect(heading(tree)).toBe(flowCopy().time.question)
+    expect(helpers().form.getValues('dueTime')).toBe('07:00')
+    expect(proposedMarks(tree)).toBeGreaterThan(0)
+    await primary(tree)
     expect(heading(tree)).toContain(flowCopy().reminder.question.split('{')[0]!.trim())
     await tap(tree, flowCopy().reminder.no)
     expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00', emoji: '🪴' })
@@ -349,6 +359,32 @@ describe.each([
     await primary(tree)
     expect(helpers().form.getValues('itemType')).toBe('task')
     expect(helpers().form.getValues('frequencyUnit') ?? null).toBeNull()
+    tree.unmount()
+  })
+
+  it('scenario 14: opens the When with a guessed month repeat in the free path, and keeps it with one press', async () => {
+    state.read.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Month', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'send money to the bank' : 'mandar dinheiro do nubank')
+    expect(heading(tree)).toBe(flowCopy().when.question)
+    expect(selectedWhenOptions(tree)).toEqual([])
+    const free = tree.hosts().find((node) => (node.props as { onChangeText?: unknown }).onChangeText && node.props.accessibilityLabel === flowCopy().when.freeLabel)
+    expect((free?.props as { value?: string } | undefined)?.value).toContain(locale === 'en' ? 'every month' : 'todo mês')
+    expect(proposedMarks(tree)).toBeGreaterThan(0)
+    await primary(tree)
+    expect(heading(tree)).toBe(flowCopy().time.question)
+    expect(helpers().form.getValues()).toMatchObject({ frequencyUnit: 'Month' })
+    tree.unmount()
+  })
+
+  it('scenario 14: asks the When with nothing selected when the free read gives nothing', async () => {
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'send money to the bank' : 'mandar dinheiro do nubank')
+    expect(heading(tree)).toBe(flowCopy().when.question)
+    expect(selectedWhenOptions(tree)).toEqual([])
+    expect(proposedMarks(tree)).toBe(0)
+    const free = tree.hosts().find((node) => (node.props as { onChangeText?: unknown }).onChangeText && node.props.accessibilityLabel === flowCopy().when.freeLabel)
+    expect((free?.props as { value?: string } | undefined)?.value).toBe('')
     tree.unmount()
   })
 
