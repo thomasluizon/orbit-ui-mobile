@@ -2,8 +2,8 @@
 
 export const ORDER_KINDS = Object.freeze(["build", "build part", "fix", "ci-fix", "merge-forward", "find"])
 
-/** The first line of an owner's part comment, with or without a leading `## `. */
-const PART_HEADING = /^(## )?Part (\d+) of (\d+)\b/
+/** The first line of an owner's part comment: any number of `#` marks, an optional ticket reference such as `#7`, then `Part n of m`. The rest of the line is the title. */
+const PART_HEADING = /^(?:#+ +)?(?:#\d+ +)?Part (\d+) of (\d+)\b/
 
 const BRIEF_LIMIT_BYTES = 6000
 const LOG_LINES_PER_CHECK = 60
@@ -13,16 +13,24 @@ const firstLineOf = (text) => text.split("\n", 1)[0]
 /** The part numbers and total that a comment announces, or null when the comment is not a part comment. */
 export const partOf = (comment) => {
   const match = PART_HEADING.exec(firstLineOf(comment.body))
-  return match ? { number: Number(match[2]), total: Number(match[3]) } : null
+  return match ? { number: Number(match[1]), total: Number(match[2]) } : null
 }
 
-/** The part comments of a ticket, oldest first. A comment of the driver starts with its hidden marker, so it never reads as a part. */
-const ownerParts = (comments) => comments.filter((comment) => partOf(comment) !== null)
+/**
+ * The part comments of the newest part set, oldest first. A ticket can hold two sets (Part 1 of 2, then Part 1 of 13). The set of
+ * the newest part comment is the set in force, and an older set with another total is dropped. A comment of the driver starts with
+ * its hidden marker, so it never reads as a part.
+ */
+export const ownerParts = (comments) => {
+  const parts = comments.filter((comment) => partOf(comment) !== null)
+  const newest = parts.reduce((best, comment) => (best === null || String(comment.createdAt ?? "") >= String(best.createdAt ?? "") ? comment : best), null)
+  return newest === null ? [] : parts.filter((comment) => partOf(comment).total === partOf(newest).total)
+}
 
 const trimmed = (text) => text.replace(/\s*$/, "")
 
-/** The heading of a part comment as a list item or a section title, without a leading `## `. */
-const headingOf = (comment) => firstLineOf(comment.body).replace(/^## /, "")
+/** The heading of a part comment as a list item or a section title, without its leading `#` marks. */
+const headingOf = (comment) => firstLineOf(comment.body).replace(/^#+ +/, "")
 
 /** The full comment of the part that the order builds, and only the first line of every other part. */
 const partSection = (partComments, partNumber) => {
@@ -56,12 +64,12 @@ export const CLASS_RULE = "Fix the whole class of each finding in this round. Na
 const baseMergeSection = (baseMerge) => `The head is a clean merge of \`origin/main\`. The branch was green at \`${baseMerge.before}\` before the merge. The merge brought in these base commits:\n\n${baseMerge.commits.map((line) => `- ${line}`).join("\n")}\n\nThe cause is one of these commits and how it meets this branch. Find it and fix it.\n\n`
 
 /** The part of the order that belongs to one kind: what to do first and what to fix. */
-const kindSection = ({ kind, pull, review, failure, partNumber }) => {
+const kindSection = ({ kind, pull, review, failure, partNumber, partTotal }) => {
   switch (kind) {
     case "build":
       return "Build the ticket. Rebase on `origin/main` before the first push."
     case "build part":
-      return `Build Part ${partNumber} of this ticket and no other part. Rebase on \`origin/main\` before the first push.`
+      return `Build Part ${partNumber} of this ticket and no other part. Rebase on \`origin/main\` before the first push. End the pull request title with "(Part ${partNumber} of ${partTotal})".`
     case "fix":
       return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each finding names one instance of a class. The class can have more instances.\n\n${instanceList(review)}\n\n${CLASS_RULE} Fix every class in one commit. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Merge \`origin/main\`. Push once.`
     case "ci-fix":
@@ -85,7 +93,8 @@ const deliverySection = ({ ticket, kind }) => {
   const pullRequest = pushes
     ? "Push to the branch of the open pull request. Open no other pull request."
     : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` (never \`Closes\`), \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start each item that waits on the owner, on another ticket or on a release with \`owner:\` or \`blocked by #<ticket>\`.`
-  return `**Delivery.** Commit after each coherent piece. ${pullRequest} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge, never force-push, never \`--no-verify\`. Write to GitHub only with ${pushes ? "`git push`" : "`git push` and `gh pr create`"}.`
+  const pushRule = pushes ? "" : " Commit and push after each finished step, and open the pull request after the first push."
+  return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge, never force-push, never \`--no-verify\`. Write to GitHub only with ${pushes ? "`git push`" : "`git push` and `gh pr create`"}.`
 }
 
 /** The generic brief. It names no ticket, feature or screen: the ticket is the order, in the owner's words. */
@@ -135,5 +144,6 @@ export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pu
     throw new Error(`the ticket has no comment for part ${partNumber}`)
   }
   const parts = kind === "build" ? "" : partSection(partComments, partNumber)
-  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber })}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the cap, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket })}`
+  const partTotal = kind === "build part" ? partOf(ownerParts(partComments).findLast((comment) => partOf(comment).number === partNumber)).total : null
+  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal })}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the cap, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket })}`
 }

@@ -1420,6 +1420,11 @@ const branchKeyCases = async () => {
   await rotated.run()
   same("drive: a part that merged on a rotated branch is done, so the next tick builds the next part", rotated.launched.map((entry) => entry.worktree), ["/r/orbit-worktrees/ui/chore-ticket-7-part-2"])
 
+  const headed = (number, total, offset) => comment(null, `# #7 Part ${number} of ${total}: part ${number}\nPaths: apps/web/p${number}.ts`, offset)
+  const twoSets = scenario({ tickets: [ticket(7, { comments: [partComment(1, 2, "Paths: apps/web/old.ts"), headed(1, 13, -3600 * 1000), headed(2, 13, -3500 * 1000)] })] })
+  await twoSets.run()
+  same("drive: a ticket with # #N Part headings and an older part set builds a part of the newest set", twoSets.launched.map((entry) => [entry.worktree, entry.order.includes("(Part 1 of 13)")]), [["/r/orbit-worktrees/ui/chore-ticket-7-part-1", true]])
+
   const inFlight = scenario({ tickets: [ticket(7, { comments: parts })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1-r2" })] } })
   await inFlight.run()
   same("drive: an open part pull request on a rotated branch is that part's own, so a next part with disjoint Paths starts", inFlight.launched.map((entry) => entry.worktree), ["/r/orbit-worktrees/ui/chore-ticket-7-part-2"])

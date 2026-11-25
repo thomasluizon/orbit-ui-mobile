@@ -21,7 +21,7 @@ import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
-import { partOf, renderOrder } from "./lib/order.mjs"
+import { ownerParts, partOf, renderOrder } from "./lib/order.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
 const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --sleep on | --sleep off | --reviewer-token | --preflight] [--help]
@@ -133,8 +133,9 @@ export const launchesOf = (ticket) => {
 const partsOf = (ticket) => {
   const byNumber = new Map()
   // The owner's comments are read oldest first, whatever order the API lists them in, so a later comment of a part replaces an earlier one.
-  for (const entry of [...ticket.comments].sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
-    const part = entry.kind === null ? partOf(entry) : null
+  // The newest part set is in force, so an older set with another total is dropped.
+  for (const entry of ownerParts(ticket.comments.filter((comment) => comment.kind === null)).sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
+    const part = partOf(entry)
     if (part) byNumber.set(part.number, { ...part, comment: entry, paths: pathsOf(entry.body), find: /^Kind: find\s*$/m.test(entry.body) })
   }
   return [...byNumber.values()].sort((left, right) => left.number - right.number)
