@@ -8,6 +8,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockConfigResponse, createMockHabit, createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { appConfigSchema } from '@orbit/shared/types/config'
+import type { HabitPhraseReadResponse } from '@orbit/shared/types/habit'
 import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import { SmokeDomPage, type SmokeDomLocator, expectSmokeDom } from '@/__tests__/support/smoke-dom'
 import { holdAccount } from '@/__tests__/support/account-change'
@@ -27,6 +28,7 @@ import { subscriptionPlansFixture } from '@/test-support/hermetic/mock-api/fixtu
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { smokeLabel } from '@/e2e/support/unique'
 import { createSmokeHabit, expectAppNavigation, expectCheckout, logSmokeHabit } from '@/e2e/support/smoke-adapters'
 
 const mocks = vi.hoisted(() => ({
@@ -39,6 +41,7 @@ const mocks = vi.hoisted(() => ({
   },
   loadingToday: false,
   guided: false,
+  phraseRead: vi.fn(),
   saved: { id: 'habit-9', title: 'Smoke guided', isGeneral: false, dueDate: '2026-11-14', dueTime: null, frequencyUnit: null, frequencyQuantity: null, isFlexible: false } as Record<string, unknown>,
   emptyToday: false,
   profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -119,7 +122,7 @@ vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
 vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => null }))
 vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
-vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: vi.fn().mockResolvedValue(null), isPending: false }) }))
+vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: mocks.phraseRead, isPending: false }) }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse()) }) }))
 vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habits')>(),
@@ -260,6 +263,7 @@ beforeEach(() => {
   mocks.pathname = '/'
   mocks.loadingToday = false
   mocks.guided = false
+  mocks.phraseRead.mockResolvedValue(null)
   mocks.emptyToday = false
   mocks.wide = false
   mocks.expired = false
@@ -597,6 +601,33 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
     expect(mocks.create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
       title: 'Smoke guided habit', frequencyUnit: 'Day', frequencyQuantity: 1,
     }))
+  })
+
+  const phraseRead = (patch: Partial<HabitPhraseReadResponse>): HabitPhraseReadResponse => ({
+    read: true, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false,
+    flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [], ...patch,
+  })
+
+  it.each([
+    ['a time', { dueTime: '10:30' }, 'task'],
+    ['a repeat', { frequencyUnit: 'Day', frequencyQuantity: 1 }, 'task'],
+    ['a time and a repeat', { dueTime: '10:30', frequencyUnit: 'Day', frequencyQuantity: 1 }, 'task'],
+    ['a time', { dueTime: '10:30' }, 'habit'],
+    ['a time and a repeat', { dueTime: '10:30', frequencyUnit: 'Day', frequencyQuantity: 1 }, 'habit'],
+  ] as const)('answers every step the phrase reader opens when it reads %s for a %s', async (_read, patch, itemType) => {
+    mocks.guided = true
+    mocks.create.mockResolvedValue({ id: 'habit-9' })
+    mocks.phraseRead.mockResolvedValue(phraseRead(patch))
+    useUIStore.getState().setTodayFabHidden(false)
+    mount(<HabitCreation />, locale)
+    const title = smokeLabel('create')
+    await createSmokeHabit(new SmokeDomPage() as unknown as Page, title, itemType)
+    expect(mocks.phraseRead).toHaveBeenCalledTimes(1)
+    expect(mocks.create).toHaveBeenCalledTimes(1)
+    expect(mocks.create.mock.calls[0]?.[0]).toMatchObject({ title })
+    if (itemType === 'task') expect(mocks.create.mock.calls[0]?.[0]).not.toHaveProperty('frequencyUnit')
+    else expect(mocks.create.mock.calls[0]?.[0]).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1 })
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('finds the checkout button of the guided plan question outside the plan cards', async () => {

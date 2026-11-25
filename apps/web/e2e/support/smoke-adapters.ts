@@ -49,31 +49,65 @@ export async function expectAppNavigation(page: Page): Promise<void> {
 
 type SmokeItemType = 'task' | 'habit'
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function questionWithValue(template: string): RegExp {
+  return new RegExp(`^${template.split('{time}').map(escapeRegExp).join('.+')}$`)
+}
+
 function guidedAnswers(page: Page, itemType: SmokeItemType) {
   const when = itemType === 'task'
     ? { en: en.habits.flow.when.today, pt: ptBR.habits.flow.when.today }
     : { en: en.habits.flow.when.everyDay, pt: ptBR.habits.flow.when.everyDay }
-  const question = (english: string, portuguese: string, answerEnglish: string, answerPortuguese: string) => {
+  const question = (english: string | RegExp, portuguese: string | RegExp, answerEnglish: string, answerPortuguese: string) => {
     const group = localizedRole(page, 'group', english, portuguese)
     return { group, option: localizedRole(group, 'button', answerEnglish, answerPortuguese) }
   }
   return [
     question(en.habits.flow.when.question, ptBR.habits.flow.when.question, when.en, when.pt),
     question(en.habits.flow.time.question, ptBR.habits.flow.time.question, en.habits.flow.time.none, ptBR.habits.flow.time.none),
+    question(questionWithValue(en.habits.flow.reminder.question), questionWithValue(ptBR.habits.flow.reminder.question),
+      en.habits.flow.reminder.no, ptBR.habits.flow.reminder.no),
   ]
+}
+
+function typeRadio(page: Page, itemType: SmokeItemType): Locator {
+  const label = itemType === 'task' ? 'typeTask' : 'typeHabit'
+  const hint = itemType === 'task' ? 'typeTaskHint' : 'typeHabitHint'
+  return localizedRole(page, 'radio',
+    describedTypeName(en.habits.form[label], en.habits.form[hint]),
+    describedTypeName(ptBR.habits.form[label], ptBR.habits.form[hint]))
+}
+
+function createLabel(page: Page, itemType: SmokeItemType): Locator {
+  return localizedRole(page, 'button',
+    itemType === 'task' ? en.habits.createTask : en.habits.createHabit,
+    itemType === 'task' ? ptBR.habits.createTask : ptBR.habits.createHabit)
+}
+
+function summaryRow(page: Page, english: string, portuguese: string): Locator {
+  return localizedRole(page, 'button', new RegExp(`^${escapeRegExp(english)}`), new RegExp(`^${escapeRegExp(portuguese)}`))
+}
+
+async function restoreRequestedType(page: Page, itemType: SmokeItemType): Promise<void> {
+  await summaryRow(page, en.habits.flow.summary.type, ptBR.habits.flow.summary.type).click()
+  await typeRadio(page, itemType).click()
+  if (itemType === 'task') await summaryRow(page, en.habits.flow.summary.when, ptBR.habits.flow.summary.when).click()
 }
 
 async function createGuidedHabit(page: Page, title: string, itemType: SmokeItemType, titleInput: Locator): Promise<void> {
   await titleInput.fill(title)
   await localizedRole(page, 'button', en.habits.flow.continue, ptBR.habits.flow.continue).click()
-  const submit = localizedRole(page, 'button',
-    itemType === 'task' ? en.habits.createTask : en.habits.createHabit,
-    itemType === 'task' ? ptBR.habits.createTask : ptBR.habits.createHabit)
+  const submit = createLabel(page, itemType)
+  const otherSubmit = createLabel(page, itemType === 'task' ? 'habit' : 'task')
   const answers = guidedAnswers(page, itemType)
-  const anyStep = answers.reduce((steps, answer) => steps.or(answer.group), submit)
-  for (let turn = 0; turn <= answers.length; turn += 1) {
+  const anyStep = answers.reduce((steps, answer) => steps.or(answer.group), submit.or(otherSubmit))
+  for (let turn = 0; turn <= answers.length + 2; turn += 1) {
     await expect(anyStep.first()).toBeVisible({ timeout: 30_000 })
     if (await submit.isVisible()) break
+    if (await otherSubmit.isVisible()) { await restoreRequestedType(page, itemType); continue }
     for (const answer of answers) {
       if (!await answer.group.isVisible()) continue
       await answer.option.click()
@@ -107,9 +141,7 @@ export async function createSmokeHabit(page: Page, title: string, itemType: Smok
   const emptyCreate = localizedRole(page, 'button', en.habits.createManually, ptBR.habits.createManually)
   await expect(page.locator('[data-habit-list]')).toBeVisible({ timeout: 30_000 })
   await create.or(emptyCreate).first().click()
-  const type = localizedRole(page, 'radio',
-    describedTypeName(itemType === 'task' ? en.habits.form.typeTask : en.habits.form.typeHabit, itemType === 'task' ? en.habits.form.typeTaskHint : en.habits.form.typeHabitHint),
-    describedTypeName(itemType === 'task' ? ptBR.habits.form.typeTask : ptBR.habits.form.typeHabit, itemType === 'task' ? ptBR.habits.form.typeTaskHint : ptBR.habits.form.typeHabitHint))
+  const type = typeRadio(page, itemType)
   const guidedTitle = localizedRole(page, 'textbox', en.habits.flow.what.label, ptBR.habits.flow.what.label)
   await expect(type.or(guidedTitle)).toBeVisible({ timeout: 30_000 })
   if (await guidedTitle.isVisible()) {
