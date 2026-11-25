@@ -16,7 +16,7 @@ The driver `tools/drive.mjs` works every open ticket of the board and merges at 
 
 0. Keep the owner's skills current, so each merged skill change reaches the next session:
    1. When `$HOME/Developer/orbit-ui-mobile` is on `main` with no local change, run `git -C $HOME/Developer/orbit-ui-mobile pull --ff-only`.
-   2. A skill link in `$HOME/.claude/skills` that points into `$HOME/Developer/orbit-worktrees/` serves a skill before its pull request merges. When `origin/main` has that skill under `.claude/skills/`, delete the link with Node (`fs.unlinkSync`), so the repository copy serves it.
+   2. A skill link in `$HOME/.claude/skills` that points into `$HOME/Developer/orbit-worktrees/` serves a skill before its pull request merges. Read the branch of the link's worktree with `git -C <link target> branch --show-current`. When `gh pr list --repo thomasluizon/orbit-ui-mobile --head <branch> --state merged --json number` returns an entry, delete the link with Node (`fs.unlinkSync`), so the repository copy serves it. Otherwise keep the link.
 1. Run `launchctl print gui/$(id -u)/com.thomas.orbit-drive`.
 2. When it prints "Could not find service", start the driver:
    1. When the worktree is missing, run `git -C $HOME/Developer/orbit-ui-mobile fetch origin main`, then `git -C $HOME/Developer/orbit-ui-mobile worktree add --detach $HOME/orca/workspaces/orbit-ui-mobile/orbit-drive origin/main`.

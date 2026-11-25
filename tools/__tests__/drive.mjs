@@ -56,7 +56,7 @@ import {
   worktreeOccupants,
 } from "../lib/worker.mjs"
 import { driverUnit, pinUnit } from "./_drive-tick.mjs"
-import { T, realOrchestratorConfig, root, same, toolPath } from "./_harness.mjs"
+import { REPO_ROOT, T, realOrchestratorConfig, root, same, toolPath } from "./_harness.mjs"
 
 const FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
 const TICKETS = realOrchestratorConfig().tickets
@@ -998,9 +998,23 @@ const selfSufficiencyCases = () => {
   }
 }
 
+const skillText = (name) => readFileSync(join(REPO_ROOT, ".claude", "skills", name, "SKILL.md"), "utf8")
+
+const skillMarkerCases = () => {
+  const questions = skillText("questions")
+  // The driver reads a comment's kind only from "<!-- orbit-drive:<kind> -->". A bare marker has the kind null, and capGrants counts it as the owner's grant.
+  const bare = [...questions.matchAll(/<!-- (?!orbit-drive:)([a-z-]+) -->/g)].map((match) => match[1])
+  same("skills/questions: the only bare marker is the owner-review decision, which grants a launch", [...new Set(bare)], ["owner-review"])
+  same("skills/questions: the queued question and its reader use the orbit-drive:owner-question marker", questions.split("<!-- orbit-drive:owner-question -->").length - 1, 2)
+  const drivers = skillText("driver")
+  const unlink = drivers.split("\n").find((line) => line.includes("fs.unlinkSync")) ?? ""
+  T("skills/driver: a worktree skill link is deleted only when the pull request of its branch is merged", unlink.includes("--state merged") && unlink.includes("--head"), unlink)
+}
+
 const orderUnit = async () => {
   await orderCases()
   selfSufficiencyCases()
+  skillMarkerCases()
 }
 
 const UNITS = { "drive.mjs": driverUnit, "lib/driver-pin.mjs": pinUnit, "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
