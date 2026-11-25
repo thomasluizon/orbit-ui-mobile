@@ -207,6 +207,18 @@ describe.each([
     tree.unmount()
   })
 
+  it('scenario 6b: fills the date field with the next weekday as the person types, before Continue, and keeps the task', async () => {
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'call the bank' : 'ligar para o banco')
+    await type(tree, flowCopy().when.freeLabel, locale === 'en' ? 'friday' : 'sexta')
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'task', dueDate: '2026-11-20' })
+    expect(heading(tree)).toBe(flowCopy().when.question)
+    await type(tree, flowCopy().when.freeLabel, locale === 'en' ? 'every friday' : 'toda sexta')
+    await submitField(tree, flowCopy().when.freeLabel)
+    expect(helpers().form.getValues('itemType')).toBe('habit')
+    tree.unmount()
+  })
+
   it('scenario 7: skips the date question under a General parent and shows the lock', async () => {
     const tree = renderNavigation(<Harness lockedGeneral initial={{ isGeneral: true, itemType: 'task' }} />)
     await phrase(tree, locale === 'en' ? 'pack the bag' : 'arrumar a mala')

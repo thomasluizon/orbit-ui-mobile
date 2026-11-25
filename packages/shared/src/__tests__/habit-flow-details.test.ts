@@ -112,6 +112,43 @@ describe('readHabitWhenWords', () => {
   })
 })
 
+describe('readHabitWhenWords: a bare weekday', () => {
+  const wednesday = { ...context, referenceDate: '2026-11-25' }
+  const english = { ...wednesday, locale: 'en', language: 'en' as const }
+
+  it.each(['sexta', 'próxima sexta', 'sexta-feira'])('reads "%s" as the next Friday for a task', (words) => {
+    expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
+  })
+
+  it.each(['friday', 'next friday'])('reads "%s" as the next Friday for a task', (words) => {
+    expect(readHabitWhenWords(words, { ...english, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
+  })
+
+  it('reads a bare weekday as a date when the type is not set', () => {
+    expect(readHabitWhenWords('sexta', wednesday)).toEqual({ kind: 'date', date: '2026-11-27' })
+    expect(readHabitWhenWords('sexta', { ...wednesday, itemType: null, deliberateType: null })).toEqual({ kind: 'date', date: '2026-11-27' })
+  })
+
+  it('reads a bare weekday as the weekly repeat when the type is a habit', () => {
+    const habit = readHabitWhenWords('sexta', { ...wednesday, itemType: 'habit' })
+    expect(habit).toMatchObject({ kind: 'repeat', read: { cadence: 'fixed', days: ['Friday'] } })
+    expect(readHabitWhenWords('friday', { ...english, itemType: 'habit' })).toMatchObject({ kind: 'repeat', read: { days: ['Friday'] } })
+  })
+
+  it('lets the type the person set win over the type the form holds', () => {
+    expect(readHabitWhenWords('sexta', { ...wednesday, itemType: 'habit', deliberateType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
+    expect(readHabitWhenWords('sexta', { ...wednesday, itemType: 'task', deliberateType: 'habit' }).kind).toBe('repeat')
+  })
+
+  it.each(['toda sexta', 'todas as sextas', 'às sextas', 'sextas', 'sexta toda semana', 'segunda e sexta', 'todo dia', 'a cada 2 semanas'])('reads "%s" as a repeat for a task', (words) => {
+    expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' }).kind).toBe('repeat')
+  })
+
+  it.each(['every friday', 'each friday', 'fridays', 'friday every week', 'every friday and monday', 'every day'])('reads "%s" as a repeat for a task', (words) => {
+    expect(readHabitWhenWords(words, { ...english, itemType: 'task' }).kind).toBe('repeat')
+  })
+})
+
 describe('habitFlowFieldStep', () => {
   it('opens the step that owns a server field error', () => {
     expect(habitFlowFieldStep('title')).toBe('what')

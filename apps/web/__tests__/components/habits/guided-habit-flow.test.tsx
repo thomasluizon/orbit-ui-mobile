@@ -182,6 +182,19 @@ describe.each([
     expect(helpers().form.getValues('dueDate')).toBe('2026-11-20')
   })
 
+  it('scenario 6b: fills the date field with the next weekday as the person types, before Continue, and keeps the task', async () => {
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'call the bank' : 'ligar para o banco')
+    await type(messages().when.freeLabel, locale === 'en' ? 'friday' : 'sexta')
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'task', dueDate: '2026-11-20' })
+    expect(screen.getByRole('button', { name: new RegExp(`^${messages().when.calendar}, .*${locale === 'en' ? '11/20/2026' : '20/11/2026'}$`) })).toBeInTheDocument()
+    expect(heading()).toHaveTextContent(messages().when.question)
+    await type(messages().when.freeLabel, locale === 'en' ? 'every friday' : 'toda sexta')
+    expect(screen.getByText(locale === 'en' ? 'every friday' : 'toda sexta')).toBeInTheDocument()
+    await press(messages().continue)
+    expect(helpers().form.getValues('itemType')).toBe('habit')
+  })
+
   it('scenario 7: skips the date question under a General parent and shows the lock on the summary', async () => {
     render(<Harness lockedGeneral initial={{ isGeneral: true, itemType: 'task' }} />)
     await phrase(locale === 'en' ? 'pack the bag' : 'arrumar a mala')

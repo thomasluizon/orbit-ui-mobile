@@ -94,14 +94,27 @@ export function usePhraseView({ flow, formHelpers }: Readonly<ViewInput>): FlowS
   }
 }
 
+const WHEN_REFUSAL_KEYS = {
+  past: 'habits.flow.when.past',
+  unresolved: 'habits.flow.when.unresolved',
+  taskRepeat: 'habits.form.recurrenceRequiresHabit',
+} as const
+
 export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowStepView {
   const t = useTranslations()
   const [text, setText] = useState('')
   const [issue, setIssue] = useState<string | undefined>()
+  const [repeatWords, setRepeatWords] = useState<string | undefined>()
   const dueDate = formHelpers.form.watch('dueDate') ?? ''
   const submitText = () => {
     const refusal = flow.readWhenWords(text)
-    setIssue(refusal ? t(refusal === 'past' ? 'habits.flow.when.past' : 'habits.flow.when.unresolved') : undefined)
+    setIssue(refusal ? t(WHEN_REFUSAL_KEYS[refusal]) : undefined)
+  }
+  const typeText = (value: string) => {
+    setText(value)
+    setIssue(undefined)
+    const preview = flow.previewWhenWords(value)
+    setRepeatWords(preview?.kind === 'repeat' ? preview.text : undefined)
   }
   return {
     question: t('habits.flow.when.question'),
@@ -113,7 +126,7 @@ export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowSte
       <OptionCard label={t('habits.flow.when.noDate')} onSelect={() => flow.answerWhen('noDate')} />
     </>,
     free: <>
-      <Input label={t('habits.flow.when.freeLabel')} name="datePhrase" value={text} placeholder={t('habits.flow.when.freePlaceholder')} error={issue} onChange={(value) => { setText(value); setIssue(undefined) }} onSubmit={submitText} />
+      <Input label={t('habits.flow.when.freeLabel')} name="datePhrase" value={text} placeholder={t('habits.flow.when.freePlaceholder')} error={issue} hint={issue ? undefined : repeatWords} onChange={typeText} onSubmit={submitText} />
       <DateField label={t('habits.flow.when.calendar')} value={dueDate} minDate={flow.mode === 'create' ? flow.today : undefined} onChange={(date) => { if (date) flow.chooseDate(date) }} />
       <PrimaryActionSlot><PillButton variant="ghost" onClick={submitText}>{t('habits.flow.continue')}</PillButton></PrimaryActionSlot>
     </>,
