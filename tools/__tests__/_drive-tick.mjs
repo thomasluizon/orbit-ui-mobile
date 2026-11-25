@@ -1293,6 +1293,33 @@ const runningWorkCases = async () => {
   const restored = scenario({ tickets: [ticket(7, { comments: [launchOf("build", "chore/ticket-7"), launchOf("build", "chore/ticket-7"), cappedReport] })] })
   await restored.run()
   same("drive: a launch-capped order whose needs:owner label the owner removed gets the label back with no new comment and no notification", [restored.launched.length, only(restored.calls, "editLabels").length, needsOwnerComments(restored.calls, 7).length, only(restored.calls, "notify").length], [0, 1, 0, 0])
+
+  // A build worker opens its pull request after the first push and keeps working, so no action of the driver may touch a pull request while a worker runs on its branch.
+  const BRANCH = "chore/ticket-7-30"
+  const acting = (extra, withWorker) => {
+    const scene = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { headRef: BRANCH, ...extra })] } })
+    if (withWorker) {
+      scene.env.processAlive = () => true
+      leftBehind(scene, { branch: BRANCH, prNumber: 30 }, "", "chore-ticket-7-30")
+      writeFileSync(join(scene.env.stateDir, "chore-ticket-7-30.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/r/orbit-worktrees/ui/chore-ticket-7-30", startedAt: iso(-MINUTE) })}\n`)
+    }
+    return scene
+  }
+  const touched = (scene) => ["merge", "updateBranch", "retarget", "comment", "resolveThreads", "editLabels", "rerunFailed"].flatMap((name) => only(scene.calls, name).map(() => name))
+  const cases = {
+    merge: {},
+    request: { reviews: [], comments: [comment("ticket", "T")] },
+    behind: { mergeState: "BEHIND", behindBy: 3 },
+    retarget: { baseRef: "chore/ticket-7" },
+    "fix order": { reviews: [blockingReview] },
+  }
+  for (const [name, extra] of Object.entries(cases)) {
+    const free = acting(extra, false)
+    await free.run()
+    const busy = acting(extra, true)
+    await busy.run()
+    same(`drive: a ${name} action of a pull request happens with no worker on its branch and none while a worker runs on it`, [touched(free).length > 0 || free.launched.length > 0, touched(busy), busy.launched.length], [true, [], 0])
+  }
 }
 
 const paceStampCases = async () => {

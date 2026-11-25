@@ -783,6 +783,8 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   const ticket = pull.tracks === null ? null : ticketMap.get(pull.tracks) ?? null
   const blockers = ticket?.blockedBy.filter((blocker) => blocker.open).map((blocker) => blocker.number) ?? []
   if (blockers.length > 0) return [{ type: "none", reason: `blocked by ${blockers.join(", ")}` }]
+  // A worker that runs on the branch pushes more commits, so a review, an update or a merge at the current head answers a head that changes.
+  if (running.branches.has(pull.headRef)) return [{ type: "none", reason: "a worker runs on the branch" }]
   const hasTicketComment = pull.comments.some((entry) => entry.kind === "ticket")
   // A second run on one head costs a full review and answers nothing new, so no request goes out while a run for the pull request is queued or in progress.
   const runBusy = runs.some((run) => run.status !== "completed")
