@@ -16,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { readDriveConfig } from "./lib/config.mjs"
 import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
-import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
@@ -1230,12 +1230,25 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   if (shas.length > 0 && Number.isInteger(number) && number > 0 && result.sessionId) await recordCommits(env, repoKey, number, result.sessionId, shas)
 }
 
+/**
+ * The reason a worktree cannot go: it holds a repository or a linked worktree in an ignored directory. `git worktree remove`
+ * deletes an ignored path with all it holds, and neither status check shows a change inside it. Null when the tree holds none.
+ */
+const nestedRepositoryReason = (env, path) => {
+  const found = env.findRepositories(path)
+  if (found === null) return "the repositories inside it are unreadable"
+  const nested = found.filter((directory) => resolve(directory) !== resolve(path))
+  return nested.length > 0 ? `it holds a repository or worktree: ${nested.join(", ")}` : null
+}
+
 const removeWorktrees = async (env, repoKey, branches) => {
   const repoPath = env.config.repos[repoKey]
   const listed = parseWorktreeList(await gitText(env, repoPath, ["worktree", "list", "--porcelain"]))
   for (const branch of branches) {
     const entry = listed.find((candidate) => candidate.branch === branch)
     if (entry) {
+      const nested = nestedRepositoryReason(env, entry.path)
+      if (nested !== null) { log(env, repoKey, "worktree-kept", `${entry.path}: ${nested}`); continue }
       const removed = await env.git(repoPath, [...WORKTREE_REMOVE_ARGUMENTS, entry.path])
       if (removed.status !== 0) { log(env, repoKey, "worktree-kept", removed.stderr.trim()); continue }
     }
@@ -1245,7 +1258,7 @@ const removeWorktrees = async (env, repoKey, branches) => {
 
 /**
  * The reason a worktree stays, or null when it is finished: its branch has a merged pull request and no open one, the tree has no
- * change (an untracked file counts), no commit is unpushed, and no process holds it. The cheap local reads come before the one GitHub read.
+ * change (an untracked file counts), no commit is unpushed, no process holds it, and it holds no other repository or worktree. The cheap local reads come before the one GitHub read. The walk of the tree comes last.
  */
 const worktreeStayReason = async (env, repoKey, entry) => {
   const occupants = env.worker.worktreeOccupants(entry.path, { stateDirectory: env.stateDir })
@@ -1259,7 +1272,7 @@ const worktreeStayReason = async (env, repoKey, entry) => {
   if (merged.length === 0) return "no pull request of the branch is merged"
   // The merged head is on GitHub. Any other head needs a remote branch that holds it.
   if (!merged.some((candidate) => candidate.headRefOid === head) && (await gitText(env, entry.path, ["branch", "--remotes", "--contains", head])) === "") return "a commit is unpushed"
-  return null
+  return nestedRepositoryReason(env, entry.path)
 }
 
 /**
@@ -1923,6 +1936,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     log: (line) => console.log(line),
     slugOf: (key) => (key === "tickets" ? config.tickets.repository : repositorySlug(config.repos[key])),
     git: (cwd, args) => runBounded("git", ["-C", cwd, ...args], { timeoutMs: 300 * 1000 }),
+    findRepositories,
     gh: (args) => runText("gh", args, { maxBuffer: 64 * 1024 * 1024 }),
     notify: async (message) => { await runBounded("osascript", ["-e", `display notification ${JSON.stringify(message)} with title "Orbit driver"`], { timeoutMs: 15 * 1000 }) },
     keychain: async (service) => { const result = await runBounded("security", ["find-generic-password", "-s", service, "-w"], { timeoutMs: 15 * 1000 }); return result.status === 0 && result.stdout.trim() !== "" ? result.stdout.trim() : null },

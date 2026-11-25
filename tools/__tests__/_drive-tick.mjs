@@ -95,6 +95,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     git: async (cwd, args) => { calls.push(["git", ...args]); const hit = gitRoutes.find(([text]) => args.join(" ").includes(text)); return hit ? { status: 0, stderr: "", stdout: typeof hit[1] === "function" ? hit[1](args) : hit[1] } : { status: args[0] === "rev-parse" && args.includes("--quiet") ? 1 : 0, stderr: "", stdout: args[0] === "rev-parse" ? HEAD : "" } },
     gh: async (args) => { calls.push(["gh", args.join(" ")]); const hit = routes.find(([text]) => args.join(" ").includes(text)); if (hit) return typeof hit[1] === "function" ? hit[1](args) : hit[1]; if (args[0] === "pr" && args[1] === "list") return "[]"; if (args[0] === "issue") return "[]"; if (args[0] === "api") return "[]"; return "" },
     notify: async (message) => { calls.push(["notify", message]) },
+    findRepositories: (path) => [path],
     keychain: async () => null,
     fetchJson: async () => ({ body: [], link: null }),
     snapshot: () => null,
@@ -2138,6 +2139,8 @@ const sweepCases = async () => {
     { name: "commit on a remote branch", branch: "chore/remote", head: "r".repeat(40), remotes: "  origin/chore/remote", pulls: [{ number: 10, state: "MERGED", headRefOid: MERGED_HEAD }], removed: true },
     { name: "held by a process", branch: "chore/held", pulls: [{ number: 11, state: "MERGED", headRefOid: MERGED_HEAD }], occupied: true, reason: /a process holds it/ },
     { name: "driver worktree", branch: "chore/driver", pulls: [{ number: 12, state: "MERGED", headRefOid: MERGED_HEAD }], driver: true },
+    { name: "nested worktree", branch: "chore/nested", nested: ["/r/orbit-worktrees/ui/chore-nested/.claude/worktrees/agent-1"], pulls: [{ number: 14, state: "MERGED", headRefOid: MERGED_HEAD }], reason: /it holds a repository or worktree: \/r\/orbit-worktrees\/ui\/chore-nested\/\.claude\/worktrees\/agent-1/ },
+    { name: "unreadable walk", branch: "chore/walk", nested: null, pulls: [{ number: 15, state: "MERGED", headRefOid: MERGED_HEAD }], reason: /the repositories inside it are unreadable/ },
     { name: "refused by git", branch: "chore/refused", pulls: [{ number: 13, state: "MERGED", headRefOid: MERGED_HEAD }], refuse: true, reason: /removal refused: fatal: contains modified/ },
   ]
   const pathOf = (row) => `/r/orbit-worktrees/ui/${row.branch.replace("/", "-")}`
@@ -2147,6 +2150,7 @@ const sweepCases = async () => {
   const scene = scenario({ driver: {}, occupants: [], routes: [["pr list --repo thomasluizon/ui --head", (args) => answers.find(([branch]) => args.includes(branch))[1]]] })
   scene.env.driverWorktree = pathOf(rows.find((row) => row.driver))
   scene.env.worker.worktreeOccupants = (worktree) => (byPath.get(worktree)?.occupied ? [4242] : [])
+  scene.env.findRepositories = (path) => (byPath.get(path)?.nested === undefined ? [path] : byPath.get(path).nested === null ? null : [path, ...byPath.get(path).nested])
   scene.env.git = async (cwd, args) => {
     scene.calls.push(["git", cwd, ...args])
     const text = args.join(" ")
@@ -2172,6 +2176,11 @@ const sweepCases = async () => {
   T("drive: the sweep never reads or logs the driver worktree and the primary checkout", !scene.calls.some((entry) => entry[0] === "git" && entry[1] === pathOf(rows.find((row) => row.driver))) && !scene.messages.some((line) => line.includes("worktree-stays") && line.includes(" /r/ui:")))
   const second = await scene.run()
   same("drive: a worktree that stays is logged once for each reason", scene.messages.filter((line) => line.includes("worktree-stays") && line.includes(pathOf(rows[1]))).length, 1)
+  const closing = scenario({ tickets: [ticket(7, { comments: [comment("launch", JSON.stringify({ kind: "build", part: null, branch: "chore/ticket-7" }))] })], routes: [["--state merged", JSON.stringify([{ number: 30, body: `Tracks ${REPOSITORY}#7\n\nRemaining: none`, mergedAt: iso(-3600 * 1000), headRefName: "chore/ticket-7" }])]], gitRoutes: [["worktree list", "worktree /r/orbit-worktrees/ui/chore-ticket-7\nHEAD abc\nbranch refs/heads/chore/ticket-7\n"]] })
+  closing.env.findRepositories = (path) => [path, join(path, ".claude/worktrees/agent-1")]
+  await closing.run()
+  const closingGit = closing.calls.filter((entry) => entry[0] === "git").map((entry) => entry.slice(1).join(" "))
+  same("drive: closing a ticket keeps a worktree that holds another worktree, with its branch", [closingGit.some((text) => /worktree remove/.test(text)), closingGit.some((text) => /branch -D/.test(text)), closing.messages.some((line) => line.includes("worktree-kept") && line.includes("it holds a repository or worktree"))], [false, false, true])
   const dry = scenario({ dryRun: true })
   await dry.run()
   same("drive: a dry run sweeps no worktree", dry.calls.filter((entry) => entry[0] === "git" && entry.includes("worktree")).length, 0)
