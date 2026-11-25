@@ -35,13 +35,12 @@ describe('a quick option that waits for its own request on Android', () => {
     expect(faces(card)).toHaveLength(0)
   })
 
-  it('shows the wait on the confirm answer of a question sheet, and disables the other answer', () => {
+  it('shows the wait on the confirm action of a question sheet, and disables the other action', () => {
     const tree = mount(<ConfirmSheet open quickOptions loading confirmImmediately title="Quer registrar este hábito?" message="" confirmLabel="Registrar hábito" onCancel={vi.fn()} onConfirm={vi.fn()} />)
-    const [confirm, cancel] = cards(tree)
-    expect(confirm!.props.accessibilityState).toMatchObject({ busy: true })
-    expect(faces(confirm!)).toHaveLength(1)
-    expect(labelOf(confirm!)).toEqual(['Registrar hábito'])
-    expect(cancel!.props.accessibilityState).toMatchObject({ busy: false, disabled: true })
-    expect(faces(cancel!)).toHaveLength(0)
+    const [cancel, confirm] = tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && /^button-(ghost|primary)-sm$/.test(String(node.props.testID)))
+    expect(cards(tree)).toHaveLength(0)
+    expect(labelOf(confirm)).toContain('Registrar hábito')
+    expect(confirm.props.accessibilityState).toMatchObject({ busy: true })
+    expect(cancel.props.accessibilityState).toMatchObject({ disabled: true })
   })
 })

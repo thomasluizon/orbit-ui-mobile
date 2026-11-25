@@ -46,7 +46,7 @@ export const RELEASE_FAMILY_KEYS = [
 
 const PULL_REQUEST_REF = /^refs\/pull\/(\d+)\/merge$/
 const PASS_MARKER_KEY = /-pass-v\d+-/
-// github/codeql-action at 33d7b85da1a04171e211befe2c739303b9a4c066, src/overlay/caching.ts getCacheSaveKey:
+// github/codeql-action at 1bd86f2fdb4b86187fa4059f16f31a3202acc9ea, src/overlay/caching.ts getCacheSaveKey:
 // the key is the restore prefix, then the commit SHA, the run id and the run attempt.
 const OVERLAY_BASE_KEY = /^(codeql-overlay-base-database-.+-)[0-9a-f]{40}-\d+-\d+$/
 
