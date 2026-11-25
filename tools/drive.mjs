@@ -68,6 +68,9 @@ const RESET_TOLERANCE_SECONDS = 3600
 const ALLOW_FILE = "over-limit.json"
 const SLEEP_FILE = "sleep.json"
 const SLEEP_ITEMS_FILE = "sleep-items.json"
+const QUESTIONS_FILE = "questions.json"
+const QUESTIONS_STEM = "questions"
+const QUESTIONS_ORDER = "/questions --auto"
 const SLEEP_WORDS = ["on", "off"]
 const REQUIRED_TOOLS = ["node", "git", "gh", "claude", "security", "osascript", "caffeinate"]
 const REPOSITORY_KEYS = ["ui", "api", "landing"]
@@ -292,9 +295,32 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
+
+/** The start of the last questions run in epoch milliseconds, or 0 when no run started. `questions.json` keeps it, so a restart does not run again for the same reports. */
+const readQuestionsStart = (stateDir) => {
+  try {
+    const at = Date.parse(JSON.parse(readFileSync(join(stateDir, QUESTIONS_FILE), "utf8")).startedAt)
+    return Number.isFinite(at) ? at : 0
+  } catch {
+    return 0
+  }
+}
+
+/** The open items that carry `needs:owner` and a `needs-owner` report newer than `since`. A pull request counts the reports on the ticket that it tracks. */
+const heldWithNewReport = (tickets, states, since) => {
+  const newest = (comments) => Math.max(0, ...comments.filter((entry) => entry.kind === "needs-owner").map((entry) => Date.parse(entry.createdAt)).filter(Number.isFinite))
+  const held = tickets.filter((ticket) => ticket.labels.includes(OWNER)).map((ticket) => ({ item: `ticket#${ticket.number}`, at: newest(ticket.comments) }))
+  for (const state of states) {
+    for (const pull of state.pulls.filter((entry) => entry.labels.includes(OWNER))) {
+      const tracked = tickets.find((ticket) => ticket.number === pull.tracks)
+      held.push({ item: `${state.repositoryKey}#${pull.number}`, at: newest([...pull.comments, ...(tracked?.comments ?? [])]) })
+    }
+  }
+  return held.filter((entry) => entry.at > since).map((entry) => entry.item)
+}
 
 /** The sleep state of the owner: `on` while `sleep.json` says so. The owner session writes the file with `--sleep on` and `--sleep off`. */
 export const readSleep = (stateDir) => {
@@ -1565,6 +1591,33 @@ const watchStall = async (env, tickets, { acted, held, waiting }) => {
   tickets.push({ number: created.number, title: STALL_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: message })
 }
 
+/**
+ * Starts one headless `/questions --auto` run when an open item that carries `needs:owner` has a `needs-owner` report newer than the
+ * start of the last run, and no run is live. The run takes no worker slot. It runs in the driver worktree on the main account with the
+ * coordinator model, and it stops with the main account at 90% like a worker. The start goes to `questions.json` before the launch.
+ * The skill reads `sleep.json` itself, so the driver passes no sleep state.
+ */
+const startQuestions = async (env, mem, { tickets, states, blocked }) => {
+  if (!env.driverWorktree || mem.questions !== null || pidFileOf(env, QUESTIONS_STEM) !== null) return
+  const held = heldWithNewReport(tickets, states, readQuestionsStart(env.stateDir))
+  if (held.length === 0) return
+  if (blocked !== null) return log(env, "questions", "wait", `${blocked}: ${held.join(", ")}`)
+  const token = await env.worker.readWorkerToken()
+  if (token === null) return log(env, "questions", "refused", "no worker token in the Keychain")
+  const invocation = env.worker.questionsInvocation({ home: env.home, parentEnvironment: process.env, token })
+  const startedAt = env.now()
+  writeFileSync(join(env.stateDir, QUESTIONS_FILE), `${JSON.stringify({ startedAt: new Date(startedAt).toISOString() })}\n`)
+  const logFile = join(env.stateDir, "logs", `${QUESTIONS_STEM}-${new Date(startedAt).toISOString().replace(/[:.]/g, "-")}.log`)
+  const running = env.worker.launch({ invocation, worktree: env.driverWorktree, order: QUESTIONS_ORDER, logFile, pidFile: join(env.stateDir, `${QUESTIONS_STEM}.pid`) })
+  log(env, "questions", "launch")
+  mem.questions = running.then((result) => {
+    mem.questions = null
+    log(env, "questions", "exit", String(result.exitCode ?? result.spawnError ?? result.killReason ?? "none"))
+    mem.woken = true
+    mem.wake()
+  })
+}
+
 export const tick = async (env, mem) => {
   env.lines = []
   mem.acted = false
@@ -1627,6 +1680,8 @@ export const tick = async (env, mem) => {
       if (reason === null) { mem.acted = true; free[name] -= 1 }
       else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
     }
+    const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : null)
+    await startQuestions(env, mem, { tickets, states, blocked: questionsBlock }).catch((error) => log(env, "questions", "error", error.message))
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.
     const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...unstarted]
     await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || stoppedAll, waiting }).catch((error) => log(env, "stall", "error", error.message))
@@ -1691,7 +1746,7 @@ const reportRollback = async (env, { failedSha, previousSha, error, reason }) =>
  * the driver must exit with code 0, so launchd starts the new version. A launch record on disk survives the switch.
  */
 const switchDriver = async (env, mem) => {
-  if (!env.selfUpdate || env.dryRun || mem.running.size > 0 || runningWorkers(env, mem).workers.length > 0) return false
+  if (!env.selfUpdate || env.dryRun || mem.running.size > 0 || mem.questions !== null || runningWorkers(env, mem).workers.length > 0) return false
   const { head, next } = await newerDriverCommit(env, { fetch: true })
   if (next === null) return false
   await checkoutPin(env, next)
@@ -1899,7 +1954,7 @@ const runDriver = async (env, mem, mode, err) => {
     let result = null
     try { result = await tick(env, mem) } catch (error) { log(env, "tick", "error", error.message) }
     if (mode === "dry-run") return 0
-    if (mode === "once") { await Promise.all(mem.running.values()); await reapExits(env, mem).catch((error) => log(env, "tick", "error", error.message)); return 0 }
+    if (mode === "once") { await Promise.all([...mem.running.values(), mem.questions]); await reapExits(env, mem).catch((error) => log(env, "tick", "error", error.message)); return 0 }
     if (result?.switched) return 0
     // A worker that exited during the tick frees its slot, so the next tick starts at once.
     if (!stopping && !mem.woken) await env.sleep(TICK_MS, mem)
