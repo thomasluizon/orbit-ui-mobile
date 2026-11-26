@@ -331,6 +331,73 @@ describe('mobile step up screen', () => {
     expect(findInput(tree.root).props.value).toBe('123456')
   })
 
+  it('drops a typed code after the account changes, and a confirm press sends nothing', async () => {
+    const tree = await renderScreen()
+    await enterCode(tree)
+    expect(findInput(tree.root).props.value).toBe('123456')
+
+    await replaceAccount()
+
+    expect(findInput(tree.root).props.value).toBe('')
+    mocks.apiClient.mockClear()
+    await confirm(tree)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(findText(tree.root, 'auth.errors.codeFormat').length).toBeGreaterThan(0)
+  })
+
+  it('drops the previous account deletion date after the account changes', async () => {
+    const tree = await renderScreen()
+    await enterCode(tree)
+    await confirm(tree)
+    const resultHints = () => tree.root.findAll((node) => node.props.testID === 'result-dialog' && typeof node.type === 'string').map((node) => node.props.accessibilityHint)
+    expect(resultHints()).toEqual(['result.account.deletionScheduled:{"date":"local:2026-09-04T03:00:00Z"}'])
+
+    await replaceAccount()
+
+    expect(resultHints()).toEqual([])
+    expect(findText(tree.root, 'numeric:2026-09-04T03:00:00Z')).toHaveLength(0)
+    expect(findText(tree.root, 'local:2026-09-04T03:00:00Z')).toHaveLength(0)
+    expect(findInput(tree.root).props.value).toBe('')
+  })
+
+  it('blocks editing and shows the confirm loading state while the code is checked', async () => {
+    const pending = deferred<{ message: string; scheduledDeletionAt: string }>()
+    mocks.apiClient.mockReturnValue(pending.promise)
+    const tree = await renderScreen()
+    await enterCode(tree)
+    await confirm(tree)
+
+    expect(findInput(tree.root).props.editable).toBe(false)
+    const busy = tree.root.findAll((node) => typeof node.type === 'string' && (node.props.accessibilityState as { busy?: boolean } | undefined)?.busy === true)
+    expect(busy.length).toBeGreaterThan(0)
+    await TestRenderer.act(async () => { pending.resolve({ message: 'Account deactivated', scheduledDeletionAt: '2026-09-04T03:00:00Z' }); await pending.promise })
+  })
+
+  it('moves the third wrong code to exhausted and removes the forward controls', async () => {
+    mocks.apiClient.mockRejectedValue(backendError('INVALID_VERIFICATION_CODE', 'Invalid code'))
+    const tree = await renderScreen()
+    await enterCode(tree)
+
+    await confirm(tree)
+    expect(mocks.markAttemptFailed).toHaveBeenCalledTimes(1)
+    await confirm(tree)
+    expect(mocks.markAttemptFailed).toHaveBeenCalledTimes(2)
+    await confirm(tree)
+
+    expect(findText(tree.root, 'stepUp.exhaustedNotice').length).toBeGreaterThan(0)
+    expect(queryButton(tree.root, 'stepUp.confirm')).toBeUndefined()
+    expect(queryButton(tree.root, 'stepUp.resend')).toBeUndefined()
+  })
+
+  it.each(['delete', 'keys'] as const)('mounts an active %s lock without requesting another code', async (operation) => {
+    mocks.operation = operation
+    const now = Date.now()
+    const tree = await renderScreen({ operation, sentAt: now, exhaustedAt: now - STEP_UP_ATTEMPT_WINDOW_MS + 10_000 })
+    expect(findText(tree.root, 'stepUp.exhaustedNotice').length).toBeGreaterThan(0)
+    expect(queryButton(tree.root, 'stepUp.resend')).toBeUndefined()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
   it('discards a pending key confirmation after the account changes', async () => {
     mocks.operation = 'keys'
     let resolveConfirmation: ((value: { message: string }) => void) | undefined

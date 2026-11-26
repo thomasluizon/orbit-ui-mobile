@@ -195,4 +195,176 @@ describe('SupportScreen', () => {
     )
     await i18n.changeLanguage('en')
   })
+
+  describe('the guided support draft and send', () => {
+    type Host = TestNode & { children: unknown[] }
+    const hostsOf = (tree: { root: TestNode }) => tree.root.findAll((node) => typeof node.type === 'string') as Host[]
+    const textOf = (node: Host): string => node.children.map((child) => typeof child === 'string' ? child : textOf(child as Host)).join('')
+    const buttonNamed = (tree: { root: TestNode }, label: string) => hostsOf(tree).find((node) => node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel === label || textOf(node) === label))
+    const messageInput = (tree: { root: TestNode }) => findInputByLabel(tree.root, 'profile.support.message')
+    const option = (subject: string) => `profile.support.subjects.${subject}.option`
+
+    async function press(tree: { root: TestNode }, label: string) {
+      const target = buttonNamed(tree, label)
+      if (!target) throw new Error(`No button ${label}`)
+      await TestRenderer.act(async () => {
+        ;(target.props.onPress as () => void)()
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+    }
+    async function type(tree: { root: TestNode }, value: string) {
+      await TestRenderer.act(async () => {
+        ;(messageInput(tree)!.props.onChangeText as (text: string) => void)(value)
+        await Promise.resolve()
+      })
+    }
+    const selectedOptions = (tree: { root: TestNode }) => ['problem', 'billing', 'account', 'other'].filter((subject) => (buttonNamed(tree, option(subject))!.props.accessibilityState as { selected: boolean }).selected)
+
+    it('hydrates the flow from a persisted draft and opens at the message with the subject kept', async () => {
+      mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'billing', message: 'It broke' }))
+      const tree = await renderScreen()
+      expect(messageInput(tree)!.props.value).toBe('It broke')
+      await press(tree, 'common.back')
+      expect(selectedOptions(tree)).toEqual(['billing'])
+    })
+
+    it('maps a legacy free-text draft to the catch-all subject without losing the message', async () => {
+      mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'Old subject', message: 'Saved message' }))
+      const tree = await renderScreen()
+      expect(messageInput(tree)!.props.value).toBe('Saved message')
+      await press(tree, 'common.back')
+      expect(selectedOptions(tree)).toEqual(['other'])
+    })
+
+    it('starts at the subject when the persisted draft has none', async () => {
+      mocks.getItem.mockResolvedValue(JSON.stringify({ subject: null, message: 'Saved message' }))
+      const tree = await renderScreen()
+      expect(messageInput(tree)).toBeUndefined()
+      expect(selectedOptions(tree)).toEqual([])
+    })
+
+    it('persists the subject and the message on every change', async () => {
+      const tree = await renderScreen()
+      await press(tree, option('problem'))
+      expect(mocks.setItem).toHaveBeenCalledWith('orbit-support-draft', JSON.stringify({ subject: 'problem', message: '' }))
+      await type(tree, 'Draft')
+      expect(mocks.setItem).toHaveBeenLastCalledWith('orbit-support-draft', JSON.stringify({ subject: 'problem', message: 'Draft' }))
+      await type(tree, '')
+      expect(mocks.setItem).toHaveBeenLastCalledWith('orbit-support-draft', JSON.stringify({ subject: 'problem', message: '' }))
+    })
+
+    it('accepts the API message length boundary and attaches the version', async () => {
+      const tree = await renderScreen()
+      const message = 'm'.repeat(4987)
+      await press(tree, option('problem'))
+      expect(hostsOf(tree).some((node) => node.props.children === 'profile.support.versionIncluded({"version":"1.1.4"})')).toBe(true)
+      expect(messageInput(tree)!.props.maxLength).toBe(4987)
+      await type(tree, message)
+      await press(tree, 'profile.support.send')
+
+      expect(sentRequestBody()).toMatchObject({ subject: 'profile.support.subjects.problem.label', message: `${message}\n\nOrbit 1.1.4` })
+    })
+
+    it('attaches the installed Android version used by About', async () => {
+      mocks.nativeVersion = '2.3.1'
+      const tree = await renderScreen()
+      await press(tree, option('problem'))
+      await type(tree, 'Message')
+      await press(tree, 'profile.support.send')
+      expect(sentRequestBody().message).toBe(`Message\n\nOrbit ${getAppVersion()}`)
+    })
+
+    it('reserves no room and sends no suffix when the app version is absent', async () => {
+      mocks.expoVersion = undefined
+      const tree = await renderScreen()
+      const message = 'm'.repeat(5000)
+      await press(tree, option('problem'))
+      expect(hostsOf(tree).some((node) => typeof node.props.children === 'string' && node.props.children.startsWith('profile.support.versionIncluded'))).toBe(false)
+      expect(messageInput(tree)!.props.maxLength).toBe(5000)
+      await type(tree, message)
+      await press(tree, 'profile.support.send')
+
+      expect(sentRequestBody().message).toBe(message)
+    })
+
+    it('keeps an oversized restored draft and refuses to send it', async () => {
+      await i18n.changeLanguage('en')
+      const message = 'm'.repeat(5000)
+      mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'problem', message }))
+      const tree = await renderScreen()
+
+      expect(messageInput(tree)!.props.value).toBe(message)
+      expect(messageInput(tree)!.props.maxLength).toBe(5000)
+      await press(tree, 'profile.support.send')
+      expect(mocks.apiClient).not.toHaveBeenCalled()
+      expect(messageInput(tree)!.props.value).toBe(message)
+    })
+
+    it('sends the contact details of the profile that loads after the first render', async () => {
+      mocks.profile = null
+      const tree = await renderScreen()
+      await press(tree, option('problem'))
+      await type(tree, 'Message')
+
+      mocks.profile = { ...createMockProfile(), name: 'Profile User', email: 'profile@example.com' }
+      await TestRenderer.act(async () => {
+        tree.update(withFocusProvenance(<SupportScreen />))
+        await Promise.resolve()
+      })
+      await press(tree, 'profile.support.send')
+      expect(sentRequestBody()).toMatchObject({ name: 'Profile User', email: 'profile@example.com' })
+    })
+
+    it('clears the stored draft after a send and shows the result dialog', async () => {
+      const tree = await renderScreen()
+      await press(tree, option('account'))
+      await type(tree, 'Google button spins forever')
+      await press(tree, 'profile.support.send')
+
+      expect(sentRequestBody()).toMatchObject({ subject: 'profile.support.subjects.account.label', message: 'Google button spins forever\n\nOrbit 1.1.4' })
+      expect(mocks.removeItem).toHaveBeenCalledWith('orbit-support-draft')
+      expect(hostsOf(tree).some((node) => node.props.testID === 'result-dialog')).toBe(true)
+    })
+
+    it('keeps the field message and the general server validation visible without losing the draft', async () => {
+      mocks.apiClient.mockRejectedValue({ errors: { Message: ['Message exceeds 123 characters'], Email: ['Server email failure'] } })
+      const tree = await renderScreen()
+      await press(tree, option('problem'))
+      await type(tree, 'Message body')
+      await press(tree, 'profile.support.send')
+
+      const texts = hostsOf(tree).filter((node) => node.type === 'Text').map(textOf)
+      expect(texts).toContain('Server email failure')
+      expect(messageInput(tree)!.props.value).toBe('Message body')
+      expect(JSON.stringify(messageInput(tree)!.props)).toContain('Message exceeds 123 characters')
+    })
+
+    it('keeps the draft and announces the failure when the send fails', async () => {
+      mocks.apiClient.mockRejectedValue(new Error('boom'))
+      const tree = await renderScreen()
+      await press(tree, option('problem'))
+      await type(tree, 'Message body')
+      await press(tree, 'profile.support.send')
+
+      expect(mocks.announceForAccessibility).toHaveBeenCalledWith('profile.support.failureTitle profile.support.failureBody')
+      expect(mocks.setItem).toHaveBeenLastCalledWith('orbit-support-draft', JSON.stringify({ subject: 'problem', message: 'Message body' }))
+      expect(mocks.removeItem).not.toHaveBeenCalled()
+    })
+
+    it('locks the message and the send action while the request runs', async () => {
+      let finish!: () => void
+      mocks.apiClient.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+      const tree = await renderScreen()
+      await press(tree, option('problem'))
+      await type(tree, 'Message')
+      await press(tree, 'profile.support.send')
+
+      expect(messageInput(tree)!.props.editable).toBe(false)
+      expect(buttonNamed(tree, 'profile.support.send')?.props.onPress).toBeUndefined()
+      expect(mocks.apiClient).toHaveBeenCalledOnce()
+      await TestRenderer.act(async () => { finish(); await Promise.resolve() })
+      expect(hostsOf(tree).some((node) => node.props.testID === 'result-dialog')).toBe(true)
+    })
+  })
 })

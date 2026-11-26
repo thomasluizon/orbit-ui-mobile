@@ -31,6 +31,8 @@ export const cases = () => {
     "apps/web/profile.ts": `export const field = 'proactive${retired}Enabled'\nexport const url = '/api/profile/proactive-${lower}'\n`,
     "apps/web/flags.ts": `export const flag = '${lower}_ask_blocks_disabled'\n`,
     "apps/web/link.ts": `export const link = '/?${lower}=open'\n`,
+    "packages/shared/tool-result.ts": `export const keys = ["proactive${retired}.enabled", "proactive${retired}.disabled"]\n`,
+    "packages/shared/en.json": `{ "toolResult": { "proactive${retired}": { "enabled": "on" } } }\n`,
   })
   check("check-retired-name.mjs", "accepts the wire names of the allowlist", ["--root", wire], { status: 0, stdout: /Retired name guard passed/ })
 

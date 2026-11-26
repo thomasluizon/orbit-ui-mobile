@@ -176,4 +176,139 @@ describe('DeleteAccountModal', () => {
     )
     expect(container).toBeEmptyDOMElement()
   })
+
+  describe('the code request step of the guided flow', () => {
+    const reachTheSendStep = () => fireEvent.click(screen.getByRole('button', { name: 'common.continue' }))
+    const sendCode = () => screen.getByRole('button', { name: 'profile.deleteAccount.sendCode' })
+
+    it('sends one deletion request when Send code is pressed twice in the same turn', async () => {
+      let reject!: (error: Error) => void
+      mocks.requestDeletion.mockReturnValueOnce(new Promise<void>((_resolve, rejectRequest) => { reject = rejectRequest }))
+      render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+      reachTheSendStep()
+      const send = sendCode()
+      act(() => { fireEvent.click(send); fireEvent.click(send) })
+      expect(mocks.requestDeletion).toHaveBeenCalledOnce()
+      await act(async () => reject(new Error('Failed')))
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      expect(getHeldAccountId()).toBe('user-1')
+    })
+
+    it.each(destructiveFailureCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('shows $kind failure copy in $locale and keeps the session', async ({ createError, key, locale }) => {
+      failureCopy.actual = true; failureCopy.locale = locale
+      mocks.requestDeletion.mockRejectedValueOnce(createError())
+      render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+      fireEvent.click(screen.getByRole('button', { name: destructiveActionMessage(locale, 'common.continue') }))
+      const label = destructiveActionMessage(locale, 'profile.deleteAccount.sendCode')
+      fireEvent.click(screen.getByRole('button', { name: label }))
+      expect(await screen.findByRole('alert')).toHaveTextContent(destructiveActionMessage(locale, key ?? 'profile.deleteAccount.errorGeneric'))
+      expect(screen.getByRole('button', { name: label })).toBeEnabled()
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      expect(getHeldAccountId()).toBe('user-1')
+      expect(mocks.beginChallenge).not.toHaveBeenCalled()
+      expect(mocks.push).not.toHaveBeenCalled()
+      expect(mocks.onOpenChange).not.toHaveBeenCalled()
+    })
+
+    it('does not request deletion without an account', async () => {
+      await retireHeldAccount()
+      render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+      reachTheSendStep()
+      fireEvent.click(sendCode())
+      expect(mocks.requestDeletion).not.toHaveBeenCalled()
+      expect(mocks.beginChallenge).not.toHaveBeenCalled()
+    })
+
+    it('persists the challenge and routes to the deletion step up screen', async () => {
+      render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+      reachTheSendStep()
+      fireEvent.click(sendCode())
+
+      await waitFor(() => expect(mocks.requestDeletion).toHaveBeenCalledOnce())
+      expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
+      expect(mocks.onOpenChange).toHaveBeenCalledWith(false)
+      expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+    })
+
+    it('keeps the first gate open and reports a safe error when sending fails', async () => {
+      mocks.requestDeletion.mockRejectedValueOnce(new Error('private backend detail'))
+      render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+      reachTheSendStep()
+      fireEvent.click(sendCode())
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
+      expect(mocks.beginChallenge).not.toHaveBeenCalled()
+      expect(mocks.push).not.toHaveBeenCalled()
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      expect(getHeldAccountId()).toBe('user-1')
+    })
+
+    it('drops the send failure when another account replaces the tab', async () => {
+      mocks.requestDeletion.mockRejectedValueOnce(new Error('private backend detail'))
+      render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+      reachTheSendStep()
+      fireEvent.click(sendCode())
+      expect(await screen.findByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
+
+      await replaceAccountWith('user-2')
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      expect(getHeldAccountId()).toBe('user-2')
+    })
+
+    it('keeps the send failure when the same account recovers from a rejected refresh', async () => {
+      mocks.requestDeletion.mockRejectedValueOnce(new Error('private backend detail'))
+      render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+      reachTheSendStep()
+      fireEvent.click(sendCode())
+      expect(await screen.findByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
+
+      await recoverSameAccount('user-1')
+
+      expect(screen.getByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
+      expect(getHeldAccountId()).toBe('user-1')
+    })
+
+    it('drops a late send failure when another account replaced the tab mid request', async () => {
+      let reject!: (error: Error) => void
+      mocks.requestDeletion.mockReturnValueOnce(new Promise<void>((_resolve, rejectRequest) => { reject = rejectRequest }))
+      render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+      reachTheSendStep()
+      fireEvent.click(sendCode())
+      await replaceAccountWith('user-2')
+      await act(async () => reject(new Error('Account A failure')))
+      reachTheSendStep()
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      expect(mocks.beginChallenge).not.toHaveBeenCalled()
+      expect(getHeldAccountId()).toBe('user-2')
+    })
+
+    it('stops the send busy state when another account replaces the tab mid request', async () => {
+      mocks.requestDeletion.mockReturnValue(new Promise(() => {}))
+      render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+      reachTheSendStep()
+      fireEvent.click(sendCode())
+      const button = sendCode().closest('button')
+      await waitFor(() => expect(button).toHaveAttribute('aria-busy', 'true'))
+
+      await replaceAccountWith('user-2')
+
+      expect(button).not.toHaveAttribute('aria-busy')
+    })
+
+    it('does not start the challenge when the account changed while the request ran', async () => {
+      let resolve!: () => void
+      mocks.requestDeletion.mockReturnValueOnce(new Promise<void>((done) => { resolve = done }))
+      render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+      reachTheSendStep()
+      fireEvent.click(sendCode())
+      await replaceAccountWith('user-2')
+      await act(async () => resolve())
+
+      expect(mocks.beginChallenge).not.toHaveBeenCalled()
+      expect(mocks.push).not.toHaveBeenCalled()
+    })
+  })
 })

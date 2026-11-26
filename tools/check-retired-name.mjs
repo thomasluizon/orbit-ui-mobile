@@ -29,6 +29,8 @@ export const WIRE_NAMES = [
   { reason: "generated client names of the profile endpoint", pattern: /PutApiProfileProactiveAstra\w*/g },
   { reason: "offline mutation, pending operation key and request names of the profile endpoint", pattern: /[Ss]etProactiveAstra\w*/g },
   { reason: "MCP tool name of the API", pattern: /set_proactive_astra/g },
+  { reason: "tool-result message key that the API sends", pattern: /proactiveAstra\.(?:enabled|disabled)/g },
+  { reason: "tool-result message key that the API sends", pattern: /"proactiveAstra"/g },
   { reason: "table and entity name of the API", pattern: /IssuedAstraBlocks/g },
   { reason: "account row id that the API sends", pattern: /(?<!account\.row\.)\bastraAllowance\b/g },
   { reason: "schema names of the API OpenAPI document", pattern: /components\/schemas\/Astra\w+/g },

@@ -82,6 +82,13 @@ describe.each([{ locale: 'en', catalog: en }, { locale: 'pt-BR', catalog: ptBR }
     return resolveActionChipText(row, translations)
   }
 
+  it.each(['chat.toolResult.proactiveAstra.enabled', 'chat.toolResult.proactiveAstra.disabled'])('resolves the message key %s that orbit-api sends', (messageKey) => {
+    expect(translations.has(messageKey)).toBe(true)
+    const text = textFor({ type: 'SetProactiveAstra', status: 'Success', messageKey })
+    expect(text.label).toBe(String(leaf(catalog, messageKey)))
+    expect(text.label).not.toBe('')
+  })
+
   it.each(['frequency_quantity', 'frequencyQuantity', 'private_engine_property'])('keeps named validation failures distinct for %s', (field) => {
     const names = ['Morning walk', 'Read ten pages']
     const actions = names.map(entityName => actionResultSchema.parse({ type: 'CreateHabit', status: 'Failed', entityName, field }))

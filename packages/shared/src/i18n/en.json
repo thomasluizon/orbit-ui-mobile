@@ -2602,7 +2602,7 @@
       "objectRequired": "Provide the details for {fieldName}.",
       "onboardingCompleted": "Setup completed",
       "policyDenied": "I cannot do that from here.",
-      "proactiveOrbit": {
+      "proactiveAstra": {
         "disabled": "Orbit notifications turned off",
         "enabled": "Orbit notifications turned on"
       },
