@@ -1453,6 +1453,27 @@ const planSpeedCases = async () => {
   await between.run()
   same("drive: a limit that the plan finds during an early launch stops the next early launch", [only(between.calls, "createTicket").length, launchesIn(between)], [1, ["8 build"]])
 
+  // An early admission that fails never ends the tick before its plan, so the next tick cannot act on the same pull request again.
+  let failedReads = 0
+  const unrequested = pull(30, { reviews: [], comments: [comment("ticket", "T")] })
+  const failedEarly = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [unrequested] }, routes: [["--state merged", () => { if (++failedReads === 1) throw new Error("gh failed"); return "[]" }]] })
+  failedEarly.env.planWindowMs = 20
+  const releaseFailed = holdPlan(failedEarly)
+  const post = failedEarly.env.github.comment
+  // A posted request shows on the pull request at the next read, as on GitHub.
+  failedEarly.env.github.comment = async (key, number, body) => {
+    await post(key, number, body)
+    if (key === "ui" && body === marked("request", PLAIN)) unrequested.comments.push(comment("request", PLAIN, 0))
+  }
+  // The loop starts the next tick when this tick ends, whether it ends well or not.
+  const firstTick = failedEarly.run().catch(() => {})
+  const secondTick = firstTick.then(() => failedEarly.run())
+  await until(() => failedReads === 1)
+  await new Promise((resolve) => setTimeout(resolve, 100))
+  releaseFailed()
+  await secondTick
+  same("drive: a failed early admission is logged and two ticks post one Pullfrog request", [failedEarly.messages.filter((line) => line.includes("tick early-launch-error (gh failed)")).length, only(failedEarly.calls, "comment").filter((entry) => entry[1] === "ui" && entry[3] === marked("request", PLAIN)).length], [1, 1])
+
   // A plan that ends inside the window keeps the fix order first.
   const quick = scenario({ tickets: [ticket(7), ticket(8)], reading: { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - MINUTE }, pulls: { ui: [failing(30)] }, ...FAILED_LOG })
   await quick.run()

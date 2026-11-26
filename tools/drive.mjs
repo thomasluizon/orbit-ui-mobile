@@ -1834,7 +1834,8 @@ export const tick = async (env, mem) => {
   const slotsAtStart = free.main + free.worker
   if (!env.dryRun && !held() && slotsAtStart > 0 && !await settledWithin(planning, env.planWindowMs ?? PLAN_WINDOW_MS) && !held()) {
     log(env, "tick", "early-launch", `the pull request plan runs, ${slotsAtStart} free slot(s) take build orders first`)
-    Object.assign(admitted, await admit(env, mem, tickets, states, { running, room: slotsAtStart, full }))
+    // A tick that ends before its plan lets the next tick act on the same pull requests again, so this failure never ends the tick.
+    Object.assign(admitted, await admit(env, mem, tickets, states, { running, room: slotsAtStart, full }).catch((error) => (log(env, "tick", "early-launch-error", error.message), {})))
     await launchAll(admitted.chosen)
   }
   const orders = await planning
