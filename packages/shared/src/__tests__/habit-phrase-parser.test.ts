@@ -611,3 +611,89 @@ describe('weekday qualifiers', () => {
     expect(read.consumed.map((token) => token.kind).sort((left, right) => left.localeCompare(right))).toEqual(['interval', 'time', 'weekday'])
   })
 })
+
+describe('weekday ranges', () => {
+  const workWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
+  it.each([
+    ['pt-BR', 'segunda a sexta'],
+    ['pt-BR', 'de segunda-feira a sexta-feira'],
+    ['pt-BR', 'segunda à sexta'],
+    ['pt-BR', 'academia de segunda a sexta'],
+    ['pt-BR', 'segunda até sexta'],
+    ['pt-BR', 'seg a sex'],
+    ['en', 'monday to friday'],
+    ['en', 'monday through friday'],
+    ['en', 'monday-friday'],
+    ['en', 'monday \u2013 friday'],
+    ['en', 'gym from monday until friday'],
+  ] as const)('reads %s "%s" as every day of the range', (locale, input) => {
+    expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: 'fixed', days: workWeek, intervalWeeks: null })
+  })
+
+  it('wraps a range across the end of the week', () => {
+    expect(readHabitPhrase('sexta a segunda', 'pt-BR').days).toEqual(['Friday', 'Saturday', 'Sunday', 'Monday'])
+    expect(readHabitPhrase('saturday to sunday', 'en').days).toEqual(['Saturday', 'Sunday'])
+  })
+
+  it('keeps a range next to a list and a time', () => {
+    expect(readHabitPhrase('academia segunda a quarta e sábado às 7', 'pt-BR')).toMatchObject({
+      days: ['Monday', 'Tuesday', 'Wednesday', 'Saturday'], dueTime: '07:00',
+    })
+    expect(readHabitPhrase('gym monday through friday at 7am', 'en')).toMatchObject({ days: workWeek, dueTime: '07:00' })
+  })
+
+  it('consumes the whole range as one weekday token', () => {
+    const input = 'academia segunda a sexta'
+    const read = readHabitPhrase(input, 'pt-BR')
+    expect(read.consumed).toEqual([{ start: 9, end: input.length, kind: 'weekday' }])
+    expect(getHabitPhraseTitle(input, 'pt-BR', { cadence: true, dueTime: true })).toBe('academia')
+  })
+
+  it('keeps a weekly suffix after a range', () => {
+    const read = readHabitPhrase('monday to friday every 2 weeks', 'en')
+    expect(read).toMatchObject({ days: workWeek, intervalWeeks: 2 })
+  })
+
+  it('does not read a range in a typed task', () => {
+    expect(readTypedHabitPhrase('segunda a sexta', 'pt-BR', 'task', false)).toMatchObject({ cadence: null, days: [] })
+  })
+})
+
+describe('spoken part of the day', () => {
+  it.each([
+    ['pt-BR', 'toda sexta às 3 da tarde', '15:00'],
+    ['pt-BR', 'academia toda sexta às 3 da tarde', '15:00'],
+    ['pt-BR', 'toda sexta às 8 da noite', '20:00'],
+    ['pt-BR', 'sexta, às 9 da noite', '21:00'],
+    ['pt-BR', 'toda sexta às 9 da manhã', '09:00'],
+    ['pt-BR', 'toda sexta às 12 da noite', '00:00'],
+    ['pt-BR', 'toda sexta às 12 da tarde', '12:00'],
+    ['pt-BR', 'toda sexta às 4 da madrugada', '04:00'],
+    ['pt-BR', 'toda sexta às 3:30 da tarde', '15:30'],
+    ['pt-BR', 'toda sexta às 3h30 da tarde', '15:30'],
+    ['pt-BR', 'toda sexta 3 da tarde', '15:00'],
+    ['en', 'gym every friday at 3 in the afternoon', '15:00'],
+    ['en', 'every friday at 8 at night', '20:00'],
+    ['en', 'every friday at 8 in the evening', '20:00'],
+    ['en', 'every friday at 9 in the morning', '09:00'],
+    ['en', 'every friday at 3:15 in the afternoon', '15:15'],
+    ['en', 'every friday at 12 at night', '00:00'],
+  ] as const)('reads %s "%s" as %s', (locale, input, time) => {
+    const read = readHabitPhrase(input, locale)
+    expect(read).toMatchObject({ cadence: 'fixed', days: ['Friday'], dueTime: time })
+    expect(getHabitPhraseTitle(`Read ${input}`, locale, { cadence: true, dueTime: true })).toMatch(/^Read(?: academia| gym)?$/u)
+  })
+
+  it.each([
+    ['pt-BR', 'toda sexta às 13 da tarde'],
+    ['pt-BR', 'toda sexta às 12 da manhã'],
+    ['en', 'every friday at 13 in the afternoon'],
+  ] as const)('reads no time from the contradicting words in %s "%s"', (locale, input) => {
+    expect(readHabitPhrase(input, locale).dueTime).toBeNull()
+  })
+
+  it('lets am and pm win over a part of the day', () => {
+    expect(readHabitPhrase('every friday at 3pm in the afternoon', 'en').dueTime).toBe('15:00')
+  })
+})
