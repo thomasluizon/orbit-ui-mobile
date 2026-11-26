@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { NextIntlClientProvider } from 'next-intl'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { escapeRegExp } from '@orbit/shared/test-support/escape-reg-exp'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
@@ -355,7 +356,7 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     expect(mocks.createHabit).toHaveBeenCalledWith(expected)
     await act(async () => { press(flow.retry) })
     expect(mocks.createHabit).toHaveBeenCalledTimes(2)
-    expect(heading()).toMatch(new RegExp(guided.remind.question.replace('{time}', '(5:45\\sPM|17:45)').replace('?', '\\?')))
+    expect(heading()).toMatch(new RegExp(guided.remind.question.split('{time}').map(escapeRegExp).join('(5:45\\sPM|17:45)')))
   })
 
   it('asks for reminders with two quick options: allow asks the device once, not now asks nothing', async () => {

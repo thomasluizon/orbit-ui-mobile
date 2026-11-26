@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import * as ReactNative from 'react-native'
 import { AccessibilityInfo, StyleSheet, Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { escapeRegExp } from '@orbit/shared/test-support/escape-reg-exp'
 import { act } from 'react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -488,7 +489,7 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
   }
   async function openOptional(tree: Tree, id: keyof ReturnType<typeof flowCopy>['optional']) {
     await tap(tree, flowCopy().more)
-    await tap(tree, new RegExp(`^${flowCopy().optional[id].replace('?', '\\?')}`))
+    await tap(tree, new RegExp(`^${escapeRegExp(flowCopy().optional[id])}`))
     expect(heading(tree)).toBe(flowCopy().optional[id])
   }
 
@@ -496,7 +497,7 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
     const tree = await toSummary()
     await tap(tree, flowCopy().more)
     for (const id of ['description', 'checklist', 'subHabits', 'avoid', 'tags', 'goals', 'endDate'] as const) {
-      expect(control(tree, new RegExp(`^${flowCopy().optional[id].replace('?', '\\?')}`))).toBeDefined()
+      expect(control(tree, new RegExp(`^${escapeRegExp(flowCopy().optional[id])}`))).toBeDefined()
     }
     tree.unmount()
   })
@@ -507,22 +508,22 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
     await type(tree, flowCopy().optional.description, 'Antes do café')
     await primary(tree)
     expect(helpers().form.getValues('description')).toBe('Antes do café')
-    await tap(tree, new RegExp(`^${flowCopy().optional.checklist.replace('?', '\\?')}`))
+    await tap(tree, new RegExp(`^${escapeRegExp(flowCopy().optional.checklist)}`))
     await tap(tree, flowCopy().checklist.useTemplate)
     expect(heading(tree)).toBe(flowCopy().templates.question)
     await tap(tree, /^Manhã/)
     expect(helpers().form.getValues('checklistItems')).toEqual([{ text: 'Separar roupa', isChecked: false }])
     expect(heading(tree)).toBe(flowCopy().optional.checklist)
     await primary(tree)
-    await tap(tree, new RegExp(`^${flowCopy().optional.subHabits.replace('?', '\\?')}`))
+    await tap(tree, new RegExp(`^${escapeRegExp(flowCopy().optional.subHabits)}`))
     expect(hasText(tree, 'sub-habit-editor')).toBe(true)
     await primary(tree)
-    await tap(tree, new RegExp(`^${flowCopy().optional.tags.replace('?', '\\?')}`))
+    await tap(tree, new RegExp(`^${escapeRegExp(flowCopy().optional.tags)}`))
     expect(heading(tree)).toBe(flowCopy().optional.tags)
     await tap(tree, 'Saúde')
     expect(tree.hosts().some((node) => node.props.testID === 'option-card' && node.props.accessibilityLabel === 'Saúde' && node.props.accessibilityState?.selected === true)).toBe(true)
     await primary(tree)
-    await tap(tree, new RegExp(`^${flowCopy().optional.goals.replace('?', '\\?')}`))
+    await tap(tree, new RegExp(`^${escapeRegExp(flowCopy().optional.goals)}`))
     expect(heading(tree)).toBe(flowCopy().optional.goals)
     await tap(tree, 'Correr 5 km, 40%')
     expect(state.goalToggle).toHaveBeenCalledWith('goal-1')
@@ -555,13 +556,13 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
   it('scenario 17: shows the parent question in edit only', async () => {
     const tree = renderNavigation(<Harness mode="edit" parentField={<Text>parent-picker</Text>} subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
     await tap(tree, flowCopy().more)
-    await tap(tree, new RegExp(`^${flowCopy().optional.parent.replace('?', '\\?')}`))
+    await tap(tree, new RegExp(`^${escapeRegExp(flowCopy().optional.parent)}`))
     expect(hasText(tree, 'parent-picker')).toBe(true)
     tree.unmount()
   })
 
   const optionalRowName = (tree: Tree, id: 'tags' | 'goals' | 'subHabits' | 'parent') =>
-    control(tree, new RegExp(`^${flowCopy().optional[id].replace('?', '\\?')}`))?.props.accessibilityLabel
+    control(tree, new RegExp(`^${escapeRegExp(flowCopy().optional[id])}`))?.props.accessibilityLabel
 
   it('scenario 17: answers the tag, goal and sub-item rows with the names the person chose, never a count', async () => {
     const tree = renderNavigation(<Harness goalIds={['goal-1']} subHabitTitles={['Alongar', '  ', 'Beber água']} />)

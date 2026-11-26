@@ -265,7 +265,7 @@ test('the window bar check fails when the window starts to follow the pointer la
   // The run names the raw value, so '' and [] stay visible, and it never calls a value that is not a measure late.
   for (const moveLoopWait of [undefined, null, '', '500', 'abc', true, false, [], -5, -1, 1.5]) {
     const raw = JSON.stringify(moveLoopWait) ?? 'missing'
-    const shown = raw.replace(/[.[\]]/g, '\\$&')
+    const shown = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     await assert.rejects(() => windowContext({ moveLoopWait }).run({}),
       new RegExp(`^Error: The reader reported no drag start wait in whole milliseconds from 0 up \\(moveLoopWait ${shown}\\): \\{`), raw)
   }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { escapeRegExp } from '@orbit/shared/test-support/escape-reg-exp'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { GuidedHabitFlow, type GuidedHabitFields } from '@/components/habits/guided/guided-habit-flow'
@@ -69,7 +70,7 @@ async function toTemplateQuestion() {
   await toWhen()
   await press(flowCopy().when.noDate)
   await press(flowCopy().more)
-  await press(new RegExp(flowCopy().optional.checklist.replace('?', '\\?')))
+  await press(new RegExp(escapeRegExp(flowCopy().optional.checklist)))
   await press(flowCopy().checklist.useTemplate)
 }
 

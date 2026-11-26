@@ -4,7 +4,7 @@ import { formatLocaleDate } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
-import { guidedRow, guidedSummary, reachCreateSummary } from './guided-habit-steps'
+import { escapeRegExp, guidedRow, guidedSummary, reachCreateSummary } from './guided-habit-steps'
 
 type Messages = typeof en
 
@@ -31,7 +31,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         await guidedRow(guidedSummary(page, messages), messages.habits.flow.more).click()
         const list = page.getByRole('list', { name: messages.habits.flow.more, exact: true })
         await expect(list).toBeVisible()
-        await expect(list.getByRole('button', { name: new RegExp(`^${messages.habits.flow.optional.checklist.replace(/[?]/g, '\\$&')}`) })).toBeVisible()
+        await expect(list.getByRole('button', { name: new RegExp(`^${escapeRegExp(messages.habits.flow.optional.checklist)}`) })).toBeVisible()
         for (const row of await list.getByRole('button').all()) {
           const bounds = (await row.boundingBox())!
           expect(bounds.height).toBeGreaterThanOrEqual(48)

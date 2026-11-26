@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { escapeRegExp } from '@orbit/shared/test-support/escape-reg-exp'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { GuidedHabitFlow, type GuidedHabitFields } from '@/components/habits/guided/guided-habit-flow'
@@ -495,7 +496,7 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
     await press(messages().more)
     const list = screen.getByRole('list', { name: messages().more })
     for (const id of ['description', 'checklist', 'subHabits', 'avoid', 'tags', 'goals', 'endDate'] as const) {
-      expect(within(list).getByRole('button', { name: new RegExp(messages().optional[id].replace('?', '\\?')) })).toBeInTheDocument()
+      expect(within(list).getByRole('button', { name: new RegExp(escapeRegExp(messages().optional[id])) })).toBeInTheDocument()
     }
   })
 
@@ -523,12 +524,12 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
     await openOptional(messages().optional.subHabits)
     expect(screen.getByText('sub-habit-editor')).toBeInTheDocument()
     await press(messages().continue)
-    await press(new RegExp(messages().optional.tags.replace('?', '\\?')))
+    await press(new RegExp(escapeRegExp(messages().optional.tags)))
     expect(heading()).toHaveTextContent(messages().optional.tags)
     await press('Saúde')
     expect(screen.getByRole('button', { name: 'Saúde' })).toHaveAttribute('aria-pressed', 'true')
     await press(messages().continue)
-    await press(new RegExp(messages().optional.goals.replace('?', '\\?')))
+    await press(new RegExp(escapeRegExp(messages().optional.goals)))
     expect(heading()).toHaveTextContent(messages().optional.goals)
     await press('Correr 5 km, 40%')
     expect(state.goalToggle).toHaveBeenCalledWith('goal-1')
@@ -564,12 +565,12 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
   it('scenario 17: shows the parent question in edit only', async () => {
     render(<Harness mode="edit" parentField={<p>parent-picker</p>} subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
     await press(messages().more)
-    await press(new RegExp(messages().optional.parent.replace('?', '\\?')))
+    await press(new RegExp(escapeRegExp(messages().optional.parent)))
     expect(screen.getByText('parent-picker')).toBeInTheDocument()
   })
 
   const optionalRow = (id: 'tags' | 'goals' | 'subHabits' | 'parent') =>
-    within(screen.getByRole('list', { name: messages().more })).getByRole('button', { name: new RegExp(messages().optional[id].replace('?', '\\?')) })
+    within(screen.getByRole('list', { name: messages().more })).getByRole('button', { name: new RegExp(escapeRegExp(messages().optional[id])) })
 
   it('scenario 17: answers the tag, goal and sub-item rows with the names the person chose, never a count', async () => {
     render(<Harness goalIds={['goal-1']} subHabitTitles={['Alongar', '  ', 'Beber água']} />)

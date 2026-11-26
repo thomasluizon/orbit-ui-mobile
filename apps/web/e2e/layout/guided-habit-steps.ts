@@ -4,7 +4,7 @@ import type en from '@orbit/shared/i18n/en.json'
 type Messages = typeof en
 type OptionalStep = 'description' | 'checklist' | 'subHabits' | 'avoid' | 'tags' | 'goals' | 'endDate' | 'parent'
 
-function escapeRegExp(text: string): string {
+export function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
