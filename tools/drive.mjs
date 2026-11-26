@@ -449,16 +449,17 @@ const reportKeyLine = (key) => `<!-- orbit-drive-key:${createHash("sha256").upda
  * the reason text, so a changed check list at the same head and cause keeps one report. A ticket with no pull request keys on its
  * `cause`, which is the reason text unless the caller names a class. With no ticket, one report only.
  * A `relabel` report restores a removed label and writes no comment and sends no notification.
- * The log line, the comment, the notification and the sleep item each come once for a key.
+ * The log line, the comment, the notification and the sleep item each come once for a key. The comment gates the log line, so a new process logs no repeat.
  */
 const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason: plainReason, cause = plainReason, relabel = false }) => {
   const item = pull ? `${repoKey}#${pull.number}` : `ticket#${ticket.number}`
   const reason = ticket && pull ? `${item} at ${pull.headSha}: ${plainReason}` : plainReason
   const key = pull ? `${item} ${pull.headSha} ${cause}` : `${item} ${cause}`
-  logChange(env, mem, { scope: `needs-owner ${item}`, signature: key, item, action: "needs-owner", reason })
   const comments = ticket ? ticket.comments : pull.comments
   const keyLine = reportKeyLine(key)
   const reported = comments.some((entry) => entry.kind === "needs-owner" && (ticket === null || bodyAfterMarker(entry).trim() === reason || bodyAfterMarker(entry).trimEnd().endsWith(keyLine)))
+  // The comment persists across a driver switch and the log memory does not, so the comment gates the line.
+  if (!reported) logChange(env, mem, { scope: `needs-owner ${item}`, signature: key, item, action: "needs-owner", reason })
   if (env.dryRun || (reported && !relabel)) return
   if (ticket && !ticket.labels.includes(OWNER)) {
     await env.github.editLabels("tickets", ticket.number, { add: [OWNER] })

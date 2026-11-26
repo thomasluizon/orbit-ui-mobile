@@ -2337,6 +2337,16 @@ const quietLogCases = async () => {
   same("drive: the same hold on 3 ticks logs one needs-owner line and writes one report", [holdLines(three).length, needsOwnerComments(three.calls, 7).length, only(three.calls, "notify").length], [1, 1, 1])
   T("drive: the hold line names the pull request, the head and the open classes", holdLines(three)[0].includes(`ui#30 at ${HEAD}`) && holdLines(three)[0].includes("tools/a.mjs:3"))
 
+  // A driver switch ends the process, so the next process starts with an empty log memory: the report in the comment still gates the line.
+  for (let restart = 0; restart < 3; restart += 1) {
+    const fresh = createMemory()
+    fresh.reading = three.mem.reading
+    fresh.lastIntakeAt = NOW
+    await tick(three.env, fresh)
+    await Promise.all(fresh.running.values())
+  }
+  same("drive: a hold that was reported keeps one needs-owner line, one report and one notification across 3 restarts of the memory", [holdLines(three).length, needsOwnerComments(three.calls, 7).length, only(three.calls, "notify").length], [1, 1, 1])
+
   // A hold that goes on keeps its log memory when a tick does not plan its item: a merge ends the pull loop and a plan can throw.
   const holdOf = (scene) => holdLines(scene).filter((line) => line.includes("ui#30 needs-owner ("))
   const merged = [ticket(7, { comments: [...launches] }), ticket(8)]
