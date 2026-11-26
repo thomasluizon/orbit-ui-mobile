@@ -112,6 +112,67 @@ describe('guided habit flow: the words of the When step', () => {
     mounted.unmount()
   })
 
+  it('undoes the fill of a date when the full words read as a past date', () => {
+    const mounted = mountModeFlow()
+    typeKeys(mounted, '11/20')
+    expect(mounted.values).toMatchObject({ dueDate: '2027-11-20' })
+    for (const words of ['11/20/', '11/20/2', '11/20/20', '11/20/202', '11/20/2026']) void act(() => { mounted.flow.previewWhenWords(words) })
+    expect(mounted.values).toMatchObject({ dueDate: '' })
+    expect(mounted.flow.answers.when).toBe(false)
+    let refusal: string | null = null
+    void act(() => { refusal = mounted.flow.readWhenWords('11/20/2026') })
+    expect(refusal).toBe('past')
+    expect(mounted.values).toMatchObject({ dueDate: '' })
+    mounted.unmount()
+  })
+
+  it('undoes the fill of a date when later words stay unresolved', () => {
+    const mounted = mountModeFlow()
+    typeKeys(mounted, 'tomorrow morning')
+    expect(mounted.values).toMatchObject({ dueDate: '' })
+    expect(mounted.flow.answers.when).toBe(false)
+    let refusal: string | null = null
+    void act(() => { refusal = mounted.flow.readWhenWords('tomorrow morning') })
+    expect(refusal).toBe('unresolved')
+    expect(mounted.values).toMatchObject({ dueDate: '' })
+    mounted.unmount()
+  })
+
+  it('undoes the fill of a date when a deliberate task gets a repeat', () => {
+    const mounted = mountModeFlow()
+    void act(() => mounted.flow.markTypeDeliberate('task'))
+    typeKeys(mounted, 'monday and friday')
+    expect(mounted.values).toMatchObject({ itemType: 'task', dueDate: '', frequencyUnit: undefined })
+    expect(mounted.flow.answers.when).toBe(false)
+    let refusal: string | null = null
+    void act(() => { refusal = mounted.flow.readWhenWords('monday and friday') })
+    expect(refusal).toBe('taskRepeat')
+    expect(mounted.values).toMatchObject({ dueDate: '' })
+    expect(mounted.flow.answers.when).toBe(false)
+    mounted.unmount()
+  })
+
+  it('undoes the fill of a date when the person erases the words', () => {
+    const mounted = mountModeFlow()
+    typeKeys(mounted, 'friday')
+    expect(mounted.values).toMatchObject({ dueDate: '2026-11-27' })
+    void act(() => { mounted.flow.previewWhenWords('') })
+    expect(mounted.values).toMatchObject({ dueDate: '' })
+    expect(mounted.flow.answers.when).toBe(false)
+    mounted.unmount()
+  })
+
+  it('keeps the date the person chose before the fill and puts it back after the words change', () => {
+    const mounted = mountModeFlow()
+    void act(() => mounted.flow.chooseDate('2026-12-01'))
+    typeKeys(mounted, 'friday')
+    expect(mounted.values).toMatchObject({ dueDate: '2026-11-27' })
+    void act(() => { mounted.flow.previewWhenWords('') })
+    expect(mounted.values).toMatchObject({ dueDate: '2026-12-01' })
+    expect(mounted.flow.answers.when).toBe(true)
+    mounted.unmount()
+  })
+
   it('starts a daily repeat today when the person changes a typed weekday to every day', () => {
     const mounted = mountModeFlow()
     typeKeys(mounted, 'friday')

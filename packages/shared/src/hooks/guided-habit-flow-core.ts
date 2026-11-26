@@ -361,7 +361,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
 
   function useFlowAnswers({ options, controller, deliberateType, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate }: FlowAnswerInput) {
     const { form, mode, locale, timeZone } = options
-    const previewedDate = useRef<string | null>(null)
+    const filled = useRef<{ date: string; dueDate: string; when: boolean } | null>(null)
     const answerStep = useCallback((answered: keyof HabitFlowAnswers, withTime = false) => {
       if (answered === 'when') releasePhraseDate()
       const nextAnswers = { ...readAnswers(), [answered]: true, ...(withTime ? { time: true } : {}) }
@@ -369,11 +369,13 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       advance(stepsAfter(nextAnswers), nextAnswers)
     }, [advance, readAnswers, releasePhraseDate, setAnswers, stepsAfter])
     const answerWhen = useCallback((choice: HabitWhenChoice) => {
+      filled.current = null
       answerHabitWhen(port, choice, today)
       setProposals((value) => ({ ...value, schedule: false }))
       answerStep('when')
     }, [answerStep, port, today])
     const chooseDate = useCallback((date: string) => {
+      filled.current = null
       port.chooseItemType('task')
       port.setOneTime()
       port.setField('datePhrase', '')
@@ -396,32 +398,40 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       else port.setField('dueTime', phraseTime ?? '')
       setProposals((value) => ({ ...value, schedule: false, time: words.read.dueTime ? false : value.time }))
       port.chooseItemType('habit')
-      if (previewedDate.current !== null && form.getValues().dueDate === previewedDate.current) port.setField('dueDate', '')
-      previewedDate.current = null
+      if (filled.current !== null && form.getValues().dueDate === filled.current.date) port.setField('dueDate', '')
+      filled.current = null
       startRepeat()
       answerStep('when', words.read.dueTime !== null)
       return null
     }, [answerStep, chooseDate, controller, deliberateType, form, port, readWords, startRepeat])
+    const restoreFilledDate = useCallback(() => {
+      const hold = filled.current
+      if (hold === null) return
+      filled.current = null
+      if (form.getValues().dueDate !== hold.date) return
+      port.setField('dueDate', hold.dueDate)
+      setAnswers((value) => (value.when === hold.when ? value : { ...value, when: hold.when }))
+    }, [form, port, setAnswers])
     const previewWhenWords = useCallback((text: string): WhenPreview | null => {
-      if (isShortWeekdayWord(text)) return null
+      if (isShortWeekdayWord(text)) { restoreFilledDate(); return null }
       const words = readWords(text)
-      if (words.kind === 'repeat') return { kind: 'repeat', text: text.trim() }
-      if (words.kind !== 'date') return null
-      if (deliberateType === 'habit') return null
+      if (words.kind === 'repeat') { restoreFilledDate(); return { kind: 'repeat', text: text.trim() } }
+      if (words.kind !== 'date' || deliberateType === 'habit') { restoreFilledDate(); return null }
       releasePhraseDate()
-      setAnswers((value) => (value.when ? value : { ...value, when: true }))
       const values = form.getValues()
+      if (filled.current === null && values.dueDate !== words.date) filled.current = { date: words.date, dueDate: values.dueDate ?? '', when: readAnswers().when }
+      setAnswers((value) => (value.when ? value : { ...value, when: true }))
       if (values.dueDate !== words.date || values.itemType !== 'task' || values.frequencyUnit) {
         port.chooseItemType('task')
         port.setOneTime()
         port.setField('datePhrase', '')
         port.setField('dateIssue', '')
         port.setField('dueDate', words.date)
-        previewedDate.current = words.date
+        if (filled.current !== null) filled.current.date = words.date
         setProposals((value) => (value.schedule ? { ...value, schedule: false } : value))
       }
       return { kind: 'date', date: words.date }
-    }, [deliberateType, form, port, readWords, releasePhraseDate, setAnswers, setProposals])
+    }, [deliberateType, form, port, readAnswers, readWords, releasePhraseDate, restoreFilledDate, setAnswers, setProposals])
     const answerTime = useCallback((time: string | null) => {
       controller.releaseDueTime()
       answerHabitTime(port, time, formHoldsTimelessReminder(form.getValues()))
