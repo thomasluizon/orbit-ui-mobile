@@ -2322,6 +2322,57 @@ const releaseCases = async () => {
   T("drive: the usage names the release train and both flags", /release train/.test(usage) && /--release-now/.test(usage) && /--release-status/.test(usage), usage)
 }
 
+/** The driver log says each hold and each wait once, an owner report keys on pull request, head and cause, and a check that cannot change is not rerun. */
+const quietLogCases = async () => {
+  const branch = "chore/ticket-7-30"
+  const finding = (path, line) => review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path, line, body: "BLOCKING: x" }] })
+  const launches = [launchComment("fix", branch, -90 * MINUTE), launchComment("fix", branch, -80 * MINUTE)]
+  const heldItems = (scene) => JSON.parse(readFileSync(join(scene.env.stateDir, "sleep-items.json"), "utf8"))
+  const holdLines = (scene) => scene.messages.filter((line) => line.includes(" needs-owner ("))
+
+  const tickets = [ticket(7, { comments: [...launches] })]
+  const three = scenario({ tickets, pulls: { ui: [pull(30, { reviews: [finding("tools/a.mjs", 3)] })] } })
+  keepWrites(three, tickets)
+  for (let index = 0; index < 3; index += 1) await three.run()
+  same("drive: the same hold on 3 ticks logs one needs-owner line and writes one report", [holdLines(three).length, needsOwnerComments(three.calls, 7).length, only(three.calls, "notify").length], [1, 1, 1])
+  T("drive: the hold line names the pull request, the head and the open classes", holdLines(three)[0].includes(`ui#30 at ${HEAD}`) && holdLines(three)[0].includes("tools/a.mjs:3"))
+
+  const changed = [ticket(7, { comments: [...launches] })]
+  const open = [finding("tools/a.mjs", 3)]
+  const scene = scenario({ tickets: changed, pulls: { ui: [pull(30, { reviews: open })] }, sleeping: true })
+  keepWrites(scene, changed)
+  await scene.run()
+  open[0] = finding("tools/b.mjs", 9)
+  await scene.run()
+  same("drive: a changed check list at the same pull request, head and cause keeps one report, one log line and one sleep item", [needsOwnerComments(scene.calls, 7).length, holdLines(scene).length, heldItems(scene).length], [1, 1, 1])
+  open[0] = finding("tools/c.mjs", 1)
+  scene.env.now = () => NOW
+  const states = scene.env.github.readRepositoryState
+  scene.env.github.readRepositoryState = async (key) => { const state = await states(key); for (const entry of state.pulls) Object.assign(entry, { headSha: NEXT_HEAD, commits: [{ sha: NEXT_HEAD, parents: 1 }], reviews: [{ ...entry.reviews[0], commit: NEXT_HEAD }] }); return state }
+  await scene.run()
+  same("drive: a new head of the same pull request is a new report and a new sleep item", [needsOwnerComments(scene.calls, 7).length, holdLines(scene).length, heldItems(scene).length], [2, 2, 2])
+
+  const waiting = scenario({ tickets: [ticket(7, { blockedBy: [blocker(5)] })] })
+  for (let index = 0; index < 3; index += 1) await waiting.run()
+  const waits = waiting.messages.filter((line) => line.includes(" ticket#7 wait ("))
+  same("drive: a ticket wait reason is logged once outside --dry-run", waits.length, 1)
+
+  const running = (extra = {}) => pull(30, { checks: [check("Unit Tests", "FAILURE"), check("Lint", null, { status: "IN_PROGRESS", conclusion: null, databaseId: 13, ...extra }), approvalCheck()] })
+  const busy = scenario({ tickets: [ticket(7)], pulls: { ui: [running()] }, failedSteps: ["Set up job"] })
+  await busy.run()
+  await busy.run()
+  same("drive: a failed job of a run that still runs gets no rerun request and no order", [only(busy.calls, "rerunFailed").length, busy.launched.length, busy.messages.filter((line) => line.includes("ui#30 wait (") && line.includes("still runs")).length], [0, 0, 1])
+  const done = scenario({ tickets: [ticket(7)], pulls: { ui: [running({ status: "COMPLETED", conclusion: "SUCCESS" })] }, failedSteps: ["Set up job"] })
+  await done.run()
+  same("drive: the same failed job is rerun once the run has ended", only(done.calls, "rerunFailed"), [["rerunFailed", "ui", "9001"]])
+
+  for (const [name, steps] of [["PR Metadata", ["Set up job"]], ["PR Metadata", ["Check the body"]], ["Guards", ["Set up job"]], ["Guards", ["Run guards"]]]) {
+    const deterministic = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check(name, "FAILURE"), approvalCheck()] })] }, failedSteps: steps })
+    await deterministic.run()
+    same(`drive: ${name} that failed at ${steps[0]} is never rerun and gets one ci-fix order`, [only(deterministic.calls, "rerunFailed").length, deterministic.launched.length, commentsOf(deterministic.calls, 30).filter((text) => text.includes("driver rerun")).length], [0, 1, 0])
+  }
+}
+
 export const driverUnit = async () => {
   await releaseCases()
   await admissionCases()
@@ -2360,6 +2411,7 @@ export const driverUnit = async () => {
   await restartCases()
   await echoedLimitCases()
   await reasonKeyCases()
+  await quietLogCases()
   await orderOfApiCases()
   await orphanClockCases()
   await paceRestartCases()
