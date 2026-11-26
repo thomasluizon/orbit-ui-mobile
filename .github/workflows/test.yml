@@ -47,9 +47,10 @@ jobs:
       web-unit-key: ${{ steps.plan.outputs.web-unit-key }}
       mobile-unit-key: ${{ steps.plan.outputs.mobile-unit-key }}
       workspace-unit-key: ${{ steps.plan.outputs.workspace-unit-key }}
-      web-unit-hit: ${{ steps.web-unit.outputs.cache-hit == 'true' || steps.merged.outputs.web-unit-hit == 'true' }}
-      mobile-unit-hit: ${{ steps.mobile-unit.outputs.cache-hit == 'true' || steps.merged.outputs.mobile-unit-hit == 'true' }}
-      workspace-unit-hit: ${{ steps.workspace-unit.outputs.cache-hit == 'true' || steps.merged.outputs.workspace-unit-hit == 'true' }}
+      # A pull request that changes only tools, .claude or documents that no test task reads runs no unit group: unit-skip counts as a hit.
+      web-unit-hit: ${{ steps.web-unit.outputs.cache-hit == 'true' || steps.merged.outputs.web-unit-hit == 'true' || steps.plan.outputs.unit-skip == 'true' }}
+      mobile-unit-hit: ${{ steps.mobile-unit.outputs.cache-hit == 'true' || steps.merged.outputs.mobile-unit-hit == 'true' || steps.plan.outputs.unit-skip == 'true' }}
+      workspace-unit-hit: ${{ steps.workspace-unit.outputs.cache-hit == 'true' || steps.merged.outputs.workspace-unit-hit == 'true' || steps.plan.outputs.unit-skip == 'true' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -82,9 +83,13 @@ jobs:
           node .github/scripts/write-locked-package.mjs turbo "$RUNNER_TEMP/turbo"
           npm ci --prefix "$RUNNER_TEMP/turbo" --ignore-scripts --no-audit --no-fund --prefer-offline
           "$RUNNER_TEMP/turbo/node_modules/.bin/turbo" run test --dry=json > "$RUNNER_TEMP/turbo-test.json"
-          if [ "$EVENT_NAME" = pull_request ]; then git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/changed-paths.txt"; fi
+          if [ "$EVENT_NAME" = pull_request ]; then
+            git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/changed-paths.txt"
+            git diff --name-only --no-renames HEAD^1 HEAD --diff-filter=D > "$RUNNER_TEMP/deleted-paths.txt"
+          fi
           node .github/scripts/plan-test-jobs.mjs --event "$EVENT_NAME" --turbo-dry "$RUNNER_TEMP/turbo-test.json" \
-            --workflow .github/workflows/test.yml --changed-files "$RUNNER_TEMP/changed-paths.txt" | tee -a "$GITHUB_OUTPUT"
+            --workflow .github/workflows/test.yml --changed-files "$RUNNER_TEMP/changed-paths.txt" \
+            --deleted-files "$RUNNER_TEMP/deleted-paths.txt" | tee -a "$GITHUB_OUTPUT"
 
       - name: Save the Turbo download
         if: github.event_name != 'pull_request' && steps.turbo-download.outputs.cache-hit != 'true'
@@ -418,7 +423,7 @@ jobs:
         with:
           path: ${{ env.WEB_UNIT_RESULTS }}
           key: ${{ needs.plan.outputs.web-unit-key }}
-          fail-on-cache-miss: true
+          fail-on-cache-miss: ${{ needs.plan.outputs.unit-skip != 'true' }}
 
       - name: Restore cached mobile unit results
         if: needs.mobile-tests.result == 'skipped'
@@ -426,7 +431,7 @@ jobs:
         with:
           path: ${{ env.MOBILE_UNIT_RESULTS }}
           key: ${{ needs.plan.outputs.mobile-unit-key }}
-          fail-on-cache-miss: true
+          fail-on-cache-miss: ${{ needs.plan.outputs.unit-skip != 'true' }}
 
       - name: Restore cached workspace unit results
         if: needs.workspace-tests.result == 'skipped'
@@ -434,9 +439,11 @@ jobs:
         with:
           path: ${{ env.WORKSPACE_UNIT_RESULTS }}
           key: ${{ needs.plan.outputs.workspace-unit-key }}
-          fail-on-cache-miss: true
+          fail-on-cache-miss: ${{ needs.plan.outputs.unit-skip != 'true' }}
 
+      # A pull request that runs no unit group has no coverage to restore when the cache is gone, so the scan runs without it.
       - name: Verify coverage reports
+        if: needs.plan.outputs.unit-skip != 'true'
         run: |
           test -s apps/web/coverage/lcov.info
           test -s apps/mobile/coverage/lcov.info

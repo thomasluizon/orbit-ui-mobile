@@ -3,9 +3,10 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
+import { posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const usage = `usage: plan-test-jobs.mjs --event <name> --turbo-dry <file> --workflow <file> [--changed-files <file>]
+const usage = `usage: plan-test-jobs.mjs --event <name> --turbo-dry <file> --workflow <file> [--changed-files <file>] [--deleted-files <file>]
 
   Prints the PR Tests plan as GITHUB_OUTPUT lines. Each test group gets a result cache key built from its
   Turbo task hashes (turbo run test --dry=json) and the workflow file. A pull request also gets one flag per
@@ -13,6 +14,9 @@ const usage = `usage: plan-test-jobs.mjs --event <name> --turbo-dry <file> --wor
   holds every path except the unread documents that tool-tests-skip-paths.json lists, so a pull request that
   changes only those documents skips the tool tests.
   Every other event runs every scope. --changed-files is required for pull_request: one path per line.
+  A pull request also gets unit-skip, true when it runs no unit test group: every changed path is under tools/ or .claude/ or is
+  a document, no changed path is an input of a Turbo test task (the dry run lists them), and --deleted-files names no deleted
+  path. A deleted file may have been an input, and an absent --deleted-files proves nothing, so either one keeps the groups.
 
 exit codes: 0 plan printed, 1 missing Turbo task or unreadable input, 2 invalid arguments`
 
@@ -22,6 +26,8 @@ const scopes = {
   'type-check': [/^(apps|packages|eslint-rules)\/.+\.([cm]?[jt]sx?|json)$/, /(^|\/)tsconfig[^/]*\.json$/, /^(package|package-lock|turbo)\.json$/],
   lint: [/^(apps\/(web|mobile)|packages\/shared)\/.+\.[cm]?[jt]sx?$/, /^apps\/desktop\/(?!src-tauri\/).+\.[cm]?[jt]sx?$/],
 }
+// The paths that no app test group reads unless the Turbo dry run lists them as an input.
+const appFree = [/^(tools|\.claude)\//, /\.md$/]
 const testGroups = {
   'web-unit': ['@orbit/web#test'],
   'mobile-unit': ['@orbit/mobile#test'],
@@ -40,6 +46,7 @@ try {
       'turbo-dry': { type: 'string' },
       workflow: { type: 'string' },
       'changed-files': { type: 'string' },
+      'deleted-files': { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
   }))
@@ -58,7 +65,8 @@ if (!options.event || !options['turbo-dry'] || !options.workflow ||
 }
 
 try {
-  const hashes = new Map(JSON.parse(readFileSync(options['turbo-dry'], 'utf8')).tasks.map((task) => [task.taskId, task.hash]))
+  const dryTasks = JSON.parse(readFileSync(options['turbo-dry'], 'utf8')).tasks
+  const hashes = new Map(dryTasks.map((task) => [task.taskId, task.hash]))
   const workflowDigest = digest(readFileSync(options.workflow, 'utf8'))
   const lines = Object.entries(testGroups).map(([group, tasks]) => {
     const missing = tasks.filter((task) => !hashes.has(task))
@@ -72,6 +80,16 @@ try {
     const runs = !changed || changed.some((path) => workflowFile.test(path) || patterns.some((pattern) => pattern.test(path)))
     lines.push(`${scope}=${runs}`)
   }
+  const taskInputs = new Set()
+  let inputsKnown = true
+  for (const task of dryTasks.filter((entry) => Object.values(testGroups).flat().includes(entry.taskId))) {
+    if (typeof task.directory !== 'string' || task.inputs === null || typeof task.inputs !== 'object') inputsKnown = false
+    else for (const input of Object.keys(task.inputs)) taskInputs.add(posix.normalize(posix.join(task.directory, input)))
+  }
+  const deleted = options['deleted-files'] ? readFileSync(options['deleted-files'], 'utf8').split('\n').filter(Boolean) : null
+  const unitSkip = Boolean(changed) && inputsKnown && deleted !== null && deleted.length === 0 &&
+    changed.every((path) => !workflowFile.test(path) && appFree.some((pattern) => pattern.test(path)) && !taskInputs.has(path))
+  lines.push(`unit-skip=${unitSkip}`)
   const skipPaths = new Set(JSON.parse(readFileSync(fileURLToPath(new URL('tool-tests-skip-paths.json', import.meta.url)), 'utf8')))
   lines.push(`tools=${!changed || changed.some((path) => !skipPaths.has(path))}`)
   console.log(lines.join('\n'))

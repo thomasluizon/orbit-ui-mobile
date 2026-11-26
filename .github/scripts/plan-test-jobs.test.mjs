@@ -13,14 +13,20 @@ const tasks = {
   "@orbit/shared#test": "shared0", "@orbit/eslint-rules#test": "rules0", "@orbit/shared#build": "build0",
 }
 
-function plan({ event = "pull_request", changed = [], hashes = tasks, workflow = "name: PR Tests\n", changedFile = true } = {}) {
+// The Turbo dry run lists the input files of each task, relative to the directory of its workspace.
+const directories = { "@orbit/web#test": "apps/web", "@orbit/mobile#test": "apps/mobile", "@orbit/desktop#test": "apps/desktop", "@orbit/shared#test": "packages/shared", "@orbit/eslint-rules#test": "eslint-rules" }
+const webInputs = { "app/page.tsx": "h1", "../../tools/arch-map.mjs": "h2", "../../DESIGN.md": "h3", "CLAUDE.md": "h4" }
+
+function plan({ event = "pull_request", changed = [], hashes = tasks, workflow = "name: PR Tests\n", changedFile = true, deleted = [], deletedFile = true, inputs = webInputs } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "plan-test-jobs-"))
   try {
-    writeFileSync(join(directory, "turbo.json"), JSON.stringify({ tasks: Object.entries(hashes).map(([taskId, hash]) => ({ taskId, hash })) }))
+    writeFileSync(join(directory, "turbo.json"), JSON.stringify({ tasks: Object.entries(hashes).map(([taskId, hash]) => ({ taskId, hash, ...(directories[taskId] ? { directory: directories[taskId], inputs: taskId === "@orbit/web#test" ? inputs : {} } : {}) })) }))
     writeFileSync(join(directory, "test.yml"), workflow)
     writeFileSync(join(directory, "changed.txt"), changed.map((path) => `${path}\n`).join(""))
     const argumentsList = ["--event", event, "--turbo-dry", join(directory, "turbo.json"), "--workflow", join(directory, "test.yml")]
     if (changedFile) argumentsList.push("--changed-files", join(directory, "changed.txt"))
+    writeFileSync(join(directory, "deleted.txt"), deleted.map((path) => `${path}\n`).join(""))
+    if (deletedFile) argumentsList.push("--deleted-files", join(directory, "deleted.txt"))
     const result = spawnSync(process.execPath, [script, ...argumentsList], { encoding: "utf8" })
     const outputs = Object.fromEntries(result.stdout.split("\n").filter(Boolean).map((line) => line.split("=")))
     return { status: result.status, stderr: result.stderr, outputs }
@@ -161,4 +167,53 @@ test("a missing Turbo task fails and a pull request needs its changed paths", ()
   assert.equal(missing.status, 1)
   assert.match(missing.stderr, /@orbit\/mobile#test/)
   assert.equal(plan({ changedFile: false }).status, 2)
+})
+
+test("a pull request that changes only tools, .claude or documents that no test task reads runs no unit group", () => {
+  for (const changed of [["tools/drive.mjs"], ["tools/__tests__/drive.mjs", ".claude/skills/driver/SKILL.md", "TESTING.md"], ["README.md", "docs/notes.md"]]) {
+    const { status, outputs } = plan({ changed })
+    assert.equal(status, 0, changed.join())
+    assert.equal(outputs["unit-skip"], "true", changed.join())
+  }
+})
+
+test("a changed path that a test task lists as an input keeps every unit group", () => {
+  for (const changed of [["tools/arch-map.mjs"], ["DESIGN.md"], ["apps/web/CLAUDE.md"], ["tools/drive.mjs", "tools/arch-map.mjs"]]) {
+    const { status, outputs } = plan({ changed })
+    assert.equal(status, 0, changed.join())
+    assert.equal(outputs["unit-skip"], "false", changed.join())
+  }
+})
+
+test("an app path, a workflow file, a deleted path or a missing deleted list keeps every unit group", () => {
+  const cases = [
+    ["an app path", { changed: ["tools/drive.mjs", "apps/web/app/page.tsx"] }],
+    ["the workflow file", { changed: [".github/workflows/test.yml"] }],
+    ["a script path", { changed: [".github/scripts/plan-test-jobs.mjs"] }],
+    ["a deleted path", { changed: ["tools/old.mjs"], deleted: ["tools/old.mjs"] }],
+    ["no deleted list", { changed: ["tools/drive.mjs"], deletedFile: false }],
+    ["a dry run with no input list", { changed: ["tools/drive.mjs"], inputs: null }],
+  ]
+  for (const [label, options] of cases) {
+    const { status, outputs } = plan(options)
+    assert.equal(status, 0, label)
+    assert.equal(outputs["unit-skip"], "false", label)
+  }
+})
+
+test("a push or a dispatch never skips a unit group", () => {
+  for (const event of ["push", "workflow_dispatch"]) {
+    const { status, outputs } = plan({ event, changedFile: false })
+    assert.equal(status, 0, event)
+    assert.equal(outputs["unit-skip"], "false", event)
+  }
+})
+
+test("the plan job counts a skipped unit group as a cached result and keeps the required check strict", () => {
+  const text = readFileSync(join(root, ".github/workflows/test.yml"), "utf8")
+  for (const group of ["web", "mobile", "workspace"]) {
+    assert.match(text, new RegExp(`${group}-unit-hit: .*steps\\.plan\\.outputs\\.unit-skip == 'true'`), group)
+    assert.match(text, new RegExp(`if: needs\\.plan\\.outputs\\.${group}-unit-hit != 'true'`), group)
+  }
+  assert.match(text, /--deleted-files "\$RUNNER_TEMP\/deleted-paths\.txt"/)
 })

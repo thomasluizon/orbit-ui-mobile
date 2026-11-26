@@ -186,7 +186,7 @@ test("each test group starts only without a cached result, and every event looks
   for (const [job, group] of [["web-tests", "web-unit"], ["mobile-tests", "mobile-unit"], ["workspace-tests", "workspace-unit"]]) {
     assert.equal(workflow.jobs[job].needs, "plan")
     assert.equal(workflow.jobs[job].if, `needs.plan.outputs.${group}-hit != 'true'`)
-    assert.equal(plan.outputs[`${group}-hit`], `\${{ steps.${group}.outputs.cache-hit == 'true' || steps.merged.outputs.${group}-hit == 'true' }}`)
+    assert.equal(plan.outputs[`${group}-hit`], `\${{ steps.${group}.outputs.cache-hit == 'true' || steps.merged.outputs.${group}-hit == 'true' || steps.plan.outputs.unit-skip == 'true' }}`)
     assert.equal(plan.outputs[`${group}-key`], `\${{ steps.plan.outputs.${group}-key }}`)
     const lookup = plan.steps.find((step) => step.id === group)
     assert.equal(lookup.if, undefined)
@@ -198,7 +198,7 @@ test("each test group starts only without a cached result, and every event looks
     const save = unitSteps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.key === `\${{ needs.plan.outputs.${group}-key }}`)
     for (const step of [lookup, restore, save]) assert.equal(step.with.path, variable, `${group}: the cache version includes the path, so every step names the same one`)
     assert.equal(restore.if, `needs.${job}.result == 'skipped'`)
-    assert.equal(restore.with["fail-on-cache-miss"], true)
+    assert.equal(restore.with["fail-on-cache-miss"], "${{ needs.plan.outputs.unit-skip != 'true' }}", `${group}: a skipped pull request may have no cached result to restore`)
     assert.equal(save.if, `github.event_name != 'pull_request' && needs.${job}.result == 'success'`)
   }
   const planStep = plan.steps.find((step) => step.id === "plan")
