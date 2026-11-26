@@ -69,7 +69,7 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
       {guided && log.reminderAtUtc ? <fieldset aria-label={t('habits.takenAtQuestion')} data-option-group="" className="grid w-full pb-3 min-w-0">
         <OptionCard label={t('habits.useReminderTime')} disabled={mutation.isPending} loading={mutation.isPending && answering} onSelect={() => void save(new Date(log.reminderAtUtc!).toISOString())} />
       </fieldset> : null}
-      <fieldset disabled={mutation.isPending}><DateField label={t('habits.doseDate')} value={date} onChange={(value) => { setExactInstant(null); setDate(value) }} /></fieldset>
+      <fieldset disabled={mutation.isPending} className="min-w-0"><DateField label={t('habits.doseDate')} value={date} onChange={(value) => { setExactInstant(null); setDate(value) }} /></fieldset>
       <TimeField label={t('habits.doseTime')} value={toTime24(clock)} onChange={(value) => { setExactInstant(null); setClock(value) }} disabled={mutation.isPending} />
       {log.reminderAtUtc && !guided ? <IconButton label={t('habits.useReminderTime')} disabled={mutation.isPending} onClick={() => {
         setExactInstant(new Date(log.reminderAtUtc!).toISOString())

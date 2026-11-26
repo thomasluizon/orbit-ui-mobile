@@ -146,7 +146,7 @@ export function Proposed({ proposed, scope, label, children, inset = false, keep
     <fieldset
       role={proposed ? undefined : 'presentation'}
       aria-label={proposed ? label : undefined}
-      className={appearance === 'plain' || !proposed ? undefined : inset ? "min-w-0 outline outline-1 outline-dashed outline-[var(--hairline-strong)] -outline-offset-1" : "min-w-0 border border-dashed border-[var(--hairline-strong)]"}
+      className={appearance === 'plain' || !proposed ? 'min-w-0' : inset ? "min-w-0 outline outline-1 outline-dashed outline-[var(--hairline-strong)] -outline-offset-1" : "min-w-0 border border-dashed border-[var(--hairline-strong)]"}
       data-proposed={proposed ? '' : undefined}
       style={{ borderRadius: PROPOSED_RADIUS[scope] }}
     >

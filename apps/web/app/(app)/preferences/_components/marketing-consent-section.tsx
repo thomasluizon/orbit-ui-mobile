@@ -63,7 +63,7 @@ export function MarketingConsentSection({
         </fieldset>
       ) : <fieldset
         disabled={mutation.isPending}
-        className="m-0 flex flex-wrap gap-2 border-0 p-0"
+        className="m-0 flex min-w-0 flex-wrap gap-2 border-0 p-0"
       ><ActionRow>
         <PillButton size="sm" variant="ghost" onClick={() => mutation.mutate(false)}>
           {t('profile.marketingEmails.decline')}
