@@ -1,39 +1,21 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { OptionCardProps } from '@orbit/shared/contracts/flow'
+import { createOptionReasons, type ReportOptionReason } from '@orbit/shared/hooks'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { SkeletonFace } from '@/components/ui/skeleton'
 import { useFlowLook } from '@/components/ui/flow-look'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-const OptionReasonContext = createContext<((id: string, reason: string | null) => void) | null>(null)
-
-function useReportedReason(reason: string | null) {
-  const report = useContext(OptionReasonContext)
-  const id = useId()
-  useEffect(() => {
-    report?.(id, reason)
-    return () => report?.(id, null)
-  }, [report, id, reason])
-  return report !== null
-}
+const OptionReasonContext = createContext<ReportOptionReason | null>(null)
+const { useReportedReason, useOptionReasons } = createOptionReasons({ useCallback, useEffect, useId, useState })
 
 /** The grid of the quick options of one question. A disabled option reports its reason here, and the group shows each different reason once, centred, 8 under the grid. */
 export function OptionGroup({ children }: Readonly<{ children: ReactNode }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const [reasons, setReasons] = useState<ReadonlyMap<string, string>>(new Map())
-  const report = useCallback((id: string, reason: string | null) => {
-    setReasons((current) => {
-      if ((current.get(id) ?? null) === reason) return current
-      const next = new Map(current)
-      if (reason === null) next.delete(id)
-      else next.set(id, reason)
-      return next
-    })
-  }, [])
-  const shown = [...new Set(reasons.values())]
+  const { report, shown } = useOptionReasons()
   return (
     <View testID="option-group" style={styles.group}>
       <OptionReasonContext value={report}>
@@ -51,7 +33,7 @@ export function OptionCard({ label, selected = false, disabled = false, disabled
   const control = useRef<View>(null)
   const { lookAtControl, lookAway } = useFlowLook()
   const reason = disabled && disabledReason ? disabledReason : null
-  const inGroup = useReportedReason(reason)
+  const inGroup = useReportedReason(useContext(OptionReasonContext), reason)
   return (
     <View style={[styles.wrapper, wide ? styles.wide : null]}>
       <MotionPressable
