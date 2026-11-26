@@ -23,6 +23,7 @@
     "./contracts/*": "./src/contracts/*/index.ts",
     "./utils": "./src/utils/index.ts",
     "./utils/load-module": "./src/utils/load-module.ts",
+    "./utils/body-reader": "./src/utils/body-reader.ts",
     "./utils/today-launch": "./src/utils/today-launch.ts",
     "./utils/move-parent": "./src/utils/move-parent.ts",
     "./utils/repeat-reminders": "./src/utils/repeat-reminders.ts",

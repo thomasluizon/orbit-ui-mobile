@@ -3,6 +3,7 @@ import { canRetryComposerSend,retryComposerSend,type ComposerRetryDraft,createCo
 import { isChatReplyActive,prepareConversationSend,resolveChatRequestContext } from '@orbit/shared/chat'
 import { conversationHistory } from '@/lib/conversation-history'
 import { buildRecentChatHistory } from '@orbit/shared/utils'
+import { readBodyChunks } from '@orbit/shared/utils/body-reader'
 import { randomUUID } from 'expo-crypto'
 import { useCallback,useEffect,useState } from "react"
 import * as ImagePicker from "expo-image-picker"
@@ -37,21 +38,13 @@ function isAbortError(error: unknown): boolean {
 }
 
 async function* streamTextChunks(
-  body: ByteStream | null,
+  body: ByteStream | null | undefined,
   onActivity: () => void,
 ): AsyncGenerator<string> {
-  if (!body) return
-  const reader = body.getReader()
   const decoder = new TextDecoder()
-  try {
-    let chunk = await reader.read()
-    while (!chunk.done) {
-      onActivity()
-      if (chunk.value) yield decoder.decode(chunk.value, { stream: true })
-      chunk = await reader.read()
-    }
-  } finally {
-    reader.releaseLock()
+  for await (const chunk of readBodyChunks(body)) {
+    onActivity()
+    yield decoder.decode(chunk, { stream: true })
   }
 }
 
