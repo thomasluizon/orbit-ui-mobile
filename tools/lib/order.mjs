@@ -1,5 +1,7 @@
 /** The delivery driver's work orders: the six kinds of order and the one generic brief that every worker reads. */
 
+import { parityExemptTerms } from "./parity-scope.mjs"
+
 export const ORDER_KINDS = Object.freeze(["build", "build part", "fix", "ci-fix", "merge-forward", "find"])
 
 /** The first line of an owner's part comment: any number of `#` marks, an optional ticket reference such as `#7`, then `Part n of m`. The rest of the line is the title. */
@@ -92,7 +94,7 @@ const deliverySection = ({ ticket, kind }) => {
   const pushes = pushesToOpenPull(kind)
   const pullRequest = pushes
     ? "Push to the branch of the open pull request. Open no other pull request."
-    : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` (never \`Closes\`), \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start each item that waits on the owner, on another ticket or on a release with \`owner:\` or \`blocked by #<ticket>\`.`
+    : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` (never \`Closes\`), \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start each item that waits on the owner, on another ticket or on a release with \`owner:\` or \`blocked by #<ticket>\`. A change to only one of \`apps/web\` and \`apps/mobile\` needs the label \`parity:exempt\` (add it with \`--label\`) and a line under \`## Parity\` that names one of these terms: ${parityExemptTerms.join(", ")}.`
   const pushRule = pushes ? "" : " Commit and push after each finished step, and open the pull request after the first push."
   return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge, never force-push, never \`--no-verify\`. Write to GitHub only with ${pushes ? "`git push`" : "`git push` and `gh pr create`"}.`
 }

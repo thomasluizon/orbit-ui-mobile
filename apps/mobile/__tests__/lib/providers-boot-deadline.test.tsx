@@ -11,6 +11,7 @@ import { hideAsync } from 'expo-splash-screen'
 
 const stalled = vi.hoisted(() => ({
   fontsLoaded: true,
+  fontError: null as Error | null,
   draftHydrated: true,
   initialize: async () => {},
   restoreQueryCache: async () => {},
@@ -18,7 +19,7 @@ const stalled = vi.hoisted(() => ({
 const never = () => new Promise<never>(() => {})
 
 vi.mock('expo-router', () => ({ useGlobalSearchParams: () => ({}) }))
-vi.mock('expo-font', () => ({ useFonts: () => [stalled.fontsLoaded] }))
+vi.mock('expo-font', () => ({ useFonts: () => [stalled.fontsLoaded, stalled.fontError] }))
 vi.mock('expo-splash-screen', () => ({ preventAutoHideAsync: vi.fn(), hideAsync: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@expo-google-fonts/geist', () => ({ Geist_400Regular: '', Geist_500Medium: '', Geist_600SemiBold: '' }))
 vi.mock('@expo-google-fonts/geist-mono', () => ({ GeistMono_400Regular: '', GeistMono_500Medium: '' }))
@@ -70,6 +71,7 @@ beforeEach(() => {
   queryClient.clear()
   queryClient.setQueryData(profileKeys.detail(), createMockProfile({ themePreference: 'light' }), { updatedAt: Date.now() })
   stalled.fontsLoaded = true
+  stalled.fontError = null
   stalled.draftHydrated = true
   stalled.initialize = async () => {}
   stalled.restoreQueryCache = async () => {}
@@ -120,6 +122,16 @@ describe('startup deadline', () => {
     stalled.fontsLoaded = false
     const tree = await mountProviders()
     await passBootDeadline()
+    expect(hideAsync).toHaveBeenCalledTimes(1)
+    expect(has(tree, 'destination')).toBe(true)
+    expect(has(tree, 'shell-skeleton')).toBe(false)
+  })
+
+  it('releases the splash without the deadline when a font fails to load', async () => {
+    stalled.fontsLoaded = false
+    stalled.fontError = new Error('font asset missing')
+    const tree = await mountProviders()
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(0) })
     expect(hideAsync).toHaveBeenCalledTimes(1)
     expect(has(tree, 'destination')).toBe(true)
     expect(has(tree, 'shell-skeleton')).toBe(false)

@@ -1,0 +1,17 @@
+{
+  "provenance": {
+    "runList": "The field names of one entry of `gh run list --json databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch`: the JSON FIELDS section of `gh run list --help`, read on 2026-11-25. The values are placeholders.",
+    "runStatus": "The fields status, conclusion, html_url and head_sha of `gh api repos/<owner>/<repo>/actions/runs/<id>`, as tools/wait-release.mjs reads them."
+  },
+  "run": {
+    "databaseId": 1,
+    "headSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "createdAt": "2026-11-25T12:00:00Z",
+    "event": "workflow_dispatch",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://example.invalid/resource",
+    "displayTitle": "<value>",
+    "headBranch": "main"
+  }
+}

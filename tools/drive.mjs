@@ -2,7 +2,8 @@
 
 /**
  * The delivery driver. A program, not a model: each tick it reads GitHub, acts on every open pull request, and fills every
- * free worker slot (one to three Sonnet workers, by the headroom under the weekly line). It merges at the owner's bar. All
+ * free worker slot (one to three Sonnet workers, by the headroom under the weekly line). It merges at the owner's bar, and it
+ * releases every platform on a steady cadence (lib/release-train.mjs): staging first, then production. All
  * state lives on GitHub, in `git worktree list` and in its own pid files, so a restart loses nothing.
  */
 
@@ -10,21 +11,22 @@ import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { delimiter, dirname, join } from "node:path"
+import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { readDriveConfig } from "./lib/config.mjs"
 import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
-import { WORKTREE_REMOVE_ARGUMENTS, parseWorktreeList } from "./lib/git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { ownerParts, partOf, renderOrder } from "./lib/order.mjs"
+import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --sleep on | --sleep off | --reviewer-token | --preflight] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, and merges at the
   owner's bar. It never idles: a free worker slot and an admissible order start a worker on the same tick. The driver
@@ -35,6 +37,9 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   account. An account stops at 90% of its week: it starts no worker and runs no probe. The stop of the main account also
   holds the Pullfrog requests, because Pullfrog runs on it. A worker that ends on a usage limit stops its account until its
   reset, and the order starts again on the other account. The driver still merges a pull request that meets the bar.
+  The driver also runs the release train: a train starts at most every 4 hours when a service has unreleased work, and it
+  releases API, web, landing and mobile (Android, then iOS), staging first and then production. Each tick makes at most one
+  dispatch or one check. --dry-run prints the steps. The train state is the file release-train.json in the state directory.
 
   (no flag)   run the loop: one tick each 120 seconds until stopped. At the end of a tick with no worker running, the driver
               checks out a newer driver commit of origin/main in its own worktree and exits 0, so launchd starts the new version.
@@ -49,6 +54,9 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   --sleep on|off  sleep mode of the owner. While it is on the driver sends no notification and asks nothing: each item for
               the owner still gets its needs:owner label and one comment, and the driver keeps working on every other item.
               --sleep off makes the driver send one notification that lists the items held, each with its link.
+  --release-now  ask the driver to start a release train on its next tick, at once, whatever the 4 hour cadence and the last stop.
+              It starts only when a service has unreleased work. The owner session runs it for /release.
+  --release-status  print the newest release train: what it released and where it stopped
   --reviewer-token  read a Claude OAuth token on stdin and set CLAUDE_CODE_OAUTH_TOKEN in the three repositories;
               print each repository's result and never the token
   --preflight  run the checks that a loop start runs before the first tick (the tools on PATH and the configuration), then exit 0.
@@ -296,7 +304,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map() })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -1233,17 +1241,88 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   if (shas.length > 0 && Number.isInteger(number) && number > 0 && result.sessionId) await recordCommits(env, repoKey, number, result.sessionId, shas)
 }
 
+/**
+ * The reason a worktree cannot go: it holds a repository or a linked worktree in an ignored directory. `git worktree remove`
+ * deletes an ignored path with all it holds, and neither status check shows a change inside it. Null when the tree holds none.
+ */
+const nestedRepositoryReason = (env, path) => {
+  const found = env.findRepositories(path)
+  if (found === null) return "the repositories inside it are unreadable"
+  const nested = found.filter((directory) => resolve(directory) !== resolve(path))
+  return nested.length > 0 ? `it holds a repository or worktree: ${nested.join(", ")}` : null
+}
+
 const removeWorktrees = async (env, repoKey, branches) => {
   const repoPath = env.config.repos[repoKey]
   const listed = parseWorktreeList(await gitText(env, repoPath, ["worktree", "list", "--porcelain"]))
   for (const branch of branches) {
     const entry = listed.find((candidate) => candidate.branch === branch)
     if (entry) {
+      // `git worktree remove` deletes the directory under a shell or a session whose cwd is in it.
+      let holders
+      try { holders = env.worker.directoryHolders(env.worker.processDirectories(), entry.path) } catch (error) { log(env, repoKey, "worktree-kept", `${entry.path}: unreadable: ${error.message}`); continue }
+      if (holders.length > 0) { log(env, repoKey, "worktree-kept", `${entry.path}: a process holds it: pid ${holders.join(", ")}`); continue }
+      const nested = nestedRepositoryReason(env, entry.path)
+      if (nested !== null) { log(env, repoKey, "worktree-kept", `${entry.path}: ${nested}`); continue }
       const removed = await env.git(repoPath, [...WORKTREE_REMOVE_ARGUMENTS, entry.path])
       if (removed.status !== 0) { log(env, repoKey, "worktree-kept", removed.stderr.trim()); continue }
     }
     await env.git(repoPath, ["branch", "-D", branch])
   }
+}
+
+/**
+ * The reason a worktree stays, or null when it is finished: its branch has a merged pull request and no open one, the tree has no
+ * change (an untracked file counts), no commit is unpushed, no process holds it (by its command line, a pid file or its cwd), and it holds no other repository or worktree. The cheap local reads come before the one GitHub read. The walk of the tree comes last.
+ */
+const worktreeStayReason = async (env, repoKey, entry, directories) => {
+  const occupants = [...new Set([...env.worker.worktreeOccupants(entry.path, { stateDirectory: env.stateDir }), ...env.worker.directoryHolders(directories(), entry.path)])].sort((left, right) => left - right)
+  if (occupants.length > 0) return `a process holds it: pid ${occupants.join(", ")}`
+  if ((await gitText(env, entry.path, CLEAN_STATUS_ARGUMENTS)) !== "") return "the tree has a change"
+  if (hiddenChangesOf(await gitText(env, entry.path, HIDDEN_CHANGE_ARGUMENTS)).length > 0) return "the tree has a change that git status hides"
+  const head = await gitText(env, entry.path, ["rev-parse", "HEAD"])
+  const pulls = JSON.parse(await env.gh(["pr", "list", "--repo", env.slugOf(repoKey), "--head", entry.branch, "--state", "all", "--json", "number,state,headRefOid", "--limit", "20"]))
+  if (pulls.some((candidate) => candidate.state === "OPEN")) return "a pull request is open on the branch"
+  const merged = pulls.filter((candidate) => candidate.state === "MERGED")
+  if (merged.length === 0) return "no pull request of the branch is merged"
+  // The merged head is on GitHub. Any other head needs a remote branch that holds it.
+  if (!merged.some((candidate) => candidate.headRefOid === head) && (await gitText(env, entry.path, ["branch", "--remotes", "--contains", head])) === "") return "a commit is unpushed"
+  return nestedRepositoryReason(env, entry.path)
+}
+
+/**
+ * Removes each finished worktree of the ui, api and landing repositories, except the primary checkout and the driver's own worktree.
+ * A removal never forces: git refuses a changed tree. A worktree that stays is logged once for each reason.
+ */
+const sweepWorktrees = async (env, mem) => {
+  const seen = new Set()
+  // One lsof read serves every worktree of the sweep, and a sweep with no candidate reads none.
+  let directories = null
+  const readDirectories = () => (directories ??= env.worker.processDirectories())
+  for (const repoKey of REPOSITORY_KEYS) {
+    const repoPath = env.config.repos[repoKey]
+    let listed
+    try { listed = parseWorktreeList(await gitText(env, repoPath, ["worktree", "list", "--porcelain"])) } catch (error) { log(env, repoKey, "worktree-sweep-error", error.message); continue }
+    for (const entry of listed.slice(1)) {
+      if (entry.branch === null || entry.locked || entry.prunable || resolve(entry.path) === resolve(env.driverWorktree ?? "")) continue
+      seen.add(entry.path)
+      const reason = await worktreeStayReason(env, repoKey, entry, readDirectories).catch((error) => `unreadable: ${error.message}`)
+      if (reason !== null) {
+        if (mem.keptWorktrees.get(entry.path) !== reason) { mem.keptWorktrees.set(entry.path, reason); log(env, repoKey, "worktree-stays", `${entry.path}: ${reason}`) }
+        continue
+      }
+      const removed = await env.git(repoPath, [...WORKTREE_REMOVE_ARGUMENTS, entry.path])
+      if (removed.status !== 0) {
+        const failure = `removal refused: ${removed.stderr.trim()}`
+        if (mem.keptWorktrees.get(entry.path) !== failure) { mem.keptWorktrees.set(entry.path, failure); log(env, repoKey, "worktree-stays", `${entry.path}: ${failure}`) }
+        continue
+      }
+      mem.keptWorktrees.delete(entry.path)
+      await env.git(repoPath, ["branch", "-D", entry.branch])
+      log(env, repoKey, "worktree-removed", `${entry.path}, branch ${entry.branch}`)
+    }
+  }
+  for (const path of mem.keptWorktrees.keys()) if (!seen.has(path)) mem.keptWorktrees.delete(path)
 }
 
 /** The merged pull requests that track a ticket, oldest merge first: the search lists them by relevance, so the order is sorted here. */
@@ -1683,6 +1762,7 @@ export const tick = async (env, mem) => {
       if (reason === null) { mem.acted = true; free[name] -= 1 }
       else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
     }
+    await sweepWorktrees(env, mem).catch((error) => log(env, "worktrees", "error", error.message))
     const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : null)
     await startQuestions(env, mem, { tickets, states, blocked: questionsBlock }).catch((error) => log(env, "questions", "error", error.message))
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.
@@ -1693,6 +1773,7 @@ export const tick = async (env, mem) => {
     mem.lastIntakeAt = env.now()
     await intake(env, mem).catch((error) => log(env, "intake", "error", error.message))
   }
+  if (env.releasePorts) await runReleaseTrain(env).catch((error) => log(env, "release", "error", error.message))
   if (env.dryRun && env.driverWorktree) env.lines.push(await pinLine(env).catch((error) => `driver pin unreadable (${error.message})`))
   if (env.dryRun) for (const line of env.lines) env.log(line)
   const switched = await switchDriver(env, mem).catch((error) => (log(env, "driver", "switch-error", error.message), false))
@@ -1700,6 +1781,28 @@ export const tick = async (env, mem) => {
 }
 
 const shortSha = (sha) => sha.slice(0, 9)
+
+/** The ticket writes of the release train: a held step gets one `needs:owner` ticket and one comment, a stopped train one Bug ticket. */
+const releaseTickets = (env) => ({
+  bug: async ({ title, body, repoKey }) => {
+    const created = await env.github.createTicket({ title, body, labels: [`repo:${repoKey}`, "Bug"] })
+    await say(env, `Orbit driver: ${title}`)
+    return created.number
+  },
+  hold: async ({ title, reason, repoKey }) => {
+    const open = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "open", "--label", OWNER, "--json", "number,title", "--limit", "100"]))
+    const known = open.find((ticket) => ticket.title === title)
+    if (known) return known.number
+    const created = await env.github.createTicket({ title, body: reason, labels: [`repo:${repoKey}`, OWNER] })
+    await env.github.comment("tickets", created.number, marked("needs-owner", reason))
+    holdItem(env, { link: issueLink(env, created.number), reason })
+    await say(env, `Orbit driver needs you: ${reason}`)
+    return created.number
+  },
+})
+
+/** One tick of the release train: the driver releases every platform on its cadence, staging then production. */
+const runReleaseTrain = (env) => releaseTick({ ports: env.releasePorts, stateDir: env.stateDir, now: env.now, dryRun: env.dryRun, log: (line) => env.log(line), tickets: releaseTickets(env) })
 
 /**
  * The commit of origin/main to switch to: it differs from the pin, it changes a driver file, and it is not the commit that
@@ -1817,7 +1920,7 @@ export const parseArguments = (argv) => {
     if (rest.length > 0) return { error: `unknown or conflicting argument: ${rest[0]}` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "allow-over-limit", account: argv[allowAt + 1] }
   }
-  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight"])
+  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight", "--release-now", "--release-status"])
   const given = argv.filter((argument) => argument !== "--help" && argument !== "-h")
   const unknown = given.filter((argument) => !modes.has(argument))
   if (unknown.length > 0 || given.length > 1) return { error: `unknown or conflicting argument: ${(unknown[0] ?? given[1])}` }
@@ -1870,10 +1973,12 @@ const realEnvironment = ({ dryRun = false } = {}) => {
   return {
     config, dryRun, stateDir, home, github: githubApi, worker: workerApi, now: () => Date.now(), lines: [],
     driverWorktree: dirname(dirname(fileURLToPath(import.meta.url))), selfUpdate: false,
+    releasePorts: realPorts({ run: runBounded, toolsDirectory: dirname(fileURLToPath(import.meta.url)) }),
     smoke: async (worktree) => { const [file, ...args] = smokeArguments(worktree); return (await runBounded(file, args, { timeoutMs: 60 * 1000 })).status === 0 },
     log: (line) => console.log(line),
     slugOf: (key) => (key === "tickets" ? config.tickets.repository : repositorySlug(config.repos[key])),
     git: (cwd, args) => runBounded("git", ["-C", cwd, ...args], { timeoutMs: 300 * 1000 }),
+    findRepositories,
     gh: (args) => runText("gh", args, { maxBuffer: 64 * 1024 * 1024 }),
     notify: async (message) => { await runBounded("osascript", ["-e", `display notification ${JSON.stringify(message)} with title "Orbit driver"`], { timeoutMs: 15 * 1000 }) },
     keychain: async (service) => { const result = await runBounded("security", ["find-generic-password", "-s", service, "-w"], { timeoutMs: 15 * 1000 }); return result.status === 0 && result.stdout.trim() !== "" ? result.stdout.trim() : null },
@@ -1918,6 +2023,12 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   env.selfUpdate = parsed.mode === "loop"
   if (parsed.mode === "allow-over-limit") return allowOverLimit(env, { out, err }, parsed.account)
   if (parsed.mode === "sleep") return setSleep(env, parsed.word, { out })
+  if (parsed.mode === "release-status") { out(trainSummary(env.stateDir)); return 0 }
+  if (parsed.mode === "release-now") {
+    const running = requestTrain(env.stateDir)
+    out(running === null ? "The driver starts a release train on its next tick, within 2 minutes, when a service has unreleased work." : `A release train already runs: ${running}`)
+    return 0
+  }
   if (parsed.mode === "probe") {
     const reading = await env.worker.probe({ invocation: await env.invocation() })
     if (reading === null) { out("The probe returned no rate limit event."); return 0 }
