@@ -2337,6 +2337,32 @@ const quietLogCases = async () => {
   same("drive: the same hold on 3 ticks logs one needs-owner line and writes one report", [holdLines(three).length, needsOwnerComments(three.calls, 7).length, only(three.calls, "notify").length], [1, 1, 1])
   T("drive: the hold line names the pull request, the head and the open classes", holdLines(three)[0].includes(`ui#30 at ${HEAD}`) && holdLines(three)[0].includes("tools/a.mjs:3"))
 
+  // A hold that goes on keeps its log memory when a tick does not plan its item: a merge ends the pull loop and a plan can throw.
+  const holdOf = (scene) => holdLines(scene).filter((line) => line.includes("ui#30 needs-owner ("))
+  const merged = [ticket(7, { comments: [...launches] }), ticket(8)]
+  const other = pull(20, { tracks: 8, body: "Tracks thomasluizon/orbit-tickets#8\n\nRemaining: none", headRef: "chore/ticket-8-20", draft: true })
+  const mergePulls = [other, pull(30, { reviews: [finding("tools/a.mjs", 3)] })]
+  const afterMerge = scenario({ tickets: merged, pulls: { ui: mergePulls } })
+  keepWrites(afterMerge, merged)
+  await afterMerge.run()
+  other.draft = false
+  await afterMerge.run()
+  mergePulls.splice(0, 1)
+  await afterMerge.run()
+  same("drive: a merge before a held pull request in the same tick keeps one needs-owner line and one report for the hold", [only(afterMerge.calls, "merge").length, holdOf(afterMerge).length, needsOwnerComments(afterMerge.calls, 7).length], [1, 1, 1])
+
+  const thrown = [ticket(7, { comments: [...launches] })]
+  const failing = scenario({ tickets: thrown, pulls: { ui: [pull(30, { reviews: [finding("tools/a.mjs", 3)] })] } })
+  keepWrites(failing, thrown)
+  const runsFor = failing.env.github.pullfrogRunsFor
+  let failNext = false
+  failing.env.github.pullfrogRunsFor = async (...input) => { if (failNext) { failNext = false; throw new Error("gh read failed") } return runsFor(...input) }
+  await failing.run()
+  failNext = true
+  await failing.run()
+  await failing.run()
+  same("drive: a plan that throws once keeps one needs-owner line for a hold that goes on", [failing.messages.filter((line) => line.includes("ui#30 error (gh read failed)")).length, holdOf(failing).length], [1, 1])
+
   const changed = [ticket(7, { comments: [...launches] })]
   const open = [finding("tools/a.mjs", 3)]
   const scene = scenario({ tickets: changed, pulls: { ui: [pull(30, { reviews: open })] }, sleeping: true })

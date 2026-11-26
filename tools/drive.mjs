@@ -322,6 +322,12 @@ const logChange = (env, mem, { scope, signature, item, action, reason }) => {
   log(env, item, action, reason)
 }
 
+/** Keeps the log memory of a pull request that a tick did not plan: its hold goes on, so its lines must not come again. */
+const keepLogged = (mem, item) => {
+  mem.loggedSeen.add(`needs-owner ${item}`)
+  mem.loggedSeen.add(`wait ${item}`)
+}
+
 const forgetUnseen = (mem) => {
   for (const scope of mem.logged.keys()) if (!mem.loggedSeen.has(scope)) mem.logged.delete(scope)
   mem.loggedSeen.clear()
@@ -1015,7 +1021,8 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
   const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), updated: false, merged: false, running }
   const orders = []
   const repoPath = env.config.repos[repoKey]
-  for (const pull of [...state.pulls].sort((left, right) => left.number - right.number)) {
+  const pulls = [...state.pulls].sort((left, right) => left.number - right.number)
+  for (const [index, pull] of pulls.entries()) {
     const item = `${repoKey}#${pull.number}`
     try {
       const runs = pull.draft ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
@@ -1040,8 +1047,12 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
       }
     } catch (error) {
       log(env, item, "error", error.message)
+      keepLogged(mem, item)
     }
-    if (ctx.merged) break
+    if (ctx.merged) {
+      for (const skipped of pulls.slice(index + 1)) keepLogged(mem, `${repoKey}#${skipped.number}`)
+      break
+    }
   }
   return orders
 }
