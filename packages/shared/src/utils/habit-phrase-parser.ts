@@ -51,6 +51,9 @@ const EN_MONTH_DAY_LIST = `${EN_MONTH_DAY}(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s
 
 const PT_DAY_PART = '(?:\\s+d[ae]\\s+(manha|tarde|noite|madrugada))?'
 const EN_MERIDIEM = '(?:\\s*(am|pm)|\\s+(in the (?:morning|afternoon|evening)|at night))?'
+const PT_OFFSET = '(?:um quarto|meia hora|cinco|dez|quinze|vinte|trinta|quarenta|cinquenta|\\d{1,2}(?![\\d:h]))'
+const PT_NOON = `\\b(?:(?:ao|as|a)\\s+)?(?<!\\b(?:${PT_OFFSET}|minutos?|horas?)\\s+(?:para|pra|pro|antes|depois)\\s+(?:(?:o|do)\\s+)?)meio-dia(?:\\s+e\\s+mei[ao]\\b(?!-))?\\b(?!\\s+(?:e|menos)\\s+${PT_OFFSET}\\b)`
+const EN_NOON = '\\b(?:at\\s+)?(?<!\\b(?:half|quarter|five|ten|fifteen|twenty|mins?|minutes?|hours?|\\d{1,2})[\\s-]+(?:past|after|to|before|till?|until)\\s+)noon\\b'
 
 const WEEKDAY_NEGATIONS = new Set([
   'menos', 'exceto', 'sem', 'nao', 'nunca', 'salvo', 'tirando',
@@ -109,7 +112,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(`\\b(?:as|a)\\s+([01]?\\d|2[0-3])(?::([0-5]\\d)|h([0-5]\\d)?)?\\b${PT_DAY_PART}(?![:\\dh]|[.,]\\d)`, 'gu'),
       new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3]):([0-5]\\d)\\b${PT_DAY_PART}(?![:\\d]|[.,]\\d)`, 'gu'),
       new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3])h([0-5]\\d)?\\b${PT_DAY_PART}(?![:\\d]|[.,]\\d)`, 'gu'),
-      /\b(?:(?:ao|as|a)\s+)?meio-dia\b/gu,
+      new RegExp(PT_NOON, 'gu'),
     ],
     numberWords: PORTUGUESE_NUMBERS,
   },
@@ -137,7 +140,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3]):([0-5]\\d)${EN_MERIDIEM}\\b(?![:\\d]|[.,]\\d)`, 'gu'),
       /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b(?![:\d]|[.,]\d)/gu,
       /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s*(am|pm)\b(?![:\d]|[.,]\d)/gu,
-      /\b(?:at\s+)?noon\b/gu,
+      new RegExp(EN_NOON, 'gu'),
     ],
     numberWords: ENGLISH_NUMBERS,
   },
@@ -195,18 +198,24 @@ function parseNumber(value: string, words: Readonly<Record<string, number>>): nu
   return words[value] ?? Number.parseInt(value, 10)
 }
 
+function readDayPartHour(hour: number, dayPart: string): number | null {
+  const meridiem = dayPart === 'am' || dayPart === 'pm'
+  const afternoon = dayPart === 'pm' || /tarde|noite|afternoon|evening|night/u.test(dayPart)
+  const agreesAsWritten = !meridiem && (hour === 0 ? /manha|madrugada|noite|morning|night/u.test(dayPart) : hour > 12 && afternoon)
+  if (agreesAsWritten) return hour
+  if (hour < 1 || hour > 12) return null
+  const namesMidnight = hour === 12 && /noite|night/u.test(dayPart)
+  return namesMidnight ? 0 : hour % 12 + (afternoon ? 12 : 0)
+}
+
 function parseTime(match: RegExpExecArray): string | null {
-  if (match[1] === undefined) return '12:00'
-  let hour = Number.parseInt(match[1], 10)
+  if (match[1] === undefined) return /\se\s+mei[ao]$/u.test(match[0]) ? '12:30' : '12:00'
+  const clockHour = Number.parseInt(match[1], 10)
   const suffixes = match.slice(2)
   const minute = Number.parseInt(suffixes.find((value) => value && /^\d+$/u.test(value)) ?? '0', 10)
   const dayPart = suffixes.find((value) => value && /^(?:am|pm|manha|madrugada|tarde|noite|in the |at night)/u.test(value))
-  if (dayPart) {
-    if (hour < 1 || hour > 12) return null
-    const afternoon = dayPart === 'pm' || /tarde|noite|afternoon|evening|night/u.test(dayPart)
-    const namesMidnight = hour === 12 && /noite|night/u.test(dayPart)
-    hour = namesMidnight ? 0 : hour % 12 + (afternoon ? 12 : 0)
-  }
+  const hour = dayPart ? readDayPartHour(clockHour, dayPart) : clockHour
+  if (hour === null) return null
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
