@@ -4,11 +4,12 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const usage = `usage: record-web-shard-timings.mjs <timings-directory> <run-id> [--output <file>]
+const usage = `usage: record-web-shard-timings.mjs <durations-directory> <run-id> [--output <file>]
 
   Writes the per-file durations of one CI run to apps/web/vitest/shard-timings.json (or --output).
   The web Vitest shards split their files by these durations. Download the reports first:
-  gh run download <run-id> --name web-unit-timings --dir <directory>, then pass <directory>/timings.
+  gh run download <run-id> --name web-unit-timings --dir <directory>, then pass <directory>/durations.
+  apps/web/vitest/duration-reporter.mjs writes one report for each shard.
 
 exit codes: 0 snapshot written, 1 missing, doubled or invalid reports, 2 invalid arguments`
 
@@ -31,23 +32,20 @@ function sortedByKey(entries) {
   return Object.fromEntries(entries.sort(([left], [right]) => left.localeCompare(right)))
 }
 
-function collectDurations(timingsDirectory) {
+function collectDurations(durationsDirectory) {
   const durationMsByFile = {}
-  const reports = readdirSync(timingsDirectory).filter((name) => /^(chromium|jsdom)-\d+\.json$/.test(name))
-  if (!reports.length) throw new Error(`no chromium or jsdom shard reports in ${timingsDirectory}`)
+  const reports = readdirSync(durationsDirectory).filter((name) => /^(chromium|jsdom)-\d+\.json$/.test(name))
+  if (!reports.length) throw new Error(`no chromium or jsdom shard reports in ${durationsDirectory}`)
   for (const report of reports.sort()) {
-    const project = report.slice(0, report.indexOf('-'))
-    const { testResults } = JSON.parse(readFileSync(join(timingsDirectory, report), 'utf8'))
-    if (!Array.isArray(testResults) || !testResults.length) throw new Error(`${report}: no test file timings`)
-    durationMsByFile[project] ??= {}
-    for (const { name, startTime, endTime } of testResults) {
-      const marker = typeof name === 'string' ? name.lastIndexOf('/apps/web/') : -1
-      if (marker < 0 || !Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime < startTime) {
-        throw new Error(`${report}: invalid test file timing for ${name}`)
+    const { files } = JSON.parse(readFileSync(join(durationsDirectory, report), 'utf8'))
+    if (!Array.isArray(files) || !files.length) throw new Error(`${report}: no test file durations`)
+    for (const { project, file, milliseconds } of files) {
+      if (!['chromium', 'jsdom'].includes(project) || typeof file !== 'string' || !file || !Number.isFinite(milliseconds) || milliseconds < 0) {
+        throw new Error(`${report}: invalid test file duration for ${file}`)
       }
-      const file = name.slice(marker + '/apps/web/'.length)
+      durationMsByFile[project] ??= {}
       if (file in durationMsByFile[project]) throw new Error(`${report}: ${file} ran in two ${project} shards`)
-      durationMsByFile[project][file] = Math.round(endTime - startTime)
+      durationMsByFile[project][file] = Math.round(milliseconds)
     }
   }
   return sortedByKey(Object.entries(durationMsByFile).map(([project, files]) => [project, sortedByKey(Object.entries(files))]))

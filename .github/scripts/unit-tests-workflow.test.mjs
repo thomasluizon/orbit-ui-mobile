@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
@@ -21,6 +21,7 @@ const mobileLegs = Array.from({ length: mobileShardCount }, (_, index) => ({ sha
 const webReports = ({ project, shard }, label) => ({
   [`apps/web/.artifacts/unit-tests/blobs/${project}-${shard}.json`]: `${label} report`,
   [`apps/web/.artifacts/unit-tests/timings/${project}-${shard}.json`]: `${label} timing`,
+  [`apps/web/.artifacts/unit-tests/durations/${project}-${shard}.json`]: `${label} duration`,
 })
 const mobileReports = ({ shard }, label) => ({ [`apps/mobile/.artifacts/unit-tests/blobs/mobile-${shard}.json`]: `${label} report` })
 const workspaceReports = (label) => Object.fromEntries(workspaceDirectories.map((path) => [`${path}/coverage/lcov.info`, `${path} ${label}`]))
@@ -297,6 +298,8 @@ test("every pull request distributes Chromium without increasing browser concurr
   assert.match(run, /--shard=\$\{\{ matrix.shard \}\}\/\$\{\{ matrix.total \}\}/)
   assert.match(run, /--reporter=blob/)
   assert.match(run, /--reporter=json/)
+  assert.match(run, /--reporter=\.\/vitest\/duration-reporter\.mjs/)
+  assert.match(run, /--outputFile\.durations=\.artifacts\/unit-tests\/durations\/\$\{\{ matrix.project \}\}-\$\{\{ matrix.shard \}\}\.json/)
   assert.doesNotMatch(run, /maxWorkers|fileParallelism|passWithNoTests/)
   assert.equal(web.env.ARTIFACT_NAME, "web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}")
   assert.equal(stepNamed(web.steps, "Stage web shard reports under the artifact name").if, "${{ always() }}")
@@ -307,17 +310,17 @@ test("every pull request distributes Chromium without increasing browser concurr
   assert.equal(upload.with["if-no-files-found"], "error")
 })
 
-test("Unit Tests requires every jsdom and Chromium shard blob and timing report to be nonempty", () => {
+test("Unit Tests requires every jsdom and Chromium shard blob, timing and duration report to be nonempty", () => {
   const step = stepNamed(unitSteps, "Verify every web report arrived")
   assert.equal(step.if, "needs.web-tests.result == 'success'")
   const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
   const reportRoot = join(directory, "apps/web/.artifacts/unit-tests")
   const names = [...jsdomShards.map(({ shard }) => `jsdom-${shard}.json`), ...Array.from({ length: chromiumShardCount }, (_, index) => `chromium-${index + 1}.json`)]
-  const reports = ["blobs", "timings"].flatMap((kind) => names.map((name) => `${kind}/${name}`))
+  const kinds = ["blobs", "timings", "durations"]
+  const reports = kinds.flatMap((kind) => names.map((name) => `${kind}/${name}`))
   const verify = () => spawnSync("bash", ["-e", "-c", step.run], { cwd: directory, encoding: "utf8" })
   try {
-    mkdirSync(join(reportRoot, "blobs"), { recursive: true })
-    mkdirSync(join(reportRoot, "timings"), { recursive: true })
+    for (const kind of kinds) mkdirSync(join(reportRoot, kind), { recursive: true })
     for (const report of reports) writeFileSync(join(reportRoot, report), "{}")
     const complete = verify()
     assert.equal(complete.status, 0, complete.stderr)
@@ -593,6 +596,8 @@ test("real Vitest reports combine project coverage and reject incomplete coverag
     return result
   }
   try {
+    mkdirSync(join(directory, "vitest"))
+    copyFileSync(join(root, shardStep["working-directory"], "vitest/duration-reporter.mjs"), join(directory, "vitest/duration-reporter.mjs"))
     writeFileSync(join(directory, "subject.mjs"), 'export function choose(value) {\n  if (value) {\n    return "chosen"\n  }\n  return "empty"\n}\n')
     for (const project of ["jsdom-1", "jsdom-2", "chromium"]) {
       const jsdom = project.startsWith("jsdom")
@@ -606,7 +611,7 @@ test("real Vitest reports combine project coverage and reject incomplete coverag
     } })}`)
     for (const { project, shard, total } of [{ project: "jsdom", shard: 1, total: 2 }, { project: "jsdom", shard: 2, total: 2 }, { project: "chromium", shard: 1, total: 1 }]) {
       run(shardCommand.replaceAll("${{ matrix.project }}", project).replaceAll("${{ matrix.shard }}", String(shard)).replaceAll("${{ matrix.total }}", String(total)), 0)
-      for (const kind of ["blobs", "timings"]) {
+      for (const kind of ["blobs", "timings", "durations"]) {
         assert.ok(readFileSync(join(directory, `.artifacts/unit-tests/${kind}/${project}-${shard}.json`), "utf8").length > 0)
       }
     }

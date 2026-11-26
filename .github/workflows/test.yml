@@ -357,10 +357,12 @@ jobs:
           for shard in $(seq 1 4); do
             test -s "apps/web/.artifacts/unit-tests/blobs/jsdom-${shard}.json"
             test -s "apps/web/.artifacts/unit-tests/timings/jsdom-${shard}.json"
+            test -s "apps/web/.artifacts/unit-tests/durations/jsdom-${shard}.json"
           done
           for shard in $(seq 1 16); do
             test -s "apps/web/.artifacts/unit-tests/blobs/chromium-${shard}.json"
             test -s "apps/web/.artifacts/unit-tests/timings/chromium-${shard}.json"
+            test -s "apps/web/.artifacts/unit-tests/durations/chromium-${shard}.json"
           done
 
       # The five next-slowest healthy files in run 40121666845 have a median of 129.165s.
@@ -382,6 +384,7 @@ jobs:
           name: web-unit-timings
           path: |
             apps/web/.artifacts/unit-tests/timings
+            apps/web/.artifacts/unit-tests/durations
             apps/web/.artifacts/unit-tests/merged.json
           include-hidden-files: true
           if-no-files-found: error
@@ -587,9 +590,10 @@ jobs:
           ../../node_modules/.bin/vitest run --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.total }}
           --coverage --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
-          --reporter=default --reporter=blob --reporter=json
+          --reporter=default --reporter=blob --reporter=json --reporter=./vitest/duration-reporter.mjs
           --outputFile.blob=.artifacts/unit-tests/blobs/${{ matrix.project }}-${{ matrix.shard }}.json
           --outputFile.json=.artifacts/unit-tests/timings/${{ matrix.project }}-${{ matrix.shard }}.json
+          --outputFile.durations=.artifacts/unit-tests/durations/${{ matrix.project }}-${{ matrix.shard }}.json
       # Unit Tests extracts every artifact at one path, so the artifact holds one folder with its own name.
       - name: Stage web shard reports under the artifact name
         if: ${{ always() }}
