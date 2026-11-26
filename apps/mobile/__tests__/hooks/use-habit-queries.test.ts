@@ -59,13 +59,14 @@ const mocks = vi.hoisted(() => {
   return {
     captured: [] as CapturedQuery[],
     apiClient: vi.fn(),
+    refetch: vi.fn(),
     setQueryData: vi.fn(),
     isAuthenticated: true,
     useQuery: vi.fn((options: CapturedQuery) => {
       queryClient.getQueryCache().build(queryClient, options)
       const queryFn = options.queryFn
       mocks.captured.push({ ...options, queryFn: (context) => queryFn(context ?? { signal: new AbortController().signal }) })
-      return { data: undefined, isLoading: false, isSuccess: false, isError: false }
+      return { data: undefined, isLoading: false, isSuccess: false, isError: false, refetch: mocks.refetch }
     }),
   }
 })
@@ -85,14 +86,16 @@ vi.mock('@/stores/auth-store', () => ({
     selector({ isAuthenticated: mocks.isAuthenticated }),
 }))
 
-function renderHookCapture(useHook: () => unknown): void {
+function renderHookCapture<Value>(useHook: () => Value): { current: Value | undefined } {
+  const captured: { current: Value | undefined } = { current: undefined }
   function Probe() {
-    useHook()
+    captured.current = useHook()
     return null
   }
   TestRenderer.act(() => {
     TestRenderer.create(React.createElement(Probe))
   })
+  return captured
 }
 
 function lastQuery(): CapturedQuery {
@@ -104,6 +107,7 @@ function lastQuery(): CapturedQuery {
 beforeEach(() => {
   mocks.captured = []
   mocks.apiClient.mockReset()
+  mocks.refetch.mockReset()
   mocks.setQueryData.mockReset()
   mocks.useQuery.mockClear()
   mocks.isAuthenticated = true
@@ -275,6 +279,17 @@ describe('useHabitDetail (mobile)', () => {
   it('does not enable the query when id is null', () => {
     renderHookCapture(() => useHabitDetail(null))
     expect(lastQuery().enabled).toBe(false)
+  })
+
+  it('stays disabled while a deleted marker holds the habit, and the retry drops that one marker before it reads', () => {
+    queryClient.getQueryCache().build(queryClient, { queryKey: habitKeys.deleted('h-1') }).setData(['h-1', 'h-2'])
+    queryClient.getQueryCache().build(queryClient, { queryKey: habitKeys.deleted('h-2') }).setData(['h-1', 'h-2'])
+    const hook = renderHookCapture(() => useHabitDetail('h-1'))
+    expect(lastQuery().enabled).toBe(false)
+    void hook.current!.retry()
+    expect(queryClient.getQueryData(habitKeys.deleted('h-1'))).toBeUndefined()
+    expect(queryClient.getQueryData(habitKeys.deleted('h-2'))).toEqual(['h-1', 'h-2'])
+    expect(mocks.refetch).toHaveBeenCalledTimes(1)
   })
 })
 
