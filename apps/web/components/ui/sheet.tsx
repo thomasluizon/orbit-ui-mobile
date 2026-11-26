@@ -58,7 +58,7 @@ interface WebSheetProps extends SheetProps {
 }
 
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
-export function Sheet({ title, centred = false, titleMode = 'label', accessibleTitle, accessibleDescription, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
+export function Sheet({ title, centred = false, titleMode = 'label', titleSize = 'default', accessibleTitle, accessibleDescription, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const { titleClamped, titleExpanded, onClampedChange, bodyRef, toggleTitle } = useSheetTitleDisclosure(title)
   const viewportRef = useSheetKeyboardViewport(bodyRef, virtualizedBody)
@@ -149,7 +149,7 @@ export function Sheet({ title, centred = false, titleMode = 'label', accessibleT
           <Dialog.Popup className="orbit-sheet-panel" data-centred={String(centred)} initialFocus={initialFocus} finalFocus={finalFocus}>
             <div className="orbit-sheet-grabber-target" aria-hidden="true" onPointerDown={drag.start}><div className="orbit-sheet-grabber" /></div>
             <header className="orbit-sheet-header">
-              <Dialog.Title aria-label={accessibleTitle} className={title ? 'orbit-sheet-title' : 'sr-only'} data-title-mode={titleMode}>
+              <Dialog.Title aria-label={accessibleTitle} className={title ? 'orbit-sheet-title' : 'sr-only'} data-title-mode={titleMode} data-title-size={titleSize}>
                 <SheetTitleContent title={title} titleMode={titleMode} accessibleTitle={accessibleTitle}
                   expanded={titleExpanded} onToggle={toggleTitle}
                   clamped={titleClamped} onClampedChange={onClampedChange}

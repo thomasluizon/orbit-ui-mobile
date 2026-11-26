@@ -79,6 +79,7 @@ interface MobileSheetProps extends SheetProps {
 export function Sheet({
   title,
   titleMode = 'label',
+  titleSize = 'default',
   accessibleTitle,
   headerAccessory,
   actions,
@@ -200,7 +201,7 @@ export function Sheet({
       {({ pressed }) => <PressScale pressed={pressed} disabled={false}><X color={tokens.fg2} size={24} strokeWidth={2} /></PressScale>}
     </NativePressable>
   ) : null
-  const header = renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
+  const header = renderSheetHeader({ title, titleMode, titleSize, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
     styles, titleClamped, titleExpanded, titleFocused, onTitleFocusChange, onClampedChange, t, closeButton, onToggleTitle: toggleTitle,
     onLayout: (event) => setHeaderHeight(event.nativeEvent.layout.height) })
   const expandedTitle = title && titleExpanded && titleMode === 'typed' ? <PersonalText expanded selectable style={styles.fullTitle}>{title}</PersonalText> : null
@@ -303,9 +304,13 @@ function useSheetScreenShift(scrollBodyRef: RefObject<ScrollView | null>, header
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-function renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
+function labelTitleStyle(styles: ReturnType<typeof createStyles>, titleSize: SheetProps['titleSize']) {
+  return titleSize === 'compact' ? [styles.title, styles.compactTitle] : styles.title
+}
+
+function renderSheetHeader({ title, titleMode, titleSize, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
   styles, titleClamped, titleExpanded, titleFocused, onTitleFocusChange, onClampedChange, t, closeButton, onToggleTitle, onLayout,
-}: Pick<SheetProps, 'title' | 'titleMode' | 'accessibleTitle' | 'headerAccessory' | 'onClose' | 'onAttemptDismiss'> & {
+}: Pick<SheetProps, 'title' | 'titleMode' | 'titleSize' | 'accessibleTitle' | 'headerAccessory' | 'onClose' | 'onAttemptDismiss'> & {
   styles: ReturnType<typeof createStyles>
   titleExpanded: boolean
   titleClamped: boolean
@@ -330,7 +335,7 @@ function renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory,
         </Pressable> : <View style={styles.titleText}>
           <PersonalText accessibilityRole="header" onClampedChange={onClampedChange} style={styles.typedTitle}>{title}</PersonalText>
         </View>}</View>
-      ) : <Text accessibilityRole="header" accessibilityLabel={accessibleTitle} style={styles.title}>{title}</Text> : (
+      ) : <Text accessibilityRole="header" accessibilityLabel={accessibleTitle} style={labelTitleStyle(styles, titleSize)}>{title}</Text> : (
         <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
       )}
       {headerAccessory}
@@ -389,6 +394,9 @@ function createStyles(tokens: Tokens, leftInset: number, rightInset: number) {
       textAlignVertical: 'center',
       fontFamily: 'Geist_500Medium',
       fontSize: 22,
+    },
+    compactTitle: {
+      fontSize: 20,
     },
     titleSlot: {
       flex: 1,

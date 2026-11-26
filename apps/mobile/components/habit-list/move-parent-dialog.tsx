@@ -165,6 +165,7 @@ export function MoveParentDialog({
       open
       onClose={isPending ? undefined : hideDialog}
       title={title}
+      titleSize={asksOneQuestion ? 'compact' : 'default'}
       actions={selectionOnly ? undefined :
         <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={isPending} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>

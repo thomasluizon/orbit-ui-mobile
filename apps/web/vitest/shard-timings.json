@@ -174,7 +174,6 @@
       "__tests__/pages/about.test.tsx": 6952,
       "__tests__/pages/calendar-sync.test.tsx": 9392,
       "__tests__/pages/desktop-auth-page-geometry.test.tsx": 8741,
-      "__tests__/pages/login-provider-geometry.test.tsx": 6101,
       "__tests__/pages/progress-layout-fixtures.test.tsx": 8162,
       "__tests__/pages/progress.test.tsx": 27470,
       "__tests__/pages/subscreen-header-hydration.test.tsx": 2753,

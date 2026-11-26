@@ -553,6 +553,10 @@ select[aria-hidden="true"] {
   white-space: normal;
 }
 
+.orbit-sheet-title[data-title-size="compact"] {
+  font-size: 1.25rem;
+}
+
 .orbit-sheet-title[data-title-mode="typed"] {
   overflow: visible;
   white-space: normal;

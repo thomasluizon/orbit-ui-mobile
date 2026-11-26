@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { motionDurations } from '@orbit/shared/theme'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OptionCard } from '@/components/ui/option-card'
@@ -171,6 +172,12 @@ describe('QuestionFlow', () => {
     render(<Flow />)
     expect(document.querySelector('[data-question-flow] [data-flow-scroll] > div')).toHaveAttribute('data-step-duration', '0')
     expect(document.querySelector('[data-orbit-loop]')).toHaveAttribute('data-orbit-loop', 'still')
+  })
+
+  it('holds the first step in place in the server markup, so the sign-in shows before the script runs', () => {
+    const markup = renderToStaticMarkup(<Flow direction={-1} />)
+    expect(markup).not.toMatch(/translateX\(-?\d/)
+    expect(markup).toContain('opacity:1')
   })
 
   it('draws no eye travel under reduced motion', () => {

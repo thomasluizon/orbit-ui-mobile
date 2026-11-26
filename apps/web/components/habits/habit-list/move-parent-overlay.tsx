@@ -139,6 +139,7 @@ export function MoveParentOverlay({
       open
       onClose={isMoving ? undefined : finishClose}
       title={title}
+      titleSize={asksOneQuestion ? 'compact' : 'default'}
       actions={selectionOnly ? undefined :
         <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={isMoving} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>

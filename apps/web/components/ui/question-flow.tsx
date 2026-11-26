@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { motion } from 'motion/react'
 import type { QuestionFlowProps } from '@orbit/shared/contracts/flow'
 import { createQuestionFlowHooks } from '@orbit/shared/hooks/question-flow-core'
@@ -16,6 +16,8 @@ import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { captureGuidedFlowEvent } from '@/lib/posthog'
 
 const WIDE_SHIFT = 12
+const subscribeNever = () => () => {}
+function useServerRender() { return useSyncExternalStore(subscribeNever, () => false, () => true) }
 const useStepChange = createUseStepChange({ useEffect, useRef })
 const { useFlowAnnouncement, useLineAfterArrival, useGuidedFlowTracking } = createQuestionFlowHooks({ useState, useEffect, useRef, capture: (event) => captureGuidedFlowEvent(event) })
 
@@ -92,6 +94,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   const wide = useViewportMatch('(min-width: 1024px)')
   const sm = useViewportMatch('(min-width: 640px)')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const serverRender = useServerRender()
   const hoverCapable = useViewportMatch('(hover: hover)')
   const lineId = useId()
   const { mascotRef, lookAt, lookTowards, lookAway } = useOrbitLook()
@@ -111,7 +114,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
           key={stepKey}
           role="presentation"
           data-step-duration={stepDuration(reducedMotion)}
-          initial={reducedMotion ? false : stepTravel(direction, sm ? WIDE_SHIFT : undefined)}
+          initial={reducedMotion || serverRender ? false : stepTravel(direction, sm ? WIDE_SHIFT : undefined)}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: stepDuration(reducedMotion) / 1000, ease: [...motionEasings.standard] as [number, number, number, number] }}
           onFocusCapture={(event) => lookTowards(event.target)}

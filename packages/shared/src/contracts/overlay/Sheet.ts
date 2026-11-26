@@ -6,6 +6,8 @@ export interface SheetProps {
   /** Centres the panel at every width, with no grabber and no drag. The default is the bottom sheet below the `sm` boundary. */
   centred?: boolean
   titleMode?: 'label' | 'typed'
+  /** The compact title is 20 px, so a one-question title of 21 characters stays on one line at 320. */
+  titleSize?: 'default' | 'compact'
   accessibleTitle?: string
   /** The description of the dialog for assistive technology, when the visible text is not the title. */
   accessibleDescription?: string
