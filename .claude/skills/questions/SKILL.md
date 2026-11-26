@@ -42,9 +42,8 @@ What is left is really his: product, copy, pricing, positioning, brand, design d
 ## 4. Record each answer and decision
 
 1. Write the answer or the decision into the body of the ticket: the answer or the decision, the reason, and the exact next step for the worker. Put it under an `## Owner decisions` section, and add one line there for each new answer. Read the body with `gh issue view --json body`, then write it back with `gh issue edit --body-file`. Every order carries the ticket body, so the next launch of every kind reads the answer. A comment alone reaches no worker.
-2. Also comment the same text on the ticket when the item is a pull request that used its fix launches. The driver gives that pull request one more launch for the comment, and the launch carries it.
-3. Remove `needs:owner` from the ticket and from its open pull request.
-4. A decision that outlives the ticket also goes to the brain with `/brain`.
+2. Remove `needs:owner` from the ticket and from its open pull request.
+3. A decision that outlives the ticket also goes to the brain with `/brain`.
 
 ## 5. What survives
 
@@ -57,7 +56,7 @@ What is left is really his: product, copy, pricing, positioning, brand, design d
 **`--auto` mode** (the driver, or `/sleep`) never calls `AskUserQuestion`. Read the sleep state: `cat "$(git rev-parse --git-common-dir)/orbit-drive/sleep.json"`.
 
 - Sleep on: decide each survivor with your recommendation and write it into the ticket body as in section 4, so the work goes on. Also comment it on the ticket. Start that comment with `<!-- owner-review -->` and "Decided while the owner slept:". His next `/questions` asks him each one, so he confirms or changes it.
-- Sleep off: comment the question, its options and your recommendation on the ticket, starting with `<!-- orbit-drive:owner-question -->`. The driver reads only this marker form as a kind, so the question grants no fix launch. Keep `needs:owner`. His next `/questions` asks it.
+- Sleep off: comment the question, its options and your recommendation on the ticket, starting with `<!-- orbit-drive:owner-question -->`. The driver reads only this marker form as a kind. Keep `needs:owner`. His next `/questions` asks it.
 
 ## 6. Then the manual steps only he can do
 
