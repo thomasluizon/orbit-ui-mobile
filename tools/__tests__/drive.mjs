@@ -690,7 +690,7 @@ const skillAndEnvironmentCases = async () => {
   const parent = { PATH: "/usr/bin", HOME, CLAUDE_CONFIG_DIR: "/other", ANTHROPIC_API_KEY: "key", CLAUDE_CODE_OAUTH_TOKEN: "oauth", CLAUDE_CODE_TMPDIR: "/scratch/claude", GH_TOKEN: "owner-token" }
   const environment = workerEnvironmentFor(parent, TOKEN)
   same("lib/worker.mjs: the worker environment holds no account override and the worker token", sortedKeys(environment), sortedKeys({
-    PATH: "/usr/bin", HOME, CLAUDE_CODE_TMPDIR: "/scratch/claude", CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1", CLAUDE_CODE_DISABLE_BUNDLED_SKILLS: "1", GH_TOKEN: TOKEN,
+    PATH: "/usr/bin", HOME, CLAUDE_CODE_TMPDIR: "/scratch/claude", CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1", CLAUDE_CODE_DISABLE_BUNDLED_SKILLS: "1", BRAIN_SESSION_CAPTURE: "1", GH_TOKEN: TOKEN,
   }))
   T("lib/worker.mjs: the parent environment stays unchanged", parent.GH_TOKEN === "owner-token" && parent.ANTHROPIC_API_KEY === "key")
   T("lib/worker.mjs: a parent with no temporary directory gives the worker none", !("CLAUDE_CODE_TMPDIR" in workerEnvironmentFor({ PATH: "/usr/bin" }, TOKEN)))
@@ -735,6 +735,8 @@ const skillAndEnvironmentCases = async () => {
   same("lib/worker.mjs: the questions run uses the coordinator model at the worker effort and no other argument changes", [questions.command.args.slice(0, 5), questions.command.args.slice(5, -1)], [["-p", "--model", "claude-opus-5-5", "--effort", "high"], invocation.command.args.slice(5, -1)])
   same("lib/worker.mjs: the questions run keeps the questions skill on and turns off the rest", questionsSettings.skillOverrides, { pdf: "off" })
   same("lib/worker.mjs: the questions run keeps the worker deny list and environment, with the owner token", [questionsSettings.permissions.deny, questions.environment], [settings.permissions.deny, { ...invocation.environment, GH_TOKEN: "owner-login-token" }])
+  same("lib/worker.mjs: the worker, questions and worker account environments all carry BRAIN_SESSION_CAPTURE=1", [invocation.environment.BRAIN_SESSION_CAPTURE, questions.environment.BRAIN_SESSION_CAPTURE, workerInvocation({ home, parentEnvironment: parent, token: TOKEN, configDirectory: workerConfigDirectory(home) }).environment.BRAIN_SESSION_CAPTURE], ["1", "1", "1"])
+  same("lib/worker.mjs: a parent that sets BRAIN_SESSION_CAPTURE to 0 does not turn the capture back on", workerInvocation({ home, parentEnvironment: { ...parent, BRAIN_SESSION_CAPTURE: "0" }, token: TOKEN }).environment.BRAIN_SESSION_CAPTURE, "1")
   T("lib/worker.mjs: the questions environment holds no worker token", !Object.values(questions.environment).includes(TOKEN))
   const workerDirectory = workerConfigDirectory(home)
   const onWorker = workerInvocation({ home, parentEnvironment: { ...parent, CLAUDE_CONFIG_DIR: "/somewhere/else" }, token: TOKEN, configDirectory: workerDirectory })
