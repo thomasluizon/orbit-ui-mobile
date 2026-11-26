@@ -613,7 +613,8 @@ describe('weekday qualifiers', () => {
 })
 
 describe('weekday ranges', () => {
-  const workWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+  const WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  const workWeek = WEEK.slice(0, 5)
 
   it.each([
     ['pt-BR', 'segunda a sexta'],
@@ -634,6 +635,21 @@ describe('weekday ranges', () => {
   it('wraps a range across the end of the week', () => {
     expect(readHabitPhrase('sexta a segunda', 'pt-BR').days).toEqual(['Friday', 'Saturday', 'Sunday', 'Monday'])
     expect(readHabitPhrase('saturday to sunday', 'en').days).toEqual(['Saturday', 'Sunday'])
+  })
+
+  it.each([
+    ['pt-BR', 'academia de segunda a segunda', 'Monday'],
+    ['pt-BR', 'trabalhar de domingo a domingo', 'Sunday'],
+    ['en', 'gym monday to monday', 'Monday'],
+  ] as const)('reads %s "%s" as all seven days', (locale, input, firstDay) => {
+    const week = [...WEEK, ...WEEK].slice(WEEK.indexOf(firstDay), WEEK.indexOf(firstDay) + 7)
+    const read = readHabitPhrase(input, locale)
+    expect(read).toMatchObject({ cadence: 'fixed' })
+    expect(read.days).toEqual(week)
+  })
+
+  it('keeps the title of a same-day range clean', () => {
+    expect(getHabitPhraseTitle('gym monday to monday', 'en', { cadence: true, dueTime: true })).toBe('gym')
   })
 
   it('keeps a range next to a list and a time', () => {

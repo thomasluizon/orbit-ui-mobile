@@ -494,13 +494,14 @@ function readWeekdayGroups(
   for (let index = 0; index < weekdayMatches.length; index += 1) {
     const first = weekdayMatches[index]!
     const next = weekdayMatches[index + 1]
-    const isRange = next !== undefined && next.day !== first.day
+    const isRange = next !== undefined
       && WEEKDAY_RANGE_GLUE.test(remaining.slice(first.match.index + first.match[0].length, next.match.index))
     const last = isRange ? next : first
     const lastEnd = last.match.index + last.match[0].length
     if (isRange) {
       const from = WEEK_ORDER.indexOf(first.day)
-      const length = (WEEK_ORDER.indexOf(next.day) - from + 7) % 7 + 1
+      const span = (WEEK_ORDER.indexOf(next.day) - from + 7) % 7
+      const length = span === 0 ? 7 : span + 1
       for (let offset = 0; offset < length; offset += 1) days.push(WEEK_ORDER[(from + offset) % 7]!)
       consumed.push({ start: phrase.originalStarts[first.match.index]!, end: phrase.originalEnds[lastEnd - 1]!, kind: 'weekday' })
       index += 1
