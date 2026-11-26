@@ -379,6 +379,50 @@ describe('the guided goal edit flow', () => {
     expect(screen.getByRole('button', { name: en.common.discardChangesAction })).toBeInTheDocument()
   })
 
+  it.each([
+    ['Title', 'Server title failure'],
+    ['TargetValue', 'Server amount failure'],
+    ['Unit', 'Server unit failure'],
+  ] as const)('shows the %s refusal of the server on the summary and keeps the edit open', async (field, message) => {
+    mocks.update.mockRejectedValue(createApiClientError(400, { errors: { [field]: [message] } }, 'Fallback'))
+    const onOpenChange = vi.fn()
+    renderWith('en', <EditGoalModal open onOpenChange={onOpenChange} goal={goal} />)
+    await press(/^How much/)
+    await type('How much?', '120')
+    await press('Continue')
+    await press('Save')
+    expect(mocks.update).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('alert')).toHaveTextContent(message)
+    expect(screen.getByRole('alert')).not.toHaveTextContent(en.goals.errors.update)
+    expect(resultDialog()).toBeNull()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('shows a refusal that no goal field owns as the message of the summary', async () => {
+    mocks.update.mockRejectedValue(createApiClientError(400, { errors: { HabitIds: ['Server linked habit failure'] } }, 'Fallback'))
+    renderWith('en', <EditGoalModal open onOpenChange={vi.fn()} goal={goal} />)
+    await press(/^How much/)
+    await type('How much?', '120')
+    await press('Continue')
+    await press('Save')
+    expect(screen.getByRole('alert')).toHaveTextContent('Server linked habit failure')
+    expect(resultDialog()).toBeNull()
+  })
+
+  it('clears the server refusal of a field when the person changes that field', async () => {
+    mocks.update.mockRejectedValue(createApiClientError(400, { errors: { TargetValue: ['Server amount failure'] } }, 'Fallback'))
+    renderWith('en', <EditGoalModal open onOpenChange={vi.fn()} goal={goal} />)
+    await press(/^How much/)
+    await type('How much?', '120')
+    await press('Continue')
+    await press('Save')
+    expect(screen.getByRole('alert')).toHaveTextContent('Server amount failure')
+    await press(/^How much/)
+    await type('How much?', '130')
+    await press('Continue')
+    expect(screen.queryByText('Server amount failure')).not.toBeInTheDocument()
+  })
+
   it('keeps the summary with the server message after a failed save', async () => {
     mocks.update.mockRejectedValue(new Error('down'))
     renderWith('en', <EditGoalModal open onOpenChange={vi.fn()} goal={goal} />)
