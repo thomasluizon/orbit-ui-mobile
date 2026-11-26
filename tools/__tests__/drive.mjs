@@ -118,6 +118,29 @@ const stateResponse = (numbers) => {
   return copy
 }
 
+/** A gh runner that lists `open` and answers each pull request that a state query names. `requested` keeps the numbers of each query. */
+const batchedState = (open, { failAt = null } = {}) => {
+  const requested = []
+  let active = 0
+  let mostActive = 0
+  const run = async (args) => {
+    const numbers = [...args.join(" ").matchAll(/pr(\d+): pullRequest\(number: (\d+)\)/g)].map((match) => Number(match[1]))
+    requested.push(numbers)
+    const call = requested.length
+    mostActive = Math.max(mostActive, ++active)
+    await new Promise((resolve) => setImmediate(resolve))
+    active -= 1
+    if (call === failAt) throw new Error("gh api graphql failed: HTTP 502")
+    const response = stateResponse(open)
+    const sample = response.data.repository.pr2509
+    delete response.data.repository.pr2509
+    delete response.data.repository.pr2510
+    for (const number of numbers) response.data.repository[`pr${number}`] = { ...sample, number }
+    return json(response)
+  }
+  return { run, requested, mostActive: () => mostActive }
+}
+
 const configCases = () => {
   const keySource = readFileSync(new URL("../lib/config.mjs", import.meta.url), "utf8")
   const keys = [.../const CLAUDE_ACCOUNT_OVERRIDE_KEYS = \[([^\]]*)\]/.exec(keySource)[1].matchAll(/"([A-Z0-9_]+)"/g)].map((match) => match[1])
@@ -176,7 +199,7 @@ const githubUnit = async () => {
   const [approved] = (await readPulls([2510])).state.pulls
 
   const { state: openState, calls: openCalls } = await readPulls([2509])
-  same("lib/github.mjs: one read holds every open pull request when the numbers are known", [openCalls.length, openState.numbers, openState.defaultBranch, openState.slug], [1, [2509], "main", UI])
+  same("lib/github.mjs: one read holds every open pull request when at most 8 numbers are known", [openCalls.length, openState.numbers, openState.defaultBranch, openState.slug], [1, [2509], "main", UI])
   same("lib/github.mjs: a pull request keeps its identity fields", [open.number, open.state, open.draft, open.author, open.headRef, open.headSha, open.baseRef, open.mergeState, open.changedFiles, open.files.length], [2509, "OPEN", false, "thomasluizon", "feature/ticket-2181-pace-governor", "a4c62a196324df595f5597e00863abc65f86435f", "main", "DIRTY", 23, 23])
   const rolled = stateResponse([2509])
   rolled.data.repository.pr2509.commits.nodes = FIXTURE.commitRollups.nodes
@@ -221,6 +244,27 @@ const githubUnit = async () => {
   const unknown = await readPulls([2509, 2510], [])
   same("lib/github.mjs: a number the last tick did not know costs one more read for those numbers only", [unknown.calls.length, unknown.calls[0].text.includes("pr2509"), unknown.calls[1].text.includes("pr2509"), unknown.calls[1].text.includes("pr2510")], [2, false, true, true])
   same("lib/github.mjs: a known pull request that is no longer open is not returned", (await readPulls([2509], [2509, 2510])).state.pulls.map((pull) => pull.number), [2509])
+  const many = Array.from({ length: 35 }, (_, index) => 3035 - index)
+  for (const [label, knownNumbers, sizes] of [["no number is known", [], [0, 8, 8, 8, 8, 3]], ["every number is known", many, [8, 8, 8, 8, 3]]]) {
+    const gh = batchedState(many)
+    const state = await readRepositoryState("ui", { knownNumbers, ...seams(gh.run) })
+    same(`lib/github.mjs: no state query holds more than 8 of 35 open pull requests when ${label}`, gh.requested.map((numbers) => numbers.length), sizes)
+    same(`lib/github.mjs: 35 open pull requests come back in the order of the open list when ${label}`, [state.numbers, state.pulls.map((pull) => pull.number)], [many, many])
+    T(`lib/github.mjs: the state queries run one after the other when ${label}`, gh.mostActive() === 1)
+  }
+
+  const known = Array.from({ length: 12 }, (_, index) => 4001 + index)
+  const current = [4021, ...known.slice(1), 4022, 4023]
+  const mixed = batchedState(current)
+  const mixedState = await readRepositoryState("ui", { knownNumbers: known, ...seams(mixed.run) })
+  const read = mixed.requested.flat()
+  same("lib/github.mjs: known and new numbers make one merged state", mixedState.pulls.map((pull) => pull.number), current)
+  same("lib/github.mjs: no number is read twice, and each open number is read", [read.length, new Set(read).size, current.every((number) => read.includes(number))], [15, 15, true])
+
+  const failing = batchedState(many, { failAt: 3 })
+  const failure = await thrown(() => readRepositoryState("ui", { knownNumbers: many, ...seams(failing.run) }))
+  same("lib/github.mjs: a failed third batch fails the whole read and stops the later batches", [/HTTP 502/.test(failure), failing.requested.length], [true, 3])
+
   T("lib/github.mjs: more than 100 open pull requests is refused", /more than 100 open/.test(await thrown(() => {
     const response = stateResponse([2509])
     response.data.repository.open.pageInfo.hasNextPage = true
