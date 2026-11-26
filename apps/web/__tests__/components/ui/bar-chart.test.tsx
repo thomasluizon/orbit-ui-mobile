@@ -27,7 +27,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('BarChart on web', () => {
-  it('makes each full column a radio, opens on today and names its date, rate and count', () => {
+  it('makes each full column a radio, opens on today and names its date and count', () => {
     const { container } = render(chart())
     expect(screen.queryByRole('slider')).not.toBeInTheDocument()
     expect(screen.getByRole('radiogroup', { name: 'Last 7 days' })).toBeInTheDocument()
@@ -38,8 +38,8 @@ describe('BarChart on web', () => {
     expect(screen.getAllByRole('row')).toHaveLength(8)
     expect(radios[3]).toHaveAttribute('aria-checked', 'true')
     expect(radios.filter((radio) => radio.tabIndex === 0)).toEqual([radios[3]])
-    expect(radios[3]).toHaveAccessibleName(/Fri.*Sep.*4.*50%.*1 of 2/)
-    expect(container.querySelector('[data-slot="bar-chart-readout"]')).toHaveTextContent(/Fri.*50%.*1 of 2/)
+    expect(radios[3]).toHaveAccessibleName(/Fri.*Sep.*4.*1 of 2/)
+    expect(container.querySelector('[data-slot="bar-chart-readout"]')).toHaveTextContent(/Fri.*1 of 2/)
     expect(container.querySelectorAll('[data-state="selected"]')).toHaveLength(1)
   })
 
@@ -53,8 +53,8 @@ describe('BarChart on web', () => {
     const firstLeft = (readout as HTMLElement).style.left
     fireEvent.keyDown(radios[0]!, { key: 'ArrowRight' })
     expect(radios[1]).toHaveFocus()
-    expect(radios[1]).toHaveAccessibleName(/Wed.*0%.*0 of 2/)
-    expect(readout).toHaveTextContent('0% · 0 of 2')
+    expect(radios[1]).toHaveAccessibleName(/Wed.*0 of 2/)
+    expect(readout).toHaveTextContent('0 of 2')
     fireEvent.keyDown(radios[1]!, { key: 'End' })
     expect(radios[6]).toHaveFocus()
     expect(radios[6]).toHaveAttribute('aria-checked', 'true')
