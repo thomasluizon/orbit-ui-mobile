@@ -388,6 +388,18 @@ describe.each([
     tree.unmount()
   })
 
+  it('scenario 14: keeps a past route date on the When with an empty answer and opens the time step', async () => {
+    const tree = renderNavigation(<Harness initial={{ dueDate: '2020-01-01' }} />)
+    await phrase(tree, locale === 'en' ? 'call mom' : 'ligar para a mãe')
+    expect(heading(tree)).toBe(flowCopy().when.question)
+    const slot = tree.hosts().find((node) => node.props.testID === 'primary-action-slot')
+    const ghost = (slot as unknown as { findAll: (predicate: (child: { props: { testID?: string; onPress?: unknown } }) => boolean) => unknown[] }).findAll((child) => child.props.testID?.startsWith('button-ghost') === true && typeof child.props.onPress === 'function')[0]
+    await act(async () => { press(ghost as never); await Promise.resolve(); await Promise.resolve() })
+    expect(heading(tree)).toBe(flowCopy().time.question)
+    expect(helpers().form.getValues()).toMatchObject({ dueDate: '2020-01-01' })
+    tree.unmount()
+  })
+
   it('scenario 14: keeps the time and the reminder when the type step on the summary changes a habit to a task', async () => {
     const tree = renderNavigation(<Harness />)
     await phrase(tree, locale === 'en' ? 'call John' : 'ligar para o João')

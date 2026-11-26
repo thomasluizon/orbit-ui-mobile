@@ -369,6 +369,15 @@ describe.each([
     expect((screen.getByLabelText(messages().when.freeLabel) as HTMLInputElement).value).toBe('')
   })
 
+  it('scenario 14: keeps a past route date on the When with an empty answer and opens the time step', async () => {
+    render(<Harness initial={{ dueDate: '2020-01-01' }} />)
+    await phrase(locale === 'en' ? 'call mom' : 'ligar para a mãe')
+    expect(heading()).toHaveTextContent(messages().when.question)
+    await press(messages().continue)
+    expect(heading()).toHaveTextContent(messages().time.question)
+    expect(helpers().form.getValues()).toMatchObject({ dueDate: '2020-01-01' })
+  })
+
   it('scenario 14: proposes the emoji of the free read and marks a used read', async () => {
     state.read.mockResolvedValue({ read: true, emoji: '🪴', frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
     render(<Harness />)

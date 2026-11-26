@@ -106,7 +106,7 @@ export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowSte
   const keeping = proposed && text === null
   const shownText = text ?? (proposed && guess === null ? summary.when : '')
   const submitText = () => {
-    if (keeping) { flow.keepProposedWhen(); return }
+    if (keeping || (shownText.trim() === '' && dueDate !== '')) { flow.keepProposedWhen(); return }
     const refusal = flow.readWhenWords(shownText)
     setIssue(refusal ? t(refusal === 'past' ? 'habits.flow.when.past' : 'habits.flow.when.unresolved') : undefined)
   }
