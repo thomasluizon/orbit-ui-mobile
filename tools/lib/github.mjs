@@ -19,6 +19,8 @@ const SHA = /^[0-9a-f]{40}$/
 const BARRIER_CHECK = "Guard Migrations"
 const BARRIER_STEP = "Require deployment barriers for schema contractions"
 const SETUP_STEP = "Set up job"
+/** The `test.yml` steps that read the result of a needed job. A failure there comes from that job, so it is no flake. */
+const GATE_STEPS = new Set(["Require the plan", "Require every test job or its cached result", "Require the build and every shard"])
 const OWNER_LABEL = "needs:owner"
 
 const PULL_FIELDS = (number) => `number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
@@ -392,10 +394,10 @@ export const passedChecks = (pull) => newestChecks(pull.checks)
   .filter((check) => check.passed && check.node.__typename === "CheckRun")
   .map((check) => ({ name: check.name, runId: /\/actions\/runs\/(\d+)/.exec(check.node.detailsUrl ?? "")?.[1] ?? null }))
 
-/** What to do about one failed check, from the names of its failed steps: a rerun for the setup step, the owner for a barrier, otherwise a fix order. */
+/** What to do about one failed check, from the names of its failed steps: a rerun for the setup step or a gate step, the owner for a barrier, otherwise a fix order. */
 export const classifyCheckFailure = ({ name, failedSteps }) => {
   if (name === BARRIER_CHECK && failedSteps.includes(BARRIER_STEP)) return "needs-owner"
-  return failedSteps.includes(SETUP_STEP) ? "rerun" : "ci-fix"
+  return failedSteps.some((step) => step === SETUP_STEP || GATE_STEPS.has(step)) ? "rerun" : "ci-fix"
 }
 
 /** The names of the failed steps of one job of a workflow run. */

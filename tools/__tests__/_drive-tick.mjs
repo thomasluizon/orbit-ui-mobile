@@ -69,7 +69,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     github: {
       readTickets: async () => structuredClone(tickets),
       readRepositoryState: async (key) => structuredClone(states[key]),
-      readFailedSteps: async () => failedSteps,
+      readFailedSteps: async (key, runId, jobId) => (typeof failedSteps === "function" ? failedSteps(jobId) : failedSteps),
       pullfrogRunsFor: async () => runs,
       readDependabotUpdateTypes: async () => ["patch"],
       unmetDeployFirst: async () => unmet,
@@ -825,6 +825,27 @@ const ciCases = async () => {
   const conflict = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { mergeState: "DIRTY" })] } })
   await conflict.run()
   T("drive: a conflict gives a merge-forward order", conflict.launched.length === 1 && /merge-forward/.test(orderText(conflict)))
+}
+
+/** A gate job fails only because a job that it needs did not pass. The job and step names are those of `test.yml`. */
+const gateCheckCases = async () => {
+  const failedRun = async (jobs, comments = []) => {
+    const checks = jobs.map(([name], index) => check(name, "FAILURE", { databaseId: 21 + index }))
+    const scene = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [...checks, approvalCheck()], comments: [comment("ticket", "T"), ...comments] })] }, failedSteps: (jobId) => [jobs[jobId - 21][1]] })
+    await scene.run()
+    return scene
+  }
+  const suspects = (scene) => commentsOf(scene.calls, 30).filter((text) => text.includes("driver flake-suspect")).map((text) => text.split("\n")[1])
+  const shard = ["Layout shard 6", "Check upgrade layout"]
+  const layoutGate = ["Upgrade layout geometry", "Require the build and every shard"]
+  const both = await failedRun([shard, layoutGate])
+  same("drive: a failed shard and its gate job get one rerun, and only the shard is a flake suspect", [only(both.calls, "rerunFailed"), suspects(both)], [[["rerunFailed", "ui", "9001"]], ["driver flake-suspect 9001 Layout shard 6"]])
+  const alone = await failedRun([["Unit Tests", "Require every test job or its cached result"]])
+  same("drive: a failed gate job gets one rerun and no flake record", [only(alone.calls, "rerunFailed"), alone.launched.length, suspects(alone)], [[["rerunFailed", "ui", "9001"]], 0, []])
+  const stuck = await failedRun([layoutGate], [RERAN])
+  same("drive: a gate job that fails after the rerun gets a ci-fix order", [only(stuck.calls, "rerunFailed").length, stuck.launched.length], [0, 1])
+  const ownWork = await failedRun([["Unit Tests", "Merge web reports and enforce coverage thresholds"]])
+  same("drive: a gate job that fails at a later step of its own stays a flake suspect", suspects(ownWork), ["driver flake-suspect 9001 Unit Tests"])
 }
 
 const closeCases = async () => {
@@ -2378,6 +2399,7 @@ export const driverUnit = async () => {
   await mergeCases()
   await updateCases()
   await ciCases()
+  await gateCheckCases()
   await closeCases()
   await sweepCases()
   await intakeCases()
