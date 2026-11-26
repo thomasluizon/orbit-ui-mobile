@@ -1298,6 +1298,33 @@ const runningWorkCases = async () => {
   const restored = scenario({ tickets: [ticket(7, { comments: [launchOf("build", "chore/ticket-7"), launchOf("build", "chore/ticket-7"), cappedReport] })] })
   await restored.run()
   same("drive: a launch-capped order whose needs:owner label the owner removed gets the label back with no new comment and no notification", [restored.launched.length, only(restored.calls, "editLabels").length, needsOwnerComments(restored.calls, 7).length, only(restored.calls, "notify").length], [0, 1, 0, 0])
+
+  // A build worker opens its pull request after the first push and keeps working, so no action of the driver may touch a pull request while a worker runs on its branch.
+  const BRANCH = "chore/ticket-7-30"
+  const acting = (extra, withWorker) => {
+    const scene = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { headRef: BRANCH, ...extra })] } })
+    if (withWorker) {
+      scene.env.processAlive = () => true
+      leftBehind(scene, { branch: BRANCH, prNumber: 30 }, "", "chore-ticket-7-30")
+      writeFileSync(join(scene.env.stateDir, "chore-ticket-7-30.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/r/orbit-worktrees/ui/chore-ticket-7-30", startedAt: iso(-MINUTE) })}\n`)
+    }
+    return scene
+  }
+  const touched = (scene) => ["merge", "updateBranch", "retarget", "comment", "resolveThreads", "editLabels", "rerunFailed"].flatMap((name) => only(scene.calls, name).map(() => name))
+  const cases = {
+    merge: {},
+    request: { reviews: [], comments: [comment("ticket", "T")] },
+    behind: { mergeState: "BEHIND", behindBy: 3 },
+    retarget: { baseRef: "chore/ticket-7" },
+    "fix order": { reviews: [blockingReview] },
+  }
+  for (const [name, extra] of Object.entries(cases)) {
+    const free = acting(extra, false)
+    await free.run()
+    const busy = acting(extra, true)
+    await busy.run()
+    same(`drive: a ${name} action of a pull request happens with no worker on its branch and none while a worker runs on it`, [touched(free).length > 0 || free.launched.length > 0, touched(busy), busy.launched.length], [true, [], 0])
+  }
 }
 
 const paceStampCases = async () => {
@@ -1424,6 +1451,11 @@ const branchKeyCases = async () => {
   const rotated = scenario({ tickets: [ticket(7, { comments: [...parts, launchComment("build part", "chore/ticket-7-part-1", -7200 * 1000, 1)] })], routes: [mergedRoute(7, [mergedPull(7, "chore/ticket-7-part-1-r2", "Remaining: Part 2 of 2")])] })
   await rotated.run()
   same("drive: a part that merged on a rotated branch is done, so the next tick builds the next part", rotated.launched.map((entry) => entry.worktree), ["/r/orbit-worktrees/ui/chore-ticket-7-part-2"])
+
+  const headed = (number, total, offset) => comment(null, `# #7 Part ${number} of ${total}: part ${number}\nPaths: apps/web/p${number}.ts`, offset)
+  const twoSets = scenario({ tickets: [ticket(7, { comments: [partComment(1, 2, "Paths: apps/web/old.ts"), headed(1, 13, -3600 * 1000), headed(2, 13, -3500 * 1000)] })] })
+  await twoSets.run()
+  same("drive: a ticket with # #N Part headings and an older part set builds a part of the newest set", twoSets.launched.map((entry) => [entry.worktree, entry.order.includes("(Part 1 of 13)")]), [["/r/orbit-worktrees/ui/chore-ticket-7-part-1", true]])
 
   const inFlight = scenario({ tickets: [ticket(7, { comments: parts })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1-r2" })] } })
   await inFlight.run()
