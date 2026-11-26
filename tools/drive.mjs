@@ -1815,9 +1815,12 @@ export const tick = async (env, mem) => {
   const free = { main: paces.main.free, worker: paces.worker.free }
   const full = stoppedAll ? "the weekly usage stop holds every worker" : "every free worker slot is taken"
   const unstarted = []
+  // The plan of this tick can open the pause issue, so each launch reads the hold again.
+  const held = () => paused || pauseIssue(tickets) || !account.ok
   // The worker account takes a launch when it has a free slot, else the main account.
   const launchAll = async (launchable) => {
     for (const order of launchable) {
+      if (held()) break
       const name = free.worker > 0 ? WORKER : MAIN
       const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
       if (reason === null) { mem.acted = true; free[name] -= 1 }
@@ -1828,9 +1831,8 @@ export const tick = async (env, mem) => {
   planning.catch(() => {})
   // A fix order of an open pull request goes first. While the plan is slow, a free slot takes an admitted build order, so no slot waits for the plan.
   const admitted = { chosen: [], decisions: new Map() }
-  const heldAtStart = paused || !account.ok
   const slotsAtStart = free.main + free.worker
-  if (!env.dryRun && !heldAtStart && slotsAtStart > 0 && !await settledWithin(planning, env.planWindowMs ?? PLAN_WINDOW_MS)) {
+  if (!env.dryRun && !held() && slotsAtStart > 0 && !await settledWithin(planning, env.planWindowMs ?? PLAN_WINDOW_MS) && !held()) {
     log(env, "tick", "early-launch", `the pull request plan runs, ${slotsAtStart} free slot(s) take build orders first`)
     Object.assign(admitted, await admit(env, mem, tickets, states, { running, room: slotsAtStart, full }))
     await launchAll(admitted.chosen)

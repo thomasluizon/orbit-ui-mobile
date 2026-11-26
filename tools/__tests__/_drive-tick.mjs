@@ -434,6 +434,12 @@ const usageLimitCases = async () => {
   const pullfrogStopWithOrder = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [run], routes: [["--log-failed", logLine]] })
   await pullfrogStopWithOrder.run()
   same("drive: the tick that finds a Pullfrog usage limit starts no worker and adds no launch comment", [only(pullfrogStopWithOrder.calls, "createTicket").length, pullfrogStopWithOrder.launched.length], [1, 0])
+  const slowStop = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [pull(30, { reviews: [] })], api: [pull(31, { reviews: [] })] }, runs: [run], routes: [["--log-failed", logLine]] })
+  slowStop.env.planWindowMs = 20
+  const listRuns = slowStop.env.github.pullfrogRuns
+  slowStop.env.github.pullfrogRuns = async (key) => { if (key === "api") await new Promise((resolve) => setTimeout(resolve, 200)); return listRuns(key) }
+  await slowStop.run()
+  same("drive: a limit that a slow plan finds starts no early worker and adds no launch comment", [only(slowStop.calls, "createTicket").length, slowStop.launched.length], [1, 0])
   same("drive: the result text is the last result line of a log", resultText(`{"type":"assistant"}\n${JSON.stringify({ type: "result", result: "area\nfinding" })}\n`), "area\nfinding")
 }
 
