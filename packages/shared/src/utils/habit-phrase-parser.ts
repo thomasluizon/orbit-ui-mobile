@@ -559,7 +559,8 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   remaining = interval.remaining
 
   const cadenceRead = extractCadence(remaining, phrase, patterns)
-  consumed.push(...cadenceRead.consumed)
+  consumed.sort((left, right) => left.start - right.start)
+  consumed.push(...cadenceRead.consumed.flatMap((token) => subtractConsumedTokens(token, consumed)))
 
   consumed.sort((left, right) => left.start - right.start)
   return {

@@ -650,4 +650,21 @@ describe('weekday ranges', () => {
     expect(segmentHabitPhrase('Correr segunda a sexta às 7', read.consumed).filter((segment) => !segment.consumed).map((segment) => segment.text)).toEqual(['Correr ', ' '])
     expect(read.dueTime).toBe('07:00')
   })
+
+  it.each([
+    { input: 'Correr seg 6h a sex', locale: 'pt-BR', dueTime: '06:00' },
+    { input: 'Correr seg às 6h a sex', locale: 'pt-BR', dueTime: '06:00' },
+    { input: 'Run mon 7am - fri', locale: 'en', dueTime: '07:00' },
+    { input: 'Run monday 7am to friday', locale: 'en', dueTime: '07:00' },
+    { input: 'Run mon 7am - fri every week', locale: 'en', dueTime: '07:00' },
+  ] as const)('keeps a time inside the range out of the weekday token: $input', ({ input, locale, dueTime }) => {
+    const read = readHabitPhrase(input, locale)
+    expect(read.days).toEqual(workWeek)
+    expect(read.dueTime).toBe(dueTime)
+    for (const [index, token] of read.consumed.entries()) {
+      expect(token.start).toBeLessThan(token.end)
+      if (index > 0) expect(token.start).toBeGreaterThanOrEqual(read.consumed[index - 1]!.end)
+    }
+    expect(segmentHabitPhrase(input, read.consumed).map((segment) => segment.text).join('')).toBe(input)
+  })
 })
