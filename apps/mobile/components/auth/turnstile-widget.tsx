@@ -2,7 +2,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { SkeletonFace } from '@/components/ui/skeleton'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Text, View } from 'react-native'
+import { AppState, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { addBreadcrumb, captureMessage } from '@sentry/react-native'
 import {
@@ -77,6 +77,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
   const onTokenRef = useRef(onToken)
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const loadDeadline = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const deadlineLive = useRef(false)
   const bridgeStage = useRef<TurnstileBridgeStage | null>(null)
   const { recordFailure, startReport } = useLoadFailureReport(resetKey)
 
@@ -90,14 +91,29 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
   }, [resetKey])
 
   useEffect(() => {
-    loadDeadline.current = setTimeout(() => {
+    deadlineLive.current = true
+    const arm = () => {
+      loadDeadline.current = setTimeout(() => {
+        loadDeadline.current = undefined
+        deadlineLive.current = false
+        clearTimeout(reloadTimer.current)
+        recordFailure(bridgeStage.current ? STAGE_DEADLINES[bridgeStage.current] : { kind: 'bridge_deadline', host: bridgeHost })
+        onTokenRef.current(null)
+        setState('failed')
+      }, TURNSTILE_LOAD_DEADLINE_MS)
+    }
+    // WHY: Android pauses a WebView whose activity is not in front (the Google sign-in browser), so a deadline that runs there reports a failure the person never saw https://developer.android.com/reference/android/webkit/WebView#onPause()
+    if (AppState.currentState === 'active') arm()
+    const subscription = AppState.addEventListener('change', (next) => {
+      clearTimeout(loadDeadline.current)
       loadDeadline.current = undefined
-      clearTimeout(reloadTimer.current)
-      recordFailure(bridgeStage.current ? STAGE_DEADLINES[bridgeStage.current] : { kind: 'bridge_deadline', host: bridgeHost })
-      onTokenRef.current(null)
-      setState('failed')
-    }, TURNSTILE_LOAD_DEADLINE_MS)
-    return () => clearTimeout(loadDeadline.current)
+      if (next === 'active' && deadlineLive.current) arm()
+    })
+    return () => {
+      subscription.remove()
+      clearTimeout(loadDeadline.current)
+      loadDeadline.current = undefined
+    }
   }, [resetKey, load, bridgeHost, recordFailure])
 
   useEffect(() => () => clearTimeout(reloadTimer.current), [])
@@ -106,6 +122,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     clearTimeout(reloadTimer.current)
     clearTimeout(loadDeadline.current)
     loadDeadline.current = undefined
+    deadlineLive.current = false
   }
 
   function failLoad(temporary: boolean) {
@@ -116,7 +133,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
       setState('failed')
       return
     }
-    if (loadDeadline.current === undefined) setLoad((value) => value + 1)
+    if (!deadlineLive.current) setLoad((value) => value + 1)
     setState('loading')
     reloadTimer.current = setTimeout(() => setAttempt((value) => value + 1), TURNSTILE_RETRY_INTERVAL_MS)
   }
@@ -150,7 +167,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     const stage = readBridgeStage(message)
     if (stage) {
       bridgeStage.current = stage
-      if (loadDeadline.current !== undefined) setLoad((value) => value + 1)
+      if (deadlineLive.current) setLoad((value) => value + 1)
     }
     if ('token' in message && (typeof message.token === 'string' || message.token === null)) {
       onToken(message.token)
