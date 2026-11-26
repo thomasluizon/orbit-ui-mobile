@@ -1649,11 +1649,16 @@ const readWorld = async (env, mem) => {
   return { tickets, states }
 }
 
-/** Sends SIGKILL to the process group of the worker that `${stem}.pid` names. A missing or unreadable file means this process already ended the group. */
+/**
+ * Sends SIGKILL to the process group of the worker that `${stem}.pid` names, only when no process holds that pid. A process that holds it
+ * is a live worker or an unrelated program that reuses a stale pid, and its group is not a worker's. Once the leader is gone, the negative
+ * pid reaches only its leftover children, because a group id is never reused while a member lives. A missing or unreadable file means
+ * this process already ended the group.
+ */
 const killLeftoverGroup = (env, stem) => {
   let pid
   try { pid = JSON.parse(readFileSync(join(env.stateDir, `${stem}.pid`), "utf8")).pid } catch { return }
-  if (Number.isInteger(pid)) env.worker.killWorkerTree(pid, "SIGKILL")
+  if (Number.isInteger(pid) && !env.pidHeld(pid)) env.worker.killWorkerTree(pid, "SIGKILL")
 }
 
 /**
@@ -2038,6 +2043,8 @@ const realEnvironment = ({ dryRun = false } = {}) => {
       try { return JSON.parse(result.stdout) } catch { throw new Error(`claude auth status --json gave no JSON (exit ${result.status ?? "none"})`) }
     },
     processAlive: workerApi.isWorkerProcess,
+    // EPERM means a process of another user holds the pid, so the pid is held.
+    pidHeld: (pid) => { try { process.kill(pid, 0); return true } catch (error) { return error.code === "EPERM" } },
     invocation: async (token, name = MAIN) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only", configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null }),
     sleep: (ms, mem) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); mem.wake = () => { clearTimeout(timer); resolve() } }),
   }

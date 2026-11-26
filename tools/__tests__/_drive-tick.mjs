@@ -105,6 +105,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     // With no `workerAuth` the second login is the main login, which the driver counts once.
     authStatus: async (name = "main") => structuredClone(name === "worker" ? workerAuth ?? auth : auth),
     processAlive: (pid) => { try { process.kill(pid, 0); return true } catch { return false } },
+    pidHeld: (pid) => { try { process.kill(pid, 0); return true } catch { return false } },
   }
   if (releasePorts !== null) env.releasePorts = releasePorts
   if (driver !== null) Object.assign(env, { driverWorktree: "/r/driver", selfUpdate: driver.update ?? false, smoke: async () => driver.smoke ?? true })
@@ -1667,7 +1668,7 @@ const orphanClockCases = async () => {
   live(stale, 90)
   stale.env.processAlive = () => false
   await stale.run()
-  same("drive: a pid file whose pid is gone is never signaled by the clocks, and its record is reaped with one group kill", [signals(stale), existsSync(staleRecord)], [["SIGKILL"], false])
+  same("drive: a pid file whose pid names a live program that is not a worker is never signaled by the clocks or the reap, and its record is reaped", [signals(stale), existsSync(staleRecord)], [[], false])
 
   const started = scenario({ tickets: [ticket(7)] })
   leftBehind(started)
@@ -1946,6 +1947,7 @@ const selfUpdateCases = async () => {
 
   const adopted = scenario({ tickets: [ticket(7), ticket(8), ticket(9)] })
   adopted.env.processAlive = (pid) => pid === 4343
+  adopted.env.pidHeld = (pid) => pid === 4343
   const pidFileOfStem = (stem) => join(adopted.env.stateDir, `${stem}.pid`)
   const pids = { "chore-ticket-7": 4242, "chore-ticket-8": 4343 }
   Object.entries(pids).forEach(([stem, pid], index) => {
