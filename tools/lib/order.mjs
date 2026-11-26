@@ -94,12 +94,12 @@ const deliverySection = ({ ticket, kind }) => {
   const pushes = pushesToOpenPull(kind)
   const pullRequest = pushes
     ? "Push to the branch of the open pull request. Open no other pull request."
-    : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` (never \`Closes\`), \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start each item that waits on the owner, on another ticket or on a release with \`owner:\` or \`blocked by #<ticket>\`.`
-  const parity = `A change to only one of \`apps/web\` and \`apps/mobile\` needs the label \`parity:exempt\` (add it with ${pushes ? "`--add-label`" : "`--label`"}) and a line under \`## Parity\` that names one of these terms: ${parityExemptTerms.join(", ")}.`
+    : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start each item that waits on the owner, on another ticket or on a release with \`owner:\` or \`blocked by #<ticket>\`.`
+  const parity = `The \`## Parity\` line of a \`parity:exempt\` pull request names one of these terms: ${parityExemptTerms.join(", ")}.`
   const pushRule = pushes ? "" : " Commit and push after each finished step, and open the pull request after the first push."
   const writes = `Write to GitHub only with ${pushes ? "`git push`" : "`git push`, `gh pr create`"} and, on the pull request of your own branch, \`gh pr edit\` (only \`--body-file\`, \`--add-label\`, \`--remove-label\`) and \`gh pr comment\` (only \`--body\`, \`--body-file\`). Start the Bash call with that command, from your working tree, with no \`-R\`.`
   const metadata = "After your last push, read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. Never end with `NEEDS_DECISION` for a pull request body or label."
-  return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} ${parity} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge, never force-push, never \`--no-verify\`. ${writes}\n\n**PR Metadata.** ${metadata}`
+  return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} ${parity} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge and never force-push. ${writes}\n\n**PR Metadata.** ${metadata}`
 }
 
 /** The generic brief. It names no ticket, feature or screen: the ticket is the order, in the owner's words. */
@@ -113,16 +113,15 @@ export const renderBrief = ({ kind, place, ticket }) => {
 
 **Order.** The ticket above is the order, in the owner's words. The section "This order" says which part of it you do now.
 
-**Checks.** Run only the focused checks of your change. CI runs every full suite. Judge each check by its exit code.
-- Vitest: \`npx vitest related <changed source files> --run\` in each changed workspace. Never start Vitest without a file name.
-- Tools: \`node tools/test-tools.mjs --only <case module>\` for each case module that covers a changed tool or reads a changed file. Never run the complete tools suite.
+**Checks.** Judge each check by its exit code.
+- Start Vitest with \`--run\` and a file name.
 - The type check and the lint of each changed workspace.
 ${reads ? "" : "- Spend at most 25 minutes on verification. Report each command with its exit code.\n"}- Open no browser. Start no dev server. Run no production CLI.
 - Never write a deployment barrier: \`.github/migration-contracts.json\` and \`.github/migration-locks.json\`.
 
 **Decisions.** Nobody answers a question. Decide every choice with the recommended option. ${reads ? "Never wait on a prompt." : `Write the choice and its evidence in the ${pushes ? "commit message" : "pull request body"}. Never wait on a prompt. End with the line \`NEEDS_DECISION: <question>\` only for money, a change of model or effort, a change to a standing owner order, or an irreversible act in production.`}
 
-**Copy.** Write copy against \`BRAND.md\` with \`/humanizer\`. Then approve it with \`/second-opinion\`, run with the same \`--settings\` and environment as this session, inside your own turn.
+**Copy.** Write copy with \`/humanizer\`. Then approve it with \`/second-opinion\`, run with the same \`--settings\` and environment as this session, inside your own turn.
 
 ${reads ? "**Delivery.** This is a read-only order. Change no file, make no commit and write nothing to GitHub." : deliverySection({ ticket, kind })}
 

@@ -48,8 +48,10 @@ import {
   readWorkerToken,
   readOwnerToken,
   CODE_WORKER_DENY,
+  WORKER_DENIED_TOOLS,
   WORKER_DENY,
   WORKER_LIMITS,
+  WORKER_SKILLS_OFF,
   workerCommand,
   workerAccountEnvironment,
   workerConfigDirectory,
@@ -647,7 +649,10 @@ const settingsCases = () => {
   same("lib/worker.mjs: the settings JSON holds exactly the keys the order names", Object.keys(settings), ["claudeMdExcludes", "autoMemoryEnabled", "outputStyle", "skillOverrides", "permissions", "hooks"])
   same("lib/worker.mjs: the hot file is excluded from loading", settings.claudeMdExcludes, [`${HOME}/Developer/brain/hot.md`])
   same("lib/worker.mjs: auto memory is off and the output style is the default", [settings.autoMemoryEnabled, settings.outputStyle], [false, "default"])
-  same("lib/worker.mjs: every skill is off except humanizer", settings.skillOverrides, { brain: "off", pdf: "off" })
+  const ownerSkillsOff = Object.fromEntries(WORKER_SKILLS_OFF.map((name) => [name, "off"]))
+  same("lib/worker.mjs: every skill is off except humanizer, and the skills a worker never uses are off by name", settings.skillOverrides, { brain: "off", pdf: "off", ...ownerSkillsOff })
+  T("lib/worker.mjs: no owner skill loads in a worker", ["driver", "questions", "sleep", "morning", "over-limit"].every((name) => settings.skillOverrides[name] === "off"))
+  T("lib/worker.mjs: a skill that a worker uses is not turned off by name", !WORKER_SKILLS_OFF.some((name) => ["humanizer", "second-opinion"].includes(name)))
   same("lib/worker.mjs: the deny list is the one the order names", settings.permissions.deny, [
     "Edit(**/.github/migration-contracts.json)", "Write(**/.github/migration-contracts.json)", "Edit(**/.github/migration-locks.json)", "Write(**/.github/migration-locks.json)",
     "Bash(render *)", "Bash(terraform *)", "Bash(aws *)", "Bash(stripe *)", "Bash(gh workflow *)", "Bash(gh secret *)", "Bash(gh pr merge*)", "Bash(gh api *merge*)",
@@ -665,8 +670,10 @@ const settingsCases = () => {
   const command = workerCommand(json)
   same("lib/worker.mjs: the command is the one the order names, with the settings last", [command.executable, command.args], ["claude", [
     "-p", "--model", "claude-sonnet-5-5", "--effort", "high", "--output-format", "stream-json", "--verbose", "--strict-mcp-config", "--permission-mode", "bypassPermissions",
-    "--disallowed-tools", "Task", "AskUserQuestion", "--settings", json,
+    "--disallowed-tools", ...WORKER_DENIED_TOOLS, "--settings", json,
   ]])
+  T("lib/worker.mjs: the denied tools keep Task and AskUserQuestion and add the tools a worker never calls", ["Task", "AskUserQuestion", "CronCreate", "DesignSync", "PushNotification", "RemoteTrigger", "ScheduleWakeup", "Workflow"].every((name) => command.args.includes(name)) && Object.isFrozen(WORKER_DENIED_TOOLS))
+  T("lib/worker.mjs: no tool of the denied list is a tool that a worker needs", !["Bash", "Read", "Edit", "Write", "Skill", "ToolSearch"].some((name) => WORKER_DENIED_TOOLS.includes(name)))
   const run = WORKER_FIXTURE.workerCommandRun
   same("lib/worker.mjs: the real run of this command started with the permission mode and output style the command names", [run.init.permissionMode, run.init.output_style], [command.args[command.args.indexOf("--permission-mode") + 1], settings.outputStyle])
   T("lib/worker.mjs: the command names no prompt, so the order goes in on stdin", !command.args.some((argument) => argument.includes("the order")) && command.args.at(-2) === "--settings")
@@ -727,7 +734,7 @@ const skillAndEnvironmentCases = async () => {
   writeFileSync(join(home, ".claude", "skills", "humanizer", "SKILL.md"), "x")
   const invocation = workerInvocation({ home, parentEnvironment: parent, token: TOKEN })
   const settings = JSON.parse(invocation.command.args.at(-1))
-  same("lib/worker.mjs: the invocation excludes the hot file of the home folder and turns off the listed skills", [settings.claudeMdExcludes, settings.skillOverrides], [[join(home, "Developer", "brain", "hot.md")], { pdf: "off" }])
+  same("lib/worker.mjs: the invocation excludes the hot file of the home folder and turns off the listed skills", [settings.claudeMdExcludes, settings.skillOverrides], [[join(home, "Developer", "brain", "hot.md")], { pdf: "off", ...Object.fromEntries(WORKER_SKILLS_OFF.map((name) => [name, "off"])) }])
   same("lib/worker.mjs: the invocation carries the worker environment", invocation.environment.GH_TOKEN, TOKEN)
   const questionsHome = join(root, "drive-worker", "questions-home")
   for (const name of ["pdf", "humanizer", "questions"]) {
@@ -737,7 +744,7 @@ const skillAndEnvironmentCases = async () => {
   const questions = questionsInvocation({ home: questionsHome, parentEnvironment: parent, token: "owner-login-token" })
   const questionsSettings = JSON.parse(questions.command.args.at(-1))
   same("lib/worker.mjs: the questions run uses the coordinator model at the worker effort and no other argument changes", [questions.command.args.slice(0, 5), questions.command.args.slice(5, -1)], [["-p", "--model", "claude-opus-5-5", "--effort", "high"], invocation.command.args.slice(5, -1)])
-  same("lib/worker.mjs: the questions run keeps the questions skill on and turns off the rest", questionsSettings.skillOverrides, { pdf: "off" })
+  same("lib/worker.mjs: the questions run keeps the questions skill on and turns off the rest", questionsSettings.skillOverrides, { pdf: "off", ...Object.fromEntries(WORKER_SKILLS_OFF.filter((name) => name !== "questions").map((name) => [name, "off"])) })
   same("lib/worker.mjs: the questions run keeps the shared deny list and environment, with the owner token", [questionsSettings.permissions.deny, questions.environment], [[...WORKER_DENY], { ...invocation.environment, GH_TOKEN: "owner-login-token" }])
   T("lib/worker.mjs: the questions run writes ticket bodies, so it gets no GitHub hook and no code worker rule", !("hooks" in questionsSettings) && !questionsSettings.permissions.deny.includes("Bash(gh issue edit*)"))
   const ownSettings = JSON.parse(workerInvocation({ home, parentEnvironment: parent, token: TOKEN, own: { worktree: "/work/tree", branch: "chore/ticket-9" } }).command.args.at(-1))
@@ -979,14 +986,14 @@ const orderCases = async () => {
   T("lib/order.mjs: a build order holds the title, the ticket body and the brief, and no part section", build.startsWith("# A ticket title\n\nThe ticket body") && build.includes("Second paragraph.") && build.includes("## Brief") && !build.includes("## Parts"))
   T("lib/order.mjs: a build order tells the worker to rebase before its first push", /Rebase on `origin\/main` before the first push/.test(build))
   const delivery = build.slice(build.indexOf("**Delivery.**"))
-  T("lib/order.mjs: the delivery rules name the Tracks line, the three sections, the Remaining line and the attribution ban", delivery.includes(`Tracks ${TICKET_REPOSITORY}#9`) && delivery.includes("never `Closes`") && ["## Assumptions", "## Manual steps", "## Test evidence", "`Remaining:`", "`Co-Authored-By`", "`Generated with`", "git rm", "rmSync", "Stage named paths only", "never `--no-verify`"].every((text) => delivery.includes(text)))
+  T("lib/order.mjs: the delivery rules name the Tracks line, the three sections, the Remaining line and the attribution ban", delivery.includes(`Tracks ${TICKET_REPOSITORY}#9`) && !delivery.includes("never `Closes`") && ["## Assumptions", "## Manual steps", "## Test evidence", "`Remaining:`", "`Co-Authored-By`", "`Generated with`", "git rm", "rmSync", "Stage named paths only", "Never merge and never force-push"].every((text) => delivery.includes(text)))
   T("lib/order.mjs: an opening order names the parity:exempt label, the ## Parity line and every term that the PR Metadata gate accepts", ["build", "build part"].every((kind) => {
     const opening = order(kind, { partNumber: 2 })
     return opening.includes("`parity:exempt`") && opening.includes("`## Parity`") && parityExemptTerms.every((term) => opening.includes(term))
   }))
   T("lib/order.mjs: the brief tells the worker to decide with the recommended option and to end with NEEDS_DECISION only for the four owner matters", /Decide every choice with the recommended option/.test(build) && /NEEDS_DECISION: <question>.*money.*model or effort.*standing owner order.*irreversible/.test(build))
   T("lib/order.mjs: the brief bans a browser, a dev server and the production CLI, and names the two barrier files", /Open no browser\. Start no dev server\. Run no production CLI/.test(build) && build.includes(".github/migration-contracts.json") && build.includes(".github/migration-locks.json"))
-  T("lib/order.mjs: the brief names the copy rule", build.includes("`/humanizer`") && build.includes("`/second-opinion`") && build.includes("`BRAND.md`"))
+  T("lib/order.mjs: the brief names the copy rule", build.includes("`/humanizer`") && build.includes("`/second-opinion`") && !build.includes("`BRAND.md`"))
 
   const part = order("build part", { partNumber: 2, findings: [] })
   T("lib/order.mjs: a part order holds the full comment of its part under a title, with the heading marks cut", part.includes("### Part 2 of 3: the second behaviour (this order)") && part.includes("BODY-OF-PART-2 holds the paths.") && part.includes("Paths: a/, b"))
@@ -1043,7 +1050,7 @@ const orderCases = async () => {
 }
 
 const selfSufficiencyCases = () => {
-  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/worker.mjs", "lib/worker-gh-hook.mjs", "lib/order.mjs","lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
+  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/worker.mjs", "lib/worker-gh-hook.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
   for (const file of files) {
     const path = toolPath(file)
     const found = readFileSync(path, "utf8").split("\n").map((line, index) => [index + 1, line]).filter(([, line]) => BANNED_TEXT.test(line))

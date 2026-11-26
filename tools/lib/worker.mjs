@@ -57,6 +57,20 @@ export const WORKER_DENY = Object.freeze([
   "Bash(security *)",
 ])
 
+/**
+ * The tools that a worker never calls: they schedule, notify, trigger, sync a design, manage a worktree or an agent, edit a notebook,
+ * or report review findings. `Task` and `AskUserQuestion` stay denied as before. Each name is a tool name of the installed claude CLI (2.1.332).
+ */
+export const WORKER_DENIED_TOOLS = Object.freeze([
+  "Task", "AskUserQuestion", "CronCreate", "CronDelete", "CronList", "DesignSync", "EnterWorktree", "ExitWorktree", "ListAgents",
+  "McpTaskCheck", "NotebookEdit", "PushNotification", "RemoteTrigger", "ReportFindings", "ScheduleWakeup", "SendMessage", "TaskStop", "Workflow",
+])
+
+/** The skills of the repository that a worker never uses, by name: the owner skills and the release, ticket and audit skills. */
+export const WORKER_SKILLS_OFF = Object.freeze([
+  "android-release", "audit-security", "dev-server", "driver", "flag", "investigate", "ios-release", "morning", "over-limit", "progress", "questions", "release", "sleep", "ticket",
+])
+
 /** The GitHub writes that a code worker may never run and the questions run may. The `gh` hook blocks every other write. */
 export const CODE_WORKER_DENY = Object.freeze([
   "Bash(gh pr close*)",
@@ -103,7 +117,7 @@ export const workerSettings = ({ hotPath, skillNames, keepSkills = [SKILL_KEPT_O
   claudeMdExcludes: [hotPath],
   autoMemoryEnabled: false,
   outputStyle: "default",
-  skillOverrides: Object.fromEntries(skillNames.filter((name) => !keepSkills.includes(name)).map((name) => [name, "off"])),
+  skillOverrides: Object.fromEntries([...new Set([...skillNames, ...WORKER_SKILLS_OFF])].filter((name) => !keepSkills.includes(name)).map((name) => [name, "off"])),
   permissions: { deny: [...WORKER_DENY, ...(codeWorker ? CODE_WORKER_DENY : [])] },
   ...(codeWorker ? { hooks: ghHooks(own) } : {}),
 })
@@ -113,7 +127,7 @@ export const workerCommand = (settingsJson, model = MODEL) => ({
   executable: "claude",
   args: [
     "-p", "--model", model, "--effort", EFFORT, "--output-format", "stream-json", "--verbose", "--strict-mcp-config",
-    "--permission-mode", "bypassPermissions", "--disallowed-tools", "Task", "AskUserQuestion", "--settings", settingsJson,
+    "--permission-mode", "bypassPermissions", "--disallowed-tools", ...WORKER_DENIED_TOOLS, "--settings", settingsJson,
   ],
 })
 
