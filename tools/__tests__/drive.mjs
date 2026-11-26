@@ -46,6 +46,7 @@ import {
   probe,
   readEvent,
   readWorkerToken,
+  readOwnerToken,
   WORKER_DENY,
   WORKER_LIMITS,
   workerCommand,
@@ -689,7 +690,7 @@ const skillAndEnvironmentCases = async () => {
   const parent = { PATH: "/usr/bin", HOME, CLAUDE_CONFIG_DIR: "/other", ANTHROPIC_API_KEY: "key", CLAUDE_CODE_OAUTH_TOKEN: "oauth", CLAUDE_CODE_TMPDIR: "/scratch/claude", GH_TOKEN: "owner-token" }
   const environment = workerEnvironmentFor(parent, TOKEN)
   same("lib/worker.mjs: the worker environment holds no account override and the worker token", sortedKeys(environment), sortedKeys({
-    PATH: "/usr/bin", HOME, CLAUDE_CODE_TMPDIR: "/scratch/claude", CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1", CLAUDE_CODE_DISABLE_BUNDLED_SKILLS: "1", GH_TOKEN: TOKEN,
+    PATH: "/usr/bin", HOME, CLAUDE_CODE_TMPDIR: "/scratch/claude", CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1", CLAUDE_CODE_DISABLE_BUNDLED_SKILLS: "1", BRAIN_SESSION_CAPTURE: "1", GH_TOKEN: TOKEN,
   }))
   T("lib/worker.mjs: the parent environment stays unchanged", parent.GH_TOKEN === "owner-token" && parent.ANTHROPIC_API_KEY === "key")
   T("lib/worker.mjs: a parent with no temporary directory gives the worker none", !("CLAUDE_CODE_TMPDIR" in workerEnvironmentFor({ PATH: "/usr/bin" }, TOKEN)))
@@ -707,6 +708,14 @@ const skillAndEnvironmentCases = async () => {
   same("lib/worker.mjs: a missing Keychain item gives null", (await keychain({ status: 44, stdout: "", stderr: "could not be found" })).token, null)
   same("lib/worker.mjs: an empty Keychain answer gives null", (await keychain({ status: 0, stdout: "\n" })).token, null)
 
+  const ownerCalls = []
+  const owner = async (answer, parentEnvironment = { PATH: "/usr/bin", GH_TOKEN: "worker-token", GITHUB_TOKEN: "x", GH_ENTERPRISE_TOKEN: "y", GITHUB_ENTERPRISE_TOKEN: "z" }) => readOwnerToken({ parentEnvironment, run: async (...call) => { ownerCalls.push(call); return answer } })
+  same("lib/worker.mjs: the owner token is the gh keyring login without its line end", await owner({ status: 0, stdout: "gho_owner\n" }), "gho_owner")
+  same("lib/worker.mjs: the owner read runs gh auth token for github.com", [ownerCalls[0][0], ownerCalls[0][1]], ["gh", ["auth", "token", "--hostname", "github.com"]])
+  same("lib/worker.mjs: the owner read drops every token variable and keeps the rest", ownerCalls[0][2].env, { PATH: "/usr/bin" })
+  same("lib/worker.mjs: no gh login gives null", await owner({ status: 1, stdout: "", stderr: "no oauth token found for github.com" }), null)
+  same("lib/worker.mjs: an empty gh answer gives null", await owner({ status: 0, stdout: "\n" }), null)
+
   const home = join(root, "drive-worker", "home")
   mkdirSync(join(home, ".claude", "skills", "pdf"), { recursive: true })
   mkdirSync(join(home, ".claude", "skills", "humanizer"), { recursive: true })
@@ -721,11 +730,14 @@ const skillAndEnvironmentCases = async () => {
     mkdirSync(join(questionsHome, ".claude", "skills", name), { recursive: true })
     writeFileSync(join(questionsHome, ".claude", "skills", name, "SKILL.md"), "x")
   }
-  const questions = questionsInvocation({ home: questionsHome, parentEnvironment: parent, token: TOKEN })
+  const questions = questionsInvocation({ home: questionsHome, parentEnvironment: parent, token: "owner-login-token" })
   const questionsSettings = JSON.parse(questions.command.args.at(-1))
   same("lib/worker.mjs: the questions run uses the coordinator model at the worker effort and no other argument changes", [questions.command.args.slice(0, 5), questions.command.args.slice(5, -1)], [["-p", "--model", "claude-opus-5-5", "--effort", "high"], invocation.command.args.slice(5, -1)])
   same("lib/worker.mjs: the questions run keeps the questions skill on and turns off the rest", questionsSettings.skillOverrides, { pdf: "off" })
-  same("lib/worker.mjs: the questions run keeps the worker deny list and environment", [questionsSettings.permissions.deny, questions.environment], [settings.permissions.deny, invocation.environment])
+  same("lib/worker.mjs: the questions run keeps the worker deny list and environment, with the owner token", [questionsSettings.permissions.deny, questions.environment], [settings.permissions.deny, { ...invocation.environment, GH_TOKEN: "owner-login-token" }])
+  same("lib/worker.mjs: the worker, questions and worker account environments all carry BRAIN_SESSION_CAPTURE=1", [invocation.environment.BRAIN_SESSION_CAPTURE, questions.environment.BRAIN_SESSION_CAPTURE, workerInvocation({ home, parentEnvironment: parent, token: TOKEN, configDirectory: workerConfigDirectory(home) }).environment.BRAIN_SESSION_CAPTURE], ["1", "1", "1"])
+  same("lib/worker.mjs: a parent that sets BRAIN_SESSION_CAPTURE to 0 does not turn the capture back on", workerInvocation({ home, parentEnvironment: { ...parent, BRAIN_SESSION_CAPTURE: "0" }, token: TOKEN }).environment.BRAIN_SESSION_CAPTURE, "1")
+  T("lib/worker.mjs: the questions environment holds no worker token", !Object.values(questions.environment).includes(TOKEN))
   const workerDirectory = workerConfigDirectory(home)
   const onWorker = workerInvocation({ home, parentEnvironment: { ...parent, CLAUDE_CONFIG_DIR: "/somewhere/else" }, token: TOKEN, configDirectory: workerDirectory })
   same("lib/worker.mjs: the worker account sets CLAUDE_CONFIG_DIR to its directory and the main account sets none", [workerDirectory, onWorker.environment.CLAUDE_CONFIG_DIR, "CLAUDE_CONFIG_DIR" in invocation.environment], [join(home, ".claude-orbit-workers"), workerDirectory, false])

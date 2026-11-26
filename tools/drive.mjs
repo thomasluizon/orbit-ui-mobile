@@ -1676,7 +1676,7 @@ const watchStall = async (env, tickets, { acted, held, waiting }) => {
 /**
  * Starts one headless `/questions --auto` run when an open item that carries `needs:owner` has a `needs-owner` report newer than the
  * start of the last run, and no run is live. The run takes no worker slot. It runs in the driver worktree on the main account with the
- * coordinator model, and it stops with the main account at 90% like a worker. The start goes to `questions.json` before the launch.
+ * coordinator model and the owner's gh login, and it stops with the main account at 90% like a worker. The start goes to `questions.json` before the launch.
  * The skill reads `sleep.json` itself, so the driver passes no sleep state.
  */
 const startQuestions = async (env, mem, { tickets, states, blocked }) => {
@@ -1684,8 +1684,9 @@ const startQuestions = async (env, mem, { tickets, states, blocked }) => {
   const held = heldWithNewReport(tickets, states, readQuestionsStart(env.stateDir))
   if (held.length === 0) return
   if (blocked !== null) return log(env, "questions", "wait", `${blocked}: ${held.join(", ")}`)
-  const token = await env.worker.readWorkerToken()
-  if (token === null) return log(env, "questions", "refused", "no worker token in the Keychain")
+  // The worker token cannot read the ticket repository, so the run uses the owner's gh login and never falls back to the worker token.
+  const token = await env.worker.readOwnerToken({ parentEnvironment: process.env })
+  if (token === null) return log(env, "questions", "refused", "no owner gh login: run gh auth login")
   const invocation = env.worker.questionsInvocation({ home: env.home, parentEnvironment: process.env, token })
   const startedAt = env.now()
   writeFileSync(join(env.stateDir, QUESTIONS_FILE), `${JSON.stringify({ startedAt: new Date(startedAt).toISOString() })}\n`)
