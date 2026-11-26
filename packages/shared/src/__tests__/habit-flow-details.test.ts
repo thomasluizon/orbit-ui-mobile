@@ -53,29 +53,34 @@ describe('resolveGuidedEditDetails', () => {
   const failure = new Error('offline')
 
   it('waits with the save off while the first read runs', () => {
-    expect(resolveGuidedEditDetails({ ...read, pending: true, fetching: true })).toEqual({ loading: true, summaryError: null, toastError: null, blocked: true })
+    expect(resolveGuidedEditDetails({ ...read, pending: true, fetching: true })).toEqual({ loading: true, summaryFailed: false, summaryError: null, toastError: null, blocked: true })
+  })
+
+  it('never waits on a read that is not in flight and holds no value, a disabled or a paused read', () => {
+    const stalled = resolveGuidedEditDetails({ ...read, habitId: 'h1', pending: true, fetching: false })
+    expect(stalled).toEqual({ loading: false, summaryFailed: true, summaryError: null, toastError: null, blocked: true })
   })
 
   it('states a failed read on the summary, not in a toast, and keeps the save off', () => {
-    expect(resolveGuidedEditDetails({ ...read, error: failure })).toEqual({ loading: false, summaryError: failure, toastError: null, blocked: true })
+    expect(resolveGuidedEditDetails({ ...read, error: failure })).toEqual({ loading: false, summaryFailed: true, summaryError: failure, toastError: null, blocked: true })
   })
 
   it('waits again while the retry of a failed read runs', () => {
-    expect(resolveGuidedEditDetails({ ...read, error: failure, fetching: true })).toEqual({ loading: true, summaryError: null, toastError: null, blocked: true })
+    expect(resolveGuidedEditDetails({ ...read, error: failure, fetching: true })).toEqual({ loading: true, summaryFailed: false, summaryError: null, toastError: null, blocked: true })
   })
 
   it('is ready once the details load, and leaves a later refetch error to the toast', () => {
-    expect(resolveGuidedEditDetails({ ...read, hasDetail: true })).toEqual({ loading: false, summaryError: null, toastError: null, blocked: false })
-    expect(resolveGuidedEditDetails({ ...read, hasDetail: true, error: failure })).toEqual({ loading: false, summaryError: null, toastError: failure, blocked: false })
+    expect(resolveGuidedEditDetails({ ...read, hasDetail: true })).toEqual({ loading: false, summaryFailed: false, summaryError: null, toastError: null, blocked: false })
+    expect(resolveGuidedEditDetails({ ...read, hasDetail: true, error: failure })).toEqual({ loading: false, summaryFailed: false, summaryError: null, toastError: failure, blocked: false })
   })
 
   it('never blocks a habit created offline, whose list record is the whole record', () => {
-    expect(resolveGuidedEditDetails({ ...read, habitId: 'offline-habit-7', error: failure })).toEqual({ loading: false, summaryError: null, toastError: failure, blocked: false })
-    expect(resolveGuidedEditDetails({ ...read, habitId: 'offline-habit-7', pending: true })).toEqual({ loading: false, summaryError: null, toastError: null, blocked: false })
+    expect(resolveGuidedEditDetails({ ...read, habitId: 'offline-habit-7', error: failure })).toEqual({ loading: false, summaryFailed: false, summaryError: null, toastError: failure, blocked: false })
+    expect(resolveGuidedEditDetails({ ...read, habitId: 'offline-habit-7', pending: true })).toEqual({ loading: false, summaryFailed: false, summaryError: null, toastError: null, blocked: false })
   })
 
   it('leaves a closed edit as it is', () => {
-    expect(resolveGuidedEditDetails({ ...read, habitId: null, pending: true })).toEqual({ loading: false, summaryError: null, toastError: null, blocked: false })
+    expect(resolveGuidedEditDetails({ ...read, habitId: null, pending: true })).toEqual({ loading: false, summaryFailed: false, summaryError: null, toastError: null, blocked: false })
   })
 })
 
@@ -410,8 +415,13 @@ describe('readHabitPhraseDate', () => {
 describe('describeEditDetailsError', () => {
   it('states a failed read of one habit with its own message, not the message of the habit list', () => {
     const onRetry = () => {}
-    const described = describeEditDetailsError(new Error('boom'), (key) => key, onRetry)
+    const described = describeEditDetailsError(true, new Error('boom'), (key) => key, onRetry)
     expect(described).toEqual({ message: 'errors.fetchHabitDetails', onRetry })
-    expect(describeEditDetailsError(null, (key) => key, onRetry)).toBeNull()
+    expect(describeEditDetailsError(false, null, (key) => key, onRetry)).toBeNull()
+  })
+
+  it('states a read that cannot run with the generic message, because it holds no error', () => {
+    const onRetry = () => {}
+    expect(describeEditDetailsError(true, null, (key) => key, onRetry)).toEqual({ message: 'errors.fetchHabitDetails', onRetry })
   })
 })

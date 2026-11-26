@@ -73,7 +73,9 @@ export interface EditDetailsRead<ReadError> {
 export interface GuidedEditDetails<ReadError> {
   /** The first read, or the retry of a failed one, runs. The summary shows a skeleton for each row. */
   loading: boolean
-  /** The read failed. The summary states it with a retry. */
+  /** The read failed, or it cannot run: no read is in flight and no stored value exists. The summary states it with a retry. */
+  summaryFailed: boolean
+  /** The error of the failed read. Null when the read cannot run, because it holds no error. */
   summaryError: ReadError | null
   /** The error the toast states: one the summary does not state itself. */
   toastError: ReadError | null
@@ -84,20 +86,23 @@ export interface GuidedEditDetails<ReadError> {
 /**
  * What the guided edit summary shows for the stored details of the habit. The detail read fills the whole form,
  * so the summary waits for it. A habit created offline has no stored details yet: its list record is the whole
- * record, so neither a paused read nor a failed read blocks it.
+ * record, so neither a paused read nor a failed read blocks it. A read that is not in flight and holds no value
+ * (disabled or paused) never loads, so the summary states it with a retry instead of a skeleton that never ends.
  */
 export function resolveGuidedEditDetails<ReadError>(read: EditDetailsRead<ReadError>): GuidedEditDetails<ReadError> {
-  if (read.habitId === null || read.habitId.startsWith('offline-habit-')) return { loading: false, summaryError: null, toastError: read.error, blocked: false }
+  if (read.habitId === null || read.habitId.startsWith('offline-habit-')) return { loading: false, summaryFailed: false, summaryError: null, toastError: read.error, blocked: false }
   const failed = !read.hasDetail && read.error !== null
-  const loading = read.pending || (failed && read.fetching)
-  const summaryError = failed && !read.fetching ? read.error : null
-  const blocked = loading || summaryError !== null
-  return { loading, summaryError, toastError: blocked ? null : read.error, blocked }
+  const stalled = !read.hasDetail && read.error === null && read.pending && !read.fetching
+  const loading = read.fetching && (read.pending || failed)
+  const summaryFailed = (failed && !read.fetching) || stalled
+  const blocked = loading || summaryFailed
+  return { loading, summaryFailed, summaryError: failed && !read.fetching ? read.error : null, toastError: blocked ? null : read.error, blocked }
 }
 
-/** The failed detail read as the guided summary states it: the message and the retry. Null with no failed read. */
-export function describeEditDetailsError(error: unknown, translate: Parameters<typeof getFriendlyErrorMessage>[1], onRetry: () => void): { message: string; onRetry: () => void } | null {
-  return error ? { message: getFriendlyErrorMessage(error, translate, 'errors.fetchHabitDetails', 'habit'), onRetry } : null
+/** The failed detail read as the guided summary states it: the message and the retry. Null with no failed read. A read that cannot run has no error and gets the generic message. */
+export function describeEditDetailsError(failed: boolean, error: unknown, translate: Parameters<typeof getFriendlyErrorMessage>[1], onRetry: () => void): { message: string; onRetry: () => void } | null {
+  if (!failed) return null
+  return { message: error ? getFriendlyErrorMessage(error, translate, 'errors.fetchHabitDetails', 'habit') : translate('errors.fetchHabitDetails'), onRetry }
 }
 
 /** The step that a summary value opens. A habit's Quando opens its repeat; a task opens the date question. */

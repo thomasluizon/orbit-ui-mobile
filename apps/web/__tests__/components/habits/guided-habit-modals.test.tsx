@@ -38,7 +38,7 @@ vi.mock('@/hooks/use-create-sub-habit', () => ({ useCreateSubHabit: () => ({ mut
 vi.mock('@/hooks/use-update-habit', () => ({ useUpdateHabit: () => ({ mutateAsync: state.update, isPending: false }) }))
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
-  useHabitDetail: () => ({ data: state.detail ?? undefined, isPending: state.detailPending, isFetching: state.detailFetching, error: state.detailError, refetch: state.refetchDetail }),
+  useHabitDetail: () => ({ data: state.detail ?? undefined, isPending: state.detailPending, isFetching: state.detailFetching, error: state.detailError, refetch: state.refetchDetail, retry: state.refetchDetail }),
 }))
 vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habits')>(),
@@ -761,6 +761,19 @@ describe('the edit surface', () => {
     expect(screen.getByRole('alert')).not.toBeEmptyDOMElement()
     expect(screen.queryByRole('button', { name: /^Hora/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: ptBR.habits.flow.more })).not.toBeInTheDocument()
+    expect(save()).toBeDisabled()
+    await act(async () => { save().click() })
+    expect(state.update).not.toHaveBeenCalled()
+    await press(ptBR.common.retry)
+    expect(state.refetchDetail).toHaveBeenCalledTimes(1)
+  })
+
+  it('states a detail read that never starts on the summary with a retry, never a skeleton that does not end', async () => {
+    state.detailPending = true
+    mountEdit()
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    expect(summary().querySelector('[data-summary-skeleton]')).toBeNull()
+    expect(screen.getByRole('alert')).not.toBeEmptyDOMElement()
     expect(save()).toBeDisabled()
     await act(async () => { save().click() })
     expect(state.update).not.toHaveBeenCalled()
