@@ -134,35 +134,24 @@ describe('ReferralDrawer', () => {
     expect(writeText).toHaveBeenCalledWith(mockReferralUrl)
   })
 
-  it('clears the copied reset timer when the drawer unmounts', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
-    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
-    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
-    const { unmount } = render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
-    const copy = screen.getByRole('button', { name: 'referral.drawer.copyLink' })
-    fireEvent.click(copy)
-    await waitFor(() => expectCopyStateIcon(copy, { copied: true, strokeWidth: 2, color: 'var(--fg-2)' }))
-    const resetCallIndex = setTimeoutSpy.mock.calls.findIndex(([, delay]) => delay === 2000)
-    expect(resetCallIndex).toBeGreaterThanOrEqual(0)
-    const resetTimer = setTimeoutSpy.mock.results[resetCallIndex]?.value
-    unmount()
-    expect(clearTimeoutSpy).toHaveBeenCalledWith(resetTimer)
-    setTimeoutSpy.mockRestore()
-    clearTimeoutSpy.mockRestore()
-  })
-
-  it('schedules no copied reset when the copy resolves after the drawer unmounts', async () => {
-    let resolveCopy: () => void = () => {}
-    const writeText = vi.fn(() => new Promise<void>((resolve) => { resolveCopy = resolve }))
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
-    const { unmount } = render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'referral.drawer.copyLink' }))
-    unmount()
-    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
-    await act(async () => { resolveCopy() })
-    expect(setTimeoutSpy.mock.calls.filter(([, delay]) => delay === 2000)).toEqual([])
-    setTimeoutSpy.mockRestore()
+  it('restores the copy icon after 2 seconds and leaves no timer after it unmounts', async () => {
+    vi.useFakeTimers()
+    try {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
+      const view = render(<ReferralDrawer open onOpenChange={vi.fn()} />)
+      const copy = screen.getByRole('button', { name: 'referral.drawer.copyLink' })
+      await act(async () => { fireEvent.click(copy) })
+      act(() => { vi.advanceTimersByTime(2000) })
+      expectCopyStateIcon(copy, { copied: false, strokeWidth: 2, color: 'var(--fg-2)' })
+      await act(async () => { fireEvent.click(copy) })
+      expectCopyStateIcon(copy, { copied: true, strokeWidth: 2, color: 'var(--fg-2)' })
+      view.unmount()
+      const sheetNextFrameMs = 20
+      act(() => { vi.advanceTimersByTime(sheetNextFrameMs) })
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows stats when available', () => {

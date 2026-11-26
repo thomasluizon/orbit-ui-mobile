@@ -145,8 +145,8 @@ function ReferralDrawerContent({
 
   useEffect(() => {
     if (!copied) return
-    const resetTimer = setTimeout(() => setCopied(false), 2000)
-    return () => clearTimeout(resetTimer)
+    const resetTimer = window.setTimeout(() => setCopied(false), 2000)
+    return () => window.clearTimeout(resetTimer)
   }, [copied])
 
   async function copyLink() {

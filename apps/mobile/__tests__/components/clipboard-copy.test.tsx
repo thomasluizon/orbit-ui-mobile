@@ -107,6 +107,14 @@ describe.each(copyActions)('$name copy', ({ element, label, text }) => {
   })
 })
 
+it('leaves no referral confirmation timer after the drawer unmounts', async () => {
+  await render(<ReferralDrawer open onClose={vi.fn()} />)
+  await TestRenderer.act(() => { copy('referral.drawer.copyLink') })
+  expect(copiedIcons()).toHaveLength(1)
+  await TestRenderer.act(() => { tree.unmount() })
+  expect(vi.getTimerCount()).toBe(0)
+})
+
 it('does not copy a missing referral link', async () => {
   referral.url = ''
   await render(<ReferralDrawer open onClose={vi.fn()} />)
