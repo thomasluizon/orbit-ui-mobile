@@ -42,7 +42,7 @@ export function SetupChecklistCard() {
         <div className="flex items-start justify-between gap-6">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <h2 id={titleId} className="min-w-0 text-balance text-[20px] font-medium leading-[1.3] text-[var(--fg-1)]">{t('today.setupChecklist.title')}</h2>
-            <p className="t-secondary text-pretty">{checklist.done === checklist.items.length ? t('today.setupChecklist.complete') : t('today.setupChecklist.subtitle')}</p>
+            {checklist.done === checklist.items.length ? <p className="t-secondary text-pretty">{t('today.setupChecklist.complete')}</p> : null}
           </div>
           <PillButton variant="ghost" iconOnly label={t('today.setupChecklist.dismiss')} loading={pending} descriptionId={failed ? errorId : undefined} onClick={() => void dismiss()}>
             <X size={20} strokeWidth={1.5} aria-hidden="true" focusable="false" />
