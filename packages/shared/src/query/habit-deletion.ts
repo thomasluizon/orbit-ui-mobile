@@ -59,3 +59,8 @@ export function restoreDeletedHabitQueries(queryClient: QueryClient, habitId: st
   const deletedIds = queryClient.getQueryData<string[]>(habitKeys.deleted(habitId)) ?? [habitId]
   for (const id of deletedIds) queryClient.removeQueries({ queryKey: habitKeys.deleted(id), exact: true })
 }
+
+/** An edit holds a habit that the list shows, so a deleted marker for that one habit is stale. Drop it so the detail read can run. */
+export function dropStaleHabitDeletion(queryClient: QueryClient, habitId: string): void {
+  queryClient.removeQueries({ queryKey: habitKeys.deleted(habitId), exact: true })
+}
