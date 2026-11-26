@@ -21,7 +21,7 @@ export function DayStrip(props: Readonly<DayStripProps>) {
   const labels = props.labels?.slice(firstIndex)
 
   return (
-    <div role="group" aria-label={props.label} data-scope={props.scope} className={account ? 'flex items-center' : 'grid items-center'} style={{ width: '100%', minWidth: 0, justifyContent: 'space-between', gap: account ? 4 : 0, gridTemplateColumns: account ? undefined : `repeat(${days.length}, minmax(0, 1fr))` }}>
+    <fieldset aria-label={props.label} data-scope={props.scope} className={account ? 'flex items-center' : 'grid items-center'} style={{ width: '100%', minWidth: 0, justifyContent: 'space-between', gap: account ? 4 : 0, gridTemplateColumns: account ? undefined : `repeat(${days.length}, minmax(0, 1fr))` }}>
       {days.map((state, index) => {
         const cellLabel = labels?.[index] ?? String(firstIndex + index + 1)
         return (
@@ -40,6 +40,6 @@ export function DayStrip(props: Readonly<DayStripProps>) {
           </span>
         )
       })}
-    </div>
+    </fieldset>
   )
 }

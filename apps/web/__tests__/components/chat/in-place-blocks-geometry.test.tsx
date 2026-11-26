@@ -67,7 +67,7 @@ describe('in-place Astra block geometry', () => {
           const inset = pseudo.content === 'none' ? 0 : Math.min(0, Number.parseFloat(pseudo.top) || 0)
           return { label: button.getAttribute('aria-label') ?? button.textContent, width: rect.width - inset * 2, height: rect.height - inset * 2, right: rect.right, left: rect.left }
         })
-        const event = main.querySelector('[role="group"][aria-label*="Walk with the team"]')!
+        const event = main.querySelector('fieldset[aria-label*="Walk with the team"]')!
         const title = event.querySelector('[data-personal-text]')!
         const habitRows = [...main.querySelectorAll('[data-habit-block-row]')].map(row => {
           const title = row.querySelector('[data-personal-text]')!.getBoundingClientRect()

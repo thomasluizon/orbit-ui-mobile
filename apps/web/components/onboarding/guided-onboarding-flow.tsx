@@ -230,7 +230,7 @@ function useSummaryView(props: GuidedOnboardingProps, habitTitle: string, cadenc
   return {
     question: t('onboarding.flow.guided.summary.question'),
     line: t('habits.flow.what.lineUnderstood', { parts: cadenceText(true) }),
-    free: <div role="group" aria-label={t('onboarding.flow.guided.summary.question')} className="flex flex-col gap-3">
+    free: <fieldset aria-label={t('onboarding.flow.guided.summary.question')} className="flex flex-col gap-3 min-w-0">
       <div className="flex min-w-0 items-center gap-3">
         <HabitEmojiSelector selectedEmoji={props.habitEmoji} proposed={props.emojiProposed} onSelect={props.onEmoji} />
         <div className="min-w-0 flex-1">{row('what')}</div>
@@ -240,7 +240,7 @@ function useSummaryView(props: GuidedOnboardingProps, habitTitle: string, cadenc
       {row('time')}
       {props.atLimit ? <CapacityNotice message={translate('onboarding.flow.when.limit', { allowance: props.allowance })} /> : null}
       {props.createFailed ? <p role="alert" className="text-center text-sm text-[var(--status-bad-text)]">{t('onboarding.flow.createFailed')}</p> : null}
-    </div>,
+    </fieldset>,
     primary: { label: t(props.createFailed ? 'onboarding.flow.retry' : 'onboarding.flow.create'), onPress: props.onSave, loading: props.creating },
   }
 }

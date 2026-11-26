@@ -390,10 +390,9 @@ function HabitRowLayout({ measureRef, habitId, habitTitle, depth, state, selecte
   return (
     <div ref={measureRef}>
       <div data-testid="habit-row" data-habit-id={habitId} data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
-        role="group" aria-label={habitTitle}
         className={`habit-row relative rounded-[20px] ${selected ? 'bg-[var(--selection-bg)]' : 'bg-[var(--bg-card)]'} ${supportingMeta ? 'grid' : 'flex'} ${contentLayoutClass}`}
         style={{ minHeight, marginInlineStart: depth * SPACING.s16 }}>
-        {children}
+        <fieldset aria-label={habitTitle} className="contents">{children}</fieldset>
       </div>
     </div>
   )

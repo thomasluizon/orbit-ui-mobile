@@ -66,11 +66,11 @@ function QuickOptions<Value extends string | number>({ label, options, selected,
 }>) {
   const [answer, setAnswer] = useState<Value | null>(null)
   return (
-    <div role="group" aria-label={label} data-option-group="" className="grid grid-cols-2 gap-3">
+    <fieldset aria-label={label} data-option-group="" className="grid grid-cols-2 gap-3 min-w-0">
       {options.map((option) => (
         <OptionCard key={String(option.value)} label={option.label} selected={(answer ?? selected) === option.value} onSelect={() => { setAnswer(option.value); onCommit(option.value) }} />
       ))}
-    </div>
+    </fieldset>
   )
 }
 
@@ -140,10 +140,10 @@ function GuidedTimeZoneOptions({ selected, questionLabel, searchLabel, noResults
   const option = (zone: string) => <OptionCard key={zone} wide label={zone} selected={zone === (answer ?? selected)} onSelect={() => { setAnswer(zone); onCommit(zone) }} />
   return (
     <div data-time-zone-question="" className="flex flex-col gap-3">
-      <div role="group" aria-label={questionLabel} data-option-group="" className="grid grid-cols-2 gap-3">{quick.map(option)}</div>
+      <fieldset aria-label={questionLabel} data-option-group="" className="grid grid-cols-2 gap-3 min-w-0">{quick.map(option)}</fieldset>
       <Input kind="search" label={searchLabel} name="timeZoneSearch" autoComplete="off" value={query} onChange={(value) => { setQuery(value); setVisibleCount(TIME_ZONE_PAGE_SIZE) }} />
       {searched && visible.length === 0 ? <p role="status" className="text-center text-sm text-[var(--fg-3)]">{noResultsLabel}</p> : null}
-      {visible.length > 0 ? <div role="group" aria-label={searchLabel} data-option-group="" className="grid grid-cols-2 gap-3">{visible.map(option)}</div> : null}
+      {visible.length > 0 ? <fieldset aria-label={searchLabel} data-option-group="" className="grid grid-cols-2 gap-3 min-w-0">{visible.map(option)}</fieldset> : null}
       {hasMore ? <div className="flex justify-center">
         <IconButton label={showMoreLabel} onClick={() => setVisibleCount((count) => count + TIME_ZONE_PAGE_SIZE)}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
       </div> : null}
