@@ -410,10 +410,10 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       if (hold === null) return
       filled.current = null
       if (form.getValues().dueDate !== hold.date) return
-      port.chooseItemType(hold.itemType)
+      if (deliberateType === null) port.chooseItemType(hold.itemType)
       port.setField('dueDate', hold.dueDate)
       setAnswers((value) => (value.when === hold.when ? value : { ...value, when: hold.when }))
-    }, [form, port, setAnswers])
+    }, [deliberateType, form, port, setAnswers])
     const previewWhenWords = useCallback((text: string): WhenPreview | null => {
       if (isShortWeekdayWord(text)) { restoreFilledDate(); return null }
       const words = readWords(text)
