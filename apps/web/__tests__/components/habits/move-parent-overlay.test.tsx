@@ -6,6 +6,7 @@ import tailwind from '@tailwindcss/postcss'
 import { createTranslator } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { settlePage } from '@/__tests__/support/settled-page'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { afterAll, afterEach, beforeAll, describe, it, expect, vi } from 'vitest'
@@ -368,6 +369,7 @@ describe('bulk move footer geometry in Chromium', () => {
       await page.addScriptTag({ content: pickerScript })
       const button = page.getByRole('button', { name: expected, exact: true })
       await button.waitFor({ state: 'visible' })
+      await settlePage(page)
       const heading = page.getByRole('heading', { name: title, exact: true })
       const titleGeometry = await heading.evaluate((element) => {
         const range = document.createRange()
