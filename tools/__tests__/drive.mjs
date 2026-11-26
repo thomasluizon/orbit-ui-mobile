@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process"
 import { EventEmitter } from "node:events"
-import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { readDriveConfig, workerEnvironment } from "../lib/config.mjs"
@@ -35,6 +35,7 @@ import {
 } from "../lib/github.mjs"
 import { ORDER_KINDS, partOf, renderBrief, renderOrder } from "../lib/order.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
+import { sendTelegram } from "../lib/telegram.mjs"
 import {
   finalResult,
   isUsageLimitMessage,
@@ -117,6 +118,29 @@ const stateResponse = (numbers) => {
   return copy
 }
 
+/** A gh runner that lists `open` and answers each pull request that a state query names. `requested` keeps the numbers of each query. */
+const batchedState = (open, { failAt = null } = {}) => {
+  const requested = []
+  let active = 0
+  let mostActive = 0
+  const run = async (args) => {
+    const numbers = [...args.join(" ").matchAll(/pr(\d+): pullRequest\(number: (\d+)\)/g)].map((match) => Number(match[1]))
+    requested.push(numbers)
+    const call = requested.length
+    mostActive = Math.max(mostActive, ++active)
+    await new Promise((resolve) => setImmediate(resolve))
+    active -= 1
+    if (call === failAt) throw new Error("gh api graphql failed: HTTP 502")
+    const response = stateResponse(open)
+    const sample = response.data.repository.pr2509
+    delete response.data.repository.pr2509
+    delete response.data.repository.pr2510
+    for (const number of numbers) response.data.repository[`pr${number}`] = { ...sample, number }
+    return json(response)
+  }
+  return { run, requested, mostActive: () => mostActive }
+}
+
 const configCases = () => {
   const keySource = readFileSync(new URL("../lib/config.mjs", import.meta.url), "utf8")
   const keys = [.../const CLAUDE_ACCOUNT_OVERRIDE_KEYS = \[([^\]]*)\]/.exec(keySource)[1].matchAll(/"([A-Z0-9_]+)"/g)].map((match) => match[1])
@@ -175,7 +199,7 @@ const githubUnit = async () => {
   const [approved] = (await readPulls([2510])).state.pulls
 
   const { state: openState, calls: openCalls } = await readPulls([2509])
-  same("lib/github.mjs: one read holds every open pull request when the numbers are known", [openCalls.length, openState.numbers, openState.defaultBranch, openState.slug], [1, [2509], "main", UI])
+  same("lib/github.mjs: one read holds every open pull request when at most 8 numbers are known", [openCalls.length, openState.numbers, openState.defaultBranch, openState.slug], [1, [2509], "main", UI])
   same("lib/github.mjs: a pull request keeps its identity fields", [open.number, open.state, open.draft, open.author, open.headRef, open.headSha, open.baseRef, open.mergeState, open.changedFiles, open.files.length], [2509, "OPEN", false, "thomasluizon", "feature/ticket-2181-pace-governor", "a4c62a196324df595f5597e00863abc65f86435f", "main", "DIRTY", 23, 23])
   const rolled = stateResponse([2509])
   rolled.data.repository.pr2509.commits.nodes = FIXTURE.commitRollups.nodes
@@ -220,6 +244,27 @@ const githubUnit = async () => {
   const unknown = await readPulls([2509, 2510], [])
   same("lib/github.mjs: a number the last tick did not know costs one more read for those numbers only", [unknown.calls.length, unknown.calls[0].text.includes("pr2509"), unknown.calls[1].text.includes("pr2509"), unknown.calls[1].text.includes("pr2510")], [2, false, true, true])
   same("lib/github.mjs: a known pull request that is no longer open is not returned", (await readPulls([2509], [2509, 2510])).state.pulls.map((pull) => pull.number), [2509])
+  const many = Array.from({ length: 35 }, (_, index) => 3035 - index)
+  for (const [label, knownNumbers, sizes] of [["no number is known", [], [0, 8, 8, 8, 8, 3]], ["every number is known", many, [8, 8, 8, 8, 3]]]) {
+    const gh = batchedState(many)
+    const state = await readRepositoryState("ui", { knownNumbers, ...seams(gh.run) })
+    same(`lib/github.mjs: no state query holds more than 8 of 35 open pull requests when ${label}`, gh.requested.map((numbers) => numbers.length), sizes)
+    same(`lib/github.mjs: 35 open pull requests come back in the order of the open list when ${label}`, [state.numbers, state.pulls.map((pull) => pull.number)], [many, many])
+    T(`lib/github.mjs: the state queries run one after the other when ${label}`, gh.mostActive() === 1)
+  }
+
+  const known = Array.from({ length: 12 }, (_, index) => 4001 + index)
+  const current = [4021, ...known.slice(1), 4022, 4023]
+  const mixed = batchedState(current)
+  const mixedState = await readRepositoryState("ui", { knownNumbers: known, ...seams(mixed.run) })
+  const read = mixed.requested.flat()
+  same("lib/github.mjs: known and new numbers make one merged state", mixedState.pulls.map((pull) => pull.number), current)
+  same("lib/github.mjs: no number is read twice, and each open number is read", [read.length, new Set(read).size, current.every((number) => read.includes(number))], [15, 15, true])
+
+  const failing = batchedState(many, { failAt: 3 })
+  const failure = await thrown(() => readRepositoryState("ui", { knownNumbers: many, ...seams(failing.run) }))
+  same("lib/github.mjs: a failed third batch fails the whole read and stops the later batches", [/HTTP 502/.test(failure), failing.requested.length], [true, 3])
+
   T("lib/github.mjs: more than 100 open pull requests is refused", /more than 100 open/.test(await thrown(() => {
     const response = stateResponse([2509])
     response.data.repository.open.pageInfo.hasNextPage = true
@@ -1043,7 +1088,7 @@ const orderCases = async () => {
 }
 
 const selfSufficiencyCases = () => {
-  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/worker.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
+  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/telegram.mjs", "lib/worker.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
   for (const file of files) {
     const path = toolPath(file)
     const found = readFileSync(path, "utf8").split("\n").map((line, index) => [index + 1, line]).filter(([, line]) => BANNED_TEXT.test(line))
@@ -1060,12 +1105,31 @@ const skillMarkerCases = () => {
   same("skills/questions: the only bare marker is the owner-review decision, which grants a launch", [...new Set(bare)], ["owner-review"])
   same("skills/questions: the queued question and its reader use the orbit-drive:owner-question marker", questions.split("<!-- orbit-drive:owner-question -->").length - 1, 2)
   // An order carries the ticket body, the part comments, the findings and the cap grant. A plain answer comment reaches no worker, so the body holds every answer.
-  T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes("gh issue edit --body-file") && questions.includes("`## Owner decisions`"), "section 4 has no body write")
+  T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes(`gh issue edit <number> --repo ${TICKET_REPOSITORY} --body-file <file>`) && questions.includes("`## Owner decisions`"), "section 4 has no body write")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
   same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
   const drivers = skillText("driver")
   const unlink = drivers.split("\n").find((line) => line.includes("fs.unlinkSync")) ?? ""
   T("skills/driver: a worktree skill link is deleted only when the pull request of its branch is merged", unlink.includes("--state merged") && unlink.includes("--head"), unlink)
+  // Run from a code checkout, gh reads the issues of that repository, so each issue command of a skill names the ticket repository.
+  const skillNames = readdirSync(join(REPO_ROOT, ".claude", "skills"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
+  const issueCommands = skillNames.flatMap((name) => [...skillText(name).matchAll(/`(gh issue [^`]*)`/g)].map((match) => [name, match[1]]))
+  same("skills: every gh issue command names the ticket repository", issueCommands.filter(([, command]) => !command.includes(`--repo ${TICKET_REPOSITORY}`)), [])
+  const progress = skillText("progress")
+  // A part is a comment of its ticket, and `partNumber` is the number in its first line, never an issue number.
+  T("skills/progress: the part title comes from the part comment of the ticket", progress.includes(`gh issue view <ticketNumber> --repo ${TICKET_REPOSITORY} --json title,comments`) && progress.includes("Part <partNumber> of <m>") && !/for the part\b/.test(progress), "the skill reads the part as an issue")
+  T("skills/progress: the next ticket in line comes from the next ticket line of the dry run", progress.includes("`next ticket `") && progress.includes("`next ticket none`") && !progress.includes("action is `admit`"), "the skill reads another line")
+}
+
+const telegramUnit = async () => {
+  const requests = []
+  const keychain = async (item) => ({ "telegram-bot-token": "123456:bot-secret", "telegram-chat-id": "4242" })[item] ?? null
+  const answering = (status, body) => async (url, init) => { requests.push({ url, init }); return { status, json: async () => body } }
+  same("lib/telegram.mjs: an ok answer is a sent message", await sendTelegram("a".repeat(5000), { keychain, fetch: answering(200, { ok: true, result: {} }) }), { status: "sent" })
+  same("lib/telegram.mjs: one JSON POST holds the chat id and a text cut to the limit", [requests.length, requests[0].init.method, requests[0].init.headers["content-type"], JSON.parse(requests[0].init.body).chat_id, JSON.parse(requests[0].init.body).text.length], [1, "POST", "application/json", "4242", 4096])
+  same("lib/telegram.mjs: a refusal gives the status and the description", await sendTelegram("text", { keychain, fetch: answering(400, { ok: false, description: "Bad Request: chat not found" }) }), { status: "failed", reason: "HTTP 400: Bad Request: chat not found" })
+  same("lib/telegram.mjs: an answer that is no JSON is a failure", await sendTelegram("text", { keychain, fetch: async () => ({ status: 502, json: async () => { throw new SyntaxError("no JSON") } }) }), { status: "failed", reason: "HTTP 502: no description" })
+  same("lib/telegram.mjs: a missing Keychain item makes no request and names the item", [await sendTelegram("text", { keychain: async () => null, fetch: answering(200, { ok: true }) }), requests.length], [{ status: "unset", missing: "telegram-bot-token" }, 2])
 }
 
 const orderUnit = async () => {
@@ -1074,7 +1138,7 @@ const orderUnit = async () => {
   skillMarkerCases()
 }
 
-const UNITS = { "drive.mjs": driverUnit, "lib/driver-pin.mjs": pinUnit, "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
+const UNITS = { "drive.mjs": driverUnit, "lib/driver-pin.mjs": pinUnit, "lib/telegram.mjs": telegramUnit, "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
 
 export const cases = async () => {
   for (const unit of Object.values(UNITS)) await unit()
