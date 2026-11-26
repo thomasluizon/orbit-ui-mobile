@@ -1,4 +1,6 @@
 import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('node:child_process', () => {
@@ -33,5 +35,11 @@ describe('hermetic build origin', () => {
 
     const build = vi.mocked(spawnSync).mock.calls.find(([, argumentsList]) => argumentsList?.includes('build'))
     expect(build?.[2]?.env?.ORBIT_HERMETIC_BUILD).toBe('1')
+  })
+
+  it('generates the Next route types before tsc, because the hermetic build skips the validator that uses them', () => {
+    const manifest = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../package.json'), 'utf8'))
+
+    expect(manifest.scripts['type-check']).toBe('next typegen && tsc --noEmit')
   })
 })

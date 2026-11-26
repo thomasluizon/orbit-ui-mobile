@@ -646,17 +646,63 @@ test("Checks installs the dependency tree once and keeps every step of the four 
   assert.equal(checks.strategy, undefined, "Checks keeps its literal check name when a condition skips a step")
   assert.equal(checks.steps.filter((step) => /^npm ci\b/.test(step.run ?? "")).length, 1)
   assert.equal(checks.outputs["workspace-unit-result"],
-    "${{ steps.workspace-upload.outcome == 'skipped' && steps.workspace-unit.outcome || steps.workspace-upload.outcome }}")
+    "${{ steps.workspace-unit.outcome != 'success' && steps.workspace-unit.outcome || steps.workspace-upload.outcome == 'success' && 'success' || 'failure' }}")
+  assert.equal(stepNamed(checks.steps, "Stage workspace coverage").id, "workspace-stage")
+  assert.equal(stepNamed(checks.steps, "Stage workspace coverage").if, "${{ !cancelled() && steps.workspace-unit.outcome == 'success' }}")
+  assert.equal(stepNamed(checks.steps, "Upload workspace coverage").if, "${{ !cancelled() && steps.workspace-stage.outcome == 'success' }}")
   const names = checks.steps.map((step) => step.name).filter(Boolean)
   for (const name of ["Require the plan", "Validate the dependency tree", "Resolve pull request changed paths", "Lint only files changed by this pull request",
     "Restore turbo", "Run the type check", "Save turbo", "Run workspaces with coverage thresholds", "Stage workspace coverage",
     "Upload workspace coverage", "Run the tools harness", "Test CI workflow behavior"]) assert.ok(names.includes(name), `Checks keeps the step ${name}`)
   const validate = checks.steps.findIndex((step) => step.name === "Validate the dependency tree")
+  const turboCacheSteps = ["Remove the Turbo results that are older than 30 days", "Save turbo"]
   for (const step of checks.steps.slice(validate + 1)) {
-    assert.match(String(step.if ?? ""), /!cancelled\(\)|steps\.[\w-]+\.outcome|github\.event_name != 'pull_request'/, `${step.name}: a step after the install checks runs when an earlier step failed`)
+    if (turboCacheSteps.includes(step.name)) continue
+    assert.match(String(step.if ?? ""), /!cancelled\(\)/, `${step.name}: a step after the install runs when an earlier step failed`)
   }
   assert.equal(stepNamed(checks.steps, "Run the type check").if, "${{ !cancelled() && needs.plan.outputs.type-check == 'true' }}")
   assert.equal(stepNamed(checks.steps, "Resolve pull request changed paths").if,
     "${{ !cancelled() && github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true' }}")
   assert.equal(stepNamed(checks.steps, "Run the tools harness").if, "${{ !cancelled() && needs.plan.outputs.tools == 'true' }}")
+})
+
+// Run GitHub's step rules on the Checks steps: a step whose condition has no status function runs only when no earlier step failed.
+const statusFunction = /!cancelled\(\)|always\(\)|failure\(\)/
+const evaluate = (expression, context) => {
+  const source = String(expression).replace(/^\$\{\{\s*|\s*\}\}$/g, "")
+    .replace(/!cancelled\(\)/g, "true")
+    .replace(/steps\.([\w-]+)\.outcome/g, 'steps["$1"]')
+    .replace(/needs\.plan\.outputs\.([\w-]+)/g, 'plan["$1"]')
+    .replace(/github\.event_name/g, "event")
+  return new Function("steps", "plan", "event", `return (${source})`)(context.steps, context.plan, context.event)
+}
+const simulateChecks = (failing, plan) => {
+  const steps = {}
+  let failed = false
+  for (const step of workflow.jobs.checks.steps) {
+    const condition = step.if === undefined ? "true" : step.if
+    const runs = statusFunction.test(String(condition)) ? Boolean(evaluate(condition, { steps, plan, event: "pull_request" })) : !failed && Boolean(evaluate(condition, { steps, plan, event: "pull_request" }))
+    const outcome = !runs ? "skipped" : failing === step ? "failure" : "success"
+    if (outcome === "failure") failed = true
+    if (step.id) steps[step.id] = outcome
+  }
+  return { result: evaluate(workflow.jobs.checks.outputs["workspace-unit-result"], { steps, plan, event: "pull_request" }), steps }
+}
+
+test("workspace-unit-result reports success only when the coverage artifact uploaded, whichever Checks step fails", () => {
+  const plan = { lint: "true", "type-check": "true", tools: "true", "workspace-unit-hit": "false" }
+  const steps = workflow.jobs.checks.steps
+  const validate = steps.findIndex((step) => step.name === "Validate the dependency tree")
+  const unrelated = new Set(["Resolve pull request changed paths", "Lint only files changed by this pull request", "Run the type check", "Run the tools harness", "Test CI workflow behavior", "Validate the dependency tree"])
+  const ownSteps = new Set(["Run workspaces with coverage thresholds", "Stage workspace coverage", "Upload workspace coverage"])
+  const clean = simulateChecks(undefined, plan)
+  assert.equal(clean.result, "success")
+  assert.equal(clean.steps["workspace-upload"], "success")
+  for (const step of steps.slice(validate)) {
+    if (!unrelated.has(step.name) && !ownSteps.has(step.name)) continue
+    const { result, steps: outcomes } = simulateChecks(step, plan)
+    assert.equal(result === "success", !ownSteps.has(step.name), `${step.name} fails: output ${result}`)
+    if (result === "success") assert.equal(outcomes["workspace-upload"], "success", `${step.name} fails: the output says success and no artifact uploaded`)
+  }
+  assert.equal(simulateChecks(undefined, { ...plan, "workspace-unit-hit": "true" }).result, "skipped")
 })

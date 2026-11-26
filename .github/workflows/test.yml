@@ -245,9 +245,9 @@ jobs:
     timeout-minutes: 15
     env:
       ARTIFACT_NAME: workspace-unit-coverage-attempt-${{ github.run_attempt }}
-    # The upload outcome is the result of a workspace run that passed. The test outcome is the result when the upload was skipped.
+    # A workspace run that did not pass reports its own outcome. A passed run reports success only after the coverage upload succeeded.
     outputs:
-      workspace-unit-result: ${{ steps.workspace-upload.outcome == 'skipped' && steps.workspace-unit.outcome || steps.workspace-upload.outcome }}
+      workspace-unit-result: ${{ steps.workspace-unit.outcome != 'success' && steps.workspace-unit.outcome || steps.workspace-upload.outcome == 'success' && 'success' || 'failure' }}
     steps:
       - name: Require the plan
         env:
@@ -351,7 +351,8 @@ jobs:
       # Preserve repository paths under one folder with the artifact's own name: Unit Tests extracts every
       # artifact at one path.
       - name: Stage workspace coverage
-        if: steps.workspace-unit.outcome == 'success'
+        id: workspace-stage
+        if: ${{ !cancelled() && steps.workspace-unit.outcome == 'success' }}
         run: |
           for directory in apps/desktop packages/shared eslint-rules; do
             test -s "$directory/coverage/lcov.info"
@@ -361,7 +362,7 @@ jobs:
 
       - name: Upload workspace coverage
         id: workspace-upload
-        if: steps.workspace-unit.outcome == 'success'
+        if: ${{ !cancelled() && steps.workspace-stage.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT_NAME }}
