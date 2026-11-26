@@ -439,6 +439,7 @@ it('draws the wait as a skeleton in the box of the check, with its sentence kept
   const renderWidget = vi.fn((..._args: unknown[]) => 'waiting-widget')
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
   const { container } = render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
   await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading'))
   const wait = container.querySelector<HTMLElement>('[data-turnstile-wait]')!
   expect(wait.style.height).toBe(`${TURNSTILE_CHALLENGE_HEIGHT}px`)
