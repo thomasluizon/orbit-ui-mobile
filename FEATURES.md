@@ -9,11 +9,11 @@
 `orbit-api/src/Orbit.Api/Extensions/ServiceCollectionExtensions.AiServices.cs` registers
 **72 `IAiTool` implementations**.
 
-The guide counts **71**: `AiToolRegistry.GetAll()` leaves out each `IMcpOnlyAiTool`, and the one such
+Orbit's AI gets **71**: `AiToolRegistry.GetAll()` leaves out each `IMcpOnlyAiTool`, and the one such
 tool, the administrator-only `ManageFeatureFlagsTool`, never reaches Orbit's AI.
 
 Synchronization trigger: after an `IAiTool` registration reaches deployed `orbit-api` `main`,
-recount that source and update this total plus both guide locales in a paired UI pull request.
+recount that source and update this total in a UI pull request.
 
 ## MCP
 
@@ -41,11 +41,11 @@ recount that source and update this total plus both guide locales in a paired UI
 | `SupportTools.cs` | 1 |
 | `TagTools.cs` | 5 |
 
-The guide counts **93 tools across 16 areas**: `orbit-api/src/Orbit.Api/Mcp/FeatureFlagToolAccess.cs`
+A non-administrator account gets **93 tools across 16 areas**: `orbit-api/src/Orbit.Api/Mcp/FeatureFlagToolAccess.cs`
 hides the administrator-only `FeatureFlagTools.cs` tool from the tool list of every other account.
 
 Synchronization trigger: after an `[McpServerTool]` method reaches deployed `orbit-api` `main`,
-recount every tool class and update this table, its total, and both guide locales in a paired UI pull request.
+recount every tool class and update this table and its totals in a UI pull request.
 
 ## Retained social references
 

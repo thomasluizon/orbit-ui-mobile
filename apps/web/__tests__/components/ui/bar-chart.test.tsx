@@ -2,8 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { mapCompletionSeries } from '@orbit/shared/utils'
 import { BarChart } from '@/components/ui/bar-chart'
+import { progressChartDays, progressChartZeroDayReadout } from '@/test-support/progress-chart-days'
 
 const points = mapCompletionSeries({ granularity: 'day', points: Array.from({ length: 7 }, (_, index) => ({
   startDate: `2026-09-0${index + 1}`, endDate: `2026-09-0${index + 1}`,
@@ -91,6 +93,18 @@ describe('BarChart on web', () => {
       expect(container.querySelector('[data-slot="bar-chart-readout"]')).toHaveTextContent(selected.getAttribute('aria-label')!)
       expect(screen.getAllByRole('radio')[start]).toBe(target)
     }
+  })
+
+  it.each([
+    { locale: 'en', messages: en },
+    { locale: 'pt-BR', messages: ptBR },
+  ] as const)('shows the text that the Progress layout spec expects on a day with no completion in $locale', ({ locale, messages }) => {
+    const series = mapCompletionSeries({ granularity: 'day', points: progressChartDays }, locale)
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><BarChart points={series} label="Period" /></NextIntlClientProvider>)
+    const first = screen.getAllByRole('radio')[0]!
+    fireEvent.click(first)
+    fireEvent.keyDown(first, { key: 'ArrowRight' })
+    expect(container.querySelector('[data-slot="bar-chart-readout"]')).toHaveTextContent(progressChartZeroDayReadout[locale])
   })
 
   it('keeps selection in range when the series shrinks, and renders no control for an empty series', () => {
