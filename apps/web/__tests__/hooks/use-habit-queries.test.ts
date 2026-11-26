@@ -521,6 +521,34 @@ describe('useHabitDetail', () => {
 
     expect(mockFetch).not.toHaveBeenCalled()
   })
+
+  it('holds a read that a stale deleted marker disables, and the retry drops that marker and reads', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(validDetail) })
+    const wrapper = createWrapper()
+    queryClient.setQueryData(habitKeys.deleted('h-1'), ['h-1'])
+    const { result } = renderHook(() => useHabitDetail('h-1'), { wrapper })
+
+    expect(result.current.isPending).toBe(true)
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(mockFetch).not.toHaveBeenCalled()
+
+    await act(async () => { await result.current.retry() })
+
+    expect(queryClient.getQueryData(habitKeys.deleted('h-1'))).toBeUndefined()
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.id).toBe('h-1')
+  })
+
+  it('shows the skeleton, then the values, for a normal read', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(validDetail) })
+    const { result } = renderHook(() => useHabitDetail('h-1'), { wrapper: createWrapper() })
+
+    expect(result.current.isPending).toBe(true)
+    expect(result.current.isFetching).toBe(true)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.isPending).toBe(false)
+  })
 })
 
 describe('useHabitMetrics', () => {
