@@ -678,6 +678,18 @@ describe('weekday ranges', () => {
     expect(segmentHabitPhrase(input, read.consumed).map((segment) => segment.text).join('')).toBe(input)
   })
 
+  it.each([
+    ['pt-BR', 'academia seg-qua-sex', ['Monday', 'Wednesday', 'Friday']],
+    ['pt-BR', 'academia segunda-quarta-sexta', ['Monday', 'Wednesday', 'Friday']],
+    ['pt-BR', 'academia seg - qua - sex', ['Monday', 'Wednesday', 'Friday']],
+    ['pt-BR', 'academia terça-quinta-sábado', ['Tuesday', 'Thursday', 'Saturday']],
+    ['en', 'gym mon-wed-fri', ['Monday', 'Wednesday', 'Friday']],
+    ['en', 'gym monday-wednesday-friday', ['Monday', 'Wednesday', 'Friday']],
+    ['en', 'gym tue-thu-sat', ['Tuesday', 'Thursday', 'Saturday']],
+  ] as const)('reads a dash list of three days in %s "%s" as only the named days', (locale, input, days) => {
+    expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: 'fixed', days })
+  })
+
   it('keeps a weekly suffix after a range', () => {
     const read = readHabitPhrase('monday to friday every 2 weeks', 'en')
     expect(read).toMatchObject({ days: workWeek, intervalWeeks: 2 })
@@ -743,6 +755,18 @@ describe('spoken part of the day', () => {
   ] as const)('keeps a longer word that starts with a period word in %s "%s"', (locale, input, time, title) => {
     expect(readHabitPhrase(input, locale).dueTime).toBe(time)
     expect(getHabitPhraseTitle(input, locale, { cadence: true, dueTime: true })).toBe(title)
+  })
+
+  it.each([
+    ['pt-BR', 'toda sexta às 9 horas da noite', '21:00'],
+    ['pt-BR', 'toda sexta às 9 à noite', '21:00'],
+    ['pt-BR', 'toda sexta às 3 horas da tarde', '15:00'],
+    ['pt-BR', 'toda sexta às 3 à tarde', '15:00'],
+    ['en', 'every friday at 3 o\'clock in the afternoon', '15:00'],
+    ['en', 'every friday at 9 o\'clock at night', '21:00'],
+  ] as const)('reads the part of the day after horas, à or o\'clock in %s "%s" as %s', (locale, input, time) => {
+    expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: 'fixed', days: ['Friday'], dueTime: time })
+    expect(getHabitPhraseTitle(`Read ${input}`, locale, { cadence: true, dueTime: true })).toBe('Read')
   })
 
   it('lets am and pm win over a part of the day', () => {

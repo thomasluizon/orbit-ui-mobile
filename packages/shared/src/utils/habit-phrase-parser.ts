@@ -83,8 +83,8 @@ const DAY_PERIODS: Readonly<Record<string, DayPeriod>> = {
   manha: 'morning', tarde: 'afternoon', noite: 'night', madrugada: 'dawn',
   morning: 'morning', afternoon: 'afternoon', evening: 'evening', night: 'night',
 }
-const PT_PERIOD = '(?:\\s+(?:da|de|pela)\\s+(manha|tarde|noite|madrugada)\\b)?'
-const EN_PERIOD = '(?:\\s+(?:in the|at|of the)\\s+(morning|afternoon|evening|night)\\b)?'
+const PT_PERIOD = '(?:(?:\\s+horas?)?\\s+(?:da|de|pela|a)\\s+(manha|tarde|noite|madrugada)\\b)?'
+const EN_PERIOD = "(?:(?:\\s+o'clock)?\\s+(?:in the|at|of the)\\s+(morning|afternoon|evening|night)\\b)?"
 
 interface WeekdayAlternation {
   start: number
@@ -491,11 +491,14 @@ function readWeekdayGroups(
 ): { days: string[]; consumed: HabitPhraseToken[] } {
   const days: string[] = []
   const consumed: HabitPhraseToken[] = []
+  const joined = weekdayMatches.map(({ match }, index) => {
+    const after = weekdayMatches[index + 1]
+    return after !== undefined && WEEKDAY_RANGE_GLUE.test(remaining.slice(match.index + match[0].length, after.match.index))
+  })
   for (let index = 0; index < weekdayMatches.length; index += 1) {
     const first = weekdayMatches[index]!
     const next = weekdayMatches[index + 1]
-    const isRange = next !== undefined
-      && WEEKDAY_RANGE_GLUE.test(remaining.slice(first.match.index + first.match[0].length, next.match.index))
+    const isRange = next !== undefined && joined[index]! && !joined[index - 1] && !joined[index + 1]
     const last = isRange ? next : first
     const lastEnd = last.match.index + last.match[0].length
     if (isRange) {
