@@ -419,7 +419,7 @@ const notifyOnce = async (env, mem, message) => {
 }
 
 /**
- * Writes one `needs-owner` comment, labels the ticket and the pull request `needs:owner` when they lack it, and notifies.
+ * Writes one `needs-owner` comment, labels the ticket `needs:owner` when it lacks it, and notifies. A label change on an open pull request starts its checks again, so the pull request keeps its labels.
  * The comment is the mark that stops a repeat: a ticket that an owner gate already labelled still gets each new report.
  * A ticket repeats only for the same reason, and a pull request report names it and its head. With no ticket, one report only.
  * A `relabel` report restores a removed label and writes no comment and sends no notification.
@@ -434,9 +434,6 @@ const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reaso
   if (ticket && !ticket.labels.includes(OWNER)) {
     await env.github.editLabels("tickets", ticket.number, { add: [OWNER] })
     ticket.labels.push(OWNER)
-  }
-  if (pull && !pull.labels.includes(OWNER)) {
-    try { await env.github.editLabels(repoKey, pull.number, { add: [OWNER] }); pull.labels.push(OWNER) } catch (error) { log(env, item, "label-failed", error.message) }
   }
   if (reported) return
   await env.github.comment(ticket ? "tickets" : repoKey, ticket ? ticket.number : pull.number, marked("needs-owner", reason))
@@ -895,10 +892,8 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // Only a Pullfrog pass clears a missing approval check, and a blocked merge state follows from it, so neither is a reason to wait.
   const checkGap = bar.includes(APPROVAL_CHECK_MISSING)
   const rest = bar.filter((failure) => failure !== APPROVAL_CHECK_MISSING && !(checkGap && failure === "merge-state:BLOCKED"))
-  // A head that is behind is updated first: the update makes a new head, and a pass at the old one answers nothing.
   if (checkGap && rest.length === 0) return [...actions, checkOnlyPlan({ pull, runs, now, request })]
-  const onlyBehind = rest.length > 0 && rest.every((failure) => failure.startsWith("behind:") || failure === "merge-state:BEHIND")
-  return [...actions, onlyBehind ? { type: "behind", behindBy: pull.behindBy } : { type: "none", reason: `the bar fails: ${bar.join(", ")}` }]
+  return [...actions, { type: "none", reason: `the bar fails: ${bar.join(", ")}` }]
 }
 
 const dependabotTypes = async (env, mem, repoKey, pull) => {
@@ -960,10 +955,6 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason, relabel: action.relabel })
     // The child still holds its parent's commits, so main is merged in before the first pass reads its diff.
     case "update": return updateBranch(env, repoKey, pull)
-    case "behind":
-      if (ctx.updated) return log(env, `${repoKey}#${pull.number}`, "wait", "another pull request is next to merge")
-      ctx.updated = true
-      return updateBranch(env, repoKey, pull)
     case "merge":
       await env.github.merge(repoKey, pull.number, pull.headSha)
       mem.acted = true
@@ -975,7 +966,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
   }
 }
 
-const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "behind" ? "update branch (next to merge)" : action.type === "update" ? "update branch (retargeted child)" : action.type)
+const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type)
 
 /** True for an open pull request that the driver tracks and that does not wait on the owner by its own label. */
 const isWaiting = (pull, tickets) => !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !pull.labels.includes(OWNER) && !tickets.find((ticket) => ticket.number === pull.tracks)?.labels.includes(OWNER)
@@ -983,7 +974,7 @@ const isWaiting = (pull, tickets) => !pull.draft && (pull.tracks !== null || pul
 /** Plans and runs the actions of every open pull request of one repository. Returns the order candidates. While the weekly stop holds, a Pullfrog request waits. */
 const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped }) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
-  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), updated: false, merged: false, running }
+  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), merged: false, running }
   const orders = []
   const repoPath = env.config.repos[repoKey]
   for (const pull of [...state.pulls].sort((left, right) => left.number - right.number)) {
