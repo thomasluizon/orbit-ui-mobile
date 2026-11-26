@@ -178,7 +178,7 @@ describe('the edit save payload of the guided edit', () => {
   ] as const)('the parent change that %s', (_name, baselineParent, choice, expected) => {
     it('sends only that change in the update', async () => {
       const parent = createMockHabitScheduleItem({ id: 'parent-1', title: 'Rotina da manhã', children: [] })
-      const source = createMockHabitScheduleItem({ ...storedHabit, parentId: baselineParent, children: [] })
+      const source = createMockHabitScheduleItem({ ...storedHabit, children: [] })
       inventory.read.mockImplementation((url: string) => Promise.resolve({ items: url.includes('isGeneral=true') ? [] : [parent, source], page: 1, pageSize: 200, totalCount: 2, totalPages: 1 }))
       state.detail = { ...storedHabit, parentId: baselineParent, children: [] }
       mountEdit()

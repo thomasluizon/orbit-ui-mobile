@@ -99,7 +99,7 @@ function Edit({ client, ...props }: Readonly<EditProps & { client: QueryClient }
 function mountEdit(props: EditProps = {}) {
   const client = new QueryClient()
   const tree = renderNavigation(<Edit client={client} {...props} />)
-  return { tree, rerender: async (next: EditProps) => { await act(async () => { tree.update(<Edit client={client} {...props} {...next} />) }) } }
+  return { tree, rerender: async (next: EditProps) => { await act(async () => { tree.update(<Edit client={client} {...props} {...next} />); await Promise.resolve() }) } }
 }
 async function openOptional(tree: Tree, question: string) {
   await tap(tree, flow.more)
@@ -201,7 +201,7 @@ describe('the edit save payload of the guided edit on Android', () => {
     ['clears the parent when the person picks the top level', 'parent-1', 'Sem hábito principal (nível raiz)', { clearParent: true }],
   ] as const)('the parent change that %s sends only that change in the update', async (_name, baselineParent, choice, expected) => {
     const parent = createMockHabitScheduleItem({ id: 'parent-1', title: 'Rotina da manhã', children: [] })
-    const source = createMockHabitScheduleItem({ ...storedHabit, parentId: baselineParent, children: [] })
+    const source = createMockHabitScheduleItem({ ...storedHabit, children: [] })
     inventory.read.mockImplementation((url: string) => Promise.resolve({ items: new URL(url, 'https://fixture.invalid').searchParams.get('isGeneral') === 'true' ? [] : [parent, source], page: 1, pageSize: 200, totalCount: 2, totalPages: 1 }))
     state.saved = { ...storedHabit, parentId: baselineParent, children: [] }
     const { tree } = mountEdit()

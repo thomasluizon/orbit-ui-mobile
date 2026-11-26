@@ -82,9 +82,9 @@ async function phrase(tree: Tree, text: string) {
 }
 
 const limitError = (errorCode: 'HABIT_LIMIT_REACHED' | 'PAY_GATE') => createApiClientError(errorCode === 'PAY_GATE' ? 403 : 400, { error: 'Boundary', errorCode }, 'Boundary')
-const noticeTexts = (tree: Tree) => tree.hosts().filter((node) => node.props.testID === 'capacity-notice').flatMap((node) => (node as unknown as ReactTestInstance).findAll((child) => child.type === 'Text').map((child) => String(child.props.children)))
+const noticeTexts = (tree: Tree) => tree.hosts().filter((node) => node.props.testID === 'capacity-notice').flatMap((node) => (node as unknown as ReactTestInstance).findAll((child) => (child.type as unknown) === 'Text').map((child) => String(child.props.children)))
 const pillNamed = (tree: Tree, label: string) => tree.hosts().find((node) => String(node.props.testID ?? '').startsWith('button-') && typeof node.props.onPress === 'function'
-  && (node as unknown as ReactTestInstance).findAll((child) => child.type === 'Text' && child.props.children === label).length > 0)
+  && (node as unknown as ReactTestInstance).findAll((child) => (child.type as unknown) === 'Text' && child.props.children === label).length > 0)
 const submitAction = (tree: Tree) => tree.hosts().find((node) => node.props.testID === 'button-primary-sm' && typeof node.props.onPress === 'function')
 
 async function reachSummary(tree: Tree) {

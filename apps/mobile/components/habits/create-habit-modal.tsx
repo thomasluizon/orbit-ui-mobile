@@ -79,7 +79,6 @@ function CreateBoundaryNotice({ boundary, onUpgrade }: Readonly<{ boundary: 'hab
   )
 }
 
-/** Says why Criar opened: a queued log was dropped because its habit was never created. */
 function RecoveryNotice({ message, tokens }: Readonly<{ message: string; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   return <Text style={{ color: tokens.fg2 }}>{message} {t('common.syncOrphanedDetail')}</Text>
