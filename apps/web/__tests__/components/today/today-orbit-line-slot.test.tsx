@@ -30,5 +30,16 @@ describe('Hoje Orbit line', () => {
       expect(block.firstElementChild).toHaveClass('skeleton-pulse', 'bg-[var(--bg-well)]', 'rounded-[var(--r-well)]')
     }
     expect(placeholder.innerHTML).not.toContain('--hairline-strong')
+    expect(placeholder.querySelectorAll(':scope > span')).toHaveLength(2)
+    expect(placeholder).toHaveClass('min-h-[2lh]')
+  })
+
+  it('draws one skeleton bar and a one-line minimum height when the wait asks for one line', () => {
+    const { container } = render(<TodayOrbitLine text="summary.loading" destination="Abre a conversa" disabled loading loadingLines={1} />)
+    const placeholder = container.querySelector('[data-summary-skeleton]')!
+    expect(placeholder.querySelectorAll(':scope > span')).toHaveLength(1)
+    expect(placeholder.querySelectorAll('[data-variant="fill"]')).toHaveLength(1)
+    expect(placeholder).toHaveClass('min-h-[1lh]')
+    expect(placeholder).not.toHaveClass('min-h-[2lh]')
   })
 })

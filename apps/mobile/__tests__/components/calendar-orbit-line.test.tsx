@@ -1,5 +1,5 @@
 import { createRef, type ReactElement } from 'react'
-import { StyleSheet, View, type StyleProp, type TextStyle } from 'react-native'
+import { StyleSheet, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -30,6 +30,7 @@ const TestRenderer = require('react-test-renderer')
 interface TestNode {
   readonly type: unknown
   readonly props: Readonly<Record<string, unknown>>
+  readonly children: ReadonlyArray<TestNode | string>
   findAll(predicate: (node: TestNode) => boolean): TestNode[]
 }
 
@@ -126,7 +127,11 @@ describe('the Calendário Orbit line on Android', () => {
 
   it('shows the skeleton on the same line while the month loads, and no spinner', () => {
     const tree = render(<CalendarOrbitLine {...props({ monthDisplayState: 'loading' })} />)
-    expect(host(tree.root, 'summary-skeleton')).toBeDefined()
+    const skeleton = host(tree.root, 'summary-skeleton')!
+    expect(skeleton).toBeDefined()
+    expect(skeleton.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(1)
+    expect(skeleton.children.filter((child) => typeof child !== 'string')).toHaveLength(1)
+    expect(StyleSheet.flatten(skeleton.props.style as StyleProp<ViewStyle>).minHeight).toBeCloseTo(22.4, 5)
     expect(tree.root.findAll((node) => node.type === 'ActivityIndicator')).toHaveLength(0)
     expect(host(tree.root, 'today-orbit-slot')!.props.accessibilityState).toMatchObject({ disabled: true, busy: true })
   })

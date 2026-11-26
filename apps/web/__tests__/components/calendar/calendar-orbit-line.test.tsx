@@ -109,7 +109,9 @@ describe('the Calendário Orbit line', () => {
 
   it('shows the skeleton on the same line while the month loads, and no spinner', () => {
     const { container } = renderLine(props({ monthDisplayState: 'loading' }))
-    expect(container.querySelector('[data-summary-skeleton]')).not.toBeNull()
+    const skeleton = container.querySelector('[data-summary-skeleton]')!
+    expect(skeleton).not.toBeNull()
+    expect(skeleton.querySelectorAll(':scope > span')).toHaveLength(1)
     expect(container.querySelector('.animate-spin, [role="progressbar"]')).toBeNull()
     expect(screen.getByRole('button', { name: en.calendar.loading })).toBeDisabled()
   })

@@ -29,6 +29,16 @@ describe('Hoje Orbit line on Android', () => {
     const colours = placeholder.findAll((node: ReactTestInstance) => typeof node.type === 'string').map((node) => StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).backgroundColor).filter(Boolean)
     expect(colours).not.toContain(tokens.hairlineStrong)
     expect(colours).toContain(tokens.bgWell)
+    expect(StyleSheet.flatten(placeholder.props.style as StyleProp<ViewStyle>).minHeight).toBeCloseTo(44.8, 5)
+    await act(() => tree!.unmount())
+  })
+
+  it('draws one skeleton bar and a one-line minimum height when the wait asks for one line', async () => {
+    let tree: ReactTestRenderer | undefined
+    await act(() => { tree = create(<TodayOrbitLine text="summary.loading" destination="Abre a conversa" disabled loading loadingLines={1} />) })
+    const placeholder = tree!.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'summary-skeleton')[0]!
+    expect(placeholder.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(1)
+    expect(StyleSheet.flatten(placeholder.props.style as StyleProp<ViewStyle>).minHeight).toBeCloseTo(22.4, 5)
     await act(() => tree!.unmount())
   })
 })
