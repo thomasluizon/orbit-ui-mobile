@@ -8,6 +8,7 @@ import { basename, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { runInNewContext } from 'node:vm'
+import { createInterface } from 'node:readline'
 import { Readable } from 'node:stream'
 import { after, test } from 'node:test'
 import { emailReply, acceptanceEmail, acceptanceCode } from './acceptance-mock'
@@ -17,6 +18,7 @@ import { assertAccessibleTree, corruptSignature } from './acceptance-contract.mj
 import * as acceptanceContract from './acceptance-contract.mjs'
 import { takeSigningMaterial } from './acceptance-platform.mjs'
 import { runChild } from './child-limit.mjs'
+import { start, stop } from './host.mjs'
 import { button, inspectionContext } from './test-acceptance-support'
 
 const vector = JSON.parse(readFileSync(new URL('../../apps/desktop/__fixtures__/signer-vector.json', import.meta.url), 'utf8')) as { payload: string; signature: string; publicKey: string; version: string }
@@ -889,6 +891,58 @@ if (process.platform === 'darwin') {
     })
   }
 }
+
+// The focused application is always process 1, and no key leaves the fixture.
+const keyboardFixture = `#import <AppKit/AppKit.h>
+#import <ApplicationServices/ApplicationServices.h>
+static AXError focusAttribute(AXUIElementRef element, CFStringRef key, CFTypeRef *value) { *value = CFBridgingRetain(@"application"); return kAXErrorSuccess; }
+static AXError focusProcessId(AXUIElementRef element, pid_t *processId) { *processId = 1; return kAXErrorSuccess; }
+static AXError ignoreAttribute(AXUIElementRef element, CFStringRef key, CFTypeRef value) { return kAXErrorSuccess; }
+static void ignorePost(pid_t processId, CGEventRef event) {}
+#define AXUIElementCopyAttributeValue focusAttribute
+#define AXUIElementGetPid focusProcessId
+#define AXUIElementSetAttributeValue ignoreAttribute
+#define CGEventPostToPid ignorePost
+#define usleep(microseconds) ((void)0)
+#define main acceptanceMain
+#include NATIVE_SOURCE
+#undef main
+int main(int argc, const char *argv[]) { return acceptanceMain(argc, argv); }
+`
+
+test('one macOS key sender posts every key of an app process and stays alive until the run stops it', { skip: process.platform !== 'darwin' }, async (context) => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-acceptance-keyboard-'))
+  const senders: ReturnType<typeof start>[] = []
+  context.after(async () => {
+    for (const sender of senders) await stop(sender)
+    rmSync(directory, { recursive: true, force: true })
+  })
+  const source = join(directory, 'keyboard.m')
+  const executable = join(directory, 'keyboard')
+  writeFileSync(source, keyboardFixture.replace('NATIVE_SOURCE', JSON.stringify(fileURLToPath(new URL('./acceptance-ax.m', import.meta.url)))))
+  const compilation = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', source, '-o', executable], { encoding: 'utf8', timeout: 30000 })
+  assert.equal(compilation.status, 0, compilation.stderr)
+  const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
+  const adapter = runner.slice(runner.indexOf('async function nativeTool'), runner.indexOf('async function hermeticServices'))
+  const sandbox: { nativeTool?: (output: string) => Promise<(pid: number, command: string) => Promise<{ sent: string; delivery: string }>> } & Record<string, unknown> = {
+    windows: false, join, directory, createInterface, execute: async () => '',
+    start: (_command: string, argumentsList: string[], options: Parameters<typeof start>[2]) => {
+      senders.push(start(executable, argumentsList, options))
+      return senders.at(-1)
+    },
+  }
+  runInNewContext(`${adapter}\nglobalThis.nativeTool = nativeTool`, sandbox)
+  const native = await sandbox.nativeTool!(directory)
+  for (const key of ['escape', 'palette', 'down']) {
+    const reply = await native(1, key)
+    assert.deepEqual([reply.sent, reply.delivery], [key, 'process-event'])
+  }
+  assert.equal(senders.length, 1, 'every key of one app process leaves the same sender')
+  assert.equal(senders[0].child.exitCode, null, 'the sender outlives its last post')
+  await assert.rejects(native(2, 'down'), /exited 1: Process 2 did not receive keyboard focus for down; process 1 has it/)
+  senders[0].child.stdin!.end()
+  await senders[0].done
+})
 
 test('Developer ID signing material leaves the environment and is all or nothing on macOS', () => {
   const material = { MACOS_DEVELOPER_ID_CERTIFICATE_BASE64: 'certificate', MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD: 'password',
