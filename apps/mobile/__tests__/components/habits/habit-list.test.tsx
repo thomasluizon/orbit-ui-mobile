@@ -3583,7 +3583,7 @@ describe('HabitList', () => {
     seedHabits([root, parent, slip, good])
     const tree = mountPromptChain()
     await TestRenderer.act(async () => { promptChildAction(tree, 'log'); await Promise.resolve() })
-    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(0)
+    expect(confirmationSheets(tree, 'habits.autoLogParentMessage')).toHaveLength(0)
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
 
@@ -4171,7 +4171,7 @@ describe('HabitList', () => {
     await TestRenderer.act(async () => { pressConfirm(tree, 'chat.pendingOp.action.applyChanges'); await Promise.resolve() })
     expect(logMutateAsync.mock.calls).toEqual([[{ habitId: 'child', date: YESTERDAY, intent: 'log' }]])
     expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: YESTERDAY }, { habitId: 'grandparent', date: YESTERDAY }])
-    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(0)
+    expect(confirmationSheets(tree, 'habits.autoLogParentMessage')).toHaveLength(0)
   })
 
   it('skips the final child and every ancestor on the viewed historical date', async () => {
@@ -4309,7 +4309,7 @@ describe('HabitList', () => {
     mockHabitsDataUpdatedAt += 1
     TestRenderer.act(() => tree.update(renderList()))
     await TestRenderer.act(async () => { resolveParents(parentBulkLogResult([{ habitId: parent.id }, { habitId: grandparent.id }])); await pendingParents })
-    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(0)
+    expect(confirmationSheets(tree, 'habits.autoLogParentMessage')).toHaveLength(0)
     expect(bulkLogMutateAsync).toHaveBeenCalledTimes(1)
   })
 

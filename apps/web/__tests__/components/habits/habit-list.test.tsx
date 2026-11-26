@@ -565,7 +565,7 @@ function getSortableDescriptions(container: HTMLElement): string[] {
   ).map((row) => row.getAttribute('aria-describedby') ?? '')
 }
 
-async function confirmVisibleSheet(title: string, confirmLabel: string) {
+async function confirmVisibleSheet(title: string | RegExp, confirmLabel: string) {
   const confirmation = await screen.findByRole('dialog', { name: title })
   await act(async () => {
     fireEvent.click(within(confirmation).getByRole('button', { name: confirmLabel }))
@@ -2673,21 +2673,21 @@ describe('HabitList', () => {
     seedPromptChain()
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId(`${mode}-child`)) })
-    expect(await screen.findByRole('dialog', { name: mode === 'skip' ? 'habits.autoSkipParentTitle' : 'habits.autoLogParentTitle' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: mode === 'skip' ? /^habits\.autoSkipParentMessage\(/ : /^habits\.autoLogParentMessage\(/ })).toBeTruthy()
     expect(screen.getAllByRole('checkbox').map((box) => box.getAttribute('aria-checked'))).toEqual(['true', 'false'])
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'chat.pendingOp.action.applyChanges' })) })
     expect(mode === 'log' ? bulkLogMutateAsync : bulkSkipMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: TODAY }])
     expect(mode === 'log' ? bulkSkipMutateAsync : bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(capturedDrillOptions?.recentlyCompletedIds.has('parent')).toBe(mode === 'log')
     expect(capturedDrillOptions?.recentlyCompletedIds.has('root')).toBe(false)
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: mode === 'skip' ? 'habits.autoSkipParentTitle' : 'habits.autoLogParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: mode === 'skip' ? /^habits\.autoSkipParentMessage\(/ : /^habits\.autoLogParentMessage\(/ })).toBeNull())
   })
 
   it('selects every lower ancestor and clears every higher ancestor in one sheet', async () => {
     seedPromptChain()
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('log-child')) })
-    expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeTruthy()
     fireEvent.click(screen.getAllByRole('checkbox')[1]!)
     expect(screen.getAllByRole('checkbox').map((box) => box.getAttribute('aria-checked'))).toEqual(['true', 'true'])
     fireEvent.click(screen.getAllByRole('checkbox')[0]!)
@@ -2695,7 +2695,7 @@ describe('HabitList', () => {
     fireEvent.click(screen.getAllByRole('checkbox')[1]!)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'chat.pendingOp.action.applyChanges' })) })
     expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: TODAY }, { habitId: 'root', date: TODAY }])
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull())
   })
 
   it('settles a mixed chain in dependency order with one confirmation', async () => {
@@ -2705,14 +2705,14 @@ describe('HabitList', () => {
     bulkSkipMutateAsync.mockReturnValueOnce(pendingSkip)
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('skip-child')) })
-    expect(await screen.findByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: /^habits\.autoSkipParentMessage\(/ })).toBeTruthy()
     fireEvent.click(screen.getAllByRole('checkbox')[1]!)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'chat.pendingOp.action.applyChanges' })) })
     expect(bulkSkipMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: TODAY }])
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     await act(async () => { resolveSkip(parentBulkSkipResult([{ habitId: 'parent' }])); await pendingSkip })
     expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'root', date: TODAY }])
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoSkipParentMessage\(/ })).toBeNull())
   })
 
   it.each(['rejected', 'failed result'] as const)('stops a mixed chain after the first request has a %s', async (failure) => {
@@ -2721,20 +2721,20 @@ describe('HabitList', () => {
     else bulkSkipMutateAsync.mockResolvedValueOnce(bulkSkipResultSchema.parse({ results: [{ index: 0, habitId: 'parent', status: 'Failed', error: 'rejected' }] }))
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('skip-child')) })
-    expect(await screen.findByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: /^habits\.autoSkipParentMessage\(/ })).toBeTruthy()
     fireEvent.click(screen.getAllByRole('checkbox')[1]!)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'chat.pendingOp.action.applyChanges' })) })
     expect(bulkSkipMutateAsync).toHaveBeenCalledTimes(1)
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(useAppToastStore.getState().currentToast).not.toBeNull()
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoSkipParentMessage\(/ })).toBeNull())
   })
 
   it('cancels a chain without settling any ancestor', async () => {
     seedPromptChain()
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('log-child')) })
-    expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeTruthy()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'common.notNow' })) })
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -2747,9 +2747,9 @@ describe('HabitList', () => {
     skipHabitMutateAsync.mockReturnValueOnce(pending)
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('skip-child')) })
-    expect(await screen.findByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: /^habits\.autoSkipParentMessage\(/ })).toBeTruthy()
     await act(async () => { rejectSkip(new Error('rejected')); await Promise.allSettled([pending]) })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoSkipParentMessage\(/ })).toBeNull())
   })
 
   it.each([false, true].flatMap(isBadHabit => (['log', 'skip'] as const).map(first => ({ isBadHabit, first }))))('prompts in the drill after both children resolve, bad=$isBadHabit first=$first', async ({ isBadHabit, first }) => {
@@ -2762,10 +2762,10 @@ describe('HabitList', () => {
     Object.assign(mockDrillState, { currentParentId: parent.id, currentParent: parent, drillStack: [root.id, parent.id], drillChildren: [child, second] })
     const rendered = renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId(`${first}-child`)) })
-    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull()
     act(() => { mockHabitsDataUpdatedAt += 1; rendered.rerenderWithProviders(<HabitList filters={defaultFilters} />) })
     await act(async () => { fireEvent.click(screen.getByTestId(`${first === 'log' ? 'skip' : 'log'}-second`)) })
-    await confirmVisibleSheet('habits.autoLogParentTitle', isBadHabit ? 'habits.autoLogParentConfirm' : 'chat.pendingOp.action.applyChanges')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, isBadHabit ? 'habits.autoLogParentConfirm' : 'chat.pendingOp.action.applyChanges')
     expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }])
   })
 
@@ -2781,10 +2781,10 @@ describe('HabitList', () => {
     Object.assign(mockDrillState, { currentParentId: parent.id, currentParent: parent, drillStack: [root.id, parent.id], drillChildren: [child, second], settlementHabitsById: new Map([[child.id, child], [second.id, second]]) })
     const rendered = renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId(`${first}-child`)) })
-    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull()
     act(() => { mockHabitsDataUpdatedAt += 1; rendered.rerenderWithProviders(<HabitList filters={defaultFilters} />) })
     await act(async () => { fireEvent.click(screen.getByTestId(`${first === 'log' ? 'skip' : 'log'}-second`)) })
-    await confirmVisibleSheet('habits.autoLogParentTitle', isBadHabit ? 'habits.autoLogParentConfirm' : 'chat.pendingOp.action.applyChanges')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, isBadHabit ? 'habits.autoLogParentConfirm' : 'chat.pendingOp.action.applyChanges')
     expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }])
   })
 
@@ -2801,15 +2801,15 @@ describe('HabitList', () => {
     mockDrillState.drillChildren = [child, bad]
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('log-child')) })
-    if (badParent) expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
-    else expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    if (badParent) expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull()
+    else expect(await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeTruthy()
   })
 
   it('settles a skip chain after the refreshed list omits the skipped child', async () => {
     seedPromptChain()
     const rendered = renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('skip-child')) })
-    await screen.findByRole('dialog', { name: 'habits.autoSkipParentTitle' })
+    await screen.findByRole('dialog', { name: /^habits\.autoSkipParentMessage\(/ })
     act(() => {
       mockHabitsData.habitsById = new Map(mockHabitsData.habitsById)
       mockHabitsData.habitsById.delete('child')
@@ -2819,7 +2819,7 @@ describe('HabitList', () => {
       mockHabitsDataUpdatedAt += 1
       rendered.rerenderWithProviders(<HabitList filters={defaultFilters} />)
     })
-    await confirmVisibleSheet('habits.autoSkipParentTitle', 'chat.pendingOp.action.applyChanges')
+    await confirmVisibleSheet(/^habits\.autoSkipParentMessage\(/, 'chat.pendingOp.action.applyChanges')
     expect(bulkSkipMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: TODAY }])
   })
 
@@ -2836,9 +2836,9 @@ describe('HabitList', () => {
     logHabitMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => habitId === 'first' ? first : others)
     renderWithProviders(<HabitList filters={defaultFilters} />)
     act(() => { for (const child of children) fireEvent.click(screen.getByTestId(`log-${child.id}`)) })
-    expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeTruthy()
     await act(async () => { rejectFirst(new Error('rejected')); await Promise.allSettled([first]) })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull())
     await act(async () => { resolveOthers(); await others })
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
@@ -2854,7 +2854,7 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('log-child')) })
     await act(async () => { await import('@/components/habits/habit-list/confirm-dialogs'); await Promise.resolve() })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull())
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
 
@@ -2870,7 +2870,7 @@ describe('HabitList', () => {
     logHabitMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => habitId === standalone.id ? unrelated : child)
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('log-standalone')); fireEvent.click(screen.getByTestId('log-child')) })
-    expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeTruthy()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'chat.pendingOp.action.applyChanges' })) })
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     if (outcome === 'failed') await act(async () => { rejectStandalone(new Error('rejected')); await Promise.allSettled([unrelated]) })
@@ -2886,12 +2886,12 @@ describe('HabitList', () => {
     logHabitMutateAsync.mockReturnValueOnce(pending)
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('log-child')) })
-    expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeTruthy()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'chat.pendingOp.action.applyChanges' })) })
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     await act(async () => { rejectLog(new Error('rejected')); await Promise.allSettled([pending]) })
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull())
   })
 
   it('keeps the nearer ancestor settled when the later mixed request fails', async () => {
@@ -2899,7 +2899,7 @@ describe('HabitList', () => {
     bulkLogMutateAsync.mockRejectedValueOnce(new Error('rejected'))
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('skip-child')) })
-    expect(await screen.findByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: /^habits\.autoSkipParentMessage\(/ })).toBeTruthy()
     fireEvent.click(screen.getAllByRole('checkbox')[1]!)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'chat.pendingOp.action.applyChanges' })) })
     expect(bulkSkipMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: TODAY }])
@@ -2926,12 +2926,12 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
     act(() => ref.current?.expandAll())
     fireEvent.click(screen.getByTestId('log-child'))
-    expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeTruthy()
     sheetTestControls.defer(true)
     await act(async () => { rejectLog(new Error('rejected')); await Promise.allSettled([pending]) })
     expect(sheetTestControls.isDismissPending).toBe(true)
     await act(async () => sheetTestControls.completeDismissal())
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull())
     expect(screen.getByTestId('recent-child').textContent).toBe('no')
   })
 
@@ -2973,7 +2973,7 @@ describe('HabitList', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('log-child'))
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'habits.autoLogParentConfirm')
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child', intent: 'log' })
     expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: 'grandparent', date: TODAY }])
@@ -3006,7 +3006,7 @@ describe('HabitList', () => {
       ref.current?.markRecentlyCompleted('child')
       ref.current?.checkAndPromptParentLog('child')
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'habits.autoLogParentConfirm')
 
     expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: 'parent', date: TODAY }])
   })
@@ -3045,7 +3045,7 @@ describe('HabitList', () => {
       ref.current?.markRecentlyCompleted('child-b')
       ref.current?.checkAndPromptParentLog('child-b')
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'habits.autoLogParentConfirm')
 
     expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: 'parent', date: TODAY }])
   })
@@ -3072,14 +3072,14 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList())
 
     act(() => ref.current?.checkAndPromptParentLog(child.id))
-    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
+    await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })
 
     act(() => {
       mockHabitsData.habitsById.set(child.id, { ...child, isCompleted: false })
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList())
     })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull())
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -3107,7 +3107,7 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList())
 
     act(() => ref.current?.checkAndPromptParentLog(child.id))
-    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
+    await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })
 
     act(() => {
       mockHabitsData.habitsById.set(parent.id, {
@@ -3118,7 +3118,7 @@ describe('HabitList', () => {
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList())
     })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull())
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -3152,14 +3152,14 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList())
 
     act(() => ref.current?.checkAndPromptParentLog(child.id))
-    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
+    await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })
 
     act(() => {
       mockHabitsData.habitsById.set(parent.id, { ...parent, dueDate: TOMORROW })
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList())
     })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull())
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -3206,10 +3206,10 @@ describe('HabitList', () => {
     await act(async () => {
       ref.current?.checkAndPromptParentLog(child.id)
     })
-    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
+    await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })
     if (timing === 'after delayed dismissal') {
       sheetTestControls.defer(true)
-      await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+      await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'habits.autoLogParentConfirm')
       expect(sheetTestControls.isDismissPending).toBe(true)
       expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
       expect(bulkLogMutateAsync).not.toHaveBeenCalled()
@@ -3230,7 +3230,7 @@ describe('HabitList', () => {
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList(timing === 'before effects'))
     })
-    if (timing === 'after effects') await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
+    if (timing === 'after effects') await confirmVisibleSheet(/^habits\.autoSkipParentMessage\(/, 'habits.autoSkipParentConfirm')
 
     if (timing === 'after delayed dismissal') await act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })
 
@@ -3282,7 +3282,7 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog('child-b')
       ref.current?.checkAndPromptParentLog('child-c')
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'habits.autoLogParentConfirm')
 
     expect(bulkLogMutateAsync.mock.calls.flatMap(([items]) => items as { habitId: string; date: string }[]).filter((input) => input.habitId === 'parent')).toHaveLength(1)
   })
@@ -4123,7 +4123,7 @@ describe('HabitList', () => {
     await act(async () => ref.current?.checkAndPromptParentLog(child.id))
 
     vi.setSystemTime(new Date('2026-09-20T10:01:00Z'))
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'habits.autoLogParentConfirm')
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
 
@@ -4144,14 +4144,14 @@ describe('HabitList', () => {
       rerenderWithProviders(renderList())
     }
     await act(async () => ref.current?.checkAndPromptParentLog('child'))
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'habits.autoLogParentConfirm')
     refetch()
     await act(async () => ref.current?.checkAndPromptParentLog('child'))
     expect(bulkLogMutateAsync.mock.calls.flatMap(([items]) => items as { habitId: string; date: string }[]).filter((input) => input.habitId === 'parent')).toHaveLength(1)
     refetch(false)
     refetch()
     await act(async () => ref.current?.checkAndPromptParentLog('child'))
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'habits.autoLogParentConfirm')
     expect(bulkLogMutateAsync.mock.calls.flatMap(([items]) => items as { habitId: string; date: string }[]).filter((input) => input.habitId === 'parent')).toHaveLength(2)
   })
 
@@ -4184,7 +4184,7 @@ describe('HabitList', () => {
       ref.current?.markRecentlyCompleted('child')
       ref.current?.checkAndPromptParentLog('child')
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'habits.autoLogParentConfirm')
 
     expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: 'parent', date: TODAY }])
   })
@@ -4266,9 +4266,9 @@ describe('HabitList', () => {
     })
 
     expect(logHabitMutateAsync).toHaveBeenCalledTimes(1)
-    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
+    await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })
     fireEvent.click(screen.getAllByRole('checkbox')[1]!)
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'chat.pendingOp.action.applyChanges')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'chat.pendingOp.action.applyChanges')
     expect(logHabitMutateAsync.mock.calls).toEqual([[{ habitId: 'child', date: YESTERDAY, intent: 'log' }]])
     expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: YESTERDAY }, { habitId: 'grandparent', date: YESTERDAY }])
   })
@@ -4318,9 +4318,9 @@ describe('HabitList', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    await screen.findByRole('dialog', { name: 'habits.autoSkipParentTitle' })
+    await screen.findByRole('dialog', { name: /^habits\.autoSkipParentMessage\(/ })
     fireEvent.click(screen.getAllByRole('checkbox')[1]!)
-    await confirmVisibleSheet('habits.autoSkipParentTitle', 'chat.pendingOp.action.applyChanges')
+    await confirmVisibleSheet(/^habits\.autoSkipParentMessage\(/, 'chat.pendingOp.action.applyChanges')
     expect(skipHabitMutateAsync.mock.calls).toEqual([[{ habitId: 'child', date: YESTERDAY, onUndo: expect.any(Function) }]])
     expect(bulkSkipMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: YESTERDAY }, { habitId: 'grandparent', date: YESTERDAY }])
   })
@@ -4403,9 +4403,9 @@ describe('HabitList', () => {
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a', date: TODAY, onUndo: expect.any(Function) })
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b', date: TODAY, onUndo: expect.any(Function) })
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
-    await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
+    await confirmVisibleSheet(/^habits\.autoSkipParentMessage\(/, 'habits.autoSkipParentConfirm')
     expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: 'parent', date: TODAY }])
-    expect(screen.queryByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /^habits\.autoSkipParentMessage\(/ })).toBeNull()
   })
 
   it('asks before logging a parent when the final row action is a skip', async () => {
@@ -4440,7 +4440,7 @@ describe('HabitList', () => {
     await confirmRowSkip('child-skipped')
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'habits.autoLogParentConfirm')
     expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: parent.id, date: TODAY }])
   })
 
@@ -4496,10 +4496,10 @@ describe('HabitList', () => {
     expect(await screen.findByText(personalText('habits.autoLogParentMessage({"name":"Parent A"})')))
       .toBeDefined()
     fireEvent.click(within(
-      screen.getByRole('dialog', { name: 'habits.autoLogParentTitle' }),
+      screen.getByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ }),
     ).getByRole('button', { name: 'habits.autoLogParentConfirm' }))
     expect(sheetTestControls.isDismissPending).toBe(true)
-    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull()
 
     await act(async () => {
       sheetTestControls.completeDismissal()
@@ -4512,7 +4512,7 @@ describe('HabitList', () => {
     rendered.rerenderWithProviders(<HabitList filters={defaultFilters} view="today" />)
 
     fireEvent.click(within(
-      screen.getByRole('dialog', { name: 'habits.autoLogParentTitle' }),
+      screen.getByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ }),
     ).getByRole('button', { name: 'habits.autoLogParentConfirm' }))
     expect(sheetTestControls.isDismissPending).toBe(true)
     await act(async () => {
@@ -4561,15 +4561,15 @@ describe('HabitList', () => {
     bulkLogMutateAsync.mockReturnValueOnce(pendingParents)
     const rendered = renderWithProviders(<HabitList filters={defaultFilters} view="today" />)
     await confirmRowSkip(skippedChild.id)
-    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
+    await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })
     expect(screen.getAllByRole('checkbox')).toHaveLength(2)
     fireEvent.click(screen.getAllByRole('checkbox')[1]!)
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'chat.pendingOp.action.applyChanges')
+    await confirmVisibleSheet(/^habits\.autoLogParentMessage\(/, 'chat.pendingOp.action.applyChanges')
     expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }, { habitId: grandparent.id, date: TODAY }])
     mockHabitsDataUpdatedAt += 1
     rendered.rerenderWithProviders(<HabitList filters={defaultFilters} view="today" />)
     await act(async () => { resolveParents(parentBulkLogResult([{ habitId: parent.id }, { habitId: grandparent.id }])); await pendingParents })
-    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull()
     expect(bulkLogMutateAsync).toHaveBeenCalledTimes(1)
   })
 
@@ -4619,7 +4619,7 @@ describe('HabitList', () => {
       [{ habitId: child.id, date: YESTERDAY, onUndo: expect.any(Function) }],
     ])
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
-    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull()
   })
 
   it('does not settle a parent when the account changes before a row skip continuation', async () => {
@@ -4951,12 +4951,12 @@ describe('HabitList', () => {
     const childRow = (await screen.findByText(personalText('Pending child'))).closest('[data-testid="habit-row"]') as HTMLElement
     fireEvent.pointerDown(within(childRow).getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.skip' }))
-    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
+    await screen.findByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })
     await waitFor(() => expect(screen.queryByText(personalText('Pending child'))).toBeNull())
     fireEvent.click(await screen.findByRole('button', { name: 'undo.action' }))
     await screen.findByText(personalText('Pending child'))
     expect(skipFlow.mutate).toHaveBeenCalledTimes(2)
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^habits\.autoLogParentMessage\(/ })).toBeNull())
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
 

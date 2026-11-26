@@ -31,7 +31,7 @@ for (const width of [412, 1352]) {
           if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click()
           await page.locator('[data-habit-title="Child"] [data-habit-row-control="menu"]').click()
           await page.getByRole('menuitem', { name: words.habits.actions.skip, exact: true }).click()
-          const dialog = page.getByRole('dialog', { name: words.habits.autoSkipParentTitle, exact: true })
+          const dialog = page.getByRole('dialog', { name: words.habits.autoSkipParentMessage.replace('{name}', 'Parent'), exact: true })
           await expect(dialog).toBeVisible()
           await expect(page.locator('[data-kind]')).toHaveCount(0)
           await page.clock.pauseAt(new Date(LAYOUT_FIXED_TIME))

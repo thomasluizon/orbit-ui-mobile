@@ -86,7 +86,7 @@ describe('parent undo presentation with mounted modal transitions', () => {
       await page.addScriptTag({ content: script })
       await page.getByRole('button', { name: words.habits.actions.more }).click()
       await page.getByRole('menuitem', { name: words.habits.actions.skip }).click()
-      const dialog = page.getByRole('dialog', { name: words.habits.autoSkipParentTitle })
+      const dialog = page.getByRole('dialog', { name: words.habits.autoSkipParentMessage.replace('{name}', 'Exercise') })
       await dialog.waitFor()
       expect(await page.locator('[data-kind]').count()).toBe(0)
       expect(await page.locator('[data-current]').textContent()).toBe(words.undo.habitSkipped)

@@ -26,14 +26,13 @@ interface HabitListConfirmDialogsProps {
   onCancelParent: () => void
 }
 
-function parentPromptCopy(t: HabitListConfirmDialogsProps['t'], prompt: ParentPromptChain | null, question: boolean) {
+function parentPromptCopy(t: HabitListConfirmDialogsProps['t'], prompt: ParentPromptChain | null) {
   const skip = prompt?.mode === 'skip'
   const severalAncestors = prompt !== null && prompt.ancestors.length > 1
   const ask = t(skip ? 'habits.autoSkipParentMessage' : 'habits.autoLogParentMessage', { name: prompt?.habit.title ?? '' })
   const answer = t(skip ? 'habits.autoSkipParentConfirm' : 'habits.autoLogParentConfirm')
   const applyChanges = t('chat.pendingOp.action.applyChanges')
-  if (question) return { question, severalAncestors, title: ask, message: '', confirmLabel: answer, freePathLabel: severalAncestors ? applyChanges : undefined }
-  return { question, severalAncestors, title: t(skip ? 'habits.autoSkipParentTitle' : 'habits.autoLogParentTitle'), message: severalAncestors ? '' : ask, confirmLabel: severalAncestors ? applyChanges : answer, freePathLabel: undefined }
+  return { severalAncestors, title: ask, message: '', confirmLabel: answer, freePathLabel: severalAncestors ? applyChanges : undefined }
 }
 
 function ParentPromptConfirmation({ t, parentPrompt, onSelectParentAncestor, onConfirmParent, onCancelParent }: Readonly<Pick<HabitListConfirmDialogsProps, 't' | 'parentPrompt' | 'onSelectParentAncestor' | 'onConfirmParent' | 'onCancelParent'>>) {
@@ -44,14 +43,14 @@ function ParentPromptConfirmation({ t, parentPrompt, onSelectParentAncestor, onC
   const sheetPrompt = parentSheet.prompt?.habit.id === parentPrompt?.habit.id ? parentPrompt : parentSheet.prompt
   const open = parentPrompt !== null && parentSheet.prompt?.habit.id === parentPrompt.habit.id
   const closed = () => setParentSheet((current) => ({ ...current, closed: true }))
-  const copy = parentPromptCopy(t, sheetPrompt, true)
+  const copy = parentPromptCopy(t, sheetPrompt)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
     <ConfirmSheet
       key={sheetPrompt?.habit.id ?? 'parent-prompt'}
       open={open}
-      quickOptions={copy.question}
+      quickOptions
       freePathLabel={copy.freePathLabel}
       title={copy.title}
       message={copy.message}

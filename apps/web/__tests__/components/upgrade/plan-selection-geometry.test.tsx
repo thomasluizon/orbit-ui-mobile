@@ -137,33 +137,6 @@ describe('Pro tier geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('measures loaded onboarding cards at $width in $locale', async ({ width, locale }) => {
-    const messages = locale === 'en' ? en : ptBR
-    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
-      <main className="mx-auto max-w-[560px] p-4"><div><OnboardingProStep onFinish={async () => {}} /></div></main>
-    </NextIntlClientProvider>)
-    await waitForLoadedTiers(container)
-    const page = await browser.newPage({ viewport: { width, height: 1800 } })
-    try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await loadAppFonts(page)
-      await mountMeasuredSegmentedControls(page)
-      const step = page.locator('[data-onboarding-step="paywall"]')
-      expect(await step.evaluate(measureTextOverflow)).toEqual([])
-      const geometry = await step.evaluate(measureOnboardingProStep)
-      expect(geometry.tiers.map((tier) => tier.interval)).toEqual(['yearly', 'monthly'])
-      for (const tier of geometry.tiers) {
-        expect(tier.height).toBeCloseTo(tier.contentHeight, 0)
-        expect(tier.belowButton).toBeCloseTo(tier.padding, 0)
-      }
-      await step.locator('[data-tier-content="monthly"]').evaluate((card) => { card.style.minHeight = `${card.getBoundingClientRect().height + 80}px` })
-      const stretched = await step.evaluate(measureOnboardingProStep)
-      const monthly = stretched.tiers.find((tier) => tier.interval === 'monthly')!
-      expect(monthly.height - monthly.contentHeight).toBeCloseTo(80, 0)
-      expect(monthly.belowButton - monthly.padding).toBeCloseTo(80, 0)
-    } finally { await page.close() }
-  })
-
   it.each(cases)('hugs card content at $width in $locale, coupon: $coupon', async ({ width, locale, coupon }) => {
     const messages = locale === 'en' ? en : ptBR
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><Pricing coupon={coupon} /></NextIntlClientProvider>)

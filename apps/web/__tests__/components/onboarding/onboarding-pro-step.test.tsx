@@ -65,25 +65,18 @@ async function mount(profile = mocks.profile) {
 }
 
 describe('Onboarding final Pro step', () => {
-  it.each(['en', 'pt-BR'])('exposes both loaded paywall cards to geometry checks in %s', async (locale) => {
+  it.each(['en', 'pt-BR'])('exposes both loaded plan options and the one action to geometry checks in %s', async (locale) => {
     mocks.locale = locale
     const view = await mount()
     const step = view.container.querySelector('[data-onboarding-step="paywall"]')!
-    await waitFor(() => {
-      expect(step.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
-      expect(step.querySelectorAll('[data-tier-content]')).toHaveLength(2)
-    })
-    const cards = step.querySelectorAll<HTMLElement>('[data-tier-content]')
-    expect(cards).toHaveLength(2)
-    expect(Array.from(cards, (card) => card.dataset.tierContent)).toEqual(['yearly', 'monthly'])
-    for (const card of cards) {
-      expect(card).toHaveAttribute('data-tier', card.dataset.tierContent)
-      expect(within(card).getByRole('button', { name: /Subscribe|Assinar/ })).toBeEnabled()
-      const outcomes = within(card).getByRole('list', { name: translate('upgrade.outcomes.label') })
-      expect(within(outcomes).getAllByRole('listitem')).toHaveLength(4)
-      for (const key of ['orbit', 'calendar', 'retrospective', 'noticing']) {
-        expect(within(outcomes).getByText(translate(`upgrade.outcomes.${key}`))).toBeInTheDocument()
-      }
+    await waitFor(() => expect(step.querySelectorAll('[data-tier]')).toHaveLength(2))
+    const options = step.querySelectorAll<HTMLElement>('[data-tier]')
+    expect(Array.from(options, (option) => option.dataset.tier)).toEqual(['yearly', 'monthly'])
+    expect(within(step as HTMLElement).getByRole('button', { name: /Subscribe|Assinar/ })).toBeEnabled()
+    const outcomes = within(step as HTMLElement).getByRole('list', { name: translate('upgrade.included') })
+    expect(within(outcomes).getAllByRole('listitem')).toHaveLength(4)
+    for (const key of ['orbit', 'calendar', 'retrospective', 'noticing']) {
+      expect(within(outcomes).getByText(translate(`upgrade.outcomes.${key}`))).toBeInTheDocument()
     }
   })
 
@@ -99,7 +92,7 @@ describe('Onboarding final Pro step', () => {
     const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(end))
     expect(screen.getByText(translate('upgrade.billing.plan.trialHint', { date }))).toBeInTheDocument()
     expect(screen.getByText('5')).toBeInTheDocument(); expect(screen.getByText('250')).toBeInTheDocument()
-    expect(screen.queryAllByRole('list', { name: translate('upgrade.outcomes.label') })).toHaveLength(0)
+    expect(screen.queryAllByRole('list', { name: translate('upgrade.included') })).toHaveLength(0)
     expect(screen.getAllByRole('button')).toHaveLength(1)
     expect(view.container.querySelector('[data-tier-content]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: translate('onboarding.flow.done.seeDay') }))
@@ -110,18 +103,17 @@ describe('Onboarding final Pro step', () => {
     mocks.plansState = state === 'offline' ? 'loaded' : state; mocks.online = state !== 'offline'
     const view = await mount()
     expect(view.container.querySelector('[data-onboarding-step="paywall"]')).toBeInTheDocument()
-    const heading = screen.getByRole('heading', { level: 1, name: 'Orbit Pro' })
-    expect(heading.id).toBe('onboarding-title'); expect(heading).toHaveAttribute('translate', 'no')
+    const heading = screen.getByRole('heading', { level: 1, name: en.upgrade.question })
+    expect(heading.id).toBe('onboarding-title')
     if (state === 'offline') for (const button of screen.getAllByRole('button', { name: /Subscribe/ })) expect(button).toBeDisabled()
     if (state === 'loaded') {
       await waitFor(() => {
         expect(view.container.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
         expect(view.container.querySelectorAll('[data-tier]')).toHaveLength(2)
       })
-      expect(screen.getAllByRole('button', { name: /Subscribe/ })).toHaveLength(2)
-      const lists = screen.getAllByRole('list', { name: translate('upgrade.outcomes.label') })
-      expect(lists).toHaveLength(2)
-      for (const list of lists) { expect(list.closest('[data-tier]')).not.toBeNull(); expect(list.children).toHaveLength(4) }
+      expect(screen.getAllByRole('button', { name: /Subscribe/ })).toHaveLength(1)
+      const list = screen.getByRole('list', { name: translate('upgrade.included') })
+      expect(list.closest('[data-tier]')).toBeNull(); expect(list.children).toHaveLength(4)
       expect(screen.getAllByText(en.upgrade.plans.recommended).filter((element) => !element.closest('[inert]'))).toHaveLength(1)
       expect(screen.getAllByText(/42/).filter((element) => !element.closest('[inert]'))).toHaveLength(1)
     }
@@ -191,13 +183,13 @@ describe('owning onboarding pitch geometry', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   const cases = [320, 360, 384, 412, 640, 1440].flatMap((width) => ['pt-BR', 'en']
-    .flatMap((locale) => [false, true].map((trial) => ({ width, locale, trial }))))
+    .map((locale) => ({ width, locale, trial: true })))
   it.each(cases)('fits the final-step heading at $width in $locale, trial=$trial', async ({ width, locale, trial }) => {
     mocks.locale = locale
     mocks.profile = createMockProfile({ hasProAccess: trial, isTrialActive: trial, plan: trial ? 'pro' : 'free', trialEndsAt: trial ? new Date(Date.now() + 7 * 86400000).toISOString() : null })
     mocks.refetch.mockResolvedValue({ data: mocks.profile, isError: false })
     render(<OnboardingFlow finalStepOnly />)
-    const text = translate(trial ? 'onboarding.flow.trial.title' : 'upgrade.convert.freeHeading')
+    const text = translate('onboarding.flow.trial.title')
     await screen.findByRole('heading', { name: text })
     const page = await browser.newPage({ viewport: { width, height: 1400 } })
     try {

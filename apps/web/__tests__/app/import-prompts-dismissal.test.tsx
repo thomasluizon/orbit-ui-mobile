@@ -23,7 +23,6 @@ const mocks = vi.hoisted(() => ({
   showPersistentError: vi.fn(),
   router: { push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() },
   searchParams: new URLSearchParams(),
-  guidedFlows: false,
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -75,7 +74,7 @@ vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel
 vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => null }))
 
 const prompts = [
-  { name: 'calendar', title: 'onboarding.wizard.calendarTitle', description: 'onboarding.wizard.calendarDescription', later: 'common.later', import: 'onboarding.wizard.calendarButton' },
+  { name: 'calendar', title: 'onboarding.wizard.calendarQuestion', description: 'onboarding.wizard.calendarDescription', later: 'common.later', import: 'onboarding.wizard.calendarButton' },
   { name: 'Orbit', title: 'onboarding.wizard.importTitle', description: 'onboarding.wizard.importDescription', later: 'onboarding.wizard.importNotNow', import: 'onboarding.wizard.importButton' },
 ] as const
 
@@ -120,12 +119,10 @@ describe('AppLayout import prompt dismissal', () => {
     useAuthStore.setState(useAuthStore.getInitialState())
   })
 
-  it.each([[true, 'onboarding.wizard.calendarQuestion']])('asks the calendar import as a question in the person\'s words %s', (guidedFlows, title) => {
-    mocks.guidedFlows = guidedFlows
+  it('asks the calendar import as a question in the person\'s words', () => {
     mocks.profile = createMockProfile({ hasCompletedOnboarding: true, hasImportedCalendar: false, hasSeenImportPrompt: true })
     render(<QueryClientProvider client={new QueryClient()}><AppLayout><p>Today content</p></AppLayout></QueryClientProvider>)
-    expect(screen.getByRole('dialog', { name: title })).toBeInTheDocument()
-    mocks.guidedFlows = false
+    expect(screen.getByRole('dialog', { name: 'onboarding.wizard.calendarQuestion' })).toBeInTheDocument()
   })
 
   describe.each(prompts)('$name prompt', (prompt) => {

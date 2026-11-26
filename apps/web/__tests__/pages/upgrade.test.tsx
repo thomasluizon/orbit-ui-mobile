@@ -209,7 +209,7 @@ function assertSubscriptionContent(container: HTMLElement, { locale, state }: Su
   const pitch = state === 'free' || state === 'trial'
   const expired = state === 'expired'
   const play = state.startsWith('play')
-  const resources = screen.getAllByRole('list', { name: pitch ? messages.upgrade.outcomes.label : messages.upgrade.included })
+  const resources = screen.getAllByRole('list', { name: messages.upgrade.included })
   for (const resourcesList of resources) {
     expect(resourcesList.children).toHaveLength(4)
     expect(resourcesList.querySelectorAll('[data-asset="orbit-mascot"]')).toHaveLength(1)
@@ -327,56 +327,6 @@ describe('UpgradePage', () => {
       } finally { await page.close() }
     })
 
-    const cases = [320, 360, 384, 412, 600, 640, 840, 1352, 1440].flatMap((width) => (['pt-BR', 'en'] as const)
-      .flatMap((locale) => [false, true].map((trial) => ({ width, locale, trial }))))
-    it.each(cases)('keeps the heading whole at $width in $locale, trial=$trial', async ({ width, locale, trial }) => {
-      mockLocale.value = locale
-      mockHasProAccess = trial
-      mockProfile = createMockProfile({ isTrialActive: trial, trialEndsAt: trial ? new Date(Date.now() + 5 * 86400000).toISOString() : null })
-      const { container } = render(
-        <main data-shell-scroller="" style={{ overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable' }}>
-          <UpgradePage />
-        </main>,
-      )
-      const page = await browser.newPage({ viewport: { width, height: 1400 } })
-      try {
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        await loadAppFonts(page)
-        const heading = page.locator('[data-upgrade-screen] h2').first()
-        const geometry = await heading.evaluate((element) => {
-          const range = document.createRange()
-          range.selectNodeContents(element)
-          const fragments = [...range.getClientRects()]
-          const bounds = element.getBoundingClientRect()
-          const style = getComputedStyle(element)
-          const probe = element.cloneNode(true) as HTMLElement
-          probe.style.width = 'max-content'
-          document.body.append(probe)
-          const textWidth = probe.getBoundingClientRect().width
-          probe.remove()
-          return {
-            lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
-            outside: fragments.some((fragment) => fragment.left < bounds.left - 0.5 || fragment.right > bounds.right + 0.5),
-            ellipsis: style.textOverflow === 'ellipsis' || Number.parseInt(style.webkitLineClamp) > 0,
-            fontSize: Number.parseFloat(style.fontSize),
-            fontWeight: style.fontWeight,
-            letterSpacing: Number.parseFloat(style.letterSpacing),
-            measure: bounds.width,
-            scrollerMeasure: element.closest('[data-shell-scroller]')!.clientWidth,
-            textWidth,
-          }
-        })
-        process.stdout.write(`${JSON.stringify({ width, locale, trial, geometry })}\n`)
-        expect(geometry.lines).toBe(1)
-        expect(geometry.outside).toBe(false)
-        expect(geometry.ellipsis).toBe(false)
-        expect(geometry.fontSize).toBe(width < 640 ? 28 : 34)
-        expect(geometry.fontWeight).toBe('500')
-        expect(geometry.letterSpacing).toBeCloseTo(-0.02 * geometry.fontSize)
-        expect(geometry.scrollerMeasure).toBe(width - 4)
-        expect(geometry.measure).toBe(width < 1024 ? geometry.scrollerMeasure - 32 : 620)
-      } finally { await page.close() }
-    })
   })
 
   beforeEach(() => {
@@ -429,7 +379,7 @@ describe('UpgradePage', () => {
     { locale: 'en', messages: en, trialHeading: '250 a week.' },
     { locale: 'pt-BR', messages: ptBR, trialHeading: '250 por semana.' },
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
-    it.each(['%2Fprofile%2Fai', '%2Fprofile%2Forbit'])('returns a directly linked AI settings upgrade (from=%s) to the AI settings page', (from) => {
+    it.each(['%2Fprofile%2Fai', encodeURIComponent('/profile/astra')])('returns a directly linked AI settings upgrade (from=%s) to the AI settings page', (from) => {
       mockLocale.value = locale
       history.replaceState({}, '', `/upgrade?from=${from}`)
       try {
@@ -465,7 +415,7 @@ describe('UpgradePage', () => {
         aiMessagesLimit: 50,
       })
       render(<UpgradePage />)
-      expect(screen.getByRole('heading', { level: 2, name: trialHeading })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1, name: messages.upgrade.question })).toBeInTheDocument()
       const eyebrow = daysLeft !== null && daysLeft <= 1 ? messages.upgrade.convert.trialLastDay
         : daysLeft === null ? messages.upgrade.convert.trialEyebrow : null
       if (eyebrow) expect(screen.getByText(eyebrow)).toBeInTheDocument()
@@ -480,7 +430,7 @@ describe('UpgradePage', () => {
       mockLocale.value = locale
       mockProfile = createMockProfile({ isTrialActive: false, trialEndsAt: null })
       render(<UpgradePage />)
-      expect(screen.getByRole('heading', { level: 2, name: messages.upgrade.convert.freeHeading })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1, name: messages.upgrade.question })).toBeInTheDocument()
     })
 
     it.each([false, true])('ends the paywall at the decline link without usage, trial=%s', (isTrialActive) => {
@@ -532,10 +482,8 @@ describe('UpgradePage', () => {
       level: Number(heading.tagName.slice(1)),
       name: heading.textContent,
     }))).toEqual([
-      { level: 1, name: 'upgrade.pitchTitle' },
-      { level: 2, name: trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading' },
-      { level: 3, name: 'upgrade.plans.yearly.name' },
-      { level: 3, name: 'upgrade.plans.monthly.name' },
+      { level: 1, name: 'upgrade.question' },
+      { level: 2, name: 'upgrade.included' },
     ])
   })
 
@@ -551,14 +499,15 @@ describe('UpgradePage', () => {
     }
     const view = renderComponent(<QueryClientProvider client={client}><ActiveProfile /></QueryClientProvider>)
     await waitFor(() => expect(client.getQueryState(profileKeys.detail())?.status).toBe('error'))
-    await waitFor(() => expect(screen.getByText('upgrade.billing.error')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('upgrade.orbitLine.billingError')).toBeInTheDocument())
     expect(mockShowSuccess).not.toHaveBeenCalled()
     expect(location.search).toBe('?subscription=success&keep=1')
     fetchProfile.mockResolvedValue(pro)
     fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.retry' }))
-    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledOnce())
+    await waitFor(() => expect(location.search).toBe('?keep=1'))
+    expect(mockShowSuccess).not.toHaveBeenCalled()
     expect(client.getQueryData(profileKeys.detail())).toEqual(pro)
-    expect(screen.queryByText('upgrade.billing.error')).not.toBeInTheDocument()
+    expect(screen.queryByText('upgrade.orbitLine.billingError')).not.toBeInTheDocument()
     expect(location.search).toBe('?keep=1')
     view.unmount()
     history.replaceState({}, '', '/upgrade')
@@ -571,11 +520,12 @@ describe('UpgradePage', () => {
 
   it('renders the page header with title and back button', () => {
     render(<UpgradePage />)
-    expect(screen.getByRole('heading', { level: 1, name: 'upgrade.pitchTitle' })).toHaveAttribute('translate', 'no')
+    expect(screen.getByText('upgrade.pitchTitle')).toHaveAttribute('translate', 'no')
+    expect(screen.getByRole('heading', { level: 1, name: 'upgrade.question' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
-  it('renders the arithmetic pitch and four outcomes per tier', async () => {
+  it('renders the arithmetic pitch and the four outcomes once', async () => {
     mockPlans = {
       monthly: { unitAmount: 999 },
       yearly: { unitAmount: 4999 },
@@ -589,18 +539,15 @@ describe('UpgradePage', () => {
       expect(document.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
       expect(document.querySelectorAll('[data-tier]')).toHaveLength(2)
     })
-    expect(screen.getByText('upgrade.convert.freeHeading')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'upgrade.question' })).toBeInTheDocument()
     expect(screen.getByText('upgrade.convert.freeAllowance')).toBeInTheDocument()
     expect(screen.getByText('upgrade.convert.proAllowance')).toBeInTheDocument()
     expect(screen.getByText('upgrade.convert.allowanceNote')).toBeInTheDocument()
-    const lists = screen.getAllByRole('list', { name: 'upgrade.outcomes.label' })
-    expect(lists).toHaveLength(2)
-    for (const list of lists) {
-      expect(list.closest('[data-tier]')).not.toBeNull()
-      expect(list.children).toHaveLength(4)
-    }
+    const list = screen.getByRole('list', { name: 'upgrade.included' })
+    expect(list.closest('[data-tier]')).toBeNull()
+    expect(list.children).toHaveLength(4)
     for (const key of ['orbit', 'calendar', 'retrospective', 'noticing']) {
-      expect(screen.getAllByText(`upgrade.outcomes.${key}`)).toHaveLength(2)
+      expect(screen.getAllByText(`upgrade.outcomes.${key}`)).toHaveLength(1)
     }
     expect(document.body.textContent).toContain('upgrade.convert.cancelAnytime')
     expect(document.body.textContent).toContain('upgrade.plans.renewalNote')
@@ -710,7 +657,7 @@ describe('UpgradePage', () => {
     mockTrialExpired = true
     mockProfile = { ...mockProfile, isTrialActive: false }
     render(<UpgradePage />)
-    expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
+    expect(screen.getByRole('heading', { level: 1, name: 'upgrade.question' })).toBeInTheDocument()
     expect(document.body.textContent).toContain('upgrade.convert.promise')
     expect(document.body.textContent).toContain('upgrade.convert.trustLine')
   })
@@ -745,7 +692,7 @@ describe('UpgradePage', () => {
       }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
     })
 
-    await waitFor(() => expect(document.querySelectorAll('[data-tier-reservation]')).toHaveLength(2))
+    await waitFor(() => expect(document.querySelectorAll('[data-tier]')).toHaveLength(2))
     expect(screen.getByText('usd 9.99')).toBeInTheDocument()
     expect(screen.getByRole('button', {
       name: /^upgrade\.plans\.checkoutLabelRecommended:/,
@@ -761,8 +708,7 @@ describe('UpgradePage', () => {
       trialEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     }
     render(<UpgradePage />)
-    expect(document.body.textContent).toContain('upgrade.convert.trialHeading')
-    expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
+    expect(screen.getByRole('heading', { level: 1, name: 'upgrade.question' })).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('upgrade.convert.trustLine')
     expect(document.body.textContent).toContain('upgrade.convert.promise')
     expect(screen.queryByText('upgrade.billing.plan.pro')).not.toBeInTheDocument()
@@ -830,15 +776,12 @@ describe('UpgradePage', () => {
     }
     render(<UpgradePage />)
     expect(screen.getByText('upgrade.billing.offline')).toBeInTheDocument()
-    expect(screen.getByText(
-      trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading',
-    )).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'upgrade.question' })).toBeInTheDocument()
     const paidActions = screen.getAllByRole('button', {
       name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })
-    expect(paidActions).toHaveLength(2)
+    expect(paidActions).toHaveLength(1)
     expect(paidActions[0]).toBeDisabled()
-    expect(paidActions[1]).toBeDisabled()
   })
 
   it('routes checkout through the geo-forwarding BFF route, not a direct Stripe action', async () => {
@@ -938,7 +881,7 @@ describe('UpgradePage', () => {
     })
     fireEvent.click(screen.getAllByRole('button', {
       name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
-    })[1]!)
+    })[0]!)
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
     resolveCheckout?.({ ok: true, json: async () => ({}) })

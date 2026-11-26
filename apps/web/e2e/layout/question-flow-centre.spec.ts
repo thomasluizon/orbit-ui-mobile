@@ -17,11 +17,6 @@ const HOSTS = [
   { name: 'support (overlay frame)', path: '/support' },
 ] as const
 
-const guidedConfig = {
-  ...DEFAULT_CONFIG,
-  features: { ...DEFAULT_CONFIG.features, orbit_guided_flows: { enabled: true, planRequirement: null } },
-}
-
 async function measureBlockInColumn(page: Page) {
   return page.locator('[data-question-flow]').first().evaluate((flow) => {
     const column = flow.closest('[data-shell-scroller]') ?? flow.closest('[data-flow-screen]')!
@@ -47,7 +42,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           const profile = profileSchema.parse({ ...profileFixture, language: locale })
           await setLayoutFixtureSession(context, [
             { path: API.profile.get, body: profile },
-            { path: API.config.get, body: guidedConfig },
+            { path: API.config.get, body: DEFAULT_CONFIG },
           ])
           await page.goto(host.path)
           await expect(page.locator('[data-question-flow]').first()).toBeVisible()
