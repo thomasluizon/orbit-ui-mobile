@@ -332,6 +332,22 @@ static NSDictionary *key(pid_t processId, NSString *name) {
     return @{@"sent": name, @"delivery": @"process-event", @"activation": activation, @"focusedProcess": @(focused)};
 }
 
+// CGEventPostToPid returns no delivery result, and a sender that exits at once can end before its key arrives. Thus one
+// sender reads a key name per line, posts it, and stays alive until its input closes (#2298).
+static int keyboard(pid_t processId) {
+    char line[16];
+    while (fgets(line, sizeof line, stdin)) {
+        @autoreleasepool {
+            NSString *name = [@(line) stringByTrimmingCharactersInSet:NSCharacterSet.newlineCharacterSet];
+            NSData *reply = [NSJSONSerialization dataWithJSONObject:key(processId, name) options:0 error:NULL];
+            fwrite(reply.bytes, 1, reply.length, stdout);
+            fputc('\n', stdout);
+            fflush(stdout);
+        }
+    }
+    return 0;
+}
+
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
         if (argc < 3) return 2;
@@ -351,7 +367,8 @@ int main(int argc, const char *argv[]) {
             else if ([command isEqual:@"bundles"]) result = bundleCopies(@(argv[3]));
             else if ([command isEqual:@"notification"]) {
                 result = notification(@(argv[3]), @(argv[4]), atoi(argv[5]) == 1, atoi(argv[6]) == 1);
-            } else result = key(processId, command);
+            } else if ([command isEqual:@"keyboard"]) return keyboard(processId);
+            else return 2;
             NSData *encoded = [NSJSONSerialization dataWithJSONObject:result options:NSJSONWritingPrettyPrinted error:NULL];
             fwrite(encoded.bytes, 1, encoded.length, stdout);
             return 0;
