@@ -23,7 +23,7 @@ import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { ownerParts, partOf, renderOrder } from "./lib/order.mjs"
-import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
+import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
 const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status] [--help]
@@ -986,13 +986,20 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
   const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), updated: false, merged: false, running }
   const orders = []
   const repoPath = env.config.repos[repoKey]
+  // The release train builds mobile from main, so a ui merge waits while the train holds its mobile steps.
+  const hold = repoKey === "ui" ? mobileMergeHold(readTrainState(env.stateDir)) : null
   for (const pull of [...state.pulls].sort((left, right) => left.number - right.number)) {
     const item = `${repoKey}#${pull.number}`
     try {
       const runs = pull.draft ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       const planned = await planPull(env, mem, { ...ctx, runs }, pull)
-      const plan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
+      const stoppedPlan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
+      const plan = hold === null ? stoppedPlan : stoppedPlan.map((action) => {
+        if (action.type !== "merge") return action
+        log(env, item, "merge held", `release train ${hold.id} ships mobile at ${hold.sha}`)
+        return { type: "none", reason: `merge held, release train ${hold.id} ships mobile at ${hold.sha}` }
+      })
       const newestRequest = requestsOf(pull).reduce((newest, entry) => (entry.createdAt > newest ? entry.createdAt : newest), "")
       // A run from before the newest request is settled history: a request that came after it started a new run.
       const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
