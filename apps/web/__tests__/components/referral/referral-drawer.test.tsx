@@ -1,6 +1,6 @@
 import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
@@ -130,6 +130,26 @@ describe('ReferralDrawer', () => {
     fireEvent.click(copy)
     await waitFor(() => expectCopyStateIcon(copy, { copied: true, strokeWidth: 2, color: 'var(--fg-2)' }))
     expect(writeText).toHaveBeenCalledWith(mockReferralUrl)
+  })
+
+  it('restores the copy icon after 2 seconds and leaves no timer after it unmounts', async () => {
+    vi.useFakeTimers()
+    try {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
+      const view = render(<ReferralDrawer open onOpenChange={vi.fn()} />)
+      const copy = screen.getByRole('button', { name: 'referral.drawer.copyLink' })
+      await act(async () => { fireEvent.click(copy) })
+      act(() => { vi.advanceTimersByTime(2000) })
+      expectCopyStateIcon(copy, { copied: false, strokeWidth: 2, color: 'var(--fg-2)' })
+      await act(async () => { fireEvent.click(copy) })
+      expectCopyStateIcon(copy, { copied: true, strokeWidth: 2, color: 'var(--fg-2)' })
+      view.unmount()
+      const sheetNextFrameMs = 20
+      act(() => { vi.advanceTimersByTime(sheetNextFrameMs) })
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows stats when available', () => {

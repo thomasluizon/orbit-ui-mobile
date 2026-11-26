@@ -86,6 +86,14 @@ describe('referral link copy', () => {
     expect(AccessibilityInfo.announceForAccessibility).not.toHaveBeenCalled()
   })
 
+  it('leaves no referral confirmation timer after the drawer unmounts', async () => {
+    await render()
+    await TestRenderer.act(() => { copy() })
+    expect(copiedIcons()).toHaveLength(1)
+    await TestRenderer.act(() => { tree.unmount() })
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it('does not copy a missing referral link', async () => {
     referral.url = ''
     await render()
