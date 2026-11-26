@@ -1,6 +1,6 @@
 import { PillButton } from '@/components/ui/pill-button'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AccessibilityInfo,
   Platform,
@@ -149,6 +149,12 @@ function ReferralDrawerContent({ onClose, sheetRef, closeSheet }: Readonly<Pick<
   const isLoaded = !isLoading && !isError
   const reward = selectReferralReward(stats, Platform.OS !== 'ios')
 
+  useEffect(() => {
+    if (!copied) return
+    const resetTimer = setTimeout(() => setCopied(false), 2000)
+    return () => clearTimeout(resetTimer)
+  }, [copied])
+
   const shareLink = useCallback(async () => {
     if (!referralUrl) return
     try {
@@ -170,7 +176,6 @@ function ReferralDrawerContent({ onClose, sheetRef, closeSheet }: Readonly<Pick<
       AccessibilityInfo.announceForAccessibility(t('referral.drawer.linkCopied'))
       setFailedAction(null)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
     } catch (error) {
       captureError(error)
       setFailedAction('copy')
