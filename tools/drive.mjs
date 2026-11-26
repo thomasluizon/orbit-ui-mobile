@@ -101,7 +101,7 @@ const MAX_FIX_LAUNCHES = 2
 /** The closes and rebuilds from main that one piece of work gets after its fix launches fail. */
 const MAX_RESTARTS = 2
 const WAITS_FOR_OPUS = "waits for the Opus launch at the fix cap"
-const WAITS_FOR_BOUND = "the restart bound is reached: the pull request waits for the harness review"
+const WAITS_FOR_BOUND = "the restart bound is reached: the pull request stays open and the watchdog reports it"
 const CI_QUEUE_TTL_MS = 5 * 60 * 1000
 const WATCHDOG_FILE = "watchdog.json"
 const NO_MERGE_MS = 2 * HOUR_MS
@@ -925,7 +925,7 @@ const planPullActions = async (env, mem, { repoKey, state, ticketMap, now, runs,
     if (!counted.some(ranOpus)) return [...actions, { type: "none", reason: WAITS_FOR_OPUS, capped: true }]
     const bound = restartsOf(ticket).filter((entry) => branchBase(entry.branch) === branchBase(pull.headRef)).length
     if (bound >= MAX_RESTARTS) return [...actions, { type: "none", reason: WAITS_FOR_BOUND, capped: true }]
-    return [...actions, { type: "restart", capped: true, history: failureHistory({ item, pull, order, launches }), classes }]
+    return [...actions, { type: "restart", capped: true, history: failureHistory({ item, pull, order, launches }) }]
   }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
   if (need.approved) {
