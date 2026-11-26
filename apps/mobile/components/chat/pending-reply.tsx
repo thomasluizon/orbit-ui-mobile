@@ -26,6 +26,7 @@ export function PendingReply({ ref }: Readonly<{ ref: Ref<PendingReplyHandle> }>
       updatePulseRef.current(nextVisible)
     },
   }), [])
+  // react-doctor-disable-next-line effect-needs-cleanup -- FP: the cleanup calls stopPulse, which clears the settle timer; RD does not follow a timer armed in a callback that the effect also stores in a ref. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     let settle: ReturnType<typeof setTimeout> | undefined
     let started: number | null = null

@@ -255,9 +255,8 @@ export function useStoreBillingConnection(options?: { preferReferralOffer?: bool
 
   useEffect(() => {
     let active = true
-    const connectionTimeout = !connected
-      ? setTimeout(() => { if (active) setProductQueryState('failed') }, STORE_CONNECTION_TIMEOUT_MS)
-      : undefined
+    let connectionTimeout: ReturnType<typeof setTimeout> | undefined
+    if (!connected) connectionTimeout = setTimeout(() => { if (active) setProductQueryState('failed') }, STORE_CONNECTION_TIMEOUT_MS)
     void Promise.resolve().then(() => {
       if (!active) return
       if (!connected) {
