@@ -1424,7 +1424,99 @@ describe('HabitDetailScreen', () => {
 
     await act(async () => { await Promise.resolve() })
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.checklistError')
-    expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteQuestion')).not.toBeInTheDocument()
+  })
+
+  it('offers to log the habit after its last checklist item is completed and logs it on confirm', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    mocks.log.mockResolvedValueOnce(undefined)
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.checklist).toHaveBeenCalledWith({ habitId: 'habit-1', items: [{ text: 'First', isChecked: true }] })
+    expect(screen.getByTestId('confirm-habits.checklistCompleteQuestion')).toHaveAttribute('data-confirm-label', 'habits.checklistCompleteConfirm')
+    expect(mocks.log).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteQuestion'))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-28', intent: 'log' })
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteQuestion')).not.toBeInTheDocument()
+  })
+
+  it('logs nothing when the checklist log question is cancelled', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+    fireEvent.click(screen.getByTestId('cancel-habits.checklistCompleteQuestion'))
+
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteQuestion')).not.toBeInTheDocument()
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('closes the checklist log question before the log settles', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    mocks.log.mockReturnValueOnce(new Promise(() => {}))
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteQuestion'))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-28', intent: 'log' })
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteQuestion')).not.toBeInTheDocument()
+  })
+
+  it('replaces the checklist log question with the unusual-date question', async () => {
+    mocks.logs = []
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z', checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), createdAtUtc: '2026-08-28T12:00:00Z' }]])
+    mocks.checklist.mockResolvedValue(undefined)
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />)
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteQuestion'))
+    await act(async () => Promise.resolve())
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteQuestion')).not.toBeInTheDocument()
+    expect(screen.getByTestId('confirm-habits.detail.logDateQuestion')).toBeInTheDocument()
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('refuses the checklist log question after account midnight', async () => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+    expect(screen.getByTestId('confirm-habits.checklistCompleteQuestion')).toBeInTheDocument()
+
+    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteQuestion'))
+    await act(async () => Promise.resolve())
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteQuestion')).not.toBeInTheDocument()
+  })
+
+  it('asks nothing while a checklist item is still open', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }, { text: 'Second', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.checklist).toHaveBeenCalledWith({ habitId: 'habit-1', items: [{ text: 'First', isChecked: true }, { text: 'Second', isChecked: false }] })
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteQuestion')).not.toBeInTheDocument()
   })
 
   it('keeps checklist edits without offering old-day completion', async () => {
@@ -1438,7 +1530,7 @@ describe('HabitDetailScreen', () => {
       habitId: 'habit-1',
       items: [{ text: 'First', isChecked: true }],
     })
-    expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteQuestion')).not.toBeInTheDocument()
     expect(mocks.log).not.toHaveBeenCalled()
   })
 

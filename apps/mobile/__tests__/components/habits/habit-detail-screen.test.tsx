@@ -1948,7 +1948,114 @@ describe('HabitDetailScreen', () => {
     })
 
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.checklistError')
-    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteQuestion' })).toHaveLength(0)
+  })
+
+  it('offers to log the habit after its last checklist item is completed and logs it on confirm', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    mocks.log.mockResolvedValueOnce(undefined)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+    expect(mocks.checklist).toHaveBeenCalledWith({ habitId: 'habit-1', items: [{ text: 'First', isChecked: true }] })
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteQuestion' }).props.confirmLabel).toBe('habits.checklistCompleteConfirm')
+    expect(mocks.log).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteQuestion' }).props.onConfirm()
+      await Promise.resolve()
+    })
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-28', intent: 'log' })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteQuestion' })).toHaveLength(0)
+  })
+
+  it('logs nothing when the checklist log question is cancelled', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => { tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteQuestion' }).props.onCancel() })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteQuestion' })).toHaveLength(0)
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('closes the checklist log question before the log settles', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    mocks.log.mockReturnValueOnce(new Promise(() => {}))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteQuestion' }).props.onConfirm()
+      await Promise.resolve()
+    })
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-28', intent: 'log' })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteQuestion' })).toHaveLength(0)
+  })
+
+  it('replaces the checklist log question with the unusual-date question', async () => {
+    mocks.logs = []
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z', checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValue(undefined)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteQuestion' }).props.onConfirm()
+      await Promise.resolve()
+    })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteQuestion' })).toHaveLength(0)
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.detail.logDateQuestion' })).toHaveLength(1)
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('refuses the checklist log question after account midnight', async () => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteQuestion' })).toHaveLength(1)
+    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
+    TestRenderer.act(() => { tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteQuestion' }).props.onConfirm()
+      await Promise.resolve()
+    })
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteQuestion' })).toHaveLength(0)
+  })
+
+  it('asks nothing while a checklist item is still open', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }, { text: 'Second', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+    expect(mocks.checklist).toHaveBeenCalledWith({ habitId: 'habit-1', items: [{ text: 'First', isChecked: true }, { text: 'Second', isChecked: false }] })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteQuestion' })).toHaveLength(0)
   })
 
   it('keeps checklist edits without offering old-day completion', async () => {
@@ -1968,7 +2075,7 @@ describe('HabitDetailScreen', () => {
       habitId: 'habit-1',
       items: [{ text: 'First', isChecked: true }],
     })
-    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteQuestion' })).toHaveLength(0)
     expect(mocks.log).not.toHaveBeenCalled()
   })
 
