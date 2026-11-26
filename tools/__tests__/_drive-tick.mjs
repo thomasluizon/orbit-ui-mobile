@@ -1181,6 +1181,37 @@ const blockingClassCases = async () => {
   same("drive: a waiting ticket whose merged history was not read gets no cap check and no needs:owner", [only(settled.calls, "editLabels").length, commentsOf(settled.calls, settledNumber).length], [0, 0])
 }
 
+/** A pull request with no open ticket gets no label, so its `needs-owner` report is the hold that the bar, the stall alarm and the questions run read. */
+const reportHoldCases = async () => {
+  const redUnit = [check("Unit Tests", "FAILURE"), approvalCheck()]
+  const green = [check("Unit Tests"), approvalCheck()]
+  const report = comment("needs-owner", "The check failed.", -90 * MINUTE)
+  const answer = (offset, extra = {}) => comment("owner-answer", "Merge it.", offset, extra)
+  const bumps = (checks, comments) => pull(30, { author: "dependabot", tracks: null, body: "Bumps x", checks, comments: [comment("ticket", "T"), RERAN, ...comments] })
+  const tracked = (comments) => pull(30, { checks: green, comments: [comment("ticket", "T"), ...comments] })
+  const table = [
+    ["a reported Dependabot pull request with a red check", bumps(redUnit, [report]), [], [0, 1, 0, 0]],
+    ["the tick that writes the report of a Dependabot pull request", bumps(redUnit, []), [], [0, 1, 0, 1]],
+    ["a reported Dependabot pull request whose check passes now", bumps(green, [report]), [], [0, 1, 0, 0]],
+    ["a reported pull request whose tracked ticket is closed", tracked([report]), [], [0, 1, 0, 0]],
+    ["an owner answer after the report", bumps(green, [report, answer(-80 * MINUTE)]), [], [0, 0, 1, 0]],
+    ["an answer of another login after the report", bumps(green, [report, answer(-80 * MINUTE, { author: "someone" })]), [], [0, 1, 0, 0]],
+    ["an owner answer older than the report", bumps(green, [answer(-100 * MINUTE), report]), [], [0, 1, 0, 0]],
+    ["an answered pull request that still needs the owner", bumps(redUnit, [report, answer(-80 * MINUTE)]), [], [0, 0, 0, 0]],
+    ["an old report on a pull request whose tracked ticket is open", tracked([report]), [ticket(7)], [0, 0, 1, 0]],
+  ]
+  for (const [label, held, tickets, expected] of table) {
+    const stateDirectory = join(root, `drive-report-hold-${++scenarios}`)
+    mkdirSync(stateDirectory, { recursive: true })
+    writeFileSync(join(stateDirectory, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
+    const scene = scenario({ driver: {}, tickets, pulls: { ui: [held] }, stateDirectory })
+    await scene.run()
+    await scene.mem.questions
+    const stalls = only(scene.calls, "createTicket").filter(([, input]) => input.title === STALL)
+    same(`drive: ${label} gives [stall issues, questions runs, merges, new reports]`, [stalls.length, questionRuns(scene).length, only(scene.calls, "merge").length, needsOwnerComments(scene.calls, 30).length], expected)
+  }
+}
+
 const reviewReply = (offset) => review("COMMENTED", HEAD, offset)
 
 const laneAndReviewPassCases = async () => {
@@ -2354,6 +2385,7 @@ export const driverUnit = async () => {
   await robustnessCases()
   await cliCases()
   await blockingClassCases()
+  await reportHoldCases()
   await laneAndReviewPassCases()
   await logOnlyCases()
   await runningWorkCases()

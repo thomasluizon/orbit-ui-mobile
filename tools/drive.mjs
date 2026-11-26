@@ -54,7 +54,7 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   --pace main|worker on|off  the owner's setting of one account's weekly pace. off: the account runs 3 workers with no line
               and no 90% stop, until a worker ends on its usage limit. on: the pace above. Each account starts with the pace on.
   --sleep on|off  sleep mode of the owner. While it is on the driver sends no notification and asks nothing: each item for
-              the owner still gets its needs:owner label and one comment, and the driver keeps working on every other item.
+              the owner still gets one comment, plus the needs:owner label on its ticket, and the driver works on every other item.
               --sleep off makes the driver send one notification that lists the items held, each with its link.
   --release-now  ask the driver to start a release train on its next tick, at once, whatever the 4 hour cadence and the last stop.
               It starts only when a service has unreleased work. The owner session runs it for /release.
@@ -321,14 +321,28 @@ const readQuestionsStart = (stateDir) => {
   }
 }
 
-/** The open items that carry `needs:owner` and a `needs-owner` report newer than `since`. A pull request counts the reports on the ticket that it tracks. */
-const heldWithNewReport = (tickets, states, since) => {
-  const newest = (comments) => Math.max(0, ...comments.filter((entry) => entry.kind === "needs-owner").map((entry) => Date.parse(entry.createdAt)).filter(Number.isFinite))
-  const held = tickets.filter((ticket) => ticket.labels.includes(OWNER)).map((ticket) => ({ item: `ticket#${ticket.number}`, at: newest(ticket.comments) }))
+/** The time of the newest comment of a kind in epoch milliseconds, or 0 when no comment has that kind. */
+const newestOf = (comments, kind) => Math.max(0, ...comments.filter((entry) => entry.kind === kind).map((entry) => Date.parse(entry.createdAt)).filter(Number.isFinite))
+
+/**
+ * True while a pull request with no open ticket waits on the owner: no `owner-answer` comment of the owner follows its newest
+ * `needs-owner` report. The driver labels no open pull request, so the report is the hold. The pull request is public, so only an
+ * answer from the owner of the ticket repository ends it.
+ */
+const heldByReport = (env, pull, ticket) => {
+  if (ticket) return false
+  const owner = env.config.tickets.repository.split("/")[0]
+  return newestOf(pull.comments, "needs-owner") > newestOf(pull.comments.filter((entry) => entry.author === owner), "owner-answer")
+}
+
+/** The held items with a `needs-owner` report newer than `since`: each one with `needs:owner`, and each pull request that its report holds. A pull request counts the reports on the ticket that it tracks. */
+const heldWithNewReport = (env, tickets, states, since) => {
+  const held = tickets.filter((ticket) => ticket.labels.includes(OWNER)).map((ticket) => ({ item: `ticket#${ticket.number}`, at: newestOf(ticket.comments, "needs-owner") }))
   for (const state of states) {
-    for (const pull of state.pulls.filter((entry) => entry.labels.includes(OWNER))) {
+    for (const pull of state.pulls) {
       const tracked = tickets.find((ticket) => ticket.number === pull.tracks)
-      held.push({ item: `${state.repositoryKey}#${pull.number}`, at: newest([...pull.comments, ...(tracked?.comments ?? [])]) })
+      if (!pull.labels.includes(OWNER) && !heldByReport(env, pull, tracked)) continue
+      held.push({ item: `${state.repositoryKey}#${pull.number}`, at: newestOf([...pull.comments, ...(tracked?.comments ?? [])], "needs-owner") })
     }
   }
   return held.filter((entry) => entry.at > since).map((entry) => entry.item)
@@ -421,7 +435,7 @@ const notifyOnce = async (env, mem, message) => {
 /**
  * Writes one `needs-owner` comment, labels the ticket `needs:owner` when it lacks it, and notifies. A label change on an open pull request starts its checks again, so the pull request keeps its labels.
  * The comment is the mark that stops a repeat: a ticket that an owner gate already labelled still gets each new report.
- * A ticket repeats only for the same reason, and a pull request report names it and its head. With no ticket, one report only.
+ * A ticket repeats only for the same reason, and a pull request report names it and its head. With no ticket, one report only, and that report holds the pull request (`heldByReport`).
  * A `relabel` report restores a removed label and writes no comment and sends no notification.
  */
 const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason: plainReason, relabel = false }) => {
@@ -885,7 +899,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (need.owner) return owner(need.owner)
   if (need.request) return [...actions, request(need.request)]
   if (need.wait) return [...actions, { type: "none", reason: need.wait }]
-  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], ticketLabels: ticket?.labels ?? [], updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
+  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
   const bar = mergeBar(pull, context)
   if (dependabot && bar.includes("dependabot-major")) return owner(`Dependabot pull request ${item} is a major update`)
   if (bar.length === 0) return [...actions, { type: "merge" }]
@@ -968,8 +982,11 @@ const executeAction = async (env, mem, ctx, pull, action) => {
 
 const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type)
 
-/** True for an open pull request that the driver tracks and that does not wait on the owner by its own label. */
-const isWaiting = (pull, tickets) => !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !pull.labels.includes(OWNER) && !tickets.find((ticket) => ticket.number === pull.tracks)?.labels.includes(OWNER)
+/** True for an open pull request that the driver tracks and that does not wait on the owner: by a label of its own or of its ticket, or by its report. */
+const isWaiting = (env, pull, tickets) => {
+  const ticket = tickets.find((entry) => entry.number === pull.tracks)
+  return !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !pull.labels.includes(OWNER) && !ticket?.labels.includes(OWNER) && !heldByReport(env, pull, ticket)
+}
 
 /** Plans and runs the actions of every open pull request of one repository. Returns the order candidates. While the weekly stop holds, a Pullfrog request waits. */
 const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped }) => {
@@ -988,7 +1005,8 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
       // A run from before the newest request is settled history: a request that came after it started a new run.
       const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${pausedByLog ? " (Pullfrog hit a usage limit)" : ""}`)
-      if (isWaiting(pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
+      // A plan that goes to the owner is no stall, also on the tick that writes its report and after an answer that cleared nothing.
+      if (!plan.some((action) => action.type === "needs-owner") && isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       for (const action of plan) {
         if (action.type === "order") orders.push(action)
         else if (action.type !== "none") {
@@ -1691,14 +1709,14 @@ const watchStall = async (env, tickets, { acted, held, waiting }) => {
 }
 
 /**
- * Starts one headless `/questions --auto` run when an open item that carries `needs:owner` has a `needs-owner` report newer than the
+ * Starts one headless `/questions --auto` run when a held item (`heldWithNewReport`) has a `needs-owner` report newer than the
  * start of the last run, and no run is live. The run takes no worker slot. It runs in the driver worktree on the main account with the
  * coordinator model and the owner's gh login, and it stops with the main account at 90% like a worker. The start goes to `questions.json` before the launch.
  * The skill reads `sleep.json` itself, so the driver passes no sleep state.
  */
 const startQuestions = async (env, mem, { tickets, states, blocked }) => {
   if (!env.driverWorktree || mem.questions !== null || pidFileOf(env, QUESTIONS_STEM) !== null) return
-  const held = heldWithNewReport(tickets, states, readQuestionsStart(env.stateDir))
+  const held = heldWithNewReport(env, tickets, states, readQuestionsStart(env.stateDir))
   if (held.length === 0) return
   if (blocked !== null) return log(env, "questions", "wait", `${blocked}: ${held.join(", ")}`)
   // The worker token cannot read the ticket repository, so the run uses the owner's gh login and never falls back to the worker token.

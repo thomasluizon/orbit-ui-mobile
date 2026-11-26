@@ -298,6 +298,7 @@ const mergeBarCases = (approved) => {
   same("lib/github.mjs: a pull request that carries needs:owner fails the bar", barOf({ labels: ["parity:exempt", "needs:owner"] }), ["needs-owner"])
   same("lib/github.mjs: a tracked ticket that carries needs:owner fails the bar", barOf({}, { ticketLabels: ["repo:ui", "needs:owner"] }), ["needs-owner"])
   same("lib/github.mjs: needs:owner on both the pull request and its ticket is one failed condition", barOf({ labels: ["needs:owner"] }, { ticketLabels: ["needs:owner"] }), ["needs-owner"])
+  same("lib/github.mjs: a pull request that its needs-owner report holds fails the bar", barOf({}, { reportHeld: true }), ["needs-owner"])
   same("lib/github.mjs: other labels on the pull request and its ticket leave the bar alone", barOf({ labels: ["parity:exempt"] }, { ticketLabels: ["repo:ui", "needs:conversation"] }), [])
   same("lib/github.mjs: every failed condition is listed, not only the first", barOf({ draft: true, mergeState: "DIRTY" }), ["draft", "merge-state:DIRTY"])
 
@@ -1050,7 +1051,12 @@ const skillMarkerCases = () => {
   T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes("gh issue edit --body-file") && questions.includes("`## Owner decisions`"), "section 4 has no body write")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
   same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
+  // A pull request with no open ticket gets no label, so a skill finds it by its report, and only the owner-answer comment ends its hold.
+  const listing = questions.split("\n").find((line) => line.startsWith("2. ") && line.includes("pull request")) ?? ""
+  T("skills/questions: step 1 lists a pull request with no open ticket by its needs-owner report", listing.includes("no open ticket") && listing.includes("<!-- orbit-drive:needs-owner -->"), listing)
+  T("skills/questions: section 4 ends the hold of such a pull request with the orbit-drive:owner-answer marker", questions.includes("<!-- orbit-drive:owner-answer -->"), "no step writes the answer marker")
   const drivers = skillText("driver")
+  T("skills/driver: a held report with no label is handled only when its pull request is closed or answered", drivers.includes("orbit-drive:owner-answer"), "the sleep report reads only the label")
   const unlink = drivers.split("\n").find((line) => line.includes("fs.unlinkSync")) ?? ""
   T("skills/driver: a worktree skill link is deleted only when the pull request of its branch is merged", unlink.includes("--state merged") && unlink.includes("--head"), unlink)
 }

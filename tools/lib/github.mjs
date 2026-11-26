@@ -346,8 +346,9 @@ const dependabotFailures = (types) => {
 /**
  * The failed conditions of the merge bar at the exact head; an empty list means the bar holds.
  * `context`: `fixLaunches`, `wholeDiffRequests` (ISO time of the request, by head sha), `cleanMerges` (shas of empty
- * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket) and, for a
- * Dependabot pull request, `updateTypes`.
+ * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket), `reportHeld`
+ * (true while a `needs-owner` report holds a pull request with no open ticket) and, for a Dependabot pull request,
+ * `updateTypes`.
  */
 export const mergeBar = (pull, context = {}) => {
   const failed = []
@@ -366,7 +367,7 @@ export const mergeBar = (pull, context = {}) => {
   if (pull.mergeState !== "CLEAN") failed.push(`merge-state:${pull.mergeState}`)
   if ((context.blockers ?? []).length > 0) failed.push(`blocked-by:${context.blockers.join(",")}`)
   if (dependabot) failed.push(...dependabotFailures(context.updateTypes))
-  if (pull.labels.includes(OWNER_LABEL) || (context.ticketLabels ?? []).includes(OWNER_LABEL)) failed.push("needs-owner")
+  if (pull.labels.includes(OWNER_LABEL) || (context.ticketLabels ?? []).includes(OWNER_LABEL) || context.reportHeld) failed.push("needs-owner")
   return failed
 }
 
