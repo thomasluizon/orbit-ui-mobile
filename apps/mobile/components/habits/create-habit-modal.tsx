@@ -1,7 +1,7 @@
 import { useOrbitAllowanceCopy } from '@/hooks/use-orbit-allowance-copy'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { type ComponentType, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 import { useIsFocused, useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -79,6 +79,12 @@ function CreateBoundaryNotice({ boundary, onUpgrade }: Readonly<{ boundary: 'hab
   )
 }
 
+/** Says why Criar opened: a queued log was dropped because its habit was never created. */
+function RecoveryNotice({ message, tokens }: Readonly<{ message: string; tokens: ReturnType<typeof createTokensV2> }>) {
+  const { t } = useTranslation()
+  return <Text style={{ color: tokens.fg2 }}>{message} {t('common.syncOrphanedDetail')}</Text>
+}
+
 function createSubHabitEntry(value = ''): SubHabitEntry {
   subHabitCounter += 1
   return { id: `sub-${subHabitCounter}-${Date.now()}`, value }
@@ -149,6 +155,7 @@ export function CreateHabitModal({
   leaveGuard,
   fromConversation = false,
   parentHabit,
+  recoveryMessage,
 }: Readonly<CreateHabitModalProps>) {
   const { t, i18n } = useTranslation()
   const allowanceText = useOrbitAllowanceCopy()
@@ -662,7 +669,10 @@ export function CreateHabitModal({
         fromConversation={fromConversation}
         pending={isPending}
         saveError={saveError}
-        notice={<CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />}
+        notice={<>
+          {recoveryMessage ? <RecoveryNotice message={recoveryMessage} tokens={tokens} /> : null}
+          <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
+        </>}
         createLabel={createLabel}
         onSubmit={(completion) => void runSubmission((startRequest) => submitCreate(startRequest, completion))}
         onClose={dismissGuard.requestDismiss}
