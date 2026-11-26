@@ -56,6 +56,7 @@ let scenarios = 0
 const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", ownerToken = "owner-token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null } = {}) => {
   const calls = []
   const messages = []
+  let elapsed = 0
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
   const states = Object.fromEntries(["ui", "api", "landing"].map((key) => [key, { repositoryKey: key, slug: `thomasluizon/${key}`, defaultBranch: "main", numbers: (pulls[key] ?? []).map((entry) => entry.number), pulls: pulls[key] ?? [] }]))
   const launched = []
@@ -65,12 +66,16 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
   const config = { tickets: { repository: REPOSITORY }, repos: { ui: "/r/ui", api: "/r/api", landing: "/r/landing" } }
   const env = {
     config, dryRun, now: () => NOW, stateDir, lines: [], home: "/home/x",
+    // Each read of the clock moves it by 12.3 seconds, so a tick that reads it twice took 12 seconds.
+    clock: () => (elapsed += 12300),
     log: (line) => messages.push(line), slugOf: (key) => (key === "tickets" ? REPOSITORY : `thomasluizon/${key}`),
     github: {
       readTickets: async () => structuredClone(tickets),
       readRepositoryState: async (key) => structuredClone(states[key]),
       readFailedSteps: async () => failedSteps,
-      pullfrogRunsFor: async () => runs,
+      pullfrogRuns: async (key) => { calls.push(["runList", key]); return runs },
+      // The scenarios give one run list for every pull request, so the title filter keeps it whole.
+      runsNaming: (list) => list,
       readDependabotUpdateTypes: async () => ["patch"],
       unmetDeployFirst: async () => unmet,
       createTicket: async (input) => { calls.push(["createTicket", input]); return { number: 99 } },
@@ -261,7 +266,7 @@ const slotCases = async () => {
   same("drive: 0.10 under the line gives 2 workers and 0.20 under it gives 3, never more", [(await launches(0.35, 4)).launched.length, (await launches(0.25, 4)).launched.length, (await launches(0, 5)).launched.length], [2, 3, 3])
   const logged = await launches(0.35, 1)
   same("drive: a worker that exits during a tick makes the loop start the next tick at once", logged.mem.woken, true)
-  same("drive: a tick logs one pace line with the utilization, the line, the slots, the running workers, the free slots and the stop state", logged.messages.filter((line) => line.includes(" pace ")), [`${iso(0)} pace below (main ${ACCOUNT.key}: utilization 0.350, line 0.450, slots 2, running 0, free 2, stop no; worker none)`])
+  same("drive: a tick logs one pace line with the utilization, the line, the slots, the running workers, the free slots and the stop state", logged.messages.filter((line) => line.includes(" pace ")), [`${iso(0)} pace below (main ${ACCOUNT.key}: utilization 0.350, line 0.450, slots 2, running 0, free 2, stop no; worker none; tick 12s)`])
 
   const fills = runningScene({ tickets: [ticket(7), ticket(8), ticket(9)], reading: { utilization: 0.25, resetsAt: RESETS_AT, at: NOW - MINUTE } })
   await tick(fills.env, fills.mem)
@@ -327,7 +332,7 @@ const stopCases = async () => {
 
   const dry = stopScene({ dryRun: true })
   await dry.run()
-  same("drive: the dry run prints the free slots and the stop state and writes nothing", [dry.messages.filter((line) => line.includes(" pace ")).map((line) => line.slice(line.indexOf("(") + 1)), dry.calls.filter((entry) => ["createTicket", "notify", "comment", "merge"].includes(entry[0])).length], [[`main ${ACCOUNT.key}: utilization 0.900, line 0.450, slots 1, running 0, free 0, stop yes; worker none)`], 0])
+  same("drive: the dry run prints the free slots and the stop state and writes nothing", [dry.messages.filter((line) => line.includes(" pace ")).map((line) => line.slice(line.indexOf("(") + 1)), dry.calls.filter((entry) => ["createTicket", "notify", "comment", "merge"].includes(entry[0])).length], [[`main ${ACCOUNT.key}: utilization 0.900, line 0.450, slots 1, running 0, free 0, stop yes; worker none; tick 12s)`], 0])
 
   const midRun = runningScene({ tickets: [ticket(7), ticket(8)], reading: { utilization: 0.5, resetsAt: RESETS_AT, at: NOW - MINUTE } })
   midRun.logText = () => eventLine(0.5)
@@ -1328,6 +1333,61 @@ const runningWorkCases = async () => {
   }
 }
 
+/** Waits until `done()` is true, for at most 2 seconds. */
+const until = async (done) => {
+  for (let waited = 0; waited < 2000 && !done(); waited += 5) await new Promise((resolve) => setTimeout(resolve, 5))
+  return done()
+}
+
+const planSpeedCases = async () => {
+  // One run list for each repository, however many pull requests it has, and one failed log for each workflow run.
+  const many = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30), pull(31, { headRef: "chore/ticket-7-31" }), pull(32, { headRef: "chore/ticket-7-32" })], api: [pull(40, { headRef: "chore/ticket-7-40" })] } })
+  await many.run()
+  same("drive: a tick reads the Pullfrog run list once for each repository with a pull request", many.calls.filter((entry) => entry[0] === "runList").map((entry) => entry[1]), ["ui", "api"])
+  const draft = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { draft: true })] } })
+  await draft.run()
+  same("drive: a repository with only draft pull requests reads no run list", only(draft.calls, "runList").length, 0)
+  const twoChecks = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check("Unit Tests", "FAILURE"), check("Lint", "FAILURE", { databaseId: 13 }), approvalCheck()], comments: [comment("ticket", "T"), RERAN] })] }, failedSteps: ["Unit tests"], routes: [["--log-failed", "AssertionError: expected 1 to be 2\n"]] })
+  await twoChecks.run()
+  same("drive: two failed checks of one workflow run read its failed log once", [twoChecks.calls.filter((entry) => entry[0] === "gh" && entry[1].includes("--log-failed")).length, twoChecks.launched.length], [1, 1])
+
+  // The pace line names the seconds that the tick took.
+  same("drive: the pace line ends with the seconds of the tick", many.messages.filter((line) => line.includes(" pace ")).map((line) => /; tick (\d+)s\)$/.exec(line)?.[1]), ["12"])
+
+  // The plan is slow: the free slot takes an admitted build order before the plan ends, and a fix order takes the next free slot after it.
+  const slow = scenario({ tickets: [ticket(7), ticket(8)], reading: { utilization: 0.35, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, pulls: { ui: [pull(30, { checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), RERAN] })] }, failedSteps: ["Unit tests"], routes: [["--log-failed", "AssertionError: expected 1 to be 2\n"]] })
+  slow.env.planWindowMs = 20
+  let release = null
+  const gate = new Promise((resolve) => { release = resolve })
+  const order = []
+  const list = slow.env.github.pullfrogRuns
+  slow.env.github.pullfrogRuns = async (key) => { await gate; order.push("plan-ends"); return list(key) }
+  const launch = slow.env.worker.launch
+  slow.env.worker.launch = (options) => { order.push(/Kind: ?build|build order|build/i.test(options.order) && !/ci-fix/.test(options.order) ? "build" : "fix"); return launch(options) }
+  const running = slow.run()
+  const early = await until(() => slow.launched.length === 1)
+  const launchedBeforePlan = order.slice()
+  release()
+  await running
+  same("drive: a free slot starts an admitted build order while the pull request plan still runs", [early, launchedBeforePlan], [true, ["build"]])
+  same("drive: the fix order of the pull request takes the next free slot when the plan ends", [order, slow.launched.length, slow.messages.some((line) => line.includes("early-launch"))], [["build", "plan-ends", "fix"], 2, true])
+  const earlyTicket = slow.messages.filter((line) => line.includes("ticket#") && line.includes("launch build")).length
+  same("drive: the early launch starts one worker for the ticket and the later admission starts no second one", earlyTicket, 1)
+
+  // A plan that ends inside the window keeps the fix order first.
+  const quick = scenario({ tickets: [ticket(7), ticket(8)], reading: { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - MINUTE }, pulls: { ui: [pull(30, { checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), RERAN] })] }, failedSteps: ["Unit tests"], routes: [["--log-failed", "AssertionError: expected 1 to be 2\n"]] })
+  await quick.run()
+  same("drive: a plan that ends in time gives the one free slot to the fix order", [quick.launched.length, /ci-fix/.test(orderText(quick)), quick.messages.some((line) => line.includes("early-launch"))], [1, true, false])
+
+  // No early launch while the driver is paused or in a dry run.
+  const dry = scenario({ tickets: [ticket(7)], dryRun: true })
+  dry.env.planWindowMs = 0
+  dry.env.github.pullfrogRuns = async () => new Promise(() => {})
+  dry.env.github.readRepositoryState = async (key) => ({ repositoryKey: key, slug: key, defaultBranch: "main", numbers: [], pulls: [] })
+  await dry.run()
+  same("drive: a dry run starts no worker early", dry.launched.length, 0)
+}
+
 const paceStampCases = async () => {
   let clock = NOW
   const exitAt = (utilization) => ({ ...clean, utilization, resetsAt: RESETS_AT, status: "allowed" })
@@ -2326,6 +2386,7 @@ export const driverUnit = async () => {
   await logOnlyCases()
   await runningWorkCases()
   await paceStampCases()
+  await planSpeedCases()
   await reapOutcomeCases()
   await unreadLogCases()
   await gatedReportCases()

@@ -405,12 +405,17 @@ export const readFailedSteps = async (repositoryKey, runId, jobId, seams = {}) =
   return response.jobs.filter((job) => job.databaseId === jobId).flatMap((job) => job.steps.filter((step) => step.conclusion === "failure").map((step) => step.name))
 }
 
-/** The `pullfrog.yml` runs that name one pull request in their display title. */
-export const pullfrogRunsFor = async (repositoryKey, prNumber, seams = {}) => {
+/** The newest 200 `pullfrog.yml` runs of a repository. One list serves every pull request of the repository. */
+export const pullfrogRuns = async (repositoryKey, seams = {}) => {
   const api = bind(seams)
   const args = ["run", "list", "--repo", api.slugOf(repositoryKey), "--workflow", "pullfrog.yml", "--json", "databaseId,displayTitle,status,conclusion,createdAt,updatedAt", "--limit", "200"]
+  return parseJson("gh run list", await api.run(args))
+}
+
+/** The runs of a `pullfrogRuns` list that name one pull request in their display title. */
+export const runsNaming = (runs, prNumber) => {
   const mention = new RegExp(`#${prNumber}(?!\\d)`)
-  return parseJson("gh run list", await api.run(args)).filter((run) => mention.test(run.displayTitle))
+  return runs.filter((run) => mention.test(run.displayTitle))
 }
 
 /** The newest deployment of an environment and task whose latest status is `success`, or null. */

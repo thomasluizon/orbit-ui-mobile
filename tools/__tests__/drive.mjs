@@ -19,7 +19,8 @@ import {
   merge,
   mergeBar,
   needsWholeDiff,
-  pullfrogRunsFor,
+  pullfrogRuns,
+  runsNaming,
   readDependabotUpdateTypes,
   readFailedSteps,
   readRepositoryState,
@@ -359,7 +360,7 @@ const mergeBarCases = (approved) => {
 const pullfrogAndDeploymentCases = async (seams) => {
   const runsFor = async (responseRuns, number) => {
     const { run, calls } = scripted([["--workflow pullfrog.yml", () => json(responseRuns)]])
-    return { runs: await pullfrogRunsFor("ui", number, seams(run)), calls }
+    return { runs: runsNaming(await pullfrogRuns("ui", seams(run)), number), calls }
   }
   const named = { ...FIXTURE.pullfrogRuns.response[0], databaseId: 1, displayTitle: `Respond to mention on #${7 * 10} [zzzzz]` }
   const { runs, calls } = await runsFor([...FIXTURE.pullfrogRuns.response, named], 7)
