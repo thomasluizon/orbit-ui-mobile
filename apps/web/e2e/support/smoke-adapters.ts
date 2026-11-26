@@ -97,6 +97,10 @@ async function restoreRequestedType(page: Page, itemType: SmokeItemType): Promis
   if (itemType === 'task') await summaryRow(page, en.habits.flow.summary.when, ptBR.habits.flow.summary.when).click()
 }
 
+async function expectLeftCreateRoute(page: Page): Promise<void> {
+  await expect(page).not.toHaveURL(/\/habits\/new(?:[?#]|$)/)
+}
+
 async function createGuidedHabit(page: Page, title: string, itemType: SmokeItemType, titleInput: Locator): Promise<void> {
   await titleInput.fill(title)
   await localizedRole(page, 'button', en.habits.flow.continue, ptBR.habits.flow.continue).click()
@@ -122,6 +126,7 @@ async function createGuidedHabit(page: Page, title: string, itemType: SmokeItemT
   await localizedRole(result, 'button', en.result.seeToday, ptBR.result.seeToday)
     .or(localizedRole(result, 'button', en.result.seeCalendar, ptBR.result.seeCalendar)).first().click()
   await expect(result).toBeHidden()
+  await expectLeftCreateRoute(page)
 }
 
 async function createClassicHabit(page: Page, title: string, itemType: SmokeItemType, titleInput: Locator): Promise<void> {
@@ -132,6 +137,7 @@ async function createClassicHabit(page: Page, title: string, itemType: SmokeItem
   await expect(submit).toBeEnabled()
   await submit.click()
   await expect(titleInput).toBeHidden()
+  await expectLeftCreateRoute(page)
 }
 
 /** Creates one habit through the create flow the account sees. The page tells the flow: the guided flow asks for the words first, the classic form asks for the type first. */
