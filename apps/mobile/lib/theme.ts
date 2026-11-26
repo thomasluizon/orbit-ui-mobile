@@ -171,7 +171,7 @@ export interface AppShadowsV2 {
 }
 
 function hexChannels(hex: string): [number, number, number] {
-  const normalized = hex.replaceAll('#', '')
+  const normalized = hex.replace('#', '')
   return [
     Number.parseInt(normalized.slice(0, 2), 16),
     Number.parseInt(normalized.slice(2, 4), 16),

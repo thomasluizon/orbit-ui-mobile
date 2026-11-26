@@ -20,7 +20,7 @@ type RefreshState = 'ready' | 'refreshing' | 'retrying' | 'network-error' | 'rej
 
 function mixHexOver(baseHex: string, tintHex: string, alpha: number): string {
   const channels = (hex: string) => {
-    const normalized = hex.replaceAll('#', '')
+    const normalized = hex.replace('#', '')
     return [
       Number.parseInt(normalized.slice(0, 2), 16),
       Number.parseInt(normalized.slice(2, 4), 16),
@@ -36,7 +36,7 @@ function mixHexOver(baseHex: string, tintHex: string, alpha: number): string {
 }
 
 function rgbaFromHex(hex: string, alpha: number): string {
-  const normalized = hex.replaceAll('#', '')
+  const normalized = hex.replace('#', '')
   const r = Number.parseInt(normalized.slice(0, 2), 16)
   const g = Number.parseInt(normalized.slice(2, 4), 16)
   const b = Number.parseInt(normalized.slice(4, 6), 16)

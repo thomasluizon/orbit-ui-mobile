@@ -1107,7 +1107,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
       const subject = subjects[Number(count !== 1)]!
       expect(record.confirm).toMatchObject({ open: true, destructive: true,
         title: `${locale === 'en' ? 'Delete' : 'Apagar'} ${subject}?` })
-      const consequence = (locale === 'en' ? englishBody : portugueseBody)[Number(count !== 1)]!.replaceAll('#', String(count))
+      const consequence = (locale === 'en' ? englishBody : portugueseBody)[Number(count !== 1)]!.replace('#', String(count))
       expect(record.confirm?.message).toBe(`${consequence} ${locale === 'en' ? 'There is no way to restore this here.' : 'Não há como restaurar por aqui.'}`)
       expect(record.confirm?.message).toContain(locale === 'en' ? 'here.' : 'por aqui.')
       expect(localized.confirm.split(/\s+/)).toHaveLength(2)

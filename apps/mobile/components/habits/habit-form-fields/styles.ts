@@ -5,7 +5,7 @@ import { createTokensV2, radius, tintFromPrimary } from "@/lib/theme";
 export type AppTokens = ReturnType<typeof createTokensV2>;
 
 function fgTint(tokens: AppTokens, alpha: number): string {
-  const normalized = tokens.fg1.replaceAll("#", "");
+  const normalized = tokens.fg1.replace("#", "");
   const red = Number.parseInt(normalized.slice(0, 2), 16);
   const green = Number.parseInt(normalized.slice(2, 4), 16);
   const blue = Number.parseInt(normalized.slice(4, 6), 16);

@@ -201,7 +201,7 @@ describe('native union accepts both widget callers', () => {
         const parameters = nativeParameters(name)
         for (const [index, parameter] of method.parameters.entries()) {
           const expected = parameter.type?.kind === ts.SyntaxKind.StringKeyword ? 'String' : 'Map<String, String>'
-          expect(parameters[index]?.replaceAll('?', ''), `${name} argument ${index}`).toBe(expected)
+          expect(parameters[index]?.replace('?', ''), `${name} argument ${index}`).toBe(expected)
         }
       }
     })

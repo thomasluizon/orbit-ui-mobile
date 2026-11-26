@@ -21,7 +21,7 @@ function getDecimalDigits(value: number): DecimalDigits {
   const exponent = exponentMarker === -1 ? 0 : Number(unsignedText.slice(exponentMarker + 1))
   const decimalPoint = coefficient.indexOf('.')
   const integerLength = decimalPoint === -1 ? coefficient.length : decimalPoint
-  const coefficientDigits = coefficient.replaceAll('.', '')
+  const coefficientDigits = coefficient.replace('.', '')
   const decimalPosition = integerLength + exponent
   const leadingFractionZeros = Math.max(-decimalPosition, 0)
   const trailingIntegerZeros = Math.max(decimalPosition - coefficientDigits.length, 0)
