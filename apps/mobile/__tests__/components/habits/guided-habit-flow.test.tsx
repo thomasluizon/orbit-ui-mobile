@@ -93,6 +93,7 @@ function textIn(node: unknown): string {
   const hosts = (node as { findAll: (predicate: (child: { type: unknown }) => boolean) => { props: { children?: unknown } }[] }).findAll((child) => child.type === 'Text')
   return hosts.map((host) => host.props.children).filter((value): value is string => typeof value === 'string').join('')
 }
+const dateFieldValue = (tree: Tree) => (tree.hosts().find((node) => node.props.testID === 'date-picker')?.props as { value?: string } | undefined)?.value
 async function tap(tree: Tree, name: string | RegExp) {
   const target = control(tree, name)
   if (!target) throw new Error(`no control named ${String(name)}`)
@@ -206,6 +207,19 @@ describe.each([
     await type(tree, flowCopy().when.freeLabel, locale === 'en' ? 'the 20th' : 'dia 20')
     await submitField(tree, flowCopy().when.freeLabel)
     expect(helpers().form.getValues('dueDate')).toBe('2026-11-20')
+    tree.unmount()
+  })
+
+  it('scenario 6b: shows the next weekday in the date field as the person types, before Continue, and changes the form only on Continue', async () => {
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'call the bank' : 'ligar para o banco')
+    await type(tree, flowCopy().when.freeLabel, locale === 'en' ? 'friday' : 'sexta')
+    expect(dateFieldValue(tree)).toBe('2026-11-20')
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'task', dueDate: '' })
+    expect(heading(tree)).toBe(flowCopy().when.question)
+    await type(tree, flowCopy().when.freeLabel, locale === 'en' ? 'every friday' : 'toda sexta')
+    await submitField(tree, flowCopy().when.freeLabel)
+    expect(helpers().form.getValues('itemType')).toBe('habit')
     tree.unmount()
   })
 

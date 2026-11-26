@@ -1,5 +1,5 @@
 import { formatConjunctionList } from './conjunction-list'
-import { parseDatePhrase, type DatePhraseContext } from './date-phrase-parser'
+import { parseDatePhrase, readDateWeekday, type DatePhraseContext } from './date-phrase-parser'
 import { getFriendlyErrorMessage } from './error-utils'
 import { habitPhraseRepeats, readTypedHabitPhrase, type HabitPhraseRead, type HabitPhraseSpan } from './habit-phrase-parser'
 import type { SupportedLocale } from '../types/profile'
@@ -119,16 +119,59 @@ export interface HabitWhenWordsContext extends DatePhraseContext {
   language: SupportedLocale
   /** A new task never takes a past day. An edit keeps a past day it already holds. */
   allowPast: boolean
+  /** The type the form holds now. A bare weekday repeats only for a habit. */
+  itemType?: 'task' | 'habit' | null
+  /** The type the person set on a step. It wins over the type the form holds. */
+  deliberateType?: 'task' | 'habit' | null
+}
+
+const WEEKDAY_QUALIFIERS = new Set(['proxima', 'proximo', 'esta', 'este', 'nesta', 'neste', 'na', 'no', 'em', 'para', 'pra', 'de', 'a', 'o', 'next', 'this', 'on', 'upcoming', 'coming', 'by', 'for'])
+const PLURAL_WEEKDAY: Readonly<Record<SupportedLocale, RegExp>> = { 'pt-BR': /s$/u, en: /(?:days|^(?:sun|mon|fri|sat)s)$/u }
+const PLAIN_ACCENTS = /\p{M}/gu
+
+function plainWords(text: string): string[] {
+  return text.toLowerCase().normalize('NFD').replace(PLAIN_ACCENTS, '').split(/[\s,;.!?]+/u).filter((word) => word.length > 0)
+}
+
+const DATE_QUALIFIER_WORDS = new Set([...WEEKDAY_QUALIFIERS, 'que', 'vem', 'feira', 'ate', 'manha', 'tarde', 'noite', 'morning', 'afternoon', 'evening', 'night', 'da', 'pela', 'ao', 'hora', 'horas', 'meio-dia', 'in', 'the', 'at', 'noon'])
+
+function wordsOutside(text: string, read: HabitPhraseRead, weekday: HabitPhraseSpan | null): string[] {
+  const skipped = [...read.consumed.filter((token) => token.kind === 'time'), ...(weekday ? [weekday] : [])]
+  const rest = Array.from(text, (char, index) => (skipped.some((span) => index >= span.start && index < span.end) ? ' ' : char)).join('')
+  return plainWords(rest)
+}
+
+function bareWeekdayToken(text: string, read: HabitPhraseRead, language: SupportedLocale): HabitPhraseSpan | null {
+  if (read.cadence !== 'fixed' || read.intervalWeeks !== null || read.days.length !== 1) return null
+  const days = read.consumed.filter((token) => token.kind !== 'time')
+  const [token] = days
+  if (days.length !== 1 || token!.kind !== 'weekday') return null
+  const word = plainWords(text.slice(token!.start, token!.end))
+  if (word.length !== 1 || PLURAL_WEEKDAY[language].test(word[0]!)) return null
+  return wordsOutside(text, read, token!).every((other) => DATE_QUALIFIER_WORDS.has(other)) ? token! : null
+}
+
+function loneWeekdayWord(text: string, read: HabitPhraseRead): string | null {
+  const words = wordsOutside(text, read, null)
+  const weekdays = words.filter((word) => readDateWeekday(word) !== null)
+  const [weekday] = weekdays
+  if (weekdays.length !== 1 || SHORT_WEEKDAYS_THAT_ARE_WORDS.has(weekday!)) return null
+  return words.every((word) => word === weekday || DATE_QUALIFIER_WORDS.has(word)) ? weekday! : null
 }
 
 /**
- * The person's own words on the date question. The device reads a repeat first, then a date. A day
- * before today is refused for a new task, so the step stays open with one line of guidance.
+ * The person's own words on the date question. The device reads a repeat first, then a date. A bare weekday is
+ * the next date of that weekday, unless the type is already a habit. A day before today is refused for a new
+ * task, so the step stays open with one line of guidance.
  */
 export function readHabitWhenWords(text: string, context: HabitWhenWordsContext): HabitWhenWords {
   const read = readTypedHabitPhrase(text, context.language, null, false)
-  if (habitPhraseRepeats(read)) return { kind: 'repeat', read }
-  const result = parseDatePhrase(text, context)
+  const weekday = bareWeekdayToken(text, read, context.language)
+  const bareDate = weekday !== null && (context.deliberateType ?? context.itemType) !== 'habit'
+  if (habitPhraseRepeats(read) && !bareDate) return { kind: 'repeat', read }
+  const whole = parseDatePhrase(bareDate ? text.slice(weekday.start, weekday.end) : text, context)
+  const lone = whole.status === 'resolved' || habitPhraseRepeats(read) ? null : loneWeekdayWord(text, read)
+  const result = lone === null ? whole : parseDatePhrase(lone, context)
   if (result.status !== 'resolved') return { kind: 'unresolved' }
   if (!context.allowPast && result.date < context.referenceDate) return { kind: 'past' }
   return { kind: 'date', date: result.date }
@@ -194,6 +237,15 @@ const DATE_WORDS_MAX = 5
 const WORD = /[^\s,;.!?()]+(?:[,.][^\s,;.!?()]+)*/gu
 const SHORT_WEEKDAYS_THAT_ARE_WORDS = new Set(['sun', 'mon', 'tue', 'tues', 'wed', 'thu', 'thur', 'thurs', 'fri', 'sat', 'dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'sáb'])
 const FRACTION_OR_ORDINAL = /^(?:\d{1,2}[/.-]\d{1,2}|the \d{1,2}(?:st|nd|rd|th)?)$/iu
+
+/**
+ * The words are one short weekday name that is also the start of another word ("qua" on the way to "quando", "sun", "ter").
+ * The live read of the date step waits for more letters. Continue still reads the words as they are.
+ */
+export function isShortWeekdayWord(text: string): boolean {
+  const words = plainWords(text)
+  return words.length === 1 && SHORT_WEEKDAYS_THAT_ARE_WORDS.has(words[0]!)
+}
 
 function isDateCandidate(text: string, words: readonly HabitPhraseSpan[]): boolean {
   if (FRACTION_OR_ORDINAL.test(text.slice(words[0]!.start, words.at(-1)!.end))) return false
