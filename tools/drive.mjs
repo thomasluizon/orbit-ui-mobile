@@ -22,7 +22,7 @@ import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
-import { partOf, renderOrder } from "./lib/order.mjs"
+import { ownerParts, partOf, renderOrder } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
@@ -144,8 +144,9 @@ export const launchesOf = (ticket) => {
 const partsOf = (ticket) => {
   const byNumber = new Map()
   // The owner's comments are read oldest first, whatever order the API lists them in, so a later comment of a part replaces an earlier one.
-  for (const entry of [...ticket.comments].sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
-    const part = entry.kind === null ? partOf(entry) : null
+  // The newest part set is in force, so an older set with another total is dropped.
+  for (const entry of ownerParts(ticket.comments.filter((comment) => comment.kind === null)).sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
+    const part = partOf(entry)
     if (part) byNumber.set(part.number, { ...part, comment: entry, paths: pathsOf(entry.body), find: /^Kind: find\s*$/m.test(entry.body) })
   }
   return [...byNumber.values()].sort((left, right) => left.number - right.number)
@@ -816,6 +817,8 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   const ticket = pull.tracks === null ? null : ticketMap.get(pull.tracks) ?? null
   const blockers = ticket?.blockedBy.filter((blocker) => blocker.open).map((blocker) => blocker.number) ?? []
   if (blockers.length > 0) return [{ type: "none", reason: `blocked by ${blockers.join(", ")}` }]
+  // A worker that runs on the branch pushes more commits, so a review, an update or a merge at the current head answers a head that changes.
+  if (running.branches.has(pull.headRef)) return [{ type: "none", reason: "a worker runs on the branch" }]
   const hasTicketComment = pull.comments.some((entry) => entry.kind === "ticket")
   // A second run on one head costs a full review and answers nothing new, so no request goes out while a run for the pull request is queued or in progress.
   const runBusy = runs.some((run) => run.status !== "completed")
