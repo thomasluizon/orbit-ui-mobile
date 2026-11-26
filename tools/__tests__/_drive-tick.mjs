@@ -762,6 +762,12 @@ const stallCases = async () => {
   same("drive: an action closes the open stall issue", only(closing.calls, "closeTicket"), [["closeTicket", 41]])
   const quiet = await stalled(-61 * MINUTE, { tickets: [ticket(7)], extra: { labels: [OWNER_LABEL] } })
   same("drive: a pull request that waits on the owner is no stall", created(quiet).length, 0)
+  const fixBranch = "chore/ticket-7-30"
+  const opusSpent = [launchComment("fix", fixBranch, -300 * MINUTE), launchComment("fix", fixBranch, -200 * MINUTE), launchComment("fix", fixBranch, -100 * MINUTE, null, { model: "claude-opus-5-5" })]
+  const replanWait = await stalled(-61 * MINUTE, { runs: [], tickets: [ticket(7, { comments: opusSpent })], extra: { reviews: [review(CHANGES_REQUESTED, RECORDED_HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })] } })
+  same("drive: a capped pull request that waits for the re-plan is no stall and writes no notice, no label and no sleep line", [created(replanWait).length, only(replanWait.calls, "notify").length, only(replanWait.calls, "editLabels").length, replanWait.messages.filter((line) => line.includes("sleep held")).length, replanWait.launched.length], [0, 0, 0, 0, 0])
+  const replanAsleep = await stalled(-61 * MINUTE, { runs: [], sleeping: true, tickets: [ticket(7, { comments: opusSpent })], extra: { reviews: [review(CHANGES_REQUESTED, RECORDED_HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })] } })
+  same("drive: while sleep is on, a pull request that waits for the re-plan holds no sleep item", [created(replanAsleep).length, replanAsleep.messages.filter((line) => line.includes("sleep held")).length], [0, 0])
   const merging = await stalled(-61 * MINUTE, { runs: [], extra: { checks: [check("Unit Tests"), approvalCheck()], mergeState: "CLEAN", reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
   same("drive: a merge resets the clock", [only(merging.calls, "merge").length, created(merging).length], [1, 0])
 }

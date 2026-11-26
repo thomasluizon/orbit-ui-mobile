@@ -1105,7 +1105,8 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
       // A run from before the newest request is settled history: a request that came after it started a new run.
       const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${pausedByLog ? " (Pullfrog hit a usage limit)" : ""}`)
-      if (isWaiting(pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
+      // A hold that the driver chose for a re-plan is no stall: the next re-plan run ends it, so it never reaches the stall clock.
+      if (isWaiting(pull, tickets) && !plan.some((action) => action.reason === WAITS_FOR_REPLAN)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       for (const action of plan) {
         if (action.type === "order") orders.push(action)
         else if (action.type !== "none") {
