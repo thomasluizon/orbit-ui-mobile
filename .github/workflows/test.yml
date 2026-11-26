@@ -723,7 +723,9 @@ jobs:
     needs: plan
     if: github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Lint reads types, so its time grows with the changed files: 908 files need more than 315 s. A lint of every file
+    # needs an estimated 800 s. The limit holds that run.
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v7
