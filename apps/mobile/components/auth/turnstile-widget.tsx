@@ -6,8 +6,8 @@ import { AppState, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { addBreadcrumb, captureMessage } from '@sentry/react-native'
 import {
-  createTurnstileLoadFailureReporter, TURNSTILE_CHALLENGE_HEIGHT, TURNSTILE_CHALLENGE_HOST, TURNSTILE_LOAD_DEADLINE_MS,
-  TURNSTILE_RETRY_INTERVAL_MS, type TurnstileBridgeStage, type TurnstileLoadFailure,
+  createTurnstileLoadFailureReporter, TURNSTILE_BRIDGE_RETRY_STATUSES, TURNSTILE_CHALLENGE_HEIGHT, TURNSTILE_CHALLENGE_HOST,
+  TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_RETRY_INTERVAL_MS, turnstileBridgeRetryDelayMs, type TurnstileBridgeStage, type TurnstileLoadFailure,
 } from '@orbit/shared/hooks/turnstile-token-core'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import type { WebViewErrorEvent, WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes'
@@ -19,8 +19,8 @@ import { shouldLoadTurnstileFrame, TURNSTILE_ORIGIN_ALLOWLIST, urlHost } from '@
 
 type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
 
-// WHY: a sleeping Render web service answers its wake page with 503 https://render.com/docs/free
-const TEMPORARY_HTTP_STATUSES = new Set([429, 502, 503, 504])
+// WHY: a rate limit passes by itself, and the bridge loads again at the retry interval https://developer.mozilla.org/docs/Web/HTTP/Status/429
+const TEMPORARY_HTTP_STATUSES = new Set([429, ...TURNSTILE_BRIDGE_RETRY_STATUSES])
 const BRIDGE_FAILURE_KINDS = ['script', 'script_deadline', 'challenge'] as const
 const STAGE_DEADLINES: Record<TurnstileBridgeStage, TurnstileLoadFailure> = {
   script_started: { kind: 'script_deadline', host: TURNSTILE_CHALLENGE_HOST },
@@ -58,16 +58,20 @@ function useLoadFailureReport(resetKey: number) {
   const startReport = useCallback(() => { report.current = createTurnstileLoadFailureReporter(captureMessage) }, [])
   useEffect(startReport, [resetKey, startReport])
 
-  const recordFailure = useCallback((failure: TurnstileLoadFailure) => {
+  const leaveBreadcrumb = useCallback((failure: TurnstileLoadFailure) => {
     addBreadcrumb({
       category: 'auth.turnstile',
       level: 'warning',
       message: FAILURE_MESSAGES[failure.kind],
       data: { statusCode: failure.statusCode, code: failure.code, description: failure.description, host: failure.host },
     })
-    report.current?.(failure)
   }, [])
-  return { recordFailure, startReport }
+  const reportFailure = useCallback((failure: TurnstileLoadFailure) => { report.current?.(failure) }, [])
+  const recordFailure = useCallback((failure: TurnstileLoadFailure) => {
+    leaveBreadcrumb(failure)
+    reportFailure(failure)
+  }, [leaveBreadcrumb, reportFailure])
+  return { recordFailure, leaveBreadcrumb, reportFailure, startReport }
 }
 
 function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: string | null) => void) {
@@ -80,10 +84,13 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
   const [appActive, setAppActive] = useState(() => AppState.currentState === 'active')
   const deadlineLive = useRef(false)
   const bridgeStage = useRef<TurnstileBridgeStage | null>(null)
-  const { recordFailure, startReport } = useLoadFailureReport(resetKey)
+  const heldFailure = useRef<TurnstileLoadFailure | null>(null)
+  const retryStatusCount = useRef(0)
+  const { recordFailure, leaveBreadcrumb, reportFailure, startReport } = useLoadFailureReport(resetKey)
 
   useEffect(() => { onTokenRef.current = onToken }, [onToken])
   useEffect(() => { bridgeStage.current = null }, [resetKey, attempt])
+  useEffect(() => { heldFailure.current = null; retryStatusCount.current = 0 }, [resetKey])
 
   useEffect(() => {
     let active = true
@@ -104,13 +111,14 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     const deadline = setTimeout(() => {
       deadlineLive.current = false
       clearTimeout(reloadTimer.current)
+      if (heldFailure.current) reportFailure(heldFailure.current)
       recordFailure(bridgeStage.current ? STAGE_DEADLINES[bridgeStage.current] : { kind: 'bridge_deadline', host: bridgeHost })
       onTokenRef.current(null)
       setState('failed')
     }, TURNSTILE_LOAD_DEADLINE_MS)
     stopDeadline.current = () => clearTimeout(deadline)
     return () => clearTimeout(deadline)
-  }, [resetKey, load, appActive, bridgeHost, recordFailure])
+  }, [resetKey, load, appActive, bridgeHost, recordFailure, reportFailure])
 
   useEffect(() => () => clearTimeout(reloadTimer.current), [])
 
@@ -120,7 +128,12 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     deadlineLive.current = false
   }
 
-  function failLoad(temporary: boolean) {
+  function clearHeldFailure() {
+    heldFailure.current = null
+    retryStatusCount.current = 0
+  }
+
+  function failLoad(temporary: boolean, delayMs = TURNSTILE_RETRY_INTERVAL_MS) {
     onToken(null)
     clearTimeout(reloadTimer.current)
     if (!temporary) {
@@ -130,7 +143,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     }
     if (!deadlineLive.current) setLoad((value) => value + 1)
     setState('loading')
-    reloadTimer.current = setTimeout(() => setAttempt((value) => value + 1), TURNSTILE_RETRY_INTERVAL_MS)
+    reloadTimer.current = setTimeout(() => setAttempt((value) => value + 1), delayMs)
   }
 
   function onError(event: WebViewErrorEvent) {
@@ -141,7 +154,15 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
 
   function onHttpError(event: WebViewHttpErrorEvent) {
     const { statusCode, description, url } = event.nativeEvent
-    recordFailure({ kind: 'http', host: urlHost(url), statusCode, description })
+    const failure: TurnstileLoadFailure = { kind: 'http', host: urlHost(url), statusCode, description }
+    if (TURNSTILE_BRIDGE_RETRY_STATUSES.has(statusCode)) {
+      leaveBreadcrumb(failure)
+      heldFailure.current = failure
+      failLoad(true, turnstileBridgeRetryDelayMs(retryStatusCount.current))
+      retryStatusCount.current += 1
+      return
+    }
+    recordFailure(failure)
     failLoad(TEMPORARY_HTTP_STATUSES.has(statusCode))
   }
 
@@ -161,6 +182,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     if (failure) recordFailure({ ...failure, host: TURNSTILE_CHALLENGE_HOST })
     const stage = readBridgeStage(message)
     if (stage) {
+      clearHeldFailure()
       bridgeStage.current = stage
       if (deadlineLive.current) setLoad((value) => value + 1)
     }
@@ -171,6 +193,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
       message.state === 'loading' || message.state === 'interactive' || message.state === 'solved' ||
       message.state === 'failed' || message.state === 'expired'
     )) {
+      clearHeldFailure()
       endLoad()
       if (message.state === 'loading') setLoad((value) => value + 1)
       setState(message.state)
@@ -181,6 +204,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     onToken(null)
     endLoad()
     startReport()
+    clearHeldFailure()
     setLoad((value) => value + 1)
     setState('loading')
     setAttempt((value) => value + 1)

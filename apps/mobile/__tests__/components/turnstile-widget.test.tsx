@@ -405,20 +405,22 @@ async function renderWithFakeClock(onToken = vi.fn(), resetKey = 0) {
   return renderer
 }
 
-it('keeps the loading state while a waking bridge host answers 503, loads the bridge again every 2 s, and shows the check the bridge then posts', async () => {
+const EXPECTED_BRIDGE_BACKOFF_MS = [2_000, 4_000, 8_000, 8_000, 8_000, 8_000]
+
+it('keeps the loading state while a waking bridge host answers 503, loads the bridge again after 2, 4 and 8 s and then every 8 s, and shows the check the bridge then posts', async () => {
   const onToken = vi.fn()
   const renderer = await renderWithFakeClock(onToken)
   const loaded: BridgeNode[] = []
-  for (let elapsed = 0; elapsed < 23_500; elapsed += TURNSTILE_RETRY_INTERVAL_MS) {
+  for (const [load, delay] of EXPECTED_BRIDGE_BACKOFF_MS.entries()) {
     const [bridge] = bridges(renderer)
-    expect(loaded, `a new WebView loads the bridge at ${elapsed} ms`).not.toContain(bridge)
+    expect(loaded, `a new WebView loads the bridge for load ${load}`).not.toContain(bridge)
     loaded.push(bridge!)
     TestRenderer.act(() => bridge!.props.onHttpError(httpError(bridge!.props.source.uri, 503, 'Service Unavailable')))
     expect(onToken).toHaveBeenLastCalledWith(null)
-    expect(shownSentences(renderer), `after the 503 at ${elapsed} ms`).toEqual(['auth.turnstileLoading'])
+    expect(shownSentences(renderer), `after the 503 of load ${load}`).toEqual(['auth.turnstileLoading'])
     expect(renderer.root.findAllByProps({ label: 'auth.turnstileRetry' })).toHaveLength(0)
-    TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS - 1) })
-    expect(bridges(renderer), 'the next load waits for 2 s').toEqual([bridge])
+    TestRenderer.act(() => { vi.advanceTimersByTime(delay - 1) })
+    expect(bridges(renderer), `the next load waits for ${delay} ms`).toEqual([bridge])
     TestRenderer.act(() => { vi.advanceTimersByTime(1) })
   }
 
@@ -521,11 +523,10 @@ it('keeps a bridge that runs its challenge again: each loading message starts th
 it('shows the failure 60 s after the last loading message of a bridge that then gives no sign, and removes the WebView', async () => {
   const onToken = vi.fn()
   const renderer = await renderWithFakeClock(onToken)
-  const wakeMs = 50_000
-  for (let elapsed = 0; elapsed < wakeMs; elapsed += TURNSTILE_RETRY_INTERVAL_MS) {
+  for (const delay of EXPECTED_BRIDGE_BACKOFF_MS) {
     const [bridge] = bridges(renderer)
     TestRenderer.act(() => bridge!.props.onHttpError(httpError(bridge!.props.source.uri, 503, 'Service Unavailable')))
-    TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
+    TestRenderer.act(() => { vi.advanceTimersByTime(delay) })
   }
 
   const [awake] = bridges(renderer)
@@ -561,6 +562,71 @@ it('fails at once on a status that does not pass, and removes the WebView', asyn
   expect(bridges(renderer)).toHaveLength(0)
   TestRenderer.act(() => { vi.runAllTimers() })
   expect(bridges(renderer)).toHaveLength(0)
+})
+
+it.each([502, 503, 504])('reports nothing when a %s answer of the bridge host is followed by a bridge that loads', async (status) => {
+  vi.mocked(captureMessage).mockClear()
+  vi.mocked(addBreadcrumb).mockClear()
+  const renderer = await renderWithFakeClock()
+  const [asleep] = bridges(renderer)
+  TestRenderer.act(() => asleep!.props.onHttpError(httpError(asleep!.props.source.uri, status, 'Service Unavailable')))
+  TestRenderer.act(() => { vi.advanceTimersByTime(2_000) })
+  const [awake] = bridges(renderer)
+  expect(awake).not.toBe(asleep)
+  post(awake!, { stage: 'script_started' })
+  post(awake!, { stage: 'script_loaded' })
+  post(awake!, { state: 'interactive' })
+  TestRenderer.act(() => { vi.advanceTimersByTime(3 * TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(shownSentences(renderer)).toEqual([])
+  expect(vi.mocked(captureMessage).mock.calls, 'a retry that works sends no Sentry event, not at once and not at the deadline').toEqual([])
+  expect(vi.mocked(addBreadcrumb).mock.calls.map(([breadcrumb]) => breadcrumb.data?.statusCode), 'the breadcrumb of the status stays').toEqual([status])
+})
+
+it('reports the 503 status once, with the load deadline event, when every load of the bridge answers 503 until the deadline', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const renderer = await renderWithFakeClock()
+  const bridgeUrl = bridges(renderer)[0]!.props.source.uri
+  const host = new URL(bridgeUrl).hostname
+  let elapsed = 0
+  for (const delay of EXPECTED_BRIDGE_BACKOFF_MS) {
+    TestRenderer.act(() => bridges(renderer)[0]!.props.onHttpError(httpError(bridgeUrl, 503, 'Service Unavailable')))
+    expect(vi.mocked(captureMessage).mock.calls, `no event after the 503 at ${elapsed} ms`).toEqual([])
+    TestRenderer.act(() => { vi.advanceTimersByTime(delay) })
+    elapsed += delay
+  }
+  TestRenderer.act(() => bridges(renderer)[0]!.props.onHttpError(httpError(bridgeUrl, 503, 'Service Unavailable')))
+  expect(vi.mocked(captureMessage).mock.calls).toEqual([])
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS - elapsed) })
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
+  expect(bridges(renderer)).toHaveLength(0)
+  expect(vi.mocked(captureMessage).mock.calls).toEqual([
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'http', host, status_code: 503, code: null },
+      extra: { description: 'Service Unavailable', elapsed_ms: TURNSTILE_LOAD_DEADLINE_MS }, fingerprint: ['turnstile_load_failed', 'http', '503'] }],
+    deadlineEvent('bridge_deadline', host, TURNSTILE_LOAD_DEADLINE_MS),
+  ])
+})
+
+it('starts the 2 s backoff again after a sign from a bridge page, and after Retry', async () => {
+  const renderer = await renderWithFakeClock()
+  for (const delay of EXPECTED_BRIDGE_BACKOFF_MS.slice(0, 2)) {
+    TestRenderer.act(() => bridges(renderer)[0]!.props.onHttpError(httpError('https://app.example/x', 503, 'Service Unavailable')))
+    TestRenderer.act(() => { vi.advanceTimersByTime(delay) })
+  }
+  post(bridges(renderer)[0]!, { state: 'loading' })
+  const [again] = bridges(renderer)
+  TestRenderer.act(() => again!.props.onHttpError(httpError('https://app.example/x', 503, 'Service Unavailable')))
+  TestRenderer.act(() => { vi.advanceTimersByTime(1_999) })
+  expect(bridges(renderer), 'a sign resets the backoff to 2 s').toEqual([again])
+  TestRenderer.act(() => { vi.advanceTimersByTime(1) })
+  expect(bridges(renderer)[0]).not.toBe(again)
+
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
+  TestRenderer.act(() => renderer.root.findByProps({ label: 'auth.turnstileRetry' }).props.onClick())
+  const [fresh] = bridges(renderer)
+  TestRenderer.act(() => fresh!.props.onHttpError(httpError('https://app.example/x', 503, 'Service Unavailable')))
+  TestRenderer.act(() => { vi.advanceTimersByTime(2_000) })
+  expect(bridges(renderer)[0], 'Retry starts the backoff at 2 s').not.toBe(fresh)
 })
 
 it('keeps a bridge that posts while a new load waits, and a later load error starts a new load deadline', async () => {
@@ -612,7 +678,7 @@ it('sends one Sentry event for each different load failure, with the kind, the s
   const host = new URL(bridgeUrl).hostname
   for (let load = 0; load < 3; load += 1) {
     const [bridge] = bridges(renderer)
-    TestRenderer.act(() => bridge!.props.onHttpError(httpError(bridgeUrl, 503, 'Service Unavailable')))
+    TestRenderer.act(() => bridge!.props.onHttpError(httpError(bridgeUrl, 429, 'Too Many Requests')))
     TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
   }
   const [awake] = bridges(renderer)
@@ -629,7 +695,7 @@ it('sends one Sentry event for each different load failure, with the kind, the s
     ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind, host: eventHost, status_code, code },
       extra: { description, elapsed_ms }, fingerprint: ['turnstile_load_failed', kind, String(status_code ?? code ?? '')] }]
   expect(vi.mocked(captureMessage).mock.calls).toEqual([
-    event('http', host, 503, null, 'Service Unavailable', 0),
+    event('http', host, 429, null, 'Too Many Requests', 0),
     event('challenge', 'challenges.cloudflare.com', null, '300010', null, 36_000),
     event('challenge', 'challenges.cloudflare.com', null, null, null, 36_000),
     event('bridge_deadline', host, null, null, null, 96_000),
