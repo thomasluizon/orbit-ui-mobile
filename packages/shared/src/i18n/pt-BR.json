@@ -3196,7 +3196,6 @@
   "trial": {
     "proBadge": "Período de teste",
     "expired": {
-      "eyebrow": "Teste encerrado",
       "heading": "O teste Pro acabou",
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro ficam pausados se você não assinar.",
@@ -4544,7 +4543,6 @@
   "today": {
     "setupChecklist": {
       "title": "Primeiros passos",
-      "subtitle": "Três passos rápidos para configurar o Orbit.",
       "items": {
         "createHabit": "Crie seu primeiro hábito",
         "logHabit": "Registre um hábito hoje",
