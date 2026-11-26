@@ -369,7 +369,8 @@ const oneLine = (text) => text.replace(/\s+/g, " ").trim()
 
 const cut = (text, limit) => {
   const line = oneLine(text)
-  return line.length <= limit ? line : `${line.slice(0, limit - 3)}...`
+  // A cut can split an emoji, and `osascript` refuses the half that is left.
+  return line.length <= limit ? line : `${line.slice(0, limit - 3).toWellFormed()}...`
 }
 
 const clock = (ms) => `${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`
