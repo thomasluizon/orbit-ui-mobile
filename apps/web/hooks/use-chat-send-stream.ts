@@ -20,6 +20,7 @@ import { type ChatStreamRequest,type BlockAnswerRequest,type BlockAnswerResult,b
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import { buildRecentChatHistory } from '@orbit/shared/utils'
+import { readBodyChunks } from '@orbit/shared/utils/body-reader'
 import { useChatStore } from '@/stores/chat-store'
 import type { ChatStoreState } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
@@ -36,21 +37,13 @@ function isAbortError(error: unknown): boolean {
 }
 
 async function* streamTextChunks(
-  body: ReadableStream<Uint8Array> | null,
+  body: ReadableStream<Uint8Array> | null | undefined,
   onActivity: () => void,
 ): AsyncGenerator<string> {
-  if (!body) return
-  const reader = body.getReader()
   const decoder = new TextDecoder()
-  try {
-    let result = await reader.read()
-    while (!result.done) {
-      onActivity()
-      yield decoder.decode(result.value, { stream: true })
-      result = await reader.read()
-    }
-  } finally {
-    reader.releaseLock()
+  for await (const chunk of readBodyChunks(body)) {
+    onActivity()
+    yield decoder.decode(chunk, { stream: true })
   }
 }
 
