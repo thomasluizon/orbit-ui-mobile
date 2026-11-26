@@ -1875,12 +1875,15 @@ const reportRollback = async (env, { failedSha, previousSha, error, reason }) =>
 }
 
 /**
- * At the end of a tick with no worker of its own running, moves the driver to the newer driver commit of origin/main. The
- * new commit must start (`--preflight` exits 0); when it does not, the driver goes back at once and stays up. Returns true when
- * the driver must exit with code 0, so launchd starts the new version. A launch record on disk survives the switch.
+ * At the end of a tick, moves the driver to the newer driver commit of origin/main, while workers run. A worker is a detached
+ * process with its own pid file, launch record and worktree, so the restarted driver adopts it from them. The new commit must
+ * start (`--preflight` exits 0); when it does not, the driver goes back at once and stays up. Returns true when the driver must
+ * exit with code 0, so launchd starts the new version. No switch happens in a dry run, while the questions run is live (it runs
+ * in the driver worktree), while a launch of this tick has no live pid file to adopt, or while a result of this process waits for its reap.
  */
 const switchDriver = async (env, mem) => {
-  if (!env.selfUpdate || env.dryRun || mem.running.size > 0 || mem.questions !== null || runningWorkers(env, mem).workers.length > 0) return false
+  if (!env.selfUpdate || env.dryRun || mem.questions !== null || mem.results.size > 0) return false
+  if ([...mem.running.keys()].some((stem) => pidFileOf(env, stem) === null)) return false
   const { head, next } = await newerDriverCommit(env, { fetch: true })
   if (next === null) return false
   await checkoutPin(env, next)

@@ -1930,14 +1930,33 @@ const selfUpdateCases = async () => {
   same("drive: a main commit that changes the driver is checked out detached at the end of a tick with no worker, and the tick says to exit", [result.switched, switching.checkouts(), pinOf(switching).from, pinOf(switching).to, pinOf(switching).rolledBack, driverLines(switching).length, switching.calls.some((entry) => entry[0] === "git" && entry[1] === "fetch" && entry.includes("main"))], [true, [`checkout --detach ${NEW_PIN}`], OLD_PIN, NEW_PIN, false, 1, true])
 
   const busy = driverScene()
-  const recordPath = leftBehind(busy, {})
-  writeFileSync(join(busy.env.stateDir, "chore-ticket-7.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/w", startedAt: iso(0) })}\n`)
+  const stems = ["chore-ticket-7", "chore-ticket-8", "chore-ticket-9"]
+  const recordPaths = stems.map((stem, index) => {
+    const path = leftBehind(busy, { ticketNumber: 7 + index, branch: stem.replace("chore-", "chore/") }, "", stem)
+    writeFileSync(join(busy.env.stateDir, `${stem}.pid`), `${JSON.stringify({ pid: process.pid, worktree: "/w", startedAt: iso(0) })}\n`)
+    return path
+  })
   const busyResult = await busy.run()
-  same("drive: no switch while a worker runs, and its launch record stays", [busyResult.switched, busy.checkouts(), pinOf(busy), existsSync(recordPath)], [false, [], null, true])
+  same("drive: a main commit that changes the driver switches the driver while 3 workers run, and their launch records and pid files stay", [busyResult.switched, busy.checkouts(), pinOf(busy).to, recordPaths.every((path) => existsSync(path)), stems.every((stem) => existsSync(join(busy.env.stateDir, `${stem}.pid`)))], [true, [`checkout --detach ${NEW_PIN}`], NEW_PIN, true, true])
+
+  const restarted = driverScene({ head: NEW_PIN, main: NEW_PIN, stateDirectory: busy.env.stateDir })
+  restarted.mem.account = { key: ACCOUNT.key, email: AUTH.email, orgId: AUTH.orgId }
+  const restartedResult = await restarted.run()
+  same("drive: after the restart the 3 workers are still running: no reap, no new launch on their branches", [restartedResult.switched, recordPaths.every((path) => existsSync(path)), restarted.launched.length], [false, true, 0])
 
   const owned = driverScene()
   owned.mem.running.set("chore-ticket-7", Promise.resolve())
-  same("drive: no switch while a worker of this process runs", [(await owned.run()).switched, owned.checkouts()], [false, []])
+  writeFileSync(join(owned.env.stateDir, "chore-ticket-7.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/w", startedAt: iso(0) })}\n`)
+  leftBehind(owned, {})
+  same("drive: a worker of this process that has a live pid file is no block for the switch", [(await owned.run()).switched, owned.checkouts()], [true, [`checkout --detach ${NEW_PIN}`]])
+
+  const unadoptable = driverScene()
+  unadoptable.mem.running.set("chore-ticket-7", Promise.resolve())
+  same("drive: no switch while a launch of this process has no live pid file to adopt", [(await unadoptable.run()).switched, unadoptable.checkouts()], [false, []])
+
+  const unreaped = driverScene()
+  unreaped.mem.results.set("chore-ticket-7", { exitCode: 0 })
+  same("drive: no switch while a result of this process waits for its reap", [(await unreaped.run()).switched, unreaped.checkouts()], [false, []])
 
   const unrelated = driverScene({ files: ["apps/web/page.tsx", "tools/__tests__/drive.mjs"] })
   same("drive: a main commit that changes no driver file is no switch", [(await unrelated.run()).switched, unrelated.checkouts(), pinOf(unrelated)], [false, [], null])
