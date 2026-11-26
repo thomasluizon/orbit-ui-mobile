@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process"
 import { EventEmitter } from "node:events"
-import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { readDriveConfig, workerEnvironment } from "../lib/config.mjs"
@@ -1108,12 +1108,20 @@ const skillMarkerCases = () => {
   same("skills/questions: the only bare marker is the owner-review decision, which grants a launch", [...new Set(bare)], ["owner-review"])
   same("skills/questions: the queued question and its reader use the orbit-drive:owner-question marker", questions.split("<!-- orbit-drive:owner-question -->").length - 1, 2)
   // An order carries the ticket body, the part comments, the findings and the cap grant. A plain answer comment reaches no worker, so the body holds every answer.
-  T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes("gh issue edit --body-file") && questions.includes("`## Owner decisions`"), "section 4 has no body write")
+  T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes(`gh issue edit <number> --repo ${TICKET_REPOSITORY} --body-file <file>`) && questions.includes("`## Owner decisions`"), "section 4 has no body write")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
   same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
   const drivers = skillText("driver")
   const unlink = drivers.split("\n").find((line) => line.includes("fs.unlinkSync")) ?? ""
   T("skills/driver: a worktree skill link is deleted only when the pull request of its branch is merged", unlink.includes("--state merged") && unlink.includes("--head"), unlink)
+  // Run from a code checkout, gh reads the issues of that repository, so each issue command of a skill names the ticket repository.
+  const skillNames = readdirSync(join(REPO_ROOT, ".claude", "skills"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
+  const issueCommands = skillNames.flatMap((name) => [...skillText(name).matchAll(/`(gh issue [^`]*)`/g)].map((match) => [name, match[1]]))
+  same("skills: every gh issue command names the ticket repository", issueCommands.filter(([, command]) => !command.includes(`--repo ${TICKET_REPOSITORY}`)), [])
+  const progress = skillText("progress")
+  // A part is a comment of its ticket, and `partNumber` is the number in its first line, never an issue number.
+  T("skills/progress: the part title comes from the part comment of the ticket", progress.includes(`gh issue view <ticketNumber> --repo ${TICKET_REPOSITORY} --json title,comments`) && progress.includes("Part <partNumber> of <m>") && !/for the part\b/.test(progress), "the skill reads the part as an issue")
+  T("skills/progress: the next ticket in line comes from the next ticket line of the dry run", progress.includes("`next ticket `") && progress.includes("`next ticket none`") && !progress.includes("action is `admit`"), "the skill reads another line")
 }
 
 const orderUnit = async () => {
