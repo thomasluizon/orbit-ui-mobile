@@ -7,27 +7,28 @@ effort: low
 
 # /driver
 
-The driver `tools/drive.mjs` works every open ticket of the board and merges at the bar. It runs as the launchd job `com.thomas.orbit-drive` from the worktree `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive`. It runs from `/driver` until `/driver stop`, a logout or a shutdown. It never starts at login.
+The driver `tools/drive.mjs` works every open ticket of the board and merges at the bar. It runs as the launchd job `com.thomas.orbit-drive` from the worktree `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive`. It runs from login until `/driver stop`. `/driver stop` also stops it from starting at the next login. `/driver` starts it again and turns login start back on.
 
 - Log: `$HOME/Library/Logs/brain-automations/orbit-drive.log`.
-- Plist: `$HOME/Developer/brain/scripts/automations/on-demand/com.thomas.orbit-drive.plist`. Never copy it into `$HOME/Library/LaunchAgents/`: from there it starts at every login.
+- Plist: `$HOME/Library/LaunchAgents/com.thomas.orbit-drive.plist`. The brain `install.sh` installs it there. launchd loads it at every login, unless `/driver stop` disabled the service.
 
 ## /driver
 
 0. Keep the owner's skills current, so each merged skill change reaches the next session:
    1. When `$HOME/Developer/orbit-ui-mobile` is on `main` with no local change, run `git -C $HOME/Developer/orbit-ui-mobile pull --ff-only`.
    2. A skill link in `$HOME/.claude/skills` that points into `$HOME/Developer/orbit-worktrees/` serves a skill before its pull request merges. Read the branch of the link's worktree with `git -C <link target> branch --show-current`. When `gh pr list --repo thomasluizon/orbit-ui-mobile --head <branch> --state merged --json number` returns an entry, delete the link with Node (`fs.unlinkSync`), so the repository copy serves it. Otherwise keep the link.
-1. Run `launchctl print gui/$(id -u)/com.thomas.orbit-drive`.
-2. When it prints "Could not find service", start the driver:
+1. Run `launchctl enable gui/$(id -u)/com.thomas.orbit-drive`. A disabled service cannot load, so this turns login start back on.
+2. Run `launchctl print gui/$(id -u)/com.thomas.orbit-drive`.
+3. When it prints "Could not find service", start the driver:
    1. When the worktree is missing, run `git -C $HOME/Developer/orbit-ui-mobile fetch origin main`, then `git -C $HOME/Developer/orbit-ui-mobile worktree add --detach $HOME/orca/workspaces/orbit-ui-mobile/orbit-drive origin/main`.
-   2. Run `launchctl bootstrap gui/$(id -u) $HOME/Developer/brain/scripts/automations/on-demand/com.thomas.orbit-drive.plist`.
+   2. Run `launchctl bootstrap gui/$(id -u) $HOME/Library/LaunchAgents/com.thomas.orbit-drive.plist`.
    3. Say "The driver started." Then report as below.
-3. Report every notification that sleep held since the last `/driver`. The owner keeps sleep on, so this is the only place he sees them.
+4. Report every notification that sleep held since the last `/driver`. The owner keeps sleep on, so this is the only place he sees them.
    1. State dir: `S="$(git -C $HOME/Developer/orbit-ui-mobile rev-parse --path-format=absolute --git-common-dir)/orbit-drive"`. The last report time is in `$S/last-driver-report` (no file: the last 24 hours).
    2. Read every log line after that time that contains ` sleep held `. Each one is a notification the driver did not send.
    3. List all of them, first. Group repeats of the same item and say how many times. For a `needs:owner` item, check the label: when it is gone, say "already handled". Write each in product terms, with its link when it is still open.
    4. Write the current time to `$S/last-driver-report`, and write `[]` to `$S/sleep-items.json`.
-4. Report the driver's own state. Product progress is `/progress`, so repeat none of it here.
+5. Report the driver's own state. Product progress is `/progress`, so repeat none of it here.
    1. Read the newest `pace` line of the log.
    2. Run `node tools/drive.mjs --release-status` and report the newest release train: what it released and where it stopped.
    3. Report: the week used on each account, and whether one stopped at 90% (`/over-limit` lets it go on) or runs with its pace off. Then the count of held decisions (`needs:owner` tickets and pull requests): `/questions` answers them.
@@ -35,7 +36,8 @@ The driver `tools/drive.mjs` works every open ticket of the board and merges at 
 ## /driver stop
 
 1. Run `launchctl bootout gui/$(id -u)/com.thomas.orbit-drive`. A running worker ends its order. The next `/driver` reads its pid file.
-2. Run `launchctl print gui/$(id -u)/com.thomas.orbit-drive`. "Could not find service" means it stopped. Say that in one line.
+2. Run `launchctl disable gui/$(id -u)/com.thomas.orbit-drive`. The setting persists across boots, so the driver stays stopped at the next login.
+3. Run `launchctl print gui/$(id -u)/com.thomas.orbit-drive`. "Could not find service" means it stopped. Say that in one line.
 
 ## /driver update <full sha>
 
