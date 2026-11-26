@@ -1481,6 +1481,17 @@ const restartCases = async () => {
   findCheck.expected = [1, 0]
   await reaped("its findings are posted once and the part does not run again", { kind: "find", partNumber: 1, branch: "chore/ticket-7-part-1" }, `${resultLine("Area: tools\n\nsrc/a.mjs:3 | class | fix")}`, findTickets(), findCheck)
 
+  const findKept = async (label, prepare, reason) => {
+    const scene = scenario({ tickets: findTickets(), gitRoutes: [["worktree list", "worktree /r/orbit-worktrees/ui/chore-ticket-7-part-1\nHEAD abc\nbranch refs/heads/chore/ticket-7-part-1\n"]] })
+    prepare(scene)
+    leftBehind(scene, { kind: "find", partNumber: 1, branch: "chore/ticket-7-part-1", worktree: "/r/orbit-worktrees/ui/chore-ticket-7-part-1" }, resultLine("Area: tools\n\nsrc/a.mjs:3 | class | fix"))
+    await scene.run()
+    const git = scene.calls.filter((entry) => entry[0] === "git").map((entry) => entry.slice(1).join(" "))
+    same(`drive: the reap of a find worker keeps its worktree and branch when ${label}`, [git.some((text) => /worktree remove/.test(text)), git.some((text) => /branch -D/.test(text)), scene.messages.some((line) => line.includes("worktree-kept") && line.includes(reason))], [false, false, true])
+  }
+  await findKept("a process holds the worktree by its cwd", (scene) => { scene.env.worker.processDirectories = () => [{ pid: 5151, path: "/r/orbit-worktrees/ui/chore-ticket-7-part-1" }] }, "a process holds it: pid 5151")
+  await findKept("the worktree holds another worktree", (scene) => { scene.env.findRepositories = (path) => [path, join(path, ".claude/worktrees/agent-1")] }, "it holds a repository or worktree")
+
   const decisionCheck = (scene) => [needsOwnerComments(scene.calls, 7).filter((text) => text.includes("NEEDS_DECISION: Raise the price?")).length, only(scene.calls, "notify").length, scene.launched.length]
   decisionCheck.expected = [1, 1, 0]
   await reaped("its NEEDS_DECISION question reaches the owner and the ticket does not run again", {}, resultLine("Done.\nNEEDS_DECISION: Raise the price?"), [ticket(7)], decisionCheck)
