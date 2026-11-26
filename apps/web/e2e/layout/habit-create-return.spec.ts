@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
-import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { habitDetailSchema } from '@orbit/shared/types/habit'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
@@ -9,6 +10,7 @@ import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-sess
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { reachCreateSummary } from './guided-habit-steps'
 import { goBackDuringSheetExit } from '../../test-support/sheet-exit'
 
 async function waitForCreationGuard(page: Page) {
@@ -55,7 +57,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
             const submissions: string[] = []
             page.on('response', (response) => {
               if (response.request().method() !== 'POST' || new URL(response.url()).pathname !== '/habits/new') return
-              if (!response.request().postData()?.includes(title)) return
+              if (!response.request().postData()?.includes(`"title":${JSON.stringify(title)}`)) return
               submissions.push(response.url())
               created = response.ok()
             })
@@ -63,6 +65,11 @@ for (const locale of ['pt-BR', 'en'] as const) {
               path: API.habits.list, body: emptyHabitsPageFixture,
               afterMutation: { method: 'POST', path: API.habits.create, body: { ...emptyHabitsPageFixture, items: [habit], totalCount: 1 } },
             }])
+            const saved = habitDetailSchema.parse({ ...makeHabitDetail(), id: 'layout-created-habit', title })
+            await context.route(
+              (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.get(saved.id),
+              (route) => route.fulfill({ json: saved }),
+            )
             await traceHistory(page)
             try {
               if (entry === 'direct') {
@@ -72,12 +79,11 @@ for (const locale of ['pt-BR', 'en'] as const) {
                 await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
                 await expect(page).toHaveURL(/\/habits\/new\?/)
               }
-              const type = page.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) })
-              await type.click()
-              await expect(type).toBeChecked()
-              const field = page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })
-              await field.fill(title)
-              await page.getByRole('button', { name: messages.habits.createHabit, exact: true }).click()
+              await reachCreateSummary(page, messages, title)
+              await page.getByRole('button', { name: messages.habits.createHabit, exact: true }).or(page.getByRole('button', { name: messages.habits.createTask, exact: true })).first().click()
+              const result = page.getByRole('dialog', { name: messages.result.title, exact: true })
+              await expect(result).toBeVisible()
+              await result.getByRole('button', { name: messages.result.seeToday, exact: true }).or(result.getByRole('button', { name: messages.result.seeCalendar, exact: true })).first().click()
               await expect.poll(() => submissions.length).toBe(1)
               expect(created).toBe(true)
               await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)
@@ -101,7 +107,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         test('preserves a dirty draft on browser Back until discard is confirmed', async ({ page }) => {
           await page.goto('/')
           await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
-          const field = page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })
+          const field = page.getByRole('textbox', { name: messages.habits.flow.what.label, exact: true })
           await field.fill('Keep this draft')
           await waitForCreationGuard(page)
           await page.evaluate(() => history.back())
@@ -122,7 +128,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await page.emulateMedia({ reducedMotion: 'no-preference' })
           await page.goto('/')
           await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
-          const field = page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })
+          const field = page.getByRole('textbox', { name: messages.habits.flow.what.label, exact: true })
           const keepEditing = page.getByRole('button', { name: messages.common.keepEditing, exact: true })
           const discard = page.getByRole('button', { name: messages.common.discardChangesAction, exact: true })
           await field.fill('Keep this closing draft')
@@ -153,7 +159,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
 
       test('returns a clean direct-open form on browser Back without confirmation', async ({ page }) => {
         await page.goto('/habits/new?from=%2F')
-        await expect(page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: messages.habits.flow.what.label, exact: true })).toHaveValue('')
         await waitForCreationGuard(page)
         await page.evaluate(() => Reflect.set(window, 'habitCreateDocumentMarker', 'clean-create-document'))
         await Promise.all([

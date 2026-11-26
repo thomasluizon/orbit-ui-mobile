@@ -62,6 +62,7 @@ interface MockRoute {
 const routes: MockRoute[] = [
   { method: 'GET', path: API.chat.latestConversation, schema: conversationPageSchema.nullable(), body: null },
   { method: 'POST', path: '/api/habits/interpret-date', schema: dateInterpretationSchema, body: { date: '2026-09-26', referenceDate: '2026-09-04' } },
+  { method: 'POST', path: API.habits.create, schema: z.object({ id: z.string() }), body: { id: 'layout-created-habit' } },
   { method: 'GET', path: '/api/ai/proactive/current', schema: proactiveItemSchema.nullable(), body: null },
   { method: 'GET', path: '/api/gamification/streak', schema: streakInfoSchema, body: streakFixture },
   {

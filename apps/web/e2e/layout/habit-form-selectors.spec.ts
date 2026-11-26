@@ -1,30 +1,53 @@
-import { expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { API } from '@orbit/shared/api'
 import { test } from './upgrade-fixtures'
 import { setLayoutFixtureSession } from './profile-session'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
+import { guidedRow, guidedSummary } from './guided-habit-steps'
+
+async function expectControlsFit(page: Page, width: number) {
+  const geometry = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    controls: Array.from(document.querySelectorAll('[data-question-flow] [data-option-group] button, [data-question-flow] [data-question-row], [data-question-flow] input, [data-question-flow] [role="combobox"]'))
+      .map((control) => {
+        const bounds = control.getBoundingClientRect()
+        return { label: control.textContent.slice(0, 40), width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right, clipped: control.scrollWidth > control.clientWidth + 1 && control.tagName === 'BUTTON' }
+      })
+      .filter((control) => control.width > 0),
+  }))
+  expect(geometry.scroll).toBeLessThanOrEqual(width)
+  expect(geometry.controls.length).toBeGreaterThan(0)
+  for (const control of geometry.controls) {
+    expect(control.left, control.label).toBeGreaterThanOrEqual(0)
+    expect(control.right, control.label).toBeLessThanOrEqual(width)
+    expect(control.height, control.label).toBeGreaterThanOrEqual(44)
+    expect(control.clipped, control.label).toBe(false)
+  }
+}
 
 for (const locale of ['en', 'pt-BR'] as const) {
   for (const width of [320, 360, 384, 412, 1280]) {
     for (const theme of ['light', 'dark'] as const) {
       test.describe(`form decisions ${locale} ${width}px ${theme}`, () => {
         test.use({ appLocale: locale, viewport: { width, height: 1000 }, layoutProfile: { themePreference: theme } })
-        test('opens an undated task from General without repetition controls', async ({ page, context }) => {
+        test('opens an undated task from General with its date locked and no repetition controls', async ({ page, context }) => {
           const messages = locale === 'en' ? en : ptBR
           await setLayoutFixtureSession(context, [{ path: API.habits.list, body: emptyHabitsPageFixture }])
           await page.goto('/')
           await page.getByRole('radiogroup', { name: messages.habits.viewsLabel }).getByRole('radio', { name: messages.habits.viewGeneral, exact: true }).click()
           await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
-          const screen = page.locator('[data-habit-create-screen]')
-          await expect(page.getByRole('heading', { name: messages.habits.form.newTask, exact: true })).toBeVisible()
-          await expect(screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })).toBeChecked()
-          const noDate = screen.getByRole('radio', { name: messages.habits.form.noSchedule, exact: true })
-          await expect(noDate).toBeChecked()
-          await expect(screen.getByRole('radiogroup', { name: messages.habits.form.frequency, exact: true })).toHaveCount(0)
-          await expect(screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })).toHaveCount(0)
-          const bounds = (await noDate.boundingBox())!
+          await expect(page.getByRole('heading', { name: messages.habits.flow.what.question, exact: true })).toBeVisible()
+          await page.getByRole('textbox', { name: messages.habits.flow.what.label, exact: true }).fill('Read')
+          await page.getByRole('button', { name: messages.habits.flow.continue, exact: true }).click()
+          const summary = guidedSummary(page, messages)
+          await expect(summary).toBeVisible()
+          const when = guidedRow(summary, messages.habits.flow.summary.when)
+          await expect(when).toContainText(messages.habits.flow.summary.noDate)
+          await expect(guidedRow(summary, messages.habits.flow.summary.time)).toHaveCount(0)
+          await expect(summary.getByRole('radiogroup')).toHaveCount(0)
+          const bounds = (await when.boundingBox())!
           expect(bounds.x).toBeGreaterThanOrEqual(0)
           expect(bounds.x + bounds.width).toBeLessThanOrEqual(width)
           expect(bounds.height).toBeGreaterThanOrEqual(48)
@@ -32,74 +55,29 @@ for (const locale of ['en', 'pt-BR'] as const) {
           await expect(page.getByRole('button', { name: messages.habits.createTask, exact: true })).toBeVisible()
         })
 
-        test('keeps decisions ordered and timing inside its named sheet', async ({ page }) => {
+        test('keeps one question per step with every control inside the column, down to the reminder', async ({ page }) => {
           const messages = locale === 'en' ? en : ptBR
+          const flow = messages.habits.flow
           await page.goto('/habits/new')
-          const screen = page.locator('[data-habit-create-screen]')
-          await expect(screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })).toBeChecked()
-          await expect(page.getByRole('heading', { name: messages.habits.form.newTask, exact: true })).toHaveCSS('font-size', '22px')
-          await expect(page.getByRole('button', { name: messages.habits.createTask, exact: true })).toBeVisible()
-          const title = screen.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })
-          await title.fill('Read')
-          const description = screen.getByRole('textbox', { name: messages.habits.form.descriptionQuestion, exact: true })
-          await expect(description).toHaveAttribute('rows', '1')
-          const descriptionHeight = (await description.boundingBox())!.height
-          await description.fill('First line\nSecond line\nThird line\nFourth line')
-          await expect(async () => expect((await description.boundingBox())!.height).toBeGreaterThan(descriptionHeight)).toPass()
-          const noDate = screen.getByRole('radio', { name: messages.habits.form.noSchedule, exact: true })
-          const dated = screen.getByRole('radio', { name: messages.habits.form.taskDate, exact: true })
-          await expect(dated).toBeChecked()
-          await noDate.click()
-          await expect(noDate).toBeChecked()
-          await expect(screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })).toBeChecked()
-          await expect(screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })).toHaveCount(0)
-          const noDateBounds = (await noDate.boundingBox())!
-          expect(noDateBounds.x).toBeGreaterThanOrEqual(0)
-          expect(noDateBounds.x + noDateBounds.width).toBeLessThanOrEqual(width)
-          expect(noDateBounds.height).toBeGreaterThanOrEqual(48)
-          const labelFits = await noDate.locator('[data-slot="list-row-title"]').evaluate(element => {
-            const style = getComputedStyle(element)
-            return element.scrollWidth <= element.clientWidth && element.getBoundingClientRect().height <= parseFloat(style.lineHeight) + 1
-          })
-          expect(labelFits).toBe(true)
-          await dated.click()
-          await expect(dated).toBeChecked()
-          await expect(screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })).toBeVisible()
-          await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) }).click()
-          const when = screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })
-          const frequency = screen.getByRole('radiogroup', { name: messages.habits.form.frequency, exact: true })
-          await expect(frequency.getByRole('radio')).toHaveCount(2)
-          await expect(noDate).toHaveCount(0)
-          const timing = screen.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) })
-          const whenBox = (await when.boundingBox())!
-          const frequencyBox = (await frequency.boundingBox())!
-          const timingBox = (await timing.boundingBox())!
-          expect(frequencyBox.y).toBeGreaterThan(whenBox.y + whenBox.height)
-          expect(timingBox.y).toBeGreaterThan(frequencyBox.y + frequencyBox.height)
-          await timing.click()
-          const sheet = page.getByRole('dialog', { name: messages.habits.form.timingAndReminder, exact: true })
-          await expect(sheet.getByRole('textbox', { name: messages.habits.form.dueEndTime, exact: true })).toHaveCount(0)
-          await sheet.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true }).fill('08:00')
-          await expect(sheet.getByRole('textbox', { name: messages.habits.form.dueEndTime, exact: true })).toHaveCount(0)
-          await sheet.getByRole('button', { name: messages.habits.form.addEndTime, exact: true }).click()
-          await expect(sheet.getByRole('textbox', { name: messages.habits.form.dueEndTime, exact: true })).toBeVisible()
-          const enabled = sheet.getByRole('switch', { name: messages.habits.form.reminder, exact: true })
-          if (await enabled.getAttribute('aria-checked') !== 'true') await enabled.click()
-          await expect(sheet.getByRole('radio', { name: messages.habits.form.definedTimes, exact: true })).toBeChecked()
-          await sheet.getByRole('radio', { name: messages.habits.form.repeatEvery, exact: true }).click()
-          await expect(sheet.getByRole('combobox', { name: messages.habits.form.repeatInterval, exact: true })).toBeVisible()
-          const bounds = await sheet.evaluate((element) => {
-            const box = element.getBoundingClientRect()
-            return { left: box.left, right: box.right, scrollWidth: document.documentElement.scrollWidth }
-          })
-          expect(bounds.left).toBeGreaterThanOrEqual(0)
-          expect(bounds.right).toBeLessThanOrEqual(width)
-          expect(bounds.scrollWidth).toBeLessThanOrEqual(width)
-          await sheet.getByRole('button', { name: messages.common.done, exact: true }).click()
-          await screen.getByRole('button', { name: messages.habits.form.moreDetails, exact: true }).click()
-          for (const key of ['steps', 'avoidGroup', 'organize', 'ending'] as const) {
-            await expect(screen.getByRole('heading', { name: messages.habits.form[key], exact: true })).toBeVisible()
-          }
+          await expect(page.getByRole('heading', { name: flow.what.question, exact: true })).toHaveCSS('font-size', width >= 1024 ? '34px' : '28px')
+          await page.getByRole('textbox', { name: flow.what.label, exact: true }).fill('Read')
+          await page.getByRole('button', { name: flow.continue, exact: true }).click()
+          await expect(page.getByRole('heading', { name: flow.when.question, exact: true })).toBeVisible()
+          await expect(page.locator('h1')).toHaveCount(1)
+          await expectControlsFit(page, width)
+          await page.getByRole('group', { name: flow.when.question, exact: true }).getByRole('button', { name: flow.when.everyDay, exact: true }).click()
+          await expect(page.getByRole('heading', { name: flow.time.question, exact: true })).toBeVisible()
+          await expect(page.locator('h1')).toHaveCount(1)
+          await expectControlsFit(page, width)
+          await page.getByRole('group', { name: flow.time.question, exact: true }).getByRole('button', { name: flow.time.none, exact: true }).click()
+          const summary = guidedSummary(page, messages)
+          await expect(summary).toBeVisible()
+          await expectControlsFit(page, width)
+          await guidedRow(summary, flow.summary.reminder).click()
+          await expect(page.getByRole('heading', { name: flow.reminderKind.question, exact: true })).toBeVisible()
+          await page.getByRole('group', { name: flow.reminderKind.question, exact: true }).getByRole('button', { name: flow.reminderKind.repeat, exact: true }).click()
+          await expect(page.getByRole('combobox', { name: messages.habits.form.repeatInterval, exact: true })).toBeVisible()
+          await expectControlsFit(page, width)
         })
       })
     }
