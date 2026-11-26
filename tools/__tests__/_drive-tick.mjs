@@ -2355,7 +2355,46 @@ const releaseCases = async () => {
   T("drive: the usage names the release train and both flags", /release train/.test(usage) && /--release-now/.test(usage) && /--release-status/.test(usage), usage)
 }
 
+/** The dry-run line that names the next ticket in line, whatever holds the launches now. */
+const nextTicketCases = async () => {
+  const next = async (options) => {
+    const scene = scenario({ ...options, dryRun: true })
+    const printed = []
+    scene.env.log = (line) => printed.push(line)
+    await scene.run()
+    return { scene, lines: printed.filter((line) => line.startsWith("next ticket ")), printed }
+  }
+  const stopped = { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE }
+  const line = (number, order) => [`next ticket ${REPOSITORY}#${number}: ${order}`]
+  const ranked = [ticket(5, { blockedBy: [blocker(4)] }), ticket(8), ticket(9, { labels: ["repo:ui", "Bug"] })]
+  same("drive: with room the dry run names the first ticket in rank order as the next one, not the first one listed", (await next({ tickets: ranked })).lines, line(9, "build on fix/ticket-9"))
+  const underStop = await next({ tickets: ranked, reading: stopped })
+  same("drive: under the weekly usage stop the dry run still names the next ticket in line", underStop.lines, line(9, "build on fix/ticket-9"))
+  same("drive: under the weekly usage stop the ticket lines still say that the stop holds", underStop.printed.filter((entry) => entry.startsWith(`ticket ${REPOSITORY}#9:`)), [`ticket ${REPOSITORY}#9: wait: the weekly usage stop holds every worker`])
+  const pause = ticket(60, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null })
+  same("drive: while the driver is paused the dry run still names the next ticket in line", (await next({ tickets: [...ranked, pause] })).lines, line(9, "build on fix/ticket-9"))
+  same("drive: with a signed-out login the dry run still names the next ticket in line", (await next({ tickets: ranked, auth: { ...AUTH, loggedIn: false } })).lines, line(9, "build on fix/ticket-9"))
+
+  const inOpenPull = ticket(7, { labels: ["repo:ui", "Bug"], comments: [partComment(1, 1)] })
+  same("drive: a ticket whose only part waits in an open pull request is not next, under the stop too", (await next({ tickets: [inOpenPull, ticket(8)], pulls: { ui: [pull(30, { headRef: "fix/ticket-7-part-1" })] }, reading: stopped })).lines, line(8, "build on chore/ticket-8"))
+  const spent = ticket(7, { labels: ["repo:ui", "Bug"], comments: [launchComment("build", "fix/ticket-7", -7200 * 1000), launchComment("build", "fix/ticket-7")] })
+  const pastSpent = await next({ tickets: [spent, ticket(8)], reading: stopped })
+  // At the cap the ticket is next with its Opus launch. The line names the order, not the model.
+  same("drive: a ticket that used its Sonnet launches is next for its Opus launch", pastSpent.lines, line(7, "build on fix/ticket-7"))
+  const afterOpus = ticket(7, { labels: ["repo:ui", "Bug"], comments: [launchComment("build", "fix/ticket-7", -7200 * 1000), launchComment("build", "fix/ticket-7", -3600 * 1000), launchComment("build", "fix/ticket-7", -1800 * 1000, null, { model: "claude-opus-5-5" })] })
+  same("drive: a ticket whose Opus launch ran is not next", (await next({ tickets: [afterOpus, ticket(8)], reading: stopped })).lines, line(8, "build on chore/ticket-8"))
+  same("drive: the next ticket line writes nothing", pastSpent.scene.calls.filter((entry) => ["comment", "editLabels", "createTicket", "notify", "merge"].includes(entry[0])).length, 0)
+  same("drive: the next ticket line logs no needs-owner report for a launch cap", (await next({ tickets: [spent, ticket(8)] })).printed.filter((entry) => / ticket#7 needs-owner /.test(entry)).length, 0)
+  const parts = ticket(7, { comments: [partComment(1, 2), partComment(2, 2)] })
+  same("drive: the next ticket line names the number of the next part", (await next({ tickets: [parts], routes: [mergedRoute(7, [mergedPull(7, "chore/ticket-7-part-1", "Remaining: part 2")])], reading: stopped })).lines, line(7, "build part on chore/ticket-7-part-2, partNumber 2"))
+  same("drive: with no ticket that can start the dry run says that none is next", (await next({ tickets: [ticket(7, { blockedBy: [blocker(5)] })] })).lines, ["next ticket none"])
+  const real = scenario({ tickets: [ticket(7)] })
+  await real.run()
+  same("drive: a real tick prints no next ticket line", real.env.lines.filter((entry) => entry.startsWith("next ticket")), [])
+}
+
 export const driverUnit = async () => {
+  await nextTicketCases()
   await releaseCases()
   await admissionCases()
   await checkOnlyCases()
