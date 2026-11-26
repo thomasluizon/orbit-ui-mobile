@@ -19,28 +19,45 @@ const USAGE = `usage: check-retired-name.mjs [--root <repository>] [--files <pat
 
 exit codes: 0 no retired name outside the allowlist, 1 retired name found, 2 usage error`
 
+/** One exact wire name or one exact list of them: no name may continue on either side. */
+const exact = (names, { before = "(?<![A-Za-z0-9_-])", after = "(?![A-Za-z0-9_-])" } = {}) => new RegExp(`${before}(?:${names.join("|")})${after}`, "g")
+
+const FLAG_AND_EVENT_NAMES = [
+  "astra_eval_unmetered", "astra_eval_trace", "astra_block_first", "astra_ask_blocks_disabled", "astra_proactive_engine_disabled",
+  "astra_crisis_resources_disabled", "astra_change_preview_disabled", "astra_tool_steps_disabled", "astra_parts_disabled",
+  "astra_follow_ups_disabled", "astra_period_blocks_disabled", "astra_goal_projections_disabled", "astra_status_blocks_disabled",
+  "astra_record_lists_disabled", "astra_account_rows_disabled",
+]
+
 /** A name that a person never sees and that another system reads. Each entry says who reads it. */
 export const WIRE_NAMES = [
-  { reason: "feature flag and analytics event names that the API stores and sends", pattern: /astra_[A-Za-z_]*/g },
-  { reason: "error codes that the API sends", pattern: /ASTRA_BLOCK_[A-Z_]*/g },
-  { reason: "profile field that the API sends and that old mobile builds read", pattern: /[Pp]roactiveAstraEnabled/g },
-  { reason: "profile field that the API sends and that old mobile builds read", pattern: /[Hh]asTriedAstra/g },
-  { reason: "profile endpoint of the API and the permission name that carries it", pattern: /proactive-astra/g },
-  { reason: "generated client names of the profile endpoint", pattern: /PutApiProfileProactiveAstra\w*/g },
-  { reason: "offline mutation, pending operation key and request names of the profile endpoint", pattern: /[Ss]etProactiveAstra\w*/g },
-  { reason: "MCP tool name of the API", pattern: /set_proactive_astra/g },
-  { reason: "tool-result message key that the API sends", pattern: /proactiveAstra\.(?:enabled|disabled)/g },
+  { reason: "feature flag names that the API stores and sends", pattern: exact(FLAG_AND_EVENT_NAMES) },
+  { reason: "how DESIGN.md names the flag, event and error-code families of the API", pattern: exact(["astra_\\*", "astra_proactive_item_\\*", "ASTRA_BLOCK_\\*", "aggregate:astra_ai"]) },
+  { reason: "profile field and data export field that the API sends and that old mobile builds read", pattern: exact(["[Pp]roactiveAstraEnabled", "storedProactiveAstraEnabled"], { before: "(?<![A-Za-z0-9_])", after: "(?![A-Za-z0-9_])" }) },
+  { reason: "profile field that the API sends and that old mobile builds read", pattern: exact(["[Hh]asTriedAstra"], { before: "(?<![A-Za-z0-9_])", after: "(?![A-Za-z0-9_])" }) },
+  { reason: "profile endpoint of the API and the permission names that carry it", pattern: exact(["(?:profile-)?proactive-astra(?:-write)?"]) },
+  {
+    reason: "generated client names of the profile endpoint",
+    pattern: exact(["PutApiProfileProactiveAstra(?:Header|Body|Response)?", "getApiProfileResponseProactiveAstraEnabledDefault"], { before: "(?<![A-Za-z0-9_])", after: "(?![A-Za-z0-9_])" }),
+  },
+  {
+    reason: "offline mutation, pending operation key and request names of the profile endpoint",
+    pattern: exact(["[Ss]etProactiveAstra(?:Request|EnabledRequest|RequestSchema)?"], { before: "(?<![A-Za-z0-9_])", after: "(?![A-Za-z0-9_])" }),
+  },
+  { reason: "MCP tool name of the API", pattern: exact(["set_proactive_astra"]) },
+  { reason: "tool-result message key that the API sends", pattern: exact(["proactiveAstra\\.(?:enabled|disabled)"], { before: "(?<![A-Za-z0-9_])", after: "(?![A-Za-z0-9_])" }) },
   { reason: "tool-result message key that the API sends", pattern: /"proactiveAstra"/g },
-  { reason: "table and entity name of the API", pattern: /IssuedAstraBlocks/g },
+  { reason: "table and entity name of the API", pattern: exact(["IssuedAstraBlocks"], { before: "(?<![A-Za-z0-9_])", after: "(?![A-Za-z0-9_])" }) },
   { reason: "account row id that the API sends", pattern: /(?<!account\.row\.)\bastraAllowance\b/g },
-  { reason: "schema names of the API OpenAPI document", pattern: /components\/schemas\/Astra\w+/g },
-  { reason: "schema name of the API OpenAPI document, read by the offer contract test", pattern: /contract\.AstraNextAction/g },
-  { reason: "legacy profile route that stored links and old builds open", pattern: /profile\/astra\b/g },
+  { reason: "schema name of the API OpenAPI document", pattern: /components\/schemas\/AstraNextAction(?![\w-])/g },
+  { reason: "schema name of the API OpenAPI document, read by the offer contract test", pattern: /contract\.AstraNextAction(?![\w-])/g },
+  { reason: "legacy profile route that stored links and old builds open", pattern: /profile\/astra(?![\w/-]|\.\w)/g },
+  { reason: "the legacy route file of the mobile app and its import specifier", pattern: /(?:apps\/mobile\/app|@\/app)\/profile\/astra(?:\.tsx)?(?![\w/-]|\.\w)/g },
+  { reason: "the web test that proves the legacy profile route file is gone", pattern: /\(app\)\/profile\/astra\/page\.tsx/g },
   { reason: "legacy profile anchor that stored links carry", pattern: /(?<=['"`])#astra(?=['"`])/g },
-  { reason: "conversation query parameter that stored notification links and the service worker carry", pattern: /\bastra=/g },
+  { reason: "conversation query parameter that stored notification links and the service worker carry", pattern: /(?<![\w-])astra=/g },
   { reason: "the one query parameter that stored links carry", pattern: /PARAM_CARRIED_BY_STORED_LINKS = 'astra'/g },
-  { reason: "the two design files that keep their name", pattern: /Orbit(?:%20| )Astra(?:%20| )(?:Conversation|Ideas)/g },
-  { reason: "the one legacy route file that the profile slug names", pattern: /app\/profile\/astra/g },
+  { reason: "the two design files that keep their name", pattern: /Orbit(?:%20| )Astra(?:%20| )(?:Conversation|Ideas)(?![A-Za-z0-9_-])/g },
 ]
 
 /** A file that keeps its path or its body. The key is a repository path. */

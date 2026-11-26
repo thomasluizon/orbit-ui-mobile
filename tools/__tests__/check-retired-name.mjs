@@ -57,5 +57,26 @@ export const cases = () => {
   })
   check("check-retired-name.mjs", "scans only the named files with --files", ["--root", mixed, "--files", "apps/web/a.ts"], { status: 0, stdout: /1 tracked files/ })
   check("check-retired-name.mjs", "fails on a named file that carries the name", ["--root", mixed, "--files", "apps/web/b.ts"], { status: 1, stderr: /b\.ts:1/ })
+  const probes = [
+    ["path of a profile component", `apps/web/components/profile/${lower}-allowance-panel.tsx`, "export const Panel = () => null\n", /the path carries the retired name/],
+    ["path of a mobile profile component", `apps/mobile/components/profile/${lower}-connections.tsx`, "export const Connections = () => null\n", /the path carries the retired name/],
+    ["path of a mobile profile route file", `apps/mobile/app/profile/${lower}-settings.tsx`, "export default () => null\n", /the path carries the retired name/],
+    ["path of a profile component folder", `apps/web/components/profile/${lower}/panel.tsx`, "export const Panel = () => null\n", /the path carries the retired name/],
+    ["import of a renamed profile component", "apps/web/lib/a.ts", `import { X } from '@/components/profile/${lower}-connections'\n`, /a\.ts:1/],
+    ["import of a profile route file with a longer name", "apps/mobile/lib/a.ts", `import S from '@/app/profile/${lower}-settings'\n`, /a\.ts:1/],
+    ["snake case name outside the flag list", "apps/web/lib/a.ts", `const ${lower}_helper = 1\n`, /a\.ts:1/],
+    ["data attribute that ends in the query parameter name", "apps/web/lib/a.tsx", `export const x = <i data-${lower}="" />\n`, /a\.tsx:1/],
+    ["kebab name that continues the endpoint name", "apps/web/lib/a.ts", `export const id = 'proactive-${lower}-card'\n`, /a\.ts:1/],
+    ["name that continues the profile field", "apps/web/lib/a.ts", `export const label = 'proactive${retired}EnabledLabel'\n`, /a\.ts:1/],
+    ["name that continues the tried field", "apps/web/lib/a.ts", `export const card = 'hasTried${retired}Card'\n`, /a\.ts:1/],
+    ["name that continues the offline mutation", "apps/web/lib/a.ts", `export const banner = 'setProactive${retired}Banner'\n`, /a\.ts:1/],
+    ["name that continues the table name", "apps/web/lib/a.ts", `export const view = 'Issued${retired}BlocksView'\n`, /a\.ts:1/],
+    ["name that continues a flag name", "apps/web/lib/a.ts", `export const flag = '${lower}_eval_trace_extra'\n`, /a\.ts:1/],
+  ]
+  probes.forEach(([label, probePath, content, stderr], index) => {
+    const repository = stageRepository(`probe-${index}`, { [probePath]: content })
+    check("check-retired-name.mjs", `rejects a ${label}`, ["--root", repository], { status: 1, stderr })
+  })
+
   check("check-retired-name.mjs", "exits 2 on an unknown argument", ["--nope"], { status: 2 })
 }
