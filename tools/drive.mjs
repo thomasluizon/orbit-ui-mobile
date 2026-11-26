@@ -25,6 +25,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import * as ciQueue from "./lib/ci-queue.mjs"
 import { ownerParts, partOf, renderOrder } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
+import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
 const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status] [--help]
@@ -48,6 +49,10 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   ticket again from main with the failure history, at most 2 times for each piece of work. The watchdog sends one notification
   when a problem starts and one when it ends: no merge for 2 hours with pull requests open, a check queued for more than 1 hour,
   a pull request open for more than 24 hours, a pull request at its fix cap. Each names the repair that the driver did.
+
+  A notification goes to the owner's phone through the Telegram Bot API, with the Keychain items telegram-bot-token and
+  telegram-chat-id. With one of them missing it is a macOS notification. When Telegram refuses one, it shows on the Mac
+  and each later tick sends it to the phone again. The same item, head and cause is told once.
 
   (no flag)   run the loop: one tick each 120 seconds until stopped. At the end of a tick with no worker running, the driver
               checks out a newer driver commit of origin/main in its own worktree and exits 0, so launchd starts the new version.
@@ -88,6 +93,14 @@ const ALLOW_FILE = "over-limit.json"
 const PACE_SETTING_FILE = "pace-setting.json"
 const SLEEP_FILE = "sleep.json"
 const SLEEP_ITEMS_FILE = "sleep-items.json"
+const NOTICES_FILE = "notices.json"
+const NOTICE_KEYS_KEPT = 500
+const NOTICE_PENDING_KEPT = 50
+const TITLE_LIMIT = 120
+const DETAIL_LIMIT = 300
+/** The lengths that the reason of a held item tries, longest first, until the list fits one message. */
+const SLEEP_REASON_LIMITS = [100, 60, 30]
+const HEAD_IN_REASON = / at [0-9a-f]{40}(?=:)/
 const QUESTIONS_FILE = "questions.json"
 const QUESTIONS_STEM = "questions"
 const QUESTIONS_ORDER = "/questions --auto"
@@ -130,7 +143,6 @@ const ACTIVITY_FILE = "activity.json"
 const STALL_MS = HOUR_MS
 const CHECK_SETTLE_MS = 5 * 60 * 1000
 const LOGIN_TITLE = "Driver stopped: Claude is not logged in"
-const LOGIN_MESSAGE = "Orbit driver: Claude is not logged in, so no worker starts."
 const OWNER = "needs:owner"
 const CHANGES_REQUESTED = "CHANGES_REQUESTED"
 const PLAIN_REQUEST = "@pullfrog review"
@@ -328,7 +340,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map(), ci: null, repairs: [], capped: new Set(), planned: new Set(), mergedAt: null })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map(), ci: null, repairs: [], capped: new Set(), planned: new Set(), mergedAt: null })
 
 /** Notes one repair that the driver did this tick. The watchdog names it in its lines. */
 const repaired = (mem, text) => { if (!mem.repairs.includes(text)) mem.repairs.push(text) }
@@ -377,10 +389,80 @@ const readSleepItems = (stateDir) => {
   }
 }
 
-/** Sends one notification, except while sleep is on: then the driver logs it and sends nothing. */
-const say = async (env, message) => {
-  if (readSleep(env.stateDir).on) return log(env, "sleep", "held", message)
-  await env.notify(message)
+const oneLine = (text) => text.replace(/\s+/g, " ").trim()
+
+const cut = (text, limit) => {
+  const line = oneLine(text)
+  // A cut can split an emoji, and `osascript` refuses the half that is left.
+  return line.length <= limit ? line : `${line.slice(0, limit - 3).toWellFormed()}...`
+}
+
+const clock = (ms) => `${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`
+
+/** The keys of the notices that went out (`sent`) or that sleep logged (`held`), and the texts that Telegram did not take yet (`pending`). */
+const readNotices = (stateDir) => {
+  try {
+    const saved = JSON.parse(readFileSync(join(stateDir, NOTICES_FILE), "utf8"))
+    return { sent: saved.sent ?? [], held: saved.held ?? [], pending: saved.pending ?? [] }
+  } catch {
+    return { sent: [], held: [], pending: [] }
+  }
+}
+
+const writeNotices = (stateDir, notices) => writeFileSync(join(stateDir, NOTICES_FILE), `${JSON.stringify(notices)}\n`)
+
+const withKey = (keys, key) => [...keys, key].slice(-NOTICE_KEYS_KEPT)
+
+/** Drops the key of a notice when its cause ends, so the driver tells the owner again when the cause comes back. */
+const forget = (env, key) => {
+  if (env.dryRun) return
+  const notices = readNotices(env.stateDir)
+  if (!notices.sent.includes(key) && !notices.held.includes(key)) return
+  writeNotices(env.stateDir, { ...notices, sent: notices.sent.filter((entry) => entry !== key), held: notices.held.filter((entry) => entry !== key) })
+}
+
+/** Sends one text to the phone, or to the Mac when a Telegram Keychain item is missing, and logs one line. False: Telegram did not take it. */
+const deliver = async (env, text) => {
+  const result = await sendTelegram(text, { keychain: env.keychain, fetch: env.fetch })
+  if (result.status === "failed") {
+    log(env, "notice", "unsent", `Telegram: ${result.reason}. A later tick sends it again: ${oneLine(text)}`)
+    return false
+  }
+  if (result.status === "unset") await env.osascript(text)
+  log(env, "notice", "sent", `${result.status === "unset" ? `osascript, the Keychain item ${result.missing} is missing` : "telegram"}: ${oneLine(text)}`)
+  return true
+}
+
+/**
+ * Sends one notice, except while sleep is on: then the driver logs it and sends nothing. `key` names the item, the head and
+ * the cause, and one key goes out once. A notice that Telegram does not take shows on the Mac and waits for a later tick.
+ */
+const say = async (env, { key = null, lines, link = null }) => {
+  const text = [...lines, link].filter(Boolean).join("\n")
+  const asleep = readSleep(env.stateDir).on
+  const known = readNotices(env.stateDir)
+  if (key !== null && (known.sent.includes(key) || (asleep && known.held.includes(key)))) return
+  if (asleep) {
+    if (key !== null) writeNotices(env.stateDir, { ...known, held: withKey(known.held, key) })
+    return log(env, "sleep", "held", oneLine(text))
+  }
+  const taken = await deliver(env, text)
+  if (!taken) await env.osascript(text)
+  writeNotices(env.stateDir, { ...known, sent: key === null ? known.sent : withKey(known.sent, key), pending: taken ? known.pending : [...known.pending, text].slice(-NOTICE_PENDING_KEPT) })
+}
+
+/** Sends again, oldest first, each notice that Telegram did not take. The first refusal ends the pass and moves that notice to the back. */
+const sendPending = async (env) => {
+  if (env.dryRun || readSleep(env.stateDir).on) return
+  const notices = readNotices(env.stateDir)
+  let pending = notices.pending
+  while (pending.length > 0) {
+    const [text, ...rest] = pending
+    const taken = await deliver(env, text)
+    pending = taken ? rest : [...rest, text]
+    writeNotices(env.stateDir, { ...notices, pending })
+    if (!taken) return
+  }
 }
 
 /** While sleep is on, keeps one `needs:owner` item with its link for the notification that sleep off sends. Awake, it keeps nothing. */
@@ -393,6 +475,37 @@ const holdItem = (env, { link, reason }) => {
 
 const issueLink = (env, number) => `https://github.com/${env.slugOf("tickets")}/issues/${number}`
 
+/**
+ * Opens the `needs:owner` issue of a driver problem, then sends its notice with the link of the issue. A create that fails
+ * still sends the notice, with no link.
+ */
+const openProblem = async (env, { title, body, notice }) => {
+  let link = null
+  try {
+    const created = await env.github.createTicket({ title, body, labels: [OWNER] })
+    link = issueLink(env, created.number)
+    holdItem(env, { link, reason: title })
+    return created
+  } finally {
+    await say(env, { ...notice, link })
+  }
+}
+
+/** The one message of the items held during a sleep. The reasons shrink to fit the message limit, and every listed link stays whole. */
+const sleepSummary = (items) => {
+  const head = `Orbit: sleep ended. ${items.length} ${items.length === 1 ? "item needs" : "items need"} you.`
+  const entry = (item, limit) => `${cut(item.reason.replace(HEAD_IN_REASON, ""), limit)}\n${item.link}`
+  const limit = SLEEP_REASON_LIMITS.find((size) => [head, ...items.map((item) => entry(item, size))].join("\n").length <= MESSAGE_LIMIT) ?? SLEEP_REASON_LIMITS.at(-1)
+  const lines = [head]
+  for (const [index, item] of items.entries()) {
+    const rest = `And ${items.length - index} more. Run /driver to see them.`
+    const after = index === items.length - 1 ? [] : [rest]
+    if ([...lines, entry(item, limit), ...after].join("\n").length > MESSAGE_LIMIT) return [...lines, rest].join("\n")
+    lines.push(entry(item, limit))
+  }
+  return lines.join("\n")
+}
+
 /** After `--sleep off`: one notification that lists every item held during the sleep, each with its link, then the list is empty. */
 const reportSleep = async (env) => {
   const sleep = readSleep(env.stateDir)
@@ -401,7 +514,7 @@ const reportSleep = async (env) => {
   const items = readSleepItems(env.stateDir)
   if (items.length === 0) return
   log(env, "sleep", "ended", `${items.length} ${items.length === 1 ? "item needs" : "items need"} the owner`)
-  await env.notify(`Orbit driver: sleep ended. ${items.length} ${items.length === 1 ? "item needs" : "items need"} you: ${items.map((item) => `${item.reason.slice(0, 100)} ${item.link}`).join("; ")}`)
+  await say(env, { lines: [sleepSummary(items)] })
   writeFileSync(join(env.stateDir, SLEEP_ITEMS_FILE), "[]\n")
 }
 
@@ -436,12 +549,6 @@ export const setSleep = (env, word, { out }) => {
   return after.on === (word === "on") ? 0 : 3
 }
 
-const notifyOnce = async (env, mem, message) => {
-  if (mem.notified.has(message)) return
-  mem.notified.add(message)
-  if (!env.dryRun) await say(env, message)
-}
-
 /**
  * Writes one `needs-owner` comment, labels the ticket and the pull request `needs:owner` when they lack it, and notifies.
  * The comment is the mark that stops a repeat: a ticket that an owner gate already labelled still gets each new report.
@@ -465,8 +572,9 @@ const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reaso
   if (reported) return
   await env.github.comment(ticket ? "tickets" : repoKey, ticket ? ticket.number : pull.number, marked("needs-owner", reason))
   comments.push({ kind: "needs-owner", body: marked("needs-owner", reason), createdAt: new Date(env.now()).toISOString() })
-  holdItem(env, { link: ticket ? issueLink(env, ticket.number) : `https://github.com/${env.slugOf(repoKey)}/pull/${pull.number}`, reason })
-  await say(env, `Orbit driver needs you: ${reason}`)
+  const link = ticket ? issueLink(env, ticket.number) : `https://github.com/${env.slugOf(repoKey)}/pull/${pull.number}`
+  holdItem(env, { link, reason })
+  await say(env, { key: `needs-owner ${item} ${pull?.headSha ?? ""} ${plainReason}`, lines: [`Orbit needs you: ${cut(ticket?.title || item, TITLE_LIMIT)}`, cut(plainReason, DETAIL_LIMIT)], link })
 }
 
 const PACE_FILE = "pace.json"
@@ -490,6 +598,7 @@ const setReading = (env, mem, reading) => {
   if (name === undefined) return
   stateOf(mem, name).reading = reading
   savePace(env, mem)
+  forget(env, `probe ${name}`)
 }
 
 /** Loads the saved pace once after a start, and only when the account that saved it is the account that is logged in. */
@@ -516,9 +625,7 @@ const pauseIssue = (tickets) => tickets.find((ticket) => ticket.title === PAUSE_
 const pauseDriver = async (env, mem, tickets, { source, message, reset, account = mem.account?.key ?? null }) => {
   log(env, "driver", "pause", `${source}: ${message}`)
   if (env.dryRun || pauseIssue(tickets)) return
-  await say(env, `Orbit driver paused: ${source} stopped. ${message}`)
-  const created = await env.github.createTicket({ title: PAUSE_TITLE, body: `${source} stopped.\n\nMessage: ${message}\n\nReset time named by the message: ${reset ?? "none named"}${account === null ? "" : `\n\nAccount: ${account}`}`, labels: [OWNER] })
-  holdItem(env, { link: issueLink(env, created.number), reason: PAUSE_TITLE })
+  const created = await openProblem(env, { title: PAUSE_TITLE, body: `${source} stopped.\n\nMessage: ${message}\n\nReset time named by the message: ${reset ?? "none named"}${account === null ? "" : `\n\nAccount: ${account}`}`, notice: { lines: ["Orbit starts no new work after a usage limit or a sign-in failure.", cut(message, DETAIL_LIMIT)] } })
   tickets.push({ number: created.number, title: PAUSE_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: account === null ? "" : `Account: ${account}` })
 }
 
@@ -598,10 +705,12 @@ const limitEnd = (env, mem, name) => {
 /** Stops an account until `until` (epoch ms). A worker that ended on a usage limit sets it, and a probe that reads status allowed ends it early. */
 const stopAccount = async (env, mem, name, until, source) => {
   const state = stateOf(mem, name)
+  // A second worker that ends on the same stop tells the owner nothing new.
+  const told = (state.stoppedUntil ?? 0) > env.now()
   state.stoppedUntil = until
   savePace(env, mem)
   log(env, "account", `${name}-stopped`, `${source}, no worker starts on account ${state.account.key} until ${new Date(until).toISOString()}`)
-  await say(env, `Orbit driver: ${source} on the ${name} account. No worker starts on it until ${new Date(until).toISOString()}.`)
+  if (!told) await say(env, { lines: [`Orbit starts no new work on the ${name} account until ${clock(until)}.`, `Cause: ${source}.`] })
 }
 
 /**
@@ -613,17 +722,13 @@ const trackAccount = async (env, mem, tickets, status) => {
   const loginIssue = tickets.find((ticket) => ticket.title === LOGIN_TITLE) ?? null
   if (status.loggedIn !== true) {
     log(env, "account", "logged-out", "no worker starts")
-    if (!env.dryRun) {
-      await notifyOnce(env, mem, LOGIN_MESSAGE)
-      if (loginIssue === null) {
-        const created = await env.github.createTicket({ title: LOGIN_TITLE, body: "The default Claude login is signed out. Run claude auth login, then the driver starts workers again.", labels: [OWNER] })
-        holdItem(env, { link: issueLink(env, created.number), reason: LOGIN_TITLE })
-        tickets.push({ number: created.number, title: LOGIN_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: "" })
-      }
+    if (!env.dryRun && loginIssue === null) {
+      const created = await openProblem(env, { title: LOGIN_TITLE, body: "The default Claude login is signed out. Run claude auth login, then the driver starts workers again.", notice: { key: "login", lines: ["Orbit starts no new work: Claude is signed out on the Mac.", "Run claude auth login to start work again."] } })
+      tickets.push({ number: created.number, title: LOGIN_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: "" })
     }
     return { ok: false, reason: "Claude is not logged in" }
   }
-  mem.notified.delete(LOGIN_MESSAGE)
+  forget(env, "login")
   if (loginIssue !== null && !env.dryRun) await closeIssue(env, tickets, loginIssue, "Claude is logged in again. The driver starts workers again.")
   const paused = pauseIssue(tickets)
   if (paused !== null && pauseAccount(paused) !== null && pauseAccount(paused) !== mem.account.key) {
@@ -643,7 +748,7 @@ const runProbe = async (env, mem, tickets, name = MAIN) => {
   const reading = await env.worker.probe({ invocation: await env.invocation(undefined, name) })
   if (reading === null) {
     log(env, "pace", "probe-failed", `${name} account: no rate limit event, so the account runs 1 worker and probes again after 1 hour`)
-    if (!env.dryRun) await say(env, `Orbit driver: the probe of the ${name} account returned no rate limit event, so it runs 1 worker. It probes again in 1 hour.`)
+    if (!env.dryRun) await say(env, { key: `probe ${name}`, lines: [`Orbit cannot read the weekly usage of the ${name} account.`, "It runs 1 worker and checks again in 1 hour."] })
     return null
   }
   setReading(env, mem, { utilization: reading.utilization, resetsAt: reading.resetsAt, at: takenAt, account: state.account?.key ?? null })
@@ -860,7 +965,7 @@ const restartNote = (ticket) => {
   return `## Earlier attempts\n\nThe driver closed an earlier pull request of this ticket after its fix launches failed. Build again from \`main\`. Read why each attempt failed before you change code.\n\n${newest.map(restartHistoryOf).join("\n\n")}`
 }
 
-const oneLine = (text, limit = 600) => {
+const cutLine = (text, limit = 600) => {
   const flat = text.split("\n").join(" ").trim()
   return flat.length <= limit ? flat : `${flat.slice(0, limit)}...`
 }
@@ -870,7 +975,7 @@ export const failureHistory = ({ item, pull, order, launches }) => {
   const lines = [`${item} used its ${MAX_FIX_LAUNCHES} fix launches and one launch on the coordinator model. The driver closed it at \`${pull.headSha}\`.`, "", "Launches:"]
   for (const entry of launches) lines.push(`- ${entry.kind} on ${entry.model ?? workerApi.WORKER_MODEL}${entry.at ? `, started ${entry.at}` : ""}`)
   lines.push("", "Open at the head:")
-  for (const finding of order.review?.blocking ?? []) lines.push(`- ${finding.path === null ? "the review body" : `${finding.path}:${finding.line}`}: ${oneLine(finding.body)}`)
+  for (const finding of order.review?.blocking ?? []) lines.push(`- ${finding.path === null ? "the review body" : `${finding.path}:${finding.line}`}: ${cutLine(finding.body)}`)
   for (const failed of order.failure?.checks ?? []) lines.push(`- failing check ${failed.name}${failed.logLines?.length > 0 ? `:\n\n\`\`\`\n${failed.logLines.slice(-CHECK_LOG_LINES).join("\n")}\n\`\`\`` : ""}`)
   if (order.kind === "merge-forward") lines.push("- a merge conflict with the base branch")
   const text = lines.join("\n")
@@ -1178,10 +1283,11 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
   const { kind, repoKey, ticket, pull = null, part = null, branch, extra = "" } = order
   const token = await env.worker.readWorkerToken()
   if (token === null) {
-    await notifyOnce(env, mem, "Orbit driver: the Keychain item orbit-worker-github-token is missing, so no worker starts.")
+    await say(env, { key: "worker-token", lines: ["Orbit cannot start work.", "The Keychain item orbit-worker-github-token is missing on the Mac."] })
     log(env, `ticket#${ticket.number}`, "refused", "no worker token in the Keychain")
     return "no worker token in the Keychain"
   }
+  forget(env, "worker-token")
   const location = await worktreePathOf(env, repoKey, branch)
   // A second process in one worktree races the first on its files and its commits, so the launch waits for the next tick.
   const occupants = env.worker.worktreeOccupants(location.path, { stateDirectory: env.stateDir })
@@ -1560,6 +1666,7 @@ const closeFinished = async (env, mem, ticket, merged) => {
   if (env.dryRun) return
   await env.github.comment("tickets", ticket.number, marked("close", `Closed by the driver: ${merged.map((pull) => `#${pull.number}`).join(", ")} merged with Remaining: none.`))
   await env.github.closeTicket(ticket.number)
+  await say(env, { key: `ticket#${ticket.number} finished`, lines: [`Orbit finished: ${cut(ticket.title, TITLE_LIMIT)}`, "Its last pull request is merged."], link: issueLink(env, ticket.number) })
   mem.merged.delete(ticket.number)
   await removeWorktrees(env, ticket.repoKey, merged.map((pull) => pull.headRefName))
 }
@@ -1593,7 +1700,7 @@ const ownerWorkNotices = async (env, mem, tickets) => {
     if (env.dryRun) continue
     await env.github.comment("tickets", ticket.number, marked("notice", "Every blocker of this owner-work ticket is closed. It is ready for your session."))
     holdItem(env, { link: issueLink(env, ticket.number), reason: `owner-work ticket ${ticket.number} is ready` })
-    await say(env, `Orbit driver: owner-work ticket ${ticket.number} is ready.`)
+    await say(env, { key: `ticket#${ticket.number} ready`, lines: [`Orbit has work ready for your session: ${cut(ticket.title, TITLE_LIMIT)}`], link: issueLink(env, ticket.number) })
   }
 }
 
@@ -1693,12 +1800,11 @@ const syncStop = async (env, tickets, pace) => {
     log(env, "driver", "stop", `weekly usage ${pace.utilization.toFixed(3)} of the main account is at 90%`)
     if (env.dryRun || issue !== null) return
     const message = `Weekly usage of the main account reached 90% (${pace.utilization.toFixed(3)}, resets ${new Date(pace.resetsAt * 1000).toISOString()}). The main account starts no worker and Pullfrog posts no request. Tell the owner session to continue over 90%.`
-    await say(env, message)
-    const created = await env.github.createTicket({ title: STOP_TITLE, body: message, labels: [OWNER] })
-    holdItem(env, { link: issueLink(env, created.number), reason: STOP_TITLE })
+    const created = await openProblem(env, { title: STOP_TITLE, body: message, notice: { key: "weekly-stop", lines: ["Orbit starts no new work on the main account: it used 90% of its week.", `Reviews wait until ${clock(pace.resetsAt * 1000)}. Run /over-limit to continue now.`] } })
     tickets.push({ number: created.number, title: STOP_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: message })
     return
   }
+  if (pace.state !== "unknown") forget(env, "weekly-stop")
   if (issue === null || env.dryRun || pace.state === "unknown") return
   await closeIssue(env, tickets, issue, pace.state === "unpaced" ? "The owner turned the weekly pace of the main account off, so the stop ends. It runs 3 workers until its usage limit." : pace.state === "allowed" ? "The owner allowed use over 90% for this week. The driver runs 1 worker." : "The week reset, so the stop ends. The driver runs workers again.")
 }
@@ -1807,9 +1913,7 @@ const watchStall = async (env, tickets, { acted, held, waiting }) => {
   log(env, "driver", "stall", reasons)
   if (issue !== null) return
   const message = `The driver ran no worker, posted no request and merged nothing since ${new Date(last).toISOString()}. Waiting: ${reasons}`
-  await say(env, `Orbit driver stalled. ${message}`)
-  const created = await env.github.createTicket({ title: STALL_TITLE, body: message, labels: [OWNER] })
-  holdItem(env, { link: issueLink(env, created.number), reason: STALL_TITLE })
+  const created = await openProblem(env, { title: STALL_TITLE, body: message, notice: { key: `stall ${new Date(last).toISOString()}`, lines: [`Orbit stalled: nothing was built, reviewed or merged since ${clock(last)}.`] } })
   tickets.push({ number: created.number, title: STALL_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: message })
 }
 
@@ -1851,7 +1955,7 @@ const watchHealth = async (env, mem, { states, queue, held }) => {
       saved.active[key] = { since: now, text, repairs: [] }
       saved.active[key].repairs = [...new Set(repairsFor(key))]
       log(env, "watchdog", "start", `${key}: ${text}`)
-      await say(env, `Orbit driver alert: ${text}. Repair: ${saved.active[key].repairs.join("; ") || "none yet"}.`)
+      await say(env, { lines: [`Orbit driver alert: ${text}. Repair: ${saved.active[key].repairs.join("; ") || "none yet"}.`] })
     } else saved.active[key].repairs = [...new Set([...saved.active[key].repairs, ...repairsFor(key)])]
     save()
   }
@@ -1861,7 +1965,7 @@ const watchHealth = async (env, mem, { states, queue, held }) => {
   for (const [key, entry] of Object.entries(saved.active)) {
     if (current.has(key) || unjudged(key)) continue
     log(env, "watchdog", "end", `${key}: ${entry.text}`)
-    await say(env, `Orbit driver alert ended after ${durationText(now - entry.since)}: ${entry.text}. Repair: ${entry.repairs.join("; ") || "none"}.`)
+    await say(env, { lines: [`Orbit driver alert ended after ${durationText(now - entry.since)}: ${entry.text}. Repair: ${entry.repairs.join("; ") || "none"}.`] })
     delete saved.active[key]
     save()
   }
@@ -1917,6 +2021,7 @@ export const tick = async (env, mem) => {
   mem.repairs = []
   mem.capped = new Set()
   mem.planned = new Set()
+  await sendPending(env)
   await reportSleep(env)
   await enforceOrphanClocks(env, mem)
   // The workers that run when the read starts keep their slots for this whole tick, whatever the read shows.
@@ -2010,7 +2115,7 @@ const shortSha = (sha) => sha.slice(0, 9)
 const releaseTickets = (env) => ({
   bug: async ({ title, body, repoKey }) => {
     const created = await env.github.createTicket({ title, body, labels: [`repo:${repoKey}`, "Bug"] })
-    await say(env, `Orbit driver: ${title}`)
+    await say(env, { key: `issue ${created.number}`, lines: ["An Orbit release stopped.", cut(title, DETAIL_LIMIT)], link: issueLink(env, created.number) })
     return created.number
   },
   hold: async ({ title, reason, repoKey }) => {
@@ -2020,7 +2125,7 @@ const releaseTickets = (env) => ({
     const created = await env.github.createTicket({ title, body: reason, labels: [`repo:${repoKey}`, OWNER] })
     await env.github.comment("tickets", created.number, marked("needs-owner", reason))
     holdItem(env, { link: issueLink(env, created.number), reason })
-    await say(env, `Orbit driver needs you: ${reason}`)
+    await say(env, { key: `issue ${created.number}`, lines: ["Orbit needs you: a release is on hold.", cut(reason, DETAIL_LIMIT)], link: issueLink(env, created.number) })
     return created.number
   },
 })
@@ -2062,9 +2167,7 @@ const reportRollback = async (env, { failedSha, previousSha, error, reason }) =>
   log(env, "driver", "rollback", `from ${shortSha(failedSha)} to ${shortSha(previousSha)}: ${error}`)
   const title = `Driver rolled back to ${shortSha(previousSha)}`
   try {
-    await say(env, `Orbit driver rolled back from ${shortSha(failedSha)} to ${shortSha(previousSha)}: ${error}`)
-    const created = await env.github.createTicket({ title, body: `The driver went back from ${failedSha} to ${previousSha}. ${reason}\n\nLast error: ${error}\n\nThe driver does not switch to ${failedSha} again. A later commit of main that changes the driver is tried.`, labels: [OWNER] })
-    holdItem(env, { link: issueLink(env, created.number), reason: title })
+    await openProblem(env, { title, body: `The driver went back from ${failedSha} to ${previousSha}. ${reason}\n\nLast error: ${error}\n\nThe driver does not switch to ${failedSha} again. A later commit of main that changes the driver is tried.`, notice: { key: `rollback ${failedSha}`, lines: ["The Orbit driver went back to its previous version because the new one failed.", cut(error, DETAIL_LIMIT)] } })
   } catch (reportError) {
     log(env, "driver", "rollback-report-failed", reportError.message)
   }
@@ -2116,12 +2219,11 @@ export const recordStart = async (env, tickets = []) => {
   const now = env.now()
   starts = [...starts, new Date(now).toISOString()].filter((time) => now - Date.parse(time) < 24 * HOUR_MS)
   writeFileSync(path, `${JSON.stringify(starts)}\n`)
-  if (starts.filter((time) => now - Date.parse(time) < RESTART_WINDOW_MS).length < 3) return false
-  await say(env, "Orbit driver restarted three times in ten minutes.")
-  if (!tickets.some((ticket) => ticket.title === RESTART_TITLE)) {
-    const created = await env.github.createTicket({ title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/brain-automations/orbit-drive.log.", labels: [OWNER] })
-    holdItem(env, { link: issueLink(env, created.number), reason: RESTART_TITLE })
+  if (starts.filter((time) => now - Date.parse(time) < RESTART_WINDOW_MS).length < 3) {
+    forget(env, "restart")
+    return false
   }
+  if (!tickets.some((ticket) => ticket.title === RESTART_TITLE)) await openProblem(env, { title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/brain-automations/orbit-drive.log.", notice: { key: "restart", lines: ["The Orbit driver restarted three times in ten minutes."] } })
   return true
 }
 
@@ -2210,7 +2312,8 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     git: (cwd, args) => runBounded("git", ["-C", cwd, ...args], { timeoutMs: 300 * 1000 }),
     findRepositories,
     gh: (args) => runText("gh", args, { maxBuffer: 64 * 1024 * 1024 }),
-    notify: async (message) => { await runBounded("osascript", ["-e", `display notification ${JSON.stringify(message)} with title "Orbit driver"`], { timeoutMs: 15 * 1000 }) },
+    fetch: globalThis.fetch,
+    osascript: async (message) => { await runBounded("osascript", ["-e", `display notification ${JSON.stringify(message)} with title "Orbit driver"`], { timeoutMs: 15 * 1000 }) },
     keychain: async (service) => { const result = await runBounded("security", ["find-generic-password", "-s", service, "-w"], { timeoutMs: 15 * 1000 }); return result.status === 0 && result.stdout.trim() !== "" ? result.stdout.trim() : null },
     fetchJson: async (url, { headers }) => { const response = await fetch(url, { headers }); if (!response.ok) throw new Error(`${url} returned ${response.status}`); return { body: await response.json(), link: response.headers.get("link") } },
     snapshot: () => workerApi.readSnapshot(join(home, ".claude", "usage-snapshot.json")),
