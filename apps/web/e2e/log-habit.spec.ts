@@ -15,7 +15,7 @@ test('log a habit from the Today list', async ({ page }) => {
 
   const row = page.locator(`[data-habit-title="${title}"]`)
   await expect(async () => {
-    await page.reload()
+    await page.goto('/')
     await expect(row).toBeVisible({ timeout: 10_000 })
   }).toPass({ timeout: 60_000 })
 

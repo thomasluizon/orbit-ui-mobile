@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
@@ -194,6 +194,13 @@ function HabitCreation({ empty = false }: { empty?: boolean }) {
   const [creating, setCreating] = useState(false)
   const openCreation = () => { mocks.pathname = '/habits/new'; setCreating(true) }
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
+  useEffect(() => {
+    let commitReplace: ReturnType<typeof setTimeout> | undefined
+    mocks.router.replace.mockImplementation((path: string) => {
+      commitReplace = setTimeout(() => { mocks.pathname = path; setCreating(false) }, 300)
+    })
+    return () => clearTimeout(commitReplace)
+  }, [])
   return <DestinationShell todayFabHidden={todayFabHidden} onCreate={openCreation}>
     {creating ? <CreateHabitModal open presentation="screen" onOpenChange={() => { mocks.pathname = '/'; setCreating(false) }} />
       : <>{empty ? <SetupChecklistCard /> : null}<HabitList view="today" filters={{}} onCreate={openCreation} /></>}
@@ -258,6 +265,7 @@ class SmokeSetupDomPage extends SmokeDomPage {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.router.push.mockReset()
+  mocks.router.replace.mockReset()
   mocks.pathname = '/'
   mocks.loadingToday = false
   mocks.phraseRead.mockResolvedValue(null)
@@ -574,6 +582,27 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
     expect(mocks.create.mock.calls[0]?.[0]).toHaveProperty('dueDate')
     expect(mocks.create.mock.calls[0]?.[0]).not.toHaveProperty('frequencyUnit')
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('returns only after the create route closes, on the day the account shows when UTC is a day ahead', async () => {
+    const saved = mocks.saved
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-26T02:00:00Z') })
+    mocks.guided = true
+    mocks.profile = createMockProfile({ hasCompletedOnboarding: true, hasImportedCalendar: true, hasSeenImportPrompt: true, timeZone: 'America/Sao_Paulo' })
+    mocks.create.mockImplementation(async (input: { dueDate: string }) => {
+      mocks.saved = { ...saved, dueDate: input.dueDate }
+      return { id: 'habit-9' }
+    })
+    useUIStore.getState().setTodayFabHidden(false)
+    mount(<HabitCreation />, locale)
+    try {
+      await createSmokeHabit(new SmokeDomPage(() => mocks.pathname) as unknown as Page, 'Smoke account day')
+      expect(mocks.pathname).toBe('/')
+      expect(mocks.create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ title: 'Smoke account day', dueDate: '2026-11-25' }))
+      expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith('/')
+    } finally {
+      mocks.saved = saved
+    }
   })
 
   it('drives the guided create flow for a repeating habit', async () => {
