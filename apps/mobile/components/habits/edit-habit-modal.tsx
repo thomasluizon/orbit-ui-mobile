@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { FlowScreen } from '@/components/ui/flow-screen'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { useFlag } from '@/hooks/use-flag'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { GuidedHabitFlow, type GuidedHabitCompletion, type GuidedHabitFields } from './guided/guided-habit-flow'
@@ -52,7 +53,7 @@ import {
   hasHabitFormProposal,
   rebaseSelectedIds,
   describeEditDetailsError,
-  resolveGuidedEditDetails,
+  resolveEditDetails,
 } from '@orbit/shared/utils'
 import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
@@ -218,9 +219,8 @@ function EditHabitDraft({
     retry: retryDetail,
   } = useHabitDetail(open && habit ? habit.id : null)
   const sessionHabitId = open && habit ? habit.id : null
-  const detailFieldsPending = open && !!habit && detailPending
-  const guidedDetails = resolveGuidedEditDetails({ guided, habitId: sessionHabitId, hasDetail: !!habitDetail, pending: detailPending, fetching: detailFetching, error: detailError })
-  const guidedDetailsError = describeEditDetailsError(guidedDetails.summaryFailed, guidedDetails.summaryError, translate, () => { void retryDetail() })
+  const details = resolveEditDetails({ guided, habitId: sessionHabitId, hasDetail: !!habitDetail, pending: detailPending, fetching: detailFetching, error: detailError })
+  const detailsFailure = describeEditDetailsError(details.failureShown, details.shownError, translate, () => { void retryDetail() })
   const parent = useEditorParent(habit, habitDetail, formHelpers.isGeneral, parentIsGeneral, translate)
 
   const { sheetRef, closeSheet } = useSheetHost()
@@ -247,7 +247,7 @@ function EditHabitDraft({
     flushBufferedInputsRef.current = flush
   }, [])
 
-  const detailToastError = guidedDetails.toastError
+  const detailToastError = details.toastError
   useEffect(() => {
     if (detailToastError) {
       showError(
@@ -444,7 +444,7 @@ function EditHabitDraft({
   }
 
   function handleSubmit(completion?: GuidedHabitCompletion) {
-    if (!habit || guidedDetails.blocked) return
+    if (!habit || details.blocked) return
     void runSubmission((startRequest) => submitSave(startRequest, completion))
   }
 
@@ -562,7 +562,7 @@ function EditHabitDraft({
     isEmojiSuggesting,
     ...emojiFailureFields(visibleFailure),
     isSuggesting: suggestion.isPending,
-    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || detailFieldsPending} guided={guided} onRetryDetail={() => void retryDetail()} />,
+    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || details.blocked} guided={guided} onRetryDetail={() => void retryDetail()} />,
     defaultExpanded: true,
     lockedGeneral: parent.lockedGeneral,
     onUpgrade: navigateToUpgrade,
@@ -587,7 +587,7 @@ function EditHabitDraft({
           <FlowScreen label={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')} onDismiss={requestDismiss} result={result}>
             <HabitFormInteractionProvider disabled={saving}>
               <GuidedHabitFlow mode="edit" formHelpers={formHelpers} fields={{ ...fieldProps, parentValue: parent.value, linkedGoals: habitDetail?.linkedGoals ?? habit.linkedGoals }} lockedGeneral={parent.lockedGeneral} fromConversation={Boolean(initialSuggestion)}
-                pending={saving} detailsLoading={guidedDetails.loading} detailsError={guidedDetailsError} saveError={saveError} createLabel={t('common.save')}
+                pending={saving} detailsLoading={details.loading} detailsError={detailsFailure} saveError={saveError} createLabel={t('common.save')}
                 onSubmit={handleSubmit} onClose={requestDismiss} />
             </HabitFormInteractionProvider>
             {discardDialog}
@@ -611,7 +611,7 @@ function EditHabitDraft({
             <PillButton size="sm" variant="ghost" disabled={saving} onClick={dismissGuard.requestDismiss}>{t('common.cancel')}</PillButton>
             <PillButton
               size="sm"
-              disabled={detailFieldsPending || saving}
+              disabled={details.blocked || saving}
               loading={saving}
               onClick={() => handleSubmit()}
             >
@@ -622,12 +622,13 @@ function EditHabitDraft({
       >
         <View accessibilityLiveRegion="polite">{saveError ? <Text style={{ color: tokens.statusBadText, fontSize: 14, lineHeight: 20 }}>{saveError}</Text> : null}</View>
         <View style={styles.scrollContent}>
+          {detailsFailure ? <InlineLoadError message={detailsFailure.message} onRetry={detailsFailure.onRetry} /> : null}
           <View
-            pointerEvents={detailFieldsPending || saving ? 'none' : 'auto'}
-            style={detailFieldsPending ? styles.fieldsPending : null}
-            accessibilityElementsHidden={detailFieldsPending}
+            pointerEvents={details.blocked || saving ? 'none' : 'auto'}
+            style={details.blocked ? styles.fieldsPending : null}
+            accessibilityElementsHidden={details.blocked}
           >
-            <HabitFormInteractionProvider disabled={detailFieldsPending || saving}>
+            <HabitFormInteractionProvider disabled={details.blocked || saving}>
             <HabitFormFields formHelpers={formHelpers} onFlushBufferedInputsReady={handleBufferedInputsReady} {...fieldProps} />
             </HabitFormInteractionProvider>
           </View>
