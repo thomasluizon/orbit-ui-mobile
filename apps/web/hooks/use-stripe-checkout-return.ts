@@ -27,6 +27,7 @@ export function useStripeCheckoutReturn({ toastOnSuccess = true }: { toastOnSucc
   const returnAccount = useRef<{ id: string; generation: number } | null>(null)
   const [retryAttempt, setRetryAttempt] = useState(0)
   const [returnState, setReturnState] = useAccountScopedState({ hasReturnError: false, isSettling: false, purchaseConfirmed: false })
+  // react-doctor-disable-next-line effect-needs-cleanup -- FP: the cleanup runs clearTimeout(retryTimer) for the timer that settle arms; RD does not follow a timer armed in an async callback. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     if (accountId === null || new URLSearchParams(globalThis.location.search).get('subscription') !== 'success') return
     const generation = getAccountGeneration()
