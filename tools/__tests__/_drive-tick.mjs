@@ -771,6 +771,11 @@ const mobileHoldCases = async () => {
   }
   const lines = await held("a ui merge is held while the train has mobile steps that are not dispatched", trainFile(["verified", "verified", "dispatched", "pending"]), { expectMerges: 0 })
   same("drive: the held ui merge logs the pull request, the train id and the sha", lines[0].slice(lines[0].indexOf("ui#30")), "ui#30 merge held (release train 2026-11-26T08:07:24.444Z ships mobile at 6c925e9c40000000000000000000000000000000)")
+  const stalledHold = scenario({ tickets: [ticket(7)], runs: [], pulls: { ui: [pull(30)] }, stateDirectory: join(root, `drive-stall-hold-${++scenarios}`) })
+  writeFileSync(join(stalledHold.env.stateDir, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
+  writeFileSync(join(stalledHold.env.stateDir, "release-train.json"), `${JSON.stringify(trainFile(["verified", "verified", "dispatched", "pending"]))}\n`)
+  await stalledHold.run()
+  same("drive: a held ui merge with a 61 minute clock opens no stall issue and sends no notification", [only(stalledHold.calls, "merge").length, only(stalledHold.calls, "createTicket").filter(([, input]) => input.title === STALL).length, only(stalledHold.calls, "notify").length], [0, 0, 0])
   await held("a ui merge is held while the first mobile step is still pending", trainFile(["pending", "pending", "pending", "pending"]), { expectMerges: 0 })
   await held("a ui merge is held while a mobile step is dispatching", trainFile(["verified", "verified", "verified", "dispatching"]), { expectMerges: 0 })
   await held("a ui merge runs when the last mobile production step is dispatched", trainFile(["verified", "verified", "verified", "dispatched"]), { expectMerges: 1 })

@@ -995,8 +995,10 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       const planned = await planPull(env, mem, { ...ctx, runs }, pull)
       const stoppedPlan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
+      let mergeHeld = false
       const plan = hold === null ? stoppedPlan : stoppedPlan.map((action) => {
         if (action.type !== "merge") return action
+        mergeHeld = true
         log(env, item, "merge held", `release train ${hold.id} ships mobile at ${hold.sha}`)
         return { type: "none", reason: `merge held, release train ${hold.id} ships mobile at ${hold.sha}` }
       })
@@ -1004,7 +1006,8 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
       // A run from before the newest request is settled history: a request that came after it started a new run.
       const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${pausedByLog ? " (Pullfrog hit a usage limit)" : ""}`)
-      if (isWaiting(pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
+      // A merge that the release train holds on purpose is a chosen hold, so it stays off the stall clock.
+      if (!mergeHeld && isWaiting(pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       for (const action of plan) {
         if (action.type === "order") orders.push(action)
         else if (action.type !== "none") {
