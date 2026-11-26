@@ -49,6 +49,9 @@ const MONTH_DAY_LIST_END = '(?=\\s*(?:[,.;!?]|$|a partir\\b|comecando\\b|from\\b
 const EN_MONTH_DAY = '\\d{1,2}(?:st|nd|rd|th)'
 const EN_MONTH_DAY_LIST = `${EN_MONTH_DAY}(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+)(?:the\\s+)?${EN_MONTH_DAY})*`
 
+const PT_DAY_PART = '(?:\\s+d[ae]\\s+(manha|tarde|noite|madrugada))?'
+const EN_MERIDIEM = '(?:\\s*(am|pm)|\\s+(in the (?:morning|afternoon|evening)|at night))?'
+
 const WEEKDAY_NEGATIONS = new Set([
   'menos', 'exceto', 'sem', 'nao', 'nunca', 'salvo', 'tirando',
   'except', 'excluding', 'not', 'never', 'without', "don't", 'cannot',
@@ -103,9 +106,10 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(`\\b(?:todo|cada|a cada)\\s+mes,?\\s+(?:(?:no|nos|em)\\s+)?dias?\\s+${PT_MONTH_DAY_LIST}(?![\\w:])`, 'gu'),
     ],
     times: [
-      /\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\b(?![:\dh]|[.,]\d)/gu,
-      /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b(?![:\d]|[.,]\d)/gu,
-      /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b(?![:\d]|[.,]\d)/gu,
+      new RegExp(`\\b(?:as|a)\\s+([01]?\\d|2[0-3])(?::([0-5]\\d)|h([0-5]\\d)?)?\\b${PT_DAY_PART}(?![:\\dh]|[.,]\\d)`, 'gu'),
+      new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3]):([0-5]\\d)\\b${PT_DAY_PART}(?![:\\d]|[.,]\\d)`, 'gu'),
+      new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3])h([0-5]\\d)?\\b${PT_DAY_PART}(?![:\\d]|[.,]\\d)`, 'gu'),
+      /\b(?:(?:ao|as|a)\s+)?meio-dia\b/gu,
     ],
     numberWords: PORTUGUESE_NUMBERS,
   },
@@ -129,10 +133,11 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(`\\bevery\\s+${EN_MONTH_DAY_LIST}(?:\\s+of\\s+the\\s+month(?![\\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
     ],
     times: [
-      /\bat\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\s*(am|pm)?\b(?![:\dh]|[.,]\d)/gu,
-      /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\s*(am|pm)?\b(?![:\d]|[.,]\d)/gu,
+      new RegExp(`\\bat\\s+([01]?\\d|2[0-3])(?::([0-5]\\d)|h([0-5]\\d)?)?${EN_MERIDIEM}\\b(?![:\\dh]|[.,]\\d)`, 'gu'),
+      new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3]):([0-5]\\d)${EN_MERIDIEM}\\b(?![:\\d]|[.,]\\d)`, 'gu'),
       /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b(?![:\d]|[.,]\d)/gu,
       /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s*(am|pm)\b(?![:\d]|[.,]\d)/gu,
+      /\b(?:at\s+)?noon\b/gu,
     ],
     numberWords: ENGLISH_NUMBERS,
   },
@@ -191,13 +196,16 @@ function parseNumber(value: string, words: Readonly<Record<string, number>>): nu
 }
 
 function parseTime(match: RegExpExecArray): string | null {
-  let hour = Number.parseInt(match[1]!, 10)
+  if (match[1] === undefined) return '12:00'
+  let hour = Number.parseInt(match[1], 10)
   const suffixes = match.slice(2)
   const minute = Number.parseInt(suffixes.find((value) => value && /^\d+$/u.test(value)) ?? '0', 10)
-  const meridiem = suffixes.find((value) => value === 'am' || value === 'pm')
-  if (meridiem) {
+  const dayPart = suffixes.find((value) => value && /^(?:am|pm|manha|madrugada|tarde|noite|in the |at night)/u.test(value))
+  if (dayPart) {
     if (hour < 1 || hour > 12) return null
-    hour = hour % 12 + (meridiem === 'pm' ? 12 : 0)
+    const afternoon = dayPart === 'pm' || /tarde|noite|afternoon|evening|night/u.test(dayPart)
+    const namesMidnight = hour === 12 && /noite|night/u.test(dayPart)
+    hour = namesMidnight ? 0 : hour % 12 + (afternoon ? 12 : 0)
   }
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }

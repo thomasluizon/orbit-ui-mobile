@@ -159,6 +159,44 @@ describe('readHabitPhrase', () => {
     expect(readHabitPhrase(input, 'en')).toMatchObject({ cadence: null, frequencyQuantity: null, consumed: [] })
   })
 
+  it.each([
+    ['toda sexta às 3 da tarde', 'pt-BR', 'toda sexta às 3 da tarde'],
+    ['academia toda sexta às 8 da noite', 'pt-BR', 'academia toda sexta às 8 da noite'],
+    ['gym every friday at 3 in the afternoon', 'en', 'every friday at 3 in the afternoon'],
+    ['Read every day at 9 in the morning', 'en', 'every day at 9 in the morning'],
+  ] as const)('keeps the part of the day inside the time token: %s', (input, locale, consumedText) => {
+    const consumed = readHabitPhrase(input, locale).consumed
+    const time = consumed.find((token) => token.kind === 'time')!
+    expect(input.slice(time.start, time.end)).toBe(consumedText.slice(consumedText.search(/(?:às|at) \d/u)))
+  })
+
+  it.each(['at 13 in the afternoon', 'at 0 in the morning'])('leaves an hour outside 1 to 12 with a part of the day unresolved: %s', (input) => {
+    expect(readHabitPhrase(input, 'en')).toMatchObject({ dueTime: null, consumed: [] })
+  })
+
+  it.each([
+    { input: 'toda sexta às 3 da tarde', locale: 'pt-BR', cadence: 'fixed', days: ['Friday'], time: '15:00' },
+    { input: 'toda sexta às 8 da noite', locale: 'pt-BR', cadence: 'fixed', days: ['Friday'], time: '20:00' },
+    { input: 'academia toda sexta às 3 da tarde', locale: 'pt-BR', cadence: 'fixed', days: ['Friday'], time: '15:00' },
+    { input: 'gym every friday at 3 in the afternoon', locale: 'en', cadence: 'fixed', days: ['Friday'], time: '15:00' },
+    { input: 'Meditar todo dia às 9 da manhã', locale: 'pt-BR', cadence: 'daily', days: [], time: '09:00' },
+    { input: 'Meditar todo dia às 5 da madrugada', locale: 'pt-BR', cadence: 'daily', days: [], time: '05:00' },
+    { input: 'Ler todo dia às 9h30 da noite', locale: 'pt-BR', cadence: 'daily', days: [], time: '21:30' },
+    { input: 'Ler todo dia às 12 da noite', locale: 'pt-BR', cadence: 'daily', days: [], time: '00:00' },
+    { input: 'Ler todo dia ao meio-dia', locale: 'pt-BR', cadence: 'daily', days: [], time: '12:00' },
+    { input: 'Ler todo dia às 15h', locale: 'pt-BR', cadence: 'daily', days: [], time: '15:00' },
+    { input: 'Meditate every day at 9 in the morning', locale: 'en', cadence: 'daily', days: [], time: '09:00' },
+    { input: 'Read every day at 7 in the evening', locale: 'en', cadence: 'daily', days: [], time: '19:00' },
+    { input: 'Read every day at 10 at night', locale: 'en', cadence: 'daily', days: [], time: '22:00' },
+    { input: 'Read every day at 8:30 in the evening', locale: 'en', cadence: 'daily', days: [], time: '20:30' },
+    { input: 'Read every day at noon', locale: 'en', cadence: 'daily', days: [], time: '12:00' },
+    { input: 'Read every day at 3 pm', locale: 'en', cadence: 'daily', days: [], time: '15:00' },
+  ] as const)('reads the part of the day after the hour: $input', ({ input, locale, cadence, days, time }) => {
+    for (const variant of [input, input.toUpperCase(), input.normalize('NFD').replace(/\p{M}/gu, '')]) {
+      expect(readHabitPhrase(variant, locale)).toMatchObject({ cadence, days, dueTime: time })
+    }
+  })
+
   it.each(['at 8:99', 'at 8:3', 'at 13pm', 'at 0am', 'at 7:30:20'])('does not consume part of an invalid clock: %s', (input) => {
     expect(readHabitPhrase(input, 'en')).toMatchObject({ dueTime: null, consumed: [] })
   })
