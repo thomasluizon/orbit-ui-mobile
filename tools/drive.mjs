@@ -1106,7 +1106,8 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
   const text = renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null, place, partNumber: part?.number ?? null })
   const stamp = new Date(env.now()).toISOString().replace(/[:.]/g, "-")
   const logFile = join(env.stateDir, "logs", `${stem}-${stamp}.log`)
-  const invocation = await env.invocation(token, accountName)
+  // The GitHub hook of the worker lets it edit only the pull request of this branch, from this worktree.
+  const invocation = await env.invocation(token, accountName, { worktree, branch })
   const account = stateOf(mem, accountName).account?.key ?? null
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
@@ -2026,7 +2027,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
       try { return JSON.parse(result.stdout) } catch { throw new Error(`claude auth status --json gave no JSON (exit ${result.status ?? "none"})`) }
     },
     processAlive: workerApi.isWorkerProcess,
-    invocation: async (token, name = MAIN) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only", configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null }),
+    invocation: async (token, name = MAIN, own = null) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only", configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null, own }),
     sleep: (ms, mem) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); mem.wake = () => { clearTimeout(timer); resolve() } }),
   }
 }

@@ -4,6 +4,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
 import { runBounded } from "./bounded-process.mjs"
 import { workerEnvironment } from "./config.mjs"
@@ -31,7 +32,7 @@ export const WORKER_LIMITS = Object.freeze({
   sampleMs: 30 * 1000,
 })
 
-/** What a worker may not run. A worker pushes and opens a pull request, and nothing else reaches production or GitHub state. */
+/** What a worker and the questions run may not run. Nothing here reaches production, and neither of them merges. */
 export const WORKER_DENY = Object.freeze([
   "Edit(**/.github/migration-contracts.json)",
   "Write(**/.github/migration-contracts.json)",
@@ -56,6 +57,25 @@ export const WORKER_DENY = Object.freeze([
   "Bash(security *)",
 ])
 
+/** The GitHub writes that a code worker may never run and the questions run may. The `gh` hook blocks every other write. */
+export const CODE_WORKER_DENY = Object.freeze([
+  "Bash(gh pr close*)",
+  "Bash(gh issue close*)",
+  "Bash(gh issue comment*)",
+  "Bash(gh issue edit*)",
+])
+
+const GH_HOOK = fileURLToPath(new URL("./worker-gh-hook.mjs", import.meta.url))
+/** The tools that run a shell command in claude 2.1.332. */
+const SHELL_TOOLS = "Bash|Monitor"
+const shellQuoted = (text) => `'${text.replaceAll("'", "'\\''")}'`
+
+/** The hook entry of a code worker. A hook that cannot run exits with a code that lets the call pass, so `|| exit 2` blocks it. */
+const ghHooks = (own) => {
+  const target = own === null ? "" : ` --worktree ${shellQuoted(own.worktree)} --branch ${shellQuoted(own.branch)}`
+  return { PreToolUse: [{ matcher: SHELL_TOOLS, hooks: [{ type: "command", command: `node ${shellQuoted(GH_HOOK)}${target} || exit 2`, timeout: 60 }] }] }
+}
+
 /** The names of the skill folders under `skillsRoot`, the synced folders included: every directory that holds a SKILL.md. */
 export const listSkillNames = (skillsRoot) => {
   const names = new Set()
@@ -77,13 +97,15 @@ export const listSkillNames = (skillsRoot) => {
 /**
  * The `--settings` JSON. `skillOverrides` takes the values "on", "name-only", "user-invocable-only" and "off"
  * in claude 2.1.329 (its settings schema), and "off" hides a skill from the model and from its slash name.
+ * A `codeWorker` gets the GitHub limits. `own` is its `{ worktree, branch }`: with null it may edit no pull request.
  */
-export const workerSettings = ({ hotPath, skillNames, keepSkills = [SKILL_KEPT_ON] }) => ({
+export const workerSettings = ({ hotPath, skillNames, keepSkills = [SKILL_KEPT_ON], codeWorker = true, own = null }) => ({
   claudeMdExcludes: [hotPath],
   autoMemoryEnabled: false,
   outputStyle: "default",
   skillOverrides: Object.fromEntries(skillNames.filter((name) => !keepSkills.includes(name)).map((name) => [name, "off"])),
-  permissions: { deny: [...WORKER_DENY] },
+  permissions: { deny: [...WORKER_DENY, ...(codeWorker ? CODE_WORKER_DENY : [])] },
+  ...(codeWorker ? { hooks: ghHooks(own) } : {}),
 })
 
 /** The worker command. The order goes in on stdin, never in argv. */
@@ -142,8 +164,8 @@ export const workerAccountEnvironment = (parentEnvironment, configDirectory) => 
  * The command and the environment of every worker run: a launch and a probe use the same ones. The main account has no
  * `configDirectory`. The worker account sets `CLAUDE_CONFIG_DIR` to its directory, and nothing else changes.
  */
-export const workerInvocation = ({ home, parentEnvironment, token, configDirectory = null, model = MODEL, keepSkills = [SKILL_KEPT_ON] }) => {
-  const settings = workerSettings({ hotPath: join(home, "Developer", "brain", "hot.md"), skillNames: listSkillNames(join(home, ".claude", "skills")), keepSkills })
+export const workerInvocation = ({ home, parentEnvironment, token, configDirectory = null, model = MODEL, keepSkills = [SKILL_KEPT_ON], codeWorker = true, own = null }) => {
+  const settings = workerSettings({ hotPath: join(home, "Developer", "brain", "hot.md"), skillNames: listSkillNames(join(home, ".claude", "skills")), keepSkills, codeWorker, own })
   const environment = workerEnvironmentFor(parentEnvironment, token)
   if (configDirectory !== null) environment.CLAUDE_CONFIG_DIR = configDirectory
   return { command: workerCommand(JSON.stringify(settings), model), environment }
@@ -152,8 +174,12 @@ export const workerInvocation = ({ home, parentEnvironment, token, configDirecto
 /** The skills that stay on in a questions run: the one that it runs and the one that writes its comments. */
 export const QUESTIONS_SKILLS = Object.freeze(["humanizer", "questions"])
 
-/** The command and the environment of the questions run: the worker's settings, the coordinator model, and the `questions` skill on. The token is the owner's login, never the worker token. */
-export const questionsInvocation = ({ home, parentEnvironment, token }) => workerInvocation({ home, parentEnvironment, token, model: COORDINATOR_MODEL, keepSkills: QUESTIONS_SKILLS })
+/**
+ * The command and the environment of the questions run: the worker's settings without the GitHub limits of a code worker,
+ * because it writes ticket bodies, comments and labels. It has the coordinator model and the `questions` skill on.
+ * The token is the owner's login, never the worker token.
+ */
+export const questionsInvocation = ({ home, parentEnvironment, token }) => workerInvocation({ home, parentEnvironment, token, model: COORDINATOR_MODEL, keepSkills: QUESTIONS_SKILLS, codeWorker: false })
 
 /**
  * The prefixes that the installed claude CLI (2.1.329) classifies as a reached usage limit. The CLI tags such a
