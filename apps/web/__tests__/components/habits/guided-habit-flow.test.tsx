@@ -10,7 +10,7 @@ import { useTagSelection } from '@/hooks/use-tag-selection'
 import { HABIT_REMINDER_PRESETS, buildCreateHabitRequest, buildEmptyHabitFormValues, buildUpdateHabitRequest } from '@orbit/shared/utils'
 
 const state = vi.hoisted(() => ({
-  locale: 'pt-BR' as 'en' | 'pt-BR', read: vi.fn(), helpers: null as unknown, online: true, pro: true, reducedMotion: false,
+  locale: 'pt-BR' as 'en' | 'pt-BR', read: vi.fn(), interpret: vi.fn(), helpers: null as unknown, online: true, pro: true, reducedMotion: false,
   goalToggle: vi.fn(), messagesUsed: 0, reminderTimes: [] as number[],
 }))
 
@@ -30,6 +30,7 @@ vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => state.pro,
 }))
 vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: state.read, isPending: false }) }))
+vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: state.interpret, isPending: false }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: state.online }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showInfo: vi.fn() }) }))
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: true }) }))
@@ -103,6 +104,7 @@ function deferredRead() {
 
 beforeEach(() => {
   state.read.mockReset().mockResolvedValue(null)
+  state.interpret.mockReset().mockResolvedValue({ date: null, referenceDate: '2026-11-13' })
   state.online = true
   state.pro = true
   state.messagesUsed = 0
@@ -182,6 +184,53 @@ describe.each([
     await type(messages().when.freeLabel, locale === 'en' ? 'the 20th' : 'dia 20')
     await press(messages().continue)
     expect(helpers().form.getValues('dueDate')).toBe('2026-11-20')
+  })
+
+  it('scenario 6c: asks Orbit for a day the device cannot read and answers the question with it', async () => {
+    state.interpret.mockResolvedValue({ date: '2026-11-25', referenceDate: '2026-11-13' })
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'call the bank' : 'ligar para o banco')
+    await type(messages().when.freeLabel, 'quando der vontade')
+    await press(messages().continue)
+    expect(state.interpret).toHaveBeenCalledExactlyOnceWith({ phrase: 'quando der vontade', language: locale })
+    expect(screen.queryByText(messages().when.unresolved)).not.toBeInTheDocument()
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'task', dueDate: '2026-11-25' })
+    expect(heading()).not.toHaveTextContent(messages().when.question)
+  })
+
+  it('scenario 6d: keeps the question open with the unresolved line when Orbit finds no day, and says nothing of Orbit while it cannot read', async () => {
+    for (const cannotRead of [() => { state.online = false }, () => { state.messagesUsed = 5 }]) {
+      state.interpret.mockClear()
+      state.online = true
+      state.messagesUsed = 0
+      cannotRead()
+      const { unmount } = render(<Harness />)
+      await phrase(locale === 'en' ? 'call the bank' : 'ligar para o banco')
+      await type(messages().when.freeLabel, 'quando der vontade')
+      await press(messages().continue)
+      expect(state.interpret).not.toHaveBeenCalled()
+      expect(screen.getByText(messages().when.unresolved)).toBeInTheDocument()
+      unmount()
+    }
+    state.online = true
+    state.messagesUsed = 0
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'call the bank' : 'ligar para o banco')
+    await type(messages().when.freeLabel, 'quando der vontade')
+    await press(messages().continue)
+    expect(state.interpret).toHaveBeenCalledOnce()
+    expect(screen.getByText(messages().when.unresolved)).toBeInTheDocument()
+    expect(heading()).toHaveTextContent(messages().when.question)
+  })
+
+  it('scenario 6e: states the budget line when the daily budget of Orbit is spent', async () => {
+    state.interpret.mockRejectedValue(Object.assign(new Error('budget'), { errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }))
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'call the bank' : 'ligar para o banco')
+    await type(messages().when.freeLabel, 'quando der vontade')
+    await press(messages().continue)
+    expect(screen.getByText((state.locale === 'en' ? en : ptBR).habits.form.dateBudgetReached)).toBeInTheDocument()
+    expect(heading()).toHaveTextContent(messages().when.question)
   })
 
   it('scenario 6b: shows the next weekday in the date field as the person types, before Continue, and changes the form only on Continue', async () => {

@@ -4,16 +4,18 @@ import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import type { WhenPreview } from '@orbit/shared/hooks/guided-habit-flow-core'
-import { buildHabitUnderstandingSentence, describeHabitFlowSummary, phraseLineKey, proposedWhenChoice, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFlowAnswerFields, type HabitWhenChoice, type HabitFormCommonProps } from '@orbit/shared/utils'
+import { buildHabitUnderstandingSentence, createOrbitAllowanceTranslator, describeDateReadFailure, describeHabitFlowSummary, phraseLineKey, proposedWhenChoice, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFlowAnswerFields, type HabitWhenChoice, type HabitFormCommonProps } from '@orbit/shared/utils'
 import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
+import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { DateField } from '@/components/ui/date-field'
 import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { Input } from '@/components/ui/input'
 import { ListRow } from '@/components/ui/list-row'
 import { OptionCard } from '@/components/ui/option-card'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
 import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { Proposed } from '@/components/ui/proposed'
@@ -111,7 +113,10 @@ const WHEN_REFUSAL_KEYS = {
 } as const
 
 export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowStepView {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const tokens = useTokens()
+  const { profile } = useProfile()
+  const allowanceText = createOrbitAllowanceTranslator(t, profile, i18n.language)
   const [text, setText] = useState<string | null>(null)
   const [issue, setIssue] = useState<string | undefined>()
   const [held, setHeld] = useState<{ step: string; preview: WhenPreview | null } | null>(null)
@@ -126,10 +131,18 @@ export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowSte
   const guess = proposed ? proposedWhenChoice(form.watch()) : null
   const keeping = proposed && text === null
   const shownText = text ?? (proposed && guess === null ? summary.when : '')
+  const askOrbit = async (words: string) => {
+    const read = await flow.interpretWhenWords(words)
+    if (read.kind === 'stale') return
+    if (read.kind === 'resolved') { setPreview(null); setIssue(undefined); return }
+    setIssue(read.kind === 'failed' ? describeDateReadFailure(read.error, allowanceText) : t(WHEN_REFUSAL_KEYS[read.kind]))
+  }
   const submitText = () => {
+    if (flow.interpretingDate) return
     if (keeping || (shownText.trim() === '' && dueDate !== '')) { flow.keepProposedWhen(); return }
     const refusal = flow.readWhenWords(shownText)
     if (!refusal) setPreview(null)
+    if (refusal === 'unresolved') { setIssue(undefined); void askOrbit(shownText); return }
     setIssue(refusal ? t(WHEN_REFUSAL_KEYS[refusal]) : undefined)
   }
   const typeText = (value: string) => {
@@ -154,7 +167,7 @@ export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowSte
     </>,
     free: <>
       <Proposed proposed={keeping && guess === null} scope="field" label={proposedLabel}>
-        <Input label={t('habits.flow.when.freeLabel')} value={shownText} placeholder={t('habits.flow.when.freePlaceholder')} error={issue} hint={issue ? undefined : repeatWords} onChange={typeText} onSubmit={submitText} />
+        <Input label={t('habits.flow.when.freeLabel')} value={shownText} placeholder={t('habits.flow.when.freePlaceholder')} error={issue} hint={issue ? undefined : repeatWords} trailing={flow.interpretingDate ? <View accessible accessibilityLabel={t('habits.form.dateInterpreting')} accessibilityState={{ busy: true }}><OrbitMascot size={16} color={tokens.fg3} reading /></View> : undefined} onChange={typeText} onSubmit={submitText} />
       </Proposed>
       <DateField label={t('habits.flow.when.calendar')} value={shownDate} minDate={flow.mode === 'create' ? flow.today : undefined} onChange={(date) => { if (date) { setPreview(null); flow.chooseDate(date) } }} />
       {proposed ? null : <PrimaryActionSlot><PillButton variant="ghost" onClick={submitText}>{t('habits.flow.continue')}</PillButton></PrimaryActionSlot>}

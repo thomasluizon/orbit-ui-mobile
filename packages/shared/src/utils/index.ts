@@ -980,7 +980,7 @@ export type {
   HabitFlowStepKey,
 } from './habit-flow-navigation'
 export { answerHabitReminder, answerHabitTime, answerHabitWhen, shiftCalendarDate, HABIT_TIME_OPTIONS } from './habit-flow-answers'
-export { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from './habit-flow-details'
+export { describeDateReadFailure, describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from './habit-flow-details'
 export type { EditDetailsRead, GuidedEditDetails, HabitFlowAnswerFields, HabitFlowOptionalInput, HabitWhenWords, HabitWhenWordsContext } from './habit-flow-details'
 export type { HabitFlowFormPort, HabitWhenChoice } from './habit-flow-answers'
 

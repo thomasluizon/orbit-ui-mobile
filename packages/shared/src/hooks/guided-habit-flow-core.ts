@@ -1,7 +1,8 @@
 import type { z } from 'zod'
-import type { HabitPhraseReadRequest, HabitPhraseReadResponse } from '../types/habit'
+import type { DateInterpretation, HabitPhraseReadRequest, HabitPhraseReadResponse } from '../types/habit'
 import type { SupportedLocale } from '../types/profile'
 import { getAccountDay } from '../utils/dates'
+import { isCalendarDate } from '../utils/date-phrase-parser'
 import { phraseLeavesWordsUnread, readPhraseCoverage, remainingHabitFlowSteps, resetCoveredAnswers, type HabitFlowAnswers, type HabitFlowStepId } from '../utils/habit-flow'
 import { answerHabitReminder, answerHabitTime, answerHabitWhen, formHoldsTimelessReminder, habitRepeatLacksStart, type HabitFlowFormPort, type HabitWhenChoice } from '../utils/habit-flow-answers'
 import { guardHabitReadPatch, habitFlowFieldStep, isShortWeekdayWord, readHabitPhraseDate, readHabitPhraseValues, readHabitWhenWords, type HabitPhraseDate } from '../utils/habit-flow-details'
@@ -82,6 +83,10 @@ export interface GuidedHabitFlowOptions {
   form: GuidedHabitFlowForm
   watched: Pick<HabitFormInput, 'title' | 'itemType' | 'dueDate' | 'dueTime' | 'frequencyUnit' | 'isFlexible'>
   readPhrase: (request: HabitPhraseReadRequest) => Promise<HabitPhraseReadResponse | null>
+  /** Asks Orbit to read a date in words that the device cannot read. It spends one message of the allowance. */
+  interpretDate: (request: { phrase: string; language: string }) => Promise<DateInterpretation>
+  /** The allowance has no message left, so Orbit does not read the date. */
+  atOrbitLimit: boolean
   applySchedule: (patch: HabitFormSuggestionPatch) => boolean
 }
 
@@ -119,6 +124,10 @@ export interface GuidedHabitFlowState {
   reading: boolean
   /** Reads the words of the date step and answers it. Null when the words answered; else the refusal the step states. */
   readWhenWords: (text: string) => WhenRefusal | null
+  /** Asks Orbit to read the words that the device refused as unresolved. It answers the step when Orbit finds the date. */
+  interpretWhenWords: (text: string) => Promise<WhenInterpretation>
+  /** Orbit is reading the date of the When step. */
+  interpretingDate: boolean
   /** Reads the words while the person types, on the device. It changes no field: the host shows a date in the date field and a repeat under the words field. */
   previewWhenWords: (text: string) => WhenPreview | null
   replace: (target: HabitFlowDetailStep) => void
@@ -130,6 +139,8 @@ export interface GuidedHabitFlowState {
 
 /** Why the words of the date step did not answer it. A repeat on a task the person chose keeps the task. */
 export type WhenRefusal = 'past' | 'unresolved' | 'taskRepeat'
+/** What Orbit read in the words that the device refused. Resolved answered the step; stale means the person moved on. */
+export type WhenInterpretation = { kind: 'resolved' } | { kind: 'unresolved' } | { kind: 'past' } | { kind: 'stale' } | { kind: 'failed'; error: unknown }
 /** What the device reads in the words while the person types: a date, which the date field shows, or a repeat with its words. */
 export type WhenPreview = { kind: 'date'; date: string } | { kind: 'repeat'; text: string }
 
@@ -361,8 +372,13 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
   }
 
   function useFlowAnswers({ options, controller, deliberateType, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate }: FlowAnswerInput) {
-    const { form, mode, locale, timeZone } = options
+    const { form, mode, locale, timeZone, isOnline, atOrbitLimit, interpretDate } = options
+    const dateRead = useRef(0)
+    const [interpretingDate, setInterpretingDate] = useState(false)
+    useEffect(() => () => { dateRead.current += 1 }, [])
     const answerStep = useCallback((answered: keyof HabitFlowAnswers, withTime = false) => {
+      dateRead.current += 1
+      setInterpretingDate(false)
       if (answered === 'when') releasePhraseDate()
       const nextAnswers = { ...readAnswers(), [answered]: true, ...(withTime ? { time: true } : {}) }
       setAnswers(nextAnswers)
@@ -400,7 +416,28 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       answerStep('when', words.read.dueTime !== null)
       return null
     }, [answerStep, chooseDate, controller, deliberateType, form, port, readWords, startRepeat])
+    const interpretWhenWords = useCallback(async (text: string): Promise<WhenInterpretation> => {
+      const phrase = text.trim()
+      if (phrase === '' || !isOnline || atOrbitLimit) return { kind: 'unresolved' }
+      dateRead.current += 1
+      const ticket = dateRead.current
+      setInterpretingDate(true)
+      try {
+        const response = await interpretDate({ phrase, language: locale })
+        if (ticket !== dateRead.current) return { kind: 'stale' }
+        if (response.referenceDate !== today || !response.date || !isCalendarDate(response.date)) return { kind: 'unresolved' }
+        if (mode === 'create' && response.date < today) return { kind: 'past' }
+        chooseDate(response.date)
+        return { kind: 'resolved' }
+      } catch (error) {
+        return ticket === dateRead.current ? { kind: 'failed', error } : { kind: 'stale' }
+      } finally {
+        if (ticket === dateRead.current) setInterpretingDate(false)
+      }
+    }, [atOrbitLimit, chooseDate, interpretDate, isOnline, locale, mode, today])
     const previewWhenWords = useCallback((text: string): WhenPreview | null => {
+      dateRead.current += 1
+      setInterpretingDate(false)
       if (isShortWeekdayWord(text)) return null
       const words = readWords(text)
       if (words.kind === 'repeat') return { kind: 'repeat', text: text.trim() }
@@ -421,7 +458,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       answerHabitReminder(port, remind)
       advance()
     }, [advance, port])
-    return { answerWhen, keepProposedWhen, chooseDate, readWhenWords, previewWhenWords, answerTime, answerReminder }
+    return { answerWhen, keepProposedWhen, chooseDate, readWhenWords, interpretWhenWords, interpretingDate, previewWhenWords, answerTime, answerReminder }
   }
 
   function useLiveFlow(step: HabitFlowStepKey, answers: HabitFlowAnswers, deliberateType: DeliberateType) {
@@ -580,7 +617,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     const startRepeat = useCallback(() => {
       if (habitRepeatLacksStart(form.getValues())) form.setField('dueDate', today)
     }, [form, today])
-    const { answerWhen, keepProposedWhen, chooseDate, readWhenWords, previewWhenWords, answerTime, answerReminder } = useFlowAnswers({ options, controller, deliberateType, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate })
+    const { answerWhen, keepProposedWhen, chooseDate, readWhenWords, interpretWhenWords, interpretingDate, previewWhenWords, answerTime, answerReminder } = useFlowAnswers({ options, controller, deliberateType, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate })
     const markTypeDeliberate = useCallback((type: 'task' | 'habit') => {
       if (form.getValues().itemType !== type) setProposals((value) => (value.schedule ? { ...value, schedule: false } : value))
       setDeliberateType(type)
@@ -598,7 +635,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     const shownProposals = useMemo(() => (proposals.time && !watched.dueTime ? { ...proposals, time: false } : proposals), [proposals, watched.dueTime])
 
     return {
-      answers, answerReminder, keepProposedWhen, chooseDate, chooseEmoji, chooseItemType: switches.chooseItemType, changeTitle, controller: answeredController, markTypeDeliberate, readWhenWords, previewWhenWords, answerTime, answerWhen, advance, back, current, leavePhrase,
+      answers, answerReminder, keepProposedWhen, chooseDate, chooseEmoji, chooseItemType: switches.chooseItemType, changeTitle, controller: answeredController, markTypeDeliberate, readWhenWords, interpretWhenWords, interpretingDate, previewWhenWords, answerTime, answerWhen, advance, back, current, leavePhrase,
       localRead, mode, offline: !isOnline, open, position, proposals: shownProposals, reading, replace, steps, suggestEmoji, today, usedAiRead,
     }
   }

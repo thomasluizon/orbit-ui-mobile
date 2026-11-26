@@ -8,6 +8,7 @@ const useGuidedHabitFlow = createUseGuidedHabitFlow({ useState, useEffect, useMe
 const DAILY_AT_SEVEN: HabitPhraseReadResponse = { read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] }
 
 type Values = ReturnType<GuidedHabitFlowForm['getValues']>
+const unusedInterpretDate: GuidedHabitFlowOptions['interpretDate'] = async () => { throw new Error('The Orbit date read is not under test.') }
 
 function mountFlow(readPhrase: GuidedHabitFlowOptions['readPhrase'], opening: Partial<Values> = {}) {
   const values: Values = { title: '', dueDate: '', dueTime: '', frequencyUnit: undefined, isFlexible: false, isGeneral: false, itemType: 'task', emoji: '', ...opening }
@@ -27,7 +28,7 @@ function mountFlow(readPhrase: GuidedHabitFlowOptions['readPhrase'], opening: Pa
     const [, setVersion] = useState(0)
     render = () => setVersion((version) => version + 1)
     flow = useGuidedHabitFlow({
-      mode: 'create', lockedGeneral: null, locale: 'en', timeZone: 'UTC', isOnline: true, helpers, form, readPhrase, applySchedule,
+      mode: 'create', lockedGeneral: null, locale: 'en', timeZone: 'UTC', isOnline: true, helpers, form, readPhrase, applySchedule, interpretDate: unusedInterpretDate, atOrbitLimit: false,
       watched: { title: values.title, itemType: values.itemType, dueDate: values.dueDate, dueTime: values.dueTime, frequencyUnit: values.frequencyUnit, isFlexible: values.isFlexible },
     })
     return null

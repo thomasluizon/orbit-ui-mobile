@@ -1,6 +1,6 @@
 import { formatConjunctionList } from './conjunction-list'
 import { parseDatePhrase, readDateWeekday, type DatePhraseContext } from './date-phrase-parser'
-import { getFriendlyErrorMessage } from './error-utils'
+import { extractBackendErrorCode, getFriendlyErrorMessage } from './error-utils'
 import { habitPhraseRepeats, readTypedHabitPhrase, type HabitPhraseRead, type HabitPhraseSpan } from './habit-phrase-parser'
 import type { SupportedLocale } from '../types/profile'
 import type { HabitFlowDetailStep, HabitFlowOptionalId } from './habit-flow-navigation'
@@ -110,6 +110,11 @@ export function summaryValueStep(value: 'when' | 'time' | 'reminder', item: { it
   if (value === 'when') return item.itemType === 'habit' && !item.isGeneral ? 'repeat' : 'when'
   if (value === 'reminder') return 'reminderKind'
   return 'time'
+}
+
+/** What the When step states when Orbit could not read the date: the budget line for a spent daily budget, else the friendly message of the error. */
+export function describeDateReadFailure(error: unknown, translate: Parameters<typeof getFriendlyErrorMessage>[1]): string {
+  return extractBackendErrorCode(error) === 'AI_DAILY_BUDGET_EXCEEDED' ? translate('habits.form.dateBudgetReached') : getFriendlyErrorMessage(error, translate, 'habits.form.aiSuggestError', 'habit')
 }
 
 export type HabitWhenWords =

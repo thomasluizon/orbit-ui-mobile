@@ -15,7 +15,7 @@ import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { press, renderNavigation } from '../ui/navigation-render'
 
 const state = vi.hoisted(() => ({
-  helpers: null as ReturnType<typeof useHabitForm> | null, read: vi.fn(), online: true, pro: true, goalToggle: vi.fn(), messagesUsed: 0, reducedMotion: false, reminderTimes: [] as number[],
+  helpers: null as ReturnType<typeof useHabitForm> | null, read: vi.fn(), interpret: vi.fn(), online: true, pro: true, goalToggle: vi.fn(), messagesUsed: 0, reducedMotion: false, reminderTimes: [] as number[],
   templates: [{ id: 'template-1', name: 'Manhã', items: ['Separar roupa'] }],
 }))
 
@@ -30,6 +30,7 @@ vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => state.pro,
 }))
 vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: state.read, isPending: false }) }))
+vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: state.interpret, isPending: false }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: state.online }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showInfo: vi.fn() }) }))
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: true }) }))
@@ -129,6 +130,7 @@ function deferredRead() {
 
 beforeEach(() => {
   state.read.mockReset().mockResolvedValue(null)
+  state.interpret.mockReset().mockResolvedValue({ date: null, referenceDate: '2026-11-13' })
   state.online = true
   state.pro = true
   state.messagesUsed = 0
@@ -208,6 +210,57 @@ describe.each([
     await type(tree, flowCopy().when.freeLabel, locale === 'en' ? 'the 20th' : 'dia 20')
     await submitField(tree, flowCopy().when.freeLabel)
     expect(helpers().form.getValues('dueDate')).toBe('2026-11-20')
+    tree.unmount()
+  })
+
+  it('scenario 6c: asks Orbit for a day the device cannot read and answers the question with it', async () => {
+    state.interpret.mockResolvedValue({ date: '2026-11-25', referenceDate: '2026-11-13' })
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'call the bank' : 'ligar para o banco')
+    await type(tree, flowCopy().when.freeLabel, 'quando der vontade')
+    await submitField(tree, flowCopy().when.freeLabel)
+    expect(state.interpret).toHaveBeenCalledExactlyOnceWith({ phrase: 'quando der vontade', language: locale })
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'task', dueDate: '2026-11-25' })
+    expect(heading(tree)).not.toBe(flowCopy().when.question)
+    tree.unmount()
+  })
+
+  it('scenario 6d: keeps the question open with the unresolved line when Orbit finds no day, and asks nothing while it cannot read', async () => {
+    const unresolved = (tree: Tree) => tree.hosts().some((node) => String((node.props as { accessibilityHint?: string }).accessibilityHint ?? '').includes(flowCopy().when.unresolved))
+    for (const cannotRead of [() => { state.online = false }, () => { state.messagesUsed = 5 }]) {
+      state.interpret.mockClear()
+      state.online = true
+      state.messagesUsed = 0
+      cannotRead()
+      const tree = renderNavigation(<Harness />)
+      await phrase(tree, locale === 'en' ? 'call the bank' : 'ligar para o banco')
+      await type(tree, flowCopy().when.freeLabel, 'quando der vontade')
+      await submitField(tree, flowCopy().when.freeLabel)
+      expect(state.interpret).not.toHaveBeenCalled()
+      expect(unresolved(tree)).toBe(true)
+      tree.unmount()
+    }
+    state.online = true
+    state.messagesUsed = 0
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'call the bank' : 'ligar para o banco')
+    await type(tree, flowCopy().when.freeLabel, 'quando der vontade')
+    await submitField(tree, flowCopy().when.freeLabel)
+    expect(state.interpret).toHaveBeenCalledOnce()
+    expect(unresolved(tree)).toBe(true)
+    expect(heading(tree)).toBe(flowCopy().when.question)
+    tree.unmount()
+  })
+
+  it('scenario 6e: states the budget line when the daily budget of Orbit is spent', async () => {
+    state.interpret.mockRejectedValue(Object.assign(new Error('budget'), { errorCode: 'AI_DAILY_BUDGET_EXCEEDED' }))
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'call the bank' : 'ligar para o banco')
+    await type(tree, flowCopy().when.freeLabel, 'quando der vontade')
+    await submitField(tree, flowCopy().when.freeLabel)
+    const budget = (i18n.language === 'en' ? en : ptBR).habits.form.dateBudgetReached
+    expect(tree.hosts().some((node) => String((node.props as { accessibilityHint?: string }).accessibilityHint ?? '').includes(budget))).toBe(true)
+    expect(heading(tree)).toBe(flowCopy().when.question)
     tree.unmount()
   })
 
