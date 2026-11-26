@@ -75,7 +75,7 @@ for (const width of [412, 1352]) {
         })
         await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }, { path: API.notifications.list, body: notifications }])
         await page.goto('/notifications')
-        const rows = page.locator('li[data-read]')
+        const rows = page.locator('[data-read]')
         await expect(rows).toHaveCount(2)
         for (const row of await rows.all()) {
           const [body, remove] = [row.getByRole('button').first(), row.getByRole('button').last()]

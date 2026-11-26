@@ -95,7 +95,7 @@ function CalendarOrbitLineRow(props: Readonly<CalendarOrbitLineProps>) {
   }
   return <View testID="calendar-orbit-line" style={styles.block}>
     <TodayOrbitLine text={sentence ? formatCalendarOrbitLine(sentence, i18n.language, t) : t('calendar.loading')}
-      destination={reason ?? t('todayOrbit.openConversation')} loading={!sentence} busy={!sentence} disabled={!sentence || Boolean(reason)}
+      destination={reason ?? t('todayOrbit.openConversation')} loading={!sentence} loadingLines={1} busy={!sentence} disabled={!sentence || Boolean(reason)}
       onPress={openConversation} mascotState={mascotState} lookAt={lookAt} turnKey={turns} mascotRef={mascotRef} />
     {reason ? <Text testID="calendar-orbit-line-reason" style={[styles.reason, { color: props.tokens.fg3 }]}>{reason}</Text> : null}
   </View>

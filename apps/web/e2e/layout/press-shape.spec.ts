@@ -156,7 +156,7 @@ for (const width of [412, 1280] as const) {
       await expectFullTouchTarget(monthTitle, 12, '--bg-hover')
       await expectHoverOnHitArea(page.getByRole('radiogroup').getByRole('radio', { checked: false }).first(), 8)
       await monthTitle.click()
-      const monthPicker = page.getByRole('dialog', { name: ptBr.calendar.monthPicker, exact: true })
+      const monthPicker = page.getByRole('dialog', { name: ptBr.calendar.monthPickerQuestion, exact: true })
       const yearTitle = monthPicker.getByRole('button', { name: new RegExp(`, ${ptBr.common.selectYear}$`) })
       await expectFullTouchTarget(yearTitle, 12, '--bg-hover')
       await yearTitle.click()

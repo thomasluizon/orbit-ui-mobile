@@ -123,7 +123,7 @@ for (const width of [412, 1352]) {
         '/profile/notifications': '[role="switch"]',
         '/habits/new': '[data-habit-create-screen] form',
         '/upgrade': '.orbit-pill-action',
-        '/notifications': 'ul[aria-busy="false"] > li[data-read]',
+        '/notifications': 'ul[aria-busy="false"] > li > [data-read]',
         '/about': '[data-testid="about-content"]',
         '/support': 'form .orbit-pill-action',
       }

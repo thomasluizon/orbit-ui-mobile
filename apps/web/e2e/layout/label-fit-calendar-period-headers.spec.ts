@@ -81,7 +81,7 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
           await page.getByRole('menu', { name: words.calendar.options, exact: true })
             .getByRole('menuitem', { name: words.calendar.legendTitle, exact: true }).click()
         }
-        const legend = page.getByRole('dialog', { name: words.calendar.legendTitle, exact: true })
+        const legend = page.getByRole('dialog', { name: words.calendar.legendQuestion, exact: true })
         await expectLegendFits(legend, [words.calendar.legend.full, words.calendar.legend.partial, words.calendar.legend.none, words.calendar.legend.loggable])
       })
 

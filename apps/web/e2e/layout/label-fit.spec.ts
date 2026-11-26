@@ -207,8 +207,8 @@ for (const width of [320, 360, 384, 412]) {
           await page.getByRole('menu', { name: words.calendar.options, exact: true })
             .getByRole('menuitem', { name: words.calendar.legendTitle, exact: true }).click()
         }
-        const sheet = page.getByRole('dialog', { name: words.calendar.legendTitle, exact: true })
-        await markRequiredLabels(sheet.getByRole('heading', { name: words.calendar.legendTitle, exact: true }))
+        const sheet = page.getByRole('dialog', { name: words.calendar.legendQuestion, exact: true })
+        await markRequiredLabels(sheet.getByRole('heading', { name: words.calendar.legendQuestion, exact: true }))
         await expect(sheet.locator('[data-legend-outcome]')).toHaveCount(4)
         await expectLegendFits(sheet, [
           words.calendar.legend.full, words.calendar.legend.partial, words.calendar.legend.none, words.calendar.legend.loggable,

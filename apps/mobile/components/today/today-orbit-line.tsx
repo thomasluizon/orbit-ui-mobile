@@ -18,6 +18,7 @@ interface TodayOrbitLineProps {
   busy?: boolean
   announce?: boolean
   loading?: boolean
+  loadingLines?: 1 | 2
   mascotState?: 'parado' | 'pensando' | 'descansando'
   lookAt?: OrbitLookTarget | null
   turnKey?: string | number
@@ -41,7 +42,7 @@ function useSentenceFade(text: string, still: boolean) {
   return useAnimatedStyle(() => ({ opacity: opacity.value }))
 }
 
-export function TodayOrbitLine({ text, destination, role = 'button', onPress, disabled = false, busy = false, announce = false, loading = false, mascotState = 'parado', lookAt, turnKey, mascotRef }: Readonly<TodayOrbitLineProps>) {
+export function TodayOrbitLine({ text, destination, role = 'button', onPress, disabled = false, busy = false, announce = false, loading = false, loadingLines = 2, mascotState = 'parado', lookAt, turnKey, mascotRef }: Readonly<TodayOrbitLineProps>) {
   const { fontScale } = useWindowDimensions()
   const reducedMotion = usePrefersReducedMotion()
   const sentenceStyle = useSentenceFade(text, reducedMotion)
@@ -72,9 +73,9 @@ export function TodayOrbitLine({ text, destination, role = 'button', onPress, di
         <View ref={mascotRef} accessible={false} style={{ width: 48, flexShrink: 0, alignItems: 'center' }}>
           <OrbitMascot size={48} live="withLead" state={mascotState} lookAt={lookAt} turnKey={turnKey} />
         </View>
-        {loading ? <View testID="summary-skeleton" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.skeleton, { minHeight: type.lineHeight * 2 }]}>
+        {loading ? <View testID="summary-skeleton" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.skeleton, { minHeight: type.lineHeight * loadingLines }]}>
           <View style={styles.placeholder}><Skeleton variant="fill" grouped /></View>
-          <View style={[styles.placeholder, styles.placeholderShort]}><Skeleton variant="fill" grouped /></View>
+          {loadingLines === 2 ? <View style={[styles.placeholder, styles.placeholderShort]}><Skeleton variant="fill" grouped /></View> : null}
         </View> : <Animated.View testID="today-orbit-sentence" style={[styles.sentence, sentenceStyle]}>
           <Text numberOfLines={2} ellipsizeMode="tail" style={[type, { color: tokens.fg2 }]}>
             {text}

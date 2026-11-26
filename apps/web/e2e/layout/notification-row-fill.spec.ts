@@ -17,7 +17,7 @@ for (const mode of ['light', 'dark'] as const) {
         })
         await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
         await page.goto('/notifications')
-        const rows = page.locator('li[data-read]')
+        const rows = page.locator('[data-read]')
         await expect(rows).toHaveCount(2)
         for (const row of await rows.all()) {
           const controls = await row.getByRole('button').all()

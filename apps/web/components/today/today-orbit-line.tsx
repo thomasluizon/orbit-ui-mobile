@@ -17,6 +17,7 @@ interface TodayOrbitLineProps {
   busy?: boolean
   announce?: boolean
   loading?: boolean
+  loadingLines?: 1 | 2
   mascotState?: 'parado' | 'pensando' | 'descansando'
   gutter?: boolean
   lookAt?: OrbitLookTarget | null
@@ -33,7 +34,7 @@ function useSentenceChanged(text: string): boolean {
   return changed
 }
 
-export function TodayOrbitLine({ text, destination, href, onPress, disabled = false, busy = false, announce = false, loading = false, mascotState = 'parado', gutter = true, lookAt, turnKey, mascotRef }: Readonly<TodayOrbitLineProps>) {
+export function TodayOrbitLine({ text, destination, href, onPress, disabled = false, busy = false, announce = false, loading = false, loadingLines = 2, mascotState = 'parado', gutter = true, lookAt, turnKey, mascotRef }: Readonly<TodayOrbitLineProps>) {
   const destinationId = useId()
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const fade = useSentenceChanged(text) && !reducedMotion
@@ -42,7 +43,7 @@ export function TodayOrbitLine({ text, destination, href, onPress, disabled = fa
       <OrbitMascot size={48} live="withLead" state={mascotState} lookAt={lookAt} turnKey={turnKey} />
     </span>
     <span className="today-orbit-sentence" aria-live={announce ? 'polite' : undefined}>
-      {loading ? <><span className="sr-only">{text}</span><span data-summary-skeleton aria-hidden="true" className="flex min-h-[2lh] flex-col justify-center gap-2"><span className="block h-[14px] w-full"><Skeleton variant="fill" grouped /></span><span className="block h-[14px] w-2/3"><Skeleton variant="fill" grouped /></span></span></>
+      {loading ? <><span className="sr-only">{text}</span><span data-summary-skeleton aria-hidden="true" className={loadingLines === 1 ? 'flex min-h-[1lh] flex-col justify-center' : 'flex min-h-[2lh] flex-col justify-center gap-2'}><span className="block h-[14px] w-full"><Skeleton variant="fill" grouped /></span>{loadingLines === 2 ? <span className="block h-[14px] w-2/3"><Skeleton variant="fill" grouped /></span> : null}</span></>
         : <span key={text} data-sentence-change={fade ? '' : undefined} style={fade ? { animation: SENTENCE_CHANGE } : undefined}>{text}</span>}
     </span>
   </>

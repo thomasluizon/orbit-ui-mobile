@@ -83,7 +83,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
       }
 
       for (const screen of ['account', 'preferences', 'orbit', 'notifications']) {
-        await page.goto(`/profile/${screen}`)
+        await page.goto(`/profile/${screen === 'orbit' ? 'ai' : screen}`)
         const group = page.getByTestId(`profile-settings-group-${screen}`)
         const firstRow = group.locator('.orbit-row-list > div').first()
         await expect(firstRow).toBeVisible()

@@ -80,7 +80,7 @@ for (const width of [412, 1280]) {
             const between = slots.slice(slots.indexOf(headerSlot) + 1, slots.indexOf(strip))
             const sections = [headerSlot, ...between, strip]
             const adjacentSectionGaps = sections.slice(1).map((section, index) => section.getBoundingClientRect().top - sections[index]!.getBoundingClientRect().bottom)
-            const interveningSections = between.map((section) => section.querySelector('[data-testid="detail-children"]') ? 'children' : section.querySelector('[role="checkbox"]') && section.querySelector('[role="progressbar"]') ? 'checklist' : 'unknown')
+            const interveningSections = between.map((section) => section.matches('[data-today-orbit-slot]') ? 'orbit' : section.querySelector('[data-testid="detail-children"]') ? 'children' : section.querySelector('[role="checkbox"]') && section.querySelector('[role="progressbar"]') ? 'checklist' : 'unknown')
             const metadata = Array.from(header.querySelectorAll('[data-habit-detail-tags], [data-habit-detail-description]'))
             let previousBottom = copy.getBoundingClientRect().bottom
             const metadataGaps = metadata.map((block) => {
@@ -162,10 +162,10 @@ for (const width of [412, 1280]) {
           if (!hasTags && !hasDescription) expect(geometry.headerToFirstSection).toBe(24)
           expect(geometry.contentToFirstSection).toBe(24)
           expect(geometry.stripLabelInset).toBe(0)
-          expect(geometry.adjacentSectionGaps).toEqual(Array(hasTags ? 3 : 2).fill(24))
+          expect(geometry.adjacentSectionGaps).toEqual(Array(hasTags ? 4 : 3).fill(24))
           expect(geometry.metadataGaps).toEqual(Array(Number(hasTags) + Number(hasDescription)).fill(12))
           expect(geometry.zeroHeightSlots).toBe(0)
-          expect(geometry.interveningSections).toEqual(hasTags ? ['checklist', 'children'] : ['children'])
+          expect(geometry.interveningSections).toEqual(hasTags ? ['orbit', 'checklist', 'children'] : ['orbit', 'children'])
           expect(geometry.emptyLiveRegion).toBe(true)
         })
       }

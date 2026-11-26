@@ -75,7 +75,7 @@ for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
           const profile = page.getByTestId('profile-settings-groups')
           await expectContentEdges(profile.locator('.orbit-row-list > *'), reference, width)
           for (const screen of ['account', 'preferences', 'orbit', 'notifications']) {
-            await page.goto(`/profile/${screen}`)
+            await page.goto(`/profile/${screen === 'orbit' ? 'ai' : screen}`)
             const group = page.getByTestId(`profile-settings-group-${screen}`)
             await expect(group.locator('[aria-busy="true"]')).toHaveCount(0)
             await expectContentEdges(group.locator('.orbit-row-list > *'), reference, width)
@@ -91,7 +91,20 @@ for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
           const upgrade = page.locator('[data-upgrade-screen]')
           await expect(upgrade).toHaveAttribute('aria-busy', 'false')
           await expect(upgrade.getByRole('heading', { level: 2 }).first()).toBeVisible()
-          await expectContentEdges(upgrade.locator(':scope > div > div > *'), reference, width, subscriptionState === 'free' ? 620 : 560)
+          if (subscriptionState === 'free') {
+            const block = upgrade.locator('[data-upgrade-block]')
+            const frame = upgrade.locator(':scope > div > div')
+            const [blockEdges, frameEdges] = [await edges(block), await edges(frame)]
+            expect(blockEdges.right - blockEdges.left).toBeLessThanOrEqual(592)
+            expect((blockEdges.left + blockEdges.right) / 2).toBeCloseTo((frameEdges.left + frameEdges.right) / 2, 0)
+            if (width < 1024) {
+              expect(frameEdges.left).toBeCloseTo(reference.left, 0)
+              expect(frameEdges.right).toBeCloseTo(reference.right, 0)
+            }
+            await expectContentEdges(upgrade.locator('[data-upgrade-support]'), { left: frameEdges.left, right: frameEdges.right }, 0, 0)
+          } else {
+            await expectContentEdges(upgrade.locator(':scope > div > div > *'), reference, width, 560)
+          }
 
           await page.goto('/about')
           const about = page.getByTestId('about-content')
