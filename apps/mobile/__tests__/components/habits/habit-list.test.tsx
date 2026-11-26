@@ -2271,6 +2271,7 @@ describe('HabitList', () => {
     expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(0)
     seedHabits([monthly])
     TestRenderer.act(() => { tree!.update(list('Month')) })
+    expect(tree!.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'habits.allDoneHint')).toHaveLength(0)
     expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(0)
     TestRenderer.act(() => { tree!.update(list()) })
     expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(1)

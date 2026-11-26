@@ -42,13 +42,13 @@ describe('Hoje completion text and action geometry', () => {
         await page.setContent(`<style>${stylesheet}</style><main style="max-width:740px;margin:auto;padding:16px">${container.innerHTML}</main>`)
         await loadAppFonts(page)
         const geometry = await page.evaluate(() => {
-          const title = document.querySelector('p')
+          const [title, hint] = document.querySelectorAll('p')
           const action = document.querySelector('button')!.getBoundingClientRect()
           const finish = document.querySelector('[data-testid="habit-list-all-done"]')!.getBoundingClientRect()
           const logo = document.querySelector<SVGSVGElement>('[data-asset="orbit-mascot"]')
           const mark = logo?.getBoundingClientRect()
           const carrier = document.querySelector('[data-testid="completed-day-mark"]')?.getBoundingClientRect()
-          const text = [title!, document.querySelector('button')!].map(element => {
+          const text = [title!, hint!, document.querySelector('button')!].map(element => {
             const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
             const rects: DOMRect[] = []
             while (walker.nextNode()) {
@@ -62,7 +62,8 @@ describe('Hoje completion text and action geometry', () => {
           return { markCentreY: mark && mark.top + mark.height / 2, carrierCentreY: carrier && carrier.top + carrier.height / 2, mascotState: logo?.getAttribute('data-orbit-state'),
             circlesOutsideMascot: [...document.querySelectorAll('circle')].filter(circle => !circle.closest('[data-asset="orbit-mascot"]')).length,
             markGap: carrier && title!.getBoundingClientRect().top - carrier.bottom,
-            actionGap: action.top - title!.getBoundingClientRect().bottom,
+            textGap: hint!.getBoundingClientRect().top - title!.getBoundingClientRect().bottom,
+            actionGap: action.top - hint!.getBoundingClientRect().bottom,
             finish: { left: finish.left, right: finish.right, centre: finish.left + finish.width / 2 },
             mark: mark && { width: mark.width, height: mark.height, centre: mark.left + mark.width / 2 },
             carrier: carrier && { width: carrier.width, height: carrier.height, centre: carrier.left + carrier.width / 2 },
@@ -87,6 +88,7 @@ describe('Hoje completion text and action geometry', () => {
           expect(text.right).toBeLessThanOrEqual(geometry.finish.right - 24)
         }
         expect(geometry.animations).toBe(0)
+        expect(geometry.textGap).toBe(8)
         expect(geometry.actionGap).toBeGreaterThanOrEqual(24)
       } finally { await page.close() }
     },
