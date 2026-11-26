@@ -2319,13 +2319,17 @@ const capRestartCases = async () => {
   await retry.run()
   same("drive: a close that failed is tried again on the next tick with no second restart comment", [only(retry.calls, "closePull").length, restartText(retry)], [1, ""])
 
+  const retrySecond = scenario({ tickets: [ticket(7, { comments: [fixLaunch(null, -90 * MINUTE, "chore/ticket-7-r2"), fixLaunch(null, -80 * MINUTE, "chore/ticket-7-r2"), fixLaunch(OPUS, -60 * MINUTE, "chore/ticket-7-r2"), record("chore/ticket-7", { pr: 20 }), record("chore/ticket-7-r2")] })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-r2", reviews: [finding] })] } })
+  await retrySecond.run()
+  same("drive: a close that failed at the second restart is tried again on the next tick with no second restart comment", [only(retrySecond.calls, "closePull").length, restartText(retrySecond)], [1, ""])
+
   const rebuild = scenario({ tickets: [ticket(7, { comments: [...sonnet, fixLaunch(OPUS, -60 * MINUTE), record("chore/ticket-7")] })] })
   await rebuild.run()
   const built = JSON.parse(commentsOf(rebuild.calls, 7).find((entry) => entry.startsWith(marked("launch", ""))).split("\n")[1])
   same("drive: the build after a restart takes a fresh branch from main, never the closed branch", [rebuild.launched.length, built.kind, built.branch, rebuild.launched[0]?.worktree], [1, "build", "chore/ticket-7-r2", "/r/orbit-worktrees/ui/chore-ticket-7-r2"])
   T("drive: the build order after a restart holds the earlier attempts and their failure history", orderText(rebuild).includes("## Earlier attempts") && orderText(rebuild).includes("Earlier history of chore/ticket-7."), orderText(rebuild))
 
-  const bound = scenario({ tickets: [ticket(7, { comments: [fixLaunch(null, -90 * MINUTE, "chore/ticket-7-r3"), fixLaunch(null, -80 * MINUTE, "chore/ticket-7-r3"), fixLaunch(OPUS, -60 * MINUTE, "chore/ticket-7-r3"), record("chore/ticket-7"), record("chore/ticket-7-r2")] })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-r3", reviews: [finding] })] } })
+  const bound = scenario({ tickets: [ticket(7, { comments: [fixLaunch(null, -90 * MINUTE, "chore/ticket-7-r3"), fixLaunch(null, -80 * MINUTE, "chore/ticket-7-r3"), fixLaunch(OPUS, -60 * MINUTE, "chore/ticket-7-r3"), record("chore/ticket-7", { pr: 20 }), record("chore/ticket-7-r2", { pr: 25 })] })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-r3", reviews: [finding] })] } })
   await bound.run()
   same("drive: after 2 restarts of one piece of work the third close waits, with no owner label and no ask", [only(bound.calls, "closePull").length, restartText(bound), only(bound.calls, "editLabels").length, asks(bound.calls).length, [...bound.mem.capped]], [0, "", 0, 0, ["ui#30"]])
 

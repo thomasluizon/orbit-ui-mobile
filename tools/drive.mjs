@@ -1029,7 +1029,7 @@ const planPullActions = async (env, mem, { repoKey, state, ticketMap, now, runs,
     if (counted.length < MAX_FIX_LAUNCHES) return [...actions, order]
     // A fix cap never waits on the owner. The launch on the coordinator model comes first; when it fails too, the driver closes the pull request and builds the ticket again from main.
     if (!counted.some(ranOpus)) return [...actions, { type: "none", reason: WAITS_FOR_OPUS, capped: true }]
-    const bound = restartsOf(ticket).filter((entry) => branchBase(entry.branch) === branchBase(pull.headRef)).length
+    const bound = restartsOf(ticket).filter((entry) => entry.pr !== pull.number && branchBase(entry.branch) === branchBase(pull.headRef)).length
     if (bound >= MAX_RESTARTS) return [...actions, { type: "none", reason: WAITS_FOR_BOUND, capped: true }]
     return [...actions, { type: "restart", capped: true, history: failureHistory({ item, pull, order, launches }) }]
   }
