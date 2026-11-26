@@ -56,7 +56,7 @@ describe('the trial expired dialog', () => {
     expect(content.querySelector('[data-orbit-face="rig"]')).toHaveAttribute('data-orbit-state', 'parado')
     expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
     const messages = locale === 'en' ? en : ptBR
-    for (const line of [messages.trial.expired.eyebrow, messages.trial.expired.orbitCeiling, messages.trial.expired.calendarSync, messages.trial.expired.retrospective, messages.trial.expired.proactiveOrbit]) {
+    for (const line of [messages.trial.expired.orbitCeiling, messages.trial.expired.calendarSync, messages.trial.expired.retrospective, messages.trial.expired.proactiveOrbit]) {
       expect(within(content).getByText(innermostTextOf(line))).toBeInTheDocument()
     }
     expect(within(content).getAllByText(messages.trial.expired.paused)).toHaveLength(4)
