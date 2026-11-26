@@ -182,4 +182,46 @@ describe('guided habit flow: the words of the When step', () => {
     expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueDate: '2026-11-25' })
     mounted.unmount()
   })
+
+  it('brings back the repeat the person answered after a typed and erased date', () => {
+    const mounted = mountModeFlow()
+    void act(() => { mounted.flow.readWhenWords('every friday') })
+    expect(mounted.flow.current.step).toBe('time')
+    void act(() => { mounted.flow.back() })
+    expect(mounted.flow.current.step).toBe('when')
+    const before = { ...mounted.values }
+    expect(before).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', days: ['Friday'] })
+    typeKeys(mounted, 'tomorrow')
+    expect(mounted.values).toMatchObject({ itemType: 'task', dueDate: '2026-11-26' })
+    void act(() => { mounted.flow.previewWhenWords('') })
+    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', days: ['Friday'], dueDate: before.dueDate })
+    expect(mounted.flow.answers.when).toBe(true)
+    mounted.unmount()
+  })
+
+  it('brings back the repeat the person answered when the typed words end as tomorrow morning', () => {
+    const mounted = mountModeFlow()
+    void act(() => { mounted.flow.readWhenWords('every friday') })
+    void act(() => { mounted.flow.back() })
+    const before = { ...mounted.values }
+    typeKeys(mounted, 'tomorrow morning')
+    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', days: ['Friday'], dueDate: before.dueDate })
+    expect(mounted.flow.answers.when).toBe(true)
+    let refusal: string | null = null
+    void act(() => { refusal = mounted.flow.readWhenWords('tomorrow morning') })
+    expect(refusal).toBe('unresolved')
+    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', days: ['Friday'], dueDate: before.dueDate })
+    mounted.unmount()
+  })
+
+  it('brings back the every day answer when the typed date reads as past', () => {
+    const mounted = mountModeFlow()
+    void act(() => mounted.flow.answerWhen('everyDay'))
+    const before = { ...mounted.values }
+    expect(before).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day' })
+    typeKeys(mounted, '12/1/2025')
+    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueDate: before.dueDate })
+    expect(mounted.flow.answers.when).toBe(true)
+    mounted.unmount()
+  })
 })

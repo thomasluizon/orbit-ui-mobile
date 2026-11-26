@@ -98,6 +98,8 @@ export interface GuidedHabitFlowState {
   answerReminder: (remind: boolean) => void
   answerTime: (time: string | null) => void
   answerWhen: (choice: HabitWhenChoice) => void
+  /** Keeps the proposed repeat as the answer of the When step. */
+  keepProposedWhen: () => void
   advance: (nextSteps?: readonly HabitFlowStepKey[], nextAnswers?: HabitFlowAnswers) => void
   back: () => boolean
   changeTitle: (value: string) => void
@@ -145,11 +147,10 @@ interface PhraseReadInput {
   live: { current: LiveFlow }
   localRead: HabitPhraseRead
   typedDate: HabitPhraseDate | null
-  proposals: GuidedHabitProposals
   setProposals: StateSetter<GuidedHabitProposals>
   emojiChosen: { current: boolean }
   advance: (nextSteps?: readonly HabitFlowStepKey[], nextAnswers?: HabitFlowAnswers) => void
-  stepsAfter: (nextAnswers: HabitFlowAnswers, aiGaveTime?: boolean) => HabitFlowStepId[]
+  stepsAfter: (nextAnswers: HabitFlowAnswers) => HabitFlowStepId[]
   startRepeat: () => void
 }
 
@@ -164,7 +165,7 @@ interface FlowAnswerInput {
   setAnswers: StateSetter<HabitFlowAnswers>
   setProposals: StateSetter<GuidedHabitProposals>
   advance: (nextSteps?: readonly HabitFlowStepKey[], nextAnswers?: HabitFlowAnswers) => void
-  stepsAfter: (nextAnswers: HabitFlowAnswers, aiGaveTime?: boolean) => HabitFlowStepId[]
+  stepsAfter: (nextAnswers: HabitFlowAnswers) => HabitFlowStepId[]
   startRepeat: () => void
   releasePhraseDate: () => void
 }
@@ -361,7 +362,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
 
   function useFlowAnswers({ options, controller, deliberateType, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate }: FlowAnswerInput) {
     const { form, mode, locale, timeZone } = options
-    const filled = useRef<{ date: string; dueDate: string; when: boolean } | null>(null)
+    const filled = useRef<{ date: string; dueDate: string; when: boolean; itemType: 'task' | 'habit' } | null>(null)
     const answerStep = useCallback((answered: keyof HabitFlowAnswers, withTime = false) => {
       if (answered === 'when') releasePhraseDate()
       const nextAnswers = { ...readAnswers(), [answered]: true, ...(withTime ? { time: true } : {}) }
@@ -409,6 +410,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       if (hold === null) return
       filled.current = null
       if (form.getValues().dueDate !== hold.date) return
+      port.chooseItemType(hold.itemType)
       port.setField('dueDate', hold.dueDate)
       setAnswers((value) => (value.when === hold.when ? value : { ...value, when: hold.when }))
     }, [form, port, setAnswers])
@@ -419,7 +421,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       if (words.kind !== 'date' || deliberateType === 'habit') { restoreFilledDate(); return null }
       releasePhraseDate()
       const values = form.getValues()
-      if (filled.current === null && values.dueDate !== words.date) filled.current = { date: words.date, dueDate: values.dueDate ?? '', when: readAnswers().when }
+      if (filled.current === null && values.dueDate !== words.date) filled.current = { date: words.date, dueDate: values.dueDate ?? '', when: readAnswers().when, itemType: values.itemType === 'habit' ? 'habit' : 'task' }
       setAnswers((value) => (value.when ? value : { ...value, when: true }))
       if (values.dueDate !== words.date || values.itemType !== 'task' || values.frequencyUnit) {
         port.chooseItemType('task')
@@ -432,6 +434,10 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       }
       return { kind: 'date', date: words.date }
     }, [deliberateType, form, port, readAnswers, readWords, releasePhraseDate, restoreFilledDate, setAnswers, setProposals])
+    const keepProposedWhen = useCallback(() => {
+      setProposals((value) => ({ ...value, schedule: false }))
+      answerStep('when')
+    }, [answerStep, setProposals])
     const answerTime = useCallback((time: string | null) => {
       controller.releaseDueTime()
       answerHabitTime(port, time, formHoldsTimelessReminder(form.getValues()))
@@ -442,7 +448,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       answerHabitReminder(port, remind)
       advance()
     }, [advance, port])
-    return { answerWhen, chooseDate, readWhenWords, previewWhenWords, answerTime, answerReminder }
+    return { answerWhen, keepProposedWhen, chooseDate, readWhenWords, previewWhenWords, answerTime, answerReminder }
   }
 
   function useLiveFlow(step: HabitFlowStepKey, answers: HabitFlowAnswers, deliberateType: DeliberateType) {
@@ -451,7 +457,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     return live
   }
 
-  function usePhraseReads({ options, switches, live, localRead, typedDate, proposals, setProposals, emojiChosen, advance, stepsAfter, startRepeat }: PhraseReadInput) {
+  function usePhraseReads({ options, switches, live, localRead, typedDate, setProposals, emojiChosen, advance, stepsAfter, startRepeat }: PhraseReadInput) {
     const { form, mode, lockedGeneral, isOnline, locale, readPhrase, applySchedule, watched } = options
     const [reading, setReading] = useState(false)
     const [usedAiRead, setUsedAiRead] = useState(false)
@@ -484,14 +490,13 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
         time: gaveTime || (value.time && timeAfter === timeBefore),
         emoji: gaveEmoji || (value.emoji && emojiAfter === emojiBefore),
       }))
-      return gaveTime
     }, [applySchedule, emojiChosen, form, live, lockedGeneral, setProposals, switches])
 
     const leavePhrase = useCallback(async () => {
       if (leaving.current) return
       const phrase = title.trim()
       const asksReader = mode === 'create' && isOnline && phrase !== lastReadPhrase.current && phraseLeavesWordsUnread(phrase, localRead, hasDate)
-      if (!asksReader) { startRepeat(); advance(stepsAfter(live.current.answers, proposals.time)); return }
+      if (!asksReader) { startRepeat(); advance(stepsAfter(live.current.answers)); return }
       lastReadPhrase.current = phrase
       leaving.current = true
       setReading(true)
@@ -499,10 +504,10 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       leaving.current = false
       setReading(false)
       if (form.getValues().title.trim() !== phrase || live.current.step !== PHRASE_STEP) return
-      const aiGaveTime = response ? applyFreeRead(response, readHabitPhraseValues(phrase, localRead, typedDate)) : false
+      if (response) applyFreeRead(response, readHabitPhraseValues(phrase, localRead, typedDate))
       startRepeat()
-      advance(stepsAfter(live.current.answers, aiGaveTime || proposals.time))
-    }, [advance, applyFreeRead, form, hasDate, isOnline, live, locale, localRead, mode, proposals.time, readPhrase, startRepeat, stepsAfter, title, typedDate])
+      advance(stepsAfter(live.current.answers))
+    }, [advance, applyFreeRead, form, hasDate, isOnline, live, locale, localRead, mode, readPhrase, startRepeat, stepsAfter, title, typedDate])
 
     const suggestEmoji = useCallback(async () => {
       const phrase = title.trim()
@@ -575,32 +580,34 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
 
     const steps = remainingHabitFlowSteps({
       mode,
-      hasDateOrRepeat: Boolean(watched.dueDate) || Boolean(watched.frequencyUnit) || Boolean(watched.isFlexible) || isGeneral,
-      hasTime: Boolean(watched.dueTime),
-      phraseGaveTime: localRead.dueTime !== null || proposals.time,
+      hasDateOrRepeat: isGeneral || readPhraseCoverage(localRead, typedDate !== null).coversDateOrRepeat,
+      hasTime: Boolean(watched.dueTime) && !proposals.time,
+      phraseGaveTime: localRead.dueTime !== null,
       whenLocked: lockedGeneral === true,
       undated: isGeneral,
       answers,
     })
-    const stepsAfter = useCallback((nextAnswers: HabitFlowAnswers, aiGaveTime = proposals.time) => {
+    const stepsAfter = useCallback((nextAnswers: HabitFlowAnswers) => {
       const values = form.getValues()
+      const guessed = readProposals()
+      const read = readTypedHabitPhrase(values.title, supportedLocale, deliberateType, Boolean(values.isGeneral))
       return remainingHabitFlowSteps({
         mode,
-        hasDateOrRepeat: Boolean(values.dueDate) || Boolean(values.frequencyUnit) || Boolean(values.isFlexible) || Boolean(values.isGeneral),
-        hasTime: Boolean(values.dueTime),
-        phraseGaveTime: readTypedHabitPhrase(values.title, supportedLocale, deliberateType, Boolean(values.isGeneral)).dueTime !== null || aiGaveTime,
+        hasDateOrRepeat: Boolean(values.isGeneral) || readPhraseCoverage(read, readDate(values.title, read) !== null).coversDateOrRepeat,
+        hasTime: Boolean(values.dueTime) && !guessed.time,
+        phraseGaveTime: read.dueTime !== null,
         whenLocked: lockedGeneral === true,
         undated: Boolean(values.isGeneral),
         answers: nextAnswers,
       })
-    }, [deliberateType, form, lockedGeneral, mode, proposals.time, supportedLocale])
+    }, [deliberateType, form, lockedGeneral, mode, readDate, readProposals, supportedLocale])
     const { current, position, advance, back, open, replace } = useNavigation(mode, steps, answers)
     const live = useLiveFlow(current.step, answers, deliberateType)
 
     const startRepeat = useCallback(() => {
       if (habitRepeatLacksStart(form.getValues())) form.setField('dueDate', today)
     }, [form, today])
-    const { answerWhen, chooseDate, readWhenWords, previewWhenWords, answerTime, answerReminder } = useFlowAnswers({ options, controller, deliberateType, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate })
+    const { answerWhen, keepProposedWhen, chooseDate, readWhenWords, previewWhenWords, answerTime, answerReminder } = useFlowAnswers({ options, controller, deliberateType, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate })
     const markTypeDeliberate = useCallback((type: 'task' | 'habit') => {
       if (form.getValues().itemType !== type) setProposals((value) => (value.schedule ? { ...value, schedule: false } : value))
       setDeliberateType(type)
@@ -612,13 +619,13 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       setProposals((value) => ({ ...value, emoji: false }))
     }, [controller])
 
-    const { leavePhrase, suggestEmoji, reading, usedAiRead } = usePhraseReads({ options, switches, live, localRead, typedDate, proposals, setProposals, emojiChosen, advance, stepsAfter, startRepeat })
+    const { leavePhrase, suggestEmoji, reading, usedAiRead } = usePhraseReads({ options, switches, live, localRead, typedDate, setProposals, emojiChosen, advance, stepsAfter, startRepeat })
     useFieldErrorSteps(helpers, open)
     const answeredController = useAnsweredScheduleController(controller, setProposals, setAnswers, releasePhraseDate)
     const shownProposals = useMemo(() => (proposals.time && !watched.dueTime ? { ...proposals, time: false } : proposals), [proposals, watched.dueTime])
 
     return {
-      answers, answerReminder, chooseDate, chooseEmoji, chooseItemType: switches.chooseItemType, changeTitle, controller: answeredController, markTypeDeliberate, readWhenWords, previewWhenWords, answerTime, answerWhen, advance, back, current, leavePhrase,
+      answers, answerReminder, keepProposedWhen, chooseDate, chooseEmoji, chooseItemType: switches.chooseItemType, changeTitle, controller: answeredController, markTypeDeliberate, readWhenWords, previewWhenWords, answerTime, answerWhen, advance, back, current, leavePhrase,
       localRead, mode, offline: !isOnline, open, position, proposals: shownProposals, reading, replace, steps, suggestEmoji, today, usedAiRead,
     }
   }

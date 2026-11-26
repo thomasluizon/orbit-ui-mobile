@@ -944,7 +944,7 @@ export type { BulkCompletionInput, BulkRetryChunk } from './bulk-completion'
 export { subscribeOrbitLoop, getOrbitLoopVersion, setOrbitMotionEnabled, isOrbitMotionEnabled, pauseOrbitLoopForOverlay, claimOrbitLiveSlot, mayOrbitRunLoop, runOrbitLoopClock, runOrbitReadClock, turnOrbitPage, getOrbitPageTurns } from './orbit-mascot-loop'
 export type { OrbitFrameScheduler, OrbitOverlay } from './orbit-mascot-loop'
 export {
-  remainingHabitFlowSteps,
+  remainingHabitFlowSteps, proposedWhenChoice,
   readPhraseCoverage,
   resetCoveredAnswers,
   phraseLeavesWordsUnread,

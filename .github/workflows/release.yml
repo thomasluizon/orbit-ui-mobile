@@ -7,6 +7,7 @@
 # PRODUCTION_NEXT_PUBLIC_EVENT_API_BASE, PRODUCTION_NEXT_PUBLIC_SITE_URL,
 # PRODUCTION_NEXT_PUBLIC_TURNSTILE_SITE_KEY, PRODUCTION_NEXT_PUBLIC_SENTRY_DSN,
 # PRODUCTION_NEXT_PUBLIC_POSTHOG_KEY.
+# Repository secret: SENTRY_AUTH_TOKEN uploads the web source maps with debug IDs during the image build.
 # The Render service needs a GHCR registry credential and runtime API_BASE.
 name: Release web
 run-name: Release web ${{ inputs.environment }} from ${{ inputs.branch }}
@@ -206,6 +207,10 @@ jobs:
             NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
             NEXT_PUBLIC_POSTHOG_KEY=${{ vars.PRODUCTION_NEXT_PUBLIC_POSTHOG_KEY }}
             NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN=https://orbit-uploads-production-713285551626.s3.us-east-2.amazonaws.com
+            SENTRY_ORG=orbit-ai-habit-tracker
+            SENTRY_PROJECT=orbit-web
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
       - name: Build and push staging image
         if: inputs.environment == 'staging'
         id: build_staging
@@ -233,6 +238,10 @@ jobs:
             NEXT_PUBLIC_SENTRY_ENVIRONMENT=staging
             NEXT_PUBLIC_POSTHOG_KEY=${{ vars.STAGING_NEXT_PUBLIC_POSTHOG_KEY }}
             NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN=https://orbit-uploads-staging-713285551626.s3.us-east-2.amazonaws.com
+            SENTRY_ORG=orbit-ai-habit-tracker
+            SENTRY_PROJECT=orbit-web
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
       - name: Record digest
         id: image
         env:

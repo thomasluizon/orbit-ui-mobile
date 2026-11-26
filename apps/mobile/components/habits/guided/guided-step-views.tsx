@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
-import { buildHabitUnderstandingSentence, describeHabitFlowSummary, phraseLineKey, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFlowAnswerFields, type HabitFormCommonProps } from '@orbit/shared/utils'
+import { buildHabitUnderstandingSentence, describeHabitFlowSummary, phraseLineKey, proposedWhenChoice, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFlowAnswerFields, type HabitWhenChoice, type HabitFormCommonProps } from '@orbit/shared/utils'
 import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
@@ -111,12 +111,19 @@ const WHEN_REFUSAL_KEYS = {
 
 export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowStepView {
   const { t } = useTranslation()
-  const [text, setText] = useState('')
+  const [text, setText] = useState<string | null>(null)
   const [issue, setIssue] = useState<string | undefined>()
   const [repeatWords, setRepeatWords] = useState<string | undefined>()
-  const dueDate = formHelpers.form.watch('dueDate') ?? ''
+  const { form } = formHelpers
+  const dueDate = form.watch('dueDate') ?? ''
+  const summary = useSummaryValues(formHelpers)
+  const proposed = flow.proposals.schedule
+  const guess = proposed ? proposedWhenChoice(form.watch()) : null
+  const keeping = proposed && text === null
+  const shownText = text ?? (proposed && guess === null ? summary.when : '')
   const submitText = () => {
-    const refusal = flow.readWhenWords(text)
+    if (keeping || (shownText.trim() === '' && dueDate !== '')) { flow.keepProposedWhen(); return }
+    const refusal = flow.readWhenWords(shownText)
     setIssue(refusal ? t(WHEN_REFUSAL_KEYS[refusal]) : undefined)
   }
   const typeText = (value: string) => {
@@ -125,20 +132,29 @@ export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowSte
     const preview = flow.previewWhenWords(value)
     setRepeatWords(preview?.kind === 'repeat' ? preview.text : undefined)
   }
+  const proposedLabel = t('habits.detail.proposed')
+  const quick = (choice: HabitWhenChoice, label: string) => (
+    <Proposed key={choice} proposed={guess === choice} scope="row" label={proposedLabel}>
+      <OptionCard label={label} selected={guess === choice} onSelect={() => flow.answerWhen(choice)} />
+    </Proposed>
+  )
   return {
     question: t('habits.flow.when.question'),
     line: t('habits.flow.when.line'),
     options: <>
-      <OptionCard label={t('habits.flow.when.today')} onSelect={() => flow.answerWhen('today')} />
-      <OptionCard label={t('habits.flow.when.tomorrow')} onSelect={() => flow.answerWhen('tomorrow')} />
-      <OptionCard label={t('habits.flow.when.everyDay')} onSelect={() => flow.answerWhen('everyDay')} />
-      <OptionCard label={t('habits.flow.when.noDate')} onSelect={() => flow.answerWhen('noDate')} />
+      {quick('today', t('habits.flow.when.today'))}
+      {quick('tomorrow', t('habits.flow.when.tomorrow'))}
+      {quick('everyDay', t('habits.flow.when.everyDay'))}
+      {quick('noDate', t('habits.flow.when.noDate'))}
     </>,
     free: <>
-      <Input label={t('habits.flow.when.freeLabel')} value={text} placeholder={t('habits.flow.when.freePlaceholder')} error={issue} hint={issue ? undefined : repeatWords} onChange={typeText} onSubmit={submitText} />
+      <Proposed proposed={keeping && guess === null} scope="field" label={proposedLabel}>
+        <Input label={t('habits.flow.when.freeLabel')} value={shownText} placeholder={t('habits.flow.when.freePlaceholder')} error={issue} hint={issue ? undefined : repeatWords} onChange={typeText} onSubmit={submitText} />
+      </Proposed>
       <DateField label={t('habits.flow.when.calendar')} value={dueDate} minDate={flow.mode === 'create' ? flow.today : undefined} onChange={(date) => { if (date) flow.chooseDate(date) }} />
-      <PrimaryActionSlot><PillButton variant="ghost" onClick={submitText}>{t('habits.flow.continue')}</PillButton></PrimaryActionSlot>
+      {proposed ? null : <PrimaryActionSlot><PillButton variant="ghost" onClick={submitText}>{t('habits.flow.continue')}</PillButton></PrimaryActionSlot>}
     </>,
+    ...(proposed ? { primary: { label: t('habits.flow.continue'), onPress: submitText } } : {}),
   }
 }
 
@@ -146,14 +162,26 @@ export function useTimeView({ flow, formHelpers }: Readonly<ViewInput>): FlowSte
   const { t } = useTranslation()
   const { displayTime } = useTimeFormat()
   const dueTime = formHelpers.form.watch('dueTime') ?? ''
+  const proposed = flow.proposals.time
+  const proposedLabel = t('habits.detail.proposed')
+  const isQuickTime = (HABIT_TIME_OPTIONS as readonly string[]).includes(dueTime)
   return {
     question: t('habits.flow.time.question'),
     line: t('habits.flow.time.line'),
     options: <>
-      {HABIT_TIME_OPTIONS.map((time) => <OptionCard key={time} label={displayTime(time)} selected={dueTime === time} onSelect={() => flow.answerTime(time)} />)}
+      {HABIT_TIME_OPTIONS.map((time) => (
+        <Proposed key={time} proposed={proposed && dueTime === time} scope="row" label={proposedLabel}>
+          <OptionCard label={displayTime(time)} selected={dueTime === time} onSelect={() => flow.answerTime(time)} />
+        </Proposed>
+      ))}
       <OptionCard label={t('habits.flow.time.none')} onSelect={() => flow.answerTime(null)} />
     </>,
-    free: <TimeField label={t('habits.flow.time.freeLabel')} value={toTime24(dueTime)} onChange={flow.answerTime} onClear={() => flow.answerTime(null)} />,
+    free: (
+      <Proposed proposed={proposed && !isQuickTime} scope="field" label={proposedLabel}>
+        <TimeField label={t('habits.flow.time.freeLabel')} value={toTime24(dueTime)} onChange={flow.answerTime} onClear={() => flow.answerTime(null)} />
+      </Proposed>
+    ),
+    ...(proposed ? { primary: { label: t('habits.flow.continue'), onPress: () => flow.answerTime(dueTime) } } : {}),
   }
 }
 
