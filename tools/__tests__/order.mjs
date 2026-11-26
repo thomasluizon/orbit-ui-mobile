@@ -72,7 +72,7 @@ export const cases = async () => {
   const broken = ["Part 1 of", "# Part 2 of two", "Part 3/4", "## Parte 2 de 5", "Part 2:", "# Part 4", "Part 1"]
   same("lib/order.mjs: a heading that starts like a part and is not one is broken", broken.map((body) => brokenPartHeadings([{ body }]).length), [1, 1, 1, 1, 1, 1, 1])
   const fault = partProblem([{ body: "Part 3/4: a", url: "https://example.test/c1" }])
-  T("lib/order.mjs: a broken heading problem quotes the line and the URL", fault.includes('"Part 3/4: a"') && fault.includes("https://example.test/c1"))
+  same("lib/order.mjs: a broken heading problem quotes the line and names the comment URL once", [fault.includes('"Part 3/4: a"'), fault.match(/https?:\/\/[^\s"]+/g)], [true, ["https://example.test/c1"]])
   same("lib/order.mjs: a dash ban holds in the part problem text", /[\u2013\u2014]/.test(fault), false)
 
   for (const kind of ORDER_KINDS.filter((name) => name !== "find")) {
