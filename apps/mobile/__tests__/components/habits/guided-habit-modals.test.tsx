@@ -32,7 +32,7 @@ vi.mock('@/hooks/use-create-sub-habit', () => ({ useCreateSubHabit: () => ({ mut
 vi.mock('@/hooks/use-update-habit', () => ({ useUpdateHabit: () => ({ mutateAsync: state.update, isPending: false }) }))
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
-  useHabitDetail: (id: string | null) => ({ data: id ? state.saved ?? undefined : undefined, isPending: state.detailPending, isFetching: state.detailFetching, error: state.detailError, refetch: state.refetchDetail }),
+  useHabitDetail: (id: string | null) => ({ data: id ? state.saved ?? undefined : undefined, isPending: state.detailPending, isFetching: state.detailFetching, error: state.detailError, refetch: state.refetchDetail, retry: state.refetchDetail }),
 }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: state.phraseRead, isPending: false }) }))
@@ -713,6 +713,21 @@ describe('the Android edit surface behind orbit_guided_flows', () => {
     expect(alerts(tree)).toHaveLength(1)
     expect(control(tree, /^Hora,/)).toBeUndefined()
     expect(control(tree, ptBR.habits.flow.more)).toBeUndefined()
+    expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: true })
+    await act(async () => { saveAction(tree)?.props.onPress?.(); await Promise.resolve() })
+    expect(state.update).not.toHaveBeenCalled()
+    await tap(tree, ptBR.common.retry)
+    expect(state.refetchDetail).toHaveBeenCalledTimes(1)
+    tree.unmount()
+  })
+
+  it('states a detail read that never starts on the summary with a retry, never a skeleton that does not end', async () => {
+    state.detailPending = true
+    const tree = mountEdit()
+    await settle()
+    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+    expect(summarySkeleton(tree)).toBeUndefined()
+    expect(alerts(tree)).toHaveLength(1)
     expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: true })
     await act(async () => { saveAction(tree)?.props.onPress?.(); await Promise.resolve() })
     expect(state.update).not.toHaveBeenCalled()

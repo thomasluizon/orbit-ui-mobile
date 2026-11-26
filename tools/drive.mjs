@@ -45,8 +45,9 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
               checks out a newer driver commit of origin/main in its own worktree and exits 0, so launchd starts the new version.
               A new version that crashes three times in ten minutes is rolled back to the previous commit.
   --dry-run   read everything, print one line for each open ticket and pull request with the action the driver would
-              take, one line with the free worker slots and the stop state and one line with the pinned commit of the driver
-              and whether main has a newer driver commit; write nothing and spawn nothing
+              take, one line with the next ticket in line, one line with the free worker slots and the stop state and one
+              line with the pinned commit of the driver and whether main has a newer driver commit; write nothing and spawn
+              nothing
   --once      run one real tick, wait for the workers that the tick started, then exit
   --probe     run one probe and print the reading (utilization, resetsAt, age)
   --allow-over-limit [main|worker]  let one account continue over 90% in its current week, with 1 worker. The owner session
@@ -1617,6 +1618,17 @@ const admit = async (env, mem, tickets, states, { running, room, full, skip = ne
 }
 
 /**
+ * The dry-run line of the next ticket in line: the first ticket in rank order that gets an order when one slot is free. A
+ * pause, a logout, the usage stop and a full set of slots do not change it. Admission logs its reports, so this walk is silent.
+ */
+const nextTicketLine = async (env, mem, tickets, states, running) => {
+  const { chosen: [order] } = await admit({ ...env, log: () => {} }, mem, tickets, states, { running, room: 1, full: "another ticket is next" })
+  if (order === undefined) return "next ticket none"
+  const part = order.part ? `, partNumber ${order.part.number}` : ""
+  return `next ticket ${env.config.tickets.repository}#${order.ticket.number}: ${order.kind} on ${order.branch}${part}`
+}
+
+/**
  * The pace of one account this tick: the newest reading of its login, its slots and its stop state. `weekly` is the stop at 90%
  * of the week and `limitedUntil` is the stop after a worker hit a usage limit; `stopped` is either. The worker account is
  * `absent` (0 slots) while no second login exists. The slots that the account's own running workers hold come off its free slots.
@@ -1860,15 +1872,22 @@ export const tick = async (env, mem) => {
   // The worker account takes a launch when it has a free slot, else the main account.
   // A plan that found a Pullfrog limit sets `limitSeen` before the pause applies: no early launch runs, and no launch uses the main account.
   const limitSeen = { found: false }
+  // The tickets whose order reached `startWorker`. An early order that never got there goes back to the late admission.
+  const reached = new Set()
+  const LIMIT_STOP = "a Pullfrog limit stops the main account"
+  // Returns the reason that the launches stopped before the end of the list, or null.
   const launchAll = async (launchable, { early = false } = {}) => {
     for (const order of launchable) {
-      if (held() || (early && limitSeen.found)) break
+      if (held()) return "the driver is paused"
+      if (early && limitSeen.found) return LIMIT_STOP
       const name = free.worker > 0 ? WORKER : MAIN
-      if (limitSeen.found && name === MAIN) break
+      if (limitSeen.found && name === MAIN) return LIMIT_STOP
+      reached.add(order.ticket.number)
       const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
       if (reason === null) { mem.acted = true; free[name] -= 1 }
       else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
     }
+    return null
   }
   const planning = pullActions(env, mem, states, tickets, { running, stopped: paces.main.stopped, limitSeen })
   planning.catch(() => {})
@@ -1889,15 +1908,20 @@ export const tick = async (env, mem) => {
   const holdReason = paused || pauseIssue(tickets) ? "the driver is paused" : account.ok ? null : account.reason
   const room = holdReason ? 0 : free.main + free.worker
   const fixOrders = room === 0 ? [] : orders.filter((order) => !running.branches.has(order.pull.headRef)).sort((left, right) => left.pull.number - right.pull.number).slice(0, room)
-  const early = new Set(admitted.chosen.map((order) => order.ticket.number))
-  const open = tickets.filter((ticket) => !closed.has(ticket.number))
-  const { chosen, decisions: later } = holdReason ? { chosen: [], decisions: new Map() } : await admit(env, mem, open, states, { running, room: room - fixOrders.length, full, skip: early })
+  const stillOpen = tickets.filter((ticket) => !closed.has(ticket.number))
+  const { chosen, decisions: later } = holdReason ? { chosen: [], decisions: new Map() } : await admit(env, mem, stillOpen, states, { running, room: room - fixOrders.length, full, skip: reached })
   const decisions = new Map([...admitted.decisions, ...later])
   for (const ticket of tickets) env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${closed.has(ticket.number) ? "close" : holdReason ? `wait: ${holdReason}` : decisions.get(ticket.number) ?? "wait"}`)
+  if (env.dryRun) env.lines.push(await nextTicketLine(env, mem, stillOpen, states, running))
   if (!env.dryRun) {
-    await launchAll([...fixOrders, ...chosen])
+    const stoppedBy = await launchAll([...fixOrders, ...chosen])
+    // A ticket line never says admit for an order that no launch reached.
+    for (const { ticket } of chosen.filter((order) => !reached.has(order.ticket.number))) {
+      const prefix = `ticket ${env.config.tickets.repository}#${ticket.number}: `
+      env.lines[env.lines.findIndex((line) => line.startsWith(prefix))] = `${prefix}wait: ${stoppedBy}`
+    }
     await sweepWorktrees(env, mem).catch((error) => log(env, "worktrees", "error", error.message))
-    const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : limitSeen.found ? "a Pullfrog limit stops the main account" : null)
+    const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : limitSeen.found ? LIMIT_STOP : null)
     await startQuestions(env, mem, { tickets, states, blocked: questionsBlock }).catch((error) => log(env, "questions", "error", error.message))
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.
     const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...unstarted]
