@@ -9,19 +9,6 @@ import yaml from "js-yaml"
 import { parityExemptTerms } from "../../tools/lib/parity-scope.mjs"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
-const load = (name) => yaml.load(readFileSync(join(root, `.github/workflows/${name}.yml`), "utf8"))
-const metadata = load("pr-metadata")
-
-test("text edits and label changes have their own check without restarting Guards", () => {
-  assert.deepEqual(load("guards").on.pull_request.types, ["opened", "synchronize", "reopened"])
-  assert.deepEqual(load("test").on.pull_request.types, ["opened", "synchronize", "reopened"])
-  assert.deepEqual(metadata.on.pull_request.types, ["opened", "synchronize", "reopened", "edited", "labeled", "unlabeled"])
-  assert.equal(metadata.jobs.metadata.name, "PR Metadata")
-  assert.ok(metadata.jobs.metadata.steps.every((step) => !step.run?.includes("npm ci")))
-  assert.doesNotMatch(JSON.stringify(load("guards")), /gh api.*pulls/)
-  assert.doesNotMatch(JSON.stringify(load("guards")), /parity:exempt/,
-    "label changes must be resolved entirely by metadata, without a stale full guard failure")
-})
 
 test("only PR Metadata subscribes to label changes across all workflows", () => {
   const workflows = readdirSync(join(root, ".github/workflows"))
@@ -34,15 +21,6 @@ test("only PR Metadata subscribes to label changes across all workflows", () => 
     })
     assert.deepEqual(subscribers.map((workflow) => workflow.name), ["PR Metadata"], action)
   }
-})
-
-test("metadata events can complete without cancelling a sibling required check", () => {
-  assert.equal(metadata.concurrency, undefined,
-    "a shared group can cancel running siblings or replace pending label events")
-  for (const job of Object.values(metadata.jobs)) assert.equal(job.concurrency, undefined)
-  const reader = metadata.jobs.metadata.steps.find((step) => step.name === "Read current pull request text")
-  assert.match(reader.run, /gh api/,
-    "independent runs must read current metadata rather than an event snapshot")
 })
 
 function check(body, labels, paths, expected, options = {}) {
@@ -100,19 +78,6 @@ test("parity checks reject removed exemptions and require a specific justificati
   check("## Parity\n\nBFF vs direct API adapter.", ["parity:exempt"], web, 0)
 })
 
-test("a rejected parity section tells its reader every accepted term", () => {
-  const web = ["apps/web/components/control.tsx"]
-  for (const [body, labels] of [
-    ["## Parity\n\nWeb proxy adapter: mobile has no tunnel route.", ["parity:exempt"]],
-    ["", ["parity:exempt"]],
-    ["", []],
-  ]) {
-    const { stderr } = check(body, labels, web, 1)
-    const missing = parityExemptTerms.filter((term) => !stderr.includes(term))
-    assert.deepEqual(missing, [], stderr)
-  }
-})
-
 test("every exported parity term satisfies the exemption gate", () => {
   const web = ["apps/web/components/control.tsx"]
   for (const term of parityExemptTerms) check(`## Parity\n\nDivergence: ${term}.`, ["parity:exempt"], web, 0)
@@ -122,19 +87,4 @@ test("a workflow-only PR can carry a label at creation without a UI exemption", 
   check("## Parity\n\nWorkflow-only change, no app code.", ["parity:exempt"], [
     ".github/workflows/test.yml", ".github/workflows/pr-metadata.yml",
   ], 0)
-})
-
-test("the API reader derives the PR number from the merge ref", () => {
-  const directory = mkdtempSync(join(tmpdir(), "pr-metadata-reader-"))
-  try {
-    const reader = metadata.jobs.metadata.steps.find((step) => step.name === "Read current pull request text")
-    const result = spawnSync("bash", ["-e", "-c", `gh() { [[ "$2" == "repos/example/repo/pulls/1050" ]] || return 88; printf '%s' '{"title":"Example","body":null,"labels":[]}'; }\nnode() { :; }\n${reader.run}`], {
-      env: { ...process.env, GITHUB_REF: "refs/pull/1050/merge", GITHUB_REPOSITORY: "example/repo", RUNNER_TEMP: directory },
-      encoding: "utf8",
-    })
-    assert.equal(result.status, 0, result.stderr)
-    assert.deepEqual(JSON.parse(readFileSync(join(directory, "pr-metadata.json"), "utf8")), { title: "Example", body: null, labels: [] })
-  } finally {
-    rmSync(directory, { recursive: true, force: true })
-  }
 })

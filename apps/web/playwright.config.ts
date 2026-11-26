@@ -24,8 +24,7 @@ export default defineConfig({
   expect: {
     timeout: 15_000,
   },
-  // The layout JSON report feeds .github/scripts/record-layout-shard-timings.mjs, which balances the CI shards.
-  reporter: isLayout ? (isCI ? [['github'], ['list'], ['json', { outputFile: '.artifacts/layout/layout-report.json' }]] : [['list']]) : isCI
+  reporter: isLayout ? (isCI ? [['github'], ['list']] : [['list']]) : isCI
     ? [['github'], ['list'], ['html', { open: 'never', outputFolder: 'e2e/.report' }]]
     : [['list'], ['html', { open: 'never', outputFolder: 'e2e/.report' }]],
   use: {

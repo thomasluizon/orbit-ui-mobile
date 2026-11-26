@@ -126,49 +126,6 @@ const NPM_ACTION_RESTORE = {
 }
 const npmActionRestore = (call) => ({ step: NPM_ACTION_RESTORE, calls: [{ uses: "./.github/actions/restore-npm-cache", ...call }] })
 const npmSaverRestore = (place) => npmActionRestore({ id: "npm-cache", with: { "restore-older-entry": NPM_SAVERS[place][1] } })
-const unitResultsRestore = (job) => ({
-  step: {
-    if: `needs.${job}-tests.result == 'skipped'`,
-    uses: "actions/cache/restore@v6",
-    with: { "fail-on-cache-miss": true, key: `\${{ needs.plan.outputs.${job}-unit-key }}`, path: `\${{ env.${job.toUpperCase()}_UNIT_RESULTS }}` },
-  },
-  calls: [],
-})
-const unitResultsLookup = (job) => ({
-  step: {
-    id: `${job}-unit`,
-    uses: "actions/cache/restore@v6",
-    with: { key: `\${{ steps.plan.outputs.${job}-unit-key }}`, "lookup-only": true, path: `\${{ env.${job.toUpperCase()}_UNIT_RESULTS }}` },
-  },
-  calls: [],
-})
-// The call of .github/actions/merged-unit-results, which leads to the lookups after the save of a merged pull request result.
-const MERGED_RESULTS_CALL = {
-  id: "merged",
-  if: "github.event_name != 'pull_request' && (steps.web-unit.outputs.cache-hit != 'true' || steps.mobile-unit.outputs.cache-hit != 'true' || steps.workspace-unit.outputs.cache-hit != 'true')",
-  uses: "./.github/actions/merged-unit-results",
-  with: {
-    "web-hit": "${{ steps.web-unit.outputs.cache-hit }}",
-    "web-key": "${{ steps.plan.outputs.web-unit-key }}",
-    "web-path": "${{ env.WEB_UNIT_RESULTS }}",
-    "mobile-hit": "${{ steps.mobile-unit.outputs.cache-hit }}",
-    "mobile-key": "${{ steps.plan.outputs.mobile-unit-key }}",
-    "mobile-path": "${{ env.MOBILE_UNIT_RESULTS }}",
-    "workspace-hit": "${{ steps.workspace-unit.outputs.cache-hit }}",
-    "workspace-key": "${{ steps.plan.outputs.workspace-unit-key }}",
-    "workspace-path": "${{ env.WORKSPACE_UNIT_RESULTS }}",
-  },
-}
-// The lookup after the save of a merged pull request result: the group counts as cached only when the saved entry exists.
-const mergedUnitResultsLookup = (job, calls = [MERGED_RESULTS_CALL]) => ({
-  step: {
-    id: `${job}-unit-merged`,
-    if: `inputs.${job}-hit != 'true' && steps.adopt.outputs.${job}-unit == 'true'`,
-    uses: "actions/cache/restore@v6",
-    with: { key: `\${{ inputs.${job}-key }}`, "lookup-only": true, path: `\${{ inputs.${job}-path }}` },
-  },
-  calls,
-})
 
 // The rules "npm" and "the key of an exact restore" bound an entry because the save after a key miss holds only what the
 // run wrote. A second restore of the saved path by prefix fills the directory with the previous entry first, under any
@@ -228,15 +185,7 @@ const REVIEWED_RESTORES = {
       step: { id: "turbo-download", uses: "actions/cache/restore@v6", with: { key: "${{ runner.os }}-turbo-cli-${{ steps.turbo.outputs.version }}", path: "~/.npm/_cacache" } },
       calls: [],
     },
-    unitResultsLookup("web"),
-    unitResultsLookup("mobile"),
-    unitResultsLookup("workspace"),
-    mergedUnitResultsLookup("web"),
-    mergedUnitResultsLookup("mobile"),
-    mergedUnitResultsLookup("workspace"),
   ],
-  "merged-unit-results/action.yml": [mergedUnitResultsLookup("web", []), mergedUnitResultsLookup("mobile", []), mergedUnitResultsLookup("workspace", [])],
-  "test.yml: unit-tests": [npmActionRestore({}), unitResultsRestore("web"), unitResultsRestore("mobile"), unitResultsRestore("workspace")],
 }
 
 function checkReviewedRestores(currentTree, inventory) {
@@ -1072,14 +1021,6 @@ ${restoreStep("Restore eslint", ".eslintcache", ESLINT_KEY, "eslint-")}${saveSte
 // A local action that Type Check calls, with the steps of one remote action.
 const typeCheckToolStep = (step) => ({ ...newAction("setup-tools", step), ...typeCheckAround("      - uses: ./.github/actions/setup-tools\n", "") })
 const NEXT_SAVE = "      - name: Save the Next compiler cache\n        if: github.event_name != 'pull_request' && steps.next-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v6\n"
-const WEB_UNIT_LOOKUP = `      - name: Look up cached web unit results
-        id: web-unit
-        uses: actions/cache/restore@v6
-        with:
-          path: \${{ env.WEB_UNIT_RESULTS }}
-          key: \${{ steps.plan.outputs.web-unit-key }}
-          lookup-only: true
-`
 
 // A case with WRITE runs the guard on the inventory that the write command makes for the changed tree, with the rule of each
 // line kept, so only a rule can fail it. A function in its place changes that inventory as a reviewer could.
@@ -1234,9 +1175,9 @@ const MUTATIONS = [
   ["P9 a local action with Actions/setup-java and cache gradle", typeCheckToolStep("    - uses: Actions/setup-java@v5\n      with:\n        distribution: temurin\n        java-version: '17'\n        cache: gradle\n"), NO_LINE],
   ["P10 a local action with hendrikmuhs/ccache-action", typeCheckToolStep("    - uses: hendrikmuhs/ccache-action@v1.2\n      with:\n        key: type-check\n"), NO_REMOTE_LINE],
   ["P11 a local action with actions/setup-python and cache pip", typeCheckToolStep("    - uses: actions/setup-python@v6\n      with:\n        python-version: '3.12'\n        cache: pip\n"), NO_REMOTE_LINE],
-  ["P12 a lookup of the plan job becomes a prefix restore of the Turbo download path before its save", changeText(".github/workflows/test.yml", [WEB_UNIT_LOOKUP, ""],
-    ["      - name: Hash the test tasks and read the changed paths\n", `      - name: Look up cached web unit results
-        id: web-unit
+  ["P12 a second restore of the plan job is a prefix restore of the Turbo download path before its save", changeText(".github/workflows/test.yml",
+    ["      - name: Hash the test tasks and read the changed paths\n", `      - name: Restore the older Turbo download
+        id: turbo-older
         if: steps.turbo-download.outputs.cache-hit != 'true'
         uses: actions/cache/restore@v6
         with:

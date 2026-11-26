@@ -75,9 +75,10 @@ describe('Empty conversation geometry in Chromium', () => {
         <div style={{ width: panelWidth, height }}><AstraConversation chat={emptyChat()} /></div>
       </NextIntlClientProvider>,
     )
+    const html = container.innerHTML
     const page = await browser.newPage({ viewport: { width, height } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${stylesheet}</style>${html}`)
       await loadAppFonts(page)
       await markRequiredLabels(page.getByText(messages.chat.empty.title, { exact: true }))
       await expectLabelsFit(page, page.getByRole('feed'))
@@ -132,9 +133,10 @@ describe('Empty conversation geometry in Chromium', () => {
         <div style={{ width, height: 600 }}><AstraConversation chat={emptyChat()} /></div>
       </NextIntlClientProvider>,
     )
+    const html = container.innerHTML
     const page = await browser.newPage({ viewport: { width, height: 600 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${stylesheet}</style>${html}`)
       await loadAppFonts(page)
       const geometry = await page.evaluate(() => {
         const scroller = document.querySelector<HTMLElement>('[role="feed"]')!

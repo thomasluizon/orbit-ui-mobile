@@ -43,5 +43,24 @@ test("the layout check rejects failed, cancelled and skipped prerequisites", () 
   assert.deepEqual(shards.strategy.matrix.shard, [1, 2, 3, 4, 5, 6, 7, 8])
   assert.deepEqual(shards.needs, ["plan", "build"])
   assert.equal(shards.steps.some((step) => step.run?.includes("build:hermetic")), false)
-  assert.ok(shards.steps.some((step) => step.run?.includes('--test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt"')))
+  assert.ok(shards.steps.some((step) => step.run?.includes("--shard=${{ matrix.shard }}/${{ matrix.total }}")))
+})
+
+test("the layout shard job timeout fits the slowest shard", () => {
+  const { jobs } = workflow("test")
+  const limit = jobs["layout-shards"]["timeout-minutes"]
+  // Playwright gives shard 4 the whole interaction-fill-clearance spec. It ran past 15 minutes on CI.
+  const shardMinimumMinutes = [
+    { shard: 1, minutes: 10 },
+    { shard: 2, minutes: 10 },
+    { shard: 3, minutes: 10 },
+    { shard: 4, minutes: 23 },
+    { shard: 5, minutes: 10 },
+    { shard: 6, minutes: 10 },
+    { shard: 7, minutes: 10 },
+    { shard: 8, minutes: 10 },
+  ]
+  for (const { shard, minutes } of shardMinimumMinutes) {
+    assert.ok(limit >= minutes, `layout shard ${shard} needs ${minutes} minutes, the job allows ${limit}`)
+  }
 })
