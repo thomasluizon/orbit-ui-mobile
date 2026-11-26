@@ -25,7 +25,8 @@ function plan({ event = "pull_request", changed = [], hashes = tasks, workflow =
     writeFileSync(join(directory, "changed.txt"), changed.map((path) => `${path}\n`).join(""))
     const argumentsList = ["--event", event, "--turbo-dry", join(directory, "turbo.json"), "--workflow", join(directory, "test.yml")]
     if (changedFile) argumentsList.push("--changed-files", join(directory, "changed.txt"))
-    writeFileSync(join(directory, "deleted.txt"), deleted.map((path) => `${path}\n`).join(""))
+    // "absent" passes the path that test.yml passes on a push, where no step wrote the file.
+    if (deletedFile !== "absent") writeFileSync(join(directory, "deleted.txt"), deleted.map((path) => `${path}\n`).join(""))
     if (deletedFile) argumentsList.push("--deleted-files", join(directory, "deleted.txt"))
     const result = spawnSync(process.execPath, [script, ...argumentsList], { encoding: "utf8" })
     const outputs = Object.fromEntries(result.stdout.split("\n").filter(Boolean).map((line) => line.split("=")))
@@ -203,7 +204,7 @@ test("an app path, a workflow file, a deleted path or a missing deleted list kee
 
 test("a push or a dispatch never skips a unit group", () => {
   for (const event of ["push", "workflow_dispatch"]) {
-    const { status, outputs } = plan({ event, changedFile: false })
+    const { status, outputs } = plan({ event, changedFile: false, deletedFile: "absent" })
     assert.equal(status, 0, event)
     assert.equal(outputs["unit-skip"], "false", event)
   }

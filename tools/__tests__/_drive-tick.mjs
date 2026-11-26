@@ -2444,6 +2444,23 @@ const watchdogCases = async () => {
   await gone.run()
   same("watchdog: a pull request that left the cap ends it with one line", alertsOf(gone.calls), ["Orbit driver alert ended after 1 minute: ui#30 is at its fix cap. Repair: none."])
 
+  // A tick that cannot judge a problem keeps it open: it ends only on a tick that saw the problem gone.
+  const heldCap = { lastMergeAt: NOW, active: { "fix-cap ui#45": { since: NOW - MINUTE, text: "ui#45 is at its fix cap", repairs: [] } } }
+  const cappedBranch = "chore/ticket-9-45"
+  const cappedLaunch = comment("launch", JSON.stringify({ kind: "fix", part: null, branch: cappedBranch, pr: 45 }))
+  const cappedPull = pull(45, { tracks: 9, body: "Tracks thomasluizon/orbit-tickets#9\n\nRemaining: none", headRef: cappedBranch, reviews: [finding] })
+  const cappedTickets = [ticket(7), ticket(9, { comments: [cappedLaunch, cappedLaunch] })]
+  const unplanned = scenario({ tickets: cappedTickets, pulls: { ui: [pull(30), cappedPull] }, stateDirectory: directory("unplanned", heldCap) })
+  await unplanned.run()
+  same("watchdog: a merge that stops the pull request pass keeps the fix cap alert of an unplanned pull request open", [only(unplanned.calls, "merge").length, alertsOf(unplanned.calls), Object.keys(savedOf(unplanned.env.stateDir).active)], [1, [], ["fix-cap ui#45"]])
+  const unplannedGone = scenario({ tickets: cappedTickets, pulls: { ui: [pull(30)] }, stateDirectory: unplanned.env.stateDir })
+  await unplannedGone.run()
+  same("watchdog: the fix cap alert ends on the tick where its pull request is gone", alertsOf(unplannedGone.calls), ["Orbit driver alert ended after 1 minute: ui#45 is at its fix cap. Repair: none."])
+  const heldQueue = { lastMergeAt: NOW, active: { "queue-old": { since: NOW - MINUTE, text: "the oldest queued check waited 90 minutes", repairs: [] } } }
+  const unread = scenario({ tickets: [], routes: [["runs?status=queued", () => { throw new Error("HTTP 403: rate limit") }]], stateDirectory: directory("unread", heldQueue) })
+  await unread.run()
+  same("watchdog: a queue read that failed keeps the queued check alert open and sends no line", [alertsOf(unread.calls), Object.keys(savedOf(unread.env.stateDir).active)], [[], ["queue-old"]])
+
   // The lines follow sleep mode: nothing pings while the owner sleeps.
   const asleep = scenario({ tickets: [ticket(7)], pulls: { ui: [withoutApprovalCheck({ createdAt: iso(-25 * 60 * MINUTE) })] }, runs: busy(), stateDirectory: directory("asleep"), sleeping: true })
   await asleep.run()

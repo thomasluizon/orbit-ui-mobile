@@ -327,7 +327,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map(), ci: null, repairs: [], capped: new Set(), mergedAt: null })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map(), ci: null, repairs: [], capped: new Set(), planned: new Set(), mergedAt: null })
 
 /** Notes one repair that the driver did this tick. The watchdog names it in its lines. */
 const repaired = (mem, text) => { if (!mem.repairs.includes(text)) mem.repairs.push(text) }
@@ -1088,6 +1088,7 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
       // A run from before the newest request is settled history: a request that came after it started a new run.
       const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${pausedByLog ? " (Pullfrog hit a usage limit)" : ""}`)
+      mem.planned.add(item)
       if (plan.some((action) => action.capped)) mem.capped.add(item)
       if (isWaiting(pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       for (const action of plan) {
@@ -1811,7 +1812,8 @@ const durationText = (ms) => {
  * pull requests are open, a queued check older than 1 hour, a pull request open for more than 24 hours, and a pull request at its
  * fix cap. Each line names the repairs that the driver did while the problem lasted, from the driver's own record of them. The
  * active problems and the time of the last merge live in `watchdog.json`, so a restart sends no line twice. The clock of the
- * merge alarm resets at each merge, while no pull request is open and while the driver is held on purpose.
+ * merge alarm resets at each merge, while no pull request is open and while the driver is held on purpose. A problem ends only on a tick
+ * that could judge it: a failed queue read and a pull request that this tick did not plan keep their problems open.
  */
 const watchHealth = async (env, mem, { states, queue, held }) => {
   const path = join(env.stateDir, WATCHDOG_FILE)
@@ -1841,8 +1843,11 @@ const watchHealth = async (env, mem, { states, queue, held }) => {
     } else saved.active[key].repairs = [...new Set([...saved.active[key].repairs, ...repairsFor(key)])]
     save()
   }
+  // A tick that could not judge a problem keeps it open: the pull request pass stops after a merge and skips a plan that threw, and a failed queue read gives no queue.
+  const openItems = new Set(states.flatMap((state) => state.pulls.map((pull) => `${state.repositoryKey}#${pull.number}`)))
+  const unjudged = (key) => (key === "queue-old" ? queue === null : key.startsWith("fix-cap ") && openItems.has(key.slice("fix-cap ".length)) && !mem.planned.has(key.slice("fix-cap ".length)))
   for (const [key, entry] of Object.entries(saved.active)) {
-    if (current.has(key)) continue
+    if (current.has(key) || unjudged(key)) continue
     log(env, "watchdog", "end", `${key}: ${entry.text}`)
     await say(env, `Orbit driver alert ended after ${durationText(now - entry.since)}: ${entry.text}. Repair: ${entry.repairs.join("; ") || "none"}.`)
     delete saved.active[key]
@@ -1899,6 +1904,7 @@ export const tick = async (env, mem) => {
   mem.waiting = []
   mem.repairs = []
   mem.capped = new Set()
+  mem.planned = new Set()
   await reportSleep(env)
   await enforceOrphanClocks(env, mem)
   // The workers that run when the read starts keep their slots for this whole tick, whatever the read shows.

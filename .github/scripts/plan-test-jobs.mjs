@@ -86,7 +86,7 @@ try {
     if (typeof task.directory !== 'string' || task.inputs === null || typeof task.inputs !== 'object') inputsKnown = false
     else for (const input of Object.keys(task.inputs)) taskInputs.add(posix.normalize(posix.join(task.directory, input)))
   }
-  const deleted = options['deleted-files'] ? readFileSync(options['deleted-files'], 'utf8').split('\n').filter(Boolean) : null
+  const deleted = changed && options['deleted-files'] ?readFileSync(options['deleted-files'], 'utf8').split('\n').filter(Boolean) : null
   const unitSkip = Boolean(changed) && inputsKnown && deleted !== null && deleted.length === 0 &&
     changed.every((path) => !workflowFile.test(path) && appFree.some((pattern) => pattern.test(path)) && !taskInputs.has(path))
   lines.push(`unit-skip=${unitSkip}`)
