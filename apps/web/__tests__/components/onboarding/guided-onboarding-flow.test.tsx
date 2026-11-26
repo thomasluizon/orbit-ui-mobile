@@ -12,7 +12,7 @@ import { holdAccount } from '@/__tests__/support/account-change'
 const mocks = vi.hoisted(() => ({
   push: vi.fn(), completed: vi.fn(), event: vi.fn(), suggest: vi.fn(), subscribe: vi.fn(), requestPermission: vi.fn(),
   createHabit: vi.fn(), updateHabit: vi.fn(), recordCompletion: vi.fn(), finishOnboarding: vi.fn(), deferPush: vi.fn(),
-  plan: 'Pro' as 'Pro' | 'Free', online: true, suggestionAvailable: false, flag: false,
+  plan: 'Pro' as 'Pro' | 'Free', pushSupported: true, pushPermission: 'default' as NotificationPermission, online: true, suggestionAvailable: false, flag: false,
   saved: undefined as Record<string, unknown> | undefined,
 }))
 
@@ -26,7 +26,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 vi.mock('@/hooks/use-onboarding-suggestion', () => ({ useOnboardingSuggestion: () => ({ available: mocks.suggestionAvailable, mutateAsync: mocks.suggest, verification: null, cancel: vi.fn() }) }))
 vi.mock('@/hooks/use-push-notification-preferences', () => ({
-  usePushNotificationPreferences: () => ({ supported: true, permission: 'default', status: 'not-registered' }),
+  usePushNotificationPreferences: () => ({ supported: mocks.pushSupported, permission: mocks.pushPermission, status: 'not-registered' }),
   subscribeToPushNotifications: mocks.subscribe,
   requestWebPushPermission: mocks.requestPermission,
 }))
@@ -101,6 +101,9 @@ function skipIntro(messages: Messages) {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.plan = 'Pro'
+  mocks.pushSupported = true
+  mocks.pushPermission = 'default'
+  mocks.requestPermission.mockReset().mockResolvedValue('granted')
   mocks.online = true
   mocks.suggestionAvailable = false
   mocks.flag = false
@@ -544,6 +547,84 @@ describe('guided onboarding requests', () => {
     await act(async () => { press(en.onboarding.flow.remind.deny) })
     expect(await screen.findByText(en.onboarding.flow.completionFailed)).toBeInTheDocument()
     expect(document.querySelector('[data-result-dialog]')).toBeNull()
+  })
+
+  describe.each(locales)('the reminder outcomes in $locale', ({ locale, messages }) => {
+    const flow = messages.onboarding.flow
+    const guided = flow.guided
+    const remind = flow.remind
+    const reachReminder = async (options: { isLive?: boolean } = {}) => {
+      useOnboardingDraftStore.setState({ introSeen: true })
+      mount(locale, messages, options)
+      await typePhrase(messages, locale === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+      await act(async () => { press(flow.create) })
+    }
+    const reminderWrites = () => mocks.updateHabit.mock.calls.map(([, input]) => (input as { reminderEnabled: boolean }).reminderEnabled)
+
+    it.each([
+      ['a denied permission', { supported: true, status: 'denied' }, 'deniedTitle', 'deniedBody'],
+      ['a device that cannot register', { supported: false, status: 'unsupported' }, 'unsupportedTitle', 'unsupportedBody'],
+      ['a registration that did not finish', { supported: true, status: 'failed' }, 'failedTitle', 'failedBody'],
+    ] as const)('states %s on the step, saves the habit with reminders off and never reports success', async (_name, result, titleKey, bodyKey) => {
+      mocks.subscribe.mockResolvedValue(result)
+      await reachReminder()
+      await act(async () => { press(guided.remind.allow) })
+      expect(heading()).toBe(remind[titleKey])
+      expect(screen.getByText(remind[bodyKey])).toBeInTheDocument()
+      expect(mocks.updateHabit).toHaveBeenLastCalledWith('habit-1', expect.objectContaining({ reminderEnabled: false }))
+      expect(mocks.recordCompletion).not.toHaveBeenCalled()
+      expect(document.querySelector('[data-result-dialog]')).toBeNull()
+    })
+
+    it('keeps a registration that throws apart from a denial and offers a retry', async () => {
+      mocks.subscribe.mockRejectedValue(new Error('registration failed'))
+      await reachReminder()
+      await act(async () => { press(guided.remind.allow) })
+      expect(heading()).toBe(remind.failedTitle)
+      expect(mocks.updateHabit).toHaveBeenLastCalledWith('habit-1', expect.objectContaining({ reminderEnabled: false }))
+      mocks.subscribe.mockResolvedValue({ supported: true, status: 'registered' })
+      await act(async () => { press(flow.retry) })
+      expect(mocks.subscribe).toHaveBeenCalledTimes(2)
+      expect(mocks.updateHabit).toHaveBeenLastCalledWith('habit-1', expect.objectContaining({ reminderEnabled: true }))
+      expect(mocks.recordCompletion).toHaveBeenCalledOnce()
+    })
+
+    it('offers no allow when the device already blocks notifications', async () => {
+      mocks.pushPermission = 'denied'
+      await reachReminder()
+      expect(heading()).toBe(remind.refusedTitle)
+      expect(screen.getByText(remind.refusedBody)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: guided.remind.allow })).toBeNull()
+    })
+
+    it('offers no allow on a device that cannot receive reminders', async () => {
+      mocks.pushSupported = false
+      await reachReminder()
+      expect(heading()).toBe(remind.unsupportedTitle)
+      expect(screen.queryByRole('button', { name: guided.remind.allow })).toBeNull()
+    })
+
+    it('registers nothing and defers the push when a signed-out person allows reminders', async () => {
+      await reachReminder({ isLive: false })
+      await act(async () => { press(guided.remind.allow) })
+      expect(mocks.requestPermission).toHaveBeenCalledOnce()
+      expect(mocks.subscribe).not.toHaveBeenCalled()
+      expect(reminderWrites()).toEqual([true])
+      expect(mocks.deferPush).toHaveBeenCalledOnce()
+    })
+
+    it.each([
+      ['denied', 'deniedTitle', 'deniedSignedOutBody'],
+      ['unsupported', 'unsupportedTitle', 'unsupportedSignedOutBody'],
+    ] as const)('states a %s permission with the signed-out body and defers nothing', async (outcome, titleKey, bodyKey) => {
+      mocks.requestPermission.mockResolvedValue(outcome)
+      await reachReminder({ isLive: false })
+      await act(async () => { press(guided.remind.allow) })
+      expect(heading()).toBe(remind[titleKey])
+      expect(screen.getByText(remind[bodyKey])).toBeInTheDocument()
+      expect(mocks.deferPush).not.toHaveBeenCalled()
+      expect(reminderWrites().at(-1)).toBe(false)
+    })
   })
 
   it('shows Orbit in Pensando while the model reads the phrase', async () => {
