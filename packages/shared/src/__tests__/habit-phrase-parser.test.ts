@@ -686,11 +686,35 @@ describe('spoken part of the day', () => {
   })
 
   it.each([
-    ['pt-BR', 'toda sexta às 13 da tarde'],
+    ['pt-BR', 'toda sexta às 13 da tarde', '13:00'],
+    ['pt-BR', 'academia toda sexta às 14h da tarde', '14:00'],
+    ['pt-BR', 'toda sexta às 20h da noite', '20:00'],
+    ['pt-BR', 'toda sexta às 20:00 da noite', '20:00'],
+    ['pt-BR', 'toda sexta às 0h30 da madrugada', '00:30'],
+    ['en', 'every friday at 13 in the afternoon', '13:00'],
+    ['en', 'gym every friday at 15:30 in the afternoon', '15:30'],
+    ['en', 'every friday at 20:00 in the evening', '20:00'],
+  ] as const)('keeps a 24-hour time that its part of the day agrees with in %s "%s"', (locale, input, time) => {
+    expect(readHabitPhrase(input, locale)).toMatchObject({ days: ['Friday'], dueTime: time })
+    expect(getHabitPhraseTitle(`Read ${input}`, locale, { cadence: true, dueTime: true })).toMatch(/^Read(?: academia| gym)?$/u)
+  })
+
+  it.each([
     ['pt-BR', 'toda sexta às 12 da manhã'],
-    ['en', 'every friday at 13 in the afternoon'],
+    ['pt-BR', 'toda sexta às 14h da manhã'],
+    ['pt-BR', 'toda sexta às 14h da noite'],
+    ['en', 'every friday at 14:00 in the morning'],
+    ['en', 'every friday at 14:00 at night'],
   ] as const)('reads no time from the contradicting words in %s "%s"', (locale, input) => {
     expect(readHabitPhrase(input, locale).dueTime).toBeNull()
+  })
+
+  it.each([
+    ['pt-BR', 'academia toda sexta às 6 da manhãzinha', '06:00', 'academia da manhãzinha'],
+    ['en', 'gym every friday at 7 in the mornings', '07:00', 'gym in the mornings'],
+  ] as const)('keeps a longer word that starts with a period word in %s "%s"', (locale, input, time, title) => {
+    expect(readHabitPhrase(input, locale).dueTime).toBe(time)
+    expect(getHabitPhraseTitle(input, locale, { cadence: true, dueTime: true })).toBe(title)
   })
 
   it('lets am and pm win over a part of the day', () => {

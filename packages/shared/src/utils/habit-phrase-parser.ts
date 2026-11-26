@@ -83,8 +83,8 @@ const DAY_PERIODS: Readonly<Record<string, DayPeriod>> = {
   manha: 'morning', tarde: 'afternoon', noite: 'night', madrugada: 'dawn',
   morning: 'morning', afternoon: 'afternoon', evening: 'evening', night: 'night',
 }
-const PT_PERIOD = '(?:\\s+(?:da|de|pela)\\s+(manha|tarde|noite|madrugada))?'
-const EN_PERIOD = '(?:\\s+(?:in the|at|of the)\\s+(morning|afternoon|evening|night))?'
+const PT_PERIOD = '(?:\\s+(?:da|de|pela)\\s+(manha|tarde|noite|madrugada)\\b)?'
+const EN_PERIOD = '(?:\\s+(?:in the|at|of the)\\s+(morning|afternoon|evening|night)\\b)?'
 
 interface WeekdayAlternation {
   start: number
@@ -215,7 +215,9 @@ function readSpokenHour(hour: number, suffixes: string[]): number | null {
   if (meridiem) return hour < 1 || hour > 12 ? null : hour % 12 + (meridiem === 'pm' ? 12 : 0)
   const period = suffixes.find((value) => value in DAY_PERIODS)
   if (!period) return hour
-  return hour < 1 || hour > 12 ? null : HOUR_IN_PERIOD[DAY_PERIODS[period]!](hour)
+  const inPeriod = HOUR_IN_PERIOD[DAY_PERIODS[period]!]
+  if (hour >= 1 && hour <= 12) return inPeriod(hour)
+  return inPeriod(hour === 0 ? 12 : hour - 12) === hour ? hour : null
 }
 
 function parseTime(match: RegExpExecArray): string | null {
