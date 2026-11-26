@@ -13,13 +13,13 @@ const workflows = readdirSync(workflowsDirectory)
 
 // A stalled cache segment would hold the job until its time limit. The bound lets npm ci continue with a cold cache.
 // Source of the variable: actions/cache at 55cc8345863c7cc4c66a329aec7e433d2d1c52a9 (v6), dist/restore-only/index.js.
-test("every npm cache restore has a one-minute segment bound", () => {
-  const action = yaml.load(readFileSync(join(root, ".github/actions/restore-npm-cache/action.yml"), "utf8"))
+test("every restore of the npm cache or the dependency tree has a one-minute segment bound", () => {
+  const stepOf = (name, id) => yaml.load(readFileSync(join(root, `.github/actions/${name}/action.yml`), "utf8")).runs.steps.find((step) => step.id === id)
   const inline = workflows.flatMap(([file, workflow]) => Object.entries(workflow.jobs).flatMap(([jobId, job]) =>
     (job.steps ?? []).filter((step) => step.uses?.startsWith("actions/cache/restore@") && String(step.with.key).startsWith("npm-"))
       .map((step) => [`${file}: ${jobId}`, step])))
-  const restores = [["restore-npm-cache", action.runs.steps.find((step) => step.id === "restore")], ...inline]
-  assert.equal(restores.length, 5, "the shared action and the four release jobs that restore inline")
+  const restores = [["restore-npm-cache", stepOf("restore-npm-cache", "restore")], ["install-dependencies", stepOf("install-dependencies", "modules")], ...inline]
+  assert.equal(restores.length, 6, "the two shared actions and the four release jobs that restore inline")
   for (const [where, step] of restores) {
     assert.equal(String(step.env?.SEGMENT_DOWNLOAD_TIMEOUT_MINS), "1", `${where} must bound a stalled segment`)
     assert.equal(step["continue-on-error"], undefined, `${where} must surface restore failures`)
@@ -108,7 +108,7 @@ test("the runner ban fails each form that installs a package at run time", () =>
     ["/usr/local/bin/npm exec turbo run type-check", /npm exec is not/],
   ]) assert.match(findingsOf(run), reason, run)
   // The Plan step of the same workflow, a value of the step env, and a quoted script of another action are text too.
-  assert.match(findingsOf("npx turbo run test --dry=json", (job) => job.steps.find((step) => step.run === "npm ci")), /npx can install/)
+  assert.match(findingsOf("npx turbo run test --dry=json", (job) => job.steps.find((step) => step.name === "Restore turbo")), /npx can install/)
   assert.match(runnerFindings("probe.yml", { jobs: { probe: { steps: [{ env: { RUNNER: "npx" }, run: "$RUNNER turbo" }] } } }).join("\n"), /npx can install/)
   assert.match(runnerFindings("probe.yml", { jobs: { probe: { steps: [{ uses: "actions/github-script@v8", with: { script: "exec('npx', ['turbo'])" } }] } } }).join("\n"), /npx can install/)
   // The reviewed forms pass: an npm script, a binary by path, the npm cache and config reads, and the pinned npm install.

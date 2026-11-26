@@ -48,6 +48,8 @@ test("each scope runs when one of its inputs changes", () => {
     ["apps/desktop/src-tauri/src/palette.js", { web: "false", "type-check": "true", lint: "false" }],
     ["eslint-rules/no-comments.cjs", { web: "false", "type-check": "true", lint: "false" }],
     [".github/workflows/test.yml", { web: "true", "type-check": "true", lint: "true" }],
+    [".github/actions/install-dependencies/action.yml", { web: "true", "type-check": "true", lint: "true" }],
+    [".github/actions/restore-npm-cache/action.yml", { web: "true", "type-check": "true", lint: "true" }],
   ]
   for (const [path, expected] of cases) {
     const { status, outputs } = plan({ changed: [path] })

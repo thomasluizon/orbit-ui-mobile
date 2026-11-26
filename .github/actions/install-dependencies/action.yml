@@ -1,0 +1,55 @@
+name: Install the dependencies
+description: Restore the installed dependency tree of this lockfile, and run npm ci only when no entry matches
+inputs:
+  restore-older-npm-entry:
+    description: The string false restores only the npm cache of this lockfile on a miss, for a job that saves it
+    default: 'true'
+outputs:
+  cache-hit:
+    description: The string true when the dependency tree was restored
+    value: ${{ steps.modules.outputs.cache-hit }}
+  cache-primary-key:
+    description: Key of the dependency tree entry, for the save step of a main run
+    value: ${{ steps.modules.outputs.cache-primary-key }}
+  npm-cache-hit:
+    description: The string true when npm ci ran and the npm cache of this lockfile was restored
+    value: ${{ steps.npm-cache.outputs.cache-hit }}
+  npm-cache-primary-key:
+    description: Key of the npm cache of this lockfile, empty when npm ci did not run
+    value: ${{ steps.npm-cache.outputs.cache-primary-key }}
+  npm-cache-path:
+    description: The npm cache directory, empty when npm ci did not run
+    value: ${{ steps.npm-cache.outputs.path }}
+runs:
+  using: composite
+  steps:
+    # A native package of the tree is built for one Node major version.
+    - name: Read the Node major version
+      id: node
+      shell: bash
+      run: echo "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+    # The key holds the lockfile, each workspace manifest and the postinstall script that links packages in the tree. A
+    # changed manifest misses, so npm ci still fails when a manifest and the lockfile disagree. No restore-keys: a tree
+    # of another lockfile is not this tree.
+    - name: Restore the installed dependencies
+      id: modules
+      uses: actions/cache/restore@v6
+      env:
+        # Bound stalled cache segments so npm ci can continue with a cold cache.
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+      with:
+        path: |
+          node_modules
+          apps/*/node_modules
+          packages/*/node_modules
+          eslint-rules/node_modules
+        key: modules-${{ runner.os }}-${{ runner.arch }}-node${{ steps.node.outputs.major }}-${{ hashFiles('package-lock.json', 'package.json', 'apps/*/package.json', 'packages/*/package.json', 'eslint-rules/package.json', 'apps/mobile/scripts/fix-hoisting.js') }}
+    - id: npm-cache
+      if: steps.modules.outputs.cache-hit != 'true'
+      uses: ./.github/actions/restore-npm-cache
+      with:
+        restore-older-entry: ${{ inputs.restore-older-npm-entry }}
+    - name: Install the dependencies
+      if: steps.modules.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci --prefer-offline --no-audit --fund=false

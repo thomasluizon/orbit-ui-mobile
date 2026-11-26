@@ -64,34 +64,38 @@ jobs:
         id: turbo
         run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/turbo'].version")" >> "$GITHUB_OUTPUT"
 
-      - name: Restore the Turbo download
-        id: turbo-download
+      - name: Restore the installed Turbo
+        id: turbo-install
         uses: actions/cache/restore@v6
         with:
-          path: ~/.npm/_cacache
-          key: ${{ runner.os }}-turbo-cli-${{ steps.turbo.outputs.version }}
+          path: ${{ runner.temp }}/turbo
+          key: ${{ runner.os }}-${{ runner.arch }}-turbo-install-${{ steps.turbo.outputs.version }}
 
-      # npm ci installs Turbo at the entries of the root lockfile, so the plan reads the same Turbo as the test jobs, with
-      # no resolve and without the workspace tree. The restored npm cache holds the archives.
+      # On a miss, npm ci installs Turbo at the entries of the root lockfile, so the plan reads the same Turbo as the test
+      # jobs, with no resolve and without the workspace tree.
       - name: Hash the test tasks and read the changed paths
         id: plan
         env:
           EVENT_NAME: ${{ github.event_name }}
+          TURBO_RESTORED: ${{ steps.turbo-install.outputs.cache-hit }}
         run: |
           set -euo pipefail
-          node .github/scripts/write-locked-package.mjs turbo "$RUNNER_TEMP/turbo"
-          npm ci --prefix "$RUNNER_TEMP/turbo" --ignore-scripts --no-audit --no-fund --prefer-offline
+          if [ "$TURBO_RESTORED" != true ]; then
+            node .github/scripts/write-locked-package.mjs turbo "$RUNNER_TEMP/turbo"
+            npm ci --prefix "$RUNNER_TEMP/turbo" --ignore-scripts --no-audit --no-fund
+          fi
           "$RUNNER_TEMP/turbo/node_modules/.bin/turbo" run test --dry=json > "$RUNNER_TEMP/turbo-test.json"
           if [ "$EVENT_NAME" = pull_request ]; then git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/changed-paths.txt"; fi
           node .github/scripts/plan-test-jobs.mjs --event "$EVENT_NAME" --turbo-dry "$RUNNER_TEMP/turbo-test.json" \
-            --workflow .github/workflows/test.yml --changed-files "$RUNNER_TEMP/changed-paths.txt" | tee -a "$GITHUB_OUTPUT"
+            --workflow .github/workflows/test.yml --workflow .github/actions/install-dependencies/action.yml \
+            --workflow .github/actions/restore-npm-cache/action.yml --changed-files "$RUNNER_TEMP/changed-paths.txt" | tee -a "$GITHUB_OUTPUT"
 
-      - name: Save the Turbo download
-        if: github.event_name != 'pull_request' && steps.turbo-download.outputs.cache-hit != 'true'
+      - name: Save the installed Turbo
+        if: github.event_name != 'pull_request' && steps.turbo-install.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
-          path: ~/.npm/_cacache
-          key: ${{ steps.turbo-download.outputs.cache-primary-key }}
+          path: ${{ runner.temp }}/turbo
+          key: ${{ steps.turbo-install.outputs.cache-primary-key }}
 
       - name: Look up cached web unit results
         id: web-unit
@@ -153,21 +157,31 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
-      # A run that saves restores no older entry, so the entry holds only the tarballs of this lockfile.
-      - id: npm-cache
-        uses: ./.github/actions/restore-npm-cache
+      # A run that saves restores no older npm entry, so the entry holds only the tarballs of this lockfile.
+      - id: install
+        uses: ./.github/actions/install-dependencies
         with:
-          restore-older-entry: ${{ github.event_name == 'pull_request' }}
+          restore-older-npm-entry: ${{ github.event_name == 'pull_request' }}
 
-      - run: npm ci --prefer-offline --no-audit --fund=false
-
-      # Every Linux job restores this entry. This job runs on every push to main, so it is the one that saves it.
+      # Other jobs restore these two entries. This job runs on every push to main, so it is the one that saves them, before
+      # a later step writes into the tree.
       - name: Save the npm cache
-        if: github.event_name != 'pull_request' && steps.npm-cache.outputs.cache-hit != 'true'
+        if: github.event_name != 'pull_request' && steps.install.outputs.npm-cache-primary-key != '' && steps.install.outputs.npm-cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
-          path: ${{ steps.npm-cache.outputs.path }}
-          key: ${{ steps.npm-cache.outputs.cache-primary-key }}
+          path: ${{ steps.install.outputs.npm-cache-path }}
+          key: ${{ steps.install.outputs.npm-cache-primary-key }}
+
+      - name: Save the installed dependencies
+        if: github.event_name != 'pull_request' && steps.install.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+            eslint-rules/node_modules
+          key: ${{ steps.install.outputs.cache-primary-key }}
 
       - name: Restore the Next compiler cache
         id: next-cache
@@ -255,12 +269,10 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
-      - uses: ./.github/actions/restore-npm-cache
-
       - name: Use the repository npm version
         run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
 
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      - uses: ./.github/actions/install-dependencies
 
       - name: Validate the dependency tree
         env:
@@ -320,10 +332,8 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
-      - uses: ./.github/actions/restore-npm-cache
-
       # The scanner resolves tsconfig extends and dependency types from node_modules.
-      - run: npm ci
+      - uses: ./.github/actions/install-dependencies
 
       # download-artifact v8 extracts a lone pattern match at `path` and several matches into folders named
       # after each artifact. merge-multiple extracts at `path` for any count, and each artifact holds one
@@ -569,8 +579,7 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
-      - uses: ./.github/actions/restore-npm-cache
-      - run: npm ci
+      - uses: ./.github/actions/install-dependencies
       - name: Run web shard with coverage
         timeout-minutes: 16
         working-directory: apps/web
@@ -614,8 +623,7 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
-      - uses: ./.github/actions/restore-npm-cache
-      - run: npm ci
+      - uses: ./.github/actions/install-dependencies
       - name: Run mobile shard with coverage
         timeout-minutes: 10
         working-directory: apps/mobile
@@ -654,8 +662,7 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
-      - uses: ./.github/actions/restore-npm-cache
-      - run: npm ci
+      - uses: ./.github/actions/install-dependencies
       - name: Run workspaces with coverage thresholds
         timeout-minutes: 6
         run: ./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage
@@ -691,9 +698,7 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
-      - uses: ./.github/actions/restore-npm-cache
-
-      - run: npm ci
+      - uses: ./.github/actions/install-dependencies
 
       - name: Restore turbo
         id: turbo-cache
@@ -741,9 +746,7 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
-      - uses: ./.github/actions/restore-npm-cache
-
-      - run: npm ci
+      - uses: ./.github/actions/install-dependencies
 
       - name: Lint only files changed by this pull request
         shell: bash
@@ -796,9 +799,7 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
-      - uses: ./.github/actions/restore-npm-cache
-
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      - uses: ./.github/actions/install-dependencies
 
       - uses: actions/download-artifact@v8
         with:
@@ -881,9 +882,7 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
-      - uses: ./.github/actions/restore-npm-cache
-
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      - uses: ./.github/actions/install-dependencies
 
       - uses: actions/download-artifact@v8
         with:

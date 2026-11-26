@@ -97,11 +97,30 @@ test("every job that installs from the lockfile restores the npm cache first, an
 // grows with every lockfile change on main. actions/cache at 55cc8345863c7cc4c66a329aec7e433d2d1c52a9 (v6),
 // src/utils/actionUtils.ts getInputAsArray drops empty lines, so an empty restore-keys input restores the exact key or nothing.
 const RESTORE_OLDER_ENTRY = "${{ inputs.restore-older-entry == 'true' && format('npm-{0}-{1}-', runner.os, runner.arch) || '' }}"
+// Each npm saver: when it saves, the outputs that name its exact restore, and the input that stops a restore by prefix.
+// PR Tests restores through the install action, which runs npm ci only on a miss of the dependency tree, so its save
+// also needs the key that only that miss produces.
 const NPM_SAVERS = {
-  "test.yml: build": ["github.event_name != 'pull_request'", "${{ github.event_name == 'pull_request' }}"],
-  "desktop-build.yml: build": ["runner.os == 'Windows' && github.ref == 'refs/heads/main'", "${{ !(runner.os == 'Windows' && github.ref == 'refs/heads/main') }}"],
+  "test.yml: build": {
+    when: "github.event_name != 'pull_request' && steps.install.outputs.npm-cache-primary-key != ''",
+    olderEntry: "${{ github.event_name == 'pull_request' }}",
+    hit: "steps.install.outputs.npm-cache-hit",
+    key: "${{ steps.install.outputs.npm-cache-primary-key }}",
+    path: "${{ steps.install.outputs.npm-cache-path }}",
+  },
+  "desktop-build.yml: build": {
+    when: "runner.os == 'Windows' && github.ref == 'refs/heads/main'",
+    olderEntry: "${{ !(runner.os == 'Windows' && github.ref == 'refs/heads/main') }}",
+    hit: "steps.npm-cache.outputs.cache-hit",
+    key: "${{ steps.npm-cache.outputs.cache-primary-key }}",
+    path: "${{ steps.npm-cache.outputs.path }}",
+  },
 }
-const NPM_PRIMARY_KEY = "${{ steps.npm-cache.outputs.cache-primary-key }}"
+
+// The dependency tree that PR Tests restores in each job and saves from its Build job.
+const DEPENDENCY_TREE_PATH = "node_modules\napps/*/node_modules\npackages/*/node_modules\neslint-rules/node_modules\n"
+const DEPENDENCY_TREE_KEY = "modules-${{ runner.os }}-${{ runner.arch }}-node${{ steps.node.outputs.major }}-${{ hashFiles('package-lock.json', 'package.json', 'apps/*/package.json', 'packages/*/package.json', 'eslint-rules/package.json', 'apps/mobile/scripts/fix-hoisting.js') }}"
+const DEPENDENCY_TREE_SAVERS = { "test.yml: build": "${{ steps.install.outputs.cache-primary-key }}" }
 
 // A restore as a reviewer reads it: the canonical restore step and the canonical local action calls that lead to it, each
 // without its name, which is free text.
@@ -125,7 +144,27 @@ const NPM_ACTION_RESTORE = {
   },
 }
 const npmActionRestore = (call) => ({ step: NPM_ACTION_RESTORE, calls: [{ uses: "./.github/actions/restore-npm-cache", ...call }] })
-const npmSaverRestore = (place) => npmActionRestore({ id: "npm-cache", with: { "restore-older-entry": NPM_SAVERS[place][1] } })
+// The two restores of .github/actions/install-dependencies, after the call that leads to them: the dependency tree, then,
+// on a miss, the npm cache through the nested npm action.
+const installRestores = (call = {}) => {
+  const install = { uses: "./.github/actions/install-dependencies", ...call }
+  const tree = {
+    env: { SEGMENT_DOWNLOAD_TIMEOUT_MINS: "1" },
+    id: "modules",
+    uses: "actions/cache/restore@v6",
+    with: { key: DEPENDENCY_TREE_KEY, path: DEPENDENCY_TREE_PATH },
+  }
+  const nested = {
+    id: "npm-cache",
+    if: "steps.modules.outputs.cache-hit != 'true'",
+    uses: "./.github/actions/restore-npm-cache",
+    with: { "restore-older-entry": "${{ inputs.restore-older-npm-entry }}" },
+  }
+  return [{ step: tree, calls: [install] }, { step: NPM_ACTION_RESTORE, calls: [install, nested] }]
+}
+const npmSaverRestores = (place) => place === "test.yml: build"
+  ? installRestores({ id: "install", with: { "restore-older-npm-entry": NPM_SAVERS[place].olderEntry } })
+  : [npmActionRestore({ id: "npm-cache", with: { "restore-older-entry": NPM_SAVERS[place].olderEntry } })]
 const unitResultsRestore = (job) => ({
   step: {
     if: `needs.${job}-tests.result == 'skipped'`,
@@ -177,7 +216,7 @@ const mergedUnitResultsLookup = (job, calls = [MERGED_RESULTS_CALL]) => ({
 const EXACT_RESTORE_RULES = ["npm", "the key of an exact restore"]
 const REVIEWED_RESTORES = {
   "desktop-build.yml: build": [
-    npmSaverRestore("desktop-build.yml: build"),
+    ...npmSaverRestores("desktop-build.yml: build"),
     {
       step: {
         id: "windows-downloads",
@@ -200,7 +239,7 @@ const REVIEWED_RESTORES = {
     },
   ],
   "test.yml: build": [
-    npmSaverRestore("test.yml: build"),
+    ...npmSaverRestores("test.yml: build"),
     {
       step: {
         id: "next-cache",
@@ -225,7 +264,7 @@ const REVIEWED_RESTORES = {
   ],
   "test.yml: plan": [
     {
-      step: { id: "turbo-download", uses: "actions/cache/restore@v6", with: { key: "${{ runner.os }}-turbo-cli-${{ steps.turbo.outputs.version }}", path: "~/.npm/_cacache" } },
+      step: { id: "turbo-install", uses: "actions/cache/restore@v6", with: { key: "${{ runner.os }}-${{ runner.arch }}-turbo-install-${{ steps.turbo.outputs.version }}", path: "${{ runner.temp }}/turbo" } },
       calls: [],
     },
     unitResultsLookup("web"),
@@ -236,7 +275,7 @@ const REVIEWED_RESTORES = {
     mergedUnitResultsLookup("workspace"),
   ],
   "merged-unit-results/action.yml": [mergedUnitResultsLookup("web", []), mergedUnitResultsLookup("mobile", []), mergedUnitResultsLookup("workspace", [])],
-  "test.yml: unit-tests": [npmActionRestore({}), unitResultsRestore("web"), unitResultsRestore("mobile"), unitResultsRestore("workspace")],
+  "test.yml: unit-tests": [...installRestores(), unitResultsRestore("web"), unitResultsRestore("mobile"), unitResultsRestore("workspace")],
 }
 
 function checkReviewedRestores(currentTree, inventory) {
@@ -254,19 +293,25 @@ function checkNpmSaves(currentTree, inventory) {
   const saves = inventory.filter(({ rule }) => rule === "npm").map((line) => saveOf(currentTree, line.step))
   assert.deepEqual(saves.map(({ list }) => list.place).sort(), Object.keys(NPM_SAVERS).sort(), "the npm savers")
   for (const { step, where, list, index } of saves) {
-    const savesWhen = NPM_SAVERS[list.place][0]
+    const saver = NPM_SAVERS[list.place]
     assert.equal(step.uses, "actions/cache/save@v6", where)
-    assert.equal(step.with.key, NPM_PRIMARY_KEY, where)
-    assert.equal(step.if, `${savesWhen} && steps.npm-cache.outputs.cache-hit != 'true'`, where)
-    assert.equal(step.with.path, "${{ steps.npm-cache.outputs.path }}", where)
-    const exact = npmSaverRestore(list.place)
+    assert.equal(step.with.key, saver.key, where)
+    assert.equal(step.if, `${saver.when} && ${saver.hit} != 'true'`, where)
+    assert.equal(step.with.path, saver.path, where)
+    const exact = npmSaverRestores(list.place).at(-1)
     assert.ok(REVIEWED_RESTORES[list.place]?.some((reviewed) => isDeepStrictEqual(reviewed, exact)), `${where}: the reviewed restores of the job hold its exact npm restore`)
     const restore = list.entries.findIndex((entry) => isDeepStrictEqual(restoreForm(entry), exact))
     assert.ok(restore >= 0 && restore < index, `${where}: the exact npm restore runs before the save`)
   }
   for (const list of cacheStepLists(currentTree).filter(({ place }) => !(place in NPM_SAVERS))) {
-    for (const { step, where } of list.entries.filter((entry) => entry.step.uses === "./.github/actions/restore-npm-cache")) {
-      assert.equal(step.with?.["restore-older-entry"], undefined, `${where} never saves, so it keeps the prefix fallback`)
+    for (const { step, where } of list.entries) {
+      if (step.uses === "./.github/actions/install-dependencies") {
+        assert.equal(step.with?.["restore-older-npm-entry"], undefined, `${where} never saves, so it keeps the prefix fallback`)
+      }
+      if (step.uses !== "./.github/actions/restore-npm-cache") continue
+      // The install action passes its own input on, which defaults to the prefix fallback.
+      const passedOn = where.includes("install-dependencies/action.yml: ") ? "${{ inputs.restore-older-npm-entry }}" : undefined
+      assert.equal(step.with?.["restore-older-entry"], passedOn, `${where} never saves, so it keeps the prefix fallback`)
     }
   }
 }
@@ -274,6 +319,7 @@ function checkNpmSaves(currentTree, inventory) {
 test("each npm entry holds only the tarballs of its own lockfile, because a job that saves it restores no older entry", () => {
   const { inputs, runs } = load(".github/actions/restore-npm-cache/action.yml")
   assert.equal(inputs["restore-older-entry"].default, "true")
+  assert.equal(load(".github/actions/install-dependencies/action.yml").inputs["restore-older-npm-entry"].default, "true")
   assert.equal(runs.steps.find((step) => step.id === "restore").with["restore-keys"], RESTORE_OLDER_ENTRY)
   checkNpmSaves(tree, INVENTORY)
 })
@@ -843,7 +889,28 @@ const RULES = {
     check: ({ step, list, where }) => {
       assert.ok(list.place in NPM_SAVERS, `${where}: NPM_SAVERS names the job`)
       assert.ok(Object.hasOwn(REVIEWED_RESTORES, list.place), `${where}: REVIEWED_RESTORES names the job`)
-      assert.equal(step.with.path, "${{ steps.npm-cache.outputs.path }}", `${where}: the npm save writes the npm cache directory`)
+      assert.equal(step.with.path, NPM_SAVERS[list.place].path, `${where}: the npm save writes the npm cache directory`)
+    },
+  },
+  // npm ci removes every node_modules directory before it installs, and it runs only after a miss of the exact key. So a
+  // saved tree holds one install of one lockfile. The restore has no restore-keys, and no step between the install and
+  // this save writes into the tree: only a cache step can run there, and checkReviewedRestores holds each restore.
+  "the installed dependency tree": {
+    actions: ["actions/cache/save"],
+    check: ({ step, where, list, index }) => {
+      assert.ok(Object.hasOwn(DEPENDENCY_TREE_SAVERS, list.place), `${where}: DEPENDENCY_TREE_SAVERS names the job`)
+      assert.equal(step.with.path, DEPENDENCY_TREE_PATH, `${where}: the save writes exactly the dependency tree`)
+      assert.equal(step.with.key, DEPENDENCY_TREE_SAVERS[list.place], `${where}: the save writes the key of the install`)
+      assert.equal(step.if, "github.event_name != 'pull_request' && steps.install.outputs.cache-hit != 'true'", `${where}: only a miss outside a pull request saves`)
+      const entries = list.entries.map((entry) => entry.step)
+      const restores = entries.filter((candidate) => restoresACache(candidate) && candidate.with.path === DEPENDENCY_TREE_PATH)
+      assert.equal(restores.length, 1, `${where}: one restore reads the dependency tree`)
+      assert.equal(restores[0].with.key, DEPENDENCY_TREE_KEY, `${where}: the restore reads the key of this lockfile`)
+      assert.ok(hasNoRestoreKeys(restores[0]), `${where}: the restore of the tree has no restore-keys`)
+      const install = entries.findIndex((candidate) => /^npm ci\b/.test(candidate.run ?? ""))
+      assert.ok(install >= 0 && install < index, `${where}: the save follows the install`)
+      assert.deepEqual(entries.slice(install + 1, index).filter((candidate) => !savesACache(candidate) && !restoresACache(candidate)), [],
+        `${where}: only a cache step runs between the install and this save`)
     },
   },
   // checkCompilerCaches holds the restore, the stamp step, the evict step and the order of each compiler cache save, with
@@ -1097,7 +1164,7 @@ const MOBILE_BUILD_JOB = "  build:\n    name: Android release build\n"
 const MOBILE_BUILD_STAMP = "      - name: Record the start of the compiler cache use\n        run: echo \"COMPILER_CACHE_USED_SINCE=$(date +%s)\" >> \"$GITHUB_ENV\"\n"
 const IOS_RELEASE_EVICT_NAME = "      - name: Keep only the objects that this archive used\n"
 const IOS_RELEASE_SAVE_PATH = "          path: ${{ env.CCACHE_DIR }}\n          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}\n"
-const NPM_SAVE_PATH = "          path: ${{ steps.npm-cache.outputs.path }}\n"
+const NPM_SAVE_PATH = "          path: ${{ steps.install.outputs.npm-cache-path }}\n"
 const DESKTOP_RUST_SAVE_IF = "          save-if: ${{ github.ref == 'refs/heads/main' }}\n"
 const GRADLE_READ_ONLY = "          cache-read-only: true\n"
 const IOS_CCACHE_PATH = "          path: ${{ env.CCACHE_DIR }}\n"
@@ -1110,7 +1177,7 @@ const MOBILE_BUILD_GRADLE_OPTS = "      GRADLE_OPTS: -Dorg.gradle.caching=true\n
 const TYPE_CHECK_IF = "    if: needs.plan.outputs.type-check == 'true'\n"
 const TURBO_JSON_HEAD = '{\n  "$schema": "https://turbo.build/schema.json",\n'
 const NEXT_CACHE_PATH = "          path: apps/web/.next/cache/webpack\n"
-const NPM_RESTORE_OLDER_ENTRY = "          restore-older-entry: ${{ github.event_name == 'pull_request' }}\n"
+const NPM_RESTORE_OLDER_ENTRY = "          restore-older-npm-entry: ${{ github.event_name == 'pull_request' }}\n"
 const PLAN_HASH_STEP = "      - name: Hash the test tasks and read the changed paths\n"
 const IOS_COMPILER_CHECK_ENV = "      CCACHE_COMPILERCHECK: content\n"
 const MOBILE_COMPILER_CHECK = "            ccache --set-config=compiler_check=content\n"
@@ -1210,8 +1277,8 @@ const MUTATIONS = [
     saveStep("Save stylelint", ".stylelintcache", "stylelint-${{ runner.os }}-${{ github.sha }}")), NO_LINE],
   ["M21 an npm prefix restore through a nested local action in a job that saves the npm cache", {
     ...newAction("setup-workspace", "    - uses: ./.github/actions/restore-npm-cache\n"),
-    ...changeText(".github/workflows/test.yml", ["      - id: npm-cache\n        uses: ./.github/actions/restore-npm-cache\n        with:\n          restore-older-entry: ${{ github.event_name == 'pull_request' }}\n",
-      "      - uses: ./.github/actions/setup-workspace\n      - id: npm-cache\n        uses: ./.github/actions/restore-npm-cache\n        with:\n          restore-older-entry: ${{ github.event_name == 'pull_request' }}\n"]),
+    ...changeText(".github/workflows/test.yml", ["      - id: install\n        uses: ./.github/actions/install-dependencies\n",
+      "      - uses: ./.github/actions/setup-workspace\n      - id: install\n        uses: ./.github/actions/install-dependencies\n"]),
   }, pinned("restores")],
   ["M22 a save in a local action of an env path that the calling step sets", {
     ...newAction("save-style", STYLE_ENV_SAVE.replace(/^ {6}/gm, "    ")),
@@ -1234,16 +1301,16 @@ const MUTATIONS = [
   ["P9 a local action with Actions/setup-java and cache gradle", typeCheckToolStep("    - uses: Actions/setup-java@v5\n      with:\n        distribution: temurin\n        java-version: '17'\n        cache: gradle\n"), NO_LINE],
   ["P10 a local action with hendrikmuhs/ccache-action", typeCheckToolStep("    - uses: hendrikmuhs/ccache-action@v1.2\n      with:\n        key: type-check\n"), NO_REMOTE_LINE],
   ["P11 a local action with actions/setup-python and cache pip", typeCheckToolStep("    - uses: actions/setup-python@v6\n      with:\n        python-version: '3.12'\n        cache: pip\n"), NO_REMOTE_LINE],
-  ["P12 a lookup of the plan job becomes a prefix restore of the Turbo download path before its save", changeText(".github/workflows/test.yml", [WEB_UNIT_LOOKUP, ""],
+  ["P12 a lookup of the plan job becomes a prefix restore of the installed Turbo path before its save", changeText(".github/workflows/test.yml", [WEB_UNIT_LOOKUP, ""],
     ["      - name: Hash the test tasks and read the changed paths\n", `      - name: Look up cached web unit results
         id: web-unit
-        if: steps.turbo-download.outputs.cache-hit != 'true'
+        if: steps.turbo-install.outputs.cache-hit != 'true'
         uses: actions/cache/restore@v6
         with:
-          path: ~/.npm/_cacache
-          key: \${{ runner.os }}-turbo-cli-
+          path: \${{ runner.temp }}/turbo
+          key: \${{ runner.os }}-\${{ runner.arch }}-turbo-install-
           restore-keys: |
-            \${{ runner.os }}-turbo-cli-
+            \${{ runner.os }}-\${{ runner.arch }}-turbo-install-
       - name: Hash the test tasks and read the changed paths
 `]), pinned("restores")],
   ["P13 the ios-build CCACHE_DIR value becomes the macOS cache directory", changeText(".github/workflows/ios-build.yml",
@@ -1338,16 +1405,21 @@ const MUTATIONS = [
     /Save the Next compiler cache: the restore of the key restores exactly apps\/web\/\.next\/cache\/webpack/, WRITE],
   ["G1 the Build job restores an older npm entry by prefix under another key after its exact npm restore", changeText(".github/workflows/test.yml",
     [NPM_RESTORE_OLDER_ENTRY, `${NPM_RESTORE_OLDER_ENTRY}      - name: Restore an older npm entry
-        if: steps.npm-cache.outputs.cache-hit != 'true'
+        if: steps.install.outputs.cache-hit != 'true'
         uses: actions/cache/restore@v6
         with:
-          path: "\${{ steps.npm-cache.outputs.path }}"
+          path: "\${{ steps.install.outputs.npm-cache-path }}"
           key: npm-older-\${{ github.sha }}
           restore-keys: npm-\${{ runner.os }}-\${{ runner.arch }}-
 `]), /test\.yml: build: the restores of the job and its local actions are the reviewed restores/, WRITE],
-  ["G2 the plan job restores an older Turbo download by prefix under another key", changeText(".github/workflows/test.yml",
-    [PLAN_HASH_STEP, `${restoreStep("Restore an older Turbo download", "~/.npm/_cacache", "older-turbo-cli-${{ github.sha }}", "${{ runner.os }}-turbo-cli-")}${PLAN_HASH_STEP}`]),
+  ["G2 the plan job restores an older installed Turbo by prefix under another key", changeText(".github/workflows/test.yml",
+    [PLAN_HASH_STEP, `${restoreStep("Restore an older installed Turbo", "${{ runner.temp }}/turbo", "older-turbo-install-${{ github.sha }}", "${{ runner.os }}-${{ runner.arch }}-turbo-install-")}${PLAN_HASH_STEP}`]),
   /test\.yml: plan: the restores of the job and its local actions are the reviewed restores/, WRITE],
+  ["N1 the install action restores the dependency tree of an older lockfile by prefix", changeText(".github/actions/install-dependencies/action.yml",
+    ["        key: modules-", "        restore-keys: modules-\n        key: modules-"]), /the restore of the tree has no restore-keys/, WRITE],
+  ["N2 a Build step writes into the dependency tree before its save", changeText(".github/workflows/test.yml",
+    ["      - name: Save the installed dependencies\n", "      - run: node .github/scripts/write-into-the-tree.mjs\n      - name: Save the installed dependencies\n"]),
+  /only a cache step runs between the install and this save/, WRITE],
   ["G3 the ios-build compile job env writes the ccache log inside the saved directory", changeText(".github/workflows/ios-build.yml",
     [IOS_COMPILER_CHECK_ENV, `${IOS_COMPILER_CHECK_ENV}      CCACHE_LOGFILE: \${{ github.workspace }}/.cache/ios-ccache/ccache.log\n`]),
   /ios-build\.yml: compile: Save compiler outputs: the env of the job and its workflow is the reviewed env/, WRITE],
