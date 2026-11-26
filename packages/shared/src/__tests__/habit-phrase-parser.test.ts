@@ -640,6 +640,22 @@ describe('weekday ranges', () => {
     expect(readTypedHabitPhrase(input, locale, 'habit', false).days).toEqual(['Monday', 'Friday'])
   })
 
+  it.each([
+    { input: 'Run mon-wed-fri', locale: 'en', words: ['mon', 'wed', 'fri'] },
+    { input: 'Run Mon - Wed - Fri', locale: 'en', words: ['Mon', 'Wed', 'Fri'] },
+    { input: 'Run monday to wednesday to friday', locale: 'en', words: ['monday', 'wednesday', 'friday'] },
+    { input: 'Correr seg-qua-sex', locale: 'pt-BR', words: ['seg', 'qua', 'sex'] },
+    { input: 'Correr segunda a quarta a sexta', locale: 'pt-BR', words: ['segunda', 'quarta', 'sexta'] },
+  ] as const)('reads the chain $input as a list and consumes each weekday', ({ input, locale, words }) => {
+    const read = readHabitPhrase(input, locale)
+    expect(read.days).toEqual(['Monday', 'Wednesday', 'Friday'])
+    expect(read.consumed.map((token) => input.slice(token.start, token.end))).toEqual(words)
+  })
+
+  it('reads a chain of four weekdays as a list', () => {
+    expect(readHabitPhrase('Run mon-tue-thu-fri', 'en').days).toEqual(['Monday', 'Tuesday', 'Thursday', 'Friday'])
+  })
+
   it('wraps a range past Sunday and mixes a range with a list', () => {
     expect(readHabitPhrase('Correr sexta a segunda', 'pt-BR').days).toEqual(['Friday', 'Saturday', 'Sunday', 'Monday'])
     expect(readHabitPhrase('Run monday to wednesday and saturday', 'en').days).toEqual(['Monday', 'Tuesday', 'Wednesday', 'Saturday'])
