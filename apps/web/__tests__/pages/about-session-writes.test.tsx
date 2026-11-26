@@ -104,7 +104,6 @@ vi.mock('@/hooks/use-tag-selection', () => ({ useTagSelection: () => ({ selected
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { 'sub_habits': { enabled: true, planRequirement: 'Pro' } } } }) }))
 vi.mock('@/hooks/use-dismiss-guard', () => ({ useDismissGuard: () => ({ canDismiss: true, requestDismiss: vi.fn() }) }))
-vi.mock('@/components/habits/habit-form-fields', () => ({ HabitFormFields: () => <input aria-label="Habit title" defaultValue="Test Habit" /> }))
 vi.mock('@/components/habits/create-habit-modal/sub-habit-editor', () => ({ SubHabitEditor: () => null }))
 vi.mock('@/hooks/use-habit-queries', () => {
 
