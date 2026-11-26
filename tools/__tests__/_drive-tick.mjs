@@ -2409,6 +2409,13 @@ const twoAccountCases = async () => {
   await pullfrogLimited.run()
   same("drive: with two accounts a Pullfrog usage limit opens no pause issue and stops only the main account until its resetsAt", [only(pullfrogLimited.calls, "createTicket").length, pullfrogLimited.mem.stoppedUntil, pullfrogLimited.mem.worker.stoppedUntil], [0, RESETS_AT * 1000, null])
   same("drive: with two accounts a Pullfrog usage limit leaves the worker account its slots and posts no Pullfrog request", [pullfrogLimited.launched.map(accountOfLaunch), commentsOf(pullfrogLimited.calls, 30).length], [[WORKER_DIRECTORY], 0])
+  const pullfrogLimitedMany = scenario({ tickets: [ticket(7), ticket(8), ticket(9), ticket(10)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun], routes: [["--log-failed", limitLine]], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  await pullfrogLimitedMany.run()
+  same("drive: with two accounts a Pullfrog usage limit that a plan found starts no launch on the main account, even with orders left", pullfrogLimitedMany.launched.map(accountOfLaunch), [WORKER_DIRECTORY, WORKER_DIRECTORY])
+  const pullfrogLimitedQuestions = scenario({ driver: {}, tickets: [ticket(7), heldTicket(8)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun], routes: [["--log-failed", limitLine]], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  await pullfrogLimitedQuestions.run()
+  await pullfrogLimitedQuestions.mem.questions
+  same("drive: with two accounts a Pullfrog usage limit that a plan found starts no questions run on the main account", [questionRuns(pullfrogLimitedQuestions).length, questionLines(pullfrogLimitedQuestions), startedFile(pullfrogLimitedQuestions)], [0, ["questions wait (a Pullfrog limit stops the main account: ticket#8)"], null])
 
   const oldPause = ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null, body: `A worker stopped.\n\nAccount: ${ACCOUNT.key}` })
   const pausedWithWorker = scenario({ tickets: [oldPause, ticket(7)], reading: below, workerAuth: WORKER_AUTH, workerReading: below, probeReading: { utilization: 0.35, resetsAt: RESETS_AT, status: "allowed" } })

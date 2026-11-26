@@ -1886,7 +1886,7 @@ export const tick = async (env, mem) => {
   if (!env.dryRun) {
     await launchAll([...fixOrders, ...chosen])
     await sweepWorktrees(env, mem).catch((error) => log(env, "worktrees", "error", error.message))
-    const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : null)
+    const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : limitSeen.found ? "a Pullfrog limit stops the main account" : null)
     await startQuestions(env, mem, { tickets, states, blocked: questionsBlock }).catch((error) => log(env, "questions", "error", error.message))
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.
     const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...unstarted]
