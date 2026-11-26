@@ -1085,7 +1085,7 @@
    "id": "IC_kwDOTynGmc8AAAABpDVQ2g",
    "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049924826",
    "createdAt": "2026-11-20T20:31:16Z",
-   "body": "Part 21 of 24: the other ui docs\n\nStarts from `main` after Part 20 merges.\n\n## Behaviour\n\nThe remaining ui docs state current facts only, each at or under its figure: no stale version numbers, no retired product name in prose, no per-feature rollout notes, no dated evidence.\n\n## Rows\n\n### Change (6 files)\n\n- **`apps/desktop/README.md`** (35763 B now, judge x20). Final verdict: KEEP+UPDATE (at most 20,000 bytes, targe. Bytes after: 20000. Budget (file: 35763 B now, budget 20000 B, at most 14000 B after).\n  - Judge's line-level cut: Rename Astra to Orbit. Delete :144-146. Cut :19, :21 and :127 t",
+   "body": "Part 21 of 24: the other ui docs\n\nStarts from `main` after Part 20 merges.\n\n## Behaviour\n\nThe remaining ui docs state current facts only, each at or under its figure: no stale version numbers, no retired product name in prose, no per-feature rollout notes, no dated evidence.\n\n## Rows\n\n### Change (6 files)\n\n- **`docs/example.md`** (35763 B now, judge x20). Final verdict: KEEP+UPDATE (at most 20,000 bytes, targe. Bytes after: 20000. Budget (file: 35763 B now, budget 20000 B, at most 14000 B after).\n  - Judge's line-level cut: Rename Astra to Orbit. Delete :144-146. Cut :19, :21 and :127 t",
    "bodyLength": 4805
   },
   {
