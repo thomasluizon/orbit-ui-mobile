@@ -140,12 +140,13 @@ const ownerNoteSection = (ownerNote) => (ownerNote === null ? "" : `\n\n## Owner
 
 /**
  * The order text for a worker that resumes its own session. The session already holds the ticket, the parts and the brief,
- * so the text holds only the new findings and the one delivery rule that a fix changes: it pushes to the open pull request.
+ * so the text holds only the new findings. The first order and its brief still hold. One delivery rule changes: the worker pushes
+ * to the branch of the open pull request and opens no other pull request. Every other rule of the brief holds.
  */
 export const renderResumeOrder = ({ kind, pull, review = null, failure = null, ownerNote = null }) => {
   if (kind !== "fix" && kind !== "ci-fix" && kind !== "merge-forward") throw new Error(`a ${kind} order does not resume a session`)
   assertFixInputs({ kind, pull, review, failure })
-  return `## This order (${kind}, resumed)\n\n${kindSection({ kind, pull, review, failure })}${ownerNoteSection(ownerNote)}\n\nYour first order and its brief still hold, except for the delivery. Push to the branch of the open pull request. Open no other pull request. Write the choice and its evidence in the commit message.\n`
+  return `## This order (${kind}, resumed)\n\n${kindSection({ kind, pull, review, failure })}${ownerNoteSection(ownerNote)}\n\nYour first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request. Write the choice and its evidence in the commit message.\n`
 }
 
 /**
