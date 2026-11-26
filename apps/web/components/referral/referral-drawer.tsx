@@ -2,7 +2,7 @@
 
 import { PillButton } from '@/components/ui/pill-button'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { CopyStateIcon } from '@/components/ui/copy-state-icon'
@@ -143,13 +143,18 @@ function ReferralDrawerContent({
   const isLoaded = !isLoading && !isError
   const reward = selectReferralReward(stats)
 
+  useEffect(() => {
+    if (!copied) return
+    const resetTimer = setTimeout(() => setCopied(false), 2000)
+    return () => clearTimeout(resetTimer)
+  }, [copied])
+
   async function copyLink() {
     if (!referralUrl) return
     try {
       await navigator.clipboard.writeText(referralUrl)
       setFailedAction(null)
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
     } catch {
       setFailedAction('copy')
     }
