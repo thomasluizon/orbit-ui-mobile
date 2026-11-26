@@ -227,6 +227,9 @@ const folderWalks = {
     files: /\.tsx$/ },
   'apps/web/__tests__/components/ui/skeleton-source-sweep.test.ts': { folders: ['apps/mobile/app/', 'apps/mobile/components/'],
     files: /\.tsx$/ },
+  // PROJECTS names the two apps/web hooks that React Doctor checks from the apps/web folder.
+  'apps/mobile/__tests__/lib/effect-timer-cleanup.test.ts': { folders: ['apps/web/hooks/'],
+    files: /^apps\/web\/hooks\/use-(?:keyboard-shortcuts|stripe-checkout-return)\.ts$/ },
   // GENERATED_OUTPUTS names the generator outputs, which are all in apps/mobile.
   'apps/mobile/__tests__/scripts/widget-color-generator.test.ts': { folders: ['apps/mobile/'], files: /(?:)/ },
   'packages/shared/src/__tests__/authored-typography.test.ts': { folders: ['apps/mobile/', 'apps/web/'],
