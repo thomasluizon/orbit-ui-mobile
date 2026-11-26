@@ -238,6 +238,13 @@ const knownAccounts = (mem) => ACCOUNT_NAMES.filter((name) => stateOf(mem, name)
 /** The name of the account that a launch record or a reading names by its key. A key that matches neither belongs to the main account. */
 const nameOfKey = (mem, key) => (key !== null && mem.worker.account?.key === key ? WORKER : MAIN)
 
+/** The account of the newest session of the branch of a fix order, or null for a build order, an unknown session or an account of no known login. */
+const sessionAccountOf = (mem, order) => {
+  if (!FIX_KINDS.includes(order.kind)) return null
+  const saved = recordsOf(order.ticket, "launch-session").findLast((record) => record.branch === (order.branch ?? order.pull.headRef))
+  return knownAccounts(mem).find((name) => stateOf(mem, name).account.key === saved?.account) ?? null
+}
+
 /** A reading counts only for the account that took it: a worker event for the account of its launch, the snapshot for its email. */
 const readingsOfAccount = (env, mem, name) => {
   const state = stateOf(mem, name)
@@ -1825,8 +1832,9 @@ export const tick = async (env, mem) => {
   const unstarted = []
   if (!env.dryRun) {
     for (const order of launchable) {
-      // The worker account takes a launch when it has a free slot, else the main account.
-      const name = free.worker > 0 ? WORKER : MAIN
+      // A fix order goes to the account of its build session when that account has a free slot, so it resumes. Else the worker account takes a launch when it has a free slot, else the main account.
+      const own = sessionAccountOf(mem, order)
+      const name = own !== null && free[own] > 0 ? own : free.worker > 0 ? WORKER : MAIN
       const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
       if (reason === null) { mem.acted = true; free[name] -= 1 }
       else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)

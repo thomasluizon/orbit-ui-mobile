@@ -566,6 +566,17 @@ const resumeCases = async () => {
   await onWorker.run()
   same("drive: a launch on the worker account looks for the transcript in its own config directory", [onWorker.launched.length, only(onWorker.calls, "sessionExists")[0]?.[1].configDirectory, argsOf(onWorker)], [1, WORKER_DIRECTORY, ["--resume", "sess-1"]])
 
+  const spread = { workerAuth: WORKER_AUTH, reading: { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - MINUTE }, workerReading: { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - MINUTE } }
+  const onMain = fixScene([saved()], spread)
+  await onMain.run()
+  same("drive: a fix launch goes to the account of its build session when that account has a free slot, even when the worker account is free", [onMain.launched.length, accountOfLaunch(onMain.launched[0]), argsOf(onMain)], [1, null, ["--resume", "sess-1"]])
+  const backToWorker = fixScene([saved({ account: WORKER_ACCOUNT.key })], spread)
+  await backToWorker.run()
+  same("drive: a fix launch of a worker account session goes to the worker account", [accountOfLaunch(backToWorker.launched[0]), argsOf(backToWorker)], [WORKER_DIRECTORY, ["--resume", "sess-1"]])
+  const full = fixScene([saved()], { ...spread, reading: { utilization: 0.92, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await full.run()
+  same("drive: a fix launch starts cold on the worker account when the account of its session has no free slot", [accountOfLaunch(full.launched[0]), argsOf(full), said(full, "fix cold start (fix, the session belongs to another account")], [WORKER_DIRECTORY, [], true])
+
   const fresh = fixScene([])
   await fresh.run()
   same("drive: a new worktree gets its dependencies from the main checkout before the worker starts", [only(fresh.calls, "dependencies"), fresh.launched.length], [[["dependencies", "/r/ui", "/r/orbit-worktrees/ui/chore-ticket-7-30"]], 1])
