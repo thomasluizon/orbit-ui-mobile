@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createUseDelayedLoading } from '@orbit/shared/hooks'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { CancelledError, hashKey, useQuery, useQueryClient } from '@tanstack/react-query'
-import { habitListQueryOptions, adjacentHabitDayFilters, isCachedHabitDeleted, habitKeys, QUERY_STALE_TIMES, type HabitListOptions } from '@orbit/shared/query'
+import { habitListQueryOptions, adjacentHabitDayFilters, dropStaleHabitDeletion, isCachedHabitDeleted, habitKeys, QUERY_STALE_TIMES, type HabitListOptions } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
   buildHabitQueryString,
@@ -93,9 +93,10 @@ export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleIte
   }
 }
 
+/** The detail read of one habit. The retry drops a stale deleted marker of that habit first: an edit opens for a habit the list shows, the marker disables the read, and a silent cancel would leave a forced read in flight forever. */
 export function useHabitDetail(id: string | null) {
   const queryClient = useQueryClient()
-  return useQuery({
+  const query = useQuery({
     queryKey: habitKeys.detail(id ?? ''),
     queryFn: async ({ signal }) => {
       if (id && isCachedHabitDeleted(queryClient, id)) throw new CancelledError({ silent: true })
@@ -104,6 +105,12 @@ export function useHabitDetail(id: string | null) {
     enabled: !!id && !isCachedHabitDeleted(queryClient, id),
     staleTime: QUERY_STALE_TIMES.habits,
   })
+  const { refetch } = query
+  const retry = useCallback(() => {
+    if (id) dropStaleHabitDeletion(queryClient, id)
+    return refetch()
+  }, [id, queryClient, refetch])
+  return { ...query, retry }
 }
 
 export function useHabitMetrics(id: string | null) {
