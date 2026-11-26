@@ -1401,6 +1401,32 @@ const reapOutcomeCases = async () => {
   const failedFindTickets = [ticket(7, { comments: [partComment(1, 1, "Kind: find")] })]
   const failedFind = await outcome("a find worker that ends on an API error posts no findings and gets its second launch", { tickets: failedFindTickets, result: { exitCode: 1, result: { ...stopped, error: "API Error: 529 Overloaded" } }, log: `${JSON.stringify({ type: "result", is_error: true, result: "API Error: 529 Overloaded" })}\n` }, [2, 0, 0])
   same("drive: an API error result is never posted as the findings of a part", commentsOf(failedFind.calls, 7).filter((text) => text.includes("Findings, part")).length, 0)
+
+  // The facts file of a launch comes only from the real writers: `startWorker` writes it and the reap adds the exit.
+  const factsTickets = [ticket(7)]
+  const factsReview = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: REAL-FINDING" }] })
+  let afterExit = false
+  const factsScene = scenario({ tickets: factsTickets, pulls: { ui: [pull(30, { reviews: [factsReview] })] }, gitRoutes: [["rev-parse", () => `${afterExit ? NEXT_HEAD : HEAD}\n`]] })
+  keepWrites(factsScene, factsTickets)
+  // Each launch has its own start time, so each gets its own log name and facts file.
+  let factsClock = NOW
+  factsScene.env.now = () => factsClock
+  factsScene.env.worker.launch = (options) => { factsScene.launched.push(options); return Promise.resolve({ ...clean, exitCode: 1, killed: "hard-ceiling", killReason: "passed its hard ceiling" }) }
+  const factsOf = (name) => JSON.parse(readFileSync(join(factsScene.env.stateDir, "logs", `${name}.facts.json`), "utf8"))
+  const logNames = () => commentsOf(factsScene.calls, 7).filter((text) => text.startsWith(marked("launch", ""))).map((text) => JSON.parse(text.split("\n")[1]).log)
+  await factsScene.run()
+  factsClock += MINUTE
+  const [firstLog] = logNames()
+  const atLaunch = factsOf(firstLog)
+  afterExit = true
+  await factsScene.run()
+  factsClock += MINUTE
+  const [, secondLog] = logNames()
+  const { exitCode, killReason, headAfter } = factsOf(firstLog)
+  same("drive: a launch writes its facts file with the order's findings, and the reap adds its exit code, kill reason and head", [atLaunch.kind, atLaunch.model, atLaunch.headBefore, atLaunch.blocking.map((entry) => entry.body), atLaunch.exitCode, exitCode, killReason, headAfter], ["fix", "claude-sonnet-5-5", HEAD, ["BLOCKING: REAL-FINDING"], undefined, 1, "passed its hard ceiling", NEXT_HEAD])
+  await factsScene.run()
+  const opusOrder = factsScene.launched[2]?.order ?? ""
+  T("drive: the Opus order holds the exit, heads and findings that the real facts files of the two earlier launches hold", factsScene.launched.length === 3 && secondLog !== undefined && factsScene.launched[2].invocation.model === "claude-opus-5-5" && opusOrder.includes("## Earlier launches") && opusOrder.includes("Exit: 1, killed: passed its hard ceiling.") && opusOrder.includes(`${HEAD} to ${NEXT_HEAD}`) && opusOrder.includes("tools/a.mjs:3: BLOCKING: REAL-FINDING") && !opusOrder.includes("Exit: unknown"), opusOrder.slice(opusOrder.indexOf("## Earlier launches"), opusOrder.indexOf("## Brief")))
 }
 
 const unreadLogCases = async () => {
