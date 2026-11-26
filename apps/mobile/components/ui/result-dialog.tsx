@@ -67,7 +67,7 @@ export function ResultDialogFrame({ visible = true, onDismissed, label, hint, te
   )
 }
 
-/** The result dialog: centred at every width, Orbit at 128, one sentence, a filled action and a ghost action. It asks nothing. */
+/** The result dialog: centred at every width, Orbit at 128, one sentence, a filled action over a ghost action. Both actions share one size and the full width of the panel. It asks nothing. */
 export function ResultDialog({ visible, onDismissed, title, sentence, primaryLabel, onPrimary, secondaryLabel, onSecondary, onClose, orbitState = 'feliz' }: Readonly<ResultDialogProps & Pick<ResultDialogFrameProps, 'visible' | 'onDismissed'>>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -84,8 +84,8 @@ export function ResultDialog({ visible, onDismissed, title, sentence, primaryLab
       <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       <Text style={[styles.sentence, { color: tokens.fg2 }]}>{sentence}</Text>
       <ActionRow align="center">
-        <View style={styles.fullWidth}><PillButton buttonRef={primaryRef} onClick={onPrimary}>{primaryLabel}</PillButton></View>
-        {secondaryLabel && onSecondary ? <PillButton variant="ghost" size="sm" onClick={onSecondary}>{secondaryLabel}</PillButton> : null}
+        <View style={styles.fullWidth}><PillButton buttonRef={primaryRef} matchedWidth onClick={onPrimary}>{primaryLabel}</PillButton></View>
+        {secondaryLabel && onSecondary ? <View style={styles.fullWidth}><PillButton variant="ghost" matchedWidth onClick={onSecondary}>{secondaryLabel}</PillButton></View> : null}
       </ActionRow>
     </ResultDialogFrame>
   )

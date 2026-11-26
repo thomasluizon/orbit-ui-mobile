@@ -3250,7 +3250,7 @@
     "calendar": {
       "imported": "{count, plural, =0 {# hábitos foram criados a partir da sua agenda.} one {# hábito foi criado a partir da sua agenda.} other {# hábitos foram criados a partir da sua agenda.}}"
     },
-    "seeToday": "Ver no Hoje",
+    "seeToday": "Ver hábitos de hoje",
     "account": {
       "freshStart": "Tudo o que você acompanhava foi apagado. Sua conta, seu plano e suas preferências continuam.",
       "freshStartQueued": "Tudo o que você acompanhava será apagado quando a conexão voltar. Sua conta, seu plano e suas preferências continuam.",
