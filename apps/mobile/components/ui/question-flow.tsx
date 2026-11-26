@@ -8,6 +8,7 @@ import { ArrowLeft, X } from '@/components/ui/icons'
 import { FlowLookProvider, useFlowLookState } from '@/components/ui/flow-look'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { OptionGroup } from '@/components/ui/option-card'
 import { PagerSegments } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
@@ -30,12 +31,14 @@ function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
     <View style={styles.header}>
-      <View style={styles.slot}>
-        {onBack ? <PillButton variant="ghost" iconOnly label={backLabel} minimumHeight={48} onClick={onBack}><ArrowLeft color={tokens.fg1} size={24} /></PillButton> : null}
-      </View>
-      <View style={styles.progress}><PagerSegments count={total} index={position - 1} label={progressLabel} /></View>
-      <View style={styles.slot}>
-        {onClose && closeLabel ? <PillButton variant="ghost" iconOnly label={closeLabel} minimumHeight={48} onClick={onClose}><X color={tokens.fg1} size={24} /></PillButton> : null}
+      <View testID="question-flow-column" style={styles.headerColumn}>
+        <View style={styles.slot}>
+          {onBack ? <PillButton variant="ghost" iconOnly label={backLabel} minimumHeight={48} onClick={onBack}><ArrowLeft color={tokens.fg1} size={24} /></PillButton> : null}
+        </View>
+        <View style={styles.progress}><PagerSegments count={total} index={position - 1} label={progressLabel} /></View>
+        <View style={styles.slot}>
+          {onClose && closeLabel ? <PillButton variant="ghost" iconOnly label={closeLabel} minimumHeight={48} onClick={onClose}><X color={tokens.fg1} size={24} /></PillButton> : null}
+        </View>
       </View>
     </View>
   )
@@ -102,9 +105,35 @@ function FlowLine({ line, lineKey, color }: Readonly<{ line: string; lineKey: st
   return <Animated.Text testID="question-flow-line" style={[styles.line, { color, opacity }]}>{line}</Animated.Text>
 }
 
+function FlowOrbitGroup({ props, wide, mascotRef, look, color }: Readonly<{ props: QuestionFlowProps; wide: boolean; mascotRef: React.Ref<View>; look: React.ComponentProps<typeof OrbitMascot>['lookAt']; color: string }>) {
+  const { line, lineKey, stepKey, orbitState = 'parado', showOrbit = true } = props
+  if (!showOrbit && !line) return null
+  return (
+    <View testID="question-flow-orbit-group" style={styles.orbitGroup}>
+      {showOrbit ? (
+        <View ref={mascotRef} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+          <OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={look} turnKey={stepKey} />
+        </View>
+      ) : null}
+      {line ? <FlowLine line={line} lineKey={lineKey} color={color} /> : null}
+    </View>
+  )
+}
+
+function FlowPrimaryRow({ primary, secondary, wide }: Readonly<{ primary: NonNullable<QuestionFlowProps['primary']>; secondary: QuestionFlowProps['secondary']; wide: boolean }>) {
+  const button = <PillButton variant={primary.variant} loading={primary.loading} disabled={primary.disabled} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
+  if (!secondary) return wide ? <View style={styles.primaryWide}>{button}</View> : button
+  return (
+    <View testID="question-flow-action-row" style={wide ? styles.actionRowWide : styles.actionRow}>
+      <PillButton variant="ghost" onClick={secondary.onPress}>{secondary.label}</PillButton>
+      <View style={wide ? styles.primaryWide : styles.primaryBeside}>{button}</View>
+    </View>
+  )
+}
+
 /** The one-question flow frame. It holds no habit-specific code: a second consumer mounts it with its own content. */
 export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
-  const { flow, question, line, lineKey, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
+  const { flow, question, line, stepKey, direction, orbitState = 'parado', statusText, options, children, primary, secondary, footer } = props
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const { width } = useWindowDimensions()
@@ -117,11 +146,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   useGuidedFlowTracking(flow, stepKey, props.total)
   const travel = useStepTravel(stepKey, direction)
   const shownLook = orbitState === 'parado' ? lookAt ?? (keyboardOpen ? KEYBOARD_LOOK : null) : null
-  const primaryAction = primary ? (
-    <View style={wide ? styles.primaryWide : styles.primaryCompact}>
-      <PillButton variant={primary.variant} loading={primary.loading} disabled={primary.disabled} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
-    </View>
-  ) : null
+  const primaryRow = primary ? <FlowPrimaryRow primary={primary} secondary={secondary} wide={wide} /> : null
 
   return (
     <FlowLookProvider look={lookControls}>
@@ -129,21 +154,16 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
         <FlowHeader props={props} />
         <KeyboardAwareScrollView testID="question-flow-scroll" keyboardShouldPersistTaps="handled" contentContainerStyle={scrollContentStyle(keyboardOpen)} showsVerticalScrollIndicator={false}>
           <Animated.View key={stepKey} testID={`question-flow-step-${stepKey}`} style={[styles.block, travel]}>
-            {showOrbit ? (
-              <View ref={mascotRef} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-                <OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={shownLook} turnKey={stepKey} />
-              </View>
-            ) : null}
-            {line ? <FlowLine line={line} lineKey={lineKey} color={tokens.fg2} /> : null}
+            <FlowOrbitGroup props={props} wide={wide} mascotRef={mascotRef} look={shownLook} color={tokens.fg2} />
             <Text ref={headingRef} accessibilityRole="header" accessibilityHint={line ?? undefined} style={[styles.question, wide ? styles.questionWide : null, { color: tokens.fg1 }]} textBreakStrategy="balanced">{question}</Text>
-            {options ? <View style={styles.options}>{options}</View> : null}
+            {options ? <OptionGroup>{options}</OptionGroup> : null}
             {children ? <View style={styles.freePath}>{children}</View> : null}
-            {wide ? primaryAction : null}
+            {wide ? primaryRow : null}
             {footer}
           </Animated.View>
         </KeyboardAwareScrollView>
         <Text accessibilityLiveRegion="polite" style={styles.status}>{announcement || statusText || ''}</Text>
-        {wide ? null : primaryAction}
+        {wide || !primaryRow ? null : <View style={styles.primaryCompact}><View style={styles.primaryColumn}>{primaryRow}</View></View>}
       </View>
     </FlowLookProvider>
   )
@@ -151,7 +171,8 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
+  header: { minHeight: 56, alignItems: 'center', paddingHorizontal: 16 },
+  headerColumn: { width: '100%', maxWidth: 592, minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 8 },
   slot: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   progress: { flex: 1, minWidth: 0 },
   scrollContent: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16 },
@@ -160,9 +181,13 @@ const styles = StyleSheet.create({
   line: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
   question: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },
   questionWide: { fontSize: 34, lineHeight: 39 },
-  options: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
+  orbitGroup: { width: '100%', alignItems: 'center', gap: 12 },
   freePath: { width: '100%', gap: 12 },
   status: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
-  primaryCompact: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8 },
+  primaryCompact: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8, alignItems: 'center' },
+  primaryColumn: { width: '100%', maxWidth: 592 },
   primaryWide: { maxWidth: 360 },
+  actionRow: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  actionRowWide: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  primaryBeside: { flex: 1, minWidth: 0 },
 })

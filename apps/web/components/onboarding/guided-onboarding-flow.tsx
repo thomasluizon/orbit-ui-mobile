@@ -349,6 +349,7 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
         statusText={statusKey ? t(statusKey) : undefined}
         options={stepView.options}
         primary={stepView.primary}
+        secondary={stepView.secondary}
         footer={<>
           {props.leaveFailed && view !== 'remind' ? <p role="alert" className="text-center text-sm text-[var(--status-bad-text)]">{t('onboarding.flow.completionFailed')}</p> : null}
           {stepView.footer}{props.notices}

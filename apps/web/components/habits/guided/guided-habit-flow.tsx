@@ -55,6 +55,7 @@ export function GuidedHabitFlow(props: Readonly<GuidedHabitFlowProps>) {
       statusText={view.statusText ?? (flow.reading ? t('habits.flow.what.reading') : undefined)}
       options={view.options}
       primary={view.primary}
+      secondary={view.secondary}
     >
       {view.free}
     </QuestionFlow>

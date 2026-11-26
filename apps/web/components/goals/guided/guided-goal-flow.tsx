@@ -54,6 +54,7 @@ export function GoalFlowFrame({ flowId, label, flow, view, requestClose, discard
         onClose={requestClose}
         options={view.options}
         primary={view.primary}
+        secondary={view.secondary}
       >
         {view.free}
       </QuestionFlow>
