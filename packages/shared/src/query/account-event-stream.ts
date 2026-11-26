@@ -1,6 +1,7 @@
 import { isNetworkUnavailableError } from '../utils/network-error'
 import { createApiClientError, extractBackendStatus } from '../utils/error-utils'
 import { errorRetryAfter, isUpstreamStarting, parseRetryAfter } from './retry'
+import { getBodyReader, type BodySource } from '../utils/body-reader'
 import { accountEventPayloadSchema, type AccountEventPayload } from '../types/account-event'
 
 export type ParsedAccountEvent =
@@ -52,7 +53,7 @@ interface StreamResponse {
   ok: boolean
   status?: number
   headers?: { get: (name: string) => string | null }
-  body: { getReader: () => ReadableStreamDefaultReader<Uint8Array> } | null
+  body: BodySource | null | undefined
 }
 
 interface AccountEventStreamOptions {
@@ -168,10 +169,10 @@ async function readEvents(
   signal: AbortSignal,
   onEvent: (event: ParsedAccountEvent) => void,
 ): Promise<'closed' | 'interrupted'> {
-  const reader = body.getReader()
+  const reader = getBodyReader(body)
   const decoder = new TextDecoder()
   const parser = createAccountEventParser()
-  const cancel = () => { void reader.cancel().catch(() => {}) }
+  const cancel = () => { void reader.cancel?.().catch(() => {}) }
   signal.addEventListener('abort', cancel, { once: true })
   try {
     for (;;) {
