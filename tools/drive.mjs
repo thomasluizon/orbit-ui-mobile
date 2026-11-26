@@ -1586,7 +1586,7 @@ const syncStop = async (env, tickets, pace) => {
     return
   }
   if (issue === null || env.dryRun || pace.state === "unknown") return
-  await closeIssue(env, tickets, issue, pace.state === "allowed" ? "The owner allowed use over 90% for this week. The driver runs 1 worker." : "The week reset, so the stop ends. The driver runs workers again.")
+  await closeIssue(env, tickets, issue, pace.state === "unpaced" ? "The owner turned the weekly pace of the main account off, so the stop ends. It runs 3 workers until its usage limit." : pace.state === "allowed" ? "The owner allowed use over 90% for this week. The driver runs 1 worker." : "The week reset, so the stop ends. The driver runs workers again.")
 }
 
 /** Each running worker's log holds its newest `rate_limit_event`, so a tick reads it and keeps the highest reading of the week of the account that the worker runs on. */
