@@ -247,8 +247,22 @@ describe('guided habit flow: the words of the When step', () => {
     void act(() => mounted.flow.markTypeDeliberate('task'))
     void act(() => { mounted.flow.previewWhenWords('tomorro') })
     void act(() => { mounted.flow.previewWhenWords('') })
-    expect(mounted.values).toMatchObject({ itemType: 'task', frequencyUnit: undefined })
+    expect(mounted.values).toMatchObject({ itemType: 'task', frequencyUnit: undefined, dueDate: '' })
     expect(mounted.values.days ?? []).toEqual([])
+    mounted.unmount()
+  })
+
+  it('gives the task the person chose its own date, not the start date of the every day answer a fill replaced', () => {
+    const mounted = mountModeFlow()
+    void act(() => mounted.flow.answerWhen('everyDay'))
+    void act(() => { mounted.flow.back() })
+    typeKeys(mounted, 'tomorrow')
+    expect(mounted.values).toMatchObject({ itemType: 'task', dueDate: '2026-11-26' })
+    void act(() => mounted.flow.chooseItemType('task'))
+    void act(() => mounted.flow.markTypeDeliberate('task'))
+    void act(() => { mounted.flow.previewWhenWords('tomorro') })
+    void act(() => { mounted.flow.previewWhenWords('') })
+    expect(mounted.values).toMatchObject({ itemType: 'task', frequencyUnit: undefined, dueDate: '' })
     mounted.unmount()
   })
 

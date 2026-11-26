@@ -362,7 +362,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
 
   function useFlowAnswers({ options, controller, deliberateType, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate }: FlowAnswerInput) {
     const { form, mode, locale, timeZone } = options
-    const filled = useRef<{ date: string; dueDate: string; when: boolean; itemType: 'task' | 'habit' } | null>(null)
+    const filled = useRef<{ date: string; dueDate: string; when: boolean; itemType: 'task' | 'habit'; taskDueDate: string } | null>(null)
     const answerStep = useCallback((answered: keyof HabitFlowAnswers, withTime = false) => {
       if (answered === 'when') releasePhraseDate()
       const nextAnswers = { ...readAnswers(), [answered]: true, ...(withTime ? { time: true } : {}) }
@@ -411,7 +411,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       filled.current = null
       if (form.getValues().dueDate !== hold.date) return
       if (deliberateType === null) port.chooseItemType(hold.itemType)
-      port.setField('dueDate', hold.dueDate)
+      port.setField('dueDate', deliberateType === 'task' && hold.itemType === 'habit' ? hold.taskDueDate : hold.dueDate)
       setAnswers((value) => (value.when === hold.when ? value : { ...value, when: hold.when }))
     }, [deliberateType, form, port, setAnswers])
     const previewWhenWords = useCallback((text: string): WhenPreview | null => {
@@ -421,11 +421,13 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       if (words.kind !== 'date' || deliberateType === 'habit') { restoreFilledDate(); return null }
       releasePhraseDate()
       const values = form.getValues()
-      if (filled.current === null && values.dueDate !== words.date) filled.current = { date: words.date, dueDate: values.dueDate ?? '', when: readAnswers().when, itemType: values.itemType === 'habit' ? 'habit' : 'task' }
+      const madeHold = filled.current === null && values.dueDate !== words.date
+      if (madeHold) filled.current = { date: words.date, dueDate: values.dueDate ?? '', when: readAnswers().when, itemType: values.itemType === 'habit' ? 'habit' : 'task', taskDueDate: values.dueDate ?? '' }
       setAnswers((value) => (value.when ? value : { ...value, when: true }))
       if (values.dueDate !== words.date || values.itemType !== 'task' || values.frequencyUnit) {
         port.chooseItemType('task')
         port.setOneTime()
+        if (madeHold && filled.current !== null) filled.current.taskDueDate = form.getValues().dueDate ?? ''
         port.setField('datePhrase', '')
         port.setField('dateIssue', '')
         port.setField('dueDate', words.date)
