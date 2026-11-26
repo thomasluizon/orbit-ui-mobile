@@ -7,6 +7,7 @@ import {
   formatHabitCadence,
   optimisticHabitResult,
   phraseLeavesWordsUnread,
+  proposedWhenChoice,
   readPhraseCoverage,
   remainingHabitFlowSteps,
   resetCoveredAnswers,
@@ -28,6 +29,24 @@ function steps(overrides: Partial<Parameters<typeof remainingHabitFlowSteps>[0]>
     ...overrides,
   })
 }
+
+describe('proposedWhenChoice', () => {
+  it('matches a plain daily repeat to the every day option', () => {
+    expect(proposedWhenChoice({ frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible: false, days: [], monthDays: [], intervalWeeks: 1 })).toBe('everyDay')
+    expect(proposedWhenChoice({ frequencyUnit: 'Day' })).toBe('everyDay')
+  })
+
+  it.each([
+    ['a monthly repeat', { frequencyUnit: 'Month', frequencyQuantity: 1 }],
+    ['a repeat every 2 days', { frequencyUnit: 'Day', frequencyQuantity: 2 }],
+    ['a repeat on chosen days', { frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'] }],
+    ['a repeat every 2 weeks', { frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2 }],
+    ['a flexible count', { frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible: true }],
+    ['no repeat', { frequencyUnit: null }],
+  ])('matches no option for %s', (_name, values) => {
+    expect(proposedWhenChoice(values)).toBeNull()
+  })
+})
 
 describe('remainingHabitFlowSteps', () => {
   it('asks every question when the phrase gave nothing', () => {

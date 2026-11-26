@@ -106,7 +106,7 @@ describe('the steps of the shared guided habit flow', () => {
     mounted.unmount()
   })
 
-  it('starts a repeat the free read gave on the account day, and marks the schedule and the time as proposals', async () => {
+  it('starts a repeat the free read gave on the account day, marks the schedule and the time as proposals, and still asks the When', async () => {
     const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🪴' }))
     const mounted = mountFlow({ readPhrase })
     await leavePhraseWith(mounted, 'water the plants')
@@ -114,7 +114,8 @@ describe('the steps of the shared guided habit flow', () => {
     expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00', dueDate: TODAY, emoji: '🪴' })
     expect(mounted.flow.proposals).toEqual({ schedule: true, time: true, emoji: true })
     expect(mounted.flow.usedAiRead).toBe(true)
-    expect(mounted.flow.current.step).toBe('reminder')
+    expect(mounted.flow.current.step).toBe('when')
+    expect(mounted.flow.steps).toEqual(['what', 'when', 'time', 'summary'])
     mounted.unmount()
   })
 

@@ -9,8 +9,8 @@ const DAILY_AT_SEVEN: HabitPhraseReadResponse = { read: true, emoji: null, frequ
 
 type Values = ReturnType<GuidedHabitFlowForm['getValues']>
 
-function mountFlow(readPhrase: GuidedHabitFlowOptions['readPhrase']) {
-  const values: Values = { title: '', dueDate: '', dueTime: '', frequencyUnit: undefined, isFlexible: false, isGeneral: false, itemType: 'task', emoji: '' }
+function mountFlow(readPhrase: GuidedHabitFlowOptions['readPhrase'], opening: Partial<Values> = {}) {
+  const values: Values = { title: '', dueDate: '', dueTime: '', frequencyUnit: undefined, isFlexible: false, isGeneral: false, itemType: 'task', emoji: '', ...opening }
   let render = () => {}
   const write = (change: Partial<Values>) => { Object.assign(values, change); render() }
   const form: GuidedHabitFlowForm = { getValues: () => values, setField: (field, value) => write({ [field]: value }) }
@@ -117,4 +117,103 @@ describe('shared guided habit flow', () => {
     expect(mounted.flow.answers.when).toBe(true)
     mounted.unmount()
   })
+  describe('an AI guess never skips the When or the time step', () => {
+    const MONTHLY: HabitPhraseReadResponse = { ...DAILY_AT_SEVEN, frequencyUnit: 'Month', dueTime: null }
+    const AT_TEN: HabitPhraseReadResponse = { ...DAILY_AT_SEVEN, frequencyUnit: null, frequencyQuantity: null, dueTime: '10:00' }
+    const NO_CADENCE_STEPS = ['what', 'when', 'time', 'summary']
+
+    async function leave(readPhrase: GuidedHabitFlowOptions['readPhrase'], phrase: string, opening: Partial<Values> = {}) {
+      const mounted = mountFlow(readPhrase, opening)
+      void act(() => mounted.flow.changeTitle(phrase))
+      await act(async () => { await mounted.flow.leavePhrase() })
+      return mounted
+    }
+
+    it('opens the When with the guessed cadence proposed when the phrase gives no cadence', async () => {
+      const mounted = await leave(vi.fn(async () => MONTHLY), 'send money to the bank')
+      expect(mounted.values.frequencyUnit).toBe('Month')
+      expect(mounted.flow.proposals.schedule).toBe(true)
+      expect(mounted.flow.current.step).toBe('when')
+      expect(mounted.flow.steps).toEqual(NO_CADENCE_STEPS)
+      mounted.unmount()
+    })
+
+    it('keeps the guessed cadence as the answer with one press, then asks the time', async () => {
+      const mounted = await leave(vi.fn(async () => MONTHLY), 'send money to the bank')
+      void act(() => mounted.flow.keepProposedWhen())
+      expect(mounted.values.frequencyUnit).toBe('Month')
+      expect(mounted.flow.proposals.schedule).toBe(false)
+      expect(mounted.flow.answers.when).toBe(true)
+      expect(mounted.flow.current.step).toBe('time')
+      expect(mounted.flow.steps).toEqual(NO_CADENCE_STEPS)
+      mounted.unmount()
+    })
+
+    it('replaces the guessed cadence when the person presses another option', async () => {
+      const mounted = await leave(vi.fn(async () => MONTHLY), 'send money to the bank')
+      void act(() => mounted.flow.answerWhen('tomorrow'))
+      expect(mounted.values.frequencyUnit).toBeUndefined()
+      expect(mounted.flow.proposals.schedule).toBe(false)
+      expect(mounted.flow.current.step).toBe('time')
+      mounted.unmount()
+    })
+
+    it('opens the time step with the guessed time proposed when the phrase gives no time', async () => {
+      const mounted = await leave(vi.fn(async () => AT_TEN), 'send money to the bank')
+      expect(mounted.flow.current.step).toBe('when')
+      void act(() => mounted.flow.answerWhen('today'))
+      expect(mounted.flow.current.step).toBe('time')
+      expect(mounted.values.dueTime).toBe('10:00')
+      expect(mounted.flow.proposals.time).toBe(true)
+      expect(mounted.flow.steps).toEqual(NO_CADENCE_STEPS)
+      void act(() => mounted.flow.answerTime('10:00'))
+      expect(mounted.flow.proposals.time).toBe(false)
+      expect(mounted.flow.steps).toEqual(['what', 'when', 'time', 'reminder', 'summary'])
+      expect(mounted.flow.current.step).toBe('reminder')
+      mounted.unmount()
+    })
+
+    it.each<[string, GuidedHabitFlowOptions['readPhrase']]>([
+      ['the AI read failed', vi.fn(async () => { throw new Error('offline') })],
+      ['the AI read is capped', vi.fn(async () => null)],
+    ])('asks the same steps with nothing preselected when %s', async (_name, readPhrase) => {
+      const mounted = await leave(readPhrase, 'send money to the bank')
+      expect(mounted.values.frequencyUnit).toBeUndefined()
+      expect(mounted.flow.proposals).toEqual({ schedule: false, time: false, emoji: false })
+      expect(mounted.flow.current.step).toBe('when')
+      expect(mounted.flow.steps).toEqual(NO_CADENCE_STEPS)
+      mounted.unmount()
+    })
+
+    it.each<[string, GuidedHabitFlowOptions['readPhrase']]>([
+      ['the AI read guesses a month repeat', vi.fn(async () => MONTHLY)],
+      ['the AI read failed', vi.fn(async () => { throw new Error('offline') })],
+      ['the AI read is capped', vi.fn(async () => null)],
+    ])('asks the When with the same steps when the route gives a date and %s', async (_name, readPhrase) => {
+      const mounted = await leave(readPhrase, 'send money to the bank', { dueDate: '2026-11-25' })
+      expect(mounted.flow.current.step).toBe('when')
+      expect(mounted.flow.steps).toEqual(NO_CADENCE_STEPS)
+      expect(mounted.values.dueDate).toBe('2026-11-25')
+      mounted.unmount()
+    })
+
+    it('keeps the route date as the start day when the person keeps the guessed repeat', async () => {
+      const mounted = await leave(vi.fn(async () => MONTHLY), 'send money to the bank', { dueDate: '2026-11-25' })
+      void act(() => mounted.flow.keepProposedWhen())
+      expect(mounted.values).toMatchObject({ frequencyUnit: 'Month', dueDate: '2026-11-25' })
+      expect(mounted.flow.steps).toEqual(NO_CADENCE_STEPS)
+      mounted.unmount()
+    })
+
+    it.each<[string, GuidedHabitFlowOptions['readPhrase']]>([
+      ['with an AI read that guesses another setup', vi.fn(async () => MONTHLY)],
+      ['with the AI read failed', vi.fn(async () => { throw new Error('offline') })],
+    ])('skips the When and the time step for a phrase that gives both, %s', async (_name, readPhrase) => {
+      const mounted = await leave(readPhrase, 'meditate every day at 7am')
+      expect(mounted.flow.steps).toEqual(['what', 'reminder', 'summary'])
+      expect(mounted.flow.current.step).toBe('reminder')
+      mounted.unmount()
+    })
+  })
+
 })
