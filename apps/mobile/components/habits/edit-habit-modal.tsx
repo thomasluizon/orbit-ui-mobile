@@ -215,11 +215,12 @@ function EditHabitDraft({
     isFetching: detailFetching,
     error: detailError,
     refetch: refetchDetail,
+    retry: retryDetail,
   } = useHabitDetail(open && habit ? habit.id : null)
   const sessionHabitId = open && habit ? habit.id : null
   const detailFieldsPending = open && !!habit && detailPending
   const guidedDetails = resolveGuidedEditDetails({ guided, habitId: sessionHabitId, hasDetail: !!habitDetail, pending: detailPending, fetching: detailFetching, error: detailError })
-  const guidedDetailsError = describeEditDetailsError(guidedDetails.summaryError, translate, () => { void refetchDetail() })
+  const guidedDetailsError = describeEditDetailsError(guidedDetails.summaryFailed, guidedDetails.summaryError, translate, () => { void retryDetail() })
   const parent = useEditorParent(habit, habitDetail, formHelpers.isGeneral, parentIsGeneral, translate)
 
   const { sheetRef, closeSheet } = useSheetHost()
@@ -561,7 +562,7 @@ function EditHabitDraft({
     isEmojiSuggesting,
     ...emojiFailureFields(visibleFailure),
     isSuggesting: suggestion.isPending,
-    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || detailFieldsPending} guided={guided} onRetryDetail={() => void refetchDetail()} />,
+    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || detailFieldsPending} guided={guided} onRetryDetail={() => void retryDetail()} />,
     defaultExpanded: true,
     lockedGeneral: parent.lockedGeneral,
     onUpgrade: navigateToUpgrade,
