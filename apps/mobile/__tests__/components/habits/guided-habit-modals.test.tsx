@@ -69,6 +69,15 @@ async function primary(tree: Tree) {
   if (!action) throw new Error('no primary action')
   await act(async () => { press(action); await Promise.resolve(); await Promise.resolve() })
 }
+const proposedMarks = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityLabel === ptBR.habits.detail.proposed).length
+async function keepProposedAnswersToSummary(tree: Tree) {
+  for (let guard = 0; guard < 5; guard += 1) {
+    const text = heading(tree)
+    if (text === ptBR.habits.flow.confirm.question) return
+    if (text.startsWith(ptBR.habits.flow.reminder.question.split('{')[0]!.trim())) await tap(tree, ptBR.habits.flow.reminder.no)
+    else await primary(tree)
+  }
+}
 async function phrase(tree: Tree, text: string) {
   const input = tree.hosts().find((node) => (node.props as { onChangeText?: unknown }).onChangeText && node.props.accessibilityLabel === ptBR.habits.flow.what.label)!
   await act(async () => { (input.props as unknown as { onChangeText: (value: string) => void }).onChangeText(text); await Promise.resolve() })
@@ -246,66 +255,62 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     tree.unmount()
   })
 
-  it('stops marking the repeat as a proposal on the summary when the person changes it on the repeat step', async () => {
+  it('marks the guessed repeat and time as proposals on their steps and stops marking each one when the person keeps it', async () => {
     state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     const tree = mountCreate()
     await settle()
     await phrase(tree, 'regar as plantas')
     await settle()
+    expect(heading(tree)).toBe(ptBR.habits.flow.when.question)
+    expect(proposedMarks(tree)).toBeGreaterThan(0)
+    await primary(tree)
+    expect(heading(tree)).toBe(ptBR.habits.flow.time.question)
+    expect(proposedMarks(tree)).toBeGreaterThan(0)
+    await primary(tree)
     await tap(tree, ptBR.habits.flow.reminder.no)
     const whenRow = new RegExp(`^${ptBR.habits.flow.summary.when}, `)
     const timeRow = new RegExp(`^${ptBR.habits.flow.summary.time}, 07:00$`)
-    expect(rowMarked(tree, whenRow)).toBe(true)
-    expect(rowMarked(tree, timeRow)).toBe(true)
-    await tap(tree, whenRow)
-    await tap(tree, new RegExp(`^${ptBR.habits.flow.repeat.timesIn}`))
-    await primary(tree)
-    expect(control(tree, whenRow)).toBeDefined()
+    expect(control(tree, timeRow)).toBeDefined()
     expect(rowMarked(tree, whenRow)).toBe(false)
-    expect(rowMarked(tree, timeRow)).toBe(true)
+    expect(rowMarked(tree, timeRow)).toBe(false)
     tree.unmount()
   })
 
-  it('stops marking the repeat and the cleared time as proposals on the summary when the person makes the habit a one-time task', async () => {
+  it('stops marking the repeat and the cleared time as proposals when the person answers the When with a date', async () => {
     state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     const tree = mountCreate()
     await settle()
     await phrase(tree, 'regar as plantas')
     await settle()
-    await tap(tree, ptBR.habits.flow.reminder.no)
-    const whenRow = new RegExp(`^${ptBR.habits.flow.summary.when}, `)
-    expect(rowMarked(tree, whenRow)).toBe(true)
-    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.time}, 07:00$`))).toBe(true)
-    await tap(tree, new RegExp(`^${ptBR.habits.flow.summary.type}`))
-    await tap(tree, new RegExp(`^${ptBR.habits.form.typeTask}`))
+    expect(proposedMarks(tree)).toBeGreaterThan(0)
+    await tap(tree, ptBR.habits.flow.when.tomorrow)
+    expect(heading(tree)).toBe(ptBR.habits.flow.time.question)
+    expect(proposedMarks(tree)).toBe(0)
+    await tap(tree, ptBR.habits.flow.time.none)
     expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
-    expect(rowMarked(tree, whenRow)).toBe(false)
+    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.when}, `))).toBe(false)
     expect(control(tree, `${ptBR.habits.flow.summary.time}, ${ptBR.habits.flow.summary.noTime}`)).toBeDefined()
     expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.time}, `))).toBe(false)
     tree.unmount()
   })
 
-  it('stops marking the time and the repeat as proposals on the summary when the person types them in the title', async () => {
+  it('stops marking the time and the repeat as proposals when the person types them in the phrase after the read', async () => {
     state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     const tree = mountCreate()
     await settle()
     await phrase(tree, 'regar as plantas')
     await settle()
-    await tap(tree, ptBR.habits.flow.reminder.no)
-    const whenRow = new RegExp(`^${ptBR.habits.flow.summary.when}, `)
-    const timeRow = new RegExp(`^${ptBR.habits.flow.summary.time}, `)
-    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.time}, 07:00$`))).toBe(true)
-    await tap(tree, new RegExp(`^${ptBR.habits.flow.summary.title}`))
-    await phrase(tree, 'regar as plantas às 9h')
-    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
-    expect(control(tree, `${ptBR.habits.flow.summary.time}, 09:00`)).toBeDefined()
-    expect(rowMarked(tree, timeRow)).toBe(false)
-    expect(rowMarked(tree, whenRow)).toBe(true)
-    await tap(tree, new RegExp(`^${ptBR.habits.flow.summary.title}`))
+    expect(heading(tree)).toBe(ptBR.habits.flow.when.question)
+    expect(proposedMarks(tree)).toBeGreaterThan(0)
+    await tap(tree, ptBR.habits.flow.back)
     await phrase(tree, 'regar as plantas toda segunda às 9h')
-    expect(rowMarked(tree, whenRow)).toBe(false)
-    expect(rowMarked(tree, timeRow)).toBe(false)
+    await settle()
     expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    await tap(tree, ptBR.habits.flow.reminder.no)
+    expect(control(tree, `${ptBR.habits.flow.summary.when}, toda segunda`)).toBeDefined()
+    expect(control(tree, `${ptBR.habits.flow.summary.time}, 09:00`)).toBeDefined()
+    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.when}, `))).toBe(false)
+    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.time}, `))).toBe(false)
     tree.unmount()
   })
 
@@ -340,12 +345,15 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     await phrase(tree, 'regar as plantas toda segunda')
     await settle()
     expect(state.phraseRead).toHaveBeenCalledTimes(1)
-    if (control(tree, ptBR.habits.flow.time.none)) await tap(tree, ptBR.habits.flow.time.none)
+    expect(heading(tree)).toBe(ptBR.habits.flow.time.question)
+    expect(proposedMarks(tree) > 0).toBe(timeProposed)
+    if (timeProposed) await primary(tree)
+    else await tap(tree, ptBR.habits.flow.time.none)
     if (control(tree, ptBR.habits.flow.reminder.no)) await tap(tree, ptBR.habits.flow.reminder.no)
     expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
     expect(control(tree, `${ptBR.habits.flow.summary.when}, toda segunda`)).toBeDefined()
     expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.when}, `))).toBe(false)
-    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.time}, `))).toBe(timeProposed)
+    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.time}, `))).toBe(false)
     tree.unmount()
   })
 
@@ -437,27 +445,27 @@ describe('a guided create on Android from a phrase with a repeat', () => {
       await tap(tree, flow.time.none)
     }, { when: 'toda sexta', whenProposed: false, time: flow.summary.noTime, timeProposed: false, sent: { frequencyUnit: 'Day', days: ['Friday'], emoji: '🌿' }, absent: ['dueTime'] }],
     ['"Quando der" on the repeat step', DAILY_READ, async (tree) => {
-      await tap(tree, flow.reminder.no)
+      await keepProposedAnswersToSummary(tree)
       await tap(tree, new RegExp(`^${flow.summary.when}, `))
       await tap(tree, new RegExp(`^${flow.repeat.timesIn}`))
       await primary(tree)
-    }, { when: 'uma vez ao dia', whenProposed: false, time: '18:00', timeProposed: true, sent: { isFlexible: true, frequencyUnit: 'Day', dueTime: '18:00' }, absent: ['days'] }],
+    }, { when: 'uma vez ao dia', whenProposed: false, time: '07:00', timeProposed: false, sent: { isFlexible: true, frequencyUnit: 'Day', dueTime: '07:00' }, absent: ['days'] }],
     ['a time on the time step', DAILY_READ, async (tree) => {
-      await tap(tree, flow.reminder.no)
+      await keepProposedAnswersToSummary(tree)
       await tap(tree, new RegExp(`^${flow.summary.time}, `))
       await tap(tree, '20:00')
-    }, { when: 'toda semana', whenProposed: true, time: '20:00', timeProposed: false, sent: { frequencyUnit: 'Week', dueTime: '20:00' }, absent: [] }],
+    }, { when: 'todo dia', whenProposed: false, time: '20:00', timeProposed: false, sent: { frequencyUnit: 'Day', dueTime: '20:00' }, absent: [] }],
     ['an end time on the duration step', DAILY_READ, async (tree) => {
-      await tap(tree, flow.reminder.no)
+      await keepProposedAnswersToSummary(tree)
       await tap(tree, new RegExp(`^${flow.summary.duration}, `))
       await typeIn(tree, ptBR.habits.form.dueEndTime, '08:30')
       await primary(tree)
-    }, { when: 'toda semana', whenProposed: true, time: '07:00', timeProposed: true, sent: { frequencyUnit: 'Week', dueTime: '07:00', dueEndTime: '08:30' }, absent: [] }],
+    }, { when: 'todo dia', whenProposed: false, time: '07:00', timeProposed: false, sent: { frequencyUnit: 'Day', dueTime: '07:00', dueEndTime: '08:30' }, absent: [] }],
     ['an emoji on the emoji step', DAILY_READ, async (tree) => {
-      await tap(tree, flow.reminder.no)
+      await keepProposedAnswersToSummary(tree)
       await tap(tree, ptBR.habits.form.emojiOpenPicker)
       await tap(tree, `${ptBR.habits.form.emoji}: 💧`)
-    }, { when: 'toda semana', whenProposed: true, time: '18:00', timeProposed: true, sent: { frequencyUnit: 'Week', dueTime: '18:00', emoji: '💧' }, absent: [] }],
+    }, { when: 'todo dia', whenProposed: false, time: '07:00', timeProposed: false, sent: { frequencyUnit: 'Day', dueTime: '07:00', emoji: '💧' }, absent: [] }],
   ]
 
   it.each(SET_ON_A_STEP)('keeps %s when a later free read of a new phrase proposes other values, and the summary shows what the save sends', async (_step, firstRead, setOnStep, after) => {
@@ -487,21 +495,21 @@ describe('a guided create on Android from a phrase with a repeat', () => {
   const EVERY_DAY_READ: HabitPhraseReadResponse = { ...ONE_TIME_READ, frequencyUnit: 'Day', frequencyQuantity: 1 }
   const TYPED_IN_THE_PHRASE: [string, string, HabitPhraseReadResponse, SummaryAfter][] = [
     ['a time', 'regar as plantas às 9h', EVERY_DAY_READ,
-      { when: 'todo dia', whenProposed: true, time: '09:00', timeProposed: false, sent: { title: 'regar as plantas', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '09:00', emoji: '🌿' }, absent: ['days'] }],
+      { when: 'todo dia', whenProposed: false, time: '09:00', timeProposed: false, sent: { title: 'regar as plantas', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '09:00', emoji: '🌿' }, absent: ['days'] }],
     ['a repeat', 'regar as plantas 3 vezes por semana', EVERY_DAY_READ,
-      { when: '3 vezes por semana, qualquer dia', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'regar as plantas', isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+      { when: '3 vezes por semana, qualquer dia', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'regar as plantas', isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
     ['a day', 'regar as plantas toda segunda', EVERY_DAY_READ,
-      { when: 'toda segunda', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'regar as plantas', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+      { when: 'toda segunda', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'regar as plantas', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
     ['an emoji', '💧 regar as plantas', EVERY_DAY_READ,
-      { when: 'todo dia', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: '💧 regar as plantas', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }, absent: ['emoji'] }],
+      { when: 'todo dia', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: '💧 regar as plantas', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }, absent: ['emoji'] }],
     ['the type', 'regar as plantas toda segunda', ONE_TIME_READ,
-      { when: 'toda segunda', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'regar as plantas', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+      { when: 'toda segunda', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'regar as plantas', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
     ['a date', 'ligar para a mãe amanhã', EVERY_DAY_READ,
-      { when: '14/11/2026', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'ligar para a mãe', dueDate: '2026-11-14', dueTime: '07:00', emoji: '🌿' }, absent: ['frequencyUnit', 'startDate'] }],
+      { when: '14/11/2026', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'ligar para a mãe', dueDate: '2026-11-14', dueTime: '07:00', emoji: '🌿' }, absent: ['frequencyUnit', 'startDate'] }],
     ['a bare interval', 'regar as plantas a cada 2 semanas', EVERY_DAY_READ,
-      { when: 'a cada 2 semanas', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'regar as plantas', frequencyUnit: 'Week', frequencyQuantity: 2, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+      { when: 'a cada 2 semanas', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'regar as plantas', frequencyUnit: 'Week', frequencyQuantity: 2, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
     ['no emoji when the phrase holds only a text sign', 'comprar Coca-Cola® zero', EVERY_DAY_READ,
-      { when: 'todo dia', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: 'comprar Coca-Cola® zero', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+      { when: 'todo dia', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'comprar Coca-Cola® zero', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
   ]
 
   it.each(TYPED_IN_THE_PHRASE)('keeps %s the person typed in the phrase when the free read of that phrase proposes another value, and the summary and the title show what the save sends', async (_field, typed, read, after) => {
@@ -512,8 +520,7 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     await phrase(tree, typed)
     await settle()
     expect(state.phraseRead).toHaveBeenCalledTimes(1)
-    if (control(tree, flow.time.none)) await tap(tree, flow.time.none)
-    if (control(tree, flow.reminder.no)) await tap(tree, flow.reminder.no)
+    await keepProposedAnswersToSummary(tree)
     expect(heading(tree)).toBe(flow.confirm.question)
     expectSummaryRows(tree, after)
     await primary(tree)
