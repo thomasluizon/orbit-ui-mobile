@@ -45,4 +45,14 @@ export const cases = async () => {
   const fix = renderBrief({ kind: "fix", place: PLACE, ticket: TICKET })
   T("lib/order.mjs: a fix brief says to push to the open pull request and does not say to open one", !fix.includes("open the pull request after the first push") && fix.includes("Push to the branch of the open pull request."))
   T("lib/order.mjs: a find brief has no delivery rule", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("first push"))
+
+  const OWN_WRITES = "on the pull request of your own branch, `gh pr edit` (only `--body-file`, `--add-label`, `--remove-label`) and `gh pr comment` (only `--body`, `--body-file`). Start the Bash call with that command, from your working tree, with no `-R`."
+  for (const kind of ORDER_KINDS.filter((name) => name !== "find")) {
+    const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
+    T(`lib/order.mjs: the ${kind} brief allows the edit and the comment of its own pull request`, brief.includes(OWN_WRITES))
+    T(`lib/order.mjs: the ${kind} brief ties the parity:exempt label to the ## Parity line`, brief.includes("needs the label `parity:exempt`") && brief.includes("and a line under `## Parity` that names one of these terms"))
+    T(`lib/order.mjs: the ${kind} brief tells the worker to fix a PR Metadata failure and never to ask the owner for it`, brief.includes("read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. Never end with `NEEDS_DECISION` for a pull request body or label."))
+  }
+  T("lib/order.mjs: an open pull request gets the label with --add-label, and a new one with --label", fix.includes("(add it with `--add-label`)") && build.includes("(add it with `--label`)"))
+  T("lib/order.mjs: a find brief names no pull request write", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("gh pr "))
 }
