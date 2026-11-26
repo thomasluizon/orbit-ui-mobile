@@ -3196,7 +3196,6 @@
   "trial": {
     "proBadge": "Trial",
     "expired": {
-      "eyebrow": "Trial ended",
       "heading": "Your Pro trial ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
@@ -4544,7 +4543,6 @@
   "today": {
     "setupChecklist": {
       "title": "Get started",
-      "subtitle": "Three quick steps to set up Orbit.",
       "items": {
         "createHabit": "Create your first habit",
         "logHabit": "Log a habit today",

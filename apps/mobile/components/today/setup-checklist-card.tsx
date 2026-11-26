@@ -42,7 +42,7 @@ export function SetupChecklistCard() {
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('today.setupChecklist.title')}</Text>
-          <Text style={[styles.label, { color: tokens.fg2 }]}>{checklist.done === checklist.items.length ? t('today.setupChecklist.complete') : t('today.setupChecklist.subtitle')}</Text>
+          {checklist.done === checklist.items.length ? <Text style={[styles.label, { color: tokens.fg2 }]}>{t('today.setupChecklist.complete')}</Text> : null}
         </View>
         <PillButton variant="ghost" iconOnly label={t('today.setupChecklist.dismiss')} loading={pending} onClick={() => void dismiss()}>
           <X size={20} strokeWidth={1.5} color={tokens.fg2} />

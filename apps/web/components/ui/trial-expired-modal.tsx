@@ -127,7 +127,6 @@ export function TrialExpiredModal() {
     >
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
-          <p className="t-eyebrow m-0">{t('trial.expired.eyebrow')}</p>
           <p className="m-0 max-w-[65ch] text-pretty text-base leading-[1.55] text-[var(--fg-2)]">
             {t('trial.expired.subtitleQuiet')}
           </p>

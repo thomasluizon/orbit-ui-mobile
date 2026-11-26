@@ -2010,7 +2010,7 @@ button[data-variant="primary"]:enabled:not([data-loading]):active,
   box-shadow: inset 0 0 0 1px var(--hairline);
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   transition:
     background-color var(--dur-hover-control) var(--ease-standard),
     color var(--dur-hover-control) var(--ease-standard),
@@ -2340,36 +2340,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 @media (prefers-reduced-motion: reduce) {
   .collapsible.is-open > * {
     animation: none;
-  }
-}
-
-/* ── Mic visualizer (speech-to-text recording) ── */
-
-.mic-visualizer {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 18px;
-}
-
-.mic-visualizer__bar {
-  width: 3px;
-  height: 45%;
-  border-radius: 999px;
-  background: currentColor;
-  transform-origin: center bottom;
-  animation: mic-visualizer-bounce 1s ease-in-out infinite;
-}
-
-@keyframes mic-visualizer-bounce {
-  0%,
-  100% {
-    transform: scaleY(0.35);
-    opacity: 0.35;
-  }
-  50% {
-    transform: scaleY(1);
-    opacity: 1;
   }
 }
 
