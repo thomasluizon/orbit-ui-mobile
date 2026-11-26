@@ -85,6 +85,8 @@ describe.each([{ locale: 'en', catalog: en }, { locale: 'pt-BR', catalog: ptBR }
   it.each(['chat.toolResult.proactiveAstra.enabled', 'chat.toolResult.proactiveAstra.disabled'])('resolves the message key %s that orbit-api sends', (messageKey) => {
     expect(translations.has(messageKey)).toBe(true)
     const text = textFor({ type: 'SetProactiveAstra', status: 'Success', messageKey })
+    expect(text).toBeDefined()
+    if (!text) throw new Error(`No chip text resolved for ${messageKey}`)
     expect(text.label).toBe(String(leaf(catalog, messageKey)))
     expect(text.label).not.toBe('')
   })
