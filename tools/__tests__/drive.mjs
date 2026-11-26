@@ -550,6 +550,14 @@ const ciCases = (open, approved) => {
   same("lib/github.mjs: the recorded barrier failure is one failed step", barrierSteps, ["Require deployment barriers for schema contractions"])
   same("lib/github.mjs: a failed barrier step of Guard Migrations goes to the owner", classifyCheckFailure({ name: "Guard Migrations", failedSteps: barrierSteps }), "needs-owner")
   same("lib/github.mjs: a failed Set up job step gets a rerun", classifyCheckFailure({ name: "Lint", failedSteps: ["Set up job"] }), "rerun")
+  const checkoutTable = [
+    ["the default name of a checkout step", ["Run actions/checkout@v7"], "rerun"],
+    ["the default name of a checkout step pinned to a commit", ["Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"], "rerun"],
+    ["the checkout step that Guards names", ["Checkout", "Set up Node"], "rerun"],
+    ["only the cleanup step of a checkout", ["Post Run actions/checkout@v7"], "ci-fix"],
+    ["a repository step whose name starts with Checkout", ["Checkout flow tests"], "ci-fix"],
+  ]
+  for (const [label, failedSteps, verdict] of checkoutTable) same(`lib/github.mjs: ${label} gives ${verdict}`, classifyCheckFailure({ name: "Lint", failedSteps }), verdict)
   same("lib/github.mjs: any other failure is a fix order", classifyCheckFailure({ name: "Unit Tests", failedSteps: ["Run Domain Tests"] }), "ci-fix")
   same("lib/github.mjs: another step of Guard Migrations is a fix order", classifyCheckFailure({ name: "Guard Migrations", failedSteps: ["Fail on edits to applied migrations"] }), "ci-fix")
   same("lib/github.mjs: the barrier step under another check name is a fix order", classifyCheckFailure({ name: "Unit Tests", failedSteps: barrierSteps }), "ci-fix")

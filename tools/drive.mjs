@@ -751,10 +751,15 @@ const checkOnlyPlan = ({ pull, runs, now, request }) => {
   return sent.length === 1 ? { ...request(PLAIN_REQUEST), record } : { type: "needs-owner", reason: "Pullfrog gave no pullfrog-approval check after two requests at this head" }
 }
 
-const failedLogLines = async (env, repoKey, runId) => {
+/**
+ * The last lines of the log of one job, up to its last error. The read names the job: the tail of a run log holds only one of
+ * its failed jobs, and after a rerun `gh run view --job` prints the log of the newer attempt.
+ */
+const failedLogLines = async (env, repoKey, jobId) => {
   try {
-    const slug = env.slugOf(repoKey)
-    return (await env.gh(["run", "view", String(runId), "--repo", slug, "--log-failed"])).split("\n").slice(-120)
+    const lines = (await env.gh(["api", `repos/${env.slugOf(repoKey)}/actions/jobs/${jobId}/logs`])).split("\n")
+    const lastError = lines.findLastIndex((line) => line.includes("##[error]"))
+    return lines.slice(0, lastError === -1 ? lines.length : lastError + 1).slice(-120)
   } catch {
     return []
   }
@@ -765,16 +770,17 @@ const checkPlan = async (env, repoKey, pull) => {
   const failed = failedChecks(pull)
   if (failed.length === 0) return null
   const checks = []
-  // One rerun comes before any launch. A check that failed for a test, not for the setup or a gateway, is a suspect: a pass on the rerun at the same head proves a flake.
+  // One rerun comes before any launch. A check that failed for a test, not for the setup, the checkout or a gateway, is a suspect: a pass on the rerun at the same head proves a flake.
   const rerun = new Map()
   for (const check of failed) {
     const failedSteps = check.runId === null ? [] : await env.github.readFailedSteps(repoKey, check.runId, check.jobId)
     const verdict = classifyCheckFailure({ name: check.name, failedSteps })
     if (verdict === "needs-owner") return { owner: `${check.name} asks for a deployment barrier, which only the owner writes` }
-    const logLines = verdict === "rerun" || check.runId === null ? [] : await failedLogLines(env, repoKey, check.runId)
-    const gatewayTimeout = logLines.some((line) => /HTTP 504|504 Gateway/.test(line))
     const already = pull.comments.some((entry) => entry.kind === "record" && bodyAfterMarker(entry) === `driver rerun ${check.runId}`)
-    if (check.runId !== null && !already) rerun.set(check.runId, [...(rerun.get(check.runId) ?? []), ...(verdict === "rerun" || gatewayTimeout ? [] : [{ name: check.name, lines: logLines.slice(-FLAKE_LOG_LINES) }])])
+    const owesRerun = check.runId !== null && !already
+    const logLines = check.runId === null || (owesRerun && verdict === "rerun") ? [] : await failedLogLines(env, repoKey, check.jobId)
+    const gatewayTimeout = logLines.some((line) => /HTTP 504|504 Gateway/.test(line))
+    if (owesRerun) rerun.set(check.runId, [...(rerun.get(check.runId) ?? []), ...(verdict === "rerun" || gatewayTimeout ? [] : [{ name: check.name, lines: logLines.slice(-FLAKE_LOG_LINES) }])])
     else checks.push({ name: check.name, failedSteps, logLines })
   }
   return rerun.size > 0 ? { rerun: [...rerun].map(([runId, suspects]) => ({ runId, suspects })) } : { checks }
