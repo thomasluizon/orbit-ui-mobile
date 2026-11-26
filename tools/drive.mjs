@@ -1006,8 +1006,6 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
       // A run from before the newest request is settled history: a request that came after it started a new run.
       const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${pausedByLog ? " (Pullfrog hit a usage limit)" : ""}`)
-      // A plan that goes to the owner is no stall, also on the tick that writes its report and after an answer that cleared nothing.
-      if (!plan.some((action) => action.type === "needs-owner") && isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       for (const action of plan) {
         if (action.type === "order") orders.push(action)
         else if (action.type !== "none") {
@@ -1016,6 +1014,8 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
         }
         if (ctx.merged) break
       }
+      // Read after the actions, so a hold that this tick wrote counts and a report that wrote no hold stays on the stall clock.
+      if (isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
     } catch (error) {
       log(env, item, "error", error.message)
     }
