@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import { AppState, StyleSheet } from 'react-native'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import type * as WebViewShared from 'react-native-webview/lib/WebViewShared'
 import type { ShouldStartLoadRequestEvent } from 'react-native-webview/lib/WebViewTypes'
@@ -803,4 +803,88 @@ it('reports a malformed bridge message as a load failure', async () => {
   expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
   expect(vi.mocked(captureMessage).mock.calls.map(([, context]) => (context as { tags: { kind: string } }).tags.kind)).toEqual(['message'])
   expect(JSON.stringify(vi.mocked(captureMessage).mock.calls)).not.toContain('malformed-message')
+})
+
+type AppStateName = 'active' | 'background' | 'inactive'
+
+function watchAppState(initial: AppStateName = 'active') {
+  const listeners = new Set<(state: AppStateName) => void>()
+  const original = AppState.currentState
+  AppState.currentState = initial
+  const spy = vi.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
+    listeners.add(listener)
+    return { remove: () => { listeners.delete(listener) } }
+  })
+  onTestFinished(() => { spy.mockRestore(); AppState.currentState = original })
+  return {
+    listeners,
+    move: (next: AppStateName) => TestRenderer.act(() => {
+      AppState.currentState = next
+      for (const listener of [...listeners]) listener(next)
+    }),
+  }
+}
+
+it('stops the load deadline while the app is in the background and gives the bridge the full 60 s again on return, so a paused WebView reports no failure', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const app = watchAppState()
+  const onToken = vi.fn()
+  const renderer = await renderWithFakeClock(onToken)
+  TestRenderer.act(() => { vi.advanceTimersByTime(20_000) })
+  app.move('background')
+  TestRenderer.act(() => { vi.advanceTimersByTime(3 * TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(shownSentences(renderer), 'the deadline does not run in the background').toEqual(['auth.turnstileLoading'])
+  expect(vi.mocked(captureMessage)).not.toHaveBeenCalled()
+  expect(onToken).not.toHaveBeenCalled()
+  expect(bridges(renderer)).toHaveLength(1)
+
+  app.move('active')
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS - 1) })
+  expect(shownSentences(renderer), 'the return starts the deadline again').toEqual(['auth.turnstileLoading'])
+  TestRenderer.act(() => { vi.advanceTimersByTime(1) })
+  expect(shownSentences(renderer), 'a deadline that passes in front still fails').toEqual(['auth.turnstileFailed'])
+  expect(vi.mocked(captureMessage)).toHaveBeenCalledTimes(1)
+  expect(vi.mocked(captureMessage).mock.calls[0]![1]).toMatchObject({ tags: { kind: 'bridge_deadline' } })
+  expect(onToken).toHaveBeenLastCalledWith(null)
+  expect(bridges(renderer)).toHaveLength(0)
+})
+
+it('stops the load deadline when the app is inactive, as iOS reports a covered app', async () => {
+  const app = watchAppState()
+  const renderer = await renderWithFakeClock()
+  app.move('inactive')
+  TestRenderer.act(() => { vi.advanceTimersByTime(2 * TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileLoading'])
+})
+
+it('starts no deadline for a widget that mounts in the background, and starts it when the app returns', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const app = watchAppState('background')
+  const renderer = await renderWithFakeClock()
+  TestRenderer.act(() => { vi.advanceTimersByTime(2 * TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileLoading'])
+  app.move('active')
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
+})
+
+it('starts no deadline on return when the load already ended, so a challenge that waits for the person never fails', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const app = watchAppState()
+  const renderer = await renderWithFakeClock()
+  const [bridge] = bridges(renderer)
+  app.move('background')
+  post(bridge!, { state: 'interactive' })
+  app.move('active')
+  TestRenderer.act(() => { vi.advanceTimersByTime(3 * TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(shownSentences(renderer)).toEqual([])
+  expect(vi.mocked(captureMessage)).not.toHaveBeenCalled()
+})
+
+it('stops listening to the app state when the widget unmounts', async () => {
+  const app = watchAppState()
+  const renderer = await renderWithFakeClock()
+  expect(app.listeners.size).toBe(1)
+  TestRenderer.act(() => renderer.unmount())
+  expect(app.listeners.size).toBe(0)
 })

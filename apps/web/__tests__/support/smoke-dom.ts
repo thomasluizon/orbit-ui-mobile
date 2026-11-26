@@ -78,6 +78,8 @@ export class SmokeDomPage {
   respond?: (response: Response) => void
   private onReload = async () => {}
 
+  constructor(readonly currentPath: () => string = () => '/') {}
+
   setReload(action: () => Promise<void>) { this.onReload = action }
 
   locator(selector: string) {
@@ -124,6 +126,9 @@ export class SmokeDomPage {
 }
 
 export function expectSmokeDom(subject: unknown) {
+  if (subject instanceof SmokeDomPage) return {
+    not: { toHaveURL: (pattern: RegExp) => waitFor(() => expect(subject.currentPath()).not.toMatch(pattern)) },
+  }
   if (typeof subject === 'function') return {
     toPass: (options?: { timeout?: number }) => waitFor(async () => { await subject() }, options),
   }
