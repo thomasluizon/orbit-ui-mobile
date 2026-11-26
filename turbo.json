@@ -85,6 +85,7 @@
         "$TURBO_ROOT$/apps/web/tsconfig.json",
         "$TURBO_ROOT$/design/canvas/_ds/*/tokens/colors.css",
         "$TURBO_ROOT$/packages/shared/src/**",
+        "$TURBO_ROOT$/packages/shared/vitest/**",
         "$TURBO_ROOT$/tools/__tests__/android-deployment-fixture.json"
       ]
     },
@@ -105,7 +106,8 @@
         "$TURBO_ROOT$/apps/desktop/src-tauri/src/*.js",
         "$TURBO_ROOT$/apps/mobile/tsconfig.json",
         "!$TURBO_ROOT$/apps/{mobile,desktop}/**/{node_modules,.expo,coverage,dist,build}/**",
-        "$TURBO_ROOT$/packages/shared/src/**"
+        "$TURBO_ROOT$/packages/shared/src/**",
+        "$TURBO_ROOT$/packages/shared/vitest/**"
       ]
     },
     "@orbit/eslint-rules#test": {

@@ -108,7 +108,7 @@ test("the recorder merges every shard report and refuses a test in two reports",
   const result = spawnSync(process.execPath, [recorder, directory, "44216168902", "--output", output], { encoding: "utf8" })
   assert.equal(result.status, 0, result.stderr)
   const recorded = JSON.parse(readFileSync(output, "utf8"))
-  assert.equal(recorded.sourceRun, "44216168902")
+  assert.deepEqual(recorded.sourceRuns, ["44216168902"])
   assert.equal(Object.keys(recorded.durationMsByTest).length, 9)
   assert.equal(recorded.durationMsByTest["layout/slow.spec.ts › slow at 412px › case 0"], 9000)
   mkdirSync(join(directory, "layout-timings-3"))
@@ -117,11 +117,28 @@ test("the recorder merges every shard report and refuses a test in two reports",
   assert.equal(doubled.status, 1)
   assert.match(doubled.stderr, /ran in two shards/)
   assert.equal(spawnSync(process.execPath, [recorder, directory]).status, 2)
+  assert.equal(spawnSync(process.execPath, [recorder, directory, "1", directory]).status, 2, "each run needs its id")
+}))
+
+test("the recorder takes the median of each test over several runs, so one slow runner moves no duration", () => withDirectory((directory) => {
+  const runs = [[1000, "1"], [1200, "2"], [9000, "3"]].map(([duration, runId]) => {
+    mkdirSync(join(directory, runId))
+    const specs = [spec("layout/fast.spec.ts", "fits", ["layout"], duration), ...(runId === "1" ? [spec("layout/fast.spec.ts", "removed later", ["layout"], 50)] : [])]
+    writeFileSync(join(directory, runId, "layout-report.json"), JSON.stringify({ suites: [{ title: "layout/fast.spec.ts", file: "layout/fast.spec.ts", specs }] }))
+    return [join(directory, runId), runId]
+  })
+  const output = join(directory, "timings.json")
+  const result = spawnSync(process.execPath, [recorder, ...runs.flat(), "--output", output], { encoding: "utf8" })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(readFileSync(output, "utf8")), {
+    sourceRuns: ["1", "2", "3"],
+    durationMsByTest: { "layout/fast.spec.ts › fits": 1200, "layout/fast.spec.ts › removed later": 50 },
+  })
 }))
 
 test("the committed timing file keys each test as the planner does", () => {
-  const { sourceRun, durationMsByTest } = JSON.parse(readFileSync(resolve(here, "../layout-shard-timings.json"), "utf8"))
-  assert.match(sourceRun, /^\d+$/)
+  const { sourceRuns, durationMsByTest } = JSON.parse(readFileSync(resolve(here, "../layout-shard-timings.json"), "utf8"))
+  assert.ok(sourceRuns.length > 0 && sourceRuns.every((runId) => /^\d+$/.test(runId)), sourceRuns.join())
   const keys = Object.keys(durationMsByTest)
   assert.ok(keys.length > 1000, `${keys.length} recorded tests`)
   for (const key of keys) {

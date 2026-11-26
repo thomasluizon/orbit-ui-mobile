@@ -219,32 +219,6 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      # The layout shards run only on pull requests, so main fills their browser cache here.
-      - name: Read the locked Playwright version
-        id: playwright
-        if: github.event_name != 'pull_request'
-        run: echo "version=$(./node_modules/.bin/playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
-
-      - name: Look up the Playwright Chromium download
-        id: playwright-cache
-        if: github.event_name != 'pull_request'
-        uses: actions/cache/restore@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}
-          lookup-only: true
-
-      - name: Download lockfile-pinned Playwright Chromium
-        if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit != 'true'
-        run: ./node_modules/.bin/playwright install chromium
-
-      - name: Save the Playwright Chromium download
-        if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
-
   # The required check Tool Tests runs on every pull request and push. It reports a conclusion even when every changed
   # path is an unread document that .github/scripts/tool-tests-skip-paths.json lists: the tools harness and the
   # workflow behavior tests are skipped and the job succeeds. The full-tree graphic floor scan runs on every pull request.
@@ -290,7 +264,7 @@ jobs:
 
       - name: Test CI workflow behavior
         if: ${{ !cancelled() && needs.plan.outputs.tools == 'true' }}
-        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs .github/scripts/write-locked-package.test.mjs .github/scripts/plan-layout-shards.test.mjs .github/scripts/merged-unit-results.test.mjs
+        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-vitest-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs .github/scripts/write-locked-package.test.mjs .github/scripts/plan-layout-shards.test.mjs .github/scripts/merged-unit-results.test.mjs
 
   # The required check: every test group passed here or has a cached result at the same inputs.
   # The SonarCloud scan runs last, so the SonarCloud Code Analysis context arrives whenever this job passes.
@@ -354,12 +328,12 @@ jobs:
       - name: Verify every web report arrived
         if: needs.web-tests.result == 'success'
         run: |
-          for shard in $(seq 1 4); do
+          for shard in $(seq 1 3); do
             test -s "apps/web/.artifacts/unit-tests/blobs/jsdom-${shard}.json"
             test -s "apps/web/.artifacts/unit-tests/timings/jsdom-${shard}.json"
             test -s "apps/web/.artifacts/unit-tests/durations/jsdom-${shard}.json"
           done
-          for shard in $(seq 1 16); do
+          for shard in $(seq 1 17); do
             test -s "apps/web/.artifacts/unit-tests/blobs/chromium-${shard}.json"
             test -s "apps/web/.artifacts/unit-tests/timings/chromium-${shard}.json"
             test -s "apps/web/.artifacts/unit-tests/durations/chromium-${shard}.json"
@@ -398,6 +372,7 @@ jobs:
           merge-multiple: true
 
       - name: Select latest mobile report attempts
+        id: select-mobile-reports
         if: needs.mobile-tests.result == 'success'
         run: node tools/select-artifact-attempts.mjs --input-dir .artifacts/downloads/mobile --output-dir apps/mobile/.artifacts/unit-tests
 
@@ -406,7 +381,18 @@ jobs:
         run: |
           for shard in $(seq 1 3); do
             test -s "apps/mobile/.artifacts/unit-tests/blobs/mobile-${shard}.json"
+            test -s "apps/mobile/.artifacts/unit-tests/durations/mobile-${shard}.json"
           done
+
+      # record-vitest-shard-timings.mjs reads these to split the mobile shards.
+      - name: Upload mobile test timings
+        if: ${{ !cancelled() && steps.select-mobile-reports.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobile-unit-timings
+          path: apps/mobile/.artifacts/unit-tests/durations
+          include-hidden-files: true
+          if-no-files-found: error
 
       - name: Merge mobile reports and enforce coverage thresholds
         if: needs.mobile-tests.result == 'success'
@@ -546,7 +532,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  # Shards split files by the recorded durations in apps/web/vitest/shard-timings.json (TimedSequencer).
+  # Shards split files by the recorded whole file times in apps/web/vitest/shard-timings.json (timedSequencer).
   # Partial runs collect coverage; Unit Tests applies the unchanged gate to their union.
   web-tests:
     name: Web unit (${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.total }})
@@ -554,6 +540,7 @@ jobs:
     if: needs.plan.outputs.web-unit-hit != 'true'
     runs-on: ubuntu-latest
     # The worst shard step took 697 s on main. The step limit is 960 s. The job limit adds 240 s for setup and reports.
+    # The counts come from the recorded times: about 430 s of Chromium files and 450 s of one-worker jsdom time per shard.
     timeout-minutes: 20
     env:
       ARTIFACT_NAME: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
@@ -561,21 +548,18 @@ jobs:
       fail-fast: false
       matrix:
         project: [chromium]
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-        total: [16]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+        total: [17]
         include:
           - project: jsdom
             shard: 1
-            total: 4
+            total: 3
           - project: jsdom
             shard: 2
-            total: 4
+            total: 3
           - project: jsdom
             shard: 3
-            total: 4
-          - project: jsdom
-            shard: 4
-            total: 4
+            total: 3
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -590,7 +574,7 @@ jobs:
           ../../node_modules/.bin/vitest run --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.total }}
           --coverage --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
-          --reporter=default --reporter=blob --reporter=json --reporter=./vitest/duration-reporter.mjs
+          --reporter=default --reporter=blob --reporter=json --reporter=../../packages/shared/vitest/duration-reporter.mjs
           --outputFile.blob=.artifacts/unit-tests/blobs/${{ matrix.project }}-${{ matrix.shard }}.json
           --outputFile.json=.artifacts/unit-tests/timings/${{ matrix.project }}-${{ matrix.shard }}.json
           --outputFile.durations=.artifacts/unit-tests/durations/${{ matrix.project }}-${{ matrix.shard }}.json
@@ -607,7 +591,8 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
-  # Step limit: the slowest successful mobile step (864 s) split three ways, times 1.5, rounded up.
+  # Step limit: the slowest successful mobile step (864 s) split three ways, times 1.5, rounded up. The shards split
+  # files by the recorded whole file times in apps/mobile/vitest/shard-timings.json.
   mobile-tests:
     name: Mobile unit (${{ matrix.shard }}/${{ matrix.total }})
     needs: plan
@@ -636,8 +621,9 @@ jobs:
           npm run test -- --shard=${{ matrix.shard }}/${{ matrix.total }}
           --coverage --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
-          --reporter=default --reporter=blob
+          --reporter=default --reporter=blob --reporter=../../packages/shared/vitest/duration-reporter.mjs
           --outputFile.blob=.artifacts/unit-tests/blobs/mobile-${{ matrix.shard }}.json
+          --outputFile.durations=.artifacts/unit-tests/durations/mobile-${{ matrix.shard }}.json
       # Unit Tests extracts every artifact at one path, so the artifact holds one folder with its own name.
       - name: Stage mobile shard reports under the artifact name
         if: ${{ always() }}
@@ -785,13 +771,13 @@ jobs:
     if: github.event_name == 'pull_request' && needs.plan.outputs.web == 'true'
     runs-on: ubuntu-24.04
     # Each shard runs one test list that plan-layout-shards.mjs balances from .github/layout-shard-timings.json.
-    # Run 44216168902 summed 7032 s of layout tests, so each shard holds about 879 s on 2 workers (440 s).
-    # The limit is about 1.5 times that projection plus the 120 s setup the shards share.
+    # The recorded layout tests sum 7332 s, so each shard holds about 733 s on 2 workers (367 s).
+    # The limit leaves more than twice that projection for the setup and a slow runner.
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     env:
       API_BASE: http://127.0.0.1:5099
       NEXT_PUBLIC_EVENT_API_BASE: http://127.0.0.1:5099
@@ -813,18 +799,10 @@ jobs:
       - name: Restore hermetic build
         run: tar -C apps/web -xzf "$RUNNER_TEMP/web-hermetic-build.tgz"
 
-      - name: Read the locked Playwright version
-        id: playwright
-        run: echo "version=$(./node_modules/.bin/playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
-
-      - name: Restore the Playwright Chromium download
-        uses: actions/cache/restore@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}
-
+      # The layout tests run headless, which uses only the headless shell. It has no cache entry: the repository cache
+      # budget holds the dependency tree instead.
       - name: Install lockfile-pinned Playwright Chromium
-        run: ./node_modules/.bin/playwright install chromium
+        run: ./node_modules/.bin/playwright install --only-shell chromium
 
       - name: Plan the balanced layout shard lists
         env:
@@ -832,7 +810,7 @@ jobs:
         run: |
           npm run test:layout -w apps/web -- --list --reporter=json
           node .github/scripts/plan-layout-shards.mjs --list "$RUNNER_TEMP/layout-list.json" \
-            --timings .github/layout-shard-timings.json --shards 8 --out-dir "$RUNNER_TEMP/layout-shards"
+            --timings .github/layout-shard-timings.json --shards 10 --out-dir "$RUNNER_TEMP/layout-shards"
 
       - name: Check upgrade layout
         run: npm run test:layout -w apps/web -- --test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt"

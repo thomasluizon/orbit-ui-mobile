@@ -20,7 +20,8 @@ export default [
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        // The declaration of a shard helper is outside the src project of this package.
+        projectService: { allowDefaultProject: ["vitest/*.d.mts"] },
         tsconfigRootDir: import.meta.dirname,
       },
     },

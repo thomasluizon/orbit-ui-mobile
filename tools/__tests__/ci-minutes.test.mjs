@@ -40,7 +40,7 @@ test("the layout check rejects failed, cancelled and skipped prerequisites", () 
   }
   const shards = jobs["layout-shards"]
   assert.equal(shards.strategy["fail-fast"], false)
-  assert.deepEqual(shards.strategy.matrix.shard, [1, 2, 3, 4, 5, 6, 7, 8])
+  assert.deepEqual(shards.strategy.matrix.shard, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
   assert.deepEqual(shards.needs, ["plan", "build"])
   assert.equal(shards.steps.some((step) => step.run?.includes("build:hermetic")), false)
   assert.ok(shards.steps.some((step) => step.run?.includes('--test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt"')))

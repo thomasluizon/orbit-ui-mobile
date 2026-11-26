@@ -1,13 +1,15 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 import yaml from "js-yaml"
-import { TimedSequencer } from "../../apps/web/vitest/timed-sequencer.mjs"
+import { timedSequencer } from "../../packages/shared/vitest/timed-sequencer.mjs"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
+const shardTimingsPath = (app) => resolve(root, `apps/${app}/vitest/shard-timings.json`)
+const shardTimings = (app) => JSON.parse(readFileSync(shardTimingsPath(app), "utf8"))
 const workflow = yaml.load(readFileSync(resolve(root, ".github/workflows/test.yml"), "utf8"))
 const chromiumShardCount = workflow.jobs["web-tests"].strategy.matrix.total[0]
 const jsdomShards = workflow.jobs["web-tests"].strategy.matrix.include
@@ -23,7 +25,10 @@ const webReports = ({ project, shard }, label) => ({
   [`apps/web/.artifacts/unit-tests/timings/${project}-${shard}.json`]: `${label} timing`,
   [`apps/web/.artifacts/unit-tests/durations/${project}-${shard}.json`]: `${label} duration`,
 })
-const mobileReports = ({ shard }, label) => ({ [`apps/mobile/.artifacts/unit-tests/blobs/mobile-${shard}.json`]: `${label} report` })
+const mobileReports = ({ shard }, label) => ({
+  [`apps/mobile/.artifacts/unit-tests/blobs/mobile-${shard}.json`]: `${label} report`,
+  [`apps/mobile/.artifacts/unit-tests/durations/mobile-${shard}.json`]: `${label} duration`,
+})
 const workspaceReports = (label) => Object.fromEntries(workspaceDirectories.map((path) => [`${path}/coverage/lcov.info`, `${path} ${label}`]))
 const aggregateGroups = [
   ["Download web shard reports", "Select latest web report attempts", "Verify every web report arrived"],
@@ -108,25 +113,28 @@ test("configured Chromium shards split recorded time evenly and leave room for g
   const budgetCommand = stepNamed(unitSteps, "Enforce web test file budget").run.match(/^node \.github\/scripts\/check-web-test-budget\.mjs \S+ (\d+)$/)
   assert.ok(budgetCommand, "the workflow must supply a per-file budget")
   const fileBudgetMs = Number(budgetCommand[1])
-  const { durationMsByFile: { chromium: durationMsByFile } } = JSON.parse(readFileSync(join(root, "apps/web/vitest/shard-timings.json"), "utf8"))
+  const { durationMsByFile: { chromium: durationMsByFile }, testSpanMsByFile: { chromium: testSpanMsByFile } } = shardTimings("web")
+  assert.deepEqual(Object.keys(testSpanMsByFile), Object.keys(durationMsByFile), "each recorded file holds both of its times")
   const growthFactor = 1.25
-  const overBudgetFiles = Object.entries(durationMsByFile).flatMap(([file, measured]) => {
+  // The runtime budget limits the first-test to last-test time, so the headroom check reads that time.
+  const overBudgetFiles = Object.entries(testSpanMsByFile).flatMap(([file, measured]) => {
     const projected = measured * growthFactor
     return projected < fileBudgetMs ? [] : [`${file}: ${(measured / 1000).toFixed(3)}s measured, ${(projected / 1000).toFixed(3)}s with headroom exceeds the per-file budget`]
   })
   assert.equal(overBudgetFiles.length, 0, overBudgetFiles.join("\n"))
   const webRoot = join(root, "apps/web")
+  const WebSequencer = timedSequencer(shardTimingsPath("web"))
   const files = Object.keys(durationMsByFile).map((name) => ({ moduleId: join(webRoot, name), project: { name: "chromium" } }))
   const selected = []
   const loads = []
   for (const index of indexes) {
-    const sequencer = new TimedSequencer({ config: { root: webRoot, shard: { index, count } } })
+    const sequencer = new WebSequencer({ config: { root: webRoot, shard: { index, count } } })
     const shard = await sequencer.shard(files)
     assert.deepEqual(await sequencer.shard([...files].reverse()), shard, "input order must not affect assignment")
     selected.push(...shard)
     const measured = shard.reduce((sum, file) => sum + durationMsByFile[file.moduleId.slice(webRoot.length + 1)], 0)
     loads.push(measured)
-    // WHY: JSON timings omit setup and coverage work; reserve four minutes plus 25% test growth. https://github.com/thomasluizon/orbit-tickets/issues/1886
+    // WHY: the file times omit the Vitest start and the coverage report; reserve four minutes plus 25% test growth. https://github.com/thomasluizon/orbit-tickets/issues/1886
     const projected = measured * growthFactor + 240_000
     assert.ok(projected < step["timeout-minutes"] * 60_000, `Chromium ${index}/${count}: ${(measured / 1000).toFixed(3)}s measured, ${(projected / 1000).toFixed(3)}s with headroom exceeds the step limit`)
   }
@@ -136,17 +144,32 @@ test("configured Chromium shards split recorded time evenly and leave room for g
   assert.ok(Math.max(...loads) - Math.min(...loads) <= longestFile, "no shard may carry more than one file of extra recorded time")
 })
 
-test("every recorded web test duration names a test file that exists", () => {
-  const { durationMsByFile } = JSON.parse(readFileSync(join(root, "apps/web/vitest/shard-timings.json"), "utf8"))
-  const absentFiles = Object.entries(durationMsByFile).flatMap(([project, files]) =>
-    Object.keys(files).filter((file) => !existsSync(join(root, "apps/web", file))).map((file) => `${project}: ${file}`))
+test("every recorded test duration names a test file that exists", () => {
+  const absentFiles = ["web", "mobile"].flatMap((app) => Object.entries(shardTimings(app).durationMsByFile).flatMap(([project, files]) =>
+    Object.keys(files).filter((file) => !existsSync(join(root, "apps", app, file))).map((file) => `${project}: ${file}`)))
   assert.deepEqual(absentFiles, [], "delete the recorded duration of a test file that was deleted or moved")
+})
+
+test("the web and mobile configs split by their own recorded times, and the mobile shards carry equal time", async () => {
+  for (const [app, call] of [["web", "timedSequencer(path.join(__dirname, 'vitest/shard-timings.json'))"], ["mobile", "timedSequencer(path.resolve(__dirname, 'vitest/shard-timings.json'))"]]) {
+    assert.ok(readFileSync(join(root, `apps/${app}/vitest.config.ts`), "utf8").includes(`sequence: { sequencer: ${call} },`), `${app} uses the timed split`)
+  }
+  const mobileRoot = join(root, "apps/mobile")
+  const MobileSequencer = timedSequencer(shardTimingsPath("mobile"))
+  const recorded = Object.entries(shardTimings("mobile").durationMsByFile).flatMap(([project, files]) =>
+    Object.entries(files).map(([file, milliseconds]) => ({ moduleId: join(mobileRoot, file), project: { name: project }, milliseconds })))
+  const shards = await Promise.all(mobileLegs.map(({ shard, total }) => new MobileSequencer({ config: { root: mobileRoot, shard: { index: shard, count: total } } }).shard(recorded)))
+  assert.equal(shards.flat().length, recorded.length)
+  assert.deepEqual(new Set(shards.flat()), new Set(recorded), "every measured file must run exactly once")
+  const loads = shards.map((shard) => shard.reduce((sum, file) => sum + file.milliseconds, 0))
+  assert.ok(Math.max(...loads) - Math.min(...loads) <= Math.max(...recorded.map((file) => file.milliseconds)), "no shard may carry more than one file of extra recorded time")
 })
 
 test("an unrecorded file counts as the project median and equal durations still spread by count", async () => {
   const webRoot = join(root, "apps/web")
   const files = Array.from({ length: 12 }, (_, index) => ({ moduleId: join(webRoot, `__tests__/new-${index}.test.tsx`), project: { name: "unrecorded" } }))
-  const shards = await Promise.all([1, 2, 3].map((index) => new TimedSequencer({ config: { root: webRoot, shard: { index, count: 3 } } }).shard(files)))
+  const Sequencer = timedSequencer(shardTimingsPath("web"))
+  const shards = await Promise.all([1, 2, 3].map((index) => new Sequencer({ config: { root: webRoot, shard: { index, count: 3 } } }).shard(files)))
   assert.deepEqual(shards.map((shard) => shard.length), [4, 4, 4])
   assert.deepEqual(new Set(shards.flat()), new Set(files))
 })
@@ -292,13 +315,13 @@ test("every pull request distributes Chromium without increasing browser concurr
   assert.deepEqual(web.strategy.matrix.project, ["chromium"])
   assert.deepEqual(web.strategy.matrix.shard, Array.from({ length: chromiumShardCount }, (_, index) => index + 1))
   assert.deepEqual(web.strategy.matrix.total, [chromiumShardCount])
-  assert.deepEqual(jsdomShards, [1, 2, 3, 4].map((shard) => ({ project: "jsdom", shard, total: 4 })))
+  assert.deepEqual(jsdomShards, [1, 2, 3].map((shard) => ({ project: "jsdom", shard, total: 3 })))
   const run = stepNamed(web.steps, "Run web shard with coverage").run
   assert.match(run, /--project=\$\{\{ matrix.project \}\}/)
   assert.match(run, /--shard=\$\{\{ matrix.shard \}\}\/\$\{\{ matrix.total \}\}/)
   assert.match(run, /--reporter=blob/)
   assert.match(run, /--reporter=json/)
-  assert.match(run, /--reporter=\.\/vitest\/duration-reporter\.mjs/)
+  assert.match(run, /--reporter=\.\.\/\.\.\/packages\/shared\/vitest\/duration-reporter\.mjs/)
   assert.match(run, /--outputFile\.durations=\.artifacts\/unit-tests\/durations\/\$\{\{ matrix.project \}\}-\$\{\{ matrix.shard \}\}\.json/)
   assert.doesNotMatch(run, /maxWorkers|fileParallelism|passWithNoTests/)
   assert.equal(web.env.ARTIFACT_NAME, "web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}")
@@ -351,6 +374,8 @@ test("mobile shards merge their blobs under the unchanged mobile thresholds", ()
   assert.match(run.run, /--shard=\$\{\{ matrix.shard \}\}\/\$\{\{ matrix.total \}\}/)
   assert.match(run.run, /--coverage\.thresholds\.lines=0/)
   assert.match(run.run, /--outputFile\.blob=\.artifacts\/unit-tests\/blobs\/mobile-\$\{\{ matrix.shard \}\}\.json/)
+  assert.match(run.run, /--reporter=\.\.\/\.\.\/packages\/shared\/vitest\/duration-reporter\.mjs/)
+  assert.match(run.run, /--outputFile\.durations=\.artifacts\/unit-tests\/durations\/mobile-\$\{\{ matrix.shard \}\}\.json/)
   assert.equal(mobile.env.ARTIFACT_NAME, "mobile-unit-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}")
   assert.equal(stepNamed(mobile.steps, "Stage mobile shard reports under the artifact name").if, "${{ always() }}")
   const upload = mobile.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
@@ -359,8 +384,10 @@ test("mobile shards merge their blobs under the unchanged mobile thresholds", ()
   const verify = stepNamed(unitSteps, "Verify every mobile report arrived")
   const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
   try {
-    mkdirSync(join(directory, "apps/mobile/.artifacts/unit-tests/blobs"), { recursive: true })
-    for (let shard = 1; shard <= mobileShardCount; shard++) writeFileSync(join(directory, `apps/mobile/.artifacts/unit-tests/blobs/mobile-${shard}.json`), "{}")
+    for (const kind of ["blobs", "durations"]) {
+      mkdirSync(join(directory, `apps/mobile/.artifacts/unit-tests/${kind}`), { recursive: true })
+      for (let shard = 1; shard <= mobileShardCount; shard++) writeFileSync(join(directory, `apps/mobile/.artifacts/unit-tests/${kind}/mobile-${shard}.json`), "{}")
+    }
     assert.equal(spawnSync("bash", ["-e", "-c", verify.run], { cwd: directory }).status, 0)
     rmSync(join(directory, `apps/mobile/.artifacts/unit-tests/blobs/mobile-${mobileShardCount}.json`))
     assert.notEqual(spawnSync("bash", ["-e", "-c", verify.run], { cwd: directory }).status, 0)
@@ -553,21 +580,19 @@ test("layout shards and the Lighthouse budget reuse the one hermetic Build", () 
     assert.equal(job.steps.some((step) => /build:hermetic|check-hermetic-web-build|next build/.test(step.run ?? "")), false, `${id} must not build the web app again`)
   }
   const shards = workflow.jobs["layout-shards"]
-  assert.deepEqual(shards.strategy.matrix.shard, [1, 2, 3, 4, 5, 6, 7, 8])
+  assert.deepEqual(shards.strategy.matrix.shard, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
   assert.ok(shards.steps.some((step) => step.run === 'npm run test:layout -w apps/web -- --test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt"'))
   const plan = stepNamed(shards.steps, "Plan the balanced layout shard lists")
   assert.match(plan.run, /npm run test:layout -w apps\/web -- --list --reporter=json/)
-  assert.match(plan.run, /plan-layout-shards\.mjs --list "\$RUNNER_TEMP\/layout-list\.json" \\\n\s+--timings \.github\/layout-shard-timings\.json --shards 8 --out-dir "\$RUNNER_TEMP\/layout-shards"/)
+  assert.match(plan.run, /plan-layout-shards\.mjs --list "\$RUNNER_TEMP\/layout-list\.json" \\\n\s+--timings \.github\/layout-shard-timings\.json --shards 10 --out-dir "\$RUNNER_TEMP\/layout-shards"/)
   assert.equal(plan.env.PLAYWRIGHT_JSON_OUTPUT_FILE, "${{ runner.temp }}/layout-list.json")
   assert.equal(shards.steps.some((step) => /--shard=/.test(step.run ?? "")), false, "Playwright's count split puts the slow spec in one shard")
   const timings = stepNamed(shards.steps, "Upload layout test timings")
   assert.equal(timings.with.name, "layout-timings-${{ matrix.shard }}")
   assert.equal(timings.with.path, "apps/web/.artifacts/layout/layout-report.json")
-  const restore = shards.steps.find((step) => step.uses?.startsWith("actions/cache/restore@"))
-  const save = build.steps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.path === "~/.cache/ms-playwright")
-  assert.equal(restore.with.path, "~/.cache/ms-playwright")
-  assert.equal(restore.with.key, "${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}")
-  assert.match(save.if, /^github\.event_name != 'pull_request'/)
+  assert.equal(stepNamed(shards.steps, "Install lockfile-pinned Playwright Chromium").run, "./node_modules/.bin/playwright install --only-shell chromium")
+  const browserCaches = Object.values(workflow.jobs).flatMap((job) => job.steps).filter((step) => String(step.with?.path).includes("ms-playwright"))
+  assert.deepEqual(browserCaches, [], "the repository cache budget holds the dependency tree, not the browser download")
   const gate = stepNamed(workflow.jobs.lighthouse.steps, "Run median TBT and script budget gates")
   assert.equal(gate["timeout-minutes"], 8)
   assert.equal(workflow.jobs.lighthouse["timeout-minutes"], 15)
@@ -596,8 +621,6 @@ test("real Vitest reports combine project coverage and reject incomplete coverag
     return result
   }
   try {
-    mkdirSync(join(directory, "vitest"))
-    copyFileSync(join(root, shardStep["working-directory"], "vitest/duration-reporter.mjs"), join(directory, "vitest/duration-reporter.mjs"))
     writeFileSync(join(directory, "subject.mjs"), 'export function choose(value) {\n  if (value) {\n    return "chosen"\n  }\n  return "empty"\n}\n')
     for (const project of ["jsdom-1", "jsdom-2", "chromium"]) {
       const jsdom = project.startsWith("jsdom")
@@ -628,7 +651,9 @@ test("real Vitest reports combine project coverage and reject incomplete coverag
   }
 })
 
-test("the web test timings upload only after the web report selection ran", () => {
+test("the web and mobile test timings upload only after their report selection ran", () => {
+  assert.equal(stepNamed(unitSteps, "Select latest mobile report attempts").id, "select-mobile-reports")
+  assert.equal(stepNamed(unitSteps, "Upload mobile test timings").if, "${{ !cancelled() && steps.select-mobile-reports.outcome == 'success' }}")
   assert.equal(stepNamed(unitSteps, "Select latest web report attempts").id, "select-web-reports")
   assert.equal(stepNamed(unitSteps, "Upload web test timings").if, "${{ !cancelled() && steps.select-web-reports.outcome == 'success' }}")
 })

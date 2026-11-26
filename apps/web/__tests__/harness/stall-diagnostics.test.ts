@@ -62,17 +62,19 @@ it('loads the web config through tsx for tooling without starting a worker', asy
 it('type-checks the config and its harness without the Docker-excluded tests', async () => {
   const directory = await mkdtemp(path.join(webRoot, '.tmp-vitest-stall-'))
   directories.push(directory)
+  const webCopy = path.join(directory, 'apps/web')
   for (const entry of await readdir(webRoot)) {
     if (entry === 'vitest.config.ts' || entry === 'vitest') {
-      await cp(path.join(webRoot, entry), path.join(directory, entry), { recursive: true })
+      await cp(path.join(webRoot, entry), path.join(webCopy, entry), { recursive: true })
     }
   }
+  await cp(path.join(repositoryRoot, 'packages/shared/vitest'), path.join(directory, 'packages/shared/vitest'), { recursive: true })
   const result = await execute(process.execPath, [
     path.join(repositoryRoot, 'node_modules/typescript/bin/tsc'),
     '--ignoreConfig', '--noEmit', '--skipLibCheck', '--module', 'esnext',
     '--moduleResolution', 'bundler', '--target', 'es2022', '--esModuleInterop',
-    path.join(directory, 'vitest.config.ts'),
-  ], { cwd: directory, timeout: 20_000 }).catch((failure: { stdout: string; stderr: string }) => {
+    path.join(webCopy, 'vitest.config.ts'),
+  ], { cwd: webCopy, timeout: 20_000 }).catch((failure: { stdout: string; stderr: string }) => {
     throw new Error(failure.stdout + failure.stderr)
   })
   expect(result.stdout).toBe('')

@@ -28,9 +28,10 @@ runs:
       id: node
       shell: bash
       run: echo "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
-    # The key holds the lockfile, each workspace manifest and the postinstall script that links packages in the tree. A
-    # changed manifest misses, so npm ci still fails when a manifest and the lockfile disagree. No restore-keys: a tree
-    # of another lockfile is not this tree.
+    # The key holds the lockfile, the postinstall script that links packages in the tree and this action. No
+    # restore-keys: a tree of another lockfile is not this tree. A manifest that disagrees with the lockfile still fails
+    # in the dependency tree check of Tool Tests, which runs npm ls when a manifest changed.
+    # The entry holds about 0.4 GB. A key that follows every manifest would add one such entry for each script edit.
     - name: Restore the installed dependencies
       id: modules
       uses: actions/cache/restore@v6
@@ -43,7 +44,7 @@ runs:
           apps/*/node_modules
           packages/*/node_modules
           eslint-rules/node_modules
-        key: modules-${{ runner.os }}-${{ runner.arch }}-node${{ steps.node.outputs.major }}-${{ hashFiles('package-lock.json', 'package.json', 'apps/*/package.json', 'packages/*/package.json', 'eslint-rules/package.json', 'apps/mobile/scripts/fix-hoisting.js') }}
+        key: modules-${{ runner.os }}-${{ runner.arch }}-node${{ steps.node.outputs.major }}-${{ hashFiles('package-lock.json', 'apps/mobile/scripts/fix-hoisting.js', '.github/actions/install-dependencies/action.yml') }}
     - id: npm-cache
       if: steps.modules.outputs.cache-hit != 'true'
       uses: ./.github/actions/restore-npm-cache

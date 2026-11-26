@@ -1,6 +1,7 @@
 import { defaultExclude, defineConfig } from 'vitest/config'
 import path from 'path'
 import { transformWithOxc } from 'vite'
+import { timedSequencer } from '../../packages/shared/vitest/timed-sequencer.mjs'
 import { draggableFlatListNativeAdapter } from './scripts/draggable-flatlist-resolver.js'
 
 const focusIndicatorTest = '__tests__/components/ui/selected-focus-indicator.test.tsx'
@@ -26,6 +27,7 @@ export default defineConfig({
     env: { EXPO_PUBLIC_API_BASE: 'https://mobile-tests.invalid' },
     environment: 'node',
     globals: true,
+    sequence: { sequencer: timedSequencer(path.resolve(__dirname, 'vitest/shard-timings.json')) },
     setupFiles: ['./test-setup-expo-runtime.ts', './test-setup.ts'],
     server: {
       deps: {

@@ -119,7 +119,7 @@ const NPM_SAVERS = {
 
 // The dependency tree that PR Tests restores in each job and saves from its Build job.
 const DEPENDENCY_TREE_PATH = "node_modules\napps/*/node_modules\npackages/*/node_modules\neslint-rules/node_modules\n"
-const DEPENDENCY_TREE_KEY = "modules-${{ runner.os }}-${{ runner.arch }}-node${{ steps.node.outputs.major }}-${{ hashFiles('package-lock.json', 'package.json', 'apps/*/package.json', 'packages/*/package.json', 'eslint-rules/package.json', 'apps/mobile/scripts/fix-hoisting.js') }}"
+const DEPENDENCY_TREE_KEY = "modules-${{ runner.os }}-${{ runner.arch }}-node${{ steps.node.outputs.major }}-${{ hashFiles('package-lock.json', 'apps/mobile/scripts/fix-hoisting.js', '.github/actions/install-dependencies/action.yml') }}"
 const DEPENDENCY_TREE_SAVERS = { "test.yml: build": "${{ steps.install.outputs.cache-primary-key }}" }
 
 // A restore as a reviewer reads it: the canonical restore step and the canonical local action calls that lead to it, each
@@ -249,15 +249,6 @@ const REVIEWED_RESTORES = {
           path: "apps/web/.next/cache/webpack",
           "restore-keys": "${{ runner.os }}-next-hermetic-\n",
         },
-      },
-      calls: [],
-    },
-    {
-      step: {
-        id: "playwright-cache",
-        if: "github.event_name != 'pull_request'",
-        uses: "actions/cache/restore@v6",
-        with: { key: "${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}", "lookup-only": true, path: "~/.cache/ms-playwright" },
       },
       calls: [],
     },
@@ -1317,8 +1308,8 @@ const MUTATIONS = [
     ["      CCACHE_DIR: ${{ github.workspace }}/.cache/ios-ccache\n", "      CCACHE_DIR: ~/Library/Caches\n"]), pinned("context")],
   ["P13b a step of the ios-build compile job writes CCACHE_DIR to GITHUB_ENV", changeText(".github/workflows/ios-build.yml",
     ["      - name: Install the compiler cache\n", "      - run: echo \"CCACHE_DIR=$HOME/Library/Caches\" >> \"$GITHUB_ENV\"\n      - name: Install the compiler cache\n"]), pinned("context")],
-  ["P15 the playwright-cache id moves to the Next restore", changeText(".github/workflows/test.yml",
-    ["        id: playwright-cache\n", "        id: playwright-lookup\n"], ["        id: next-cache\n", "        id: playwright-cache\n"]), /differs? from its inventory line/],
+  ["P15 the install id moves to the Next restore", changeText(".github/workflows/test.yml",
+    ["      - id: install\n", "      - id: install-tree\n"], ["        id: next-cache\n", "        id: install\n"]), /differs? from its inventory line/],
   ["P16 the Next save condition gains || true", changeText(".github/workflows/test.yml",
     [NEXT_SAVE, NEXT_SAVE.replace("&& steps.next-cache.outputs.cache-hit != 'true'", "|| true")]), pinned("cacheStep")],
   ["Q1 a step of the ios-build compile job runs a script that can write CCACHE_DIR to GITHUB_ENV", changeText(".github/workflows/ios-build.yml",
