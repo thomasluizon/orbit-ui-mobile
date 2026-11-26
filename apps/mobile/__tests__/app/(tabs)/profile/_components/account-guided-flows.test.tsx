@@ -218,6 +218,3 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(() => button(tree, messages.common.continue)).toThrow()
   })
 })
-
-describe('Android flag off', () => {
-})

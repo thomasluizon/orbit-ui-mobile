@@ -71,6 +71,3 @@ describe.each(locales)('API key list loading in $locale', ({ locale, messages })
     expect(document.querySelector(SPINNER_SELECTOR)).toBeNull()
   })
 })
-
-describe('flag off', () => {
-})

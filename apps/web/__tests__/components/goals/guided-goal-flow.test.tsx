@@ -390,6 +390,3 @@ describe('the guided goal edit flow', () => {
     expect(resultDialog()).toBeNull()
   })
 })
-
-describe('with the flag off', () => {
-})

@@ -476,6 +476,3 @@ describe('the dashboards and the notices of the Android route with the guided fl
     tree.unmount()
   })
 })
-
-describe('the Android upgrade route with the guided flows off', () => {
-})

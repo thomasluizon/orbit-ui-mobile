@@ -213,7 +213,6 @@ describe('habit form and frequency picker motion tokens', () => {
   it.each([
     'components/habits/habit-form-fields/habit-emoji-selector.tsx',
     'components/ui/picker-list.tsx',
-    'app/(app)/preferences/_components/preference-picker-sheet.tsx',
   ])('%s gives its shared form input search the text field hover', (path) => {
     expect(source(path)).toMatch(/className="form-input orbit-field-hover/)
   })

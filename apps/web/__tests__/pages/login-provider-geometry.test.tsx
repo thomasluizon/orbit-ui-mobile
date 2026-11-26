@@ -20,9 +20,10 @@ vi.mock('motion/react-m', async () => {
   const actual = await import('motion/react')
   return actual.m
 })
-vi.mock('motion/react', async () => {
+vi.mock('motion/react', async (importOriginal) => {
   const React = await import('react')
-  return { useReducedMotion: () => true,
+  const actual = await importOriginal<typeof import('motion/react')>()
+  return { ...actual, useReducedMotion: () => true,
     domMin: {},
     LazyMotion: ({ children }: { children: React.ReactNode }) => children,
     AnimatePresence: ({ children }: { children: React.ReactNode }) => children,

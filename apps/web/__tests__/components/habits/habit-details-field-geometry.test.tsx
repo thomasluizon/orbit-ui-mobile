@@ -15,7 +15,6 @@ function bundleDetailRows() {
     import ptBR from '../../packages/shared/src/i18n/pt-BR.json';
     import { SlipAlertSection } from './components/habits/habit-form-fields/slip-alert-section';
     import { TagPickerField } from './components/habits/habit-form-fields/tag-picker-field';
-    import { ChecklistTemplates } from './components/habits/checklist-templates';
     const root = document.getElementById('root');
     const locale = root.dataset.locale;
     function Details() {
@@ -23,7 +22,6 @@ function bundleDetailRows() {
       return <main style={{ paddingInline: 16 }}><div data-field-column="" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <SlipAlertSection inline hasProAccess slipAlertEnabled={false} onToggle={() => {}} t={t} />
         <TagPickerField tags={[]} selectedIds={[]} atLimit={false} onToggle={() => {}} onCreate={() => {}} onEdit={() => {}} onDelete={() => {}} editLabel="edit" deleteLabel="delete" />
-        <ChecklistTemplates items={[]} onLoad={() => {}} />
       </div></main>;
     }
     createRoot(root).render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Details /></NextIntlClientProvider>);`
@@ -74,7 +72,6 @@ describe('More details field rows', () => {
       const controls = [
         page.getByRole('switch', { name: messages.habits.form.slipAlert }),
         page.getByRole('button', { name: new RegExp(`^${messages.habits.form.tags}`) }),
-        page.getByRole('button', { name: messages.habits.form.useTemplate, exact: true }),
       ]
       for (const control of controls) {
         await expect.poll(() => control.count()).toBe(1)

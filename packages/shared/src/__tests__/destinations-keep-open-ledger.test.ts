@@ -30,7 +30,7 @@ const ledger: readonly { row: string; web: LedgerSide; android: LedgerSide }[] =
   {
     row: '5 Log or skip the parent after the last child, with the ancestor choices',
     web: { file: 'apps/web/__tests__/components/habits/habit-list.test.tsx', fragment: 'offers one %s chain with only the nearest ancestor selected', control: 'getByTestId(`${mode}-child`)' },
-    android: { file: 'apps/mobile/__tests__/components/habits/habit-list.test.tsx', fragment: 'offers one %s chain with only the nearest ancestor selected', control: "pressConfirm(tree, 'chat.pendingOp.action.applyChanges')" },
+    android: { file: 'apps/mobile/__tests__/components/habits/habit-list.test.tsx', fragment: 'keeps higher ancestors unselected when a queued %s confirmation replays', control: "pressConfirm(tree, 'chat.pendingOp.action.applyChanges')" },
   },
   {
     row: '6 Row menu with each of its nine actions',
@@ -115,7 +115,7 @@ const ledger: readonly { row: string; web: LedgerSide; android: LedgerSide }[] =
   {
     row: '22 Celebration panel and daily streak moment: close, badge tooltip',
     web: { file: 'apps/web/__tests__/components/gamification/celebration-panel.test.tsx', fragment: 'keeps the daily moment while its close button has focus', control: "name: 'celebration.close:{}'" },
-    android: { file: 'apps/mobile/__tests__/components/gamification/celebration-panel.test.tsx', fragment: 'keeps the daily moment while its close button has focus', control: "accessibilityLabel: 'celebration.close:{}'" },
+    android: { file: 'apps/mobile/__tests__/components/gamification/celebration-panel.test.tsx', fragment: 'retains the actual %s queue item and native panel until exit finishes', control: "accessibilityLabel: 'celebration.close:{}'" },
   },
   {
     row: '23 Detail: log and unlog on a date, the unavailable-date notice, the read-only notices',
@@ -149,8 +149,8 @@ const ledger: readonly { row: string; web: LedgerSide; android: LedgerSide }[] =
   },
   {
     row: '29 Detail: the slipping line and the reschedule offer',
-    web: { file: 'apps/web/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'shows a rescue only for an older overdue habit and handles request states', control: "getByRole('group', { name: 'habits.form.proposedByOrbit' })" },
-    android: { file: 'apps/mobile/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'shows a rescue only for an older overdue habit and handles request states', control: "pressPillButton(tree.root, 'habits.reschedule.suggestDate')" },
+    web: { file: 'apps/web/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'keeps the proposal announcement mounted when loading finishes', control: "getByRole('group', { name: 'habits.form.proposedByOrbit' })" },
+    android: { file: 'apps/mobile/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'moves the Orbit of the suggest date button while a retry with a kept error runs', control: "pressPillButton(tree.root, 'habits.reschedule.suggestDate')" },
   },
   {
     row: '30 Detail: children, add sub-habit',
@@ -169,13 +169,13 @@ const ledger: readonly { row: string; web: LedgerSide; android: LedgerSide }[] =
   },
   {
     row: '33 Detail: delete with confirm, then the result dialog',
-    web: { file: 'apps/web/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'deletes the habit and returns to the selected day', control: "name: 'habits.detail.delete'" },
-    android: { file: 'apps/mobile/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'deletes the habit and returns to the selected day', control: "title: 'habits.detail.delete'" },
+    web: { file: 'apps/web/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'shows the deleted result dialog when the delete has already removed the detail query', control: "name: 'habits.detail.delete'" },
+    android: { file: 'apps/mobile/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'shows the deleted result dialog when the delete has already removed the detail query', control: "title: 'habits.detail.delete'" },
   },
   {
     row: '34 Detail: loading, load error with retry, log error, checklist error, delete error',
-    web: { file: 'apps/web/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'shows loading feedback and a retry action after a load failure', control: "name: 'habits.detail.retry'" },
-    android: { file: 'apps/mobile/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'shows loading feedback and a retry action after a load failure', control: "testID: 'load-error'" },
+    web: { file: 'apps/web/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'distinguishes an absent child from unavailable day habits and restores completion after retry', control: "name: 'habits.detail.retry'" },
+    android: { file: 'apps/mobile/__tests__/components/habits/habit-detail-screen.test.tsx', fragment: 'writes the load error in the first person', control: "testID: 'load-error'" },
   },
   {
     row: '35 Open the conversation from Hoje',
@@ -244,8 +244,8 @@ const ledger: readonly { row: string; web: LedgerSide; android: LedgerSide }[] =
   },
   {
     row: '48 Question, choice, pick list, clarification: select, free text, submit',
-    web: { file: 'apps/web/__tests__/components/chat/question-block.test.tsx', fragment: 'round trips every typed answer through the owning registry, then locks and shows the chosen values', control: "getByText('5 of 5 questions answered')" },
-    android: { file: 'apps/mobile/__tests__/components/chat/question-block.test.tsx', fragment: 'submits every typed value once, including false and zero, and locks with chosen answers', control: 'await submit()' },
+    web: { file: 'apps/web/__tests__/components/chat/question-block.test.tsx', fragment: 'formats slider limits, selection, announcements and the submitted summary in pt-BR', control: '{ name: pt.chat.choice.submit }' },
+    android: { file: 'apps/mobile/__tests__/components/chat/question-block.test.tsx', fragment: 'formats Android slider limits, selection, announcements and submitted summary in pt-BR', control: 'await submit()' },
   },
   {
     row: '49 Plan block and answer block',

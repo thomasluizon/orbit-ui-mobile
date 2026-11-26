@@ -35,6 +35,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/milestone-share/milestone-share-card', () => ({
+  MILESTONE_SHARE_CARD_WIDTH: 360,
   MilestoneShareCard: ({ ref }: { ref?: Ref<HTMLDivElement> }) => {
     return <div ref={ref} data-testid="milestone-share-card" />
   },

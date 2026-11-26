@@ -31,7 +31,12 @@ import {
 
 const profile = undefined
 
+function reachTheSendStep() {
+  fireEvent.click(screen.getByText('common.continue'))
+}
+
 async function sendTheCode() {
+  reachTheSendStep()
   fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
   await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete'))
   mocks.push.mockClear()
@@ -58,4 +63,83 @@ afterEach(() => {
   clearStepUpState()
   vi.unstubAllGlobals()
   vi.clearAllMocks()
+})
+
+it('gives the next account a fresh challenge after the previous one burned its attempts', async () => {
+  const { rerender } = render(
+    <DeleteAccountModal open onOpenChange={vi.fn()} profile={profile} />,
+  )
+  await sendTheCode()
+  const exhaustedAt = burnTheAttempts()
+  expect(getStepUpPhaseFromTiming(readStepUpTiming('delete', 'user-1')!, exhaustedAt + 1))
+    .toBe('exhausted')
+
+  await replaceAccountWith('user-2')
+  rerender(<DeleteAccountModal open onOpenChange={vi.fn()} profile={profile} />)
+  await sendTheCode()
+
+  const next = readStepUpTiming('delete', 'user-2')
+  expect(next).not.toBeNull()
+  expect(next!.exhaustedAt).toBeUndefined()
+  expect(getStepUpPhaseFromTiming(next!, exhaustedAt + 1)).toBe('challenge')
+})
+
+it('leaves each account its own record and writes nothing to the unscoped key', async () => {
+  render(<DeleteAccountModal open onOpenChange={vi.fn()} profile={profile} />)
+  await sendTheCode()
+  const exhaustedAt = burnTheAttempts()
+
+  await replaceAccountWith('user-2')
+  cleanup()
+  render(<DeleteAccountModal open onOpenChange={vi.fn()} profile={profile} />)
+  await sendTheCode()
+
+  expect(readStepUpTiming('delete', 'user-1')!.exhaustedAt).toBe(exhaustedAt)
+  expect(localStorage.getItem(getStepUpStorageKey('delete', 'user-1'))).not.toBeNull()
+  expect(localStorage.getItem(getStepUpStorageKey('delete', 'user-2'))).not.toBeNull()
+  expect(localStorage.getItem('orbit.step-up.delete')).toBeNull()
+})
+
+it('does not route the next account into a delayed deletion challenge', async () => {
+  let releaseRequest!: () => void
+  mocks.requestDeletion.mockImplementationOnce(() => new Promise<void>((resolve) => {
+    releaseRequest = resolve
+  }))
+  render(<DeleteAccountModal open onOpenChange={vi.fn()} profile={profile} />)
+  reachTheSendStep()
+  fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+
+  await replaceAccountWith('user-2')
+  await act(async () => { releaseRequest(); await Promise.resolve() })
+
+  expect(mocks.push).not.toHaveBeenCalled()
+  expect(readStepUpTiming('delete', 'user-1')).toBeNull()
+})
+
+it('waits for the first account check before requesting a deletion challenge', async () => {
+  await retireHeldAccount()
+  useAuthStore.setState({ isAuthenticated: true, sessionInactive: false })
+  let finishSession!: (response: Response) => void
+  vi.mocked(globalThis.fetch).mockImplementationOnce(() => new Promise((resolve) => {
+    finishSession = resolve
+  }))
+  const firstCheck = useAuthStore.getState().checkSession()
+  render(<DeleteAccountModal open onOpenChange={vi.fn()} profile={profile} />)
+  reachTheSendStep()
+
+  const sendButton = screen.getByText('profile.deleteAccount.sendCode').closest('button')!
+  fireEvent.click(sendButton)
+  expect(mocks.requestDeletion).not.toHaveBeenCalled()
+
+  await act(async () => {
+    finishSession({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, userId: 'user-1' }),
+    } as Response)
+    await firstCheck
+  })
+  await sendTheCode()
+  expect(mocks.requestDeletion).toHaveBeenCalledTimes(1)
+  expect(readStepUpTiming('delete', 'user-1')).not.toBeNull()
 })

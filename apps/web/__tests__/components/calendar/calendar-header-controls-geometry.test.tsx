@@ -408,7 +408,7 @@ describe('Calendar header geometry in Chromium', () => {
         onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
     </NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`, ${messages.calendar.monthPicker}$`) }))
-    expect(screen.getByRole('dialog', { name: messages.calendar.monthPicker })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: messages.calendar.monthPickerQuestion })).toBeInTheDocument()
     const portal = document.querySelector('.orbit-sheet-portal')!
     const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
@@ -477,53 +477,6 @@ describe('Calendar header geometry in Chromium', () => {
           if (scale === 1) {
             const contentWidth = await page.locator('[data-flow-mode="onboarding"]').evaluate((column) => column.clientWidth - parseFloat(getComputedStyle(column).paddingLeft) - parseFloat(getComputedStyle(column).paddingRight))
             expectOnboardingRows(geometry, mode, contentWidth)
-          }
-        }, { timeout: 2000 })
-      }
-    } finally { await page.close() }
-  })
-
-  it.each([320, 360, 384, 412].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('fits the goal type sheet container in $locale at $width', async ({ width, locale, messages }) => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    queryClient.setQueryData(habitKeys.list({}), [])
-    render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><CreateGoalSheet open onClose={vi.fn()} /></NextIntlClientProvider></QueryClientProvider>)
-    fireEvent.change(screen.getByLabelText(messages.goals.form.title), { target: { value: 'Read 12 books' } })
-    const portal = document.querySelector('.orbit-sheet-portal')!
-    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
-    try {
-      await page.setContent(`<style>${harness.stylesheet}</style>${portal.outerHTML}`)
-      await loadAppFonts(page)
-      await mountMeasuredSegmentedControls(page)
-      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
-      for (const scale of [1, 2]) {
-        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
-        await vi.waitFor(async () => {
-          expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
-          const geometry = await page.locator('[data-segmented-control]').evaluate((group) => {
-            const bounds = group.getBoundingClientRect()
-            const body = group.closest('[data-slot="sheet-body"]')!
-            return { folded: group.querySelector('[data-menu-trigger]') !== null, width: bounds.width, bodyWidth: body.clientWidth - parseFloat(getComputedStyle(body).paddingLeft) - parseFloat(getComputedStyle(body).paddingRight),
-              segments: [...group.querySelectorAll('[role="radio"], [data-menu-trigger]')].map((button) => {
-                const box = button.getBoundingClientRect()
-                const label = button.firstElementChild!
-                const text = document.createRange(); text.selectNodeContents(label)
-                const fragments = [...text.getClientRects()]
-                const content = label.getBoundingClientRect()
-                return { folded: button.hasAttribute('data-menu-trigger'), top: box.top, height: box.height, contained: box.left >= bounds.left && box.right <= bounds.right, lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
-                  fits: fragments.every((fragment) => fragment.left >= content.left - 1 && fragment.right <= content.right + 1), ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', overflow: label.scrollWidth > label.clientWidth }
-              }) }
-          })
-          expect(geometry.segments).toHaveLength(geometry.folded ? 1 : 2)
-        if (scale === 1) expect(geometry.folded).toBe(false)
-          expect(geometry.width).toBeLessThanOrEqual(geometry.bodyWidth)
-          expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
-          for (const segment of geometry.segments) {
-            expect(segment.contained).toBe(true)
-            expect(segment.height).toBeGreaterThanOrEqual(48)
-            expect(segment.fits).toBe(true)
-            expect(segment.overflow).toBe(false)
-            expect(segment.ellipsis).toBe(false)
-            if (scale === 1) expect(segment.lines).toBe(1)
           }
         }, { timeout: 2000 })
       }

@@ -293,9 +293,6 @@ describe('Progresso root figures since the last visit', () => {
   })
 })
 
-describe('Progresso root', () => {
-})
-
 describe('Sequência', () => {
   it.each(['en', 'pt-BR'] as const)('states the streak and the next freeze beside Orbit at 48, in %s', (locale) => {
     const { container } = renderIn(locale, <ProgressContent screen="streak" />)
@@ -478,12 +475,12 @@ describe('Sequência repair flow', () => {
 
 describe('Conquistas', () => {
   it('keeps the level row, the categories and the tiles, and a tile press changes nothing', () => {
-    mocks.achievements = [createMockAchievement({ id: 'first_habit', category: 'GettingStarted', isEarned: true })]
+    mocks.achievements = [createMockAchievement({ id: 'first_orbit', category: 'GettingStarted', isEarned: true })]
     const { container } = renderIn('en', <ProgressContent screen="achievements" />)
     expect(screen.getByTestId('progress-xp-summary')).toBeInTheDocument()
-    const tile = container.querySelector('[data-achievement-id="first_habit"]')!
+    const tile = container.querySelector('[data-achievement-id="first_orbit"]')!
     fireEvent.click(tile)
-    expect(container.querySelector('[data-achievement-id="first_habit"]')).toBe(tile)
+    expect(container.querySelector('[data-achievement-id="first_orbit"]')).toBe(tile)
   })
 
   it.each(['en', 'pt-BR'] as const)('keeps the empty state with its action, in %s', (locale) => {

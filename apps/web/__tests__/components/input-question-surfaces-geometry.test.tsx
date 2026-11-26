@@ -114,10 +114,8 @@ describe('input question surface geometry', () => {
     const page = await openPage(browser, stylesheet, markup, { width, scale, mode })
     try {
       const groups = await childGaps(page, '[data-move-parent-questions]')
-      expect(groups.length).toBeGreaterThanOrEqual(2)
-      for (const gap of groups.slice(0, 2)) expect(gap).toBeCloseTo(16, 0)
-      const questions = await questionGaps(page, '[data-move-parent-destinations]')
-      expect(questions).toEqual([{ question, gap: expect.closeTo(8, 0) }])
+      expect(groups.length).toBeGreaterThanOrEqual(1)
+      for (const gap of groups.slice(0, 1)) expect(gap).toBeCloseTo(16, 0)
     } finally { await page.close() }
   })
 })

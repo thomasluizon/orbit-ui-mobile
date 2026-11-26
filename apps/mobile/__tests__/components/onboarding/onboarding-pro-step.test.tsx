@@ -184,9 +184,6 @@ describe('Android final Pro step', () => {
   })
 })
 
-describe('the onboarding host of the Android Pro step', () => {
-})
-
 const font = require.resolve('@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf')
 const geometryCases = [320, 360, 384, 412, 640, 1440].flatMap((width) => ['pt-BR', 'en']
   .flatMap((locale) => [false, true].map((trial) => ({ width, locale, trial }))))

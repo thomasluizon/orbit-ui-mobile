@@ -28,7 +28,6 @@ const LISTED_PRESS_CONTROLS = [
   'components/ui/time-field.tsx',
   'components/ui/sheet.tsx',
   'components/ui/list-row.tsx',
-  'app/step-up.tsx',
   'components/upgrade/pricing-section.tsx',
   'app/(tabs)/calendar/_components/calendar-time-grid.tsx',
   'components/chat/answer-block.tsx',

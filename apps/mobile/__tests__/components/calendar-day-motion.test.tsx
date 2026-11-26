@@ -148,7 +148,3 @@ describe('the view switch on Android', () => {
     expect(withTimingCalls).toHaveLength(0)
   })
 })
-
-describe('the Calendário motion with the guided flows off, on Android', () => {
-  beforeEach(() => { })
-})

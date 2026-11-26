@@ -102,7 +102,7 @@ describe('Sheet', () => {
         options={[{ id: null, label: 'Top level', emoji: null, depth: 0, childCount: 0, disabled: false, reason: null },
           ...Array.from({ length: 12 }, (_, index) => ({ id: `p${index}`, label: `Parent ${index}`, emoji: null,
             depth: 0, childCount: 0, disabled: index === 9, reason: index === 9 ? 'Already here' : null }))]} />)
-      const dialog = await screen.findByRole('dialog', { name: 'habits.moveParent.title' })
+      const dialog = await screen.findByRole('dialog', { name: 'habits.moveParent.destinations' })
       await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
       const scroll = dialog.querySelector<HTMLElement>('[data-slot="move-destinations-scroll"]')!
       expect(scroll.scrollTop).toBe(576)

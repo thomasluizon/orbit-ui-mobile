@@ -2034,7 +2034,7 @@
         "name": "Name", "email": "Email", "language": "Language", "timeZone": "Time zone",
         "weekStartDay": "Week starts", "themePreference": "Theme", "aiSummary": "Daily summary",
         "plan": "Plan", "trialEnd": "Trial ends", "planExpiry": "Plan ends", "interval": "Interval",
-        "source": "Provider", "lifetime": "Lifetime access", "astraAllowance": "AI messages used",
+        "source": "Provider", "lifetime": "Lifetime access", "orbitAllowance": "AI messages used",
         "successfulReferrals": "Successful referrals", "pendingReferrals": "Pending referrals",
         "maxReferrals": "Referral limit", "rewardType": "Reward", "discountPercent": "Discount"
       },

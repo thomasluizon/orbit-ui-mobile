@@ -53,7 +53,7 @@ describe('Orbit copy', () => {
   it.each([['en', englishValues], ['pt-BR', portugueseValues]] as const)(
     'holds no second character name in %s',
     (_locale, values) => {
-      for (const [key, value] of values) expect(value, key).not.toMatch(/orbit/i)
+      for (const [key, value] of values) expect(value, key).not.toMatch(/astra/i)
     },
   )
 

@@ -2034,7 +2034,7 @@
         "name": "Nome", "email": "E-mail", "language": "Idioma", "timeZone": "Fuso horário",
         "weekStartDay": "Início da semana", "themePreference": "Tema", "aiSummary": "Resumo diário",
         "plan": "Plano", "trialEnd": "Fim do teste", "planExpiry": "Fim do plano", "interval": "Cobrança",
-        "source": "Provedor", "lifetime": "Acesso vitalício", "astraAllowance": "Mensagens de IA usadas",
+        "source": "Provedor", "lifetime": "Acesso vitalício", "orbitAllowance": "Mensagens de IA usadas",
         "successfulReferrals": "Indicações concluídas", "pendingReferrals": "Indicações pendentes",
         "maxReferrals": "Limite de indicações", "rewardType": "Recompensa", "discountPercent": "Desconto"
       },

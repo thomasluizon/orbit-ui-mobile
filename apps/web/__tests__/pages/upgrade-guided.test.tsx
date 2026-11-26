@@ -478,6 +478,3 @@ describe('the dashboards and the notices with the guided flows on', () => {
     expect(document.querySelector('[data-subscription-notice]')).toBeNull()
   })
 })
-
-describe('the upgrade route with the guided flows off', () => {
-})

@@ -227,6 +227,3 @@ describe.each(locales)('delete account flow in $locale', ({ locale, messages }) 
     expect(screen.queryByRole('button', { name: messages.common.continue })).toBeNull()
   })
 })
-
-describe('flag off', () => {
-})

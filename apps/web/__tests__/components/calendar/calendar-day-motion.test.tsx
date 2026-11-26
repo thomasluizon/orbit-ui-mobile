@@ -154,7 +154,3 @@ describe('the view switch', () => {
     expect(animate).not.toHaveBeenCalled()
   })
 })
-
-describe('the Calendário motion with the guided flows off', () => {
-  beforeEach(() => { })
-})

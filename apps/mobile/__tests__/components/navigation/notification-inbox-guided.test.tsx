@@ -121,9 +121,6 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('the Android Avisos inbox with the guided flows off', () => {
-})
-
 describe('the Android Avisos inbox on the Orbit logic', () => {
 
   it.each([{ locale: 'en' as const, width: 412, size: 96 }, { locale: 'pt-BR' as const, width: 412, size: 96 }, { locale: 'pt-BR' as const, width: 1024, size: 128 }])(

@@ -63,8 +63,8 @@ function renderTodayOrbit() {
 describe('web Today Orbit', () => {
   it.each([
     ['proactive', 'Check in', 'todayOrbit.openConversation'],
-    ['elapsed', 'todayOrbit.returningElapsed:3', 'todayOrbit.viewProgress'],
-    ['bounded', 'todayOrbit.returningBounded', 'todayOrbit.viewProgress'],
+    ['elapsed', 'todayOrbit.guided.returning', 'todayOrbit.viewProgress'],
+    ['bounded', 'todayOrbit.guided.returning', 'todayOrbit.viewProgress'],
   ])('makes the %s sentence the whole row target with a destination description', (variant, sentence, destination) => {
     mocks.profile.lastCompletionDate = variant === 'bounded' ? '2026-07-29' : '2026-08-26'
     if (variant === 'proactive') mocks.item = createMockProactiveItem({
@@ -135,10 +135,10 @@ describe('web Today Orbit', () => {
   })
 
   it.each([
-    ['three-day completion', '2026-08-26', 'todayOrbit.returningElapsed:3'],
-    ['four-day completion', '2026-08-25', 'todayOrbit.returningElapsed:4'],
-    ['window boundary', '2026-07-30', 'todayOrbit.returningElapsed:30'],
-    ['gap beyond the window', '2026-07-29', 'todayOrbit.returningBounded'],
+    ['three-day completion', '2026-08-26', 'todayOrbit.guided.returning'],
+    ['four-day completion', '2026-08-25', 'todayOrbit.guided.returning'],
+    ['window boundary', '2026-07-30', 'todayOrbit.guided.returning'],
+    ['gap beyond the window', '2026-07-29', 'todayOrbit.guided.returning'],
   ])('shows the profile interval for %s', (_scenario, lastCompletionDate, expected) => {
     mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate }
 
@@ -159,7 +159,7 @@ describe('web Today Orbit', () => {
     mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
 
     renderTodayOrbit()
-    expect(screen.getByRole('link', { name: 'todayOrbit.returningElapsed:3' })).toHaveAttribute('href', '/progress')
+    expect(screen.getByRole('link', { name: 'todayOrbit.guided.returning' })).toHaveAttribute('href', '/progress')
 
     expect(mocks.markRead).not.toHaveBeenCalled()
     expect(useUIStore.getState().orbitConversationOpen).toBe(false)
@@ -178,7 +178,7 @@ describe('web Today Orbit', () => {
       </RouterContext.Provider>,
     )
 
-    const action = screen.getByRole('link', { name: 'todayOrbit.returningElapsed:3' })
+    const action = screen.getByRole('link', { name: 'todayOrbit.guided.returning' })
     expect(action).toHaveAttribute('href', '/progress')
     const click = fireEvent.click(action)
 
@@ -186,19 +186,6 @@ describe('web Today Orbit', () => {
     expect(push).toHaveBeenCalledWith('/progress', '/progress', {
       shallow: undefined, locale: undefined, scroll: true,
     })
-  })
-
-  it.each(['offline', 'quota exhausted'])('keeps Progress available when %s', (state) => {
-    mocks.profile = {
-      id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26',
-      aiMessagesUsed: state === 'quota exhausted' ? 10 : 0, aiMessagesLimit: 10,
-    }
-    if (state === 'offline') vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
-
-    renderTodayOrbit()
-
-    expect(screen.getByText('todayOrbit.returningElapsed:3', { exact: false })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'todayOrbit.returningElapsed:3' })).toHaveAttribute('href', '/progress')
   })
 
   it('renders a proactive check-in and opens its conversation', () => {
@@ -211,14 +198,6 @@ describe('web Today Orbit', () => {
     fireEvent.click(action)
     expect(mocks.markRead).toHaveBeenCalledWith(mocks.item!.id)
     expect(useUIStore.getState().orbitConversationOpen).toBe(true)
-  })
-
-  it.each(['offline', 'quota exhausted'])('keeps the fetched item available when %s', (state) => {
-    mocks.profile = { id: 'profile', timeZone: 'UTC', aiMessagesUsed: state === 'quota exhausted' ? 10 : 0, aiMessagesLimit: 10 }
-    mocks.item = createMockProactiveItem()
-    if (state === 'offline') vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
-    renderTodayOrbit()
-    expect(screen.getByRole('button', { name: mocks.item.text })).toBeEnabled()
   })
 
   it.each(['proactive', 'elapsed', 'bounded'])('keeps the pt-BR %s variant within two lines at 320 and grows at 200% text in both themes', async (variant) => {

@@ -138,7 +138,7 @@ describe('Mobile text input keyboard inventory', () => {
       ['components/shell/shell-412.tsx', 'ShellBottomViewport', 'children'],
       ['components/shell/shell-412.tsx', 'FlowViewport', 'children'],
       ['components/shell/shell-412.tsx', 'ShellBottomChrome', 'navigationEnabled ? pinnedSlot : <ShellContent>{pinnedSlot}</ShellContent>'],
-      ['components/habits/habit-create-frame.tsx', 'HabitCreateScreenFrame', 'props.children'],
+      ['components/habits/habit-create-frame.tsx', 'GuidedCreateFrame', 'children'],
       ['components/habit-list.tsx', 'listHeaderComponent', 'listHeader'],
       ['components/habit-list/habit-drill.tsx', 'header', 'listHeaderComponent'],
     ]

@@ -55,9 +55,6 @@ describe('the completed day on web', () => {
   })
 })
 
-describe('the completed day on web with the flag off', () => {
-})
-
 describe('the Hoje empty state actions on web', () => {
   it.each([
     [412, 'primary'],

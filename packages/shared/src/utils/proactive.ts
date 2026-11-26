@@ -12,7 +12,7 @@ interface TodayOrbitState {
   returning: ReturningInterval | null
 }
 
-type TodayOrbitTranslate = (key: 'todayOrbit.openConversation' | 'todayOrbit.viewProgress' | 'todayOrbit.returningElapsed' | 'todayOrbit.returningBounded' | 'todayOrbit.guided.returning', values?: { days: number }) => string
+type TodayOrbitTranslate = (key: 'todayOrbit.openConversation' | 'todayOrbit.viewProgress' | 'todayOrbit.guided.returning') => string
 
 export function getTodayOrbitSlot(state: TodayOrbitState, translate: TodayOrbitTranslate): TodayOrbitLine | 'summary' | null {
   return getTodayOrbitLine(state, translate) ?? (shouldShowTodayOrbitSurface(state) ? 'summary' : null)
@@ -24,14 +24,10 @@ export function getTodayOrbitLine(state: TodayOrbitState, translate: TodayOrbitT
   if (state.item) return { text: state.item.text, destination: translate('todayOrbit.openConversation'), item: state.item }
   if (!state.returning) return null
   return {
-    text: returningText(state.returning, translate),
+    text: translate('todayOrbit.guided.returning'),
     destination: translate('todayOrbit.viewProgress'),
     item: null,
   }
-}
-
-function returningText(returning: ReturningInterval, translate: TodayOrbitTranslate): string {
-  return translate('todayOrbit.guided.returning')
 }
 
 export function proactiveActionLabelKey(trigger: string): ProactiveActionLabelKey {

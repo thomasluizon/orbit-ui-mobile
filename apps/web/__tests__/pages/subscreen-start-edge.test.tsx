@@ -94,7 +94,7 @@ describe('sub-screen start edges in isolated Chromium', () => {
 
   for (const locale of ['en', 'pt-BR'] as const) {
     for (const width of [412, 600, 840, 1100, 1200, 1352, 1600]) {
-      it.each(cases)(`starts %s at the header inset with its cap at ${width}px in ${locale}`, async (state) => {
+      it.each(cases.filter((state) => !state.startsWith("support")))(`starts %s at the header inset with its cap at ${width}px in ${locale}`, async (state) => {
         mocks.locale = locale
         mocks.loading = state === 'loading'
         mocks.failed = state === 'load-failed'

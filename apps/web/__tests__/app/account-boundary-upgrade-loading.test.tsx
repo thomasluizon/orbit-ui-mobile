@@ -37,7 +37,7 @@ vi.mock('@/lib/actions/subscription', () => ({ openCustomerPortal: vi.fn() }))
 vi.mock('@/components/ui/skeleton', () => ({ Skeleton: () => <div data-testid="upgrade-loading" /> }))
 vi.mock('@/components/upgrade/billing-dashboard', () => ({ BillingDashboard: () => null }))
 vi.mock('@/components/upgrade/play-billing-dashboard', () => ({ PlayBillingDashboard: () => null }))
-vi.mock('@/components/upgrade/pricing-section', () => ({ PricingSection: () => null }))
+vi.mock('@/components/upgrade/pricing-section', () => ({ PricingSection: () => null, StayFreeLink: () => null }))
 vi.mock('@/components/upgrade/usage-stats', () => ({ UsageStats: () => null }))
 vi.mock('@/components/upgrade/subscription-notice', () => ({ SubscriptionNotice: () => null }))
 

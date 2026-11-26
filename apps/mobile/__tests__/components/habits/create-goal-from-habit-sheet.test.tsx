@@ -59,6 +59,3 @@ describe('create goal from habit helpers', () => {
     expect(isGoalDeadlinePast('2025-06-15', '2025-06-15')).toBe(false)
   })
 })
-
-describe('CreateGoalSheet (mobile)', () => {
-})

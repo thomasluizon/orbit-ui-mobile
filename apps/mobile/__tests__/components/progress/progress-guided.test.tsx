@@ -458,9 +458,9 @@ describe('Sequência repair flow (Android)', () => {
 
 describe('Conquistas (Android)', () => {
   it('keeps the level row and the tiles, and a tile has no press action', async () => {
-    mocks.achievements = [createMockAchievement({ id: 'first_habit', category: 'GettingStarted', isEarned: true })]
+    mocks.achievements = [createMockAchievement({ id: 'first_orbit', category: 'GettingStarted', isEarned: true })]
     const root = await renderIn('en', 'achievements')
-    const tile = byTestId(root, 'achievement-tile-first_habit')[0]!
+    const tile = byTestId(root, 'achievement-tile-first_orbit')[0]!
     expect(tile.props.onPress).toBeUndefined()
     expect(texts(root).join(' ')).toContain('Level 2')
   })

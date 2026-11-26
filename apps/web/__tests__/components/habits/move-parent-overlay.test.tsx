@@ -235,7 +235,7 @@ describe('move picker initial positioning', () => {
       vi.fn(), null, { movingHabitParentId: undefined, movingHabitCount: 12, error: '2 habits did not move' })
     expect(document.querySelector<HTMLElement>('[data-slot="move-destinations-scroll"]')!.scrollTop).toBe(0)
     expect(screen.queryByText('habits.moveParent.currentParent')).not.toBeInTheDocument()
-    expect(screen.getByRole('dialog')).toHaveAccessibleName('habits.moveParent.titleMany')
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('habits.moveParent.destinations')
     expect(screen.queryByText('habits.moveParent.descriptionMany')).not.toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('2 habits did not move')
   })
@@ -357,7 +357,7 @@ describe('bulk move footer geometry in Chromium', () => {
     renderOverlay([], vi.fn(), null, { movingHabitCount: count, t: (key, values) => translate(key as Parameters<typeof translate>[0], values) })
     const actions = document.querySelector<HTMLElement>('[data-slot="sheet-actions"]')!
     const expected = locale === 'en' ? 'Move' : 'Mover'
-    const title = locale === 'en' ? `Move ${count} habit${count === 1 ? '' : 's'}` : `Mover ${count} hábito${count === 1 ? '' : 's'}`
+    const title = locale === 'en' ? (count === 1 ? 'Where should it go?' : 'Where should they go?') : (count === 1 ? 'Para onde vai?' : 'Para onde vão?')
     expect(screen.getByRole('dialog')).toHaveAccessibleName(title)
     expect(actions.textContent).toContain(expected)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })

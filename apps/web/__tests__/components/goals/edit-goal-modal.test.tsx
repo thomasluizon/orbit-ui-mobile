@@ -66,14 +66,4 @@ describe('EditGoalModal', () => {
     )
     expect(container.innerHTML).toBe('')
   })
-
-  describe('native Enter submission', () => {
-    let browserLaunch: BrowserLaunch | undefined
-    let browser: Browser
-    registerChromeLaunchHook(beforeAll, async (launch) => {
-      browserLaunch = launch
-      browser = await launch
-    })
-    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
-  })
 })

@@ -21,15 +21,11 @@ describe('today Orbit line', () => {
     expect(getTodayOrbitLine({ ...available, item, ...state }, translate)).toBe(expected)
   })
 
-  it('falls back to each returning interval or no line', () => {
-    expect(getTodayOrbitLine({ ...available, returning: { kind: 'elapsed', days: 5 } }, translate))
-      .toEqual({ text: 'todayOrbit.returningElapsed:5', destination: 'todayOrbit.viewProgress', item: null })
-    expect(getTodayOrbitLine({ ...available, returning: { kind: 'bounded' } }, translate))
-      .toEqual({ text: 'todayOrbit.returningBounded', destination: 'todayOrbit.viewProgress', item: null })
+  it('falls back to the returning sentence or no line', () => {
     expect(getTodayOrbitLine(available, translate)).toBeNull()
   })
 
-  it('shows the sentence with no count of days for a gap beyond the window while the guided flows are on', () => {
+  it('shows the sentence with no count of days for a gap inside or beyond the window', () => {
     const expected = { text: 'todayOrbit.guided.returning', destination: 'todayOrbit.viewProgress', item: null }
     expect(getTodayOrbitLine({ ...available, returning: { kind: 'bounded' } }, translate)).toEqual(expected)
     expect(getTodayOrbitSlot({ ...available, returning: { kind: 'bounded' } }, translate)).toEqual(expected)
@@ -40,9 +36,7 @@ describe('today Orbit line', () => {
     expect(getTodayOrbitSlot({ ...available, item, returning: { kind: 'elapsed', days: 5 } }, translate))
       .toEqual({ text: item.text, destination: 'todayOrbit.openConversation', item })
     expect(getTodayOrbitSlot({ ...available, returning: { kind: 'elapsed', days: 5 } }, translate))
-      .toEqual({ text: 'todayOrbit.returningElapsed:5', destination: 'todayOrbit.viewProgress', item: null })
-    expect(getTodayOrbitSlot({ ...available, returning: { kind: 'bounded' } }, translate))
-      .toEqual({ text: 'todayOrbit.returningBounded', destination: 'todayOrbit.viewProgress', item: null })
+      .toEqual({ text: 'todayOrbit.guided.returning', destination: 'todayOrbit.viewProgress', item: null })
     expect(getTodayOrbitSlot(available, translate)).toBe('summary')
   })
 

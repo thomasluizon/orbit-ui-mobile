@@ -44,9 +44,6 @@ beforeEach(() => {
 })
 afterEach(() => { Reflect.deleteProperty(navigator, 'onLine'); vi.useRealTimers() })
 
-describe('the search route with the guided flows off', () => {
-})
-
 describe('the search route on the Orbit logic', () => {
 
   it.each(['en', 'pt-BR'] as const)('shows one centred block before a query in %s: Orbit in Parado at 96, the question as the one h1 and the field it names', (locale) => {

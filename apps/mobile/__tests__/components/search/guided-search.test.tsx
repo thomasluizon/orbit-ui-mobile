@@ -84,9 +84,6 @@ afterEach(async () => {
   vi.useRealTimers()
 })
 
-describe('the Android search screen with the guided flows off', () => {
-})
-
 describe('the Android search screen on the Orbit logic', () => {
 
   it.each(['en', 'pt-BR'] as const)('shows one group before a query in %s: Orbit in Parado at 96, the question as the heading and the field it names', async (locale) => {

@@ -39,9 +39,6 @@ async function answer(kind: 'choice' | 'multi' | 'pick', locale: Locale, quick: 
   return (send.send as ReturnType<typeof vi.fn>).mock.calls
 }
 
-describe.each(['pt-BR', 'en'] as const)('the quick options of the conversation blocks in %s', (locale) => {
-})
-
 describe('the list presentation the conversation blocks keep', () => {
 
   it('keeps the check list for a pick list whose labels hold more than 4 words', () => {

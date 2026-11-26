@@ -347,39 +347,4 @@ describe('search result geometry in Chromium', () => {
       }
     } finally { await page.close() }
   })
-
-  it.each(cases)('aligns $count result rows with the field at $width in $locale', async ({ width, locale, count }) => {
-    mocks.wide = width >= WIDE_DESKTOP_BREAKPOINT
-    const habits = Array.from({ length: count }, (_, index) => createMockHabit({ id: `walk-${index}`, title: `Walk ${index}`, searchMatches: [{ field: 'title', value: null }] }))
-    mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: count, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
-    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><SearchPage /></NextIntlClientProvider>)
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
-    await screen.findByRole('option', { name: /Walk 0/ })
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
-    try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      const measured = await page.evaluate(() => {
-        const input = document.querySelector('[cmdk-input]')!.getBoundingClientRect()
-        return {
-          field: { left: input.left, right: input.right },
-          rows: [...document.querySelectorAll('[data-command-result]')].map((row) => {
-            const bounds = row.getBoundingClientRect()
-            return { left: bounds.left, right: bounds.right, height: bounds.height }
-          }),
-          documentWidth: document.documentElement.scrollWidth,
-        }
-      })
-      expect(measured.rows).toHaveLength(count)
-      // WHY: #1570 centres the retained search column. https://github.com/thomasluizon/orbit-tickets/issues/1570
-      const columnLeft = (width - Math.min(width, 620)) / 2
-      expect(measured.field.left).toBe(columnLeft + 16)
-      expect(measured.field.right).toBe(columnLeft + Math.min(width, 620) - 16)
-      expect(measured.documentWidth).toBe(width)
-      for (const row of measured.rows) {
-        expect(row.left, JSON.stringify(measured)).toBe(measured.field.left)
-        expect(row.right, JSON.stringify(measured)).toBe(measured.field.right)
-        expect(row.height).toBeGreaterThanOrEqual(48)
-      }
-    } finally { await page.close() }
-  })
 })

@@ -2,11 +2,12 @@ import { controlStyle, expectPressFill, pressableStyle } from '../../../support/
 import React from "react";
 import { StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 import Yoga from "yoga-layout";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { HABIT_EMOJI_CATEGORIES, buildHabitUnderstandingLabels } from "@orbit/shared/utils";
 import { HabitEmojiSelector } from "@/components/habits/habit-form-fields/habit-emoji-selector";
 import { createStyles } from "@/components/habits/habit-form-fields/styles";
 import { createTokensV2, radius } from "@/lib/theme";
+import { getPrefersReducedMotion } from "@/lib/motion";
 
 vi.mock("@/lib/use-app-theme", () => ({ useAppTheme: () => ({ currentScheme: "orange", currentTheme: "light" }) }));
 
@@ -113,6 +114,7 @@ function renderSelector(
 }
 
 describe("HabitEmojiSelector mobile", () => {
+  beforeAll(async function loadReducedMotionBeforeTheFirstPress() { await getPrefersReducedMotion(); });
 
   beforeEach(() => {
     mockCloseSheet.mockClear();

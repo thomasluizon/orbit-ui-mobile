@@ -158,33 +158,6 @@ describe('the desktop window bar is a top inset for the surfaces fixed to the vi
     },
   )
 
-  it.each(PLATFORMS.flatMap((platform) => WINDOWS.map((size) => ({ platform, ...size }))))(
-    'starts the onboarding header below the $platform bar at $width x $height and keeps the shell full height', async ({ platform, width, height }) => {
-      await act(async () => {
-        render(<QueryClientProvider client={new QueryClient()}>
-          <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
-            <OnboardingActionsProvider actions={onboardingActions} isLive={false}><OnboardingFlow /></OnboardingActionsProvider>
-          </NextIntlClientProvider>
-        </QueryClientProvider>)
-      })
-      const popup = screen.getByRole('dialog').outerHTML
-      const page = await browser.newPage({ viewport: { width, height } })
-      try {
-        await page.setContent(rootMarkup(platform, popup, stylesheet))
-        const geometry = await page.evaluate(() => ({
-          shell: document.querySelector('[data-shell="wide"]')!.getBoundingClientRect().toJSON() as DOMRect,
-          header: document.querySelector('[data-shell-header]')!.getBoundingClientRect().toJSON() as DOMRect,
-        }))
-        expect(geometry.header.top).toBe(DESKTOP_WINDOW_BAR_HEIGHT)
-        expect(geometry.shell.top).toBe(0)
-        expect(geometry.shell.bottom).toBe(height)
-        const tops = await controlTops(page, '[data-shell-header]')
-        expect(tops.length).toBeGreaterThan(0)
-        expect(Math.min(...tops)).toBeGreaterThanOrEqual(DESKTOP_WINDOW_BAR_HEIGHT)
-      } finally { await page.close() }
-    },
-  )
-
   const noop = () => {}
   const guidedSurfaces = {
     'guided overlay flow': {

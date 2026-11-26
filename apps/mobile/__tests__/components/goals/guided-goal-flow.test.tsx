@@ -350,6 +350,3 @@ describe('the guided goal edit flow on Android', () => {
     changed.unmount()
   })
 })
-
-describe('with the flag off on Android', () => {
-})

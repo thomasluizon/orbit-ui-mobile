@@ -136,39 +136,4 @@ describe('SupportPage', () => {
     fireEvent.click(sendButton())
     expect(mockSendSupportMessage).not.toHaveBeenCalled()
   })
-
-  describe('an account replacement under a running tab', () => {
-    const mockFetch = vi.fn()
-
-    beforeEach(() => {
-      mockFetch.mockReset()
-      vi.stubGlobal('fetch', mockFetch)
-    })
-
-    afterEach(() => {
-      vi.unstubAllGlobals()
-    })
-
-    function respondWithAccount(userId: string) {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, userId, refreshFailed: false }),
-      })
-    }
-
-    function signInAndType(text: string) {
-      useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
-      render(<SupportPage />)
-      fireEvent.click(screen.getByText('profile.support.subjects.billing.label'))
-      fireEvent.change(messageField(), { target: { value: text } })
-    }
-
-    async function replaceAccount(userId: string) {
-      respondWithAccount(userId)
-      await act(async () => {
-        await useAuthStore.getState().checkSession()
-      })
-    }
-  })
 })

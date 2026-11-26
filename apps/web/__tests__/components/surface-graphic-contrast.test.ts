@@ -8,7 +8,6 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
 const graphicFloor = 3
 const graphicSites = [
-  'apps/mobile/app/support.tsx',
   'apps/mobile/components/auth/login-sections.tsx',
   'apps/mobile/components/calendar-sync/calendar-sync-event-row.tsx',
   'apps/mobile/components/search/search-results.tsx',
@@ -25,7 +24,6 @@ const graphicSites = [
 ] as const
 
 const graphicNames: Record<(typeof graphicSites)[number], string> = {
-  'apps/mobile/app/support.tsx': 'WifiOff',
   'apps/mobile/components/auth/login-sections.tsx': 'WifiOff',
   'apps/mobile/components/calendar-sync/calendar-sync-event-row.tsx': 'X',
   'apps/mobile/components/search/search-results.tsx': 'ChevronRight',

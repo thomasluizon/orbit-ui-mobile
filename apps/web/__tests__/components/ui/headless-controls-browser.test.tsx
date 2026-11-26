@@ -13,7 +13,8 @@ const entry = `
   import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
   import { profileKeys } from '../../packages/shared/src/query/keys';
   import en from '../../packages/shared/src/i18n/en.json';
-  import { HabitCreateActions } from './components/habits/habit-create-actions';
+  import { ActionRow } from './components/ui/action-row';
+  import { PillButton } from './components/ui/pill-button';
   import { Sheet } from './components/ui/sheet';
   import { Select } from './components/ui/select';
   import { RadioGroup } from './components/ui/radio-group';
@@ -25,7 +26,7 @@ const entry = `
     const [busy, setBusy] = useState(false);
     const [count, setCount] = useState(0);
     const root = document.getElementById('root');
-    if (root.dataset.surface === 'submit') return <Sheet title="Create habit" actions={<HabitCreateActions presentation="sheet" formId="habit" online pending={false} empty={false} subHabit={false} onCancel={() => {}} />}><form id="habit" onSubmit={event => {event.preventDefault(); root.dataset.calls = String(Number(root.dataset.calls || 0) + 1);}}><textarea aria-label="Title" /><input aria-label="Date phrase" /><RadioGroup aria-label="Type"><RadioRow label="Task" /><RadioRow label="Habit" selected /></RadioGroup></form></Sheet>;
+    if (root.dataset.surface === 'submit') return <Sheet title="Create habit" actions={<ActionRow><PillButton size="sm" variant="ghost" onClick={() => {}}>Cancel</PillButton><PillButton size="sm" formId="habit">Create habit</PillButton></ActionRow>}><form id="habit" onSubmit={event => {event.preventDefault(); root.dataset.calls = String(Number(root.dataset.calls || 0) + 1);}}><textarea aria-label="Title" /><input aria-label="Date phrase" /><RadioGroup aria-label="Type"><RadioRow label="Task" /><RadioRow label="Habit" selected /></RadioGroup></form></Sheet>;
     if (root.dataset.surface === 'select') return <Sheet title="Reminders" onClose={() => {}} actions={<button>Save</button>}>
       <input aria-label="Count" /><Select label="Units" value={value} onChange={setValue} options={[{value:'a',label:'Alpha'},{value:'b',label:'Beta'},{value:'c',label:'Charlie'}]} />
     </Sheet>;

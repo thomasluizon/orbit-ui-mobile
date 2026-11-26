@@ -71,34 +71,4 @@ describe('CreateGoalSheet', () => {
     fireEvent.change(screen.getByLabelText('goals.form.targetValueQuestion'), { target: { value: '12' } })
     fireEvent.change(screen.getByLabelText('goals.form.unitQuestion'), { target: { value: 'books' } })
   }
-
-  describe('native Enter submission', () => {
-    let browserLaunch: BrowserLaunch | undefined
-    let browser: Browser
-    registerChromeLaunchHook(beforeAll, async (launch) => {
-      browserLaunch = launch
-      browser = await launch
-    })
-    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
-  })
-})
-
-describe('CreateGoalSheet across an account change', () => {
-  beforeEach(() => {
-    document.body.innerHTML = ''
-    vi.clearAllMocks()
-    vi.stubGlobal('fetch', vi.fn())
-    holdAccount('user-1')
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
-  function describeAccountAGoal() {
-    render(<CreateGoalSheet open onClose={vi.fn()} />)
-    const field = screen.getByLabelText(/goals.form.title/)
-    fireEvent.change(field, { target: { value: 'Run a half marathon' } })
-    expect(field).toHaveValue('Run a half marathon')
-  }
 })

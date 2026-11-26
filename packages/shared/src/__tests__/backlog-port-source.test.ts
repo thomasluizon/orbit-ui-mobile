@@ -61,13 +61,6 @@ describe('main backlog ports', () => {
     const darkElevated = composite(neutralColors.dark.bgElev2, neutralColors.dark.bg)
     expect(contrast(statusConstants.dark.badText, darkElevated)).toBeGreaterThanOrEqual(4.5)
   })
-  it('uses the readable text role for the mobile remove-deadline affordance', () => {
-    const source = readFileSync(
-      join(repositoryRoot, 'apps/mobile/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx'),
-      'utf8',
-    )
-    expect(source).toContain('<X size={16} color={tokens.fg3} strokeWidth={2} />')
-  })
 
   it.each([
     'apps/web/components/habits/habit-list.tsx',

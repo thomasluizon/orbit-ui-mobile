@@ -241,18 +241,6 @@ describe('OnboardingFlow state model', () => {
     mocks.liveActions.mockReturnValue(actions())
   })
 
-  describe('onboarding popup safe-area geometry', () => {
-    let browserLaunch: BrowserLaunch | undefined
-    let browser: Browser
-    let stylesheet: string
-    registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
-    beforeAll(async () => {
-      const source = resolve(process.cwd(), 'app/globals.css')
-      stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
-    })
-    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
-  })
-
   it('shows the flushed final step once and clears only its account flag', async () => {
     holdAccount('account-1')
     setOnboardingProPending('account-1', true)

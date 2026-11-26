@@ -132,6 +132,3 @@ describe.each(['pt-BR', 'en'] as const)('every edit entry of Hoje and habit deta
     expect(question()).toHaveTextContent(messages.habits.flow.what.question)
   })
 })
-
-describe('the edit entries', () => {
-})

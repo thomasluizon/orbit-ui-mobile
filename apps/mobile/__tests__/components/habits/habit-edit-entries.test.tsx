@@ -132,6 +132,3 @@ describe.each(['pt-BR', 'en'] as const)('every Android edit entry of Hoje and ha
   })
 })
 
-describe('the Android edit entries', () => {
-})
-
