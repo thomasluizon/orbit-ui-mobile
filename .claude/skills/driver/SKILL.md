@@ -49,7 +49,9 @@ The driver moves to a newer driver commit of `main` by itself, at a tick with no
 ## What the owner session does
 
 - Writes tickets with `/ticket`.
-- Runs `/questions` for the held `needs:owner` items. A pull request that used its 2 fix launches gets one more launch for each owner comment that follows the cap report. Each cap report states the launch count, so a granted launch that ends at the same head gets a new report. The order carries the comment.
+- Runs `/questions` for the held `needs:owner` items. A fix cap is never one of them: the driver runs one launch on Opus 5.5 with the failure history, and when that fails it closes the pull request and builds the ticket again from `main`, with the failure history in the order. At most 2 restarts for each piece of work.
+- The driver reads the queued and running jobs of the ui repository. While the queue holds more than 1 hour of work, it starts no new build and finishes the open pull requests first.
+- The driver watchdog sends one Telegram line when one of these starts and one when it ends: no merge for 2 hours while pull requests are open, a check queued for more than 1 hour, a pull request open for more than 24 hours, a pull request at its fix cap. Each line names the repair that the driver did.
 - Runs `/sleep` and `/over-limit`.
 - Sets an account's weekly pace when the owner says so: `node tools/drive.mjs --pace worker off` in `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive` runs that account at 3 workers with no line and no 90% stop, until its usage limit. `--pace worker on` restores the pace. The next tick reads it, with no restart.
 - The driver reruns each failed job once before any launch, and files a Bug ticket for a check that passes on the rerun at the same head. A `ci-fix` launch for a check that fails on a clean merge of the base, after a green commit, does not count toward the 2 fix launches.

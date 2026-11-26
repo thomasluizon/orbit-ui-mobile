@@ -21,7 +21,7 @@ const BARRIER_STEP = "Require deployment barriers for schema contractions"
 const SETUP_STEP = "Set up job"
 const OWNER_LABEL = "needs:owner"
 
-const PULL_FIELDS = (number) => `number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
+const PULL_FIELDS = (number) => `number state isDraft createdAt headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
   author { login }
   labels(first: 50) { nodes { name } }
   mergeCommit { oid }
@@ -169,6 +169,7 @@ const normalizePull = (raw, ticketRepository) => {
     number: raw.number,
     state: raw.state,
     draft: raw.isDraft,
+    createdAt: raw.createdAt,
     author: botLogin(raw.author),
     labels: labelNames(raw.labels),
     headRef: raw.headRefName,
@@ -479,6 +480,12 @@ export const merge = async (repositoryKey, prNumber, headSha, seams = {}) => {
 export const updateBranch = async (repositoryKey, prNumber, seams = {}) => {
   const api = bind(seams)
   await api.run(["pr", "update-branch", String(prNumber), "--repo", api.slugOf(repositoryKey)])
+}
+
+/** Closes a pull request without a merge and posts the comment that says why. */
+export const closePull = async (repositoryKey, prNumber, body, seams = {}) => {
+  const api = bind(seams)
+  await api.run(["pr", "close", String(prNumber), "--repo", api.slugOf(repositoryKey), "--comment", nonEmpty(body, "close comment")])
 }
 
 export const retarget = async (repositoryKey, prNumber, base, seams = {}) => {
