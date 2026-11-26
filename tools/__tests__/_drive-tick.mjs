@@ -97,7 +97,8 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     invocation: async (token, name = "main") => ({ command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) } }),
     git: async (cwd, args) => { calls.push(["git", ...args]); const hit = gitRoutes.find(([text]) => args.join(" ").includes(text)); return hit ? { status: 0, stderr: "", stdout: typeof hit[1] === "function" ? hit[1](args) : hit[1] } : { status: args[0] === "rev-parse" && args.includes("--quiet") ? 1 : 0, stderr: "", stdout: args[0] === "rev-parse" ? HEAD : "" } },
     gh: async (args) => { calls.push(["gh", args.join(" ")]); const hit = routes.find(([text]) => args.join(" ").includes(text)); if (hit) return typeof hit[1] === "function" ? hit[1](args) : hit[1]; if (args[0] === "pr" && args[1] === "list") return "[]"; if (args[0] === "issue") return "[]"; if (args[0] === "api") return "[]"; return "" },
-    notify: async (message) => { calls.push(["notify", message]) },
+    osascript: async (message) => { calls.push(["notify", message]) },
+    fetch: async (url, init) => { calls.push(["fetch", url, init]); return { status: 200, json: async () => ({ ok: true, result: {} }) } },
     findRepositories: (path) => [path],
     keychain: async () => null,
     fetchJson: async () => ({ body: [], link: null }),
@@ -306,7 +307,8 @@ const stopCases = async () => {
   const message = `Weekly usage of the main account reached 90% (0.900, resets ${new Date(RESETS_AT * 1000).toISOString()}). The main account starts no worker and Pullfrog posts no request. Tell the owner session to continue over 90%.`
   same("drive: at 0.90 no worker of any kind starts, no Pullfrog request is posted and no probe runs", [stopped.launched.length, commentsOf(stopped.calls, 30).length, only(stopped.calls, "probe").length], [0, 0, 0])
   same("drive: at 0.90 a pull request that meets the bar still merges", only(stopped.calls, "merge").map((entry) => entry.slice(1, 3)), [["ui", 40]])
-  same("drive: at 0.90 the driver sends one notification and opens one needs:owner issue with the stop text", [only(stopped.calls, "notify").map((entry) => entry[1]), stopIssue?.title, stopIssue?.labels, stopIssue?.body], [[message], STOP_ISSUE_TITLE, [OWNER_LABEL], message])
+  const notice = `Orbit starts no new work on the main account: it used 90% of its week.\nReviews wait until ${new Date(RESETS_AT * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC. Run /over-limit to continue now.\nhttps://github.com/${REPOSITORY}/issues/99`
+  same("drive: at 0.90 the driver sends one notification with the issue link and opens one needs:owner issue with the stop text", [only(stopped.calls, "notify").map((entry) => entry[1]), stopIssue?.title, stopIssue?.labels, stopIssue?.body], [[notice], STOP_ISSUE_TITLE, [OWNER_LABEL], message])
   same("drive: at 0.90 the ticket lines and the pull request lines say the stop holds", [stopped.env.lines.filter((line) => line.startsWith(`ticket ${REPOSITORY}#9:`)), stopped.env.lines.find((line) => line.startsWith("pull ui#30"))], [[`ticket ${REPOSITORY}#9: wait: the weekly usage stop holds every worker`], "pull ui#30: wait: the weekly usage stop holds Pullfrog requests"])
 
   const issue = ticket(60, { title: STOP_ISSUE_TITLE, labels: [OWNER_LABEL], repoKey: null })
@@ -1776,7 +1778,7 @@ const sleepCases = async () => {
   same("drive: --sleep off prints the state it reads back and the count of held items", [setSleep(scene.env, "off", { out: (line) => lines.push(line) }), readSleep(scene.env.stateDir).on, lines], [0, false, ["Sleep is off. The driver sends one notification for 2 held items on its next tick."]])
   await scene.run()
   const woken = only(scene.calls, "notify")
-  same("drive: sleep off: one notification lists every item held during the sleep, each with its link", [woken.length, woken[0]?.[1].startsWith("Orbit driver: sleep ended. 2 items need you: "), woken[0]?.[1].includes(ISSUE_URL(7)), woken[0]?.[1].includes(ISSUE_URL(8)), woken[0]?.[1].includes("NEEDS_DECISION: Raise the price?")], [1, true, true, true, true])
+  same("drive: sleep off: one notification lists every item held during the sleep, each with its link", [woken.length, woken[0]?.[1].startsWith("Orbit: sleep ended. 2 items need you.\n"), woken[0]?.[1].includes(ISSUE_URL(7)), woken[0]?.[1].includes(ISSUE_URL(8)), woken[0]?.[1].includes("NEEDS_DECISION: Raise the price?")], [1, true, true, true, true])
   await scene.run()
   same("drive: sleep off: the list is empty after the notification, so the next tick sends no second wake notification", [only(scene.calls, "notify").filter((entry) => entry[1].includes("sleep ended")).length, heldItems(scene)], [1, []])
 
@@ -2409,6 +2411,112 @@ const quietLogCases = async () => {
   }
 }
 
+const noticeCases = async () => {
+  const BOT_TOKEN = "123456:bot-secret"
+  const CHAT_ID = "4242"
+  const ITEMS = { "telegram-bot-token": BOT_TOKEN, "telegram-chat-id": CHAT_ID }
+  const ISSUE_URL = (number) => `https://github.com/${REPOSITORY}/issues/${number}`
+  const launches = [launchComment("build", "chore/ticket-8", -7200 * 1000), launchComment("build", "chore/ticket-8", -3600 * 1000)]
+  const capped = () => [ticket(8, { title: "Show the streak on the widget", comments: [...launches] })]
+  const phone = (options = {}, items = ITEMS) => {
+    const scene = scenario(options)
+    scene.env.keychain = async (item) => items[item] ?? null
+    return scene
+  }
+  const sent = (scene) => only(scene.calls, "fetch").map((entry) => ({ url: entry[1], method: entry[2].method, ...JSON.parse(entry[2].body) }))
+  const noticeLines = (scene) => scene.messages.filter((line) => line.includes(" notice "))
+  const stored = (scene, file) => JSON.parse(readFileSync(join(scene.env.stateDir, file), "utf8"))
+
+  const tickets = capped()
+  const owed = phone({ tickets })
+  keepWrites(owed, tickets)
+  await owed.run()
+  await owed.run()
+  const [message] = sent(owed)
+  same("drive: a new needs:owner item sends one Telegram message and no macOS notification, also after a second tick", [sent(owed).length, only(owed.calls, "notify").length], [1, 0])
+  same("drive: the message goes to sendMessage with the chat id and no link preview", [message?.url, message?.method, message?.chat_id, message?.link_preview_options], [`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, "POST", CHAT_ID, { is_disabled: true }])
+  same("drive: the message names the ticket, the cause and the link", message?.text.split("\n"), ["Orbit needs you: Show the streak on the widget", "The build order of chore/ticket-8 launched 2 times without a result", ISSUE_URL(8)])
+  same("drive: the log keeps one line for the sent notice and no line holds the bot token", [noticeLines(owed).map((line) => line.includes(" notice sent (telegram: Orbit needs you: ")), owed.messages.join("\n").includes(BOT_TOKEN)], [[true], false])
+
+  const asleepTickets = capped()
+  const asleep = phone({ tickets: asleepTickets, sleeping: true })
+  keepWrites(asleep, asleepTickets)
+  await asleep.run()
+  same("drive: with sleep on nothing is sent and the item lands in sleep-items.json", [sent(asleep).length, only(asleep.calls, "notify").length, stored(asleep, "sleep-items.json").map((item) => item.link)], [0, 0, [ISSUE_URL(8)]])
+  setSleep(asleep.env, "off", { out: () => {} })
+  await asleep.run()
+  await asleep.run()
+  same("drive: sleep off sends the held list to Telegram in one message", sent(asleep).map((entry) => [entry.text.startsWith("Orbit: sleep ended. 1 item needs you.\n"), entry.text.endsWith(ISSUE_URL(8))]), [[true, true]])
+
+  const many = phone({})
+  const held = Array.from({ length: 90 }, (_, index) => ({ link: ISSUE_URL(1000 + index), reason: `ui#30 at ${HEAD}: ${"A long cause. ".repeat(20)}` }))
+  writeFileSync(join(many.env.stateDir, "sleep-items.json"), JSON.stringify(held))
+  await many.run()
+  const summary = sent(many)[0]?.text ?? ""
+  const listed = summary.split("\n").filter((line) => line.startsWith("https://"))
+  same("drive: a list over the message limit stays one message of whole links that counts the rest, with no head sha", [sent(many).length, summary.length <= 4096, listed.every((line, index) => line === held[index].link), summary.endsWith(`And ${held.length - listed.length} more. Run /driver to see them.`), summary.includes(HEAD)], [1, true, true, true, false])
+
+  for (const missing of ["telegram-bot-token", "telegram-chat-id"]) {
+    const without = phone({ tickets: capped() }, { ...ITEMS, [missing]: null })
+    await without.run()
+    same(`drive: with no ${missing} item the notice is a macOS notification and one log line names the item`, [sent(without).length, only(without.calls, "notify").length, noticeLines(without).map((line) => line.includes(`notice sent (osascript, the Keychain item ${missing} is missing: `))], [0, 1, [true]])
+  }
+
+  const refusedTickets = capped()
+  const refused = phone({ tickets: refusedTickets })
+  keepWrites(refused, refusedTickets)
+  const accept = refused.env.fetch
+  refused.env.fetch = async (...args) => { await accept(...args); return { status: 401, json: async () => ({ ok: false, error_code: 401, description: "Unauthorized" }) } }
+  await refused.run()
+  await refused.run()
+  same("drive: a notice that Telegram refuses shows once on the Mac and each tick sends it again", [sent(refused).length, only(refused.calls, "notify").length, stored(refused, "notices.json").pending.length, noticeLines(refused).every((line) => line.includes("notice unsent (Telegram: HTTP 401: Unauthorized."))], [2, 1, 1, true])
+  writeFileSync(join(refused.env.stateDir, "sleep.json"), JSON.stringify({ on: true, since: iso(0) }))
+  await refused.run()
+  same("drive: sleep on holds a notice that waits for Telegram", sent(refused).length, 2)
+  writeFileSync(join(refused.env.stateDir, "sleep.json"), JSON.stringify({ on: false, since: iso(0) }))
+  refused.env.fetch = accept
+  await refused.run()
+  await refused.run()
+  same("drive: the notice goes out once when Telegram takes it", [sent(refused).length, only(refused.calls, "notify").length, stored(refused, "notices.json").pending], [3, 1, []])
+
+  const unreachable = phone({ tickets: capped() })
+  unreachable.env.fetch = async (url) => { throw new TypeError("fetch failed", { cause: new Error(`connect to ${url} timed out`) }) }
+  await unreachable.run()
+  same("drive: a network error that quotes the address logs no bot token and keeps the notice", [unreachable.messages.join("\n").includes(BOT_TOKEN), stored(unreachable, "notices.json").pending.length, noticeLines(unreachable)[0]?.includes("bot<token>/sendMessage")], [false, 1, true])
+
+  const finished = phone({ tickets: [ticket(7, { title: "Fix the widget count" })], routes: [["--state merged", JSON.stringify([{ number: 29, body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: none", mergedAt: iso(-60 * MINUTE), headRefName: "chore/ticket-7" }])]] })
+  await finished.run()
+  await finished.run()
+  same("drive: a finished ticket sends one notice with its title and link, also while GitHub still lists it", sent(finished).map((entry) => entry.text), [`Orbit finished: Fix the widget count\nIts last pull request is merged.\n${ISSUE_URL(7)}`])
+
+  const noToken = phone({ tickets: [ticket(7)], token: null })
+  await noToken.run()
+  const restarted = phone({ tickets: [ticket(7)], token: null, stateDirectory: noToken.env.stateDir })
+  await restarted.run()
+  const returned = phone({ tickets: [ticket(7)], stateDirectory: noToken.env.stateDir })
+  await returned.run()
+  const lost = phone({ tickets: [ticket(9)], token: null, stateDirectory: noToken.env.stateDir })
+  await lost.run()
+  same("drive: a restart repeats no notice of the same cause, and the cause that comes back is told again", [sent(noToken).length, sent(restarted).length, sent(returned).length, sent(lost).length], [1, 0, 0, 1])
+
+  const blind = phone({ reading: null, probeReading: null })
+  await blind.run()
+  blind.env.now = () => NOW + 61 * MINUTE
+  blind.mem.lastIntakeAt = NOW + 61 * MINUTE
+  await blind.run()
+  same("drive: a probe that fails again an hour later sends no second notice", [only(blind.calls, "probe").length, sent(blind).filter((entry) => entry.text.includes("cannot read the weekly usage")).length], [2, 1])
+
+  const unopened = phone({ tickets: [ticket(7)], auth: { ...AUTH, loggedIn: false } })
+  unopened.env.github.createTicket = async () => { throw new Error("HTTP 502") }
+  for (let round = 0; round < 2; round++) await unopened.run().catch(() => {})
+  same("drive: a problem whose issue cannot be opened is still told once, with no link", sent(unopened).map((entry) => entry.text), ["Orbit starts no new work: Claude is signed out on the Mac.\nRun claude auth login to start work again."])
+
+  const dry = phone({ tickets: capped(), dryRun: true })
+  writeFileSync(join(dry.env.stateDir, "notices.json"), JSON.stringify({ sent: [], held: [], pending: ["Waiting notice"] }))
+  await dry.run()
+  same("drive: a dry run sends nothing, not even a notice that waits", [sent(dry).length, only(dry.calls, "notify").length, stored(dry, "notices.json").pending], [0, 0, ["Waiting notice"]])
+}
+
 /** The dry-run line that names the next ticket in line, whatever holds the launches now. */
 const nextTicketCases = async () => {
   const next = async (options) => {
@@ -2445,6 +2553,7 @@ const nextTicketCases = async () => {
 }
 
 export const driverUnit = async () => {
+  await noticeCases()
   await nextTicketCases()
   await releaseCases()
   await admissionCases()
