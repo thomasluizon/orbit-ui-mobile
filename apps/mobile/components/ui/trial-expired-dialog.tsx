@@ -49,7 +49,6 @@ export function TrialExpiredDialog({ pausedFeatures, savingsPercent, onSeePlans,
               <OrbitMascot size={96} state="parado" />
             </View>
             <View style={styles.intro}>
-              <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>{t('trial.expired.eyebrow')}</Text>
               <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg1 }]}>{t('trial.expired.heading')}</Text>
               <Text style={[styles.subtitle, { color: tokens.fg2 }]}>{t('trial.expired.subtitleQuiet')}</Text>
               {savingsPercent === undefined ? null : (
@@ -78,7 +77,6 @@ const styles = StyleSheet.create({
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
   panel: { width: '100%', maxWidth: PANEL_MAX_WIDTH, alignItems: 'center', gap: 24, borderRadius: 20, padding: PADDING.cardInset, elevation: 8 },
   intro: { gap: 8, alignItems: 'center' },
-  eyebrow: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.96, lineHeight: 16, textTransform: 'uppercase', textAlign: 'center' },
   heading: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },
   subtitle: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
   savings: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 17, fontVariant: ['tabular-nums'], textAlign: 'center' },

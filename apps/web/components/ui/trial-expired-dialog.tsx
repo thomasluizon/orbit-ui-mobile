@@ -25,7 +25,6 @@ export function TrialExpiredDialog({ sheetRef, pausedFeatures, savingsPercent, o
       <div data-trial-expired-dialog="" data-orbit-state="parado" className="flex flex-col items-center gap-6 px-6 pb-6 pt-2">
         <span aria-hidden="true"><OrbitMascot size={96} state="parado" /></span>
         <div className="flex flex-col gap-2 text-center">
-          <p className="t-eyebrow m-0">{t('trial.expired.eyebrow')}</p>
           <p aria-hidden="true" className="m-0 font-display text-[28px] leading-[1.18] text-[var(--fg-1)]">{t('trial.expired.heading')}</p>
           <p aria-hidden="true" className="m-0 text-pretty text-base leading-[1.55] text-[var(--fg-2)]">{t('trial.expired.subtitleQuiet')}</p>
           {savingsPercent === undefined ? null : (
