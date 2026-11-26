@@ -183,12 +183,12 @@ describe.each([
     expect(helpers().form.getValues('dueDate')).toBe('2026-11-20')
   })
 
-  it('scenario 6b: fills the date field with the next weekday as the person types, before Continue, and keeps the task', async () => {
+  it('scenario 6b: shows the next weekday in the date field as the person types, before Continue, and changes the form only on Continue', async () => {
     render(<Harness />)
     await phrase(locale === 'en' ? 'call the bank' : 'ligar para o banco')
     await type(messages().when.freeLabel, locale === 'en' ? 'friday' : 'sexta')
-    expect(helpers().form.getValues()).toMatchObject({ itemType: 'task', dueDate: '2026-11-20' })
     expect(screen.getByRole('button', { name: new RegExp(`^${messages().when.calendar}, .*${locale === 'en' ? '11/20/2026' : '20/11/2026'}$`) })).toBeInTheDocument()
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'task', dueDate: '' })
     expect(heading()).toHaveTextContent(messages().when.question)
     await type(messages().when.freeLabel, locale === 'en' ? 'every friday' : 'toda sexta')
     expect(screen.getByText(locale === 'en' ? 'every friday' : 'toda sexta')).toBeInTheDocument()
