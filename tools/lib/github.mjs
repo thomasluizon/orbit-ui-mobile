@@ -58,7 +58,7 @@ const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $afte
         number title body
         labels(first: 50) { nodes { name } }
         blockedBy(first: 100) { nodes { number state labels(first: 50) { nodes { name } } } }
-        comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id body createdAt author { login } } }
+        comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt author { login } } }
       }
     }
   }
@@ -66,7 +66,7 @@ const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $afte
 
 const MORE_COMMENTS_QUERY = `query DriveComments($owner: String!, $name: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
-    issue(number: $number) { comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id body createdAt author { login } } } }
+    issue(number: $number) { comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt author { login } } } }
   }
 }`
 
@@ -156,6 +156,7 @@ export const bodyFindings = (body) => {
 
 const normalizeComment = (comment) => ({
   id: comment.id,
+  url: comment.url,
   author: comment.author?.login ?? null,
   body: comment.body,
   createdAt: comment.createdAt,

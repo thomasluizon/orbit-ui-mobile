@@ -1,0 +1,1393 @@
+{
+ "2121": [
+  {
+   "id": "IC_kwDOTynGmc8AAAABlwyqBg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6829156870",
+   "createdAt": "2026-11-12T16:17:47Z",
+   "body": "# Part 1 of 4: Build the guided create and edit flows: one question in each step\n\nDraft id: R07. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\nThe create form shows 16 field groups in one column. `HabitFormFields` renders the type choice, the title, the emoji, the description, the date, the schedule, a time and reminder sheet, and a \"More details\" disclosure with five more groups. The person cannot answer one plain question at a time.\n\nThe only AI read of a habit phrase costs one message. The form shows it as a",
+   "bodyLength": 60466
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABlwyu-Q",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6829158137",
+   "createdAt": "2026-11-12T16:17:50Z",
+   "body": "# Part 2 of 4: Move goals, tags and checklist templates to the Orbit logic\n\nDraft id: R13. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\nThe owner gave one example of the failure he will not accept. In his words, from the decision record: a beautiful carousel that, at the tag step, shows a plain list with the word \"tag\" and no explanation. \"Tem que manter essa lógica pro app inteiro.\"\n\nAfter ticket R07 that example is real for the owner's account: the guided create flow reaches the optional questions and, insid",
+   "bodyLength": 49963
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABlwyz8A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6829159408",
+   "createdAt": "2026-11-12T16:17:53Z",
+   "body": "# Part 3 of 4: Move onboarding and auth to the Orbit logic\n\nDraft id: R14. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\nOnboarding and sign-in are the first surfaces a person meets. Today they do not follow the logic that the rest of the app gets from R07.\n\n- Onboarding has its own step frame (`apps/web/components/onboarding/onboarding-flow.tsx`, 456 lines). It is a second create flow with its own header, its own step counter and its own correction form.\n- The login email step shows a heading (\"Entre com o seu",
+   "bodyLength": 35334
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABlwy44Q",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6829160673",
+   "createdAt": "2026-11-12T16:17:55Z",
+   "body": "# Part 4 of 4: Move Perfil and settings to the Orbit logic, and move the AI settings slug\n\nDraft id: R12. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\nPerfil has one job in `DESIGN.md`: \"change one setting and get out\". After tickets R05 and R06 its mark and its strings say Orbit, but its sheets still use system labels as titles, its multi-field sheets are small forms, and its long destructive paths (start over, delete account) and its support form close with no statement of what happened.\n\nThe AI settings pag",
+   "bodyLength": 48435
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABmKxu_A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6856404732",
+   "createdAt": "2026-11-13T14:49:33Z",
+   "body": "# Part 3 of 4, owner order: onboarding is a complete rework, animated, and it explains Orbit first\n\nThis comment is part of the work order of this ticket. Where it disagrees with the Part 3 comment (R14), this comment wins.\n\n## The owner's words (13 November 2026)\n\n> we need a complete rework of the onboarding, with the new mascot rebrand. it needs to be animated, easy to understand. right now it already starts at o que voce quer transformar em habito. it doesnt explain anything\n\n## What changes in Part 3\n\nPart 3 said \"move onboarding to the Orbit logic\", and its Step 1 was the phrase question",
+   "bodyLength": 4259
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABmR2ZQg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6863821122",
+   "createdAt": "2026-11-13T20:17:17Z",
+   "body": "# Owner order: no spinner anywhere, a skeleton everywhere\n\nOwner, 13 November 2026: \"i dont like spinners, use skeletons everywhere\". This comment is part of the work order of this ticket. The full rule and the guard are on #2120 (comment \"Owner order: no spinner anywhere, a skeleton everywhere\").\n\nFor every surface of this ticket, on web and Android:\n\n- No spinner: no `ActivityIndicator`, no rotating icon, no `animate-spin`.\n- Content that loads shows a skeleton with the shape and the size of the final layout.\n- A control that waits for its own request uses the waiting state of the shared pri",
+   "bodyLength": 968
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABmbwldQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6874211701",
+   "createdAt": "2026-11-14T07:59:52Z",
+   "body": "## Work order for the sign-in part: the Turnstile wait takes the skeleton look (moved from `#2120`)\n\nFound by the second completeness pass of `ui#2450`. While the human check loads, the sign-in screen shows text only, with no skeleton:\n\n- Web: `apps/web/components/auth/turnstile-widget.tsx` (the wait text near line 178 at the `#2120` head).\n- Mobile: `apps/mobile/components/auth/turnstile-widget.tsx` (near line 86 at the `#2120` head).\n\nRule: no surface draws a spinner, a loading state is a skeleton, and a control that waits keeps its label and takes the skeleton look (owner order, `#2120`).\n\n",
+   "bodyLength": 1076
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABnztiog",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6966436514",
+   "createdAt": "2026-11-18T01:42:24Z",
+   "body": "## Round 23: fix the one flag-off regression of the round 22 review, nothing else\n\nRead `/Users/thomaslrgregoriogmail.com/.claude-tmp/claude-501/-Users-thomaslrgregoriogmail-com-Developer-orbit-ui-mobile/d16387da-b8e1-4d4e-bb36-1c0049d8c33a/scratchpad/review-2451-r22-local.md`, section `## Blocking`, item 1, with its probe.\n\n1. The regression: with the flag `orbit_guided_flows` off, the full form now applies a bare interval (`Run every 2 weeks` becomes a habit every 2 weeks with the title `Run`), and the legacy onboarding (`guided=false`) now reads `every 5th of the month` as the month unit. T",
+   "bodyLength": 1537
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABnzuaGQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6966450713",
+   "createdAt": "2026-11-18T01:43:17Z",
+   "body": "Review note of ui#2451 round 22 (commits `2cfecef3c`, `fc7c0f0a9`). It has no failing probe against the acceptance rows of this ticket, so it started no fix round (owner speed order). Its class is filed here one time. The one blocking finding of that review (a flag-off regression) is the round 23 note above.\n\n1. State. `usePhraseDate` writes `dueDate` through the form port and keeps `held.before` in a ref. A deliberate \"Habit\" on the type step does not release the date span, so the span stays in `HabitPhraseFormOwnership.date` until the next phrase edit. The reviewer did not probe it. Next ste",
+   "bodyLength": 686
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn0oq3w",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6967405279",
+   "createdAt": "2026-11-18T02:42:30Z",
+   "body": "## Round 24: the Pullfrog review of ui#2451 (head `acbdc5995`)\n\nRead the thread in full first: `gh api repos/thomasluizon/orbit-ui-mobile/pulls/2451/comments --paginate` (read only; never reply, resolve or request a review on GitHub). The line below is a short form, and the thread text wins.\n\n1. Thread `PRRT_kwDOR5Siws64wJ2f` (`apps/web/components/habits/guided/guided-step-views.tsx:221`), reply file `reply-2451-wJ2f.md`: an undated item still gets the Time row in the guided summary, and the row opens the time step. A picked time shows in the summary and adds a Length row, but `buildCreateHabi",
+   "bodyLength": 2453
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn19w8w",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6968799475",
+   "createdAt": "2026-11-18T04:12:08Z",
+   "body": "Notes of the local review `2451-r24` (not blocking, filed once under the speed rules of #2074). Each note is work for the area of #2121 and starts no fix round by itself.\n\n- NOTE (ticket text): `ticket-text-2121.md:193` says the summary shows \"when, time, reminder and emoji as controls\", with no exception. At head an undated item has no Time control. The behaviour agrees with line 548 (\"An undated item … as today\") and with the full form, so no probe fails. Site: `apps/web/components/habits/guided/guided-step-views.tsx:221`. The ticket text can name the exception when the ticket is next edited",
+   "bodyLength": 602
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn2ualA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6969596564",
+   "createdAt": "2026-11-18T05:03:08Z",
+   "body": "## Round 25: the Pullfrog review of ui#2451 (ui#2451, head `3b07379d5`)\n\nRead each thread in full first: `gh api repos/thomasluizon/orbit-ui-mobile/pulls/2451/comments --paginate` (read only; never reply, resolve or request a review on GitHub). The lines below are short forms, and the thread text wins.\n\n1. Thread `PRRT_kwDOR5Siws64x0FI` (`apps/web/components/habits/habit-form-fields/habit-tags-field.tsx:44`), reply file `reply-2451-x0FI.md`: This moves the tag suggestion state out of HabitFormFields into HabitTagsField, which mounts only while \"More details\" is open (detailsPresented). On main",
+   "bodyLength": 1822
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn4Z1ew",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6971356539",
+   "createdAt": "2026-11-18T06:49:15Z",
+   "body": "## Round 26: the Pullfrog review of ui#2451 and the SonarCloud duplication (ui#2451, head `2660a7dee`)\n\nRead each thread in full first: `gh api repos/thomasluizon/orbit-ui-mobile/pulls/2451/comments --paginate` (read only; never reply, resolve or request a review on GitHub). The lines below are short forms, and the thread text wins.\n\n1. Thread `PRRT_kwDOR5Siws64zC43` (`apps/web/app/(app)/profile/_components/fresh-start-modal.tsx:123`), reply file `reply-2451-zC43.md`: The person can close the guided flow while the reset runs: the close button does it, and so does Escape, which falls through to",
+   "bodyLength": 3441
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn5TZ2w",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6972299739",
+   "createdAt": "2026-11-18T07:41:02Z",
+   "body": "Notes of the local review `2451-r26` (not blocking, filed once under the speed rules of #2074). Each note is work for the area of #2121 and starts no fix round by itself.\n\n- CI gate, not ticket acceptance: `SonarCloud Code Analysis` stays red after this round. The body (`body-2451-r26.md:246`) states this and leaves the decision to the owner. The round moves about 110 lines on each side to `packages/shared/src/hooks/question-flow-core.ts:1` and `packages/shared/src/hooks/guided-onboarding-navigation-core.ts:1`. I did not measure the new density, because the head is not pushed.\n",
+   "bodyLength": 584
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn8Q4YA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6975404128",
+   "createdAt": "2026-11-18T10:09:21Z",
+   "body": "Notes of the local review `2451-r27` (not blocking, filed once under the speed rules of #2074). Each note is work for the area of #2121 and starts no fix round by itself.\n\n- CI gate, not ticket acceptance: `sonar-project.properties:132`. No local probe gives the `SonarCloud Code Analysis` value, so check 2 is confirmed only after the push. The body says the same (`body-2451-r27.md:267`).\n",
+   "bodyLength": 391
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABoGOhUw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6985851219",
+   "createdAt": "2026-11-18T17:12:14Z",
+   "body": "Notes of the local review `2451-r28` (not blocking, filed once under the speed rules of #2074). Each note is work for the area of #2121 and starts no fix round by itself.\n\n1. NOTE (merge conflict, not made by this round): the head does not merge with `origin/main` at `e8fa116f9` (ui#2484, `#2146`). Sites: the ten paths above; the tool gives no line. The parent gives the same result (`git merge-tree --write-tree origin/main 57620f3a7`: exit 1), and the round commit changes none of the ten files. The pull request needs a merge of `origin/main` before it can merge. It is a NOTE because it is not ",
+   "bodyLength": 673
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABoJRu4A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6989049568",
+   "createdAt": "2026-11-18T19:21:16Z",
+   "body": "Notes of the local review `2451-r29` (not blocking, filed once under the speed rules of #2074). Each note is work for the area of #2121 and starts no fix round by itself.\n\n- The web test `returns to the summary when Continue follows a phrase edited from the summary, and reads the new phrase once` (`apps/web/__tests__/components/onboarding/guided-onboarding-flow.test.tsx`, about line 380) asserts the heading and the summary row, and does not assert the read count its title names. Class: test title claims more than the assertion proves. The thread names a repeated `suggestion.mutateAsync` as a s",
+   "bodyLength": 615
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABoMEs2w",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-6991981787",
+   "createdAt": "2026-11-18T21:20:36Z",
+   "body": "Notes of the local review `2451-r30` (not blocking, filed once under the speed rules of #2074). Each note is work for the area of #2121 and starts no fix round by itself.\n\n- `guided-habit-flow-core.ts:264` plus `habit-form-fields.tsx` (web 263, Android 287): the same \"reconcile on a change to task or General\" rule now lives in three places. Class: third real use, extract one shared rule. A table test over the three callers would pin it.\n- `apps/mobile/__tests__/components/ui/question-flow.test.tsx` (new live region case): it asserts the style shape, not what TalkBack reads. Class: proxy assert",
+   "bodyLength": 649
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABoakxBw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-7007187207",
+   "createdAt": "2026-11-19T11:00:40Z",
+   "body": "<!-- orbit-run-note: kind=round-note round=1 head=1522aa7e6162f152700c4d8616ae453140675e23 -->\n## Fix round 1 note for head `1522aa7e6162f152700c4d8616ae453140675e23`\n\n## s6a: the Pullfrog review of ui#2451 (head `b62f2d6e0`)\n\nRead each thread in full first: `gh api repos/thomasluizon/orbit-ui-mobile/pulls/2451/comments --paginate` (read only; never reply, resolve or request a review on GitHub). The lines below are short forms, and the thread text wins.\n\n1. Thread `PRRT_kwDOR5Siws65SDB2` (`packages/shared/src/utils/habit-flow-answers.ts:57`), reply file `reply-2451-SDB2.md`: Answering No set t",
+   "bodyLength": 4150
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABobW-9w",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-7008009975",
+   "createdAt": "2026-11-19T11:38:50Z",
+   "body": "<!-- orbit-run-note: kind=round-note round=2 head=33b14504acf9afda19c4f731849a81224ba78e7c -->\n## Fix round 2 note for head `33b14504acf9afda19c4f731849a81224ba78e7c`\n\n## Fix round 2 (local review s6a of head 33b14504a): four BLOCKING classes\n\nThe local whole-diff review of `33b14504a` found four confirmed defects. Fix every instance of each class in the diff, not only the line named. Prove each new test red with its guard removed, then green, and write both outputs in the report. Do not push.\n\n1. A Modal unmounts and a new Modal mounts in one commit (iOS refuses a presentation while the previ",
+   "bodyLength": 5018
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABoc4GLA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-7009601068",
+   "createdAt": "2026-11-19T12:49:41Z",
+   "body": "<!-- orbit-run-note: kind=round-note round=3 head=fbb7530e14ff712f609c7bee2df846e9ac9dd465 -->\n## Fix round 3 note for head `fbb7530e14ff712f609c7bee2df846e9ac9dd465`\n\n## Round 3: the Pullfrog review of ui#2451 (head `fbb7530e1`)\n\nRead each thread in full first: `gh api repos/thomasluizon/orbit-ui-mobile/pulls/2451/comments --paginate` (read only; never reply, resolve or request a review on GitHub). The lines below are short forms, and the thread text wins.\n\n1. Thread `PRRT_kwDOR5Siws65e6Kr` (`packages/shared/src/hooks/guided-habit-flow-core.ts:315`), reply file `reply-2451-e6Kr.md`: re-answer",
+   "bodyLength": 4955
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABodXRVw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-7010111831",
+   "createdAt": "2026-11-19T13:11:29Z",
+   "body": "<!-- orbit-run-note: kind=report commits=eaeeec1cc,055ba2de7 -->\n## Worker report: `eaeeec1cc`, `055ba2de7`\n\nBoth review threads were true. I fixed them in the shared core, so web and Android both get the fix. The work is in two local commits, `eaeeec1cc` and `055ba2de7`, and nothing is pushed.\n\n`## Test evidence`\n- `npx vitest run` on the new holds suite plus `guided-habit-flow-core` and `guided-habit-flow-steps` (packages/shared): exit 0, 92 passed.\n- The same new suite on the parent core `fbb7530e1`: 17 failed, 3 passed. The two old suites passed there (72), so nothing caught either defect ",
+   "bodyLength": 2320
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABod1brA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-7010605996",
+   "createdAt": "2026-11-19T13:31:45Z",
+   "body": "<!-- orbit-run-note: kind=review head=055ba2de702c99d04d40d5f45b157c7bc2991a30 verdict=clean -->\n## Review of head `055ba2de702c99d04d40d5f45b157c7bc2991a30`\n\nVERDICT: CLEAN\n\nHEAD: 055ba2de702c99d04d40d5f45b157c7bc2991a30\nFILES READ: 6 of 6 (the diff `fbb7530e1..055ba2de7`: `TESTING.md`, web and mobile `guided-step-views.tsx`, `guided-habit-flow-core.ts`, `guided-habit-flow-core-holds.test.ts`, `habit-flow-mode-form.ts`). I also read the callers: `use-habit-form.ts` (web), `HabitModeDrafts` in `habit-form-state.ts`, `applyHabitPhraseRead` in `habit-form-helpers.ts`, `habit-flow-answers.ts`, th",
+   "bodyLength": 4862
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABoeGVtw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-7010882999",
+   "createdAt": "2026-11-19T13:43:32Z",
+   "body": "<!-- orbit-run-note: kind=review head=42585ea888b3726667178473fa6e41b2049bb054 verdict=clean -->\n## Review of head `42585ea888b3726667178473fa6e41b2049bb054`\n\nVERDICT: CLEAN\n\nHEAD: 42585ea888b3726667178473fa6e41b2049bb054\nFILES READ: 3 of 3 own files (the fix-round delta of commit 884fcd734). The other 63 changed files come from the clean merge of `main` (merge commit 42585ea88, parents 884fcd734 and 2460ef091): they belong to other pull requests (#2145, #2143, #2177) and were not reviewed. `git diff-tree --cc 42585ea88` is empty, so the merge has no hand edit.\n\nRead in full: `packages/shared/",
+   "bodyLength": 4423
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABoewKtQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2121#issuecomment-7011568309",
+   "createdAt": "2026-11-19T14:11:58Z",
+   "body": "<!-- orbit-run-note: kind=review head=151979bb3079be46ef0c9dc5674e0c2e64611c33 verdict=clean -->\n## Review of head `151979bb3079be46ef0c9dc5674e0c2e64611c33`\n\nVERDICT: CLEAN\nHEAD: 151979bb3079be46ef0c9dc5674e0c2e64611c33\nFILES READ: 3 of 3 PR-owned changed files in the fix round (the other 50 files of `42585ea88..151979bb3` are the merge of `main` at `633c03786`; scanned by name, plus `git diff 633c03786 151979bb3` for `evals`, `.claude/calibration.json`, `.claude/skills/astra-eval`, `TESTING.md`)\n\nScope: the new PR commit is `f5c88370b` (3 files: the web and mobile `guided-habit-flow.test.tsx",
+   "bodyLength": 4851
+  }
+ ],
+ "2123": [
+  {
+   "id": "IC_kwDOTynGmc8AAAABlwzhKw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-6829170987",
+   "createdAt": "2026-11-12T16:18:17Z",
+   "body": "# Part 1 of 2: Sweep the UI: rename Astra names, add the guard, remove the rollout flag\n\nDraft id: R19. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\nAfter R04 to R17, a person sees Orbit on every surface. Three things still hold the old state.\n\n1. **Internal names.** 840 tracked files in `orbit-ui-mobile` hold \"astra\", and 245 tracked paths have \"astra\" in the name (measured for this ticket). Examples: `apps/web/components/shell/astra-button.tsx`, `apps/web/hooks/use-astra-allowance-copy.ts`, the i18n key `tri",
+   "bodyLength": 21237
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABlwzmIw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-6829172259",
+   "createdAt": "2026-11-12T16:18:20Z",
+   "body": "# Part 2 of 2: Clean every source and test file of orbit-ui-mobile\n\nDraft id: K2. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\n`orbit-ui-mobile` tracks 4,983 files. The count comes from `git ls-files` on 2026-11-12 at commit `4316b10cd`. 2,533 are source files and 2,002 are test files. Ticket K1 owns the 57 source files under `design/`. So this ticket owns about 4,478 files.\n\nThe gates prove that the code compiles, passes lint and passes tests. No gate proves that each file still has a reader, or that each fil",
+   "bodyLength": 21978
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABl1Nb0A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-6833789904",
+   "createdAt": "2026-11-12T19:30:09Z",
+   "body": "# Owner note: the conversation entry is never \"the Orbit button\"\n\nThis comment is part of the work order of this ticket. It changes names only. It does not change the design, the place or the motion of the entry.\n\nThe owner said that, with Astra gone, the control that opens the AI conversation must not be \"the Orbit button\", because the whole app is already Orbit.\n\n## Rule\n\n- The control is named by its action. Its visible label (sidebar row) and its accessible name (round button) stay `Falar com o Orbit` / `Talk to Orbit`.\n- In `DESIGN.md`, in comments, in test names and in pull request text,",
+   "bodyLength": 1475
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABmR2fDA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-6863822604",
+   "createdAt": "2026-11-13T20:17:21Z",
+   "body": "# Owner order: no spinner anywhere, a skeleton everywhere\n\nOwner, 13 November 2026: \"i dont like spinners, use skeletons everywhere\". This comment is part of the work order of this ticket. The full rule and the guard are on #2120 (comment \"Owner order: no spinner anywhere, a skeleton everywhere\").\n\nFor every surface of this ticket, on web and Android:\n\n- No spinner: no `ActivityIndicator`, no rotating icon, no `animate-spin`.\n- Content that loads shows a skeleton with the shape and the size of the final layout.\n- A control that waits for its own request uses the waiting state of the shared pri",
+   "bodyLength": 968
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABohqzwA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7014626240",
+   "createdAt": "2026-11-19T16:06:00Z",
+   "body": "Folded from the read-only review of ui#2453 (`#2122`) at `c1bde0dec` (review-and-audit rule 14: a NOTE is filed into the open ticket of its area). This ticket owns the source cleanup after `#2122`, so each item lands here.\n\n1. `apps/web/components/habits/habit-detail-screen.tsx:337-344` and `apps/mobile/components/habits/habit-detail-screen.tsx:288-295`: `SlippingLine` tests `guided || !metrics` after an early return on `!guided && !metrics`. The `!metrics` half only narrows the type for the flag-off branch. When the flag-off copy goes (this ticket removes the old paths), the branch and the na",
+   "bodyLength": 1763
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDb0lg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050032278",
+   "createdAt": "2026-11-20T20:36:41Z",
+   "body": "## Part 1 of 13: Remove the rollout flag from the habit create flow\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: #2122 closes (the ticket edge \"Blocked by #2122\"). No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nThe habit create flow has one code path: the guided flow. A person with the flag `orbit_guided_flows` off, or with no flag at all, gets the guided create ",
+   "bodyLength": 5045
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDb3og",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050033058",
+   "createdAt": "2026-11-20T20:36:43Z",
+   "body": "## Part 2 of 13: Remove the rollout flag from the habit edit flow and delete the old form\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 1 of 13 merges. No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nThe habit edit flow has one code path: the guided edit entries. A person with the flag off, or with no flag, gets the guided edit flow on web and on Android. The ",
+   "bodyLength": 4669
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDb6lg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050033814",
+   "createdAt": "2026-11-20T20:36:45Z",
+   "body": "## Part 3 of 13: Remove the rollout flag from habit detail\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 2 of 13 merges. No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nHabit detail has one code path on web and on Android: the Orbit line, the result dialog after reschedule and delete, the question prompts and the guided load error. The flag-off copy of each le",
+   "bodyLength": 5713
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDb9gQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050034561",
+   "createdAt": "2026-11-20T20:36:48Z",
+   "body": "## Part 4 of 13: Remove the rollout flag from Hoje and the habit list\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 3 of 13 merges. No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nHoje and the habit list have one code path on web and on Android: the Orbit line, the guided AI summary, the check motion, the guided empty and all-done states, the bulk motion, the ",
+   "bodyLength": 6913
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcAeQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050035321",
+   "createdAt": "2026-11-20T20:36:50Z",
+   "body": "## Part 5 of 13: Remove the rollout flag from the conversation\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 4 of 13 merges. No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nThe conversation has one code path on web and on Android: the guided empty state, the quick options on a question block and on an answer, the clarification card and the question controls. T",
+   "bodyLength": 4237
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcDOw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050036027",
+   "createdAt": "2026-11-20T20:36:52Z",
+   "body": "## Part 6 of 13: Remove the rollout flag from Calendário\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 5 of 13 merges. No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nCalendário has one code path on web and on Android: the Orbit month line and the guided view router. The calendar import prompt has one path. The flag-off branches leave the app.\n\n## Ticket text ",
+   "bodyLength": 4366
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcGMQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050036785",
+   "createdAt": "2026-11-20T20:36:55Z",
+   "body": "## Part 7 of 13: Remove the rollout flag from Progresso, goals and the celebration\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 6 of 13 merges. No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nProgresso, the goal sheets and the celebration panel have one code path on web and on Android: the guided overview, the guided streak section, the guided goal create, ed",
+   "bodyLength": 4956
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcI3w",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050037471",
+   "createdAt": "2026-11-20T20:36:57Z",
+   "body": "## Part 8 of 13: Remove the rollout flag from Wrapped and the share surfaces\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 7 of 13 merges. No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nWrapped, the share card sheet and the milestone share have one code path on web and on Android: the guided cover, player and slides, and the guided share prompts. The old cove",
+   "bodyLength": 4645
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcL1Q",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050038229",
+   "createdAt": "2026-11-20T20:36:59Z",
+   "body": "## Part 9 of 13: Remove the rollout flag from Perfil, Preferências and notifications\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 8 of 13 merges. No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nPerfil, Preferências and the notification bell, list and rows have one code path on web and on Android: the guided settings and the guided inbox. The flag-off branches",
+   "bodyLength": 4573
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcO7g",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050039022",
+   "createdAt": "2026-11-20T20:37:02Z",
+   "body": "## Part 10 of 13: Remove the rollout flag from search, support and step-up\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 9 of 13 merges. No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nSearch, support and the step-up screen have one code path on web and on Android: the guided search frame, the guided support flow and the guided step-up. The flag-off branches l",
+   "bodyLength": 4289
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcSAg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050039810",
+   "createdAt": "2026-11-20T20:37:04Z",
+   "body": "## Part 11 of 13: Give the upgrade path one code path and one web link owner\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 10 of 13 merges. No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nThe upgrade screen, the subscription notice, the trial-expired dialog and the expiry warning have one code path on web and on Android: the guided paths. The flag-off branches",
+   "bodyLength": 6775
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcU5g",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050040550",
+   "createdAt": "2026-11-20T20:37:07Z",
+   "body": "## Part 12 of 13: Remove the rollout flag from sign-in, onboarding and the app shell\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 11 of 13 merges. No `Paths:` line: the parts of this ticket share `packages/shared/src/i18n/*.json` and the test support, so each part runs after the part before it merges.\n\n## Behaviour\n\nSign-in, the auth callback, onboarding and the app shell have one code path on web and on Android: the guided sign-in, the guided onboarding with its Pro step, and th",
+   "bodyLength": 5563
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcXuw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7050041275",
+   "createdAt": "2026-11-20T20:37:09Z",
+   "body": "## Part 13 of 13: Remove the rollout flag key and prove one code path everywhere\n\nTicket: thomasluizon/orbit-tickets#2123 (repo:ui, orbit-ui-mobile). The PR body says `Tracks thomasluizon/orbit-tickets#2123`, never `Closes`.\nRuns after: Part 12 of 13 merges. No `Paths:` line: it reads the whole tree that parts 1 to 12 changed.\n\n## Behaviour\n\nNo code in `apps` or `packages` reads `orbit_guided_flows`. The key leaves the `FeatureKey` type. A config that still holds the key (the API sends it until the flag row goes) parses, and each surface renders its one path. The test flag mocks of the key are",
+   "bodyLength": 5932
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpY81iA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7072593288",
+   "createdAt": "2026-11-22T01:59:09Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":null,\"at\":\"2026-11-22T01:59:09.552Z\"}",
+   "bodyLength": 127
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpZe-aA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7073152616",
+   "createdAt": "2026-11-22T02:49:49Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":null,\"at\":\"2026-11-22T02:49:49.332Z\"}",
+   "bodyLength": 127
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpZ9VNA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7073649972",
+   "createdAt": "2026-11-22T03:36:18Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nThe build order of chore/ticket-2123 launched 2 times without a result",
+   "bodyLength": 103
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpgiT_g",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7080547326",
+   "createdAt": "2026-11-22T14:26:35Z",
+   "body": "Decision: keep the worker's work. It reached the time limit twice before it opened a pull request, so the owner session pushed the branch as the worker left it and opened the pull request. The driver now reviews it and gives fix launches on the pull request. A fix worker finishes what review or CI finds open and does not add scope.",
+   "bodyLength": 333
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABqwKeeQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7164042873",
+   "createdAt": "2026-11-25T13:37:13Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-25T13:37:13.397Z\"}",
+   "bodyLength": 125
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABqwjO5Q",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7164448485",
+   "createdAt": "2026-11-25T13:53:50Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nchore/ticket-2123: NEEDS_DECISION: Posting the ledger needs a GitHub comment on PR #2546, but this brief allows GitHub writes only through `git push`, and `tools/file-ledger.mjs` is no longer on `main`. Do you allow the comment write, and should I rebuild the ledger tool?",
+   "bodyLength": 305
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABqxyBNw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7165739319",
+   "createdAt": "2026-11-25T14:44:24Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-25T14:44:24.370Z\"}",
+   "bodyLength": 125
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABqyEEVw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7166035031",
+   "createdAt": "2026-11-25T14:55:45Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nchore/ticket-2123: NEEDS_DECISION: May a session write the file ledger as comments on pull request 2546, and which generator should it use, since `tools/file-ledger.mjs` is gone?",
+   "bodyLength": 211
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABqyRtyw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7166258635",
+   "createdAt": "2026-11-25T15:04:22Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at 5e7ae1aa017e1f04ee2e5fdf336df62985c0dd25: ui#2546 used its 2 fix launches. Launches: 2. Open: .gitignore:86",
+   "bodyLength": 151
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABq4CbvQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7172299709",
+   "createdAt": "2026-11-25T19:26:26Z",
+   "body": "Decision 2026-11-25 (engineering call) for the 2 open review findings on ui#2546: (1) Delete the stale `\"__tests__/pages/login-states.test.tsx\"` entry from `apps/web/vitest/shard-timings.json`, so `Tool Tests` is green. (2) The ledger stays a requirement. Generate it with a throwaway script in the worker run (no new tracked tool), one row per tracked source and test file in scope with the verdict, its reader and, for a keep, what was checked, and post it as comments on the pull request before the last push.\n",
+   "bodyLength": 513
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABq4IB7A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7172391404",
+   "createdAt": "2026-11-25T19:30:26Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-25T19:30:26.112Z\"}",
+   "bodyLength": 125
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABq4k4Ow",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7172864059",
+   "createdAt": "2026-11-25T19:51:47Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nchore/ticket-2123: NEEDS_DECISION: May a session post the 16 ledger files as comments on PR 2546 with `gh`? The brief allows only `git push` for GitHub writes.",
+   "bodyLength": 192
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABq4lu9A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7172878068",
+   "createdAt": "2026-11-25T19:52:22Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at 6b8811272b71a99002ccdfe7abe3a3cc616ad010: ui#2546 used its 2 fix launches. Launches: 3. Open: merge conflict with the base branch",
+   "bodyLength": 173
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABq5TEKA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7173620776",
+   "createdAt": "2026-11-25T20:24:17Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at 6b8811272b71a99002ccdfe7abe3a3cc616ad010: ui#2546 used its 2 fix launches. Launches: 3. Open: installed (windows-latest), Web unit (jsdom 1/4), Web unit (jsdom 2/4), Web unit (jsdom 3/4), Mobile unit (3/3), Workspace unit (desktop, shared, eslint-rules)",
+   "bodyLength": 297
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABq5cYGQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7173773337",
+   "createdAt": "2026-11-25T20:30:29Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at 6b8811272b71a99002ccdfe7abe3a3cc616ad010: ui#2546 used its 2 fix launches. Launches: 3. Open: installed (windows-latest), Web unit (chromium 1/16), Web unit (chromium 4/16), Web unit (chromium 6/16), Web unit (chromium 7/16), Web unit (chromium 8/16), Web unit (chromium 10/16), Web unit (chromium 11/16), Web unit (chromium 14/16), Web unit (chromium 16/16), Web unit (jsdom 1/4), Web unit (jsdom 2/4), Web unit (jsdom 3/4), Web unit (jsdom 4/4), Mobile unit (1/3), Mobile unit (2/3), Mobile unit (3/3), Workspace unit (desktop, shared, eslint-rules)",
+   "bodyLength": 595
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABq5lBpg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7173915046",
+   "createdAt": "2026-11-25T20:36:15Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at 6b8811272b71a99002ccdfe7abe3a3cc616ad010: ui#2546 used its 2 fix launches. Launches: 3. Open: installed (windows-latest), Web unit (chromium 1/16), Web unit (chromium 4/16), Web unit (chromium 6/16), Web unit (chromium 7/16), Web unit (chromium 8/16), Web unit (chromium 10/16), Web unit (chromium 11/16), Web unit (chromium 12/16), Web unit (chromium 14/16), Web unit (chromium 15/16), Web unit (chromium 16/16), Web unit (jsdom 1/4), Web unit (jsdom 2/4), Web unit (jsdom 3/4), Web unit (jsdom 4/4), Mobile unit (1/3), Mobile unit (2/3), Mobile unit (3/3",
+   "bodyLength": 649
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABq56duw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7174266299",
+   "createdAt": "2026-11-25T20:50:46Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at 6b8811272b71a99002ccdfe7abe3a3cc616ad010: ui#2546 used its 2 fix launches. Launches: 3. Open: installed (windows-latest), Web unit (chromium 1/16), Web unit (chromium 4/16), Web unit (chromium 6/16), Web unit (chromium 7/16), Web unit (chromium 8/16), Web unit (chromium 9/16), Web unit (chromium 10/16), Web unit (chromium 11/16), Web unit (chromium 12/16), Web unit (chromium 14/16), Web unit (chromium 15/16), Web unit (chromium 16/16), Web unit (jsdom 1/4), Web unit (jsdom 2/4), Web unit (jsdom 3/4), Web unit (jsdom 4/4), Mobile unit (1/3), Mobile un",
+   "bodyLength": 840
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABq_dJXg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7180077406",
+   "createdAt": "2026-11-26T01:44:29Z",
+   "body": "- Decision 2026-11-26 (engineering call, the correct path) for ui#2546 after its 2 fix launches: the owner shape rule of this ticket stands, so keep one pull request and do not split it. The pull request conflicts with `main`, and the unit, layout and geometry suites fail. Next step for the worker: merge `origin/main` into `chore/ticket-2123` and resolve each conflict so that the behavior of `main` stays and only the rename and the cleanup apply. Then run each failed suite (`Mobile unit` 1 to 3, `Web unit` chromium and jsdom, `Workspace unit`, `Layout shard` 1 to 8, `Upgrade layout geometry`) ",
+   "bodyLength": 1012
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrAkEMg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7181239346",
+   "createdAt": "2026-11-26T02:55:31Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"ci-fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-26T02:55:31.196Z\"}",
+   "bodyLength": 128
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrBmVMw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7182325043",
+   "createdAt": "2026-11-26T04:08:08Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at c73d3d7eb8db05c6a0857a7cd6255aaaa8d283a0: ui#2546 used its 2 fix launches. Launches: 4. Open: Web unit (jsdom 2/4), Workspace unit (desktop, shared, eslint-rules)",
+   "bodyLength": 206
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrBpwHQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7182381085",
+   "createdAt": "2026-11-26T04:11:51Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at c73d3d7eb8db05c6a0857a7cd6255aaaa8d283a0: ui#2546 used its 2 fix launches. Launches: 4. Open: .gitignore:86",
+   "bodyLength": 151
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrB0dRw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7182556487",
+   "createdAt": "2026-11-26T04:23:43Z",
+   "body": "- Decision 2026-11-26 (engineering call, the correct path) for ui#2546 at `c73d3d7`: keep one pull request (the owner shape rule). Attempt 2 of run 45749451014 fails 56 test files in 4 groups. Fix each at its cause:\n  1. \"No test found in suite ... flag off\" (for example `progress-guided`, `notification-inbox-guided`, `account-guided-flows`, `guided-goal-flow`, `calendar-day-motion`, `upgrade-guided`, `guided-search`, web and mobile): this ticket removes the rollout flag, so delete each empty `describe`, and delete the file when no test stays.\n  2. A mock that lacks an export of `main` (for ex",
+   "bodyLength": 1474
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrCQ6_g",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7183022846",
+   "createdAt": "2026-11-26T04:55:34Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-26T04:55:34.032Z\"}",
+   "bodyLength": 125
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrDDdoQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7183850913",
+   "createdAt": "2026-11-26T05:50:20Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at c49061f62131879b965c6e515d35104d87916322: ui#2546 used its 2 fix launches. Launches: 5. Open: Web unit (chromium 11/16)",
+   "bodyLength": 163
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrDHKlw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7183911575",
+   "createdAt": "2026-11-26T05:54:22Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at c49061f62131879b965c6e515d35104d87916322: ui#2546 used its 2 fix launches. Launches: 5. Open: .gitignore:86",
+   "bodyLength": 151
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrDIANQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7183925301",
+   "createdAt": "2026-11-26T05:55:17Z",
+   "body": "- Decision 2026-11-26 (engineering call, the correct path) for ui#2546 at `c49061f`: keep one pull request (the owner shape rule). Run 45761575683 fails 3 test files. Each one tests a surface that the removal of `orbit_guided_flows` changed. Item 23 of this body and the risk line say that sign-in changes for every person with this release, so the guided surface is the one surface to test. Fix each at its cause:\n  1. `apps/web/__tests__/pages/login-provider-geometry.test.tsx` (32 failures: the `[data-field-surface=\"responsive-card\"]` panel is gone, and provider widths are about 100 px against 3",
+   "bodyLength": 1916
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrDNEOg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7184008250",
+   "createdAt": "2026-11-26T06:00:42Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-26T06:00:41.668Z\"}",
+   "bodyLength": 125
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrD2JXw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7184681311",
+   "createdAt": "2026-11-26T06:41:18Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at 34a4bc872015cdfacbdb37d5b0d8ab070eb60886: ui#2546 used its 2 fix launches. Launches: 6. Open: .gitignore:86",
+   "bodyLength": 151
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrD_NdA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7184829812",
+   "createdAt": "2026-11-26T06:50:08Z",
+   "body": "- Decision 2026-11-26 (engineering call, the correct path) for ui#2546 at `34a4bc872` after its fix launches: keep one pull request (the owner shape rule). Two items stay open.\n  1. Run 45769084884, `Web unit (chromium 8/16)`: `interaction-fill-text-clipping.test.tsx` fails 2 tests, \"keeps the real legal links clear in keyboard focus\" at 320 and 412 in `pt-BR`. The fill now shows, but the focused Termos link comes 7.2 px from \"Política de privacidade\", and `INTERACTION_FILL_CLEARANCE` is 8. The guided footer wraps `LoginLegalConsent` (`apps/web/app/(auth)/login/email-step.tsx`) so the two link",
+   "bodyLength": 2042
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrEGv8w",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7184953331",
+   "createdAt": "2026-11-26T06:57:41Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-26T06:57:40.690Z\"}",
+   "bodyLength": 125
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrEdujQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7185329805",
+   "createdAt": "2026-11-26T07:19:15Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at df442703ac8b654129f2f67b95cb678aa92d69b0: ui#2546 used its 2 fix launches. Launches: 7. Open: .gitignore:86",
+   "bodyLength": 151
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrEjiqQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7185425065",
+   "createdAt": "2026-11-26T07:24:37Z",
+   "body": "- Decision 2026-11-26 (engineering call) for ui#2546 at `df442703a`: the owner session posted the 25 ledger parts on ui#2546 as comments, in order. The `.gitignore:86` ledger finding is met. The ledger has 32 rows with the verdict `update`, so the work of those rows is still open. Two kinds exist. Most rows are a dead `vi.mock` or import of a module that exists neither on this head nor on `main` (for example `@/components/habits/bulk-action-bar-v2`, `@/components/shell/shell-412`, `@/components/navigation/web-nav`, `@/components/ui/offline-unavailable-state`, `@/components/ui/confirm-dialog`).",
+   "bodyLength": 1429
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrEqCOA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7185531448",
+   "createdAt": "2026-11-26T07:30:28Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-26T07:30:27.856Z\"}",
+   "bodyLength": 125
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrFbmKw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7186343467",
+   "createdAt": "2026-11-26T08:13:48Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at d602ee6cac8bab7d595bf039c7584fe6958d7b17: ui#2546 used its 2 fix launches. Launches: 8. Open: apps/web/__tests__/components/habits/editor-parent-requests.test.tsx:26, apps/web/components/onboarding/onboarding-flow.tsx:517",
+   "bodyLength": 265
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrFg_hQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7186431877",
+   "createdAt": "2026-11-26T08:18:14Z",
+   "body": "- Decision 2026-11-26 (engineering call, the correct path) for the 2 open BLOCKING findings on ui#2546 at `d602ee6ca`. Apply the smallest fix of each review comment, on web and mobile in the same push. The cost is one more fix launch on a large PR. Next step for the worker:\n  1. Finding `apps/web/__tests__/components/habits/editor-parent-requests.test.tsx:26` (review comment 4705456546): port each deleted case of live behavior to the surface that runs the code now. Drive `EditHabitModal` through `GuidedHabitFlow` (as `guided-habit-modals.test.tsx` does) for the uncertain save retry and the rea",
+   "bodyLength": 1927
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrFmUqg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7186519210",
+   "createdAt": "2026-11-26T08:22:37Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-26T08:22:36.815Z\"}",
+   "bodyLength": 125
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrGRUQg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7187223618",
+   "createdAt": "2026-11-26T08:57:08Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at d9095f8a621ac955df1621c552ebbc5fc7126444: ui#2546 used its 2 fix launches. Launches: 9. Open: apps/web/components/onboarding/onboarding-stepper.tsx:16",
+   "bodyLength": 194
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrGXSdQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7187321461",
+   "createdAt": "2026-11-26T09:01:44Z",
+   "body": "- Decision 2026-11-26 (engineering call, the correct path) for ui#2546 at `d9095f8a6`. The cost is one more fix launch. Next step for the worker, in one push, on web and mobile:\n  1. Finding `apps/web/components/onboarding/onboarding-stepper.tsx:16` (Pullfrog review of `d9095f8a6`): add a `Stepper` test on web and on mobile (`apps/mobile/components/onboarding/onboarding-stepper.tsx`). Check that less is disabled at the minimum, more is disabled at `MAX_HABIT_INTERVAL_WEEKS`, and each press moves the value by one. Show that the test fails when the `disabled` rule or the `Math.min` clamp goes.\n ",
+   "bodyLength": 1413
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrGjXpA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7187519396",
+   "createdAt": "2026-11-26T09:09:49Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-26T09:09:48.664Z\"}",
+   "bodyLength": 125
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrHujlw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7188751255",
+   "createdAt": "2026-11-26T09:59:14Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at dc729cc05cbdb099fd890f1772e5d193ab669262: ui#2546 used its 2 fix launches. Launches: 10. Open: packages/shared/src/i18n/en.json:2605, apps/web/__tests__/pages/support.test.tsx:489",
+   "bodyLength": 223
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrH2qfg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7188884094",
+   "createdAt": "2026-11-26T10:04:59Z",
+   "body": "- Decision 2026-11-26 (engineering call, the correct path) for the 2 open BLOCKING findings on ui#2546 at `dc729cc05`. The owner session posted the ledger addendum `part-26.md` on ui#2546. The cost is one more fix launch. Next step for the worker, in one push, on web and mobile:\n  1. Finding `packages/shared/src/i18n/en.json:2605` (review comment 4706567584). orbit-api main still sends `proactiveAstra.{enabled}` (`src/Orbit.Application/Chat/ToolResultMessages.cs:46`), and ruling 15 keeps wire names. Restore `chat.toolResult.proactiveAstra.{enabled,disabled}` in `en.json` and `pt-BR.json` and i",
+   "bodyLength": 1538
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrH5DCw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7188923147",
+   "createdAt": "2026-11-26T10:06:45Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-26T10:06:45.139Z\"}",
+   "bodyLength": 125
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrI-PhA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7190056836",
+   "createdAt": "2026-11-26T10:57:07Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at b8a75de4a2fb1ff8693b0655665e634513c5f06c: ui#2546 used its 2 fix launches. Launches: 11. Open: Type Check",
+   "bodyLength": 149
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrJQzvA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7190361020",
+   "createdAt": "2026-11-26T11:09:59Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at b8a75de4a2fb1ff8693b0655665e634513c5f06c: ui#2546 used its 2 fix launches. Launches: 11. Open: Type Check, Layout shard 1, Layout shard 2, Layout shard 3, Layout shard 4, Layout shard 5",
+   "bodyLength": 229
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrJYtpg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7190490534",
+   "createdAt": "2026-11-26T11:15:24Z",
+   "body": "- Decision 2026-11-26 (engineering call, the correct path) for ui#2546 at `b8a75de4a`. The cost is one more fix launch. Next step for the worker, in one push:\n  1. Type Check fails at `packages/shared/src/__tests__/tool-result-messages.test.ts:88` and `:89` with `TS18048: 'text' is possibly 'undefined'`. `resolveActionChipText` returns `{ label, personal, wrapLabel } | undefined` (`packages/shared/src/chat/action-chips.ts:78`). In the test, assert `expect(text).toBeDefined()` first, then read the label through a narrowed value (for example `if (!text) throw new Error(...)`). Do not change the ",
+   "bodyLength": 2187
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrJZxWA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7190507864",
+   "createdAt": "2026-11-26T11:16:11Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at b8a75de4a2fb1ff8693b0655665e634513c5f06c: ui#2546 used its 2 fix launches. Launches: 11. Open: Type Check, Layout shard 1, Layout shard 2, Layout shard 3, Layout shard 4, Layout shard 5, Layout shard 6, Layout shard 7, Layout shard 8, Upgrade layout geometry",
+   "bodyLength": 302
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrJhoRg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7190636614",
+   "createdAt": "2026-11-26T11:22:09Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"ci-fix\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-26T11:22:09.310Z\"}",
+   "bodyLength": 128
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrKmjwA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7191765952",
+   "createdAt": "2026-11-26T12:15:18Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2546 at b8a75de4a2fb1ff8693b0655665e634513c5f06c: ui#2546 used its 2 fix launches. Launches: 12. Open: Type Check, Layout shard 1, Layout shard 2, Layout shard 3, Layout shard 4, Layout shard 5, Layout shard 6, Layout shard 7, Layout shard 8, Upgrade layout geometry",
+   "bodyLength": 302
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrKt55A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7191886308",
+   "createdAt": "2026-11-26T12:20:55Z",
+   "body": "- Decision 2026-11-26 (questions run, 12:30Z, engineering call) for ui#2546. The ci-fix launch of 11:22Z reached its time limit at about 12:10Z before it pushed. It made 2 commits: `10e7c65be` (the `TS18048` fix at `tool-result-messages.test.ts:88` and `:89`) and `be94cddeb` (the merge of `origin/main`). The owner session pushed both commits with no change, so the PR head is now `be94cddeb`. The launch also left uncommitted edits in its worktree `chore-ticket-2123`: 4 orbit-line components (web and mobile) and 9 layout specs (`action-rows`, `content-cap-edge`, `habit-detail-spacing`, `label-fi",
+   "bodyLength": 1315
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABrKz4bw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2123#issuecomment-7191984239",
+   "createdAt": "2026-11-26T12:25:32Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"merge-forward\",\"part\":null,\"branch\":\"chore/ticket-2123\",\"pr\":2546,\"at\":\"2026-11-26T12:25:31.656Z\"}",
+   "bodyLength": 135
+  }
+ ],
+ "2124": [
+  {
+   "id": "IC_kwDOTynGmc8AAAABlwzqCA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2124#issuecomment-6829173256",
+   "createdAt": "2026-11-12T16:18:22Z",
+   "body": "# Part 1 of 3: Delete the orbit_guided_flows flag row after the minimum-version gate\n\nDraft id: R20. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\nR03 seeds the flag `orbit_guided_flows`. R07 to R17 read it to choose between the current surface and the new surface. R19 removes the read from the UI.\n\nAfter R19 ships, new builds do not read the flag. The row and its constant are dead for them. The owner rule says that no outdated line stays, so the row and the constant go.\n\nThe row cannot go at once. A build from",
+   "bodyLength": 8519
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABlwzujg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2124#issuecomment-6829174414",
+   "createdAt": "2026-11-12T16:18:25Z",
+   "body": "# Part 2 of 3: Clean every non-source file of orbit-api\n\nDraft id: K3. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\n`orbit-api` tracks 3,737 files. The count comes from `git ls-files` on 2026-11-12 at local commit `2bdd96e30`. 238 files are not source or test files: config 107, docs 106, assets 17 and agent files under `.claude` 8.\n\nNo person and no tool holds a reason for each of these files. Three tools give agent rules to this repository, and their files disagree. Several docs describe a database vendor tha",
+   "bodyLength": 20972
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABlwzyuQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2124#issuecomment-6829175481",
+   "createdAt": "2026-11-12T16:18:27Z",
+   "body": "# Part 3 of 3: Clean every source and test file of orbit-api\n\nDraft id: K4. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\n`orbit-api` tracks 3,737 files. The count comes from `git ls-files` on 2026-11-12 at local commit `2bdd96e30`. 1,857 are source files and 1,642 are test files. This ticket owns these 3,499 files.\n\nThe build, the analyzers and the tests prove that the code compiles and passes. No gate proves that each file still has a reader, or that each file is correct for the current product. A handler for",
+   "bodyLength": 20042
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcakQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2124#issuecomment-7050042001",
+   "createdAt": "2026-11-20T20:37:11Z",
+   "body": "## Part 1 of 2: Serve the mascot from the API brand files\n\nTicket: thomasluizon/orbit-tickets#2124 (repo:api, orbit-api). The PR body says `Tracks thomasluizon/orbit-tickets#2124`, never `Closes`.\nPaths: `src/Orbit.Api/Branding/`, `src/Orbit.Api/OAuth/OAuthPageStyles.cs`, `tools/generate-bimi-logo.mjs`, `tools/__tests__/generate-bimi-logo.test.mjs`, `tests/Orbit.Infrastructure.Tests/Middleware/BimiLogoTests.cs`, `tests/Orbit.Infrastructure.Tests/Controllers/OAuthLoginPageTests.cs`. It shares no file with part 2, so it does not wait for another part. Part 2 runs after this part merges, because ",
+   "bodyLength": 6722
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcd4A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2124#issuecomment-7050042848",
+   "createdAt": "2026-11-20T20:37:14Z",
+   "body": "## Part 2 of 2: Delete the orbit_guided_flows flag row after the minimum-version gate\n\nTicket: thomasluizon/orbit-tickets#2124 (repo:api, orbit-api). The PR body says `Tracks thomasluizon/orbit-tickets#2124`, never `Closes`.\nRuns after: Part 1 of 2 merges, and the owner session posts the three precondition values on #2124 and each one is true (see \"Precondition\"). The ticket edge \"Blocked by #2123\" also holds it. Another open API PR that adds a migration also writes `OrbitDbContextModelSnapshot.cs`; rebase on it before you scaffold.\n\n## Behaviour\n\nThe API no longer knows the flag `orbit_guided",
+   "bodyLength": 8205
+  }
+ ],
+ "2125": [
+  {
+   "id": "IC_kwDOTynGmc8AAAABlwz3Tg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6829176654",
+   "createdAt": "2026-11-12T16:18:30Z",
+   "body": "# Part 1 of 5: Rebuild the thomas-brain brand sources on the Orbit mascot\n\nDraft id: R25. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\n`thomas-brain` is the workshop for Orbit's marketing: the store feature graphic, the profile marks, the covers and banners, the web social card, and the video scripts.\n\nIts sources still describe two names and the old marks.\n\n- `thomas-brain/orbit/brand/inputs.json` pins the mark files to an `orbit-ui-mobile` commit from before the rebrand. Every image that the folder renders s",
+   "bodyLength": 14379
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABlwz8ew",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6829177979",
+   "createdAt": "2026-11-12T16:18:33Z",
+   "body": "# Part 2 of 5: Clean every file of thomas-brain\n\nDraft id: K6. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\n`thomas-brain` tracks 841 files. The count comes from `git ls-files` on 2026-11-12 at local commit `63c71c0`. The classes: agent files under `.claude` 522, assets 160, docs 91, source 38 and config 30.\n\nThe repository is the marketing workshop of Orbit. It holds skills, a render script, two video pipelines, store images and old posts. Several folders say in their own README that nothing uses them. The ag",
+   "bodyLength": 21975
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABlw0CaA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6829179496",
+   "createdAt": "2026-11-12T16:18:36Z",
+   "body": "# Part 3 of 5: Update the Google Play and App Store pages to the Orbit mascot brand\n\nDraft id: R23. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\nThe owner's order, in his words: \"precisamos mudar o logo em TODO LUGAR, todas as lojas, email do google workspace, etc etc\".\n\nThe store pages are the first Orbit surface for a new person, and they still show the old brand.\n\n- The Google Play full description says \"TELL ASTRA, AND IT IS DONE\" and \"Astra is Orbit's AI\". The pt-BR text says \"FALE COM A ASTRA E ESTÁ FEIT",
+   "bodyLength": 14507
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABlw0IBQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6829180933",
+   "createdAt": "2026-11-12T16:18:39Z",
+   "body": "# Part 4 of 5: Change the Orbit logo on every surface outside the repositories\n\nDraft id: R24. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\nThe owner's order, in his words: \"precisamos mudar o logo em TODO LUGAR, todas as lojas, email do google workspace, etc etc\".\n\nThe repositories get the new mark from R04, R21 and R25. A logo also lives in accounts and services outside the repositories. Nobody changes those with a commit. If they keep the hollow mark, a person sees the old brand in the Google sign-in dialog",
+   "bodyLength": 13493
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABlw0MiQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6829182089",
+   "createdAt": "2026-11-12T16:18:42Z",
+   "body": "# Part 5 of 5: Clean every file of the brain vault\n\nDraft id: K7. This comment is part of the work order of this ticket. Where it disagrees with the ticket body, the body wins.\n\n## Problem / why\n\nThe brain vault is the Obsidian vault in the repository `brain`. It tracks 719 files. The count comes from `git ls-files -z` on 2026-11-12 at commit `89a52a2`. The classes: docs 574, config 83, source 48 and assets 14. Use `-z`: git quotes 8 paths that have a non-ASCII character, and a count with no `-z` puts them in the wrong class.\n\nThe vault is the decision record of Orbit, and each Claude session ",
+   "bodyLength": 24992
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABl4ft3Q",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6837235165",
+   "createdAt": "2026-11-12T22:06:42Z",
+   "body": "## From #2117: state the Pro allowance as a weekly pool on the store pages\n\n#2117 found that the live Google Play listing never held \"50 a day\"; the files in `thomas-brain/orbit/google-play/listing/` were an old copy and now equal the live text (2625 characters en, 2947 characters pt-BR).\n\nOne wording gap stays for this ticket's store page rewrite (Part 3, R23): the live Pro list says \"More Astra messages each day\" / \"Mais mensagens com a Astra por dia\". Production gives Pro a weekly pool of 250 (`AppConstants.DefaultProAiMessages = 250`, `AppConfigKeys.ProAiMessagesPerWeek`). The rewritten pa",
+   "bodyLength": 819
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABnVk98A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6934838768",
+   "createdAt": "2026-11-17T01:22:42Z",
+   "body": "Owner order (2026-11-16): change the Orbit icon on LinkedIn and on every social media profile to the mascot. This ticket already owns it (Part 4, \"### 3. Social profiles\"); this comment names each profile so none is missed.\n\nChange the profile picture to the mascot mark (`thomas-brain/orbit/brand/exports/profile-mark-1024.png` or `profile-mark-512.png`, rendered by R25), and the banner or cover where the profile has one, on each Orbit brand profile:\n\n- LinkedIn company page: logo and banner (`thomas-brain/orbit/linkedin/cover.png`).\n- Instagram (the Orbit account on `contact@useorbit.org`): pr",
+   "bodyLength": 1199
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABnzRlQQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6965978433",
+   "createdAt": "2026-11-18T01:15:20Z",
+   "body": "Owner order (2026-11-17): Sentry is one more outside surface of this ticket (Part 4, the logo on every surface outside the repositories).\n\n1. **Sentry icon.** Set the avatar of the Sentry organization `orbit-ai-habit-tracker` and of each project that the organization lists (`orbit-api` and `orbit-mobile` among them) to the mascot mark (`thomas-brain/orbit/brand/exports/profile-mark-512.png`). Proof: a screenshot of the organization settings and of one issue page.\n2. **Sentry account email.** Sentry uses the owner's personal email today (issues show the assignee email of the personal account). ",
+   "bodyLength": 1156
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn2MCVQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6969033301",
+   "createdAt": "2026-11-18T04:26:30Z",
+   "body": "Notes of the local review `2125-r1` (not blocking, filed once under the speed rules of #2074). Each note is work for the area of #2125 and starts no fix round by itself.\n\n### N1. Three Part 1 acceptance lines do not hold by the letter at the head. Part 2 changed each one.\n\nEach line held at the Part 1 commit `314b1c5`. The Part 2 commit `ff94487` changed each one, and the ledger gives the reason. This is not BLOCKING, because Part 2 of the same order tells the worker to delete a file with no reader and to keep one copy of a duplicate. The pull request body must state it.\n\n1. \"The SHA-256 of ea",
+   "bodyLength": 6159
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn6aEgg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6973457538",
+   "createdAt": "2026-11-18T08:40:38Z",
+   "body": "Notes of the local review `brain2` (not blocking, filed once under the speed rules of #2074). Each note is work for the area of #2125 and starts no fix round by itself. The review is of `thomasluizon/brain#2` (Part 5): verdict NOTES, no blocking finding. Note 1 is fixed in that pull request (commit `346c736`: \"Never write raw PII.\" is in `skills/brain/SKILL.md`). Notes 2 to 6 stay open.\n\n### NOTE 1. One rule of `BRAIN-SPEC.md` is in no rule file: the PII half of the harvest rule\n\n- Where: `skills/brain/SKILL.md:21` and `skills/brain/SKILL.md:37`, `CLAUDE.md:15`.\n- Evidence: `git show b70bf82:B",
+   "bodyLength": 5780
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn8Nx3g",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6975353310",
+   "createdAt": "2026-11-18T10:07:14Z",
+   "body": "## Part 5 is complete (18 November 2026)\n\n`thomasluizon/brain#2` is merged as `8fd185e`, and the live vault (`~/Developer/brain`) holds that commit. The two steps that were left are done:\n\n- The five vault skills (`brain`, `brain-agenda`, `brain-capture`, `brain-decide`, `brain-review`) are copied to the installed skills, and each installed `SKILL.md` is equal to the vault file.\n- The `SessionEnd` entry of `~/.codex/hooks.json` that ran the deleted `scripts/codex-session-capture.sh` is removed. No other entry changed.\n\nLeft of this ticket: Parts 3 and 4 (the store pages, the outside logos with",
+   "bodyLength": 625
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABoEv-6A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-6984302312",
+   "createdAt": "2026-11-18T16:14:18Z",
+   "body": "Owner order (2026-11-18): the founder X header shows only the name and the new logo, simpler than the headline banner.\n\nDone in this ticket's area:\n- `thomasluizon/thomas-brain#15` (merged, `496e8c7`): `orbit/brand/banner-sources/x-header-1500x500.html` holds only the lockup of `inputs/orbit-lockup.svg`, unchanged, centred on `#09090B` at a 100 px cap height. `src/verify.cjs` finds the lockup and no clipped ink.\n- The founder X profile header is replaced with `orbit/brand/exports/x-header-1500x500.png` (SHA-256 `595756e587017646428f7675e65fa67a4318afcf5e872bba7dee2f06144686b8`). The live profi",
+   "bodyLength": 701
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcgnA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-7050043548",
+   "createdAt": "2026-11-20T20:37:16Z",
+   "body": "## Part 1 of 3: State the current requirement in the thomas-brain rule files\n\nTicket: thomasluizon/orbit-tickets#2125 (labels repo:ui and parity:no; the work is in `thomasluizon/thomas-brain`). The PR body says `Tracks thomasluizon/orbit-tickets#2125`, never `Closes`.\nPaths: `CLAUDE.md`, `.agents/product-marketing.md`, `.claude/skills/social-image/SKILL.md` (all in thomas-brain). It shares no file with part 2 (the vault) or part 3 (the store files), so it may run in parallel with part 2.\n\n## Behaviour\n\nThe tracked rule files of thomas-brain hold no date and no home-relative machine path. A pat",
+   "bodyLength": 3727
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcjiA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-7050044296",
+   "createdAt": "2026-11-20T20:37:18Z",
+   "body": "## Part 2 of 3: Close the two open notes of the vault cleanup\n\nTicket: thomasluizon/orbit-tickets#2125 (labels repo:ui and parity:no; the work is in `thomasluizon/brain`, the vault). The PR body says `Tracks thomasluizon/orbit-tickets#2125`, never `Closes`.\nPaths: `README.md`, `scripts/lint-graph.mjs` (in the vault). It shares no file with part 1 (thomas-brain) or part 3 (thomas-brain), so it may run in parallel with part 1.\n\n## Behaviour\n\n1. A Windows machine that ran the earlier setup script learns, from the vault README, to remove the stale `Stop` hook that starts the deleted `session-captu",
+   "bodyLength": 3881
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDcmkQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-7050045073",
+   "createdAt": "2026-11-20T20:37:20Z",
+   "body": "## Part 3 of 3: Write the store listing text and the frame sources as Orbit\n\nTicket: thomasluizon/orbit-tickets#2125 (labels repo:ui and parity:no; the work is in `thomasluizon/thomas-brain`). The PR body says `Tracks thomasluizon/orbit-tickets#2125`, never `Closes`.\nRuns after: Part 1 of 3 and Part 2 of 3 merge. It is the last part. The ticket edges (blocked by #2123 and #2117) also hold it.\n\n## Behaviour\n\nThe Google Play listing files and the screenshot frame sources in thomas-brain name only Orbit, in English and in pt-BR, and state the Pro allowance as a weekly pool of 250 AI messages. A n",
+   "bodyLength": 7527
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABq1jI_Q",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-7169689853",
+   "createdAt": "2026-11-25T17:34:08Z",
+   "body": "Owner, 2026-11-25: \"btw, the gmail login on orbit still shows the old logo. this is just a reminder that we have to change the logo of orbit in EVERY SINGLE PLACE, google oauth included, to the new mascot logo\".\n\nThe Google sign-in screen (OAuth consent screen branding in Google Cloud Console) still shows the old logo. Part 4 of this ticket covers it. Google reviews a logo change on a verified consent screen, and the review can take days, so the Google part does not need to wait for the app finish ticket: start it as soon as the owner session can, with the Orbit mascot logo at 120 by 120 px.",
+   "bodyLength": 598
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABq1p2Zw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2125#issuecomment-7169799783",
+   "createdAt": "2026-11-25T17:38:49Z",
+   "body": "Done 2026-11-25 by the owner session: the Google OAuth consent screen (project orbit-490614, Google Auth Platform > Branding) now uses the Orbit mascot logo, 120 by 120 px from `design/brand/exports/oauth-consent-logo-512.png`. Google verified the branding and it is published: \"Your branding has been verified and is being shown to users.\" The other outside surfaces of Part 4 stay open.",
+   "bodyLength": 388
+  }
+ ],
+ "2129": [
+  {
+   "id": "IC_kwDOTynGmc8AAAABl8S3Bg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6841218822",
+   "createdAt": "2026-11-13T01:37:54Z",
+   "body": "# Work order: remove every server text that makes the assistant ask, and log why a call fails\n\nThis comment is the work order for this ticket. The root diagnosis below read the real production evidence (model call records, API logs, the code, and the turns that `#2127` holds). Build these parts in one pull request on `orbit-api`, on top of `main` after `api#1109` (`#2127`) merges:\n\n1. Cause class 1, the parts still open after `api#1109`: one owner (the write guard with `HabitSetRequestScope`) decides if a target is settled. The `query_habits` result reports that decision and never tells the mo",
+   "bodyLength": 12643
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABl9AJUA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6841960784",
+   "createdAt": "2026-11-13T02:25:10Z",
+   "body": "## Two items from the `api#1109` review round, for this ticket's worker\n\nThe review fix on `api#1109` (commit `43e4b10b2`) closed the selection guard for candidates with different titles. Its sweep found two items in this ticket's area that it did not change. Take both in this ticket's pull request.\n\n1. Prompt rule 5a in `src/Orbit.Infrastructure/Services/Prompts/Sections/Static/GlobalRulesSection.cs` still says that a request which \"names the whole set or members by order\" needs no question. After `43e4b10b2` that is true only for two or more candidates with the same title. The hold message i",
+   "bodyLength": 1084
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABl_NpWw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6844279131",
+   "createdAt": "2026-11-13T04:44:47Z",
+   "body": "# Work order, part 2: a selection card that can hold the answer, and one preview for the whole request\n\nThis comment adds to the scope of this ticket. It goes into the same pull request (`api#1110`), on its branch.\n\n## Evidence (real, staging API at `2f49ed78f`, 13 November 2026)\n\nThe owner's message ran 5 times on the smoke account with one parent \"Water\" and six sub-habits titled \"Water - 710ml\": \"eu tenho 7 habitos chamados Water - 710ml deleta dois desses, e os outros 4 coloca Water - 1.18L\". The table is in the `#2127` comment \"Staging transcripts on `2f49ed78f`\". The first card was diffe",
+   "bodyLength": 4589
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABmCF1lQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6847296917",
+   "createdAt": "2026-11-13T07:50:28Z",
+   "body": "Review round 3 on `api#1110` is delivered at `b58ecf369`.\n\n- The answered-set rule now fires only when a refused write makes a different change from each prepared write (one comparison by operation kind, shared with the split rule), and it keeps a turn open one round at most.\n- The model instruction after an answered choice now says: give each set the change that the request asks for it, and give no change to a set that the request does not change.\n\nOne gap stays open and the staging captures measure it: `SeedAnsweredChoice` puts the unchosen records into `AnsweredTargetIds`, so no server rule",
+   "bodyLength": 941
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABmMDQ0w",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6857740499",
+   "createdAt": "2026-11-13T15:42:53Z",
+   "body": "# Capture result on the `api#1110` build, and work order, part 3: a write the server turns down never leaves half of the request in the preview\n\n## Evidence (real, staging API at `1cf355934`, 13 November 2026, 15:11Z to 15:30Z)\n\nRequest each time: \"eu tenho 7 habitos chamados Water - 710ml deleta dois desses, e os outros 4 coloca Water - 1.18L\", on a parent \"Water\" with 6 sub-habits titled \"Water - 710ml\".\n\n| Run | Question | Preview after the answer | Read back after approval | Result |\n| --- | --- | --- | --- | --- |\n| 1 | none | none | none | Invalid: the capture sign-in failed (`send-code`",
+   "bodyLength": 5746
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABmUSFSA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6866371912",
+   "createdAt": "2026-11-13T22:21:59Z",
+   "body": "## Four cases of the class that `orbit-api#1111` does not fix (found in its round 3)\n\nRound 3 of `orbit-api#1111` (commit `33d60d654`) made the turn atomic for a withdrawn request and linked a resent write to its denial by change. These four cases are members of the same class and are outside that diff. They stay in this ticket.\n\n1. **The supersede in `RegisterPendingWrite`** (`ProcessUserChatCommand.Tools.cs`, about lines 801 to 818, `main` code). A later bulk write of the turn that covers an earlier preview, which the turn read or revised, cancels that earlier preview to stop a duplicate. If",
+   "bodyLength": 1484
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABmVxkiA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6867936392",
+   "createdAt": "2026-11-13T23:53:19Z",
+   "body": "The four open cases of the class are built and now part of `api#1111` (five commits on top of `33d60d654`, local head `544709a4e`; the round 4 review fix goes on top before the push).\n\nWhat they change:\n\n- An earlier preview closes only when the turn ends with its answer. A withdrawn turn leaves the earlier preview open, with its content, and puts its card back in the answer (cases 1 and 2, and the \"prepare a new one\" turn that the sweep found).\n- A revision that removes every item no longer cancels at once. The model now gets a success result (`status: \"discarded\"`), and the discard runs when",
+   "bodyLength": 1929
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABmhVAgQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6880051329",
+   "createdAt": "2026-11-14T15:48:17Z",
+   "body": "Owner order (2026-11-14, rescopes this ticket's class): \"map all the AI code ... I think it's not resilient. Anytime I do something different, you find a problem. I want it to actually work for everything.\" Run `/g-best-implementation` over the whole assistant (now Orbit): the best implementation for this service with the best model at the correct cost, covering the code, the logic, how tools are used (performance and correctness), and whether retrieval (RAG) or any other current approach fits, with web research as of today. Then a second opinion from the second Claude account on Fable 5.2 mus",
+   "bodyLength": 824
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABmh_5Gw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6880753947",
+   "createdAt": "2026-11-14T16:34:42Z",
+   "body": "Owner decision (2026-11-14), after the `/g-best-implementation` result \"one typed change plan\": \"we need to do the best approach. i dont want one time fixes, i want complete fixes, i think this is the way, but fable must agree, and if not, refine it.\"\n\nRule for this ticket: the assistant is fixed as a class through the agreed plan, never by another one-off fix on the old path. Next: the second Claude account on Fable 5.2 reviews the full plan (`best-impl-orbit-ai.md`) against both repositories. Every disagreement is settled with evidence and the plan refined, then reviewed again, until Fable a",
+   "bodyLength": 693
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABmnRMFw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6886280215",
+   "createdAt": "2026-11-15T00:01:58Z",
+   "body": "Build step 1 of the agreed plan is #2135 (repo:ui: the eval gate). Each later build step gets its own ticket when it is admitted, in the order of the build queue.\n",
+   "bodyLength": 163
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABnzVEGg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6966035482",
+   "createdAt": "2026-11-18T01:18:41Z",
+   "body": "Owner order (2026-11-17): the owner approved the speed research verdict for the assistant. This comment changes the order of the plan, not its content. A later comment wins.\n\nEvidence (saved baseline of #2135): 90 of 119 failed tool calls are a `present_plan` alone; 28 of 39 question failures follow the model's own `for_selection=true`; 1 short id in 554 calls. One gate run is 306 attempts, about 690 calls, 0.554 to 0.564 USD.\n\n1. Build steps 5-api and 6-api first, behind the flag. Build steps 2-api, 3a, 3b and 4 in parallel lanes. All are due before step 8. Start 2-api and 3a now: the baselin",
+   "bodyLength": 1341
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn2IVEQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6968972561",
+   "createdAt": "2026-11-18T04:22:32Z",
+   "body": "## Orchestrator note: this pull request is one work order of #2129, not the whole ticket\n\nBuild only this: raise the daily eval spend ceiling of the staging API from 0.50 to 1.20 USD (owner decision; the ticket comment of 2026-11-18, item 2: \"The eval ceiling is 1.20 USD a day (owner decision, up from 0.50)\"). The evals of the Orbit AI build run against staging.\n\nFacts to confirm in the code first (never from this note):\n\n- The setting is `AI:EvalDailyBudgetUsd`. Its default is `0.50m` in `src/Orbit.Infrastructure/Configuration/AiSettings.cs:8`.\n- `infra/configuration.tf:46` sets `AI__EvalDail",
+   "bodyLength": 1853
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn2OguQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6969073849",
+   "createdAt": "2026-11-18T04:29:10Z",
+   "body": "Notes of the local review `1122-r1` (not blocking, filed once under the speed rules of #2074). Each note is work for the area of #2129 and starts no fix round by itself.\n\n1. simplification: `tests/Orbit.Infrastructure.Tests/Configuration/AiSettingsTests.cs:77` copies the repository-root walk, the Terraform read and both block regexes of `RenderEnvironmentGroups_UseConfiguredPrimaryAndSubTaskModels` (`AiSettingsTests.cs:57-68`); one private helper that returns the production and staging blocks removes the copy.\n2. style: `TESTING.md:137` and `infra/README.md:30` keep long lines after the reflow",
+   "bodyLength": 684
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn3Da7g",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6969940718",
+   "createdAt": "2026-11-18T05:24:42Z",
+   "body": "# Decision: the two gate rules of `evals/astra/core/merge.mjs`\n\nThe owner order on this ticket asks for both rules before step 5. The next comment holds the proposal with the code lines, the options and the cost of each option. This comment is the decision.\n\n## Rule A, the step after a second failure of one case: option A1 (no code change)\n\n1. A second failure of one case closes that gate run. `core/merge.mjs:75` keeps one rerun for each case, so the merged report of that run cannot pass.\n2. No live call runs for that pull request until its ticket holds two things: the cause, and a replay test",
+   "bodyLength": 2858
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABn3DdLA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-6969941292",
+   "createdAt": "2026-11-18T05:24:45Z",
+   "body": "# Proposal: the two gate rules of `evals/astra/core/merge.mjs`\n\nThe owner order of 2026-11-18 on this ticket says: \"Before step 5, decide the two gate rules in `evals/astra/core/merge.mjs` (the step after a second failure of one case, and no new core situation) and write them here.\" This comment is a proposal for the coordinator. It decides nothing.\n\nRead at orbit-ui-mobile `evals/astra` commit `e353daa9d` (equal to `origin/main` for that directory). No eval ran and no model call was made. Paths below are under `evals/astra/` unless a path says different.\n\n## Figures for the cost of each rule\n",
+   "bodyLength": 9535
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABos79hg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-7026441606",
+   "createdAt": "2026-11-20T00:32:49Z",
+   "body": "## Two read-path findings filed from the api#1130 review (#2182), for this ticket's API work\n\nThe pre-push review of api#1130 at `f7a7a4675` raised these as NOTEs. A review round fixes only BLOCKING findings, so they come here. api#1130 makes `RetrospectivePeriodRange.KnownPeriods` the owner of the retrospective period list and builds the `get_retrospective` failure message from it.\n\n1. One rule in several places: the retrospective period list still has hand copies that no test ties to `KnownPeriods`.\n   - `src/Orbit.Application/Chat/Tools/Implementations/GetRetrospectiveTool.cs:28` (the schem",
+   "bodyLength": 1596
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABotA6rA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-7026522796",
+   "createdAt": "2026-11-20T00:36:23Z",
+   "body": "## One more read-path NOTE from the api#1130 review at `4dee83474` (#2182)\n\n`src/Orbit.Application/Chat/Tools/ToolFailureCodes.cs:4` says the codes `invalid_arguments` and `unexpected_error` are read \"only\" by the model. The executor result also reaches the MCP clients (`src/Orbit.Api/Mcp/McpExecutorBridge.cs:53` writes `operation.PolicyReason` into the MCP error) and the API (`src/Orbit.Api/Controllers/AiController.cs:509` returns `PolicyReason`). Both codes went to those clients before api#1130 too. Fix: say \"The model reads them first. They carry no user-facing copy, so they sit outside `Er",
+   "bodyLength": 669
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpXLPoA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2129#issuecomment-7070732192",
+   "createdAt": "2026-11-21T23:13:44Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build\",\"part\":null,\"branch\":\"fix/ticket-2129\",\"pr\":null,\"at\":\"2026-11-21T23:13:44.162Z\"}",
+   "bodyLength": 125
+  }
+ ],
+ "2187": [
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDUTIw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049909027",
+   "createdAt": "2026-11-20T20:30:29Z",
+   "body": "Part 1 of 24: the Pullfrog workflow\n\nPaths: .github/workflows/pullfrog.yml\n\n## Behaviour\n\nPullfrog's later pass can read the PR's own changes (`git range-diff`, `git show --remerge-diff`), because the checkout has the full history. Its runs write the prompt cache for 5 minutes, not 1 hour. The workflow holds only the keys it uses.\n\n## Rows\n\n### Change (1 files)\n\n- **`.github/workflows/pullfrog.yml`** (72 lines now). Final verdict: KEEP+UPDATE. Lines after: ~44.\n  - Judge's line-level cut: Cut about 28 lines. Delete the nine unused provider keys (26-34: the OpenAI, Google, Gemini, XAI, DeepSeek",
+   "bodyLength": 2207
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDUWEQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049909777",
+   "createdAt": "2026-11-20T20:30:32Z",
+   "body": "Part 2 of 24: delete the coordinator loop\n\nStarts from `main` after the owner session removed \"Tool and Hook Tests\" from protection (body: owner session steps). The owner session also put the 13 deny rules in `~/.claude/settings.json` before this PR merges; paste `node -e \"console.log(JSON.stringify(require(process.env.HOME + '/.claude/settings.json').permissions.deny, null, 1))\"` in the PR body.\n\nThis is a large deletion part (about 60,000 lines in 260 files). The real edits are the rewrites listed under \"Kept files: their final shape\" and the cascade lines.\n\n## Behaviour\n\nThe old Opus coordi",
+   "bodyLength": 49979
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDUZTg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049910606",
+   "createdAt": "2026-11-20T20:30:34Z",
+   "body": "Part 3 of 24: the repository gates that police the harness\n\nStarts from `main` after Part 2 merges.\n\n## Behaviour\n\nThe Guards workflow keeps only product gates. The harness gates go: timeless text, root allowlist, lint severity, Sonar paths, push target, attribution, dependency edits, lockup crop, Docker registries, the critical production CVE script, the architecture map in CI and the performance workflow generator. The workspace overrides check becomes one `jq` step. `lefthook.yml` runs only cheap pre-commit product checks; its `pre-push` block goes (the server refuses a direct push once `en",
+   "bodyLength": 9606
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDUdEg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049911570",
+   "createdAt": "2026-11-20T20:30:37Z",
+   "body": "Part 4 of 24: the redesign and feature-parity tooling\n\nStarts from `main` after Part 3 merges.\n\nOwner, 2026-11-20: \"why do we need harness tooling especifically for a redesign, that doesnt even make sense, delete these shit\". Owner, 2026-11-20: \"are you implying to delete the redesign code?\" Answer of record: no. The redesigned app screens and all app code stay. Milestone 539 has 0 open and 143 closed issues.\n\n## Behaviour\n\nThe surface manifest, the surface scope check, the redesign coverage tool and its groups, the feature-parity gate and its 5,285-line rules file, and the visual-delivery rul",
+   "bodyLength": 3632
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDUf7w",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049912303",
+   "createdAt": "2026-11-20T20:30:39Z",
+   "body": "Part 5 of 24: the audit family goes; /audit-security runs self-contained\n\nStarts from `main` after Part 4 merges.\n\n## Behaviour\n\n`/audit-code-quality`, `/audit-performance`, `/audit-tests`, `/prod-readiness`, `_shared/*`, `.claude/workflows/*` and the last agent go (one run of `/audit-performance` ever). The owner session runs the kept `/audit-security` with no workflow file and no custom agent. `/second-opinion` stays for copy approval (his copy order names it) and is cut to budget.\n\n## Rows\n\n### Delete (12 files)\n\n- `.claude/agents/audit-readonly.md` (21 lines): No agent file remains (6.7).\n",
+   "bodyLength": 7670
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDUjKg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049913130",
+   "createdAt": "2026-11-20T20:30:42Z",
+   "body": "Part 6 of 24: /flag, /investigate, /dev-server and the AI eval skill\n\nStarts from `main` after Part 5 merges.\n\n## Behaviour\n\nFour kept owner skills are cut to budget, state only current facts, and carry the owner orders that lived only in memory notes (owner, 2026-11-20: \"your memory is LITERALLY USELESS, YOU NEVER CHECK THEM\"; no order lives only in memory).\n\n## Rows\n\n### Change (5 files)\n\n- **`.claude/skills/astra-eval/SKILL.md`** (182 lines now). Final verdict: KEEP+UPDATE. Lines after: ~70. Reason: Kept skill (6.7), cut to budget. Budget (file: 15140 B now, budget 20000 B, at most 9000 B a",
+   "bodyLength": 6079
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDUmUQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049913937",
+   "createdAt": "2026-11-20T20:30:44Z",
+   "body": "Part 7 of 24: release skills and the operations playbook\n\nStarts from `main` after Part 6 merges.\n\n## Behaviour\n\nThe five release and device skills are cut to budget. The last playbook, `operations.md`, goes: its live facts move to two new reference files and to `/dev-server`. The Android Sentry diagnostic tool and its workflow go; its three durable facts move to the Android release reference.\n\n## Rows\n\n### Delete (3 files)\n\n- `.github/workflows/android-sentry-diagnostic.yml` (55 lines)\n- `tools/__tests__/android-sentry-diagnostic.mjs` (822 lines)\n- `tools/android-sentry-diagnostic.mjs` (291 l",
+   "bodyLength": 9438
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDUpNw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049914679",
+   "createdAt": "2026-11-20T20:30:47Z",
+   "body": "Part 8 of 24: every CLAUDE.md, the rules files and BRAND.md\n\nStarts from `main` after Part 7 merges.\n\nOwner, 2026-11-20: \"you also have to research the best size for claude.md in all repos, i heard it was 200 lines, its bloated already\". Owner, 2026-11-20: \"dont tell me you wrote a new fuckin useless memory, your memory is LITERALLY USELESS, YOU NEVER CHECK THEM\". Each kept rule cites the owner's words or a measured failure; a rule a run wrote for itself with neither goes.\n\n## Behaviour\n\nThe always-loaded files hold only what an agent cannot read from the code, each at most its budget. `core.m",
+   "bodyLength": 13644
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDUslg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049915542",
+   "createdAt": "2026-11-20T20:30:49Z",
+   "body": "Part 9 of 24: kept release, device and GitHub tools and their tests\n\nStarts from `main` after Part 8 merges.\n\n## Behaviour\n\nThe kept tools keep every check they run for a release or a device, and lose the code and test cases that only served deleted features (Windows paths, the cloud lane, admission, the CI duplicate in the release plan) and the tests that pin text instead of behaviour.\n\n## Rows\n\n### Change (29 files)\n\n- **`tools/__fixtures__/ios-staging-deployment.json`** (48 lines now). Final verdict: KEEP+UPDATE. Lines after: ~23.\n  - Judge's line-level cut: Delete the `creator` block (line",
+   "bodyLength": 19303
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDUvyg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049916362",
+   "createdAt": "2026-11-20T20:30:51Z",
+   "body": "Part 10 of 24: test.yml and its scripts\n\nStarts from `main` after Part 9 merges.\n\n## Behaviour\n\n`test.yml` keeps every required check it produces (Unit Tests, Build, Lint, Type Check, Tool Tests, and the inputs of SonarCloud Code Analysis) and loses the machinery whose only job was to skip work: the merged unit-result cache, the layout shard planner and its timing file, the web test budget check and the dated run-ID comments. It ends at about 536 lines.\n\n## Rows\n\n### Delete (9 files)\n\n- `.github/actions/merged-unit-results/action.yml` (122 lines)\n- `.github/layout-shard-timings.json` (2,920 li",
+   "bodyLength": 8230
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDUy5w",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049917159",
+   "createdAt": "2026-11-20T20:30:54Z",
+   "body": "Part 11 of 24: CI caches, the contract workflow, CodeQL, Dependabot and actions\n\nStarts from `main` after Part 10 merges.\n\n## Behaviour\n\nThe cache inventory, the cache sweep and their 1,600-line rule test, the cache budget workflow, the contract rebaseline workflow and the remote action inventory go. CodeQL runs both analyses on every PR with no path planner. Dependabot keeps only the GitHub Actions block. The composite actions lose their long comments.\n\n## Rows\n\n### Delete (11 files)\n\n- `.github/scripts/android-boot-action.test.mjs` (122 lines)\n- `.github/scripts/cache-inventory.mjs` (182 lin",
+   "bodyLength": 7037
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDU10A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049917904",
+   "createdAt": "2026-11-20T20:30:56Z",
+   "body": "Part 12 of 24: release and build workflows\n\nStarts from `main` after Part 11 merges.\n\nThese workflows ship production (web, Android, iOS, desktop). A PR run does not execute most release steps, so each cut keeps every gate the judge names: the CI-green gate, the track and branch gates, secret validation, signing, the version pair, the uploads and the deployment records. The driver's deploy-first rule and `apps/mobile/scripts/mobile-version-pair.js` read the deployment records: keep their environment, task and payload fields exactly.\n\n## Behaviour\n\nThe eight workflows lose duplicated blocks, di",
+   "bodyLength": 11353
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDU4fg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049918590",
+   "createdAt": "2026-11-20T20:30:58Z",
+   "body": "Part 13 of 24: the desktop benchmark goes; the desktop acceptance core is cut\n\nStarts from `main` after Part 12 merges.\n\n## Behaviour\n\nThe desktop benchmark (its runner, measurements, probe, Windows process tools, push and window-bar acceptance, and the benchmark workflow) goes. The installed desktop acceptance stays: `node tools/desktop-bench/acceptance.mjs`, its macOS and Windows platform readers, its mock and DNS helpers, and the `desktop-acceptance.yml` workflow that uploads its recording, native trees and report.\n\n## Rows\n\n### Delete (23 files)\n\n- `.github/workflows/desktop-acceptance-pro",
+   "bodyLength": 14909
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDU72Q",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049919449",
+   "createdAt": "2026-11-20T20:31:00Z",
+   "body": "Part 14 of 24: DESIGN.md splits into a core and 15 surface files\n\nStarts from `main` after Part 13 merges. Parts 2 to 5 already deleted the readers that cited `DESIGN.md` sentences verbatim (the feature-parity rules, the surface scope check, the gate charter, the design agents, the review playbook and its prompt pins).\n\n## Behaviour\n\nA frontend worker reads the `DESIGN.md` core (at most 18,000 B) and the one to three `design/spec/*.md` files of its surface, not 253,245 B. Every design decision and every ban stays. The cuts are repetition, history, behaviour specs, test-owned geometry and lint-",
+   "bodyLength": 30565
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDU_EQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049920273",
+   "createdAt": "2026-11-20T20:31:03Z",
+   "body": "Part 15 of 24: design inventories, group A\n\nStarts from `main` after Part 14 merges (the split gives each merged rule its home).\n\n## Behaviour\n\nThe design notes of group A keep the owner's rules, numbers and reasons, and lose owner tables, verification paragraphs, ticket numbers, dated history and text that `DESIGN.md` or the code already holds. Each one ends at the judge's byte figure. Three notes merge into the design spec and go.\n\n## Rules for every design note (from the judges' full reads)\n\n- Cut the closing verification paragraphs (which test measures what, device boundaries, coordinator ",
+   "bodyLength": 11119
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDVCEg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049921042",
+   "createdAt": "2026-11-20T20:31:05Z",
+   "body": "Part 16 of 24: design inventories, group B\n\nStarts from `main` after Part 15 merges.\n\n## Behaviour\n\nThe design notes of group B keep the owner's rules and lose the inventories that `grep` regenerates. `icon-action-surfaces.md` goes from 50,089 B to about 4,500 B and keeps the owner rule \"icons over strings\". Four notes merge into their neighbours and go.\n\n## The judge's findings that apply to every file of this group (x16)\n\n1. Cut in every file: the closing \"verification\" paragraphs (which test measures what, \"device rendering remains outside\", \"frozen build\", \"coordinator-owned acceptance\", \"",
+   "bodyLength": 17853
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDVFBg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049921798",
+   "createdAt": "2026-11-20T20:31:08Z",
+   "body": "Part 17 of 24: the canvas README and the design-system bundle tooling\n\nStarts from `main` after Part 16 merges.\n\n## Behaviour\n\n`design/canvas/README.md` goes from 71,394 B to at most 18,000 B: it keeps the precedence ladder, the Criar drawing overrides table, the token table and the active amendments as current rules. Its long surface tables move to the 15 `design/spec/` files. The generated design-system manifest and readme, and the manual bundle builder with its test, go: nothing reads them.\n\n## Rows\n\n### Delete (5 files)\n\n- `tools/__tests__/build-ds-bundle.mjs` (50 lines)\n- `canvas/_ds/orbi",
+   "bodyLength": 7305
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDVIEQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049922577",
+   "createdAt": "2026-11-20T20:31:10Z",
+   "body": "Part 18 of 24: drawings, group A (report blocks)\n\nPaths: design/canvas/Orbit Assinatura.dc.html, design/canvas/Orbit Astra Conversation.dc.html, design/canvas/Orbit Avisos.dc.html, design/canvas/Orbit Busca.dc.html, design/canvas/Orbit Calendario.dc.html, design/canvas/Orbit Celebracao.dc.html, design/canvas/Orbit Criar.dc.html, design/canvas/Orbit Entrar.dc.html, design/canvas/Orbit Estados.dc.html, design/canvas/Orbit Habit Detail.dc.html, design/canvas/Orbit Hoje.dc.html, apps/web/components/habits/reschedule-sheet.tsx, apps/mobile/components/habits/reschedule-sheet.tsx, apps/mobile/compone",
+   "bodyLength": 19778
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDVLJg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049923366",
+   "createdAt": "2026-11-20T20:31:12Z",
+   "body": "Part 19 of 24: drawings, group B (report blocks)\n\nPaths: design/canvas/Orbit Offline.dc.html, design/canvas/Orbit Onboarding.dc.html, design/canvas/Orbit Perfil.dc.html, design/canvas/Orbit Pro.dc.html, design/canvas/Orbit Progresso.dc.html, design/canvas/Orbit Sobre.dc.html, design/canvas/Orbit Sobreposicoes.dc.html, design/canvas/Orbit Verificacao.dc.html, design/canvas/Orbit Widget Android.dc.html, design/canvas/Orbit Wrapped.dc.html, apps/web/app/(app)/profile/_components/, apps/mobile/app/(tabs)/profile/_components/, apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
+   "bodyLength": 19314
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDVOEA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049924112",
+   "createdAt": "2026-11-20T20:31:14Z",
+   "body": "Part 20 of 24: TESTING.md becomes a catalog\n\nStarts from `main` after Parts 18 and 19 merge.\n\n## Behaviour\n\n`TESTING.md` goes from 239,506 B to at most 18,000 B: a catalog of the suites that exist after Parts 2 to 19, what each one proves, where it runs (locally with `vitest related`, in CI), and how to run it. It holds no per-test history, no dated evidence, no cost tables and no rows of deleted suites. It has a `## Contents` list.\n\n## Rows\n\n### Change (1 files)\n\n- **`TESTING.md`** (1,711 lines now). Final verdict: KEEP+UPDATE. Lines after: ~260. Budget (file: 239506 B now, budget 20000 B, at",
+   "bodyLength": 7820
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDVQ2g",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049924826",
+   "createdAt": "2026-11-20T20:31:16Z",
+   "body": "Part 21 of 24: the other ui docs\n\nStarts from `main` after Part 20 merges.\n\n## Behaviour\n\nThe remaining ui docs state current facts only, each at or under its figure: no stale version numbers, no retired product name in prose, no per-feature rollout notes, no dated evidence.\n\n## Rows\n\n### Change (6 files)\n\n- **`apps/desktop/README.md`** (35763 B now, judge x20). Final verdict: KEEP+UPDATE (at most 20,000 bytes, targe. Bytes after: 20000. Budget (file: 35763 B now, budget 20000 B, at most 14000 B after).\n  - Judge's line-level cut: Rename Astra to Orbit. Delete :144-146. Cut :19, :21 and :127 t",
+   "bodyLength": 4805
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDVTwQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049925569",
+   "createdAt": "2026-11-20T20:31:19Z",
+   "body": "Part 22 of 24: lint rules\n\nStarts from `main` after Part 21 merges.\n\n## Behaviour\n\nA product rule is not a debloat target; only its cost is. Pullfrog posts no design finding, so a lint rule that enforces a written owner rule or a `DESIGN.md` ban is that rule's only check and stays (proposal 6.12). The rules that guard nothing, or that the compiler or `jsx-a11y` already cover, go. The kept rules lose stale branches, hardcoded path lists and test cases that only pin review-round history.\n\n## Rows\n\n### Delete (10 files)\n\n- `tools/__tests__/comment-fix.mjs` (67 lines)\n- `tools/comment-fix.mjs` (85",
+   "bodyLength": 22737
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDVWyQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049926345",
+   "createdAt": "2026-11-20T20:31:21Z",
+   "body": "Part 23 of 24: the dash and copy baselines go; kept repository checks are cut\n\nStarts from `main` after Part 22 merges (Parts 2, 8 and 22 already rewrote or deleted most files the dash baseline lists).\n\n## Behaviour\n\nThe Dash Ban and the Copy Register fail on every finding: no baseline file lets an old finding stay. The gradient check scans CSS only (the lint rules `no-raw-gradient` and `no-spinner` hold TypeScript). The i18n usage check keeps catalog parity and literal-key calls and drops its symbol resolver and its statistics output.\n\n## Rows\n\n### Delete (2 files)\n\n- `tools/copy-baseline.jso",
+   "bodyLength": 7023
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpDVZcQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7049927025",
+   "createdAt": "2026-11-20T20:31:23Z",
+   "body": "Part 24 of 24: tools/check-instructions.mjs and the harness line budget\n\nThis part runs last: it records the harness line count after Parts 1 to 23. Every earlier part ran in order, so they are merged when this part starts, except Parts 1, 18 and 19, which run beside others and only remove lines; a budget taken before they merge stays valid after. List any open part on the `Remaining:` line (check with `gh pr list -R thomasluizon/orbit-ui-mobile --state all --search \"Tracks thomasluizon/orbit-tickets#<N>\"`).\n\n## Why\n\nOwner, 2026-11-20: \"i want nothing over budget, NOTHING\". Measured: 3 of 3 al",
+   "bodyLength": 6529
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpFNBqA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7051887016",
+   "createdAt": "2026-11-20T22:13:42Z",
+   "body": "Step 1c probes (owner session, 2026-11-20). Every result below is pasted from the run.\n\n**Falsifier 5: every guard holds.** Probe PRs ui#2513, api#1131 and landing#138 each held one empty commit on `main`.\n\n| probe | ui | api | landing |\n|---|---|---|---|\n| `gh pr merge <probe> --admin --squash` (owner token) | exit 1, 2.1 s: `5 of 13 required status checks have not succeeded: 3 expected. (mergePullRequest)` | exit 1, 2.5 s: `4 of 12 required status checks have not succeeded: 2 expected.` | exit 1, 3.0 s: `2 of 4 required status checks have not succeeded: 1 expected.` |\n| direct push of one mo",
+   "bodyLength": 2738
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpIwsEA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7055617040",
+   "createdAt": "2026-11-21T02:04:52Z",
+   "body": "Step 2b (owner session, 2026-11-21 01:55Z). The driver runs.\n\n- `tools/drive.mjs` merged with #2186 Part 3 as ui#2514 at `965ef0fb5d0b1f2dd8732ba0d22f06f086577cf3`. The worktree `~/orca/workspaces/orbit-ui-mobile/orbit-drive` is detached at that commit.\n- `node tools/drive.mjs --dry-run` there: exit 0, 49 lines, `git status --porcelain` empty after it.\n- `node tools/drive.mjs --probe`: `utilization 0.63, resetsAt 1795676400 (2026-11-26T07:00:00.000Z), age 0 minutes, status allowed_warning`.\n- launchd: `com.thomas.orbit-drive` bootstrapped (plist in the brain repo, `scripts/automations/launchd/",
+   "bodyLength": 1646
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpLhcUQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7058512977",
+   "createdAt": "2026-11-21T06:18:29Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":1,\"branch\":\"chore/ticket-2187-part-1\",\"pr\":null,\"at\":\"2026-11-21T06:18:29.180Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpLia9A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7058529012",
+   "createdAt": "2026-11-21T06:19:58Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":18,\"branch\":\"chore/ticket-2187-part-18\",\"pr\":null,\"at\":\"2026-11-21T06:19:58.410Z\"}",
+   "bodyLength": 138
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpL2j6w",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7058858987",
+   "createdAt": "2026-11-21T06:49:57Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"ci-fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-1\",\"pr\":2520,\"at\":\"2026-11-21T06:49:57.446Z\"}",
+   "bodyLength": 135
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpL3eHQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7058873885",
+   "createdAt": "2026-11-21T06:51:23Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"ci-fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-18\",\"pr\":2521,\"at\":\"2026-11-21T06:51:23.357Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpL5CwQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7058899649",
+   "createdAt": "2026-11-21T06:53:49Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":19,\"branch\":\"chore/ticket-2187-part-19\",\"pr\":null,\"at\":\"2026-11-21T06:53:48.773Z\"}",
+   "bodyLength": 138
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpMLcqw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7059201195",
+   "createdAt": "2026-11-21T07:21:18Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"merge-forward\",\"part\":null,\"branch\":\"chore/ticket-2187-part-18\",\"pr\":2521,\"at\":\"2026-11-21T07:21:17.719Z\"}",
+   "bodyLength": 143
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpMM3iw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7059224459",
+   "createdAt": "2026-11-21T07:23:28Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"ci-fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-19\",\"pr\":2522,\"at\":\"2026-11-21T07:23:28.082Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpQf81Q",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7063731413",
+   "createdAt": "2026-11-21T13:59:13Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":2,\"branch\":\"chore/ticket-2187-part-2\",\"pr\":null,\"at\":\"2026-11-21T13:59:13.155Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpRAH5g",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7064258534",
+   "createdAt": "2026-11-21T14:39:56Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-2\",\"pr\":2525,\"at\":\"2026-11-21T14:39:56.517Z\"}",
+   "bodyLength": 132
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpRAgMw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7064264755",
+   "createdAt": "2026-11-21T14:40:22Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nchore/ticket-2187-part-2: NEEDS_DECISION: Should the owner session add the 13 deny rules to `~/.claude/settings.json` and update the PR body, or should I write them there myself?",
+   "bodyLength": 211
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpRBspQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7064284325",
+   "createdAt": "2026-11-21T14:41:38Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-2\",\"pr\":2525,\"at\":\"2026-11-21T14:41:37.791Z\"}",
+   "bodyLength": 132
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpRChXg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7064297822",
+   "createdAt": "2026-11-21T14:42:27Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2525 at 74872c55d640bdec4b2f356846777e2e5691a53d: ui#2525 used its 2 fix launches. Open: .claude/settings.json:3",
+   "bodyLength": 148
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpRFSzg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7064343246",
+   "createdAt": "2026-11-21T14:45:14Z",
+   "body": "Owner session decision (2026-11-21 14:47Z) on the NEEDS_DECISION of Part 2: the owner session added the 13 deny rules (the 11 secret `Read` rules plus `Edit(**/node_modules/**)` and `Write(**/node_modules/**)`) to `~/.claude/settings.json`, as the ticket orders, and pasted the read-back in the PR body of ui#2525. Nothing goes back into `.claude/settings.json`.\n",
+   "bodyLength": 363
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpROY3Q",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7064492253",
+   "createdAt": "2026-11-21T14:56:57Z",
+   "body": "Owner-session launch for #2187 Part 2 (the driver capped ui#2525 at 2 fix launches). Same branch `chore/ticket-2187-part-2`, PR thomasluizon/orbit-ui-mobile#2525 at `74872c55d640bdec4b2f356846777e2e5691a53d`. The deny-rule precondition is met (the owner session added the 13 rules to `~/.claude/settings.json`; the PR body shows the read-back). The whole-diff pass posted one BLOCKING class:\n\nAt `.github/scripts/plan-test-jobs.mjs:22`:\n\n> BLOCKING: correctness bug ",
+   "bodyLength": 3885
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpRPSZQ",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7064506981",
+   "createdAt": "2026-11-21T14:58:09Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2525 at 74872c55d640bdec4b2f356846777e2e5691a53d: ui#2525 used its 2 fix launches. Open: .github/scripts/plan-test-jobs.mjs:22",
+   "bodyLength": 162
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpRZj1A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7064675284",
+   "createdAt": "2026-11-21T15:11:20Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2525 at d3b8f07ee04cc4d38853734037762fb4996be232: ui#2525 used its 2 fix launches. Open: .github/scripts/plan-test-jobs.mjs:23",
+   "bodyLength": 162
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpSZp-Q",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7065725433",
+   "createdAt": "2026-11-21T16:32:40Z",
+   "body": "Owner-session launch 2 for #2187 Part 2 (ui#2525 is capped; the owner session drives it). Same branch `chore/ticket-2187-part-2`, PR thomasluizon/orbit-ui-mobile#2525 at `d3b8f07ee04cc4d38853734037762fb4996be232`. The whole-diff pass at that head posted one BLOCKING class, the second round of the same class:\n\nAt `.github/scripts/plan-test-jobs.mjs:23`:\n\n> BLOCKING: correctness bug. This `tools` scope still misses inputs that the case modules themselves assert on. The last round found this hole for the push-only guards. It is still open for the harness.\n> \n> Failing input: a pull request that c",
+   "bodyLength": 4637
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpSx8Sw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7066123339",
+   "createdAt": "2026-11-21T16:59:37Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":3,\"branch\":\"chore/ticket-2187-part-3\",\"pr\":null,\"at\":\"2026-11-21T16:59:37.524Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpTHrMw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7066479411",
+   "createdAt": "2026-11-21T17:26:08Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":4,\"branch\":\"chore/ticket-2187-part-4\",\"pr\":null,\"at\":\"2026-11-21T17:26:08.465Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpTXc7Q",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7066737901",
+   "createdAt": "2026-11-21T17:46:45Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"ci-fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-4\",\"pr\":2528,\"at\":\"2026-11-21T17:46:45.250Z\"}",
+   "bodyLength": 135
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpTchYA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7066820960",
+   "createdAt": "2026-11-21T17:52:49Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-4\",\"pr\":2528,\"at\":\"2026-11-21T17:52:49.390Z\"}",
+   "bodyLength": 132
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpTvhCA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7067132168",
+   "createdAt": "2026-11-21T18:16:26Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2528 at 11b42534c774cd77425cdb12535f31c162141cb6: ui#2528 used its 2 fix launches. Launches: 2. Open: Tool Tests",
+   "bodyLength": 148
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpTzF6A",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7067190760",
+   "createdAt": "2026-11-21T18:21:09Z",
+   "body": "Owner answer for ui#2528 (cap reached at `11b42534c`). The open item `Tool Tests` is a timing flake, not this pull request: the job failed only on `lib/github-auth.mjs: token timeout removes the complete process tree` (`descendant 10383 still alive`, job 136936946888). The same code passed at `836e0465a`, `11b42534c` is a clean merge of `main` `44e396a8e`, whose push run passed, and this pull request changes no file that the test reads.\n\nFix the root cause in this pull request. `tools/__tests__/github-auth.mjs:50-54` reads `processIsRunning(descendantPid)` right after the timeout, so a descend",
+   "bodyLength": 1023
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpT10Vw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7067235415",
+   "createdAt": "2026-11-21T18:24:46Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"ci-fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-4\",\"pr\":2528,\"at\":\"2026-11-21T18:24:45.852Z\"}",
+   "bodyLength": 135
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpUIIiw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7067535499",
+   "createdAt": "2026-11-21T18:49:08Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":5,\"branch\":\"chore/ticket-2187-part-5\",\"pr\":null,\"at\":\"2026-11-21T18:49:08.024Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpUfCPg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7067910718",
+   "createdAt": "2026-11-21T19:17:19Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":6,\"branch\":\"chore/ticket-2187-part-6\",\"pr\":null,\"at\":\"2026-11-21T19:17:19.033Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpUpyng",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7068086942",
+   "createdAt": "2026-11-21T19:31:50Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":7,\"branch\":\"chore/ticket-2187-part-7\",\"pr\":null,\"at\":\"2026-11-21T19:31:50.315Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpU_GdA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7068436084",
+   "createdAt": "2026-11-21T20:00:31Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":8,\"branch\":\"chore/ticket-2187-part-8\",\"pr\":null,\"at\":\"2026-11-21T20:00:30.888Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpVJrLg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7068609326",
+   "createdAt": "2026-11-21T20:14:38Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-8\",\"pr\":2533,\"at\":\"2026-11-21T20:14:38.466Z\"}",
+   "bodyLength": 132
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpVX1Vg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7068841302",
+   "createdAt": "2026-11-21T20:33:40Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":9,\"branch\":\"chore/ticket-2187-part-9\",\"pr\":null,\"at\":\"2026-11-21T20:33:40.643Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpVjuvg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7069036222",
+   "createdAt": "2026-11-21T20:49:45Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"ci-fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-9\",\"pr\":2534,\"at\":\"2026-11-21T20:49:45.015Z\"}",
+   "bodyLength": 135
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpVnQfA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7069094012",
+   "createdAt": "2026-11-21T20:54:35Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-9\",\"pr\":2534,\"at\":\"2026-11-21T20:54:35.035Z\"}",
+   "bodyLength": 132
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpVyfNw",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7069278007",
+   "createdAt": "2026-11-21T21:09:43Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"build part\",\"part\":10,\"branch\":\"chore/ticket-2187-part-10\",\"pr\":null,\"at\":\"2026-11-21T21:09:43.005Z\"}",
+   "bodyLength": 138
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpWG5_g",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7069612542",
+   "createdAt": "2026-11-21T21:38:10Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-10\",\"pr\":2535,\"at\":\"2026-11-21T21:38:10.504Z\"}",
+   "bodyLength": 133
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpWRxrA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7069790636",
+   "createdAt": "2026-11-21T21:53:21Z",
+   "body": "<!-- orbit-drive:launch -->\n{\"kind\":\"ci-fix\",\"part\":null,\"branch\":\"chore/ticket-2187-part-10\",\"pr\":2535,\"at\":\"2026-11-21T21:53:20.698Z\"}",
+   "bodyLength": 136
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpWZhvg",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7069917630",
+   "createdAt": "2026-11-21T22:04:12Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2535 at 3a56038f23acc02ab78978e7f1664d61aa91b8de: ui#2535 used its 2 fix launches. Launches: 2. Open: Web unit (jsdom 4/4)",
+   "bodyLength": 158
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpWdV3g",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7069980126",
+   "createdAt": "2026-11-21T22:09:33Z",
+   "body": "<!-- orbit-drive:needs-owner -->\nui#2535 at 3a56038f23acc02ab78978e7f1664d61aa91b8de: ui#2535 used its 2 fix launches. Launches: 2. Open: Web unit (jsdom 4/4), Unit Tests",
+   "bodyLength": 170
+  },
+  {
+   "id": "IC_kwDOTynGmc8AAAABpgh6RA",
+   "url": "https://github.com/thomasluizon/orbit-tickets/issues/2187#issuecomment-7080540740",
+   "createdAt": "2026-11-22T14:26:03Z",
+   "body": "Answered: this work is after launch, so the launch ticket now blocks it. The needs:owner label stays on purpose: the owner session runs its owner steps when the launch is done.",
+   "bodyLength": 176
+  }
+ ]
+}
