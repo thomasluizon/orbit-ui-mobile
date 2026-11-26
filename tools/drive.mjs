@@ -1649,6 +1649,13 @@ const readWorld = async (env, mem) => {
   return { tickets, states }
 }
 
+/** Sends SIGKILL to the process group of the worker that `${stem}.pid` names. A missing or unreadable file means this process already ended the group. */
+const killLeftoverGroup = (env, stem) => {
+  let pid
+  try { pid = JSON.parse(readFileSync(join(env.stateDir, `${stem}.pid`), "utf8")).pid } catch { return }
+  if (Number.isInteger(pid)) env.worker.killWorkerTree(pid, "SIGKILL")
+}
+
 /**
  * Reaps every worker whose launch record is on disk and whose process is gone, after a restart of the driver too. A tick
  * reaps before it reads GitHub for its own steps, so every later step reads what the reap wrote. The reap has its own
@@ -1663,6 +1670,8 @@ const reapExits = async (env, mem) => {
   const { tickets, states } = await readWorld(env, mem)
   for (const { stem, record } of gone) {
     rmSync(launchRecordPath(env, stem), { force: true })
+    // A worker that this process did not wait for has no `finish` here to end the children it left in its group, and its pid file is still there.
+    if (!mem.results.has(stem)) killLeftoverGroup(env, stem)
     rmSync(join(env.stateDir, `${stem}.pid`), { force: true })
     const killedBy = mem.orphans.get(stem)?.reason ?? null
     const result = mem.results.get(stem) ?? { ...exitFromLog(record.logFile), killed: killedBy, killReason: killedBy === null ? null : env.worker.KILL_REASONS[killedBy] }

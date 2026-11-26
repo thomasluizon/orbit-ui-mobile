@@ -1667,7 +1667,7 @@ const orphanClockCases = async () => {
   live(stale, 90)
   stale.env.processAlive = () => false
   await stale.run()
-  same("drive: a pid file whose pid is not a worker process is stale, so it is never killed and its record is reaped", [signals(stale), existsSync(staleRecord)], [[], false])
+  same("drive: a pid file whose pid is gone is never signaled by the clocks, and its record is reaped with one group kill", [signals(stale), existsSync(staleRecord)], [["SIGKILL"], false])
 
   const started = scenario({ tickets: [ticket(7)] })
   leftBehind(started)
@@ -1943,6 +1943,19 @@ const selfUpdateCases = async () => {
   restarted.mem.account = { key: ACCOUNT.key, email: AUTH.email, orgId: AUTH.orgId }
   const restartedResult = await restarted.run()
   same("drive: after the restart the 3 workers are still running: no reap, no new launch on their branches", [restartedResult.switched, recordPaths.every((path) => existsSync(path)), restarted.launched.length], [false, true, 0])
+
+  const adopted = scenario({ tickets: [ticket(7), ticket(8), ticket(9)] })
+  adopted.env.processAlive = (pid) => pid === 4343
+  const pidFileOfStem = (stem) => join(adopted.env.stateDir, `${stem}.pid`)
+  const pids = { "chore-ticket-7": 4242, "chore-ticket-8": 4343 }
+  Object.entries(pids).forEach(([stem, pid], index) => {
+    leftBehind(adopted, { ticketNumber: 7 + index, branch: stem.replace("chore-", "chore/") }, "", stem)
+    writeFileSync(pidFileOfStem(stem), `${JSON.stringify({ pid, worktree: "/w", startedAt: iso(0) })}\n`)
+  })
+  leftBehind(adopted, { ticketNumber: 9, branch: "chore/ticket-9" }, "", "chore-ticket-9")
+  adopted.mem.results.set("chore-ticket-9", { ...clean })
+  await adopted.run()
+  same("drive: the reap of an adopted worker kills its process group, and leaves a live worker and a worker that this process reaped", [only(adopted.calls, "kill"), existsSync(pidFileOfStem("chore-ticket-7")), existsSync(pidFileOfStem("chore-ticket-8"))], [[["kill", 4242, "SIGKILL"]], false, true])
 
   const owned = driverScene()
   owned.mem.running.set("chore-ticket-7", Promise.resolve())
