@@ -1439,6 +1439,16 @@ const planSpeedCases = async () => {
   await spareRunning
   same("drive: the admission after the plan starts no second worker for the ticket of an early launch", launchesIn(spare), ["8 build", "7 ci-fix"])
 
+  // The ticket of an early launch stays open, so the admission after the plan still holds a runs-last ticket for it.
+  const lastOne = scenario({ tickets: [ticket(7), ticket(9, { labels: ["repo:ui", "Bug", "runs-last:board"] })], reading: { utilization: 0, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, pulls: { ui: [pull(30, { tracks: null })] } })
+  lastOne.env.planWindowMs = 20
+  const releaseLast = holdPlan(lastOne)
+  const lastRunning = lastOne.run()
+  await until(() => lastOne.launched.length === 1)
+  releaseLast()
+  const lastResult = await lastRunning
+  same("drive: a runs-last ticket waits for the open ticket of an early launch", [launchesIn(lastOne), lastResult.lines.find((line) => line.startsWith(`ticket ${REPOSITORY}#9:`))], [["7 build"], `ticket ${REPOSITORY}#9: wait: runs last (1 open)`])
+
   // With no env window, the wait for the plan is at most the 2 minutes of the ticket. The fake timer records the wait and ends it at once.
   const defaulted = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { tracks: null })] } })
   const releaseDefault = holdPlan(defaulted)

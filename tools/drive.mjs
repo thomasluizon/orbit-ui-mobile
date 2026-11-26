@@ -1577,12 +1577,14 @@ const ownerWorkNotices = async (env, mem, tickets) => {
 /**
  * Walks the open tickets in rank order and returns the build and find orders that fit `room`, the free worker slots, with
  * the decision for each ticket. `full` is the reason that a ticket waits once the room is used. A ticket whose worker runs
- * on its branch, or whose launches are spent, never gets a second order.
+ * on its branch, or whose launches are spent, never gets a second order. A ticket in `skip` gets no order and no decision,
+ * and it stays in `tickets`, so a `runs-last` ticket still waits for it.
  */
-const admit = async (env, mem, tickets, states, { running, room, full }) => {
+const admit = async (env, mem, tickets, states, { running, room, full, skip = new Set() }) => {
   const decisions = new Map()
   const chosen = []
   for (const ticket of rankTickets(tickets)) {
+    if (skip.has(ticket.number)) continue
     const verdict = await ticketVerdict(env, mem, states, tickets, ticket, { settled: chosen.length >= room ? full : null, running })
     if (verdict.reason) {
       decisions.set(ticket.number, verdict.owner ? `needs:owner: ${verdict.reason}` : `wait: ${verdict.reason}`)
@@ -1879,8 +1881,8 @@ export const tick = async (env, mem) => {
   const room = holdReason ? 0 : free.main + free.worker
   const fixOrders = room === 0 ? [] : orders.filter((order) => !running.branches.has(order.pull.headRef)).sort((left, right) => left.pull.number - right.pull.number).slice(0, room)
   const early = new Set(admitted.chosen.map((order) => order.ticket.number))
-  const rest = tickets.filter((ticket) => !closed.has(ticket.number) && !early.has(ticket.number))
-  const { chosen, decisions: later } = holdReason ? { chosen: [], decisions: new Map() } : await admit(env, mem, rest, states, { running, room: room - fixOrders.length, full })
+  const open = tickets.filter((ticket) => !closed.has(ticket.number))
+  const { chosen, decisions: later } = holdReason ? { chosen: [], decisions: new Map() } : await admit(env, mem, open, states, { running, room: room - fixOrders.length, full, skip: early })
   const decisions = new Map([...admitted.decisions, ...later])
   for (const ticket of tickets) env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${closed.has(ticket.number) ? "close" : holdReason ? `wait: ${holdReason}` : decisions.get(ticket.number) ?? "wait"}`)
   if (!env.dryRun) {
