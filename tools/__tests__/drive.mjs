@@ -36,6 +36,7 @@ import {
 } from "../lib/github.mjs"
 import { ORDER_KINDS, partOf, renderBrief, renderOrder } from "../lib/order.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
+import { sendTelegram } from "../lib/telegram.mjs"
 import {
   finalResult,
   isUsageLimitMessage,
@@ -1044,7 +1045,7 @@ const orderCases = async () => {
 }
 
 const selfSufficiencyCases = () => {
-  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/worker.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
+  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/telegram.mjs", "lib/worker.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
   for (const file of files) {
     const path = toolPath(file)
     const found = readFileSync(path, "utf8").split("\n").map((line, index) => [index + 1, line]).filter(([, line]) => BANNED_TEXT.test(line))
@@ -1077,13 +1078,24 @@ const skillMarkerCases = () => {
   T("skills/progress: the next ticket in line comes from the next ticket line of the dry run", progress.includes("`next ticket `") && progress.includes("`next ticket none`") && !progress.includes("action is `admit`"), "the skill reads another line")
 }
 
+const telegramUnit = async () => {
+  const requests = []
+  const keychain = async (item) => ({ "telegram-bot-token": "123456:bot-secret", "telegram-chat-id": "4242" })[item] ?? null
+  const answering = (status, body) => async (url, init) => { requests.push({ url, init }); return { status, json: async () => body } }
+  same("lib/telegram.mjs: an ok answer is a sent message", await sendTelegram("a".repeat(5000), { keychain, fetch: answering(200, { ok: true, result: {} }) }), { status: "sent" })
+  same("lib/telegram.mjs: one JSON POST holds the chat id and a text cut to the limit", [requests.length, requests[0].init.method, requests[0].init.headers["content-type"], JSON.parse(requests[0].init.body).chat_id, JSON.parse(requests[0].init.body).text.length], [1, "POST", "application/json", "4242", 4096])
+  same("lib/telegram.mjs: a refusal gives the status and the description", await sendTelegram("text", { keychain, fetch: answering(400, { ok: false, description: "Bad Request: chat not found" }) }), { status: "failed", reason: "HTTP 400: Bad Request: chat not found" })
+  same("lib/telegram.mjs: an answer that is no JSON is a failure", await sendTelegram("text", { keychain, fetch: async () => ({ status: 502, json: async () => { throw new SyntaxError("no JSON") } }) }), { status: "failed", reason: "HTTP 502: no description" })
+  same("lib/telegram.mjs: a missing Keychain item makes no request and names the item", [await sendTelegram("text", { keychain: async () => null, fetch: answering(200, { ok: true }) }), requests.length], [{ status: "unset", missing: "telegram-bot-token" }, 2])
+}
+
 const orderUnit = async () => {
   await orderCases()
   selfSufficiencyCases()
   skillMarkerCases()
 }
 
-const UNITS = { "drive.mjs": driverUnit, "lib/driver-pin.mjs": pinUnit, "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
+const UNITS = { "drive.mjs": driverUnit, "lib/driver-pin.mjs": pinUnit, "lib/telegram.mjs": telegramUnit, "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
 
 export const cases = async () => {
   for (const unit of Object.values(UNITS)) await unit()
