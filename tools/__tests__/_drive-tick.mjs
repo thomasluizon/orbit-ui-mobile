@@ -675,7 +675,8 @@ const reviewOnceCases = async () => {
   const NEW_HEAD = "e".repeat(40)
   const diffOf = (blob, line, body) => `diff --git a/x b/x\nindex ${blob}..${blob}1 100644\n--- a/x\n+++ b/x\n@@ -${line},1 +${line},1 @@\n-old\n+${body}\n`
   // The head after a merge of the base: other blob ids and other line numbers, the same change.
-  const diffRoute = (approvedDiff, headDiff) => ["--no-ext-diff", (args) => (args.at(-1).endsWith(NEW_HEAD) ? headDiff : approvedDiff)]
+  // The key holds --binary: the own diff of a head is read with the context lines and the content of a binary file.
+  const diffRoute = (approvedDiff, headDiff) => ["--binary", (args) => (args.at(-1).endsWith(NEW_HEAD) ? headDiff : approvedDiff)]
   const merged = (diffs, extra = {}) => scenario({ tickets: [ticket(7)], gitRoutes: [diffRoute(...diffs)], pulls: { ui: [pull(30, { headSha: NEW_HEAD, commits: [{ sha: HEAD, parents: 1 }, { sha: NEW_HEAD, parents: 2 }], reviews: [review("APPROVED", HEAD, -40 * MINUTE)], comments: [comment("ticket", "T"), comment("request", PLAIN, -50 * MINUTE)], ...extra })] } })
   const skipLines = (scene) => scene.messages.filter((line) => line.includes("review skip"))
 
@@ -685,6 +686,19 @@ const reviewOnceCases = async () => {
   const changed = merged([diffOf("111", 10, "new"), diffOf("222", 10, "other")])
   await changed.run()
   same("drive: a merge of the base that changes the diff of the approval asks for a new review", [commentsOf(changed.calls, 30).map((text) => text.split("\n")[1]), only(changed.calls, "merge").length, skipLines(changed).length], [[PLAIN], 0, 0])
+  // A change that moves inside a file keeps its text and its context lines differ; a binary file that changes keeps its marker line and its payload differs.
+  const placed = (context, blob, payload) => `diff --git a/x.txt b/x.txt\nindex ${blob}..${blob}1 100644\n--- a/x.txt\n+++ b/x.txt\n@@ -1,7 +1,8 @@\n ${context}\n+setup()\n ${context}\ndiff --git a/img.bin b/img.bin\nindex ${blob}..${blob}2 100644\nGIT binary patch\nliteral 4\n${payload}\n`
+  const moved = merged([placed("line9", "111", "v1"), placed("line19", "222", "v1")])
+  await moved.run()
+  same("drive: a change that moves inside a file does not carry the approval", [commentsOf(moved.calls, 30).map((text) => text.split("\n")[1]), only(moved.calls, "merge").length, skipLines(moved).length], [[PLAIN], 0, 0])
+  const rebinary = merged([placed("line9", "111", "v1"), placed("line9", "222", "v2")])
+  await rebinary.run()
+  same("drive: a binary file with other content does not carry the approval", [commentsOf(rebinary.calls, 30).map((text) => text.split("\n")[1]), only(rebinary.calls, "merge").length], [[PLAIN], 0])
+  const rebased = merged([placed("line9", "111", "v1"), placed("line9", "222", "v1")])
+  await rebased.run()
+  same("drive: the same change with other blob ids carries the approval", [commentsOf(rebased.calls, 30).length, only(rebased.calls, "merge").length], [0, 1])
+  const diffCalls = sameDiff.calls.filter((call) => call[0] === "git" && call[1] === "diff")
+  same("drive: the own diff is read with the context lines and the binary content", [diffCalls.length > 0, diffCalls.every((call) => call.includes("--binary") && !call.includes("-U0"))], [true, true])
   const unknown = merged(["", ""])
   await unknown.run()
   same("drive: a diff that git cannot show carries no approval", [commentsOf(unknown.calls, 30).map((text) => text.split("\n")[1]), only(unknown.calls, "merge").length], [[PLAIN], 0])

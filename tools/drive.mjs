@@ -699,9 +699,9 @@ const cleanMergesOf = async (env, repoPath, pull) => {
   return clean
 }
 
-/** The own diff of a commit: its change against the base, with the blob ids and the line numbers left out. An empty string means the diff is unknown. */
+/** The own diff of a commit: its change against the base, with the context lines that anchor each hunk and the content of a binary file, and with the blob ids and the line numbers left out. An empty string means the diff is unknown. */
 const ownDiff = async (env, repoPath, base, sha) => {
-  const shown = await env.git(repoPath, ["diff", "--no-color", "--no-ext-diff", "-U0", `origin/${base}...${sha}`])
+  const shown = await env.git(repoPath, ["diff", "--no-color", "--no-ext-diff", "--binary", `origin/${base}...${sha}`])
   if (shown.status !== 0) return ""
   return shown.stdout.split("\n").filter((line) => !line.startsWith("index ")).map((line) => (line.startsWith("@@") ? "@@" : line)).join("\n").trim()
 }
