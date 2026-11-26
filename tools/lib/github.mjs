@@ -11,6 +11,8 @@ const PASSING_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"])
 const PULLFROG_APPROVAL = { context: "pullfrog-approval", appId: 1768019 }
 /** The merge bar failure that only a Pullfrog pass at the head clears: the required check exists only on a commit that Pullfrog reviewed. */
 export const APPROVAL_CHECK_MISSING = `required-check-missing:${PULLFROG_APPROVAL.context}`
+/** A state query with every open pull request of a large repository ends in HTTP 502 or 504 at GitHub, so each query holds this many at most. */
+const PULLS_PER_STATE_QUERY = 8
 const WHOLE_DIFF_FILES = 30
 const WHOLE_DIFF_WINDOW_BYTES = 200
 const MANIFEST_FILE = /(?:^|\/)(?:package\.json|package-lock\.json|Directory\.Packages\.props|packages\.lock\.json|[^/]+\.csproj)$/
@@ -204,18 +206,24 @@ const normalizePull = (raw, ticketRepository) => {
   }
 }
 
-/** Every open pull request of one repository in one read. `knownNumbers` from the last tick lets one read hold all of them. */
+/**
+ * Every open pull request of one repository. The first read lists the open numbers and holds the first `knownNumbers` of the last
+ * tick. The other open numbers follow in batches, one after the other, so the reads add no burst on the rate limit. A failed read
+ * fails the whole call, so no caller gets a partial state.
+ */
 export const readRepositoryState = async (repositoryKey, { knownNumbers = [], ...seams } = {}) => {
   if (!knownNumbers.every((number) => Number.isInteger(number) && number > 0)) throw new Error("knownNumbers must be positive integers")
   const api = bind(seams)
   const slug = api.slugOf(repositoryKey)
   const { owner, name } = splitSlug(slug)
-  const read = (numbers) => graphql(api, stateQuery(numbers), { owner, name })
-  const first = (await read(knownNumbers)).repository
+  const read = async (numbers) => (await graphql(api, stateQuery(numbers), { owner, name })).repository
+  const firstNumbers = knownNumbers.slice(0, PULLS_PER_STATE_QUERY)
+  const first = await read(firstNumbers)
   if (first.open.pageInfo.hasNextPage) throw new Error(`${slug} has more than 100 open pull requests; the driver reads 100`)
   const open = first.open.nodes.map((pull) => pull.number)
-  const unread = open.filter((number) => !knownNumbers.includes(number))
-  const raw = { ...first, ...(unread.length > 0 ? (await read(unread)).repository : {}) }
+  const unread = open.filter((number) => !firstNumbers.includes(number))
+  const raw = { ...first }
+  for (let start = 0; start < unread.length; start += PULLS_PER_STATE_QUERY) Object.assign(raw, await read(unread.slice(start, start + PULLS_PER_STATE_QUERY)))
   const pulls = open.map((number) => normalizePull(raw[`pr${number}`], api.config.tickets.repository))
   return { repositoryKey, slug, defaultBranch: first.defaultBranchRef.name, numbers: open, pulls }
 }
