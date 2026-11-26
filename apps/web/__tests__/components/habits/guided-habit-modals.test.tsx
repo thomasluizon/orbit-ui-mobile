@@ -71,6 +71,16 @@ async function phrase(text: string) {
   await press(messages().habits.flow.continue)
 }
 
+const proposedGroup = () => screen.queryByRole('group', { name: messages().habits.detail.proposed })
+async function keepProposedAnswersToSummary() {
+  for (let guard = 0; guard < 5; guard += 1) {
+    const text = heading().textContent
+    if (text.includes(en.habits.flow.confirm.question)) return
+    if (text.includes(en.habits.flow.reminder.question.split('{')[0]!.trim())) await press(en.habits.flow.reminder.no)
+    else await press(en.habits.flow.continue)
+  }
+}
+
 function mountCreate(initialDate?: string) {
   const client = new QueryClient()
   const closed = vi.fn()
@@ -285,64 +295,63 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(timeRow.closest('[data-proposed]')).toBeNull()
   })
 
-  it('stops marking the repeat as a proposal on the summary when the person changes it on the repeat step', async () => {
+  it('marks the guessed repeat and time as proposals on their steps and stops marking each one when the person keeps it', async () => {
     state.locale = 'en'
     state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     mountCreate()
     await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
     await phrase('water the plants')
-    await press(en.habits.flow.reminder.no)
-    const scheduleRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
-    expect(scheduleRow().closest('[data-proposed]')).not.toBeNull()
-    await act(async () => { fireEvent.click(scheduleRow()) })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.repeat.timesIn}`) })) })
+    expect(heading()).toHaveTextContent(en.habits.flow.when.question)
+    expect(proposedGroup()).not.toBeNull()
     await press(en.habits.flow.continue)
-    expect(scheduleRow().closest('[data-proposed]')).toBeNull()
-    expect(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) }).closest('[data-proposed]')).not.toBeNull()
+    expect(heading()).toHaveTextContent(en.habits.flow.time.question)
+    expect(proposedGroup()).not.toBeNull()
+    await press(en.habits.flow.continue)
+    await press(en.habits.flow.reminder.no)
+    const scheduleRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    const timeRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
+    expect(timeRow).toHaveTextContent('07:00')
+    expect(scheduleRow.closest('[data-proposed]')).toBeNull()
+    expect(timeRow.closest('[data-proposed]')).toBeNull()
   })
 
-  it('stops marking the repeat and the cleared time as proposals on the summary when the person makes the habit a one-time task', async () => {
+  it('stops marking the repeat and the cleared time as proposals when the person answers the When with a date', async () => {
     state.locale = 'en'
     state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     mountCreate()
     await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
     await phrase('water the plants')
-    await press(en.habits.flow.reminder.no)
-    const scheduleRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
-    const timeRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
-    expect(scheduleRow().closest('[data-proposed]')).not.toBeNull()
-    expect(timeRow()).toHaveTextContent('07:00')
-    expect(timeRow().closest('[data-proposed]')).not.toBeNull()
-    await press(new RegExp(`^${en.habits.flow.summary.type}`))
-    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${en.habits.form.typeTask}`) })) })
+    expect(proposedGroup()).not.toBeNull()
+    await press(en.habits.flow.when.tomorrow)
+    expect(heading()).toHaveTextContent(en.habits.flow.time.question)
+    expect(proposedGroup()).toBeNull()
+    await press(en.habits.flow.time.none)
     expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
-    expect(scheduleRow().closest('[data-proposed]')).toBeNull()
-    expect(timeRow()).toHaveTextContent(en.habits.flow.summary.noTime)
-    expect(timeRow().closest('[data-proposed]')).toBeNull()
+    const scheduleRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    const timeRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
+    expect(scheduleRow.closest('[data-proposed]')).toBeNull()
+    expect(timeRow).toHaveTextContent(en.habits.flow.summary.noTime)
+    expect(timeRow.closest('[data-proposed]')).toBeNull()
   })
 
-  it('stops marking the time and the repeat as proposals on the summary when the person types them in the title', async () => {
+  it('stops marking the time and the repeat as proposals when the person types them in the phrase after the read', async () => {
     state.locale = 'en'
     state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     mountCreate()
     await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
     await phrase('water the plants')
-    await press(en.habits.flow.reminder.no)
-    const scheduleRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
-    const timeRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
-    expect(timeRow()).toHaveTextContent('07:00')
-    expect(timeRow().closest('[data-proposed]')).not.toBeNull()
-    await press(new RegExp(`^${en.habits.flow.summary.title}`))
-    await phrase('water the plants at 9am')
-    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
-    expect(timeRow()).toHaveTextContent('09:00')
-    expect(timeRow().closest('[data-proposed]')).toBeNull()
-    expect(scheduleRow().closest('[data-proposed]')).not.toBeNull()
-    await press(new RegExp(`^${en.habits.flow.summary.title}`))
+    expect(heading()).toHaveTextContent(en.habits.flow.when.question)
+    expect(proposedGroup()).not.toBeNull()
+    await press(en.habits.flow.back)
     await phrase('water the plants every monday at 9am')
-    expect(scheduleRow().closest('[data-proposed]')).toBeNull()
-    expect(timeRow().closest('[data-proposed]')).toBeNull()
     expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    await press(en.habits.flow.reminder.no)
+    const scheduleRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    const timeRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
+    expect(scheduleRow).toHaveTextContent('every Monday')
+    expect(timeRow).toHaveTextContent('09:00')
+    expect(scheduleRow.closest('[data-proposed]')).toBeNull()
+    expect(timeRow.closest('[data-proposed]')).toBeNull()
   })
 
   it.each([['en', 'water the plants every monday at 9am', 'every Monday'], ['pt-BR', 'regar as plantas toda segunda às 9h', 'toda segunda']] as const)(
@@ -363,20 +372,23 @@ describe('the create surface behind orbit_guided_flows', () => {
   it.each([
     ['an emoji', { emoji: '🪴', dueTime: null }, false],
     ['a time', { emoji: null, dueTime: '07:00' }, true],
-  ] as const)('never marks a repeat the person typed as a proposal when the free read gives the same repeat and %s', async (_label, extra, timeProposed) => {
+  ] as const)('never marks a repeat the person typed as a proposal when the free read gives the same repeat and %s, and asks the time with the guess proposed', async (_label, extra, timeProposed) => {
     state.locale = 'en'
     state.phraseRead.mockResolvedValue({ read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, subHabits: [], checklistItems: [], ...extra })
     mountCreate()
     await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
     await phrase('water the plants every monday')
     expect(state.phraseRead).toHaveBeenCalledTimes(1)
-    if (screen.queryByRole('button', { name: en.habits.flow.time.none })) await press(en.habits.flow.time.none)
+    expect(heading()).toHaveTextContent(en.habits.flow.time.question)
+    expect(proposedGroup() !== null).toBe(timeProposed)
+    if (timeProposed) await press(en.habits.flow.continue)
+    else await press(en.habits.flow.time.none)
     if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
     expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
     const scheduleRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
     expect(scheduleRow).toHaveTextContent('every Monday')
     expect(scheduleRow.closest('[data-proposed]')).toBeNull()
-    expect(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) }).closest('[data-proposed]') !== null).toBe(timeProposed)
+    expect(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) }).closest('[data-proposed]')).toBeNull()
   })
 
   it('keeps a child of a General parent undated when the free read proposes a repeat and a time, and marks only the emoji', async () => {
@@ -457,7 +469,7 @@ describe('the create surface behind orbit_guided_flows', () => {
   const DAILY_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }
   const LATER_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🌿', frequencyUnit: 'Week', frequencyQuantity: 1, days: ['Monday'], dueTime: '18:00' }
   const summaryRow = (label: string) => screen.getByRole('button', { name: new RegExp(`^${label}`) })
-  const toSummaryFromReminder = async () => { await press(en.habits.flow.reminder.no) }
+  const toSummaryFromReminder = async () => { await keepProposedAnswersToSummary() }
   interface SummaryAfter { when: string; whenProposed: boolean; time: string | null; timeProposed: boolean; sent: Record<string, unknown>; absent: string[] }
   const expectSummaryRows = (after: SummaryAfter) => {
     const whenRow = summaryRow(en.habits.flow.summary.when)
@@ -480,24 +492,24 @@ describe('the create surface behind orbit_guided_flows', () => {
       await press(new RegExp(`^${en.habits.flow.summary.when}`))
       await press(en.habits.flow.repeat.timesIn)
       await press(en.habits.flow.continue)
-    }, { when: 'once a day', whenProposed: false, time: '18:00', timeProposed: true, sent: { isFlexible: true, frequencyUnit: 'Day', dueTime: '18:00' }, absent: ['days'] }],
+    }, { when: 'once a day', whenProposed: false, time: '07:00', timeProposed: false, sent: { isFlexible: true, frequencyUnit: 'Day', dueTime: '07:00' }, absent: ['days'] }],
     ['a time on the time step', DAILY_READ, async () => {
       await toSummaryFromReminder()
       await press(new RegExp(`^${en.habits.flow.summary.time}`))
       await press('20:00')
-    }, { when: 'every week', whenProposed: true, time: '20:00', timeProposed: false, sent: { frequencyUnit: 'Week', dueTime: '20:00' }, absent: [] }],
+    }, { when: 'every day', whenProposed: false, time: '20:00', timeProposed: false, sent: { frequencyUnit: 'Day', dueTime: '20:00' }, absent: [] }],
     ['an end time on the duration step', DAILY_READ, async () => {
       await toSummaryFromReminder()
       await press(new RegExp(`^${en.habits.flow.summary.duration}`))
       await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.form.dueEndTime), { target: { value: '08:30' } }) })
       await press(en.habits.flow.continue)
-    }, { when: 'every week', whenProposed: true, time: '07:00', timeProposed: true, sent: { frequencyUnit: 'Week', dueTime: '07:00', dueEndTime: '08:30' }, absent: [] }],
+    }, { when: 'every day', whenProposed: false, time: '07:00', timeProposed: false, sent: { frequencyUnit: 'Day', dueTime: '07:00', dueEndTime: '08:30' }, absent: [] }],
     ['the removal of the emoji', DAILY_READ, async () => {
       await toSummaryFromReminder()
       await press(en.habits.form.emojiOpenPicker)
       await press(en.habits.form.emojiRemove)
       await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
-    }, { when: 'every week', whenProposed: true, time: '18:00', timeProposed: true, sent: { frequencyUnit: 'Week', dueTime: '18:00' }, absent: ['emoji'] }],
+    }, { when: 'every day', whenProposed: false, time: '07:00', timeProposed: false, sent: { frequencyUnit: 'Day', dueTime: '07:00' }, absent: ['emoji'] }],
   ]
 
   it.each(SET_ON_A_STEP)('keeps %s when a later free read of a new phrase proposes other values, and the summary shows what the save sends', async (_step, firstRead, setOnStep, after) => {
@@ -524,21 +536,21 @@ describe('the create surface behind orbit_guided_flows', () => {
   const EVERY_DAY_READ: HabitPhraseReadResponse = { ...ONE_TIME_READ, frequencyUnit: 'Day', frequencyQuantity: 1 }
   const TYPED_IN_THE_PHRASE: [string, string, HabitPhraseReadResponse, SummaryAfter][] = [
     ['a time', 'water the plants at 9am', EVERY_DAY_READ,
-      { when: 'every day', whenProposed: true, time: '09:00', timeProposed: false, sent: { title: 'water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '09:00', emoji: '🌿' }, absent: ['days'] }],
+      { when: 'every day', whenProposed: false, time: '09:00', timeProposed: false, sent: { title: 'water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '09:00', emoji: '🌿' }, absent: ['days'] }],
     ['a repeat', 'water the plants 3 times a week', EVERY_DAY_READ,
-      { when: 'times a week, any day', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+      { when: 'times a week, any day', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'water the plants', isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
     ['a day', 'water the plants every monday', EVERY_DAY_READ,
-      { when: 'every Monday', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+      { when: 'every Monday', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
     ['an emoji', '💧 water the plants', EVERY_DAY_READ,
-      { when: 'every day', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: '💧 water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }, absent: ['emoji'] }],
+      { when: 'every day', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: '💧 water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }, absent: ['emoji'] }],
     ['the type', 'water the plants every monday', ONE_TIME_READ,
-      { when: 'every Monday', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+      { when: 'every Monday', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'water the plants', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
     ['a date', 'call mom tomorrow', EVERY_DAY_READ,
-      { when: '11/14/2026', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'call mom', dueDate: '2026-11-14', dueTime: '07:00', emoji: '🌿' }, absent: ['frequencyUnit', 'startDate'] }],
+      { when: '11/14/2026', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'call mom', dueDate: '2026-11-14', dueTime: '07:00', emoji: '🌿' }, absent: ['frequencyUnit', 'startDate'] }],
     ['a bare interval', 'water the plants every 2 weeks', EVERY_DAY_READ,
-      { when: 'every # weeks', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', frequencyUnit: 'Week', frequencyQuantity: 2, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+      { when: 'every # weeks', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'water the plants', frequencyUnit: 'Week', frequencyQuantity: 2, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
     ['no emoji when the phrase holds only a text sign', 'buy Coca-Cola® zero', EVERY_DAY_READ,
-      { when: 'every day', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: 'buy Coca-Cola® zero', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+      { when: 'every day', whenProposed: false, time: '07:00', timeProposed: false, sent: { title: 'buy Coca-Cola® zero', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
   ]
 
   it.each(TYPED_IN_THE_PHRASE)('keeps %s the person typed in the phrase when the free read of that phrase proposes another value, and the summary and the title show what the save sends', async (_field, typed, read, after) => {
@@ -548,8 +560,7 @@ describe('the create surface behind orbit_guided_flows', () => {
     await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
     await phrase(typed)
     expect(state.phraseRead).toHaveBeenCalledTimes(1)
-    if (screen.queryByRole('button', { name: en.habits.flow.time.none })) await press(en.habits.flow.time.none)
-    if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
+    await keepProposedAnswersToSummary()
     expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
     expectSummaryRows(after)
     await press(new RegExp(`^(${en.habits.createTask}|${en.habits.createHabit})$`))
