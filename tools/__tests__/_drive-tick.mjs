@@ -444,6 +444,18 @@ const usageLimitCases = async () => {
   slowStop.env.github.pullfrogRuns = async (key) => { if (key === "api") await new Promise((resolve) => setTimeout(resolve, 200)); return listRuns(key) }
   await slowStop.run()
   same("drive: a limit that a slow plan finds admits nothing early, starts no worker and adds no launch comment", [only(slowStop.calls, "createTicket").length, slowStop.launched.length, slowStop.messages.some((line) => line.includes("early-launch"))], [1, 0, false])
+  // The limit sits in the plan that ends first, and a slower plan keeps the window open: the pause comes only after every plan ends.
+  const mirrorStop = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [pull(30, { reviews: [] })], api: [pull(31, { reviews: [] })] }, runs: [run], routes: [["--log-failed", logLine]] })
+  mirrorStop.env.planWindowMs = 20
+  const mirrorList = mirrorStop.env.github.pullfrogRuns
+  mirrorStop.env.github.pullfrogRuns = async (key) => { if (key === "ui") { await new Promise((resolve) => setTimeout(resolve, 200)); return [] } return mirrorList(key) }
+  await mirrorStop.run()
+  same("drive: a limit that the second repository plan finds while the first plan runs starts no worker and adds no launch comment", [only(mirrorStop.calls, "createTicket").length, mirrorStop.launched.length, only(mirrorStop.calls, "comment").filter((entry) => entry[1] === "tickets").length], [1, 0, 0])
+  const sameRepository = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [pull(30, { reviews: [] }), pull(32, { reviews: [], checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), RERAN], headRef: "chore/ticket-7-32" })] }, runs: [run], routes: [["--log-failed", logLine]] })
+  sameRepository.env.planWindowMs = 20
+  sameRepository.env.github.readFailedSteps = async () => { await new Promise((resolve) => setTimeout(resolve, 200)); return ["Unit tests"] }
+  await sameRepository.run()
+  same("drive: a limit that one plan finds while a slower plan of the same repository runs starts no worker and adds no launch comment", [only(sameRepository.calls, "createTicket").length, sameRepository.launched.length, only(sameRepository.calls, "comment").filter((entry) => entry[1] === "tickets").length], [1, 0, 0])
   same("drive: the result text is the last result line of a log", resultText(`{"type":"assistant"}\n${JSON.stringify({ type: "result", result: "area\nfinding" })}\n`), "area\nfinding")
 }
 

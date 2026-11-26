@@ -1000,7 +1000,7 @@ const planOrder = (state) => [...state.pulls].sort((left, right) => left.number 
  * repository's Pullfrog runs come from one list for all its pull requests. Returns one entry for each pull request, in
  * number order: its plan and whether its failed Pullfrog runs name a usage limit, or the error that the plan met.
  */
-const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped, gate }) => {
+const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped, gate, limitSeen }) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
   const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), updated: false, merged: false, running }
   const repoPath = env.config.repos[repoKey]
@@ -1014,6 +1014,8 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
       const newestRequest = requestsOf(pull).reduce((newest, entry) => (entry.createdAt > newest ? entry.createdAt : newest), "")
       // A run from before the newest request is settled history: a request that came after it started a new run.
       const limit = await readPullfrogLimit(env, mem, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
+      // The act step applies the limit only after every plan ends. This flag tells the early launch at once.
+      if (limit.found) limitSeen.found = true
       return { pull, item, plan, limit }
     } catch (error) {
       return { pull, item, error }
@@ -1052,9 +1054,9 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
 }
 
 /** Plans the pull requests of every repository at the same time, then runs their actions one repository after another. Never rejects. */
-const pullActions = async (env, mem, states, tickets, { running, stopped }) => {
+const pullActions = async (env, mem, states, tickets, { running, stopped, limitSeen }) => {
   const gate = createGate(PLAN_PARALLEL)
-  const plans = states.map((state) => ({ ...planPullRequests(env, mem, state.repositoryKey, state, tickets, { running, stopped, gate }), tickets }))
+  const plans = states.map((state) => ({ ...planPullRequests(env, mem, state.repositoryKey, state, tickets, { running, stopped, gate, limitSeen }), tickets }))
   const orders = []
   for (const plan of plans) orders.push(...await actOnPlans(env, mem, { ...plan, planned: await plan.planned }))
   return orders
@@ -1845,25 +1847,28 @@ export const tick = async (env, mem) => {
   // The plan of this tick can open the pause issue, so each launch reads the hold again.
   const held = () => paused || pauseIssue(tickets) || !account.ok
   // The worker account takes a launch when it has a free slot, else the main account.
-  const launchAll = async (launchable) => {
+  // A plan that found a Pullfrog limit sets `limitSeen` before the pause applies: no early launch runs, and no launch uses the main account.
+  const limitSeen = { found: false }
+  const launchAll = async (launchable, { early = false } = {}) => {
     for (const order of launchable) {
-      if (held()) break
+      if (held() || (early && limitSeen.found)) break
       const name = free.worker > 0 ? WORKER : MAIN
+      if (limitSeen.found && name === MAIN) break
       const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
       if (reason === null) { mem.acted = true; free[name] -= 1 }
       else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
     }
   }
-  const planning = pullActions(env, mem, states, tickets, { running, stopped: paces.main.stopped })
+  const planning = pullActions(env, mem, states, tickets, { running, stopped: paces.main.stopped, limitSeen })
   planning.catch(() => {})
   // A fix order of an open pull request goes first. While the plan is slow, a free slot takes an admitted build order, so no slot waits for the plan.
   const admitted = { chosen: [], decisions: new Map() }
   const slotsAtStart = free.main + free.worker
-  if (!env.dryRun && !held() && slotsAtStart > 0 && !await settledWithin(planning, env.planWindowMs ?? PLAN_WINDOW_MS) && !held()) {
+  if (!env.dryRun && !held() && slotsAtStart > 0 && !await settledWithin(planning, env.planWindowMs ?? PLAN_WINDOW_MS) && !held() && !limitSeen.found) {
     log(env, "tick", "early-launch", `the pull request plan runs, ${slotsAtStart} free slot(s) take build orders first`)
     // A tick that ends before its plan lets the next tick act on the same pull requests again, so this failure never ends the tick.
     Object.assign(admitted, await admit(env, mem, tickets, states, { running, room: slotsAtStart, full }).catch((error) => (log(env, "tick", "early-launch-error", error.message), {})))
-    await launchAll(admitted.chosen)
+    await launchAll(admitted.chosen, { early: true })
   }
   const orders = await planning
   await ownerWorkNotices(env, mem, tickets)
