@@ -17,6 +17,7 @@ import {
   failedChecks,
   isAncestor,
   merge,
+  carriedApproval,
   mergeBar,
   needsWholeDiff,
   pullfrogRunsFor,
@@ -295,6 +296,9 @@ const mergeBarCases = (approved) => {
   same("lib/github.mjs: a dismissed newest review fails the bar", barOf({ reviews: [...ready.reviews, { ...review, state: "DISMISSED", submittedAt: "2026-11-20T09:30:00Z" }] }), ["review-not-approved-at-head"])
   same("lib/github.mjs: an approval at an earlier commit fails the bar", barOf({ reviews: [{ ...review, commit: ready.commits[3].sha }] }), ["review-not-approved-at-head"])
   same("lib/github.mjs: no review fails the bar", barOf({ reviews: [] }), ["review-not-approved-at-head"])
+  same("lib/github.mjs: an approval of an earlier commit with the diff of the head carries to the bar", [barOf({ reviews: [{ ...review, commit: ready.commits[3].sha }], sameDiffAs: [ready.commits[3].sha] }), carriedApproval({ ...ready, reviews: [{ ...review, commit: ready.commits[3].sha }], sameDiffAs: [ready.commits[3].sha] })?.commit], [[], ready.commits[3].sha])
+  same("lib/github.mjs: an earlier approval whose diff differs from the head does not carry", carriedApproval({ ...ready, reviews: [{ ...review, commit: ready.commits[3].sha }], sameDiffAs: [] }), null)
+  same("lib/github.mjs: a carried approval does not replace a newer review that is not an approval", barOf({ reviews: [{ ...review, commit: ready.commits[3].sha }, { ...review, state: "CHANGES_REQUESTED", body: "x", submittedAt: "2026-11-20T09:30:00Z" }], sameDiffAs: [ready.commits[3].sha] }), ["review-not-approved-at-head"])
   same("lib/github.mjs: an unresolved thread fails the bar", barOf({ threads: [...ready.threads, { id: "t", resolved: false, author: "pullfrog" }] }), ["threads-unresolved:1"])
   same("lib/github.mjs: an unresolved thread of any author fails the bar", barOf({ threads: [{ id: "t", resolved: false, author: "someone" }] }), ["threads-unresolved:1"])
   same("lib/github.mjs: a thread list that ends early fails the bar", barOf({ threadsComplete: false }), ["threads-incomplete"])

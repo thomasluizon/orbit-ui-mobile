@@ -20,7 +20,7 @@ import { escapeRegex } from "./lib/escape-regex.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { ownerParts, partOf, renderOrder } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -699,6 +699,25 @@ const cleanMergesOf = async (env, repoPath, pull) => {
   return clean
 }
 
+/** The own diff of a commit: its change against the base, with the blob ids and the line numbers left out. An empty string means the diff is unknown. */
+const ownDiff = async (env, repoPath, base, sha) => {
+  const shown = await env.git(repoPath, ["diff", "--no-color", "--no-ext-diff", "-U0", `origin/${base}...${sha}`])
+  if (shown.status !== 0) return ""
+  return shown.stdout.split("\n").filter((line) => !line.startsWith("index ")).map((line) => (line.startsWith("@@") ? "@@" : line)).join("\n").trim()
+}
+
+/** The commits of an approving review pass whose own diff equals the own diff of the head. A diff that git cannot show never matches. */
+const sameDiffOf = async (env, repoPath, pull, base) => {
+  const approved = [...new Set(pull.reviews.filter((review) => isReviewPass(review) && review.state === "APPROVED" && review.commit !== pull.headSha).map((review) => review.commit))].filter((sha) => pull.commits.some((commit) => commit.sha === sha))
+  if (approved.length === 0) return []
+  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", base, `refs/pull/${pull.number}/head`])
+  const head = await ownDiff(env, repoPath, base, pull.headSha)
+  if (head === "") return []
+  const same = []
+  for (const sha of approved) if ((await ownDiff(env, repoPath, base, sha)) === head) same.push(sha)
+  return same
+}
+
 /** What the pull request waits on at its head, from the Pullfrog reviews and runs: a plain request, a whole-diff request, a fix, or nothing. */
 const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
   const passes = passesOf(pull)
@@ -714,11 +733,19 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
     if (!missed) return { wait: "waiting for the Pullfrog review" }
     return sinceReview.length === 1 ? { request: lastRequest.whole ? WHOLE_DIFF_REQUEST : PLAIN_REQUEST, why: "no review after the first request", lastRun } : { owner: "Pullfrog gave no review after two requests", lastRun }
   }
-  const demand = (text, why) => (sinceReview.length === 0 ? { request: text, why } : waiting())
-  if (latest === null) return demand(PLAIN_REQUEST, "no Pullfrog review at this head")
-  if (latest.state === "APPROVED") {
+  // The first pass of a head is one pass: a pull request that owes a whole-diff pass asks for it at once, and never for a plain pass first.
+  const first = needsWholeDiff(pull, { fixLaunches }) ? WHOLE_DIFF_REQUEST : PLAIN_REQUEST
+  // A head that Pullfrog already reviewed gets no second plain request: its next pass is the owner's to ask for.
+  const demand = (text, why) => {
+    if (sinceReview.length > 0) return waiting()
+    if (text === PLAIN_REQUEST && latest !== null) return { owner: "Pullfrog reviewed this head and gave no usable review", skip: "same head" }
+    return { request: text, why }
+  }
+  const carried = latest === null ? carriedApproval(pull) : null
+  if (latest === null && carried === null) return demand(first, "no Pullfrog review at this head")
+  if ((latest ?? carried).state === "APPROVED") {
     const context = { wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [] }
-    if (!needsWholeDiff(pull, { fixLaunches }) || wholeDiffApproved(pull, context)) return { approved: true }
+    if (!needsWholeDiff(pull, { fixLaunches }) || wholeDiffApproved(pull, context)) return carried === null ? { approved: true } : { approved: true, skip: "same diff" }
     // A whole-diff pass that lacks its "Whole diff:" line gets one re-request, then the owner.
     if (answeredWholeDiffRequests(pull, runs) >= 2) return { owner: "Pullfrog answered two whole-diff requests at this head with no whole-diff review" }
     return demand(WHOLE_DIFF_REQUEST, "an approval-head pass is owed")
@@ -869,6 +896,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     return [...actions, { type: "needs-owner", reason: `${item} used its ${MAX_FIX_LAUNCHES} fix launches. Launches: ${counted.length}. Open: ${classes}`, relabel: true }]
   }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
+  if (need.skip) log(env, item, `review skip (${need.skip})`)
   if (need.approved) {
     const open = pull.threads.filter((thread) => !thread.resolved && thread.author === "pullfrog")
     if (open.length > 0) {
@@ -991,6 +1019,7 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
     try {
       const runs = pull.draft ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
+      if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
       const planned = await planPull(env, mem, { ...ctx, runs }, pull)
       const plan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
       const newestRequest = requestsOf(pull).reduce((newest, entry) => (entry.createdAt > newest ? entry.createdAt : newest), "")
