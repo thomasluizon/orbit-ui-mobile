@@ -1255,6 +1255,10 @@ const removeWorktrees = async (env, repoKey, branches) => {
   for (const branch of branches) {
     const entry = listed.find((candidate) => candidate.branch === branch)
     if (entry) {
+      // `git worktree remove` deletes the directory under a shell or a session whose cwd is in it.
+      let holders
+      try { holders = env.worker.directoryHolders(env.worker.processDirectories(), entry.path) } catch (error) { log(env, repoKey, "worktree-kept", `${entry.path}: unreadable: ${error.message}`); continue }
+      if (holders.length > 0) { log(env, repoKey, "worktree-kept", `${entry.path}: a process holds it: pid ${holders.join(", ")}`); continue }
       const nested = nestedRepositoryReason(env, entry.path)
       if (nested !== null) { log(env, repoKey, "worktree-kept", `${entry.path}: ${nested}`); continue }
       const removed = await env.git(repoPath, [...WORKTREE_REMOVE_ARGUMENTS, entry.path])
@@ -1266,10 +1270,10 @@ const removeWorktrees = async (env, repoKey, branches) => {
 
 /**
  * The reason a worktree stays, or null when it is finished: its branch has a merged pull request and no open one, the tree has no
- * change (an untracked file counts), no commit is unpushed, no process holds it, and it holds no other repository or worktree. The cheap local reads come before the one GitHub read. The walk of the tree comes last.
+ * change (an untracked file counts), no commit is unpushed, no process holds it (by its command line, a pid file or its cwd), and it holds no other repository or worktree. The cheap local reads come before the one GitHub read. The walk of the tree comes last.
  */
-const worktreeStayReason = async (env, repoKey, entry) => {
-  const occupants = env.worker.worktreeOccupants(entry.path, { stateDirectory: env.stateDir })
+const worktreeStayReason = async (env, repoKey, entry, directories) => {
+  const occupants = [...new Set([...env.worker.worktreeOccupants(entry.path, { stateDirectory: env.stateDir }), ...env.worker.directoryHolders(directories(), entry.path)])].sort((left, right) => left - right)
   if (occupants.length > 0) return `a process holds it: pid ${occupants.join(", ")}`
   if ((await gitText(env, entry.path, CLEAN_STATUS_ARGUMENTS)) !== "") return "the tree has a change"
   if (hiddenChangesOf(await gitText(env, entry.path, HIDDEN_CHANGE_ARGUMENTS)).length > 0) return "the tree has a change that git status hides"
@@ -1289,6 +1293,9 @@ const worktreeStayReason = async (env, repoKey, entry) => {
  */
 const sweepWorktrees = async (env, mem) => {
   const seen = new Set()
+  // One lsof read serves every worktree of the sweep, and a sweep with no candidate reads none.
+  let directories = null
+  const readDirectories = () => (directories ??= env.worker.processDirectories())
   for (const repoKey of REPOSITORY_KEYS) {
     const repoPath = env.config.repos[repoKey]
     let listed
@@ -1296,7 +1303,7 @@ const sweepWorktrees = async (env, mem) => {
     for (const entry of listed.slice(1)) {
       if (entry.branch === null || entry.locked || entry.prunable || resolve(entry.path) === resolve(env.driverWorktree ?? "")) continue
       seen.add(entry.path)
-      const reason = await worktreeStayReason(env, repoKey, entry).catch((error) => `unreadable: ${error.message}`)
+      const reason = await worktreeStayReason(env, repoKey, entry, readDirectories).catch((error) => `unreadable: ${error.message}`)
       if (reason !== null) {
         if (mem.keptWorktrees.get(entry.path) !== reason) { mem.keptWorktrees.set(entry.path, reason); log(env, repoKey, "worktree-stays", `${entry.path}: ${reason}`) }
         continue

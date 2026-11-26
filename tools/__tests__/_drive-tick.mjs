@@ -6,7 +6,7 @@ import { join } from "node:path"
 import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, recordStart, resultText, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings } from "../lib/github.mjs"
-import { isUsageLimitMessage, isWorkerProcess, KILL_REASONS, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
+import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
 const FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
@@ -53,7 +53,7 @@ const partComment = (number, total, extra = "") => comment(null, `Part ${number}
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null } = {}) => {
   const calls = []
   const messages = []
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
@@ -82,6 +82,8 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       KILL_REASONS, WORKER_LIMITS,
       questionsInvocation: ({ token: value }) => ({ command: { executable: "claude", args: ["--model", "claude-opus-5-5"] }, environment: { GH_TOKEN: value } }),
       worktreeOccupants: (worktree) => (calls.push(["occupants", worktree]), occupants),
+      processDirectories: () => (calls.push(["directories"]), directories),
+      directoryHolders,
       progressWatch: (options) => progressWatch({ ...options, fingerprint: async () => watched.fingerprint, logSize: () => watched.logBytes }),
       killWorkerTree: (pid, signal) => { calls.push(["kill", pid, signal]) },
       probe: async ({ invocation } = {}) => {
@@ -2139,6 +2141,7 @@ const sweepCases = async () => {
     { name: "unpushed commit", branch: "chore/unpushed", head: "u".repeat(40), pulls: [{ number: 9, state: "MERGED", headRefOid: MERGED_HEAD }], reason: /a commit is unpushed/ },
     { name: "commit on a remote branch", branch: "chore/remote", head: "r".repeat(40), remotes: "  origin/chore/remote", pulls: [{ number: 10, state: "MERGED", headRefOid: MERGED_HEAD }], removed: true },
     { name: "held by a process", branch: "chore/held", pulls: [{ number: 11, state: "MERGED", headRefOid: MERGED_HEAD }], occupied: true, reason: /a process holds it/ },
+    { name: "held by a process that only has its cwd there", branch: "chore/shell", pulls: [{ number: 16, state: "MERGED", headRefOid: MERGED_HEAD }], cwdHolder: { pid: 5151, path: "/r/orbit-worktrees/ui/chore-shell/apps/web" }, reason: /a process holds it: pid 5151/ },
     { name: "driver worktree", branch: "chore/driver", pulls: [{ number: 12, state: "MERGED", headRefOid: MERGED_HEAD }], driver: true },
     { name: "nested worktree", branch: "chore/nested", nested: ["/r/orbit-worktrees/ui/chore-nested/.claude/worktrees/agent-1"], pulls: [{ number: 14, state: "MERGED", headRefOid: MERGED_HEAD }], reason: /it holds a repository or worktree: \/r\/orbit-worktrees\/ui\/chore-nested\/\.claude\/worktrees\/agent-1/ },
     { name: "unreadable walk", branch: "chore/walk", nested: null, pulls: [{ number: 15, state: "MERGED", headRefOid: MERGED_HEAD }], reason: /the repositories inside it are unreadable/ },
@@ -2151,6 +2154,7 @@ const sweepCases = async () => {
   const scene = scenario({ driver: {}, occupants: [], routes: [["pr list --repo thomasluizon/ui --head", (args) => answers.find(([branch]) => args.includes(branch))[1]]] })
   scene.env.driverWorktree = pathOf(rows.find((row) => row.driver))
   scene.env.worker.worktreeOccupants = (worktree) => (byPath.get(worktree)?.occupied ? [4242] : [])
+  scene.env.worker.processDirectories = () => (scene.calls.push(["directories"]), [...rows.filter((row) => row.cwdHolder).map((row) => row.cwdHolder), { pid: 6000, path: "/r/orbit-worktrees/ui/chore-done-2" }])
   scene.env.findRepositories = (path) => (byPath.get(path)?.nested === undefined ? [path] : byPath.get(path).nested === null ? null : [path, ...byPath.get(path).nested])
   scene.env.git = async (cwd, args) => {
     scene.calls.push(["git", cwd, ...args])
@@ -2175,6 +2179,7 @@ const sweepCases = async () => {
   same("drive: the sweep deletes the branch only of a removed worktree", deleted.sort(), rows.filter((row) => row.removed).map((row) => row.branch).sort())
   for (const row of rows.filter((candidate) => candidate.reason)) T(`drive: the sweep keeps the worktree of ${row.name} and logs its path and reason`, scene.messages.some((line) => line.includes(pathOf(row)) && row.reason.test(line)), scene.messages.filter((line) => line.includes(pathOf(row))).join("\n"))
   T("drive: the sweep never reads or logs the driver worktree and the primary checkout", !scene.calls.some((entry) => entry[0] === "git" && entry[1] === pathOf(rows.find((row) => row.driver))) && !scene.messages.some((line) => line.includes("worktree-stays") && line.includes(" /r/ui:")))
+  const reads = scene.calls.filter((entry) => entry[0] === "directories").length
   const second = await scene.run()
   same("drive: a worktree that stays is logged once for each reason", scene.messages.filter((line) => line.includes("worktree-stays") && line.includes(pathOf(rows[1]))).length, 1)
   const closing = scenario({ tickets: [ticket(7, { comments: [comment("launch", JSON.stringify({ kind: "build", part: null, branch: "chore/ticket-7" }))] })], routes: [["--state merged", JSON.stringify([{ number: 30, body: `Tracks ${REPOSITORY}#7\n\nRemaining: none`, mergedAt: iso(-3600 * 1000), headRefName: "chore/ticket-7" }])]], gitRoutes: [["worktree list", "worktree /r/orbit-worktrees/ui/chore-ticket-7\nHEAD abc\nbranch refs/heads/chore/ticket-7\n"]] })
@@ -2182,6 +2187,15 @@ const sweepCases = async () => {
   await closing.run()
   const closingGit = closing.calls.filter((entry) => entry[0] === "git").map((entry) => entry.slice(1).join(" "))
   same("drive: closing a ticket keeps a worktree that holds another worktree, with its branch", [closingGit.some((text) => /worktree remove/.test(text)), closingGit.some((text) => /branch -D/.test(text)), closing.messages.some((line) => line.includes("worktree-kept") && line.includes("it holds a repository or worktree"))], [false, false, true])
+  const holder = scenario({ tickets: [ticket(7, { comments: [comment("launch", JSON.stringify({ kind: "build", part: null, branch: "chore/ticket-7" }))] })], directories: [{ pid: 5151, path: "/r/orbit-worktrees/ui/chore-ticket-7" }], routes: [["--state merged", JSON.stringify([{ number: 30, body: `Tracks ${REPOSITORY}#7\n\nRemaining: none`, mergedAt: iso(-3600 * 1000), headRefName: "chore/ticket-7" }])]], gitRoutes: [["worktree list", "worktree /r/orbit-worktrees/ui/chore-ticket-7\nHEAD abc\nbranch refs/heads/chore/ticket-7\n"]] })
+  await holder.run()
+  const holderGit = holder.calls.filter((entry) => entry[0] === "git").map((entry) => entry.slice(1).join(" "))
+  same("drive: closing a ticket keeps a worktree that a process holds by its cwd, with its branch", [holderGit.some((text) => /worktree remove/.test(text)), holderGit.some((text) => /branch -D/.test(text)), holder.messages.some((line) => line.includes("worktree-kept") && line.includes("a process holds it: pid 5151"))], [false, false, true])
+  const unreadable = scenario({ tickets: [ticket(7, { comments: [comment("launch", JSON.stringify({ kind: "build", part: null, branch: "chore/ticket-7" }))] })], routes: [["--state merged", JSON.stringify([{ number: 30, body: `Tracks ${REPOSITORY}#7\n\nRemaining: none`, mergedAt: iso(-3600 * 1000), headRefName: "chore/ticket-7" }])]], gitRoutes: [["worktree list", "worktree /r/orbit-worktrees/ui/chore-ticket-7\nHEAD abc\nbranch refs/heads/chore/ticket-7\n"]] })
+  unreadable.env.worker.processDirectories = () => { throw new Error("lsof failed: denied") }
+  await unreadable.run()
+  same("drive: closing a ticket keeps a worktree when the cwd of the processes is unreadable", [unreadable.calls.some((entry) => entry[0] === "git" && entry.includes("remove")), unreadable.messages.some((line) => line.includes("worktree-kept") && line.includes("lsof failed: denied"))], [false, true])
+  same("drive: one sweep reads the process directories once", reads, 1)
   const dry = scenario({ dryRun: true })
   await dry.run()
   same("drive: a dry run sweeps no worktree", dry.calls.filter((entry) => entry[0] === "git" && entry.includes("worktree")).length, 0)
