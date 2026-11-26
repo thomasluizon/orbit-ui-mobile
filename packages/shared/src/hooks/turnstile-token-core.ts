@@ -3,6 +3,16 @@ export const TURNSTILE_RETRY_INTERVAL_MS = 2000
 /** A load of the human check that fails or answers a temporary status loads again every retry interval. The person sees the failure only when the check gives no sign for this long: each sign that the check runs again starts the time again. */
 // WHY: a sleeping Render web service answers 503 with its own loading page while it wakes, and Render puts the wake at about one minute https://render.com/docs/free
 export const TURNSTILE_LOAD_DEADLINE_MS = 60_000
+/** The statuses a waking or overloaded bridge host answers. The app loads the bridge again after a backoff and reports the status only when the load deadline ends first. */
+// WHY: Render answers 502, 503 or 504 while a service wakes or restarts https://render.com/docs/free
+export const TURNSTILE_BRIDGE_RETRY_STATUSES: ReadonlySet<number> = new Set([502, 503, 504])
+const TURNSTILE_BRIDGE_BACKOFF_CAP_MS = 8000
+
+/** The wait before the next load of the bridge: 2, 4, 8 s, then 8 s again. `retry` is the count of loads that already answered a retry status without a sign. */
+export function turnstileBridgeRetryDelayMs(retry: number): number {
+  return Math.min(TURNSTILE_RETRY_INTERVAL_MS * 2 ** retry, TURNSTILE_BRIDGE_BACKOFF_CAP_MS)
+}
+
 /** The sign-in forms keep a slot of this height for the human check in every state, so the column does not move when the state changes. */
 // WHY: Cloudflare sizes the flexible widget at 100% width and 65px height https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
 export const TURNSTILE_CHALLENGE_HEIGHT = 65
