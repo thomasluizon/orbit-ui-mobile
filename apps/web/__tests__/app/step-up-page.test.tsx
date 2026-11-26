@@ -231,6 +231,77 @@ describe('web step up screen', () => {
     expect(screen.getByRole('alert')).not.toHaveTextContent('attemptsMany')
   })
 
+  const step = () => document.querySelector('[data-question-flow]')?.getAttribute('data-step')
+
+  it('moves a TOO_MANY_ATTEMPTS refusal to the persisted exhausted step with no way to send a code again', async () => {
+    mocks.serverAuthMutate.mockRejectedValue(backendError('TOO_MANY_ATTEMPTS', 'Too many attempts'))
+    await renderLiveScreen()
+    enterCode()
+    clickConfirm()
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('exhaustedTitle'))
+    expect(step()).toBe('exhausted')
+    expect(mocks.markExhausted).toHaveBeenCalledOnce()
+    expect(screen.queryByText('resend')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('codeLabel')).not.toBeInTheDocument()
+  })
+
+  it('moves a CODE_EXPIRED refusal to the expired step with a new code as the one action', async () => {
+    mocks.serverAuthMutate.mockRejectedValue(backendError('CODE_EXPIRED', 'Code expired'))
+    await renderLiveScreen()
+    enterCode()
+    clickConfirm()
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('expiredTitle'))
+    expect(step()).toBe('expired')
+    expect(mocks.markExhausted).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-flow-primary] button')).toHaveTextContent('resend')
+  })
+
+  it('moves a wrong code with no attempt left to the exhausted step, with the server count', async () => {
+    mocks.operation = 'keys'
+    mocks.serverAuthMutate.mockRejectedValue(backendError('INVALID_VERIFICATION_CODE', 'Invalid code. Remaining attempts: 0'))
+    await renderLiveScreen({ operation: 'keys', sentAt: Date.now() })
+    enterCode()
+    clickConfirm()
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('exhaustedTitle'))
+    expect(mocks.markExhausted).toHaveBeenCalledOnce()
+    expect(mocks.markAttemptFailed).not.toHaveBeenCalled()
+  })
+
+  it('moves the third wrong delete code to the persisted exhausted step and counts each wrong code', async () => {
+    mocks.serverAuthMutate.mockRejectedValue(backendError('INVALID_VERIFICATION_CODE', 'Invalid code'))
+    await renderLiveScreen()
+    enterCode()
+
+    clickConfirm()
+    await waitFor(() => expect(mocks.markAttemptFailed).toHaveBeenCalledTimes(1))
+    expect(step()).toBe('code')
+    clickConfirm()
+    await waitFor(() => expect(mocks.markAttemptFailed).toHaveBeenCalledTimes(2))
+    expect(mocks.markExhausted).not.toHaveBeenCalled()
+    clickConfirm()
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('exhaustedTitle'))
+    expect(mocks.markAttemptFailed).toHaveBeenCalledTimes(3)
+    expect(mocks.markExhausted).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: /back/i }))
+    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
+    expect(screen.queryByText('resend')).not.toBeInTheDocument()
+  })
+
+  it.each(['delete', 'keys'] as const)('mounts an active %s lock on the exhausted step without sending a new challenge', async (operation) => {
+    mocks.operation = operation
+    const now = Date.now()
+    mocks.readTiming.mockReturnValue({ operation, sentAt: now, exhaustedAt: now - STEP_UP_ATTEMPT_WINDOW_MS + 10_000 })
+    render(<StepUpScreen serverAccountId={null} />)
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('exhaustedTitle'))
+    expect(screen.queryByText('resend')).not.toBeInTheDocument()
+    expect(mocks.serverAuthMutate).not.toHaveBeenCalled()
+  })
+
   it('tells the person to reload when the account changes during confirmation', async () => {
     mocks.serverAuthMutate.mockRejectedValueOnce({
       status: 409,
@@ -360,7 +431,7 @@ describe('web step up screen', () => {
     cleanup()
     mocks.readTiming.mockReturnValue({ ...liveRecord(), exhaustedAt: Date.now() })
     render(<StepUpScreen serverAccountId={null} />)
-    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('exhaustedTitle')
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('exhaustedTitle'))
     expect(document.querySelector('[data-question-flow]')).toHaveAttribute('data-step', 'exhausted')
     expect(document.querySelector('[data-flow-primary]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /back/i }))
