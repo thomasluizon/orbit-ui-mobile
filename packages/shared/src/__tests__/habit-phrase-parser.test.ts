@@ -749,3 +749,21 @@ describe('spoken part of the day', () => {
     expect(readHabitPhrase('every friday at 3pm in the afternoon', 'en').dueTime).toBe('15:00')
   })
 })
+
+describe('a bare number before a part of the day', () => {
+  it.each([
+    ['tomar remédio toda segunda 1 pela manhã', 'tomar remédio 1 pela manhã'],
+    ['vitamina 2 de manhã', 'vitamina 2 de manhã'],
+    ['tomar 1 de manhã e 1 à noite', 'tomar 1 de manhã e 1 à noite'],
+  ])('reads no time and keeps the words of the dose in "%s"', (input, title) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBeNull()
+    expect(getHabitPhraseTitle(input, 'pt-BR', { cadence: true, dueTime: true })).toBe(title)
+  })
+
+  it.each([
+    ['toda sexta 3 da tarde', '15:00'],
+    ['dormir 11 da noite', '23:00'],
+  ])('reads the clock hour in "%s" as %s', (input, time) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+  })
+})

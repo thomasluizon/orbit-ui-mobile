@@ -117,7 +117,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(`\\b(?:as|a)\\s+([01]?\\d|2[0-3])(?::([0-5]\\d)|h([0-5]\\d)?)?\\b${PT_PERIOD}(?![:\\dh]|[.,]\\d)`, 'gu'),
       new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3]):([0-5]\\d)\\b${PT_PERIOD}(?![:\\d]|[.,]\\d)`, 'gu'),
       new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3])h([0-5]\\d)?\\b${PT_PERIOD}(?![:\\d]|[.,]\\d)`, 'gu'),
-      /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s+(?:da|de|pela)\s+(manha|tarde|noite|madrugada)\b(?![:\d]|[.,]\d)/gu,
+      /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s+da\s+(manha|tarde|noite|madrugada)\b(?![:\d]|[.,]\d)/gu,
     ],
     numberWords: PORTUGUESE_NUMBERS,
   },
