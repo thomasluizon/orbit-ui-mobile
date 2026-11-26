@@ -30,7 +30,7 @@ The driver `tools/drive.mjs` works every open ticket of the board and merges at 
 4. Report the driver's own state. Product progress is `/progress`, so repeat none of it here.
    1. Read the newest `pace` line of the log.
    2. Run `node tools/drive.mjs --release-status` and report the newest release train: what it released and where it stopped.
-   3. Report: the week used on each account, and whether one stopped at 90% (`/over-limit` lets it go on). Then the count of held decisions (`needs:owner` tickets and pull requests): `/questions` answers them.
+   3. Report: the week used on each account, and whether one stopped at 90% (`/over-limit` lets it go on) or runs with its pace off. Then the count of held decisions (`needs:owner` tickets and pull requests): `/questions` answers them.
 
 ## /driver stop
 
@@ -49,6 +49,7 @@ The driver moves to a newer driver commit of `main` by itself, at a tick with no
 - Writes tickets with `/ticket`.
 - Runs `/questions` for the held `needs:owner` items. A pull request that used its 2 fix launches gets one more launch for each owner comment that follows the cap report. Each cap report states the launch count, so a granted launch that ends at the same head gets a new report. The order carries the comment.
 - Runs `/sleep` and `/over-limit`.
+- Sets an account's weekly pace when the owner says so: `node tools/drive.mjs --pace worker off` in `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive` runs that account at 3 workers with no line and no 90% stop, until its usage limit. `--pace worker on` restores the pace. The next tick reads it, with no restart.
 - The driver reruns each failed job once before any launch, and files a Bug ticket for a check that passes on the rerun at the same head. A `ci-fix` launch for a check that fails on a clean merge of the base, after a green commit, does not count toward the 2 fix launches.
 - Starts a release at once with `/release`. The driver itself runs the release train every 4 hours.
 - Runs each `owner-work` ticket.
