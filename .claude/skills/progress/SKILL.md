@@ -25,9 +25,30 @@ Write three parts only.
 
 1. **Merged.** For each of `orbit-ui-mobile`, `orbit-api` and `orbit-landing-page`, run `gh pr list --repo thomasluizon/<repo> --state merged --search "merged:>=<time>" --json title,body,mergedAt`. Group the pull requests by the ticket that each one `Tracks`.
 2. **Built but not merged.** List the open pull requests of the same three repositories.
-3. **Being built now.** Read the last 200 lines of `$HOME/Library/Logs/brain-automations/orbit-drive.log`. A `launch` line with no later `worker-exit` for the same ticket is a worker that builds now. Say what it builds.
+3. **Being built now.** Name, in product terms, what each running worker builds. When no worker runs, name the next ticket in line.
 
-Rules for both parts:
+Running workers:
+
+1. Find the state directory with `git -C $HOME/Developer/orbit-ui-mobile rev-parse --path-format=absolute --git-common-dir`. The state directory is the `orbit-drive` folder inside that path.
+2. Read each `*.launch.json` file in the state directory. A record counts only when the `.pid` file with the same name holds a live pid.
+3. Read `ticketNumber` and `partNumber` of each record. Run `gh issue view` for the ticket and for the part, and read the titles.
+4. Write one line for each running worker. The line says what the owner gets when the work lands, for example "Habit reminders that fire at the right time on Android".
+
+No worker runs:
+
+1. Run `node tools/drive.mjs --dry-run` in `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive`. The command reads and writes nothing.
+2. Find the first ticket line whose action is `admit`. Run `gh issue view` for that ticket.
+3. Write one line that says what that ticket builds, in product terms.
+
+Rules for the whole report, `--remaining` included:
+
+- Never list stuck, failed or retried work.
+- Never write an attempt count, a cap or a count of tries.
+- Never write the words "stuck", "failed", "retry", "attempt", "launch" or "cap".
+- A pull request that the driver stopped on is built work that is not merged. List it in "Built but not merged" with no count, no cap and no retry word.
+- Never list a `parked` item. It is harness work and no product progress.
+
+Rules for each part:
 
 - Use product terms only. Write no pull request number, ticket number or version number.
 - Cover every session since the previous report, never only this one.
@@ -36,7 +57,7 @@ Rules for both parts:
 
 ## --remaining
 
-Report the open tickets of the board and every `needs:owner` item. Use the same rules.
+Report the open tickets of the board and every `needs:owner` item. Use the same rules, and list no `parked` item.
 
 ## Estimates
 
