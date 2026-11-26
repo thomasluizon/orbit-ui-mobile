@@ -103,11 +103,9 @@ return { useHabitDetail: () => ({ data: null }) }
 vi.mock('@/components/message-bubble', () => ({
   MessageBubble: (props: Record<string, unknown>) => React.createElement('MessageBubble', props),
 }))
-vi.mock('@/components/chat/typing-indicator', () => ({ TypingIndicator: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({
   GoalDetailDrawer: (props: Record<string, unknown>) => React.createElement('GoalDetailDrawer', props),
 }))
-vi.mock('@/components/habits/habit-detail-drawer', () => ({ HabitDetailDrawer: () => null }))
 vi.mock('@/components/ui/app-bar', () => ({
   AppBar: (props: Record<string, unknown>) => React.createElement(
     'AppBar',
@@ -120,7 +118,6 @@ vi.mock('@/components/ui/app-bar', () => ({
     props.action as React.ReactNode,
   ),
 }))
-vi.mock('@/components/ui/offline-unavailable-state', () => ({ OfflineUnavailableState: () => null }))
 
 type TestNode = {
   type: unknown

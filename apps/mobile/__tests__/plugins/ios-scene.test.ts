@@ -3,12 +3,10 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ConfigPlugin } from '@expo/config-plugins'
 import { compileModsAsync } from '@expo/config-plugins'
 import { expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
-const createConfig = require('../../app.config.js') as () => { plugins: (string | [string, unknown])[] }
 const plist = (require('@expo/plist') as typeof import('@expo/plist')).default
 
 it('starts React Native through the Expo scene delegate generated from the installed template', async () => {
@@ -16,10 +14,8 @@ it('starts React Native through the Expo scene delegate generated from the insta
   try {
     execFileSync('/usr/bin/tar', ['-xzf', require.resolve('expo/template.tgz'), '-C', directory, 'package/ios'])
     const projectRoot = join(directory, 'package')
-    const entry = createConfig().plugins.find((plugin) => plugin === './plugins/with-ios-scene')
     const config = { name: 'HelloWorld', slug: 'orbit' }
-    const configured = entry ? (require('../../plugins/with-ios-scene') as ConfigPlugin)(config) : config
-    await compileModsAsync(configured, { projectRoot, platforms: ['ios'] })
+    await compileModsAsync(config, { projectRoot, platforms: ['ios'] })
     const properties = plist.parse(readFileSync(join(projectRoot, 'ios/HelloWorld/Info.plist'), 'utf8'))
     expect(properties).toHaveProperty('UIApplicationSceneManifest.UISceneConfigurations.UIWindowSceneSessionRoleApplication.0.UISceneDelegateClassName', '$(PRODUCT_MODULE_NAME).SceneDelegate')
     const scene = readFileSync(join(projectRoot, 'ios/HelloWorld/SceneDelegate.swift'), 'utf8')

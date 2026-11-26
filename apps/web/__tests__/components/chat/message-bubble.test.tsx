@@ -36,10 +36,6 @@ vi.mock('@/components/ui/markdown', () => ({
   Markdown: ({ content }: { content: string }) => <div data-testid="markdown">{content}</div>,
 }))
 
-vi.mock('./breakdown-suggestion', () => ({
-  BreakdownSuggestion: () => <div data-testid="breakdown-suggestion" />,
-}))
-
 vi.mock('@/components/chat/breakdown-suggestion', () => ({
   BreakdownSuggestion: () => <div data-testid="breakdown-suggestion" />,
 }))

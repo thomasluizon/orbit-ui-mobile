@@ -119,9 +119,6 @@ vi.mock('@/components/goals/goal-detail-drawer/use-goal-status-actions', () => (
 vi.mock('@/components/goals/goal-detail-drawer/use-goal-drawer-initial-action', () => ({
   useGoalDrawerInitialAction: vi.fn(),
 }))
-vi.mock('@/components/chat/typing-indicator', () => ({
-  TypingIndicator: () => <div data-testid="typing-indicator" />,
-}))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 
 import { OrbitConversation } from '@/components/chat/conversation'

@@ -109,28 +109,6 @@ vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
     React.createElement('BottomSheetAppTextInput', props),
 }))
 
-vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: ({ open, title, onConfirm, onCancel, onOpenChange }: any) =>
-    open
-      ? React.createElement(
-          'ConfirmDialog',
-          { title },
-          React.createElement('Pressable', {
-            accessibilityLabel: `confirm:${title}`,
-            onPress: () => onConfirm?.(),
-          }),
-          React.createElement('Pressable', {
-            accessibilityLabel: `cancel:${title}`,
-            onPress: () => onCancel?.(),
-          }),
-          React.createElement('Pressable', {
-            accessibilityLabel: `dismiss:${title}`,
-            onPress: () => onOpenChange?.(false),
-          }),
-        )
-      : null,
-}))
-
 const guidedFlag = vi.hoisted(() => ({ on: false }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ timeZone: 'UTC' }) }) }))
 vi.mock('@/components/goals/edit-goal-modal', () => ({

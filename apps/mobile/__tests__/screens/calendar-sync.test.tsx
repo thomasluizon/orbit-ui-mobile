@@ -281,10 +281,6 @@ vi.mock("@/hooks/use-app-toast", () => ({
   }),
 }));
 
-vi.mock("@/components/ui/offline-unavailable-state", () => ({
-  OfflineUnavailableState: () => null,
-}));
-
 vi.mock("@/components/ui/app-bar", () => ({
   AppBar: () => null,
 }));

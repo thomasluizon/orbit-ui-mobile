@@ -212,9 +212,6 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/components/ui/offline-unavailable-state', () => ({
-  OfflineUnavailableState: () => React.createElement('OfflineUnavailableState'),
-}))
 vi.mock('@/components/upgrade/billing-dashboard', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/upgrade/billing-dashboard')>()
   return { BillingDashboard: (props: React.ComponentProps<typeof actual.BillingDashboard>) =>

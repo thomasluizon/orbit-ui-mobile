@@ -73,10 +73,6 @@ vi.mock('@/components/ui/status-ring', () => ({
   StatusRing: (props: Record<string, unknown>) => React.createElement('StatusRingMock', props),
 }))
 
-vi.mock('@/app/(tabs)/calendar/_components/show-recurring-toggle', () => ({
-  ShowRecurringToggle: () => React.createElement('ShowRecurringToggleMock'),
-}))
-
 vi.mock('@/components/dates/event-row', () => ({
   EventRow: (props: Record<string, unknown>) => React.createElement('EventRowMock', props),
 }))

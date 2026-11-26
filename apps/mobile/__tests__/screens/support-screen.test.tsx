@@ -110,9 +110,6 @@ vi.mock('react-native-safe-area-context', () => ({
     React.createElement('SafeAreaView', props, props.children),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }))
-vi.mock('@/components/ui/offline-unavailable-state', () => ({
-  OfflineUnavailableState: () => React.createElement('OfflineUnavailableState'),
-}))
 
 async function renderScreen() {
   let tree: { root: TestNode; update: (element: React.ReactElement) => void; unmount: () => void } | undefined

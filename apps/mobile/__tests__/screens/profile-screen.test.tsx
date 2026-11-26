@@ -371,10 +371,6 @@ vi.mock('@/components/marketing-consent/marketing-consent-section', async (impor
   }
 })
 
-vi.mock('@/components/ui/offline-unavailable-state', () => ({
-  OfflineUnavailableState: () => null,
-}))
-
 vi.mock('@/components/ui/app-text-input', () => ({
   AppTextInput: () => null,
 }))
@@ -385,10 +381,6 @@ vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
 }))
 
 
-
-vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
-  ProfileNavCard: () => null,
-}))
 
 
 

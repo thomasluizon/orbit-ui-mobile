@@ -567,11 +567,6 @@ vi.mock('@/lib/use-app-theme', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: (props: Record<string, unknown>) =>
-    props.open ? React.createElement('ConfirmDialog', props) : null,
-}))
-
 vi.mock('@/components/habits/create-habit-modal', () => ({
   CreateHabitModal: ({ open, parentHabit }: { open: boolean; parentHabit?: NormalizedHabit }) => open ? React.createElement('CreateHabitModal', { testID: 'create-sub-habit', parentHabit }) : null,
 }))

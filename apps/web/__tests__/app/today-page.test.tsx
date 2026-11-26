@@ -127,7 +127,6 @@ vi.mock('@/components/habits/habit-list', () => ({
   },
 }))
 afterEach(() => { Reflect.deleteProperty(navigator, 'onLine') })
-vi.mock('@/components/habits/bulk-action-bar-v2', () => ({ BulkActionBarV2: () => null }))
 vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: () => null }))
 vi.mock('@/components/ui/capacity-notice', () => ({
   CapacityNotice: ({ message }: { message: string }) => <div>{message}</div>,

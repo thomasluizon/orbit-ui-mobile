@@ -78,7 +78,6 @@ vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => ({
 }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: state.isOnline }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError: vi.fn() }) }))
-vi.mock('@/components/navigation/web-nav', () => ({ WebNav: () => null }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => {
   const client = useQueryClient()
@@ -107,9 +106,7 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
-vi.mock('@/components/ui/push-prompt', () => ({ PushPrompt: () => null }))
 vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ RetainedOnboardingOverlay: ({ finalStepOnly, onExit }: { finalStepOnly: boolean; onExit: () => void }) => <div data-testid="account-onboarding">{finalStepOnly ? 'trial' : 'first habit'}<button type="button" onClick={() => { setOnboardingProPending('account-a', false); onExit() }}>Finish onboarding</button></div> }))
-vi.mock('@/components/gamification/streak-celebration', () => ({ StreakCelebration: () => null }))
 vi.mock('@/components/gamification/all-done-celebration', () => ({ AllDoneCelebration: () => null }))
 vi.mock('@/components/gamification/goal-completed-celebration', () => ({ GoalCompletedCelebration: () => null }))
 vi.mock('@/components/gamification/welcome-back-toast', () => ({ WelcomeBackToast: () => null }))

@@ -495,10 +495,6 @@ vi.mock('@/components/habits/edit-habit-modal', () => ({
   },
 }))
 
-vi.mock('@/components/habits/log-habit-modal', () => ({
-  LogHabitModal: () => null,
-}))
-
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 

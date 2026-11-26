@@ -205,10 +205,6 @@ vi.mock('@/app/(app)/profile/_components/delete-account-modal', () => ({
   DeleteAccountModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="profile.deleteAccount.headingAreYouSure" /> : null,
 }))
 
-vi.mock('@/app/(app)/profile/_components/profile-nav-card', () => ({
-  ProfileNavCard: () => null,
-}))
-
 
 
 

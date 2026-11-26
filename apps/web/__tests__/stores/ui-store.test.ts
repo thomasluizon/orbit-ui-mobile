@@ -12,10 +12,6 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@/components/habits/controls-menu', () => ({
-  ControlsMenu: () => null,
-}))
-
 describe('ui store', () => {
   beforeEach(() => {
     globalThis.localStorage.clear()
