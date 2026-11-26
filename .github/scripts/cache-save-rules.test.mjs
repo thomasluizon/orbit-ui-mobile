@@ -949,7 +949,7 @@ const RULES = {
   },
   // docker/build-push-action at c3c9e263c25d99ce0380d002d59b67737d91b0dc (v7), action.yml: only cache-to exports a build cache.
   "no build cache export": { actions: ["docker/build-push-action"], check: ({ step, where }) => assertNoInputs(step, where, ["cache-to"]) },
-  // github/codeql-action at 33d7b85da1a04171e211befe2c739303b9a4c066: src/caching-utils.ts getCachingKind gives no dependency
+  // github/codeql-action at 1bd86f2fdb4b86187fa4059f16f31a3202acc9ea: src/caching-utils.ts getCachingKind gives no dependency
   // cache for an unset input, and src/trap-caching.ts uploadTrapCaches saves only from the default branch. Cache Budget
   // deletes each overlay base database that a newer one replaced, then the older main entries above 5 MB.
   "CodeQL saves only on main": {
@@ -1598,6 +1598,27 @@ test("the remote inventory has one sorted line for each remote action in use, an
     assert.deepEqual(Object.keys(line), ["action", "cache", "why"], line.action)
     assert.ok(["no cache", "restore only", "cache step"].includes(line.cache), line.action)
     assert.equal(line.action, line.action.toLowerCase(), line.action)
+  }
+})
+
+// A line of the remote inventory and a comment of a cache script name the commit that the reviewer read. A Dependabot bump
+// moves the pin of a workflow, so each full commit SHA in this text must be a pin that a workflow or a local action still holds.
+test("each commit SHA that the cache inventory text names for a remote action is a pin of that action", () => {
+  const pins = [...workflows.flatMap(({ jobs }) => Object.values(jobs).flatMap(({ steps = [] }) => steps)), ...actions.flatMap(({ steps }) => steps)]
+    .map((step) => step.uses?.toLowerCase())
+    .filter((use) => use?.includes("@"))
+  const named = REMOTE_INVENTORY.flatMap(({ action, why }) => [...why.matchAll(/\b[0-9a-f]{40}\b/g)].map(([sha]) => ({ action, sha, where: REMOTE_INVENTORY_FILE })))
+  for (const file of ["cache-save-rules.test.mjs", "sweep-actions-caches.mjs"]) {
+    const source = readFileSync(join(root, ".github/scripts", file), "utf8")
+    for (const [, action, sha] of source.matchAll(/([\w.-]+\/[\w.-]+(?:\/[\w.-]+)*) at ([0-9a-f]{40})\b/g)) named.push({ action, sha, where: file })
+  }
+  assert.ok(named.length > 0)
+  const owns = (use, action) => use.startsWith(`${action}@`) || use.startsWith(`${action}/`)
+  for (const { action, sha, where } of named) {
+    const name = action.toLowerCase()
+    // A tag pin has no commit to compare, so only an action that a workflow pins by commit is checked.
+    if (!pins.some((use) => owns(use, name) && /@[0-9a-f]{40}$/.test(use))) continue
+    assert.ok(pins.some((use) => owns(use, name) && use.endsWith(`@${sha}`)), `${where}: ${action} at ${sha} is not a pin of any workflow`)
   }
 })
 

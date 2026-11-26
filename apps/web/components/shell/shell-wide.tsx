@@ -466,7 +466,7 @@ function ShellWideBackground({
       ref={registerScroller}
       data-shell-scroller=""
       style={{ scrollPaddingBottom: orbitSpacing.focusClearance }}
-      className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${orbitSpacing.padding}`}
+      className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] ${orbitSpacing.padding} has-[[data-question-flow]]:[--shell-scroller-end:0px]`}
     >
       <span
         aria-hidden="true"

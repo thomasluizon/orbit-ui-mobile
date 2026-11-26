@@ -25,7 +25,7 @@ const ledger: readonly { row: string; web: LedgerSide; android: LedgerSide }[] =
   {
     row: '4 Log the habit after the last checklist item, with one question in a sheet',
     web: { file: 'apps/web/__tests__/components/habits/habit-question-prompts.test.tsx', fragment: 'asks the checklist question after the last item', control: "getByRole('dialog', { name: 'habits.checklistCompleteQuestion' })" },
-    android: { file: 'apps/mobile/__tests__/components/habits/habit-question-prompts.test.tsx', fragment: 'asks the checklist question after the last item', control: 'press(options(tree)[0]!)' },
+    android: { file: 'apps/mobile/__tests__/components/habits/habit-question-prompts.test.tsx', fragment: 'asks the checklist question after the last item', control: 'press(answers(tree)[1]!)' },
   },
   {
     row: '5 Log or skip the parent after the last child, with the ancestor choices',

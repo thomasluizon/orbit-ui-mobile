@@ -115,7 +115,7 @@ function AuthInitializer({
   const runtimeTokens = createTokensV2(runtimeTheme.scheme, runtimeTheme.themeMode)
   const [hasRenderedApp, setHasRenderedApp] = useState(false)
   const [bootDeadlinePassed, setBootDeadlinePassed] = useState(false)
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Geist_400Regular,
     Geist_500Medium,
     Geist_600SemiBold,
@@ -199,7 +199,8 @@ function AuthInitializer({
     return () => clearTimeout(timer)
   }, [])
 
-  const appReady = ready && fontsLoaded && onboardingDraftHydrated
+  const fontsSettled = fontsLoaded || fontError !== null
+  const appReady = ready && fontsSettled && onboardingDraftHydrated
   const shellReleased = appReady || bootDeadlinePassed
   const coverShell = !appReady && !(ready && bootDeadlinePassed)
 

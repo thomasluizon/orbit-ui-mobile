@@ -29,14 +29,13 @@ describe('a quick option that waits for its own request', () => {
     expect(card.querySelector('[data-slot="skeleton-face"]')).toBeNull()
   })
 
-  it('shows the wait on the confirm answer of a question sheet, and disables the other answer', () => {
+  it('shows the wait on the confirm action of a question sheet, and disables the other action', () => {
     render(<ConfirmSheet open quickOptions loading confirmImmediately title="Quer registrar este hábito?" message="" confirmLabel="Registrar hábito" onCancel={vi.fn()} onConfirm={vi.fn()} />)
-    const [confirm, cancel] = [...document.querySelectorAll<HTMLButtonElement>('[data-option-card]')]
+    const [cancel, confirm] = [...document.querySelectorAll<HTMLButtonElement>('[data-slot="sheet-actions"] button')]
+    expect(document.querySelector('[data-option-card]')).toBeNull()
     expect(confirm).toHaveAttribute('aria-busy', 'true')
-    expect(confirm!.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
     expect(confirm).toHaveTextContent('Registrar hábito')
+    expect(confirm).toBeDisabled()
     expect(cancel).toBeDisabled()
-    expect(cancel).not.toHaveAttribute('aria-busy')
-    expect(cancel!.querySelector('[data-slot="skeleton-face"]')).toBeNull()
   })
 })

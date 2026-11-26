@@ -34,5 +34,5 @@ function GuidedCreateScreen({ children, leaving, dirty, onNavigate, onReturn }: 
     return () => useUIStore.getState().unregisterOpenOverlay(HABIT_CREATE_OVERLAY_ID)
   }, [])
   useHabitCreateNavigationGuard({ active: true, dirty, leaving, onNavigate, onReturn })
-  return <div data-habit-create-screen="" data-guided="" className="flex min-h-0 w-full flex-1 flex-col">{children}</div>
+  return <div data-habit-create-screen="" data-guided="" data-page-viewport="" className="flex min-h-0 w-full flex-1 flex-col">{children}</div>
 }

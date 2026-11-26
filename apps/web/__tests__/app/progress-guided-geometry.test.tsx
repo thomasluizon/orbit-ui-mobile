@@ -130,14 +130,16 @@ describe('Progresso guided geometry in Chromium', () => {
       fireEvent.click(within(document.querySelector<HTMLElement>('[data-streak-repair]')!).getByRole('button'))
     }, () => {
       const header = document.querySelector('[data-question-flow] header')!.getBoundingClientRect()
-      const flow = document.querySelector('[data-question-flow]')!.getBoundingClientRect()
+      const flowElement = document.querySelector('[data-question-flow]')!
+      const column = flowElement.closest('[data-shell-scroller]')!.getBoundingClientRect()
       const block = document.querySelector('[data-question-flow] [role="presentation"]')!.getBoundingClientRect()
       const question = document.querySelector('[data-question-flow] h1')!
       return {
-        free: { top: header.bottom, bottom: flow.bottom }, block: { top: block.top, bottom: block.bottom },
+        free: { top: header.bottom, bottom: column.bottom }, flowBottom: flowElement.getBoundingClientRect().bottom, block: { top: block.top, bottom: block.bottom },
         questionLines: Math.round(question.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(question).lineHeight)),
       }
     })
+    expect(Math.abs(geometry.flowBottom - geometry.free.bottom), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
     expect(Math.abs((geometry.block.top + geometry.block.bottom) / 2 - (geometry.free.top + geometry.free.bottom) / 2), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
     expect(geometry.questionLines).toBeLessThanOrEqual(2)
   })
