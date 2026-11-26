@@ -231,15 +231,23 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
-  # The required check Tool Tests runs on every pull request and push. It reports a conclusion even when every changed
-  # path is an unread document that .github/scripts/tool-tests-skip-paths.json lists: the tools harness and the
-  # workflow behavior tests are skipped and the job succeeds. The full-tree graphic floor scan runs on every pull request.
-  tool-tests:
-    name: Tool Tests
+  # The required check Checks runs the lint, the type check, the workspace unit tests and the tool tests in one job, so the
+  # runner installs the dependency tree once. A step after the first install step runs when an earlier step failed, so one run
+  # reports every failure. The job reports a conclusion even when no scope applies: the tools harness and the workflow
+  # behavior tests are skipped when every changed path is an unread document that .github/scripts/tool-tests-skip-paths.json
+  # lists. The full-tree graphic floor scan runs on every pull request. Setup, lint, type check, workspace tests and tool
+  # tests took about 7 minutes in the four jobs that this job replaces, so the limit is the 15 minute cap.
+  checks:
+    name: Checks
     if: ${{ !cancelled() }}
     needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      ARTIFACT_NAME: workspace-unit-coverage-attempt-${{ github.run_attempt }}
+    # The upload outcome is the result of a workspace run that passed. The test outcome is the result when the upload was skipped.
+    outputs:
+      workspace-unit-result: ${{ steps.workspace-upload.outcome == 'skipped' && steps.workspace-unit.outcome || steps.workspace-upload.outcome }}
     steps:
       - name: Require the plan
         env:
@@ -248,7 +256,7 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -272,8 +280,97 @@ jobs:
             echo "Dependency tree check skipped: no package manifest changed."
           fi
 
+      - name: Resolve pull request changed paths
+        id: changed-paths
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true' }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"
+
+      - name: Lint only files changed by this pull request
+        if: ${{ !cancelled() && steps.changed-paths.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          web=()
+          mobile=()
+          shared=()
+          desktop=()
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              apps/web/*.js|apps/web/*.jsx|apps/web/*.mjs|apps/web/*.cjs|apps/web/*.ts|apps/web/*.tsx|apps/web/*.mts|apps/web/*.cts)
+                web+=("${file#apps/web/}") ;;
+              apps/mobile/*.js|apps/mobile/*.jsx|apps/mobile/*.mjs|apps/mobile/*.cjs|apps/mobile/*.ts|apps/mobile/*.tsx|apps/mobile/*.mts|apps/mobile/*.cts)
+                mobile+=("${file#apps/mobile/}") ;;
+              packages/shared/*.js|packages/shared/*.jsx|packages/shared/*.mjs|packages/shared/*.cjs|packages/shared/*.ts|packages/shared/*.tsx|packages/shared/*.mts|packages/shared/*.cts)
+                shared+=("${file#packages/shared/}") ;;
+              apps/desktop/src-tauri/*) ;;
+              apps/desktop/*.js|apps/desktop/*.jsx|apps/desktop/*.mjs|apps/desktop/*.cjs|apps/desktop/*.ts|apps/desktop/*.tsx|apps/desktop/*.mts|apps/desktop/*.cts)
+                desktop+=("${file#apps/desktop/}") ;;
+            esac
+          done < "$RUNNER_TEMP/changed-paths-present.nul"
+          if [ "${#web[@]}" -gt 0 ]; then (cd apps/web && node_modules/.bin/eslint -- "${web[@]}"); fi
+          if [ "${#mobile[@]}" -gt 0 ]; then (cd apps/mobile && ../../node_modules/.bin/eslint -- "${mobile[@]}"); fi
+          if [ "${#shared[@]}" -gt 0 ]; then (cd packages/shared && node_modules/.bin/eslint -- "${shared[@]}"); fi
+          if [ "${#desktop[@]}" -gt 0 ]; then (cd apps/desktop && node_modules/.bin/eslint -- "${desktop[@]}"); fi
+          echo "Linted ${#web[@]} web, ${#mobile[@]} mobile, ${#shared[@]} shared and ${#desktop[@]} desktop files."
+
+      - name: Restore turbo
+        id: turbo-cache
+        if: ${{ !cancelled() && needs.plan.outputs.type-check == 'true' }}
+        uses: actions/cache/restore@v6
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-type-check-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-type-check-
+
+      - name: Run the type check
+        id: type-check
+        if: ${{ !cancelled() && needs.plan.outputs.type-check == 'true' }}
+        run: ./node_modules/.bin/turbo run type-check
+
+      # Each push to main adds the results of its changed workspaces to the restored ones, and Turbo removes none.
+      # A result that is still current after 30 days costs one more type check of its workspace.
+      - name: Remove the Turbo results that are older than 30 days
+        if: github.event_name != 'pull_request' && steps.type-check.outcome == 'success'
+        run: find .turbo -type f -mtime +30 -delete
+      - name: Save turbo
+        if: github.event_name != 'pull_request' && steps.type-check.outcome == 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: .turbo
+          key: ${{ steps.turbo-cache.outputs.cache-primary-key }}
+
+      - name: Run workspaces with coverage thresholds
+        id: workspace-unit
+        if: ${{ !cancelled() && needs.plan.outputs.workspace-unit-hit != 'true' }}
+        timeout-minutes: 6
+        run: ./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage
+
+      # Preserve repository paths under one folder with the artifact's own name: Unit Tests extracts every
+      # artifact at one path.
+      - name: Stage workspace coverage
+        if: steps.workspace-unit.outcome == 'success'
+        run: |
+          for directory in apps/desktop packages/shared eslint-rules; do
+            test -s "$directory/coverage/lcov.info"
+            mkdir -p ".artifacts/workspace-coverage/$ARTIFACT_NAME/$directory/coverage"
+            cp "$directory/coverage/lcov.info" ".artifacts/workspace-coverage/$ARTIFACT_NAME/$directory/coverage/lcov.info"
+          done
+
+      - name: Upload workspace coverage
+        id: workspace-upload
+        if: steps.workspace-unit.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: .artifacts/workspace-coverage
+          include-hidden-files: true
+          if-no-files-found: error
+
       - name: Run the tools harness
-        if: needs.plan.outputs.tools == 'true'
+        if: ${{ !cancelled() && needs.plan.outputs.tools == 'true' }}
         run: node tools/test-tools.mjs
 
       - name: Test CI workflow behavior
@@ -285,7 +382,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     if: ${{ !cancelled() }}
-    needs: [plan, web-tests, mobile-tests, workspace-tests]
+    needs: [plan, checks, web-tests, mobile-tests]
     runs-on: ubuntu-latest
     # On main the old Unit Tests job (103 s at worst) and the old SonarCloud job (516 s at worst) sum to 619 s. The limit is 1.5 times that.
     timeout-minutes: 16
@@ -298,7 +395,7 @@ jobs:
           WEB_HIT: ${{ needs.plan.outputs.web-unit-hit }}
           MOBILE_RESULT: ${{ needs.mobile-tests.result }}
           MOBILE_HIT: ${{ needs.plan.outputs.mobile-unit-hit }}
-          WORKSPACE_RESULT: ${{ needs.workspace-tests.result }}
+          WORKSPACE_RESULT: ${{ needs.checks.outputs.workspace-unit-result }}
           WORKSPACE_HIT: ${{ needs.plan.outputs.workspace-unit-hit }}
         run: |
           test "$PLAN_RESULT" = success
@@ -401,7 +498,7 @@ jobs:
         run: ../../node_modules/.bin/vitest run --merge-reports=.artifacts/unit-tests/blobs --coverage --reporter=default
 
       - name: Download workspace coverage
-        if: needs.workspace-tests.result == 'success'
+        if: needs.checks.outputs.workspace-unit-result == 'success'
         uses: actions/download-artifact@v8
         with:
           pattern: workspace-unit-coverage-*
@@ -409,7 +506,7 @@ jobs:
           merge-multiple: true
 
       - name: Select latest workspace coverage attempt
-        if: needs.workspace-tests.result == 'success'
+        if: needs.checks.outputs.workspace-unit-result == 'success'
         run: node tools/select-artifact-attempts.mjs --input-dir .artifacts/downloads/workspaces --output-dir .
 
       - name: Restore cached web unit results
@@ -429,7 +526,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Restore cached workspace unit results
-        if: needs.workspace-tests.result == 'skipped'
+        if: needs.checks.outputs.workspace-unit-result == 'skipped'
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.WORKSPACE_UNIT_RESULTS }}
@@ -480,7 +577,7 @@ jobs:
           key: ${{ needs.plan.outputs.mobile-unit-key }}
 
       - name: Save workspace unit results
-        if: github.event_name != 'pull_request' && needs.workspace-tests.result == 'success'
+        if: github.event_name != 'pull_request' && needs.checks.outputs.workspace-unit-result == 'success'
         uses: actions/cache/save@v6
         with:
           path: ${{ env.WORKSPACE_UNIT_RESULTS }}
@@ -638,139 +735,6 @@ jobs:
           path: .artifacts/upload
           include-hidden-files: true
           if-no-files-found: error
-
-  # Step limit: the longest successful steps (shared 150 s, desktop 35 s, eslint-rules 17 s) summed, times 1.5, rounded up.
-  workspace-tests:
-    name: Workspace unit (desktop, shared, eslint-rules)
-    needs: plan
-    if: needs.plan.outputs.workspace-unit-hit != 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 9
-    env:
-      ARTIFACT_NAME: workspace-unit-coverage-attempt-${{ github.run_attempt }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          package-manager-cache: false
-      - uses: ./.github/actions/restore-npm-cache
-      - run: npm ci
-      - name: Run workspaces with coverage thresholds
-        timeout-minutes: 6
-        run: ./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage
-      # Preserve repository paths under one folder with the artifact's own name: Unit Tests extracts every
-      # artifact at one path.
-      - name: Stage workspace coverage
-        run: |
-          for directory in apps/desktop packages/shared eslint-rules; do
-            test -s "$directory/coverage/lcov.info"
-            mkdir -p ".artifacts/workspace-coverage/$ARTIFACT_NAME/$directory/coverage"
-            cp "$directory/coverage/lcov.info" ".artifacts/workspace-coverage/$ARTIFACT_NAME/$directory/coverage/lcov.info"
-          done
-      - name: Upload workspace coverage
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: .artifacts/workspace-coverage
-          include-hidden-files: true
-          if-no-files-found: error
-
-  type-check:
-    name: Type Check
-    needs: plan
-    if: needs.plan.outputs.type-check == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 6
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          package-manager-cache: false
-
-      - uses: ./.github/actions/restore-npm-cache
-
-      - run: npm ci
-
-      - name: Restore turbo
-        id: turbo-cache
-        uses: actions/cache/restore@v6
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-type-check-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-type-check-
-
-      - run: ./node_modules/.bin/turbo run type-check
-
-      # Each push to main adds the results of its changed workspaces to the restored ones, and Turbo removes none.
-      # A result that is still current after 30 days costs one more type check of its workspace.
-      - name: Remove the Turbo results that are older than 30 days
-        if: github.event_name != 'pull_request'
-        run: find .turbo -type f -mtime +30 -delete
-      - name: Save turbo
-        if: github.event_name != 'pull_request'
-        uses: actions/cache/save@v6
-        with:
-          path: .turbo
-          key: ${{ steps.turbo-cache.outputs.cache-primary-key }}
-
-  lint:
-    name: Lint
-    needs: plan
-    if: github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Resolve pull request changed paths
-        if: github.event_name == 'pull_request'
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          package-manager-cache: false
-
-      - uses: ./.github/actions/restore-npm-cache
-
-      - run: npm ci
-
-      - name: Lint only files changed by this pull request
-        shell: bash
-        run: |
-          set -euo pipefail
-          web=()
-          mobile=()
-          shared=()
-          desktop=()
-          while IFS= read -r -d '' file; do
-            case "$file" in
-              apps/web/*.js|apps/web/*.jsx|apps/web/*.mjs|apps/web/*.cjs|apps/web/*.ts|apps/web/*.tsx|apps/web/*.mts|apps/web/*.cts)
-                web+=("${file#apps/web/}") ;;
-              apps/mobile/*.js|apps/mobile/*.jsx|apps/mobile/*.mjs|apps/mobile/*.cjs|apps/mobile/*.ts|apps/mobile/*.tsx|apps/mobile/*.mts|apps/mobile/*.cts)
-                mobile+=("${file#apps/mobile/}") ;;
-              packages/shared/*.js|packages/shared/*.jsx|packages/shared/*.mjs|packages/shared/*.cjs|packages/shared/*.ts|packages/shared/*.tsx|packages/shared/*.mts|packages/shared/*.cts)
-                shared+=("${file#packages/shared/}") ;;
-              apps/desktop/src-tauri/*) ;;
-              apps/desktop/*.js|apps/desktop/*.jsx|apps/desktop/*.mjs|apps/desktop/*.cjs|apps/desktop/*.ts|apps/desktop/*.tsx|apps/desktop/*.mts|apps/desktop/*.cts)
-                desktop+=("${file#apps/desktop/}") ;;
-            esac
-          done < "$RUNNER_TEMP/changed-paths-present.nul"
-          if [ "${#web[@]}" -gt 0 ]; then (cd apps/web && node_modules/.bin/eslint -- "${web[@]}"); fi
-          if [ "${#mobile[@]}" -gt 0 ]; then (cd apps/mobile && ../../node_modules/.bin/eslint -- "${mobile[@]}"); fi
-          if [ "${#shared[@]}" -gt 0 ]; then (cd packages/shared && node_modules/.bin/eslint -- "${shared[@]}"); fi
-          if [ "${#desktop[@]}" -gt 0 ]; then (cd apps/desktop && node_modules/.bin/eslint -- "${desktop[@]}"); fi
-          echo "Linted ${#web[@]} web, ${#mobile[@]} mobile, ${#shared[@]} shared and ${#desktop[@]} desktop files."
 
   layout-shards:
     name: Layout shard ${{ matrix.shard }}

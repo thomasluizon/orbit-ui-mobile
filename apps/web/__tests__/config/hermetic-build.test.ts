@@ -25,4 +25,13 @@ describe('hermetic build origin', () => {
     const build = vi.mocked(spawnSync).mock.calls.find(([, argumentsList]) => argumentsList?.includes('build'))
     expect(build?.[2]?.env?.NEXT_PUBLIC_SITE_URL).toBe(expectedOrigin)
   })
+
+  it('skips the TypeScript pass of next build, which the Checks job runs', async () => {
+    vi.resetModules()
+
+    await import('../../scripts/build-hermetic.mjs')
+
+    const build = vi.mocked(spawnSync).mock.calls.find(([, argumentsList]) => argumentsList?.includes('build'))
+    expect(build?.[2]?.env?.ORBIT_HERMETIC_BUILD).toBe('1')
+  })
 })

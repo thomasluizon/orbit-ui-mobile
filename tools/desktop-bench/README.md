@@ -111,7 +111,7 @@ The Windows job builds with `--no-sign`. A workflow dispatch or a pull request f
 macOS in the separate `installed-signed` job. That job takes the `desktop-staging` environment with
 `deployment: false`, and the Windows job takes no environment. GitHub passes no secrets to a workflow that
 a fork triggers, so a fork pull request runs the Windows job only. The VM jobs run no producer
-regression. `Tool Tests` runs every producer test file (`test-acceptance*.ts`,
+regression. `Checks` runs every producer test file (`test-acceptance*.ts`,
 `test-child-limit.ts`) on `ubuntu-latest`, where the cases gated on `process.platform` skip, and fails when
 a file that imports `node:test` is not started there. `test-acceptance-support.ts` holds no test case: it
 gives `test-acceptance.ts` and `test-acceptance-keys.ts` one inspection context on the real runner source.

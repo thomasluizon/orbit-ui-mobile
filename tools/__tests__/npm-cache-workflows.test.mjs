@@ -33,11 +33,11 @@ test("unit test steps retain their budget with setup and report time outside it"
   for (const [job, stepName, stepMinutes, jobMinutes] of [
     ["web-tests", "Run web shard with coverage", 16, 20],
     ["mobile-tests", "Run mobile shard with coverage", 10, 13],
-    ["workspace-tests", "Run workspaces with coverage thresholds", 6, 9],
+    ["checks", "Run workspaces with coverage thresholds", 6, 15],
   ]) {
     const step = workflow.jobs[job].steps.find((candidate) => candidate.name === stepName)
     assert.equal(step["timeout-minutes"], stepMinutes, `${job} owns a separate test budget`)
-    assert.equal(workflow.jobs[job]["timeout-minutes"], jobMinutes, `${job} reserves three minutes for setup and reports`)
+    assert.equal(workflow.jobs[job]["timeout-minutes"], jobMinutes, `${job} reserves its job limit for the step budget, setup and reports`)
   }
 })
 
@@ -79,11 +79,11 @@ test("no workflow or local action text names a command that installs a package a
 })
 
 test("the runner ban fails each form that installs a package at run time", () => {
-  const typeCheck = workflows.find(([file]) => file === "test.yml")[1].jobs["type-check"]
+  const typeCheck = workflows.find(([file]) => file === "test.yml")[1].jobs.checks
   const findingsOf = (run, place = (job) => job.steps.find((step) => /turbo run type-check/.test(step.run ?? ""))) => {
     const job = structuredClone(typeCheck)
     place(job).run = run
-    return runnerFindings("test.yml", { jobs: { "type-check": job } }).join("\n")
+    return runnerFindings("test.yml", { jobs: { checks: job } }).join("\n")
   }
   for (const [run, reason] of [
     ["npx -y turbo run type-check", /npx can install/],
@@ -108,7 +108,7 @@ test("the runner ban fails each form that installs a package at run time", () =>
     ["/usr/local/bin/npm exec turbo run type-check", /npm exec is not/],
   ]) assert.match(findingsOf(run), reason, run)
   // The Plan step of the same workflow, a value of the step env, and a quoted script of another action are text too.
-  assert.match(findingsOf("npx turbo run test --dry=json", (job) => job.steps.find((step) => step.run === "npm ci")), /npx can install/)
+  assert.match(findingsOf("npx turbo run test --dry=json", (job) => job.steps.find((step) => step.run === "npm ci --prefer-offline --no-audit --fund=false")), /npx can install/)
   assert.match(runnerFindings("probe.yml", { jobs: { probe: { steps: [{ env: { RUNNER: "npx" }, run: "$RUNNER turbo" }] } } }).join("\n"), /npx can install/)
   assert.match(runnerFindings("probe.yml", { jobs: { probe: { steps: [{ uses: "actions/github-script@v8", with: { script: "exec('npx', ['turbo'])" } }] } } }).join("\n"), /npx can install/)
   // The reviewed forms pass: an npm script, a binary by path, the npm cache and config reads, and the pinned npm install.
