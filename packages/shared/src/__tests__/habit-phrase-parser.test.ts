@@ -666,6 +666,18 @@ describe('weekday ranges', () => {
     expect(getHabitPhraseTitle(input, 'pt-BR', { cadence: true, dueTime: true })).toBe('academia')
   })
 
+  it.each([
+    ['en', 'gym monday at 7am through friday'],
+    ['pt-BR', 'academia segunda às 7 a sexta'],
+  ] as const)('keeps the range and its time as tokens that do not overlap in %s "%s"', (locale, input) => {
+    const read = parseHabitPhrase(input, locale)
+    expect(read).toMatchObject({ days: workWeek, dueTime: '07:00' })
+    read.consumed.slice(1).forEach((token, index) => {
+      expect(token.start).toBeGreaterThanOrEqual(read.consumed[index]!.end)
+    })
+    expect(segmentHabitPhrase(input, read.consumed).map((segment) => segment.text).join('')).toBe(input)
+  })
+
   it('keeps a weekly suffix after a range', () => {
     const read = readHabitPhrase('monday to friday every 2 weeks', 'en')
     expect(read).toMatchObject({ days: workWeek, intervalWeeks: 2 })
