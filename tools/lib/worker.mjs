@@ -1,7 +1,7 @@
 /** The delivery driver's headless worker: its command, settings and environment, its clocks, and what a claude log says about how it stopped. */
 
 import { spawn, spawnSync } from "node:child_process"
-import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 
@@ -350,6 +350,28 @@ export const worktreeOccupants = (worktree, { stateDirectory, run = spawnSync, a
     if (command !== undefined && Number(pid) !== ownPid && named.test(command)) pids.add(Number(pid))
   }
   return [...pids].sort((left, right) => left - right)
+}
+
+/** The pid and the working directory of every live process, from one `lsof -d cwd -Fpn` read. Each process shows as a `p<pid>` line, an `fcwd` line and an `n<path>` line. */
+export const processDirectories = ({ run = spawnSync } = {}) => {
+  const listed = run("lsof", ["-d", "cwd", "-Fpn"], { encoding: "utf8", timeout: 60 * 1000 })
+  // lsof exits 1 when it could not read some process, so only an empty answer is a failure.
+  if ((listed.stdout ?? "") === "") throw new Error(`lsof failed: ${(listed.stderr ?? "").trim() || `exit ${listed.status}`}`)
+  const directories = []
+  let pid = null
+  for (const line of listed.stdout.split("\n")) {
+    if (line.startsWith("p")) pid = Number(line.slice(1))
+    else if (line.startsWith("n") && pid !== null) directories.push({ pid, path: line.slice(1) })
+  }
+  return directories
+}
+
+/** The process ids whose working directory is the worktree or a path under it. The driver's own process never counts. */
+export const directoryHolders = (directories, worktree, { ownPid = process.pid } = {}) => {
+  const paths = new Set([resolve(worktree)])
+  try { paths.add(realpathSync(worktree)) } catch { /* a worktree that is gone has no holder to find by its real path */ }
+  const held = directories.filter(({ pid, path }) => pid !== ownPid && [...paths].some((root) => path === root || path.startsWith(`${root}/`)))
+  return [...new Set(held.map(({ pid }) => pid))].sort((left, right) => left - right)
 }
 
 /**

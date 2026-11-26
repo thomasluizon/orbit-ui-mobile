@@ -11,13 +11,13 @@ import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { delimiter, dirname, join } from "node:path"
+import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { readDriveConfig } from "./lib/config.mjs"
 import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
-import { WORKTREE_REMOVE_ARGUMENTS, parseWorktreeList } from "./lib/git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
@@ -303,7 +303,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, notified: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map() })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -1238,17 +1238,88 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   if (shas.length > 0 && Number.isInteger(number) && number > 0 && result.sessionId) await recordCommits(env, repoKey, number, result.sessionId, shas)
 }
 
+/**
+ * The reason a worktree cannot go: it holds a repository or a linked worktree in an ignored directory. `git worktree remove`
+ * deletes an ignored path with all it holds, and neither status check shows a change inside it. Null when the tree holds none.
+ */
+const nestedRepositoryReason = (env, path) => {
+  const found = env.findRepositories(path)
+  if (found === null) return "the repositories inside it are unreadable"
+  const nested = found.filter((directory) => resolve(directory) !== resolve(path))
+  return nested.length > 0 ? `it holds a repository or worktree: ${nested.join(", ")}` : null
+}
+
 const removeWorktrees = async (env, repoKey, branches) => {
   const repoPath = env.config.repos[repoKey]
   const listed = parseWorktreeList(await gitText(env, repoPath, ["worktree", "list", "--porcelain"]))
   for (const branch of branches) {
     const entry = listed.find((candidate) => candidate.branch === branch)
     if (entry) {
+      // `git worktree remove` deletes the directory under a shell or a session whose cwd is in it.
+      let holders
+      try { holders = env.worker.directoryHolders(env.worker.processDirectories(), entry.path) } catch (error) { log(env, repoKey, "worktree-kept", `${entry.path}: unreadable: ${error.message}`); continue }
+      if (holders.length > 0) { log(env, repoKey, "worktree-kept", `${entry.path}: a process holds it: pid ${holders.join(", ")}`); continue }
+      const nested = nestedRepositoryReason(env, entry.path)
+      if (nested !== null) { log(env, repoKey, "worktree-kept", `${entry.path}: ${nested}`); continue }
       const removed = await env.git(repoPath, [...WORKTREE_REMOVE_ARGUMENTS, entry.path])
       if (removed.status !== 0) { log(env, repoKey, "worktree-kept", removed.stderr.trim()); continue }
     }
     await env.git(repoPath, ["branch", "-D", branch])
   }
+}
+
+/**
+ * The reason a worktree stays, or null when it is finished: its branch has a merged pull request and no open one, the tree has no
+ * change (an untracked file counts), no commit is unpushed, no process holds it (by its command line, a pid file or its cwd), and it holds no other repository or worktree. The cheap local reads come before the one GitHub read. The walk of the tree comes last.
+ */
+const worktreeStayReason = async (env, repoKey, entry, directories) => {
+  const occupants = [...new Set([...env.worker.worktreeOccupants(entry.path, { stateDirectory: env.stateDir }), ...env.worker.directoryHolders(directories(), entry.path)])].sort((left, right) => left - right)
+  if (occupants.length > 0) return `a process holds it: pid ${occupants.join(", ")}`
+  if ((await gitText(env, entry.path, CLEAN_STATUS_ARGUMENTS)) !== "") return "the tree has a change"
+  if (hiddenChangesOf(await gitText(env, entry.path, HIDDEN_CHANGE_ARGUMENTS)).length > 0) return "the tree has a change that git status hides"
+  const head = await gitText(env, entry.path, ["rev-parse", "HEAD"])
+  const pulls = JSON.parse(await env.gh(["pr", "list", "--repo", env.slugOf(repoKey), "--head", entry.branch, "--state", "all", "--json", "number,state,headRefOid", "--limit", "20"]))
+  if (pulls.some((candidate) => candidate.state === "OPEN")) return "a pull request is open on the branch"
+  const merged = pulls.filter((candidate) => candidate.state === "MERGED")
+  if (merged.length === 0) return "no pull request of the branch is merged"
+  // The merged head is on GitHub. Any other head needs a remote branch that holds it.
+  if (!merged.some((candidate) => candidate.headRefOid === head) && (await gitText(env, entry.path, ["branch", "--remotes", "--contains", head])) === "") return "a commit is unpushed"
+  return nestedRepositoryReason(env, entry.path)
+}
+
+/**
+ * Removes each finished worktree of the ui, api and landing repositories, except the primary checkout and the driver's own worktree.
+ * A removal never forces: git refuses a changed tree. A worktree that stays is logged once for each reason.
+ */
+const sweepWorktrees = async (env, mem) => {
+  const seen = new Set()
+  // One lsof read serves every worktree of the sweep, and a sweep with no candidate reads none.
+  let directories = null
+  const readDirectories = () => (directories ??= env.worker.processDirectories())
+  for (const repoKey of REPOSITORY_KEYS) {
+    const repoPath = env.config.repos[repoKey]
+    let listed
+    try { listed = parseWorktreeList(await gitText(env, repoPath, ["worktree", "list", "--porcelain"])) } catch (error) { log(env, repoKey, "worktree-sweep-error", error.message); continue }
+    for (const entry of listed.slice(1)) {
+      if (entry.branch === null || entry.locked || entry.prunable || resolve(entry.path) === resolve(env.driverWorktree ?? "")) continue
+      seen.add(entry.path)
+      const reason = await worktreeStayReason(env, repoKey, entry, readDirectories).catch((error) => `unreadable: ${error.message}`)
+      if (reason !== null) {
+        if (mem.keptWorktrees.get(entry.path) !== reason) { mem.keptWorktrees.set(entry.path, reason); log(env, repoKey, "worktree-stays", `${entry.path}: ${reason}`) }
+        continue
+      }
+      const removed = await env.git(repoPath, [...WORKTREE_REMOVE_ARGUMENTS, entry.path])
+      if (removed.status !== 0) {
+        const failure = `removal refused: ${removed.stderr.trim()}`
+        if (mem.keptWorktrees.get(entry.path) !== failure) { mem.keptWorktrees.set(entry.path, failure); log(env, repoKey, "worktree-stays", `${entry.path}: ${failure}`) }
+        continue
+      }
+      mem.keptWorktrees.delete(entry.path)
+      await env.git(repoPath, ["branch", "-D", entry.branch])
+      log(env, repoKey, "worktree-removed", `${entry.path}, branch ${entry.branch}`)
+    }
+  }
+  for (const path of mem.keptWorktrees.keys()) if (!seen.has(path)) mem.keptWorktrees.delete(path)
 }
 
 /** The merged pull requests that track a ticket, oldest merge first: the search lists them by relevance, so the order is sorted here. */
@@ -1688,6 +1759,7 @@ export const tick = async (env, mem) => {
       if (reason === null) { mem.acted = true; free[name] -= 1 }
       else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
     }
+    await sweepWorktrees(env, mem).catch((error) => log(env, "worktrees", "error", error.message))
     const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : null)
     await startQuestions(env, mem, { tickets, states, blocked: questionsBlock }).catch((error) => log(env, "questions", "error", error.message))
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.
@@ -1903,6 +1975,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     log: (line) => console.log(line),
     slugOf: (key) => (key === "tickets" ? config.tickets.repository : repositorySlug(config.repos[key])),
     git: (cwd, args) => runBounded("git", ["-C", cwd, ...args], { timeoutMs: 300 * 1000 }),
+    findRepositories,
     gh: (args) => runText("gh", args, { maxBuffer: 64 * 1024 * 1024 }),
     notify: async (message) => { await runBounded("osascript", ["-e", `display notification ${JSON.stringify(message)} with title "Orbit driver"`], { timeoutMs: 15 * 1000 }) },
     keychain: async (service) => { const result = await runBounded("security", ["find-generic-password", "-s", service, "-w"], { timeoutMs: 15 * 1000 }); return result.status === 0 && result.stdout.trim() !== "" ? result.stdout.trim() : null },

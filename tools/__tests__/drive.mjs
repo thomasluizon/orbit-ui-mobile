@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process"
 import { EventEmitter } from "node:events"
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { readDriveConfig, workerEnvironment } from "../lib/config.mjs"
@@ -56,6 +56,8 @@ import {
   workerInvocation,
   workerSettings,
   worktreeOccupants,
+  processDirectories,
+  directoryHolders,
 } from "../lib/worker.mjs"
 import { driverUnit, pinUnit } from "./_drive-tick.mjs"
 import { REPO_ROOT, T, realOrchestratorConfig, root, same, toolPath } from "./_harness.mjs"
@@ -885,8 +887,24 @@ const occupantCases = () => {
   same("lib/worker.mjs: a ps that fails is an error, so the launch waits", failed, "ps failed: denied")
 }
 
+const directoryCases = () => {
+  const worktree = join(root, "directory-worktrees", "chore-ticket-9")
+  // The shape is the real output of `lsof -d cwd -Fpn`: a p line, an fcwd line and an n line for each process.
+  const output = `p178\nfcwd\nn/\np5151\nfcwd\nn${worktree}/apps/web\np5152\nfcwd\nn${worktree}\np5153\nfcwd\nn${worktree}-b\np77\nfcwd\nn${worktree}\n`
+  const read = (extra = {}) => processDirectories({ run: () => ({ status: 0, stdout: output, stderr: "" }), ...extra })
+  same("lib/worker.mjs: lsof output gives one pid and one path for each process", read().slice(0, 3), [{ pid: 178, path: "/" }, { pid: 5151, path: `${worktree}/apps/web` }, { pid: 5152, path: worktree }])
+  same("lib/worker.mjs: a process whose cwd is the worktree or a path under it holds it", directoryHolders(read(), worktree, { ownPid: 1 }), [77, 5151, 5152])
+  same("lib/worker.mjs: a sibling path with the same prefix and the driver's own process hold nothing", directoryHolders(read(), worktree, { ownPid: 77 }), [5151, 5152])
+  same("lib/worker.mjs: an lsof that exits 1 with output is read", read({ run: () => ({ status: 1, stdout: output, stderr: "can't stat" }) }).length, 5)
+  const failed = (() => { try { processDirectories({ run: () => ({ status: 1, stdout: "", stderr: "denied" }) }); return "" } catch (error) { return error.message } })()
+  same("lib/worker.mjs: an lsof that gives nothing is an error, so the worktree stays", failed, "lsof failed: denied")
+  const real = processDirectories()
+  T("lib/worker.mjs: the real lsof lists the cwd of this process", real.some(({ pid, path }) => pid === process.pid && path === realpathSync(process.cwd())), JSON.stringify(real.filter(({ pid }) => pid === process.pid)))
+}
+
 const workerUnit = async () => {
   occupantCases()
+  directoryCases()
   settingsCases()
   await skillAndEnvironmentCases()
   eventCases()
